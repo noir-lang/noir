@@ -160,7 +160,7 @@ impl<'def_maps, 'references_tracker> PathResolutionTargetResolver<'def_maps, 're
 
         let first_segment =
             &path.segments.first().expect("ice: could not fetch first segment").ident;
-        if self.get_module(current_module).find_name(first_segment).is_none() {
+        if get_module(self.def_maps, current_module).find_name(first_segment).is_none() {
             // Resolve externally when first segment is unresolved
             return self.resolve_dep_path(path);
         }
@@ -197,7 +197,7 @@ impl<'def_maps, 'references_tracker> PathResolutionTargetResolver<'def_maps, 're
     }
 
     fn resolve_super_path(&mut self, path: Path) -> Result<(Path, ModuleId), PathResolutionError> {
-        let Some(parent_module_id) = self.get_module(self.importing_module).parent else {
+        let Some(parent_module_id) = get_module(self.def_maps, self.importing_module).parent else {
             let span_start = path.span.start();
             let span = Span::from(span_start..span_start + 5); // 5 == "super".len()
             return Err(PathResolutionError::NoSuper(span));
@@ -206,11 +206,6 @@ impl<'def_maps, 'references_tracker> PathResolutionTargetResolver<'def_maps, 're
         let current_module =
             ModuleId { krate: self.importing_module.krate, local_id: parent_module_id };
         Ok((path, current_module))
-    }
-
-    fn get_module(&self, module: ModuleId) -> &ModuleData {
-        let message = "A crate should always be present for a given crate id";
-        &self.def_maps.get(&module.krate).expect(message).modules[module.local_id.0]
     }
 }
 
@@ -250,7 +245,7 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
 
         // The current module and module ID as we resolve path segments
         let mut current_module_id = starting_module;
-        let mut current_module = self.get_module(starting_module);
+        let mut current_module = get_module(self.def_maps, starting_module);
 
         let first_segment =
             &path.segments.first().expect("ice: could not fetch first segment").ident;
@@ -320,11 +315,6 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
         Ok(ResolvedImport { namespace: current_ns, errors })
     }
 
-    fn get_module(&self, module: ModuleId) -> &ModuleData {
-        let message = "A crate should always be present for a given crate id";
-        &self.def_maps.get(&module.krate).expect(message).modules[module.local_id.0]
-    }
-
     fn add_reference(&mut self, reference_id: ModuleDefId, span: Span, is_self_type_name: bool) {
         if let Some(references_tracker) = &mut self.references_tracker {
             references_tracker.add_reference(reference_id, span, is_self_type_name);
@@ -334,4 +324,9 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
     fn item_in_module_is_visible(&self, module: ModuleId, visibility: ItemVisibility) -> bool {
         item_in_module_is_visible(self.def_maps, self.importing_module, module, visibility)
     }
+}
+
+fn get_module(def_maps: &BTreeMap<CrateId, CrateDefMap>, module: ModuleId) -> &ModuleData {
+    let message = "A crate should always be present for a given crate id";
+    &def_maps.get(&module.krate).expect(message).modules[module.local_id.0]
 }
