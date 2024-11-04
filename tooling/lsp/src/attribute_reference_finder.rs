@@ -114,7 +114,7 @@ impl<'a> Visitor for AttributeReferenceFinder<'a> {
             return;
         };
 
-        let Some((module_def_id, _, _)) = result.resolved_namespace.values else {
+        let Some((module_def_id, _, _)) = result.namespace.values else {
             return;
         };
 

@@ -35,12 +35,7 @@ impl ImportDirective {
     }
 }
 
-struct NamespaceResolution {
-    namespace: PerNs,
-    errors: Vec<PathResolutionError>,
-}
-
-type NamespaceResolutionResult = Result<NamespaceResolution, PathResolutionError>;
+type ImportResolutionResult = Result<ResolvedImport, PathResolutionError>;
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum PathResolutionError {
@@ -57,7 +52,7 @@ pub enum PathResolutionError {
 #[derive(Debug)]
 pub struct ResolvedImport {
     // The symbol which we have resolved to
-    pub resolved_namespace: PerNs,
+    pub namespace: PerNs,
     // The module which we must add the resolved namespace to
     pub errors: Vec<PathResolutionError>,
 }
@@ -121,22 +116,7 @@ impl<'interner, 'def_maps, 'usage_tracker, 'path_references>
         Self { interner, def_maps, usage_tracker, path_references }
     }
 
-    fn solve(
-        &mut self,
-        path: Path,
-        importing_module: ModuleId,
-    ) -> Result<ResolvedImport, PathResolutionError> {
-        let NamespaceResolution { namespace: resolved_namespace, errors } =
-            self.resolve_path_to_ns(path, importing_module)?;
-
-        Ok(ResolvedImport { resolved_namespace, errors })
-    }
-
-    fn resolve_path_to_ns(
-        &mut self,
-        path: Path,
-        importing_module: ModuleId,
-    ) -> NamespaceResolutionResult {
+    fn solve(&mut self, path: Path, importing_module: ModuleId) -> ImportResolutionResult {
         match path.kind {
             PathKind::Crate => self.resolve_crate_path(path, importing_module),
             PathKind::Plain => self.resolve_plain_path(path, importing_module, importing_module),
@@ -149,7 +129,7 @@ impl<'interner, 'def_maps, 'usage_tracker, 'path_references>
         &mut self,
         path: Path,
         importing_module: ModuleId,
-    ) -> NamespaceResolutionResult {
+    ) -> ImportResolutionResult {
         let root_module = self.def_maps[&importing_module.krate].root;
         let current_module = ModuleId { krate: importing_module.krate, local_id: root_module };
         self.resolve_name_in_module(
@@ -165,7 +145,7 @@ impl<'interner, 'def_maps, 'usage_tracker, 'path_references>
         path: Path,
         current_module: ModuleId,
         importing_module: ModuleId,
-    ) -> NamespaceResolutionResult {
+    ) -> ImportResolutionResult {
         // There is a possibility that the import path is empty. In that case, early return.
         if path.segments.is_empty() {
             return self.resolve_name_in_module(
@@ -197,14 +177,14 @@ impl<'interner, 'def_maps, 'usage_tracker, 'path_references>
         starting_module: ModuleId,
         importing_module: ModuleId,
         plain_or_crate: bool,
-    ) -> NamespaceResolutionResult {
+    ) -> ImportResolutionResult {
         // The current module and module ID as we resolve path segments
         let mut current_module_id = starting_module;
         let mut current_module = self.get_module(starting_module);
 
         // There is a possibility that the import path is empty. In that case, early return.
         if path.segments.is_empty() {
-            return Ok(NamespaceResolution {
+            return Ok(ResolvedImport {
                 namespace: PerNs::types(current_module_id.into()),
                 errors: Vec::new(),
             });
@@ -321,14 +301,14 @@ impl<'interner, 'def_maps, 'usage_tracker, 'path_references>
             errors.push(PathResolutionError::Private(path.last_ident()));
         }
 
-        Ok(NamespaceResolution { namespace: current_ns, errors })
+        Ok(ResolvedImport { namespace: current_ns, errors })
     }
 
     fn resolve_dep_path(
         &mut self,
         mut path: Path,
         importing_module: ModuleId,
-    ) -> NamespaceResolutionResult {
+    ) -> ImportResolutionResult {
         // Use extern_prelude to get the dep
         let current_def_map = &self.def_maps[&importing_module.krate];
 
@@ -355,7 +335,7 @@ impl<'interner, 'def_maps, 'usage_tracker, 'path_references>
         &mut self,
         path: Path,
         importing_module: ModuleId,
-    ) -> NamespaceResolutionResult {
+    ) -> ImportResolutionResult {
         let Some(parent_module_id) = self.get_module(importing_module).parent else {
             let span_start = path.span.start();
             let span = Span::from(span_start..span_start + 5); // 5 == "super".len()

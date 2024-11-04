@@ -400,7 +400,7 @@ impl DefCollector {
                     let visibility = collected_import.visibility;
                     let is_prelude = collected_import.is_prelude;
                     for (module_def_id, item_visibility, _) in
-                        resolved_import.resolved_namespace.iter_items()
+                        resolved_import.namespace.iter_items()
                     {
                         if item_visibility < visibility {
                             errors.push((
@@ -570,7 +570,7 @@ fn inject_prelude(
             assert!(resolved_import.errors.is_empty(), "Tried to add private item to prelude");
 
             let (module_def_id, _, _) =
-                resolved_import.resolved_namespace.types.expect("couldn't resolve std::prelude");
+                resolved_import.namespace.types.expect("couldn't resolve std::prelude");
             let module_id = module_def_id.as_module().expect("std::prelude should be a module");
             let prelude = context.module(module_id).scope().names();
 
