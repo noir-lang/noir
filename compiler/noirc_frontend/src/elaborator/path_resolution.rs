@@ -144,12 +144,7 @@ impl<'context> Elaborator<'context> {
     ) -> PathResolutionResult {
         let root_module = self.def_maps[&importing_module.krate].root;
         let current_module = ModuleId { krate: importing_module.krate, local_id: root_module };
-        self.resolve_name_in_module(
-            path,
-            current_module,
-            importing_module,
-            true, // plain or crate
-        )
+        self.resolve_name_in_module(path, current_module, importing_module)
     }
 
     /// Resolves a plain Path.
@@ -162,12 +157,7 @@ impl<'context> Elaborator<'context> {
     ) -> PathResolutionResult {
         // There is a possibility that the import path is empty. In that case, early return.
         if path.segments.is_empty() {
-            return self.resolve_name_in_module(
-                path,
-                current_module,
-                importing_module,
-                true, // plain or crate
-            );
+            return self.resolve_name_in_module(path, current_module, importing_module);
         }
 
         let first_segment =
@@ -177,12 +167,7 @@ impl<'context> Elaborator<'context> {
             return self.resolve_dep_path(path, importing_module);
         }
 
-        self.resolve_name_in_module(
-            path,
-            current_module,
-            importing_module,
-            true, // plain or crate
-        )
+        self.resolve_name_in_module(path, current_module, importing_module)
     }
 
     /// Resolves a Path in external dependencies.
@@ -208,6 +193,7 @@ impl<'context> Elaborator<'context> {
         // We already consumed the first segment, so let's keep looking the rest.
         // XXX: This will panic if the path is of the form `use std`. Ideal algorithm will not distinguish between crate and module
         // See `singleton_import.nr` test case for a check that such cases are handled elsewhere.
+        path.kind = PathKind::Plain;
         path.segments.remove(0);
 
         self.resolve_plain_path(path, *dep_module, importing_module)
@@ -226,8 +212,7 @@ impl<'context> Elaborator<'context> {
         };
 
         let current_module = ModuleId { krate: importing_module.krate, local_id: parent_module_id };
-        let plain_or_crate = false;
-        self.resolve_name_in_module(path, current_module, importing_module, plain_or_crate)
+        self.resolve_name_in_module(path, current_module, importing_module)
     }
 
     /// Resolves a Path assuming we are inside `starting_module`.
@@ -237,8 +222,9 @@ impl<'context> Elaborator<'context> {
         path: Path,
         starting_module: ModuleId,
         importing_module: ModuleId,
-        plain_or_crate: bool,
     ) -> PathResolutionResult {
+        let plain_or_crate = matches!(path.kind, PathKind::Plain | PathKind::Crate);
+
         // The current module and module ID as we resolve path segments
         let mut current_module_id = starting_module;
         let mut current_module = self.get_module(starting_module);
