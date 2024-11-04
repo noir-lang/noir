@@ -100,6 +100,9 @@ impl<'context> Elaborator<'context> {
     }
 
     /// Resolves a path in the current module.
+    /// If the referenced name can't be found, `Err` will be returned. If it can be found, `Ok`
+    /// will be returned with a potential list of errors if, for example, one of the segments
+    /// is not accessible from the current module (e.g. because it's private).
     pub(super) fn resolve_path(&mut self, mut path: Path) -> PathResolutionResult {
         let mut module_id = self.module_id();
 

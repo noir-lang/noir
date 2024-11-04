@@ -4,9 +4,9 @@ use thiserror::Error;
 use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::CompilationError;
 
-use crate::node_interner::{NodeInterner, ReferenceId};
+use crate::locations::ReferencesTracker;
+use crate::node_interner::ReferenceId;
 use crate::usage_tracker::UsageTracker;
-use crate::Type;
 
 use std::collections::BTreeMap;
 
@@ -47,6 +47,8 @@ pub enum PathResolutionError {
     NoSuper(Span),
     #[error("turbofish (`::<_>`) not allowed on {item}")]
     TurbofishNotAllowedOnItem { item: String, span: Span },
+    #[error("{ident} is a {kind}, not a module")]
+    NotAModule { ident: Ident, kind: &'static str },
 }
 
 #[derive(Debug)]
@@ -81,39 +83,43 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
             PathResolutionError::TurbofishNotAllowedOnItem { item: _, span } => {
                 CustomDiagnostic::simple_error(error.to_string(), String::new(), *span)
             }
+            PathResolutionError::NotAModule { ident, kind: _ } => {
+                CustomDiagnostic::simple_error(error.to_string(), String::new(), ident.span())
+            }
         }
     }
 }
 
-pub fn resolve_import<'p>(
+/// Resolves a Path in a `use` statement, assuming it's located in `importing_module`.
+/// If the imported name can't be found, `Err` will be returned. If it can be found, `Ok`
+/// will be returned with a potential list of errors if, for example, one of the segments
+/// is not accessible from the importing module (e.g. because it's private).
+pub fn resolve_import(
     path: Path,
     importing_module: ModuleId,
-    interner: &NodeInterner,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     usage_tracker: &mut UsageTracker,
-    path_references: &'p mut Option<&'p mut Vec<ReferenceId>>,
-) -> Result<ResolvedImport, PathResolutionError> {
-    let mut solver = ImportSolver::new(interner, def_maps, usage_tracker, path_references);
+    references_tracker: Option<ReferencesTracker>,
+) -> ImportResolutionResult {
+    let mut solver = ImportSolver::new(def_maps, usage_tracker, references_tracker);
     solver.solve(path, importing_module)
 }
 
-struct ImportSolver<'interner, 'def_maps, 'usage_tracker, 'path_references> {
-    interner: &'interner NodeInterner,
+struct ImportSolver<'def_maps, 'usage_tracker, 'references_tracker> {
     def_maps: &'def_maps BTreeMap<CrateId, CrateDefMap>,
     usage_tracker: &'usage_tracker mut UsageTracker,
-    path_references: &'path_references mut Option<&'path_references mut Vec<ReferenceId>>,
+    references_tracker: Option<ReferencesTracker<'references_tracker>>,
 }
 
-impl<'interner, 'def_maps, 'usage_tracker, 'path_references>
-    ImportSolver<'interner, 'def_maps, 'usage_tracker, 'path_references>
+impl<'def_maps, 'usage_tracker, 'references_tracker>
+    ImportSolver<'def_maps, 'usage_tracker, 'references_tracker>
 {
     fn new(
-        interner: &'interner NodeInterner,
         def_maps: &'def_maps BTreeMap<CrateId, CrateDefMap>,
         usage_tracker: &'usage_tracker mut UsageTracker,
-        path_references: &'path_references mut Option<&'path_references mut Vec<ReferenceId>>,
+        references_tracker: Option<ReferencesTracker<'references_tracker>>,
     ) -> Self {
-        Self { interner, def_maps, usage_tracker, path_references }
+        Self { def_maps, usage_tracker, references_tracker }
     }
 
     fn solve(&mut self, path: Path, importing_module: ModuleId) -> ImportResolutionResult {
@@ -171,7 +177,8 @@ impl<'interner, 'def_maps, 'usage_tracker, 'path_references>
             .get(&crate_name.0.contents)
             .ok_or_else(|| PathResolutionError::Unresolved(crate_name.to_owned()))?;
 
-        self.push_reference(ReferenceId::Module(*dep_module));
+        let span = crate_name.span();
+        self.add_reference(ReferenceId::Module(*dep_module), span, false);
 
         // Create an import directive for the dependency crate
         // XXX: This will panic if the path is of the form `use std`. Ideal algorithm will not distinguish between crate and module
@@ -238,40 +245,34 @@ impl<'interner, 'def_maps, 'usage_tracker, 'path_references>
                 Some((typ, visibility, _)) => (typ, visibility),
             };
 
+            let span = last_segment.span;
+
             // In the type namespace, only Mod can be used in a path.
             current_module_id = match typ {
                 ModuleDefId::ModuleId(id) => {
-                    self.push_reference(ReferenceId::Module(id));
+                    self.add_reference(ReferenceId::Module(id), span, false);
 
                     id
                 }
                 ModuleDefId::TypeId(id) => {
-                    self.push_reference(ReferenceId::Struct(id));
+                    let is_self_type_name = last_segment.ident.is_self_type_name();
+                    let reference_id = ReferenceId::Struct(id);
+                    self.add_reference(reference_id, span, is_self_type_name);
 
                     id.module_id()
                 }
                 ModuleDefId::TypeAliasId(id) => {
-                    self.push_reference(ReferenceId::Alias(id));
+                    self.add_reference(ReferenceId::Alias(id), span, false);
 
-                    let type_alias = self.interner.get_type_alias(id);
-                    let type_alias = type_alias.borrow();
-
-                    let module_id = match &type_alias.typ {
-                        Type::Struct(struct_id, _generics) => struct_id.borrow().id.module_id(),
-                        Type::Error => {
-                            return Err(PathResolutionError::Unresolved(last_ident.clone()));
-                        }
-                        _ => {
-                            // For now we only allow type aliases that point to structs.
-                            // The more general case is captured here: https://github.com/noir-lang/noir/issues/6398
-                            panic!("Type alias in path not pointing to struct not yet supported")
-                        }
-                    };
-
-                    module_id
+                    return Err(PathResolutionError::NotAModule {
+                        ident: last_segment.ident.clone(),
+                        kind: "type alias",
+                    });
                 }
                 ModuleDefId::TraitId(id) => {
-                    self.push_reference(ReferenceId::Trait(id));
+                    let is_self_type_name = last_segment.ident.is_self_type_name();
+                    let reference_id = ReferenceId::Trait(id);
+                    self.add_reference(reference_id, span, is_self_type_name);
 
                     id.0
                 }
@@ -328,9 +329,9 @@ impl<'interner, 'def_maps, 'usage_tracker, 'path_references>
         &self.def_maps.get(&module.krate).expect(message).modules[module.local_id.0]
     }
 
-    fn push_reference(&mut self, reference_id: ReferenceId) {
-        if let Some(path_references) = self.path_references {
-            path_references.push(reference_id);
+    fn add_reference(&mut self, reference_id: ReferenceId, span: Span, is_self_type_name: bool) {
+        if let Some(references_tracker) = &mut self.references_tracker {
+            references_tracker.add_reference(reference_id, span, is_self_type_name);
         }
     }
 }

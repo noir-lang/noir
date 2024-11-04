@@ -1,5 +1,5 @@
 use fm::FileId;
-use noirc_errors::Location;
+use noirc_errors::{Location, Span};
 use rangemap::RangeMap;
 use rustc_hash::FxHashMap as HashMap;
 
@@ -31,6 +31,27 @@ impl LocationIndices {
     pub(crate) fn get_node_from_location(&self, location: Location) -> Option<PetGraphIndex> {
         let range_map = self.map_file_to_range.get(&location.file)?;
         Some(*range_map.get(&location.span.start())?)
+    }
+}
+
+pub struct ReferencesTracker<'a> {
+    interner: &'a mut NodeInterner,
+    file_id: FileId,
+}
+
+impl<'a> ReferencesTracker<'a> {
+    pub fn new(interner: &'a mut NodeInterner, file_id: FileId) -> Self {
+        Self { interner, file_id }
+    }
+
+    pub(crate) fn add_reference(
+        &mut self,
+        referenced: ReferenceId,
+        span: Span,
+        is_self_type: bool,
+    ) {
+        let location = Location::new(span, self.file_id);
+        self.interner.add_reference(referenced, location, is_self_type);
     }
 }
 
