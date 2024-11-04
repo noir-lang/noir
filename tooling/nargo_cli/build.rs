@@ -95,7 +95,12 @@ struct MatrixConfig {
 
 impl Default for MatrixConfig {
     fn default() -> Self {
-        Self { vary_brillig: false, vary_inliner: true }
+        Self {
+            // Only used with execution, and only on selected tests.
+            vary_brillig: false,
+            // Only seems to have an effect on the `execute_success` cases.
+            vary_inliner: false,
+        }
     }
 }
 
@@ -111,16 +116,25 @@ fn generate_test_cases(
     test_content: &str,
     matrix_config: &MatrixConfig,
 ) {
+    let mutex_name = format! {"TEST_MUTEX_{}", test_name.to_uppercase()};
     let brillig_cases = if matrix_config.vary_brillig { "[false, true]" } else { "[false]" };
     let inliner_cases = if matrix_config.vary_inliner { "[i64::MIN, 0, i64::MAX]" } else { "[0]" };
     write!(
         test_file,
         r#"
+lazy_static::lazy_static! {{
+    /// Prevent concurrent tests in the matrix from overwriting the compilation artifacts in {test_dir}
+    static ref {mutex_name}: std::sync::Mutex<()> = std::sync::Mutex::new(());
+}}
+
 #[test_case::test_matrix(
     {brillig_cases}, 
     {inliner_cases}
 )]
 fn test_{test_name}(force_brillig: bool, inliner_aggressiveness: i64) {{
+    // Ignore poisoning errors if some of the matrix cases failed.
+    let _guard = {mutex_name}.lock().unwrap_or_else(|e| e.into_inner()); 
+
     let test_program_dir = PathBuf::from("{test_dir}");
 
     let mut nargo = Command::cargo_bin("nargo").unwrap();
