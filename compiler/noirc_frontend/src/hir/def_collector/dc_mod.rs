@@ -100,7 +100,7 @@ pub fn collect_defs(
 
     collector.collect_trait_impls(context, ast.trait_impls, crate_id);
 
-    collector.collect_impls(context, ast.impls, crate_id);
+    errors.extend(collector.collect_impls(context, ast.impls, crate_id));
 
     collector.collect_attributes(
         ast.inner_attributes,
@@ -164,7 +164,13 @@ impl<'a> ModCollector<'a> {
         errors
     }
 
-    fn collect_impls(&mut self, context: &mut Context, impls: Vec<TypeImpl>, krate: CrateId) {
+    fn collect_impls(
+        &mut self,
+        context: &mut Context,
+        impls: Vec<TypeImpl>,
+        krate: CrateId,
+    ) -> Vec<(CompilationError, FileId)> {
+        let mut errors = Vec::new();
         let module_id = ModuleId { krate, local_id: self.module_id };
 
         for r#impl in impls {
@@ -174,8 +180,11 @@ impl<'a> ModCollector<'a> {
                 r#impl,
                 self.file_id,
                 module_id,
+                &mut errors,
             );
         }
+
+        errors
     }
 
     fn collect_trait_impls(
@@ -1052,6 +1061,7 @@ pub fn collect_impl(
     r#impl: TypeImpl,
     file_id: FileId,
     module_id: ModuleId,
+    errors: &mut Vec<(CompilationError, FileId)>,
 ) {
     let mut unresolved_functions =
         UnresolvedFunctions { file_id, functions: Vec::new(), trait_id: None, self_type: None };
@@ -1059,6 +1069,15 @@ pub fn collect_impl(
     for (method, _) in r#impl.methods {
         let doc_comments = method.doc_comments;
         let mut method = method.item;
+
+        if method.def.attributes.is_test_function() {
+            let error = DefCollectorErrorKind::TestOnAssociatedFunction {
+                span: method.name_ident().span(),
+            };
+            errors.push((error.into(), file_id));
+            continue;
+        }
+
         let func_id = interner.push_empty_fn();
         method.def.where_clause.extend(r#impl.where_clause.clone());
         let location = Location::new(method.span(), file_id);

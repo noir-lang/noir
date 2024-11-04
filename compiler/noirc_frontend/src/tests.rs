@@ -3623,3 +3623,25 @@ fn use_type_alias_to_generic_concrete_type_in_method_call() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn disallows_test_attribute_on_impl_method() {
+    let src = r#"
+    pub struct Foo {}
+    impl Foo {
+        #[test]
+        fn foo() {}
+    }
+
+    fn main() {}
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::DefinitionError(DefCollectorErrorKind::TestOnAssociatedFunction {
+            span: _
+        })
+    ));
+}
