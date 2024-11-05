@@ -10,7 +10,10 @@ use acvm::{AcirField, FieldElement};
 
 use super::get_program_errors;
 use crate::ast::{IntegerBitSize, Signedness};
+use crate::hir::type_check::TypeCheckError;
 use crate::hir_def::types::{BinaryTypeOperator, Kind, Type, TypeVariable, TypeVariableId};
+use crate::monomorphization::errors::MonomorphizationError;
+use crate::tests::get_monomorphization_error;
 
 #[test]
 fn arithmetic_generics_canonicalization_deduplication_regression() {
@@ -29,6 +32,103 @@ fn arithmetic_generics_canonicalization_deduplication_regression() {
     "#;
     let errors = get_program_errors(source);
     assert_eq!(errors.len(), 0);
+}
+
+#[test]
+fn arithmetic_generics_checked_cast_zeros() {
+    let source = r#"
+        struct W<let N: u1> {}
+        
+        fn foo<let N: u1>(_x: W<N>) -> W<(0 * N) / (N % N)> {
+            W {}
+        }
+        
+        fn bar<let N: u1>(_x: W<N>) -> u1 {
+            N
+        }
+        
+        fn main() -> pub u1 {
+            let w_0: W<0> = W {};
+            let w: W<_> = foo(w_0);
+            bar(w)
+        }
+    "#;
+
+    let errors = get_program_errors(source);
+    assert_eq!(errors.len(), 0);
+
+    let monomorphization_error = get_monomorphization_error(source);
+    assert!(monomorphization_error.is_some());
+
+    // Expect a CheckedCast (0 % 0) failure
+    let monomorphization_error = monomorphization_error.unwrap();
+    if let MonomorphizationError::UnknownArrayLength { ref length, ref err, location: _ } =
+        monomorphization_error
+    {
+        match length {
+            Type::CheckedCast { from, to } => {
+                assert!(matches!(*from.clone(), Type::InfixExpr { .. }));
+                assert!(matches!(*to.clone(), Type::InfixExpr { .. }));
+            }
+            _ => panic!("unexpected length: {:?}", length),
+        }
+        assert!(matches!(
+            err,
+            TypeCheckError::FailingBinaryOp { op: BinaryTypeOperator::Modulo, lhs: 0, rhs: 0, .. }
+        ));
+    } else {
+        panic!("unexpected error: {:?}", monomorphization_error);
+    }
+}
+
+#[test]
+fn arithmetic_generics_checked_cast_indirect_zeros() {
+    let source = r#"
+        struct W<let N: Field> {}
+        
+        fn foo<let N: Field>(_x: W<N>) -> W<(N - N) % (N - N)> {
+            W {}
+        }
+        
+        fn bar<let N: Field>(_x: W<N>) -> Field {
+            N
+        }
+        
+        fn main() {
+            let w_0: W<0> = W {};
+            let w = foo(w_0);
+            let _ = bar(w);
+        }
+    "#;
+
+    let errors = get_program_errors(source);
+    assert_eq!(errors.len(), 0);
+
+    let monomorphization_error = get_monomorphization_error(source);
+    assert!(monomorphization_error.is_some());
+
+    // Expect a CheckedCast (0 % 0) failure
+    let monomorphization_error = monomorphization_error.unwrap();
+    if let MonomorphizationError::UnknownArrayLength { ref length, ref err, location: _ } =
+        monomorphization_error
+    {
+        match length {
+            Type::CheckedCast { from, to } => {
+                assert!(matches!(*from.clone(), Type::InfixExpr { .. }));
+                assert!(matches!(*to.clone(), Type::InfixExpr { .. }));
+            }
+            _ => panic!("unexpected length: {:?}", length),
+        }
+        match err {
+            TypeCheckError::ModuloOnFields { lhs, rhs, .. } => {
+                assert_eq!(lhs.clone(), FieldElement::zero());
+                assert_eq!(rhs.clone(), FieldElement::zero());
+            }
+            _ => panic!("expected ModuloOnFields, but found: {:?}", err),
+        }
+    } else {
+        panic!("unexpected error: {:?}", monomorphization_error);
+    }
 }
 
 prop_compose! {
@@ -131,7 +231,7 @@ prop_compose! {
         let (infix_expr, typ, _value_generator) = infix_type_gen;
         let bindings: Vec<_> = first_n_variables(typ.clone(), num_variables)
             .zip(values.iter().map(|value| {
-                Type::Constant(value.clone(), Kind::numeric(typ.clone()))
+                Type::Constant(*value, Kind::numeric(typ.clone()))
             }))
             .collect();
         (infix_expr, typ, bindings)

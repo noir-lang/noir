@@ -4,9 +4,8 @@ use std::{
 };
 
 use crate::{
-    ast::ItemVisibility, hir::resolution::import::PathResolutionItem,
-    hir_def::traits::ResolvedTraitBound, usage_tracker::UsageTracker, StructField, StructType,
-    TypeBindings,
+    ast::ItemVisibility, hir_def::traits::ResolvedTraitBound, usage_tracker::UsageTracker,
+    StructField, StructType, TypeBindings,
 };
 use crate::{
     ast::{
@@ -24,7 +23,6 @@ use crate::{
         def_map::{DefMaps, ModuleData},
         def_map::{LocalModuleId, ModuleId, MAIN_FUNCTION},
         resolution::errors::ResolverError,
-        resolution::import::PathResolution,
         scope::ScopeForest as GenericScopeForest,
         type_check::{generics::TraitGenerics, TypeCheckError},
         Context,
@@ -47,6 +45,7 @@ use crate::{
 mod comptime;
 mod expressions;
 mod lints;
+mod path_resolution;
 mod patterns;
 mod scope;
 mod statements;
@@ -58,6 +57,7 @@ mod unquote;
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span, Spanned};
+use path_resolution::{PathResolution, PathResolutionItem};
 use types::bind_ordered_generics;
 
 use self::traits::check_trait_impl_method_matches_declaration;
@@ -896,6 +896,10 @@ impl<'context> Elaborator<'context> {
             Type::Alias(alias_type, generics) => {
                 self.mark_type_as_used(&alias_type.borrow().get_type(generics));
             }
+            Type::CheckedCast { from, to } => {
+                self.mark_type_as_used(from);
+                self.mark_type_as_used(to);
+            }
             Type::MutableReference(typ) => {
                 self.mark_type_as_used(typ);
             }
@@ -1500,6 +1504,10 @@ impl<'context> Elaborator<'context> {
                     &alias_type.borrow().get_type(generics),
                     span,
                 );
+            }
+            Type::CheckedCast { from, to } => {
+                self.check_type_is_not_more_private_then_item(name, visibility, from, span);
+                self.check_type_is_not_more_private_then_item(name, visibility, to, span);
             }
             Type::Function(args, return_type, env, _) => {
                 for arg in args {

@@ -365,8 +365,8 @@ fn split_public_and_private_inputs(
     func_sig
         .0
         .iter()
-        .map(|(_, typ, visibility)| {
-            let num_field_elements_needed = typ.field_count() as usize;
+        .map(|(pattern, typ, visibility)| {
+            let num_field_elements_needed = typ.field_count(&pattern.location()) as usize;
             let witnesses = input_witnesses[idx..idx + num_field_elements_needed].to_vec();
             idx += num_field_elements_needed;
             (visibility, witnesses)

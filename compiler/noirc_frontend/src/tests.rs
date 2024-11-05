@@ -1,7 +1,7 @@
 #![cfg(test)]
 
-mod arithmetic_generics;
 mod aliases;
+mod arithmetic_generics;
 mod bound_checks;
 mod imports;
 mod metaprogramming;
@@ -17,6 +17,7 @@ mod visibility;
 // A test harness will allow for more expressive and readable tests
 use std::collections::BTreeMap;
 
+use acvm::{AcirField, FieldElement};
 use fm::FileId;
 
 use iter_extended::vecmap;
@@ -37,6 +38,9 @@ use crate::hir::def_collector::dc_crate::DefCollector;
 use crate::hir::def_map::{CrateDefMap, LocalModuleId};
 use crate::hir_def::expr::HirExpression;
 use crate::hir_def::stmt::HirStatement;
+use crate::hir_def::types::{BinaryTypeOperator, Type};
+use crate::monomorphization::ast::Program;
+use crate::monomorphization::errors::MonomorphizationError;
 use crate::monomorphization::monomorphize;
 use crate::parser::{ItemKind, ParserErrorReason};
 use crate::token::SecondaryAttribute;
@@ -1240,10 +1244,18 @@ fn resolve_fmt_strings() {
     }
 }
 
-fn check_rewrite(src: &str, expected: &str) {
+fn monomorphize_program(src: &str) -> Result<Program, MonomorphizationError> {
     let (_program, mut context, _errors) = get_program(src);
     let main_func_id = context.def_interner.find_function("main").unwrap();
-    let program = monomorphize(main_func_id, &mut context.def_interner).unwrap();
+    monomorphize(main_func_id, &mut context.def_interner)
+}
+
+fn get_monomorphization_error(src: &str) -> Option<MonomorphizationError> {
+    monomorphize_program(src).err()
+}
+
+fn check_rewrite(src: &str, expected: &str) {
+    let program = monomorphize_program(src).unwrap();
     assert!(format!("{}", program) == expected);
 }
 
@@ -3375,6 +3387,36 @@ fn arithmetic_generics_rounding_fail() {
 
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::TypeMismatch { .. })
+    ));
+}
+
+#[test]
+fn arithmetic_generics_rounding_fail_on_struct() {
+    let src = r#"
+        struct W<let N: u32> {}
+
+        fn foo<let N: u32, let M: u32>(_x: W<N>, _y: W<M>) -> W<N / M * M> {
+            W {}
+        }
+
+        fn main() {
+            let w_2: W<2> = W {};
+            let w_3: W<3> = W {};
+            // Do not simplify N/M*M to just N
+            // This should be 3/2*2 = 2, not 3
+            let _: W<3> = foo(w_3, w_2);
+        }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::TypeMismatch { .. })
+    ));
 }
 
 #[test]
