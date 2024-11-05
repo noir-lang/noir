@@ -445,11 +445,6 @@ impl Path {
         self.span
     }
 
-    pub fn first_segment(&self) -> PathSegment {
-        assert!(!self.segments.is_empty());
-        self.segments.first().unwrap().clone()
-    }
-
     pub fn last_segment(&self) -> PathSegment {
         assert!(!self.segments.is_empty());
         self.segments.last().unwrap().clone()
