@@ -1,14 +1,11 @@
 use fm::FileId;
-use noirc_errors::Location;
+use noirc_errors::{Location, Span};
 use rangemap::RangeMap;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
     ast::{FunctionDefinition, ItemVisibility},
-    hir::{
-        def_map::{ModuleDefId, ModuleId},
-        resolution::import::PathResolutionItem,
-    },
+    hir::def_map::{ModuleDefId, ModuleId},
     node_interner::{
         DefinitionId, FuncId, GlobalId, NodeInterner, ReferenceId, StructId, TraitId, TypeAliasId,
     },
@@ -34,6 +31,27 @@ impl LocationIndices {
     pub(crate) fn get_node_from_location(&self, location: Location) -> Option<PetGraphIndex> {
         let range_map = self.map_file_to_range.get(&location.file)?;
         Some(*range_map.get(&location.span.start())?)
+    }
+}
+
+pub struct ReferencesTracker<'a> {
+    interner: &'a mut NodeInterner,
+    file_id: FileId,
+}
+
+impl<'a> ReferencesTracker<'a> {
+    pub fn new(interner: &'a mut NodeInterner, file_id: FileId) -> Self {
+        Self { interner, file_id }
+    }
+
+    pub(crate) fn add_reference(
+        &mut self,
+        module_def_id: ModuleDefId,
+        span: Span,
+        is_self_type: bool,
+    ) {
+        let location = Location::new(span, self.file_id);
+        self.interner.add_module_def_id_reference(module_def_id, location, is_self_type);
     }
 }
 
@@ -100,37 +118,6 @@ impl NodeInterner {
                 self.add_global_reference(global_id, location);
             }
         };
-    }
-
-    pub(crate) fn add_path_resolution_kind_reference(
-        &mut self,
-        kind: PathResolutionItem,
-        location: Location,
-        is_self_type: bool,
-    ) {
-        match kind {
-            PathResolutionItem::Module(module_id) => {
-                self.add_module_reference(module_id, location);
-            }
-            PathResolutionItem::Struct(struct_id) => {
-                self.add_struct_reference(struct_id, location, is_self_type);
-            }
-            PathResolutionItem::TypeAlias(type_alias_id) => {
-                self.add_alias_reference(type_alias_id, location);
-            }
-            PathResolutionItem::Trait(trait_id) => {
-                self.add_trait_reference(trait_id, location, is_self_type);
-            }
-            PathResolutionItem::Global(global_id) => {
-                self.add_global_reference(global_id, location);
-            }
-            PathResolutionItem::ModuleFunction(func_id)
-            | PathResolutionItem::StructFunction(_, _, func_id)
-            | PathResolutionItem::TypeAliasFunction(_, _, func_id)
-            | PathResolutionItem::TraitFunction(_, _, func_id) => {
-                self.add_function_reference(func_id, location);
-            }
-        }
     }
 
     pub(crate) fn add_module_reference(&mut self, id: ModuleId, location: Location) {

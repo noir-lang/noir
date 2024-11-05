@@ -91,6 +91,10 @@ Step 1: Follow the instructions [here](https://learn.microsoft.com/en-us/windows
 
 step 2: Follow the [Noirup instructions](#installing-noirup).
 
+## Setting up shell completions
+
+Once `nargo` is installed, you can [set up shell completions for it](setting_up_shell_completions).
+
 ## Uninstalling Nargo
 
 If you installed Nargo with `noirup`, you can uninstall Nargo by removing the files in `~/.nargo`, `~/nargo`, and `~/noir_cache`. This ensures that all installed binaries, configurations, and cache related to Nargo are fully removed from your system.

@@ -14,10 +14,7 @@ use crate::{
     hir::{
         comptime::{Interpreter, Value},
         def_collector::dc_crate::CompilationError,
-        resolution::{
-            errors::ResolverError,
-            import::{PathResolutionError, PathResolutionItem},
-        },
+        resolution::{errors::ResolverError, import::PathResolutionError},
         type_check::{
             generics::{Generic, TraitGenerics},
             NoMatchingImplFoundError, Source, TypeCheckError,
@@ -41,13 +38,14 @@ use crate::{
     UnificationError,
 };
 
-use super::{lints, Elaborator};
+use super::{lints, path_resolution::PathResolutionItem, Elaborator};
 
 pub const SELF_TYPE_NAME: &str = "Self";
 pub const WILDCARD_TYPE: &str = "_";
 
 pub(super) struct TraitPathResolution {
     pub(super) method: TraitMethod,
+    pub(super) item: Option<PathResolutionItem>,
     pub(super) errors: Vec<PathResolutionError>,
 }
 
@@ -553,6 +551,7 @@ impl<'context> Elaborator<'context> {
                 let constraint = the_trait.as_constraint(path.span);
                 return Some(TraitPathResolution {
                     method: TraitMethod { method_id: method, constraint, assumed: true },
+                    item: None,
                     errors: Vec::new(),
                 });
             }
@@ -573,6 +572,7 @@ impl<'context> Elaborator<'context> {
         let constraint = the_trait.as_constraint(path.span);
         Some(TraitPathResolution {
             method: TraitMethod { method_id: method, constraint, assumed: false },
+            item: Some(path_resolution.item),
             errors: path_resolution.errors,
         })
     }
@@ -601,6 +601,7 @@ impl<'context> Elaborator<'context> {
                 if let Some(method) = the_trait.find_method(path.last_name()) {
                     return Some(TraitPathResolution {
                         method: TraitMethod { method_id: method, constraint, assumed: true },
+                        item: None,
                         errors: Vec::new(),
                     });
                 }
