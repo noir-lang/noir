@@ -189,9 +189,7 @@ impl<'def_maps, 'references_tracker> PathResolutionTargetResolver<'def_maps, 're
             references_tracker.add_reference(ModuleDefId::ModuleId(*dep_module), span, false);
         }
 
-        // Create an import directive for the dependency crate
-        // XXX: This will panic if the path is of the form `use std`. Ideal algorithm will not distinguish between crate and module
-        // See `singleton_import.nr` test case for a check that such cases are handled elsewhere.
+        // Now the path can be solved starting from the second segment as a plain path
         path.kind = PathKind::Plain;
         path.segments.remove(0);
 
