@@ -3771,3 +3771,41 @@ fn use_type_alias_to_generic_concrete_type_in_method_call() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn allows_struct_with_generic_infix_type_as_main_input_1() {
+    let src = r#"
+        struct Foo<let N: u32> {
+            x: [u64; N * 2],
+        }
+
+        fn main(_x: Foo<18>) {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn allows_struct_with_generic_infix_type_as_main_input_2() {
+    let src = r#"
+        struct Foo<let N: u32> {
+            x: [u64; N * 2],
+        }
+
+        fn main(_x: Foo<2 * 9>) {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn allows_struct_with_generic_infix_type_as_main_input_3() {
+    let src = r#"
+        struct Foo<let N: u32> {
+            x: [u64; N * 2],
+        }
+
+        global N = 9;
+
+        fn main(_x: Foo<N * 2>) {}
+    "#;
+    assert_no_errors(src);
+}
