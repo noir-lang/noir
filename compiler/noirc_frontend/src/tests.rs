@@ -60,6 +60,15 @@ pub(crate) fn remove_experimental_warnings(errors: &mut Vec<(CompilationError, F
 }
 
 pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(CompilationError, FileId)>) {
+    get_program_with_maybe_parser_errors(
+        src, false, // allow parser errors
+    )
+}
+
+pub(crate) fn get_program_with_maybe_parser_errors(
+    src: &str,
+    allow_parser_errors: bool,
+) -> (ParsedModule, Context, Vec<(CompilationError, FileId)>) {
     let root = std::path::Path::new("/");
     let fm = FileManager::new(root);
 
@@ -72,7 +81,7 @@ pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(Compilation
     let mut errors = vecmap(parser_errors, |e| (e.into(), root_file_id));
     remove_experimental_warnings(&mut errors);
 
-    if !has_parser_error(&errors) {
+    if allow_parser_errors || !has_parser_error(&errors) {
         let inner_attributes: Vec<SecondaryAttribute> = program
             .items
             .iter()
@@ -3642,6 +3651,44 @@ fn use_type_alias_to_generic_concrete_type_in_method_call() {
         fn main() {
             let _ = foo();
         }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn allows_struct_with_generic_infix_type_as_main_input_1() {
+    let src = r#"
+        struct Foo<let N: u32> {
+            x: [u64; N * 2],
+        }
+
+        fn main(_x: Foo<18>) {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn allows_struct_with_generic_infix_type_as_main_input_2() {
+    let src = r#"
+        struct Foo<let N: u32> {
+            x: [u64; N * 2],
+        }
+
+        fn main(_x: Foo<2 * 9>) {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn allows_struct_with_generic_infix_type_as_main_input_3() {
+    let src = r#"
+        struct Foo<let N: u32> {
+            x: [u64; N * 2],
+        }
+
+        global N = 9;
+
+        fn main(_x: Foo<N * 2>) {}
     "#;
     assert_no_errors(src);
 }

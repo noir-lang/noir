@@ -1,6 +1,6 @@
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::resolution::errors::ResolverError;
-use crate::tests::get_program_errors;
+use crate::tests::{get_program_errors, get_program_with_maybe_parser_errors};
 
 use super::assert_no_errors;
 
@@ -389,4 +389,20 @@ fn trait_bounds_which_are_dependent_on_generic_types_are_resolved_correctly() {
         }
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn does_not_crash_on_as_trait_path_with_empty_path() {
+    let src = r#"
+        struct Foo {
+            x: <N>,
+        }
+
+        fn main() {}
+    "#;
+
+    let (_, _, errors) = get_program_with_maybe_parser_errors(
+        src, true, // allow parser errors
+    );
+    assert!(!errors.is_empty());
 }
