@@ -140,7 +140,7 @@ impl DependencyContext {
                 }
             }
 
-            // Process special case instruction types
+            // Process instructions
             match &function.dfg[*instruction] {
                 // For memory operations, we have to link up the stored value as a parent
                 // of one loaded from the same memory slot
@@ -177,12 +177,24 @@ impl DependencyContext {
                         }
                     }
                 }
-                _ => {
+                Instruction::ArrayGet { .. }
+                | Instruction::ArraySet { .. }
+                | Instruction::Binary(..)
+                | Instruction::Cast(..)
+                | Instruction::IfElse { .. }
+                | Instruction::Not(..)
+                | Instruction::Truncate { .. } => {
                     // Record all the used arguments as parents of the results
                     for result in results {
                         self.value_parents.entry(result).or_default().extend(&arguments);
                     }
                 }
+                // These instructions won't affect the dependency graph
+                Instruction::Allocate { .. }
+                | Instruction::DecrementRc { .. }
+                | Instruction::EnableSideEffectsIf { .. }
+                | Instruction::IncrementRc { .. }
+                | Instruction::RangeCheck { .. } => {}
             }
         }
 
@@ -226,7 +238,7 @@ impl DependencyContext {
             })
             .collect();
 
-        trace!("making following reports for function {}: {:?}", function, warnings);
+        trace!("making following reports for function {}: {:?}", function.name(), warnings);
         warnings
     }
 
@@ -263,7 +275,6 @@ impl Context {
         function: &Function,
         all_functions: &BTreeMap<FunctionId, Function>,
     ) {
-        trace!("compute_sets_of_connected_value_ids()");
         // Go through each block in the function and create a list of sets of ValueIds connected by instructions
         self.block_queue.push(function.entry_block());
         while let Some(block) = self.block_queue.pop() {
@@ -549,6 +560,7 @@ mod test {
     use tracing_test::traced_test;
 
     #[test]
+    #[traced_test]
     /// Test that a connected function raises no warnings
     fn test_simple_connected_function() {
         // fn main {
@@ -577,6 +589,7 @@ mod test {
     }
 
     #[test]
+    #[traced_test]
     /// Test where the results of a call to a brillig function are not connected to main function inputs or outputs
     /// This should be detected.
     fn test_simple_function_with_disconnected_part() {
