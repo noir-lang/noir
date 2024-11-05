@@ -17,7 +17,6 @@ mod visibility;
 // A test harness will allow for more expressive and readable tests
 use std::collections::BTreeMap;
 
-use acvm::{AcirField, FieldElement};
 use fm::FileId;
 
 use iter_extended::vecmap;
@@ -38,7 +37,6 @@ use crate::hir::def_collector::dc_crate::DefCollector;
 use crate::hir::def_map::{CrateDefMap, LocalModuleId};
 use crate::hir_def::expr::HirExpression;
 use crate::hir_def::stmt::HirStatement;
-use crate::hir_def::types::{BinaryTypeOperator, Type};
 use crate::monomorphization::ast::Program;
 use crate::monomorphization::errors::MonomorphizationError;
 use crate::monomorphization::monomorphize;
