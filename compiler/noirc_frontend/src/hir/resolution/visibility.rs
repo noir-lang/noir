@@ -9,12 +9,13 @@ use crate::hir::def_map::{CrateDefMap, DefMaps, LocalModuleId, ModuleId};
 
 /// Returns true if an item with the given visibility in the target module
 /// is visible from the current module. For example:
-///
+/// ```text
 /// mod foo {
 ///     ^^^ <-- target module
 ///   pub(crate) fn bar() {}
 ///   ^^^^^^^^^^ <- visibility
 /// }
+/// ```
 pub fn item_in_module_is_visible(
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     current_module: ModuleId,
