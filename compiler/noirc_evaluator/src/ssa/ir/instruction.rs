@@ -20,7 +20,7 @@ use super::{
     basic_block::BasicBlockId,
     dfg::{CallStack, DataFlowGraph},
     map::Id,
-    types::{NumericType, Type},
+    types::Type,
     value::{Value, ValueId},
 };
 
@@ -387,8 +387,8 @@ impl Instruction {
             | ArraySet { .. } => true,
 
             Constrain(..)
-            | Store { .. }
             | EnableSideEffectsIf { .. }
+            | Store { .. }
             | IncrementRc { .. }
             | DecrementRc { .. }
             | RangeCheck { .. } => false,

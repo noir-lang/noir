@@ -1,9 +1,9 @@
 use acvm::{acir::AcirField, FieldElement};
 use serde::{Deserialize, Serialize};
 
-use super::{
-    DataFlowGraph, Instruction, InstructionResultType, NumericType, SimplifyResult, Type, ValueId,
-};
+use crate::ssa::ir::types::NumericType;
+
+use super::{DataFlowGraph, Instruction, InstructionResultType, SimplifyResult, Type, ValueId};
 
 /// Binary Operations allowed in the IR.
 /// Aside from the comparison operators (Eq and Lt), all operators

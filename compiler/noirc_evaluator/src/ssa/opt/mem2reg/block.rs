@@ -1,10 +1,6 @@
 use std::borrow::Cow;
 
-use crate::ssa::ir::{
-    function::Function,
-    instruction::{Instruction, InstructionId},
-    value::ValueId,
-};
+use crate::ssa::ir::{function::Function, value::ValueId};
 
 use super::alias_set::AliasSet;
 
@@ -19,21 +15,18 @@ pub(super) struct Block {
     /// Maps a ValueId to the Expression it represents.
     /// Multiple ValueIds can map to the same Expression, e.g.
     /// dereferences to the same allocation.
-    pub(super) expressions: im::OrdMap<ValueId, Expression>,
+    expressions: im::OrdMap<ValueId, Expression>,
 
     /// Each expression is tracked as to how many aliases it
     /// may have. If there is only 1, we can attempt to optimize
     /// out any known loads to that alias. Note that "alias" here
     /// includes the original reference as well.
-    pub(super) aliases: im::OrdMap<Expression, AliasSet>,
+    aliases: im::OrdMap<Expression, AliasSet>,
 
     /// Each allocate instruction result (and some reference block parameters)
     /// will map to a Reference value which tracks whether the last value stored
     /// to the reference is known.
-    pub(super) references: im::OrdMap<ValueId, ReferenceValue>,
-
-    /// The last instance of a `Store` instruction to each address in this block
-    pub(super) last_stores: im::OrdMap<ValueId, InstructionId>,
+    references: im::OrdMap<ValueId, ReferenceValue>,
 }
 
 /// An `Expression` here is used to represent a canonical key
@@ -110,9 +103,33 @@ impl Block {
         }
     }
 
+    pub(super) fn add_expression_with_aliases(
+        &mut self,
+        result: ValueId,
+        expression: Expression,
+        aliases: &AliasSet,
+    ) {
+        let expr = self.expressions.entry(result).or_insert(expression);
+        self.aliases.entry(expr.clone()).or_insert(AliasSet::known(result)).unify(&aliases);
+    }
+
+    pub(super) fn try_insert_alias(&mut self, reference: ValueId, alias: ValueId) {
+        // FIXME: Should we invalidate all references if the expression is unknown?
+        if let Some(expr) = self.expressions.get(&reference) {
+            // FIXME: Should we invalidate all references if the alias set is unknown?
+            if let Some(aliases) = self.aliases.get_mut(expr) {
+                aliases.insert(alias);
+            }
+        }
+    }
+
+    pub(super) fn fresh_reference(&mut self, result_address: ValueId) {
+        self.expressions.insert(result_address, Expression::Other(result_address));
+        self.aliases.insert(Expression::Other(result_address), AliasSet::known(result_address));
+    }
+
     fn invalidate_all_references(&mut self) {
         self.references.clear();
-        self.last_stores.clear();
     }
 
     pub(super) fn unify(mut self, other: &Self) -> Self {
@@ -181,32 +198,7 @@ impl Block {
         }
     }
 
-    fn keep_last_stores_for(&mut self, address: ValueId, function: &Function) {
-        let address = function.dfg.resolve(address);
-        self.keep_last_store(address, function);
-        self.for_each_alias_of(address, |t, alias| t.keep_last_store(alias, function));
-    }
-
-    fn keep_last_store(&mut self, address: ValueId, function: &Function) {
-        let address = function.dfg.resolve(address);
-
-        if let Some(instruction) = self.last_stores.remove(&address) {
-            // Whenever we decide we want to keep a store instruction, we also need
-            // to go through its stored value and mark that used as well.
-            match &function.dfg[instruction] {
-                Instruction::Store { value, .. } => {
-                    self.mark_value_used(*value, function);
-                }
-                other => {
-                    unreachable!("last_store held an id of a non-store instruction: {other:?}")
-                }
-            }
-        }
-    }
-
     pub(super) fn mark_value_used(&mut self, value: ValueId, function: &Function) {
-        self.keep_last_stores_for(value, function);
-
         // We must do a recursive check for arrays since they're the only Values which may contain
         // other ValueIds.
         if let Some((array, _)) = function.dfg.get_array_constant(value) {

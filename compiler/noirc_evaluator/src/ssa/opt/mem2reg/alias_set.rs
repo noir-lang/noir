@@ -31,6 +31,10 @@ impl AliasSet {
         Self { aliases: Some(BTreeSet::new()) }
     }
 
+    pub(super) fn known_many(aliases: im::Vector<ValueId>) -> AliasSet {
+        Self { aliases: Some(aliases.iter().copied().collect()) }
+    }
+
     pub(super) fn is_unknown(&self) -> bool {
         self.aliases.is_none()
     }
