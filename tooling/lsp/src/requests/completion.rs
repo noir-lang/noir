@@ -26,7 +26,9 @@ use noirc_frontend::{
     graph::{CrateId, Dependency},
     hir::{
         def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId},
-        resolution::visibility::{method_call_is_visible, struct_member_is_visible},
+        resolution::visibility::{
+            item_in_module_is_visible, method_call_is_visible, struct_member_is_visible,
+        },
     },
     hir_def::traits::Trait,
     node_interner::{NodeInterner, ReferenceId, StructId},
@@ -38,8 +40,7 @@ use sort_text::underscore_sort_text;
 
 use crate::{
     requests::to_lsp_location, trait_impl_method_stub_generator::TraitImplMethodStubGenerator,
-    use_segment_positions::UseSegmentPositions, utils, visibility::item_in_module_is_visible,
-    LspState,
+    use_segment_positions::UseSegmentPositions, utils, LspState,
 };
 
 use super::process_request;
@@ -799,10 +800,10 @@ impl<'a> NodeFinder<'a> {
                 let per_ns = module_data.find_name(ident);
                 if let Some((module_def_id, visibility, _)) = per_ns.types {
                     if item_in_module_is_visible(
-                        module_id,
-                        self.module_id,
-                        visibility,
                         self.def_maps,
+                        self.module_id,
+                        module_id,
+                        visibility,
                     ) {
                         let completion_items = self.module_def_id_completion_items(
                             module_def_id,
@@ -820,10 +821,10 @@ impl<'a> NodeFinder<'a> {
 
                 if let Some((module_def_id, visibility, _)) = per_ns.values {
                     if item_in_module_is_visible(
-                        module_id,
-                        self.module_id,
-                        visibility,
                         self.def_maps,
+                        self.module_id,
+                        module_id,
+                        visibility,
                     ) {
                         let completion_items = self.module_def_id_completion_items(
                             module_def_id,
