@@ -211,10 +211,11 @@ impl DependencyContext {
             let constrain_ancestors: HashSet<_> =
                 constrained_values.iter().flat_map(|v| self.collect_ancestors(*v)).collect();
             for (brillig_call, brillig_values) in &self.brillig_values {
-                // If there is at least one value among the constrain value ancestors
-                // in both of the brillig call arguments and results, consider the call properly covered
+                // If there is at least one value among the brillig call arguments
+                // along with all the results featuring in the constrain value ancestors,
+                // consider the call properly covered
                 if constrain_ancestors.intersection(&brillig_values.0).next().is_some()
-                    && constrain_ancestors.intersection(&brillig_values.1).next().is_some()
+                    && constrain_ancestors.is_superset(&brillig_values.1)
                 {
                     trace!(
                         "brillig call at {} covered by constrained values {:?}",
