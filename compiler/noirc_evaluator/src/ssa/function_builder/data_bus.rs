@@ -48,7 +48,7 @@ impl DataBusBuilder {
                 ast::Visibility::CallData(id) => DatabusVisibility::CallData(id),
                 ast::Visibility::ReturnData => DatabusVisibility::ReturnData,
             };
-            let len = param.1.field_count() as usize;
+            let len = param.1.field_count(&param.0.location()) as usize;
             params_is_databus.extend(vec![is_databus; len]);
         }
         params_is_databus

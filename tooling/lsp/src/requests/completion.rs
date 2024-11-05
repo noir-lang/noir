@@ -584,6 +584,14 @@ impl<'a> NodeFinder<'a> {
                     self_prefix,
                 );
             }
+            Type::CheckedCast { to, .. } => {
+                return self.complete_type_fields_and_methods(
+                    to,
+                    prefix,
+                    function_completion_kind,
+                    self_prefix,
+                );
+            }
             Type::Tuple(types) => {
                 self.complete_tuple_fields(types, self_prefix);
             }
