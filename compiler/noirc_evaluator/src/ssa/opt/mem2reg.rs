@@ -188,7 +188,8 @@ impl<'f> PerFunctionContext<'f> {
         let mut predecessors = self.cfg.predecessors(block);
 
         if let Some(first_predecessor) = predecessors.next() {
-            let first = self.blocks.get(&first_predecessor).cloned().unwrap_or_default();
+            let mut first = self.blocks.get(&first_predecessor).cloned().unwrap_or_default();
+            first.clear_last_stores();
 
             // Note that we have to start folding with the first block as the accumulator.
             // If we started with an empty block, an empty block union'd with any other block
@@ -260,7 +261,7 @@ impl<'f> PerFunctionContext<'f> {
                     self.inserter.map_value(result, value);
                     self.instructions_to_remove.insert(instruction);
                 } else {
-                    // references.mark_value_used(address, self.inserter.function);
+                    references.mark_last_store_used(address);
                     // self.last_loads.insert(address, (instruction, block_id));
                 }
             }
@@ -289,6 +290,7 @@ impl<'f> PerFunctionContext<'f> {
                 //     }
                 // }
 
+                references.set_last_store(address, instruction, &mut self.instructions_to_remove);
                 references.set_known_value(address, value);
             }
             Instruction::Allocate => {

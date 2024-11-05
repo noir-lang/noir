@@ -1,6 +1,8 @@
 use std::borrow::Cow;
 
-use crate::ssa::ir::{function::Function, value::ValueId};
+use fxhash::FxHashSet as HashSet;
+
+use crate::ssa::ir::{function::Function, instruction::InstructionId, value::ValueId};
 
 use super::alias_set::AliasSet;
 
@@ -26,7 +28,23 @@ pub(super) struct Block {
     /// Each allocate instruction result (and some reference block parameters)
     /// will map to a Reference value which tracks whether the last value stored
     /// to the reference is known.
+    ///
+    /// Note that this isn't intended to be accessed directly with any ValueId,
+    /// you should go through `expressions` then `aliases` first to find the
+    /// canonical ValueId if it exists. Doing so will ensure aliases in particular
+    /// are handled correctly.
     references: im::OrdMap<ValueId, ReferenceValue>,
+
+    /// The last Store instruction for a given canonical ValueId.
+    /// Invariant: if the last store is known, it can be removed when a new store is found.
+    /// Thus, it should also be cleared if there is ever a load that still requires the
+    /// last store.
+    ///
+    /// Note that this isn't intended to be accessed directly with any ValueId,
+    /// you should go through `expressions` then `aliases` first to find the
+    /// canonical ValueId if it exists. Doing so will ensure aliases in particular
+    /// are handled correctly.
+    last_stores: im::OrdMap<ValueId, InstructionId>,
 }
 
 /// An `Expression` here is used to represent a canonical key
@@ -158,7 +176,6 @@ impl Block {
             }
         }
         self.references = intersection;
-
         self
     }
 
@@ -218,5 +235,44 @@ impl Block {
         }
 
         Cow::Owned(AliasSet::unknown())
+    }
+
+    pub(super) fn set_last_store(
+        &mut self,
+        address: ValueId,
+        instruction: InstructionId,
+        instructions_to_remove: &mut HashSet<InstructionId>,
+    ) {
+        if let Some(expression) = self.expressions.get(&address) {
+            if let Some(aliases) = self.aliases.get(expression) {
+                if let Some(address) = aliases.single_alias() {
+                    if let Some(previous) = self.last_stores.insert(address, instruction) {
+                        instructions_to_remove.insert(previous);
+                    }
+                }
+            }
+        }
+    }
+
+    pub(super) fn mark_last_store_used(&mut self, address: ValueId) {
+        if let Some(expression) = self.expressions.get(&address) {
+            if let Some(aliases) = self.aliases.get(expression) {
+                if aliases.is_unknown() {
+                    // uh-oh, we don't know at all what this reference refers to, could be anything.
+                    // Now we have to mark every store as used
+                    self.last_stores.clear();
+                } else {
+                    // More than one alias. We're not sure which it refers to so we have to
+                    // conservatively invalidate all references it may refer to.
+                    aliases.for_each(|alias| {
+                        self.last_stores.remove(&alias);
+                    });
+                }
+            }
+        }
+    }
+
+    pub(crate) fn clear_last_stores(&mut self) {
+        self.last_stores.clear();
     }
 }
