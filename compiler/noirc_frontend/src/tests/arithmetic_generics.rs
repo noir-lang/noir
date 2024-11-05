@@ -290,6 +290,9 @@ fn instantiate_after_canonicalize_smoke_test() {
 
 proptest! {
     #[test]
+    // Expect cases that don't resolve to constants, e.g. see
+    // `arithmetic_generics_checked_cast_indirect_zeros`
+    #[should_panic(expected = "matches!(infix, Type :: Constant(..))")]
     fn instantiate_before_or_after_canonicalize(infix_type_bindings in arbitrary_infix_expr_with_bindings(10)) {
         let (infix, typ, bindings) = infix_type_bindings;
 
@@ -316,5 +319,48 @@ proptest! {
 
         // ensure results are the same
         prop_assert_eq!(infix, infix_canonicalized);
+    }
+
+    #[test]
+    fn instantiate_before_or_after_canonicalize_checked_cast(infix_type_bindings in arbitrary_infix_expr_with_bindings(10)) {
+        let (infix, typ, bindings) = infix_type_bindings;
+
+        // wrap in CheckedCast
+        let infix = Type::CheckedCast {
+            from: Box::new(infix.clone()),
+            to: Box::new(infix)
+        };
+
+        // canonicalize
+        let infix_canonicalized = infix.canonicalize();
+
+        // bind vars
+        for (var, binding) in bindings {
+            var.bind(binding);
+        }
+
+        // attempt to canonicalize to a constant
+        let infix = infix.canonicalize();
+        let infix_canonicalized = infix_canonicalized.canonicalize();
+
+        // ensure result kinds are the same as the original kind
+        let kind = Kind::numeric(typ);
+        prop_assert_eq!(infix.kind(), kind.clone());
+        prop_assert_eq!(infix_canonicalized.kind(), kind.clone());
+
+        // ensure the results are still wrapped in CheckedCast's
+        match (&infix, &infix_canonicalized) {
+            (Type::CheckedCast { from, to }, Type::CheckedCast { from: from_canonicalized, to: to_canonicalized }) => {
+                // ensure from's are the same
+                prop_assert_eq!(from, from_canonicalized);
+
+                // ensure to's have the same kinds
+                prop_assert_eq!(to.kind(), kind.clone());
+                prop_assert_eq!(to_canonicalized.kind(), kind);
+            }
+            _ => {
+                prop_assert!(false, "expected CheckedCast");
+            }
+        }
     }
 }
