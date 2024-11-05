@@ -98,6 +98,7 @@ pub(crate) fn optimize_into_acir(
     .run_pass(Ssa::separate_runtime, "After Runtime Separation:")
     .run_pass(Ssa::resolve_is_unconstrained, "After Resolving IsUnconstrained:")
     .run_pass(|ssa| ssa.inline_functions(options.inliner_aggressiveness), "After Inlining:")
+    .run_pass(Ssa::inline_const_brillig_calls, "After Inlining Const Brillig Calls:")
     // Run mem2reg with the CFG separated into blocks
     .run_pass(Ssa::mem2reg, "After Mem2Reg (1st):")
     .run_pass(Ssa::simplify_cfg, "After Simplifying (1st):")
