@@ -102,9 +102,7 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
         let mut group = ChunkGroup::new();
 
         group.text(self.chunk(|formatter| {
-            if !attributes.is_empty() {
-                formatter.format_attributes();
-            }
+            formatter.format_secondary_attributes(attributes);
             formatter.write_keyword(keyword);
             formatter.write_space();
             formatter.format_pattern(pattern);

@@ -38,7 +38,7 @@ use crate::{
         DefinitionKind, DependencyId, ExprId, FuncId, FunctionModifiers, GlobalId, NodeInterner,
         ReferenceId, StructId, TraitId, TraitImplId, TypeAliasId,
     },
-    token::{CustomAttribute, SecondaryAttribute},
+    token::SecondaryAttribute,
     Shared, Type, TypeVariable,
 };
 
@@ -839,11 +839,6 @@ impl<'context> Elaborator<'context> {
             None
         };
 
-        let attributes = func.secondary_attributes().iter();
-        let attributes =
-            attributes.filter_map(|secondary_attribute| secondary_attribute.as_custom());
-        let attributes: Vec<CustomAttribute> = attributes.cloned().collect();
-
         let meta = FuncMeta {
             name: name_ident,
             kind: func.kind,
@@ -867,7 +862,6 @@ impl<'context> Elaborator<'context> {
             function_body: FunctionBody::Unresolved(func.kind, body, func.def.span),
             self_type: self.self_type.clone(),
             source_file: self.file,
-            custom_attributes: attributes,
         };
 
         self.interner.push_fn_meta(meta, func_id);

@@ -504,7 +504,7 @@ impl FunctionDefinition {
     }
 
     pub fn is_test(&self) -> bool {
-        if let Some(attribute) = &self.attributes.function {
+        if let Some(attribute) = self.attributes.function() {
             matches!(attribute, FunctionAttribute::Test(..))
         } else {
             false

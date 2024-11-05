@@ -37,7 +37,7 @@ use crate::{
     hir_def::{self},
     node_interner::{DefinitionKind, NodeInterner, TraitImplKind},
     parser::{Parser, StatementOrExpressionOrLValue},
-    token::{Attribute, SecondaryAttribute, Token},
+    token::{Attribute, Token},
     Kind, QuotedType, ResolvedGeneric, Shared, Type, TypeVariable,
 };
 
@@ -348,24 +348,9 @@ fn struct_def_add_attribute(
     let (self_argument, attribute) = check_two_arguments(arguments, location)?;
     let attribute_location = attribute.1;
     let attribute = get_str(interner, attribute)?;
-
-    let mut tokens = lex(&format!("#[{}]", attribute));
-    if tokens.len() != 1 {
-        return Err(InterpreterError::InvalidAttribute {
-            attribute: attribute.to_string(),
-            location: attribute_location,
-        });
-    }
-
-    let token = tokens.remove(0);
-    let Token::Attribute(attribute) = token else {
-        return Err(InterpreterError::InvalidAttribute {
-            attribute: attribute.to_string(),
-            location: attribute_location,
-        });
-    };
-
-    let Attribute::Secondary(attribute) = attribute else {
+    let attribute = format!("#[{}]", attribute);
+    let mut parser = Parser::for_str(&attribute);
+    let Some((Attribute::Secondary(attribute), _span)) = parser.parse_attribute() else {
         return Err(InterpreterError::InvalidAttribute {
             attribute: attribute.to_string(),
             location: attribute_location,
@@ -374,7 +359,7 @@ fn struct_def_add_attribute(
 
     let struct_id = get_struct(self_argument)?;
     interner.update_struct_attributes(struct_id, |attributes| {
-        attributes.push(attribute.clone());
+        attributes.push(attribute);
     });
 
     Ok(Value::Unit)
@@ -2250,17 +2235,9 @@ fn function_def_add_attribute(
     let (self_argument, attribute) = check_two_arguments(arguments, location)?;
     let attribute_location = attribute.1;
     let attribute = get_str(interpreter.elaborator.interner, attribute)?;
-
-    let mut tokens = lex(&format!("#[{}]", attribute));
-    if tokens.len() != 1 {
-        return Err(InterpreterError::InvalidAttribute {
-            attribute: attribute.to_string(),
-            location: attribute_location,
-        });
-    }
-
-    let token = tokens.remove(0);
-    let Token::Attribute(attribute) = token else {
+    let attribute = format!("#[{}]", attribute);
+    let mut parser = Parser::for_str(&attribute);
+    let Some((attribute, _span)) = parser.parse_attribute() else {
         return Err(InterpreterError::InvalidAttribute {
             attribute: attribute.to_string(),
             location: attribute_location,
@@ -2274,19 +2251,11 @@ fn function_def_add_attribute(
 
     match &attribute {
         Attribute::Function(attribute) => {
-            function_modifiers.attributes.function = Some(attribute.clone());
+            function_modifiers.attributes.set_function(attribute.clone());
         }
         Attribute::Secondary(attribute) => {
             function_modifiers.attributes.secondary.push(attribute.clone());
         }
-    }
-
-    if let Attribute::Secondary(
-        SecondaryAttribute::Tag(attribute) | SecondaryAttribute::Meta(attribute),
-    ) = attribute
-    {
-        let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
-        func_meta.custom_attributes.push(attribute);
     }
 
     Ok(Value::Unit)
@@ -2320,7 +2289,7 @@ fn function_def_has_named_attribute(
     let name = &*get_str(interner, name)?;
 
     let modifiers = interner.function_modifiers(&func_id);
-    if let Some(attribute) = &modifiers.attributes.function {
+    if let Some(attribute) = modifiers.attributes.function() {
         if name == attribute.name() {
             return Ok(Value::Bool(true));
         }
