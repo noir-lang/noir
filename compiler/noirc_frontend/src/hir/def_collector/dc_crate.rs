@@ -5,13 +5,13 @@ use crate::graph::CrateId;
 use crate::hir::comptime::InterpreterError;
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
-use crate::hir::resolution::path_resolver;
 use crate::hir::type_check::TypeCheckError;
+use crate::locations::ReferencesTracker;
 use crate::token::SecondaryAttribute;
 use crate::usage_tracker::UnusedItem;
 use crate::{Generics, Type};
 
-use crate::hir::resolution::import::{resolve_import, ImportDirective, PathResolution};
+use crate::hir::resolution::import::{resolve_import, ImportDirective};
 use crate::hir::Context;
 
 use crate::ast::Expression;
@@ -347,45 +347,23 @@ impl DefCollector {
 
         // Resolve unresolved imports collected from the crate, one by one.
         for collected_import in std::mem::take(&mut def_collector.imports) {
-            let module_id = collected_import.module_id;
-            let resolved_import = if context.def_interner.lsp_mode {
-                let mut references: Vec<ReferenceId> = Vec::new();
-                let resolved_import = resolve_import(
-                    crate_id,
-                    &collected_import,
-                    &context.def_interner,
-                    &context.def_maps,
-                    &mut context.usage_tracker,
-                    &mut Some(&mut references),
-                );
+            let local_module_id = collected_import.module_id;
+            let module_id = ModuleId { krate: crate_id, local_id: local_module_id };
+            let current_def_map = context.def_maps.get(&crate_id).unwrap();
+            let file_id = current_def_map.file_id(local_module_id);
 
-                let current_def_map = context.def_maps.get(&crate_id).unwrap();
-                let file_id = current_def_map.file_id(module_id);
+            let resolved_import = resolve_import(
+                collected_import.path.clone(),
+                module_id,
+                &context.def_maps,
+                &mut context.usage_tracker,
+                Some(ReferencesTracker::new(&mut context.def_interner, file_id)),
+            );
 
-                for (referenced, segment) in references.iter().zip(&collected_import.path.segments)
-                {
-                    context.def_interner.add_reference(
-                        *referenced,
-                        Location::new(segment.ident.span(), file_id),
-                        false,
-                    );
-                }
-
-                resolved_import
-            } else {
-                resolve_import(
-                    crate_id,
-                    &collected_import,
-                    &context.def_interner,
-                    &context.def_maps,
-                    &mut context.usage_tracker,
-                    &mut None,
-                )
-            };
             match resolved_import {
                 Ok(resolved_import) => {
                     let current_def_map = context.def_maps.get_mut(&crate_id).unwrap();
-                    let file_id = current_def_map.file_id(module_id);
+                    let file_id = current_def_map.file_id(local_module_id);
 
                     let has_path_resolution_error = !resolved_import.errors.is_empty();
                     for error in resolved_import.errors {
@@ -396,11 +374,11 @@ impl DefCollector {
                     }
 
                     // Populate module namespaces according to the imports used
-                    let name = resolved_import.name;
+                    let name = collected_import.name();
                     let visibility = collected_import.visibility;
-                    let is_prelude = resolved_import.is_prelude;
+                    let is_prelude = collected_import.is_prelude;
                     for (module_def_id, item_visibility, _) in
-                        resolved_import.resolved_namespace.iter_items()
+                        resolved_import.namespace.iter_items()
                     {
                         if item_visibility < visibility {
                             errors.push((
@@ -414,25 +392,26 @@ impl DefCollector {
                         }
                         let visibility = visibility.min(item_visibility);
 
-                        let result = current_def_map.modules[resolved_import.module_scope.0]
-                            .import(name.clone(), visibility, module_def_id, is_prelude);
+                        let result = current_def_map.modules[local_module_id.0].import(
+                            name.clone(),
+                            visibility,
+                            module_def_id,
+                            is_prelude,
+                        );
 
                         // If we error on path resolution don't also say it's unused (in case it ends up being unused)
                         if !has_path_resolution_error {
-                            let module_id = ModuleId {
-                                krate: crate_id,
-                                local_id: resolved_import.module_scope,
-                            };
+                            let defining_module =
+                                ModuleId { krate: crate_id, local_id: local_module_id };
+
                             context.usage_tracker.add_unused_item(
-                                module_id,
+                                defining_module,
                                 name.clone(),
                                 UnusedItem::Import,
                                 visibility,
                             );
 
                             if visibility != ItemVisibility::Private {
-                                let local_id = resolved_import.module_scope;
-                                let defining_module = ModuleId { krate: crate_id, local_id };
                                 context.def_interner.register_name_for_auto_import(
                                     name.to_string(),
                                     module_def_id,
@@ -442,14 +421,6 @@ impl DefCollector {
                             }
                         }
 
-                        let last_segment = collected_import.path.last_ident();
-
-                        add_import_reference(
-                            module_def_id,
-                            &last_segment,
-                            &mut context.def_interner,
-                            file_id,
-                        );
                         if let Some(ref alias) = collected_import.alias {
                             add_import_reference(
                                 module_def_id,
@@ -558,17 +529,18 @@ fn inject_prelude(
             span: Span::default(),
         };
 
-        if let Ok(PathResolution { item, errors }) = path_resolver::resolve_path(
-            &context.def_interner,
-            &context.def_maps,
-            ModuleId { krate: crate_id, local_id: crate_root },
-            None,
+        if let Ok(resolved_import) = resolve_import(
             path,
+            ModuleId { krate: crate_id, local_id: crate_root },
+            &context.def_maps,
             &mut context.usage_tracker,
-            &mut None,
+            None, // references tracker
         ) {
-            assert!(errors.is_empty(), "Tried to add private item to prelude");
-            let module_id = item.module_id().expect("std::prelude should be a module");
+            assert!(resolved_import.errors.is_empty(), "Tried to add private item to prelude");
+
+            let (module_def_id, _, _) =
+                resolved_import.namespace.types.expect("couldn't resolve std::prelude");
+            let module_id = module_def_id.as_module().expect("std::prelude should be a module");
             let prelude = context.module(module_id).scope().names();
 
             for path in prelude {
@@ -580,7 +552,6 @@ fn inject_prelude(
                     ImportDirective {
                         visibility: ItemVisibility::Private,
                         module_id: crate_root,
-                        self_type_module_id: None,
                         path: Path { segments, kind: PathKind::Plain, span: Span::default() },
                         alias: None,
                         is_prelude: true,
