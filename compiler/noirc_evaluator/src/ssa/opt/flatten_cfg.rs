@@ -960,20 +960,19 @@ mod test {
         let ssa = builder.finish();
 
         // Expected output:
-        // fn main f0 {
-        //   b0(v0: u1, v1: reference):
+        //
+        // acir(inline) fn main f0 {
+        //   b0(v0: u1, v1: &mut Field):
         //     enable_side_effects v0
-        //     v4 = load v1
-        //     store Field 5 at v1
-        //     v5 = not v0
-        //     store v4 at v1
+        //     v3 = load v1
+        //     v4 = not v0
+        //     v5 = cast v0 as Field
+        //     v6 = sub Field 5, v3
+        //     v7 = mul v5, v6
+        //     v8 = add v3, v7
+        //     store v8 at v1
+        //     v9 = not v0
         //     enable_side_effects u1 1
-        //     v6 = cast v0 as Field
-        //     v7 = cast v5 as Field
-        //     v8 = mul v6, Field 5
-        //     v9 = mul v7, v4
-        //     v10 = add v8, v9
-        //     store v10 at v1
         //     return
         // }
         let ssa = ssa.flatten_cfg();
@@ -982,7 +981,7 @@ mod test {
         assert_eq!(main.reachable_blocks().len(), 1);
 
         let store_count = count_instruction(main, |ins| matches!(ins, Instruction::Store { .. }));
-        assert_eq!(store_count, 3);
+        assert_eq!(store_count, 1);
     }
 
     #[test]
@@ -1027,31 +1026,34 @@ mod test {
         let ssa = builder.finish();
 
         // Expected output:
-        // fn main f0 {
-        //   b0(v0: u1, v1: reference):
+        // acir(inline) fn main f0 {
+        //   b0(v0: u1, v1: &mut Field):
         //     enable_side_effects v0
-        //     v5 = load v1
-        //     store Field 5 at v1
-        //     v6 = not v0
-        //     store v5 at v1
-        //     enable_side_effects v6
-        //     v8 = load v1
-        //     store Field 6 at v1
+        //     v4 = load v1
+        //     v5 = not v0
+        //     v6 = cast v0 as Field
+        //     v7 = sub Field 5, v4
+        //     v8 = mul v6, v7
+        //     v9 = add v4, v8
+        //     store v9 at v1
+        //     v10 = not v0
+        //     enable_side_effects v10
+        //     v11 = load v1
+        //     v12 = cast v10 as Field
+        //     v13 = sub Field 6, v11
+        //     v14 = mul v12, v13
+        //     v15 = add v11, v14
+        //     store v15 at v1
         //     enable_side_effects u1 1
-        //     v9 = cast v0 as Field
-        //     v10 = cast v6 as Field
-        //     v11 = mul v9, Field 5
-        //     v12 = mul v10, Field 6
-        //     v13 = add v11, v12
-        //     store v13 at v1
         //     return
         // }
         let ssa = ssa.flatten_cfg();
         let main = ssa.main();
         assert_eq!(main.reachable_blocks().len(), 1);
 
+        eprintln!("{main}");
         let store_count = count_instruction(main, |ins| matches!(ins, Instruction::Store { .. }));
-        assert_eq!(store_count, 4);
+        assert_eq!(store_count, 2);
     }
 
     fn count_instruction(function: &Function, f: impl Fn(&Instruction) -> bool) -> usize {
@@ -1214,7 +1216,7 @@ mod test {
         };
 
         let merged_values = get_all_constants_reachable_from_instruction(&main.dfg, ret);
-        assert_eq!(merged_values, vec![3, 5, 6]);
+        assert_eq!(merged_values, vec![1, 3, 5, 6]);
     }
 
     #[test]

@@ -389,7 +389,10 @@ impl Instruction {
 
             // Store instructions must be removed by DIE in acir code, any load
             // instructions should already be unused by that point.
-            Store { .. } => matches!(function.runtime(), RuntimeType::Acir(_)),
+            Store { .. } => {
+                matches!(function.runtime(), RuntimeType::Acir(_))
+                    && function.reachable_blocks().len() == 1
+            }
 
             Constrain(..)
             | EnableSideEffectsIf { .. }
