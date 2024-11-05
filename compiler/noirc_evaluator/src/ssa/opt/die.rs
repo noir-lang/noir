@@ -178,7 +178,7 @@ impl Context {
         } else if let Instruction::Store { address, .. } = instruction {
             // If there's only one block in the function we can remove it as long as the address
             // hasn't been referenced afterward.
-            (function.reachable_blocks().len() == 1) && !self.used_values.contains(&address)
+            (function.reachable_blocks().len() == 1) && !self.used_values.contains(address)
         } else if let Instruction::Call { func, arguments } = instruction {
             // TODO: make this more general for instructions which don't have results but have side effects "sometimes" like `Intrinsic::AsWitness`
             let as_witness_id = function.dfg.get_intrinsic(Intrinsic::AsWitness);

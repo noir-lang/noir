@@ -260,7 +260,7 @@ impl<'f> PerFunctionContext<'f> {
                     self.inserter.map_value(result, value);
                     self.instructions_to_remove.insert(instruction);
                 } else {
-                    references.mark_value_used(address, self.inserter.function);
+                    // references.mark_value_used(address, self.inserter.function);
                     // self.last_loads.insert(address, (instruction, block_id));
                 }
             }
@@ -298,7 +298,7 @@ impl<'f> PerFunctionContext<'f> {
             }
             Instruction::ArrayGet { array, .. } => {
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
-                references.mark_value_used(*array, self.inserter.function);
+                // references.mark_value_used(*array, self.inserter.function);
 
                 if self.inserter.function.dfg.value_is_reference(result) {
                     let array = self.inserter.function.dfg.resolve(*array);
@@ -311,7 +311,7 @@ impl<'f> PerFunctionContext<'f> {
                 }
             }
             Instruction::ArraySet { array, value, .. } => {
-                references.mark_value_used(*array, self.inserter.function);
+                // references.mark_value_used(*array, self.inserter.function);
                 let element_type = self.inserter.function.dfg.type_of_value(*value);
 
                 if Self::contains_references(&element_type) {
@@ -350,7 +350,7 @@ impl<'f> PerFunctionContext<'f> {
                 // TODO: Check if type directly holds references or holds arrays that hold references
                 let expr = Expression::ArrayElement(Box::new(Expression::Other(array)));
                 let aliases = AliasSet::known_many(elements);
-                references.add_expression_with_aliases(array, expr, &aliases)
+                references.add_expression_with_aliases(array, expr, &aliases);
             }
         }
     }
@@ -371,7 +371,7 @@ impl<'f> PerFunctionContext<'f> {
             if self.inserter.function.dfg.value_is_reference(*value) {
                 let value = self.inserter.function.dfg.resolve(*value);
                 references.set_unknown(value);
-                references.mark_value_used(value, self.inserter.function);
+                // references.mark_value_used(value, self.inserter.function);
             }
         }
     }

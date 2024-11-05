@@ -110,7 +110,7 @@ impl Block {
         aliases: &AliasSet,
     ) {
         let expr = self.expressions.entry(result).or_insert(expression);
-        self.aliases.entry(expr.clone()).or_insert(AliasSet::known(result)).unify(&aliases);
+        self.aliases.entry(expr.clone()).or_insert(AliasSet::known(result)).unify(aliases);
     }
 
     pub(super) fn try_insert_alias(&mut self, reference: ValueId, alias: ValueId) {
@@ -194,16 +194,6 @@ impl Block {
                 aliases.for_each(|alias| {
                     f(self, alias);
                 });
-            }
-        }
-    }
-
-    pub(super) fn mark_value_used(&mut self, value: ValueId, function: &Function) {
-        // We must do a recursive check for arrays since they're the only Values which may contain
-        // other ValueIds.
-        if let Some((array, _)) = function.dfg.get_array_constant(value) {
-            for value in array {
-                self.mark_value_used(value, function);
             }
         }
     }
