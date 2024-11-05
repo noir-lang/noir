@@ -462,14 +462,26 @@ impl<'context> Elaborator<'context> {
                             });
                             return Type::Error;
                         }
-                        if let Some(result) = op.function(lhs, rhs, &lhs_kind) {
-                            Type::Constant(result, lhs_kind)
-                        } else {
-                            self.push_err(ResolverError::OverflowInType { lhs, op, rhs, span });
-                            Type::Error
+                        match op.function(lhs, rhs, &lhs_kind, span) {
+                            Ok(result) => Type::Constant(result, lhs_kind),
+                            Err(err) => {
+                                let err = Box::new(err);
+                                self.push_err(ResolverError::BinaryOpError {
+                                    lhs,
+                                    op,
+                                    rhs,
+                                    err,
+                                    span,
+                                });
+                                Type::Error
+                            }
                         }
                     }
-                    (lhs, rhs) => Type::InfixExpr(Box::new(lhs), op, Box::new(rhs)).canonicalize(),
+                    (lhs, rhs) => {
+                        let infix = Type::InfixExpr(Box::new(lhs), op, Box::new(rhs));
+                        Type::CheckedCast { from: Box::new(infix.clone()), to: Box::new(infix) }
+                            .canonicalize()
+                    }
                 }
             }
             UnresolvedTypeExpression::AsTraitPath(path) => {
@@ -1737,6 +1749,11 @@ impl<'context> Elaborator<'context> {
             | Type::NamedGeneric(_, _)
             | Type::Quoted(_)
             | Type::Forall(_, _) => (),
+
+            Type::CheckedCast { from, to } => {
+                Self::find_numeric_generics_in_type(from, found);
+                Self::find_numeric_generics_in_type(to, found);
+            }
 
             Type::TraitAsType(_, _, args) => {
                 for arg in &args.ordered {
