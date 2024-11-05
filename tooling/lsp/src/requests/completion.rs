@@ -33,7 +33,7 @@ use noirc_frontend::{
     hir_def::traits::Trait,
     node_interner::{NodeInterner, ReferenceId, StructId},
     parser::{Item, ItemKind, ParsedSubModule},
-    token::{CustomAttribute, Token, Tokens},
+    token::{MetaAttribute, Token, Tokens},
     Kind, ParsedModule, StructType, Type, TypeBinding,
 };
 use sort_text::underscore_sort_text;
@@ -901,24 +901,6 @@ impl<'a> NodeFinder<'a> {
         None
     }
 
-    fn suggest_attributes(&mut self, prefix: &str, target: AttributeTarget) {
-        self.suggest_builtin_attributes(prefix, target);
-
-        let function_completion_kind = FunctionCompletionKind::NameAndParameters;
-        let requested_items = RequestedItems::OnlyAttributeFunctions(target);
-
-        self.complete_in_module(
-            self.module_id,
-            prefix,
-            PathKind::Plain,
-            true,
-            function_completion_kind,
-            requested_items,
-        );
-
-        self.complete_auto_imports(prefix, requested_items, function_completion_kind);
-    }
-
     fn suggest_no_arguments_attributes(&mut self, prefix: &str, attributes: &[&str]) {
         for name in attributes {
             if name_matches(name, prefix) {
@@ -1675,12 +1657,14 @@ impl<'a> Visitor for NodeFinder<'a> {
         false
     }
 
-    fn visit_custom_attribute(&mut self, attribute: &CustomAttribute, target: AttributeTarget) {
-        if self.byte_index != attribute.contents_span.end() as usize {
-            return;
+    fn visit_meta_attribute(&mut self, attribute: &MetaAttribute, target: AttributeTarget) -> bool {
+        if self.byte_index == attribute.name.span.end() as usize {
+            self.suggest_builtin_attributes(&attribute.name.to_string(), target);
         }
 
-        self.suggest_attributes(&attribute.contents, target);
+        self.find_in_path(&attribute.name, RequestedItems::OnlyAttributeFunctions(target));
+
+        true
     }
 
     fn visit_quote(&mut self, tokens: &Tokens) {

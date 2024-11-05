@@ -223,7 +223,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         location: Location,
     ) -> IResult<Value> {
         let attributes = self.elaborator.interner.function_attributes(&function);
-        let func_attrs = attributes.function.as_ref()
+        let func_attrs = attributes.function()
             .expect("all builtin functions must contain a function  attribute which contains the opcode which it links to");
 
         if let Some(builtin) = func_attrs.builtin() {
