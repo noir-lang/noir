@@ -101,17 +101,14 @@ impl<'a> Visitor for AttributeReferenceFinder<'a> {
 
         // The path here must resolve to a function and it's a simple path (can't have turbofish)
         // so it can (and must) be solved as an import.
-        let Ok(result) = resolve_import(
+        let Ok((module_def_id, _, _)) = resolve_import(
             path,
             self.module_id,
             self.def_maps,
             &mut UsageTracker::default(),
             None, // references tracker
-        ) else {
-            return;
-        };
-
-        let Some((module_def_id, _, _)) = result.namespace.values else {
+        )
+        .map(|result| result.namespace.values) else {
             return;
         };
 
