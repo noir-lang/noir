@@ -237,13 +237,11 @@ pub enum InlineType {
 
 impl From<&Attributes> for InlineType {
     fn from(attributes: &Attributes) -> Self {
-        attributes.function.as_ref().map_or(InlineType::default(), |func_attribute| {
-            match func_attribute {
-                FunctionAttribute::Fold => InlineType::Fold,
-                FunctionAttribute::NoPredicates => InlineType::NoPredicates,
-                FunctionAttribute::InlineAlways => InlineType::InlineAlways,
-                _ => InlineType::default(),
-            }
+        attributes.function().map_or(InlineType::default(), |func_attribute| match func_attribute {
+            FunctionAttribute::Fold => InlineType::Fold,
+            FunctionAttribute::NoPredicates => InlineType::NoPredicates,
+            FunctionAttribute::InlineAlways => InlineType::InlineAlways,
+            _ => InlineType::default(),
         })
     }
 }
