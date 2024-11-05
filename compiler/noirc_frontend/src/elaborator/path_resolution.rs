@@ -107,7 +107,7 @@ impl<'context> Elaborator<'context> {
     pub(super) fn resolve_path(&mut self, mut path: Path) -> PathResolutionResult {
         let mut module_id = self.module_id();
 
-        if path.kind == PathKind::Plain && path.first_name() == SELF_TYPE_NAME {
+        if path.kind == PathKind::Plain && path.first_name() == Some(SELF_TYPE_NAME) {
             if let Some(Type::Struct(struct_type, _)) = &self.self_type {
                 let struct_type = struct_type.borrow();
                 if path.segments.len() == 1 {
