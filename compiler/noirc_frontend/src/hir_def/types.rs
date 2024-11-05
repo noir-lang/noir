@@ -1187,7 +1187,6 @@ impl Type {
             | Type::Forall(_, _)
             | Type::Quoted(_)
             | Type::Slice(_)
-            | Type::InfixExpr(_, _, _)
             | Type::TraitAsType(..) => false,
 
             Type::Alias(alias, generics) => {
@@ -1205,6 +1204,10 @@ impl Type {
                 .get_fields(generics)
                 .into_iter()
                 .all(|(_, field)| field.is_valid_for_program_input()),
+
+            Type::InfixExpr(lhs, _, rhs) => {
+                lhs.is_valid_for_program_input() && rhs.is_valid_for_program_input()
+            }
         }
     }
 
