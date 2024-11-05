@@ -281,8 +281,7 @@ impl<'interner> TokenPrettyPrinter<'interner> {
             | Token::Whitespace(_)
             | Token::LineComment(..)
             | Token::BlockComment(..)
-            | Token::Attribute(..)
-            | Token::InnerAttribute(..)
+            | Token::AttributeStart { .. }
             | Token::Invalid(_) => {
                 if last_was_alphanumeric {
                     write!(f, " ")?;

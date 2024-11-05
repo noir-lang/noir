@@ -1,15 +1,13 @@
 use noirc_frontend::{
     ast::{NoirTrait, Param, Pattern, TraitItem, Visibility},
-    token::{Keyword, Token},
+    token::{Attributes, Keyword, Token},
 };
 
 use super::{function::FunctionToFormat, Formatter};
 
 impl<'a> Formatter<'a> {
     pub(super) fn format_trait(&mut self, noir_trait: NoirTrait) {
-        if !noir_trait.attributes.is_empty() {
-            self.format_attributes();
-        }
+        self.format_secondary_attributes(noir_trait.attributes);
         self.write_indentation();
         self.format_item_visibility(noir_trait.visibility);
         self.write_keyword(Keyword::Trait);
@@ -91,6 +89,7 @@ impl<'a> Formatter<'a> {
                     .collect();
 
                 let func = FunctionToFormat {
+                    attributes: Attributes::empty(),
                     visibility,
                     name,
                     generics,
