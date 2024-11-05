@@ -1,9 +1,11 @@
+use iter_extended::vecmap;
+
 use noirc_errors::Span;
 
-use crate::ast::{Documented, ItemVisibility, NoirTrait, Pattern, TraitItem, UnresolvedType};
+use crate::ast::{Documented, GenericTypeArg, GenericTypeArgs, ItemVisibility, NoirTrait, Path, Pattern, TraitItem, UnresolvedGeneric, UnresolvedTraitConstraint, UnresolvedType};
 use crate::{
     ast::{Ident, UnresolvedTypeData},
-    parser::{labels::ParsingRuleLabel, ParserErrorReason},
+    parser::{labels::ParsingRuleLabel, NoirTraitImpl, ParserErrorReason},
     token::{Attribute, Keyword, SecondaryAttribute, Token},
 };
 
@@ -12,17 +14,20 @@ use super::Parser;
 
 impl<'a> Parser<'a> {
     /// Trait = 'trait' identifier Generics ( ':' TraitBounds )? WhereClause TraitBody
+    ///       | 'trait' identifier Generics '=' TraitBounds WhereClause ';'
     pub(crate) fn parse_trait(
         &mut self,
         attributes: Vec<(Attribute, Span)>,
         visibility: ItemVisibility,
         start_span: Span,
-    ) -> NoirTrait {
+    ) -> (NoirTrait, Option<NoirTraitImpl>) {
         let attributes = self.validate_secondary_attributes(attributes);
 
         let Some(name) = self.eat_ident() else {
             self.expected_identifier();
-            return empty_trait(attributes, visibility, self.span_since(start_span));
+            let noir_trait = empty_trait(attributes, visibility, self.span_since(start_span));
+            let no_implicit_impl = None;
+            return (noir_trait, no_implicit_impl);
         };
 
         let generics = self.parse_generics();
@@ -52,17 +57,67 @@ impl<'a> Parser<'a> {
             (bounds, where_clause, items, is_alias)
         };
 
-        NoirTrait {
+        let span = self.span_since(start_span);
+
+        let noir_impl = is_alias.then(|| {
+            let object_type_ident = Ident::new("#T".to_string(), span);
+            let object_type_path = Path::from_ident(object_type_ident.clone());
+            let object_type_generic = UnresolvedGeneric::Variable(object_type_ident);
+
+            let is_synthesized = true;
+            let object_type = UnresolvedType {
+                typ: UnresolvedTypeData::Named(object_type_path, vec![].into(), is_synthesized),
+                span,
+            };
+
+            let mut impl_generics = generics.clone();
+            impl_generics.push(object_type_generic);
+
+            let trait_name = Path::from_ident(name.clone());
+            let trait_generics: GenericTypeArgs = vecmap(generics.clone(), |generic| {
+                let is_synthesized = true;
+                let generic_type = UnresolvedType {
+                    typ: UnresolvedTypeData::Named(Path::from_ident(generic.ident().clone()), vec![].into(), is_synthesized),
+                    span,
+                };
+
+                GenericTypeArg::Ordered(generic_type)
+            }).into();
+
+            // bounds from trait
+            let mut where_clause = where_clause.clone();
+            for bound in bounds.clone() {
+                where_clause.push(UnresolvedTraitConstraint {
+                    typ: object_type.clone(),
+                    trait_bound: bound,
+                });
+            }
+
+            let items = vec![];
+
+            NoirTraitImpl {
+                impl_generics,
+                trait_name,
+                trait_generics,
+                object_type,
+                where_clause,
+                items,
+            }
+        });
+
+        let noir_trait = NoirTrait {
             name,
             generics,
             bounds,
             where_clause,
-            span: self.span_since(start_span),
+            span,
             items,
             attributes,
             visibility,
             is_alias,
-        }
+        };
+
+        (noir_trait, noir_impl)
     }
 
     /// TraitBody = '{' ( OuterDocComments TraitItem )* '}'
@@ -218,22 +273,44 @@ fn empty_trait(
 #[cfg(test)]
 mod tests {
     use crate::{
-        ast::{NoirTrait, TraitItem},
+        ast::{NoirTrait, NoirTraitImpl, TraitItem},
         parser::{
             parser::{parse_program, ParserErrorReason, tests::expect_no_errors},
             ItemKind,
         },
     };
 
-    fn parse_trait_no_errors(src: &str) -> NoirTrait {
+    fn parse_trait_opt_impl_no_errors(src: &str) -> (NoirTrait, Option<NoirTraitImpl>) {
         let (mut module, errors) = parse_program(src);
         expect_no_errors(&errors);
-        assert_eq!(module.items.len(), 1);
-        let item = module.items.remove(0);
+        let (item, impl_item) = if module.items.len() == 2 {
+            let item = module.items.remove(0);
+            let impl_item = module.items.remove(0);
+            (item, Some(impl_item))
+        } else {
+            assert_eq!(module.items.len(), 1);
+            let item = module.items.remove(0);
+            (item, None)
+        };
         let ItemKind::Trait(noir_trait) = item.kind else {
             panic!("Expected trait");
         };
-        noir_trait
+        let noir_trait_impl = impl_item.map(|impl_item| {
+            let ItemKind::TraitImpl(noir_trait_impl) = impl_item.kind else {
+                panic!("Expected impl");
+            };
+            noir_trait_impl
+        });
+        (noir_trait, noir_trait_impl)
+    }
+
+    fn parse_trait_with_impl_no_errors(src: &str) -> (NoirTrait, NoirTraitImpl) {
+        let (noir_trait, noir_trait_impl) = parse_trait_opt_impl_no_errors(src);
+        (noir_trait, noir_trait_impl.expect("expected a NoirTraitImpl"))
+    }
+
+    fn parse_trait_no_errors(src: &str) -> NoirTrait {
+        parse_trait_opt_impl_no_errors(src).0
     }
 
     #[test]
@@ -269,7 +346,7 @@ mod tests {
     #[test]
     fn parse_trait_alias_with_generics() {
         let src = "trait Foo<A, B> = Bar + Baz<A>;";
-        let noir_trait_alias = parse_trait_no_errors(src);
+        let (noir_trait_alias, noir_trait_impl) = parse_trait_with_impl_no_errors(src);
         assert_eq!(noir_trait_alias.name.to_string(), "Foo");
         assert_eq!(noir_trait_alias.generics.len(), 2);
         assert_eq!(noir_trait_alias.bounds.len(), 2);
@@ -278,6 +355,15 @@ mod tests {
         assert!(noir_trait_alias.where_clause.is_empty());
         assert!(noir_trait_alias.items.is_empty());
         assert!(noir_trait_alias.is_alias);
+
+        assert_eq!(noir_trait_impl.trait_name.to_string(), "Foo");
+        assert_eq!(noir_trait_impl.impl_generics.len(), 3);
+        assert_eq!(noir_trait_impl.trait_generics.ordered_args.len(), 2);
+        assert_eq!(noir_trait_impl.where_clause.len(), 2);
+        assert_eq!(noir_trait_alias.bounds.len(), 2);
+        assert_eq!(noir_trait_alias.bounds[0].to_string(), "Bar");
+        assert_eq!(noir_trait_alias.bounds[1].to_string(), "Baz<A>");
+        assert!(noir_trait_impl.items.is_empty());
 
         // Equivalent to
         let src = "trait Foo<A, B>: Bar + Baz<A> {}";
@@ -313,7 +399,7 @@ mod tests {
     #[test]
     fn parse_trait_alias_with_where_clause() {
         let src = "trait Foo<A, B> = Bar + Baz<A> where A: Z;";
-        let noir_trait_alias = parse_trait_no_errors(src);
+        let (noir_trait_alias, noir_trait_impl) = parse_trait_with_impl_no_errors(src);
         assert_eq!(noir_trait_alias.name.to_string(), "Foo");
         assert_eq!(noir_trait_alias.generics.len(), 2);
         assert_eq!(noir_trait_alias.bounds.len(), 2);
@@ -322,6 +408,15 @@ mod tests {
         assert_eq!(noir_trait_alias.where_clause.len(), 1);
         assert!(noir_trait_alias.items.is_empty());
         assert!(noir_trait_alias.is_alias);
+
+        assert_eq!(noir_trait_impl.trait_name.to_string(), "Foo");
+        assert_eq!(noir_trait_impl.impl_generics.len(), 3);
+        assert_eq!(noir_trait_impl.trait_generics.ordered_args.len(), 2);
+        assert_eq!(noir_trait_impl.where_clause.len(), 3);
+        assert_eq!(noir_trait_impl.where_clause[0].to_string(), "A: Z");
+        assert_eq!(noir_trait_impl.where_clause[1].to_string(), "#T: Bar");
+        assert_eq!(noir_trait_impl.where_clause[2].to_string(), "#T: Baz<A>");
+        assert!(noir_trait_impl.items.is_empty());
 
         // Equivalent to
         let src = "trait Foo<A, B>: Bar + Baz<A> where A: Z {}";
@@ -418,7 +513,7 @@ mod tests {
     #[test]
     fn parse_trait_alias() {
         let src = "trait Foo = Bar + Baz;";
-        let noir_trait_alias = parse_trait_no_errors(src);
+        let (noir_trait_alias, noir_trait_impl) = parse_trait_with_impl_no_errors(src);
         assert_eq!(noir_trait_alias.bounds.len(), 2);
 
         assert_eq!(noir_trait_alias.bounds[0].to_string(), "Bar");
@@ -426,6 +521,14 @@ mod tests {
 
         assert_eq!(noir_trait_alias.to_string(), "trait Foo = Bar + Baz;");
         assert!(noir_trait_alias.is_alias);
+
+        assert_eq!(noir_trait_impl.trait_name.to_string(), "Foo");
+        assert_eq!(noir_trait_impl.impl_generics.len(), 1);
+        assert_eq!(noir_trait_impl.trait_generics.ordered_args.len(), 0);
+        assert_eq!(noir_trait_impl.where_clause.len(), 2);
+        assert_eq!(noir_trait_impl.where_clause[0].to_string(), "#T: Bar");
+        assert_eq!(noir_trait_impl.where_clause[1].to_string(), "#T: Baz");
+        assert!(noir_trait_impl.items.is_empty());
 
         // Equivalent to
         let src = "trait Foo: Bar + Baz {}";

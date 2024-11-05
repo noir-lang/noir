@@ -321,6 +321,103 @@ fn regression_6314_double_inheritance() {
 }
 
 #[test]
+fn trait_alias_single_member() {
+    let src = r#"
+        trait Foo {
+            fn foo(self) -> Self;
+        }
+       
+        trait Baz = Foo;
+
+        impl Foo for Field {
+            fn foo(self) -> Self { self }
+        }
+
+        fn baz<T>(x: T) -> T where T: Baz {
+            x.foo()
+        }
+
+        fn main() {
+            let x: Field = 0;
+            let _ = baz(x);
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn trait_alias_two_members() {
+    let src = r#"
+        trait Foo {
+            fn foo(self) -> Self;
+        }
+       
+        trait Bar {
+            fn bar(self) -> Self;
+        }
+       
+        trait Baz = Foo + Bar;
+       
+        fn baz<T>(x: T) -> T where T: Baz {
+            x.foo().bar()
+        }
+       
+        impl Foo for Field {
+            fn foo(self) -> Self {
+                self + 1
+            }
+        }
+       
+        impl Bar for Field {
+            fn bar(self) -> Self {
+                self + 2
+            }
+        }
+       
+        fn main() {
+            assert(0.foo().bar() == baz(0));
+        }"#;
+
+    assert_no_errors(src);
+}
+
+#[test]
+fn trait_alias_polymorphic_where_clause() {
+    let src = r#"
+        trait Foo {
+            fn foo(self) -> Self;
+        }
+
+        trait Bar<T> {
+            fn bar(self) -> T;
+        }
+       
+        trait Baz<T> = Foo + Bar<T>;
+       
+        fn baz<T, U>(x: T) -> U where T: Baz<U> {
+            x.foo().bar()
+        }
+       
+        impl Foo for Field {
+            fn foo(self) -> Self {
+                self + 1
+            }
+        }
+       
+        impl Bar<bool> for Field {
+            fn bar(self) -> bool {
+                true
+            }
+        }
+       
+        fn main() {
+            assert(0.foo().bar() == baz(0));
+        }"#;
+
+    assert_no_errors(src);
+}
+
+#[test]
 fn removes_assumed_parent_traits_after_function_ends() {
     let src = r#"
     trait Foo {}
