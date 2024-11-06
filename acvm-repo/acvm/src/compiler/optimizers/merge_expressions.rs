@@ -227,3 +227,129 @@ impl MergeExpressionsOptimizer {
         None
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeSet;
+    use acir::{
+        acir_field::AcirField,
+        circuit::{
+            brillig::{BrilligFunctionId, BrilligOutputs},
+            opcodes::FunctionInput,
+            Circuit, ExpressionWidth, Opcode, PublicInputs,
+        },
+        native_types::{Expression, Witness},
+        FieldElement,
+    };
+    use crate::compiler::{optimizers::MergeExpressionsOptimizer, CircuitSimulator};
+
+    fn check_circuit(circuit: Circuit<FieldElement>) {
+        assert!(CircuitSimulator::default().check_circuit(&circuit));
+        let mut merge_optimizer = MergeExpressionsOptimizer::new();
+        let acir_opcode_positions = vec![0; 20];
+        let (opcodes, _) =
+            merge_optimizer.eliminate_intermediate_variable(&circuit, acir_opcode_positions);
+        let mut optimised_circuit = circuit;
+        optimised_circuit.opcodes = opcodes;
+        // check that the circuit is still valid after optimisation
+        assert!(CircuitSimulator::default().check_circuit(&optimised_circuit));
+    }
+
+    #[test]
+    fn test_1_brillig_output() {
+        let opcodes = vec![
+            Opcode::BrilligCall {
+                id: BrilligFunctionId::default(),
+                inputs: Vec::new(),
+                outputs: vec![BrilligOutputs::Simple(Witness(1))],
+                predicate: None,
+            },
+            Opcode::AssertZero(Expression {
+                mul_terms: Vec::new(),
+                linear_combinations: vec![
+                    (FieldElement::from(2_u128), Witness(0)),
+                    (FieldElement::from(3_u128), Witness(1)),
+                    (FieldElement::from(1_u128), Witness(2)),
+                ],
+                q_c: FieldElement::one(),
+            }),
+            Opcode::AssertZero(Expression {
+                mul_terms: Vec::new(),
+                linear_combinations: vec![
+                    (FieldElement::from(2_u128), Witness(0)),
+                    (FieldElement::from(2_u128), Witness(1)),
+                    (FieldElement::from(1_u128), Witness(5)),
+                ],
+                q_c: FieldElement::one(),
+            }),
+        ];
+
+        let mut private_parameters = BTreeSet::new();
+        private_parameters.insert(Witness(0));
+
+        let circuit = Circuit {
+            current_witness_index: 1,
+            expression_width: ExpressionWidth::Bounded { width: 4 },
+            opcodes,
+            private_parameters,
+            public_parameters: PublicInputs::default(),
+            return_values: PublicInputs::default(),
+            assert_messages: Default::default(),
+            recursive: false,
+        };
+        check_circuit(circuit);
+    }
+
+    #[test]
+    fn test_2_bad_order() {
+        let opcodes = vec![
+            Opcode::AssertZero(Expression {
+                mul_terms: vec![(FieldElement::from(1_u128), Witness(0), Witness(0))],
+                linear_combinations: vec![(-FieldElement::from(1_u128), Witness(4))],
+                q_c: FieldElement::zero(),
+            }),
+            Opcode::AssertZero(Expression {
+                mul_terms: vec![(FieldElement::from(1_u128), Witness(0), Witness(1))],
+                linear_combinations: vec![(FieldElement::from(1_u128), Witness(5))],
+                q_c: FieldElement::zero(),
+            }),
+            Opcode::AssertZero(Expression {
+                mul_terms: Vec::new(),
+                linear_combinations: vec![
+                    (-FieldElement::from(1_u128), Witness(2)),
+                    (FieldElement::from(1_u128), Witness(4)),
+                    (FieldElement::from(1_u128), Witness(5)),
+                ],
+                q_c: FieldElement::zero(),
+            }),
+            Opcode::AssertZero(Expression {
+                mul_terms: Vec::new(),
+                linear_combinations: vec![
+                    (FieldElement::from(1_u128), Witness(2)),
+                    (-FieldElement::from(1_u128), Witness(3)),
+                    (FieldElement::from(1_u128), Witness(4)),
+                    (FieldElement::from(1_u128), Witness(5)),
+                ],
+                q_c: FieldElement::zero(),
+            }),
+            Opcode::BlackBoxFuncCall(acir::circuit::opcodes::BlackBoxFuncCall::RANGE {
+                input: FunctionInput::witness(Witness(3), 32),
+            }),
+        ];
+
+        let mut private_parameters = BTreeSet::new();
+        private_parameters.insert(Witness(0));
+        private_parameters.insert(Witness(1));
+        let circuit = Circuit {
+            current_witness_index: 5,
+            expression_width: ExpressionWidth::Bounded { width: 4 },
+            opcodes,
+            private_parameters,
+            public_parameters: PublicInputs::default(),
+            return_values: PublicInputs::default(),
+            assert_messages: Default::default(),
+            recursive: false,
+        };
+        check_circuit(circuit);
+    }
+}
