@@ -50,7 +50,7 @@ impl<'a> Parser<'a> {
                 continue;
             };
 
-            return parsed_items
+            return parsed_items;
         }
     }
 
@@ -156,11 +156,8 @@ impl<'a> Parser<'a> {
         if self.eat_keyword(Keyword::Trait) {
             self.comptime_mutable_and_unconstrained_not_applicable(modifiers);
 
-            let (noir_trait, noir_impl) = self.parse_trait(
-                attributes,
-                modifiers.visibility,
-                start_span,
-            );
+            let (noir_trait, noir_impl) =
+                self.parse_trait(attributes, modifiers.visibility, start_span);
             let mut output = vec![ItemKind::Trait(noir_trait)];
             if let Some(noir_impl) = noir_impl {
                 output.push(ItemKind::TraitImpl(noir_impl));

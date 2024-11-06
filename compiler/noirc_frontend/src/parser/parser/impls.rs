@@ -58,7 +58,7 @@ impl<'a> Parser<'a> {
     ) -> Impl {
         let where_clause = self.parse_where_clause();
         let methods = self.parse_type_impl_body();
-        
+
         Impl::Impl(TypeImpl { object_type, type_span, generics, where_clause, methods })
     }
 

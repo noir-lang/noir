@@ -2,7 +2,10 @@ use iter_extended::vecmap;
 
 use noirc_errors::Span;
 
-use crate::ast::{Documented, GenericTypeArg, GenericTypeArgs, ItemVisibility, NoirTrait, Path, Pattern, TraitItem, UnresolvedGeneric, UnresolvedTraitConstraint, UnresolvedType};
+use crate::ast::{
+    Documented, GenericTypeArg, GenericTypeArgs, ItemVisibility, NoirTrait, Path, Pattern,
+    TraitItem, UnresolvedGeneric, UnresolvedTraitConstraint, UnresolvedType,
+};
 use crate::{
     ast::{Ident, UnresolvedTypeData},
     parser::{labels::ParsingRuleLabel, NoirTraitImpl, ParserErrorReason},
@@ -77,12 +80,17 @@ impl<'a> Parser<'a> {
             let trait_generics: GenericTypeArgs = vecmap(generics.clone(), |generic| {
                 let is_synthesized = true;
                 let generic_type = UnresolvedType {
-                    typ: UnresolvedTypeData::Named(Path::from_ident(generic.ident().clone()), vec![].into(), is_synthesized),
+                    typ: UnresolvedTypeData::Named(
+                        Path::from_ident(generic.ident().clone()),
+                        vec![].into(),
+                        is_synthesized,
+                    ),
                     span,
                 };
 
                 GenericTypeArg::Ordered(generic_type)
-            }).into();
+            })
+            .into();
 
             // bounds from trait
             let mut where_clause = where_clause.clone();
@@ -275,7 +283,7 @@ mod tests {
     use crate::{
         ast::{NoirTrait, NoirTraitImpl, TraitItem},
         parser::{
-            parser::{parse_program, ParserErrorReason, tests::expect_no_errors},
+            parser::{parse_program, tests::expect_no_errors, ParserErrorReason},
             ItemKind,
         },
     };
@@ -426,7 +434,10 @@ mod tests {
         assert_eq!(noir_trait.bounds.len(), noir_trait_alias.bounds.len());
         assert_eq!(noir_trait.bounds[0].to_string(), noir_trait_alias.bounds[0].to_string());
         assert_eq!(noir_trait.where_clause.len(), noir_trait_alias.where_clause.len());
-        assert_eq!(noir_trait.where_clause[0].to_string(), noir_trait_alias.where_clause[0].to_string());
+        assert_eq!(
+            noir_trait.where_clause[0].to_string(),
+            noir_trait_alias.where_clause[0].to_string()
+        );
         assert_eq!(noir_trait.items.is_empty(), noir_trait_alias.items.is_empty());
         assert!(!noir_trait.is_alias);
     }

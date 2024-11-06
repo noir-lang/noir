@@ -48,11 +48,7 @@ impl<'a> Parser<'a> {
                 vec![]
             }
         };
-        self.parse_many_to_many_return_trailing_separator_if_any(
-            items,
-            separated_by,
-            f,
-        )
+        self.parse_many_to_many_return_trailing_separator_if_any(items, separated_by, f)
     }
 
     /// Same as parse_many, but returns a bool indicating whether a trailing separator was found.
