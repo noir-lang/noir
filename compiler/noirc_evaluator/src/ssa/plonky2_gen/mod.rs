@@ -363,8 +363,8 @@ impl Builder {
             }
         }
         let mut next_param_idx: usize = 0;
-        for (_, typ, vis) in main_function_signature.0 {
-            let fields_for_param = typ.field_count() as usize;
+        for (pattern, typ, vis) in main_function_signature.0 {
+            let fields_for_param = typ.field_count(&pattern.location()) as usize;
             if vis == Visibility::Public {
                 self.asm_writer.register_public_inputs(
                     &parameters[next_param_idx..next_param_idx + fields_for_param],

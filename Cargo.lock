@@ -2699,6 +2699,7 @@ dependencies = [
  "hex",
  "iai",
  "iter-extended",
+ "lazy_static",
  "light-poseidon",
  "nargo",
  "nargo_fmt",

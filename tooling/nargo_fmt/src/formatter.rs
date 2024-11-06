@@ -188,8 +188,7 @@ impl<'a> Formatter<'a> {
     pub(crate) fn write_token(&mut self, token: Token) {
         self.skip_comments_and_whitespace();
         if self.token == token {
-            self.write_current_token();
-            self.bump();
+            self.write_current_token_and_bump();
         } else {
             panic!("Expected token {:?}, got: {:?}", token, self.token);
         }
@@ -198,6 +197,12 @@ impl<'a> Formatter<'a> {
     /// Writes the current token but doesn't advance to the next one.
     pub(crate) fn write_current_token(&mut self) {
         self.write(&self.token.to_string());
+    }
+
+    /// Writes the current token and advances to the next one
+    pub(crate) fn write_current_token_and_bump(&mut self) {
+        self.write(&self.token.to_string());
+        self.bump();
     }
 
     /// Writes the current token trimming its end but doesn't advance to the next one.
