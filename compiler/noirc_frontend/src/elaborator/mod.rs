@@ -641,7 +641,7 @@ impl<'context> Elaborator<'context> {
             let typ = if unresolved_typ.is_type_expression() {
                 self.resolve_type_inner(
                     unresolved_typ.clone(),
-                    &Kind::Numeric(Box::new(Type::default_int_type())),
+                    &Kind::numeric(Type::default_int_type()),
                 )
             } else {
                 self.resolve_type(unresolved_typ.clone())
@@ -654,7 +654,7 @@ impl<'context> Elaborator<'context> {
                     });
                 self.push_err(unsupported_typ_err);
             }
-            Kind::Numeric(Box::new(typ))
+            Kind::numeric(typ)
         } else {
             Kind::Normal
         }
