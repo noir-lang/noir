@@ -68,6 +68,9 @@ pub struct SsaEvaluatorOptions {
     /// Skip the check for under constrained values
     pub skip_underconstrained_check: bool,
 
+    /// Enable experimental ACIR optimizations
+    pub experimental_optimization: bool,
+
     /// The higher the value, the more inlined brillig functions will be.
     pub inliner_aggressiveness: i64,
 }
@@ -144,7 +147,7 @@ pub(crate) fn optimize_into_acir(
     });
 
     let artifacts = time("SSA to ACIR", options.print_codegen_timings, || {
-        ssa.into_acir(&brillig, options.expression_width)
+        ssa.into_acir(&brillig, options.expression_width, options.experimental_optimization)
     })?;
     Ok(ArtifactsAndWarnings(artifacts, ssa_level_warnings))
 }

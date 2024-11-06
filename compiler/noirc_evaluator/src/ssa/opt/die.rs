@@ -25,7 +25,10 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn dead_instruction_elimination(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            function.dead_instruction_elimination(true);
+            let common_values = function.dead_instruction_elimination(true);
+            if function.id() == self.main_id {
+                self.common_values = common_values;
+            }
         }
         self
     }
@@ -38,7 +41,10 @@ impl Function {
     /// instructions that reference results from an instruction in another block are evaluated first.
     /// If we did not iterate blocks in this order we could not safely say whether or not the results
     /// of its instructions are needed elsewhere.
-    pub(crate) fn dead_instruction_elimination(&mut self, insert_out_of_bounds_checks: bool) {
+    pub(crate) fn dead_instruction_elimination(
+        &mut self,
+        insert_out_of_bounds_checks: bool,
+    ) -> HashSet<ValueId> {
         let mut context = Context::default();
         for call_data in &self.dfg.data_bus.call_data {
             context.mark_used_instruction_results(&self.dfg, call_data.array_id);
@@ -59,11 +65,13 @@ impl Function {
         // instructions (we don't want to remove those checks, or instructions that are
         // dependencies of those checks)
         if inserted_out_of_bounds_checks {
+            context.common_values.clear();
             self.dead_instruction_elimination(false);
-            return;
+            return context.common_values;
         }
-
+        let result = context.common_values.clone();
         context.remove_rc_instructions(&mut self.dfg);
+        result
     }
 }
 
@@ -77,6 +85,9 @@ struct Context {
     /// they technically contain side-effects but we still want to remove them if their
     /// `value` parameter is not used elsewhere.
     rc_instructions: Vec<(InstructionId, BasicBlockId)>,
+
+    /// Values that are used by multiple instructions
+    common_values: HashSet<ValueId>,
 }
 
 impl Context {
@@ -198,7 +209,9 @@ impl Context {
         let value_id = dfg.resolve(value_id);
         match &dfg[value_id] {
             Value::Instruction { .. } => {
-                self.used_values.insert(value_id);
+                if !self.used_values.insert(value_id) {
+                    self.common_values.insert(value_id);
+                }
             }
             Value::Array { array, .. } => {
                 self.used_values.insert(value_id);
