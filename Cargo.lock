@@ -2840,7 +2840,7 @@ dependencies = [
  "num-bigint",
  "num-traits",
  "proptest",
- "proptest-derive",
+ "proptest-derive 0.4.0",
  "serde",
  "serde_json",
  "strum",
@@ -2961,6 +2961,8 @@ dependencies = [
  "num-bigint",
  "num-traits",
  "petgraph",
+ "proptest",
+ "proptest-derive 0.5.0",
  "rangemap",
  "regex",
  "rustc-hash",
@@ -3509,6 +3511,17 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "proptest-derive"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6ff7ff745a347b87471d859a377a9a404361e7efc2a971d73424a6d183c0fc77"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.64",
 ]
 
 [[package]]
