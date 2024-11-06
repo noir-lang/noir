@@ -230,7 +230,7 @@ impl MergeExpressionsOptimizer {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeSet;
+    use crate::compiler::{optimizers::MergeExpressionsOptimizer, CircuitSimulator};
     use acir::{
         acir_field::AcirField,
         circuit::{
@@ -241,7 +241,7 @@ mod tests {
         native_types::{Expression, Witness},
         FieldElement,
     };
-    use crate::compiler::{optimizers::MergeExpressionsOptimizer, CircuitSimulator};
+    use std::collections::BTreeSet;
 
     fn check_circuit(circuit: Circuit<FieldElement>) {
         assert!(CircuitSimulator::default().check_circuit(&circuit));
