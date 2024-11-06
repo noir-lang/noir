@@ -96,10 +96,11 @@ struct MatrixConfig {
     vary_inliner: bool,
 }
 
-/// Generate all test cases for a given test directory.
-/// These will be executed serially, but independently from other test directories.
-/// Be careful not to run multiple tests on the same directory concurrently because
-/// they can override each others' compilation artifact files.
+/// Generate all test cases for a given test name (expected to be unique for the test directory),
+/// based on the matrix configuration. These will be executed serially, but concurrently with
+/// other test directories. Running multiple tests on the same directory would risk overriding
+/// each others compilation artifacts, which is why this method injects a mutex shared by
+/// all cases in the test matrix, as long as the test name and directory has a 1-to-1 relationship.
 fn generate_test_cases(
     test_file: &mut File,
     test_name: &str,

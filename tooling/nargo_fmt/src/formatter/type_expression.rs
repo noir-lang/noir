@@ -14,14 +14,12 @@ impl<'a> Formatter<'a> {
         match type_expr {
             UnresolvedTypeExpression::Variable(path) => self.format_path(path),
             UnresolvedTypeExpression::Constant(..) => {
-                self.write_current_token();
-                self.bump();
+                self.write_current_token_and_bump();
             }
             UnresolvedTypeExpression::BinaryOperation(lhs, _operator, rhs, _span) => {
                 self.format_type_expression(*lhs);
                 self.write_space();
-                self.write_current_token();
-                self.bump();
+                self.write_current_token_and_bump();
                 self.write_space();
                 self.format_type_expression(*rhs);
             }

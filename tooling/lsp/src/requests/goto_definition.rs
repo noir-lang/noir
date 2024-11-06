@@ -46,7 +46,6 @@ fn on_goto_definition_inner(
                     file_id,
                     byte_index,
                     args.crate_id,
-                    args.interner,
                     args.def_maps,
                 );
                 finder.find(&parsed_module)
