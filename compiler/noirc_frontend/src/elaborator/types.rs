@@ -414,7 +414,7 @@ impl<'context> Elaborator<'context> {
                 let kind = self
                     .interner
                     .get_global_let_statement(id)
-                    .map(|let_statement| Kind::Numeric(Box::new(let_statement.r#type)))
+                    .map(|let_statement| Kind::numeric(let_statement.r#type))
                     .unwrap_or(Kind::u32());
 
                 // TODO(https://github.com/noir-lang/noir/issues/6238):
