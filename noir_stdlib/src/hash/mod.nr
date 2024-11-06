@@ -1,5 +1,4 @@
 pub mod poseidon;
-pub mod mimc;
 pub mod poseidon2;
 pub mod keccak;
 pub mod sha256;
@@ -75,6 +74,7 @@ pub fn pedersen_hash_with_separator<let N: u32>(input: [Field; N], separator: u3
 }
 
 #[field(bn254)]
+#[inline_always]
 pub fn derive_generators<let N: u32, let M: u32>(
     domain_separator_bytes: [u8; M],
     starting_index: u32,

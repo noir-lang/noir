@@ -237,6 +237,7 @@ fn slice_capacity_change(
         | Intrinsic::IsUnconstrained
         | Intrinsic::DerivePedersenGenerators
         | Intrinsic::ToBits(_)
-        | Intrinsic::ToRadix(_) => SizeChange::None,
+        | Intrinsic::ToRadix(_)
+        | Intrinsic::FieldLessThan => SizeChange::None,
     }
 }

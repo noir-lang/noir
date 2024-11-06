@@ -196,7 +196,7 @@ fn compile_programs(
             target_width,
             compile_options.experimental_optimization,
         );
-
+        nargo::ops::check_program(&program)?;
         save_program_to_file(&program.into(), &package.name, workspace.target_directory_path());
 
         Ok(((), warnings))

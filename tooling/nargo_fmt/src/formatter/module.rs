@@ -6,9 +6,7 @@ use super::Formatter;
 
 impl<'a> Formatter<'a> {
     pub(super) fn format_module_declaration(&mut self, module_declaration: ModuleDeclaration) {
-        if !module_declaration.outer_attributes.is_empty() {
-            self.format_attributes();
-        }
+        self.format_secondary_attributes(module_declaration.outer_attributes);
         self.write_indentation();
         self.format_item_visibility(module_declaration.visibility);
         self.write_keyword(Keyword::Mod);
@@ -18,9 +16,7 @@ impl<'a> Formatter<'a> {
     }
 
     pub(super) fn format_submodule(&mut self, submodule: ParsedSubModule) {
-        if !submodule.outer_attributes.is_empty() {
-            self.format_attributes();
-        }
+        self.format_secondary_attributes(submodule.outer_attributes);
         self.write_indentation();
         self.format_item_visibility(submodule.visibility);
         if submodule.is_contract {
@@ -31,27 +27,17 @@ impl<'a> Formatter<'a> {
         self.write_space();
         self.write_identifier(submodule.name);
         self.write_space();
+        self.write_left_brace();
         if parsed_module_is_empty(&submodule.contents) {
-            self.write_left_brace();
-            self.increase_indentation();
-
-            let comments_count_before = self.written_comments_count;
-            self.skip_comments_and_whitespace_writing_multiple_lines_if_found();
-            self.decrease_indentation();
-            if self.written_comments_count > comments_count_before {
-                self.write_line();
-                self.write_indentation();
-            }
-            self.write_right_brace();
+            self.format_empty_block_contents();
         } else {
-            self.write_left_brace();
             self.increase_indentation();
             self.write_line();
             self.format_parsed_module(submodule.contents, self.ignore_next);
             self.decrease_indentation();
             self.write_indentation();
-            self.write_right_brace();
         }
+        self.write_right_brace();
     }
 }
 
@@ -99,6 +85,18 @@ mod foo;\n";
     fn format_empty_submodule() {
         let src = "mod foo {    }";
         let expected = "mod foo {}\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_empty_submodule_2() {
+        let src = "mod foo { mod bar {    
+
+    } }";
+        let expected = "mod foo {
+    mod bar {}
+}
+";
         assert_format(src, expected);
     }
 

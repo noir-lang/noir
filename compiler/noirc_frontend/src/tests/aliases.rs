@@ -32,21 +32,18 @@ fn allows_usage_of_type_alias_as_return_type() {
     assert_no_errors(src);
 }
 
-// This is a regression test for https://github.com/noir-lang/noir/issues/6347
 #[test]
-#[should_panic = r#"ResolverError(Expected { span: Span(Span { start: ByteIndex(95), end: ByteIndex(98) }), expected: "type", got: "type alias" }"#]
-fn allows_destructuring_a_type_alias_of_a_struct() {
+fn alias_in_let_pattern() {
     let src = r#"
-    struct Foo {
-        inner: Field
-    }
+        struct Foo<T> { x: T }
 
-    type Bar = Foo;
+        type Bar<U> = Foo<U>;
 
-    fn main() {
-        let Bar { inner } = Foo { inner: 42 };
-        assert_eq(inner, 42);
-    }
+        fn main() {
+            let Bar { x } = Foo { x: [0] };
+            // This is just to show the compiler knows this is an array.
+            let _: [Field; 1] = x;
+        }
     "#;
     assert_no_errors(src);
 }

@@ -327,6 +327,7 @@ pub enum PathKind {
 pub struct UseTree {
     pub prefix: Path,
     pub kind: UseTreeKind,
+    pub span: Span,
 }
 
 impl Display for UseTree {
@@ -407,7 +408,7 @@ pub struct AsTraitPath {
 pub struct TypePath {
     pub typ: UnresolvedType,
     pub item: Ident,
-    pub turbofish: GenericTypeArgs,
+    pub turbofish: Option<GenericTypeArgs>,
 }
 
 // Note: Path deliberately doesn't implement Recoverable.
@@ -442,11 +443,6 @@ impl Path {
 
     pub fn span(&self) -> Span {
         self.span
-    }
-
-    pub fn first_segment(&self) -> PathSegment {
-        assert!(!self.segments.is_empty());
-        self.segments.first().unwrap().clone()
     }
 
     pub fn last_segment(&self) -> PathSegment {

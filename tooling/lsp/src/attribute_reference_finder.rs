@@ -13,11 +13,11 @@ use noirc_frontend::{
     graph::CrateId,
     hir::{
         def_map::{CrateDefMap, LocalModuleId, ModuleId},
-        resolution::path_resolver::{PathResolver, StandardPathResolver},
+        resolution::import::resolve_import,
     },
     node_interner::ReferenceId,
-    parser::{ParsedSubModule, Parser},
-    token::CustomAttribute,
+    parser::ParsedSubModule,
+    token::MetaAttribute,
     usage_tracker::UsageTracker,
     ParsedModule,
 };
@@ -85,27 +85,31 @@ impl<'a> Visitor for AttributeReferenceFinder<'a> {
         false
     }
 
-    fn visit_custom_attribute(&mut self, attribute: &CustomAttribute, _target: AttributeTarget) {
-        if !self.includes_span(attribute.contents_span) {
-            return;
+    fn visit_meta_attribute(
+        &mut self,
+        attribute: &MetaAttribute,
+        _target: AttributeTarget,
+    ) -> bool {
+        if !self.includes_span(attribute.span) {
+            return false;
         }
 
-        let name = match attribute.contents.split_once('(') {
-            Some((left, _right)) => left.to_string(),
-            None => attribute.contents.to_string(),
-        };
-        let mut parser = Parser::for_str(&name);
-        let Some(path) = parser.parse_path_no_turbofish() else {
-            return;
-        };
-
-        let resolver = StandardPathResolver::new(self.module_id, None);
-        let mut usage_tracker = UsageTracker::default();
-        let Ok(result) = resolver.resolve(self.def_maps, path, &mut usage_tracker, &mut None)
-        else {
-            return;
+        let path = attribute.name.clone();
+        // The path here must resolve to a function and it's a simple path (can't have turbofish)
+        // so it can (and must) be solved as an import.
+        let Ok(Some((module_def_id, _, _))) = resolve_import(
+            path,
+            self.module_id,
+            self.def_maps,
+            &mut UsageTracker::default(),
+            None, // references tracker
+        )
+        .map(|result| result.namespace.values) else {
+            return true;
         };
 
-        self.reference_id = Some(module_def_id_to_reference_id(result.module_def_id));
+        self.reference_id = Some(module_def_id_to_reference_id(module_def_id));
+
+        true
     }
 }

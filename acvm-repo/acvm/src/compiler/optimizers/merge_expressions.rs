@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use acir::{
     circuit::{brillig::BrilligInputs, directives::Directive, opcodes::BlockId, Circuit, Opcode},
@@ -6,11 +6,13 @@ use acir::{
     AcirField,
 };
 
+use crate::compiler::CircuitSimulator;
+
 pub(crate) struct MergeExpressionsOptimizer<F> {
-    resolved_blocks: HashMap<BlockId, HashSet<Witness>>,
+    resolved_blocks: HashMap<BlockId, BTreeSet<Witness>>,
 
     modified_gates: HashMap<usize, Opcode<F>>,
-    deleted_gates: HashSet<usize>,
+    deleted_gates: BTreeSet<usize>,
 }
 
 impl<F: AcirField> MergeExpressionsOptimizer<F> {
@@ -18,15 +20,15 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
         MergeExpressionsOptimizer {
             resolved_blocks: HashMap::new(),
             modified_gates: HashMap::new(),
-            deleted_gates: HashSet::new(),
+            deleted_gates: BTreeSet::new(),
         }
     }
 
-    fn compute_used_witness(&mut self, circuit: &Circuit<F>) -> HashMap<Witness, HashSet<usize>> {
+    fn compute_used_witness(&mut self, circuit: &Circuit<F>) -> BTreeMap<Witness, BTreeSet<usize>> {
         // Keep track, for each witness, of the gates that use it
         let circuit_inputs = circuit.circuit_arguments();
         self.resolved_blocks = HashMap::new();
-        let mut used_witness: HashMap<Witness, HashSet<usize>> = HashMap::new();
+        let mut used_witness: BTreeMap<Witness, BTreeSet<usize>> = BTreeMap::new();
         for (i, opcode) in circuit.opcodes.iter().enumerate() {
             let witnesses = self.witness_inputs(opcode);
             if let Opcode::MemoryInit { block_id, .. } = opcode {
@@ -68,7 +70,7 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
             let mut to_keep = true;
             let input_witnesses = self.witness_inputs(&opcode);
             for w in input_witnesses.clone() {
-                let empty_gates = HashSet::new();
+                let empty_gates = BTreeSet::new();
                 let gates_using_w = used_witness.get(&w).unwrap_or(&empty_gates);
                 // We only consider witness which are used in exactly two arithmetic gates
                 if gates_using_w.len() == 2 {
@@ -90,7 +92,7 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
                             modified_gates.insert(b, Opcode::AssertZero(expr));
                             to_keep = false;
                             // Update the 'used_witness' map to account for the merge.
-                            for w2 in Self::expr_wit(&expr_define) {
+                            for w2 in CircuitSimulator::expr_wit(&expr_define) {
                                 if !circuit_inputs.contains(&w2) {
                                     let mut v = used_witness[&w2].clone();
                                     v.insert(b);
@@ -118,22 +120,22 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
         (new_circuit, new_acir_opcode_positions)
     }
 
-    fn expr_wit(expr: &Expression<F>) -> HashSet<Witness> {
-        let mut result = HashSet::new();
+    fn expr_wit(expr: &Expression<F>) -> BTreeSet<Witness> {
+        let mut result = BTreeSet::new();
         result.extend(expr.mul_terms.iter().flat_map(|i| vec![i.1, i.2]));
         result.extend(expr.linear_combinations.iter().map(|i| i.1));
         result
     }
 
-    fn brillig_input_wit(&self, input: &BrilligInputs<F>) -> HashSet<Witness> {
-        let mut result = HashSet::new();
+    fn brillig_input_wit(&self, input: &BrilligInputs<F>) -> BTreeSet<Witness> {
+        let mut result = BTreeSet::new();
         match input {
             BrilligInputs::Single(expr) => {
-                result.extend(Self::expr_wit(expr));
+                result.extend(CircuitSimulator::expr_wit(expr));
             }
             BrilligInputs::Array(exprs) => {
                 for expr in exprs {
-                    result.extend(Self::expr_wit(expr));
+                    result.extend(CircuitSimulator::expr_wit(expr));
                 }
             }
             BrilligInputs::MemoryArray(block_id) => {
@@ -145,19 +147,19 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
     }
 
     // Returns the input witnesses used by the opcode
-    fn witness_inputs(&self, opcode: &Opcode<F>) -> HashSet<Witness> {
-        let mut witnesses = HashSet::new();
+    fn witness_inputs(&self, opcode: &Opcode<F>) -> BTreeSet<Witness> {
+        let mut witnesses = BTreeSet::new();
         match opcode {
-            Opcode::AssertZero(expr) => Self::expr_wit(expr),
+            Opcode::AssertZero(expr) => CircuitSimulator::expr_wit(expr),
             Opcode::BlackBoxFuncCall(bb_func) => bb_func.get_input_witnesses(),
-            Opcode::Directive(Directive::ToLeRadix { a, .. }) => Self::expr_wit(a),
+            Opcode::Directive(Directive::ToLeRadix { a, .. }) => CircuitSimulator::expr_wit(a),
             Opcode::MemoryOp { block_id: _, op, predicate } => {
                 //index et value, et predicate
-                let mut witnesses = HashSet::new();
-                witnesses.extend(Self::expr_wit(&op.index));
-                witnesses.extend(Self::expr_wit(&op.value));
+                let mut witnesses = BTreeSet::new();
+                witnesses.extend(CircuitSimulator::expr_wit(&op.index));
+                witnesses.extend(CircuitSimulator::expr_wit(&op.value));
                 if let Some(p) = predicate {
-                    witnesses.extend(Self::expr_wit(p));
+                    witnesses.extend(CircuitSimulator::expr_wit(p));
                 }
                 witnesses
             }
@@ -176,7 +178,7 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
                     witnesses.insert(*i);
                 }
                 if let Some(p) = predicate {
-                    witnesses.extend(Self::expr_wit(p));
+                    witnesses.extend(CircuitSimulator::expr_wit(p));
                 }
                 witnesses
             }
@@ -316,7 +318,7 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
             let mut to_keep = true;
             if let Some(opcode) = self.get_opcode(i, circuit) {
                 let mut merged = Vec::new();
-                let empty_gates = HashSet::new();
+                let empty_gates = BTreeSet::new();
 
                 // If the current expression current_expr is a 'small' expression
                 if let Some(current_expr) = Self::is_free(opcode.clone(), width) {
