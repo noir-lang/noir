@@ -1,7 +1,12 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use acir::{
-    circuit::{brillig::BrilligInputs, directives::Directive, opcodes::BlockId, Circuit, Opcode},
+    circuit::{
+        brillig::{BrilligInputs, BrilligOutputs},
+        directives::Directive,
+        opcodes::BlockId,
+        Circuit, Opcode,
+    },
     native_types::{Expression, Witness},
     AcirField,
 };
@@ -72,23 +77,31 @@ impl MergeExpressionsOptimizer {
                     if let (Opcode::AssertZero(expr_define), Opcode::AssertZero(expr_use)) =
                         (opcode.clone(), second_gate)
                     {
-                        if let Some(expr) = Self::merge(&expr_use, &expr_define, w) {
-                            // sanity check
-                            assert!(i < b);
-                            modified_gates.insert(b, Opcode::AssertZero(expr));
-                            to_keep = false;
-                            // Update the 'used_witness' map to account for the merge.
-                            for w2 in CircuitSimulator::expr_wit(&expr_define) {
-                                if !circuit_inputs.contains(&w2) {
-                                    let mut v = used_witness[&w2].clone();
-                                    v.insert(b);
-                                    v.remove(&i);
-                                    used_witness.insert(w2, v);
+                        // We cannot merge an expression into an earlier opcode, because this
+                        // would break the 'execution ordering' of the opcodes
+                        // This case can happen because a previous merge would change an opcode
+                        // and eliminate a witness from it, giving new opportunities for this
+                        // witness to be used in only two expressions
+                        // TODO: the missed optimization for the i>b case can be handled by
+                        // - doing this pass again until there is no change, or
+                        // - merging 'b' into 'i' instead
+                        if i < b {
+                            if let Some(expr) = Self::merge(&expr_use, &expr_define, w) {
+                                modified_gates.insert(b, Opcode::AssertZero(expr));
+                                to_keep = false;
+                                // Update the 'used_witness' map to account for the merge.
+                                for w2 in CircuitSimulator::expr_wit(&expr_define) {
+                                    if !circuit_inputs.contains(&w2) {
+                                        let mut v = used_witness[&w2].clone();
+                                        v.insert(b);
+                                        v.remove(&i);
+                                        used_witness.insert(w2, v);
+                                    }
                                 }
+                                // We need to stop here and continue with the next opcode
+                                // because the merge invalidate the current opcode
+                                break;
                             }
-                            // We need to stop here and continue with the next opcode
-                            // because the merge invalidate the current opcode
-                            break;
                         }
                     }
                 }
@@ -125,6 +138,19 @@ impl MergeExpressionsOptimizer {
         result
     }
 
+    fn brillig_output_wit(&self, output: &BrilligOutputs) -> BTreeSet<Witness> {
+        let mut result = BTreeSet::new();
+        match output {
+            BrilligOutputs::Simple(witness) => {
+                result.insert(*witness);
+            }
+            BrilligOutputs::Array(witnesses) => {
+                result.extend(witnesses);
+            }
+        }
+        result
+    }
+
     // Returns the input witnesses used by the opcode
     fn witness_inputs<F: AcirField>(&self, opcode: &Opcode<F>) -> BTreeSet<Witness> {
         let mut witnesses = BTreeSet::new();
@@ -146,14 +172,20 @@ impl MergeExpressionsOptimizer {
             Opcode::MemoryInit { block_id: _, init, block_type: _ } => {
                 init.iter().cloned().collect()
             }
-            Opcode::BrilligCall { inputs, .. } => {
+            Opcode::BrilligCall { inputs, outputs, .. } => {
                 for i in inputs {
                     witnesses.extend(self.brillig_input_wit(i));
                 }
+                for i in outputs {
+                    witnesses.extend(self.brillig_output_wit(i));
+                }
                 witnesses
             }
-            Opcode::Call { id: _, inputs, outputs: _, predicate } => {
+            Opcode::Call { id: _, inputs, outputs, predicate } => {
                 for i in inputs {
+                    witnesses.insert(*i);
+                }
+                for i in outputs {
                     witnesses.insert(*i);
                 }
                 if let Some(p) = predicate {
