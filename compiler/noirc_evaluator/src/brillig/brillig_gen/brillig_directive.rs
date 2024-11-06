@@ -254,10 +254,5 @@ pub(crate) fn directive_to_radix<F: AcirField>() -> GeneratedBrillig<F> {
         BrilligOpcode::Stop { return_data_offset: result_base_adr, return_data_size: limbs_nb },
     ];
 
-    GeneratedBrillig {
-        byte_code,
-        assert_messages: Default::default(),
-        locations: Default::default(),
-        name: "directive_to_radix".to_string(),
-    }
+    GeneratedBrillig { byte_code, name: "directive_to_radix".to_string(), ..Default::default() }
 }
