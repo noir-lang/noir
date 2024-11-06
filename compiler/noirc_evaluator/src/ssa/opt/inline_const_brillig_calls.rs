@@ -9,7 +9,7 @@ use crate::{
         ir::{
             function::{Function, FunctionId, RuntimeType},
             instruction::{Instruction, TerminatorInstruction},
-            value::Value,
+            value::{Value, ValueId},
         },
         opt::flatten_cfg::flatten_function_cfg,
         Ssa,
@@ -83,9 +83,8 @@ impl Function {
                 // Replace the ValueId of parameters with the ValueId of arguments
                 for (parameter_id, argument_id) in entry_block_parameters.iter().zip(arguments) {
                     // Lookup the argument in the current function and insert it in the function copy
-                    let argument = &self.dfg[*argument_id];
-                    let new_argument_id = function.dfg.make_value(argument.clone());
-
+                    let new_argument_id =
+                        self.copy_constant_to_function(*argument_id, &mut function);
                     function.dfg.set_value_from_id(*parameter_id, new_argument_id);
                 }
 
@@ -126,6 +125,20 @@ impl Function {
                     self.dfg.set_value_from_id(*current_result, new_result_id);
                 }
             }
+        }
+    }
+
+    fn copy_constant_to_function(&self, argument_id: ValueId, function: &mut Function) -> ValueId {
+        if let Some((constant, typ)) = self.dfg.get_numeric_constant_with_type(argument_id) {
+            function.dfg.make_constant(constant, typ)
+        } else if let Some((constants, typ)) = self.dfg.get_array_constant(argument_id) {
+            let new_constants = constants
+                .iter()
+                .map(|constant_id| self.copy_constant_to_function(*constant_id, function))
+                .collect();
+            function.dfg.make_array(new_constants, typ)
+        } else {
+            unreachable!("A constant should be either a numeric constant or an array constant")
         }
     }
 }
