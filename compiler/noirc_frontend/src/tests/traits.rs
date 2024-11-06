@@ -1,6 +1,6 @@
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::resolution::errors::ResolverError;
-use crate::tests::get_program_errors;
+use crate::tests::{get_program_errors, get_program_with_maybe_parser_errors};
 
 use super::assert_no_errors;
 
@@ -339,4 +339,70 @@ fn removes_assumed_parent_traits_after_function_ends() {
     fn main() {}
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn trait_bounds_which_are_dependent_on_generic_types_are_resolved_correctly() {
+    // Regression test for https://github.com/noir-lang/noir/issues/6420
+    let src = r#"
+        trait Foo {
+            fn foo() -> Field;
+        }
+
+        trait Bar<T>: Foo {
+            fn bar(self) -> Field {
+                self.foo()
+            }
+        }
+
+        struct MyStruct<T> {
+            inner: Field,
+        }
+
+        trait MarkerTrait {}
+        impl MarkerTrait for Field {}
+
+        // `MyStruct<T>` implements `Foo` only when its generic type `T` implements `MarkerTrait`.
+        impl<T> Foo for MyStruct<T>
+        where
+            T: MarkerTrait,
+        {
+            fn foo() -> Field {
+                42
+            }
+        }
+
+        // We expect this to succeed as `MyStruct<T>` satisfies `Bar`'s trait bounds
+        // of implementing `Foo` when `T` implements `MarkerTrait`.
+        impl<T> Bar<T> for MyStruct<T>
+        where
+            T: MarkerTrait,
+        {
+            fn bar(self) -> Field {
+                31415
+            }
+        }
+
+        fn main() {
+            let foo: MyStruct<Field> = MyStruct { inner: 42 };
+            let _ = foo.bar();
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn does_not_crash_on_as_trait_path_with_empty_path() {
+    let src = r#"
+        struct Foo {
+            x: <N>,
+        }
+
+        fn main() {}
+    "#;
+
+    let (_, _, errors) = get_program_with_maybe_parser_errors(
+        src, true, // allow parser errors
+    );
+    assert!(!errors.is_empty());
 }

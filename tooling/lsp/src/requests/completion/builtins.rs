@@ -107,6 +107,24 @@ impl<'a> NodeFinder<'a> {
                 let one_argument_attributes = &["abi", "field", "foreign", "oracle"];
                 self.suggest_one_argument_attributes(prefix, one_argument_attributes);
 
+                if name_matches("deprecated", prefix) {
+                    self.completion_items.push(snippet_completion_item(
+                        "deprecated(\"...\")",
+                        CompletionItemKind::METHOD,
+                        "deprecated(\"${1:message}\")",
+                        None,
+                    ));
+                }
+
+                if name_matches("test", prefix) || name_matches("should_fail", prefix) {
+                    self.completion_items.push(snippet_completion_item(
+                        "test(should_fail)",
+                        CompletionItemKind::METHOD,
+                        "test(should_fail)",
+                        None,
+                    ));
+                }
+
                 if name_matches("test", prefix) || name_matches("should_fail_with", prefix) {
                     self.completion_items.push(snippet_completion_item(
                         "test(should_fail_with = \"...\")",

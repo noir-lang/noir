@@ -105,13 +105,15 @@ impl<'f> Context<'f> {
                     // If the array comes from a load we may potentially being mutating an array at a reference
                     // that is loaded from by other values.
                     let terminator = self.dfg[block_id].unwrap_terminator();
+
                     // If we are in a return block we are not concerned about the array potentially being mutated again.
                     let is_return_block =
                         matches!(terminator, TerminatorInstruction::Return { .. });
                     // We also want to check that the array is not part of the terminator arguments, as this means it is used again.
                     let mut array_in_terminator = false;
                     terminator.for_each_value(|value| {
-                        if value == array {
+                        // The terminator can contain original IDs, while the SSA has replaced the array value IDs; we need to resolve to compare.
+                        if !array_in_terminator && self.dfg.resolve(value) == array {
                             array_in_terminator = true;
                         }
                     });

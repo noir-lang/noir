@@ -1,9 +1,8 @@
-use noirc_errors::{Location, Spanned};
+use noirc_errors::Spanned;
 
-use crate::ast::{Ident, Path, PathKind, ERROR_IDENT};
+use crate::ast::{Ident, Path, ERROR_IDENT};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
-use crate::hir::resolution::import::{PathResolution, PathResolutionItem, PathResolutionResult};
-use crate::hir::resolution::path_resolver::{PathResolver, StandardPathResolver};
+
 use crate::hir::scope::{Scope as GenericScope, ScopeTree as GenericScopeTree};
 use crate::{
     hir::resolution::errors::ResolverError,
@@ -16,6 +15,7 @@ use crate::{
 };
 use crate::{Type, TypeAlias};
 
+use super::path_resolution::PathResolutionItem;
 use super::types::SELF_TYPE_NAME;
 use super::{Elaborator, ResolverMeta};
 
@@ -35,97 +35,6 @@ impl<'context> Elaborator<'context> {
         self.crate_id = new_module.krate;
         self.local_module = new_module.local_id;
         current_module
-    }
-
-    pub(super) fn resolve_path_or_error(
-        &mut self,
-        path: Path,
-    ) -> Result<PathResolutionItem, ResolverError> {
-        let path_resolution = self.resolve_path(path)?;
-
-        for error in path_resolution.errors {
-            self.push_err(error);
-        }
-
-        Ok(path_resolution.item)
-    }
-
-    pub(super) fn resolve_path(&mut self, path: Path) -> PathResolutionResult {
-        let mut module_id = self.module_id();
-        let mut path = path;
-
-        if path.kind == PathKind::Plain && path.first_name() == SELF_TYPE_NAME {
-            if let Some(Type::Struct(struct_type, _)) = &self.self_type {
-                let struct_type = struct_type.borrow();
-                if path.segments.len() == 1 {
-                    return Ok(PathResolution {
-                        item: PathResolutionItem::Struct(struct_type.id),
-                        errors: Vec::new(),
-                    });
-                }
-
-                module_id = struct_type.id.module_id();
-                path = Path {
-                    segments: path.segments[1..].to_vec(),
-                    kind: PathKind::Plain,
-                    span: path.span(),
-                };
-            }
-        }
-
-        self.resolve_path_in_module(path, module_id)
-    }
-
-    fn resolve_path_in_module(&mut self, path: Path, module_id: ModuleId) -> PathResolutionResult {
-        let self_type_module_id = if let Some(Type::Struct(struct_type, _)) = &self.self_type {
-            Some(struct_type.borrow().id.module_id())
-        } else {
-            None
-        };
-
-        let resolver = StandardPathResolver::new(module_id, self_type_module_id);
-
-        if !self.interner.lsp_mode {
-            return resolver.resolve(
-                self.def_maps,
-                path,
-                &mut self.interner.usage_tracker,
-                &mut None,
-            );
-        }
-
-        let last_segment = path.last_ident();
-        let location = Location::new(last_segment.span(), self.file);
-        let is_self_type_name = last_segment.is_self_type_name();
-
-        let mut references: Vec<_> = Vec::new();
-        let path_resolution = resolver.resolve(
-            self.def_maps,
-            path.clone(),
-            &mut self.interner.usage_tracker,
-            &mut Some(&mut references),
-        );
-
-        for (referenced, segment) in references.iter().zip(path.segments) {
-            self.interner.add_reference(
-                *referenced,
-                Location::new(segment.ident.span(), self.file),
-                segment.ident.is_self_type_name(),
-            );
-        }
-
-        let path_resolution = match path_resolution {
-            Ok(path_resolution) => path_resolution,
-            Err(err) => return Err(err),
-        };
-
-        self.interner.add_path_resolution_kind_reference(
-            path_resolution.item.clone(),
-            location,
-            is_self_type_name,
-        );
-
-        Ok(path_resolution)
     }
 
     pub(super) fn get_struct(&self, type_id: StructId) -> Shared<StructType> {

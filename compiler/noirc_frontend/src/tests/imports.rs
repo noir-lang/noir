@@ -127,3 +127,30 @@ fn warns_on_re_export_of_item_with_less_visibility() {
         )
     ));
 }
+
+#[test]
+fn errors_if_using_alias_in_import() {
+    let src = r#"
+    mod foo {
+        pub type bar = i32;
+    }
+
+    use foo::bar::baz;
+
+    fn main() {
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::DefinitionError(DefCollectorErrorKind::PathResolutionError(
+        PathResolutionError::NotAModule { ident, kind },
+    )) = &errors[0].0
+    else {
+        panic!("Expected a 'not a module' error, got {:?}", errors[0].0);
+    };
+
+    assert_eq!(ident.to_string(), "bar");
+    assert_eq!(*kind, "type alias");
+}
