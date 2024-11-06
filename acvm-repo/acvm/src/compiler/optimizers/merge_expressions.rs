@@ -249,10 +249,10 @@ mod tests {
         let acir_opcode_positions = vec![0; 20];
         let (opcodes, _) =
             merge_optimizer.eliminate_intermediate_variable(&circuit, acir_opcode_positions);
-        let mut optimised_circuit = circuit;
-        optimised_circuit.opcodes = opcodes;
-        // check that the circuit is still valid after optimisation
-        assert!(CircuitSimulator::default().check_circuit(&optimised_circuit));
+        let mut optimized_circuit = circuit;
+        optimized_circuit.opcodes = opcodes;
+        // check that the circuit is still valid after optimization
+        assert!(CircuitSimulator::default().check_circuit(&optimized_circuit));
     }
 
     #[test]
