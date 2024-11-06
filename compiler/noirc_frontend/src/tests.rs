@@ -1,6 +1,7 @@
 #![cfg(test)]
 
 mod aliases;
+mod arithmetic_generics;
 mod bound_checks;
 mod imports;
 mod metaprogramming;
@@ -16,7 +17,6 @@ mod visibility;
 // A test harness will allow for more expressive and readable tests
 use std::collections::BTreeMap;
 
-use acvm::{AcirField, FieldElement};
 use fm::FileId;
 
 use iter_extended::vecmap;
@@ -37,7 +37,6 @@ use crate::hir::def_collector::dc_crate::DefCollector;
 use crate::hir::def_map::{CrateDefMap, LocalModuleId};
 use crate::hir_def::expr::HirExpression;
 use crate::hir_def::stmt::HirStatement;
-use crate::hir_def::types::{BinaryTypeOperator, Type};
 use crate::monomorphization::ast::Program;
 use crate::monomorphization::errors::MonomorphizationError;
 use crate::monomorphization::monomorphize;
@@ -61,6 +60,15 @@ pub(crate) fn remove_experimental_warnings(errors: &mut Vec<(CompilationError, F
 }
 
 pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(CompilationError, FileId)>) {
+    get_program_with_maybe_parser_errors(
+        src, false, // allow parser errors
+    )
+}
+
+pub(crate) fn get_program_with_maybe_parser_errors(
+    src: &str,
+    allow_parser_errors: bool,
+) -> (ParsedModule, Context, Vec<(CompilationError, FileId)>) {
     let root = std::path::Path::new("/");
     let fm = FileManager::new(root);
 
@@ -73,7 +81,7 @@ pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(Compilation
     let mut errors = vecmap(parser_errors, |e| (e.into(), root_file_id));
     remove_experimental_warnings(&mut errors);
 
-    if !has_parser_error(&errors) {
+    if allow_parser_errors || !has_parser_error(&errors) {
         let inner_attributes: Vec<SecondaryAttribute> = program
             .items
             .iter()
@@ -3202,122 +3210,6 @@ fn as_trait_path_syntax_no_impl() {
 }
 
 #[test]
-fn arithmetic_generics_canonicalization_deduplication_regression() {
-    let source = r#"
-        struct ArrData<let N: u32> {
-            a: [Field; N],
-            b: [Field; N + N - 1],
-        }
-
-        fn main() {
-            let _f: ArrData<5> = ArrData {
-                a: [0; 5],
-                b: [0; 9],
-            };
-        }
-    "#;
-    let errors = get_program_errors(source);
-    assert_eq!(errors.len(), 0);
-}
-
-#[test]
-fn arithmetic_generics_checked_cast_zeros() {
-    let source = r#"
-        struct W<let N: u1> {}
-        
-        fn foo<let N: u1>(_x: W<N>) -> W<(0 * N) / (N % N)> {
-            W {}
-        }
-        
-        fn bar<let N: u1>(_x: W<N>) -> u1 {
-            N
-        }
-        
-        fn main() -> pub u1 {
-            let w_0: W<0> = W {};
-            let w: W<_> = foo(w_0);
-            bar(w)
-        }
-    "#;
-
-    let errors = get_program_errors(source);
-    assert_eq!(errors.len(), 0);
-
-    let monomorphization_error = get_monomorphization_error(source);
-    assert!(monomorphization_error.is_some());
-
-    // Expect a CheckedCast (0 % 0) failure
-    let monomorphization_error = monomorphization_error.unwrap();
-    if let MonomorphizationError::UnknownArrayLength { ref length, ref err, location: _ } =
-        monomorphization_error
-    {
-        match length {
-            Type::CheckedCast { from, to } => {
-                assert!(matches!(*from.clone(), Type::InfixExpr { .. }));
-                assert!(matches!(*to.clone(), Type::InfixExpr { .. }));
-            }
-            _ => panic!("unexpected length: {:?}", length),
-        }
-        assert!(matches!(
-            err,
-            TypeCheckError::FailingBinaryOp { op: BinaryTypeOperator::Modulo, lhs: 0, rhs: 0, .. }
-        ));
-    } else {
-        panic!("unexpected error: {:?}", monomorphization_error);
-    }
-}
-
-#[test]
-fn arithmetic_generics_checked_cast_indirect_zeros() {
-    let source = r#"
-        struct W<let N: Field> {}
-        
-        fn foo<let N: Field>(_x: W<N>) -> W<(N - N) % (N - N)> {
-            W {}
-        }
-        
-        fn bar<let N: Field>(_x: W<N>) -> Field {
-            N
-        }
-        
-        fn main() {
-            let w_0: W<0> = W {};
-            let w = foo(w_0);
-            let _ = bar(w);
-        }
-    "#;
-
-    let errors = get_program_errors(source);
-    assert_eq!(errors.len(), 0);
-
-    let monomorphization_error = get_monomorphization_error(source);
-    assert!(monomorphization_error.is_some());
-
-    // Expect a CheckedCast (0 % 0) failure
-    let monomorphization_error = monomorphization_error.unwrap();
-    if let MonomorphizationError::UnknownArrayLength { ref length, ref err, location: _ } =
-        monomorphization_error
-    {
-        match length {
-            Type::CheckedCast { from, to } => {
-                assert!(matches!(*from.clone(), Type::InfixExpr { .. }));
-                assert!(matches!(*to.clone(), Type::InfixExpr { .. }));
-            }
-            _ => panic!("unexpected length: {:?}", length),
-        }
-        match err {
-            TypeCheckError::ModuloOnFields { lhs, rhs, .. } => {
-                assert_eq!(lhs.clone(), FieldElement::zero());
-                assert_eq!(rhs.clone(), FieldElement::zero());
-            }
-            _ => panic!("expected ModuloOnFields, but found: {:?}", err),
-        }
-    } else {
-        panic!("unexpected error: {:?}", monomorphization_error);
-    }
-}
-
-#[test]
 fn infer_globals_to_u32_from_type_use() {
     let src = r#"
         global ARRAY_LEN = 3;
@@ -3759,6 +3651,44 @@ fn use_type_alias_to_generic_concrete_type_in_method_call() {
         fn main() {
             let _ = foo();
         }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn allows_struct_with_generic_infix_type_as_main_input_1() {
+    let src = r#"
+        struct Foo<let N: u32> {
+            x: [u64; N * 2],
+        }
+
+        fn main(_x: Foo<18>) {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn allows_struct_with_generic_infix_type_as_main_input_2() {
+    let src = r#"
+        struct Foo<let N: u32> {
+            x: [u64; N * 2],
+        }
+
+        fn main(_x: Foo<2 * 9>) {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn allows_struct_with_generic_infix_type_as_main_input_3() {
+    let src = r#"
+        struct Foo<let N: u32> {
+            x: [u64; N * 2],
+        }
+
+        global N = 9;
+
+        fn main(_x: Foo<N * 2>) {}
     "#;
     assert_no_errors(src);
 }
