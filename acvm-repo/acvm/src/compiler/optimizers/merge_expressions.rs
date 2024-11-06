@@ -99,7 +99,7 @@ impl MergeExpressionsOptimizer {
                                     }
                                 }
                                 // We need to stop here and continue with the next opcode
-                                // because the merge invalidate the current opcode
+                                // because the merge invalidates the current opcode.
                                 break;
                             }
                         }
@@ -256,7 +256,7 @@ mod tests {
     }
 
     #[test]
-    fn test_1_brillig_output() {
+    fn does_not_eliminate_witnesses_returned_from_brillig() {
         let opcodes = vec![
             Opcode::BrilligCall {
                 id: BrilligFunctionId::default(),
@@ -301,34 +301,34 @@ mod tests {
     }
 
     #[test]
-    fn test_2_bad_order() {
+    fn does_not_attempt_to_merge_into_previous_opcodes() {
         let opcodes = vec![
             Opcode::AssertZero(Expression {
-                mul_terms: vec![(FieldElement::from(1_u128), Witness(0), Witness(0))],
-                linear_combinations: vec![(-FieldElement::from(1_u128), Witness(4))],
+                mul_terms: vec![(FieldElement::one(), Witness(0), Witness(0))],
+                linear_combinations: vec![(-FieldElement::one(), Witness(4))],
                 q_c: FieldElement::zero(),
             }),
             Opcode::AssertZero(Expression {
-                mul_terms: vec![(FieldElement::from(1_u128), Witness(0), Witness(1))],
-                linear_combinations: vec![(FieldElement::from(1_u128), Witness(5))],
+                mul_terms: vec![(FieldElement::one(), Witness(0), Witness(1))],
+                linear_combinations: vec![(FieldElement::one(), Witness(5))],
                 q_c: FieldElement::zero(),
             }),
             Opcode::AssertZero(Expression {
                 mul_terms: Vec::new(),
                 linear_combinations: vec![
-                    (-FieldElement::from(1_u128), Witness(2)),
-                    (FieldElement::from(1_u128), Witness(4)),
-                    (FieldElement::from(1_u128), Witness(5)),
+                    (-FieldElement::one(), Witness(2)),
+                    (FieldElement::one(), Witness(4)),
+                    (FieldElement::one(), Witness(5)),
                 ],
                 q_c: FieldElement::zero(),
             }),
             Opcode::AssertZero(Expression {
                 mul_terms: Vec::new(),
                 linear_combinations: vec![
-                    (FieldElement::from(1_u128), Witness(2)),
-                    (-FieldElement::from(1_u128), Witness(3)),
-                    (FieldElement::from(1_u128), Witness(4)),
-                    (FieldElement::from(1_u128), Witness(5)),
+                    (FieldElement::one(), Witness(2)),
+                    (-FieldElement::one(), Witness(3)),
+                    (FieldElement::one(), Witness(4)),
+                    (FieldElement::one(), Witness(5)),
                 ],
                 q_c: FieldElement::zero(),
             }),
