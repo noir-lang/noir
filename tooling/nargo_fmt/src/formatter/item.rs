@@ -73,7 +73,7 @@ impl<'a> Formatter<'a> {
             ItemKind::Submodules(parsed_sub_module) => {
                 self.format_submodule(parsed_sub_module);
             }
-            ItemKind::InnerAttribute(..) => self.format_inner_attribute(),
+            ItemKind::InnerAttribute(attribute) => self.format_secondary_attribute(attribute),
         }
     }
 
