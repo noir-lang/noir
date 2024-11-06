@@ -250,7 +250,10 @@ struct ConditionalContext {
     call_stack: CallStack,
 }
 
-fn flatten_function_cfg(function: &mut Function, no_predicates: &HashMap<FunctionId, bool>) {
+pub(crate) fn flatten_function_cfg(
+    function: &mut Function,
+    no_predicates: &HashMap<FunctionId, bool>,
+) {
     // This pass may run forever on a brillig function.
     // Analyze will check if the predecessors have been processed and push the block to the back of
     // the queue. This loops forever if there are still any loops present in the program.
