@@ -205,14 +205,6 @@ impl Type {
         }
     }
 
-    /// If this is a reference type, return its element type.
-    pub(crate) fn reference_element_type(&self) -> Option<&Type> {
-        match self {
-            Type::Reference(typ) => Some(typ.as_ref()),
-            _ => None,
-        }
-    }
-
     /// True if this is a reference type or if it is a composite type which contains a reference.
     pub(crate) fn contains_reference(&self) -> bool {
         match self {
