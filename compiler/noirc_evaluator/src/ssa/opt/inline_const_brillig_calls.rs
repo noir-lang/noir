@@ -89,8 +89,9 @@ impl Function {
     }
 
     /// Tries to optimize an instruction if it's a call that points to a brillig function,
-    /// and all its arguments are constant. If the optimization is successful, returns true.
-    /// Otherwise returns false. The given instruction is not removed from the function.
+    /// and all its arguments are constant. If the optimization is successful, the
+    /// values returned by the brillig call are replaced by the constant values that the
+    /// function returns, and this method returns `true`.
     fn optimize_const_brillig_call(
         &mut self,
         instruction_id: InstructionId,
