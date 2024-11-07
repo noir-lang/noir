@@ -218,7 +218,7 @@ fn unroll_loop(
     cfg: &ControlFlowGraph,
     loop_: &Loop,
 ) -> Result<(), CallStack> {
-    let mut unroll_into = get_pre_header(cfg, loop_);
+    let mut unroll_into = get_pre_header(cfg, loop_)?;
     let mut jump_value = get_induction_variable(function, unroll_into)?;
 
     while let Some(context) = unroll_loop_header(function, loop_, unroll_into, jump_value)? {
@@ -233,14 +233,17 @@ fn unroll_loop(
 /// The loop pre-header is the block that comes before the loop begins. Generally a header block
 /// is expected to have 2 predecessors: the pre-header and the final block of the loop which jumps
 /// back to the beginning.
-fn get_pre_header(cfg: &ControlFlowGraph, loop_: &Loop) -> BasicBlockId {
+fn get_pre_header(cfg: &ControlFlowGraph, loop_: &Loop) -> Result<BasicBlockId, CallStack> {
     let mut pre_header = cfg
         .predecessors(loop_.header)
         .filter(|predecessor| *predecessor != loop_.back_edge_start)
         .collect::<Vec<_>>();
 
-    assert_eq!(pre_header.len(), 1);
-    pre_header.remove(0)
+    if pre_header.len() == 1 {
+        Ok(pre_header.remove(0))
+    } else {
+        Err(CallStack::new())
+    }
 }
 
 /// Return the induction value of the current iteration of the loop, from the given block's jmp arguments.
