@@ -1,5 +1,5 @@
 //! This pass tries to inline calls to brillig functions that have all constant arguments.
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 
 use acvm::acir::circuit::ErrorSelector;
 use noirc_frontend::{monomorphization::ast::InlineType, Type};
@@ -27,16 +27,40 @@ impl Ssa {
             if let RuntimeType::Brillig(..) = func.runtime() {
                 let cloned_function = Function::clone_with_id(*func_id, func);
                 brillig_functions.insert(*func_id, cloned_function);
-            }
+            };
         }
+
+        // Keep track of which brillig functions we couldn't completely inline: we'll remove the ones we could.
+        let mut brillig_functions_we_could_not_inline = HashSet::new();
 
         for func in self.functions.values_mut() {
             func.inline_const_brillig_calls(
                 &brillig_functions,
+                &mut brillig_functions_we_could_not_inline,
                 inliner_aggressiveness,
                 error_selector_to_type,
             );
         }
+
+        // Remove the brillig functions that are no longer called
+        for func_id in brillig_functions.keys() {
+            // We never want to remove the main function (it could be brillig if `--force-brillig` was given)
+            if self.main_id == *func_id {
+                continue;
+            }
+
+            if brillig_functions_we_could_not_inline.contains(func_id) {
+                continue;
+            }
+
+            // We also don't want to remove entry points
+            if self.entry_point_to_generated_index.contains_key(func_id) {
+                continue;
+            }
+
+            self.functions.remove(func_id);
+        }
+
         self
     }
 }
@@ -45,6 +69,7 @@ impl Function {
     pub(crate) fn inline_const_brillig_calls(
         &mut self,
         brillig_functions: &BTreeMap<FunctionId, Function>,
+        brillig_functions_we_could_not_inline: &mut HashSet<FunctionId>,
         inliner_aggressiveness: i64,
         error_selector_to_type: &BTreeMap<ErrorSelector, Type>,
     ) {
@@ -53,6 +78,7 @@ impl Function {
                 if !self.optimize_const_brillig_call(
                     instruction_id,
                     brillig_functions,
+                    brillig_functions_we_could_not_inline,
                     inliner_aggressiveness,
                     error_selector_to_type,
                 ) {
@@ -69,6 +95,7 @@ impl Function {
         &mut self,
         instruction_id: InstructionId,
         brillig_functions: &BTreeMap<FunctionId, Function>,
+        brillig_functions_we_could_not_inline: &mut HashSet<FunctionId>,
         inliner_aggressiveness: i64,
         error_selector_to_type: &BTreeMap<ErrorSelector, Type>,
     ) -> bool {
@@ -87,6 +114,7 @@ impl Function {
         };
 
         if !arguments.iter().all(|argument| self.dfg.is_constant(*argument)) {
+            brillig_functions_we_could_not_inline.insert(*func_id);
             return false;
         }
 
@@ -111,6 +139,7 @@ impl Function {
         // Try to fully optimize the function. If we can't, we can't inline it's constant value.
         let Ok(mut function) = optimize(function, inliner_aggressiveness, error_selector_to_type)
         else {
+            brillig_functions_we_could_not_inline.insert(*func_id);
             return false;
         };
 
@@ -118,16 +147,19 @@ impl Function {
 
         // If the entry block has instructions, we can't inline it (we need a terminator)
         if !entry_block.instructions().is_empty() {
+            brillig_functions_we_could_not_inline.insert(*func_id);
             return false;
         }
 
         let terminator = entry_block.take_terminator();
         let TerminatorInstruction::Return { return_values, call_stack: _ } = terminator else {
+            brillig_functions_we_could_not_inline.insert(*func_id);
             return false;
         };
 
         // Sanity check: make sure all returned values are constant
         if !return_values.iter().all(|value_id| function.dfg.is_constant(*value_id)) {
+            brillig_functions_we_could_not_inline.insert(*func_id);
             return false;
         }
 
