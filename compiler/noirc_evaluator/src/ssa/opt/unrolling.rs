@@ -222,7 +222,7 @@ fn unroll_loop(
     let mut jump_value = get_induction_variable(function, unroll_into)?;
 
     while let Some(context) = unroll_loop_header(function, loop_, unroll_into, jump_value)? {
-        let (last_block, last_value) = context.unroll_loop_iteration();
+        let (last_block, last_value) = context.unroll_loop_iteration()?;
         unroll_into = last_block;
         jump_value = last_value;
     }
@@ -367,7 +367,7 @@ impl<'f> LoopIteration<'f> {
     /// It is expected the terminator instructions are set up to branch into an empty block
     /// for further unrolling. When the loop is finished this will need to be mutated to
     /// jump to the end of the loop instead.
-    fn unroll_loop_iteration(mut self) -> (BasicBlockId, ValueId) {
+    fn unroll_loop_iteration(mut self) -> Result<(BasicBlockId, ValueId), CallStack> {
         let mut next_blocks = self.unroll_loop_block();
 
         while let Some(block) = next_blocks.pop() {
@@ -380,8 +380,7 @@ impl<'f> LoopIteration<'f> {
             }
         }
 
-        self.induction_value
-            .expect("Expected to find the induction variable by end of loop iteration")
+        self.induction_value.ok_or_else(CallStack::new)
     }
 
     /// Unroll a single block in the current iteration of the loop
