@@ -1,3 +1,4 @@
+//! This pass tries to inline calls to brillig functions that have all constant arguments.
 use std::collections::BTreeMap;
 
 use fxhash::FxHashMap;
@@ -8,7 +9,7 @@ use crate::{
     ssa::{
         ir::{
             function::{Function, FunctionId, RuntimeType},
-            instruction::{Instruction, TerminatorInstruction},
+            instruction::{Instruction, InstructionId, TerminatorInstruction},
             value::{Value, ValueId},
         },
         opt::flatten_cfg::flatten_function_cfg,
@@ -41,103 +42,105 @@ impl Function {
         brillig_functions: &BTreeMap<FunctionId, Function>,
     ) {
         for block_id in self.reachable_blocks() {
-            let block = &mut self.dfg[block_id];
-            let instruction_ids = block.take_instructions();
-
-            for instruction_id in instruction_ids {
-                let instruction = &self.dfg[instruction_id];
-
-                let Instruction::Call { func: func_id, arguments } = instruction else {
+            for instruction_id in self.dfg[block_id].take_instructions() {
+                if !self.optimize_const_brillig_call(instruction_id, brillig_functions) {
                     self.dfg[block_id].instructions_mut().push(instruction_id);
-                    continue;
-                };
-
-                let func_value = &self.dfg[*func_id];
-                let Value::Function(func_id) = func_value else {
-                    self.dfg[block_id].instructions_mut().push(instruction_id);
-                    continue;
-                };
-
-                let Some(function) = brillig_functions.get(func_id) else {
-                    self.dfg[block_id].instructions_mut().push(instruction_id);
-                    continue;
-                };
-
-                if !arguments.iter().all(|argument| self.dfg.is_constant(*argument)) {
-                    self.dfg[block_id].instructions_mut().push(instruction_id);
-                    continue;
-                }
-
-                // The function we have is already a copy of the original function, but we need to clone
-                // it again because there might be multiple calls to the same brillig function.
-                let mut function = Function::clone_with_id(*func_id, function);
-
-                // Find the entry block and remove its parameters
-                let entry_block_id = function.entry_block();
-                let entry_block = &mut function.dfg[entry_block_id];
-                let entry_block_parameters = entry_block.take_parameters();
-
-                assert_eq!(arguments.len(), entry_block_parameters.len());
-
-                // Replace the ValueId of parameters with the ValueId of arguments
-                for (parameter_id, argument_id) in entry_block_parameters.iter().zip(arguments) {
-                    // Lookup the argument in the current function and insert it in the function copy
-                    let new_argument_id =
-                        copy_constant_to_function(self, &mut function, *argument_id);
-                    function.dfg.set_value_from_id(*parameter_id, new_argument_id);
-                }
-
-                // Try to fully optimize the function. If we can't, we can't inline it's constant value.
-                if optimize(&mut function).is_err() {
-                    self.dfg[block_id].instructions_mut().push(instruction_id);
-                    continue;
-                }
-
-                let entry_block = &mut function.dfg[entry_block_id];
-
-                // If the entry block has instructions, we can't inline it (we need a terminator)
-                if !entry_block.instructions().is_empty() {
-                    self.dfg[block_id].instructions_mut().push(instruction_id);
-                    continue;
-                }
-
-                let terminator = entry_block.take_terminator();
-                let TerminatorInstruction::Return { return_values, call_stack: _ } = terminator
-                else {
-                    self.dfg[block_id].instructions_mut().push(instruction_id);
-                    continue;
-                };
-
-                // Sanity check: make sure all returned values are constant
-                if !return_values.iter().all(|value_id| function.dfg.is_constant(*value_id)) {
-                    self.dfg[block_id].instructions_mut().push(instruction_id);
-                    continue;
-                }
-
-                // Replace the instruction results with the constant values we got
-                let current_results = self.dfg.instruction_results(instruction_id).to_vec();
-                assert_eq!(return_values.len(), current_results.len());
-
-                for (current_result_id, return_value_id) in
-                    current_results.iter().zip(return_values)
-                {
-                    let new_return_value_id =
-                        copy_constant_to_function(&function, self, return_value_id);
-                    self.dfg.set_value_from_id(*current_result_id, new_return_value_id);
                 }
             }
         }
     }
+
+    /// Tries to optimize an instruction if it's a call that points to a brillig function,
+    /// and all its arguments are constant. If the optimization is successful, returns true.
+    /// Otherwise returns false. The given instruction is not removed from the function.
+    fn optimize_const_brillig_call(
+        &mut self,
+        instruction_id: InstructionId,
+        brillig_functions: &BTreeMap<FunctionId, Function>,
+    ) -> bool {
+        let instruction = &self.dfg[instruction_id];
+        let Instruction::Call { func: func_id, arguments } = instruction else {
+            return false;
+        };
+
+        let func_value = &self.dfg[*func_id];
+        let Value::Function(func_id) = func_value else {
+            return false;
+        };
+
+        let Some(function) = brillig_functions.get(func_id) else {
+            return false;
+        };
+
+        if !arguments.iter().all(|argument| self.dfg.is_constant(*argument)) {
+            return false;
+        }
+
+        // The function we have is already a copy of the original function, but we need to clone
+        // it again because there might be multiple calls to the same brillig function.
+        let mut function = Function::clone_with_id(*func_id, function);
+
+        // Find the entry block and remove its parameters
+        let entry_block_id = function.entry_block();
+        let entry_block = &mut function.dfg[entry_block_id];
+        let entry_block_parameters = entry_block.take_parameters();
+
+        assert_eq!(arguments.len(), entry_block_parameters.len());
+
+        // Replace the ValueId of parameters with the ValueId of arguments
+        for (parameter_id, argument_id) in entry_block_parameters.iter().zip(arguments) {
+            // Lookup the argument in the current function and insert it in the function copy
+            let new_argument_id = copy_constant_to_function(self, &mut function, *argument_id);
+            function.dfg.set_value_from_id(*parameter_id, new_argument_id);
+        }
+
+        // Try to fully optimize the function. If we can't, we can't inline it's constant value.
+        if optimize(&mut function).is_err() {
+            return false;
+        }
+
+        let entry_block = &mut function.dfg[entry_block_id];
+
+        // If the entry block has instructions, we can't inline it (we need a terminator)
+        if !entry_block.instructions().is_empty() {
+            return false;
+        }
+
+        let terminator = entry_block.take_terminator();
+        let TerminatorInstruction::Return { return_values, call_stack: _ } = terminator else {
+            return false;
+        };
+
+        // Sanity check: make sure all returned values are constant
+        if !return_values.iter().all(|value_id| function.dfg.is_constant(*value_id)) {
+            return false;
+        }
+
+        // Replace the instruction results with the constant values we got
+        let current_results = self.dfg.instruction_results(instruction_id).to_vec();
+        assert_eq!(return_values.len(), current_results.len());
+
+        for (current_result_id, return_value_id) in current_results.iter().zip(return_values) {
+            let new_return_value_id = copy_constant_to_function(&function, self, return_value_id);
+            self.dfg.set_value_from_id(*current_result_id, new_return_value_id);
+        }
+
+        true
+    }
 }
 
+/// Copies a constant from one function to another.
+/// Though it might seem we can just take a value out of `from_function` and call `make_value` on `to_function`,
+/// if the constant is an array the values will still keep pointing to `from_function`. So, this function
+/// recursively copies the array values too.
 fn copy_constant_to_function(
     from_function: &Function,
     to_function: &mut Function,
-    argument_id: ValueId,
+    constant_id: ValueId,
 ) -> ValueId {
-    if let Some((constant, typ)) = from_function.dfg.get_numeric_constant_with_type(argument_id) {
+    if let Some((constant, typ)) = from_function.dfg.get_numeric_constant_with_type(constant_id) {
         to_function.dfg.make_constant(constant, typ)
-    } else if let Some((constants, typ)) = from_function.dfg.get_array_constant(argument_id) {
+    } else if let Some((constants, typ)) = from_function.dfg.get_array_constant(constant_id) {
         let new_constants = constants
             .iter()
             .map(|constant_id| copy_constant_to_function(from_function, to_function, *constant_id))
