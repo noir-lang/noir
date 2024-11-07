@@ -40,32 +40,30 @@ impl Function {
         &mut self,
         brillig_functions: &BTreeMap<FunctionId, Function>,
     ) {
+        let mut ids_to_replace = vec![];
+
         let reachable_block_ids = self.reachable_blocks();
 
         for block_id in reachable_block_ids {
-            let block = &mut self.dfg[block_id];
-            let instruction_ids = block.take_instructions();
-
-            for instruction_id in instruction_ids {
+            let block = &self.dfg[block_id];
+            for instruction_id in block.instructions() {
+                let instruction_id = *instruction_id;
                 let instruction = &self.dfg[instruction_id];
+
                 let Instruction::Call { func: func_id, arguments } = instruction else {
-                    self.dfg[block_id].instructions_mut().push(instruction_id);
                     continue;
                 };
 
                 let func_value = &self.dfg[*func_id];
                 let Value::Function(func_id) = func_value else {
-                    self.dfg[block_id].instructions_mut().push(instruction_id);
                     continue;
                 };
 
                 let Some(function) = brillig_functions.get(func_id) else {
-                    self.dfg[block_id].instructions_mut().push(instruction_id);
                     continue;
                 };
 
                 if !arguments.iter().all(|argument| self.dfg.is_constant(*argument)) {
-                    self.dfg[block_id].instructions_mut().push(instruction_id);
                     continue;
                 }
 
@@ -90,7 +88,6 @@ impl Function {
 
                 // Try to fully optimize the function. If we can't, we can't inline it's constant value.
                 if optimize(&mut function).is_err() {
-                    self.dfg[block_id].instructions_mut().push(instruction_id);
                     continue;
                 }
 
@@ -98,20 +95,17 @@ impl Function {
 
                 // If the entry block has instructions, we can't inline it (we need a terminator)
                 if !entry_block.instructions().is_empty() {
-                    self.dfg[block_id].instructions_mut().push(instruction_id);
                     continue;
                 }
 
                 let terminator = entry_block.take_terminator();
                 let TerminatorInstruction::Return { return_values, call_stack: _ } = terminator
                 else {
-                    self.dfg[block_id].instructions_mut().push(instruction_id);
                     continue;
                 };
 
                 // Sanity check: make sure all returned values are constant
                 if !return_values.iter().all(|value_id| function.dfg.is_constant(*value_id)) {
-                    self.dfg[block_id].instructions_mut().push(instruction_id);
                     continue;
                 }
 
@@ -121,10 +115,14 @@ impl Function {
 
                 for (current_result, return_value) in current_results.iter().zip(return_values) {
                     let return_value = &function.dfg[return_value];
-                    let new_result_id = self.dfg.make_value(return_value.clone());
-                    self.dfg.set_value_from_id(*current_result, new_result_id);
+                    ids_to_replace.push((*current_result, return_value.clone()));
                 }
             }
+        }
+
+        for (current_result, return_value) in ids_to_replace {
+            let new_result_id = self.dfg.make_value(return_value);
+            self.dfg.set_value_from_id(current_result, new_result_id);
         }
     }
 
