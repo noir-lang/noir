@@ -944,9 +944,7 @@ impl<'interner> Monomorphizer<'interner> {
                 };
                 let location = self.interner.id_location(expr_id);
 
-                if !Kind::Numeric(numeric_typ.clone())
-                    .unifies(&Kind::Numeric(Box::new(typ.clone())))
-                {
+                if !Kind::Numeric(numeric_typ.clone()).unifies(&Kind::numeric(typ.clone())) {
                     let message = "ICE: Generic's kind does not match expected type";
                     return Err(MonomorphizationError::InternalError { location, message });
                 }
