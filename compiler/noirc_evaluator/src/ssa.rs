@@ -129,12 +129,19 @@ pub(crate) fn optimize_into_acir(
     .run_pass(Ssa::array_set_optimization, "After Array Set Optimizations:")
     .finish();
 
-    let ssa_level_warnings = if options.skip_underconstrained_check {
-        vec![]
-    } else {
-        time("After Check for Underconstrained Values", options.print_codegen_timings, || {
-            ssa.check_for_underconstrained_values()
-        })
+    let mut ssa_level_warnings = vec![];
+
+    if !options.skip_underconstrained_check {
+        ssa_level_warnings.extend(time(
+            "After Check for Underconstrained Values",
+            options.print_codegen_timings,
+            || ssa.check_for_underconstrained_values(),
+        ));
+        ssa_level_warnings.extend(time(
+            "After Check for Missing Brillig Constrains",
+            options.print_codegen_timings,
+            || ssa.check_for_missing_brillig_constrains(),
+        ));
     };
 
     drop(ssa_gen_span_guard);
