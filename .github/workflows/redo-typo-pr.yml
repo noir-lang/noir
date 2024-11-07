@@ -1,0 +1,32 @@
+name: Redo Typo PR
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'The PR number to redo'
+        required: true
+        type: string
+
+jobs:
+  redo-typo-pr:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      with:
+        token: ${{ secrets.NOIR_REPO_TOKEN }}
+
+    - name: Authenticate with GitHub CLI
+      run: |
+        echo "${{ secrets.NOIR_REPO_TOKEN }}" | gh auth login --with-token
+
+    - name: Set git configure for commits
+      run: |
+        # Identify ourselves, needed to commit
+        git config --global user.name noirwhal
+        git config --global user.email tomfrench@aztecprotocol.com
+
+    - name: Run repo-typo-pr script
+      run: ./scripts/redo-typo-pr.sh ${{ github.event.inputs.pr_number }}
