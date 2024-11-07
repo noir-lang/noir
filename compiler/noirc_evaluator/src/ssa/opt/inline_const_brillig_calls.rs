@@ -1,8 +1,8 @@
 //! This pass tries to inline calls to brillig functions that have all constant arguments.
 use std::collections::BTreeMap;
 
-use fxhash::FxHashMap;
-use noirc_frontend::monomorphization::ast::InlineType;
+use acvm::acir::circuit::ErrorSelector;
+use noirc_frontend::{monomorphization::ast::InlineType, Type};
 
 use crate::{
     errors::RuntimeError,
@@ -12,14 +12,15 @@ use crate::{
             instruction::{Instruction, InstructionId, TerminatorInstruction},
             value::{Value, ValueId},
         },
-        opt::flatten_cfg::flatten_function_cfg,
-        Ssa,
+        optimize_ssa_after_inline_const_brillig_calls, Ssa, SsaBuilder,
     },
 };
 
 impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
-    pub(crate) fn inline_const_brillig_calls(mut self) -> Self {
+    pub(crate) fn inline_const_brillig_calls(mut self, inliner_aggressiveness: i64) -> Self {
+        let error_selector_to_type = &self.error_selector_to_type;
+
         // Collect all brillig functions so that later we can find them when processing a call instruction
         let mut brillig_functions = BTreeMap::<FunctionId, Function>::new();
         for (func_id, func) in &self.functions {
@@ -30,7 +31,11 @@ impl Ssa {
         }
 
         for func in self.functions.values_mut() {
-            func.inline_const_brillig_calls(&brillig_functions);
+            func.inline_const_brillig_calls(
+                &brillig_functions,
+                inliner_aggressiveness,
+                error_selector_to_type,
+            );
         }
         self
     }
@@ -40,10 +45,17 @@ impl Function {
     pub(crate) fn inline_const_brillig_calls(
         &mut self,
         brillig_functions: &BTreeMap<FunctionId, Function>,
+        inliner_aggressiveness: i64,
+        error_selector_to_type: &BTreeMap<ErrorSelector, Type>,
     ) {
         for block_id in self.reachable_blocks() {
             for instruction_id in self.dfg[block_id].take_instructions() {
-                if !self.optimize_const_brillig_call(instruction_id, brillig_functions) {
+                if !self.optimize_const_brillig_call(
+                    instruction_id,
+                    brillig_functions,
+                    inliner_aggressiveness,
+                    error_selector_to_type,
+                ) {
                     self.dfg[block_id].instructions_mut().push(instruction_id);
                 }
             }
@@ -57,6 +69,8 @@ impl Function {
         &mut self,
         instruction_id: InstructionId,
         brillig_functions: &BTreeMap<FunctionId, Function>,
+        inliner_aggressiveness: i64,
+        error_selector_to_type: &BTreeMap<ErrorSelector, Type>,
     ) -> bool {
         let instruction = &self.dfg[instruction_id];
         let Instruction::Call { func: func_id, arguments } = instruction else {
@@ -95,9 +109,10 @@ impl Function {
         }
 
         // Try to fully optimize the function. If we can't, we can't inline it's constant value.
-        if optimize(&mut function).is_err() {
+        let Ok(mut function) = optimize(function, inliner_aggressiveness, error_selector_to_type)
+        else {
             return false;
-        }
+        };
 
         let entry_block = &mut function.dfg[entry_block_id];
 
@@ -155,35 +170,19 @@ fn copy_constant_to_function(
 /// after the `inline_const_brillig_calls` pass.
 /// The function is changed to be an ACIR function so the function can potentially
 /// be optimized into a single return terminator.
-fn optimize(function: &mut Function) -> Result<(), RuntimeError> {
+fn optimize(
+    mut function: Function,
+    inliner_aggressiveness: i64,
+    error_selector_to_type: &BTreeMap<ErrorSelector, Type>,
+) -> Result<Function, RuntimeError> {
     function.set_runtime(RuntimeType::Acir(InlineType::InlineAlways));
 
-    function.mem2reg();
-    function.simplify_function();
-    function.as_slice_optimization();
-    function.evaluate_static_assert_and_assert_constant()?;
-
-    let mut errors = Vec::new();
-    function.try_to_unroll_loops(&mut errors);
-    if !errors.is_empty() {
-        return Err(errors.swap_remove(0));
-    }
-
-    function.simplify_function();
-
-    let mut no_predicates = FxHashMap::default();
-    no_predicates.insert(function.id(), function.is_no_predicates());
-    flatten_function_cfg(function, &no_predicates);
-
-    function.remove_bit_shifts();
-    function.mem2reg();
-    function.remove_if_else();
-    function.constant_fold(false);
-    function.remove_enable_side_effects();
-    function.constant_fold(true);
-    function.dead_instruction_elimination(true);
-    function.simplify_function();
-    function.array_set_optimization();
-
-    Ok(())
+    let ssa = Ssa::new(vec![function], error_selector_to_type.clone());
+    let builder = SsaBuilder { ssa, print_ssa_passes: false, print_codegen_timings: false };
+    let mut ssa = optimize_ssa_after_inline_const_brillig_calls(
+        builder,
+        inliner_aggressiveness,
+        false, // don't inline functions with no predicates
+    )?;
+    Ok(ssa.functions.pop_first().unwrap().1)
 }
