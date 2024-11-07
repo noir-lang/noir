@@ -1,6 +1,7 @@
 use acvm::acir::{
     brillig::{
-        BinaryFieldOp, BinaryIntOp, BitSize, IntegerBitSize, MemoryAddress, Opcode as BrilligOpcode,
+        BinaryFieldOp, BinaryIntOp, BitSize, HeapVector, IntegerBitSize, MemoryAddress,
+        Opcode as BrilligOpcode,
     },
     AcirField,
 };
@@ -163,6 +164,9 @@ pub(crate) fn directive_to_radix<F: AcirField>() -> GeneratedBrillig<F> {
     // address of the result array
     let result_base_adr = 10_usize;
 
+    let result_vector =
+        HeapVector { pointer: MemoryAddress::direct(result_base_adr), size: limbs_nb };
+
     let byte_code = vec![
         // Initialize registers
         // Constants
@@ -251,7 +255,7 @@ pub(crate) fn directive_to_radix<F: AcirField>() -> GeneratedBrillig<F> {
         },
         // loop back
         BrilligOpcode::JumpIf { condition: cond, location: 7 },
-        BrilligOpcode::Stop { return_data_offset: result_base_adr, return_data_size: limbs_nb },
+        BrilligOpcode::Stop { return_data: result_vector },
     ];
 
     GeneratedBrillig { byte_code, name: "directive_to_radix".to_string(), ..Default::default() }
