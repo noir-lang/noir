@@ -306,7 +306,9 @@ impl<'f> PerFunctionContext<'f> {
     fn analyze_block(&mut self, block: BasicBlockId, mut references: Block) {
         let instructions = self.inserter.function.dfg[block].take_instructions();
 
-        self.add_aliases_for_reference_parameters(block, &mut references);
+        if block == self.inserter.function.entry_block() {
+            self.add_aliases_for_reference_parameters(block, &mut references);
+        }
 
         for instruction in instructions {
             self.analyze_instruction(block, &mut references, instruction);
