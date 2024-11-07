@@ -49,7 +49,7 @@ impl PostOrder {
                         stack.push((Visit::Last, block_id));
                         // Stack successors for visiting. Because items are taken from the top of the
                         // stack, we push the item that's due for a visit first to the top.
-                        for successor_id in func.dfg[block_id].successors().rev() {
+                        for successor_id in func.dfg[block_id].successors() {
                             if !visited.contains(&successor_id) {
                                 // This not visited check would also be cover by the next
                                 // iteration, but checking here two saves an iteration per successor.
@@ -147,4 +147,6 @@ mod tests {
         let block_a_id = func.entry_block();
         assert_eq!(post_order.0, [block_d_id, block_f_id, block_e_id, block_b_id, block_a_id]);
     }
+
+    // TODO: Add `loop` test
 }

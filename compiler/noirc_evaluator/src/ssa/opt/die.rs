@@ -7,6 +7,7 @@ use noirc_errors::Location;
 use crate::ssa::{
     ir::{
         basic_block::{BasicBlock, BasicBlockId},
+        cfg::ControlFlowGraph,
         dfg::DataFlowGraph,
         function::Function,
         instruction::{BinaryOp, Instruction, InstructionId, Intrinsic},
@@ -17,7 +18,10 @@ use crate::ssa::{
     ssa_gen::{Ssa, SSA_WORD_SIZE},
 };
 
-use super::rc::{pop_rc_for, RcInstruction};
+use super::{
+    mem2reg::{AliasSet, StoreInstructionAliases},
+    rc::{pop_rc_for, RcInstruction},
+};
 
 impl Ssa {
     /// Performs Dead Instruction Elimination (DIE) to remove any instructions with
@@ -25,50 +29,19 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn dead_instruction_elimination(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            function.dead_instruction_elimination(true);
+            Context::new(function).dead_instruction_elimination(function, true);
         }
         self
     }
 }
 
-impl Function {
-    /// Removes any unused instructions in the reachable blocks of the given function.
-    ///
-    /// The blocks of the function are iterated in post order, such that any blocks containing
-    /// instructions that reference results from an instruction in another block are evaluated first.
-    /// If we did not iterate blocks in this order we could not safely say whether or not the results
-    /// of its instructions are needed elsewhere.
-    pub(crate) fn dead_instruction_elimination(&mut self, insert_out_of_bounds_checks: bool) {
-        let mut context = Context::default();
-        for call_data in &self.dfg.data_bus.call_data {
-            context.mark_used_instruction_results(&self.dfg, call_data.array_id);
-        }
-
-        let mut inserted_out_of_bounds_checks = false;
-
-        let blocks = PostOrder::with_function(self);
-        for block in blocks.as_slice() {
-            inserted_out_of_bounds_checks |= context.remove_unused_instructions_in_block(
-                self,
-                *block,
-                insert_out_of_bounds_checks,
-            );
-        }
-
-        // If we inserted out of bounds check, let's run the pass again with those new
-        // instructions (we don't want to remove those checks, or instructions that are
-        // dependencies of those checks)
-        if inserted_out_of_bounds_checks {
-            self.dead_instruction_elimination(false);
-            return;
-        }
-
-        context.remove_rc_instructions(&mut self.dfg);
-    }
+pub(crate) fn dce_with_store_aliases(function: &mut Function, aliases: StoreInstructionAliases) {
+    let mut context = Context::new(function);
+    context.store_aliases = Some(aliases);
+    context.dead_instruction_elimination(function, false);
 }
 
 /// Per function context for tracking unused values and which instructions to remove.
-#[derive(Default)]
 struct Context {
     used_values: HashSet<ValueId>,
     instructions_to_remove: HashSet<InstructionId>,
@@ -77,9 +50,71 @@ struct Context {
     /// they technically contain side-effects but we still want to remove them if their
     /// `value` parameter is not used elsewhere.
     rc_instructions: Vec<(InstructionId, BasicBlockId)>,
+
+    /// If we have information on which store instructions may alias other references we
+    /// can remove unused store instructions as well. This information is given by mem2reg
+    /// and is on each store instruction since which ValueIds are aliased would change over time
+    /// (so we cannot index by ValueId).
+    store_aliases: Option<StoreInstructionAliases>,
+
+    cfg: ControlFlowGraph,
+
+    visited_blocks: HashSet<BasicBlockId>,
 }
 
 impl Context {
+    fn new(function: &Function) -> Self {
+        Self {
+            used_values: HashSet::default(),
+            instructions_to_remove: HashSet::default(),
+            rc_instructions: Vec::new(),
+            store_aliases: None,
+            visited_blocks: HashSet::default(),
+            cfg: ControlFlowGraph::with_function(function),
+        }
+    }
+
+    /// Removes any unused instructions in the reachable blocks of the given function.
+    ///
+    /// The blocks of the function are iterated in post order, such that any blocks containing
+    /// instructions that reference results from an instruction in another block are evaluated first.
+    /// If we did not iterate blocks in this order we could not safely say whether or not the results
+    /// of its instructions are needed elsewhere.
+    fn dead_instruction_elimination(
+        mut self,
+        function: &mut Function,
+        insert_out_of_bounds_checks: bool,
+    ) {
+        for call_data in &function.dfg.data_bus.call_data {
+            Self::mark_used_instruction_results(
+                &function.dfg,
+                call_data.array_id,
+                &mut self.used_values,
+            );
+        }
+
+        let mut inserted_out_of_bounds_checks = false;
+
+        let blocks = PostOrder::with_function(function);
+        for block in blocks.as_slice() {
+            inserted_out_of_bounds_checks |= self.remove_unused_instructions_in_block(
+                function,
+                *block,
+                insert_out_of_bounds_checks,
+            );
+            self.visited_blocks.insert(*block);
+        }
+
+        // If we inserted out of bounds check, let's run the pass again with those new
+        // instructions (we don't want to remove those checks, or instructions that are
+        // dependencies of those checks)
+        if inserted_out_of_bounds_checks {
+            return self.dead_instruction_elimination(function, false);
+        }
+
+        self.remove_rc_instructions(&mut function.dfg);
+    }
+
     /// Steps backwards through the instruction of the given block, amassing a set of used values
     /// as it goes, and at the same time marking instructions for removal if they haven't appeared
     /// in the set thus far.
@@ -117,7 +152,7 @@ impl Context {
         for (instruction_index, instruction_id) in block.instructions().iter().rev().enumerate() {
             let instruction = &function.dfg[*instruction_id];
 
-            if self.is_unused(*instruction_id, function) {
+            if self.is_unused(*instruction_id, function, block_id) {
                 self.instructions_to_remove.insert(*instruction_id);
 
                 if insert_out_of_bounds_checks
@@ -132,8 +167,16 @@ impl Context {
                     self.rc_instructions.push((*instruction_id, block_id));
                 } else {
                     instruction.for_each_value(|value| {
-                        self.mark_used_instruction_results(&function.dfg, value);
+                        Self::mark_used_instruction_results(
+                            &function.dfg,
+                            value,
+                            &mut self.used_values,
+                        );
                     });
+
+                    if matches!(instruction, Store { .. }) {
+                        self.mark_used_store_aliases(&function.dfg, *instruction_id);
+                    }
                 }
             }
 
@@ -169,16 +212,19 @@ impl Context {
     ///
     /// An instruction can be removed as long as it has no side-effects, and none of its result
     /// values have been referenced.
-    fn is_unused(&self, instruction_id: InstructionId, function: &Function) -> bool {
+    fn is_unused(
+        &self,
+        instruction_id: InstructionId,
+        function: &Function,
+        block: BasicBlockId,
+    ) -> bool {
         let instruction = &function.dfg[instruction_id];
 
         if instruction.can_eliminate_if_unused(&function.dfg) {
             let results = function.dfg.instruction_results(instruction_id);
             results.iter().all(|result| !self.used_values.contains(result))
         } else if let Instruction::Store { address, .. } = instruction {
-            // If there's only one block in the function we can remove it as long as the address
-            // hasn't been referenced afterward.
-            (function.reachable_blocks().len() == 1) && !self.used_values.contains(address)
+            self.store_is_unused(instruction_id, *address, block)
         } else if let Instruction::Call { func, arguments } = instruction {
             // TODO: make this more general for instructions which don't have results but have side effects "sometimes" like `Intrinsic::AsWitness`
             let as_witness_id = function.dfg.get_intrinsic(Intrinsic::AsWitness);
@@ -189,37 +235,76 @@ impl Context {
         }
     }
 
+    fn store_is_unused(
+        &self,
+        instruction_id: InstructionId,
+        address: ValueId,
+        block: BasicBlockId,
+    ) -> bool {
+        if !self.cfg.successors(block).all(|block| self.visited_blocks.contains(&block)) {
+            return false;
+        }
+
+        if let Some(aliases) = Self::get_store_aliases(&self.store_aliases, instruction_id) {
+            aliases.any(|alias| self.used_values.contains(&alias)) == Some(false)
+                && !self.used_values.contains(&address)
+        } else {
+            false
+        }
+    }
+
     /// Adds values referenced by the terminator to the set of used values.
     fn mark_terminator_values_as_used(&mut self, function: &Function, block: &BasicBlock) {
         block.unwrap_terminator().for_each_value(|value| {
-            self.mark_used_instruction_results(&function.dfg, value);
+            Self::mark_used_instruction_results(&function.dfg, value, &mut self.used_values);
         });
     }
 
     /// Inspects a value recursively (as it could be an array) and marks all comprised instruction
     /// results as used.
-    fn mark_used_instruction_results(&mut self, dfg: &DataFlowGraph, value_id: ValueId) {
+    fn mark_used_instruction_results(
+        dfg: &DataFlowGraph,
+        value_id: ValueId,
+        used_values: &mut HashSet<ValueId>,
+    ) {
         let value_id = dfg.resolve(value_id);
         match &dfg[value_id] {
             Value::Instruction { .. } => {
-                self.used_values.insert(value_id);
+                used_values.insert(value_id);
             }
             Value::Array { array, .. } => {
-                self.used_values.insert(value_id);
+                used_values.insert(value_id);
                 for elem in array {
-                    self.mark_used_instruction_results(dfg, *elem);
+                    Self::mark_used_instruction_results(dfg, *elem, used_values);
                 }
             }
             Value::Param { .. } => {
-                self.used_values.insert(value_id);
+                used_values.insert(value_id);
             }
             Value::NumericConstant { .. } => {
-                self.used_values.insert(value_id);
+                used_values.insert(value_id);
             }
             _ => {
                 // Does not comprise of any instruction results
             }
         }
+    }
+
+    /// Marks each alias of `address` for the given store instruction as used
+    fn mark_used_store_aliases(&mut self, dfg: &DataFlowGraph, instruction: InstructionId) {
+        if let Some(aliases) = Self::get_store_aliases(&self.store_aliases, instruction) {
+            aliases.for_each(|alias| {
+                Self::mark_used_instruction_results(dfg, alias, &mut self.used_values)
+            })
+        }
+    }
+
+    // unknown stores mess this up...
+    fn get_store_aliases(
+        store_aliases: &Option<StoreInstructionAliases>,
+        instruction: InstructionId,
+    ) -> Option<&AliasSet> {
+        store_aliases.as_ref().and_then(|aliases| aliases.get(&instruction))
     }
 
     fn remove_rc_instructions(self, dfg: &mut DataFlowGraph) {

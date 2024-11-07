@@ -9,7 +9,7 @@ use crate::ssa::ir::value::ValueId;
 /// Note that we distinguish between "definitely has no aliases" - `Some(BTreeSet::new())`, and
 /// "unknown which aliases this may refer to" - `None`.
 #[derive(Debug, Default, Clone)]
-pub(super) struct AliasSet {
+pub(crate) struct AliasSet {
     aliases: Option<BTreeSet<ValueId>>,
 }
 
@@ -66,11 +66,11 @@ impl AliasSet {
 
     /// Returns `Some(true)` if `f` returns true for any known alias in this set.
     /// If this alias set is unknown, None is returned.
-    pub(super) fn any(&self, f: impl FnMut(ValueId) -> bool) -> Option<bool> {
+    pub(crate) fn any(&self, f: impl FnMut(ValueId) -> bool) -> Option<bool> {
         self.aliases.as_ref().map(|aliases| aliases.iter().copied().any(f))
     }
 
-    pub(super) fn for_each(&self, mut f: impl FnMut(ValueId)) {
+    pub(crate) fn for_each(&self, mut f: impl FnMut(ValueId)) {
         if let Some(aliases) = &self.aliases {
             for alias in aliases {
                 f(*alias);

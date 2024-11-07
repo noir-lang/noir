@@ -66,7 +66,7 @@ mod block;
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use fxhash::FxHashSet as HashSet;
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::{
     ir::{
@@ -82,7 +82,7 @@ use crate::ssa::{
     ssa_gen::Ssa,
 };
 
-use self::alias_set::AliasSet;
+pub(crate) use self::alias_set::AliasSet;
 use self::block::{Block, Expression};
 
 impl Ssa {
@@ -101,8 +101,8 @@ impl Function {
     pub(crate) fn mem2reg(&mut self) {
         let mut context = PerFunctionContext::new(self);
         context.mem2reg();
-        context.remove_instructions();
         context.update_data_bus();
+        context.remove_instructions();
     }
 }
 
@@ -119,7 +119,11 @@ struct PerFunctionContext<'f> {
     /// We avoid removing individual instructions as we go since removing elements
     /// from the middle of Vecs many times will be slower than a single call to `retain`.
     instructions_to_remove: HashSet<InstructionId>,
+
+    store_instruction_aliases: StoreInstructionAliases,
 }
+
+pub(crate) type StoreInstructionAliases = HashMap<InstructionId, AliasSet>;
 
 impl<'f> PerFunctionContext<'f> {
     fn new(function: &'f mut Function) -> Self {
@@ -132,6 +136,7 @@ impl<'f> PerFunctionContext<'f> {
             inserter: FunctionInserter::new(function),
             blocks: BTreeMap::new(),
             instructions_to_remove: HashSet::default(),
+            store_instruction_aliases: HashMap::default(),
         }
     }
 
@@ -290,6 +295,12 @@ impl<'f> PerFunctionContext<'f> {
                 //     }
                 // }
 
+                // Remember the aliases this address has for DIE to remove later
+                let aliases = references.get_aliases_for_value(address);
+                if !aliases.is_unknown() {
+                    self.store_instruction_aliases.insert(instruction, aliases.into_owned());
+                }
+
                 references.set_last_store(address, instruction, &mut self.instructions_to_remove);
                 references.set_known_value(address, value);
             }
@@ -378,16 +389,14 @@ impl<'f> PerFunctionContext<'f> {
         }
     }
 
-    /// Remove any instructions in `self.instructions_to_remove` from the current function.
-    /// This is expected to contain any loads which were replaced and any stores which are
-    /// no longer needed.
+    /// Perform an alias-aware DIE pass to remove any unused stores and loads
+    ///
+    /// Issues:
+    /// 1. handling stores with unknown aliases
+    /// 2. die pass control-flow order on programs with loops
     fn remove_instructions(&mut self) {
-        // The order we iterate blocks in is not important
-        for block in self.post_order.as_slice() {
-            self.inserter.function.dfg[*block]
-                .instructions_mut()
-                .retain(|instruction| !self.instructions_to_remove.contains(instruction));
-        }
+        let aliases = std::mem::take(&mut self.store_instruction_aliases);
+        super::die::dce_with_store_aliases(self.inserter.function, aliases);
     }
 
     fn update_data_bus(&mut self) {

@@ -392,6 +392,7 @@ impl InlineContext {
 
         context.blocks.insert(context.source_function.entry_block(), entry_block);
         context.inline_blocks(ssa);
+
         // translate databus values
         let databus = entry_point.dfg.data_bus.map_values(|t| context.translate_value(t));
 
