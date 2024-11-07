@@ -280,16 +280,12 @@ impl<'a> Formatter<'a> {
     }
 
     pub(super) fn format_function_body(&mut self, body: BlockExpression) {
-        if body.is_empty() {
-            self.format_empty_block_contents();
-        } else {
-            let mut group = ChunkGroup::new();
-            self.chunk_formatter().format_non_empty_block_expression_contents(
-                body, true, // force multiple lines
-                &mut group,
-            );
-            self.format_chunk_group(group);
-        }
+        let mut group = ChunkGroup::new();
+        self.chunk_formatter().format_block_expression_contents(
+            body, true, // force multiple newlines
+            &mut group,
+        );
+        self.format_chunk_group(group);
     }
 }
 
@@ -535,6 +531,48 @@ fn baz() { let  z  = 3  ;
             }
 
 ";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn comment_in_body_respects_newlines() {
+        let src = "fn foo() {
+    let x = 1;
+
+    // comment
+
+    let y = 2;
+}
+";
+        let expected = src;
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn final_comment_in_body_respects_newlines() {
+        let src = "fn foo() {
+    let x = 1;
+
+    let y = 2;
+
+    // comment
+}
+";
+        let expected = src;
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn initial_comment_in_body_respects_newlines() {
+        let src = "fn foo() {
+    // comment
+
+    let x = 1;
+
+    let y = 2;
+}
+";
+        let expected = src;
         assert_format(src, expected);
     }
 }
