@@ -40,30 +40,31 @@ impl Function {
         &mut self,
         brillig_functions: &BTreeMap<FunctionId, Function>,
     ) {
-        let mut ids_to_replace = vec![];
+        for block_id in self.reachable_blocks() {
+            let block = &mut self.dfg[block_id];
+            let instruction_ids = block.take_instructions();
 
-        let reachable_block_ids = self.reachable_blocks();
-
-        for block_id in reachable_block_ids {
-            let block = &self.dfg[block_id];
-            for instruction_id in block.instructions() {
-                let instruction_id = *instruction_id;
+            for instruction_id in instruction_ids {
                 let instruction = &self.dfg[instruction_id];
 
                 let Instruction::Call { func: func_id, arguments } = instruction else {
+                    self.dfg[block_id].instructions_mut().push(instruction_id);
                     continue;
                 };
 
                 let func_value = &self.dfg[*func_id];
                 let Value::Function(func_id) = func_value else {
+                    self.dfg[block_id].instructions_mut().push(instruction_id);
                     continue;
                 };
 
                 let Some(function) = brillig_functions.get(func_id) else {
+                    self.dfg[block_id].instructions_mut().push(instruction_id);
                     continue;
                 };
 
                 if !arguments.iter().all(|argument| self.dfg.is_constant(*argument)) {
+                    self.dfg[block_id].instructions_mut().push(instruction_id);
                     continue;
                 }
 
@@ -82,12 +83,13 @@ impl Function {
                 for (parameter_id, argument_id) in entry_block_parameters.iter().zip(arguments) {
                     // Lookup the argument in the current function and insert it in the function copy
                     let new_argument_id =
-                        self.copy_constant_to_function(*argument_id, &mut function);
+                        copy_constant_to_function(self, &mut function, *argument_id);
                     function.dfg.set_value_from_id(*parameter_id, new_argument_id);
                 }
 
                 // Try to fully optimize the function. If we can't, we can't inline it's constant value.
                 if optimize(&mut function).is_err() {
+                    self.dfg[block_id].instructions_mut().push(instruction_id);
                     continue;
                 }
 
@@ -95,17 +97,20 @@ impl Function {
 
                 // If the entry block has instructions, we can't inline it (we need a terminator)
                 if !entry_block.instructions().is_empty() {
+                    self.dfg[block_id].instructions_mut().push(instruction_id);
                     continue;
                 }
 
                 let terminator = entry_block.take_terminator();
                 let TerminatorInstruction::Return { return_values, call_stack: _ } = terminator
                 else {
+                    self.dfg[block_id].instructions_mut().push(instruction_id);
                     continue;
                 };
 
                 // Sanity check: make sure all returned values are constant
                 if !return_values.iter().all(|value_id| function.dfg.is_constant(*value_id)) {
+                    self.dfg[block_id].instructions_mut().push(instruction_id);
                     continue;
                 }
 
@@ -113,31 +118,33 @@ impl Function {
                 let current_results = self.dfg.instruction_results(instruction_id).to_vec();
                 assert_eq!(return_values.len(), current_results.len());
 
-                for (current_result, return_value) in current_results.iter().zip(return_values) {
-                    let return_value = &function.dfg[return_value];
-                    ids_to_replace.push((*current_result, return_value.clone()));
+                for (current_result_id, return_value_id) in
+                    current_results.iter().zip(return_values)
+                {
+                    let new_return_value_id =
+                        copy_constant_to_function(&function, self, return_value_id);
+                    self.dfg.set_value_from_id(*current_result_id, new_return_value_id);
                 }
             }
         }
-
-        for (current_result, return_value) in ids_to_replace {
-            let new_result_id = self.dfg.make_value(return_value);
-            self.dfg.set_value_from_id(current_result, new_result_id);
-        }
     }
+}
 
-    fn copy_constant_to_function(&self, argument_id: ValueId, function: &mut Function) -> ValueId {
-        if let Some((constant, typ)) = self.dfg.get_numeric_constant_with_type(argument_id) {
-            function.dfg.make_constant(constant, typ)
-        } else if let Some((constants, typ)) = self.dfg.get_array_constant(argument_id) {
-            let new_constants = constants
-                .iter()
-                .map(|constant_id| self.copy_constant_to_function(*constant_id, function))
-                .collect();
-            function.dfg.make_array(new_constants, typ)
-        } else {
-            unreachable!("A constant should be either a numeric constant or an array constant")
-        }
+fn copy_constant_to_function(
+    from_function: &Function,
+    to_function: &mut Function,
+    argument_id: ValueId,
+) -> ValueId {
+    if let Some((constant, typ)) = from_function.dfg.get_numeric_constant_with_type(argument_id) {
+        to_function.dfg.make_constant(constant, typ)
+    } else if let Some((constants, typ)) = from_function.dfg.get_array_constant(argument_id) {
+        let new_constants = constants
+            .iter()
+            .map(|constant_id| copy_constant_to_function(from_function, to_function, *constant_id))
+            .collect();
+        to_function.dfg.make_array(new_constants, typ)
+    } else {
+        unreachable!("A constant should be either a numeric constant or an array constant")
     }
 }
 
