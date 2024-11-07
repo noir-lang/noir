@@ -926,7 +926,7 @@ mod tests {
         let mut builder = FunctionBuilder::new("main".into(), main_id);
 
         let v0 = builder.insert_allocate(Type::field());
-        let zero = builder.numeric_constant(0u128, Type::field());
+        let zero = builder.field_constant(0u128);
         builder.insert_store(v0, zero);
 
         let v2 = builder.insert_allocate(Type::field());
@@ -950,9 +950,9 @@ mod tests {
         // Loop body
         builder.switch_to_block(b2);
         let v5 = builder.insert_load(v2, v2_type.clone());
-        let two = builder.numeric_constant(2u128, Type::field());
+        let two = builder.field_constant(2u128);
         builder.insert_store(v5, two);
-        let one = builder.numeric_constant(1u128, Type::field());
+        let one = builder.field_constant(1u128);
         let v3_plus_one = builder.insert_binary(v3, BinaryOp::Add, one);
         builder.terminate_with_jmp(b1, vec![v3_plus_one]);
 
@@ -982,5 +982,45 @@ mod tests {
 
         assert_eq!(count_loads(b2, &main.dfg), 1);
         assert_eq!(count_loads(b3, &main.dfg), 3);
+    }
+
+    #[test]
+    fn parameter_alias() {
+        // Do not assume parameters are not aliased to each other.
+        // The load below shouldn't be removed since `v0` could
+        // be aliased to `v1`.
+        //
+        // fn main f0 {
+        //   b0(v0: &mut Field, v1: &mut Field):
+        //     store Field 0 at v0
+        //     store Field 1 at v1
+        //     v4 = load v0
+        //     constrain v4 == Field 1
+        //     return 
+        // }
+        let main_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+
+        let field_ref = Type::Reference(Arc::new(Type::field()));
+        let v0 = builder.add_parameter(field_ref.clone());
+        let v1 = builder.add_parameter(field_ref.clone());
+
+        let zero = builder.field_constant(0u128);
+        let one = builder.field_constant(0u128);
+        builder.insert_store(v0, zero);
+        builder.insert_store(v1, one);
+
+        let v4 = builder.insert_load(v0, Type::field());
+        builder.insert_constrain(v4, one, None);
+        builder.terminate_with_return(Vec::new());
+
+        let ssa = builder.finish();
+        let main = ssa.main();
+        assert_eq!(count_loads(main.entry_block(), &main.dfg), 1);
+
+        // No change expected
+        let ssa = ssa.mem2reg();
+        let main = ssa.main();
+        assert_eq!(count_loads(main.entry_block(), &main.dfg), 1);
     }
 }
