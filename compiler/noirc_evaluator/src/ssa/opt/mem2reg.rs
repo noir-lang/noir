@@ -330,12 +330,43 @@ impl<'f> PerFunctionContext<'f> {
     fn add_aliases_for_reference_parameters(&self, block: BasicBlockId, references: &mut Block) {
         let dfg = &self.inserter.function.dfg;
         let params = dfg.block_parameters(block);
-        let params = params.iter().filter(|p| dfg.value_is_reference(**p));
+
+        let mut aliases: HashMap<Type, AliasSet> = HashMap::default();
 
         for param in params {
-            let expression =
-                references.expressions.entry(*param).or_insert(Expression::Other(*param));
-            references.aliases.entry(expression.clone()).or_insert_with(|| AliasSet::known(*param));
+            match dfg.type_of_value(*param) {
+                // If the type indirectly contains a reference we have to assume all references
+                // are unknown since we don't have any ValueIds to use.
+                Type::Reference(element) if element.contains_reference() => return,
+                Type::Reference(element) => {
+                    let empty_aliases = AliasSet::known_empty();
+                    let alias_set =
+                        aliases.entry(element.as_ref().clone()).or_insert(empty_aliases);
+                    alias_set.insert(*param);
+                }
+                typ if typ.contains_reference() => return,
+                _ => continue,
+            }
+        }
+
+        for aliases in aliases.into_values() {
+            if let Some(alias) = aliases.single_alias() {
+                let expression =
+                    references.expressions.entry(alias).or_insert(Expression::Other(alias));
+                references
+                    .aliases
+                    .entry(expression.clone())
+                    .or_insert_with(|| AliasSet::known(alias));
+            } else if let Some(first) = aliases.first() {
+                let expression = Expression::Other(first);
+                let previous = references.aliases.insert(expression.clone(), aliases.clone());
+                assert!(previous.is_none());
+
+                aliases.for_each(|alias| {
+                    let previous = references.expressions.insert(alias, expression.clone());
+                    assert!(previous.is_none());
+                });
+            }
         }
     }
 
@@ -996,7 +1027,7 @@ mod tests {
         //     store Field 1 at v1
         //     v4 = load v0
         //     constrain v4 == Field 1
-        //     return 
+        //     return
         // }
         let main_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("main".into(), main_id);
