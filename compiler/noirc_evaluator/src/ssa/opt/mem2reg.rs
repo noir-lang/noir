@@ -306,6 +306,8 @@ impl<'f> PerFunctionContext<'f> {
     fn analyze_block(&mut self, block: BasicBlockId, mut references: Block) {
         let instructions = self.inserter.function.dfg[block].take_instructions();
 
+        // If this is the entry block, take all the block parameters and assume they may
+        // be aliased to each other
         if block == self.inserter.function.entry_block() {
             self.add_aliases_for_reference_parameters(block, &mut references);
         }
@@ -326,9 +328,10 @@ impl<'f> PerFunctionContext<'f> {
         self.blocks.insert(block, references);
     }
 
-    /// Add a self-alias for input parameters, similarly to how a newly allocated reference has
-    /// one alias already - itself. If we don't, then the checks using `reference_parameters()`
-    /// might find the default (empty) aliases and think the an input reference can be removed.
+    /// Go through each parameter and register that all reference parameters of the same type are
+    /// possibly aliased to each other. If there are parameters with nested references (arrays of
+    /// references or references containing other references) we give up and assume all parameter
+    /// references are `AliasSet::unknown()`.
     fn add_aliases_for_reference_parameters(&self, block: BasicBlockId, references: &mut Block) {
         let dfg = &self.inserter.function.dfg;
         let params = dfg.block_parameters(block);
