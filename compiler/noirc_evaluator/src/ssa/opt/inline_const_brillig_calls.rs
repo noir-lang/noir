@@ -215,7 +215,11 @@ fn optimize(
     let mut ssa = optimize_ssa_after_inline_const_brillig_calls(
         builder,
         inliner_aggressiveness,
-        false, // don't inline functions with no predicates
+        // Don't inline functions with no predicates.
+        // The reason for this is that in this specific context the `Ssa` object only holds
+        // a single function. For inlining to work we need to know all other functions that
+        // exist (so we can inline them). Here we choose to skip this optimization for simplicity reasons.
+        false,
     )?;
     Ok(ssa.functions.pop_first().unwrap().1)
 }
