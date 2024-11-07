@@ -133,7 +133,7 @@ impl Function {
         // Replace the ValueId of parameters with the ValueId of arguments
         for (parameter_id, argument_id) in entry_block_parameters.iter().zip(arguments) {
             // Lookup the argument in the current function and insert it in the function copy
-            let new_argument_id = copy_constant_to_function(self, &mut function, *argument_id);
+            let new_argument_id = self.copy_constant_to_function(*argument_id, &mut function);
             function.dfg.set_value_from_id(*parameter_id, new_argument_id);
         }
 
@@ -169,33 +169,29 @@ impl Function {
         assert_eq!(return_values.len(), current_results.len());
 
         for (current_result_id, return_value_id) in current_results.iter().zip(return_values) {
-            let new_return_value_id = copy_constant_to_function(&function, self, return_value_id);
+            let new_return_value_id = function.copy_constant_to_function(return_value_id, self);
             self.dfg.set_value_from_id(*current_result_id, new_return_value_id);
         }
 
         true
     }
-}
 
-/// Copies a constant from one function to another.
-/// Though it might seem we can just take a value out of `from_function` and call `make_value` on `to_function`,
-/// if the constant is an array the values will still keep pointing to `from_function`. So, this function
-/// recursively copies the array values too.
-fn copy_constant_to_function(
-    from_function: &Function,
-    to_function: &mut Function,
-    constant_id: ValueId,
-) -> ValueId {
-    if let Some((constant, typ)) = from_function.dfg.get_numeric_constant_with_type(constant_id) {
-        to_function.dfg.make_constant(constant, typ)
-    } else if let Some((constants, typ)) = from_function.dfg.get_array_constant(constant_id) {
-        let new_constants = constants
-            .iter()
-            .map(|constant_id| copy_constant_to_function(from_function, to_function, *constant_id))
-            .collect();
-        to_function.dfg.make_array(new_constants, typ)
-    } else {
-        unreachable!("A constant should be either a numeric constant or an array constant")
+    /// Copies a constant from this function to another one.
+    /// Though it might seem we can just take a value out of `self` and call `make_value` on `function`,
+    /// if the constant is an array the values will still keep pointing to `self`. So, this function
+    /// recursively copies the array values too.
+    fn copy_constant_to_function(&self, constant_id: ValueId, function: &mut Function) -> ValueId {
+        if let Some((constant, typ)) = self.dfg.get_numeric_constant_with_type(constant_id) {
+            function.dfg.make_constant(constant, typ)
+        } else if let Some((constants, typ)) = self.dfg.get_array_constant(constant_id) {
+            let new_constants = constants
+                .iter()
+                .map(|constant_id| self.copy_constant_to_function(*constant_id, function))
+                .collect();
+            function.dfg.make_array(new_constants, typ)
+        } else {
+            unreachable!("A constant should be either a numeric constant or an array constant")
+        }
     }
 }
 
