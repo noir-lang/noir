@@ -426,12 +426,137 @@ impl<'context> Elaborator<'context> {
                         expr_span: path.span(),
                     };
                     self.push_err(error);
+                    return None;
                 }
-                Some(Type::Constant(self.eval_global_as_array_length(id, path).into(), kind))
+
+                // "TODO: get_global_let_statement above -> InfixExpr / Constant / ensure comptime"
+                // Some(Type::Constant(self.eval_global_as_array_length(id, path).into(), kind))
+                // Some(Type::Global(id, path, kind))
+
+                let Some(stmt) = self.interner.get_global_let_statement(id) else {
+                    if let Some(global) = self.unresolved_globals.remove(&id) {
+                        self.elaborate_global(global);
+                        return self.lookup_generic_or_global_type(path);
+                    } else {
+                        let path = path.clone();
+                        self.push_err(ResolverError::NoSuchNumericTypeVariable { path });
+                        return None;
+                    }
+                };
+
+                let rhs = stmt.expression;
+                let span = self.interner.expr_span(&rhs);
+
+                self.resolve_global_to_type(rhs, kind, span)
+
+                
+
+
+
             }
             _ => None,
         }
     }
+
+    fn resolve_global_to_type(rhs: ExprId, kind: Kind, span: Span) -> Option<Type> {
+        match self.interner.expression(&rhs) {
+             HirExpression::Literal(HirLiteral::Integer(int, false)) => {
+                 // int.try_into_u128().ok_or(Some(ResolverError::IntegerTooLarge { span }))
+                 Some(Type::Constant(int, kind))
+             }
+             HirExpression::Ident(ident, _) => {
+                 if let Some(definition) = self.interner.try_definition(ident.id) {
+                     match definition.kind {
+                         DefinitionKind::Global(global_id) => {
+                             // nested case: return a Type::Global instead of recursing
+                             Some(Type::Global(global_id, kind))
+
+                             // TODO cleanup
+                             // let let_statement = interner.get_global_let_statement(global_id);
+                             // if let Some(let_statement) = let_statement {
+                             //     let expression = let_statement.expression;
+                             //     try_eval_array_length_id_with_fuel(interner, expression, span, fuel - 1)
+                             // } else {
+                             //     Err(Some(ResolverError::InvalidArrayLengthExpr { span }))
+                             // }
+                         }
+                         _ => {
+                             // TODO: new error
+                             let err = ResolverError::InvalidArrayLengthExpr { span };
+                             self.push_err(err);
+                             None
+                         },
+                     }
+                 } else {
+                     // TODO: new error
+                     let err = ResolverError::InvalidArrayLengthExpr { span };
+                     self.push_err(err);
+                     None
+                 }
+
+             }
+             HirExpression::Infix(infix) => {
+                 // let lhs = try_eval_array_length_id_with_fuel(interner, infix.lhs, span, fuel - 1)?;
+                 // let rhs = try_eval_array_length_id_with_fuel(interner, infix.rhs, span, fuel - 1)?;
+                 let lhs = self.resolve_global_to_type(infix.lhs, kind, span);
+                 let rhs = self.resolve_global_to_type(infix.rhs, kind, span);
+
+                 let op = match infix.operator.kind {
+                     BinaryOpKind::Add => Some(BinaryTypeOperator::Addition),
+                     BinaryOpKind::Subtract => Some(BinaryTypeOperator::Subtraction),
+                     BinaryOpKind::Multiply => Some(BinaryTypeOperator::Multiplication),
+                     BinaryOpKind::Divide => Some(BinaryTypeOperator::Division),
+                     BinaryOpKind::Modulo => Some(BinaryTypeOperator::Modulo),
+
+                     // TODO: support in InfixExpr?
+                     // BinaryOpKind::Equal => Ok((lhs == rhs) as u128),
+                     // BinaryOpKind::NotEqual => Ok((lhs != rhs) as u128),
+                     // BinaryOpKind::Less => Ok((lhs < rhs) as u128),
+                     // BinaryOpKind::LessEqual => Ok((lhs <= rhs) as u128),
+                     // BinaryOpKind::Greater => Ok((lhs > rhs) as u128),
+                     // BinaryOpKind::GreaterEqual => Ok((lhs >= rhs) as u128),
+                     // BinaryOpKind::And => Ok(lhs & rhs),
+                     // BinaryOpKind::Or => Ok(lhs | rhs),
+                     // BinaryOpKind::Xor => Ok(lhs ^ rhs),
+                     // BinaryOpKind::ShiftRight => Ok(lhs >> rhs),
+                     // BinaryOpKind::ShiftLeft => Ok(lhs << rhs),
+                     _ => None,
+                 };
+
+                 if op.is_none() {
+                    // TODO: new error
+                    let err = ResolverError::InvalidArrayLengthExpr { span };
+                    self.push_err(err);
+                 }
+
+                 op.map(|op| {
+                    Type::InfixExpr(lhs, op, rhs)
+                 })
+             }
+
+             // TODO: comptime only?
+             // HirExpression::Cast(cast) => {
+             //     let lhs = try_eval_array_length_id_with_fuel(interner, cast.lhs, span, fuel - 1)?;
+             //     let lhs_value = Value::Field(lhs.into());
+             //     let evaluated_value =
+             //         Interpreter::evaluate_cast_one_step(&cast, rhs, lhs_value, interner)
+             //             .map_err(|error| Some(ResolverError::ArrayLengthInterpreter { error }))?;
+             // 
+             //     evaluated_value
+             //         .to_u128()
+             //         .ok_or_else(|| Some(ResolverError::InvalidArrayLengthExpr { span }))
+             // }
+
+             _other => {
+                 // TODO: new error
+                 let err = ResolverError::InvalidArrayLengthExpr { span };
+                 self.push_err(err);
+                 None
+             },
+        }
+
+    }
+
 
     pub(super) fn convert_expression_type(
         &mut self,
@@ -635,6 +760,7 @@ impl<'context> Elaborator<'context> {
             .or_else(|| self.resolve_trait_method_by_named_generic(path))
     }
 
+    // TODO remove
     fn eval_global_as_array_length(&mut self, global_id: GlobalId, path: &Path) -> u32 {
         let Some(stmt) = self.interner.get_global_let_statement(global_id) else {
             if let Some(global) = self.unresolved_globals.remove(&global_id) {

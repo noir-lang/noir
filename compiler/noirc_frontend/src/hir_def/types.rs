@@ -94,6 +94,9 @@ pub enum Type {
     /// like `fn foo<T, U>(...) {}`. Unlike TypeVariables, they cannot be bound over.
     NamedGeneric(TypeVariable, Rc<String>),
 
+    // TODO docs
+    Global(GlobalId, Ident),
+
     /// A cast (to, from) that's checked at monomorphization.
     ///
     /// Simplifications on arithmetic generics are only allowed on the LHS.
@@ -891,6 +894,7 @@ impl std::fmt::Display for Type {
                 TypeBinding::Unbound(_, _) if name.is_empty() => write!(f, "_"),
                 TypeBinding::Unbound(_, _) => write!(f, "{name}"),
             },
+            Type::Global(id, name) => write!(f, "{name}"),
             Type::CheckedCast { to, .. } => write!(f, "{to}"),
             Type::Constant(x, _kind) => write!(f, "{x}"),
             Type::Forall(typevars, typ) => {
@@ -1093,6 +1097,9 @@ impl Type {
             | Type::TypeVariable(..)
             | Type::TraitAsType(..)
             | Type::NamedGeneric(..)
+
+            // TODO recurse inside here?
+            | Type::GlobalId(..)
             | Type::CheckedCast { .. }
             | Type::Forall(..)
             | Type::Constant(..)
@@ -1125,6 +1132,8 @@ impl Type {
             | Type::Error
             | Type::Constant(_, _)
             | Type::Forall(_, _)
+            // TODO
+            | Type::Global(_, _)
             | Type::Quoted(_) => {}
 
             Type::TypeVariable(type_var) => {
@@ -1216,6 +1225,8 @@ impl Type {
             Type::FmtString(_, _)
             | Type::TypeVariable(_)
             | Type::NamedGeneric(_, _)
+            // TODO
+            | Type::Global(..)
             | Type::Function(_, _, _, _)
             | Type::MutableReference(_)
             | Type::Forall(_, _)
@@ -1264,6 +1275,8 @@ impl Type {
             | Type::Constant(_, _)
             | Type::TypeVariable(_)
             | Type::NamedGeneric(_, _)
+            // TODO
+            | Type::Global(..)
             | Type::InfixExpr(..)
             | Type::Error => true,
 
@@ -1310,6 +1323,8 @@ impl Type {
             | Type::Slice(_)
             | Type::Function(_, _, _, _)
             | Type::FmtString(_, _)
+            // TODO
+            | Type::Global(..)
             | Type::InfixExpr(..)
             | Type::Error => true,
 
@@ -1362,6 +1377,9 @@ impl Type {
                     TypeBinding::Unbound(_, _) => 0,
                 }
             }
+            // TODO
+            // Type::Global(..) => 0
+
             _ => 0,
         }
     }
@@ -1397,6 +1415,7 @@ impl Type {
         match self {
             Type::CheckedCast { to, .. } => to.kind(),
             Type::NamedGeneric(var, _) => var.kind(),
+            Type::Global(id, _name, kind) => kind,
             Type::Constant(_, kind) => kind.clone(),
             Type::TypeVariable(var) => match &*var.borrow() {
                 TypeBinding::Bound(ref typ) => typ.kind(),
@@ -1464,6 +1483,8 @@ impl Type {
             | Type::TypeVariable(_)
             | Type::TraitAsType(..)
             | Type::NamedGeneric(_, _)
+            // TODO
+            | Type::Global(..)
             | Type::Function(_, _, _, _)
             | Type::MutableReference(_)
             | Type::Forall(_, _)
@@ -1628,6 +1649,8 @@ impl Type {
         match self {
             Type::TypeVariable(var) => Some((var.1.clone(), var.kind())),
             Type::NamedGeneric(var, _) => Some((var.1.clone(), var.kind())),
+            // TODO
+            // Type::Global(..)
             Type::CheckedCast { to, .. } => to.get_inner_type_variable(),
             _ => None,
         }
@@ -1780,6 +1803,15 @@ impl Type {
 
                     env_a.try_unify(env_b, bindings)?;
                     ret_b.try_unify(ret_a, bindings)
+                } else {
+                    Err(UnificationError)
+                }
+            }
+
+            // TODO
+            (Global(id_a, _, _), Global(id_b, _, _)) => {
+                if id_a == id_b {
+                    Ok(())
                 } else {
                     Err(UnificationError)
                 }
@@ -2307,6 +2339,10 @@ impl Type {
             Type::NamedGeneric(binding, _) | Type::TypeVariable(binding) => {
                 substitute_binding(binding)
             }
+
+            // TODO
+            Type::Global(..) => self.clone(),
+
             // Do not substitute_helper fields, it can lead to infinite recursion
             // and we should not match fields when type checking anyway.
             Type::Struct(fields, args) => {
@@ -2417,6 +2453,8 @@ impl Type {
             | Type::Integer(_, _)
             | Type::Bool
             | Type::Constant(_, _)
+            // TODO
+            | Type::Global(..)
             | Type::Error
             | Type::Quoted(_)
             | Type::Unit => false,
@@ -2488,7 +2526,8 @@ impl Type {
 
             // Expect that this function should only be called on instantiated types
             Forall(..) => unreachable!(),
-            FieldElement | Integer(_, _) | Bool | Constant(_, _) | Unit | Quoted(_) | Error => {
+            // TODO Type::Global
+            FieldElement | Integer(_, _) | Bool | Constant(_, _) | Global | Unit | Quoted(_) | Error => {
                 self.clone()
             }
         }
@@ -2505,6 +2544,7 @@ impl Type {
         match self {
             Type::FieldElement
             | Type::Constant(_, _)
+            | Type::Global(..)
             | Type::Integer(_, _)
             | Type::Bool
             | Type::Unit
@@ -2619,6 +2659,7 @@ impl Type {
                 TypeBinding::Bound(typ) => typ.integral_maximum_size(),
                 TypeBinding::Unbound(_, kind) => kind.integral_maximum_size(),
             },
+            Type::Global(_id, _name, kind) => kind.integral_maximum_size(),
             Type::MutableReference(typ) => typ.integral_maximum_size(),
             Type::InfixExpr(lhs, _op, rhs) => lhs.infix_kind(rhs).integral_maximum_size(),
             Type::Constant(_, kind) => kind.integral_maximum_size(),
@@ -2798,6 +2839,8 @@ impl From<&Type> for PrintableType {
             Type::Tuple(types) => PrintableType::Tuple { types: vecmap(types, |typ| typ.into()) },
             Type::CheckedCast { to, .. } => to.as_ref().into(),
             Type::NamedGeneric(..) => unreachable!(),
+            // TODO can this be recovered?
+            Type::Global(..) => unreachable!("tried to print unresolved global"),
             Type::Forall(..) => unreachable!(),
             Type::Function(arguments, return_type, env, unconstrained) => PrintableType::Function {
                 arguments: arguments.iter().map(|arg| arg.into()).collect(),
@@ -2880,6 +2923,7 @@ impl std::fmt::Debug for Type {
                     write!(f, "({} : {}){:?}", name, typ, binding)
                 }
             },
+            Type::Global(_id, name, _kind) => write!(f, "{name}"),
             Type::Constant(x, kind) => write!(f, "({}: {})", x, kind),
             Type::Forall(typevars, typ) => {
                 let typevars = vecmap(typevars, |var| format!("{:?}", var));
@@ -2986,6 +3030,7 @@ impl std::hash::Hash for Type {
                 vars.hash(state);
                 typ.hash(state);
             }
+            Type::Global(id, _name, _kind) => id.hash(state),
             Type::CheckedCast { to, .. } => to.hash(state),
             Type::Constant(value, _) => value.hash(state),
             Type::Quoted(typ) => typ.hash(state),
@@ -3053,6 +3098,7 @@ impl PartialEq for Type {
             (Forall(lhs_vars, lhs_type), Forall(rhs_vars, rhs_type)) => {
                 lhs_vars == rhs_vars && lhs_type == rhs_type
             }
+            (Global(lhs_id, _name, _kind), Global(rhs_id, _name, _kind)) => lhs_id == rhs_id,
             (CheckedCast { to, .. }, other) | (other, CheckedCast { to, .. }) => **to == *other,
             (Constant(lhs, lhs_kind), Constant(rhs, rhs_kind)) => {
                 lhs == rhs && lhs_kind == rhs_kind
