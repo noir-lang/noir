@@ -224,6 +224,23 @@ impl<'a> Parser<'a> {
                 return Ok(Some(ParsedInstruction::Cast { target, lhs, typ }));
             }
 
+            if self.eat_keyword(Keyword::Truncate)? {
+                let value = self.parse_value_or_error()?;
+                self.eat_or_error(Token::Keyword(Keyword::To))?;
+                let bit_size = self.eat_int_or_error()?.to_u128() as u32;
+                self.eat_or_error(Token::Keyword(Keyword::Bits))?;
+                self.eat_or_error(Token::Comma)?;
+                self.eat_or_error(Token::Keyword(Keyword::MaxBitSize))?;
+                self.eat_or_error(Token::Colon)?;
+                let max_bit_size = self.eat_int_or_error()?.to_u128() as u32;
+                return Ok(Some(ParsedInstruction::Truncate {
+                    target,
+                    value,
+                    bit_size,
+                    max_bit_size,
+                }));
+            }
+
             if let Some(op) = self.eat_binary_op()? {
                 let lhs = self.parse_value_or_error()?;
                 self.eat_or_error(Token::Comma)?;

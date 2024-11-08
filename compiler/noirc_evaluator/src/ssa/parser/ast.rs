@@ -51,6 +51,7 @@ pub(crate) enum ParsedInstruction {
     Cast { target: Identifier, lhs: ParsedValue, typ: Type },
     Constrain { lhs: ParsedValue, rhs: ParsedValue },
     EnableSideEffectsIf { condition: ParsedValue },
+    Truncate { target: Identifier, value: ParsedValue, bit_size: u32, max_bit_size: u32 },
 }
 
 #[derive(Debug)]
