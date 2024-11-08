@@ -36,7 +36,7 @@ impl<'f> FunctionInserter<'f> {
         let value = self.function.dfg.resolve(value);
         match self.values.get(&value.raw()) {
             Some(value) => self.resolve(*value),
-            None => match &self.function.dfg[value.raw()] {
+            None => match &self.function.dfg[value] {
                 super::value::Value::Array { array, typ } => {
                     let typ = typ.clone();
                     let new_array: im::Vector<ResolvedValueId> =

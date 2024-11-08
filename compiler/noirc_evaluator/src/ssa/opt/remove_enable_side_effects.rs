@@ -155,7 +155,7 @@ impl Context {
             | Load { .. } => true,
 
             // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
-            Call { func, .. } => match dfg[func.raw()] {
+            Call { func, .. } => match dfg[*func] {
                 Value::Intrinsic(intrinsic) => match intrinsic {
                     Intrinsic::SlicePushBack
                     | Intrinsic::SlicePushFront

@@ -19,7 +19,6 @@ use super::{
         instruction::{
             Binary, BinaryOp, Instruction, InstructionId, Intrinsic, TerminatorInstruction,
         },
-        map::Id,
         types::{NumericType, Type},
         value::{Value, ValueId},
     },
@@ -785,7 +784,7 @@ impl<'a> Context<'a> {
 
         match instruction {
             Instruction::Call { func, arguments } => {
-                let function_value = &dfg[func.raw()];
+                let function_value = &dfg[*func];
                 match function_value {
                     Value::Function(id) => {
                         let func = &ssa.functions[id];
@@ -1346,13 +1345,17 @@ impl<'a> Context<'a> {
         let results = dfg.instruction_results(instruction);
         let res_typ = dfg.type_of_value(results[0]);
         // Get operations to call-data parameters are replaced by a get to the call-data-bus array
-        let call_data =
-            self.data_bus.call_data.iter().find(|cd| cd.index_map.contains_key(&array)).cloned();
+        let call_data = self
+            .data_bus
+            .call_data
+            .iter()
+            .find(|cd| cd.index_map.contains_key(array.as_ref()))
+            .cloned();
         if let Some(call_data) = call_data {
             let call_data_block = self.ensure_array_is_initialized(call_data.array_id, dfg)?;
             let bus_index = self
                 .acir_context
-                .add_constant(FieldElement::from(call_data.index_map[&array] as i128));
+                .add_constant(FieldElement::from(call_data.index_map[array.as_ref()] as i128));
             let mut current_index = self.acir_context.add_var(bus_index, var_index)?;
             let result = self.get_from_call_data(&mut current_index, call_data_block, &res_typ)?;
             self.define_result(dfg, instruction, result.clone());
@@ -1476,7 +1479,7 @@ impl<'a> Context<'a> {
             .expect("Array set does not have one result");
         let result_block_id;
         if mutate_array {
-            self.memory_blocks.insert(*result_id, block_id);
+            self.memory_blocks.insert(result_id.raw(), block_id);
             result_block_id = block_id;
         } else {
             // Initialize the new array with the values from the old array
@@ -1813,7 +1816,7 @@ impl<'a> Context<'a> {
         result: AcirValue,
     ) {
         let result_ids = dfg.instruction_results(instruction);
-        self.ssa_values.insert(result_ids[0], result);
+        self.ssa_values.insert(result_ids[0].raw(), result);
     }
 
     /// Remember the result of instruction returning a single numeric value
@@ -1897,7 +1900,7 @@ impl<'a> Context<'a> {
     fn convert_value(&mut self, value_id: ValueId, dfg: &DataFlowGraph) -> AcirValue {
         let value_id = dfg.resolve(value_id);
         let value = &dfg[value_id];
-        if let Some(acir_value) = self.ssa_values.get(&value_id) {
+        if let Some(acir_value) = self.ssa_values.get(&value_id.raw()) {
             return acir_value.clone();
         }
 
@@ -1924,7 +1927,7 @@ impl<'a> Context<'a> {
                 unreachable!("ICE: Should have been in cache {value_id} {value:?}")
             }
         };
-        self.ssa_values.insert(value_id, acir_value.clone());
+        self.ssa_values.insert(value_id.raw(), acir_value.clone());
         acir_value
     }
 
@@ -2131,7 +2134,7 @@ impl<'a> Context<'a> {
         dfg: &DataFlowGraph,
     ) -> Result<AcirVar, RuntimeError> {
         let mut var = self.convert_numeric_value(value_id, dfg)?;
-        match &dfg[value_id.raw()] {
+        match &dfg[value_id] {
             Value::Instruction { instruction, .. } => {
                 if matches!(
                     &dfg[*instruction],

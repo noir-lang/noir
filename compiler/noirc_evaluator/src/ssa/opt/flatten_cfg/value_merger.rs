@@ -465,7 +465,7 @@ impl<'a> ValueMerger<'a> {
         result: ValueId,
         changed_indices: &mut Vec<(ValueId, ValueId, Type, ValueId)>,
     ) -> ValueId {
-        match &self.dfg[result.raw()] {
+        match &self.dfg[result] {
             Value::Instruction { instruction, .. } => match &self.dfg[*instruction] {
                 Instruction::ArraySet { array, index, value, .. } => {
                     let condition =

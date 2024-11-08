@@ -220,7 +220,7 @@ pub(crate) fn try_to_extract_string_from_error_payload(
     ((error_selector == STRING_ERROR_SELECTOR) && (values.len() == 1))
         .then_some(())
         .and_then(|()| {
-            let Value::Array { array: values, .. } = &dfg[values[0].raw()] else {
+            let Value::Array { array: values, .. } = &dfg[values[0]] else {
                 return None;
             };
             let fields: Option<Vec<_>> =

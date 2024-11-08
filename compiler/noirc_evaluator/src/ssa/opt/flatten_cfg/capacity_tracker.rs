@@ -27,37 +27,36 @@ impl<'a> SliceCapacityTracker<'a> {
         match instruction {
             Instruction::ArrayGet { array, .. } => {
                 let array_typ = self.dfg.type_of_value(*array);
-                let array_value = &self.dfg[array.raw()];
+                let array_value = &self.dfg[*array];
                 if matches!(array_value, Value::Array { .. }) && array_typ.contains_slice_element()
                 {
                     // Initial insertion into the slice sizes map
                     // Any other insertions should only occur if the value is already
                     // a part of the map.
-                    self.compute_slice_capacity(array.raw(), slice_sizes);
+                    self.compute_slice_capacity(*array, slice_sizes);
                 }
             }
             Instruction::ArraySet { array, value, .. } => {
                 let array_typ = self.dfg.type_of_value(*array);
-                let array = array.raw();
-                let array_value = &self.dfg[array];
+                let array_value = &self.dfg[*array];
                 if matches!(array_value, Value::Array { .. }) && array_typ.contains_slice_element()
                 {
                     // Initial insertion into the slice sizes map
                     // Any other insertions should only occur if the value is already
                     // a part of the map.
-                    self.compute_slice_capacity(array, slice_sizes);
+                    self.compute_slice_capacity(*array, slice_sizes);
                 }
 
                 let value_typ = self.dfg.type_of_value(*value);
                 // Compiler sanity check
                 assert!(!value_typ.contains_slice_element(), "ICE: Nested slices are not allowed and should not have reached the flattening pass of SSA");
 
-                if let Some(capacity) = slice_sizes.get(&array) {
+                if let Some(capacity) = slice_sizes.get(array.as_ref()) {
                     slice_sizes.insert(results[0].raw(), *capacity);
                 }
             }
             Instruction::Call { func, arguments } => {
-                let func = &self.dfg[func.raw()];
+                let func = &self.dfg[*func];
                 if let Value::Intrinsic(intrinsic) = func {
                     let (argument_index, result_index) = match intrinsic {
                         Intrinsic::SlicePushBack
@@ -85,7 +84,7 @@ impl<'a> SliceCapacityTracker<'a> {
                             for arg in &arguments[(argument_index + 1)..] {
                                 let element_typ = self.dfg.type_of_value(*arg);
                                 if element_typ.contains_slice_element() {
-                                    self.compute_slice_capacity(arg.raw(), slice_sizes);
+                                    self.compute_slice_capacity(*arg, slice_sizes);
                                 }
                             }
 
@@ -136,7 +135,7 @@ impl<'a> SliceCapacityTracker<'a> {
             Instruction::Store { address, value } => {
                 let value_typ = self.dfg.type_of_value(*value);
                 if value_typ.contains_slice_element() {
-                    self.compute_slice_capacity(value.raw(), slice_sizes);
+                    self.compute_slice_capacity(*value, slice_sizes);
 
                     let value_capacity = slice_sizes.get(value.as_ref()).unwrap_or_else(|| {
                         panic!("ICE: should have slice capacity set for value {value} being stored at {address}")
@@ -164,7 +163,7 @@ impl<'a> SliceCapacityTracker<'a> {
     /// Computes the starting capacity of a slice which is still a `Value::Array`
     pub(crate) fn compute_slice_capacity(
         &self,
-        array_id: RawValueId,
+        array_id: ValueId,
         slice_sizes: &mut HashMap<RawValueId, usize>,
     ) {
         if let Value::Array { array, typ } = &self.dfg[array_id] {
@@ -173,7 +172,7 @@ impl<'a> SliceCapacityTracker<'a> {
             if let Type::Slice(_) = typ {
                 let element_size = typ.element_size();
                 let len = array.len() / element_size;
-                slice_sizes.insert(array_id, len);
+                slice_sizes.insert(array_id.raw(), len);
             }
         }
     }

@@ -6,11 +6,13 @@ use crate::ssa::ir::basic_block::BasicBlockId;
 use crate::ssa::ir::function::RuntimeType;
 use crate::ssa::ir::function::{Function, FunctionId};
 use crate::ssa::ir::instruction::{Instruction, InstructionId, Intrinsic};
-use crate::ssa::ir::value::{Value, ValueId};
+use crate::ssa::ir::value::{RawValueId, Value, ValueId};
 use crate::ssa::ssa_gen::Ssa;
 use im::HashMap;
 use rayon::prelude::*;
 use std::collections::{BTreeMap, HashSet};
+
+type ValueIdHashSet = HashSet<RawValueId>;
 
 impl Ssa {
     /// Go through each top-level non-brillig function and detect if it has independent subgraphs
@@ -44,7 +46,7 @@ fn check_for_underconstrained_values_within_function(
 
     context.compute_sets_of_connected_value_ids(function, all_functions);
 
-    let all_brillig_generated_values: HashSet<ValueId> =
+    let all_brillig_generated_values: ValueIdHashSet =
         context.brillig_return_to_argument.keys().copied().collect();
 
     let connected_sets_indices =
@@ -67,9 +69,9 @@ fn check_for_underconstrained_values_within_function(
 struct Context {
     visited_blocks: HashSet<BasicBlockId>,
     block_queue: Vec<BasicBlockId>,
-    value_sets: Vec<HashSet<ValueId>>,
-    brillig_return_to_argument: HashMap<ValueId, Vec<ValueId>>,
-    brillig_return_to_instruction_id: HashMap<ValueId, InstructionId>,
+    value_sets: Vec<ValueIdHashSet>,
+    brillig_return_to_argument: HashMap<RawValueId, Vec<ValueId>>,
+    brillig_return_to_instruction_id: HashMap<RawValueId, InstructionId>,
 }
 
 impl Context {
@@ -114,7 +116,7 @@ impl Context {
         // If it's the case, then that set doesn't present an issue
         for parameter_or_return_value in variable_parameters_and_return_values {
             for (set_index, final_set) in self.value_sets.iter().enumerate() {
-                if final_set.contains(&parameter_or_return_value) {
+                if final_set.contains(&parameter_or_return_value.raw()) {
                     connected_sets_indices.insert(set_index);
                 }
             }
@@ -125,8 +127,8 @@ impl Context {
     /// Find which brillig calls separate this set from others and return bug warnings about them
     fn find_disconnecting_brillig_calls_with_results_in_set(
         &self,
-        current_set: &HashSet<ValueId>,
-        all_brillig_generated_values: &HashSet<ValueId>,
+        current_set: &ValueIdHashSet,
+        all_brillig_generated_values: &ValueIdHashSet,
         function: &Function,
     ) -> Vec<SsaReport> {
         let mut warnings = Vec::new();
@@ -136,8 +138,10 @@ impl Context {
         // Go through all brillig outputs in the set
         for brillig_output_in_set in intersection {
             // Get the inputs that correspond to the output
-            let inputs: HashSet<ValueId> =
-                self.brillig_return_to_argument[&brillig_output_in_set].iter().copied().collect();
+            let inputs: ValueIdHashSet = self.brillig_return_to_argument[&brillig_output_in_set]
+                .iter()
+                .map(|v| v.raw())
+                .collect();
 
             // Check if any of them are not in the set
             let unused_inputs = inputs.difference(current_set).next().is_some();
@@ -170,13 +174,13 @@ impl Context {
             // Insert non-constant instruction arguments
             function.dfg[*instruction].for_each_value(|value_id| {
                 if function.dfg.get_numeric_constant(value_id).is_none() {
-                    instruction_arguments_and_results.insert(function.dfg.resolve(value_id));
+                    instruction_arguments_and_results.insert(function.dfg.resolve(value_id).raw());
                 }
             });
             // And non-constant results
             for value_id in function.dfg.instruction_results(*instruction).iter() {
                 if function.dfg.get_numeric_constant(*value_id).is_none() {
-                    instruction_arguments_and_results.insert(function.dfg.resolve(*value_id));
+                    instruction_arguments_and_results.insert(function.dfg.resolve(*value_id).raw());
                 }
             }
 
@@ -235,9 +239,9 @@ impl Context {
                                     )
                                 {
                                     self.brillig_return_to_argument
-                                        .insert(*result, argument_ids.clone());
+                                        .insert(result.raw(), argument_ids.clone());
                                     self.brillig_return_to_instruction_id
-                                        .insert(*result, *instruction);
+                                        .insert(result.raw(), *instruction);
                                 }
                             }
                             RuntimeType::Acir(..) => {
@@ -269,15 +273,15 @@ impl Context {
     /// Merge all small sets into larger ones based on whether the sets intersect or not
     ///
     /// If two small sets have a common ValueId, we merge them into one
-    fn merge_sets(current: &[HashSet<ValueId>]) -> Vec<HashSet<ValueId>> {
+    fn merge_sets(current: &[ValueIdHashSet]) -> Vec<ValueIdHashSet> {
         let mut new_set_id: usize = 0;
-        let mut updated_sets: HashMap<usize, HashSet<ValueId>> = HashMap::new();
-        let mut value_dictionary: HashMap<ValueId, usize> = HashMap::new();
-        let mut parsed_value_set: HashSet<ValueId> = HashSet::new();
+        let mut updated_sets: HashMap<usize, ValueIdHashSet> = HashMap::new();
+        let mut value_dictionary: HashMap<RawValueId, usize> = HashMap::new();
+        let mut parsed_value_set: ValueIdHashSet = HashSet::new();
 
         for set in current.iter() {
             // Check if the set has any of the ValueIds we've encountered at previous iterations
-            let intersection: HashSet<ValueId> =
+            let intersection: ValueIdHashSet =
                 set.intersection(&parsed_value_set).copied().collect();
             parsed_value_set.extend(set.iter());
 
@@ -333,7 +337,7 @@ impl Context {
 
     /// Parallel version of merge_sets
     /// The sets are merged by chunks, and then the chunks are merged together
-    fn merge_sets_par(sets: &[HashSet<ValueId>]) -> Vec<HashSet<ValueId>> {
+    fn merge_sets_par(sets: &[ValueIdHashSet]) -> Vec<ValueIdHashSet> {
         let mut sets = sets.to_owned();
         let mut len = sets.len();
         let mut prev_len = len + 1;

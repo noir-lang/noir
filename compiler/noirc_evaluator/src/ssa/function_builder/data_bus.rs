@@ -81,16 +81,16 @@ impl DataBus {
             .map(|cd| {
                 let mut call_data_map = HashMap::default();
                 for (k, v) in cd.index_map.iter() {
-                    call_data_map.insert(f(*k), *v);
+                    call_data_map.insert(f(k.into()).raw(), *v);
                 }
                 CallData {
-                    array_id: f(cd.array_id.raw()).into(),
+                    array_id: f(cd.array_id).into(),
                     index_map: call_data_map,
                     call_data_id: cd.call_data_id,
                 }
             })
             .collect();
-        DataBus { call_data, return_data: self.return_data.map(|rd| f(rd.raw()).into()) }
+        DataBus { call_data, return_data: self.return_data.map(|rd| f(rd)) }
     }
 
     pub(crate) fn call_data_array(&self) -> Vec<(u32, ValueId)> {
@@ -117,7 +117,7 @@ impl FunctionBuilder {
     /// Insert a value into a data bus builder
     fn add_to_data_bus(&mut self, value: ValueId, databus: &mut DataBusBuilder) {
         assert!(databus.databus.is_none(), "initializing finalized call data");
-        let typ = self.current_function.dfg[value.raw()].get_type().clone();
+        let typ = self.current_function.dfg[value].get_type().clone();
         match typ {
             Type::Numeric(_) => {
                 databus.values.push_back(value);
@@ -229,7 +229,7 @@ impl FunctionBuilder {
     ) -> Vec<DatabusVisibility> {
         let ssa_param_sizes: Vec<_> = ssa_params
             .iter()
-            .map(|ssa_param| self.current_function.dfg[ssa_param.raw()].get_type().flattened_size())
+            .map(|ssa_param| self.current_function.dfg[*ssa_param].get_type().flattened_size())
             .collect();
 
         let mut is_ssa_params_databus = Vec::with_capacity(ssa_params.len());

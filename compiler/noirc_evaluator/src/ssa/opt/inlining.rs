@@ -139,7 +139,7 @@ fn called_functions_vec(func: &Function) -> Vec<FunctionId> {
                 continue;
             };
 
-            if let Value::Function(function_id) = func.dfg[called_value_id.raw()] {
+            if let Value::Function(function_id) = func.dfg[*called_value_id] {
                 called_function_ids.push(function_id);
             }
         }
@@ -462,7 +462,7 @@ impl<'function> PerFunctionContext<'function> {
             return *value;
         }
 
-        let new_value = match &self.source_function.dfg[id.raw()] {
+        let new_value = match &self.source_function.dfg[id] {
             value @ Value::Instruction { .. } => {
                 unreachable!("All Value::Instructions should already be known during inlining after creating the original inlined instruction. Unknown value {id} = {value:?}")
             }

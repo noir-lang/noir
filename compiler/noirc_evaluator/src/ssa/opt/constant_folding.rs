@@ -251,7 +251,7 @@ impl Context {
             // to map from the more complex to the simpler value.
             if let Instruction::Constrain(lhs, rhs, _) = instruction {
                 // These `ValueId`s should be fully resolved now.
-                match (&dfg[lhs.raw()], &dfg[rhs.raw()]) {
+                match (&dfg[lhs], &dfg[rhs]) {
                     // Ignore trivial constraints
                     (Value::NumericConstant { .. }, Value::NumericConstant { .. }) => (),
 
@@ -545,7 +545,7 @@ mod test {
             TerminatorInstruction::Return { return_values, .. } => return_values[0],
             _ => unreachable!("Should have terminator instruction"),
         };
-        let return_element = match &main.dfg[return_value_id.raw()] {
+        let return_element = match &main.dfg[return_value_id] {
             Value::Array { array, .. } => array[0],
             _ => unreachable!("Return type should be array"),
         };

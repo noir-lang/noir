@@ -112,6 +112,11 @@ impl<R> From<Id<Value<R>>> for ValueId<R> {
         ValueId::new(value)
     }
 }
+impl<R> From<&Id<Value<R>>> for ValueId<R> {
+    fn from(value: &Id<Value<R>>) -> Self {
+        ValueId::new(*value)
+    }
+}
 
 /// Value is the most basic type allowed in the IR.
 /// Transition Note: A Id<Value> is similar to `NodeId` in our previous IR.

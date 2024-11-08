@@ -93,7 +93,7 @@ impl DefunctionalizationContext {
                     _ => continue,
                 };
 
-                match func.dfg[target_func_id.raw()] {
+                match func.dfg[target_func_id] {
                     // If the target is a function used as value
                     Value::Param { .. } | Value::Instruction { .. } => {
                         let mut arguments = arguments.clone();
@@ -130,8 +130,8 @@ impl DefunctionalizationContext {
         // Change the type of all the values that are not call targets to NativeField
         let value_ids = vecmap(func.dfg.values_iter(), |(id, _)| id);
         for value_id in value_ids {
-            if let Type::Function = &func.dfg[value_id.raw()].get_type() {
-                match &func.dfg[value_id.raw()] {
+            if let Type::Function = &func.dfg[value_id].get_type() {
+                match &func.dfg[value_id] {
                     // If the value is a static function, transform it to the function id
                     Value::Function(id) => {
                         if !call_target_values.contains(value_id.as_ref()) {
@@ -193,7 +193,7 @@ fn find_functions_as_values(func: &Function) -> BTreeSet<FunctionId> {
     let mut functions_as_values: BTreeSet<FunctionId> = BTreeSet::new();
 
     let mut process_value = |value_id: ValueId| {
-        if let Value::Function(id) = func.dfg[value_id.raw()] {
+        if let Value::Function(id) = func.dfg[value_id] {
             functions_as_values.insert(id);
         }
     };
@@ -229,8 +229,7 @@ fn find_dynamic_dispatches(func: &Function) -> BTreeSet<Signature> {
             let instruction = &func.dfg[*instruction_id];
             match instruction {
                 Instruction::Call { func: target, arguments } => {
-                    if let Value::Param { .. } | Value::Instruction { .. } = &func.dfg[target.raw()]
-                    {
+                    if let Value::Param { .. } | Value::Instruction { .. } = &func.dfg[*target] {
                         let results = func.dfg.instruction_results(*instruction_id);
                         dispatches.insert(Signature {
                             params: vecmap(arguments, |param| func.dfg.type_of_value(*param)),

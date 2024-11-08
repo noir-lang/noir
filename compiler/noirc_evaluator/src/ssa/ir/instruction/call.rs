@@ -39,7 +39,7 @@ pub(super) fn simplify_call(
     ctrl_typevars: Option<Vec<Type>>,
     call_stack: &CallStack,
 ) -> SimplifyResult {
-    let intrinsic = match &dfg[func.raw()] {
+    let intrinsic = match &dfg[func] {
         Value::Intrinsic(intrinsic) => *intrinsic,
         _ => return SimplifyResult::None,
     };

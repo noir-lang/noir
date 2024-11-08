@@ -658,7 +658,7 @@ impl<R> Instruction<R> {
 
             Instruction::EnableSideEffectsIf { .. } | Instruction::ArraySet { .. } => true,
 
-            Instruction::Call { func, .. } => match dfg[func.raw()] {
+            Instruction::Call { func, .. } => match dfg[func.unresolved()] {
                 Value::Function(_) => true,
                 Value::Intrinsic(intrinsic) => {
                     matches!(intrinsic, Intrinsic::SliceInsert | Intrinsic::SliceRemove)
@@ -700,7 +700,7 @@ impl<R> Instruction<R> {
             | IncrementRc { .. }
             | DecrementRc { .. } => false,
 
-            Call { func, .. } => match dfg[func.raw()] {
+            Call { func, .. } => match dfg[func.unresolved()] {
                 Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
                 _ => false,
             },
@@ -755,7 +755,7 @@ impl<R> Instruction<R> {
             | RangeCheck { .. } => false,
 
             // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
-            Call { func, .. } => match dfg[func.raw()] {
+            Call { func, .. } => match dfg[func.unresolved()] {
                 // Explicitly allows removal of unused ec operations, even if they can fail
                 Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul))
                 | Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::EmbeddedCurveAdd)) => true,
@@ -800,7 +800,7 @@ fn try_optimize_array_get_from_previous_set(
     // Arbitrary number of maximum tries just to prevent this optimization from taking too long.
     let max_tries = 5;
     for _ in 0..max_tries {
-        match &dfg[array_id.raw()] {
+        match &dfg[array_id] {
             Value::Instruction { instruction, .. } => {
                 match &dfg[*instruction] {
                     Instruction::ArraySet { array, index, value, .. } => {
@@ -867,7 +867,7 @@ fn try_optimize_array_set_from_previous_get(
     target_index: ValueId,
     target_value: ValueId,
 ) -> SimplifyResult {
-    let array_from_get = match &dfg[target_value.raw()] {
+    let array_from_get = match &dfg[target_value] {
         Value::Instruction { instruction, .. } => match &dfg[*instruction] {
             Instruction::ArrayGet { array, index } => {
                 if array_id.unresolved_eq(array) && target_index.unresolved_eq(index) {
@@ -900,7 +900,7 @@ fn try_optimize_array_set_from_previous_get(
     // Arbitrary number of maximum tries just to prevent this optimization from taking too long.
     let max_tries = 5;
     for _ in 0..max_tries {
-        match &dfg[array_id.raw()] {
+        match &dfg[array_id] {
             Value::Instruction { instruction, .. } => match &dfg[*instruction] {
                 Instruction::ArraySet { array, index, .. } => {
                     let Some(index) = dfg.get_numeric_constant(*index) else {

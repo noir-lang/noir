@@ -6,7 +6,7 @@ use crate::ssa::{
     ir::{
         function::{Function, FunctionId, RuntimeType},
         instruction::Instruction,
-        value::{RawValueId, Value},
+        value::{RawValueId, Value, ValueId},
     },
     ssa_gen::Ssa,
 };
@@ -112,12 +112,13 @@ impl RuntimeSeparatorContext {
         for (_function_id, func) in ssa.functions.iter_mut() {
             if matches!(func.runtime(), RuntimeType::Brillig(_)) {
                 for called_func_value_id in called_functions_values(func).iter() {
-                    let Value::Function(called_func_id) = &func.dfg[*called_func_value_id] else {
+                    let called_func_value_id = called_func_value_id.into();
+                    let Value::Function(called_func_id) = &func.dfg[called_func_value_id] else {
                         unreachable!("Value should be a function")
                     };
                     if let Some(mapped_func_id) = self.mapped_functions.get(called_func_id) {
                         let mapped_value_id = func.dfg.import_function(*mapped_func_id);
-                        func.dfg.set_value_from_id(called_func_value_id.into(), mapped_value_id);
+                        func.dfg.set_value_from_id(called_func_value_id, mapped_value_id);
                     }
                 }
             }
@@ -133,9 +134,8 @@ fn called_functions_values(func: &Function) -> BTreeSet<RawValueId> {
             let Instruction::Call { func: called_value_id, .. } = &func.dfg[*instruction_id] else {
                 continue;
             };
-            let called_value_id = called_value_id.raw();
-            if let Value::Function(_) = func.dfg[called_value_id] {
-                called_function_ids.insert(called_value_id);
+            if let Value::Function(_) = func.dfg[*called_value_id] {
+                called_function_ids.insert(called_value_id.raw());
             }
         }
     }
@@ -147,7 +147,7 @@ fn called_functions(func: &Function) -> BTreeSet<FunctionId> {
     called_functions_values(func)
         .into_iter()
         .map(|value_id| {
-            let Value::Function(func_id) = func.dfg[value_id] else {
+            let Value::Function(func_id) = func.dfg[ValueId::from(value_id)] else {
                 unreachable!("Value should be a function")
             };
             func_id

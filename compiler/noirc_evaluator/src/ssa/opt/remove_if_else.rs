@@ -105,7 +105,7 @@ impl Context {
                     self.array_set_conditionals.insert(result.raw(), current_conditional);
                 }
                 Instruction::Call { func, arguments } => {
-                    if let Value::Intrinsic(intrinsic) = function.dfg[func.raw()] {
+                    if let Value::Intrinsic(intrinsic) = function.dfg[*func] {
                         let results = function.dfg.instruction_results(instruction);
 
                         match slice_capacity_change(&function.dfg, intrinsic, arguments, results) {
@@ -163,7 +163,7 @@ impl Context {
             }
         }
 
-        let dbg_value = &dfg[value.raw()];
+        let dbg_value = &dfg[value];
         unreachable!("No size for slice {value} = {dbg_value:?}")
     }
 }

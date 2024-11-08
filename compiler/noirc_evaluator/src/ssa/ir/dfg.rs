@@ -563,10 +563,12 @@ impl std::ops::IndexMut<InstructionId> for DataFlowGraph {
     }
 }
 
-impl std::ops::Index<RawValueId> for DataFlowGraph {
+/// Indexing the DFG by unresolved value IDs is all over the codebase,
+/// but it's not obvious whether we should apply resolution.
+impl std::ops::Index<ValueId> for DataFlowGraph {
     type Output = Value;
-    fn index(&self, id: RawValueId) -> &Self::Output {
-        &self.values[id]
+    fn index(&self, id: ValueId) -> &Self::Output {
+        &self.values[id.raw()]
     }
 }
 

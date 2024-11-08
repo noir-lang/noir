@@ -415,7 +415,7 @@ impl FunctionBuilder {
     }
 
     pub(crate) fn get_intrinsic_from_value(&mut self, value: ValueId) -> Option<Intrinsic> {
-        match self.current_function.dfg[value.raw()] {
+        match self.current_function.dfg[value] {
             Value::Intrinsic(intrinsic) => Some(intrinsic),
             _ => None,
         }
@@ -464,7 +464,7 @@ impl std::ops::Index<ValueId> for FunctionBuilder {
     type Output = Value;
 
     fn index(&self, id: ValueId) -> &Self::Output {
-        &self.current_function.dfg[id.raw()]
+        &self.current_function.dfg[id]
     }
 }
 
@@ -517,7 +517,7 @@ mod tests {
         let call_results =
             builder.insert_call(to_bits_id, vec![input, length], result_types).into_owned();
 
-        let slice = match &builder.current_function.dfg[call_results[0].raw()] {
+        let slice = match &builder.current_function.dfg[call_results[0]] {
             Value::Array { array, .. } => vecmap(array, |v| v.resolved()),
             _ => panic!(),
         };

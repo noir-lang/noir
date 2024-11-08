@@ -156,17 +156,17 @@ impl IdMaps {
         old_function: &Function,
         old_value: ValueId,
     ) -> ValueId {
-        let old_value = old_function.dfg.resolve(old_value).raw();
+        let old_value = old_function.dfg.resolve(old_value);
         match &old_function.dfg[old_value] {
             value @ Value::Instruction { instruction, .. } => {
-                *self.values.get(&old_value).unwrap_or_else(|| {
+                *self.values.get(&old_value.raw()).unwrap_or_else(|| {
                     let instruction = &old_function.dfg[*instruction];
                     unreachable!("Unmapped value with id {old_value}: {value:?}\n  from instruction: {instruction:?}, SSA: {old_function}")
                 })
             }
 
             value @ Value::Param { .. } => {
-                *self.values.get(&old_value).unwrap_or_else(|| {
+                *self.values.get(&old_value.raw()).unwrap_or_else(|| {
                     unreachable!("Unmapped value with id {old_value}: {value:?}")
                 })
             }
@@ -180,7 +180,7 @@ impl IdMaps {
                 new_function.dfg.make_constant(*constant, typ.clone())
             }
             Value::Array { array, typ } => {
-                if let Some(value) = self.values.get(&old_value) {
+                if let Some(value) = self.values.get(&old_value.raw()) {
                     return *value;
                 }
 
@@ -189,7 +189,7 @@ impl IdMaps {
                     .map(|value| self.map_value(new_function, old_function, *value))
                     .collect();
                 let new_value = new_function.dfg.make_array(array, typ.clone());
-                self.values.insert(old_value, new_value);
+                self.values.insert(old_value.raw(), new_value);
                 new_value
             }
             Value::Intrinsic(intrinsic) => new_function.dfg.import_intrinsic(*intrinsic),
