@@ -34,8 +34,11 @@ impl Function {
             assert_eq!(reachable_blocks.len(), 1, "Expected there to be 1 block remaining in Acir function for array_set optimization");
         }
 
-        let mut context =
-            Context::new(&self.dfg, matches!(self.runtime(), RuntimeType::Brillig(_)));
+        let mut context = Context::new(
+            &self.dfg,
+            self.parameters(),
+            matches!(self.runtime(), RuntimeType::Brillig(_)),
+        );
 
         for block in reachable_blocks.iter() {
             context.analyze_last_uses(*block);
@@ -50,19 +53,25 @@ impl Function {
 
 struct Context<'f> {
     dfg: &'f DataFlowGraph,
+    function_parameters: &'f [ValueId],
     is_brillig_runtime: bool,
     array_to_last_use: HashMap<ValueId, InstructionId>,
     instructions_that_can_be_made_mutable: HashSet<InstructionId>,
     // Mapping of an array that comes from a load and whether the address
-    // it was loaded from is a reference parameter.
+    // it was loaded from is a reference parameter passed to the block.
     arrays_from_load: HashMap<ValueId, bool>,
     inner_nested_arrays: HashMap<ValueId, InstructionId>,
 }
 
 impl<'f> Context<'f> {
-    fn new(dfg: &'f DataFlowGraph, is_brillig_runtime: bool) -> Self {
+    fn new(
+        dfg: &'f DataFlowGraph,
+        function_parameters: &'f [ValueId],
+        is_brillig_runtime: bool,
+    ) -> Self {
         Context {
             dfg,
+            function_parameters,
             is_brillig_runtime,
             array_to_last_use: HashMap::default(),
             instructions_that_can_be_made_mutable: HashSet::default(),
@@ -109,21 +118,30 @@ impl<'f> Context<'f> {
                     // If we are in a return block we are not concerned about the array potentially being mutated again.
                     let is_return_block =
                         matches!(terminator, TerminatorInstruction::Return { .. });
+
                     // We also want to check that the array is not part of the terminator arguments, as this means it is used again.
-                    let mut array_in_terminator = false;
+                    let mut is_array_in_terminator = false;
                     terminator.for_each_value(|value| {
                         // The terminator can contain original IDs, while the SSA has replaced the array value IDs; we need to resolve to compare.
-                        if !array_in_terminator && self.dfg.resolve(value) == array {
-                            array_in_terminator = true;
+                        if !is_array_in_terminator && self.dfg.resolve(value) == array {
+                            is_array_in_terminator = true;
                         }
                     });
-                    if let Some(is_from_param) = self.arrays_from_load.get(&array) {
+
+                    // We cannot safely mutate slices that are inputs to the function, as they might be shared with the caller.
+                    // NB checking the block parameters is not enough, as we might have jumped into a parameterless blocks inside the function.
+                    let is_function_param = self.function_parameters.contains(&array);
+
+                    let can_mutate = if let Some(is_from_param) = self.arrays_from_load.get(&array)
+                    {
                         // If the array was loaded from a reference parameter, we cannot
                         // safely mark that array mutable as it may be shared by another value.
-                        if !is_from_param && is_return_block {
-                            self.instructions_that_can_be_made_mutable.insert(*instruction_id);
-                        }
-                    } else if !array_in_terminator {
+                        !is_from_param && is_return_block
+                    } else {
+                        !is_array_in_terminator && !is_function_param
+                    };
+
+                    if can_mutate {
                         self.instructions_that_can_be_made_mutable.insert(*instruction_id);
                     }
                 }
