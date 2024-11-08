@@ -397,6 +397,7 @@ impl<'f> PerFunctionContext<'f> {
     fn remove_instructions(&mut self) {
         let aliases = std::mem::take(&mut self.store_instruction_aliases);
         super::die::dce_with_store_aliases(self.inserter.function, aliases);
+        eprintln!("SSA after dce_with_store_aliases:\n{}", self.inserter.function);
     }
 
     fn update_data_bus(&mut self) {

@@ -38,7 +38,7 @@ impl Ssa {
 pub(crate) fn dce_with_store_aliases(function: &mut Function, aliases: StoreInstructionAliases) {
     let mut context = Context::new(function);
     context.store_aliases = Some(aliases);
-    context.dead_instruction_elimination(function, false);
+    context.dead_instruction_elimination(function, true);
 }
 
 /// Per function context for tracking unused values and which instructions to remove.
@@ -109,6 +109,9 @@ impl Context {
         // instructions (we don't want to remove those checks, or instructions that are
         // dependencies of those checks)
         if inserted_out_of_bounds_checks {
+            let store_aliases = self.store_aliases;
+            self = Context::new(function);
+            self.store_aliases = store_aliases;
             return self.dead_instruction_elimination(function, false);
         }
 
@@ -141,15 +144,13 @@ impl Context {
         let block = &function.dfg[block_id];
         self.mark_terminator_values_as_used(function, block);
 
-        let instructions_len = block.instructions().len();
-
         let mut rc_tracker = RcTracker::default();
 
         // Indexes of instructions that might be out of bounds.
         // We'll remove those, but before that we'll insert bounds checks for them.
         let mut possible_index_out_of_bounds_indexes = Vec::new();
 
-        for (instruction_index, instruction_id) in block.instructions().iter().rev().enumerate() {
+        for (instruction_index, instruction_id) in block.instructions().iter().enumerate().rev() {
             let instruction = &function.dfg[*instruction_id];
 
             if self.is_unused(*instruction_id, function, block_id) {
@@ -159,7 +160,7 @@ impl Context {
                     && instruction_might_result_in_out_of_bounds(function, instruction)
                 {
                     possible_index_out_of_bounds_indexes
-                        .push(instructions_len - instruction_index - 1);
+                        .push(instruction_index);
                 }
             } else {
                 use Instruction::*;
@@ -222,7 +223,9 @@ impl Context {
 
         if instruction.can_eliminate_if_unused(&function.dfg) {
             let results = function.dfg.instruction_results(instruction_id);
-            results.iter().all(|result| !self.used_values.contains(result))
+            results.iter().all(|result| {
+                !self.used_values.contains(result)
+            })
         } else if let Instruction::Store { address, .. } = instruction {
             self.store_is_unused(instruction_id, *address, block)
         } else if let Instruction::Call { func, arguments } = instruction {
@@ -389,11 +392,9 @@ impl Context {
 
             let call_stack = function.dfg.get_call_stack(instruction_id);
 
-            let (lhs, rhs) = if function.dfg.get_numeric_constant(*index).is_some() {
+            let lhs = if function.dfg.get_numeric_constant(*index).is_some() {
                 // If we are here it means the index is known but out of bounds. That's always an error!
-                let false_const = function.dfg.make_constant(false.into(), Type::bool());
-                let true_const = function.dfg.make_constant(true.into(), Type::bool());
-                (false_const, true_const)
+                function.dfg.make_constant(false.into(), Type::bool())
             } else {
                 // `index` will be relative to the flattened array length, so we need to take that into account
                 let array_length = function.dfg.type_of_value(*array).flattened_size();
@@ -416,11 +417,10 @@ impl Context {
                     None,
                     call_stack.clone(),
                 );
-                let is_index_out_of_bounds = is_index_out_of_bounds.first();
-                let true_const = function.dfg.make_constant(true.into(), Type::bool());
-                (is_index_out_of_bounds, true_const)
+                is_index_out_of_bounds.first()
             };
 
+            let rhs = function.dfg.make_constant(true.into(), Type::bool());
             let (lhs, rhs) = apply_side_effects(
                 side_effects_condition,
                 lhs,
