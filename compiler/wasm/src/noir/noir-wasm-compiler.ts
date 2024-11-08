@@ -182,7 +182,7 @@ export class NoirWasmCompiler {
     try {
       const libFile = this.#dependencyManager.findFile(path);
       return await this.#fm.readFile(libFile ?? path, 'utf-8');
-    } catch (err) {
+    } catch (_err) {
       return '';
     }
   }

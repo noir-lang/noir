@@ -8,7 +8,7 @@ it('returns the correct build info', () => {
 
   try {
     revision = child_process.execSync('git rev-parse HEAD').toString().trim();
-  } catch (error) {
+  } catch (_error) {
     console.log('Failed to get revision, skipping test.');
     return;
   }

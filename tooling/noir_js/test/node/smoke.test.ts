@@ -51,7 +51,7 @@ it('0x prefixed string input for inputs will throw', async () => {
   try {
     await new Noir(assert_lt_program).execute(inputsHexPrefix);
     expect.fail('Expected generatedWitness to throw, due to inputs being prefixed with 0x. Currently not supported');
-  } catch (error) {
+  } catch (_error) {
     // Successfully errored due to 0x not being supported. Update this test once/if we choose
     // to support 0x prefixed inputs.
   }
