@@ -64,13 +64,16 @@ pub(crate) enum Keyword {
     Brillig,
     Inline,
     InlineAlways,
+    Else,
     Field,
     Fold,
     Fn,
     Jmp,
+    Jmpif,
     NoPredicates,
     Of,
     Return,
+    Then,
 }
 
 impl Keyword {
@@ -78,15 +81,18 @@ impl Keyword {
         let keyword = match word {
             "acir" => Keyword::Acir,
             "brillig" => Keyword::Brillig,
+            "else" => Keyword::Else,
             "inline" => Keyword::Inline,
             "inline_always" => Keyword::InlineAlways,
             "Field" => Keyword::Field,
             "fold" => Keyword::Fold,
             "fn" => Keyword::Fn,
             "jmp" => Keyword::Jmp,
+            "jmpif" => Keyword::Jmpif,
             "no_predicates" => Keyword::NoPredicates,
             "of" => Keyword::Of,
             "return" => Keyword::Return,
+            "then" => Keyword::Then,
             _ => return None,
         };
         Some(Token::Keyword(keyword))

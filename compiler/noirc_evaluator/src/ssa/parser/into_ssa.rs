@@ -81,6 +81,13 @@ impl Translator {
 
                 self.builder.terminate_with_jmp(block_id, translated_arguments);
             }
+            ParsedTerminator::Jmpif { condition, then_block, else_block } => {
+                let condition = self.translate_value(condition)?;
+                let then_destination = self.lookup_block(then_block)?;
+                let else_destination = self.lookup_block(else_block)?;
+
+                self.builder.terminate_with_jmpif(condition, then_destination, else_destination);
+            }
             ParsedTerminator::Return(values) => {
                 let mut return_values = Vec::with_capacity(values.len());
                 for value in values {

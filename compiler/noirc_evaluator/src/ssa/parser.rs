@@ -176,6 +176,10 @@ impl<'a> Parser<'a> {
             return Ok(terminator);
         }
 
+        if let Some(terminator) = self.parse_jmpif()? {
+            return Ok(terminator);
+        }
+
         self.expected_instruction_or_terminator()
     }
 
@@ -201,6 +205,23 @@ impl<'a> Parser<'a> {
         Ok(Some(ParsedTerminator::Jmp { destination, arguments }))
     }
 
+    fn parse_jmpif(&mut self) -> ParseResult<Option<ParsedTerminator>> {
+        if !self.eat_keyword(Keyword::Jmpif)? {
+            return Ok(None);
+        }
+
+        let condition = self.parse_value_or_error()?;
+        self.eat_or_error(Token::Keyword(Keyword::Then))?;
+        self.eat_or_error(Token::Colon)?;
+        let then_block = self.parse_identifier_or_error()?;
+        self.eat_or_error(Token::Comma)?;
+        self.eat_or_error(Token::Keyword(Keyword::Else))?;
+        self.eat_or_error(Token::Colon)?;
+        let else_block = self.parse_identifier_or_error()?;
+
+        Ok(Some(ParsedTerminator::Jmpif { condition, then_block, else_block }))
+    }
+
     fn parse_comma_separated_values(&mut self) -> ParseResult<Vec<ParsedValue>> {
         let mut values = Vec::new();
         while let Some(value) = self.parse_value()? {
@@ -210,6 +231,14 @@ impl<'a> Parser<'a> {
             }
         }
         Ok(values)
+    }
+
+    fn parse_value_or_error(&mut self) -> ParseResult<ParsedValue> {
+        if let Some(value) = self.parse_value()? {
+            Ok(value)
+        } else {
+            self.expected_value()
+        }
     }
 
     fn parse_value(&mut self) -> ParseResult<Option<ParsedValue>> {
@@ -420,6 +449,13 @@ impl<'a> Parser<'a> {
         })
     }
 
+    fn expected_value<T>(&mut self) -> ParseResult<T> {
+        Err(ParserError::ExpectedValue {
+            found: self.token.token().clone(),
+            span: self.token.to_span(),
+        })
+    }
+
     fn expected_token<T>(&mut self, token: Token) -> ParseResult<T> {
         Err(ParserError::ExpectedToken {
             token,
@@ -446,6 +482,7 @@ pub(crate) enum ParserError {
     ExpectedInt { found: Token, span: Span },
     ExpectedType { found: Token, span: Span },
     ExpectedInstructionOrTerminator { found: Token, span: Span },
+    ExpectedValue { found: Token, span: Span },
 }
 
 fn eof_spanned_token() -> SpannedToken {
