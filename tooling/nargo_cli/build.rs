@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::{env, fs};
+use std::{env, fs, i64};
 
 const GIT_COMMIT: &&str = &"GIT_COMMIT";
 
@@ -59,6 +59,12 @@ const IGNORED_BRILLIG_TESTS: [&str; 11] = [
     "is_unconstrained",
 ];
 
+/// Tests which aren't expected to work with the default inliner cases.
+const INLINER_MIN_OVERRIDES: [(&str, i64); 1] = [
+    // 0 works if PoseidonHasher::write is tagged as `inline_always`, otherwise 22.
+    ("eddsa", 0),
+];
+
 /// Some tests are expected to have warnings
 /// These should be fixed and removed from this list.
 const TESTS_WITH_EXPECTED_WARNINGS: [&str; 2] = [
@@ -94,6 +100,35 @@ struct MatrixConfig {
     vary_brillig: bool,
     // Only seems to have an effect on the `execute_success` cases.
     vary_inliner: bool,
+    // If there is a non-default minimum inliner aggressiveness to use with the brillig tests.
+    min_inliner: i64,
+}
+
+// Enum to be able to preserve readable test labels and also compare to numbers.
+enum Inliner {
+    Min,
+    Default,
+    Max,
+    Custom(i64),
+}
+
+impl Inliner {
+    fn value(&self) -> i64 {
+        match self {
+            Inliner::Min => i64::MIN,
+            Inliner::Default => 0,
+            Inliner::Max => i64::MAX,
+            Inliner::Custom(i) => *i,
+        }
+    }
+    fn label(&self) -> String {
+        match self {
+            Inliner::Min => "i64::MIN".to_string(),
+            Inliner::Default => "0".to_string(),
+            Inliner::Max => "i64::MAX".to_string(),
+            Inliner::Custom(i) => i.to_string(),
+        }
+    }
 }
 
 /// Generate all test cases for a given test name (expected to be unique for the test directory),
@@ -109,9 +144,32 @@ fn generate_test_cases(
     test_content: &str,
     matrix_config: &MatrixConfig,
 ) {
+    let brillig_cases = if matrix_config.vary_brillig { vec![false, true] } else { vec![false] };
+    let inliner_cases = if matrix_config.vary_inliner {
+        let mut cases = vec![Inliner::Min, Inliner::Default, Inliner::Max];
+        if !cases.iter().any(|c| c.value() == matrix_config.min_inliner) {
+            cases.push(Inliner::Custom(matrix_config.min_inliner));
+        }
+        cases
+    } else {
+        vec![Inliner::Default]
+    };
+
+    // We can't use a `#[test_matrix(brillig_cases, inliner_cases)` if we only want to limit the
+    // aggressiveness range for the brillig tests, and let them go full range on the ACIR case.
+    let mut test_cases = Vec::new();
+    for brillig in &brillig_cases {
+        for inliner in &inliner_cases {
+            if *brillig && inliner.value() < matrix_config.min_inliner {
+                continue;
+            }
+            test_cases.push(format!("#[test_case::test_case({brillig}, {})]", inliner.label()));
+        }
+    }
+    let test_cases = test_cases.join("\n");
+
+    // Use a common mutex for all test cases.
     let mutex_name = format! {"TEST_MUTEX_{}", test_name.to_uppercase()};
-    let brillig_cases = if matrix_config.vary_brillig { "[false, true]" } else { "[false]" };
-    let inliner_cases = if matrix_config.vary_inliner { "[i64::MIN, 0, i64::MAX]" } else { "[0]" };
     write!(
         test_file,
         r#"
@@ -120,10 +178,7 @@ lazy_static::lazy_static! {{
     static ref {mutex_name}: std::sync::Mutex<()> = std::sync::Mutex::new(());
 }}
 
-#[test_case::test_matrix(
-    {brillig_cases}, 
-    {inliner_cases}
-)]
+{test_cases}
 fn test_{test_name}(force_brillig: bool, inliner_aggressiveness: i64) {{
     // Ignore poisoning errors if some of the matrix cases failed.
     let _guard = {mutex_name}.lock().unwrap_or_else(|e| e.into_inner()); 
@@ -170,6 +225,11 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
             &MatrixConfig {
                 vary_brillig: !IGNORED_BRILLIG_TESTS.contains(&test_name.as_str()),
                 vary_inliner: true,
+                min_inliner: INLINER_MIN_OVERRIDES
+                    .iter()
+                    .find(|(n, _)| *n == test_name.as_str())
+                    .map(|(_, i)| *i)
+                    .unwrap_or(i64::MIN),
             },
         );
     }
