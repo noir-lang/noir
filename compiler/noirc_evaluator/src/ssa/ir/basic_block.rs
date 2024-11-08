@@ -2,7 +2,7 @@ use super::{
     dfg::CallStack,
     instruction::{InstructionId, TerminatorInstruction},
     map::Id,
-    value::ValueId,
+    value::{Unresolved, ValueId},
 };
 use serde::{Deserialize, Serialize};
 
@@ -13,9 +13,9 @@ use serde::{Deserialize, Serialize};
 /// This means that if one instruction is executed in a basic
 /// block, then all instructions are executed. ie single-entry single-exit.
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
-pub(crate) struct BasicBlock {
+pub(crate) struct BasicBlock<R = Unresolved> {
     /// Parameters to the basic block.
-    parameters: Vec<ValueId>,
+    parameters: Vec<ValueId<R>>,
 
     /// Instructions in the basic block.
     instructions: Vec<InstructionId>,
@@ -24,7 +24,7 @@ pub(crate) struct BasicBlock {
     ///
     /// This will be a control flow instruction. This is only
     /// None if the block is still being constructed.
-    terminator: Option<TerminatorInstruction>,
+    terminator: Option<TerminatorInstruction<R>>,
 }
 
 /// An identifier for a Basic Block.

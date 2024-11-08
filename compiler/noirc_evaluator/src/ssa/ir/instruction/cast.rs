@@ -19,12 +19,12 @@ pub(super) fn simplify_cast(
         }
     }
 
-    if let Some(constant) = dfg.get_numeric_constant(value) {
+    if let Some(constant) = dfg.get_numeric_constant(value.into()) {
         let src_typ = dfg.type_of_value(value);
         match (src_typ, dst_typ) {
             (Type::Numeric(NumericType::NativeField), Type::Numeric(NumericType::NativeField)) => {
                 // Field -> Field: use src value
-                SimplifiedTo(value)
+                SimplifiedTo(value.into())
             }
             (
                 Type::Numeric(NumericType::Unsigned { .. } | NumericType::Signed { .. }),
@@ -69,7 +69,7 @@ pub(super) fn simplify_cast(
             _ => None,
         }
     } else if *dst_typ == dfg.type_of_value(value) {
-        SimplifiedTo(value)
+        SimplifiedTo(value.into())
     } else {
         None
     }

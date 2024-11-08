@@ -99,7 +99,7 @@ impl std::fmt::Display for Id<super::basic_block::BasicBlock> {
     }
 }
 
-impl std::fmt::Display for Id<super::value::Value> {
+impl<R> std::fmt::Display for Id<super::value::Value<R>> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "v{}", self.index)
     }
@@ -132,10 +132,10 @@ impl FromStr for Id<super::basic_block::BasicBlock> {
     }
 }
 
-impl FromStr for Id<super::value::Value> {
+impl<R> FromStr for Id<super::value::Value<R>> {
     type Err = IdDisplayFromStrErr;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        id_from_str_helper::<super::value::Value>(s, 'v')
+        id_from_str_helper::<super::value::Value<R>>(s, 'v')
     }
 }
 

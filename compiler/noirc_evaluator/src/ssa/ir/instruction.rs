@@ -21,7 +21,7 @@ use super::{
     dfg::{CallStack, DataFlowGraph},
     map::Id,
     types::{NumericType, Type},
-    value::{Value, ValueId},
+    value::{Unresolved, Value, ValueId},
 };
 
 mod binary;
@@ -189,27 +189,27 @@ pub(crate) enum Endian {
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
 /// Instructions are used to perform tasks.
 /// The instructions that the IR is able to specify are listed below.
-pub(crate) enum Instruction {
+pub(crate) enum Instruction<R = Unresolved> {
     /// Binary Operations like +, -, *, /, ==, !=
-    Binary(Binary),
+    Binary(Binary<R>),
 
     /// Converts `Value` into Typ
-    Cast(ValueId, Type),
+    Cast(ValueId<R>, Type),
 
     /// Computes a bit wise not
-    Not(ValueId),
+    Not(ValueId<R>),
 
     /// Truncates `value` to `bit_size`
-    Truncate { value: ValueId, bit_size: u32, max_bit_size: u32 },
+    Truncate { value: ValueId<R>, bit_size: u32, max_bit_size: u32 },
 
     /// Constrains two values to be equal to one another.
-    Constrain(ValueId, ValueId, Option<ConstrainError>),
+    Constrain(ValueId<R>, ValueId<R>, Option<ConstrainError<R>>),
 
     /// Range constrain `value` to `max_bit_size`
-    RangeCheck { value: ValueId, max_bit_size: u32, assert_message: Option<String> },
+    RangeCheck { value: ValueId<R>, max_bit_size: u32, assert_message: Option<String> },
 
     /// Performs a function call with a list of its arguments.
-    Call { func: ValueId, arguments: Vec<ValueId> },
+    Call { func: ValueId<R>, arguments: Vec<ValueId<R>> },
 
     /// Allocates a region of memory. Note that this is not concerned with
     /// the type of memory, the type of element is determined when loading this memory.
@@ -217,10 +217,10 @@ pub(crate) enum Instruction {
     Allocate,
 
     /// Loads a value from memory.
-    Load { address: ValueId },
+    Load { address: ValueId<R> },
 
     /// Writes a value to memory.
-    Store { address: ValueId, value: ValueId },
+    Store { address: ValueId<R>, value: ValueId<R> },
 
     /// Provides a context for all instructions that follow up until the next
     /// `EnableSideEffectsIf` is encountered, for stating a condition that determines whether
@@ -239,29 +239,29 @@ pub(crate) enum Instruction {
     /// This instruction is only emitted after the cfg flattening pass, and is used to annotate
     /// instruction regions with an condition that corresponds to their position in the CFG's
     /// if-branching structure.
-    EnableSideEffectsIf { condition: ValueId },
+    EnableSideEffectsIf { condition: ValueId<R> },
 
     /// Retrieve a value from an array at the given index
-    ArrayGet { array: ValueId, index: ValueId },
+    ArrayGet { array: ValueId<R>, index: ValueId<R> },
 
     /// Creates a new array with the new value at the given index. All other elements are identical
     /// to those in the given array. This will not modify the original array unless `mutable` is
     /// set. This flag is off by default and only enabled when optimizations determine it is safe.
-    ArraySet { array: ValueId, index: ValueId, value: ValueId, mutable: bool },
+    ArraySet { array: ValueId<R>, index: ValueId<R>, value: ValueId<R>, mutable: bool },
 
     /// An instruction to increment the reference count of a value.
     ///
     /// This currently only has an effect in Brillig code where array sharing and copy on write is
     /// implemented via reference counting. In ACIR code this is done with im::Vector and these
     /// IncrementRc instructions are ignored.
-    IncrementRc { value: ValueId },
+    IncrementRc { value: ValueId<R> },
 
     /// An instruction to decrement the reference count of a value.
     ///
     /// This currently only has an effect in Brillig code where array sharing and copy on write is
     /// implemented via reference counting. In ACIR code this is done with im::Vector and these
     /// DecrementRc instructions are ignored.
-    DecrementRc { value: ValueId },
+    DecrementRc { value: ValueId<R> },
 
     /// Merge two values returned from opposite branches of a conditional into one.
     ///
@@ -276,10 +276,10 @@ pub(crate) enum Instruction {
     /// Where we save the result of !then_condition so that we have the same
     /// ValueId for it each time.
     IfElse {
-        then_condition: ValueId,
-        then_value: ValueId,
-        else_condition: ValueId,
-        else_value: ValueId,
+        then_condition: ValueId<R>,
+        then_value: ValueId<R>,
+        else_condition: ValueId<R>,
+        else_value: ValueId<R>,
     },
 }
 
@@ -339,7 +339,7 @@ impl Instruction {
             | IncrementRc { .. }
             | DecrementRc { .. } => false,
 
-            Call { func, .. } => match dfg[*func] {
+            Call { func, .. } => match dfg[func.raw()] {
                 Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
                 _ => false,
             },
@@ -394,7 +394,7 @@ impl Instruction {
             | RangeCheck { .. } => false,
 
             // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
-            Call { func, .. } => match dfg[*func] {
+            Call { func, .. } => match dfg[func.raw()] {
                 // Explicitly allows removal of unused ec operations, even if they can fail
                 Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul))
                 | Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::EmbeddedCurveAdd)) => true,
@@ -429,7 +429,7 @@ impl Instruction {
 
             Instruction::EnableSideEffectsIf { .. } | Instruction::ArraySet { .. } => true,
 
-            Instruction::Call { func, .. } => match dfg[*func] {
+            Instruction::Call { func, .. } => match dfg[func.raw()] {
                 Value::Function(_) => true,
                 Value::Intrinsic(intrinsic) => {
                     matches!(intrinsic, Intrinsic::SliceInsert | Intrinsic::SliceRemove)
@@ -740,7 +740,7 @@ impl Instruction {
                 let then_value = dfg.resolve(*then_value);
                 let else_value = dfg.resolve(*else_value);
                 if then_value == else_value {
-                    return SimplifiedTo(then_value);
+                    return SimplifiedTo(then_value.into());
                 }
 
                 if matches!(&typ, Type::Numeric(_)) {
@@ -752,8 +752,8 @@ impl Instruction {
                         block,
                         then_condition,
                         else_condition,
-                        then_value,
-                        else_value,
+                        then_value.into(),
+                        else_value.into(),
                     );
                     SimplifiedTo(result)
                 } else {
@@ -781,7 +781,7 @@ impl Instruction {
 ///   - If the array value is from a previous array-set, we recur.
 fn try_optimize_array_get_from_previous_set(
     dfg: &DataFlowGraph,
-    mut array_id: Id<Value>,
+    mut array_id: ValueId,
     target_index: FieldElement,
 ) -> SimplifyResult {
     let mut elements = None;
@@ -789,7 +789,7 @@ fn try_optimize_array_get_from_previous_set(
     // Arbitrary number of maximum tries just to prevent this optimization from taking too long.
     let max_tries = 5;
     for _ in 0..max_tries {
-        match &dfg[array_id] {
+        match &dfg[array_id.raw()] {
             Value::Instruction { instruction, .. } => {
                 match &dfg[*instruction] {
                     Instruction::ArraySet { array, index, value, .. } => {
@@ -856,13 +856,13 @@ fn try_optimize_array_set_from_previous_get(
     target_index: ValueId,
     target_value: ValueId,
 ) -> SimplifyResult {
-    let array_from_get = match &dfg[target_value] {
+    let array_from_get = match &dfg[target_value.raw()] {
         Value::Instruction { instruction, .. } => match &dfg[*instruction] {
             Instruction::ArrayGet { array, index } => {
-                if *array == array_id && *index == target_index {
+                if array_id.unresolved_eq(array) && target_index.unresolved_eq(index) {
                     // If array and index match from the value, we can immediately simplify
                     return SimplifyResult::SimplifiedTo(array_id);
-                } else if *index == target_index {
+                } else if target_index.unresolved_eq(index) {
                     *array
                 } else {
                     return SimplifyResult::None;
@@ -889,7 +889,7 @@ fn try_optimize_array_set_from_previous_get(
     // Arbitrary number of maximum tries just to prevent this optimization from taking too long.
     let max_tries = 5;
     for _ in 0..max_tries {
-        match &dfg[array_id] {
+        match &dfg[array_id.raw()] {
             Value::Instruction { instruction, .. } => match &dfg[*instruction] {
                 Instruction::ArraySet { array, index, .. } => {
                     let Some(index) = dfg.get_numeric_constant(*index) else {
@@ -900,7 +900,7 @@ fn try_optimize_array_set_from_previous_get(
                         return SimplifyResult::None;
                     }
 
-                    if *array == array_from_get {
+                    if array_from_get.unresolved_eq(array) {
                         return SimplifyResult::SimplifiedTo(original_array_id);
                     }
 
@@ -931,11 +931,11 @@ pub(crate) fn error_selector_from_type(typ: &ErrorType) -> ErrorSelector {
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
-pub(crate) enum ConstrainError {
+pub(crate) enum ConstrainError<R = Unresolved> {
     // Static string errors are not handled inside the program as data for efficiency reasons.
     StaticString(String),
     // These errors are handled by the program as data.
-    Dynamic(ErrorSelector, Vec<ValueId>),
+    Dynamic(ErrorSelector, Vec<ValueId<R>>),
 }
 
 impl From<String> for ConstrainError {
@@ -973,7 +973,7 @@ pub(crate) enum InstructionResultType {
 /// to split up instructions like this, as we are sure that these instructions
 /// will not be in the list of instructions for a basic block.
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
-pub(crate) enum TerminatorInstruction {
+pub(crate) enum TerminatorInstruction<R = Unresolved> {
     /// Control flow
     ///
     /// Jump If
@@ -981,7 +981,7 @@ pub(crate) enum TerminatorInstruction {
     /// If the condition is true: jump to the specified `then_destination`.
     /// Otherwise, jump to the specified `else_destination`.
     JmpIf {
-        condition: ValueId,
+        condition: ValueId<R>,
         then_destination: BasicBlockId,
         else_destination: BasicBlockId,
         call_stack: CallStack,
@@ -992,7 +992,7 @@ pub(crate) enum TerminatorInstruction {
     /// Jumps to specified `destination` with `arguments`.
     /// The CallStack here is expected to be used to issue an error when the start range of
     /// a for loop cannot be deduced at compile-time.
-    Jmp { destination: BasicBlockId, arguments: Vec<ValueId>, call_stack: CallStack },
+    Jmp { destination: BasicBlockId, arguments: Vec<ValueId<R>>, call_stack: CallStack },
 
     /// Return from the current function with the given return values.
     ///
@@ -1001,7 +1001,7 @@ pub(crate) enum TerminatorInstruction {
     /// unconditionally jump to a single exit block with the return values
     /// as the block arguments. Then the exit block can terminate in a return
     /// instruction returning these values.
-    Return { return_values: Vec<ValueId>, call_stack: CallStack },
+    Return { return_values: Vec<ValueId<R>>, call_stack: CallStack },
 }
 
 impl TerminatorInstruction {

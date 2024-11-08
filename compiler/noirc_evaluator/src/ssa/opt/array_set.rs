@@ -7,7 +7,7 @@ use crate::ssa::{
         function::{Function, RuntimeType},
         instruction::{Instruction, InstructionId, TerminatorInstruction},
         types::Type::{Array, Slice},
-        value::ValueId,
+        value::RawValueId,
     },
     ssa_gen::Ssa,
 };
@@ -51,12 +51,12 @@ impl Function {
 struct Context<'f> {
     dfg: &'f DataFlowGraph,
     is_brillig_runtime: bool,
-    array_to_last_use: HashMap<ValueId, InstructionId>,
+    array_to_last_use: HashMap<RawValueId, InstructionId>,
     instructions_that_can_be_made_mutable: HashSet<InstructionId>,
     // Mapping of an array that comes from a load and whether the address
     // it was loaded from is a reference parameter.
-    arrays_from_load: HashMap<ValueId, bool>,
-    inner_nested_arrays: HashMap<ValueId, InstructionId>,
+    arrays_from_load: HashMap<RawValueId, bool>,
+    inner_nested_arrays: HashMap<RawValueId, InstructionId>,
 }
 
 impl<'f> Context<'f> {
@@ -81,24 +81,28 @@ impl<'f> Context<'f> {
                 Instruction::ArrayGet { array, .. } => {
                     let array = self.dfg.resolve(*array);
 
-                    if let Some(existing) = self.array_to_last_use.insert(array, *instruction_id) {
+                    if let Some(existing) =
+                        self.array_to_last_use.insert(array.raw(), *instruction_id)
+                    {
                         self.instructions_that_can_be_made_mutable.remove(&existing);
                     }
                 }
                 Instruction::ArraySet { array, value, .. } => {
                     let array = self.dfg.resolve(*array);
 
-                    if let Some(existing) = self.array_to_last_use.insert(array, *instruction_id) {
+                    if let Some(existing) =
+                        self.array_to_last_use.insert(array.raw(), *instruction_id)
+                    {
                         self.instructions_that_can_be_made_mutable.remove(&existing);
                     }
                     if self.is_brillig_runtime {
                         let value = self.dfg.resolve(*value);
 
-                        if let Some(existing) = self.inner_nested_arrays.get(&value) {
+                        if let Some(existing) = self.inner_nested_arrays.get(&value.raw()) {
                             self.instructions_that_can_be_made_mutable.remove(existing);
                         }
                         let result = self.dfg.instruction_results(*instruction_id)[0];
-                        self.inner_nested_arrays.insert(result, *instruction_id);
+                        self.inner_nested_arrays.insert(result.raw(), *instruction_id);
                     }
 
                     // If the array we are setting does not come from a load we can safely mark it mutable.
@@ -117,7 +121,7 @@ impl<'f> Context<'f> {
                             array_in_terminator = true;
                         }
                     });
-                    if let Some(is_from_param) = self.arrays_from_load.get(&array) {
+                    if let Some(is_from_param) = self.arrays_from_load.get(&array.raw()) {
                         // If the array was loaded from a reference parameter, we cannot
                         // safely mark that array mutable as it may be shared by another value.
                         if !is_from_param && is_return_block {
@@ -134,7 +138,7 @@ impl<'f> Context<'f> {
                             let argument = self.dfg.resolve(*argument);
 
                             if let Some(existing) =
-                                self.array_to_last_use.insert(argument, *instruction_id)
+                                self.array_to_last_use.insert(argument.raw(), *instruction_id)
                             {
                                 self.instructions_that_can_be_made_mutable.remove(&existing);
                             }
@@ -144,9 +148,12 @@ impl<'f> Context<'f> {
                 Instruction::Load { address } => {
                     let result = self.dfg.instruction_results(*instruction_id)[0];
                     if matches!(self.dfg.type_of_value(result), Array { .. } | Slice { .. }) {
-                        let is_reference_param =
-                            self.dfg.block_parameters(block_id).contains(address);
-                        self.arrays_from_load.insert(result, is_reference_param);
+                        let is_reference_param = self
+                            .dfg
+                            .block_parameters(block_id)
+                            .iter()
+                            .any(|p| p.unresolved_eq(address));
+                        self.arrays_from_load.insert(result.raw(), is_reference_param);
                     }
                 }
                 _ => (),

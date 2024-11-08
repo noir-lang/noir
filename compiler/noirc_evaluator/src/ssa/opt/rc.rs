@@ -136,7 +136,7 @@ pub(crate) fn pop_rc_for(
     let typ = function.dfg.type_of_value(value);
 
     let rcs = inc_rcs.get_mut(&typ)?;
-    let position = rcs.iter().position(|inc_rc| inc_rc.array == value)?;
+    let position = rcs.iter().position(|inc_rc| inc_rc.array.unresolved_eq(&value))?;
 
     Some(rcs.remove(position))
 }

@@ -116,7 +116,7 @@ pub(super) fn decompose_constrain(
                         decompose_constrain(value, reversed_constant, msg, dfg)
                     }
 
-                    _ => vec![Instruction::Constrain(lhs, rhs, msg.clone())],
+                    _ => vec![Instruction::Constrain(lhs.into(), rhs.into(), msg.clone())],
                 }
             }
 
@@ -134,10 +134,10 @@ pub(super) fn decompose_constrain(
                         vec![Instruction::Constrain(*original_lhs, *original_rhs, msg.clone())]
                     }
 
-                    _ => vec![Instruction::Constrain(lhs, rhs, msg.clone())],
+                    _ => vec![Instruction::Constrain(lhs.into(), rhs.into(), msg.clone())],
                 }
             }
-            _ => vec![Instruction::Constrain(lhs, rhs, msg.clone())],
+            _ => vec![Instruction::Constrain(lhs.into(), rhs.into(), msg.clone())],
         }
     }
 }

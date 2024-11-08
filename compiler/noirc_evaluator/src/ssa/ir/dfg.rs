@@ -10,7 +10,7 @@ use super::{
     },
     map::DenseMap,
     types::Type,
-    value::{Value, ValueId},
+    value::{RawValueId, ResolvedValueId, Value, ValueId},
 };
 
 use acvm::{acir::AcirField, FieldElement};
@@ -78,7 +78,7 @@ pub(crate) struct DataFlowGraph {
     /// and has no material effect on the SSA itself, however in practice the IDs can get out of
     /// sync and may need this resolution before they can be compared.
     #[serde(skip)]
-    replaced_value_ids: HashMap<ValueId, ValueId>,
+    replaced_value_ids: HashMap<RawValueId, ValueId>,
 
     /// Source location of each instruction for debugging and issuing errors.
     ///
@@ -119,8 +119,8 @@ impl DataFlowGraph {
         let parameters = self.blocks[block].parameters();
 
         let parameters = vecmap(parameters.iter().enumerate(), |(position, param)| {
-            let typ = self.values[*param].get_type().clone();
-            self.values.insert(Value::Param { block: new_block, position, typ })
+            let typ = self.values[param.raw()].get_type().clone();
+            self.values.insert(Value::Param { block: new_block, position, typ }).into()
         });
 
         self.blocks[new_block].set_parameters(parameters);
@@ -139,7 +139,7 @@ impl DataFlowGraph {
 
     /// Iterate over every Value in this DFG in no particular order, including unused Values
     pub(crate) fn values_iter(&self) -> impl ExactSizeIterator<Item = (ValueId, &Value)> {
-        self.values.iter()
+        self.values.iter().map(|(id, value)| (id.into(), value))
     }
 
     /// Returns the parameters of the given block
@@ -213,7 +213,7 @@ impl DataFlowGraph {
     /// Insert a value into the dfg's storage and return an id to reference it.
     /// Until the value is used in an instruction it is unreachable.
     pub(crate) fn make_value(&mut self, value: Value) -> ValueId {
-        self.values.insert(value)
+        self.values.insert(value).into()
     }
 
     /// Set the value of value_to_replace to refer to the value referred to by new_value.
@@ -222,16 +222,16 @@ impl DataFlowGraph {
     /// values since other instructions referring to the same ValueId need
     /// not be modified to refer to a new ValueId.
     pub(crate) fn set_value_from_id(&mut self, value_to_replace: ValueId, new_value: ValueId) {
-        if value_to_replace != new_value {
-            self.replaced_value_ids.insert(value_to_replace, self.resolve(new_value));
-            let new_value = self.values[new_value].clone();
-            self.values[value_to_replace] = new_value;
+        if value_to_replace.unresolved_eq(&new_value) {
+            self.replaced_value_ids.insert(value_to_replace.raw(), self.resolve(new_value).into());
+            let new_value = self.values[new_value.raw()].clone();
+            self.values[value_to_replace.raw()] = new_value;
         }
     }
 
     /// Set the type of value_id to the target_type.
     pub(crate) fn set_type_of_value(&mut self, value_id: ValueId, target_type: Type) {
-        let value = &mut self.values[value_id];
+        let value = &mut self.values[value_id.raw()];
         match value {
             Value::Instruction { typ, .. }
             | Value::Param { typ, .. }
@@ -248,10 +248,10 @@ impl DataFlowGraph {
     /// `ValueId`, this function will return the `ValueId` from which the substitution was taken.
     /// If `original_value_id`'s underlying `Value` has not been substituted, the same `ValueId`
     /// is returned.
-    pub(crate) fn resolve(&self, original_value_id: ValueId) -> ValueId {
-        match self.replaced_value_ids.get(&original_value_id) {
+    pub(crate) fn resolve(&self, original_value_id: ValueId) -> ResolvedValueId {
+        match self.replaced_value_ids.get(original_value_id.as_ref()) {
             Some(id) => self.resolve(*id),
-            None => original_value_id,
+            None => original_value_id.resolved(),
         }
     }
 
@@ -261,7 +261,7 @@ impl DataFlowGraph {
         if let Some(id) = self.constants.get(&(constant, typ.clone())) {
             return *id;
         }
-        let id = self.values.insert(Value::NumericConstant { constant, typ: typ.clone() });
+        let id = self.values.insert(Value::NumericConstant { constant, typ: typ.clone() }).into();
         self.constants.insert((constant, typ), id);
         id
     }
@@ -277,7 +277,7 @@ impl DataFlowGraph {
         if let Some(existing) = self.functions.get(&function) {
             return *existing;
         }
-        self.values.insert(Value::Function(function))
+        self.values.insert(Value::Function(function)).into()
     }
 
     /// Gets or creates a ValueId for the given FunctionId.
@@ -285,7 +285,7 @@ impl DataFlowGraph {
         if let Some(existing) = self.foreign_functions.get(function) {
             return *existing;
         }
-        self.values.insert(Value::ForeignFunction(function.to_owned()))
+        self.values.insert(Value::ForeignFunction(function.to_owned())).into()
     }
 
     /// Gets or creates a ValueId for the given Intrinsic.
@@ -293,7 +293,7 @@ impl DataFlowGraph {
         if let Some(existing) = self.get_intrinsic(intrinsic) {
             return *existing;
         }
-        let intrinsic_value_id = self.values.insert(Value::Intrinsic(intrinsic));
+        let intrinsic_value_id = self.values.insert(Value::Intrinsic(intrinsic)).into();
         self.intrinsics.insert(intrinsic, intrinsic_value_id);
         intrinsic_value_id
     }
@@ -346,9 +346,19 @@ impl DataFlowGraph {
         }
     }
 
+    /// Look up a value by ID.
+    fn get_value<R>(&self, value: ValueId<R>) -> Value {
+        self.values[value.raw()]
+    }
+
+    /// Resolve and get a value by ID
+    fn resolve_value(&self, original_value_id: ValueId) -> Value {
+        self.values[self.resolve(original_value_id).raw()]
+    }
+
     /// Returns the type of a given value
-    pub(crate) fn type_of_value(&self, value: ValueId) -> Type {
-        self.values[value].get_type().clone()
+    pub(crate) fn type_of_value<R>(&self, value: ValueId<R>) -> Type {
+        self.get_value(value).get_type().clone()
     }
 
     /// Returns the maximum possible number of bits that `value` can potentially be.
@@ -356,7 +366,7 @@ impl DataFlowGraph {
     /// Should `value` be a numeric constant then this function will return the exact number of bits required,
     /// otherwise it will return the minimum number of bits based on type information.
     pub(crate) fn get_value_max_num_bits(&self, value: ValueId) -> u32 {
-        match self[value] {
+        match self.get_value(value) {
             Value::Instruction { instruction, .. } => {
                 if let Instruction::Cast(original_value, _) = self[instruction] {
                     self.type_of_value(original_value).bit_size()
@@ -373,7 +383,7 @@ impl DataFlowGraph {
     /// True if the type of this value is Type::Reference.
     /// Using this method over type_of_value avoids cloning the value's type.
     pub(crate) fn value_is_reference(&self, value: ValueId) -> bool {
-        matches!(self.values[value].get_type(), Type::Reference(_))
+        matches!(self.get_value(value).get_type(), Type::Reference(_))
     }
 
     /// Appends a result type to the instruction.
@@ -381,11 +391,14 @@ impl DataFlowGraph {
         let results = self.results.get_mut(&instruction_id).unwrap();
         let expected_res_position = results.len();
 
-        let value_id = self.values.insert(Value::Instruction {
-            typ,
-            position: expected_res_position,
-            instruction: instruction_id,
-        });
+        let value_id = self
+            .values
+            .insert(Value::Instruction {
+                typ,
+                position: expected_res_position,
+                instruction: instruction_id,
+            })
+            .into();
 
         // Add value to the list of results for this instruction
         results.push(value_id);
@@ -402,14 +415,13 @@ impl DataFlowGraph {
         let results = self.results.get_mut(&instruction_id).unwrap();
         let res_position = results
             .iter()
-            .position(|&id| id == prev_value_id)
+            .position(|id| prev_value_id.unresolved_eq(id))
             .expect("Result id not found while replacing");
 
-        let value_id = self.values.insert(Value::Instruction {
-            typ,
-            position: res_position,
-            instruction: instruction_id,
-        });
+        let value_id = self
+            .values
+            .insert(Value::Instruction { typ, position: res_position, instruction: instruction_id })
+            .into();
 
         // Replace the value in list of results for this instruction
         results[res_position] = value_id;
@@ -431,7 +443,7 @@ impl DataFlowGraph {
     pub(crate) fn add_block_parameter(&mut self, block_id: BasicBlockId, typ: Type) -> ValueId {
         let block = &mut self.blocks[block_id];
         let position = block.parameters().len();
-        let parameter = self.values.insert(Value::Param { block: block_id, position, typ });
+        let parameter = self.values.insert(Value::Param { block: block_id, position, typ }).into();
         block.add_parameter(parameter);
         parameter
     }
@@ -448,7 +460,7 @@ impl DataFlowGraph {
         &self,
         value: ValueId,
     ) -> Option<(FieldElement, Type)> {
-        match &self.values[self.resolve(value)] {
+        match &self.resolve_value(value) {
             Value::NumericConstant { constant, typ } => Some((*constant, typ.clone())),
             _ => None,
         }
@@ -457,7 +469,7 @@ impl DataFlowGraph {
     /// Returns the Value::Array associated with this ValueId if it refers to an array constant.
     /// Otherwise, this returns None.
     pub(crate) fn get_array_constant(&self, value: ValueId) -> Option<(im::Vector<ValueId>, Type)> {
-        match &self.values[self.resolve(value)] {
+        match &self.resolve_value(value) {
             // Arrays are shared, so cloning them is cheap
             Value::Array { array, typ } => Some((array.clone(), typ.clone())),
             _ => None,
@@ -513,7 +525,7 @@ impl DataFlowGraph {
     }
 
     pub(crate) fn get_value_call_stack(&self, value: ValueId) -> CallStack {
-        match &self.values[self.resolve(value)] {
+        match &self.resolve_value(value) {
             Value::Instruction { instruction, .. } => self.get_call_stack(*instruction),
             _ => im::Vector::new(),
         }
@@ -521,7 +533,7 @@ impl DataFlowGraph {
 
     /// True if the given ValueId refers to a (recursively) constant value
     pub(crate) fn is_constant(&self, argument: ValueId) -> bool {
-        match &self[self.resolve(argument)] {
+        match &self.resolve_value(argument) {
             Value::Instruction { .. } | Value::Param { .. } => false,
             Value::Array { array, .. } => array.iter().all(|element| self.is_constant(*element)),
             _ => true,
@@ -551,10 +563,17 @@ impl std::ops::IndexMut<InstructionId> for DataFlowGraph {
     }
 }
 
-impl std::ops::Index<ValueId> for DataFlowGraph {
+impl std::ops::Index<RawValueId> for DataFlowGraph {
     type Output = Value;
-    fn index(&self, id: ValueId) -> &Self::Output {
+    fn index(&self, id: RawValueId) -> &Self::Output {
         &self.values[id]
+    }
+}
+
+impl std::ops::Index<ResolvedValueId> for DataFlowGraph {
+    type Output = Value;
+    fn index(&self, id: ResolvedValueId) -> &Self::Output {
+        &self.values[id.raw()]
     }
 }
 
