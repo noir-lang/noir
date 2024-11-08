@@ -47,6 +47,7 @@ pub(crate) enum ParsedInstruction {}
 
 #[derive(Debug)]
 pub(crate) enum ParsedTerminator {
+    Jmp { destination: Identifier, arguments: Vec<ParsedValue> },
     Return(Vec<ParsedValue>),
 }
 

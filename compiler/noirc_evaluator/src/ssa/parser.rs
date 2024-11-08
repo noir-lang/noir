@@ -29,6 +29,7 @@ impl Ssa {
 pub(crate) enum SsaError {
     ParserError(ParserError),
     UnknownVariable(Identifier),
+    UnknownBlock(Identifier),
 }
 
 type ParseResult<T> = Result<T, ParserError>;
@@ -143,19 +144,39 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_parameter(&mut self) -> ParseResult<ParsedParameter> {
-        let span = self.token.to_span();
-        let name = self.eat_ident_or_error()?;
+        let identifier = self.parse_identifier_or_error()?;
         self.eat_or_error(Token::Colon)?;
         let typ = self.parse_type()?;
-        Ok(ParsedParameter { identifier: Identifier::new(name, span), typ })
+        Ok(ParsedParameter { identifier, typ })
+    }
+
+    fn parse_identifier_or_error(&mut self) -> ParseResult<Identifier> {
+        if let Some(identifier) = self.parse_identifier()? {
+            Ok(identifier)
+        } else {
+            self.expected_identifier()
+        }
+    }
+
+    fn parse_identifier(&mut self) -> ParseResult<Option<Identifier>> {
+        let span = self.token.to_span();
+        if let Some(name) = self.eat_ident()? {
+            Ok(Some(Identifier::new(name, span)))
+        } else {
+            Ok(None)
+        }
     }
 
     fn parse_terminator(&mut self) -> ParseResult<ParsedTerminator> {
         if let Some(terminator) = self.parse_return()? {
-            Ok(terminator)
-        } else {
-            self.expected_instruction_or_terminator()
+            return Ok(terminator);
         }
+
+        if let Some(terminator) = self.parse_jmp()? {
+            return Ok(terminator);
+        }
+
+        self.expected_instruction_or_terminator()
     }
 
     fn parse_return(&mut self) -> ParseResult<Option<ParsedTerminator>> {
@@ -165,6 +186,19 @@ impl<'a> Parser<'a> {
 
         let values = self.parse_comma_separated_values()?;
         Ok(Some(ParsedTerminator::Return(values)))
+    }
+
+    fn parse_jmp(&mut self) -> ParseResult<Option<ParsedTerminator>> {
+        if !self.eat_keyword(Keyword::Jmp)? {
+            return Ok(None);
+        }
+
+        let destination = self.parse_identifier_or_error()?;
+        self.eat_or_error(Token::LeftParen)?;
+        let arguments = self.parse_comma_separated_values()?;
+        self.eat_or_error(Token::RightParen)?;
+
+        Ok(Some(ParsedTerminator::Jmp { destination, arguments }))
     }
 
     fn parse_comma_separated_values(&mut self) -> ParseResult<Vec<ParsedValue>> {
@@ -191,9 +225,8 @@ impl<'a> Parser<'a> {
             return Ok(Some(value));
         }
 
-        let span = self.token.to_span();
-        if let Some(name) = self.eat_ident()? {
-            return Ok(Some(ParsedValue::Variable(Identifier::new(name, span))));
+        if let Some(identifier) = self.parse_identifier()? {
+            return Ok(Some(ParsedValue::Variable(identifier)));
         }
 
         Ok(None)
