@@ -114,9 +114,9 @@ acir(inline) fn main f0 {
   b0(v0: Field):
     jmpif v0 then: b1, else: b2
   b1():
-    return v0
+    return
   b2():
-    return v0
+    return
 }
 ";
     assert_ssa_roundtrip(src);

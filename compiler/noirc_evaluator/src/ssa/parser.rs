@@ -184,11 +184,25 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_return(&mut self) -> ParseResult<Option<ParsedTerminator>> {
+        // Before advancing to the next token (after a potential return keyword),
+        // we check if a newline follows. This is because if we have this:
+        //
+        //   return
+        // b1():
+        //   ...
+        //
+        // then unless we check for a newline we can't know if the return
+        // returns `b1` or not (we could check if a parentheses comes next, but
+        // that would require a look-ahead and, for the purpose of the SSA parser,
+        // it's just simpler to check if a newline follows)
+        let newline_follows = self.newline_follows();
+
         if !self.eat_keyword(Keyword::Return)? {
             return Ok(None);
         }
 
-        let values = self.parse_comma_separated_values()?;
+        let values =
+            if newline_follows { Vec::new() } else { self.parse_comma_separated_values()? };
         Ok(Some(ParsedTerminator::Return(values)))
     }
 
@@ -410,6 +424,10 @@ impl<'a> Parser<'a> {
 
     fn at_keyword(&self, keyword: Keyword) -> bool {
         self.at(Token::Keyword(keyword))
+    }
+
+    fn newline_follows(&self) -> bool {
+        self.lexer.newline_follows()
     }
 
     fn bump(&mut self) -> ParseResult<SpannedToken> {
