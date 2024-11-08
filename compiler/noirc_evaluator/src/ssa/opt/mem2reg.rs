@@ -355,23 +355,17 @@ impl<'f> PerFunctionContext<'f> {
         }
 
         for aliases in aliases.into_values() {
-            if let Some(alias) = aliases.single_alias() {
-                let expression =
-                    references.expressions.entry(alias).or_insert(Expression::Other(alias));
-                references
-                    .aliases
-                    .entry(expression.clone())
-                    .or_insert_with(|| AliasSet::known(alias));
-            } else if let Some(first) = aliases.first() {
-                let expression = Expression::Other(first);
-                let previous = references.aliases.insert(expression.clone(), aliases.clone());
-                assert!(previous.is_none());
+            let first = aliases.first();
+            let first = first.expect("All parameters alias at least themselves or we early return");
 
-                aliases.for_each(|alias| {
-                    let previous = references.expressions.insert(alias, expression.clone());
-                    assert!(previous.is_none());
-                });
-            }
+            let expression = Expression::Other(first);
+            let previous = references.aliases.insert(expression.clone(), aliases.clone());
+            assert!(previous.is_none());
+
+            aliases.for_each(|alias| {
+                let previous = references.expressions.insert(alias, expression.clone());
+                assert!(previous.is_none());
+            });
         }
     }
 
