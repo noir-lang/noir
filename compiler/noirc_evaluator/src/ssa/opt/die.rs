@@ -110,15 +110,13 @@ impl Context {
         let block = &function.dfg[block_id];
         self.mark_terminator_values_as_used(function, block);
 
-        let instructions_len = block.instructions().len();
-
         let mut rc_tracker = RcTracker::default();
 
         // Indexes of instructions that might be out of bounds.
         // We'll remove those, but before that we'll insert bounds checks for them.
         let mut possible_index_out_of_bounds_indexes = Vec::new();
 
-        for (instruction_index, instruction_id) in block.instructions().iter().rev().enumerate() {
+        for (instruction_index, instruction_id) in block.instructions().iter().enumerate().rev() {
             let instruction = &function.dfg[*instruction_id];
 
             if self.is_unused(*instruction_id, function) {
@@ -127,8 +125,7 @@ impl Context {
                 if insert_out_of_bounds_checks
                     && instruction_might_result_in_out_of_bounds(function, instruction)
                 {
-                    possible_index_out_of_bounds_indexes
-                        .push(instructions_len - instruction_index - 1);
+                    possible_index_out_of_bounds_indexes.push(instruction_index);
                 }
             } else {
                 use Instruction::*;
@@ -195,19 +192,24 @@ impl Context {
         self.mark_terminator_values_as_used(function, block);
 
         for instruction_id in block.instructions() {
+            use Instruction::*;
             let instruction = &function.dfg[*instruction_id];
+            // TODO: Insert OOB checks for unused array operations
 
             // We're just marking so avoid removing instructions that may need bounds checks
-            if !self.is_unused(*instruction_id, function)
-                || instruction_might_result_in_out_of_bounds(function, instruction)
-            {
-                use Instruction::*;
+            if !self.is_unused(*instruction_id, function) {
                 if matches!(instruction, IncrementRc { .. } | DecrementRc { .. }) {
                     // self.rc_instructions.push((*instruction_id, block_id));
                 } else {
                     instruction.for_each_value(|value| {
                         self.mark_used_instruction_results(&function.dfg, value);
                     });
+                }
+            } else if instruction_might_result_in_out_of_bounds(function, instruction) {
+                // Even if the array is unused, mark the index as used since we'll insert
+                // an OOB check on it later.
+                if let ArrayGet { index, .. } | ArraySet { index, .. } = instruction {
+                    self.used_values.insert(*index);
                 }
             }
         }
@@ -221,10 +223,7 @@ impl Context {
             use Instruction::*;
             let instruction = &function.dfg[*instruction_id];
 
-            // We're just marking so avoid removing instructions that may need bounds checks
-            if self.is_unused(*instruction_id, function)
-                && !instruction_might_result_in_out_of_bounds(function, instruction)
-            {
+            if self.is_unused(*instruction_id, function) {
                 self.instructions_to_remove.insert(*instruction_id);
 
             // We can remove side-effectful instructions here since we marked beforehand we know
