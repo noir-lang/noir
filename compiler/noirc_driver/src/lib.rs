@@ -126,6 +126,12 @@ pub struct CompileOptions {
     #[arg(long)]
     pub skip_underconstrained_check: bool,
 
+    /// Flag to turn off the compiler check for missing brilling call constrains.
+    /// Warning: This can improve compilation speed but can also lead to correctness errors.
+    /// This check should always be run on production code.
+    #[arg(long)]
+    pub skip_missing_brillig_constrains_check: bool,
+
     /// Setting to decide on an inlining strategy for brillig functions.
     /// A more aggressive inliner should generate larger programs but more optimized
     /// A less aggressive inliner should generate smaller programs
@@ -588,6 +594,7 @@ pub fn compile_no_check(
         },
         emit_ssa: if options.emit_ssa { Some(context.package_build_path.clone()) } else { None },
         skip_underconstrained_check: options.skip_underconstrained_check,
+        skip_missing_brillig_constrains_check: options.skip_missing_brillig_constrains_check,
         inliner_aggressiveness: options.inliner_aggressiveness,
     };
 
