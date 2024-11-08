@@ -72,6 +72,7 @@ pub(crate) enum Keyword {
     Add,
     And,
     ArrayGet,
+    ArraySet,
     As,
     Bits,
     Bool,
@@ -105,6 +106,7 @@ pub(crate) enum Keyword {
     Then,
     To,
     Truncate,
+    Value,
     Xor,
 }
 
@@ -115,6 +117,7 @@ impl Keyword {
             "add" => Keyword::Add,
             "and" => Keyword::And,
             "array_get" => Keyword::ArrayGet,
+            "array_set" => Keyword::ArraySet,
             "as" => Keyword::As,
             "bits" => Keyword::Bits,
             "bool" => Keyword::Bool,
@@ -148,6 +151,7 @@ impl Keyword {
             "then" => Keyword::Then,
             "to" => Keyword::To,
             "truncate" => Keyword::Truncate,
+            "value" => Keyword::Value,
             "xor" => Keyword::Xor,
             _ => return None,
         };

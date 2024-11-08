@@ -46,6 +46,7 @@ impl Identifier {
 #[derive(Debug)]
 pub(crate) enum ParsedInstruction {
     ArrayGet { target: Identifier, element_type: Type, array: ParsedValue, index: ParsedValue },
+    ArraySet { target: Identifier, array: ParsedValue, index: ParsedValue, value: ParsedValue },
     BinaryOp { target: Identifier, lhs: ParsedValue, op: BinaryOp, rhs: ParsedValue },
     Call { targets: Vec<Identifier>, function: Identifier, arguments: Vec<ParsedValue> },
     Cast { target: Identifier, lhs: ParsedValue, typ: Type },

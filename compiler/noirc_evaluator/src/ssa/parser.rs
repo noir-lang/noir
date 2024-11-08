@@ -217,6 +217,17 @@ impl<'a> Parser<'a> {
                 }));
             }
 
+            if self.eat_keyword(Keyword::ArraySet)? {
+                let array = self.parse_value_or_error()?;
+                self.eat_or_error(Token::Comma)?;
+                self.eat_or_error(Token::Keyword(Keyword::Index))?;
+                let index = self.parse_value_or_error()?;
+                self.eat_or_error(Token::Comma)?;
+                self.eat_or_error(Token::Keyword(Keyword::Value))?;
+                let value = self.parse_value_or_error()?;
+                return Ok(Some(ParsedInstruction::ArraySet { target, array, index, value }));
+            }
+
             if self.eat_keyword(Keyword::Cast)? {
                 let lhs = self.parse_value_or_error()?;
                 self.eat_or_error(Token::Keyword(Keyword::As))?;
