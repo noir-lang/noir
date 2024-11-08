@@ -323,6 +323,7 @@ mod test {
             types::Type,
             value::{Value, ValueId},
         },
+        Ssa,
     };
     use acvm::{acir::AcirField, FieldElement};
 
@@ -538,47 +539,30 @@ mod test {
 
     #[test]
     fn instruction_deduplication() {
-        // fn main f0 {
-        //   b0(v0: u16):
-        //     v1 = cast v0 as u32
-        //     v2 = cast v0 as u32
-        //     constrain v1 v2
-        // }
-        //
         // After constructing this IR, we run constant folding which should replace the second cast
         // with a reference to the results to the first. This then allows us to optimize away
         // the constrain instruction as both inputs are known to be equal.
         //
         // The first cast instruction is retained and will be removed in the dead instruction elimination pass.
-        let main_id = Id::test_new(0);
-
-        // Compiling main
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-        let v0 = builder.add_parameter(Type::unsigned(16));
-
-        let v1 = builder.insert_cast(v0, Type::unsigned(32));
-        let v2 = builder.insert_cast(v0, Type::unsigned(32));
-        builder.insert_constrain(v1, v2, None);
-
-        let mut ssa = builder.finish();
-        let main = ssa.main_mut();
-        let instructions = main.dfg[main.entry_block()].instructions();
-        assert_eq!(instructions.len(), 3);
-
-        // Expected output:
-        //
-        // fn main f0 {
-        //   b0(v0: u16):
-        //     v1 = cast v0 as u32
-        // }
+        let src = "
+acir(inline) fn main f0 {
+  b0(v0: u16):
+    v1 = cast v0 as u32
+    v2 = cast v0 as u32
+    constrain v1 == v2
+    return
+}
+        ";
+        let expected = "
+acir(inline) fn main f0 {
+  b0(v0: u16):
+    v4 = cast v0 as u32
+    return
+}
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.fold_constants();
-        let main = ssa.main();
-        let instructions = main.dfg[main.entry_block()].instructions();
-
-        assert_eq!(instructions.len(), 1);
-        let instruction = &main.dfg[instructions[0]];
-
-        assert_eq!(instruction, &Instruction::Cast(v0, Type::unsigned(32)));
+        assert_eq!(ssa.to_string().trim(), expected.trim());
     }
 
     #[test]
