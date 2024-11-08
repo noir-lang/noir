@@ -110,7 +110,7 @@ mod tests {
         //   D (seen)
         // } -> push(A)
         // Result:
-        // D, F, E, B, A, (C dropped as unreachable)
+        // F, E, B, D, A, (C dropped as unreachable)
 
         let func_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("func".into(), func_id);
@@ -151,6 +151,6 @@ mod tests {
         let func = ssa.main();
         let post_order = PostOrder::with_function(func);
         let block_a_id = func.entry_block();
-        assert_eq!(post_order.0, [block_d_id, block_f_id, block_e_id, block_b_id, block_a_id]);
+        assert_eq!(post_order.0, [block_f_id, block_e_id, block_b_id, block_d_id, block_a_id]);
     }
 }
