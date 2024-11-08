@@ -34,7 +34,11 @@ impl Function {
             assert_eq!(reachable_blocks.len(), 1, "Expected there to be 1 block remaining in Acir function for array_set optimization");
         }
 
-        let mut context = Context::new(&self.dfg, matches!(self.runtime(), RuntimeType::Brillig));
+        let mut context = Context::new(
+            &self.dfg,
+            self.parameters(),
+            matches!(self.runtime(), RuntimeType::Brillig(_)),
+        );
 
         for block in reachable_blocks.iter() {
             context.analyze_last_uses(*block);
@@ -49,21 +53,29 @@ impl Function {
 
 struct Context<'f> {
     dfg: &'f DataFlowGraph,
+    function_parameters: &'f [ValueId],
     is_brillig_runtime: bool,
     array_to_last_use: HashMap<ValueId, InstructionId>,
     instructions_that_can_be_made_mutable: HashSet<InstructionId>,
-    arrays_from_load: HashSet<ValueId>,
+    // Mapping of an array that comes from a load and whether the address
+    // it was loaded from is a reference parameter passed to the block.
+    arrays_from_load: HashMap<ValueId, bool>,
     inner_nested_arrays: HashMap<ValueId, InstructionId>,
 }
 
 impl<'f> Context<'f> {
-    fn new(dfg: &'f DataFlowGraph, is_brillig_runtime: bool) -> Self {
+    fn new(
+        dfg: &'f DataFlowGraph,
+        function_parameters: &'f [ValueId],
+        is_brillig_runtime: bool,
+    ) -> Self {
         Context {
             dfg,
+            function_parameters,
             is_brillig_runtime,
             array_to_last_use: HashMap::default(),
             instructions_that_can_be_made_mutable: HashSet::default(),
-            arrays_from_load: HashSet::default(),
+            arrays_from_load: HashMap::default(),
             inner_nested_arrays: HashMap::default(),
         }
     }
@@ -102,19 +114,34 @@ impl<'f> Context<'f> {
                     // If the array comes from a load we may potentially being mutating an array at a reference
                     // that is loaded from by other values.
                     let terminator = self.dfg[block_id].unwrap_terminator();
+
                     // If we are in a return block we are not concerned about the array potentially being mutated again.
                     let is_return_block =
                         matches!(terminator, TerminatorInstruction::Return { .. });
+
                     // We also want to check that the array is not part of the terminator arguments, as this means it is used again.
-                    let mut array_in_terminator = false;
+                    let mut is_array_in_terminator = false;
                     terminator.for_each_value(|value| {
-                        if value == array {
-                            array_in_terminator = true;
+                        // The terminator can contain original IDs, while the SSA has replaced the array value IDs; we need to resolve to compare.
+                        if !is_array_in_terminator && self.dfg.resolve(value) == array {
+                            is_array_in_terminator = true;
                         }
                     });
-                    if (!self.arrays_from_load.contains(&array) || is_return_block)
-                        && !array_in_terminator
+
+                    // We cannot safely mutate slices that are inputs to the function, as they might be shared with the caller.
+                    // NB checking the block parameters is not enough, as we might have jumped into a parameterless blocks inside the function.
+                    let is_function_param = self.function_parameters.contains(&array);
+
+                    let can_mutate = if let Some(is_from_param) = self.arrays_from_load.get(&array)
                     {
+                        // If the array was loaded from a reference parameter, we cannot
+                        // safely mark that array mutable as it may be shared by another value.
+                        !is_from_param && is_return_block
+                    } else {
+                        !is_array_in_terminator && !is_function_param
+                    };
+
+                    if can_mutate {
                         self.instructions_that_can_be_made_mutable.insert(*instruction_id);
                     }
                 }
@@ -132,10 +159,12 @@ impl<'f> Context<'f> {
                         }
                     }
                 }
-                Instruction::Load { .. } => {
+                Instruction::Load { address } => {
                     let result = self.dfg.instruction_results(*instruction_id)[0];
                     if matches!(self.dfg.type_of_value(result), Array { .. } | Slice { .. }) {
-                        self.arrays_from_load.insert(result);
+                        let is_reference_param =
+                            self.dfg.block_parameters(block_id).contains(address);
+                        self.arrays_from_load.insert(result, is_reference_param);
                     }
                 }
                 _ => (),
@@ -180,6 +209,7 @@ mod tests {
     use std::sync::Arc;
 
     use im::vector;
+    use noirc_frontend::monomorphization::ast::InlineType;
 
     use crate::ssa::{
         function_builder::FunctionBuilder,
@@ -227,7 +257,7 @@ mod tests {
         //   }
         let main_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("main".into(), main_id);
-        builder.set_runtime(RuntimeType::Brillig);
+        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
 
         let array_type = Type::Array(Arc::new(vec![Type::field()]), 5);
         let zero = builder.field_constant(0u128);

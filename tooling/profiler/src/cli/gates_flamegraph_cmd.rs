@@ -84,7 +84,7 @@ fn run_with_provider<Provider: GatesProvider, Generator: FlamegraphGenerator>(
             .zip(bytecode.opcodes)
             .enumerate()
             .map(|(index, (gates, opcode))| Sample {
-                opcode: AcirOrBrilligOpcode::Acir(opcode),
+                opcode: Some(AcirOrBrilligOpcode::Acir(opcode)),
                 call_stack: vec![OpcodeLocation::Acir(index)],
                 count: gates,
                 brillig_function_id: None,

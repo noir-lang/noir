@@ -60,9 +60,7 @@ pub(super) fn simplify_call(
                 } else {
                     unreachable!("ICE: Intrinsic::ToRadix return type must be array")
                 };
-                let result_array = constant_to_radix(endian, field, 2, limb_count, dfg);
-
-                SimplifyResult::SimplifiedTo(result_array)
+                constant_to_radix(endian, field, 2, limb_count, dfg)
             } else {
                 SimplifyResult::None
             }
@@ -79,10 +77,7 @@ pub(super) fn simplify_call(
                 } else {
                     unreachable!("ICE: Intrinsic::ToRadix return type must be array")
                 };
-
-                let result_array = constant_to_radix(endian, field, radix, limb_count, dfg);
-
-                SimplifyResult::SimplifiedTo(result_array)
+                constant_to_radix(endian, field, radix, limb_count, dfg)
             } else {
                 SimplifyResult::None
             }
@@ -166,6 +161,13 @@ pub(super) fn simplify_call(
             }
         }
         Intrinsic::SlicePopBack => {
+            let length = dfg.get_numeric_constant(arguments[0]);
+            if length.map_or(true, |length| length.is_zero()) {
+                // If the length is zero then we're trying to pop the last element from an empty slice.
+                // Defer the error to acir_gen.
+                return SimplifyResult::None;
+            }
+
             let slice = dfg.get_array_constant(arguments[1]);
             if let Some((_, typ)) = slice {
                 simplify_slice_pop_back(typ, arguments, dfg, block, call_stack.clone())
@@ -174,6 +176,13 @@ pub(super) fn simplify_call(
             }
         }
         Intrinsic::SlicePopFront => {
+            let length = dfg.get_numeric_constant(arguments[0]);
+            if length.map_or(true, |length| length.is_zero()) {
+                // If the length is zero then we're trying to pop the first element from an empty slice.
+                // Defer the error to acir_gen.
+                return SimplifyResult::None;
+            }
+
             let slice = dfg.get_array_constant(arguments[1]);
             if let Some((mut slice, typ)) = slice {
                 let element_count = typ.element_size();
@@ -225,6 +234,13 @@ pub(super) fn simplify_call(
             }
         }
         Intrinsic::SliceRemove => {
+            let length = dfg.get_numeric_constant(arguments[0]);
+            if length.map_or(true, |length| length.is_zero()) {
+                // If the length is zero then we're trying to remove an element from an empty slice.
+                // Defer the error to acir_gen.
+                return SimplifyResult::None;
+            }
+
             let slice = dfg.get_array_constant(arguments[1]);
             let index = dfg.get_numeric_constant(arguments[2]);
             if let (Some((mut slice, typ)), Some(index)) = (slice, index) {
@@ -337,6 +353,16 @@ pub(super) fn simplify_call(
                 simplify_derive_generators(dfg, arguments, *len as u32)
             } else {
                 unreachable!("Derive Pedersen Generators must return an array");
+            }
+        }
+        Intrinsic::FieldLessThan => {
+            if let Some(constants) = constant_args {
+                let lhs = constants[0];
+                let rhs = constants[1];
+                let result = dfg.make_constant((lhs < rhs).into(), Type::bool());
+                SimplifyResult::SimplifiedTo(result)
+            } else {
+                SimplifyResult::None
             }
         }
     }
@@ -517,9 +543,6 @@ fn simplify_black_box_func(
                 SimplifyResult::None
             }
         }
-        BlackBoxFunc::Keccak256 => {
-            unreachable!("Keccak256 should have been replaced by calls to Keccakf1600")
-        }
         BlackBoxFunc::Poseidon2Permutation => {
             blackbox::simplify_poseidon2_permutation(dfg, solver, arguments)
         }
@@ -534,9 +557,7 @@ fn simplify_black_box_func(
             acvm::blackbox_solver::ecdsa_secp256r1_verify,
         ),
 
-        BlackBoxFunc::PedersenCommitment
-        | BlackBoxFunc::PedersenHash
-        | BlackBoxFunc::MultiScalarMul => SimplifyResult::None,
+        BlackBoxFunc::MultiScalarMul => SimplifyResult::None,
         BlackBoxFunc::EmbeddedCurveAdd => blackbox::simplify_ec_add(dfg, solver, arguments),
         BlackBoxFunc::SchnorrVerify => blackbox::simplify_schnorr_verify(dfg, solver, arguments),
 
@@ -590,7 +611,7 @@ fn constant_to_radix(
     radix: u32,
     limb_count: u32,
     dfg: &mut DataFlowGraph,
-) -> ValueId {
+) -> SimplifyResult {
     let bit_size = u32::BITS - (radix - 1).leading_zeros();
     let radix_big = BigUint::from(radix);
     assert_eq!(BigUint::from(2u128).pow(bit_size), radix_big, "ICE: Radix must be a power of 2");
@@ -598,14 +619,21 @@ fn constant_to_radix(
 
     // Decompose the integer into its radix digits in little endian form.
     let decomposed_integer = big_integer.to_radix_le(radix);
-    let mut limbs = vecmap(0..limb_count, |i| match decomposed_integer.get(i as usize) {
-        Some(digit) => FieldElement::from_be_bytes_reduce(&[*digit]),
-        None => FieldElement::zero(),
-    });
-    if endian == Endian::Big {
-        limbs.reverse();
+    if limb_count < decomposed_integer.len() as u32 {
+        // `field` cannot be represented as `limb_count` bits.
+        // defer error to acir_gen.
+        SimplifyResult::None
+    } else {
+        let mut limbs = vecmap(0..limb_count, |i| match decomposed_integer.get(i as usize) {
+            Some(digit) => FieldElement::from_be_bytes_reduce(&[*digit]),
+            None => FieldElement::zero(),
+        });
+        if endian == Endian::Big {
+            limbs.reverse();
+        }
+        let result_array = make_constant_array(dfg, limbs, Type::unsigned(bit_size));
+        SimplifyResult::SimplifiedTo(result_array)
     }
-    make_constant_array(dfg, limbs, Type::unsigned(bit_size))
 }
 
 fn to_u8_vec(dfg: &DataFlowGraph, values: im::Vector<Id<Value>>) -> Vec<u8> {

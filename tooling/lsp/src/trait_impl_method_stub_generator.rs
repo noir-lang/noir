@@ -98,9 +98,9 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                 }
                 self.append_type(&constraint.typ);
                 self.string.push_str(": ");
-                let trait_ = self.interner.get_trait(constraint.trait_id);
+                let trait_ = self.interner.get_trait(constraint.trait_bound.trait_id);
                 self.string.push_str(&trait_.name.0.contents);
-                self.append_trait_generics(&constraint.trait_generics);
+                self.append_trait_generics(&constraint.trait_bound.trait_generics);
             }
         }
 
@@ -368,6 +368,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                 self.string.push(' ');
                 self.append_type(right);
             }
+            Type::CheckedCast { to, .. } => self.append_type(to),
             Type::Constant(..)
             | Type::Integer(_, _)
             | Type::Bool

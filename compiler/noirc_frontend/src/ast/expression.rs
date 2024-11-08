@@ -98,7 +98,7 @@ impl UnresolvedGeneric {
             UnresolvedGeneric::Variable(_) => Ok(Kind::Normal),
             UnresolvedGeneric::Numeric { typ, .. } => {
                 let typ = self.resolve_numeric_kind_type(typ)?;
-                Ok(Kind::Numeric(Box::new(typ)))
+                Ok(Kind::numeric(typ))
             }
             UnresolvedGeneric::Resolved(..) => {
                 panic!("Don't know the kind of a resolved generic here")
@@ -309,6 +309,7 @@ impl Expression {
 pub type BinaryOp = Spanned<BinaryOpKind>;
 
 #[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Copy, Clone)]
+#[cfg_attr(test, derive(strum_macros::EnumIter))]
 pub enum BinaryOpKind {
     Add,
     Subtract,
@@ -503,7 +504,7 @@ impl FunctionDefinition {
     }
 
     pub fn is_test(&self) -> bool {
-        if let Some(attribute) = &self.attributes.function {
+        if let Some(attribute) = self.attributes.function() {
             matches!(attribute, FunctionAttribute::Test(..))
         } else {
             false
@@ -801,8 +802,8 @@ impl Display for AsTraitPath {
 impl Display for TypePath {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}::{}", self.typ, self.item)?;
-        if !self.turbofish.is_empty() {
-            write!(f, "::{}", self.turbofish)?;
+        if let Some(turbofish) = &self.turbofish {
+            write!(f, "::{}", turbofish)?;
         }
         Ok(())
     }
@@ -873,7 +874,7 @@ impl FunctionDefinition {
 impl Display for FunctionDefinition {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "{:?}", self.attributes)?;
-        write!(f, "fn {} {}", self.signature(), self.body)
+        write!(f, "{} {}", self.signature(), self.body)
     }
 }
 

@@ -1,8 +1,7 @@
 use std::ops::Neg;
 
 fn main() {
-    comptime
-    {
+    comptime {
         // impl Eq for Field
         assert(3 == 3);
 
@@ -26,9 +25,8 @@ impl Neg for MyType {
     }
 }
 
-fn neg_at_comptime() {
-    comptime
-    {
+pub fn neg_at_comptime() {
+    comptime {
         let value = MyType { value: 1 };
         let _result = -value;
     }

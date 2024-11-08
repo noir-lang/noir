@@ -1,0 +1,7 @@
+[package]
+name = "invalid_comptime_bits_decomposition"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.30.0"
+
+[dependencies]

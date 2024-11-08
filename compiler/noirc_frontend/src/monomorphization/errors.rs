@@ -1,16 +1,21 @@
 use noirc_errors::{CustomDiagnostic, FileDiagnostic, Location};
 
-use crate::{hir::comptime::InterpreterError, Type};
+use crate::{
+    hir::{comptime::InterpreterError, type_check::TypeCheckError},
+    Type,
+};
 
 #[derive(Debug)]
 pub enum MonomorphizationError {
-    UnknownArrayLength { length: Type, location: Location },
+    UnknownArrayLength { length: Type, err: TypeCheckError, location: Location },
     UnknownConstant { location: Location },
     NoDefaultType { location: Location },
     InternalError { message: &'static str, location: Location },
     InterpreterError(InterpreterError),
     ComptimeFnInRuntimeCode { name: String, location: Location },
     ComptimeTypeInRuntimeCode { typ: String, location: Location },
+    CheckedTransmuteFailed { actual: Type, expected: Type, location: Location },
+    CheckedCastFailed { actual: Type, expected: Type, location: Location },
 }
 
 impl MonomorphizationError {
@@ -21,6 +26,8 @@ impl MonomorphizationError {
             | MonomorphizationError::InternalError { location, .. }
             | MonomorphizationError::ComptimeFnInRuntimeCode { location, .. }
             | MonomorphizationError::ComptimeTypeInRuntimeCode { location, .. }
+            | MonomorphizationError::CheckedTransmuteFailed { location, .. }
+            | MonomorphizationError::CheckedCastFailed { location, .. }
             | MonomorphizationError::NoDefaultType { location, .. } => *location,
             MonomorphizationError::InterpreterError(error) => error.get_location(),
         }
@@ -39,11 +46,17 @@ impl From<MonomorphizationError> for FileDiagnostic {
 impl MonomorphizationError {
     fn into_diagnostic(self) -> CustomDiagnostic {
         let message = match &self {
-            MonomorphizationError::UnknownArrayLength { length, .. } => {
-                format!("Could not determine array length `{length}`")
+            MonomorphizationError::UnknownArrayLength { length, err, .. } => {
+                format!("Could not determine array length `{length}`, encountered error: `{err}`")
             }
             MonomorphizationError::UnknownConstant { .. } => {
                 "Could not resolve constant".to_string()
+            }
+            MonomorphizationError::CheckedTransmuteFailed { actual, expected, .. } => {
+                format!("checked_transmute failed: `{actual:?}` != `{expected:?}`")
+            }
+            MonomorphizationError::CheckedCastFailed { actual, expected, .. } => {
+                format!("Arithmetic generics simplification failed: `{actual:?}` != `{expected:?}`")
             }
             MonomorphizationError::NoDefaultType { location } => {
                 let message = "Type annotation needed".into();

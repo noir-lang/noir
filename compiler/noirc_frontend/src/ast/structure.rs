@@ -19,8 +19,15 @@ pub struct NoirStruct {
     pub span: Span,
 }
 
+impl NoirStruct {
+    pub fn is_abi(&self) -> bool {
+        self.attributes.iter().any(|attr| attr.is_abi())
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct StructField {
+    pub visibility: ItemVisibility,
     pub name: Ident,
     pub typ: UnresolvedType,
 }

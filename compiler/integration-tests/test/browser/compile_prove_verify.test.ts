@@ -4,7 +4,7 @@ import * as TOML from 'smol-toml';
 import { compile, createFileManager } from '@noir-lang/noir_wasm';
 import { Noir } from '@noir-lang/noir_js';
 import { InputMap } from '@noir-lang/noirc_abi';
-import { BarretenbergBackend } from '@noir-lang/backend_barretenberg';
+import { UltraPlonkBackend } from '@aztec/bb.js';
 
 import { getFile } from './utils.js';
 
@@ -59,7 +59,7 @@ test_cases.forEach((testInfo) => {
     const program = new Noir(noir_program);
     const { witness } = await program.execute(inputs);
 
-    const backend = new BarretenbergBackend(noir_program);
+    const backend = new UltraPlonkBackend(noir_program.bytecode);
     const proof = await backend.generateProof(witness);
 
     // JS verification

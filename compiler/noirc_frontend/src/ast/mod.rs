@@ -19,6 +19,10 @@ pub use visitor::Visitor;
 pub use expression::*;
 pub use function::*;
 
+#[cfg(test)]
+use proptest_derive::Arbitrary;
+
+use acvm::FieldElement;
 pub use docs::*;
 use noirc_errors::Span;
 use serde::{Deserialize, Serialize};
@@ -36,6 +40,7 @@ use crate::{
 use acvm::acir::AcirField;
 use iter_extended::vecmap;
 
+#[cfg_attr(test, derive(Arbitrary))]
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Ord, PartialOrd)]
 pub enum IntegerBitSize {
     One,
@@ -172,6 +177,12 @@ pub enum GenericTypeArg {
     Named(Ident, UnresolvedType),
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub enum GenericTypeArgKind {
+    Ordered,
+    Named,
+}
+
 #[derive(Debug, Default, PartialEq, Eq, Clone, Hash)]
 pub struct GenericTypeArgs {
     /// Each ordered argument, e.g. `<A, B, C>`
@@ -180,6 +191,9 @@ pub struct GenericTypeArgs {
     /// All named arguments, e.g. `<A = B, C = D, E = F>`.
     /// Used for associated types.
     pub named_args: Vec<(Ident, UnresolvedType)>,
+
+    /// The kind of each argument, in order (in case traversing the generics in order is needed)
+    pub kinds: Vec<GenericTypeArgKind>,
 }
 
 impl GenericTypeArgs {
@@ -219,7 +233,7 @@ pub struct UnaryRhsMethodCall {
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum UnresolvedTypeExpression {
     Variable(Path),
-    Constant(u32, Span),
+    Constant(FieldElement, Span),
     BinaryOperation(
         Box<UnresolvedTypeExpression>,
         BinaryTypeOperator,
@@ -350,7 +364,11 @@ impl UnresolvedType {
         let last_segment = path.segments.last_mut().unwrap();
         let generics = last_segment.generics.take();
         let generic_type_args = if let Some(generics) = generics {
-            GenericTypeArgs { ordered_args: generics, named_args: Vec::new() }
+            let mut kinds = Vec::with_capacity(generics.len());
+            for _ in 0..generics.len() {
+                kinds.push(GenericTypeArgKind::Ordered);
+            }
+            GenericTypeArgs { ordered_args: generics, named_args: Vec::new(), kinds }
         } else {
             GenericTypeArgs::default()
         };
@@ -421,12 +439,13 @@ impl UnresolvedTypeExpression {
     fn from_expr_helper(expr: Expression) -> Result<UnresolvedTypeExpression, Expression> {
         match expr.kind {
             ExpressionKind::Literal(Literal::Integer(int, _)) => match int.try_to_u32() {
-                Some(int) => Ok(UnresolvedTypeExpression::Constant(int, expr.span)),
+                Some(int) => Ok(UnresolvedTypeExpression::Constant(int.into(), expr.span)),
                 None => Err(expr),
             },
             ExpressionKind::Variable(path) => Ok(UnresolvedTypeExpression::Variable(path)),
             ExpressionKind::Prefix(prefix) if prefix.operator == UnaryOp::Minus => {
-                let lhs = Box::new(UnresolvedTypeExpression::Constant(0, expr.span));
+                let lhs =
+                    Box::new(UnresolvedTypeExpression::Constant(FieldElement::zero(), expr.span));
                 let rhs = Box::new(UnresolvedTypeExpression::from_expr_helper(prefix.rhs)?);
                 let op = BinaryTypeOperator::Subtraction;
                 Ok(UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, expr.span))

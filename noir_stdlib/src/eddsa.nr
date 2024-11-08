@@ -1,8 +1,8 @@
+use crate::default::Default;
 use crate::ec::consts::te::baby_jubjub;
 use crate::ec::tecurve::affine::Point as TEPoint;
 use crate::hash::Hasher;
 use crate::hash::poseidon::PoseidonHasher;
-use crate::default::Default;
 
 // Returns true if signature is valid
 pub fn eddsa_poseidon_verify(
@@ -11,7 +11,7 @@ pub fn eddsa_poseidon_verify(
     signature_s: Field,
     signature_r8_x: Field,
     signature_r8_y: Field,
-    message: Field
+    message: Field,
 ) -> bool {
     eddsa_verify::<PoseidonHasher>(
         pub_key_x,
@@ -19,7 +19,7 @@ pub fn eddsa_poseidon_verify(
         signature_s,
         signature_r8_x,
         signature_r8_y,
-        message
+        message,
     )
 }
 
@@ -29,9 +29,11 @@ pub fn eddsa_verify<H>(
     signature_s: Field,
     signature_r8_x: Field,
     signature_r8_y: Field,
-    message: Field
-) -> bool 
-where H: Hasher + Default {
+    message: Field,
+) -> bool
+where
+    H: Hasher + Default,
+{
     // Verifies by testing:
     // S * B8 = R8 + H(R8, A, m) * A8
     let bjj = baby_jubjub();
