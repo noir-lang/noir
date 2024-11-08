@@ -18,8 +18,6 @@ This guide shows you how to use oracles in your Noir program. For the sake of cl
 - You understand the concept of a JSON-RPC server. Visit the [JSON-RPC website](https://www.jsonrpc.org/) if you need a refresher.
 - You are comfortable with server-side JavaScript (e.g. Node.js, managing packages, etc.).
 
-For reference, you can find the snippets used in this tutorial on the [Aztec DevRel Repository](https://github.com/AztecProtocol/dev-rel/tree/main/code-snippets/how-to-oracles).
-
 ## Rundown
 
 This guide has 3 major steps:
@@ -99,6 +97,12 @@ fn main(input: [Field; 2]) {
     assert(sqrt[0].pow_32(2) as u64 == input[0] as u64);
     assert(sqrt[1].pow_32(2) as u64 == input[1] as u64);
 }
+
+#[test]
+fn test() {
+    let input = [4, 16];
+    main(input);
+}
 ```
 
 :::info
@@ -137,38 +141,32 @@ app.listen(5555);
 Now, we will add our `getSqrt` method, as expected by the `#[oracle(getSqrt)]` decorator in our Noir code. It maps through the params array and returns their square roots:
 
 ```js
-server.addMethod("resolve_function_call", async (params) => {
-  if params.function !== "getSqrt" {
-    throw Error("Unexpected foreign call")
-  };
-  const values = params.inputs[0].Array.map((field) => {
-    return `${Math.sqrt(parseInt(field, 16))}`;
-  });
-  return { values: [{ Array: values }] };
+server.addMethod("resolve_foreign_call", async (params) => {
+    if (params[0].function !== "getSqrt") {
+        throw Error("Unexpected foreign call")
+    };
+    const values = params[0].inputs[0].map((field) => {
+        return `${Math.sqrt(parseInt(field, 16))}`;
+    });
+    return { values: [values] };
 });
 ```
 
 If you're using Typescript, the following types may be helpful in understanding the expected return value and making sure they're easy to follow:
 
 ```js
-interface SingleForeignCallParam {
-  Single: string,
-}
+export type ForeignCallSingle = string;
 
-interface ArrayForeignCallParam {
-  Array: string[],
-}
+export type ForeignCallArray = string[];
 
-type ForeignCallParam = SingleForeignCallParam | ArrayForeignCallParam;
-
-interface ForeignCallResult {
-  values: ForeignCallParam[],
-}
+export type ForeignCallResult = {
+  values: (ForeignCallSingle | ForeignCallArray)[];
+};
 ```
 
-::: Multidimensional Arrays
+:::info Multidimensional Arrays
 
-If the Oracle function is returning an array containing other arrays, such as `[['1','2],['3','4']]`, you need to provide the values in json as flattened values. In the previous example, it would be `['1', '2', '3', '4']`. In the noir program, the Oracle signature can use a nested type, the flattened values will be automatically converted to the nested type.
+If the Oracle function is returning an array containing other arrays, such as `[['1','2],['3','4']]`, you need to provide the values in JSON as flattened values. In the previous example, it would be `['1', '2', '3', '4']`. In the Noir program, the Oracle signature can use a nested type, the flattened values will be automatically converted to the nested type.
 
 :::
 
@@ -233,17 +231,21 @@ const client = new JSONRPCClient((jsonRPCRequest) => {
 
 // declaring a function that takes the name of the foreign call (getSqrt) and the inputs
 const foreignCallHandler = async (name, input) => {
-    // notice that the "inputs" parameter contains *all* the inputs
-    // in this case we make the RPC request with the first parameter "numbers", which would be input[0]
-    const oracleReturn = await client.request(name, [
-      input[0].map((i) => i.toString("hex")),
-    ]);
-    return { values: oracleReturn };
+  const inputs = input[0].map((i) => i.toString("hex"))
+  // notice that the "inputs" parameter contains *all* the inputs
+  // in this case we to make the RPC request with the first parameter "numbers", which would be input[0]
+  const oracleReturn = await client.request("resolve_foreign_call", [
+    {
+      function: name,
+      inputs: [inputs]
+    },
+  ]);
+  return [oracleReturn.values[0]];
 };
 
 // the rest of your NoirJS code
 const input = { input: [4, 16] };
-const { witness } = await noir.execute(numbers, foreignCallHandler);
+const { witness } = await noir.execute(input, foreignCallHandler);
 ```
 
 :::tip
