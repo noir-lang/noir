@@ -67,8 +67,10 @@ impl Token {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub(crate) enum Keyword {
     Acir,
+    As,
     Brillig,
     Call,
+    Cast,
     Inline,
     InlineAlways,
     Else,
@@ -87,8 +89,10 @@ impl Keyword {
     pub(crate) fn lookup_keyword(word: &str) -> Option<Token> {
         let keyword = match word {
             "acir" => Keyword::Acir,
+            "as" => Keyword::As,
             "brillig" => Keyword::Brillig,
             "call" => Keyword::Call,
+            "cast" => Keyword::Cast,
             "else" => Keyword::Else,
             "inline" => Keyword::Inline,
             "inline_always" => Keyword::InlineAlways,

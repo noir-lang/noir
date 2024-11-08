@@ -31,7 +31,7 @@ pub(crate) struct ParsedParameter {
     pub(crate) typ: Type,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct Identifier {
     pub(crate) name: String,
     pub(crate) span: Span,
@@ -46,6 +46,7 @@ impl Identifier {
 #[derive(Debug)]
 pub(crate) enum ParsedInstruction {
     Call { targets: Vec<Identifier>, function: Identifier, arguments: Vec<ParsedValue> },
+    Cast { target: Identifier, lhs: ParsedValue, typ: Type },
 }
 
 #[derive(Debug)]

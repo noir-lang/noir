@@ -175,13 +175,29 @@ impl<'a> Parser<'a> {
             }
 
             self.eat_or_error(Token::Assign)?;
+
             if self.eat_keyword(Keyword::Call)? {
                 let function = self.eat_identifier_or_error()?;
                 let arguments = self.parse_arguments()?;
                 return Ok(Some(ParsedInstruction::Call { targets, function, arguments }));
-            } else {
-                return self.expected_instruction_or_terminator();
             }
+
+            if targets.len() > 1 {
+                return Err(ParserError::MultipleReturnValuesOnlyAllowedForCall {
+                    second_target: targets[1].clone(),
+                });
+            }
+
+            let target = targets.remove(0);
+
+            if self.eat_keyword(Keyword::Cast)? {
+                let lhs = self.parse_value_or_error()?;
+                self.eat_or_error(Token::Keyword(Keyword::As))?;
+                let typ = self.parse_type()?;
+                return Ok(Some(ParsedInstruction::Cast { target, lhs, typ }));
+            }
+
+            return self.expected_instruction_or_terminator();
         }
 
         Ok(None)
@@ -566,6 +582,7 @@ pub(crate) enum ParserError {
     ExpectedType { found: Token, span: Span },
     ExpectedInstructionOrTerminator { found: Token, span: Span },
     ExpectedValue { found: Token, span: Span },
+    MultipleReturnValuesOnlyAllowedForCall { second_target: Identifier },
 }
 
 fn eof_spanned_token() -> SpannedToken {

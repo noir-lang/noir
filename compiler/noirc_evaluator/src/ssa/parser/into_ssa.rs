@@ -159,6 +159,12 @@ impl Translator {
                     entry.insert(target.name, *value_id);
                 }
             }
+            ParsedInstruction::Cast { target, lhs, typ } => {
+                let lhs = self.translate_value(lhs)?;
+                let value_id = self.builder.insert_cast(lhs, typ);
+                let entry = self.variables.entry(self.current_function_id()).or_default();
+                entry.insert(target.name, value_id);
+            }
         }
 
         Ok(())
