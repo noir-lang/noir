@@ -6,7 +6,7 @@ use crate::ssa::ir::{
     dfg::{CallStack, DataFlowGraph, InsertInstructionResult},
     instruction::{BinaryOp, Instruction},
     types::Type,
-    value::{Value, ValueId},
+    value::{RawValueId, Value, ValueId},
 };
 
 pub(crate) struct ValueMerger<'a> {
@@ -17,9 +17,9 @@ pub(crate) struct ValueMerger<'a> {
 
     // Maps SSA array values with a slice type to their size.
     // This must be computed before merging values.
-    slice_sizes: &'a mut HashMap<ValueId, usize>,
+    slice_sizes: &'a mut HashMap<RawValueId, usize>,
 
-    array_set_conditionals: &'a mut HashMap<ValueId, ValueId>,
+    array_set_conditionals: &'a mut HashMap<RawValueId, ValueId>,
 
     call_stack: CallStack,
 }
@@ -28,8 +28,8 @@ impl<'a> ValueMerger<'a> {
     pub(crate) fn new(
         dfg: &'a mut DataFlowGraph,
         block: BasicBlockId,
-        slice_sizes: &'a mut HashMap<ValueId, usize>,
-        array_set_conditionals: &'a mut HashMap<ValueId, ValueId>,
+        slice_sizes: &'a mut HashMap<RawValueId, usize>,
+        array_set_conditionals: &'a mut HashMap<RawValueId, ValueId>,
         current_condition: Option<ValueId>,
         call_stack: CallStack,
     ) -> Self {
@@ -62,8 +62,11 @@ impl<'a> ValueMerger<'a> {
         let else_value = self.dfg.resolve(else_value);
 
         if then_value == else_value {
-            return then_value;
+            return then_value.into();
         }
+
+        let then_value = then_value.into();
+        let else_value = else_value.into();
 
         match self.dfg.type_of_value(then_value) {
             Type::Numeric(_) => Self::merge_numeric_values(
@@ -102,7 +105,7 @@ impl<'a> ValueMerger<'a> {
             "Expected values merged to be of the same type but found {then_type} and {else_type}"
         );
 
-        if then_value == else_value {
+        if then_value.unresolved_eq(&else_value) {
             return then_value;
         }
 
@@ -220,14 +223,14 @@ impl<'a> ValueMerger<'a> {
             _ => panic!("Expected slice type"),
         };
 
-        let then_len = self.slice_sizes.get(&then_value_id).copied().unwrap_or_else(|| {
+        let then_len = self.slice_sizes.get(&then_value_id.raw()).copied().unwrap_or_else(|| {
             let (slice, typ) = self.dfg.get_array_constant(then_value_id).unwrap_or_else(|| {
                 panic!("ICE: Merging values during flattening encountered slice {then_value_id} without a preset size");
             });
             slice.len() / typ.element_types().len()
         });
 
-        let else_len = self.slice_sizes.get(&else_value_id).copied().unwrap_or_else(|| {
+        let else_len = self.slice_sizes.get(&else_value_id.raw()).copied().unwrap_or_else(|| {
             let (slice, typ) = self.dfg.get_array_constant(else_value_id).unwrap_or_else(|| {
                 panic!("ICE: Merging values during flattening encountered slice {else_value_id} without a preset size");
             });
@@ -336,26 +339,28 @@ impl<'a> ValueMerger<'a> {
         // ancestor if it exists, alone with the path to it from each starting node.
         // This path will be the indices that were changed to create each result array.
         for _ in 0..max_iters {
-            if current_then == else_value {
+            if current_then.unresolved_eq(&else_value) {
                 seen_else.clear();
                 found = true;
                 break;
             }
 
-            if current_else == then_value {
+            if current_else.unresolved_eq(&then_value) {
                 seen_then.clear();
                 found = true;
                 break;
             }
 
-            if let Some(index) = seen_then.iter().position(|(elem, _, _, _)| *elem == current_else)
+            if let Some(index) =
+                seen_then.iter().position(|(elem, _, _, _)| current_else.unresolved_eq(elem))
             {
                 seen_else.truncate(index);
                 found = true;
                 break;
             }
 
-            if let Some(index) = seen_else.iter().position(|(elem, _, _, _)| *elem == current_then)
+            if let Some(index) =
+                seen_else.iter().position(|(elem, _, _, _)| current_then.unresolved_eq(elem))
             {
                 seen_then.truncate(index);
                 found = true;
@@ -366,10 +371,14 @@ impl<'a> ValueMerger<'a> {
             current_else = self.find_previous_array_set(current_else, &mut seen_else);
         }
 
-        let changed_indices: FxHashSet<_> = seen_then
+        let changed_indices: FxHashSet<(RawValueId, Type, RawValueId)> = seen_then
             .into_iter()
-            .map(|(_, index, typ, condition)| (index, typ, condition))
-            .chain(seen_else.into_iter().map(|(_, index, typ, condition)| (index, typ, condition)))
+            .map(|(_, index, typ, condition)| (index.raw(), typ, condition.raw()))
+            .chain(
+                seen_else
+                    .into_iter()
+                    .map(|(_, index, typ, condition)| (index.raw(), typ, condition.raw())),
+            )
             .collect();
 
         if !found || changed_indices.len() >= array_length {
@@ -381,11 +390,11 @@ impl<'a> ValueMerger<'a> {
         for (index, element_type, condition) in changed_indices {
             let typevars = Some(vec![element_type.clone()]);
 
-            let instruction = Instruction::EnableSideEffectsIf { condition };
+            let instruction = Instruction::EnableSideEffectsIf { condition: condition.into() };
             self.insert_instruction(instruction);
 
             let mut get_element = |array, typevars| {
-                let get = Instruction::ArrayGet { array, index };
+                let get = Instruction::ArrayGet { array, index: index.into() };
                 self.dfg
                     .insert_instruction_and_results(
                         get,
@@ -402,7 +411,8 @@ impl<'a> ValueMerger<'a> {
             let value =
                 self.merge_values(then_condition, else_condition, then_element, else_element);
 
-            array = self.insert_array_set(array, index, value, Some(condition)).first();
+            array =
+                self.insert_array_set(array, index.into(), value, Some(condition.into())).first();
         }
 
         let instruction = Instruction::EnableSideEffectsIf { condition: current_condition };
@@ -444,7 +454,7 @@ impl<'a> ValueMerger<'a> {
             };
 
             let result_value = result[result_index];
-            self.array_set_conditionals.insert(result_value, condition);
+            self.array_set_conditionals.insert(result_value.raw(), condition);
         }
 
         result
@@ -455,11 +465,11 @@ impl<'a> ValueMerger<'a> {
         result: ValueId,
         changed_indices: &mut Vec<(ValueId, ValueId, Type, ValueId)>,
     ) -> ValueId {
-        match &self.dfg[result] {
+        match &self.dfg[result.raw()] {
             Value::Instruction { instruction, .. } => match &self.dfg[*instruction] {
                 Instruction::ArraySet { array, index, value, .. } => {
                     let condition =
-                        *self.array_set_conditionals.get(&result).unwrap_or_else(|| {
+                        *self.array_set_conditionals.get(&result.raw()).unwrap_or_else(|| {
                             panic!(
                                 "Expected to have conditional for array set {result}\n{:?}",
                                 self.array_set_conditionals

@@ -34,7 +34,7 @@ impl Function {
                     _ => continue,
                 };
 
-                if let Value::Intrinsic(Intrinsic::IsUnconstrained) = &self.dfg[target_func] {
+                if let Value::Intrinsic(Intrinsic::IsUnconstrained) = &self.dfg[target_func.raw()] {
                     is_unconstrained_calls.insert(instruction_id);
                 }
             }

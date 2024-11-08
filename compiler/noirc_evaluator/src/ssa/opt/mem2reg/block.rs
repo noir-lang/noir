@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use crate::ssa::ir::{
     function::Function,
     instruction::{Instruction, InstructionId},
-    value::ValueId,
+    value::{Resolved, ResolvedValueId, ValueId},
 };
 
 use super::alias_set::AliasSet;
@@ -19,38 +19,38 @@ pub(super) struct Block {
     /// Maps a ValueId to the Expression it represents.
     /// Multiple ValueIds can map to the same Expression, e.g.
     /// dereferences to the same allocation.
-    pub(super) expressions: im::OrdMap<ValueId, Expression>,
+    pub(super) expressions: im::OrdMap<ResolvedValueId, Expression>,
 
     /// Each expression is tracked as to how many aliases it
     /// may have. If there is only 1, we can attempt to optimize
     /// out any known loads to that alias. Note that "alias" here
     /// includes the original reference as well.
-    pub(super) aliases: im::OrdMap<Expression, AliasSet>,
+    pub(super) aliases: im::OrdMap<Expression<Resolved>, AliasSet>,
 
     /// Each allocate instruction result (and some reference block parameters)
     /// will map to a Reference value which tracks whether the last value stored
     /// to the reference is known.
-    pub(super) references: im::OrdMap<ValueId, ReferenceValue>,
+    pub(super) references: im::OrdMap<ResolvedValueId, ReferenceValue>,
 
     /// The last instance of a `Store` instruction to each address in this block
-    pub(super) last_stores: im::OrdMap<ValueId, InstructionId>,
+    pub(super) last_stores: im::OrdMap<ResolvedValueId, InstructionId>,
 }
 
 /// An `Expression` here is used to represent a canonical key
 /// into the aliases map since otherwise two dereferences of the
 /// same address will be given different ValueIds.
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
-pub(super) enum Expression {
-    Dereference(Box<Expression>),
-    ArrayElement(Box<Expression>),
-    Other(ValueId),
+pub(super) enum Expression<R = Resolved> {
+    Dereference(Box<Expression<R>>),
+    ArrayElement(Box<Expression<R>>),
+    Other(ValueId<R>),
 }
 
 /// Every reference's value is either Known and can be optimized away, or Unknown.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub(super) enum ReferenceValue {
     Unknown,
-    Known(ValueId),
+    Known(ResolvedValueId),
 }
 
 impl ReferenceValue {
@@ -65,7 +65,7 @@ impl ReferenceValue {
 
 impl Block {
     /// If the given reference id points to a known value, return the value
-    pub(super) fn get_known_value(&self, address: ValueId) -> Option<ValueId> {
+    pub(super) fn get_known_value(&self, address: ResolvedValueId) -> Option<ResolvedValueId> {
         if let Some(expression) = self.expressions.get(&address) {
             if let Some(aliases) = self.aliases.get(expression) {
                 // We could allow multiple aliases if we check that the reference
@@ -81,15 +81,15 @@ impl Block {
     }
 
     /// If the given address is known, set its value to `ReferenceValue::Known(value)`.
-    pub(super) fn set_known_value(&mut self, address: ValueId, value: ValueId) {
+    pub(super) fn set_known_value(&mut self, address: ResolvedValueId, value: ResolvedValueId) {
         self.set_value(address, ReferenceValue::Known(value));
     }
 
-    pub(super) fn set_unknown(&mut self, address: ValueId) {
+    pub(super) fn set_unknown(&mut self, address: ResolvedValueId) {
         self.set_value(address, ReferenceValue::Unknown);
     }
 
-    fn set_value(&mut self, address: ValueId, value: ReferenceValue) {
+    fn set_value(&mut self, address: ResolvedValueId, value: ReferenceValue) {
         let expression = self.expressions.entry(address).or_insert(Expression::Other(address));
         let aliases = self.aliases.entry(expression.clone()).or_default();
 

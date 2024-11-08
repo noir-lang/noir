@@ -6,7 +6,7 @@ use crate::ssa::{
         function::{Function, FunctionId},
         map::SparseMap,
         post_order::PostOrder,
-        value::{Value, ValueId},
+        value::{RawValueId, Value, ValueId},
     },
     ssa_gen::Ssa,
 };
@@ -52,7 +52,7 @@ struct IdMaps {
 
     // Maps old value id -> new value id
     // Cleared in between each function.
-    values: HashMap<ValueId, ValueId>,
+    values: HashMap<RawValueId, ValueId>,
 }
 
 impl Context {
@@ -104,7 +104,7 @@ impl Context {
                 for (old_result, new_result) in old_results.iter().zip(new_results.results().iter())
                 {
                     let old_result = old_function.dfg.resolve(*old_result);
-                    self.new_ids.values.insert(old_result, *new_result);
+                    self.new_ids.values.insert(old_result.raw(), *new_result);
                 }
             }
 
@@ -145,7 +145,7 @@ impl IdMaps {
                 let old_parameter = old_function.dfg.resolve(old_parameter);
                 let typ = old_function.dfg.type_of_value(old_parameter);
                 let new_parameter = new_function.dfg.add_block_parameter(new_id, typ);
-                self.values.insert(old_parameter, new_parameter);
+                self.values.insert(old_parameter.raw(), new_parameter);
             }
         }
     }
@@ -156,7 +156,7 @@ impl IdMaps {
         old_function: &Function,
         old_value: ValueId,
     ) -> ValueId {
-        let old_value = old_function.dfg.resolve(old_value);
+        let old_value = old_function.dfg.resolve(old_value).raw();
         match &old_function.dfg[old_value] {
             value @ Value::Instruction { instruction, .. } => {
                 *self.values.get(&old_value).unwrap_or_else(|| {

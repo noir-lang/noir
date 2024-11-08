@@ -82,7 +82,7 @@ impl Context {
             // continue with the new `Instruction::EnableSideEffectsIf`.
             if let Instruction::EnableSideEffectsIf { condition } = instruction {
                 // If this instruction isn't changing the currently active condition then we can ignore it.
-                if active_condition == *condition {
+                if active_condition.unresolved_eq(condition) {
                     continue;
                 }
 
@@ -155,7 +155,7 @@ impl Context {
             | Load { .. } => true,
 
             // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
-            Call { func, .. } => match dfg[*func] {
+            Call { func, .. } => match dfg[func.raw()] {
                 Value::Intrinsic(intrinsic) => match intrinsic {
                     Intrinsic::SlicePushBack
                     | Intrinsic::SlicePushFront
@@ -270,8 +270,11 @@ mod test {
         let instructions = main.dfg[main.entry_block()].instructions();
 
         assert_eq!(instructions.len(), 4);
+        let expected = Instruction::binary(BinaryOp::Mul, v0.resolved(), two.resolved());
         for instruction in instructions.iter().take(4) {
-            assert_eq!(&main.dfg[*instruction], &Instruction::binary(BinaryOp::Mul, v0, two));
+            let instruction = main.dfg[*instruction];
+            let instruction = instruction.map_values(|v| v.resolved());
+            assert_eq!(instruction, expected);
         }
     }
 }

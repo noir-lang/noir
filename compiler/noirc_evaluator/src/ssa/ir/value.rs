@@ -15,7 +15,7 @@ use super::{
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct Unresolved;
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
 pub(crate) struct Resolved;
 
 /// A resolved value ID is something we can directly compare.
@@ -43,6 +43,11 @@ impl<R> ValueId<R> {
     /// Access the underlying raw ID for indexing into data structures.
     pub fn raw(&self) -> RawValueId {
         Id::new(self.id.to_usize())
+    }
+
+    /// Demote an ID into an unresolved one.
+    pub fn unresolved(self) -> ValueId<Unresolved> {
+        ValueId::new(Id::new(self.id.to_usize()))
     }
 }
 
@@ -94,10 +99,17 @@ impl Into<ValueId<Unresolved>> for ValueId<Resolved> {
     }
 }
 
+/// Demote any ID into an unresolved one.
+impl<R> Into<ValueId<Unresolved>> for &ValueId<R> {
+    fn into(self) -> ValueId<Unresolved> {
+        ValueId::new(self.raw())
+    }
+}
+
 /// Wrap an `Id` into an equivalent `ValueId``
-impl<R> Into<ValueId<R>> for Id<Value<R>> {
-    fn into(self) -> ValueId<R> {
-        ValueId::new(self)
+impl<R> From<Id<Value<R>>> for ValueId<R> {
+    fn from(value: Id<Value<R>>) -> Self {
+        ValueId::new(value)
     }
 }
 

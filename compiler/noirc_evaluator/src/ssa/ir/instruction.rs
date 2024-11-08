@@ -284,244 +284,6 @@ pub(crate) enum Instruction<R = Unresolved> {
 }
 
 impl Instruction {
-    /// Returns a binary instruction with the given operator, lhs, and rhs
-    pub(crate) fn binary(operator: BinaryOp, lhs: ValueId, rhs: ValueId) -> Instruction {
-        Instruction::Binary(Binary { lhs, operator, rhs })
-    }
-
-    /// Returns the type that this instruction will return.
-    pub(crate) fn result_type(&self) -> InstructionResultType {
-        match self {
-            Instruction::Binary(binary) => binary.result_type(),
-            Instruction::Cast(_, typ) => InstructionResultType::Known(typ.clone()),
-            Instruction::Not(value)
-            | Instruction::Truncate { value, .. }
-            | Instruction::ArraySet { array: value, .. }
-            | Instruction::IfElse { then_value: value, .. } => {
-                InstructionResultType::Operand(*value)
-            }
-            Instruction::Constrain(..)
-            | Instruction::Store { .. }
-            | Instruction::IncrementRc { .. }
-            | Instruction::DecrementRc { .. }
-            | Instruction::RangeCheck { .. }
-            | Instruction::EnableSideEffectsIf { .. } => InstructionResultType::None,
-            Instruction::Allocate { .. }
-            | Instruction::Load { .. }
-            | Instruction::ArrayGet { .. }
-            | Instruction::Call { .. } => InstructionResultType::Unknown,
-        }
-    }
-
-    /// True if this instruction requires specifying the control type variables when
-    /// inserting this instruction into a DataFlowGraph.
-    pub(crate) fn requires_ctrl_typevars(&self) -> bool {
-        matches!(self.result_type(), InstructionResultType::Unknown)
-    }
-
-    /// Indicates if the instruction can be safely replaced with the results of another instruction with the same inputs.
-    /// If `deduplicate_with_predicate` is set, we assume we're deduplicating with the instruction
-    /// and its predicate, rather than just the instruction. Setting this means instructions that
-    /// rely on predicates can be deduplicated as well.
-    pub(crate) fn can_be_deduplicated(
-        &self,
-        dfg: &DataFlowGraph,
-        deduplicate_with_predicate: bool,
-    ) -> bool {
-        use Instruction::*;
-
-        match self {
-            // These either have side-effects or interact with memory
-            EnableSideEffectsIf { .. }
-            | Allocate
-            | Load { .. }
-            | Store { .. }
-            | IncrementRc { .. }
-            | DecrementRc { .. } => false,
-
-            Call { func, .. } => match dfg[func.raw()] {
-                Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
-                _ => false,
-            },
-
-            // We can deduplicate these instructions if we know the predicate is also the same.
-            Constrain(..) | RangeCheck { .. } => deduplicate_with_predicate,
-
-            // These can have different behavior depending on the EnableSideEffectsIf context.
-            // Replacing them with a similar instruction potentially enables replacing an instruction
-            // with one that was disabled. See
-            // https://github.com/noir-lang/noir/pull/4716#issuecomment-2047846328.
-            Binary(_)
-            | Cast(_, _)
-            | Not(_)
-            | Truncate { .. }
-            | IfElse { .. }
-            | ArrayGet { .. }
-            | ArraySet { .. } => {
-                deduplicate_with_predicate || !self.requires_acir_gen_predicate(dfg)
-            }
-        }
-    }
-
-    pub(crate) fn can_eliminate_if_unused(&self, dfg: &DataFlowGraph) -> bool {
-        use Instruction::*;
-        match self {
-            Binary(binary) => {
-                if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) {
-                    if let Some(rhs) = dfg.get_numeric_constant(binary.rhs) {
-                        rhs != FieldElement::zero()
-                    } else {
-                        false
-                    }
-                } else {
-                    true
-                }
-            }
-            Cast(_, _)
-            | Not(_)
-            | Truncate { .. }
-            | Allocate
-            | Load { .. }
-            | ArrayGet { .. }
-            | IfElse { .. }
-            | ArraySet { .. } => true,
-
-            Constrain(..)
-            | Store { .. }
-            | EnableSideEffectsIf { .. }
-            | IncrementRc { .. }
-            | DecrementRc { .. }
-            | RangeCheck { .. } => false,
-
-            // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
-            Call { func, .. } => match dfg[func.raw()] {
-                // Explicitly allows removal of unused ec operations, even if they can fail
-                Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul))
-                | Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::EmbeddedCurveAdd)) => true,
-                Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
-
-                // All foreign functions are treated as having side effects.
-                // This is because they can be used to pass information
-                // from the ACVM to the external world during execution.
-                Value::ForeignFunction(_) => false,
-
-                // We must assume that functions contain a side effect as we cannot inspect more deeply.
-                Value::Function(_) => false,
-
-                _ => false,
-            },
-        }
-    }
-
-    /// If true the instruction will depends on enable_side_effects context during acir-gen
-    pub(crate) fn requires_acir_gen_predicate(&self, dfg: &DataFlowGraph) -> bool {
-        match self {
-            Instruction::Binary(binary)
-                if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) =>
-            {
-                true
-            }
-
-            Instruction::ArrayGet { array, index } => {
-                // `ArrayGet`s which read from "known good" indices from an array should not need a predicate.
-                !dfg.is_safe_index(*index, *array)
-            }
-
-            Instruction::EnableSideEffectsIf { .. } | Instruction::ArraySet { .. } => true,
-
-            Instruction::Call { func, .. } => match dfg[func.raw()] {
-                Value::Function(_) => true,
-                Value::Intrinsic(intrinsic) => {
-                    matches!(intrinsic, Intrinsic::SliceInsert | Intrinsic::SliceRemove)
-                }
-                _ => false,
-            },
-            Instruction::Cast(_, _)
-            | Instruction::Binary(_)
-            | Instruction::Not(_)
-            | Instruction::Truncate { .. }
-            | Instruction::Constrain(_, _, _)
-            | Instruction::RangeCheck { .. }
-            | Instruction::Allocate
-            | Instruction::Load { .. }
-            | Instruction::Store { .. }
-            | Instruction::IfElse { .. }
-            | Instruction::IncrementRc { .. }
-            | Instruction::DecrementRc { .. } => false,
-        }
-    }
-
-    /// Maps each ValueId inside this instruction to a new ValueId, returning the new instruction.
-    /// Note that the returned instruction is fresh and will not have an assigned InstructionId
-    /// until it is manually inserted in a DataFlowGraph later.
-    pub(crate) fn map_values(&self, mut f: impl FnMut(ValueId) -> ValueId) -> Instruction {
-        match self {
-            Instruction::Binary(binary) => Instruction::Binary(Binary {
-                lhs: f(binary.lhs),
-                rhs: f(binary.rhs),
-                operator: binary.operator,
-            }),
-            Instruction::Cast(value, typ) => Instruction::Cast(f(*value), typ.clone()),
-            Instruction::Not(value) => Instruction::Not(f(*value)),
-            Instruction::Truncate { value, bit_size, max_bit_size } => Instruction::Truncate {
-                value: f(*value),
-                bit_size: *bit_size,
-                max_bit_size: *max_bit_size,
-            },
-            Instruction::Constrain(lhs, rhs, assert_message) => {
-                // Must map the `lhs` and `rhs` first as the value `f` is moved with the closure
-                let lhs = f(*lhs);
-                let rhs = f(*rhs);
-                let assert_message = assert_message.as_ref().map(|error| match error {
-                    ConstrainError::Dynamic(selector, payload_values) => ConstrainError::Dynamic(
-                        *selector,
-                        payload_values.iter().map(|&value| f(value)).collect(),
-                    ),
-                    _ => error.clone(),
-                });
-                Instruction::Constrain(lhs, rhs, assert_message)
-            }
-            Instruction::Call { func, arguments } => Instruction::Call {
-                func: f(*func),
-                arguments: vecmap(arguments.iter().copied(), f),
-            },
-            Instruction::Allocate => Instruction::Allocate,
-            Instruction::Load { address } => Instruction::Load { address: f(*address) },
-            Instruction::Store { address, value } => {
-                Instruction::Store { address: f(*address), value: f(*value) }
-            }
-            Instruction::EnableSideEffectsIf { condition } => {
-                Instruction::EnableSideEffectsIf { condition: f(*condition) }
-            }
-            Instruction::ArrayGet { array, index } => {
-                Instruction::ArrayGet { array: f(*array), index: f(*index) }
-            }
-            Instruction::ArraySet { array, index, value, mutable } => Instruction::ArraySet {
-                array: f(*array),
-                index: f(*index),
-                value: f(*value),
-                mutable: *mutable,
-            },
-            Instruction::IncrementRc { value } => Instruction::IncrementRc { value: f(*value) },
-            Instruction::DecrementRc { value } => Instruction::DecrementRc { value: f(*value) },
-            Instruction::RangeCheck { value, max_bit_size, assert_message } => {
-                Instruction::RangeCheck {
-                    value: f(*value),
-                    max_bit_size: *max_bit_size,
-                    assert_message: assert_message.clone(),
-                }
-            }
-            Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
-                Instruction::IfElse {
-                    then_condition: f(*then_condition),
-                    then_value: f(*then_value),
-                    else_condition: f(*else_condition),
-                    else_value: f(*else_value),
-                }
-            }
-        }
-    }
-
     /// Applies a function to each input value this instruction holds.
     pub(crate) fn for_each_value<T>(&self, mut f: impl FnMut(ValueId) -> T) {
         match self {
@@ -762,6 +524,255 @@ impl Instruction {
             }
         }
     }
+
+    /// Pretend the value IDs have been resolved.
+    #[cfg(test)]
+    pub(crate) fn resolved(&self) -> Instruction<super::value::Resolved> {
+        self.map_values(|v| v.resolved())
+    }
+}
+
+impl<R> Instruction<R> {
+    /// Returns a binary instruction with the given operator, lhs, and rhs
+    pub(crate) fn binary(operator: BinaryOp, lhs: ValueId<R>, rhs: ValueId<R>) -> Instruction<R> {
+        Instruction::Binary(Binary { lhs, operator, rhs })
+    }
+
+    /// Returns the type that this instruction will return.
+    pub(crate) fn result_type(&self) -> InstructionResultType<R> {
+        match self {
+            Instruction::Binary(binary) => binary.result_type(),
+            Instruction::Cast(_, typ) => InstructionResultType::Known(typ.clone()),
+            Instruction::Not(value)
+            | Instruction::Truncate { value, .. }
+            | Instruction::ArraySet { array: value, .. }
+            | Instruction::IfElse { then_value: value, .. } => {
+                InstructionResultType::Operand(*value)
+            }
+            Instruction::Constrain(..)
+            | Instruction::Store { .. }
+            | Instruction::IncrementRc { .. }
+            | Instruction::DecrementRc { .. }
+            | Instruction::RangeCheck { .. }
+            | Instruction::EnableSideEffectsIf { .. } => InstructionResultType::None,
+            Instruction::Allocate { .. }
+            | Instruction::Load { .. }
+            | Instruction::ArrayGet { .. }
+            | Instruction::Call { .. } => InstructionResultType::Unknown,
+        }
+    }
+
+    /// True if this instruction requires specifying the control type variables when
+    /// inserting this instruction into a DataFlowGraph.
+    pub(crate) fn requires_ctrl_typevars(&self) -> bool {
+        matches!(self.result_type(), InstructionResultType::Unknown)
+    }
+
+    /// Maps each ValueId inside this instruction to a new ValueId, returning the new instruction.
+    /// Note that the returned instruction is fresh and will not have an assigned InstructionId
+    /// until it is manually inserted in a DataFlowGraph later.
+    pub(crate) fn map_values<S>(
+        &self,
+        mut f: impl FnMut(ValueId<R>) -> ValueId<S>,
+    ) -> Instruction<S> {
+        match self {
+            Instruction::Binary(binary) => Instruction::Binary(Binary {
+                lhs: f(binary.lhs),
+                rhs: f(binary.rhs),
+                operator: binary.operator,
+            }),
+            Instruction::Cast(value, typ) => Instruction::Cast(f(*value), typ.clone()),
+            Instruction::Not(value) => Instruction::Not(f(*value)),
+            Instruction::Truncate { value, bit_size, max_bit_size } => Instruction::Truncate {
+                value: f(*value),
+                bit_size: *bit_size,
+                max_bit_size: *max_bit_size,
+            },
+            Instruction::Constrain(lhs, rhs, assert_message) => {
+                // Must map the `lhs` and `rhs` first as the value `f` is moved with the closure
+                let lhs = f(*lhs);
+                let rhs = f(*rhs);
+                let assert_message = assert_message.as_ref().map(|error| match error {
+                    ConstrainError::Dynamic(selector, payload_values) => ConstrainError::Dynamic(
+                        *selector,
+                        payload_values.iter().map(|&value| f(value)).collect(),
+                    ),
+                    ConstrainError::StaticString(s) => ConstrainError::StaticString(s.clone()),
+                });
+                Instruction::Constrain(lhs, rhs, assert_message)
+            }
+            Instruction::Call { func, arguments } => Instruction::Call {
+                func: f(*func),
+                arguments: vecmap(arguments.iter().copied(), f),
+            },
+            Instruction::Allocate => Instruction::Allocate,
+            Instruction::Load { address } => Instruction::Load { address: f(*address) },
+            Instruction::Store { address, value } => {
+                Instruction::Store { address: f(*address), value: f(*value) }
+            }
+            Instruction::EnableSideEffectsIf { condition } => {
+                Instruction::EnableSideEffectsIf { condition: f(*condition) }
+            }
+            Instruction::ArrayGet { array, index } => {
+                Instruction::ArrayGet { array: f(*array), index: f(*index) }
+            }
+            Instruction::ArraySet { array, index, value, mutable } => Instruction::ArraySet {
+                array: f(*array),
+                index: f(*index),
+                value: f(*value),
+                mutable: *mutable,
+            },
+            Instruction::IncrementRc { value } => Instruction::IncrementRc { value: f(*value) },
+            Instruction::DecrementRc { value } => Instruction::DecrementRc { value: f(*value) },
+            Instruction::RangeCheck { value, max_bit_size, assert_message } => {
+                Instruction::RangeCheck {
+                    value: f(*value),
+                    max_bit_size: *max_bit_size,
+                    assert_message: assert_message.clone(),
+                }
+            }
+            Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
+                Instruction::IfElse {
+                    then_condition: f(*then_condition),
+                    then_value: f(*then_value),
+                    else_condition: f(*else_condition),
+                    else_value: f(*else_value),
+                }
+            }
+        }
+    }
+
+    /// If true the instruction will depends on enable_side_effects context during acir-gen
+    pub(crate) fn requires_acir_gen_predicate(&self, dfg: &DataFlowGraph) -> bool {
+        match self {
+            Instruction::Binary(binary)
+                if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) =>
+            {
+                true
+            }
+
+            Instruction::ArrayGet { array, index } => {
+                // `ArrayGet`s which read from "known good" indices from an array should not need a predicate.
+                !dfg.is_safe_index(index.into(), array.into())
+            }
+
+            Instruction::EnableSideEffectsIf { .. } | Instruction::ArraySet { .. } => true,
+
+            Instruction::Call { func, .. } => match dfg[func.raw()] {
+                Value::Function(_) => true,
+                Value::Intrinsic(intrinsic) => {
+                    matches!(intrinsic, Intrinsic::SliceInsert | Intrinsic::SliceRemove)
+                }
+                _ => false,
+            },
+            Instruction::Cast(_, _)
+            | Instruction::Binary(_)
+            | Instruction::Not(_)
+            | Instruction::Truncate { .. }
+            | Instruction::Constrain(_, _, _)
+            | Instruction::RangeCheck { .. }
+            | Instruction::Allocate
+            | Instruction::Load { .. }
+            | Instruction::Store { .. }
+            | Instruction::IfElse { .. }
+            | Instruction::IncrementRc { .. }
+            | Instruction::DecrementRc { .. } => false,
+        }
+    }
+
+    /// Indicates if the instruction can be safely replaced with the results of another instruction with the same inputs.
+    /// If `deduplicate_with_predicate` is set, we assume we're deduplicating with the instruction
+    /// and its predicate, rather than just the instruction. Setting this means instructions that
+    /// rely on predicates can be deduplicated as well.
+    pub(crate) fn can_be_deduplicated(
+        &self,
+        dfg: &DataFlowGraph,
+        deduplicate_with_predicate: bool,
+    ) -> bool {
+        use Instruction::*;
+
+        match self {
+            // These either have side-effects or interact with memory
+            EnableSideEffectsIf { .. }
+            | Allocate
+            | Load { .. }
+            | Store { .. }
+            | IncrementRc { .. }
+            | DecrementRc { .. } => false,
+
+            Call { func, .. } => match dfg[func.raw()] {
+                Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
+                _ => false,
+            },
+
+            // We can deduplicate these instructions if we know the predicate is also the same.
+            Constrain(..) | RangeCheck { .. } => deduplicate_with_predicate,
+
+            // These can have different behavior depending on the EnableSideEffectsIf context.
+            // Replacing them with a similar instruction potentially enables replacing an instruction
+            // with one that was disabled. See
+            // https://github.com/noir-lang/noir/pull/4716#issuecomment-2047846328.
+            Binary(_)
+            | Cast(_, _)
+            | Not(_)
+            | Truncate { .. }
+            | IfElse { .. }
+            | ArrayGet { .. }
+            | ArraySet { .. } => {
+                deduplicate_with_predicate || !self.requires_acir_gen_predicate(dfg)
+            }
+        }
+    }
+
+    pub(crate) fn can_eliminate_if_unused(&self, dfg: &DataFlowGraph) -> bool {
+        use Instruction::*;
+        match self {
+            Binary(binary) => {
+                if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) {
+                    if let Some(rhs) = dfg.get_numeric_constant(binary.rhs.unresolved()) {
+                        rhs != FieldElement::zero()
+                    } else {
+                        false
+                    }
+                } else {
+                    true
+                }
+            }
+            Cast(_, _)
+            | Not(_)
+            | Truncate { .. }
+            | Allocate
+            | Load { .. }
+            | ArrayGet { .. }
+            | IfElse { .. }
+            | ArraySet { .. } => true,
+
+            Constrain(..)
+            | Store { .. }
+            | EnableSideEffectsIf { .. }
+            | IncrementRc { .. }
+            | DecrementRc { .. }
+            | RangeCheck { .. } => false,
+
+            // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
+            Call { func, .. } => match dfg[func.raw()] {
+                // Explicitly allows removal of unused ec operations, even if they can fail
+                Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul))
+                | Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::EmbeddedCurveAdd)) => true,
+                Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
+
+                // All foreign functions are treated as having side effects.
+                // This is because they can be used to pass information
+                // from the ACVM to the external world during execution.
+                Value::ForeignFunction(_) => false,
+
+                // We must assume that functions contain a side effect as we cannot inspect more deeply.
+                Value::Function(_) => false,
+
+                _ => false,
+            },
+        }
+    }
 }
 
 /// Given a chain of operations like:
@@ -951,9 +962,9 @@ impl From<String> for Box<ConstrainError> {
 }
 
 /// The possible return values for Instruction::return_types
-pub(crate) enum InstructionResultType {
+pub(crate) enum InstructionResultType<R = Unresolved> {
     /// The result type of this instruction matches that of this operand
-    Operand(ValueId),
+    Operand(ValueId<R>),
 
     /// The result type of this instruction is known to be this type - independent of its operands.
     Known(Type),
@@ -1096,21 +1107,21 @@ impl TerminatorInstruction {
 
 /// Contains the result to Instruction::simplify, specifying how the instruction
 /// should be simplified.
-pub(crate) enum SimplifyResult {
+pub(crate) enum SimplifyResult<R = Unresolved> {
     /// Replace this function's result with the given value
-    SimplifiedTo(ValueId),
+    SimplifiedTo(ValueId<R>),
 
     /// Replace this function's results with the given values
     /// Used for when there are multiple return values from
     /// a function such as a tuple
-    SimplifiedToMultiple(Vec<ValueId>),
+    SimplifiedToMultiple(Vec<ValueId<R>>),
 
     /// Replace this function with an simpler but equivalent instruction.
-    SimplifiedToInstruction(Instruction),
+    SimplifiedToInstruction(Instruction<R>),
 
     /// Replace this function with a set of simpler but equivalent instructions.
     /// This is currently only to be used for [`Instruction::Constrain`].
-    SimplifiedToInstructionMultiple(Vec<Instruction>),
+    SimplifiedToInstructionMultiple(Vec<Instruction<R>>),
 
     /// Remove the instruction, it is unnecessary
     Remove,
@@ -1119,8 +1130,8 @@ pub(crate) enum SimplifyResult {
     None,
 }
 
-impl SimplifyResult {
-    pub(crate) fn instructions(self) -> Option<Vec<Instruction>> {
+impl<R> SimplifyResult<R> {
+    pub(crate) fn instructions(self) -> Option<Vec<Instruction<R>>> {
         match self {
             SimplifyResult::SimplifiedToInstruction(instruction) => Some(vec![instruction]),
             SimplifyResult::SimplifiedToInstructionMultiple(instructions) => Some(instructions),

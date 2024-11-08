@@ -76,15 +76,17 @@ pub(crate) struct Binary<R = Unresolved> {
     pub(crate) operator: BinaryOp,
 }
 
-impl Binary {
+impl<R> Binary<R> {
     /// The type of this Binary instruction's result
-    pub(crate) fn result_type(&self) -> InstructionResultType {
+    pub(crate) fn result_type(&self) -> InstructionResultType<R> {
         match self.operator {
             BinaryOp::Eq | BinaryOp::Lt => InstructionResultType::Known(Type::bool()),
             _ => InstructionResultType::Operand(self.lhs),
         }
     }
+}
 
+impl Binary {
     /// Try to simplify this binary instruction, returning the new value if possible.
     pub(super) fn simplify(&self, dfg: &mut DataFlowGraph) -> SimplifyResult {
         let lhs = dfg.get_numeric_constant(self.lhs);

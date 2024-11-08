@@ -415,7 +415,7 @@ impl FunctionBuilder {
     }
 
     pub(crate) fn get_intrinsic_from_value(&mut self, value: ValueId) -> Option<Intrinsic> {
-        match self.current_function.dfg[value] {
+        match self.current_function.dfg[value.raw()] {
             Value::Intrinsic(intrinsic) => Some(intrinsic),
             _ => None,
         }
@@ -464,7 +464,7 @@ impl std::ops::Index<ValueId> for FunctionBuilder {
     type Output = Value;
 
     fn index(&self, id: ValueId) -> &Self::Output {
-        &self.current_function.dfg[id]
+        &self.current_function.dfg[id.raw()]
     }
 }
 
@@ -489,6 +489,7 @@ mod tests {
     use std::sync::Arc;
 
     use acvm::{acir::AcirField, FieldElement};
+    use iter_extended::vecmap;
 
     use crate::ssa::ir::{
         instruction::{Endian, Intrinsic},
@@ -506,8 +507,8 @@ mod tests {
         // let bits: [u1; 8] = x.to_le_bits();
         let func_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("func".into(), func_id);
-        let one = builder.numeric_constant(FieldElement::one(), Type::bool());
-        let zero = builder.numeric_constant(FieldElement::zero(), Type::bool());
+        let one = builder.numeric_constant(FieldElement::one(), Type::bool()).resolved();
+        let zero = builder.numeric_constant(FieldElement::zero(), Type::bool()).resolved();
 
         let to_bits_id = builder.import_intrinsic_id(Intrinsic::ToBits(Endian::Little));
         let input = builder.numeric_constant(FieldElement::from(7_u128), Type::field());
@@ -516,8 +517,8 @@ mod tests {
         let call_results =
             builder.insert_call(to_bits_id, vec![input, length], result_types).into_owned();
 
-        let slice = match &builder.current_function.dfg[call_results[0]] {
-            Value::Array { array, .. } => array,
+        let slice = match &builder.current_function.dfg[call_results[0].raw()] {
+            Value::Array { array, .. } => vecmap(array, |v| v.resolved()),
             _ => panic!(),
         };
         assert_eq!(slice[0], one);

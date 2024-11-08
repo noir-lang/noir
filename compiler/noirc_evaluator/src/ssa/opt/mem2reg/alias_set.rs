@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-use crate::ssa::ir::value::ValueId;
+use crate::ssa::ir::value::{RawValueId, ValueId};
 
 /// A set of possible aliases. Each ValueId in this set represents one possible value the reference
 /// holding this AliasSet may be aliased to. This struct wrapper is provided so that when we take
@@ -10,7 +10,7 @@ use crate::ssa::ir::value::ValueId;
 /// "unknown which aliases this may refer to" - `None`.
 #[derive(Debug, Default, Clone)]
 pub(super) struct AliasSet {
-    aliases: Option<BTreeSet<ValueId>>,
+    aliases: Option<BTreeSet<RawValueId>>,
 }
 
 impl AliasSet {
@@ -20,7 +20,7 @@ impl AliasSet {
 
     pub(super) fn known(value: ValueId) -> AliasSet {
         let mut aliases = BTreeSet::new();
-        aliases.insert(value);
+        aliases.insert(value.raw());
         Self { aliases: Some(aliases) }
     }
 
@@ -41,6 +41,7 @@ impl AliasSet {
         self.aliases
             .as_ref()
             .and_then(|aliases| (aliases.len() == 1).then(|| *aliases.first().unwrap()))
+            .map(|a| a.into())
     }
 
     /// Unify this alias set with another. The result of this set is empty if either set is empty.
@@ -56,20 +57,20 @@ impl AliasSet {
     /// Inserts a new alias into this set if it is not unknown
     pub(super) fn insert(&mut self, new_alias: ValueId) {
         if let Some(aliases) = &mut self.aliases {
-            aliases.insert(new_alias);
+            aliases.insert(new_alias.raw());
         }
     }
 
     /// Returns `Some(true)` if `f` returns true for any known alias in this set.
     /// If this alias set is unknown, None is returned.
-    pub(super) fn any(&self, f: impl FnMut(ValueId) -> bool) -> Option<bool> {
-        self.aliases.as_ref().map(|aliases| aliases.iter().copied().any(f))
+    pub(super) fn any(&self, mut f: impl FnMut(ValueId) -> bool) -> Option<bool> {
+        self.aliases.as_ref().map(|aliases| aliases.iter().copied().any(|v| f(v.into())))
     }
 
     pub(super) fn for_each(&self, mut f: impl FnMut(ValueId)) {
         if let Some(aliases) = &self.aliases {
             for alias in aliases {
-                f(*alias);
+                f((*alias).into());
             }
         }
     }

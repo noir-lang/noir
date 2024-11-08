@@ -431,7 +431,7 @@ impl<'f> LoopIteration<'f> {
     ) -> Vec<BasicBlockId> {
         let condition = self.inserter.resolve(condition);
 
-        match self.dfg().get_numeric_constant(condition) {
+        match self.dfg().get_numeric_constant(condition.into()) {
             Some(constant) => {
                 let destination =
                     if constant.is_zero() { else_destination } else { then_destination };
@@ -490,7 +490,7 @@ impl<'f> LoopIteration<'f> {
         let mut terminator = self.dfg()[self.source_block]
             .unwrap_terminator()
             .clone()
-            .map_values(|value| self.inserter.resolve(value));
+            .map_values(|value| self.inserter.resolve(value).into());
 
         terminator.mutate_blocks(|block| self.get_or_insert_block(block));
         self.inserter.function.dfg.set_block_terminator(self.insert_block, terminator);

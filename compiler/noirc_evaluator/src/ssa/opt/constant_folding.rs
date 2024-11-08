@@ -31,7 +31,7 @@ use crate::ssa::{
         function::Function,
         instruction::{Instruction, InstructionId},
         types::Type,
-        value::{Value, ValueId},
+        value::{RawValueId, Resolved, ResolvedValueId, Value, ValueId},
     },
     ssa_gen::Ssa,
 };
@@ -91,7 +91,8 @@ struct Context {
 
 /// HashMap from (Instruction, side_effects_enabled_var) to the results of the instruction.
 /// Stored as a two-level map to avoid cloning Instructions during the `.get` call.
-type InstructionResultCache = HashMap<Instruction, HashMap<Option<ValueId>, Vec<ValueId>>>;
+type InstructionResultCache =
+    HashMap<Instruction<Resolved>, HashMap<Option<RawValueId>, Vec<ValueId>>>;
 
 impl Context {
     fn fold_constants_in_block(&mut self, function: &mut Function, block: BasicBlockId) {
@@ -107,8 +108,10 @@ impl Context {
         // We partition the maps of constrained values according to the side-effects flag at the point
         // at which the values are constrained. This prevents constraints which are only sometimes enforced
         // being used to modify the rest of the program.
-        let mut constraint_simplification_mappings: HashMap<ValueId, HashMap<ValueId, ValueId>> =
-            HashMap::default();
+        let mut constraint_simplification_mappings: HashMap<
+            RawValueId,
+            HashMap<RawValueId, ValueId>,
+        > = HashMap::default();
         let mut side_effects_enabled_var =
             function.dfg.make_constant(FieldElement::one(), Type::bool());
 
@@ -131,11 +134,11 @@ impl Context {
         block: BasicBlockId,
         id: InstructionId,
         instruction_result_cache: &mut InstructionResultCache,
-        constraint_simplification_mappings: &mut HashMap<ValueId, HashMap<ValueId, ValueId>>,
+        constraint_simplification_mappings: &mut HashMap<RawValueId, HashMap<RawValueId, ValueId>>,
         side_effects_enabled_var: &mut ValueId,
     ) {
         let constraint_simplification_mapping =
-            constraint_simplification_mappings.entry(*side_effects_enabled_var).or_default();
+            constraint_simplification_mappings.entry(side_effects_enabled_var.raw()).or_default();
         let instruction = Self::resolve_instruction(id, dfg, constraint_simplification_mapping);
         let old_results = dfg.instruction_results(id).to_vec();
 
@@ -148,7 +151,13 @@ impl Context {
         }
 
         // Otherwise, try inserting the instruction again to apply any optimizations using the newly resolved inputs.
-        let new_results = Self::push_instruction(id, instruction.clone(), &old_results, block, dfg);
+        let new_results = Self::push_instruction(
+            id,
+            instruction.map_values(|v| v.unresolved()),
+            &old_results,
+            block,
+            dfg,
+        );
 
         Self::replace_result_ids(dfg, &old_results, &new_results);
 
@@ -164,7 +173,7 @@ impl Context {
         // If we just inserted an `Instruction::EnableSideEffectsIf`, we need to update `side_effects_enabled_var`
         // so that we use the correct set of constrained values in future.
         if let Instruction::EnableSideEffectsIf { condition } = instruction {
-            *side_effects_enabled_var = condition;
+            *side_effects_enabled_var = condition.into();
         };
     }
 
@@ -172,8 +181,8 @@ impl Context {
     fn resolve_instruction(
         instruction_id: InstructionId,
         dfg: &DataFlowGraph,
-        constraint_simplification_mapping: &HashMap<ValueId, ValueId>,
-    ) -> Instruction {
+        constraint_simplification_mapping: &HashMap<RawValueId, ValueId>,
+    ) -> Instruction<Resolved> {
         let instruction = dfg[instruction_id].clone();
 
         // Alternate between resolving `value_id` in the `dfg` and checking to see if the resolved value
@@ -183,11 +192,11 @@ impl Context {
         // constraints to the cache.
         fn resolve_cache(
             dfg: &DataFlowGraph,
-            cache: &HashMap<ValueId, ValueId>,
+            cache: &HashMap<RawValueId, ValueId>,
             value_id: ValueId,
-        ) -> ValueId {
+        ) -> ResolvedValueId {
             let resolved_id = dfg.resolve(value_id);
-            match cache.get(&resolved_id) {
+            match cache.get(&resolved_id.raw()) {
                 Some(cached_value) => resolve_cache(dfg, cache, *cached_value),
                 None => resolved_id,
             }
@@ -230,11 +239,11 @@ impl Context {
 
     fn cache_instruction(
         &self,
-        instruction: Instruction,
+        instruction: Instruction<Resolved>,
         instruction_results: Vec<ValueId>,
         dfg: &DataFlowGraph,
         instruction_result_cache: &mut InstructionResultCache,
-        constraint_simplification_mapping: &mut HashMap<ValueId, ValueId>,
+        constraint_simplification_mapping: &mut HashMap<RawValueId, ValueId>,
         side_effects_enabled_var: ValueId,
     ) {
         if self.use_constraint_info {
@@ -242,24 +251,24 @@ impl Context {
             // to map from the more complex to the simpler value.
             if let Instruction::Constrain(lhs, rhs, _) = instruction {
                 // These `ValueId`s should be fully resolved now.
-                match (&dfg[lhs], &dfg[rhs]) {
+                match (&dfg[lhs.raw()], &dfg[rhs.raw()]) {
                     // Ignore trivial constraints
                     (Value::NumericConstant { .. }, Value::NumericConstant { .. }) => (),
 
                     // Prefer replacing with constants where possible.
                     (Value::NumericConstant { .. }, _) => {
-                        constraint_simplification_mapping.insert(rhs, lhs);
+                        constraint_simplification_mapping.insert(rhs.raw(), lhs.into());
                     }
                     (_, Value::NumericConstant { .. }) => {
-                        constraint_simplification_mapping.insert(lhs, rhs);
+                        constraint_simplification_mapping.insert(lhs.raw(), rhs.into());
                     }
                     // Otherwise prefer block parameters over instruction results.
                     // This is as block parameters are more likely to be a single witness rather than a full expression.
                     (Value::Param { .. }, Value::Instruction { .. }) => {
-                        constraint_simplification_mapping.insert(rhs, lhs);
+                        constraint_simplification_mapping.insert(rhs.raw(), lhs.into());
                     }
                     (Value::Instruction { .. }, Value::Param { .. }) => {
-                        constraint_simplification_mapping.insert(lhs, rhs);
+                        constraint_simplification_mapping.insert(lhs.raw(), rhs.into());
                     }
                     (_, _) => (),
                 }
@@ -276,7 +285,7 @@ impl Context {
             instruction_result_cache
                 .entry(instruction)
                 .or_default()
-                .insert(predicate, instruction_results);
+                .insert(predicate.map(|v| v.raw()), instruction_results);
         }
     }
 
@@ -294,7 +303,7 @@ impl Context {
     fn get_cached<'a>(
         dfg: &DataFlowGraph,
         instruction_result_cache: &'a mut InstructionResultCache,
-        instruction: &Instruction,
+        instruction: &Instruction<Resolved>,
         side_effects_enabled_var: ValueId,
     ) -> Option<&'a Vec<ValueId>> {
         let results_for_instruction = instruction_result_cache.get(instruction);
@@ -304,8 +313,10 @@ impl Context {
             return Some(results);
         }
 
-        let predicate =
-            instruction.requires_acir_gen_predicate(dfg).then_some(side_effects_enabled_var);
+        let predicate = instruction
+            .requires_acir_gen_predicate(dfg)
+            .then_some(side_effects_enabled_var)
+            .map(|v| v.raw());
 
         results_for_instruction.and_then(|map| map.get(&predicate))
     }
@@ -321,7 +332,7 @@ mod test {
             instruction::{Binary, BinaryOp, Instruction, TerminatorInstruction},
             map::Id,
             types::Type,
-            value::{Value, ValueId},
+            value::{RawValueId, Value, ValueId},
         },
     };
     use acvm::{acir::AcirField, FieldElement};
@@ -428,11 +439,11 @@ mod test {
 
         let instructions = main.dfg[main.entry_block()].instructions();
         assert_eq!(instructions.len(), 1);
-        let instruction = &main.dfg[instructions[0]];
 
         assert_eq!(
-            instruction,
-            &Instruction::Binary(Binary { lhs: v0, operator: BinaryOp::Div, rhs: constant })
+            main.dfg[instructions[0]].resolved(),
+            Instruction::Binary(Binary { lhs: v0, operator: BinaryOp::Div, rhs: constant })
+                .resolved()
         );
     }
 
@@ -484,12 +495,18 @@ mod test {
         assert_eq!(instructions.len(), 2);
 
         assert_eq!(
-            &main.dfg[instructions[0]],
-            &Instruction::Binary(Binary { lhs: v0, operator: BinaryOp::Div, rhs: constant })
+            main.dfg[instructions[0]].resolved(),
+            Instruction::Binary(Binary { lhs: v0, operator: BinaryOp::Div, rhs: constant })
+                .resolved()
         );
         assert_eq!(
-            &main.dfg[instructions[1]],
-            &Instruction::Truncate { value: ValueId::test_new(6), bit_size: 8, max_bit_size: 16 }
+            &main.dfg[instructions[1]].resolved(),
+            &Instruction::Truncate {
+                value: ValueId::from(RawValueId::test_new(6)),
+                bit_size: 8,
+                max_bit_size: 16
+            }
+            .resolved()
         );
     }
 
@@ -522,13 +539,13 @@ mod test {
         assert_eq!(entry_block.instructions().len(), 1);
         let new_add_instr = entry_block.instructions().first().unwrap();
         let new_add_instr_result = main.dfg.instruction_results(*new_add_instr)[0];
-        assert_ne!(new_add_instr_result, v1);
+        assert_ne!(new_add_instr_result.resolved(), v1.resolved());
 
         let return_value_id = match entry_block.unwrap_terminator() {
             TerminatorInstruction::Return { return_values, .. } => return_values[0],
             _ => unreachable!("Should have terminator instruction"),
         };
-        let return_element = match &main.dfg[return_value_id] {
+        let return_element = match &main.dfg[return_value_id.raw()] {
             Value::Array { array, .. } => array[0],
             _ => unreachable!("Return type should be array"),
         };
@@ -578,7 +595,7 @@ mod test {
         assert_eq!(instructions.len(), 1);
         let instruction = &main.dfg[instructions[0]];
 
-        assert_eq!(instruction, &Instruction::Cast(v0, Type::unsigned(32)));
+        assert_eq!(instruction.resolved(), Instruction::Cast(v0, Type::unsigned(32)).resolved());
     }
 
     #[test]
@@ -698,17 +715,26 @@ mod test {
         assert_eq!(instructions.len(), 6);
 
         assert_eq!(
-            main.dfg[instructions[0]],
-            Instruction::Binary(Binary { lhs: v0, operator: BinaryOp::Mul, rhs: v1 })
+            main.dfg[instructions[0]].resolved(),
+            Instruction::Binary(Binary { lhs: v0, operator: BinaryOp::Mul, rhs: v1 }).resolved()
         );
-        assert_eq!(main.dfg[instructions[1]], Instruction::Not(v2));
+        assert_eq!(main.dfg[instructions[1]].resolved(), Instruction::Not(v2.resolved()));
         assert_eq!(
-            main.dfg[instructions[2]],
-            Instruction::Binary(Binary { lhs: v3, operator: BinaryOp::Mul, rhs: v4 })
+            main.dfg[instructions[2]].resolved(),
+            Instruction::Binary(Binary { lhs: v3, operator: BinaryOp::Mul, rhs: v4 }).resolved()
         );
-        assert_eq!(main.dfg[instructions[3]], Instruction::Constrain(v0, v_true, None));
-        assert_eq!(main.dfg[instructions[4]], Instruction::Constrain(v1, v_true, None));
-        assert_eq!(main.dfg[instructions[5]], Instruction::Constrain(v2, v_false, None));
+        assert_eq!(
+            main.dfg[instructions[3]].resolved(),
+            Instruction::Constrain(v0, v_true, None).resolved()
+        );
+        assert_eq!(
+            main.dfg[instructions[4]].resolved(),
+            Instruction::Constrain(v1, v_true, None).resolved()
+        );
+        assert_eq!(
+            main.dfg[instructions[5]].resolved(),
+            Instruction::Constrain(v2, v_false, None).resolved()
+        );
     }
 
     // Regression for #4600
@@ -871,7 +897,11 @@ mod test {
         let array1 = builder.array_constant(array_contents.clone().into(), typ.clone());
         let array2 = builder.array_constant(array_contents.into(), typ.clone());
 
-        assert_eq!(array1, array2, "arrays were assigned different value ids");
+        assert_eq!(
+            array1.resolved(),
+            array2.resolved(),
+            "arrays were assigned different value ids"
+        );
 
         let keccakf1600 =
             builder.import_intrinsic("keccakf1600").expect("keccakf1600 intrinsic should exist");

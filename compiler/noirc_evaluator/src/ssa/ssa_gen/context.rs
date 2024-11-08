@@ -930,7 +930,8 @@ impl<'a> FunctionContext<'a> {
         let mut dropped_parameters =
             self.builder.current_function.dfg.block_parameters(scope).to_vec();
 
-        dropped_parameters.retain(|parameter| !terminator_args.contains(parameter));
+        dropped_parameters
+            .retain(|parameter| !terminator_args.iter().any(|arg| arg.unresolved_eq(parameter)));
 
         for parameter in dropped_parameters {
             self.builder.decrement_array_reference_count(parameter);

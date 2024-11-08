@@ -43,7 +43,7 @@ fn known_slice_lengths(func: &Function) -> HashMap<InstructionId, usize> {
                 _ => continue,
             };
 
-            match &func.dfg[*target_func] {
+            match &func.dfg[target_func.raw()] {
                 Value::Intrinsic(Intrinsic::AsSlice) => {
                     let array_typ = func.dfg.type_of_value(arguments[0]);
                     if let Type::Array(_, length) = array_typ {

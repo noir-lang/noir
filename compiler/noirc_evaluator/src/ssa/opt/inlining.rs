@@ -14,7 +14,7 @@ use crate::ssa::{
         dfg::{CallStack, InsertInstructionResult},
         function::{Function, FunctionId, RuntimeType},
         instruction::{Instruction, InstructionId, TerminatorInstruction},
-        value::{Value, ValueId},
+        value::{RawValueId, Value, ValueId},
     },
     ssa_gen::Ssa,
 };
@@ -115,7 +115,7 @@ struct PerFunctionContext<'function> {
     /// Maps ValueIds in the function being inlined to the new ValueIds to use in the function
     /// being inlined into. This mapping also contains the mapping from parameter values to
     /// argument values.
-    values: HashMap<ValueId, ValueId>,
+    values: HashMap<RawValueId, ValueId>,
 
     /// Maps blocks in the source function to blocks in the function being inlined into, where
     /// each mapping is from the start of a source block to an inlined block in which the
@@ -139,7 +139,7 @@ fn called_functions_vec(func: &Function) -> Vec<FunctionId> {
                 continue;
             };
 
-            if let Value::Function(function_id) = func.dfg[*called_value_id] {
+            if let Value::Function(function_id) = func.dfg[called_value_id.raw()] {
                 called_function_ids.push(function_id);
             }
         }
@@ -387,7 +387,7 @@ impl InlineContext {
         for parameter in original_parameters {
             let typ = context.source_function.dfg.type_of_value(*parameter);
             let new_parameter = context.context.builder.add_block_parameter(entry_block, typ);
-            context.values.insert(*parameter, new_parameter);
+            context.values.insert(parameter.raw(), new_parameter);
         }
 
         context.blocks.insert(context.source_function.entry_block(), entry_block);
@@ -425,7 +425,8 @@ impl InlineContext {
 
         let parameters = source_function.parameters();
         assert_eq!(parameters.len(), arguments.len());
-        context.values = parameters.iter().copied().zip(arguments.iter().copied()).collect();
+        context.values =
+            parameters.iter().map(|p| p.raw()).zip(arguments.iter().copied()).collect();
 
         let current_block = context.context.builder.current_block();
         context.blocks.insert(source_function.entry_block(), current_block);
@@ -457,11 +458,11 @@ impl<'function> PerFunctionContext<'function> {
     /// and blocks respectively. If these assertions trigger it means a value is being used before
     /// the instruction or block that defines the value is inserted.
     fn translate_value(&mut self, id: ValueId) -> ValueId {
-        if let Some(value) = self.values.get(&id) {
+        if let Some(value) = self.values.get(&id.raw()) {
             return *value;
         }
 
-        let new_value = match &self.source_function.dfg[id] {
+        let new_value = match &self.source_function.dfg[id.raw()] {
             value @ Value::Instruction { .. } => {
                 unreachable!("All Value::Instructions should already be known during inlining after creating the original inlined instruction. Unknown value {id} = {value:?}")
             }
@@ -482,7 +483,7 @@ impl<'function> PerFunctionContext<'function> {
             }
         };
 
-        self.values.insert(id, new_value);
+        self.values.insert(id.raw(), new_value);
         new_value
     }
 
@@ -512,7 +513,7 @@ impl<'function> PerFunctionContext<'function> {
         for parameter in original_parameters {
             let typ = self.source_function.dfg.type_of_value(*parameter);
             let new_parameter = self.context.builder.add_block_parameter(new_block, typ);
-            self.values.insert(*parameter, new_parameter);
+            self.values.insert(parameter.raw(), new_parameter);
         }
 
         self.blocks.insert(source_block, new_block);
@@ -685,7 +686,7 @@ impl<'function> PerFunctionContext<'function> {
         call_stack.append(self.source_function.dfg.get_call_stack(id));
 
         let results = self.source_function.dfg.instruction_results(id);
-        let results = vecmap(results, |id| self.source_function.dfg.resolve(*id));
+        let results = vecmap(results, |id| self.source_function.dfg.resolve(*id).into());
 
         let ctrl_typevars = instruction
             .requires_ctrl_typevars()
@@ -700,7 +701,7 @@ impl<'function> PerFunctionContext<'function> {
     /// Modify the values HashMap to remember the mapping between an instruction result's previous
     /// ValueId (from the source_function) and its new ValueId in the destination function.
     fn insert_new_instruction_results(
-        values: &mut HashMap<ValueId, ValueId>,
+        values: &mut HashMap<RawValueId, ValueId>,
         old_results: &[ValueId],
         new_results: InsertInstructionResult,
     ) {
@@ -708,16 +709,16 @@ impl<'function> PerFunctionContext<'function> {
 
         match new_results {
             InsertInstructionResult::SimplifiedTo(new_result) => {
-                values.insert(old_results[0], new_result);
+                values.insert(old_results[0].raw(), new_result);
             }
             InsertInstructionResult::SimplifiedToMultiple(new_results) => {
                 for (old_result, new_result) in old_results.iter().zip(new_results) {
-                    values.insert(*old_result, new_result);
+                    values.insert(old_result.raw(), new_result);
                 }
             }
             InsertInstructionResult::Results(_, new_results) => {
                 for (old_result, new_result) in old_results.iter().zip(new_results) {
-                    values.insert(*old_result, *new_result);
+                    values.insert(old_result.raw(), *new_result);
                 }
             }
             InsertInstructionResult::InstructionRemoved => (),

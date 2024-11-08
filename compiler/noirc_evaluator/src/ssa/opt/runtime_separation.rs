@@ -6,7 +6,7 @@ use crate::ssa::{
     ir::{
         function::{Function, FunctionId, RuntimeType},
         instruction::Instruction,
-        value::{Value, ValueId},
+        value::{RawValueId, Value},
     },
     ssa_gen::Ssa,
 };
@@ -117,7 +117,7 @@ impl RuntimeSeparatorContext {
                     };
                     if let Some(mapped_func_id) = self.mapped_functions.get(called_func_id) {
                         let mapped_value_id = func.dfg.import_function(*mapped_func_id);
-                        func.dfg.set_value_from_id(*called_func_value_id, mapped_value_id);
+                        func.dfg.set_value_from_id(called_func_value_id.into(), mapped_value_id);
                     }
                 }
             }
@@ -126,16 +126,16 @@ impl RuntimeSeparatorContext {
 }
 
 // We only consider direct calls to functions since functions as values should have been resolved
-fn called_functions_values(func: &Function) -> BTreeSet<ValueId> {
+fn called_functions_values(func: &Function) -> BTreeSet<RawValueId> {
     let mut called_function_ids = BTreeSet::default();
     for block_id in func.reachable_blocks() {
         for instruction_id in func.dfg[block_id].instructions() {
             let Instruction::Call { func: called_value_id, .. } = &func.dfg[*instruction_id] else {
                 continue;
             };
-
-            if let Value::Function(_) = func.dfg[*called_value_id] {
-                called_function_ids.insert(*called_value_id);
+            let called_value_id = called_value_id.raw();
+            if let Value::Function(_) = func.dfg[called_value_id] {
+                called_function_ids.insert(called_value_id);
             }
         }
     }

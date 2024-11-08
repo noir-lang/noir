@@ -11,6 +11,7 @@ use super::ir::dfg::CallStack;
 use super::ir::function::FunctionId;
 use super::ir::instruction::{ConstrainError, ErrorType};
 use super::ir::printer::try_to_extract_string_from_error_payload;
+use super::ir::value::RawValueId;
 use super::{
     ir::{
         dfg::DataFlowGraph,
@@ -149,7 +150,7 @@ struct Context<'a> {
     /// AcirVar per SSA value. Before creating an `AcirVar`
     /// for an SSA value, we check this map. If an `AcirVar`
     /// already exists for this Value, we return the `AcirVar`.
-    ssa_values: HashMap<Id<Value>, AcirValue>,
+    ssa_values: HashMap<RawValueId, AcirValue>,
 
     /// The `AcirVar` that describes the condition belonging to the most recently invoked
     /// `SideEffectsEnabled` instruction.
@@ -169,13 +170,13 @@ struct Context<'a> {
     /// Maps SSA values to BlockId
     /// A BlockId is an ACIR structure which identifies a memory block
     /// Each acir memory block corresponds to a different SSA array.
-    memory_blocks: HashMap<Id<Value>, BlockId>,
+    memory_blocks: HashMap<RawValueId, BlockId>,
 
     /// Maps SSA values to a BlockId used internally
     /// A BlockId is an ACIR structure which identifies a memory block
     /// Each memory blocks corresponds to a different SSA value
     /// which utilizes this internal memory for ACIR generation.
-    internal_memory_blocks: HashMap<Id<Value>, BlockId>,
+    internal_memory_blocks: HashMap<RawValueId, BlockId>,
 
     /// Maps an internal memory block to its length
     ///
@@ -574,7 +575,7 @@ impl<'a> Context<'a> {
                     "The dynamic array type is created in Acir gen and therefore cannot be a block parameter"
                 ),
             }
-            self.ssa_values.insert(*param_id, value);
+            self.ssa_values.insert(param_id.raw(), value);
         }
         let end_witness = self.acir_context.current_witness_index().0;
         let witnesses = (start_witness..=end_witness).map(Witness::from).collect();
@@ -613,12 +614,12 @@ impl<'a> Context<'a> {
     /// Get the BlockId corresponding to the ValueId
     /// If there is no matching BlockId, we create a new one.
     fn block_id(&mut self, value: &ValueId) -> BlockId {
-        if let Some(block_id) = self.memory_blocks.get(value) {
+        if let Some(block_id) = self.memory_blocks.get(value.as_ref()) {
             return *block_id;
         }
         let block_id = BlockId(self.max_block_id);
         self.max_block_id += 1;
-        self.memory_blocks.insert(*value, block_id);
+        self.memory_blocks.insert(value.raw(), block_id);
         block_id
     }
 
@@ -628,12 +629,12 @@ impl<'a> Context<'a> {
     /// only be computed dynamically, such as the type structure
     /// of non-homogenous arrays.
     fn internal_block_id(&mut self, value: &ValueId) -> BlockId {
-        if let Some(block_id) = self.internal_memory_blocks.get(value) {
+        if let Some(block_id) = self.internal_memory_blocks.get(value.as_ref()) {
             return *block_id;
         }
         let block_id = BlockId(self.max_block_id);
         self.max_block_id += 1;
-        self.internal_memory_blocks.insert(*value, block_id);
+        self.internal_memory_blocks.insert(value.raw(), block_id);
         block_id
     }
 
@@ -784,7 +785,7 @@ impl<'a> Context<'a> {
 
         match instruction {
             Instruction::Call { func, arguments } => {
-                let function_value = &dfg[*func];
+                let function_value = &dfg[func.raw()];
                 match function_value {
                     Value::Function(id) => {
                         let func = &ssa.functions[id];
@@ -925,7 +926,7 @@ impl<'a> Context<'a> {
         for (result_id, output) in result_ids.iter().zip(output_values) {
             if let AcirValue::Array(_) = &output {
                 let array_id = dfg.resolve(*result_id);
-                let block_id = self.block_id(&array_id);
+                let block_id = self.block_id(&array_id.into());
                 let array_typ = dfg.type_of_value(array_id);
                 let len = if matches!(array_typ, Type::Array(_, _)) {
                     array_typ.flattened_size()
@@ -937,7 +938,7 @@ impl<'a> Context<'a> {
             // Do nothing for AcirValue::DynamicArray and AcirValue::Var
             // A dynamic array returned from a function call should already be initialized
             // and a single variable does not require any extra initialization.
-            self.ssa_values.insert(*result_id, output);
+            self.ssa_values.insert(result_id.raw(), output);
         }
         Ok(())
     }
@@ -954,7 +955,7 @@ impl<'a> Context<'a> {
                 if let Type::Slice(item_types) = typ {
                     let len = match self
                         .ssa_values
-                        .get(&value_id)
+                        .get(value_id.as_ref())
                         .expect("ICE: Unknown slice input to brillig")
                     {
                         AcirValue::DynamicArray(AcirDynamicArray { len, .. }) => *len,
@@ -1044,10 +1045,7 @@ impl<'a> Context<'a> {
             }
         };
         // Ensure that array id is fully resolved.
-        let array = dfg.resolve(array);
-
-        let array_id = dfg.resolve(array);
-        let array_typ = dfg.type_of_value(array_id);
+        let array_typ = dfg.type_of_value(array);
         // Compiler sanity checks
         assert!(!array_typ.is_nested_slice(), "ICE: Nested slice type has reached ACIR generation");
         let (Type::Array(_, _) | Type::Slice(_)) = &array_typ else {
@@ -1102,15 +1100,14 @@ impl<'a> Context<'a> {
         index: ValueId,
         store_value: Option<ValueId>,
     ) -> Result<bool, RuntimeError> {
-        let array_id = dfg.resolve(array);
-        let array_typ = dfg.type_of_value(array_id);
+        let array_typ = dfg.type_of_value(array);
         // Compiler sanity checks
         assert!(!array_typ.is_nested_slice(), "ICE: Nested slice type has reached ACIR generation");
         let (Type::Array(_, _) | Type::Slice(_)) = &array_typ else {
             unreachable!("ICE: expected array or slice type");
         };
 
-        match self.convert_value(array_id, dfg) {
+        match self.convert_value(array, dfg) {
             AcirValue::Var(acir_var, _) => {
                 Err(RuntimeError::InternalError(InternalError::Unexpected {
                     expected: "an array value".to_string(),
@@ -2134,7 +2131,7 @@ impl<'a> Context<'a> {
         dfg: &DataFlowGraph,
     ) -> Result<AcirVar, RuntimeError> {
         let mut var = self.convert_numeric_value(value_id, dfg)?;
-        match &dfg[value_id] {
+        match &dfg[value_id.raw()] {
             Value::Instruction { instruction, .. } => {
                 if matches!(
                     &dfg[*instruction],

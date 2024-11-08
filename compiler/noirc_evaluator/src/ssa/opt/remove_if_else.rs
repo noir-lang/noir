@@ -4,7 +4,7 @@ use acvm::{acir::AcirField, FieldElement};
 use fxhash::FxHashMap as HashMap;
 
 use crate::ssa::ir::function::RuntimeType;
-use crate::ssa::ir::value::ValueId;
+use crate::ssa::ir::value::{RawValueId, ValueId};
 use crate::ssa::{
     ir::{
         dfg::DataFlowGraph,
@@ -48,14 +48,14 @@ impl Function {
 
 #[derive(Default)]
 struct Context {
-    slice_sizes: HashMap<ValueId, usize>,
+    slice_sizes: HashMap<RawValueId, usize>,
 
     // Maps array_set result -> element that was overwritten by that instruction.
     // Used to undo array_sets while merging values
     prev_array_set_elem_values: HashMap<ValueId, ValueId>,
 
     // Maps array_set result -> enable_side_effects_if value which was active during it.
-    array_set_conditionals: HashMap<ValueId, ValueId>,
+    array_set_conditionals: HashMap<RawValueId, ValueId>,
 }
 
 impl Context {
@@ -102,26 +102,26 @@ impl Context {
                     // };
 
                     function.dfg.set_value_from_id(result, value);
-                    self.array_set_conditionals.insert(result, current_conditional);
+                    self.array_set_conditionals.insert(result.raw(), current_conditional);
                 }
                 Instruction::Call { func, arguments } => {
-                    if let Value::Intrinsic(intrinsic) = function.dfg[*func] {
+                    if let Value::Intrinsic(intrinsic) = function.dfg[func.raw()] {
                         let results = function.dfg.instruction_results(instruction);
 
                         match slice_capacity_change(&function.dfg, intrinsic, arguments, results) {
                             SizeChange::None => (),
                             SizeChange::SetTo(value, new_capacity) => {
-                                self.slice_sizes.insert(value, new_capacity);
+                                self.slice_sizes.insert(value.raw(), new_capacity);
                             }
                             SizeChange::Inc { old, new } => {
                                 let old_capacity = self.get_or_find_capacity(&function.dfg, old);
-                                self.slice_sizes.insert(new, old_capacity + 1);
+                                self.slice_sizes.insert(new.raw(), old_capacity + 1);
                             }
                             SizeChange::Dec { old, new } => {
                                 let old_capacity = self.get_or_find_capacity(&function.dfg, old);
                                 // We use a saturating sub here as calling `pop_front` or `pop_back` on a zero-length slice
                                 // would otherwise underflow.
-                                self.slice_sizes.insert(new, old_capacity.saturating_sub(1));
+                                self.slice_sizes.insert(new.raw(), old_capacity.saturating_sub(1));
                             }
                         }
                     }
@@ -131,10 +131,10 @@ impl Context {
                     let results = function.dfg.instruction_results(instruction);
                     let result = if results.len() == 2 { results[1] } else { results[0] };
 
-                    self.array_set_conditionals.insert(result, current_conditional);
+                    self.array_set_conditionals.insert(result.raw(), current_conditional);
 
                     let old_capacity = self.get_or_find_capacity(&function.dfg, *array);
-                    self.slice_sizes.insert(result, old_capacity);
+                    self.slice_sizes.insert(result.raw(), old_capacity);
                     function.dfg[block].instructions_mut().push(instruction);
                 }
                 Instruction::EnableSideEffectsIf { condition } => {
@@ -149,7 +149,7 @@ impl Context {
     }
 
     fn get_or_find_capacity(&mut self, dfg: &DataFlowGraph, value: ValueId) -> usize {
-        match self.slice_sizes.entry(value) {
+        match self.slice_sizes.entry(value.raw()) {
             Entry::Occupied(entry) => return *entry.get(),
             Entry::Vacant(entry) => {
                 if let Some((array, typ)) = dfg.get_array_constant(value) {
@@ -163,7 +163,7 @@ impl Context {
             }
         }
 
-        let dbg_value = &dfg[value];
+        let dbg_value = &dfg[value.raw()];
         unreachable!("No size for slice {value} = {dbg_value:?}")
     }
 }
