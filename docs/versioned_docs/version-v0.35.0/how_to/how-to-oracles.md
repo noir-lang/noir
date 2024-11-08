@@ -97,6 +97,12 @@ fn main(input: [Field; 2]) {
     assert(sqrt[0].pow_32(2) as u64 == input[0] as u64);
     assert(sqrt[1].pow_32(2) as u64 == input[1] as u64);
 }
+
+#[test]
+fn test() {
+    let input = [4, 16];
+    main(input);
+}
 ```
 
 :::info
