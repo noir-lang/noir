@@ -136,6 +136,12 @@ impl Translator {
 
     fn translate_instruction(&mut self, instruction: ParsedInstruction) -> Result<(), SsaError> {
         match instruction {
+            ParsedInstruction::ArrayGet { target, element_type, array, index } => {
+                let array = self.translate_value(array)?;
+                let index = self.translate_value(index)?;
+                let value_id = self.builder.insert_array_get(array, index, element_type);
+                self.define_variable(target, value_id)?;
+            }
             ParsedInstruction::Call { targets, function, arguments } => {
                 let (function_id, return_types) = self.lookup_function(function)?;
                 let result_types = return_types.to_vec();

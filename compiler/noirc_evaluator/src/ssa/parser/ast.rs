@@ -45,6 +45,7 @@ impl Identifier {
 
 #[derive(Debug)]
 pub(crate) enum ParsedInstruction {
+    ArrayGet { target: Identifier, element_type: Type, array: ParsedValue, index: ParsedValue },
     Call { targets: Vec<Identifier>, function: Identifier, arguments: Vec<ParsedValue> },
     Cast { target: Identifier, lhs: ParsedValue, typ: Type },
     Constrain { lhs: ParsedValue, rhs: ParsedValue },

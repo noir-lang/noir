@@ -189,3 +189,15 @@ acir(inline) fn main f0 {
 ";
     assert_ssa_roundtrip(src);
 }
+
+#[test]
+fn test_array_get() {
+    let src: &str = "
+acir(inline) fn main f0 {
+  b0(v0: [Field; 3]):
+    v2 = array_get Field, v0, index Field 0
+    return
+}
+";
+    assert_ssa_roundtrip(src);
+}

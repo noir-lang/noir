@@ -69,6 +69,7 @@ impl Token {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub(crate) enum Keyword {
     Acir,
+    ArrayGet,
     As,
     Bool,
     Brillig,
@@ -82,6 +83,7 @@ pub(crate) enum Keyword {
     Field,
     Fold,
     Fn,
+    Index,
     Jmp,
     Jmpif,
     NoPredicates,
@@ -94,6 +96,7 @@ impl Keyword {
     pub(crate) fn lookup_keyword(word: &str) -> Option<Token> {
         let keyword = match word {
             "acir" => Keyword::Acir,
+            "array_get" => Keyword::ArrayGet,
             "as" => Keyword::As,
             "bool" => Keyword::Bool,
             "brillig" => Keyword::Brillig,
@@ -107,6 +110,7 @@ impl Keyword {
             "Field" => Keyword::Field,
             "fold" => Keyword::Fold,
             "fn" => Keyword::Fn,
+            "index" => Keyword::Index,
             "jmp" => Keyword::Jmp,
             "jmpif" => Keyword::Jmpif,
             "no_predicates" => Keyword::NoPredicates,

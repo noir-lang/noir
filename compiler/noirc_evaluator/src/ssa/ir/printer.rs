@@ -165,12 +165,13 @@ pub(crate) fn display_instruction(
         write!(f, "{} = ", value_list(function, results))?;
     }
 
-    display_instruction_inner(function, &function.dfg[instruction], f)
+    display_instruction_inner(function, &function.dfg[instruction], results, f)
 }
 
 fn display_instruction_inner(
     function: &Function,
     instruction: &Instruction,
+    results: &[ValueId],
     f: &mut Formatter,
 ) -> Result {
     let show = |id| value(function, id);
@@ -205,7 +206,9 @@ fn display_instruction_inner(
             writeln!(f, "enable_side_effects {}", show(*condition))
         }
         Instruction::ArrayGet { array, index } => {
-            writeln!(f, "array_get {}, index {}", show(*array), show(*index))
+            assert_eq!(results.len(), 1);
+            let typ = function.dfg.type_of_value(results[0]);
+            writeln!(f, "array_get {}, {}, index {}", typ, show(*array), show(*index))
         }
         Instruction::ArraySet { array, index, value, mutable } => {
             let array = show(*array);

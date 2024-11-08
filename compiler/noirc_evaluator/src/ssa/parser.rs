@@ -167,16 +167,12 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_instruction(&mut self) -> ParseResult<Option<ParsedInstruction>> {
-        if self.eat_keyword(Keyword::Constrain)? {
-            let lhs = self.parse_value_or_error()?;
-            self.eat_or_error(Token::Equal)?;
-            let rhs = self.parse_value_or_error()?;
-            return Ok(Some(ParsedInstruction::Constrain { lhs, rhs }));
+        if let Some(instruction) = self.parse_constrain()? {
+            return Ok(Some(instruction));
         }
 
-        if self.eat_keyword(Keyword::EnableSideEffects)? {
-            let condition = self.parse_value_or_error()?;
-            return Ok(Some(ParsedInstruction::EnableSideEffectsIf { condition }));
+        if let Some(instruction) = self.parse_enable_side_effects()? {
+            return Ok(Some(instruction));
         }
 
         if let Some(target) = self.eat_identifier()? {
@@ -203,6 +199,21 @@ impl<'a> Parser<'a> {
 
             let target = targets.remove(0);
 
+            if self.eat_keyword(Keyword::ArrayGet)? {
+                let element_type = self.parse_type()?;
+                self.eat_or_error(Token::Comma)?;
+                let array = self.parse_value_or_error()?;
+                self.eat_or_error(Token::Comma)?;
+                self.eat_or_error(Token::Keyword(Keyword::Index))?;
+                let index = self.parse_value_or_error()?;
+                return Ok(Some(ParsedInstruction::ArrayGet {
+                    target,
+                    element_type,
+                    array,
+                    index,
+                }));
+            }
+
             if self.eat_keyword(Keyword::Cast)? {
                 let lhs = self.parse_value_or_error()?;
                 self.eat_or_error(Token::Keyword(Keyword::As))?;
@@ -214,6 +225,26 @@ impl<'a> Parser<'a> {
         }
 
         Ok(None)
+    }
+
+    fn parse_constrain(&mut self) -> ParseResult<Option<ParsedInstruction>> {
+        if !self.eat_keyword(Keyword::Constrain)? {
+            return Ok(None);
+        }
+
+        let lhs = self.parse_value_or_error()?;
+        self.eat_or_error(Token::Equal)?;
+        let rhs = self.parse_value_or_error()?;
+        Ok(Some(ParsedInstruction::Constrain { lhs, rhs }))
+    }
+
+    fn parse_enable_side_effects(&mut self) -> ParseResult<Option<ParsedInstruction>> {
+        if !self.eat_keyword(Keyword::EnableSideEffects)? {
+            return Ok(None);
+        }
+
+        let condition = self.parse_value_or_error()?;
+        Ok(Some(ParsedInstruction::EnableSideEffectsIf { condition }))
     }
 
     fn parse_terminator(&mut self) -> ParseResult<ParsedTerminator> {
