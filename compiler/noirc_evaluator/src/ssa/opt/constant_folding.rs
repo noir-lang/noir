@@ -326,62 +326,44 @@ mod test {
         opt::assert_ssa_equals,
         Ssa,
     };
-    use acvm::acir::AcirField;
 
     #[test]
     fn simple_constant_fold() {
-        // fn main f0 {
-        //   b0(v0: Field):
-        //     v1 = add v0, Field 1
-        //     v2 = mul v1, Field 3
-        //     return v2
-        // }
-        //
         // After constructing this IR, we set the value of v0 to 2.
         // The expected return afterwards should be 9.
-        let main_id = Id::test_new(0);
-
-        // Compiling main
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-        let v0 = builder.add_parameter(Type::field());
-
-        let one = builder.field_constant(1u128);
-        let two = builder.field_constant(2u128);
-        let three = builder.field_constant(3u128);
-
-        let v1 = builder.insert_binary(v0, BinaryOp::Add, one);
-        let v2 = builder.insert_binary(v1, BinaryOp::Mul, three);
-        builder.terminate_with_return(vec![v2]);
-
-        let mut ssa = builder.finish();
+        let src = "
+acir(inline) fn main f0 {
+    b0(v0: Field):
+        v1 = add v0, Field 1
+        v2 = mul v1, Field 3
+        return v2
+}
+        ";
+        let mut ssa = Ssa::from_str(src).unwrap();
         let main = ssa.main_mut();
+
         let instructions = main.dfg[main.entry_block()].instructions();
         assert_eq!(instructions.len(), 2); // The final return is not counted
+
+        let v0 = main.parameters()[0];
+        let two = main.dfg.make_constant(2_u128.into(), Type::field());
 
         // Expected output:
         //
         // fn main f0 {
-        //   b0(Field 2: Field):
+        //   b0(v0: Field):
         //     return Field 9
         // }
         main.dfg.set_value_from_id(v0, two);
 
+        let expected = "
+acir(inline) fn main f0 -> Field {
+  b0(v0: Field):
+    return Field 9
+}
+        ";
         let ssa = ssa.fold_constants();
-        let main = ssa.main();
-        let block = &main.dfg[main.entry_block()];
-        assert_eq!(block.instructions().len(), 0);
-
-        match block.terminator() {
-            Some(TerminatorInstruction::Return { return_values, .. }) => {
-                let value = main
-                    .dfg
-                    .get_numeric_constant(return_values[0])
-                    .expect("Expected constant 9")
-                    .to_u128();
-                assert_eq!(value, 9);
-            }
-            _ => unreachable!("b0 should have a return terminator"),
-        }
+        assert_ssa_equals(ssa, expected);
     }
 
     #[test]

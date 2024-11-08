@@ -24,8 +24,8 @@ mod tests;
 mod token;
 
 impl Ssa {
-    pub(crate) fn from_str(str: &str) -> Result<Ssa, SsaError> {
-        let mut parser = Parser::new(str).map_err(SsaError::ParserError)?;
+    pub(crate) fn from_str(src: &str) -> Result<Ssa, SsaError> {
+        let mut parser = Parser::new(src).map_err(SsaError::ParserError)?;
         let parsed_ssa = parser.parse_ssa().map_err(SsaError::ParserError)?;
         parsed_ssa.into_ssa()
     }
