@@ -18,8 +18,15 @@ pub(crate) struct ParsedFunction {
 #[derive(Debug)]
 pub(crate) struct ParsedBlock {
     pub(crate) name: String,
+    pub(crate) parameters: Vec<ParsedParameter>,
     pub(crate) instructions: Vec<ParsedInstruction>,
     pub(crate) terminator: ParsedTerminator,
+}
+
+#[derive(Debug)]
+pub(crate) struct ParsedParameter {
+    pub(crate) name: String,
+    pub(crate) typ: Type,
 }
 
 #[derive(Debug)]
@@ -34,4 +41,5 @@ pub(crate) enum ParsedTerminator {
 pub(crate) enum ParsedValue {
     NumericConstant { constant: FieldElement, typ: Type },
     Array { values: Vec<ParsedValue>, typ: Type },
+    Variable(String),
 }

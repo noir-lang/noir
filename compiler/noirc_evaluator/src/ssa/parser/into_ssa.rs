@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use im::Vector;
 
 use crate::ssa::{
@@ -16,6 +18,9 @@ impl ParsedSsa {
 
 struct Translator {
     builder: FunctionBuilder,
+
+    // Maps parameter names to their value IDs
+    parameters: HashMap<String, ValueId>,
 }
 
 impl Translator {
@@ -25,13 +30,18 @@ impl Translator {
         let mut builder = FunctionBuilder::new(main_function.external_name.clone(), main_id);
         builder.set_runtime(main_function.runtime_type);
 
-        let mut translator = Self { builder };
+        let mut translator = Self { builder, parameters: HashMap::new() };
         translator.translate_function_body(main_function)?;
         Ok(translator)
     }
 
     fn translate_function_body(&mut self, mut function: ParsedFunction) -> Result<(), SsaError> {
         let entry_block = function.blocks.remove(0);
+        for parameter in entry_block.parameters {
+            let parameter_value_id = self.builder.add_parameter(parameter.typ);
+            self.parameters.insert(parameter.name, parameter_value_id);
+        }
+
         match entry_block.terminator {
             ParsedTerminator::Return(values) => {
                 let mut return_values = Vec::with_capacity(values.len());
@@ -55,6 +65,13 @@ impl Translator {
                     translated_values.push_back(self.translate_value(value)?);
                 }
                 Ok(self.builder.array_constant(translated_values, typ))
+            }
+            ParsedValue::Variable(name) => {
+                if let Some(value_id) = self.parameters.get(&name) {
+                    Ok(*value_id)
+                } else {
+                    Err(SsaError::UnknownVariable(name))
+                }
             }
         }
     }

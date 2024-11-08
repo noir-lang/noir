@@ -2,6 +2,7 @@ use acvm::FieldElement;
 use noirc_errors::{Position, Span, Spanned};
 use noirc_frontend::token::IntType;
 
+#[derive(Debug)]
 pub(crate) struct SpannedToken(Spanned<Token>);
 
 impl SpannedToken {

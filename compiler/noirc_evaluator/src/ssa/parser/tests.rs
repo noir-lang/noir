@@ -76,3 +76,14 @@ acir(inline) fn main f0 {
 ";
     assert_ssa_roundtrip(src);
 }
+
+#[test]
+fn test_block_parameters() {
+    let src = "
+acir(inline) fn main f0 {
+  b0(v0: Field, v1: Field):
+    return v0, v1
+}
+";
+    assert_ssa_roundtrip(src);
+}

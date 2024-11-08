@@ -3,7 +3,7 @@ use std::sync::Arc;
 use super::{ir::types::Type, Ssa};
 
 use acvm::FieldElement;
-use ast::{ParsedBlock, ParsedFunction, ParsedSsa, ParsedValue};
+use ast::{ParsedBlock, ParsedFunction, ParsedParameter, ParsedSsa, ParsedValue};
 use lexer::{Lexer, LexerError};
 use noirc_errors::Span;
 use noirc_frontend::{monomorphization::ast::InlineType, token::IntType};
@@ -28,6 +28,7 @@ impl Ssa {
 #[derive(Debug)]
 pub(crate) enum SsaError {
     ParserError(ParserError),
+    UnknownVariable(String),
 }
 
 type ParseResult<T> = Result<T, ParserError>;
@@ -124,12 +125,28 @@ impl<'a> Parser<'a> {
     fn parse_block(&mut self) -> ParseResult<ParsedBlock> {
         let name = self.eat_ident_or_error()?;
         self.eat_or_error(Token::LeftParen)?;
+
+        let mut parameters = Vec::new();
+        while !self.at(Token::RightParen) {
+            parameters.push(self.parse_parameter()?);
+            if !self.eat(Token::Comma)? {
+                break;
+            }
+        }
+
         self.eat_or_error(Token::RightParen)?;
         self.eat_or_error(Token::Colon)?;
 
         let instructions = Vec::new();
         let terminator = self.parse_terminator()?;
-        Ok(ParsedBlock { name, instructions, terminator })
+        Ok(ParsedBlock { name, parameters, instructions, terminator })
+    }
+
+    fn parse_parameter(&mut self) -> ParseResult<ParsedParameter> {
+        let name = self.eat_ident_or_error()?;
+        self.eat_or_error(Token::Colon)?;
+        let typ = self.parse_type()?;
+        Ok(ParsedParameter { name, typ })
     }
 
     fn parse_terminator(&mut self) -> ParseResult<ParsedTerminator> {
@@ -171,6 +188,10 @@ impl<'a> Parser<'a> {
 
         if let Some(value) = self.parse_array_value()? {
             return Ok(Some(value));
+        }
+
+        if let Some(name) = self.eat_ident()? {
+            return Ok(Some(ParsedValue::Variable(name)));
         }
 
         Ok(None)
