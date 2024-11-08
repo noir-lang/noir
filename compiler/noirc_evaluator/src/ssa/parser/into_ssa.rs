@@ -106,8 +106,7 @@ impl Translator {
 
         for parameter in block.parameters {
             let parameter_value_id = self.builder.add_block_parameter(block_id, parameter.typ);
-            let entry = self.variables.entry(self.current_function_id()).or_default();
-            entry.insert(parameter.identifier.name, parameter_value_id);
+            self.define_variable(parameter.identifier, parameter_value_id)?;
         }
 
         for instruction in block.instructions {
@@ -144,8 +143,8 @@ impl Translator {
                 let function_id = self.builder.import_function(function_id);
                 let arguments = self.translate_values(arguments)?;
 
-                let current_function_id = self.current_function_id();
-                let value_ids = self.builder.insert_call(function_id, arguments, result_types);
+                let value_ids =
+                    self.builder.insert_call(function_id, arguments, result_types).to_vec();
 
                 if value_ids.len() != targets.len() {
                     return Err(SsaError::MismatchedReturnValues {
@@ -154,16 +153,14 @@ impl Translator {
                     });
                 }
 
-                for (target, value_id) in targets.into_iter().zip(value_ids.iter()) {
-                    let entry = self.variables.entry(current_function_id).or_default();
-                    entry.insert(target.name, *value_id);
+                for (target, value_id) in targets.into_iter().zip(value_ids.into_iter()) {
+                    self.define_variable(target, value_id)?;
                 }
             }
             ParsedInstruction::Cast { target, lhs, typ } => {
                 let lhs = self.translate_value(lhs)?;
                 let value_id = self.builder.insert_cast(lhs, typ);
-                let entry = self.variables.entry(self.current_function_id()).or_default();
-                entry.insert(target.name, value_id);
+                self.define_variable(target, value_id)?;
             }
         }
 
@@ -192,6 +189,23 @@ impl Translator {
             }
             ParsedValue::Variable(identifier) => self.lookup_variable(identifier),
         }
+    }
+
+    fn define_variable(
+        &mut self,
+        identifier: Identifier,
+        value_id: ValueId,
+    ) -> Result<(), SsaError> {
+        if let Some(vars) = self.variables.get(&self.current_function_id()) {
+            if vars.contains_key(&identifier.name) {
+                return Err(SsaError::VariableAlreadyDefined(identifier));
+            }
+        }
+
+        let entry = self.variables.entry(self.current_function_id()).or_default();
+        entry.insert(identifier.name, value_id);
+
+        Ok(())
     }
 
     fn lookup_variable(&mut self, identifier: Identifier) -> Result<ValueId, SsaError> {

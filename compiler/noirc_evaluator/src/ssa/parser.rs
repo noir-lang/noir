@@ -35,6 +35,7 @@ pub(crate) enum SsaError {
     UnknownBlock(Identifier),
     UnknownFunction(Identifier),
     MismatchedReturnValues { returns: Vec<Identifier>, expected: usize },
+    VariableAlreadyDefined(Identifier),
 }
 
 type ParseResult<T> = Result<T, ParserError>;
