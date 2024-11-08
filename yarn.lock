@@ -4599,10 +4599,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@eslint/js@npm:8.57.0":
-  version: 8.57.0
-  resolution: "@eslint/js@npm:8.57.0"
-  checksum: 315dc65b0e9893e2bff139bddace7ea601ad77ed47b4550e73da8c9c2d2766c7a575c3cddf17ef85b8fd6a36ff34f91729d0dcca56e73ca887c10df91a41b0bb
+"@eslint/js@npm:8.57.1":
+  version: 8.57.1
+  resolution: "@eslint/js@npm:8.57.1"
+  checksum: 2afb77454c06e8316793d2e8e79a0154854d35e6782a1217da274ca60b5044d2c69d6091155234ed0551a1e408f86f09dd4ece02752c59568fa403e60611e880
   languageName: node
   linkType: hard
 
@@ -4851,14 +4851,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@humanwhocodes/config-array@npm:^0.11.14":
-  version: 0.11.14
-  resolution: "@humanwhocodes/config-array@npm:0.11.14"
+"@humanwhocodes/config-array@npm:^0.13.0":
+  version: 0.13.0
+  resolution: "@humanwhocodes/config-array@npm:0.13.0"
   dependencies:
-    "@humanwhocodes/object-schema": ^2.0.2
+    "@humanwhocodes/object-schema": ^2.0.3
     debug: ^4.3.1
     minimatch: ^3.0.5
-  checksum: 861ccce9eaea5de19546653bccf75bf09fe878bc39c3aab00aeee2d2a0e654516adad38dd1098aab5e3af0145bbcbf3f309bdf4d964f8dab9dcd5834ae4c02f2
+  checksum: eae69ff9134025dd2924f0b430eb324981494be26f0fddd267a33c28711c4db643242cf9fddf7dadb9d16c96b54b2d2c073e60a56477df86e0173149313bd5d6
   languageName: node
   linkType: hard
 
@@ -4869,10 +4869,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@humanwhocodes/object-schema@npm:^2.0.2":
-  version: 2.0.2
-  resolution: "@humanwhocodes/object-schema@npm:2.0.2"
-  checksum: 2fc11503361b5fb4f14714c700c02a3f4c7c93e9acd6b87a29f62c522d90470f364d6161b03d1cc618b979f2ae02aed1106fd29d302695d8927e2fc8165ba8ee
+"@humanwhocodes/object-schema@npm:^2.0.3":
+  version: 2.0.3
+  resolution: "@humanwhocodes/object-schema@npm:2.0.3"
+  checksum: d3b78f6c5831888c6ecc899df0d03bcc25d46f3ad26a11d7ea52944dc36a35ef543fad965322174238d677a43d5c694434f6607532cff7077062513ad7022631
   languageName: node
   linkType: hard
 
@@ -5336,10 +5336,10 @@ __metadata:
     "@web/test-runner": ^0.18.1
     "@web/test-runner-playwright": ^0.11.0
     chai: ^4.4.1
-    eslint: ^8.57.0
-    eslint-plugin-prettier: ^5.1.3
+    eslint: ^8.57.1
+    eslint-plugin-prettier: ^5.2.1
     mocha: ^10.2.0
-    prettier: 3.2.5
+    prettier: 3.3.3
     ts-node: ^10.9.1
     typescript: ^5.4.2
   languageName: unknown
@@ -5352,15 +5352,15 @@ __metadata:
     "@noir-lang/noir_js": "workspace:*"
     "@noir-lang/types": "workspace:*"
     "@types/chai": ^4
-    "@types/mocha": ^10.0.1
-    "@types/node": ^20.6.2
-    "@types/prettier": ^3
+    "@types/mocha": ^10.0.9
+    "@types/node": ^20.17.6
+    "@types/prettier": ^3.0.0
     chai: ^4.4.1
-    eslint: ^8.57.0
-    eslint-plugin-prettier: ^5.1.3
+    eslint: ^8.57.1
+    eslint-plugin-prettier: ^5.2.1
     glob: ^10.3.10
     mocha: ^10.2.0
-    prettier: 3.2.5
+    prettier: 3.3.3
     ts-command-line-args: ^2.5.1
     ts-node: ^10.9.1
     tsx: ^4.6.2
@@ -5378,14 +5378,14 @@ __metadata:
     "@noir-lang/noirc_abi": "workspace:*"
     "@noir-lang/types": "workspace:*"
     "@types/chai": ^4
-    "@types/mocha": ^10.0.1
-    "@types/node": ^20.6.2
-    "@types/prettier": ^3
+    "@types/mocha": ^10.0.9
+    "@types/node": ^20.17.6
+    "@types/prettier": ^3.0.0
     chai: ^4.4.1
-    eslint: ^8.57.0
-    eslint-plugin-prettier: ^5.1.3
+    eslint: ^8.57.1
+    eslint-plugin-prettier: ^5.2.1
     mocha: ^10.2.0
-    prettier: 3.2.5
+    prettier: 3.3.3
     ts-node: ^10.9.1
     tsc-multi: ^1.1.0
     tsx: ^4.6.2
@@ -5402,9 +5402,9 @@ __metadata:
     "@noir-lang/types": "workspace:*"
     "@types/adm-zip": ^0.5.0
     "@types/chai": ^4
-    "@types/mocha": ^10.0.6
+    "@types/mocha": ^10.0.9
     "@types/mocha-each": ^2
-    "@types/node": ^20.10.5
+    "@types/node": ^20.17.6
     "@types/pako": ^2
     "@types/path-browserify": ^1
     "@types/readable-stream": ^4
@@ -5418,15 +5418,15 @@ __metadata:
     browserify-fs: ^1.0.0
     chai: ^4.4.1
     copy-webpack-plugin: ^12.0.2
-    eslint: ^8.57.0
-    eslint-plugin-prettier: ^5.1.3
+    eslint: ^8.57.1
+    eslint-plugin-prettier: ^5.2.1
     html-webpack-plugin: ^5.6.0
     memfs: ^4.6.0
     mocha: ^10.2.0
     mocha-each: ^2.0.1
     pako: ^2.1.0
     path-browserify: ^1.0.1
-    prettier: 3.2.5
+    prettier: 3.3.3
     process: ^0.11.10
     readable-stream: ^4.4.2
     sinon: ^17.0.1
@@ -5450,7 +5450,7 @@ __metadata:
     "@web/dev-server-esbuild": ^0.3.6
     "@web/test-runner": ^0.18.1
     "@web/test-runner-playwright": ^0.11.0
-    eslint: ^8.57.0
+    eslint: ^8.57.1
     mocha: ^10.2.0
   languageName: unknown
   linkType: soft
@@ -5463,10 +5463,10 @@ __metadata:
     "@typescript-eslint/parser": ^6.7.3
     chai: ^4.4.1
     cspell: ^8.3.2
-    eslint: ^8.57.0
-    eslint-plugin-prettier: ^5.1.3
+    eslint: ^8.57.1
+    eslint-plugin-prettier: ^5.2.1
     mocha: ^10.2.0
-    prettier: 3.2.5
+    prettier: 3.3.3
     ts-node: ^10.9.1
     typescript: ^5.4.2
   languageName: unknown
@@ -5476,10 +5476,10 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@noir-lang/types@workspace:tooling/noir_js_types"
   dependencies:
-    "@types/prettier": ^3
-    eslint: ^8.57.0
-    eslint-plugin-prettier: ^5.1.3
-    prettier: 3.2.5
+    "@types/prettier": ^3.0.0
+    eslint: ^8.57.1
+    eslint-plugin-prettier: ^5.2.1
+    prettier: 3.3.3
     typescript: ^5.4.2
   languageName: unknown
   linkType: soft
@@ -6978,10 +6978,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/mocha@npm:*, @types/mocha@npm:^10.0.1, @types/mocha@npm:^10.0.6":
+"@types/mocha@npm:*":
   version: 10.0.6
   resolution: "@types/mocha@npm:10.0.6"
   checksum: f7c836cf6cf27dc0f5970d262591b56f2a3caeaec8cfdc612c12e1cfbb207f601f710ece207e935164d4e3343b93be5054d0db5544f31f453b3923775d82099f
+  languageName: node
+  linkType: hard
+
+"@types/mocha@npm:^10.0.9":
+  version: 10.0.9
+  resolution: "@types/mocha@npm:10.0.9"
+  checksum: cd15e7df49338466e75c580991d8fb3f86dad567f3abd6ca6489c0875b8af44f57a95167552fab7bbc950f53f97596be30b3507a9c16e0dc8d41a2d1e23b169d
   languageName: node
   linkType: hard
 
@@ -7001,7 +7008,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/node@npm:*, @types/node@npm:^20.6.2":
+"@types/node@npm:*":
   version: 20.10.4
   resolution: "@types/node@npm:20.10.4"
   dependencies:
@@ -7024,12 +7031,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/node@npm:^20.10.5":
-  version: 20.10.5
-  resolution: "@types/node@npm:20.10.5"
+"@types/node@npm:^20.17.6":
+  version: 20.17.6
+  resolution: "@types/node@npm:20.17.6"
   dependencies:
-    undici-types: ~5.26.4
-  checksum: e216b679f545a8356960ce985a0e53c3a58fff0eacd855e180b9e223b8db2b5bd07b744a002b8c1f0c37f9194648ab4578533b5c12df2ec10cc02f61d20948d2
+    undici-types: ~6.19.2
+  checksum: d51dbb9881c94d0310b32b5fd8013e3261595c61bc888fa27258469c93c3dc0b3c4d20a9f28f3f5f79562f6737e28e7f3dd04940dc8b4d966d34aaf318f7f69b
   languageName: node
   linkType: hard
 
@@ -7077,7 +7084,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/prettier@npm:^3":
+"@types/prettier@npm:^3.0.0":
   version: 3.0.0
   resolution: "@types/prettier@npm:3.0.0"
   dependencies:
@@ -11105,13 +11112,13 @@ __metadata:
     "@noir-lang/noir_js": "workspace:*"
     "@noir-lang/noirc_abi": "workspace:*"
     "@noir-lang/types": "workspace:*"
-    "@types/prettier": ^3
+    "@types/prettier": ^3.0.0
     axios: ^1.4.0
     clsx: ^1.2.1
     docusaurus-plugin-typedoc: 1.0.0-next.18
-    eslint-plugin-prettier: ^5.1.3
+    eslint-plugin-prettier: ^5.2.1
     hast-util-is-element: ^1.1.0
-    prettier: 3.2.5
+    prettier: 3.3.3
     prism-react-renderer: ^2.1.0
     react: ^18.2.0
     react-dom: ^18.2.0
@@ -11697,12 +11704,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"eslint-plugin-prettier@npm:^5.1.3":
-  version: 5.1.3
-  resolution: "eslint-plugin-prettier@npm:5.1.3"
+"eslint-plugin-prettier@npm:^5.2.1":
+  version: 5.2.1
+  resolution: "eslint-plugin-prettier@npm:5.2.1"
   dependencies:
     prettier-linter-helpers: ^1.0.0
-    synckit: ^0.8.6
+    synckit: ^0.9.1
   peerDependencies:
     "@types/eslint": ">=8.0.0"
     eslint: ">=8.0.0"
@@ -11713,7 +11720,7 @@ __metadata:
       optional: true
     eslint-config-prettier:
       optional: true
-  checksum: eb2a7d46a1887e1b93788ee8f8eb81e0b6b2a6f5a66a62bc6f375b033fc4e7ca16448da99380be800042786e76cf5c0df9c87a51a2c9b960ed47acbd7c0b9381
+  checksum: 812f4d1596dcd3a55963212dfbd818a4b38f880741aac75f6869aa740dc5d934060674d3b85d10ff9fec424defa61967dbdef26b8a893a92c9b51880264ed0d9
   languageName: node
   linkType: hard
 
@@ -11744,15 +11751,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"eslint@npm:^8.57.0":
-  version: 8.57.0
-  resolution: "eslint@npm:8.57.0"
+"eslint@npm:^8.57.1":
+  version: 8.57.1
+  resolution: "eslint@npm:8.57.1"
   dependencies:
     "@eslint-community/eslint-utils": ^4.2.0
     "@eslint-community/regexpp": ^4.6.1
     "@eslint/eslintrc": ^2.1.4
-    "@eslint/js": 8.57.0
-    "@humanwhocodes/config-array": ^0.11.14
+    "@eslint/js": 8.57.1
+    "@humanwhocodes/config-array": ^0.13.0
     "@humanwhocodes/module-importer": ^1.0.1
     "@nodelib/fs.walk": ^1.2.8
     "@ungap/structured-clone": ^1.2.0
@@ -11788,7 +11795,7 @@ __metadata:
     text-table: ^0.2.0
   bin:
     eslint: bin/eslint.js
-  checksum: 3a48d7ff85ab420a8447e9810d8087aea5b1df9ef68c9151732b478de698389ee656fd895635b5f2871c89ee5a2652b3f343d11e9db6f8486880374ebc74a2d9
+  checksum: e2489bb7f86dd2011967759a09164e65744ef7688c310bc990612fc26953f34cc391872807486b15c06833bdff737726a23e9b4cdba5de144c311377dc41d91b
   languageName: node
   linkType: hard
 
@@ -14132,11 +14139,11 @@ __metadata:
     "@web/dev-server-import-maps": ^0.2.0
     "@web/test-runner": ^0.18.1
     "@web/test-runner-playwright": ^0.11.0
-    eslint: ^8.57.0
-    eslint-plugin-prettier: ^5.1.3
+    eslint: ^8.57.1
+    eslint-plugin-prettier: ^5.2.1
     ethers: ^6.7.1
     hardhat: ^2.22.6
-    prettier: 3.2.5
+    prettier: 3.3.3
     smol-toml: ^1.1.2
     toml: ^3.0.0
     tslog: ^4.9.2
@@ -18777,12 +18784,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"prettier@npm:3.2.5":
-  version: 3.2.5
-  resolution: "prettier@npm:3.2.5"
+"prettier@npm:3.3.3":
+  version: 3.3.3
+  resolution: "prettier@npm:3.3.3"
   bin:
     prettier: bin/prettier.cjs
-  checksum: 2ee4e1417572372afb7a13bb446b34f20f1bf1747db77cf6ccaf57a9be005f2f15c40f903d41a6b79eec3f57fff14d32a20fb6dee1f126da48908926fe43c311
+  checksum: bc8604354805acfdde6106852d14b045bb20827ad76a5ffc2455b71a8257f94de93f17f14e463fe844808d2ccc87248364a5691488a3304f1031326e62d9276e
   languageName: node
   linkType: hard
 
@@ -21167,13 +21174,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"synckit@npm:^0.8.6":
-  version: 0.8.8
-  resolution: "synckit@npm:0.8.8"
+"synckit@npm:^0.9.1":
+  version: 0.9.2
+  resolution: "synckit@npm:0.9.2"
   dependencies:
     "@pkgr/core": ^0.1.0
     tslib: ^2.6.2
-  checksum: 9ed5d33abb785f5f24e2531efd53b2782ca77abf7912f734d170134552b99001915531be5a50297aa45c5701b5c9041e8762e6cd7a38e41e2461c1e7fccdedf8
+  checksum: 3a30e828efbdcf3b50fccab4da6e90ea7ca24d8c5c2ad3ffe98e07d7c492df121e0f75227c6e510f96f976aae76f1fa4710cb7b1d69db881caf66ef9de89360e
   languageName: node
   linkType: hard
 
@@ -21842,6 +21849,13 @@ __metadata:
   version: 5.26.5
   resolution: "undici-types@npm:5.26.5"
   checksum: 3192ef6f3fd5df652f2dc1cd782b49d6ff14dc98e5dced492aa8a8c65425227da5da6aafe22523c67f035a272c599bb89cfe803c1db6311e44bed3042fc25487
+  languageName: node
+  linkType: hard
+
+"undici-types@npm:~6.19.2":
+  version: 6.19.8
+  resolution: "undici-types@npm:6.19.8"
+  checksum: de51f1b447d22571cf155dfe14ff6d12c5bdaec237c765085b439c38ca8518fc360e88c70f99469162bf2e14188a7b0bcb06e1ed2dc031042b984b0bb9544017
   languageName: node
   linkType: hard
 
