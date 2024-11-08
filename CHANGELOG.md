@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.38.0](https://github.com/noir-lang/noir/compare/v0.37.0...v0.38.0) (2024-11-08)
+
+
+### ⚠ BREAKING CHANGES
+
+* Always Check Arithmetic Generics at Monomorphization ([#6329](https://github.com/noir-lang/noir/issues/6329))
+
+### Features
+
+* Always Check Arithmetic Generics at Monomorphization ([#6329](https://github.com/noir-lang/noir/issues/6329)) ([2972db2](https://github.com/noir-lang/noir/commit/2972db20fc00ed0e43b662092f0d0712421d122f))
+* Ensure that generated ACIR is solvable ([#6415](https://github.com/noir-lang/noir/issues/6415)) ([b473d99](https://github.com/noir-lang/noir/commit/b473d99b2b70b595596b8392617256dbaf5d5642))
+* Nargo command to generate shell completions ([#6413](https://github.com/noir-lang/noir/issues/6413)) ([13856a1](https://github.com/noir-lang/noir/commit/13856a121125b1ccca15919942081a5d157d280e))
+
+
+### Bug Fixes
+
+* Check infix expression is valid in program input ([#6450](https://github.com/noir-lang/noir/issues/6450)) ([35dedb5](https://github.com/noir-lang/noir/commit/35dedb54a0853ba0fa85038d832a520f9ba01a98))
+* Discard optimisation that would change execution ordering or that is related to call outputs ([#6461](https://github.com/noir-lang/noir/issues/6461)) ([b8654f7](https://github.com/noir-lang/noir/commit/b8654f700b218cc09c5381af65df11ead9ffcdaf))
+* Don't crash on AsTraitPath with empty path ([#6454](https://github.com/noir-lang/noir/issues/6454)) ([fc72dcd](https://github.com/noir-lang/noir/commit/fc72dcdf3e8eeff73f72756e7ab87dddf2920657))
+* Fix Alias and Error kinds ([#6426](https://github.com/noir-lang/noir/issues/6426)) ([3cb259f](https://github.com/noir-lang/noir/commit/3cb259f419cf352f768728b15f849e520fc233cb))
+* Let formatter respect newlines between comments ([#6458](https://github.com/noir-lang/noir/issues/6458)) ([fb1a8ca](https://github.com/noir-lang/noir/commit/fb1a8ca67c58d87991358078e6c532b49824fdb8))
+* Right shift is not a regular division ([#6400](https://github.com/noir-lang/noir/issues/6400)) ([2247814](https://github.com/noir-lang/noir/commit/2247814f951f5d33257cd123a3bdcba857c9b167))
+* **sea:** Mem2reg to treat block input references as alias ([#6452](https://github.com/noir-lang/noir/issues/6452)) ([5310064](https://github.com/noir-lang/noir/commit/53100647bf1dc7917b66c9a7041c06b1e716fbe7))
+* **ssa:** Change array_set to not mutate slices coming from function inputs ([#6463](https://github.com/noir-lang/noir/issues/6463)) ([371bd45](https://github.com/noir-lang/noir/commit/371bd45130c9095e5dfb20dc79fbf41c02ed087c))
+* **ssa:** Resolve value IDs in terminator before comparing to array ([#6448](https://github.com/noir-lang/noir/issues/6448)) ([66f15ca](https://github.com/noir-lang/noir/commit/66f15caba8466501256a98cee289c49376b27097))
+* **tests:** Prevent EOF error while running test programs ([#6455](https://github.com/noir-lang/noir/issues/6455)) ([358e381](https://github.com/noir-lang/noir/commit/358e38107edbc4f40c97b88196456d82f5557e3f))
+* Type-check turbofish in trait before function call ([#6416](https://github.com/noir-lang/noir/issues/6416)) ([f8fd813](https://github.com/noir-lang/noir/commit/f8fd813b09ce870364700659e3ea8499ab51105e))
+
 ## [0.37.0](https://github.com/noir-lang/noir/compare/v0.36.0...v0.37.0) (2024-10-31)
 
 
