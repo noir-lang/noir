@@ -215,6 +215,19 @@ acir(inline) fn main f0 {
 }
 
 #[test]
+fn test_array_get_set_bug() {
+    let src = "
+acir(inline) fn main f0 {
+  b0(v0: [u32; 3]):
+    v3 = array_set v0, index u32 1, value u32 2
+    v5 = array_get u32, v3, index u32 0
+    return
+}
+";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
 fn test_binary() {
     for op in ["add", "sub", "mul", "div", "eq", "mod", "lt", "and", "or", "xor", "shl", "shr"] {
         let src = format!(

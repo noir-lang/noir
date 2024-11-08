@@ -146,8 +146,8 @@ impl Translator {
                 let array = self.translate_value(array)?;
                 let index = self.translate_value(index)?;
                 let value = self.translate_value(value)?;
-                self.builder.insert_array_set(array, index, value);
-                self.define_variable(target, array)?;
+                let value_id = self.builder.insert_array_set(array, index, value);
+                self.define_variable(target, value_id)?;
             }
             ParsedInstruction::BinaryOp { target, lhs, op, rhs } => {
                 let lhs = self.translate_value(lhs)?;
