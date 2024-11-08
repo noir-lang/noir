@@ -6,7 +6,7 @@ import { resolve, join } from 'path';
 import toml from 'toml';
 
 import { Noir } from '@noir-lang/noir_js';
-import { BarretenbergBackend } from '@noir-lang/backend_barretenberg';
+import { UltraPlonkBackend } from '@aztec/bb.js';
 import { Field, InputMap } from '@noir-lang/noirc_abi';
 
 import { compile, createFileManager } from '@noir-lang/noir_wasm';
@@ -35,7 +35,7 @@ it.skip(`smart contract can verify a recursive proof`, async () => {
 
   // Intermediate proof
 
-  const inner_backend = new BarretenbergBackend(innerProgram);
+  const inner_backend = new UltraPlonkBackend(innerProgram.bytecode);
   const inner = new Noir(innerProgram);
 
   const inner_prover_toml = readFileSync(
@@ -67,7 +67,7 @@ it.skip(`smart contract can verify a recursive proof`, async () => {
 
   const { witness: recursionWitness } = await recursion.execute(recursion_inputs);
 
-  const recursion_backend = new BarretenbergBackend(recursionProgram);
+  const recursion_backend = new UltraPlonkBackend(recursionProgram.bytecode);
   const recursion_proof = await recursion_backend.generateProof(recursionWitness);
   expect(await recursion_backend.verifyProof(recursion_proof)).to.be.true;
 

@@ -1,7 +1,9 @@
 contract Foo {
-    struct T { x: [Field] }
+    pub struct T { x: [Field] }
 
     impl T {
-        fn t(self) {}
+        fn t(self) {
+            let _ = self;
+        }
     }
 }

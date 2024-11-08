@@ -1,7 +1,7 @@
 #[bar::struct_attr]
-struct Foo {}
+pub struct Foo {}
 
-struct Bar {}
+pub struct Bar {}
 
 #[bar::fn_attr]
 fn main() {}
@@ -19,11 +19,7 @@ mod bar {
 
         // Ensure closures can still access Bar even
         // though `map` separates them from `fn_attr`.
-        let _ = &[1, 2, 3].map(
-            |_| {
-            quote { Bar }.as_type()
-        }
-        );
+        let _ = &[1, 2, 3].map(|_| quote { Bar }.as_type());
     }
 
     // use_callers_scope should also work nested

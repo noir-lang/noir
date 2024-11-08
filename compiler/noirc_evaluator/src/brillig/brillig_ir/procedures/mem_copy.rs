@@ -17,9 +17,12 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         destination_pointer: MemoryAddress,
         num_elements_variable: MemoryAddress,
     ) {
-        self.mov_instruction(MemoryAddress::from(ScratchSpace::start()), source_pointer);
-        self.mov_instruction(MemoryAddress::from(ScratchSpace::start() + 1), destination_pointer);
-        self.mov_instruction(MemoryAddress::from(ScratchSpace::start() + 2), num_elements_variable);
+        self.mov_instruction(MemoryAddress::direct(ScratchSpace::start()), source_pointer);
+        self.mov_instruction(MemoryAddress::direct(ScratchSpace::start() + 1), destination_pointer);
+        self.mov_instruction(
+            MemoryAddress::direct(ScratchSpace::start() + 2),
+            num_elements_variable,
+        );
         self.add_procedure_call_instruction(ProcedureId::MemCopy);
     }
 }
@@ -27,9 +30,9 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 pub(super) fn compile_mem_copy_procedure<F: AcirField + DebugToString>(
     brillig_context: &mut BrilligContext<F, ScratchSpace>,
 ) {
-    let source_pointer = MemoryAddress::from(ScratchSpace::start());
-    let destination_pointer = MemoryAddress::from(ScratchSpace::start() + 1);
-    let num_elements_variable = MemoryAddress::from(ScratchSpace::start() + 2);
+    let source_pointer = MemoryAddress::direct(ScratchSpace::start());
+    let destination_pointer = MemoryAddress::direct(ScratchSpace::start() + 1);
+    let num_elements_variable = MemoryAddress::direct(ScratchSpace::start() + 2);
 
     brillig_context.set_allocated_registers(vec![
         source_pointer,

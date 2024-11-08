@@ -3,29 +3,29 @@ pub mod affine {
     // Points are represented by two-dimensional Cartesian coordinates.
     // All group operations are induced by those of the corresponding Twisted Edwards curve.
     // See e.g. <https://eprint.iacr.org/2017/212.pdf> for details on the correspondences.
+    use crate::cmp::Eq;
+    use crate::ec::is_square;
     use crate::ec::montcurve::curvegroup;
+    use crate::ec::safe_inverse;
+    use crate::ec::sqrt;
     use crate::ec::swcurve::affine::Curve as SWCurve;
     use crate::ec::swcurve::affine::Point as SWPoint;
     use crate::ec::tecurve::affine::Curve as TECurve;
     use crate::ec::tecurve::affine::Point as TEPoint;
-    use crate::ec::is_square;
-    use crate::ec::safe_inverse;
-    use crate::ec::sqrt;
     use crate::ec::ZETA;
-    use crate::cmp::Eq;
 
     // Curve specification
     pub struct Curve { // Montgomery Curve configuration (ky^2 = x^3 + j*x^2 + x)
-        j: Field,
-        k: Field,
+        pub j: Field,
+        pub k: Field,
         // Generator as point in Cartesian coordinates
-        gen: Point
+        pub gen: Point,
     }
     // Point in Cartesian coordinates
     pub struct Point {
-        x: Field,
-        y: Field,
-        infty: bool // Indicator for point at infinity
+        pub x: Field,
+        pub y: Field,
+        pub infty: bool, // Indicator for point at infinity
     }
 
     impl Point {
@@ -40,11 +40,11 @@ pub mod affine {
         }
 
         // Conversion to CurveGroup coordinates
-        fn into_group(self) -> curvegroup::Point {
+        pub fn into_group(self) -> curvegroup::Point {
             if self.is_zero() {
                 curvegroup::Point::zero()
             } else {
-                let (x,y) = (self.x, self.y);
+                let (x, y) = (self.x, self.y);
                 curvegroup::Point::new(x, y, 1)
             }
         }
@@ -55,15 +55,15 @@ pub mod affine {
         }
 
         // Negation
-        fn negate(self) -> Self {
-            let Self {x, y, infty} = self;
+        pub fn negate(self) -> Self {
+            let Self { x, y, infty } = self;
 
             Self { x, y: 0 - y, infty }
         }
 
         // Map into equivalent Twisted Edwards curve
-        fn into_tecurve(self) -> TEPoint {
-            let Self {x, y, infty} = self;
+        pub fn into_tecurve(self) -> TEPoint {
+            let Self { x, y, infty } = self;
 
             if infty | (y * (x + 1) == 0) {
                 TEPoint::zero()
@@ -95,14 +95,14 @@ pub mod affine {
         }
 
         // Conversion to CurveGroup coordinates
-        fn into_group(self) -> curvegroup::Curve {
+        pub fn into_group(self) -> curvegroup::Curve {
             curvegroup::Curve::new(self.j, self.k, self.gen.into_group())
         }
 
         // Membership check
         pub fn contains(self, p: Point) -> bool {
-            let Self {j, k, gen: _gen} = self;
-            let Point {x, y, infty: infty} = p;
+            let Self { j, k, gen: _gen } = self;
+            let Point { x, y, infty } = p;
 
             infty | (k * y * y == x * (x * x + j * x + 1))
         }
@@ -114,17 +114,17 @@ pub mod affine {
 
         // Scalar multiplication with scalar represented by a bit array (little-endian convention).
         // If k is the natural number represented by `bits`, then this computes p + ... + p k times.
-        fn bit_mul<let N: u32>(self, bits: [u1; N], p: Point) -> Point {
+        pub fn bit_mul<let N: u32>(self, bits: [u1; N], p: Point) -> Point {
             self.into_tecurve().bit_mul(bits, p.into_tecurve()).into_montcurve()
         }
 
         // Scalar multiplication (p + ... + p n times)
-        fn mul(self, n: Field, p: Point) -> Point {
+        pub fn mul(self, n: Field, p: Point) -> Point {
             self.into_tecurve().mul(n, p.into_tecurve()).into_montcurve()
         }
 
         // Multi-scalar multiplication (n[0]*p[0] + ... + n[N]*p[N], where * denotes scalar multiplication)
-        fn msm<let N: u32>(self, n: [Field; N], p: [Point; N]) -> Point {
+        pub fn msm<let N: u32>(self, n: [Field; N], p: [Point; N]) -> Point {
             let mut out = Point::zero();
 
             for i in 0..N {
@@ -135,13 +135,13 @@ pub mod affine {
         }
 
         // Point subtraction
-        fn subtract(self, p1: Point, p2: Point) -> Point {
+        pub fn subtract(self, p1: Point, p2: Point) -> Point {
             self.add(p1, p2.negate())
         }
 
         // Conversion to equivalent Twisted Edwards curve
-        fn into_tecurve(self) -> TECurve {
-            let Self {j, k, gen} = self;
+        pub fn into_tecurve(self) -> TECurve {
+            let Self { j, k, gen } = self;
             TECurve::new((j + 2) / k, (j - 2) / k, gen.into_tecurve())
         }
 
@@ -165,8 +165,8 @@ pub mod affine {
         }
 
         // Point mapping from equivalent Short Weierstrass curve
-        fn map_from_swcurve(self, p: SWPoint) -> Point {
-            let SWPoint {x, y, infty} = p;
+        pub fn map_from_swcurve(self, p: SWPoint) -> Point {
+            let SWPoint { x, y, infty } = p;
             let j = self.j;
             let k = self.k;
 
@@ -174,11 +174,10 @@ pub mod affine {
         }
 
         // Elligator 2 map-to-curve method; see <https://datatracker.ietf.org/doc/id/draft-irtf-cfrg-hash-to-curve-06.html#name-elligator-2-method>.
-        fn elligator2_map(self, u: Field) -> Point {
+        pub fn elligator2_map(self, u: Field) -> Point {
             let j = self.j;
             let k = self.k;
             let z = ZETA; // Non-square Field element required for map
-
             // Check whether curve is admissible
             assert(j != 0);
             let l = (j * j - 4) / (k * k);
@@ -195,17 +194,25 @@ pub mod affine {
 
             let y = if is_square(gx1) {
                 let y0 = sqrt(gx1);
-                if y0.sgn0() == 1 { y0 } else { 0 - y0 }
+                if y0.sgn0() == 1 {
+                    y0
+                } else {
+                    0 - y0
+                }
             } else {
                 let y0 = sqrt(gx2);
-                if y0.sgn0() == 0 { y0 } else { 0 - y0 }
+                if y0.sgn0() == 0 {
+                    y0
+                } else {
+                    0 - y0
+                }
             };
 
             Point::new(x * k, y * k)
         }
 
         // SWU map-to-curve method (via rational map)
-        fn swu_map(self, z: Field, u: Field) -> Point {
+        pub fn swu_map(self, z: Field, u: Field) -> Point {
             self.map_from_swcurve(self.into_swcurve().swu_map(z, u))
         }
     }
@@ -215,24 +222,24 @@ pub mod curvegroup {
     // Points are represented by three-dimensional projective (homogeneous) coordinates.
     // All group operations are induced by those of the corresponding Twisted Edwards curve.
     // See e.g. <https://eprint.iacr.org/2017/212.pdf> for details on the correspondences.
+    use crate::cmp::Eq;
     use crate::ec::montcurve::affine;
     use crate::ec::swcurve::curvegroup::Curve as SWCurve;
     use crate::ec::swcurve::curvegroup::Point as SWPoint;
     use crate::ec::tecurve::curvegroup::Curve as TECurve;
     use crate::ec::tecurve::curvegroup::Point as TEPoint;
-    use crate::cmp::Eq;
 
     pub struct Curve { // Montgomery Curve configuration (ky^2 z = x*(x^2 + j*x*z + z*z))
-        j: Field,
-        k: Field,
+        pub j: Field,
+        pub k: Field,
         // Generator as point in projective coordinates
-        gen: Point
+        pub gen: Point,
     }
     // Point in projective coordinates
     pub struct Point {
-        x: Field,
-        y: Field,
-        z: Field
+        pub x: Field,
+        pub y: Field,
+        pub z: Field,
     }
 
     impl Point {
@@ -247,11 +254,11 @@ pub mod curvegroup {
         }
 
         // Conversion to affine coordinates
-        fn into_affine(self) -> affine::Point {
+        pub fn into_affine(self) -> affine::Point {
             if self.is_zero() {
                 affine::Point::zero()
             } else {
-                let (x,y,z) = (self.x, self.y, self.z);
+                let (x, y, z) = (self.x, self.y, self.z);
                 affine::Point::new(x / z, y / z)
             }
         }
@@ -262,14 +269,14 @@ pub mod curvegroup {
         }
 
         // Negation
-        fn negate(self) -> Self {
-            let Self {x, y, z} = self;
+        pub fn negate(self) -> Self {
+            let Self { x, y, z } = self;
 
             Point::new(x, 0 - y, z)
         }
 
         // Map into equivalent Twisted Edwards curve
-        fn into_tecurve(self) -> TEPoint {
+        pub fn into_tecurve(self) -> TEPoint {
             self.into_affine().into_tecurve().into_group()
         }
     }
@@ -297,14 +304,14 @@ pub mod curvegroup {
         }
 
         // Conversion to affine coordinates
-        fn into_affine(self) -> affine::Curve {
+        pub fn into_affine(self) -> affine::Curve {
             affine::Curve::new(self.j, self.k, self.gen.into_affine())
         }
 
         // Membership check
         pub fn contains(self, p: Point) -> bool {
-            let Self {j, k, gen: _gen} = self;
-            let Point {x, y, z} = p;
+            let Self { j, k, gen: _gen } = self;
+            let Point { x, y, z } = p;
 
             k * y * y * z == x * (x * x + j * x * z + z * z)
         }
@@ -316,7 +323,7 @@ pub mod curvegroup {
 
         // Scalar multiplication with scalar represented by a bit array (little-endian convention).
         // If k is the natural number represented by `bits`, then this computes p + ... + p k times.
-        fn bit_mul<let N: u32>(self, bits: [u1; N], p: Point) -> Point {
+        pub fn bit_mul<let N: u32>(self, bits: [u1; N], p: Point) -> Point {
             self.into_tecurve().bit_mul(bits, p.into_tecurve()).into_montcurve()
         }
 
@@ -326,7 +333,7 @@ pub mod curvegroup {
         }
 
         // Multi-scalar multiplication (n[0]*p[0] + ... + n[N]*p[N], where * denotes scalar multiplication)
-        fn msm<let N: u32>(self, n: [Field; N], p: [Point; N]) -> Point {
+        pub fn msm<let N: u32>(self, n: [Field; N], p: [Point; N]) -> Point {
             let mut out = Point::zero();
 
             for i in 0..N {
@@ -342,13 +349,13 @@ pub mod curvegroup {
         }
 
         // Conversion to equivalent Twisted Edwards curve
-        fn into_tecurve(self) -> TECurve {
-            let Self {j, k, gen} = self;
+        pub fn into_tecurve(self) -> TECurve {
+            let Self { j, k, gen } = self;
             TECurve::new((j + 2) / k, (j - 2) / k, gen.into_tecurve())
         }
 
         // Conversion to equivalent Short Weierstrass curve
-        fn into_swcurve(self) -> SWCurve {
+        pub fn into_swcurve(self) -> SWCurve {
             let j = self.j;
             let k = self.k;
             let a0 = (3 - j * j) / (3 * k * k);
@@ -363,17 +370,17 @@ pub mod curvegroup {
         }
 
         // Point mapping from equivalent Short Weierstrass curve
-        fn map_from_swcurve(self, p: SWPoint) -> Point {
+        pub fn map_from_swcurve(self, p: SWPoint) -> Point {
             self.into_affine().map_from_swcurve(p.into_affine()).into_group()
         }
 
         // Elligator 2 map-to-curve method
-        fn elligator2_map(self, u: Field) -> Point {
+        pub fn elligator2_map(self, u: Field) -> Point {
             self.into_affine().elligator2_map(u).into_group()
         }
 
         // SWU map-to-curve method (via rational map)
-        fn swu_map(self, z: Field, u: Field) -> Point {
+        pub fn swu_map(self, z: Field, u: Field) -> Point {
             self.into_affine().swu_map(z, u).into_group()
         }
     }

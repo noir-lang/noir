@@ -1,5 +1,5 @@
-use std::ops::{Add, Sub, Mul, Div, Rem, BitAnd, BitOr, BitXor, Shl, Shr};
 use std::cmp::Ordering;
+use std::ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Rem, Shl, Shr, Sub};
 
 // x = 3, y = 9
 fn main(x: u32, y: u32) {
@@ -30,7 +30,7 @@ fn main(x: u32, y: u32) {
     assert((wx >= wy) == (ex >= ey));
     assert(wx.cmp(wy) == ex.cmp(ey));
 
-    // Ensure operator overloading still works with more complex types 
+    // Ensure operator overloading still works with more complex types
     let pair_ascending = Pair { x: wx, y: wy };
     let pair_descending = Pair { x: wy, y: wx };
 
@@ -45,7 +45,7 @@ fn main(x: u32, y: u32) {
 }
 
 struct Wrapper {
-    inner: u32
+    inner: u32,
 }
 
 impl Wrapper {

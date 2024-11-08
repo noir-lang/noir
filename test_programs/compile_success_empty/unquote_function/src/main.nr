@@ -3,7 +3,7 @@ fn main() {
 }
 
 #[output_function]
-fn foo() {}
+pub fn foo() {}
 
 comptime fn output_function(_f: FunctionDefinition) -> Quoted {
     quote {

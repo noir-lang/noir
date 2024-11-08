@@ -1,5 +1,5 @@
 // Tests a very simple program.
-// 
+//
 // The features being tested are array reads and writes
 fn main(x: [Field; 3]) {
     unsafe {
