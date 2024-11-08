@@ -10,7 +10,6 @@ use crate::ssa::{
         dfg::DataFlowGraph,
         function::Function,
         instruction::{BinaryOp, Instruction, InstructionId, Intrinsic},
-        post_order::PostOrder,
         types::Type,
         value::{Value, ValueId},
     },
@@ -49,11 +48,12 @@ impl Function {
 
         for scc in postorder_scc_cfg {
             if scc.len() == 1 {
-                inserted_out_of_bounds_checks |= context.scan_and_remove_unused_instructions_in_block(
-                    self,
-                    scc[0],
-                    insert_out_of_bounds_checks,
-                );
+                inserted_out_of_bounds_checks |= context
+                    .scan_and_remove_unused_instructions_in_block(
+                        self,
+                        scc[0],
+                        insert_out_of_bounds_checks,
+                    );
             } else {
                 context.die_in_scc(scc, self);
             }
@@ -180,7 +180,7 @@ impl Context {
         } {}
 
         for block in scc {
-            // remove each unused instruction
+            self.populate_instructions_to_remove(function, block);
             self.remove_unused_instructions_in_block(function, block);
         }
     }
@@ -190,7 +190,51 @@ impl Context {
         instructions.retain(|instruction| !self.instructions_to_remove.contains(instruction));
     }
 
-    fn mark_used_values(&mut self, block_id: BasicBlockId, function: &mut Function) {
+    fn mark_used_values(&mut self, block_id: BasicBlockId, function: &Function) {
+        let block = &function.dfg[block_id];
+        self.mark_terminator_values_as_used(function, block);
+
+        for instruction_id in block.instructions() {
+            let instruction = &function.dfg[*instruction_id];
+
+            // We're just marking so avoid removing instructions that may need bounds checks
+            if !self.is_unused(*instruction_id, function)
+                || instruction_might_result_in_out_of_bounds(function, instruction)
+            {
+                use Instruction::*;
+                if matches!(instruction, IncrementRc { .. } | DecrementRc { .. }) {
+                    // self.rc_instructions.push((*instruction_id, block_id));
+                } else {
+                    instruction.for_each_value(|value| {
+                        self.mark_used_instruction_results(&function.dfg, value);
+                    });
+                }
+            }
+        }
+    }
+
+    /// Go through a block and populate the instructions to remove list, assuming
+    /// `self.used_values` is already populated.
+    fn populate_instructions_to_remove(&mut self, function: &Function, block_id: BasicBlockId) {
+        let block = &function.dfg[block_id];
+        for instruction_id in block.instructions() {
+            use Instruction::*;
+            let instruction = &function.dfg[*instruction_id];
+
+            // We're just marking so avoid removing instructions that may need bounds checks
+            if self.is_unused(*instruction_id, function)
+                && !instruction_might_result_in_out_of_bounds(function, instruction)
+            {
+                self.instructions_to_remove.insert(*instruction_id);
+
+            // We can remove side-effectful instructions here since we marked beforehand we know
+            // `value` isn't used anywhere by this point.
+            } else if let IncrementRc { value } | DecrementRc { value } = instruction {
+                if !self.used_values.contains(value) {
+                    self.instructions_to_remove.insert(*instruction_id);
+                }
+            }
+        }
     }
 
     /// Returns true if an instruction can be removed.
