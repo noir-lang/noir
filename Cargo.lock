@@ -2941,6 +2941,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_with",
+ "similar-asserts",
  "thiserror",
  "tracing",
 ]

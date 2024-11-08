@@ -323,6 +323,7 @@ mod test {
             types::Type,
             value::{Value, ValueId},
         },
+        tests::assert_ssa_equals,
         Ssa,
     };
     use acvm::acir::AcirField;
@@ -556,13 +557,13 @@ acir(inline) fn main f0 {
         let expected = "
 acir(inline) fn main f0 {
   b0(v0: u16):
-    v4 = cast v0 as u32
+    v1 = cast v0 as u32
     return
 }
         ";
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.fold_constants();
-        assert_eq!(ssa.to_string().trim(), expected.trim());
+        assert_ssa_equals(ssa, expected);
     }
 
     #[test]
@@ -587,17 +588,17 @@ acir(inline) fn main f0 {
 acir(inline) fn main f0 {
   b0(v0: [Field; 4], v1: u32, v2: u1, v3: u1):
     enable_side_effects v2
-    v10 = array_get Field, v0, index u32 0
-    v11 = array_get Field, v0, index v1
+    v5 = array_get Field, v0, index u32 0
+    v6 = array_get Field, v0, index v1
     enable_side_effects v3
-    v12 = array_get Field, v0, index v1
+    v7 = array_get Field, v0, index v1
     return
 }
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.fold_constants();
-        assert_eq!(ssa.to_string().trim(), expected.trim());
+        assert_ssa_equals(ssa, expected);
     }
 
     #[test]

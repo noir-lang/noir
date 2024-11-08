@@ -9,7 +9,7 @@ fn assert_ssa_roundtrip(src: &str) {
     let src = src.trim();
     if ssa != src {
         println!("Expected:\n~~~\n{}\n~~~\nGot:\n~~~\n{}\n~~~", src, ssa);
-        assert_eq!(ssa, src);
+        similar_asserts::assert_eq!(ssa, src);
     }
 }
 

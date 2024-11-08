@@ -47,6 +47,7 @@ pub mod ir;
 mod opt;
 mod parser;
 pub mod ssa_gen;
+mod tests;
 
 pub struct SsaEvaluatorOptions {
     /// Emit debug information for the intermediate SSA IR
