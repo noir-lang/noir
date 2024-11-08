@@ -29,6 +29,8 @@ pub(crate) enum Token {
     Int(FieldElement),
     Keyword(Keyword),
     IntType(IntType),
+    /// =
+    Assign,
     /// (
     LeftParen,
     /// )
@@ -45,6 +47,10 @@ pub(crate) enum Token {
     Comma,
     /// :
     Colon,
+    /// ;
+    Semicolon,
+    /// ->
+    Arrow,
     Eof,
 }
 
@@ -62,6 +68,7 @@ impl Token {
 pub(crate) enum Keyword {
     Acir,
     Brillig,
+    Call,
     Inline,
     InlineAlways,
     Else,
@@ -81,6 +88,7 @@ impl Keyword {
         let keyword = match word {
             "acir" => Keyword::Acir,
             "brillig" => Keyword::Brillig,
+            "call" => Keyword::Call,
             "else" => Keyword::Else,
             "inline" => Keyword::Inline,
             "inline_always" => Keyword::InlineAlways,

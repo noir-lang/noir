@@ -2,8 +2,11 @@ use std::sync::Arc;
 
 use super::{ir::types::Type, Ssa};
 
-use acvm::FieldElement;
-use ast::{Identifier, ParsedBlock, ParsedFunction, ParsedParameter, ParsedSsa, ParsedValue};
+use acvm::{AcirField, FieldElement};
+use ast::{
+    Identifier, ParsedBlock, ParsedFunction, ParsedInstruction, ParsedParameter, ParsedSsa,
+    ParsedValue,
+};
 use lexer::{Lexer, LexerError};
 use noirc_errors::Span;
 use noirc_frontend::{monomorphization::ast::InlineType, token::IntType};
@@ -30,6 +33,7 @@ pub(crate) enum SsaError {
     ParserError(ParserError),
     UnknownVariable(Identifier),
     UnknownBlock(Identifier),
+    UnknownFunction(Identifier),
 }
 
 type ParseResult<T> = Result<T, ParserError>;
@@ -63,13 +67,15 @@ impl<'a> Parser<'a> {
         let external_name = self.eat_ident_or_error()?;
         let internal_name = self.eat_ident_or_error()?;
 
+        let return_types = if self.eat(Token::Arrow)? { self.parse_types()? } else { Vec::new() };
+
         self.eat_or_error(Token::LeftBrace)?;
 
         let blocks = self.parse_blocks()?;
 
         self.eat_or_error(Token::RightBrace)?;
 
-        Ok(ParsedFunction { runtime_type, external_name, internal_name, blocks })
+        Ok(ParsedFunction { runtime_type, external_name, internal_name, return_types, blocks })
     }
 
     fn parse_runtime_type(&mut self) -> ParseResult<RuntimeType> {
@@ -138,33 +144,39 @@ impl<'a> Parser<'a> {
         self.eat_or_error(Token::RightParen)?;
         self.eat_or_error(Token::Colon)?;
 
-        let instructions = Vec::new();
+        let instructions = self.parse_instructions()?;
         let terminator = self.parse_terminator()?;
         Ok(ParsedBlock { name, parameters, instructions, terminator })
     }
 
     fn parse_parameter(&mut self) -> ParseResult<ParsedParameter> {
-        let identifier = self.parse_identifier_or_error()?;
+        let identifier = self.eat_identifier_or_error()?;
         self.eat_or_error(Token::Colon)?;
         let typ = self.parse_type()?;
         Ok(ParsedParameter { identifier, typ })
     }
 
-    fn parse_identifier_or_error(&mut self) -> ParseResult<Identifier> {
-        if let Some(identifier) = self.parse_identifier()? {
-            Ok(identifier)
-        } else {
-            self.expected_identifier()
+    fn parse_instructions(&mut self) -> ParseResult<Vec<ParsedInstruction>> {
+        let mut instructions = Vec::new();
+        while let Some(instruction) = self.parse_instruction()? {
+            instructions.push(instruction);
         }
+        Ok(instructions)
     }
 
-    fn parse_identifier(&mut self) -> ParseResult<Option<Identifier>> {
-        let span = self.token.to_span();
-        if let Some(name) = self.eat_ident()? {
-            Ok(Some(Identifier::new(name, span)))
-        } else {
-            Ok(None)
+    fn parse_instruction(&mut self) -> ParseResult<Option<ParsedInstruction>> {
+        if let Some(lvalue) = self.eat_identifier()? {
+            self.eat_or_error(Token::Assign)?;
+            if self.eat_keyword(Keyword::Call)? {
+                let function = self.eat_identifier_or_error()?;
+                let arguments = self.parse_arguments()?;
+                return Ok(Some(ParsedInstruction::Call { lvalue, function, arguments }));
+            } else {
+                return self.expected_instruction_or_terminator();
+            }
         }
+
+        Ok(None)
     }
 
     fn parse_terminator(&mut self) -> ParseResult<ParsedTerminator> {
@@ -211,11 +223,8 @@ impl<'a> Parser<'a> {
             return Ok(None);
         }
 
-        let destination = self.parse_identifier_or_error()?;
-        self.eat_or_error(Token::LeftParen)?;
-        let arguments = self.parse_comma_separated_values()?;
-        self.eat_or_error(Token::RightParen)?;
-
+        let destination = self.eat_identifier_or_error()?;
+        let arguments = self.parse_arguments()?;
         Ok(Some(ParsedTerminator::Jmp { destination, arguments }))
     }
 
@@ -227,13 +236,20 @@ impl<'a> Parser<'a> {
         let condition = self.parse_value_or_error()?;
         self.eat_or_error(Token::Keyword(Keyword::Then))?;
         self.eat_or_error(Token::Colon)?;
-        let then_block = self.parse_identifier_or_error()?;
+        let then_block = self.eat_identifier_or_error()?;
         self.eat_or_error(Token::Comma)?;
         self.eat_or_error(Token::Keyword(Keyword::Else))?;
         self.eat_or_error(Token::Colon)?;
-        let else_block = self.parse_identifier_or_error()?;
+        let else_block = self.eat_identifier_or_error()?;
 
         Ok(Some(ParsedTerminator::Jmpif { condition, then_block, else_block }))
+    }
+
+    fn parse_arguments(&mut self) -> ParseResult<Vec<ParsedValue>> {
+        self.eat_or_error(Token::LeftParen)?;
+        let arguments = self.parse_comma_separated_values()?;
+        self.eat_or_error(Token::RightParen)?;
+        Ok(arguments)
     }
 
     fn parse_comma_separated_values(&mut self) -> ParseResult<Vec<ParsedValue>> {
@@ -268,7 +284,7 @@ impl<'a> Parser<'a> {
             return Ok(Some(value));
         }
 
-        if let Some(identifier) = self.parse_identifier()? {
+        if let Some(identifier) = self.eat_identifier()? {
             return Ok(Some(ParsedValue::Variable(identifier)));
         }
 
@@ -302,16 +318,25 @@ impl<'a> Parser<'a> {
             let values = self.parse_comma_separated_values()?;
             self.eat_or_error(Token::RightBracket)?;
             self.eat_or_error(Token::Keyword(Keyword::Of))?;
-            let types = if self.eat(Token::LeftParen)? {
-                let types = self.parse_comma_separated_types()?;
-                self.eat_or_error(Token::RightParen)?;
-                types
-            } else {
-                vec![self.parse_type()?]
-            };
-            Ok(Some(ParsedValue::Array { typ: Type::Array(Arc::new(types), values.len()), values }))
+            let types = self.parse_types()?;
+            let types_len = types.len();
+            let values_len = values.len();
+            Ok(Some(ParsedValue::Array {
+                typ: Type::Array(Arc::new(types), values_len / types_len),
+                values,
+            }))
         } else {
             Ok(None)
+        }
+    }
+
+    fn parse_types(&mut self) -> ParseResult<Vec<Type>> {
+        if self.eat(Token::LeftParen)? {
+            let types = self.parse_comma_separated_types()?;
+            self.eat_or_error(Token::RightParen)?;
+            Ok(types)
+        } else {
+            Ok(vec![self.parse_type()?])
         }
     }
 
@@ -332,7 +357,39 @@ impl<'a> Parser<'a> {
             return Ok(Type::field());
         }
 
+        if let Some(int_type) = self.eat_int_type()? {
+            return Ok(match int_type {
+                IntType::Unsigned(bit_size) => Type::unsigned(bit_size),
+                IntType::Signed(bit_size) => Type::signed(bit_size),
+            });
+        }
+
+        if self.eat(Token::LeftBracket)? {
+            let element_types = self.parse_types()?;
+            self.eat_or_error(Token::Semicolon)?;
+            let length = self.eat_int_or_error()?;
+            self.eat_or_error(Token::RightBracket)?;
+            return Ok(Type::Array(Arc::new(element_types), length.to_u128() as usize));
+        }
+
         self.expected_type()
+    }
+
+    fn eat_identifier_or_error(&mut self) -> ParseResult<Identifier> {
+        if let Some(identifier) = self.eat_identifier()? {
+            Ok(identifier)
+        } else {
+            self.expected_identifier()
+        }
+    }
+
+    fn eat_identifier(&mut self) -> ParseResult<Option<Identifier>> {
+        let span = self.token.to_span();
+        if let Some(name) = self.eat_ident()? {
+            Ok(Some(Identifier::new(name, span)))
+        } else {
+            Ok(None)
+        }
     }
 
     fn eat_keyword(&mut self, keyword: Keyword) -> ParseResult<bool> {

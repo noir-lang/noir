@@ -38,14 +38,17 @@ impl<'a> Lexer<'a> {
                 }
                 self.next_token()
             }
+            Some('=') => self.single_char_token(Token::Assign),
             Some(',') => self.single_char_token(Token::Comma),
             Some(':') => self.single_char_token(Token::Colon),
+            Some(';') => self.single_char_token(Token::Semicolon),
             Some('(') => self.single_char_token(Token::LeftParen),
             Some(')') => self.single_char_token(Token::RightParen),
             Some('{') => self.single_char_token(Token::LeftBrace),
             Some('}') => self.single_char_token(Token::RightBrace),
             Some('[') => self.single_char_token(Token::LeftBracket),
             Some(']') => self.single_char_token(Token::RightBracket),
+            Some('-') if self.peek_char() == Some('>') => self.double_char_token(Token::Arrow),
             Some(ch) if ch.is_ascii_alphanumeric() || ch == '_' => self.eat_alpha_numeric(ch),
             Some(char) => Err(LexerError::UnexpectedCharacter {
                 char,
@@ -194,6 +197,12 @@ impl<'a> Lexer<'a> {
 
     fn single_char_token(&self, token: Token) -> SpannedTokenResult {
         Ok(token.into_single_span(self.position))
+    }
+
+    fn double_char_token(&mut self, token: Token) -> SpannedTokenResult {
+        let start_position = self.position;
+        self.next_char();
+        Ok(token.into_span(start_position, self.position))
     }
 
     fn next_char(&mut self) -> Option<char> {

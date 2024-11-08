@@ -18,7 +18,21 @@ use super::{
 
 /// Helper function for Function's Display impl to pretty-print the function with the given formatter.
 pub(crate) fn display_function(function: &Function, f: &mut Formatter) -> Result {
-    writeln!(f, "{} fn {} {} {{", function.runtime(), function.name(), function.id())?;
+    write!(f, "{} fn {} {}", function.runtime(), function.name(), function.id())?;
+
+    let return_value_ids = function.returns();
+    if !return_value_ids.is_empty() {
+        let return_types = vecmap(return_value_ids, |id| function.dfg.type_of_value(*id));
+        let return_types_str =
+            return_types.iter().map(|typ| typ.to_string()).collect::<Vec<_>>().join(", ");
+        if return_types.len() == 1 {
+            write!(f, " -> {}", return_types_str)?;
+        } else {
+            write!(f, " -> ({})", return_types_str)?;
+        }
+    }
+
+    writeln!(f, " {{")?;
     display_block_with_successors(function, function.entry_block(), &mut HashSet::new(), f)?;
     write!(f, "}}")
 }

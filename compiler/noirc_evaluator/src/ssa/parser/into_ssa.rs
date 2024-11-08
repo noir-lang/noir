@@ -8,13 +8,18 @@ use crate::ssa::{
 };
 
 use super::{
-    Identifier, ParsedBlock, ParsedFunction, ParsedSsa, ParsedTerminator, ParsedValue, Ssa,
-    SsaError,
+    Identifier, ParsedBlock, ParsedFunction, ParsedInstruction, ParsedSsa, ParsedTerminator,
+    ParsedValue, RuntimeType, Ssa, SsaError, Type,
 };
 
 impl ParsedSsa {
     pub(crate) fn into_ssa(mut self) -> Result<Ssa, SsaError> {
-        let translator = Translator::new(&mut self)?;
+        let mut translator = Translator::new(&mut self)?;
+
+        for function in self.functions {
+            translator.translate_function(function)?;
+        }
+
         Ok(translator.finish())
     }
 }
@@ -22,11 +27,14 @@ impl ParsedSsa {
 struct Translator {
     builder: FunctionBuilder,
 
-    /// Maps block names to their IDs
-    blocks: HashMap<String, BasicBlockId>,
+    /// Maps function names to their ID and types
+    functions: HashMap<String, (FunctionId, Vec<Type>)>,
 
-    /// Maps parameter names to their IDs
-    parameters: HashMap<String, ValueId>,
+    /// Maps block names to their IDs
+    blocks: HashMap<FunctionId, HashMap<String, BasicBlockId>>,
+
+    /// Maps variable names to their IDs
+    variables: HashMap<FunctionId, HashMap<String, ValueId>>,
 }
 
 impl Translator {
@@ -36,23 +44,54 @@ impl Translator {
         let mut builder = FunctionBuilder::new(main_function.external_name.clone(), main_id);
         builder.set_runtime(main_function.runtime_type);
 
-        let mut translator = Self { builder, parameters: HashMap::new(), blocks: HashMap::new() };
+        // Map function names to their IDs so calls can be resolved
+        let mut function_id_counter = 1;
+        let mut functions = HashMap::new();
+        for function in &parsed_ssa.functions {
+            let function_id = FunctionId::new(function_id_counter);
+            function_id_counter += 1;
+
+            functions.insert(
+                function.internal_name.clone(),
+                (function_id, function.return_types.clone()),
+            );
+        }
+
+        let mut translator =
+            Self { builder, functions, variables: HashMap::new(), blocks: HashMap::new() };
         translator.translate_function_body(main_function)?;
+
         Ok(translator)
     }
 
-    fn translate_function_body(&mut self, mut function: ParsedFunction) -> Result<(), SsaError> {
-        // First define all blocks so that they are known (a block might jump to a block that comes next)
-        let entry_block = function.blocks.remove(0);
-        let entry_block_id = self.builder.current_function.entry_block();
-        self.blocks.insert(entry_block.name.clone(), entry_block_id);
+    fn translate_function(&mut self, function: ParsedFunction) -> Result<(), SsaError> {
+        let (function_id, _) = self.functions[&function.internal_name];
+        let external_name = function.external_name.clone();
 
-        for block in &function.blocks {
-            let block_id = self.builder.insert_block();
-            self.blocks.insert(block.name.clone(), block_id);
+        match function.runtime_type {
+            RuntimeType::Acir(inline_type) => {
+                self.builder.new_function(external_name, function_id, inline_type);
+            }
+            RuntimeType::Brillig(inline_type) => {
+                self.builder.new_brillig_function(external_name, function_id, inline_type);
+            }
         }
 
-        self.translate_block(entry_block)?;
+        self.translate_function_body(function)
+    }
+
+    fn translate_function_body(&mut self, function: ParsedFunction) -> Result<(), SsaError> {
+        // First define all blocks so that they are known (a block might jump to a block that comes next)
+        for (index, block) in function.blocks.iter().enumerate() {
+            // The first block is the entry block and it was automatically created by the builder
+            let block_id = if index == 0 {
+                self.builder.current_function.entry_block()
+            } else {
+                self.builder.insert_block()
+            };
+            let entry = self.blocks.entry(self.current_function_id()).or_default();
+            entry.insert(block.name.clone(), block_id);
+        }
 
         for block in function.blocks {
             self.translate_block(block)?;
@@ -62,42 +101,69 @@ impl Translator {
     }
 
     fn translate_block(&mut self, block: ParsedBlock) -> Result<(), SsaError> {
-        let block_id = self.blocks[&block.name];
+        let block_id = self.blocks[&self.current_function_id()][&block.name];
         self.builder.switch_to_block(block_id);
 
         for parameter in block.parameters {
             let parameter_value_id = self.builder.add_block_parameter(block_id, parameter.typ);
-            self.parameters.insert(parameter.identifier.name, parameter_value_id);
+            let entry = self.variables.entry(self.current_function_id()).or_default();
+            entry.insert(parameter.identifier.name, parameter_value_id);
+        }
+
+        for instruction in block.instructions {
+            self.translate_instruction(instruction)?;
         }
 
         match block.terminator {
             ParsedTerminator::Jmp { destination, arguments } => {
                 let block_id = self.lookup_block(destination)?;
-
-                let mut translated_arguments = Vec::with_capacity(arguments.len());
-                for value in arguments {
-                    translated_arguments.push(self.translate_value(value)?);
-                }
-
-                self.builder.terminate_with_jmp(block_id, translated_arguments);
+                let arguments = self.translate_values(arguments)?;
+                self.builder.terminate_with_jmp(block_id, arguments);
             }
             ParsedTerminator::Jmpif { condition, then_block, else_block } => {
                 let condition = self.translate_value(condition)?;
                 let then_destination = self.lookup_block(then_block)?;
                 let else_destination = self.lookup_block(else_block)?;
-
                 self.builder.terminate_with_jmpif(condition, then_destination, else_destination);
             }
             ParsedTerminator::Return(values) => {
-                let mut return_values = Vec::with_capacity(values.len());
-                for value in values {
-                    return_values.push(self.translate_value(value)?);
-                }
+                let return_values = self.translate_values(values)?;
                 self.builder.terminate_with_return(return_values);
             }
         }
 
         Ok(())
+    }
+
+    fn translate_instruction(&mut self, instruction: ParsedInstruction) -> Result<(), SsaError> {
+        match instruction {
+            ParsedInstruction::Call { lvalue, function, arguments } => {
+                let (function_id, return_types) = self.lookup_function(function)?;
+                let result_types = return_types.to_vec();
+
+                let function_id = self.builder.import_function(function_id);
+                let arguments = self.translate_values(arguments)?;
+
+                let current_function_id = self.current_function_id();
+
+                // TODO: support multiple values
+                let value_ids = self.builder.insert_call(function_id, arguments, result_types);
+                assert_eq!(value_ids.len(), 1);
+
+                let entry = self.variables.entry(current_function_id).or_default();
+                entry.insert(lvalue.name, value_ids[0]);
+            }
+        }
+
+        Ok(())
+    }
+
+    fn translate_values(&mut self, values: Vec<ParsedValue>) -> Result<Vec<ValueId>, SsaError> {
+        let mut translated_values = Vec::with_capacity(values.len());
+        for value in values {
+            translated_values.push(self.translate_value(value)?);
+        }
+        Ok(translated_values)
     }
 
     fn translate_value(&mut self, value: ParsedValue) -> Result<ValueId, SsaError> {
@@ -117,7 +183,7 @@ impl Translator {
     }
 
     fn lookup_variable(&mut self, identifier: Identifier) -> Result<ValueId, SsaError> {
-        if let Some(value_id) = self.parameters.get(&identifier.name) {
+        if let Some(value_id) = self.variables[&self.current_function_id()].get(&identifier.name) {
             Ok(*value_id)
         } else {
             Err(SsaError::UnknownVariable(identifier))
@@ -125,14 +191,29 @@ impl Translator {
     }
 
     fn lookup_block(&mut self, identifier: Identifier) -> Result<BasicBlockId, SsaError> {
-        if let Some(block_id) = self.blocks.get(&identifier.name) {
+        if let Some(block_id) = self.blocks[&self.current_function_id()].get(&identifier.name) {
             Ok(*block_id)
         } else {
             Err(SsaError::UnknownBlock(identifier))
         }
     }
 
+    fn lookup_function(
+        &mut self,
+        identifier: Identifier,
+    ) -> Result<(FunctionId, &[Type]), SsaError> {
+        if let Some((function_id, types)) = self.functions.get(&identifier.name) {
+            Ok((*function_id, types))
+        } else {
+            Err(SsaError::UnknownFunction(identifier))
+        }
+    }
+
     fn finish(self) -> Ssa {
         self.builder.finish()
+    }
+
+    fn current_function_id(&self) -> FunctionId {
+        self.builder.current_function.id()
     }
 }

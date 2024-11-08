@@ -13,6 +13,7 @@ pub(crate) struct ParsedFunction {
     pub(crate) runtime_type: RuntimeType,
     pub(crate) external_name: String,
     pub(crate) internal_name: String,
+    pub(crate) return_types: Vec<Type>,
     pub(crate) blocks: Vec<ParsedBlock>,
 }
 
@@ -43,7 +44,9 @@ impl Identifier {
 }
 
 #[derive(Debug)]
-pub(crate) enum ParsedInstruction {}
+pub(crate) enum ParsedInstruction {
+    Call { lvalue: Identifier, function: Identifier, arguments: Vec<ParsedValue> },
+}
 
 #[derive(Debug)]
 pub(crate) enum ParsedTerminator {
