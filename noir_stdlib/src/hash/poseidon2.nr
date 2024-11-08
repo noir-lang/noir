@@ -20,7 +20,7 @@ impl Poseidon2 {
         }
     }
 
-    pub(crate) fn new(iv: Field) -> Poseidon2 {
+    pub fn new(iv: Field) -> Poseidon2 {
         let mut result =
             Poseidon2 { cache: [0; 3], state: [0; 4], cache_size: 0, squeeze_mode: false };
         result.state[RATE] = iv;
@@ -39,7 +39,7 @@ impl Poseidon2 {
         self.state = crate::hash::poseidon2_permutation(self.state, 4);
     }
 
-    fn absorb(&mut self, input: Field) {
+    pub fn absorb(&mut self, input: Field) {
         assert(!self.squeeze_mode);
         if self.cache_size == RATE {
             // If we're absorbing, and the cache is full, apply the sponge permutation to compress the cache
@@ -53,7 +53,7 @@ impl Poseidon2 {
         }
     }
 
-    fn squeeze(&mut self) -> Field {
+    pub fn squeeze(&mut self) -> Field {
         assert(!self.squeeze_mode);
         // If we're in absorb mode, apply sponge permutation to compress the cache.
         self.perform_duplex();
