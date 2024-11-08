@@ -139,7 +139,7 @@ mod test {
         let deserialized_ssa: Ssa = serde_json::from_str(serialized_ssa).unwrap();
         let actual_string = format!("{}", deserialized_ssa);
 
-        let expected_string = "acir(inline) fn main f0 {\n  \
+        let expected_string = "acir(inline) fn main f0 -> Field {\n  \
         b0(v0: Field):\n    \
             v3 = add v0, Field 1\n    \
             v4 = mul v3, Field 3\n    \
