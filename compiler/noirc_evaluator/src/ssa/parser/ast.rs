@@ -1,4 +1,5 @@
 use acvm::FieldElement;
+use noirc_errors::Span;
 
 use crate::ssa::ir::{function::RuntimeType, types::Type};
 
@@ -25,8 +26,20 @@ pub(crate) struct ParsedBlock {
 
 #[derive(Debug)]
 pub(crate) struct ParsedParameter {
-    pub(crate) name: String,
+    pub(crate) identifier: Identifier,
     pub(crate) typ: Type,
+}
+
+#[derive(Debug)]
+pub(crate) struct Identifier {
+    pub(crate) name: String,
+    pub(crate) span: Span,
+}
+
+impl Identifier {
+    pub(crate) fn new(name: String, span: Span) -> Self {
+        Self { name, span }
+    }
 }
 
 #[derive(Debug)]
@@ -41,5 +54,5 @@ pub(crate) enum ParsedTerminator {
 pub(crate) enum ParsedValue {
     NumericConstant { constant: FieldElement, typ: Type },
     Array { values: Vec<ParsedValue>, typ: Type },
-    Variable(String),
+    Variable(Identifier),
 }

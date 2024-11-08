@@ -39,7 +39,7 @@ impl Translator {
         let entry_block = function.blocks.remove(0);
         for parameter in entry_block.parameters {
             let parameter_value_id = self.builder.add_parameter(parameter.typ);
-            self.parameters.insert(parameter.name, parameter_value_id);
+            self.parameters.insert(parameter.identifier.name, parameter_value_id);
         }
 
         match entry_block.terminator {
@@ -66,11 +66,11 @@ impl Translator {
                 }
                 Ok(self.builder.array_constant(translated_values, typ))
             }
-            ParsedValue::Variable(name) => {
-                if let Some(value_id) = self.parameters.get(&name) {
+            ParsedValue::Variable(identifier) => {
+                if let Some(value_id) = self.parameters.get(&identifier.name) {
                     Ok(*value_id)
                 } else {
-                    Err(SsaError::UnknownVariable(name))
+                    Err(SsaError::UnknownVariable(identifier))
                 }
             }
         }

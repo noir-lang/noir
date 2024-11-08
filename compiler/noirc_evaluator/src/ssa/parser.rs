@@ -3,7 +3,7 @@ use std::sync::Arc;
 use super::{ir::types::Type, Ssa};
 
 use acvm::FieldElement;
-use ast::{ParsedBlock, ParsedFunction, ParsedParameter, ParsedSsa, ParsedValue};
+use ast::{Identifier, ParsedBlock, ParsedFunction, ParsedParameter, ParsedSsa, ParsedValue};
 use lexer::{Lexer, LexerError};
 use noirc_errors::Span;
 use noirc_frontend::{monomorphization::ast::InlineType, token::IntType};
@@ -28,7 +28,7 @@ impl Ssa {
 #[derive(Debug)]
 pub(crate) enum SsaError {
     ParserError(ParserError),
-    UnknownVariable(String),
+    UnknownVariable(Identifier),
 }
 
 type ParseResult<T> = Result<T, ParserError>;
@@ -143,10 +143,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_parameter(&mut self) -> ParseResult<ParsedParameter> {
+        let span = self.token.to_span();
         let name = self.eat_ident_or_error()?;
         self.eat_or_error(Token::Colon)?;
         let typ = self.parse_type()?;
-        Ok(ParsedParameter { name, typ })
+        Ok(ParsedParameter { identifier: Identifier::new(name, span), typ })
     }
 
     fn parse_terminator(&mut self) -> ParseResult<ParsedTerminator> {
@@ -190,8 +191,9 @@ impl<'a> Parser<'a> {
             return Ok(Some(value));
         }
 
+        let span = self.token.to_span();
         if let Some(name) = self.eat_ident()? {
-            return Ok(Some(ParsedValue::Variable(name)));
+            return Ok(Some(ParsedValue::Variable(Identifier::new(name, span))));
         }
 
         Ok(None)
