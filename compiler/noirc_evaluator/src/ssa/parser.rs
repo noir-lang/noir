@@ -4,7 +4,7 @@ use acvm::FieldElement;
 use ast::{ParsedBlock, ParsedFunction, ParsedSsa, ParsedValue};
 use lexer::{Lexer, LexerError};
 use noirc_errors::Span;
-use noirc_frontend::monomorphization::ast::InlineType;
+use noirc_frontend::{monomorphization::ast::InlineType, token::IntType};
 use token::{Keyword, SpannedToken, Token};
 
 use crate::ssa::{ir::function::RuntimeType, parser::ast::ParsedTerminator};
@@ -162,6 +162,13 @@ impl<'a> Parser<'a> {
         if self.eat_keyword(Keyword::Field)? {
             let constant = self.eat_int_or_error()?;
             Ok(Some(ParsedValue::NumericConstant { constant, typ: Type::field() }))
+        } else if let Some(int_type) = self.eat_int_type()? {
+            let constant = self.eat_int_or_error()?;
+            let typ = match int_type {
+                IntType::Unsigned(bit_size) => Type::unsigned(bit_size),
+                IntType::Signed(bit_size) => Type::signed(bit_size),
+            };
+            Ok(Some(ParsedValue::NumericConstant { constant, typ }))
         } else {
             Ok(None)
         }
@@ -217,6 +224,19 @@ impl<'a> Parser<'a> {
             Ok(int)
         } else {
             self.expected_int()
+        }
+    }
+
+    fn eat_int_type(&mut self) -> ParseResult<Option<IntType>> {
+        let is_int_type = matches!(self.token.token(), Token::IntType(..));
+        if is_int_type {
+            let token = self.bump()?;
+            match token.into_token() {
+                Token::IntType(int_type) => Ok(Some(int_type)),
+                _ => unreachable!(),
+            }
+        } else {
+            Ok(None)
         }
     }
 

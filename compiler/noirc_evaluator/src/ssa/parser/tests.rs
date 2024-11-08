@@ -30,12 +30,16 @@ brillig(inline) fn main f0 {
 }
 
 #[test]
-fn test_return_field() {
-    let src = "
-acir(inline) fn main f0 {
+fn test_return_integer() {
+    for typ in ["u1", "u8", "u16", "u32", "u64", "i1", "i8", "i16", "i32", "i64", "Field"] {
+        let src = format!(
+            "
+acir(inline) fn main f0 {{
   b0():
-    return Field 1
-}
-";
-    assert_ssa_roundtrip(src);
+    return {typ} 1
+}}
+"
+        );
+        assert_ssa_roundtrip(&src);
+    }
 }
