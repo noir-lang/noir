@@ -325,7 +325,7 @@ mod test {
         },
         Ssa,
     };
-    use acvm::{acir::AcirField, FieldElement};
+    use acvm::acir::AcirField;
 
     #[test]
     fn simple_constant_fold() {
@@ -567,69 +567,37 @@ acir(inline) fn main f0 {
 
     #[test]
     fn constant_index_array_access_deduplication() {
-        // fn main f0 {
-        //   b0(v0: [Field; 4], v1: u32, v2: bool, v3: bool):
-        //     enable_side_effects v2
-        //     v4 = array_get v0 u32 0
-        //     v5 = array_get v0 v1
-        //     enable_side_effects v3
-        //     v6 = array_get v0 u32 0
-        //     v7 = array_get v0 v1
-        //     constrain v4 v6
-        // }
-        //
         // After constructing this IR, we run constant folding which should replace the second constant-index array get
         // with a reference to the results to the first. This then allows us to optimize away
         // the constrain instruction as both inputs are known to be equal.
-        //
-        let main_id = Id::test_new(0);
+        let src = "
+acir(inline) fn main f0 {
+  b0(v0: [Field; 4], v1: u32, v2: bool, v3: bool):
+    enable_side_effects v2
+    v4 = array_get Field, v0, index u32 0
+    v5 = array_get Field, v0, index v1
+    enable_side_effects v3
+    v6 = array_get Field, v0, index u32 0
+    v7 = array_get Field, v0, index v1
+    constrain v4 == v6
+    return
+}
+        ";
+        let expected = "
+acir(inline) fn main f0 {
+  b0(v0: [Field; 4], v1: u32, v2: u1, v3: u1):
+    enable_side_effects v2
+    v10 = array_get Field, v0, index u32 0
+    v11 = array_get Field, v0, index v1
+    enable_side_effects v3
+    v12 = array_get Field, v0, index v1
+    return
+}
+        ";
 
-        // Compiling main
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-
-        let v0 = builder.add_parameter(Type::Array(Arc::new(vec![Type::field()]), 4));
-        let v1 = builder.add_parameter(Type::unsigned(32));
-        let v2 = builder.add_parameter(Type::unsigned(1));
-        let v3 = builder.add_parameter(Type::unsigned(1));
-
-        let zero = builder.numeric_constant(FieldElement::zero(), Type::length_type());
-
-        builder.insert_enable_side_effects_if(v2);
-        let v4 = builder.insert_array_get(v0, zero, Type::field());
-        let _v5 = builder.insert_array_get(v0, v1, Type::field());
-
-        builder.insert_enable_side_effects_if(v3);
-        let v6 = builder.insert_array_get(v0, zero, Type::field());
-        let _v7 = builder.insert_array_get(v0, v1, Type::field());
-
-        builder.insert_constrain(v4, v6, None);
-
-        let ssa = builder.finish();
-
-        println!("{ssa}");
-
-        let main = ssa.main();
-        let instructions = main.dfg[main.entry_block()].instructions();
-        assert_eq!(instructions.len(), 7);
-
-        // Expected output:
-        //
-        // fn main f0 {
-        //   b0(v0: [Field; 4], v1: u32, v2: bool, v3: bool):
-        //     enable_side_effects v2
-        //     v10 = array_get v0 u32 0
-        //     v11 = array_get v0 v1
-        //     enable_side_effects v3
-        //     v12 = array_get v0 v1
-        // }
+        let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.fold_constants();
-
-        println!("{ssa}");
-
-        let main = ssa.main();
-        let instructions = main.dfg[main.entry_block()].instructions();
-
-        assert_eq!(instructions.len(), 5);
+        assert_eq!(ssa.to_string().trim(), expected.trim());
     }
 
     #[test]
