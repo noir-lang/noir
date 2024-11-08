@@ -167,6 +167,10 @@ impl Translator {
                 let rhs = self.translate_value(rhs)?;
                 self.builder.insert_constrain(lhs, rhs, None);
             }
+            ParsedInstruction::EnableSideEffectsIf { condition } => {
+                let condition = self.translate_value(condition)?;
+                self.builder.insert_enable_side_effects_if(condition);
+            }
         }
 
         Ok(())

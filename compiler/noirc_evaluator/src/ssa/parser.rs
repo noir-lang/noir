@@ -174,6 +174,11 @@ impl<'a> Parser<'a> {
             return Ok(Some(ParsedInstruction::Constrain { lhs, rhs }));
         }
 
+        if self.eat_keyword(Keyword::EnableSideEffects)? {
+            let condition = self.parse_value_or_error()?;
+            return Ok(Some(ParsedInstruction::EnableSideEffectsIf { condition }));
+        }
+
         if let Some(target) = self.eat_identifier()? {
             let mut targets = vec![target];
 
@@ -385,6 +390,10 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_type(&mut self) -> ParseResult<Type> {
+        if self.eat_keyword(Keyword::Bool)? {
+            return Ok(Type::bool());
+        }
+
         if self.eat_keyword(Keyword::Field)? {
             return Ok(Type::field());
         }
