@@ -368,56 +368,40 @@ acir(inline) fn main f0 -> Field {
 
     #[test]
     fn redundant_truncation() {
-        // fn main f0 {
-        //   b0(v0: u16, v1: u16):
-        //     v2 = div v0, v1
-        //     v3 = truncate v2 to 8 bits, max_bit_size: 16
-        //     return v3
-        // }
-        //
         // After constructing this IR, we set the value of v1 to 2^8.
         // The expected return afterwards should be v2.
-        let main_id = Id::test_new(0);
-
-        // Compiling main
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-        let v0 = builder.add_parameter(Type::unsigned(16));
-        let v1 = builder.add_parameter(Type::unsigned(16));
-
-        // Note that this constant guarantees that `v0/constant < 2^8`. We then do not need to truncate the result.
-        let constant = 2_u128.pow(8);
-        let constant = builder.numeric_constant(constant, Type::field());
-
-        let v2 = builder.insert_binary(v0, BinaryOp::Div, v1);
-        let v3 = builder.insert_truncate(v2, 8, 16);
-        builder.terminate_with_return(vec![v3]);
-
-        let mut ssa = builder.finish();
+        let src = "
+acir(inline) fn main f0 {
+  b0(v0: u16, v1: u16):
+    v2 = div v0, v1
+    v3 = truncate v2 to 8 bits, max_bit_size: 16
+    return v3
+}
+        ";
+        let mut ssa = Ssa::from_str(src).unwrap();
         let main = ssa.main_mut();
+
         let instructions = main.dfg[main.entry_block()].instructions();
         assert_eq!(instructions.len(), 2); // The final return is not counted
 
-        // Expected output:
-        //
-        // fn main f0 {
-        //   b0(Field 2: Field):
-        //     return Field 9
-        // }
+        let v1 = main.parameters()[1];
+
+        // Note that this constant guarantees that `v0/constant < 2^8`. We then do not need to truncate the result.
+        let constant = 2_u128.pow(8);
+        let constant = main.dfg.make_constant(constant.into(), Type::field());
+
         main.dfg.set_value_from_id(v1, constant);
 
+        let expected = "
+acir(inline) fn main f0 -> u16 {
+  b0(v0: u16, v1: Field):
+    v3 = div v0, Field 256
+    return v3
+}
+        ";
+
         let ssa = ssa.fold_constants();
-        let main = ssa.main();
-
-        println!("{ssa}");
-
-        let instructions = main.dfg[main.entry_block()].instructions();
-        assert_eq!(instructions.len(), 1);
-        let instruction = &main.dfg[instructions[0]];
-
-        assert_eq!(
-            instruction,
-            &Instruction::Binary(Binary { lhs: v0, operator: BinaryOp::Div, rhs: constant })
-        );
+        assert_ssa_equals(ssa, expected);
     }
 
     #[test]
