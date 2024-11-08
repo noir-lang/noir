@@ -12,7 +12,7 @@ use crate::ssa::{
         instruction::{BinaryOp, Instruction, InstructionId, Intrinsic},
         post_order::PostOrder,
         types::Type,
-        value::{Value, ValueId},
+        value::{RawValueId, Value, ValueId},
     },
     ssa_gen::{Ssa, SSA_WORD_SIZE},
 };
@@ -70,7 +70,7 @@ impl Function {
 /// Per function context for tracking unused values and which instructions to remove.
 #[derive(Default)]
 struct Context {
-    used_values: HashSet<ValueId>,
+    used_values: HashSet<RawValueId>,
     instructions_to_remove: HashSet<InstructionId>,
 
     /// IncrementRc & DecrementRc instructions must be revisited after the main DIE pass since
@@ -174,11 +174,15 @@ impl Context {
 
         if instruction.can_eliminate_if_unused(&function.dfg) {
             let results = function.dfg.instruction_results(instruction_id);
-            results.iter().all(|result| !self.used_values.contains(result))
+            results.iter().all(|result| !self.used_values.contains(&result.raw()))
         } else if let Instruction::Call { func, arguments } = instruction {
             // TODO: make this more general for instructions which don't have results but have side effects "sometimes" like `Intrinsic::AsWitness`
-            let as_witness_id = function.dfg.get_intrinsic(Intrinsic::AsWitness);
-            as_witness_id == Some(func) && !self.used_values.contains(&arguments[0])
+            match function.dfg.get_intrinsic(Intrinsic::AsWitness) {
+                Some(as_witness_id) if as_witness_id.unresolved_eq(func) => {
+                    !self.used_values.contains(&arguments[0].raw())
+                }
+                _ => false,
+            }
         } else {
             // If the instruction has side effects we should never remove it.
             false
@@ -198,19 +202,19 @@ impl Context {
         let value_id = dfg.resolve(value_id);
         match &dfg[value_id] {
             Value::Instruction { .. } => {
-                self.used_values.insert(value_id);
+                self.used_values.insert(value_id.raw());
             }
             Value::Array { array, .. } => {
-                self.used_values.insert(value_id);
+                self.used_values.insert(value_id.raw());
                 for elem in array {
                     self.mark_used_instruction_results(dfg, *elem);
                 }
             }
             Value::Param { .. } => {
-                self.used_values.insert(value_id);
+                self.used_values.insert(value_id.raw());
             }
             Value::NumericConstant { .. } => {
-                self.used_values.insert(value_id);
+                self.used_values.insert(value_id.raw());
             }
             _ => {
                 // Does not comprise of any instruction results
@@ -229,7 +233,7 @@ impl Context {
             };
 
             // This could be more efficient if we have to remove multiple instructions in a single block
-            if !self.used_values.contains(&value) {
+            if !self.used_values.contains(value.as_ref()) {
                 dfg[block].instructions_mut().retain(|instruction| *instruction != rc);
             }
         }
@@ -530,8 +534,8 @@ struct RcTracker {
     rc_pairs_to_remove: HashSet<InstructionId>,
     // We also separately track all IncrementRc instructions and all arrays which have been mutably borrowed.
     // If an array has not been mutably borrowed we can then safely remove all IncrementRc instructions on that array.
-    inc_rcs: HashMap<ValueId, HashSet<InstructionId>>,
-    mut_borrowed_arrays: HashSet<ValueId>,
+    inc_rcs: HashMap<RawValueId, HashSet<InstructionId>>,
+    mut_borrowed_arrays: HashSet<RawValueId>,
     // The SSA often creates patterns where after simplifications we end up with repeat
     // IncrementRc instructions on the same value. We track whether the previous instruction was an IncrementRc,
     // and if the current instruction is also an IncrementRc on the same value we remove the current instruction.
@@ -545,7 +549,7 @@ impl RcTracker {
 
         if let Instruction::IncrementRc { value } = instruction {
             if let Some(previous_value) = self.previous_inc_rc {
-                if previous_value == *value {
+                if previous_value.unresolved_eq(value) {
                     self.rc_pairs_to_remove.insert(instruction_id);
                 }
             }
@@ -567,7 +571,7 @@ impl RcTracker {
                     }
                 }
 
-                self.inc_rcs.entry(*value).or_default().insert(instruction_id);
+                self.inc_rcs.entry(value.raw()).or_default().insert(instruction_id);
             }
             Instruction::DecrementRc { value } => {
                 let typ = function.dfg.type_of_value(*value);
@@ -585,14 +589,14 @@ impl RcTracker {
                     }
                 }
 
-                self.mut_borrowed_arrays.insert(*array);
+                self.mut_borrowed_arrays.insert(array.raw());
             }
             Instruction::Store { value, .. } => {
                 // We are very conservative and say that any store of an array value means it has the potential
                 // to be mutated. This is done due to the tracking of mutable borrows still being per block.
                 let typ = function.dfg.type_of_value(*value);
                 if matches!(&typ, Type::Array(..) | Type::Slice(..)) {
-                    self.mut_borrowed_arrays.insert(*value);
+                    self.mut_borrowed_arrays.insert(value.raw());
                 }
             }
             _ => {}

@@ -30,6 +30,7 @@ use crate::brillig::{brillig_gen::brillig_fn::FunctionContext as BrilligFunction
 use crate::errors::{InternalError, InternalWarning, RuntimeError, SsaReport};
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
 use acvm::acir::circuit::opcodes::{AcirFunctionId, BlockType};
+use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use noirc_frontend::monomorphization::ast::InlineType;
 
 use acvm::acir::circuit::brillig::{BrilligBytecode, BrilligFunctionId};
@@ -156,7 +157,7 @@ struct Context<'a> {
     current_side_effects_enabled_var: AcirVar,
 
     /// Manages and builds the `AcirVar`s to which the converted SSA values refer.
-    acir_context: AcirContext<FieldElement>,
+    acir_context: AcirContext<FieldElement, Bn254BlackBoxSolver>,
 
     /// Track initialized acir dynamic arrays
     ///

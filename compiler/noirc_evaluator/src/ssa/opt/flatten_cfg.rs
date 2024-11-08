@@ -146,7 +146,7 @@ use crate::ssa::{
         function_inserter::FunctionInserter,
         instruction::{BinaryOp, Instruction, InstructionId, Intrinsic, TerminatorInstruction},
         types::Type,
-        value::{Value, ValueId},
+        value::{RawValueId, Value, ValueId},
     },
     ssa_gen::Ssa,
 };
@@ -189,14 +189,14 @@ struct Context<'f> {
     /// Maps an address to the old and new value of the element at that address
     /// These only hold stores for one block at a time and is cleared
     /// between inlining of branches.
-    store_values: HashMap<ValueId, Store>,
+    store_values: HashMap<RawValueId, Store>,
 
     /// Stores all allocations local to the current branch.
     /// Since these branches are local to the current branch (ie. only defined within one branch of
     /// an if expression), they should not be merged with their previous value or stored value in
     /// the other branch since there is no such value. The ValueId here is that which is returned
     /// by the allocate instruction.
-    local_allocations: HashSet<ValueId>,
+    local_allocations: HashSet<RawValueId>,
 
     /// A stack of each jmpif condition that was taken to reach a particular point in the program.
     /// When two branches are merged back into one, this constitutes a join point, and is analogous
@@ -208,7 +208,7 @@ struct Context<'f> {
 
     /// Maps SSA array values with a slice type to their size.
     /// This is maintained by appropriate calls to the `SliceCapacityTracker` and is used by the `ValueMerger`.
-    slice_sizes: HashMap<ValueId, usize>,
+    slice_sizes: HashMap<RawValueId, usize>,
 
     /// Stack of block arguments
     /// When processing a block, we pop this stack to get its arguments
@@ -232,9 +232,9 @@ struct ConditionalBranch {
     // The condition of the branch
     condition: ValueId,
     // The store values accumulated when processing the branch
-    store_values: HashMap<ValueId, Store>,
+    store_values: HashMap<RawValueId, Store>,
     // The allocations accumulated when processing the branch
-    local_allocations: HashSet<ValueId>,
+    local_allocations: HashSet<RawValueId>,
 }
 
 struct ConditionalContext {
@@ -391,7 +391,8 @@ impl<'f> Context<'f> {
                 )
             }
             TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
-                let arguments = vecmap(arguments.clone(), |value| self.inserter.resolve(value));
+                let arguments =
+                    vecmap(arguments.clone(), |value| self.inserter.resolve(value).into());
                 self.arguments_stack.push(arguments);
                 if work_list.contains(destination) {
                     if work_list.last() == Some(destination) {
@@ -408,6 +409,7 @@ impl<'f> Context<'f> {
                 let return_values =
                     vecmap(return_values.clone(), |value| self.inserter.resolve(value));
                 let new_return = TerminatorInstruction::Return { return_values, call_stack };
+                let new_return = new_return.map_values(|v| v.into());
                 let entry = self.inserter.function.entry_block();
 
                 self.inserter.function.dfg.set_block_terminator(entry, new_return);
@@ -433,13 +435,13 @@ impl<'f> Context<'f> {
         let old_allocations = std::mem::take(&mut self.local_allocations);
         let branch = ConditionalBranch {
             old_condition,
-            condition: self.link_condition(then_condition),
+            condition: self.link_condition(then_condition.into()),
             store_values: old_stores,
             local_allocations: old_allocations,
             last_block: *then_destination,
         };
         let cond_context = ConditionalContext {
-            condition: then_condition,
+            condition: then_condition.into(),
             entry_block: *if_entry,
             then_branch: branch,
             else_branch: None,
@@ -559,9 +561,9 @@ impl<'f> Context<'f> {
         let args = vecmap(args, |(then_arg, else_arg)| {
             let instruction = Instruction::IfElse {
                 then_condition: cond_context.then_branch.condition,
-                then_value: then_arg,
+                then_value: then_arg.into(),
                 else_condition: cond_context.else_branch.as_ref().unwrap().condition,
-                else_value: else_arg,
+                else_value: else_arg.into(),
             };
             let call_stack = cond_context.call_stack.clone();
             self.inserter
@@ -683,18 +685,18 @@ impl<'f> Context<'f> {
         // Replace stores with new merged values
         for (address, (_, _, old_value)) in &new_map {
             let value = new_values[address];
-            let address = *address;
+            let address = address.into();
             self.insert_instruction_with_typevars(
                 Instruction::Store { address, value },
                 None,
                 call_stack.clone(),
             );
 
-            if let Some(store) = self.store_values.get_mut(&address) {
+            if let Some(store) = self.store_values.get_mut(address.as_ref()) {
                 store.new_value = value;
             } else {
                 self.store_values.insert(
-                    address,
+                    address.raw(),
                     Store {
                         old_value: *old_value,
                         new_value: value,
@@ -706,8 +708,8 @@ impl<'f> Context<'f> {
     }
 
     fn remember_store(&mut self, address: ValueId, new_value: ValueId, call_stack: CallStack) {
-        if !self.local_allocations.contains(&address) {
-            if let Some(store_value) = self.store_values.get_mut(&address) {
+        if !self.local_allocations.contains(address.as_ref()) {
+            if let Some(store_value) = self.store_values.get_mut(address.as_ref()) {
                 store_value.new_value = new_value;
             } else {
                 let load = Instruction::Load { address };
@@ -717,7 +719,7 @@ impl<'f> Context<'f> {
                     .insert_instruction_with_typevars(load.clone(), load_type, call_stack.clone())
                     .first();
 
-                self.store_values.insert(address, Store { old_value, new_value, call_stack });
+                self.store_values.insert(address.raw(), Store { old_value, new_value, call_stack });
             }
         }
     }
@@ -739,7 +741,7 @@ impl<'f> Context<'f> {
         // Remember an allocate was created local to this branch so that we do not try to merge store
         // values across branches for it later.
         if is_allocate {
-            self.local_allocations.insert(results.first());
+            self.local_allocations.insert(results.first().raw());
         }
 
         results.results().into_owned()
@@ -903,9 +905,9 @@ impl<'f> Context<'f> {
         )
     }
 
-    fn undo_stores_in_then_branch(&mut self, store_values: &HashMap<ValueId, Store>) {
+    fn undo_stores_in_then_branch(&mut self, store_values: &HashMap<RawValueId, Store>) {
         for (address, store) in store_values {
-            let address = *address;
+            let address = address.into();
             let value = store.old_value;
             let instruction = Instruction::Store { address, value };
             // Considering the location of undoing a store to be the same as the original store.
@@ -1221,7 +1223,7 @@ mod test {
             builder.insert_store(r1, value);
         };
 
-        let test_function = Id::test_new(1);
+        let test_function = ValueId::from(Id::test_new(1));
 
         let call_test_function = |builder: &mut FunctionBuilder, block: u128| {
             let block = builder.field_constant(block);
@@ -1534,7 +1536,7 @@ mod test {
         builder.switch_to_block(b1);
         let one = builder.field_constant(1_u128);
         let v5b = builder.insert_cast(v5, Type::field());
-        let v13: Id<Value> = builder.insert_binary(v5b, BinaryOp::Add, one);
+        let v13 = builder.insert_binary(v5b, BinaryOp::Add, one);
         let v14 = builder.insert_cast(v13, Type::unsigned(8));
         builder.insert_store(v10, v14);
         builder.terminate_with_jmp(b3, vec![]);

@@ -1015,12 +1015,12 @@ pub(crate) enum TerminatorInstruction<R = Unresolved> {
     Return { return_values: Vec<ValueId<R>>, call_stack: CallStack },
 }
 
-impl TerminatorInstruction {
+impl<R> TerminatorInstruction<R> {
     /// Map each ValueId in this terminator to a new value.
-    pub(crate) fn map_values(
+    pub(crate) fn map_values<S>(
         &self,
-        mut f: impl FnMut(ValueId) -> ValueId,
-    ) -> TerminatorInstruction {
+        mut f: impl FnMut(ValueId<R>) -> ValueId<S>,
+    ) -> TerminatorInstruction<S> {
         use TerminatorInstruction::*;
         match self {
             JmpIf { condition, then_destination, else_destination, call_stack } => JmpIf {
@@ -1040,7 +1040,9 @@ impl TerminatorInstruction {
             },
         }
     }
+}
 
+impl TerminatorInstruction {
     /// Mutate each ValueId to a new ValueId using the given mapping function
     pub(crate) fn mutate_values(&mut self, mut f: impl FnMut(ValueId) -> ValueId) {
         use TerminatorInstruction::*;
