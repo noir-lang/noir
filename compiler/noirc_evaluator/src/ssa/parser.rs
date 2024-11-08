@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use super::{ir::types::Type, Ssa};
+use super::{
+    ir::{instruction::BinaryOp, types::Type},
+    Ssa,
+};
 
 use acvm::{AcirField, FieldElement};
 use ast::{
@@ -221,7 +224,66 @@ impl<'a> Parser<'a> {
                 return Ok(Some(ParsedInstruction::Cast { target, lhs, typ }));
             }
 
+            if let Some(op) = self.eat_binary_op()? {
+                let lhs = self.parse_value_or_error()?;
+                self.eat_or_error(Token::Comma)?;
+                let rhs = self.parse_value_or_error()?;
+                return Ok(Some(ParsedInstruction::BinaryOp { target, lhs, op, rhs }));
+            }
+
             return self.expected_instruction_or_terminator();
+        }
+
+        Ok(None)
+    }
+
+    fn eat_binary_op(&mut self) -> ParseResult<Option<BinaryOp>> {
+        if self.eat_keyword(Keyword::Add)? {
+            return Ok(Some(BinaryOp::Add));
+        }
+
+        if self.eat_keyword(Keyword::Sub)? {
+            return Ok(Some(BinaryOp::Sub));
+        }
+
+        if self.eat_keyword(Keyword::Mul)? {
+            return Ok(Some(BinaryOp::Mul));
+        }
+
+        if self.eat_keyword(Keyword::Div)? {
+            return Ok(Some(BinaryOp::Div));
+        }
+
+        if self.eat_keyword(Keyword::Eq)? {
+            return Ok(Some(BinaryOp::Eq));
+        }
+
+        if self.eat_keyword(Keyword::Mod)? {
+            return Ok(Some(BinaryOp::Mod));
+        }
+
+        if self.eat_keyword(Keyword::Lt)? {
+            return Ok(Some(BinaryOp::Lt));
+        }
+
+        if self.eat_keyword(Keyword::And)? {
+            return Ok(Some(BinaryOp::And));
+        }
+
+        if self.eat_keyword(Keyword::Or)? {
+            return Ok(Some(BinaryOp::Or));
+        }
+
+        if self.eat_keyword(Keyword::Xor)? {
+            return Ok(Some(BinaryOp::Xor));
+        }
+
+        if self.eat_keyword(Keyword::Shl)? {
+            return Ok(Some(BinaryOp::Shl));
+        }
+
+        if self.eat_keyword(Keyword::Shr)? {
+            return Ok(Some(BinaryOp::Shr));
         }
 
         Ok(None)

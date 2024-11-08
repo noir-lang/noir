@@ -96,7 +96,7 @@ acir(inline) fn main f0 -> (Field, Field) {
 
 #[test]
 fn test_multiple_blocks_and_jmp() {
-    let src: &str = "
+    let src = "
 acir(inline) fn main f0 -> Field {
   b0():
     jmp b1(Field 1)
@@ -109,7 +109,7 @@ acir(inline) fn main f0 -> Field {
 
 #[test]
 fn test_jmpif() {
-    let src: &str = "
+    let src = "
 acir(inline) fn main f0 {
   b0(v0: Field):
     jmpif v0 then: b1, else: b2
@@ -124,7 +124,7 @@ acir(inline) fn main f0 {
 
 #[test]
 fn test_call() {
-    let src: &str = "
+    let src = "
 acir(inline) fn main f0 -> Field {
   b0(v0: Field):
     v2 = call f1(v0)
@@ -140,7 +140,7 @@ acir(inline) fn foo f1 -> Field {
 
 #[test]
 fn test_call_multiple_return_values() {
-    let src: &str = "
+    let src = "
 acir(inline) fn main f0 -> [Field; 3] {
   b0():
     v1, v2 = call f1()
@@ -156,7 +156,7 @@ acir(inline) fn foo f1 -> ([Field; 3], [Field; 1]) {
 
 #[test]
 fn test_cast() {
-    let src: &str = "
+    let src = "
 acir(inline) fn main f0 -> i32 {
   b0(v0: Field):
     v1 = cast v0 as i32
@@ -168,7 +168,7 @@ acir(inline) fn main f0 -> i32 {
 
 #[test]
 fn test_constrain() {
-    let src: &str = "
+    let src = "
 acir(inline) fn main f0 {
   b0(v0: Field):
     constrain v0 == Field 1
@@ -180,7 +180,7 @@ acir(inline) fn main f0 {
 
 #[test]
 fn test_enable_side_effects() {
-    let src: &str = "
+    let src = "
 acir(inline) fn main f0 {
   b0(v0: Field):
     enable_side_effects v0
@@ -192,7 +192,7 @@ acir(inline) fn main f0 {
 
 #[test]
 fn test_array_get() {
-    let src: &str = "
+    let src = "
 acir(inline) fn main f0 {
   b0(v0: [Field; 3]):
     v2 = array_get Field, v0, index Field 0
@@ -200,4 +200,20 @@ acir(inline) fn main f0 {
 }
 ";
     assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn test_binary() {
+    for op in ["add", "sub", "mul", "div", "eq", "mod", "lt", "and", "or", "xor", "shl", "shr"] {
+        let src = format!(
+            "
+acir(inline) fn main f0 {{
+  b0(v0: Field, v1: Field):
+    v2 = {op} v0, v1
+    return
+}}
+"
+        );
+        assert_ssa_roundtrip(&src);
+    }
 }

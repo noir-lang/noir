@@ -142,6 +142,12 @@ impl Translator {
                 let value_id = self.builder.insert_array_get(array, index, element_type);
                 self.define_variable(target, value_id)?;
             }
+            ParsedInstruction::BinaryOp { target, lhs, op, rhs } => {
+                let lhs = self.translate_value(lhs)?;
+                let rhs = self.translate_value(rhs)?;
+                let value_id = self.builder.insert_binary(lhs, op, rhs);
+                self.define_variable(target, value_id)?;
+            }
             ParsedInstruction::Call { targets, function, arguments } => {
                 let (function_id, return_types) = self.lookup_function(function)?;
                 let result_types = return_types.to_vec();

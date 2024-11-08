@@ -1,7 +1,7 @@
 use acvm::FieldElement;
 use noirc_errors::Span;
 
-use crate::ssa::ir::{function::RuntimeType, types::Type};
+use crate::ssa::ir::{function::RuntimeType, instruction::BinaryOp, types::Type};
 
 #[derive(Debug)]
 pub(crate) struct ParsedSsa {
@@ -46,6 +46,7 @@ impl Identifier {
 #[derive(Debug)]
 pub(crate) enum ParsedInstruction {
     ArrayGet { target: Identifier, element_type: Type, array: ParsedValue, index: ParsedValue },
+    BinaryOp { target: Identifier, lhs: ParsedValue, op: BinaryOp, rhs: ParsedValue },
     Call { targets: Vec<Identifier>, function: Identifier, arguments: Vec<ParsedValue> },
     Cast { target: Identifier, lhs: ParsedValue, typ: Type },
     Constrain { lhs: ParsedValue, rhs: ParsedValue },
