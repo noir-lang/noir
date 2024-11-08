@@ -323,7 +323,7 @@ mod test {
             types::Type,
             value::{Value, ValueId},
         },
-        tests::assert_ssa_equals,
+        opt::assert_ssa_equals,
         Ssa,
     };
     use acvm::acir::AcirField;
