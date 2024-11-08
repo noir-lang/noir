@@ -1,4 +1,6 @@
+use acvm::FieldElement;
 use noirc_errors::{Position, Span, Spanned};
+use noirc_frontend::token::IntType;
 
 pub(crate) struct SpannedToken(Spanned<Token>);
 
@@ -23,7 +25,9 @@ impl SpannedToken {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub(crate) enum Token {
     Ident(String),
+    Int(FieldElement),
     Keyword(Keyword),
+    IntType(IntType),
     /// (
     LeftParen,
     /// )
@@ -32,6 +36,8 @@ pub(crate) enum Token {
     LeftBrace,
     /// }
     RightBrace,
+    /// ,
+    Comma,
     /// :
     Colon,
     Eof,
@@ -53,6 +59,7 @@ pub(crate) enum Keyword {
     Brillig,
     Inline,
     InlineAlways,
+    Field,
     Fold,
     Fn,
     NoPredicates,
@@ -66,6 +73,7 @@ impl Keyword {
             "brillig" => Keyword::Brillig,
             "inline" => Keyword::Inline,
             "inline_always" => Keyword::InlineAlways,
+            "Field" => Keyword::Field,
             "fold" => Keyword::Fold,
             "fn" => Keyword::Fn,
             "no_predicates" => Keyword::NoPredicates,

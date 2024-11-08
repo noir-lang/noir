@@ -1,6 +1,7 @@
-use super::Ssa;
+use super::{ir::types::Type, Ssa};
 
-use ast::{ParsedBlock, ParsedFunction, ParsedSsa};
+use acvm::FieldElement;
+use ast::{ParsedBlock, ParsedFunction, ParsedSsa, ParsedValue};
 use lexer::{Lexer, LexerError};
 use noirc_errors::Span;
 use noirc_frontend::monomorphization::ast::InlineType;
@@ -9,6 +10,7 @@ use token::{Keyword, SpannedToken, Token};
 use crate::ssa::{ir::function::RuntimeType, parser::ast::ParsedTerminator};
 
 mod ast;
+mod into_ssa;
 mod lexer;
 mod tests;
 mod token;
@@ -129,10 +131,39 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_terminator(&mut self) -> ParseResult<ParsedTerminator> {
-        if self.eat_keyword(Keyword::Return)? {
-            Ok(ParsedTerminator::Return)
+        if let Some(terminator) = self.parse_return()? {
+            Ok(terminator)
         } else {
             self.expected_instruction_or_terminator()
+        }
+    }
+
+    fn parse_return(&mut self) -> ParseResult<Option<ParsedTerminator>> {
+        if !self.eat_keyword(Keyword::Return)? {
+            return Ok(None);
+        }
+
+        let values = self.parse_comma_separated_values()?;
+        Ok(Some(ParsedTerminator::Return(values)))
+    }
+
+    fn parse_comma_separated_values(&mut self) -> ParseResult<Vec<ParsedValue>> {
+        let mut values = Vec::new();
+        while let Some(value) = self.parse_value()? {
+            values.push(value);
+            if !self.eat(Token::Comma)? {
+                break;
+            }
+        }
+        Ok(values)
+    }
+
+    fn parse_value(&mut self) -> ParseResult<Option<ParsedValue>> {
+        if self.eat_keyword(Keyword::Field)? {
+            let constant = self.eat_int_or_error()?;
+            Ok(Some(ParsedValue::NumericConstant { constant, typ: Type::field() }))
+        } else {
+            Ok(None)
         }
     }
 
@@ -166,6 +197,26 @@ impl<'a> Parser<'a> {
             Ok(ident)
         } else {
             self.expected_identifier()
+        }
+    }
+
+    fn eat_int(&mut self) -> ParseResult<Option<FieldElement>> {
+        if matches!(self.token.token(), Token::Int(..)) {
+            let token = self.bump()?;
+            match token.into_token() {
+                Token::Int(int) => Ok(Some(int)),
+                _ => unreachable!(),
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn eat_int_or_error(&mut self) -> ParseResult<FieldElement> {
+        if let Some(int) = self.eat_int()? {
+            Ok(int)
+        } else {
+            self.expected_int()
         }
     }
 
@@ -204,36 +255,51 @@ impl<'a> Parser<'a> {
     }
 
     fn expected_instruction_or_terminator<T>(&mut self) -> ParseResult<T> {
-        Err(ParserError::ExpectedInstructionOrTerminator(
-            self.token.token().clone(),
-            self.token.to_span(),
-        ))
+        Err(ParserError::ExpectedInstructionOrTerminator {
+            found: self.token.token().clone(),
+            span: self.token.to_span(),
+        })
     }
 
     fn expected_identifier<T>(&mut self) -> ParseResult<T> {
-        Err(ParserError::ExpectedIdentifier(self.token.token().clone(), self.token.to_span()))
+        Err(ParserError::ExpectedIdentifier {
+            found: self.token.token().clone(),
+            span: self.token.to_span(),
+        })
+    }
+
+    fn expected_int<T>(&mut self) -> ParseResult<T> {
+        Err(ParserError::ExpectedInt {
+            found: self.token.token().clone(),
+            span: self.token.to_span(),
+        })
     }
 
     fn expected_token<T>(&mut self, token: Token) -> ParseResult<T> {
-        Err(ParserError::ExpectedToken(token, self.token.token().clone(), self.token.to_span()))
+        Err(ParserError::ExpectedToken {
+            token,
+            found: self.token.token().clone(),
+            span: self.token.to_span(),
+        })
     }
 
     fn expected_one_of_tokens<T>(&mut self, tokens: &[Token]) -> ParseResult<T> {
-        Err(ParserError::ExpectedOneOfTokens(
-            tokens.to_vec(),
-            self.token.token().clone(),
-            self.token.to_span(),
-        ))
+        Err(ParserError::ExpectedOneOfTokens {
+            tokens: tokens.to_vec(),
+            found: self.token.token().clone(),
+            span: self.token.to_span(),
+        })
     }
 }
 
 #[derive(Debug)]
 pub(crate) enum ParserError {
     LexerError(LexerError),
-    ExpectedToken(Token, Token, Span),
-    ExpectedOneOfTokens(Vec<Token>, Token, Span),
-    ExpectedIdentifier(Token, Span),
-    ExpectedInstructionOrTerminator(Token, Span),
+    ExpectedToken { token: Token, found: Token, span: Span },
+    ExpectedOneOfTokens { tokens: Vec<Token>, found: Token, span: Span },
+    ExpectedIdentifier { found: Token, span: Span },
+    ExpectedInt { found: Token, span: Span },
+    ExpectedInstructionOrTerminator { found: Token, span: Span },
 }
 
 fn eof_spanned_token() -> SpannedToken {

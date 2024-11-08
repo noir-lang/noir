@@ -1,6 +1,10 @@
-use std::str::CharIndices;
+use std::str::{CharIndices, FromStr};
 
+use acvm::{AcirField, FieldElement};
 use noirc_errors::{Position, Span};
+use noirc_frontend::token::IntType;
+use num_bigint::BigInt;
+use num_traits::{Num, One};
 
 use super::token::{Keyword, SpannedToken, Token};
 
@@ -8,11 +12,18 @@ pub(crate) struct Lexer<'a> {
     chars: CharIndices<'a>,
     position: Position,
     done: bool,
+    max_integer: BigInt,
 }
 
 impl<'a> Lexer<'a> {
     pub(crate) fn new(source: &'a str) -> Self {
-        Lexer { chars: source.char_indices(), position: 0, done: false }
+        Lexer {
+            chars: source.char_indices(),
+            position: 0,
+            done: false,
+            max_integer: BigInt::from_biguint(num_bigint::Sign::Plus, FieldElement::modulus())
+                - BigInt::one(),
+        }
     }
 
     pub(crate) fn next_token(&mut self) -> SpannedTokenResult {
@@ -27,6 +38,7 @@ impl<'a> Lexer<'a> {
                 }
                 self.next_token()
             }
+            Some(',') => self.single_char_token(Token::Comma),
             Some(':') => self.single_char_token(Token::Colon),
             Some('(') => self.single_char_token(Token::LeftParen),
             Some(')') => self.single_char_token(Token::RightParen),
@@ -47,7 +59,7 @@ impl<'a> Lexer<'a> {
     fn eat_alpha_numeric(&mut self, initial_char: char) -> SpannedTokenResult {
         match initial_char {
             'A'..='Z' | 'a'..='z' | '_' => Ok(self.eat_word(initial_char)?),
-            // '0'..='9' => self.eat_digit(initial_char),
+            '0'..='9' => self.eat_digit(initial_char),
             _ => Err(LexerError::UnexpectedCharacter {
                 char: initial_char,
                 span: Span::single_char(self.position),
@@ -81,16 +93,71 @@ impl<'a> Lexer<'a> {
 
         // Check if word an int type
         // if no error occurred, then it is either a valid integer type or it is not an int type
-        // let parsed_token = IntType::lookup_int_type(&word)?;
+        let parsed_token = IntType::lookup_int_type(&word);
 
-        // // Check if it is an int type
-        // if let Some(int_type_token) = parsed_token {
-        //     return Ok(int_type_token.into_span(start, end));
-        // }
+        // Check if it is an int type
+        if let Some(int_type) = parsed_token {
+            return Ok(Token::IntType(int_type).into_span(start, end));
+        }
 
         // Else it is just an identifier
         let ident_token = Token::Ident(word);
         Ok(ident_token.into_span(start, end))
+    }
+
+    fn eat_digit(&mut self, initial_char: char) -> SpannedTokenResult {
+        let start = self.position;
+
+        let integer_str = self.eat_while(Some(initial_char), |ch| {
+            ch.is_ascii_digit() | ch.is_ascii_hexdigit() | (ch == 'x') | (ch == '_')
+        });
+
+        let end = self.position;
+
+        // We want to enforce some simple rules about usage of underscores:
+        // 1. Underscores cannot appear at the end of a integer literal. e.g. 0x123_.
+        // 2. There cannot be more than one underscore consecutively, e.g. 0x5__5, 5__5.
+        //
+        // We're not concerned with an underscore at the beginning of a decimal literal
+        // such as `_5` as this would be lexed into an ident rather than an integer literal.
+        let invalid_underscore_location = integer_str.ends_with('_');
+        let consecutive_underscores = integer_str.contains("__");
+        if invalid_underscore_location || consecutive_underscores {
+            return Err(LexerError::InvalidIntegerLiteral {
+                span: Span::inclusive(start, end),
+                found: integer_str,
+            });
+        }
+
+        // Underscores needs to be stripped out before the literal can be converted to a `FieldElement.
+        let integer_str = integer_str.replace('_', "");
+
+        let bigint_result = match integer_str.strip_prefix("0x") {
+            Some(integer_str) => BigInt::from_str_radix(integer_str, 16),
+            None => BigInt::from_str(&integer_str),
+        };
+
+        let integer = match bigint_result {
+            Ok(bigint) => {
+                if bigint > self.max_integer {
+                    return Err(LexerError::IntegerLiteralTooLarge {
+                        span: Span::inclusive(start, end),
+                        limit: self.max_integer.to_string(),
+                    });
+                }
+                let big_uint = bigint.magnitude();
+                FieldElement::from_be_bytes_reduce(&big_uint.to_bytes_be())
+            }
+            Err(_) => {
+                return Err(LexerError::InvalidIntegerLiteral {
+                    span: Span::inclusive(start, end),
+                    found: integer_str,
+                })
+            }
+        };
+
+        let integer_token = Token::Int(integer);
+        Ok(integer_token.into_span(start, end))
     }
 
     fn eat_while<F: Fn(char) -> bool>(
@@ -147,4 +214,6 @@ type SpannedTokenResult = Result<SpannedToken, LexerError>;
 #[derive(Debug)]
 pub(crate) enum LexerError {
     UnexpectedCharacter { char: char, span: Span },
+    InvalidIntegerLiteral { span: Span, found: String },
+    IntegerLiteralTooLarge { span: Span, limit: String },
 }
