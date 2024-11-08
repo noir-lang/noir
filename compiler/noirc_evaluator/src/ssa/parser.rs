@@ -34,6 +34,7 @@ pub(crate) enum SsaError {
     UnknownVariable(Identifier),
     UnknownBlock(Identifier),
     UnknownFunction(Identifier),
+    MismatchedReturnValues { returns: Vec<Identifier>, expected: usize },
 }
 
 type ParseResult<T> = Result<T, ParserError>;
@@ -165,12 +166,19 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_instruction(&mut self) -> ParseResult<Option<ParsedInstruction>> {
-        if let Some(lvalue) = self.eat_identifier()? {
+        if let Some(target) = self.eat_identifier()? {
+            let mut targets = vec![target];
+
+            while self.eat(Token::Comma)? {
+                let target = self.eat_identifier_or_error()?;
+                targets.push(target);
+            }
+
             self.eat_or_error(Token::Assign)?;
             if self.eat_keyword(Keyword::Call)? {
                 let function = self.eat_identifier_or_error()?;
                 let arguments = self.parse_arguments()?;
-                return Ok(Some(ParsedInstruction::Call { lvalue, function, arguments }));
+                return Ok(Some(ParsedInstruction::Call { targets, function, arguments }));
             } else {
                 return self.expected_instruction_or_terminator();
             }

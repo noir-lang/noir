@@ -137,7 +137,7 @@ impl Translator {
 
     fn translate_instruction(&mut self, instruction: ParsedInstruction) -> Result<(), SsaError> {
         match instruction {
-            ParsedInstruction::Call { lvalue, function, arguments } => {
+            ParsedInstruction::Call { targets, function, arguments } => {
                 let (function_id, return_types) = self.lookup_function(function)?;
                 let result_types = return_types.to_vec();
 
@@ -145,13 +145,19 @@ impl Translator {
                 let arguments = self.translate_values(arguments)?;
 
                 let current_function_id = self.current_function_id();
-
-                // TODO: support multiple values
                 let value_ids = self.builder.insert_call(function_id, arguments, result_types);
-                assert_eq!(value_ids.len(), 1);
 
-                let entry = self.variables.entry(current_function_id).or_default();
-                entry.insert(lvalue.name, value_ids[0]);
+                if value_ids.len() != targets.len() {
+                    return Err(SsaError::MismatchedReturnValues {
+                        returns: targets,
+                        expected: value_ids.len(),
+                    });
+                }
+
+                for (target, value_id) in targets.into_iter().zip(value_ids.iter()) {
+                    let entry = self.variables.entry(current_function_id).or_default();
+                    entry.insert(target.name, *value_id);
+                }
             }
         }
 

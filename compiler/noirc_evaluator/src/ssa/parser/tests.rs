@@ -137,3 +137,19 @@ acir(inline) fn foo f1 -> Field {
 ";
     assert_ssa_roundtrip(src);
 }
+
+#[test]
+fn test_call_multiple_return_values() {
+    let src: &str = "
+acir(inline) fn main f0 -> [Field; 3] {
+  b0():
+    v1, v2 = call f1()
+    return v1
+}
+acir(inline) fn foo f1 -> ([Field; 3], [Field; 1]) {
+  b0():
+    return [Field 1, Field 2, Field 3] of Field, [Field 4] of Field
+}
+";
+    assert_ssa_roundtrip(src);
+}
