@@ -43,3 +43,36 @@ acir(inline) fn main f0 {{
         assert_ssa_roundtrip(&src);
     }
 }
+
+#[test]
+fn test_return_array() {
+    let src = "
+acir(inline) fn main f0 {
+  b0():
+    return [Field 1] of Field
+}
+";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn test_return_empty_array() {
+    let src = "
+acir(inline) fn main f0 {
+  b0():
+    return [] of Field
+}
+";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn test_return_composite_array() {
+    let src = "
+acir(inline) fn main f0 {
+  b0():
+    return [Field 1, Field 2] of (Field, Field)
+}
+";
+    assert_ssa_roundtrip(src);
+}

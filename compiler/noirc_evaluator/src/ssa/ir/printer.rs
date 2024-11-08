@@ -70,9 +70,16 @@ fn value(function: &Function, id: ValueId) -> String {
         }
         Value::Function(id) => id.to_string(),
         Value::Intrinsic(intrinsic) => intrinsic.to_string(),
-        Value::Array { array, .. } => {
+        Value::Array { array, typ } => {
             let elements = vecmap(array, |element| value(function, *element));
-            format!("[{}]", elements.join(", "))
+            let element_types = &typ.clone().element_types();
+            let element_types_str =
+                element_types.iter().map(|typ| typ.to_string()).collect::<Vec<String>>().join(", ");
+            if element_types.len() == 1 {
+                format!("[{}] of {}", elements.join(", "), element_types_str)
+            } else {
+                format!("[{}] of ({})", elements.join(", "), element_types_str)
+            }
         }
         Value::Param { .. } | Value::Instruction { .. } | Value::ForeignFunction(_) => {
             id.to_string()

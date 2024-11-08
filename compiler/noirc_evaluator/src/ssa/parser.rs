@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use super::{ir::types::Type, Ssa};
 
 use acvm::FieldElement;
@@ -159,10 +161,32 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_value(&mut self) -> ParseResult<Option<ParsedValue>> {
+        if let Some(value) = self.parse_field_value()? {
+            return Ok(Some(value));
+        }
+
+        if let Some(value) = self.parse_int_value()? {
+            return Ok(Some(value));
+        }
+
+        if let Some(value) = self.parse_array_value()? {
+            return Ok(Some(value));
+        }
+
+        Ok(None)
+    }
+
+    fn parse_field_value(&mut self) -> ParseResult<Option<ParsedValue>> {
         if self.eat_keyword(Keyword::Field)? {
             let constant = self.eat_int_or_error()?;
             Ok(Some(ParsedValue::NumericConstant { constant, typ: Type::field() }))
-        } else if let Some(int_type) = self.eat_int_type()? {
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn parse_int_value(&mut self) -> ParseResult<Option<ParsedValue>> {
+        if let Some(int_type) = self.eat_int_type()? {
             let constant = self.eat_int_or_error()?;
             let typ = match int_type {
                 IntType::Unsigned(bit_size) => Type::unsigned(bit_size),
@@ -172,6 +196,44 @@ impl<'a> Parser<'a> {
         } else {
             Ok(None)
         }
+    }
+
+    fn parse_array_value(&mut self) -> ParseResult<Option<ParsedValue>> {
+        if self.eat(Token::LeftBracket)? {
+            let values = self.parse_comma_separated_values()?;
+            self.eat_or_error(Token::RightBracket)?;
+            self.eat_or_error(Token::Keyword(Keyword::Of))?;
+            let types = if self.eat(Token::LeftParen)? {
+                let types = self.parse_comma_separated_types()?;
+                self.eat_or_error(Token::RightParen)?;
+                types
+            } else {
+                vec![self.parse_type()?]
+            };
+            Ok(Some(ParsedValue::Array { typ: Type::Array(Arc::new(types), values.len()), values }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn parse_comma_separated_types(&mut self) -> ParseResult<Vec<Type>> {
+        let mut types = Vec::new();
+        loop {
+            let typ = self.parse_type()?;
+            types.push(typ);
+            if !self.eat(Token::Comma)? {
+                break;
+            }
+        }
+        Ok(types)
+    }
+
+    fn parse_type(&mut self) -> ParseResult<Type> {
+        if self.eat_keyword(Keyword::Field)? {
+            return Ok(Type::field());
+        }
+
+        self.expected_type()
     }
 
     fn eat_keyword(&mut self, keyword: Keyword) -> ParseResult<bool> {
@@ -295,6 +357,13 @@ impl<'a> Parser<'a> {
         })
     }
 
+    fn expected_type<T>(&mut self) -> ParseResult<T> {
+        Err(ParserError::ExpectedType {
+            found: self.token.token().clone(),
+            span: self.token.to_span(),
+        })
+    }
+
     fn expected_token<T>(&mut self, token: Token) -> ParseResult<T> {
         Err(ParserError::ExpectedToken {
             token,
@@ -319,6 +388,7 @@ pub(crate) enum ParserError {
     ExpectedOneOfTokens { tokens: Vec<Token>, found: Token, span: Span },
     ExpectedIdentifier { found: Token, span: Span },
     ExpectedInt { found: Token, span: Span },
+    ExpectedType { found: Token, span: Span },
     ExpectedInstructionOrTerminator { found: Token, span: Span },
 }
 

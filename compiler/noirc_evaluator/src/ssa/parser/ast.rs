@@ -33,4 +33,5 @@ pub(crate) enum ParsedTerminator {
 #[derive(Debug)]
 pub(crate) enum ParsedValue {
     NumericConstant { constant: FieldElement, typ: Type },
+    Array { values: Vec<ParsedValue>, typ: Type },
 }

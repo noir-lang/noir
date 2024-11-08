@@ -36,6 +36,10 @@ pub(crate) enum Token {
     LeftBrace,
     /// }
     RightBrace,
+    /// [
+    LeftBracket,
+    /// ]
+    RightBracket,
     /// ,
     Comma,
     /// :
@@ -63,6 +67,7 @@ pub(crate) enum Keyword {
     Fold,
     Fn,
     NoPredicates,
+    Of,
     Return,
 }
 
@@ -77,6 +82,7 @@ impl Keyword {
             "fold" => Keyword::Fold,
             "fn" => Keyword::Fn,
             "no_predicates" => Keyword::NoPredicates,
+            "of" => Keyword::Of,
             "return" => Keyword::Return,
             _ => return None,
         };
