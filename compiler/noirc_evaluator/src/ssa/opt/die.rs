@@ -44,15 +44,19 @@ impl Function {
             context.mark_used_instruction_results(&self.dfg, call_data.array_id);
         }
 
+        let postorder_scc_cfg = self.postorder_scc_cfg();
         let mut inserted_out_of_bounds_checks = false;
 
-        let blocks = PostOrder::with_function(self);
-        for block in blocks.as_slice() {
-            inserted_out_of_bounds_checks |= context.remove_unused_instructions_in_block(
-                self,
-                *block,
-                insert_out_of_bounds_checks,
-            );
+        for scc in postorder_scc_cfg {
+            if scc.len() == 1 {
+                inserted_out_of_bounds_checks |= context.scan_and_remove_unused_instructions_in_block(
+                    self,
+                    scc[0],
+                    insert_out_of_bounds_checks,
+                );
+            } else {
+                context.die_in_scc(scc, self);
+            }
         }
 
         // If we inserted out of bounds check, let's run the pass again with those new
@@ -97,7 +101,7 @@ impl Context {
     /// removing unused instructions and return `true`. The idea then is to later call this
     /// function again with `insert_out_of_bounds_checks` set to false to effectively remove
     /// unused instructions but leave the out of bounds checks.
-    fn remove_unused_instructions_in_block(
+    fn scan_and_remove_unused_instructions_in_block(
         &mut self,
         function: &mut Function,
         block_id: BasicBlockId,
@@ -158,11 +162,35 @@ impl Context {
             }
         }
 
-        function.dfg[block_id]
-            .instructions_mut()
-            .retain(|instruction| !self.instructions_to_remove.contains(instruction));
-
+        self.remove_unused_instructions_in_block(function, block_id);
         false
+    }
+
+    fn die_in_scc(&mut self, scc: Vec<BasicBlockId>, function: &mut Function) {
+        let mut used_values_len = self.used_values.len();
+
+        // Continue to mark used values while we have at least one change
+        while {
+            for block in &scc {
+                self.mark_used_values(*block, function);
+            }
+            let len_has_changed = self.used_values.len() != used_values_len;
+            used_values_len = self.used_values.len();
+            len_has_changed
+        } {}
+
+        for block in scc {
+            // remove each unused instruction
+            self.remove_unused_instructions_in_block(function, block);
+        }
+    }
+
+    fn remove_unused_instructions_in_block(&self, function: &mut Function, block: BasicBlockId) {
+        let instructions = function.dfg[block].instructions_mut();
+        instructions.retain(|instruction| !self.instructions_to_remove.contains(instruction));
+    }
+
+    fn mark_used_values(&mut self, block_id: BasicBlockId, function: &mut Function) {
     }
 
     /// Returns true if an instruction can be removed.

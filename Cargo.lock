@@ -2935,6 +2935,7 @@ dependencies = [
  "noirc_errors",
  "noirc_frontend",
  "num-bigint",
+ "petgraph",
  "proptest",
  "rayon",
  "serde",
