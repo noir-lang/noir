@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::{env, fs, i64};
+use std::{env, fs};
 
 const GIT_COMMIT: &&str = &"GIT_COMMIT";
 
