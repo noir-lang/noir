@@ -165,3 +165,15 @@ acir(inline) fn main f0 -> i32 {
 ";
     assert_ssa_roundtrip(src);
 }
+
+#[test]
+fn test_constrain() {
+    let src: &str = "
+acir(inline) fn main f0 {
+  b0(v0: Field):
+    constrain v0 == Field 1
+    return
+}
+";
+    assert_ssa_roundtrip(src);
+}

@@ -162,6 +162,11 @@ impl Translator {
                 let value_id = self.builder.insert_cast(lhs, typ);
                 self.define_variable(target, value_id)?;
             }
+            ParsedInstruction::Constrain { lhs, rhs } => {
+                let lhs = self.translate_value(lhs)?;
+                let rhs = self.translate_value(rhs)?;
+                self.builder.insert_constrain(lhs, rhs, None);
+            }
         }
 
         Ok(())

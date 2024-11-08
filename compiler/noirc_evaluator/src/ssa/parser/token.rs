@@ -51,6 +51,8 @@ pub(crate) enum Token {
     Semicolon,
     /// ->
     Arrow,
+    /// ==
+    Equal,
     Eof,
 }
 
@@ -71,6 +73,7 @@ pub(crate) enum Keyword {
     Brillig,
     Call,
     Cast,
+    Constrain,
     Inline,
     InlineAlways,
     Else,
@@ -93,6 +96,7 @@ impl Keyword {
             "brillig" => Keyword::Brillig,
             "call" => Keyword::Call,
             "cast" => Keyword::Cast,
+            "constrain" => Keyword::Constrain,
             "else" => Keyword::Else,
             "inline" => Keyword::Inline,
             "inline_always" => Keyword::InlineAlways,

@@ -167,6 +167,13 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_instruction(&mut self) -> ParseResult<Option<ParsedInstruction>> {
+        if self.eat_keyword(Keyword::Constrain)? {
+            let lhs = self.parse_value_or_error()?;
+            self.eat_or_error(Token::Equal)?;
+            let rhs = self.parse_value_or_error()?;
+            return Ok(Some(ParsedInstruction::Constrain { lhs, rhs }));
+        }
+
         if let Some(target) = self.eat_identifier()? {
             let mut targets = vec![target];
 

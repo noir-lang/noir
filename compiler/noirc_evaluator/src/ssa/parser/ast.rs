@@ -47,6 +47,7 @@ impl Identifier {
 pub(crate) enum ParsedInstruction {
     Call { targets: Vec<Identifier>, function: Identifier, arguments: Vec<ParsedValue> },
     Cast { target: Identifier, lhs: ParsedValue, typ: Type },
+    Constrain { lhs: ParsedValue, rhs: ParsedValue },
 }
 
 #[derive(Debug)]
