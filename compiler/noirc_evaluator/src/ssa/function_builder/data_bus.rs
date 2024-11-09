@@ -84,17 +84,17 @@ impl DataBus {
                     call_data_map.insert(f(k.into()).raw(), *v);
                 }
                 CallData {
-                    array_id: f(cd.array_id).into(),
+                    array_id: f(cd.array_id),
                     index_map: call_data_map,
                     call_data_id: cd.call_data_id,
                 }
             })
             .collect();
-        DataBus { call_data, return_data: self.return_data.map(|rd| f(rd)) }
+        DataBus { call_data, return_data: self.return_data.map(f) }
     }
 
     pub(crate) fn call_data_array(&self) -> Vec<(u32, ValueId)> {
-        self.call_data.iter().map(|cd| (cd.call_data_id, cd.array_id.into())).collect()
+        self.call_data.iter().map(|cd| (cd.call_data_id, cd.array_id)).collect()
     }
     /// Construct a databus from call_data and return_data data bus builders
     pub(crate) fn get_data_bus(

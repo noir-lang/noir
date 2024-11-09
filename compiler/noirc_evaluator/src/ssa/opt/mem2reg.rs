@@ -418,7 +418,7 @@ impl<'f> PerFunctionContext<'f> {
                     self.inserter.map_value(result, value.into());
                     self.instructions_to_remove.insert(instruction);
                 } else {
-                    references.mark_value_used(address.into(), self.inserter.function);
+                    references.mark_value_used(address, self.inserter.function);
 
                     self.last_loads.insert(address.raw(), (instruction, block_id));
                 }
@@ -557,7 +557,7 @@ impl<'f> PerFunctionContext<'f> {
             if self.inserter.function.dfg.value_is_reference(*value) {
                 let value = self.inserter.function.dfg.resolve(*value);
                 references.set_unknown(value);
-                references.mark_value_used(value.into(), self.inserter.function);
+                references.mark_value_used(value, self.inserter.function);
             }
         }
     }

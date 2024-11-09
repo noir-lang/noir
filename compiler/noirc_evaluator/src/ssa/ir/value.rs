@@ -109,16 +109,16 @@ impl<R> AsRef<Id<Value<R>>> for ValueId<R> {
 }
 
 /// Demote a resolved ID into an unresolved one.
-impl Into<ValueId<Unresolved>> for ValueId<Resolved> {
-    fn into(self) -> ValueId<Unresolved> {
-        ValueId::new(self.raw())
+impl From<ValueId<Resolved>> for ValueId<Unresolved> {
+    fn from(value: ValueId<Resolved>) -> Self {
+        value.unresolved()
     }
 }
 
 /// Demote any ID into an unresolved one.
-impl<R> Into<ValueId<Unresolved>> for &ValueId<R> {
-    fn into(self) -> ValueId<Unresolved> {
-        ValueId::new(self.raw())
+impl<R> From<&ValueId<R>> for ValueId<Unresolved> {
+    fn from(value: &ValueId<R>) -> Self {
+        value.unresolved()
     }
 }
 
@@ -200,7 +200,7 @@ impl<R> Value<R> {
             Value::Param { block, position, typ } => Value::Param { block, position, typ },
             Value::NumericConstant { constant, typ } => Value::NumericConstant { constant, typ },
             Value::Array { array, typ } => {
-                Value::Array { array: array.into_iter().map(|v| f(v)).collect(), typ }
+                Value::Array { array: array.into_iter().map(f).collect(), typ }
             }
             Value::Function(id) => Value::Function(id),
             Value::Intrinsic(intrinsic) => Value::Intrinsic(intrinsic),

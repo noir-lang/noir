@@ -186,7 +186,7 @@ impl Block {
     fn keep_last_stores_for(&mut self, address: ResolvedValueId, function: &Function) {
         self.keep_last_store(address, function);
         self.for_each_alias_of(address, |t, alias| {
-            t.keep_last_store(function.dfg.resolve(alias), function)
+            t.keep_last_store(function.dfg.resolve(alias), function);
         });
     }
 
