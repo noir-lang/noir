@@ -176,6 +176,10 @@ impl<'a> Parser<'a> {
             return Ok(Some(instruction));
         }
 
+        if let Some(instruction) = self.parse_increment_rc()? {
+            return Ok(Some(instruction));
+        }
+
         if let Some(instruction) = self.parse_range_check()? {
             return Ok(Some(instruction));
         }
@@ -361,6 +365,15 @@ impl<'a> Parser<'a> {
 
         let condition = self.parse_value_or_error()?;
         Ok(Some(ParsedInstruction::EnableSideEffectsIf { condition }))
+    }
+
+    fn parse_increment_rc(&mut self) -> ParseResult<Option<ParsedInstruction>> {
+        if !self.eat_keyword(Keyword::IncRc)? {
+            return Ok(None);
+        }
+
+        let value = self.parse_value_or_error()?;
+        Ok(Some(ParsedInstruction::IncrementRc { value }))
     }
 
     fn parse_range_check(&mut self) -> ParseResult<Option<ParsedInstruction>> {

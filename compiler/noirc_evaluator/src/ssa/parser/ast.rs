@@ -84,6 +84,9 @@ pub(crate) enum ParsedInstruction {
     EnableSideEffectsIf {
         condition: ParsedValue,
     },
+    IncrementRc {
+        value: ParsedValue,
+    },
     Load {
         target: Identifier,
         value: ParsedValue,

@@ -189,6 +189,10 @@ impl Translator {
                 let condition = self.translate_value(condition)?;
                 self.builder.insert_enable_side_effects_if(condition);
             }
+            ParsedInstruction::IncrementRc { value } => {
+                let value = self.translate_value(value)?;
+                self.builder.increment_array_reference_count(value);
+            }
             ParsedInstruction::Load { target, value, typ } => {
                 let value = self.translate_value(value)?;
                 let value_id = self.builder.insert_load(value, typ);
