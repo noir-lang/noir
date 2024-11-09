@@ -210,7 +210,7 @@ impl Block {
 
         // We must do a recursive check for arrays since they're the only Values which may contain
         // other ValueIds.
-        if let Some((array, _)) = function.dfg.get_array_constant(value.into()) {
+        if let Some((array, _)) = function.dfg.get_array_constant(value) {
             for value in array {
                 self.mark_value_used(function.dfg.resolve(value), function);
             }

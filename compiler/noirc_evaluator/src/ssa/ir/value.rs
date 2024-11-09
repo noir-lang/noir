@@ -13,10 +13,26 @@ use super::{
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct Unresolved;
+pub(crate) enum Unresolved {}
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
-pub(crate) struct Resolved;
+pub(crate) enum Resolved {}
+
+pub(crate) trait Resolution {
+    fn is_resolved() -> bool;
+}
+
+impl Resolution for Resolved {
+    fn is_resolved() -> bool {
+        true
+    }
+}
+
+impl Resolution for Unresolved {
+    fn is_resolved() -> bool {
+        false
+    }
+}
 
 /// A resolved value ID is something we can directly compare.
 pub(crate) type ResolvedValueId = ValueId<Resolved>;

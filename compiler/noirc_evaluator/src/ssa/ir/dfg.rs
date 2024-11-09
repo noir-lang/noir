@@ -10,7 +10,7 @@ use super::{
     },
     map::DenseMap,
     types::Type,
-    value::{RawValueId, ResolvedValueId, Value, ValueId},
+    value::{RawValueId, Resolution, ResolvedValueId, Value, ValueId},
 };
 
 use acvm::{acir::AcirField, FieldElement};
@@ -352,8 +352,13 @@ impl DataFlowGraph {
     }
 
     /// Resolve and get a value by ID
-    fn resolve_value(&self, original_value_id: ValueId) -> Value {
-        self.values[self.resolve(original_value_id).raw()]
+    fn resolve_value<R: Resolution>(&self, original_value_id: ValueId<R>) -> Value {
+        let id = if R::is_resolved() {
+            original_value_id.raw()
+        } else {
+            self.resolve(original_value_id.unresolved()).raw()
+        };
+        self.values[id]
     }
 
     /// Returns the type of a given value
@@ -365,7 +370,7 @@ impl DataFlowGraph {
     ///
     /// Should `value` be a numeric constant then this function will return the exact number of bits required,
     /// otherwise it will return the minimum number of bits based on type information.
-    pub(crate) fn get_value_max_num_bits(&self, value: ValueId) -> u32 {
+    pub(crate) fn get_value_max_num_bits<R: Resolution>(&self, value: ValueId<R>) -> u32 {
         match self.get_value(value) {
             Value::Instruction { instruction, .. } => {
                 if let Instruction::Cast(original_value, _) = self[instruction] {
@@ -382,7 +387,7 @@ impl DataFlowGraph {
 
     /// True if the type of this value is Type::Reference.
     /// Using this method over type_of_value avoids cloning the value's type.
-    pub(crate) fn value_is_reference(&self, value: ValueId) -> bool {
+    pub(crate) fn value_is_reference<R: Resolution>(&self, value: ValueId<R>) -> bool {
         matches!(self.get_value(value).get_type(), Type::Reference(_))
     }
 
@@ -450,15 +455,18 @@ impl DataFlowGraph {
 
     /// Returns the field element represented by this value if it is a numeric constant.
     /// Returns None if the given value is not a numeric constant.
-    pub(crate) fn get_numeric_constant(&self, value: ValueId) -> Option<FieldElement> {
+    pub(crate) fn get_numeric_constant<R: Resolution>(
+        &self,
+        value: ValueId<R>,
+    ) -> Option<FieldElement> {
         self.get_numeric_constant_with_type(value).map(|(value, _typ)| value)
     }
 
     /// Returns the field element and type represented by this value if it is a numeric constant.
     /// Returns None if the given value is not a numeric constant.
-    pub(crate) fn get_numeric_constant_with_type(
+    pub(crate) fn get_numeric_constant_with_type<R: Resolution>(
         &self,
-        value: ValueId,
+        value: ValueId<R>,
     ) -> Option<(FieldElement, Type)> {
         match &self.resolve_value(value) {
             Value::NumericConstant { constant, typ } => Some((*constant, typ.clone())),
@@ -468,7 +476,10 @@ impl DataFlowGraph {
 
     /// Returns the Value::Array associated with this ValueId if it refers to an array constant.
     /// Otherwise, this returns None.
-    pub(crate) fn get_array_constant(&self, value: ValueId) -> Option<(im::Vector<ValueId>, Type)> {
+    pub(crate) fn get_array_constant<R: Resolution>(
+        &self,
+        value: ValueId<R>,
+    ) -> Option<(im::Vector<ValueId>, Type)> {
         match &self.resolve_value(value) {
             // Arrays are shared, so cloning them is cheap
             Value::Array { array, typ } => Some((array.clone(), typ.clone())),

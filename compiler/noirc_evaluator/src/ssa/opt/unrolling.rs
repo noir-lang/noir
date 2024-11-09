@@ -431,7 +431,7 @@ impl<'f> LoopIteration<'f> {
     ) -> Vec<BasicBlockId> {
         let condition = self.inserter.resolve(condition);
 
-        match self.dfg().get_numeric_constant(condition.into()) {
+        match self.dfg().get_numeric_constant(condition) {
             Some(constant) => {
                 let destination =
                     if constant.is_zero() { else_destination } else { then_destination };

@@ -435,7 +435,7 @@ impl<'f> PerFunctionContext<'f> {
                     self.instructions_to_remove.insert(*last_store);
                 }
 
-                if self.inserter.function.dfg.value_is_reference(value.into()) {
+                if self.inserter.function.dfg.value_is_reference(value) {
                     if let Some(expression) = references.expressions.get(&value.raw()) {
                         if let Some(aliases) = references.aliases.get(expression) {
                             aliases.for_each(|alias| {
@@ -484,7 +484,7 @@ impl<'f> PerFunctionContext<'f> {
                     {
                         aliases.clone()
                     } else if let Some((elements, _)) =
-                        self.inserter.function.dfg.get_array_constant(array.into())
+                        self.inserter.function.dfg.get_array_constant(array)
                     {
                         let aliases = references.collect_all_aliases(elements);
                         self.set_aliases(references, array, aliases.clone());
@@ -520,7 +520,7 @@ impl<'f> PerFunctionContext<'f> {
     /// If `array` is an array constant that contains reference types, then insert each element
     /// as a potential alias to the array itself.
     fn check_array_aliasing(&self, references: &mut Block, array: ResolvedValueId) {
-        if let Some((elements, typ)) = self.inserter.function.dfg.get_array_constant(array.into()) {
+        if let Some((elements, typ)) = self.inserter.function.dfg.get_array_constant(array) {
             if Self::contains_references(&typ) {
                 // TODO: Check if type directly holds references or holds arrays that hold references
                 let expr = Expression::ArrayElement(Box::new(Expression::Other(array)));

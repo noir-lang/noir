@@ -19,7 +19,7 @@ pub(super) fn simplify_cast(
         }
     }
 
-    if let Some(constant) = dfg.get_numeric_constant(value.into()) {
+    if let Some(constant) = dfg.get_numeric_constant(value) {
         let src_typ = dfg.type_of_value(value);
         match (src_typ, dst_typ) {
             (Type::Numeric(NumericType::NativeField), Type::Numeric(NumericType::NativeField)) => {
