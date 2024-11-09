@@ -97,6 +97,10 @@ pub(crate) enum ParsedInstruction {
         value: ParsedValue,
         max_bit_size: u32,
     },
+    Store {
+        value: ParsedValue,
+        address: ParsedValue,
+    },
     Truncate {
         target: Identifier,
         value: ParsedValue,

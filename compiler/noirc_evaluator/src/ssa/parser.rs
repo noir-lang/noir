@@ -175,7 +175,12 @@ impl<'a> Parser<'a> {
         if let Some(instruction) = self.parse_enable_side_effects()? {
             return Ok(Some(instruction));
         }
+
         if let Some(instruction) = self.parse_range_check()? {
+            return Ok(Some(instruction));
+        }
+
+        if let Some(instruction) = self.parse_store()? {
             return Ok(Some(instruction));
         }
 
@@ -368,6 +373,17 @@ impl<'a> Parser<'a> {
         let max_bit_size = self.eat_int_or_error()?.to_u128() as u32;
         self.eat_or_error(Token::Keyword(Keyword::Bits))?;
         Ok(Some(ParsedInstruction::RangeCheck { value, max_bit_size }))
+    }
+
+    fn parse_store(&mut self) -> ParseResult<Option<ParsedInstruction>> {
+        if !self.eat_keyword(Keyword::Store)? {
+            return Ok(None);
+        }
+
+        let value = self.parse_value_or_error()?;
+        self.eat_or_error(Token::Keyword(Keyword::At))?;
+        let address = self.parse_value_or_error()?;
+        Ok(Some(ParsedInstruction::Store { address, value }))
     }
 
     fn parse_terminator(&mut self) -> ParseResult<ParsedTerminator> {

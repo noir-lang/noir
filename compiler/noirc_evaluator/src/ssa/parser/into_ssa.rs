@@ -203,6 +203,11 @@ impl Translator {
                 let value = self.translate_value(value)?;
                 self.builder.insert_range_check(value, max_bit_size, None);
             }
+            ParsedInstruction::Store { value, address } => {
+                let value = self.translate_value(value)?;
+                let address = self.translate_value(address)?;
+                self.builder.insert_store(address, value);
+            }
             ParsedInstruction::Truncate { target, value, bit_size, max_bit_size } => {
                 let value = self.translate_value(value)?;
                 let value_id = self.builder.insert_truncate(value, bit_size, max_bit_size);

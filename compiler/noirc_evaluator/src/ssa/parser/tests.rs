@@ -302,3 +302,15 @@ acir(inline) fn main f0 {
 ";
     assert_ssa_roundtrip(src);
 }
+
+#[test]
+fn test_store() {
+    let src = "
+acir(inline) fn main f0 {
+  b0(v0: Field):
+    store Field 1 at v0
+    return
+}
+";
+    assert_ssa_roundtrip(src);
+}
