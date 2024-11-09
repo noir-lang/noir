@@ -278,3 +278,15 @@ acir(inline) fn main f0 {
 ";
     assert_ssa_roundtrip(src);
 }
+
+#[test]
+fn test_allocate() {
+    let src = "
+acir(inline) fn main f0 {
+  b0():
+    v0 = allocate -> [Field; 3]
+    return
+}
+";
+    assert_ssa_roundtrip(src);
+}

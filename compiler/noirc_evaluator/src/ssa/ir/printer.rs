@@ -8,6 +8,8 @@ use acvm::acir::circuit::{ErrorSelector, STRING_ERROR_SELECTOR};
 use acvm::acir::AcirField;
 use iter_extended::vecmap;
 
+use crate::ssa::ir::types::Type;
+
 use super::{
     basic_block::BasicBlockId,
     dfg::DataFlowGraph,
@@ -189,7 +191,13 @@ fn display_instruction_inner(
             };
             writeln!(f, "call {}({}) -> {}", show(*func), value_list(function, arguments), types)
         }
-        Instruction::Allocate => writeln!(f, "allocate"),
+        Instruction::Allocate => {
+            assert_eq!(results.len(), 1);
+            let Type::Reference(typ) = function.dfg.type_of_value(results[0]) else {
+                panic!("Allocate instruction must have a reference type")
+            };
+            writeln!(f, "allocate -> {}", typ)
+        }
         Instruction::Load { address } => writeln!(f, "load {}", show(*address)),
         Instruction::Store { address, value } => {
             writeln!(f, "store {} at {}", show(*value), show(*address))

@@ -133,6 +133,10 @@ impl Translator {
 
     fn translate_instruction(&mut self, instruction: ParsedInstruction) -> Result<(), SsaError> {
         match instruction {
+            ParsedInstruction::Allocate { target, typ } => {
+                let value_id = self.builder.insert_allocate(typ);
+                self.define_variable(target, value_id)?;
+            }
             ParsedInstruction::ArrayGet { target, element_type, array, index } => {
                 let array = self.translate_value(array)?;
                 let index = self.translate_value(index)?;

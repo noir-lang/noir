@@ -205,6 +205,12 @@ impl<'a> Parser<'a> {
 
             let target = targets.remove(0);
 
+            if self.eat_keyword(Keyword::Allocate)? {
+                self.eat_or_error(Token::Arrow)?;
+                let typ = self.parse_type()?;
+                return Ok(Some(ParsedInstruction::Allocate { target, typ }));
+            }
+
             if self.eat_keyword(Keyword::ArrayGet)? {
                 let array = self.parse_value_or_error()?;
                 self.eat_or_error(Token::Comma)?;

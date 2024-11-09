@@ -70,6 +70,7 @@ impl Token {
 pub(crate) enum Keyword {
     Acir,
     Add,
+    Allocate,
     And,
     ArrayGet,
     ArraySet,
@@ -117,6 +118,7 @@ impl Keyword {
         let keyword = match word {
             "acir" => Keyword::Acir,
             "add" => Keyword::Add,
+            "allocate" => Keyword::Allocate,
             "and" => Keyword::And,
             "array_get" => Keyword::ArrayGet,
             "array_set" => Keyword::ArraySet,

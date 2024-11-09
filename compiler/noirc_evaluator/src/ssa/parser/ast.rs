@@ -44,6 +44,10 @@ impl Identifier {
 
 #[derive(Debug)]
 pub(crate) enum ParsedInstruction {
+    Allocate {
+        target: Identifier,
+        typ: Type,
+    },
     ArrayGet {
         target: Identifier,
         element_type: Type,
