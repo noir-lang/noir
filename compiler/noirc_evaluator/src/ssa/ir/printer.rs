@@ -183,13 +183,15 @@ fn display_instruction_inner(
             }
         }
         Instruction::Call { func, arguments } => {
+            let arguments = value_list(function, arguments);
             let types = vecmap(results, |result| function.dfg.type_of_value(*result).to_string());
-            let types = if types.len() == 1 {
-                types[0].to_string()
+            if types.is_empty() {
+                writeln!(f, "call {}({})", show(*func), arguments)
+            } else if types.len() == 1 {
+                writeln!(f, "call {}({}) -> {}", show(*func), arguments, types[0])
             } else {
-                format!("({})", types.join(", "))
-            };
-            writeln!(f, "call {}({}) -> {}", show(*func), value_list(function, arguments), types)
+                writeln!(f, "call {}({}) -> ({})", show(*func), arguments, types.join(", "))
+            }
         }
         Instruction::Allocate => {
             assert_eq!(results.len(), 1);

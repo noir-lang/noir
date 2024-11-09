@@ -155,6 +155,22 @@ acir(inline) fn foo f1 {
 }
 
 #[test]
+fn test_call_no_return_value() {
+    let src = "
+acir(inline) fn main f0 {
+  b0(v0: Field):
+    call f1(v0)
+    return
+}
+acir(inline) fn foo f1 {
+  b0(v0: Field):
+    return
+}
+";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
 fn test_cast() {
     let src = "
 acir(inline) fn main f0 {

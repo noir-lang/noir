@@ -168,6 +168,10 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_instruction(&mut self) -> ParseResult<Option<ParsedInstruction>> {
+        if let Some(instruction) = self.parse_call()? {
+            return Ok(Some(instruction));
+        }
+
         if let Some(instruction) = self.parse_constrain()? {
             return Ok(Some(instruction));
         }
@@ -349,6 +353,16 @@ impl<'a> Parser<'a> {
         }
 
         Ok(None)
+    }
+
+    fn parse_call(&mut self) -> ParseResult<Option<ParsedInstruction>> {
+        if !self.eat_keyword(Keyword::Call)? {
+            return Ok(None);
+        }
+
+        let function = self.eat_identifier_or_error()?;
+        let arguments = self.parse_arguments()?;
+        Ok(Some(ParsedInstruction::Call { targets: vec![], function, arguments, types: vec![] }))
     }
 
     fn parse_constrain(&mut self) -> ParseResult<Option<ParsedInstruction>> {
