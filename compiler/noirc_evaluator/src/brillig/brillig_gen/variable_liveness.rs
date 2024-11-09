@@ -9,7 +9,7 @@ use crate::ssa::ir::{
     function::Function,
     instruction::{Instruction, InstructionId},
     post_order::PostOrder,
-    value::{Value, ValueId},
+    value::{ResolvedValueId, Value, ValueId},
 };
 
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
@@ -45,7 +45,10 @@ fn find_back_edges(
 }
 
 /// Collects the underlying variables inside a value id. It might be more than one, for example in constant arrays that are constructed with multiple vars.
-pub(crate) fn collect_variables_of_value(value_id: ValueId, dfg: &DataFlowGraph) -> Vec<ValueId> {
+pub(crate) fn collect_variables_of_value(
+    value_id: ValueId,
+    dfg: &DataFlowGraph,
+) -> Vec<ResolvedValueId> {
     let value_id = dfg.resolve(value_id);
     let value = &dfg[value_id];
 
@@ -99,7 +102,7 @@ fn variables_used_in_block(block: &BasicBlock, dfg: &DataFlowGraph) -> Variables
         .collect();
 
     // We consider block parameters used, so they live up to the block that owns them.
-    used.extend(block.parameters().iter());
+    used.extend(block.parameters().iter().map(|p| p.resolved()));
 
     if let Some(terminator) = block.terminator() {
         terminator.for_each_value(|value_id| {
@@ -110,7 +113,7 @@ fn variables_used_in_block(block: &BasicBlock, dfg: &DataFlowGraph) -> Variables
     used
 }
 
-type Variables = HashSet<ValueId>;
+type Variables = HashSet<ResolvedValueId>;
 
 fn compute_used_before_def(
     block: &BasicBlock,
@@ -226,7 +229,7 @@ impl VariableLiveness {
     ) {
         let mut defined = self.compute_defined_variables(block_id, &func.dfg);
 
-        defined.extend(constants.allocated_in_block(block_id));
+        defined.extend(constants.allocated_in_block(block_id).iter().map(|c| c.resolved()));
 
         let block: &BasicBlock = &func.dfg[block_id];
 
@@ -351,6 +354,12 @@ mod test {
     use crate::ssa::ir::map::Id;
     use crate::ssa::ir::types::Type;
 
+    use super::{ResolvedValueId, ValueId};
+
+    fn resolved_set(it: &[ValueId]) -> FxHashSet<ResolvedValueId> {
+        FxHashSet::from_iter(it.iter().map(|v| v.resolved()))
+    }
+
     #[test]
     fn simple_back_propagation() {
         // brillig fn main f0 {
@@ -419,30 +428,24 @@ mod test {
         let liveness = VariableLiveness::from_function(func, &constants);
 
         assert!(liveness.get_live_in(&func.entry_block()).is_empty());
-        assert_eq!(
-            liveness.get_live_in(&b2),
-            &FxHashSet::from_iter([v3, v0, twenty_seven].into_iter())
-        );
-        assert_eq!(
-            liveness.get_live_in(&b1),
-            &FxHashSet::from_iter([v3, v1, twenty_seven].into_iter())
-        );
-        assert_eq!(liveness.get_live_in(&b3), &FxHashSet::from_iter([v3].into_iter()));
+        assert_eq!(liveness.get_live_in(&b2), &resolved_set(&[v3, v0, twenty_seven]));
+        assert_eq!(liveness.get_live_in(&b1), &resolved_set(&[v3, v1, twenty_seven]));
+        assert_eq!(liveness.get_live_in(&b3), &resolved_set(&[v3]));
 
         let block_1 = &func.dfg[b1];
         let block_2 = &func.dfg[b2];
         let block_3 = &func.dfg[b3];
         assert_eq!(
             liveness.get_last_uses(&b1).get(&block_1.instructions()[0]),
-            Some(&FxHashSet::from_iter([v1, twenty_seven].into_iter()))
+            Some(&resolved_set(&[v1, twenty_seven]))
         );
         assert_eq!(
             liveness.get_last_uses(&b2).get(&block_2.instructions()[0]),
-            Some(&FxHashSet::from_iter([v0, twenty_seven].into_iter()))
+            Some(&resolved_set(&[v0, twenty_seven]))
         );
         assert_eq!(
             liveness.get_last_uses(&b3).get(&block_3.instructions()[0]),
-            Some(&FxHashSet::from_iter([v3].into_iter()))
+            Some(&resolved_set(&[v3]))
         );
     }
 
@@ -571,40 +574,31 @@ mod test {
         let liveness = VariableLiveness::from_function(func, &constants);
 
         assert!(liveness.get_live_in(&func.entry_block()).is_empty());
-        assert_eq!(
-            liveness.get_live_in(&b1),
-            &FxHashSet::from_iter([v0, v1, v3, v4, twenty_seven, one].into_iter())
-        );
-        assert_eq!(liveness.get_live_in(&b3), &FxHashSet::from_iter([v3].into_iter()));
-        assert_eq!(
-            liveness.get_live_in(&b2),
-            &FxHashSet::from_iter([v0, v1, v3, v4, twenty_seven, one].into_iter())
-        );
+        assert_eq!(liveness.get_live_in(&b1), &resolved_set(&[v0, v1, v3, v4, twenty_seven, one]));
+        assert_eq!(liveness.get_live_in(&b3), &resolved_set(&[v3]));
+        assert_eq!(liveness.get_live_in(&b2), &resolved_set(&[v0, v1, v3, v4, twenty_seven, one]));
         assert_eq!(
             liveness.get_live_in(&b4),
-            &FxHashSet::from_iter([v0, v1, v3, v4, v6, v7, twenty_seven, one].into_iter())
+            &resolved_set(&[v0, v1, v3, v4, v6, v7, twenty_seven, one])
         );
-        assert_eq!(
-            liveness.get_live_in(&b6),
-            &FxHashSet::from_iter([v0, v1, v3, v4, twenty_seven, one].into_iter())
-        );
+        assert_eq!(liveness.get_live_in(&b6), &resolved_set(&[v0, v1, v3, v4, twenty_seven, one]));
         assert_eq!(
             liveness.get_live_in(&b5),
-            &FxHashSet::from_iter([v0, v1, v3, v4, v6, v7, twenty_seven, one].into_iter())
+            &resolved_set(&[v0, v1, v3, v4, v6, v7, twenty_seven, one])
         );
         assert_eq!(
             liveness.get_live_in(&b7),
-            &FxHashSet::from_iter([v0, v1, v3, v4, v6, v7, twenty_seven, one].into_iter())
+            &resolved_set(&[v0, v1, v3, v4, v6, v7, twenty_seven, one])
         );
         assert_eq!(
             liveness.get_live_in(&b8),
-            &FxHashSet::from_iter([v0, v1, v3, v4, v6, v7, twenty_seven, one].into_iter())
+            &resolved_set(&[v0, v1, v3, v4, v6, v7, twenty_seven, one])
         );
 
         let block_3 = &func.dfg[b3];
         assert_eq!(
             liveness.get_last_uses(&b3).get(&block_3.instructions()[0]),
-            Some(&FxHashSet::from_iter([v3].into_iter()))
+            Some(&resolved_set(&[v3]))
         );
     }
 
@@ -655,12 +649,20 @@ mod test {
         let liveness = VariableLiveness::from_function(func, &constants);
 
         // Entry point defines its own params and also b3's params.
-        assert_eq!(liveness.defined_block_params(&func.entry_block()), vec![v0, v1, v2]);
-        assert_eq!(liveness.defined_block_params(&b1), vec![]);
-        assert_eq!(liveness.defined_block_params(&b2), vec![]);
-        assert_eq!(liveness.defined_block_params(&b3), vec![]);
+        let resolved_params = |block_id| {
+            liveness
+                .defined_block_params(&block_id)
+                .iter()
+                .map(|p| p.resolved())
+                .collect::<super::Variables>()
+        };
 
-        assert_eq!(liveness.get_live_in(&b1), &FxHashSet::from_iter([v1, v2].into_iter()));
-        assert_eq!(liveness.get_live_in(&b2), &FxHashSet::from_iter([v1, v2].into_iter()));
+        assert_eq!(resolved_params(func.entry_block()), resolved_set(&[v0, v1, v2]));
+        assert_eq!(resolved_params(b1), resolved_set(&[]));
+        assert_eq!(resolved_params(b2), resolved_set(&[]));
+        assert_eq!(resolved_params(b3), resolved_set(&[]));
+
+        assert_eq!(liveness.get_live_in(&b1), &resolved_set(&[v1, v2]));
+        assert_eq!(liveness.get_live_in(&b2), &resolved_set(&[v1, v2]));
     }
 }

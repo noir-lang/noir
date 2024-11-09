@@ -11,7 +11,7 @@ use crate::ssa::ir::{
     function::Function,
     instruction::InstructionId,
     post_order::PostOrder,
-    value::{RawValueId, Value, ValueId},
+    value::{RawValueId, ResolvedValueId, Value, ValueId},
 };
 
 use super::variable_liveness::{collect_variables_of_value, variables_used_in_instruction};
@@ -65,7 +65,7 @@ impl ConstantAllocation {
 
     fn collect_constant_usage(&mut self, func: &Function) {
         let mut record_if_constant =
-            |block_id: BasicBlockId, value_id: ValueId, location: InstructionLocation| {
+            |block_id: BasicBlockId, value_id: ResolvedValueId, location: InstructionLocation| {
                 if is_constant_value(value_id, &func.dfg) {
                     self.constant_usage
                         .entry(value_id.raw())
@@ -166,8 +166,8 @@ impl ConstantAllocation {
     }
 }
 
-pub(crate) fn is_constant_value(id: ValueId, dfg: &DataFlowGraph) -> bool {
-    matches!(&dfg[dfg.resolve(id)], Value::NumericConstant { .. } | Value::Array { .. })
+fn is_constant_value(id: ResolvedValueId, dfg: &DataFlowGraph) -> bool {
+    matches!(&dfg[id], Value::NumericConstant { .. } | Value::Array { .. })
 }
 
 /// For a given function, finds all the blocks that are within loops

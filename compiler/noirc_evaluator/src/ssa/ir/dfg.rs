@@ -573,7 +573,7 @@ impl std::ops::Index<ValueId> for DataFlowGraph {
 }
 
 impl std::ops::Index<ResolvedValueId> for DataFlowGraph {
-    type Output = Value;
+    type Output = Value; // The value can still contain unresolved IDs.
     fn index(&self, id: ResolvedValueId) -> &Self::Output {
         &self.values[id.raw()]
     }

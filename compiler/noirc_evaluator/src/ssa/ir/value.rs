@@ -175,4 +175,20 @@ impl<R> Value<R> {
             Value::ForeignFunction { .. } => &Type::Function,
         }
     }
+
+    pub(crate) fn map_values<S>(self, f: impl Fn(ValueId<R>) -> ValueId<S>) -> Value<S> {
+        match self {
+            Value::Instruction { instruction, position, typ } => {
+                Value::Instruction { instruction, position, typ }
+            }
+            Value::Param { block, position, typ } => Value::Param { block, position, typ },
+            Value::NumericConstant { constant, typ } => Value::NumericConstant { constant, typ },
+            Value::Array { array, typ } => {
+                Value::Array { array: array.into_iter().map(|v| f(v)).collect(), typ }
+            }
+            Value::Function(id) => Value::Function(id),
+            Value::Intrinsic(intrinsic) => Value::Intrinsic(intrinsic),
+            Value::ForeignFunction(s) => Value::ForeignFunction(s),
+        }
+    }
 }
