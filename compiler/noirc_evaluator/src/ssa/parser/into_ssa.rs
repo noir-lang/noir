@@ -189,6 +189,11 @@ impl Translator {
                 let condition = self.translate_value(condition)?;
                 self.builder.insert_enable_side_effects_if(condition);
             }
+            ParsedInstruction::Load { target, value, typ } => {
+                let value = self.translate_value(value)?;
+                let value_id = self.builder.insert_load(value, typ);
+                self.define_variable(target, value_id)?;
+            }
             ParsedInstruction::Not { target, value } => {
                 let value = self.translate_value(value)?;
                 let value_id = self.builder.insert_not(value);

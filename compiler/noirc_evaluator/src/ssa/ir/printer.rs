@@ -198,7 +198,11 @@ fn display_instruction_inner(
             };
             writeln!(f, "allocate -> {}", typ)
         }
-        Instruction::Load { address } => writeln!(f, "load {}", show(*address)),
+        Instruction::Load { address } => {
+            assert_eq!(results.len(), 1);
+            let typ = function.dfg.type_of_value(results[0]);
+            writeln!(f, "load {} -> {}", show(*address), typ)
+        }
         Instruction::Store { address, value } => {
             writeln!(f, "store {} at {}", show(*value), show(*address))
         }

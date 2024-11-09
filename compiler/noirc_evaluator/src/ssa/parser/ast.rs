@@ -84,6 +84,11 @@ pub(crate) enum ParsedInstruction {
     EnableSideEffectsIf {
         condition: ParsedValue,
     },
+    Load {
+        target: Identifier,
+        value: ParsedValue,
+        typ: Type,
+    },
     Not {
         target: Identifier,
         value: ParsedValue,

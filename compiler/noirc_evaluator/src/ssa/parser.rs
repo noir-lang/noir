@@ -244,6 +244,13 @@ impl<'a> Parser<'a> {
                 return Ok(Some(ParsedInstruction::Cast { target, lhs, typ }));
             }
 
+            if self.eat_keyword(Keyword::Load)? {
+                let value = self.parse_value_or_error()?;
+                self.eat_or_error(Token::Arrow)?;
+                let typ = self.parse_type()?;
+                return Ok(Some(ParsedInstruction::Load { target, value, typ }));
+            }
+
             if self.eat_keyword(Keyword::Not)? {
                 let value = self.parse_value_or_error()?;
                 return Ok(Some(ParsedInstruction::Not { target, value }));
