@@ -39,8 +39,9 @@ impl<'f> FunctionInserter<'f> {
             None => match &self.function.dfg[value] {
                 super::value::Value::Array { array, typ } => {
                     let typ = typ.clone();
+                    let array = array.clone();
                     let new_array: im::Vector<ResolvedValueId> =
-                        array.into_iter().map(|id| self.resolve(*id)).collect();
+                        array.iter().map(|id| self.resolve(*id)).collect();
                     let array_and_typ = (new_array, typ);
 
                     if let Some(fetched_value) = self.const_arrays.get(&array_and_typ) {

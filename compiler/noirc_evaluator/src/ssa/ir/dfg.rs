@@ -347,18 +347,18 @@ impl DataFlowGraph {
     }
 
     /// Look up a value by ID.
-    fn get_value<R>(&self, value: ValueId<R>) -> Value {
-        self.values[value.raw()]
+    fn get_value<R>(&self, value: ValueId<R>) -> &Value {
+        &self.values[value.raw()]
     }
 
     /// Resolve and get a value by ID
-    fn resolve_value<R: Resolution>(&self, original_value_id: ValueId<R>) -> Value {
+    fn resolve_value<R: Resolution>(&self, original_value_id: ValueId<R>) -> &Value {
         let id = if R::is_resolved() {
             original_value_id.raw()
         } else {
             self.resolve(original_value_id.unresolved()).raw()
         };
-        self.values[id]
+        &self.values[id]
     }
 
     /// Returns the type of a given value
@@ -373,7 +373,7 @@ impl DataFlowGraph {
     pub(crate) fn get_value_max_num_bits<R: Resolution>(&self, value: ValueId<R>) -> u32 {
         match self.get_value(value) {
             Value::Instruction { instruction, .. } => {
-                if let Instruction::Cast(original_value, _) = self[instruction] {
+                if let Instruction::Cast(original_value, _) = self[*instruction] {
                     self.type_of_value(original_value).bit_size()
                 } else {
                     self.type_of_value(value).bit_size()

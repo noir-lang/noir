@@ -52,17 +52,17 @@ pub(crate) struct ValueId<R = Unresolved> {
 }
 
 impl<R> ValueId<R> {
-    pub fn new(id: Id<Value<R>>) -> Self {
+    pub(crate) fn new(id: Id<Value<R>>) -> Self {
         Self { id, _marker: PhantomData }
     }
 
     /// Access the underlying raw ID for indexing into data structures.
-    pub fn raw(&self) -> RawValueId {
+    pub(crate) fn raw(&self) -> RawValueId {
         Id::new(self.id.to_usize())
     }
 
     /// Demote an ID into an unresolved one.
-    pub fn unresolved(self) -> ValueId<Unresolved> {
+    pub(crate) fn unresolved(self) -> ValueId<Unresolved> {
         ValueId::new(Id::new(self.id.to_usize()))
     }
 }
@@ -70,11 +70,11 @@ impl<R> ValueId<R> {
 impl ValueId<Unresolved> {
     /// Be careful when using this comparison.
     /// Sure the IDs don't have to be resolved first?
-    pub fn unresolved_eq(&self, other: &Self) -> bool {
+    pub(crate) fn unresolved_eq(&self, other: &Self) -> bool {
         self.id == other.id
     }
     /// Promote an unresolved ID into a resolved one.
-    pub fn resolved(self) -> ValueId<Resolved> {
+    pub(crate) fn resolved(self) -> ValueId<Resolved> {
         ValueId::new(Id::new(self.id.to_usize()))
     }
 }

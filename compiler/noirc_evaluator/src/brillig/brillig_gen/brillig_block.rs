@@ -9,6 +9,7 @@ use crate::brillig::brillig_ir::{
 };
 use crate::ssa::ir::dfg::CallStack;
 use crate::ssa::ir::instruction::ConstrainError;
+use crate::ssa::ir::value::ResolvedValueId;
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
     dfg::DataFlowGraph,
@@ -41,7 +42,7 @@ pub(crate) struct BrilligBlock<'block> {
     /// Tracks the available variable during the codegen of the block
     pub(crate) variables: BlockVariables,
     /// For each instruction, the set of values that are not used anymore after it.
-    pub(crate) last_uses: HashMap<InstructionId, HashSet<ValueId>>,
+    pub(crate) last_uses: HashMap<InstructionId, HashSet<ResolvedValueId>>,
 }
 
 impl<'block> BrilligBlock<'block> {
@@ -149,8 +150,8 @@ impl<'block> BrilligBlock<'block> {
                 let target_block = &dfg[*destination_block];
                 for (src, dest) in arguments.iter().zip(target_block.parameters()) {
                     // Destinations are block parameters so they should have been allocated previously.
-                    let destination =
-                        self.variables.get_allocation(self.function_context, *dest, dfg);
+                    let dest = dfg.resolve(*dest);
+                    let destination = self.variables.get_allocation(self.function_context, dest);
                     let source = self.convert_ssa_value(*src, dfg);
                     self.brillig_context
                         .mov_instruction(destination.extract_register(), source.extract_register());
@@ -772,7 +773,7 @@ impl<'block> BrilligBlock<'block> {
 
         for dead_variable in dead_variables {
             self.variables.remove_variable(
-                dead_variable,
+                dead_variable.into(),
                 self.function_context,
                 self.brillig_context,
             );
@@ -1479,19 +1480,18 @@ impl<'block> BrilligBlock<'block> {
             Value::Param { .. } | Value::Instruction { .. } => {
                 // All block parameters and instruction results should have already been
                 // converted to registers so we fetch from the cache.
-
-                self.variables.get_allocation(self.function_context, value_id, dfg)
+                self.variables.get_allocation(self.function_context, value_id)
             }
             Value::NumericConstant { constant, .. } => {
                 // Constants might have been converted previously or not, so we get or create and
                 // (re)initialize the value inside.
-                if self.variables.is_allocated(&value_id) {
-                    self.variables.get_allocation(self.function_context, value_id, dfg)
+                if self.variables.is_allocated(value_id) {
+                    self.variables.get_allocation(self.function_context, value_id)
                 } else {
                     let new_variable = self.variables.define_variable(
                         self.function_context,
                         self.brillig_context,
-                        value_id,
+                        value_id.into(),
                         dfg,
                     );
 
@@ -1501,13 +1501,13 @@ impl<'block> BrilligBlock<'block> {
                 }
             }
             Value::Array { array, typ } => {
-                if self.variables.is_allocated(&value_id) {
-                    self.variables.get_allocation(self.function_context, value_id, dfg)
+                if self.variables.is_allocated(value_id) {
+                    self.variables.get_allocation(self.function_context, value_id)
                 } else {
                     let new_variable = self.variables.define_variable(
                         self.function_context,
                         self.brillig_context,
-                        value_id,
+                        value_id.into(),
                         dfg,
                     );
 
@@ -1548,13 +1548,13 @@ impl<'block> BrilligBlock<'block> {
                 let new_variable = self.variables.define_variable(
                     self.function_context,
                     self.brillig_context,
-                    value_id,
+                    value_id.into(),
                     dfg,
                 );
 
                 self.brillig_context.const_instruction(
                     new_variable.extract_single_addr(),
-                    value_id.to_usize().into(),
+                    value_id.raw().to_usize().into(),
                 );
                 new_variable
             }
@@ -1577,11 +1577,13 @@ impl<'block> BrilligBlock<'block> {
         let item_types = typ.clone().element_types();
 
         // Find out if we are repeating the same item over and over
-        let first_item = data.iter().take(item_types.len()).copied().collect();
+        let first_item: Vec<ResolvedValueId> =
+            data.iter().take(item_types.len()).map(|v| v.resolved()).collect();
         let mut is_repeating = true;
 
         for item_index in (item_types.len()..data.len()).step_by(item_types.len()) {
-            let item: Vec<_> = (0..item_types.len()).map(|i| data[item_index + i]).collect();
+            let item: Vec<_> =
+                (0..item_types.len()).map(|i| data[item_index + i].resolved()).collect();
             if first_item != item {
                 is_repeating = false;
                 break;
@@ -1597,7 +1599,11 @@ impl<'block> BrilligBlock<'block> {
             && item_types.iter().all(|typ| matches!(typ, Type::Numeric(_)))
         {
             self.initialize_constant_array_runtime(
-                item_types, first_item, item_count, pointer, dfg,
+                item_types,
+                vecmap(first_item, |v| v.into()),
+                item_count,
+                pointer,
+                dfg,
             );
         } else {
             self.initialize_constant_array_comptime(data, dfg, pointer);
@@ -1688,7 +1694,7 @@ impl<'block> BrilligBlock<'block> {
 
     fn initialize_constant_array_comptime(
         &mut self,
-        data: &im::Vector<crate::ssa::ir::map::Id<Value>>,
+        data: &im::Vector<ValueId>,
         dfg: &DataFlowGraph,
         pointer: MemoryAddress,
     ) {

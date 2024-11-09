@@ -272,7 +272,7 @@ mod test {
         assert_eq!(instructions.len(), 4);
         let expected = Instruction::binary(BinaryOp::Mul, v0.resolved(), two.resolved());
         for instruction in instructions.iter().take(4) {
-            let instruction = main.dfg[*instruction];
+            let instruction = &main.dfg[*instruction];
             let instruction = instruction.map_values(|v| v.resolved());
             assert_eq!(instruction, expected);
         }

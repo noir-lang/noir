@@ -455,7 +455,7 @@ impl<'f> PerFunctionContext<'f> {
                 // Register the new reference
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
                 let expr = Expression::Other(result.resolved());
-                references.expressions.insert(result.raw(), expr);
+                references.expressions.insert(result.raw(), expr.clone());
                 references.aliases.insert(expr, AliasSet::known(result));
             }
             Instruction::ArrayGet { array, .. } => {
@@ -628,8 +628,13 @@ mod tests {
             instruction::{BinaryOp, Instruction, Intrinsic, TerminatorInstruction},
             map::Id,
             types::Type,
+            value::{Resolved, Value},
         },
     };
+
+    fn resolved_value(value: &Value) -> Value<Resolved> {
+        value.clone().map_values(|v| v.resolved())
+    }
 
     #[test]
     fn test_simple() {
@@ -669,10 +674,7 @@ mod tests {
             TerminatorInstruction::Return { return_values, .. } => return_values.first().unwrap(),
             _ => unreachable!(),
         };
-        assert_eq!(
-            func.dfg[*ret_val_id].map_values(|v| v.resolved()),
-            func.dfg[two].map_values(|v| v.resolved())
-        );
+        assert_eq!(resolved_value(&func.dfg[*ret_val_id]), resolved_value(&func.dfg[two]));
     }
 
     #[test]
@@ -708,10 +710,7 @@ mod tests {
             TerminatorInstruction::Return { return_values, .. } => return_values.first().unwrap(),
             _ => unreachable!(),
         };
-        assert_eq!(
-            func.dfg[*ret_val_id].map_values(|v| v.resolved()),
-            func.dfg[one].map_values(|v| v.resolved())
-        );
+        assert_eq!(resolved_value(&func.dfg[*ret_val_id]), resolved_value(&func.dfg[one]));
     }
 
     #[test]
