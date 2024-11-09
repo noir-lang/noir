@@ -171,6 +171,18 @@ acir(inline) fn foo f1 {
 }
 
 #[test]
+fn test_call_intrinsic() {
+    let src = "
+acir(inline) fn main f0 {
+  b0(v0: Field):
+    call assert_constant(v0)
+    return
+}
+";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
 fn test_cast() {
     let src = "
 acir(inline) fn main f0 {

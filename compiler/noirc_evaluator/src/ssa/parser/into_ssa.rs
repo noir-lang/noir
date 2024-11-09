@@ -157,9 +157,13 @@ impl Translator {
                 self.define_variable(target, value_id)?;
             }
             ParsedInstruction::Call { targets, function, arguments, types } => {
-                let function_id = self.lookup_function(function)?;
+                let function_id = if let Some(id) = self.builder.import_intrinsic(&function.name) {
+                    id
+                } else {
+                    let function_id = self.lookup_function(function)?;
+                    self.builder.import_function(function_id)
+                };
 
-                let function_id = self.builder.import_function(function_id);
                 let arguments = self.translate_values(arguments)?;
 
                 let value_ids = self.builder.insert_call(function_id, arguments, types).to_vec();
