@@ -177,11 +177,10 @@ impl Context {
             results.iter().all(|result| !self.used_values.contains(&result.raw()))
         } else if let Instruction::Call { func, arguments } = instruction {
             // TODO: make this more general for instructions which don't have results but have side effects "sometimes" like `Intrinsic::AsWitness`
-            match function.dfg.get_intrinsic(Intrinsic::AsWitness) {
-                Some(as_witness_id) if as_witness_id.unresolved_eq(func) => {
-                    !self.used_values.contains(&arguments[0].raw())
-                }
-                _ => false,
+            if let Some(as_witness_id) = function.dfg.get_intrinsic(Intrinsic::AsWitness) {
+                as_witness_id.unresolved_eq(func) && !self.used_values.contains(&arguments[0].raw())
+            } else {
+                false
             }
         } else {
             // If the instruction has side effects we should never remove it.
