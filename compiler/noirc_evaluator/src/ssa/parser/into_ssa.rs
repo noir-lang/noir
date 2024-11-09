@@ -9,7 +9,7 @@ use crate::ssa::{
 
 use super::{
     Identifier, ParsedBlock, ParsedFunction, ParsedInstruction, ParsedSsa, ParsedTerminator,
-    ParsedValue, RuntimeType, Ssa, SsaError, Type,
+    ParsedValue, RuntimeType, Ssa, SsaError,
 };
 
 impl ParsedSsa {
@@ -27,8 +27,8 @@ impl ParsedSsa {
 struct Translator {
     builder: FunctionBuilder,
 
-    /// Maps function names to their ID and types
-    functions: HashMap<String, (FunctionId, Vec<Type>)>,
+    /// Maps function names to their IDs
+    functions: HashMap<String, FunctionId>,
 
     /// Maps block names to their IDs
     blocks: HashMap<FunctionId, HashMap<String, BasicBlockId>>,
@@ -51,10 +51,7 @@ impl Translator {
             let function_id = FunctionId::new(function_id_counter);
             function_id_counter += 1;
 
-            functions.insert(
-                function.internal_name.clone(),
-                (function_id, function.return_types.clone()),
-            );
+            functions.insert(function.internal_name.clone(), function_id);
         }
 
         let mut translator =
@@ -65,7 +62,7 @@ impl Translator {
     }
 
     fn translate_function(&mut self, function: ParsedFunction) -> Result<(), SsaError> {
-        let (function_id, _) = self.functions[&function.internal_name];
+        let function_id = self.functions[&function.internal_name];
         let external_name = function.external_name.clone();
 
         match function.runtime_type {
@@ -155,15 +152,13 @@ impl Translator {
                 let value_id = self.builder.insert_binary(lhs, op, rhs);
                 self.define_variable(target, value_id)?;
             }
-            ParsedInstruction::Call { targets, function, arguments } => {
-                let (function_id, return_types) = self.lookup_function(function)?;
-                let result_types = return_types.to_vec();
+            ParsedInstruction::Call { targets, function, arguments, types } => {
+                let function_id = self.lookup_function(function)?;
 
                 let function_id = self.builder.import_function(function_id);
                 let arguments = self.translate_values(arguments)?;
 
-                let value_ids =
-                    self.builder.insert_call(function_id, arguments, result_types).to_vec();
+                let value_ids = self.builder.insert_call(function_id, arguments, types).to_vec();
 
                 if value_ids.len() != targets.len() {
                     return Err(SsaError::MismatchedReturnValues {
@@ -257,12 +252,9 @@ impl Translator {
         }
     }
 
-    fn lookup_function(
-        &mut self,
-        identifier: Identifier,
-    ) -> Result<(FunctionId, &[Type]), SsaError> {
-        if let Some((function_id, types)) = self.functions.get(&identifier.name) {
-            Ok((*function_id, types))
+    fn lookup_function(&mut self, identifier: Identifier) -> Result<FunctionId, SsaError> {
+        if let Some(function_id) = self.functions.get(&identifier.name) {
+            Ok(*function_id)
         } else {
             Err(SsaError::UnknownFunction(identifier))
         }

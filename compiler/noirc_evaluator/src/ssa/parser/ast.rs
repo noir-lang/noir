@@ -13,7 +13,6 @@ pub(crate) struct ParsedFunction {
     pub(crate) runtime_type: RuntimeType,
     pub(crate) external_name: String,
     pub(crate) internal_name: String,
-    pub(crate) return_types: Vec<Type>,
     pub(crate) blocks: Vec<ParsedBlock>,
 }
 
@@ -45,14 +44,48 @@ impl Identifier {
 
 #[derive(Debug)]
 pub(crate) enum ParsedInstruction {
-    ArrayGet { target: Identifier, element_type: Type, array: ParsedValue, index: ParsedValue },
-    ArraySet { target: Identifier, array: ParsedValue, index: ParsedValue, value: ParsedValue },
-    BinaryOp { target: Identifier, lhs: ParsedValue, op: BinaryOp, rhs: ParsedValue },
-    Call { targets: Vec<Identifier>, function: Identifier, arguments: Vec<ParsedValue> },
-    Cast { target: Identifier, lhs: ParsedValue, typ: Type },
-    Constrain { lhs: ParsedValue, rhs: ParsedValue },
-    EnableSideEffectsIf { condition: ParsedValue },
-    Truncate { target: Identifier, value: ParsedValue, bit_size: u32, max_bit_size: u32 },
+    ArrayGet {
+        target: Identifier,
+        element_type: Type,
+        array: ParsedValue,
+        index: ParsedValue,
+    },
+    ArraySet {
+        target: Identifier,
+        array: ParsedValue,
+        index: ParsedValue,
+        value: ParsedValue,
+    },
+    BinaryOp {
+        target: Identifier,
+        lhs: ParsedValue,
+        op: BinaryOp,
+        rhs: ParsedValue,
+    },
+    Call {
+        targets: Vec<Identifier>,
+        function: Identifier,
+        arguments: Vec<ParsedValue>,
+        types: Vec<Type>,
+    },
+    Cast {
+        target: Identifier,
+        lhs: ParsedValue,
+        typ: Type,
+    },
+    Constrain {
+        lhs: ParsedValue,
+        rhs: ParsedValue,
+    },
+    EnableSideEffectsIf {
+        condition: ParsedValue,
+    },
+    Truncate {
+        target: Identifier,
+        value: ParsedValue,
+        bit_size: u32,
+        max_bit_size: u32,
+    },
 }
 
 #[derive(Debug)]

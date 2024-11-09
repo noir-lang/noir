@@ -72,15 +72,13 @@ impl<'a> Parser<'a> {
         let external_name = self.eat_ident_or_error()?;
         let internal_name = self.eat_ident_or_error()?;
 
-        let return_types = if self.eat(Token::Arrow)? { self.parse_types()? } else { Vec::new() };
-
         self.eat_or_error(Token::LeftBrace)?;
 
         let blocks = self.parse_blocks()?;
 
         self.eat_or_error(Token::RightBrace)?;
 
-        Ok(ParsedFunction { runtime_type, external_name, internal_name, return_types, blocks })
+        Ok(ParsedFunction { runtime_type, external_name, internal_name, blocks })
     }
 
     fn parse_runtime_type(&mut self) -> ParseResult<RuntimeType> {
@@ -191,7 +189,9 @@ impl<'a> Parser<'a> {
             if self.eat_keyword(Keyword::Call)? {
                 let function = self.eat_identifier_or_error()?;
                 let arguments = self.parse_arguments()?;
-                return Ok(Some(ParsedInstruction::Call { targets, function, arguments }));
+                self.eat_or_error(Token::Arrow)?;
+                let types = self.parse_types()?;
+                return Ok(Some(ParsedInstruction::Call { targets, function, arguments, types }));
             }
 
             if targets.len() > 1 {
@@ -203,12 +203,12 @@ impl<'a> Parser<'a> {
             let target = targets.remove(0);
 
             if self.eat_keyword(Keyword::ArrayGet)? {
-                let element_type = self.parse_type()?;
-                self.eat_or_error(Token::Comma)?;
                 let array = self.parse_value_or_error()?;
                 self.eat_or_error(Token::Comma)?;
                 self.eat_or_error(Token::Keyword(Keyword::Index))?;
                 let index = self.parse_value_or_error()?;
+                self.eat_or_error(Token::Arrow)?;
+                let element_type = self.parse_type()?;
                 return Ok(Some(ParsedInstruction::ArrayGet {
                     target,
                     element_type,

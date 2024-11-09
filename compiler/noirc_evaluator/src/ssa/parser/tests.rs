@@ -40,7 +40,7 @@ fn test_return_integer() {
     for typ in ["u1", "u8", "u16", "u32", "u64", "i1", "i8", "i16", "i32", "i64", "Field"] {
         let src = format!(
             "
-acir(inline) fn main f0 -> {typ} {{
+acir(inline) fn main f0 {{
   b0():
     return {typ} 1
 }}
@@ -53,7 +53,7 @@ acir(inline) fn main f0 -> {typ} {{
 #[test]
 fn test_return_array() {
     let src = "
-acir(inline) fn main f0 -> [Field; 1] {
+acir(inline) fn main f0 {
   b0():
     return [Field 1] of Field
 }
@@ -64,7 +64,7 @@ acir(inline) fn main f0 -> [Field; 1] {
 #[test]
 fn test_return_empty_array() {
     let src = "
-acir(inline) fn main f0 -> [Field; 0] {
+acir(inline) fn main f0 {
   b0():
     return [] of Field
 }
@@ -75,7 +75,7 @@ acir(inline) fn main f0 -> [Field; 0] {
 #[test]
 fn test_return_composite_array() {
     let src = "
-acir(inline) fn main f0 -> [(Field, Field); 1] {
+acir(inline) fn main f0 {
   b0():
     return [Field 1, Field 2] of (Field, Field)
 }
@@ -86,7 +86,7 @@ acir(inline) fn main f0 -> [(Field, Field); 1] {
 #[test]
 fn test_block_parameters() {
     let src = "
-acir(inline) fn main f0 -> (Field, Field) {
+acir(inline) fn main f0 {
   b0(v0: Field, v1: Field):
     return v0, v1
 }
@@ -97,7 +97,7 @@ acir(inline) fn main f0 -> (Field, Field) {
 #[test]
 fn test_multiple_blocks_and_jmp() {
     let src = "
-acir(inline) fn main f0 -> Field {
+acir(inline) fn main f0 {
   b0():
     jmp b1(Field 1)
   b1(v1: Field):
@@ -125,12 +125,12 @@ acir(inline) fn main f0 {
 #[test]
 fn test_call() {
     let src = "
-acir(inline) fn main f0 -> Field {
+acir(inline) fn main f0 {
   b0(v0: Field):
-    v2 = call f1(v0)
+    v2 = call f1(v0) -> Field
     return v2
 }
-acir(inline) fn foo f1 -> Field {
+acir(inline) fn foo f1 {
   b0(v0: Field):
     return v0
 }
@@ -141,12 +141,12 @@ acir(inline) fn foo f1 -> Field {
 #[test]
 fn test_call_multiple_return_values() {
     let src = "
-acir(inline) fn main f0 -> [Field; 3] {
+acir(inline) fn main f0 {
   b0():
-    v1, v2 = call f1()
+    v1, v2 = call f1() -> ([Field; 3], [Field; 1])
     return v1
 }
-acir(inline) fn foo f1 -> ([Field; 3], [Field; 1]) {
+acir(inline) fn foo f1 {
   b0():
     return [Field 1, Field 2, Field 3] of Field, [Field 4] of Field
 }
@@ -157,7 +157,7 @@ acir(inline) fn foo f1 -> ([Field; 3], [Field; 1]) {
 #[test]
 fn test_cast() {
     let src = "
-acir(inline) fn main f0 -> i32 {
+acir(inline) fn main f0 {
   b0(v0: Field):
     v1 = cast v0 as i32
     return v1
@@ -195,7 +195,7 @@ fn test_array_get() {
     let src = "
 acir(inline) fn main f0 {
   b0(v0: [Field; 3]):
-    v2 = array_get Field, v0, index Field 0
+    v2 = array_get v0, index Field 0 -> Field
     return
 }
 ";
@@ -220,7 +220,7 @@ fn test_array_get_set_bug() {
 acir(inline) fn main f0 {
   b0(v0: [u32; 3]):
     v3 = array_set v0, index u32 1, value u32 2
-    v5 = array_get u32, v3, index u32 0
+    v5 = array_get v3, index u32 0 -> u32
     return
 }
 ";

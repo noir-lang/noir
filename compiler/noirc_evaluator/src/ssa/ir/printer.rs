@@ -18,21 +18,7 @@ use super::{
 
 /// Helper function for Function's Display impl to pretty-print the function with the given formatter.
 pub(crate) fn display_function(function: &Function, f: &mut Formatter) -> Result {
-    write!(f, "{} fn {} {}", function.runtime(), function.name(), function.id())?;
-
-    let return_value_ids = function.returns();
-    if !return_value_ids.is_empty() {
-        let return_types = vecmap(return_value_ids, |id| function.dfg.type_of_value(*id));
-        let return_types_str =
-            return_types.iter().map(|typ| typ.to_string()).collect::<Vec<_>>().join(", ");
-        if return_types.len() == 1 {
-            write!(f, " -> {}", return_types_str)?;
-        } else {
-            write!(f, " -> ({})", return_types_str)?;
-        }
-    }
-
-    writeln!(f, " {{")?;
+    writeln!(f, "{} fn {} {} {{", function.runtime(), function.name(), function.id())?;
     display_block_with_successors(function, function.entry_block(), &mut HashSet::new(), f)?;
     write!(f, "}}")
 }
@@ -195,7 +181,13 @@ fn display_instruction_inner(
             }
         }
         Instruction::Call { func, arguments } => {
-            writeln!(f, "call {}({})", show(*func), value_list(function, arguments))
+            let types = vecmap(results, |result| function.dfg.type_of_value(*result).to_string());
+            let types = if types.len() == 1 {
+                types[0].to_string()
+            } else {
+                format!("({})", types.join(", "))
+            };
+            writeln!(f, "call {}({}) -> {}", show(*func), value_list(function, arguments), types)
         }
         Instruction::Allocate => writeln!(f, "allocate"),
         Instruction::Load { address } => writeln!(f, "load {}", show(*address)),
@@ -208,7 +200,7 @@ fn display_instruction_inner(
         Instruction::ArrayGet { array, index } => {
             assert_eq!(results.len(), 1);
             let typ = function.dfg.type_of_value(results[0]);
-            writeln!(f, "array_get {}, {}, index {}", typ, show(*array), show(*index))
+            writeln!(f, "array_get {}, index {} -> {}", show(*array), show(*index), typ)
         }
         Instruction::ArraySet { array, index, value, mutable } => {
             let array = show(*array);

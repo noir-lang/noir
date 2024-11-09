@@ -357,7 +357,7 @@ acir(inline) fn main f0 {
         main.dfg.set_value_from_id(v0, two);
 
         let expected = "
-acir(inline) fn main f0 -> Field {
+acir(inline) fn main f0 {
   b0(v0: Field):
     return Field 9
 }
@@ -393,7 +393,7 @@ acir(inline) fn main f0 {
         main.dfg.set_value_from_id(v1, constant);
 
         let expected = "
-acir(inline) fn main f0 -> u16 {
+acir(inline) fn main f0 {
   b0(v0: u16, v1: Field):
     v3 = div v0, Field 256
     return v3
@@ -541,11 +541,11 @@ acir(inline) fn main f0 {
 acir(inline) fn main f0 {
   b0(v0: [Field; 4], v1: u32, v2: bool, v3: bool):
     enable_side_effects v2
-    v4 = array_get Field, v0, index u32 0
-    v5 = array_get Field, v0, index v1
+    v4 = array_get v0, index u32 0 -> Field
+    v5 = array_get v0, index v1 -> Field
     enable_side_effects v3
-    v6 = array_get Field, v0, index u32 0
-    v7 = array_get Field, v0, index v1
+    v6 = array_get v0, index u32 0 -> Field
+    v7 = array_get v0, index v1 -> Field
     constrain v4 == v6
     return
 }
@@ -554,10 +554,10 @@ acir(inline) fn main f0 {
 acir(inline) fn main f0 {
   b0(v0: [Field; 4], v1: u32, v2: u1, v3: u1):
     enable_side_effects v2
-    v5 = array_get Field, v0, index u32 0
-    v6 = array_get Field, v0, index v1
+    v5 = array_get v0, index u32 0 -> Field
+    v6 = array_get v0, index v1 -> Field
     enable_side_effects v3
-    v7 = array_get Field, v0, index v1
+    v7 = array_get v0, index v1 -> Field
     return
 }
         ";
