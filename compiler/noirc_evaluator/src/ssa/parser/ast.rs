@@ -80,6 +80,10 @@ pub(crate) enum ParsedInstruction {
     EnableSideEffectsIf {
         condition: ParsedValue,
     },
+    Not {
+        target: Identifier,
+        value: ParsedValue,
+    },
     Truncate {
         target: Identifier,
         value: ParsedValue,
