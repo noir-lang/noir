@@ -222,7 +222,7 @@ impl DataFlowGraph {
     /// values since other instructions referring to the same ValueId need
     /// not be modified to refer to a new ValueId.
     pub(crate) fn set_value_from_id(&mut self, value_to_replace: ValueId, new_value: ValueId) {
-        if value_to_replace.unresolved_eq(&new_value) {
+        if !value_to_replace.unresolved_eq(&new_value) {
             self.replaced_value_ids.insert(value_to_replace.raw(), self.resolve(new_value).into());
             let new_value = self.values[new_value.raw()].clone();
             self.values[value_to_replace.raw()] = new_value;
