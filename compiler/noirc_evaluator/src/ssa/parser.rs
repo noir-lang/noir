@@ -175,6 +175,9 @@ impl<'a> Parser<'a> {
         if let Some(instruction) = self.parse_enable_side_effects()? {
             return Ok(Some(instruction));
         }
+        if let Some(instruction) = self.parse_range_check()? {
+            return Ok(Some(instruction));
+        }
 
         if let Some(target) = self.eat_identifier()? {
             let mut targets = vec![target];
@@ -340,6 +343,18 @@ impl<'a> Parser<'a> {
 
         let condition = self.parse_value_or_error()?;
         Ok(Some(ParsedInstruction::EnableSideEffectsIf { condition }))
+    }
+
+    fn parse_range_check(&mut self) -> ParseResult<Option<ParsedInstruction>> {
+        if !self.eat_keyword(Keyword::RangeCheck)? {
+            return Ok(None);
+        }
+
+        let value = self.parse_value_or_error()?;
+        self.eat_or_error(Token::Keyword(Keyword::To))?;
+        let max_bit_size = self.eat_int_or_error()?.to_u128() as u32;
+        self.eat_or_error(Token::Keyword(Keyword::Bits))?;
+        Ok(Some(ParsedInstruction::RangeCheck { value, max_bit_size }))
     }
 
     fn parse_terminator(&mut self) -> ParseResult<ParsedTerminator> {

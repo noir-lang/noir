@@ -84,6 +84,10 @@ pub(crate) enum ParsedInstruction {
         target: Identifier,
         value: ParsedValue,
     },
+    RangeCheck {
+        value: ParsedValue,
+        max_bit_size: u32,
+    },
     Truncate {
         target: Identifier,
         value: ParsedValue,
