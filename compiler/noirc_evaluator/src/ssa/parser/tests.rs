@@ -326,3 +326,15 @@ acir(inline) fn main f0 {
 ";
     assert_ssa_roundtrip(src);
 }
+
+#[test]
+fn test_dec_rc() {
+    let src = "
+acir(inline) fn main f0 {
+  b0(v0: [Field; 3]):
+    dec_rc v0
+    return
+}
+";
+    assert_ssa_roundtrip(src);
+}

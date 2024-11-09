@@ -185,6 +185,10 @@ impl Translator {
                 let rhs = self.translate_value(rhs)?;
                 self.builder.insert_constrain(lhs, rhs, None);
             }
+            ParsedInstruction::DecrementRc { value } => {
+                let value = self.translate_value(value)?;
+                self.builder.decrement_array_reference_count(value);
+            }
             ParsedInstruction::EnableSideEffectsIf { condition } => {
                 let condition = self.translate_value(condition)?;
                 self.builder.insert_enable_side_effects_if(condition);

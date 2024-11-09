@@ -172,6 +172,10 @@ impl<'a> Parser<'a> {
             return Ok(Some(instruction));
         }
 
+        if let Some(instruction) = self.parse_decrement_rc()? {
+            return Ok(Some(instruction));
+        }
+
         if let Some(instruction) = self.parse_enable_side_effects()? {
             return Ok(Some(instruction));
         }
@@ -356,6 +360,15 @@ impl<'a> Parser<'a> {
         self.eat_or_error(Token::Equal)?;
         let rhs = self.parse_value_or_error()?;
         Ok(Some(ParsedInstruction::Constrain { lhs, rhs }))
+    }
+
+    fn parse_decrement_rc(&mut self) -> ParseResult<Option<ParsedInstruction>> {
+        if !self.eat_keyword(Keyword::DecRc)? {
+            return Ok(None);
+        }
+
+        let value = self.parse_value_or_error()?;
+        Ok(Some(ParsedInstruction::DecrementRc { value }))
     }
 
     fn parse_enable_side_effects(&mut self) -> ParseResult<Option<ParsedInstruction>> {
