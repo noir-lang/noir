@@ -59,6 +59,7 @@ pub(crate) enum ParsedInstruction {
         array: ParsedValue,
         index: ParsedValue,
         value: ParsedValue,
+        mutable: bool,
     },
     BinaryOp {
         target: Identifier,

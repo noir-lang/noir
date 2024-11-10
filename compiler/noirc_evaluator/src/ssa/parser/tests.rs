@@ -243,6 +243,18 @@ fn test_array_set() {
 }
 
 #[test]
+fn test_mutable_array_set() {
+    let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            v3 = array_set mut v0, index Field 0, value Field 1
+            return
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
 fn test_array_get_set_bug() {
     let src = "
         acir(inline) fn main f0 {

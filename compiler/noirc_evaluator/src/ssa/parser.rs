@@ -244,6 +244,7 @@ impl<'a> Parser<'a> {
             }
 
             if self.eat_keyword(Keyword::ArraySet)? {
+                let mutable = self.eat_keyword(Keyword::Mut)?;
                 let array = self.parse_value_or_error()?;
                 self.eat_or_error(Token::Comma)?;
                 self.eat_or_error(Token::Keyword(Keyword::Index))?;
@@ -251,7 +252,13 @@ impl<'a> Parser<'a> {
                 self.eat_or_error(Token::Comma)?;
                 self.eat_or_error(Token::Keyword(Keyword::Value))?;
                 let value = self.parse_value_or_error()?;
-                return Ok(Some(ParsedInstruction::ArraySet { target, array, index, value }));
+                return Ok(Some(ParsedInstruction::ArraySet {
+                    target,
+                    array,
+                    index,
+                    value,
+                    mutable,
+                }));
             }
 
             if self.eat_keyword(Keyword::Cast)? {
