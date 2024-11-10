@@ -930,61 +930,44 @@ mod test {
             types::Type,
             value::{Value, ValueId},
         },
+        opt::assert_ssa_equals,
+        Ssa,
     };
 
     #[test]
     fn basic_jmpif() {
-        // fn main f0 {
-        //   b0(v0: b1):
-        //     jmpif v0, then: b1, else: b2
-        //   b1():
-        //     jmp b3(Field 3)
-        //   b2():
-        //     jmp b3(Field 4)
-        //   b3(v1: Field):
-        //     return v1
-        // }
-        let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-
-        let b1 = builder.insert_block();
-        let b2 = builder.insert_block();
-        let b3 = builder.insert_block();
-
-        let v0 = builder.add_parameter(Type::bool());
-        let v1 = builder.add_block_parameter(b3, Type::field());
-
-        let three = builder.field_constant(3u128);
-        let four = builder.field_constant(4u128);
-
-        builder.terminate_with_jmpif(v0, b1, b2);
-
-        builder.switch_to_block(b1);
-        builder.terminate_with_jmp(b3, vec![three]);
-
-        builder.switch_to_block(b2);
-        builder.terminate_with_jmp(b3, vec![four]);
-
-        builder.switch_to_block(b3);
-        builder.terminate_with_return(vec![v1]);
-
-        let ssa = builder.finish();
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1):
+                jmpif v0 then: b1, else: b2
+              b1():
+                jmp b3(Field 3)
+              b3(v1: Field):
+                return v1
+              b2():
+                jmp b3(Field 4)
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
         assert_eq!(ssa.main().reachable_blocks().len(), 4);
 
-        // Expected output:
-        // fn main f0 {
-        //   b0(v0: u1):
-        //     enable_side_effects v0
-        //     v5 = not v0
-        //     enable_side_effects v5
-        //     enable_side_effects u1 1
-        //     v7 = mul v0, Field 3
-        //     v8 = mul v5, Field 4
-        //     v9 = add v7, v8
-        //     return v9
-        // }
+        let expected = "
+            acir(inline) fn main f0 {
+              b0(v0: u1):
+                enable_side_effects v0
+                v1 = not v0
+                enable_side_effects u1 1
+                v3 = cast v0 as Field
+                v4 = cast v1 as Field
+                v6 = mul v3, Field 3
+                v8 = mul v4, Field 4
+                v9 = add v6, v8
+                return v9
+            }
+            ";
+
         let ssa = ssa.flatten_cfg();
-        assert_eq!(ssa.main().reachable_blocks().len(), 1);
+        assert_ssa_equals(ssa, expected);
     }
 
     #[test]
