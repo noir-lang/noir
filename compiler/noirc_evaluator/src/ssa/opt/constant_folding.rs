@@ -660,26 +660,26 @@ mod test {
     #[test]
     fn deduplicate_instructions_with_predicates() {
         let src = "
-acir(inline) fn main f0 {
-  b0(v0: u1, v1: u1, v2: [Field; 2]):
-    enable_side_effects v0
-    v6 = array_get v2, index u32 0 -> u32
-    v7 = array_set v2, index u32 1, value u32 2
-    v8 = array_get v7, index u32 0 -> u32
-    constrain v6 == v8
-    enable_side_effects v1
-    v9 = array_get v2, index u32 0 -> u32
-    v10 = array_set v2, index u32 1, value u32 2
-    v11 = array_get v10, index u32 0 -> u32
-    constrain v9 == v11
-    enable_side_effects v0
-    v12 = array_get v2, index u32 0 -> u32
-    v13 = array_set v2, index u32 1, value u32 2
-    v14 = array_get v13, index u32 0 -> u32
-    constrain v12 == v14
-    return
-}
-        ";
+            acir(inline) fn main f0 {
+              b0(v0: u1, v1: u1, v2: [Field; 2]):
+                enable_side_effects v0
+                v6 = array_get v2, index u32 0 -> u32
+                v7 = array_set v2, index u32 1, value u32 2
+                v8 = array_get v7, index u32 0 -> u32
+                constrain v6 == v8
+                enable_side_effects v1
+                v9 = array_get v2, index u32 0 -> u32
+                v10 = array_set v2, index u32 1, value u32 2
+                v11 = array_get v10, index u32 0 -> u32
+                constrain v9 == v11
+                enable_side_effects v0
+                v12 = array_get v2, index u32 0 -> u32
+                v13 = array_set v2, index u32 1, value u32 2
+                v14 = array_get v13, index u32 0 -> u32
+                constrain v12 == v14
+                return
+            }
+            ";
         let ssa = Ssa::from_str(src).unwrap();
 
         let main = ssa.main();
@@ -687,21 +687,21 @@ acir(inline) fn main f0 {
         assert_eq!(instructions.len(), 15);
 
         let expected = "
-acir(inline) fn main f0 {
-  b0(v0: u1, v1: u1, v2: [Field; 2]):
-    enable_side_effects v0
-    v4 = array_get v2, index u32 0 -> u32
-    v7 = array_set v2, index u32 1, value u32 2
-    v8 = array_get v7, index u32 0 -> u32
-    constrain v4 == v8
-    enable_side_effects v1
-    v9 = array_set v2, index u32 1, value u32 2
-    v10 = array_get v9, index u32 0 -> u32
-    constrain v4 == v10
-    enable_side_effects v0
-    return
-}
-        ";
+            acir(inline) fn main f0 {
+              b0(v0: u1, v1: u1, v2: [Field; 2]):
+                enable_side_effects v0
+                v4 = array_get v2, index u32 0 -> u32
+                v7 = array_set v2, index u32 1, value u32 2
+                v8 = array_get v7, index u32 0 -> u32
+                constrain v4 == v8
+                enable_side_effects v1
+                v9 = array_set v2, index u32 1, value u32 2
+                v10 = array_get v9, index u32 0 -> u32
+                constrain v4 == v10
+                enable_side_effects v0
+                return
+            }
+            ";
 
         let ssa = ssa.fold_constants_using_constraints();
         assert_ssa_equals(ssa, expected);
