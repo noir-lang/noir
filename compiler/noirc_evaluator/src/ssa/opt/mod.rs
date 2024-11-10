@@ -25,11 +25,13 @@ mod unrolling;
 
 #[cfg(test)]
 pub(crate) fn assert_ssa_equals(mut ssa: super::Ssa, expected: &str) {
+    use crate::trim_leading_whitespace_from_lines;
+
     ssa.normalize_ids();
 
     let ssa = ssa.to_string();
-    let ssa = ssa.trim();
-    let expected = expected.trim();
+    let ssa = trim_leading_whitespace_from_lines(&ssa);
+    let expected = trim_leading_whitespace_from_lines(expected);
 
     if ssa != expected {
         println!("Expected:\n~~~\n{}\n~~~\nGot:\n~~~\n{}\n~~~", expected, ssa);

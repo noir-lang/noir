@@ -332,13 +332,13 @@ mod test {
         // After constructing this IR, we set the value of v0 to 2.
         // The expected return afterwards should be 9.
         let src = "
-acir(inline) fn main f0 {
-    b0(v0: Field):
-        v1 = add v0, Field 1
-        v2 = mul v1, Field 3
-        return v2
-}
-        ";
+            acir(inline) fn main f0 {
+              b0(v0: Field):
+                v1 = add v0, Field 1
+                v2 = mul v1, Field 3
+                return v2
+            }
+            ";
         let mut ssa = Ssa::from_str(src).unwrap();
         let main = ssa.main_mut();
 
@@ -348,20 +348,14 @@ acir(inline) fn main f0 {
         let v0 = main.parameters()[0];
         let two = main.dfg.make_constant(2_u128.into(), Type::field());
 
-        // Expected output:
-        //
-        // fn main f0 {
-        //   b0(v0: Field):
-        //     return Field 9
-        // }
         main.dfg.set_value_from_id(v0, two);
 
         let expected = "
-acir(inline) fn main f0 {
-  b0(v0: Field):
-    return Field 9
-}
-        ";
+            acir(inline) fn main f0 {
+              b0(v0: Field):
+                return Field 9
+            }
+            ";
         let ssa = ssa.fold_constants();
         assert_ssa_equals(ssa, expected);
     }
@@ -371,13 +365,13 @@ acir(inline) fn main f0 {
         // After constructing this IR, we set the value of v1 to 2^8.
         // The expected return afterwards should be v2.
         let src = "
-acir(inline) fn main f0 {
-  b0(v0: u16, v1: u16):
-    v2 = div v0, v1
-    v3 = truncate v2 to 8 bits, max_bit_size: 16
-    return v3
-}
-        ";
+            acir(inline) fn main f0 {
+              b0(v0: u16, v1: u16):
+                v2 = div v0, v1
+                v3 = truncate v2 to 8 bits, max_bit_size: 16
+                return v3
+            }
+            ";
         let mut ssa = Ssa::from_str(src).unwrap();
         let main = ssa.main_mut();
 
@@ -393,12 +387,12 @@ acir(inline) fn main f0 {
         main.dfg.set_value_from_id(v1, constant);
 
         let expected = "
-acir(inline) fn main f0 {
-  b0(v0: u16, v1: Field):
-    v3 = div v0, Field 256
-    return v3
-}
-        ";
+            acir(inline) fn main f0 {
+              b0(v0: u16, v1: Field):
+                v3 = div v0, Field 256
+                return v3
+            }
+            ";
 
         let ssa = ssa.fold_constants();
         assert_ssa_equals(ssa, expected);
@@ -512,21 +506,21 @@ acir(inline) fn main f0 {
         //
         // The first cast instruction is retained and will be removed in the dead instruction elimination pass.
         let src = "
-acir(inline) fn main f0 {
-  b0(v0: u16):
-    v1 = cast v0 as u32
-    v2 = cast v0 as u32
-    constrain v1 == v2
-    return
-}
-        ";
+            acir(inline) fn main f0 {
+              b0(v0: u16):
+                v1 = cast v0 as u32
+                v2 = cast v0 as u32
+                constrain v1 == v2
+                return
+            }
+            ";
         let expected = "
-acir(inline) fn main f0 {
-  b0(v0: u16):
-    v1 = cast v0 as u32
-    return
-}
-        ";
+            acir(inline) fn main f0 {
+              b0(v0: u16):
+                v1 = cast v0 as u32
+                return
+            }
+            ";
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.fold_constants();
         assert_ssa_equals(ssa, expected);
@@ -538,29 +532,29 @@ acir(inline) fn main f0 {
         // with a reference to the results to the first. This then allows us to optimize away
         // the constrain instruction as both inputs are known to be equal.
         let src = "
-acir(inline) fn main f0 {
-  b0(v0: [Field; 4], v1: u32, v2: bool, v3: bool):
-    enable_side_effects v2
-    v4 = array_get v0, index u32 0 -> Field
-    v5 = array_get v0, index v1 -> Field
-    enable_side_effects v3
-    v6 = array_get v0, index u32 0 -> Field
-    v7 = array_get v0, index v1 -> Field
-    constrain v4 == v6
-    return
-}
-        ";
+            acir(inline) fn main f0 {
+              b0(v0: [Field; 4], v1: u32, v2: bool, v3: bool):
+                enable_side_effects v2
+                v4 = array_get v0, index u32 0 -> Field
+                v5 = array_get v0, index v1 -> Field
+                enable_side_effects v3
+                v6 = array_get v0, index u32 0 -> Field
+                v7 = array_get v0, index v1 -> Field
+                constrain v4 == v6
+                return
+            }
+            ";
         let expected = "
-acir(inline) fn main f0 {
-  b0(v0: [Field; 4], v1: u32, v2: u1, v3: u1):
-    enable_side_effects v2
-    v5 = array_get v0, index u32 0 -> Field
-    v6 = array_get v0, index v1 -> Field
-    enable_side_effects v3
-    v7 = array_get v0, index v1 -> Field
-    return
-}
-        ";
+            acir(inline) fn main f0 {
+              b0(v0: [Field; 4], v1: u32, v2: u1, v3: u1):
+                enable_side_effects v2
+                v5 = array_get v0, index u32 0 -> Field
+                v6 = array_get v0, index v1 -> Field
+                enable_side_effects v3
+                v7 = array_get v0, index v1 -> Field
+                return
+            }
+            ";
 
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.fold_constants();
