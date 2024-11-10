@@ -317,12 +317,7 @@ mod test {
 
     use crate::ssa::{
         function_builder::FunctionBuilder,
-        ir::{
-            instruction::{Binary, BinaryOp, Instruction, TerminatorInstruction},
-            map::Id,
-            types::Type,
-            value::Value,
-        },
+        ir::{map::Id, types::Type},
         opt::assert_ssa_equals,
         Ssa,
     };
@@ -439,45 +434,18 @@ mod test {
 
     #[test]
     fn arrays_elements_are_updated() {
-        // fn main f0 {
-        //   b0(v0: Field):
-        //     v1 = add v0, Field 1
-        //     return [v1]
-        // }
-        //
         // After constructing this IR, we run constant folding with no expected benefit, but to
         // ensure that all new values ids are correctly propagated.
-        let main_id = Id::test_new(0);
-
-        // Compiling main
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-        let v0 = builder.add_parameter(Type::field());
-        let one = builder.field_constant(1u128);
-        let v1 = builder.insert_binary(v0, BinaryOp::Add, one);
-
-        let array_type = Type::Array(Arc::new(vec![Type::field()]), 1);
-        let arr = builder.current_function.dfg.make_array(vec![v1].into(), array_type);
-        builder.terminate_with_return(vec![arr]);
-
-        let ssa = builder.finish().fold_constants();
-        let main = ssa.main();
-        let entry_block_id = main.entry_block();
-        let entry_block = &main.dfg[entry_block_id];
-        assert_eq!(entry_block.instructions().len(), 1);
-        let new_add_instr = entry_block.instructions().first().unwrap();
-        let new_add_instr_result = main.dfg.instruction_results(*new_add_instr)[0];
-        assert_ne!(new_add_instr_result, v1);
-
-        let return_value_id = match entry_block.unwrap_terminator() {
-            TerminatorInstruction::Return { return_values, .. } => return_values[0],
-            _ => unreachable!("Should have terminator instruction"),
-        };
-        let return_element = match &main.dfg[return_value_id] {
-            Value::Array { array, .. } => array[0],
-            _ => unreachable!("Return type should be array"),
-        };
-        // The return element is expected to refer to the new add instruction result.
-        assert_eq!(main.dfg.resolve(new_add_instr_result), main.dfg.resolve(return_element));
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: Field):
+                v2 = add v0, Field 1
+                return [v2] of Field
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants();
+        assert_ssa_equals(ssa, src);
     }
 
     #[test]
@@ -545,116 +513,59 @@ mod test {
 
     #[test]
     fn constraint_decomposition() {
-        // fn main f0 {
-        //   b0(v0: u1, v1: u1, v2: u1):
-        //     v3 = mul v0 v1
-        //     v4 = not v2
-        //     v5 = mul v3 v4
-        //     constrain v4 u1 1
-        // }
-        //
         // When constructing this IR, we should automatically decompose the constraint to be in terms of `v0`, `v1` and `v2`.
         //
         // The mul instructions are retained and will be removed in the dead instruction elimination pass.
-        let main_id = Id::test_new(0);
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1, v1: u1, v2: u1):
+                v3 = mul v0, v1
+                v4 = not v2
+                v5 = mul v3, v4
+                constrain v5 == u1 1
+                return
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
 
-        // Compiling main
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-        let v0 = builder.add_parameter(Type::bool());
-        let v1 = builder.add_parameter(Type::bool());
-        let v2 = builder.add_parameter(Type::bool());
-
-        let v3 = builder.insert_binary(v0, BinaryOp::Mul, v1);
-        let v4 = builder.insert_not(v2);
-        let v5 = builder.insert_binary(v3, BinaryOp::Mul, v4);
-
-        // This constraint is automatically decomposed when it is inserted.
-        let v_true = builder.numeric_constant(true, Type::bool());
-        builder.insert_constrain(v5, v_true, None);
-
-        let v_false = builder.numeric_constant(false, Type::bool());
-
-        // Expected output:
-        //
-        // fn main f0 {
-        //   b0(v0: u1, v1: u1, v2: u1):
-        //     v3 = mul v0 v1
-        //     v4 = not v2
-        //     v5 = mul v3 v4
-        //     constrain v0 u1 1
-        //     constrain v1 u1 1
-        //     constrain v2 u1 0
-        // }
-
-        let ssa = builder.finish();
-        let main = ssa.main();
-        let instructions = main.dfg[main.entry_block()].instructions();
-
-        assert_eq!(instructions.len(), 6);
-
-        assert_eq!(
-            main.dfg[instructions[0]],
-            Instruction::Binary(Binary { lhs: v0, operator: BinaryOp::Mul, rhs: v1 })
-        );
-        assert_eq!(main.dfg[instructions[1]], Instruction::Not(v2));
-        assert_eq!(
-            main.dfg[instructions[2]],
-            Instruction::Binary(Binary { lhs: v3, operator: BinaryOp::Mul, rhs: v4 })
-        );
-        assert_eq!(main.dfg[instructions[3]], Instruction::Constrain(v0, v_true, None));
-        assert_eq!(main.dfg[instructions[4]], Instruction::Constrain(v1, v_true, None));
-        assert_eq!(main.dfg[instructions[5]], Instruction::Constrain(v2, v_false, None));
+        let expected = "
+            acir(inline) fn main f0 {
+              b0(v0: u1, v1: u1, v2: u1):
+                v3 = mul v0, v1
+                v4 = not v2
+                v5 = mul v3, v4
+                constrain v0 == u1 1
+                constrain v1 == u1 1
+                constrain v2 == u1 0
+                return
+            }
+            ";
+        assert_ssa_equals(ssa, expected);
     }
 
     // Regression for #4600
     #[test]
     fn array_get_regression() {
-        // fn main f0 {
-        //   b0(v0: u1, v1: u64):
-        //     enable_side_effects_if v0
-        //     v2 = array_get [Field 0, Field 1], index v1
-        //     v3 = not v0
-        //     enable_side_effects_if v3
-        //     v4 = array_get [Field 0, Field 1], index v1
-        // }
-        //
         // We want to make sure after constant folding both array_gets remain since they are
         // under different enable_side_effects_if contexts and thus one may be disabled while
         // the other is not. If one is removed, it is possible e.g. v4 is replaced with v2 which
         // is disabled (only gets from index 0) and thus returns the wrong result.
-        let main_id = Id::test_new(0);
-
-        // Compiling main
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-        let v0 = builder.add_parameter(Type::bool());
-        let v1 = builder.add_parameter(Type::unsigned(64));
-
-        builder.insert_enable_side_effects_if(v0);
-
-        let zero = builder.field_constant(0u128);
-        let one = builder.field_constant(1u128);
-
-        let typ = Type::Array(Arc::new(vec![Type::field()]), 2);
-        let array = builder.array_constant(vec![zero, one].into(), typ);
-
-        let _v2 = builder.insert_array_get(array, v1, Type::field());
-        let v3 = builder.insert_not(v0);
-
-        builder.insert_enable_side_effects_if(v3);
-        let _v4 = builder.insert_array_get(array, v1, Type::field());
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1, v1: u64):
+                enable_side_effects v0
+                v5 = array_get [Field 0, Field 1] of Field, index v1 -> Field
+                v6 = not v0
+                enable_side_effects v6
+                v8 = array_get [Field 0, Field 1] of Field, index v1 -> Field
+                return
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
 
         // Expected output is unchanged
-        let ssa = builder.finish();
-        let main = ssa.main();
-        let instructions = main.dfg[main.entry_block()].instructions();
-        let starting_instruction_count = instructions.len();
-        assert_eq!(starting_instruction_count, 5);
-
         let ssa = ssa.fold_constants();
-        let main = ssa.main();
-        let instructions = main.dfg[main.entry_block()].instructions();
-        let ending_instruction_count = instructions.len();
-        assert_eq!(starting_instruction_count, ending_instruction_count);
+        assert_ssa_equals(ssa, src);
     }
 
     #[test]
@@ -741,7 +652,8 @@ mod test {
         let _v10 = builder.insert_call(keccakf1600, vec![array1], vec![typ.clone()]);
         let _v11 = builder.insert_call(keccakf1600, vec![array2], vec![typ.clone()]);
 
-        let ssa = builder.finish();
+        let mut ssa = builder.finish();
+        ssa.normalize_ids();
 
         println!("{ssa}");
 
