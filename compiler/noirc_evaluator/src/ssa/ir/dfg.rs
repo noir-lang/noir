@@ -52,6 +52,10 @@ pub(crate) struct DataFlowGraph {
     #[serde(skip)]
     constants: HashMap<(FieldElement, Type), ValueId>,
 
+    /// Each array is unique. Attempting to insert an array with the same
+    /// list of values will return the same ValueId.
+    arrays: HashMap<(im::Vector<ValueId>, Type), ValueId>,
+
     /// Contains each function that has been imported into the current function.
     /// A unique `ValueId` for each function's [`Value::Function`] is stored so any given FunctionId
     /// will always have the same ValueId within this function.
@@ -268,8 +272,14 @@ impl DataFlowGraph {
 
     /// Create a new constant array value from the given elements
     pub(crate) fn make_array(&mut self, array: im::Vector<ValueId>, typ: Type) -> ValueId {
+        if let Some(id) = self.arrays.get(&(array.clone(), typ.clone())) {
+            return *id;
+        }
+
         assert!(matches!(typ, Type::Array(..) | Type::Slice(_)));
-        self.make_value(Value::Array { array, typ })
+        let id = self.make_value(Value::Array { array: array.clone(), typ: typ.clone() });
+        self.arrays.insert((array, typ), id);
+        id
     }
 
     /// Gets or creates a ValueId for the given FunctionId.
