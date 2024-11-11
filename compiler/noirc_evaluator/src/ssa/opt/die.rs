@@ -720,35 +720,20 @@ mod test {
 
     #[test]
     fn keep_paired_rcs_with_array_set() {
-        // acir(inline) fn main f0 {
-        //     b0(v0: [Field; 2]):
-        //       inc_rc v0
-        //       v2 = array_set v0, index u32 0, value u32 0
-        //       dec_rc v0
-        //       return v2
-        //   }
-        let main_id = Id::test_new(0);
-
-        // Compiling main
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-        let v0 = builder.add_parameter(Type::Array(Arc::new(vec![Type::field()]), 2));
-        builder.increment_array_reference_count(v0);
-        let zero = builder.numeric_constant(0u128, Type::unsigned(32));
-        let v1 = builder.insert_array_set(v0, zero, zero);
-        builder.decrement_array_reference_count(v0);
-        builder.terminate_with_return(vec![v1]);
-
-        let ssa = builder.finish();
-        let main = ssa.main();
-
-        // The instruction count never includes the terminator instruction
-        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 3);
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: [Field; 2]):
+                inc_rc v0
+                v2 = array_set v0, index u32 0, value u32 0
+                dec_rc v0
+                return v2
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
 
         // We expect the output to be unchanged
         let ssa = ssa.dead_instruction_elimination();
-        let main = ssa.main();
-
-        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 3);
+        assert_ssa_equals(ssa, src);
     }
 
     #[test]
@@ -863,47 +848,31 @@ mod test {
 
     #[test]
     fn remove_inc_rcs_that_are_never_mutably_borrowed() {
-        // acir(inline) fn main f0 {
-        //     b0(v0: [Field; 2]):
-        //       inc_rc v0
-        //       inc_rc v0
-        //       inc_rc v0
-        //       v2 = array_get v0, index u32 0
-        //       inc_rc v0
-        //       return v2
-        //   }
-        let main_id = Id::test_new(0);
-
-        // Compiling main
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-        let v0 = builder.add_parameter(Type::Array(Arc::new(vec![Type::field()]), 2));
-        builder.increment_array_reference_count(v0);
-        builder.increment_array_reference_count(v0);
-        builder.increment_array_reference_count(v0);
-
-        let zero = builder.numeric_constant(0u128, Type::unsigned(32));
-        let v2 = builder.insert_array_get(v0, zero, Type::field());
-        builder.increment_array_reference_count(v0);
-        builder.terminate_with_return(vec![v2]);
-
-        let ssa = builder.finish();
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: [Field; 2]):
+                inc_rc v0
+                inc_rc v0
+                inc_rc v0
+                v2 = array_get v0, index u32 0 -> Field
+                inc_rc v0
+                return v2
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
         let main = ssa.main();
 
         // The instruction count never includes the terminator instruction
         assert_eq!(main.dfg[main.entry_block()].instructions().len(), 5);
 
-        // Expected output:
-        //
-        // acir(inline) fn main f0 {
-        //     b0(v0: [Field; 2]):
-        //       v2 = array_get v0, index u32 0
-        //       return v2
-        //   }
+        let expected = "
+            acir(inline) fn main f0 {
+              b0(v0: [Field; 2]):
+                v2 = array_get v0, index u32 0 -> Field
+                return v2
+            }
+            ";
         let ssa = ssa.dead_instruction_elimination();
-        let main = ssa.main();
-
-        let instructions = main.dfg[main.entry_block()].instructions();
-        assert_eq!(instructions.len(), 1);
-        assert!(matches!(&main.dfg[instructions[0]], Instruction::ArrayGet { .. }));
+        assert_ssa_equals(ssa, expected);
     }
 }
