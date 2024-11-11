@@ -49,6 +49,7 @@ impl<'a> Lexer<'a> {
             Some('}') => self.single_char_token(Token::RightBrace),
             Some('[') => self.single_char_token(Token::LeftBracket),
             Some(']') => self.single_char_token(Token::RightBracket),
+            Some('&') => self.single_char_token(Token::Ampersand),
             Some('-') if self.peek_char() == Some('>') => self.double_char_token(Token::Arrow),
             Some(ch) if ch.is_ascii_alphanumeric() || ch == '_' => self.eat_alpha_numeric(ch),
             Some(char) => Err(LexerError::UnexpectedCharacter {

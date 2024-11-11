@@ -378,3 +378,14 @@ fn test_dec_rc() {
         ";
     assert_ssa_roundtrip(src);
 }
+
+#[test]
+fn test_mutable_reference_type() {
+    let src = "
+        acir(inline) fn main f0 {
+          b0(v0: &mut Field):
+            return
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}

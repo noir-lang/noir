@@ -53,6 +53,8 @@ pub(crate) enum Token {
     Arrow,
     /// ==
     Equal,
+    /// &
+    Ampersand,
     Eof,
 }
 

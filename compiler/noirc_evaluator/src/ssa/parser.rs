@@ -630,6 +630,12 @@ impl<'a> Parser<'a> {
             return Ok(Type::Array(Arc::new(element_types), length.to_u128() as usize));
         }
 
+        if self.eat(Token::Ampersand)? {
+            self.eat_or_error(Token::Keyword(Keyword::Mut))?;
+            let typ = self.parse_type()?;
+            return Ok(Type::Reference(Arc::new(typ)));
+        }
+
         self.expected_type()
     }
 
