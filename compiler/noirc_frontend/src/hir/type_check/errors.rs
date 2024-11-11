@@ -5,13 +5,14 @@ use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::Span;
 use thiserror::Error;
 
-use crate::ast::{BinaryOpKind, FunctionReturnType, IntegerBitSize, Signedness};
+use crate::ast::{
+    BinaryOpKind, ConstrainKind, FunctionReturnType, Ident, IntegerBitSize, Signedness,
+};
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::expr::HirBinaryOp;
 use crate::hir_def::traits::TraitConstraint;
-use crate::hir_def::types::Type;
-use crate::macros_api::Ident;
-use crate::macros_api::NodeInterner;
+use crate::hir_def::types::{BinaryTypeOperator, Kind, Type};
+use crate::node_interner::NodeInterner;
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum Source {
@@ -33,12 +34,22 @@ pub enum Source {
     Return(FunctionReturnType, Span),
 }
 
-#[derive(Error, Debug, Clone)]
+#[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum TypeCheckError {
     #[error("Operator {op:?} cannot be used in a {place:?}")]
     OpCannotBeUsed { op: HirBinaryOp, place: &'static str, span: Span },
+    #[error("Division by zero: {lhs} / {rhs}")]
+    DivisionByZero { lhs: FieldElement, rhs: FieldElement, span: Span },
+    #[error("Modulo on Field elements: {lhs} % {rhs}")]
+    ModuloOnFields { lhs: FieldElement, rhs: FieldElement, span: Span },
     #[error("The value `{expr:?}` cannot fit into `{ty}` which has range `{range}`")]
     OverflowingAssignment { expr: FieldElement, ty: Type, range: String, span: Span },
+    #[error(
+        "The value `{value}` cannot fit into `{kind}` which has a maximum size of `{maximum_size}`"
+    )]
+    OverflowingConstant { value: FieldElement, kind: Kind, maximum_size: FieldElement, span: Span },
+    #[error("Evaluating `{op}` on `{lhs}`, `{rhs}` failed")]
+    FailingBinaryOp { op: BinaryTypeOperator, lhs: i128, rhs: i128, span: Span },
     #[error("Type {typ:?} cannot be used in a {place:?}")]
     TypeCannotBeUsed { typ: Type, place: &'static str, span: Span },
     #[error("Expected type {expected_typ:?} is not the same as {expr_typ:?}")]
@@ -47,20 +58,37 @@ pub enum TypeCheckError {
     TypeMismatchWithSource { expected: Type, actual: Type, span: Span, source: Source },
     #[error("Expected type {expected_kind:?} is not the same as {expr_kind:?}")]
     TypeKindMismatch { expected_kind: String, expr_kind: String, expr_span: Span },
+    #[error("Evaluating {to} resulted in {to_value}, but {from_value} was expected")]
+    TypeCanonicalizationMismatch {
+        to: Type,
+        from: Type,
+        to_value: FieldElement,
+        from_value: FieldElement,
+        span: Span,
+    },
+    // TODO(https://github.com/noir-lang/noir/issues/6238): implement handling for larger types
+    #[error("Expected type {expected_kind} when evaluating globals, but found {expr_kind} (this warning may become an error in the future)")]
+    EvaluatedGlobalIsntU32 { expected_kind: String, expr_kind: String, expr_span: Span },
     #[error("Expected {expected:?} found {found:?}")]
     ArityMisMatch { expected: usize, found: usize, span: Span },
     #[error("Return type in a function cannot be public")]
     PublicReturnType { typ: Type, span: Span },
     #[error("Cannot cast type {from}, 'as' is only for primitive field or integer types")]
-    InvalidCast { from: Type, span: Span },
+    InvalidCast { from: Type, span: Span, reason: String },
+    #[error("Casting value of type {from} to a smaller type ({to})")]
+    DownsizingCast { from: Type, to: Type, span: Span, reason: String },
     #[error("Expected a function, but found a(n) {found}")]
     ExpectedFunction { found: Type, span: Span },
     #[error("Type {lhs_type} has no member named {field_name}")]
     AccessUnknownMember { lhs_type: Type, field_name: String, span: Span },
     #[error("Function expects {expected} parameters but {found} were given")]
     ParameterCountMismatch { expected: usize, found: usize, span: Span },
+    #[error("{} expects {} or {} parameters but {found} were given", kind, kind.required_arguments_count(), kind.required_arguments_count() + 1)]
+    AssertionParameterCountMismatch { kind: ConstrainKind, found: usize, span: Span },
     #[error("{item} expects {expected} generics but {found} were given")]
     GenericCountMismatch { item: String, expected: usize, found: usize, span: Span },
+    #[error("{item} has incompatible `unconstrained`")]
+    UnconstrainedMismatch { item: String, expected: bool, span: Span },
     #[error("Only integer and Field types may be casted to")]
     UnsupportedCast { span: Span },
     #[error("Index {index} is out of bounds for this tuple {lhs_type} of length {length}")]
@@ -148,6 +176,8 @@ pub enum TypeCheckError {
     Unsafe { span: Span },
     #[error("Converting an unconstrained fn to a non-unconstrained fn is unsafe")]
     UnsafeFn { span: Span },
+    #[error("Expected a constant, but found `{typ}`")]
+    NonConstantEvaluated { typ: Type, span: Span },
     #[error("Slices must have constant length")]
     NonConstantSliceLength { span: Span },
     #[error("Only sized types may be used in the entry point to a program")]
@@ -164,8 +194,6 @@ pub enum TypeCheckError {
     StringIndexAssign { span: Span },
     #[error("Macro calls may only return `Quoted` values")]
     MacroReturningNonExpr { typ: Type, span: Span },
-    #[error("turbofish (`::<_>`) usage at this position isn't supported yet")]
-    UnsupportedTurbofishUsage { span: Span },
     #[error("`{name}` has already been specified")]
     DuplicateNamedTypeArg { name: Ident, prev_span: Span },
     #[error("`{item}` has no associated type named `{name}`")]
@@ -188,6 +216,10 @@ impl TypeCheckError {
     pub fn add_context(self, ctx: &'static str) -> Self {
         TypeCheckError::Context { err: Box::new(self), ctx }
     }
+
+    pub(crate) fn is_non_constant_evaluated(&self) -> bool {
+        matches!(self, TypeCheckError::NonConstantEvaluated { .. })
+    }
 }
 
 impl<'a> From<&'a TypeCheckError> for Diagnostic {
@@ -208,6 +240,16 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 String::new(),
                 *span,
             ),
+            TypeCheckError::DivisionByZero { lhs, rhs, span } => Diagnostic::simple_error(
+                format!("Division by zero: {lhs} / {rhs}"),
+                String::new(),
+                *span,
+            ),
+            TypeCheckError::ModuloOnFields { lhs, rhs, span } => Diagnostic::simple_error(
+                format!("Modulo on Field elements: {lhs} % {rhs}"),
+                String::new(),
+                *span,
+            ),
             TypeCheckError::TypeMismatch { expected_typ, expr_typ, expr_span } => {
                 Diagnostic::simple_error(
                     format!("Expected type {expected_typ}, found type {expr_typ}"),
@@ -218,6 +260,22 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             TypeCheckError::TypeKindMismatch { expected_kind, expr_kind, expr_span } => {
                 Diagnostic::simple_error(
                     format!("Expected kind {expected_kind}, found kind {expr_kind}"),
+                    String::new(),
+                    *expr_span,
+                )
+            }
+            TypeCheckError::TypeCanonicalizationMismatch { to, from, to_value, from_value, span } => {
+                Diagnostic::simple_error(
+                    format!("Evaluating {to} resulted in {to_value}, but {from_value} was expected"),
+                    format!("from evaluating {from} without simplifications"),
+                    *span,
+                )
+            }
+            // TODO(https://github.com/noir-lang/noir/issues/6238): implement
+            // handling for larger types
+            TypeCheckError::EvaluatedGlobalIsntU32 { expected_kind, expr_kind, expr_span } => {
+                Diagnostic::simple_warning(
+                    format!("Expected type {expected_kind} when evaluating globals, but found {expr_kind} (this warning may become an error in the future)"),
                     String::new(),
                     *expr_span,
                 )
@@ -258,14 +316,35 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 let msg = format!("Function expects {expected} parameter{empty_or_s} but {found} {was_or_were} given");
                 Diagnostic::simple_error(msg, String::new(), *span)
             }
+            TypeCheckError::AssertionParameterCountMismatch { kind, found, span } => {
+                let was_or_were = if *found == 1 { "was" } else { "were" };
+                let min = kind.required_arguments_count();
+                let max = min + 1;
+                let msg = format!("{kind} expects {min} or {max} parameters but {found} {was_or_were} given");
+                Diagnostic::simple_error(msg, String::new(), *span)
+            }
             TypeCheckError::GenericCountMismatch { item, expected, found, span } => {
                 let empty_or_s = if *expected == 1 { "" } else { "s" };
                 let was_or_were = if *found == 1 { "was" } else { "were" };
                 let msg = format!("{item} expects {expected} generic{empty_or_s} but {found} {was_or_were} given");
                 Diagnostic::simple_error(msg, String::new(), *span)
             }
-            TypeCheckError::InvalidCast { span, .. }
-            | TypeCheckError::ExpectedFunction { span, .. }
+            TypeCheckError::UnconstrainedMismatch { item, expected, span } => {
+                let msg = if *expected {
+                    format!("{item} is expected to be unconstrained")
+                } else {
+                    format!("{item} is not expected to be unconstrained")
+                };
+                Diagnostic::simple_error(msg, String::new(), *span)
+            }
+            TypeCheckError::InvalidCast { span, reason, .. } => {
+                Diagnostic::simple_error(error.to_string(), reason.clone(), *span)
+            }
+            TypeCheckError::DownsizingCast { span, reason, .. } => {
+                Diagnostic::simple_warning(error.to_string(), reason.clone(), *span)
+            }
+
+            TypeCheckError::ExpectedFunction { span, .. }
             | TypeCheckError::AccessUnknownMember { span, .. }
             | TypeCheckError::UnsupportedCast { span }
             | TypeCheckError::TupleIndexOutOfBounds { span, .. }
@@ -282,11 +361,14 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::AmbiguousBitWidth { span, .. }
             | TypeCheckError::IntegerAndFieldBinaryOperation { span }
             | TypeCheckError::OverflowingAssignment { span, .. }
+            | TypeCheckError::OverflowingConstant { span, .. }
+            | TypeCheckError::FailingBinaryOp { span, .. }
             | TypeCheckError::FieldModulo { span }
             | TypeCheckError::FieldNot { span }
             | TypeCheckError::ConstrainedReferenceToUnconstrained { span }
             | TypeCheckError::UnconstrainedReferenceToConstrained { span }
             | TypeCheckError::UnconstrainedSliceReturnToConstrained { span }
+            | TypeCheckError::NonConstantEvaluated { span, .. }
             | TypeCheckError::NonConstantSliceLength { span }
             | TypeCheckError::StringIndexAssign { span }
             | TypeCheckError::InvalidShiftSize { span } => {
@@ -394,14 +476,14 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 let msg = format!("Expected {expected_count} generic{expected_plural} from this function, but {actual_count} {actual_plural} provided");
                 Diagnostic::simple_error(msg, "".into(), *span)
             },
-            TypeCheckError::MacroReturningNonExpr { typ, span } => Diagnostic::simple_error(
-                format!("Expected macro call to return a `Quoted` but found a(n) `{typ}`"),
-                "Macro calls must return quoted values, otherwise there is no code to insert".into(),
-                *span,
-            ),
-            TypeCheckError::UnsupportedTurbofishUsage { span } => {
-                let msg = "turbofish (`::<_>`)  usage at this position isn't supported yet";
-                Diagnostic::simple_error(msg.to_string(), "".to_string(), *span)
+            TypeCheckError::MacroReturningNonExpr { typ, span } =>  {
+                let mut error = Diagnostic::simple_error(
+                    format!("Expected macro call to return a `Quoted` but found a(n) `{typ}`"),
+                    "Macro calls must return quoted values, otherwise there is no code to insert.".into(),
+                    *span,
+                );
+                error.add_secondary("Hint: remove the `!` from the end of the function name.".to_string(), *span);
+                error
             },
             TypeCheckError::DuplicateNamedTypeArg { name, prev_span } => {
                 let msg = format!("`{name}` has already been specified");
@@ -466,8 +548,8 @@ impl NoMatchingImplFoundError {
         let constraints = failing_constraints
             .into_iter()
             .map(|constraint| {
-                let r#trait = interner.try_get_trait(constraint.trait_id)?;
-                let name = format!("{}{}", r#trait.name, constraint.trait_generics);
+                let r#trait = interner.try_get_trait(constraint.trait_bound.trait_id)?;
+                let name = format!("{}{}", r#trait.name, constraint.trait_bound.trait_generics);
                 Some((constraint.typ, name))
             })
             .collect::<Option<Vec<_>>>()?;

@@ -20,6 +20,8 @@ pub enum LexerErrorKind {
     IntegerLiteralTooLarge { span: Span, limit: String },
     #[error("{:?} is not a valid attribute", found)]
     MalformedFuncAttribute { span: Span, found: String },
+    #[error("Malformed test attribute")]
+    MalformedTestAttribute { span: Span },
     #[error("{:?} is not a valid inner attribute", found)]
     InvalidInnerAttribute { span: Span, found: String },
     #[error("Logical and used instead of bitwise and")]
@@ -34,6 +36,8 @@ pub enum LexerErrorKind {
     InvalidEscape { escaped: char, span: Span },
     #[error("Invalid quote delimiter `{delimiter}`, valid delimiters are `{{`, `[`, and `(`")]
     InvalidQuoteDelimiter { delimiter: SpannedToken },
+    #[error("Non-ASCII characters are invalid in comments")]
+    NonAsciiComment { span: Span },
     #[error("Expected `{end_delim}` to close this {start_delim}")]
     UnclosedQuote { start_delim: SpannedToken, end_delim: Token },
 }
@@ -59,12 +63,14 @@ impl LexerErrorKind {
             LexerErrorKind::InvalidIntegerLiteral { span, .. } => *span,
             LexerErrorKind::IntegerLiteralTooLarge { span, .. } => *span,
             LexerErrorKind::MalformedFuncAttribute { span, .. } => *span,
+            LexerErrorKind::MalformedTestAttribute { span, .. } => *span,
             LexerErrorKind::InvalidInnerAttribute { span, .. } => *span,
             LexerErrorKind::LogicalAnd { span } => *span,
             LexerErrorKind::UnterminatedBlockComment { span } => *span,
             LexerErrorKind::UnterminatedStringLiteral { span } => *span,
             LexerErrorKind::InvalidEscape { span, .. } => *span,
             LexerErrorKind::InvalidQuoteDelimiter { delimiter } => delimiter.to_span(),
+            LexerErrorKind::NonAsciiComment { span, .. } => *span,
             LexerErrorKind::UnclosedQuote { start_delim, .. } => start_delim.to_span(),
         }
     }
@@ -106,6 +112,11 @@ impl LexerErrorKind {
                 format!(" {found} is not a valid attribute"),
                 *span,
             ),
+            LexerErrorKind::MalformedTestAttribute { span } => (
+                "Malformed test attribute".to_string(),
+                "The test attribute can be written in one of these forms: `#[test]`, `#[test(should_fail)]` or `#[test(should_fail_with = \"message\")]`".to_string(),
+                *span,
+            ),
             LexerErrorKind::InvalidInnerAttribute { span, found } => (
                 "Invalid inner attribute".to_string(),
                 format!(" {found} is not a valid inner attribute"),
@@ -124,6 +135,9 @@ impl LexerErrorKind {
             LexerErrorKind::InvalidQuoteDelimiter { delimiter } => {
                 (format!("Invalid quote delimiter `{delimiter}`"), "Valid delimiters are `{`, `[`, and `(`".to_string(), delimiter.to_span())
             },
+            LexerErrorKind::NonAsciiComment { span } => {
+                ("Non-ASCII character in comment".to_string(), "Invalid comment character: only ASCII is currently supported.".to_string(), *span)
+            }
             LexerErrorKind::UnclosedQuote { start_delim, end_delim } => {
                 ("Unclosed `quote` expression".to_string(), format!("Expected a `{end_delim}` to close this `{start_delim}`"), start_delim.to_span())
             }
@@ -135,12 +149,5 @@ impl<'a> From<&'a LexerErrorKind> for Diagnostic {
     fn from(error: &'a LexerErrorKind) -> Diagnostic {
         let (primary, secondary, span) = error.parts();
         Diagnostic::simple_error(primary, secondary, span)
-    }
-}
-
-impl From<LexerErrorKind> for chumsky::error::Simple<SpannedToken, Span> {
-    fn from(error: LexerErrorKind) -> Self {
-        let (_, message, span) = error.parts();
-        chumsky::error::Simple::custom(span, message)
     }
 }

@@ -328,6 +328,7 @@ impl VariableLiveness {
 #[cfg(test)]
 mod test {
     use fxhash::FxHashSet;
+    use noirc_frontend::monomorphization::ast::InlineType;
 
     use crate::brillig::brillig_gen::constant_allocation::ConstantAllocation;
     use crate::brillig::brillig_gen::variable_liveness::VariableLiveness;
@@ -360,7 +361,7 @@ mod test {
 
         let main_id = Id::test_new(1);
         let mut builder = FunctionBuilder::new("main".into(), main_id);
-        builder.set_runtime(RuntimeType::Brillig);
+        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
 
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();
@@ -470,7 +471,7 @@ mod test {
 
         let main_id = Id::test_new(1);
         let mut builder = FunctionBuilder::new("main".into(), main_id);
-        builder.set_runtime(RuntimeType::Brillig);
+        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
 
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();
@@ -557,28 +558,34 @@ mod test {
         let liveness = VariableLiveness::from_function(func, &constants);
 
         assert!(liveness.get_live_in(&func.entry_block()).is_empty());
-        assert_eq!(liveness.get_live_in(&b1), &FxHashSet::from_iter([v0, v1, v3, v4].into_iter()));
+        assert_eq!(
+            liveness.get_live_in(&b1),
+            &FxHashSet::from_iter([v0, v1, v3, v4, twenty_seven, one].into_iter())
+        );
         assert_eq!(liveness.get_live_in(&b3), &FxHashSet::from_iter([v3].into_iter()));
-        assert_eq!(liveness.get_live_in(&b2), &FxHashSet::from_iter([v0, v1, v3, v4].into_iter()));
+        assert_eq!(
+            liveness.get_live_in(&b2),
+            &FxHashSet::from_iter([v0, v1, v3, v4, twenty_seven, one].into_iter())
+        );
         assert_eq!(
             liveness.get_live_in(&b4),
-            &FxHashSet::from_iter([v0, v1, v3, v4, v6, v7].into_iter())
+            &FxHashSet::from_iter([v0, v1, v3, v4, v6, v7, twenty_seven, one].into_iter())
         );
         assert_eq!(
             liveness.get_live_in(&b6),
-            &FxHashSet::from_iter([v0, v1, v3, v4, one].into_iter())
+            &FxHashSet::from_iter([v0, v1, v3, v4, twenty_seven, one].into_iter())
         );
         assert_eq!(
             liveness.get_live_in(&b5),
-            &FxHashSet::from_iter([v0, v1, v3, v4, v6, v7, one].into_iter())
+            &FxHashSet::from_iter([v0, v1, v3, v4, v6, v7, twenty_seven, one].into_iter())
         );
         assert_eq!(
             liveness.get_live_in(&b7),
-            &FxHashSet::from_iter([v0, v1, v3, v4, v6, v7, one].into_iter())
+            &FxHashSet::from_iter([v0, v1, v3, v4, v6, v7, twenty_seven, one].into_iter())
         );
         assert_eq!(
             liveness.get_live_in(&b8),
-            &FxHashSet::from_iter([v0, v1, v3, v4, v6, v7, one].into_iter())
+            &FxHashSet::from_iter([v0, v1, v3, v4, v6, v7, twenty_seven, one].into_iter())
         );
 
         let block_3 = &func.dfg[b3];
@@ -603,7 +610,7 @@ mod test {
 
         let main_id = Id::test_new(1);
         let mut builder = FunctionBuilder::new("main".into(), main_id);
-        builder.set_runtime(RuntimeType::Brillig);
+        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
 
         let v0 = builder.add_parameter(Type::bool());
 

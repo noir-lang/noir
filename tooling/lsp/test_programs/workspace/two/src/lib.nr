@@ -41,8 +41,8 @@ fn use_impl_method() {
 }
 
 mod other;
-use other::another_function;
 use crate::other::other_function;
+use other::another_function;
 
 use one::subone::GenericStruct;
 
@@ -51,3 +51,36 @@ use std::collections::bounded_vec::BoundedVec;
 fn instantiate_generic() {
     let x: BoundedVec<subone::SubOneStruct, 3> = BoundedVec::new();
 }
+
+#[attr]
+pub fn foo() {}
+
+comptime fn attr(_: FunctionDefinition) -> Quoted {
+    quote { pub fn hello() {} }
+}
+
+struct Foo<T> {}
+
+impl<U> Foo<U> {
+    fn new() -> Self {
+        Foo {}
+    }
+}
+
+fn new_foo() -> Foo<i32> {
+    Foo::new()
+}
+
+trait Bar<T, U> {
+    fn bar_stuff(self);
+}
+
+impl<A> Bar<A, i32> for Foo<A> {
+    fn bar_stuff(self) {}
+}
+
+fn bar_stuff() {
+    let foo = Foo::new();
+    foo.bar_stuff();
+}
+

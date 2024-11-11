@@ -7,15 +7,18 @@ use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
 
 use super::{
-    BlockExpression, ConstructorExpression, Expression, ExpressionKind, GenericTypeArgs,
-    IndexExpression, ItemVisibility, MemberAccessExpression, MethodCallExpression, UnresolvedType,
+    BinaryOpKind, BlockExpression, ConstructorExpression, Expression, ExpressionKind,
+    GenericTypeArgs, IndexExpression, InfixExpression, ItemVisibility, MemberAccessExpression,
+    MethodCallExpression, UnresolvedType,
 };
+use crate::ast::UnresolvedTypeData;
 use crate::elaborator::types::SELF_TYPE_NAME;
 use crate::lexer::token::SpannedToken;
-use crate::macros_api::{NodeInterner, SecondaryAttribute, UnresolvedTypeData};
-use crate::node_interner::{InternedExpressionKind, InternedPattern, InternedStatementKind};
+use crate::node_interner::{
+    InternedExpressionKind, InternedPattern, InternedStatementKind, NodeInterner,
+};
 use crate::parser::{ParserError, ParserErrorReason};
-use crate::token::Token;
+use crate::token::{SecondaryAttribute, Token};
 
 /// This is used when an identifier fails to parse in the parser.
 /// Instead of failing the parse, we can often recover using this
@@ -109,6 +112,8 @@ impl StatementKind {
                     // Semicolons are optional for these expressions
                     (ExpressionKind::Block(_), semi, _)
                     | (ExpressionKind::Unsafe(..), semi, _)
+                    | (ExpressionKind::Interned(..), semi, _)
+                    | (ExpressionKind::InternedStatement(..), semi, _)
                     | (ExpressionKind::If(_), semi, _) => {
                         if semi.is_some() {
                             StatementKind::Semi(expr)
@@ -139,13 +144,14 @@ impl StatementKind {
         pattern: Pattern,
         r#type: UnresolvedType,
         expression: Expression,
+        attributes: Vec<SecondaryAttribute>,
     ) -> StatementKind {
         StatementKind::Let(LetStatement {
             pattern,
             r#type,
             expression,
             comptime: false,
-            attributes: vec![],
+            attributes,
         })
     }
 
@@ -174,7 +180,7 @@ impl StatementKind {
     }
 }
 
-#[derive(Eq, Debug, Clone)]
+#[derive(Eq, Debug, Clone, Default)]
 pub struct Ident(pub Spanned<String>);
 
 impl Ident {
@@ -291,6 +297,7 @@ pub trait Recoverable {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ModuleDeclaration {
+    pub visibility: ItemVisibility,
     pub ident: Ident,
     pub outer_attributes: Vec<SecondaryAttribute>,
 }
@@ -320,24 +327,29 @@ pub enum PathKind {
 pub struct UseTree {
     pub prefix: Path,
     pub kind: UseTreeKind,
+    pub span: Span,
 }
 
 impl Display for UseTree {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.prefix)?;
 
+        if !self.prefix.segments.is_empty() {
+            write!(f, "::")?;
+        }
+
         match &self.kind {
             UseTreeKind::Path(name, alias) => {
                 write!(f, "{name}")?;
 
-                while let Some(alias) = alias {
+                if let Some(alias) = alias {
                     write!(f, " as {alias}")?;
                 }
 
                 Ok(())
             }
             UseTreeKind::List(trees) => {
-                write!(f, "::{{")?;
+                write!(f, "{{")?;
                 let tree = vecmap(trees, ToString::to_string).join(", ");
                 write!(f, "{tree}}}")
             }
@@ -362,7 +374,9 @@ impl UseTree {
 
         match self.kind {
             UseTreeKind::Path(name, alias) => {
-                vec![ImportStatement { visibility, path: prefix.join(name), alias }]
+                // Desugar `use foo::{self}` to `use foo`
+                let path = if name.0.contents == "self" { prefix } else { prefix.join(name) };
+                vec![ImportStatement { visibility, path, alias }]
             }
             UseTreeKind::List(trees) => {
                 let trees = trees.into_iter();
@@ -385,6 +399,16 @@ pub struct AsTraitPath {
     pub trait_path: Path,
     pub trait_generics: GenericTypeArgs,
     pub impl_item: Ident,
+}
+
+/// A special kind of path in the form `Type::ident::<turbofish>`
+/// Unlike normal paths, the type here can be a primitive type or
+/// interned type.
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub struct TypePath {
+    pub typ: UnresolvedType,
+    pub item: Ident,
+    pub turbofish: Option<GenericTypeArgs>,
 }
 
 // Note: Path deliberately doesn't implement Recoverable.
@@ -421,11 +445,6 @@ impl Path {
         self.span
     }
 
-    pub fn first_segment(&self) -> PathSegment {
-        assert!(!self.segments.is_empty());
-        self.segments.first().unwrap().clone()
-    }
-
     pub fn last_segment(&self) -> PathSegment {
         assert!(!self.segments.is_empty());
         self.segments.last().unwrap().clone()
@@ -435,9 +454,8 @@ impl Path {
         self.last_segment().ident
     }
 
-    pub fn first_name(&self) -> &str {
-        assert!(!self.segments.is_empty());
-        &self.segments.first().unwrap().ident.0.contents
+    pub fn first_name(&self) -> Option<&str> {
+        self.segments.first().map(|segment| segment.ident.0.contents.as_str())
     }
 
     pub fn last_name(&self) -> &str {
@@ -446,7 +464,9 @@ impl Path {
     }
 
     pub fn is_ident(&self) -> bool {
-        self.segments.len() == 1 && self.kind == PathKind::Plain
+        self.kind == PathKind::Plain
+            && self.segments.len() == 1
+            && self.segments.first().unwrap().generics.is_none()
     }
 
     pub fn as_ident(&self) -> Option<&Ident> {
@@ -461,6 +481,10 @@ impl Path {
             return None;
         }
         self.segments.first().cloned().map(|segment| segment.ident)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.segments.is_empty() && self.kind == PathKind::Plain
     }
 
     pub fn as_string(&self) -> String {
@@ -550,13 +574,52 @@ pub enum LValue {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ConstrainStatement(pub Expression, pub Option<Expression>, pub ConstrainKind);
+pub struct ConstrainStatement {
+    pub kind: ConstrainKind,
+    pub arguments: Vec<Expression>,
+    pub span: Span,
+}
+
+impl Display for ConstrainStatement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.kind {
+            ConstrainKind::Assert | ConstrainKind::AssertEq => write!(
+                f,
+                "{}({})",
+                self.kind,
+                vecmap(&self.arguments, |arg| arg.to_string()).join(", ")
+            ),
+            ConstrainKind::Constrain => {
+                write!(f, "constrain {}", &self.arguments[0])
+            }
+        }
+    }
+}
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum ConstrainKind {
     Assert,
     AssertEq,
     Constrain,
+}
+
+impl ConstrainKind {
+    pub fn required_arguments_count(&self) -> usize {
+        match self {
+            ConstrainKind::Assert | ConstrainKind::Constrain => 1,
+            ConstrainKind::AssertEq => 2,
+        }
+    }
+}
+
+impl Display for ConstrainKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ConstrainKind::Assert => write!(f, "assert"),
+            ConstrainKind::AssertEq => write!(f, "assert_eq"),
+            ConstrainKind::Constrain => write!(f, "constrain"),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -587,14 +650,6 @@ impl Pattern {
             Pattern::Identifier(name_ident) => name_ident,
             Pattern::Mutable(pattern, ..) => pattern.name_ident(),
             _ => panic!("Only the Identifier or Mutable patterns can return a name"),
-        }
-    }
-
-    pub(crate) fn into_ident(self) -> Ident {
-        match self {
-            Pattern::Identifier(ident) => ident,
-            Pattern::Mutable(pattern, _, _) => pattern.into_ident(),
-            other => panic!("Pattern::into_ident called on {other} pattern with no identifier"),
         }
     }
 
@@ -666,37 +721,36 @@ impl LValue {
         Expression::new(kind, span)
     }
 
-    pub fn from_expression(expr: Expression) -> LValue {
+    pub fn from_expression(expr: Expression) -> Option<LValue> {
         LValue::from_expression_kind(expr.kind, expr.span)
     }
 
-    pub fn from_expression_kind(expr: ExpressionKind, span: Span) -> LValue {
+    pub fn from_expression_kind(expr: ExpressionKind, span: Span) -> Option<LValue> {
         match expr {
-            ExpressionKind::Variable(path) => LValue::Ident(path.as_ident().unwrap().clone()),
-            ExpressionKind::MemberAccess(member_access) => LValue::MemberAccess {
-                object: Box::new(LValue::from_expression(member_access.lhs)),
+            ExpressionKind::Variable(path) => Some(LValue::Ident(path.as_ident().unwrap().clone())),
+            ExpressionKind::MemberAccess(member_access) => Some(LValue::MemberAccess {
+                object: Box::new(LValue::from_expression(member_access.lhs)?),
                 field_name: member_access.rhs,
                 span,
-            },
-            ExpressionKind::Index(index) => LValue::Index {
-                array: Box::new(LValue::from_expression(index.collection)),
+            }),
+            ExpressionKind::Index(index) => Some(LValue::Index {
+                array: Box::new(LValue::from_expression(index.collection)?),
                 index: index.index,
                 span,
-            },
+            }),
             ExpressionKind::Prefix(prefix) => {
                 if matches!(
                     prefix.operator,
                     crate::ast::UnaryOp::Dereference { implicitly_added: false }
                 ) {
-                    LValue::Dereference(Box::new(LValue::from_expression(prefix.rhs)), span)
+                    Some(LValue::Dereference(Box::new(LValue::from_expression(prefix.rhs)?), span))
                 } else {
-                    panic!("Called LValue::from_expression with an invalid prefix operator")
+                    None
                 }
             }
-            ExpressionKind::Interned(id) => LValue::Interned(id, span),
-            _ => {
-                panic!("Called LValue::from_expression with an invalid expression")
-            }
+            ExpressionKind::Parenthesized(expr) => LValue::from_expression(*expr),
+            ExpressionKind::Interned(id) => Some(LValue::Interned(id, span)),
+            _ => None,
         }
     }
 
@@ -712,12 +766,56 @@ impl LValue {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
+pub struct ForBounds {
+    pub start: Expression,
+    pub end: Expression,
+    pub inclusive: bool,
+}
+
+impl ForBounds {
+    /// Create a half-open range bounded inclusively below and exclusively above (`start..end`),  
+    /// desugaring `start..=end` into `start..end+1` if necessary.
+    ///
+    /// Returns the `start` and `end` expressions.
+    pub(crate) fn into_half_open(self) -> (Expression, Expression) {
+        let end = if self.inclusive {
+            let end_span = self.end.span;
+            let end = ExpressionKind::Infix(Box::new(InfixExpression {
+                lhs: self.end,
+                operator: Spanned::from(end_span, BinaryOpKind::Add),
+                rhs: Expression::new(ExpressionKind::integer(FieldElement::from(1u32)), end_span),
+            }));
+            Expression::new(end, end_span)
+        } else {
+            self.end
+        };
+
+        (self.start, end)
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ForRange {
-    Range(/*start:*/ Expression, /*end:*/ Expression),
+    Range(ForBounds),
     Array(Expression),
 }
 
 impl ForRange {
+    /// Create a half-open range, bounded inclusively below and exclusively above.
+    pub fn range(start: Expression, end: Expression) -> Self {
+        Self::Range(ForBounds { start, end, inclusive: false })
+    }
+
+    /// Create a range bounded inclusively below and above.
+    pub fn range_inclusive(start: Expression, end: Expression) -> Self {
+        Self::Range(ForBounds { start, end, inclusive: true })
+    }
+
+    /// Create a range over some array.
+    pub fn array(value: Expression) -> Self {
+        Self::Array(value)
+    }
+
     /// Create a 'for' expression taking care of desugaring a 'for e in array' loop
     /// into the following if needed:
     ///
@@ -759,6 +857,7 @@ impl ForRange {
                         Pattern::Identifier(array_ident.clone()),
                         UnresolvedTypeData::Unspecified.with_span(Default::default()),
                         array,
+                        vec![],
                     ),
                     span: array_span,
                 };
@@ -803,6 +902,7 @@ impl ForRange {
                         Pattern::Identifier(identifier),
                         UnresolvedTypeData::Unspecified.with_span(Default::default()),
                         Expression::new(loop_element, array_span),
+                        vec![],
                     ),
                     span: array_span,
                 };
@@ -818,7 +918,7 @@ impl ForRange {
                 let for_loop = Statement {
                     kind: StatementKind::For(ForLoopStatement {
                         identifier: fresh_identifier,
-                        range: ForRange::Range(start_range, end_range),
+                        range: ForRange::range(start_range, end_range),
                         block: new_block,
                         span: for_loop_span,
                     }),
@@ -865,13 +965,11 @@ impl Display for StatementKind {
 
 impl Display for LetStatement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "let {}: {} = {}", self.pattern, self.r#type, self.expression)
-    }
-}
-
-impl Display for ConstrainStatement {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "constrain {}", self.0)
+        if matches!(&self.r#type.typ, UnresolvedTypeData::Unspecified) {
+            write!(f, "let {} = {}", self.pattern, self.expression)
+        } else {
+            write!(f, "let {}: {} = {}", self.pattern, self.r#type, self.expression)
+        }
     }
 }
 
@@ -950,7 +1048,14 @@ impl Display for Pattern {
 impl Display for ForLoopStatement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let range = match &self.range {
-            ForRange::Range(start, end) => format!("{start}..{end}"),
+            ForRange::Range(bounds) => {
+                format!(
+                    "{}{}{}",
+                    bounds.start,
+                    if bounds.inclusive { "..=" } else { ".." },
+                    bounds.end
+                )
+            }
             ForRange::Array(expr) => expr.to_string(),
         };
 

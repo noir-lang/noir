@@ -128,7 +128,7 @@ impl<'a> FunctionContext<'a> {
     ) {
         self.definitions.clear();
         if func.unconstrained || (force_brillig_runtime && func.inline_type != InlineType::Inline) {
-            self.builder.new_brillig_function(func.name.clone(), id);
+            self.builder.new_brillig_function(func.name.clone(), id, func.inline_type);
         } else {
             self.builder.new_function(func.name.clone(), id, func.inline_type);
         }
@@ -732,6 +732,10 @@ impl<'a> FunctionContext<'a> {
         let element_types = Self::convert_type(element_type);
         values.map_both(element_types, |value, element_type| {
             let reference = value.eval_reference();
+            // Reference counting in brillig relies on us incrementing reference
+            // counts when arrays/slices are constructed or indexed.
+            // Thus, if we dereference an lvalue which happens to be array/slice we should increment its reference counter.
+            self.builder.increment_array_reference_count(reference);
             self.builder.insert_load(reference, element_type).into()
         })
     }

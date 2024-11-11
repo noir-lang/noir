@@ -28,8 +28,6 @@ fxhash.workspace = true
 rust-embed.workspace = true
 tracing.workspace = true
 
-aztec_macros = { path = "../../aztec_macros" }
-
 [features]
 bn254 = ["noirc_frontend/bn254", "noirc_evaluator/bn254"]
 bls12_381 = ["noirc_frontend/bls12_381", "noirc_evaluator/bls12_381"]

@@ -1,8 +1,15 @@
+use acvm::FieldElement;
 pub use noirc_errors::Span;
-use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic};
+use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic, Location};
 use thiserror::Error;
 
-use crate::{ast::Ident, hir::comptime::InterpreterError, parser::ParserError, Type};
+use crate::{
+    ast::{Ident, UnsupportedNumericGenericType},
+    hir::{comptime::InterpreterError, type_check::TypeCheckError},
+    parser::ParserError,
+    usage_tracker::UnusedItem,
+    Type,
+};
 
 use super::import::PathResolutionError;
 
@@ -20,8 +27,10 @@ pub enum ResolverError {
     DuplicateDefinition { name: String, first_span: Span, second_span: Span },
     #[error("Unused variable")]
     UnusedVariable { ident: Ident },
-    #[error("Unused {item_type}")]
-    UnusedItem { ident: Ident, item_type: &'static str },
+    #[error("Unused {}", item.item_type())]
+    UnusedItem { ident: Ident, item: UnusedItem },
+    #[error("Unconditional recursion")]
+    UnconditionalRecursion { name: String, span: Span },
     #[error("Could not find variable in this scope")]
     VariableNotDeclared { name: String, span: Span },
     #[error("path is not an identifier")]
@@ -29,7 +38,7 @@ pub enum ResolverError {
     #[error("could not resolve path")]
     PathResolutionError(#[from] PathResolutionError),
     #[error("Expected")]
-    Expected { span: Span, expected: String, got: String },
+    Expected { span: Span, expected: &'static str, got: &'static str },
     #[error("Duplicate field in constructor")]
     DuplicateField { field: Ident },
     #[error("No such field in struct")]
@@ -100,10 +109,6 @@ pub enum ResolverError {
     NoPredicatesAttributeOnUnconstrained { ident: Ident },
     #[error("#[fold] attribute is only allowed on constrained functions")]
     FoldAttributeOnUnconstrained { ident: Ident },
-    #[error("The only supported types of numeric generics are integers, fields, and booleans")]
-    UnsupportedNumericGenericType { ident: Ident, typ: Type },
-    #[error("Numeric generics should be explicit")]
-    UseExplicitNumericGeneric { ident: Ident },
     #[error("expected type, found numeric generic parameter")]
     NumericGenericUsedForType { name: String, span: Span },
     #[error("Invalid array length construction")]
@@ -122,8 +127,14 @@ pub enum ResolverError {
     NamedTypeArgs { span: Span, item_kind: &'static str },
     #[error("Associated constants may only be a field or integer type")]
     AssociatedConstantsMustBeNumeric { span: Span },
-    #[error("Overflow in `{lhs} {op} {rhs}`")]
-    OverflowInType { lhs: u32, op: crate::BinaryTypeOperator, rhs: u32, span: Span },
+    #[error("Computing `{lhs} {op} {rhs}` failed with error {err}")]
+    BinaryOpError {
+        lhs: FieldElement,
+        op: crate::BinaryTypeOperator,
+        rhs: FieldElement,
+        err: Box<TypeCheckError>,
+        span: Span,
+    },
     #[error("`quote` cannot be used in runtime code")]
     QuoteInRuntimeCode { span: Span },
     #[error("Comptime-only type `{typ}` cannot be used in runtime code")]
@@ -132,6 +143,24 @@ pub enum ResolverError {
     MutatingComptimeInNonComptimeContext { name: String, span: Span },
     #[error("Failed to parse `{statement}` as an expression")]
     InvalidInternedStatementInExpr { statement: String, span: Span },
+    #[error("{0}")]
+    UnsupportedNumericGenericType(#[from] UnsupportedNumericGenericType),
+    #[error("Type `{typ}` is more private than item `{item}`")]
+    TypeIsMorePrivateThenItem { typ: String, item: String, span: Span },
+    #[error("Unable to parse attribute `{attribute}`")]
+    UnableToParseAttribute { attribute: String, span: Span },
+    #[error("Attribute function `{function}` is not a path")]
+    AttributeFunctionIsNotAPath { function: String, span: Span },
+    #[error("Attribute function `{name}` is not in scope")]
+    AttributeFunctionNotInScope { name: String, span: Span },
+    #[error("The trait `{missing_trait}` is not implemented for `{type_missing_trait}")]
+    TraitNotImplemented {
+        impl_trait: String,
+        missing_trait: String,
+        type_missing_trait: String,
+        span: Span,
+        missing_trait_location: Location,
+    },
 }
 
 impl ResolverError {
@@ -166,13 +195,32 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 diagnostic.unnecessary = true;
                 diagnostic
             }
-            ResolverError::UnusedItem { ident, item_type } => {
+            ResolverError::UnusedItem { ident, item} => {
                 let name = &ident.0.contents;
+                let item_type = item.item_type();
 
+                let mut diagnostic =
+                    if let UnusedItem::Struct(..) = item {
+                        Diagnostic::simple_warning(
+                            format!("{item_type} `{name}` is never constructed"),
+                            format!("{item_type} is never constructed"),
+                            ident.span(),
+                        )
+                    } else {
+                        Diagnostic::simple_warning(
+                            format!("unused {item_type} {name}"),
+                            format!("unused {item_type}"),
+                            ident.span(),
+                        )
+                    };
+                diagnostic.unnecessary = true;
+                diagnostic
+            }
+            ResolverError::UnconditionalRecursion { name, span} => {
                 let mut diagnostic = Diagnostic::simple_warning(
-                    format!("unused {item_type} {name}"),
-                    format!("unused {item_type}"),
-                    ident.span(),
+                    format!("function `{name}` cannot return without recursing"),
+                    "function cannot return without recursing".to_string(),
+                    *span,
                 );
                 diagnostic.unnecessary = true;
                 diagnostic
@@ -430,24 +478,6 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 diag.add_note("The `#[fold]` attribute specifies whether a constrained function should be treated as a separate circuit rather than inlined into the program entry point".to_owned());
                 diag
             }
-            ResolverError::UnsupportedNumericGenericType { ident , typ } => {
-                let name = &ident.0.contents;
-
-                Diagnostic::simple_error(
-                    format!("{name} has a type of {typ}. The only supported types of numeric generics are integers, fields, and booleans."),
-                    "Unsupported numeric generic type".to_string(),
-                    ident.0.span(),
-                )
-            }
-            ResolverError::UseExplicitNumericGeneric { ident } => {
-                let name = &ident.0.contents;
-
-                Diagnostic::simple_warning(
-                    String::from("Noir now supports explicit numeric generics. Support for implicit numeric generics will be removed in the following release."), 
-                format!("Numeric generic `{name}` should now be specified with `let {name}: <annotated type>`"), 
-                ident.0.span(),
-                )
-            }
             ResolverError::NumericGenericUsedForType { name, span } => {
                 Diagnostic::simple_error(
                     format!("expected type, found numeric generic parameter {name}"),
@@ -505,10 +535,10 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *span,
                 )
             }
-            ResolverError::OverflowInType { lhs, op, rhs, span } => {
+            ResolverError::BinaryOpError { lhs, op, rhs, err, span } => {
                 Diagnostic::simple_error(
-                    format!("Overflow in `{lhs} {op} {rhs}`"),
-                    "Overflow here".to_string(),
+                    format!("Computing `{lhs} {op} {rhs}` failed with error {err}"),
+                    String::new(),
                     *span,
                 )
             }
@@ -539,6 +569,43 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     "The statement was used from a macro here".to_string(),
                     *span,
                 )
+            },
+            ResolverError::UnsupportedNumericGenericType(err) => err.into(),
+            ResolverError::TypeIsMorePrivateThenItem { typ, item, span } => {
+                Diagnostic::simple_warning(
+                    format!("Type `{typ}` is more private than item `{item}`"),
+                    String::new(),
+                    *span,
+                )
+            },
+            ResolverError::UnableToParseAttribute { attribute, span } => {
+                Diagnostic::simple_error(
+                    format!("Unable to parse attribute `{attribute}`"),
+                    "Attribute should be a function or function call".into(),
+                    *span,
+                )
+            },
+            ResolverError::AttributeFunctionIsNotAPath { function, span } => {
+                Diagnostic::simple_error(
+                    format!("Attribute function `{function}` is not a path"),
+                    "An attribute's function should be a single identifier or a path".into(),
+                    *span,
+                )
+            },
+            ResolverError::AttributeFunctionNotInScope { name, span } => {
+                Diagnostic::simple_error(
+                    format!("Attribute function `{name}` is not in scope"),
+                    String::new(),
+                    *span,
+                )
+            },
+            ResolverError::TraitNotImplemented { impl_trait, missing_trait: the_trait, type_missing_trait: typ, span, missing_trait_location} => {
+                let mut diagnostic = Diagnostic::simple_error(
+                    format!("The trait bound `{typ}: {the_trait}` is not satisfied"), 
+                    format!("The trait `{the_trait}` is not implemented for `{typ}")
+                    , *span);
+                diagnostic.add_secondary_with_file(format!("required by this bound in `{impl_trait}"), missing_trait_location.span, missing_trait_location.file);
+                diagnostic
             },
         }
     }

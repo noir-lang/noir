@@ -5,15 +5,13 @@ use std::time::Duration;
 use acvm::acir::circuit::ExpressionWidth;
 use fm::FileManager;
 use nargo::ops::{collect_errors, compile_contract, compile_program, report_errors};
-use nargo::package::Package;
+use nargo::package::{CrateName, Package};
 use nargo::workspace::Workspace;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::DEFAULT_EXPRESSION_WIDTH;
 use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
 use noirc_driver::{CompilationResult, CompileOptions, CompiledContract};
-
-use noirc_frontend::graph::CrateName;
 
 use clap::Args;
 use noirc_frontend::hir::ParsedFiles;
@@ -194,7 +192,7 @@ fn compile_programs(
         let target_width =
             get_target_width(package.expression_width, compile_options.expression_width);
         let program = nargo::ops::transform_program(program, target_width);
-
+        nargo::ops::check_program(&program)?;
         save_program_to_file(&program.into(), &package.name, workspace.target_directory_path());
 
         Ok(((), warnings))

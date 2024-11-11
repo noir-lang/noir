@@ -1,65 +1,37 @@
+use crate::field::field_less_than;
 use crate::runtime::is_unconstrained;
 
 // The low and high decomposition of the field modulus
 global PLO: Field = 53438638232309528389504892708671455233;
 global PHI: Field = 64323764613183177041862057485226039389;
 
-global TWO_POW_128: Field = 0x100000000000000000000000000000000;
+pub(crate) global TWO_POW_128: Field = 0x100000000000000000000000000000000;
+global TWO_POW_64: Field = 0x10000000000000000;
 
 // Decomposes a single field into two 16 byte fields.
-fn compute_decomposition(x: Field) -> (Field, Field) {
-    let x_bytes: [u8; 32] = x.to_le_bytes();
+fn compute_decomposition(mut x: Field) -> (Field, Field) {
+    // Here's we're taking advantage of truncating 64 bit limbs from the input field
+    // and then subtracting them from the input such the field division is equivalent to integer division.
+    let low_lower_64 = (x as u64) as Field;
+    x = (x - low_lower_64) / TWO_POW_64;
+    let low_upper_64 = (x as u64) as Field;
 
-    let mut low: Field = 0;
-    let mut high: Field = 0;
-
-    let mut offset = 1;
-    for i in 0..16 {
-        low += (x_bytes[i] as Field) * offset;
-        high += (x_bytes[i + 16] as Field) * offset;
-        offset *= 256;
-    }
+    let high = (x - low_upper_64) / TWO_POW_64;
+    let low = low_upper_64 * TWO_POW_64 + low_lower_64;
 
     (low, high)
 }
 
-unconstrained pub(crate) fn decompose_hint(x: Field) -> (Field, Field) {
+pub(crate) unconstrained fn decompose_hint(x: Field) -> (Field, Field) {
     compute_decomposition(x)
 }
 
-fn compute_lt(x: Field, y: Field, num_bytes: u32) -> bool {
-    let x_bytes: [u8; 32] = x.to_le_bytes();
-    let y_bytes: [u8; 32] = y.to_le_bytes();
-    let mut x_is_lt = false;
-    let mut done = false;
-    for i in 0..num_bytes {
-        if (!done) {
-            let x_byte = x_bytes[num_bytes - 1 - i];
-            let y_byte = y_bytes[num_bytes - 1 - i];
-            let bytes_match = x_byte == y_byte;
-            if !bytes_match {
-                x_is_lt = x_byte < y_byte;
-                done = true;
-            }
-        }
-    }
-    x_is_lt
-}
-
-fn compute_lte(x: Field, y: Field, num_bytes: u32) -> bool {
+unconstrained fn lte_hint(x: Field, y: Field) -> bool {
     if x == y {
         true
     } else {
-        compute_lt(x, y, num_bytes)
+        field_less_than(x, y)
     }
-}
-
-unconstrained fn lt_32_hint(x: Field, y: Field) -> bool {
-    compute_lt(x, y, 32)
-}
-
-unconstrained fn lte_16_hint(x: Field, y: Field) -> bool {
-    compute_lte(x, y, 16)
 }
 
 // Assert that (alo > blo && ahi >= bhi) || (alo <= blo && ahi > bhi)
@@ -67,13 +39,13 @@ fn assert_gt_limbs(a: (Field, Field), b: (Field, Field)) {
     let (alo, ahi) = a;
     let (blo, bhi) = b;
     unsafe {
-        let borrow = lte_16_hint(alo, blo);
+        let borrow = lte_hint(alo, blo);
 
         let rlo = alo - blo - 1 + (borrow as Field) * TWO_POW_128;
         let rhi = ahi - bhi - (borrow as Field);
 
-        rlo.assert_max_bit_size(128);
-        rhi.assert_max_bit_size(128);
+        rlo.assert_max_bit_size::<128>();
+        rhi.assert_max_bit_size::<128>();
     }
 }
 
@@ -87,8 +59,8 @@ pub fn decompose(x: Field) -> (Field, Field) {
             let (xlo, xhi) = decompose_hint(x);
 
             // Range check the limbs
-            xlo.assert_max_bit_size(128);
-            xhi.assert_max_bit_size(128);
+            xlo.assert_max_bit_size::<128>();
+            xhi.assert_max_bit_size::<128>();
 
             // Check that the decomposition is correct
             assert_eq(x, xlo + TWO_POW_128 * xhi);
@@ -102,7 +74,7 @@ pub fn decompose(x: Field) -> (Field, Field) {
 
 pub fn assert_gt(a: Field, b: Field) {
     if is_unconstrained() {
-        assert(compute_lt(b, a, 32));
+        assert(unsafe { field_less_than(b, a) });
     } else {
         // Decompose a and b
         let a_limbs = decompose(a);
@@ -119,13 +91,15 @@ pub fn assert_lt(a: Field, b: Field) {
 
 pub fn gt(a: Field, b: Field) -> bool {
     if is_unconstrained() {
-        compute_lt(b, a, 32)
+        unsafe {
+            field_less_than(b, a)
+        }
     } else if a == b {
         false
     } else {
         // Take a hint of the comparison and verify it
         unsafe {
-            if lt_32_hint(a, b) {
+            if field_less_than(a, b) {
                 assert_gt(b, a);
                 false
             } else {
@@ -142,7 +116,7 @@ pub fn lt(a: Field, b: Field) -> bool {
 
 mod tests {
     // TODO: Allow imports from "super"
-    use crate::field::bn254::{decompose, compute_lt, assert_gt, gt, TWO_POW_128, compute_lte, PLO, PHI};
+    use crate::field::bn254::{assert_gt, decompose, gt, lte_hint, PHI, PLO, TWO_POW_128};
 
     #[test]
     fn check_decompose() {
@@ -159,24 +133,15 @@ mod tests {
     }
 
     #[test]
-    fn check_compute_lt() {
-        assert(compute_lt(0, 1, 16));
-        assert(compute_lt(0, 0x100, 16));
-        assert(compute_lt(0x100, TWO_POW_128 - 1, 16));
-        assert(!compute_lt(0, TWO_POW_128, 16));
-    }
+    unconstrained fn check_lte_hint() {
+        assert(lte_hint(0, 1));
+        assert(lte_hint(0, 0x100));
+        assert(lte_hint(0x100, TWO_POW_128 - 1));
+        assert(!lte_hint(0 - 1, 0));
 
-    #[test]
-    fn check_compute_lte() {
-        assert(compute_lte(0, 1, 16));
-        assert(compute_lte(0, 0x100, 16));
-        assert(compute_lte(0x100, TWO_POW_128 - 1, 16));
-        assert(!compute_lte(0, TWO_POW_128, 16));
-
-        assert(compute_lte(0, 0, 16));
-        assert(compute_lte(0x100, 0x100, 16));
-        assert(compute_lte(TWO_POW_128 - 1, TWO_POW_128 - 1, 16));
-        assert(compute_lte(TWO_POW_128, TWO_POW_128, 16));
+        assert(lte_hint(0, 0));
+        assert(lte_hint(0x100, 0x100));
+        assert(lte_hint(0 - 1, 0 - 1));
     }
 
     #[test]

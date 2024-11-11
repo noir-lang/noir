@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use acvm::{acir::AcirField, BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 
 use crate::ssa::ir::{

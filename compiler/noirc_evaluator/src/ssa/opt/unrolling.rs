@@ -74,16 +74,20 @@ impl Ssa {
     pub(crate) fn try_to_unroll_loops(mut self) -> (Ssa, Vec<RuntimeError>) {
         let mut errors = vec![];
         for function in self.functions.values_mut() {
-            // Loop unrolling in brillig can lead to a code explosion currently. This can
-            // also be true for ACIR, but we have no alternative to unrolling in ACIR.
-            // Brillig also generally prefers smaller code rather than faster code.
-            if function.runtime() == RuntimeType::Brillig {
-                continue;
-            }
-
-            errors.extend(find_all_loops(function).unroll_each_loop(function));
+            function.try_to_unroll_loops(&mut errors);
         }
         (self, errors)
+    }
+}
+
+impl Function {
+    pub(crate) fn try_to_unroll_loops(&mut self, errors: &mut Vec<RuntimeError>) {
+        // Loop unrolling in brillig can lead to a code explosion currently. This can
+        // also be true for ACIR, but we have no alternative to unrolling in ACIR.
+        // Brillig also generally prefers smaller code rather than faster code.
+        if !matches!(self.runtime(), RuntimeType::Brillig(_)) {
+            errors.extend(find_all_loops(self).unroll_each_loop(self));
+        }
     }
 }
 

@@ -1,10 +1,10 @@
 use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
 
-use acir::brillig::{BitSize, IntegerBitSize};
+use acir::brillig::{BitSize, HeapVector, IntegerBitSize};
 use acir::{
     acir_field::GenericFieldElement,
-    brillig::{BinaryFieldOp, HeapArray, MemoryAddress, Opcode as BrilligOpcode, ValueOrArray},
+    brillig::{BinaryFieldOp, MemoryAddress, Opcode as BrilligOpcode, ValueOrArray},
     circuit::{
         brillig::{BrilligBytecode, BrilligFunctionId, BrilligInputs, BrilligOutputs},
         opcodes::{BlackBoxFuncCall, BlockId, BlockType, FunctionInput, MemOp},
@@ -79,9 +79,9 @@ fn inversion_brillig_oracle_equivalence() {
 
     let equal_opcode = BrilligOpcode::BinaryFieldOp {
         op: BinaryFieldOp::Equals,
-        lhs: MemoryAddress::from(0),
-        rhs: MemoryAddress::from(1),
-        destination: MemoryAddress::from(2),
+        lhs: MemoryAddress::direct(0),
+        rhs: MemoryAddress::direct(1),
+        destination: MemoryAddress::direct(2),
     };
 
     let opcodes = vec![
@@ -125,27 +125,27 @@ fn inversion_brillig_oracle_equivalence() {
     let brillig_bytecode = BrilligBytecode {
         bytecode: vec![
             BrilligOpcode::Const {
-                destination: MemoryAddress(0),
+                destination: MemoryAddress::direct(0),
                 bit_size: BitSize::Integer(IntegerBitSize::U32),
                 value: FieldElement::from(2u64),
             },
             BrilligOpcode::Const {
-                destination: MemoryAddress(1),
+                destination: MemoryAddress::direct(1),
                 bit_size: BitSize::Integer(IntegerBitSize::U32),
                 value: FieldElement::from(0u64),
             },
             BrilligOpcode::CalldataCopy {
-                destination_address: MemoryAddress(0),
-                size_address: MemoryAddress(0),
-                offset_address: MemoryAddress(1),
+                destination_address: MemoryAddress::direct(0),
+                size_address: MemoryAddress::direct(0),
+                offset_address: MemoryAddress::direct(1),
             },
             equal_opcode,
             // Oracles are named 'foreign calls' in brillig
             BrilligOpcode::ForeignCall {
                 function: "invert".into(),
-                destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(1))],
+                destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::direct(1))],
                 destination_value_types: vec![HeapValueType::field()],
-                inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(0))],
+                inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::direct(0))],
                 input_value_types: vec![HeapValueType::field()],
             },
             BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 3 },
@@ -218,9 +218,9 @@ fn double_inversion_brillig_oracle() {
 
     let equal_opcode = BrilligOpcode::BinaryFieldOp {
         op: BinaryFieldOp::Equals,
-        lhs: MemoryAddress::from(0),
-        rhs: MemoryAddress::from(1),
-        destination: MemoryAddress::from(4),
+        lhs: MemoryAddress::direct(0),
+        rhs: MemoryAddress::direct(1),
+        destination: MemoryAddress::direct(4),
     };
 
     let opcodes = vec![
@@ -271,34 +271,34 @@ fn double_inversion_brillig_oracle() {
     let brillig_bytecode = BrilligBytecode {
         bytecode: vec![
             BrilligOpcode::Const {
-                destination: MemoryAddress(0),
+                destination: MemoryAddress::direct(0),
                 bit_size: BitSize::Integer(IntegerBitSize::U32),
                 value: FieldElement::from(3u64),
             },
             BrilligOpcode::Const {
-                destination: MemoryAddress(1),
+                destination: MemoryAddress::direct(1),
                 bit_size: BitSize::Integer(IntegerBitSize::U32),
                 value: FieldElement::from(0u64),
             },
             BrilligOpcode::CalldataCopy {
-                destination_address: MemoryAddress(0),
-                size_address: MemoryAddress(0),
-                offset_address: MemoryAddress(1),
+                destination_address: MemoryAddress::direct(0),
+                size_address: MemoryAddress::direct(0),
+                offset_address: MemoryAddress::direct(1),
             },
             equal_opcode,
             // Oracles are named 'foreign calls' in brillig
             BrilligOpcode::ForeignCall {
                 function: "invert".into(),
-                destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(1))],
+                destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::direct(1))],
                 destination_value_types: vec![HeapValueType::field()],
-                inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(0))],
+                inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::direct(0))],
                 input_value_types: vec![HeapValueType::field()],
             },
             BrilligOpcode::ForeignCall {
                 function: "invert".into(),
-                destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(3))],
+                destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::direct(3))],
                 destination_value_types: vec![HeapValueType::field()],
-                inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(2))],
+                inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::direct(2))],
                 input_value_types: vec![HeapValueType::field()],
             },
             BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 5 },
@@ -389,32 +389,32 @@ fn oracle_dependent_execution() {
     let brillig_bytecode = BrilligBytecode {
         bytecode: vec![
             BrilligOpcode::Const {
-                destination: MemoryAddress(0),
+                destination: MemoryAddress::direct(0),
                 bit_size: BitSize::Integer(IntegerBitSize::U32),
                 value: FieldElement::from(3u64),
             },
             BrilligOpcode::Const {
-                destination: MemoryAddress(1),
+                destination: MemoryAddress::direct(1),
                 bit_size: BitSize::Integer(IntegerBitSize::U32),
                 value: FieldElement::from(0u64),
             },
             BrilligOpcode::CalldataCopy {
-                destination_address: MemoryAddress(0),
-                size_address: MemoryAddress(0),
-                offset_address: MemoryAddress(1),
+                destination_address: MemoryAddress::direct(0),
+                size_address: MemoryAddress::direct(0),
+                offset_address: MemoryAddress::direct(1),
             }, // Oracles are named 'foreign calls' in brillig
             BrilligOpcode::ForeignCall {
                 function: "invert".into(),
-                destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(1))],
+                destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::direct(1))],
                 destination_value_types: vec![HeapValueType::field()],
-                inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(0))],
+                inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::direct(0))],
                 input_value_types: vec![HeapValueType::field()],
             },
             BrilligOpcode::ForeignCall {
                 function: "invert".into(),
-                destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(3))],
+                destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::direct(3))],
                 destination_value_types: vec![HeapValueType::field()],
-                inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(2))],
+                inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::direct(2))],
                 input_value_types: vec![HeapValueType::field()],
             },
             BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 4 },
@@ -522,35 +522,35 @@ fn brillig_oracle_predicate() {
 
     let equal_opcode = BrilligOpcode::BinaryFieldOp {
         op: BinaryFieldOp::Equals,
-        lhs: MemoryAddress::from(0),
-        rhs: MemoryAddress::from(1),
-        destination: MemoryAddress::from(2),
+        lhs: MemoryAddress::direct(0),
+        rhs: MemoryAddress::direct(1),
+        destination: MemoryAddress::direct(2),
     };
 
     let brillig_bytecode = BrilligBytecode {
         bytecode: vec![
             BrilligOpcode::Const {
-                destination: MemoryAddress(0),
+                destination: MemoryAddress::direct(0),
                 bit_size: BitSize::Integer(IntegerBitSize::U32),
                 value: FieldElement::from(2u64),
             },
             BrilligOpcode::Const {
-                destination: MemoryAddress(1),
+                destination: MemoryAddress::direct(1),
                 bit_size: BitSize::Integer(IntegerBitSize::U32),
                 value: FieldElement::from(0u64),
             },
             BrilligOpcode::CalldataCopy {
-                destination_address: MemoryAddress(0),
-                size_address: MemoryAddress(0),
-                offset_address: MemoryAddress(1),
+                destination_address: MemoryAddress::direct(0),
+                size_address: MemoryAddress::direct(0),
+                offset_address: MemoryAddress::direct(1),
             },
             equal_opcode,
             // Oracles are named 'foreign calls' in brillig
             BrilligOpcode::ForeignCall {
                 function: "invert".into(),
-                destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(1))],
+                destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::direct(1))],
                 destination_value_types: vec![HeapValueType::field()],
-                inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(0))],
+                inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::direct(0))],
                 input_value_types: vec![HeapValueType::field()],
             },
         ],
@@ -649,36 +649,46 @@ fn unsatisfied_opcode_resolved_brillig() {
     let w_result = Witness(6);
 
     let calldata_copy_opcode = BrilligOpcode::CalldataCopy {
-        destination_address: MemoryAddress(0),
-        size_address: MemoryAddress(0),
-        offset_address: MemoryAddress(1),
+        destination_address: MemoryAddress::direct(0),
+        size_address: MemoryAddress::direct(0),
+        offset_address: MemoryAddress::direct(1),
     };
 
     let equal_opcode = BrilligOpcode::BinaryFieldOp {
         op: BinaryFieldOp::Equals,
-        lhs: MemoryAddress::from(0),
-        rhs: MemoryAddress::from(1),
-        destination: MemoryAddress::from(2),
+        lhs: MemoryAddress::direct(0),
+        rhs: MemoryAddress::direct(1),
+        destination: MemoryAddress::direct(2),
     };
     // Jump pass the trap if the values are equal, else
     // jump to the trap
     let location_of_stop = 3;
 
     let jmp_if_opcode =
-        BrilligOpcode::JumpIf { condition: MemoryAddress::from(2), location: location_of_stop };
+        BrilligOpcode::JumpIf { condition: MemoryAddress::direct(2), location: location_of_stop };
 
-    let trap_opcode = BrilligOpcode::Trap { revert_data: HeapArray::default() };
+    let trap_opcode = BrilligOpcode::Trap {
+        revert_data: HeapVector {
+            pointer: MemoryAddress::direct(0),
+            size: MemoryAddress::direct(3),
+        },
+    };
     let stop_opcode = BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 0 };
 
     let brillig_bytecode = BrilligBytecode {
         bytecode: vec![
             BrilligOpcode::Const {
-                destination: MemoryAddress(0),
+                destination: MemoryAddress::direct(0),
                 bit_size: BitSize::Integer(IntegerBitSize::U32),
                 value: FieldElement::from(2u64),
             },
             BrilligOpcode::Const {
-                destination: MemoryAddress(1),
+                destination: MemoryAddress::direct(1),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(0u64),
+            },
+            BrilligOpcode::Const {
+                destination: MemoryAddress::direct(3),
                 bit_size: BitSize::Integer(IntegerBitSize::U32),
                 value: FieldElement::from(0u64),
             },
@@ -739,7 +749,7 @@ fn unsatisfied_opcode_resolved_brillig() {
         ACVMStatus::Failure(OpcodeResolutionError::BrilligFunctionFailed {
             function_id: BrilligFunctionId(0),
             payload: None,
-            call_stack: vec![OpcodeLocation::Brillig { acir_index: 0, brillig_index: 5 }]
+            call_stack: vec![OpcodeLocation::Brillig { acir_index: 0, brillig_index: 6 }]
         }),
         "The first opcode is not satisfiable, expected an error indicating this"
     );
@@ -1077,18 +1087,6 @@ fn solve_blackbox_func_call(
 
 // N inputs
 // 32 outputs
-fn sha256_op(
-    function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
-) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>> {
-    let (function_inputs, outputs) = function_inputs_and_outputs;
-    Ok(BlackBoxFuncCall::SHA256 {
-        inputs: function_inputs,
-        outputs: outputs.try_into().expect("SHA256 returns 32 outputs"),
-    })
-}
-
-// N inputs
-// 32 outputs
 fn blake2s_op(
     function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
 ) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>> {
@@ -1108,45 +1106,6 @@ fn blake3_op(
     Ok(BlackBoxFuncCall::Blake3 {
         inputs: function_inputs,
         outputs: outputs.try_into().expect("Blake3 returns 32 outputs"),
-    })
-}
-
-// variable inputs
-// 32 outputs
-fn keccak256_op(
-    function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
-) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>> {
-    let (function_inputs, outputs) = function_inputs_and_outputs;
-    let function_inputs_len = function_inputs.len();
-    Ok(BlackBoxFuncCall::Keccak256 {
-        inputs: function_inputs,
-        var_message_size: FunctionInput::constant(
-            function_inputs_len.into(),
-            FieldElement::max_num_bits(),
-        )?,
-        outputs: outputs.try_into().expect("Keccak256 returns 32 outputs"),
-    })
-}
-
-// var_message_size is the number of bytes to take
-// from the input. Note: if `var_message_size`
-// is more than the number of bytes in the input,
-// then an error is returned.
-//
-// variable inputs
-// 32 outputs
-fn keccak256_invalid_message_size_op(
-    function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
-) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>> {
-    let (function_inputs, outputs) = function_inputs_and_outputs;
-    let function_inputs_len = function_inputs.len();
-    Ok(BlackBoxFuncCall::Keccak256 {
-        inputs: function_inputs,
-        var_message_size: FunctionInput::constant(
-            (function_inputs_len - 1).into(),
-            FieldElement::max_num_bits(),
-        )?,
-        outputs: outputs.try_into().expect("Keccak256 returns 32 outputs"),
     })
 }
 
@@ -1458,19 +1417,6 @@ fn poseidon2_permutation_zeroes() {
 }
 
 #[test]
-fn sha256_zeros() {
-    let results = solve_array_input_blackbox_call(vec![], 32, None, sha256_op);
-    let expected_results: Vec<_> = vec![
-        227, 176, 196, 66, 152, 252, 28, 20, 154, 251, 244, 200, 153, 111, 185, 36, 39, 174, 65,
-        228, 100, 155, 147, 76, 164, 149, 153, 27, 120, 82, 184, 85,
-    ]
-    .into_iter()
-    .map(|x: u128| FieldElement::from(x))
-    .collect();
-    assert_eq!(results, Ok(expected_results));
-}
-
-#[test]
 fn sha256_compression_zeros() {
     let results = solve_array_input_blackbox_call(
         [(FieldElement::zero(), false); 24].try_into().unwrap(),
@@ -1507,19 +1453,6 @@ fn blake3_zeros() {
     let expected_results: Vec<_> = vec![
         175, 19, 73, 185, 245, 249, 161, 166, 160, 64, 77, 234, 54, 220, 201, 73, 155, 203, 37,
         201, 173, 193, 18, 183, 204, 154, 147, 202, 228, 31, 50, 98,
-    ]
-    .into_iter()
-    .map(|x: u128| FieldElement::from(x))
-    .collect();
-    assert_eq!(results, Ok(expected_results));
-}
-
-#[test]
-fn keccak256_zeros() {
-    let results = solve_array_input_blackbox_call(vec![], 32, None, keccak256_op);
-    let expected_results: Vec<_> = vec![
-        197, 210, 70, 1, 134, 247, 35, 60, 146, 126, 125, 178, 220, 199, 3, 192, 229, 0, 182, 83,
-        202, 130, 39, 59, 123, 250, 216, 4, 93, 133, 164, 112,
     ]
     .into_iter()
     .map(|x: u128| FieldElement::from(x))
@@ -1643,12 +1576,6 @@ proptest! {
         prop_assert_eq!(result, expected_result)
     }
 
-    #[test]
-    fn sha256_injective(inputs_distinct_inputs in any_distinct_inputs(None, 0, 32)) {
-        let (inputs, distinct_inputs) = inputs_distinct_inputs;
-        let (result, message) = prop_assert_injective(inputs, distinct_inputs, 32, None, sha256_op);
-        prop_assert!(result, "{}", message);
-    }
 
     #[test]
     fn sha256_compression_injective(inputs_distinct_inputs in any_distinct_inputs(None, 24, 24)) {
@@ -1670,24 +1597,6 @@ proptest! {
     fn blake3_injective(inputs_distinct_inputs in any_distinct_inputs(None, 0, 32)) {
         let (inputs, distinct_inputs) = inputs_distinct_inputs;
         let (result, message) = prop_assert_injective(inputs, distinct_inputs, 32, None, blake3_op);
-        prop_assert!(result, "{}", message);
-    }
-
-    #[test]
-    fn keccak256_injective(inputs_distinct_inputs in any_distinct_inputs(Some(8), 0, 32)) {
-        let (inputs, distinct_inputs) = inputs_distinct_inputs;
-        let (result, message) = prop_assert_injective(inputs, distinct_inputs, 32, Some(8), keccak256_op);
-        prop_assert!(result, "{}", message);
-    }
-
-    // TODO(https://github.com/noir-lang/noir/issues/5689): doesn't fail with a user error
-    // The test failing with "not injective" demonstrates that it returns constant output instead
-    // of failing with a user error.
-    #[test]
-    #[should_panic(expected = "Test failed: not injective")]
-    fn keccak256_invalid_message_size_fails(inputs_distinct_inputs in any_distinct_inputs(Some(8), 0, 32)) {
-        let (inputs, distinct_inputs) = inputs_distinct_inputs;
-        let (result, message) = prop_assert_injective(inputs, distinct_inputs, 32, Some(8), keccak256_invalid_message_size_op);
         prop_assert!(result, "{}", message);
     }
 

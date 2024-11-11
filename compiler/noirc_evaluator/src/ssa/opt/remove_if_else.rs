@@ -3,6 +3,7 @@ use std::collections::hash_map::Entry;
 use acvm::{acir::AcirField, FieldElement};
 use fxhash::FxHashMap as HashMap;
 
+use crate::ssa::ir::function::RuntimeType;
 use crate::ssa::ir::value::ValueId;
 use crate::ssa::{
     ir::{
@@ -28,14 +29,20 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn remove_if_else(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            // This should match the check in flatten_cfg
-            if let crate::ssa::ir::function::RuntimeType::Brillig = function.runtime() {
-                continue;
-            }
-
-            Context::default().remove_if_else(function);
+            function.remove_if_else();
         }
         self
+    }
+}
+
+impl Function {
+    pub(crate) fn remove_if_else(&mut self) {
+        // This should match the check in flatten_cfg
+        if matches!(self.runtime(), RuntimeType::Brillig(_)) {
+            // skip
+        } else {
+            Context::default().remove_if_else(self);
+        }
     }
 }
 
@@ -112,7 +119,9 @@ impl Context {
                             }
                             SizeChange::Dec { old, new } => {
                                 let old_capacity = self.get_or_find_capacity(&function.dfg, old);
-                                self.slice_sizes.insert(new, old_capacity - 1);
+                                // We use a saturating sub here as calling `pop_front` or `pop_back` on a zero-length slice
+                                // would otherwise underflow.
+                                self.slice_sizes.insert(new, old_capacity.saturating_sub(1));
                             }
                         }
                     }
@@ -228,6 +237,7 @@ fn slice_capacity_change(
         | Intrinsic::IsUnconstrained
         | Intrinsic::DerivePedersenGenerators
         | Intrinsic::ToBits(_)
-        | Intrinsic::ToRadix(_) => SizeChange::None,
+        | Intrinsic::ToRadix(_)
+        | Intrinsic::FieldLessThan => SizeChange::None,
     }
 }

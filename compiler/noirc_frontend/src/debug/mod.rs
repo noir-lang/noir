@@ -1,5 +1,6 @@
 use crate::ast::PathSegment;
-use crate::parser::{parse_program, ParsedModule};
+use crate::parse_program;
+use crate::parser::ParsedModule;
 use crate::{
     ast,
     ast::{Path, PathKind},
@@ -146,6 +147,7 @@ impl DebugInstrumenter {
                         ast::Pattern::Identifier(ident("__debug_expr", ret_expr.span)),
                         ast::UnresolvedTypeData::Unspecified.with_span(Default::default()),
                         ret_expr.clone(),
+                        vec![],
                     ),
                     span: ret_expr.span,
                 };
@@ -249,6 +251,7 @@ impl DebugInstrumenter {
                     }),
                     span: let_stmt.expression.span,
                 },
+                vec![],
             ),
             span: *span,
         }
@@ -274,6 +277,7 @@ impl DebugInstrumenter {
             ast::Pattern::Identifier(ident("__debug_expr", assign_stmt.expression.span)),
             ast::UnresolvedTypeData::Unspecified.with_span(Default::default()),
             assign_stmt.expression.clone(),
+            vec![],
         );
         let expression_span = assign_stmt.expression.span;
         let new_assign_stmt = match &assign_stmt.lvalue {

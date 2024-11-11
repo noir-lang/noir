@@ -1,12 +1,11 @@
-use std::hash::{Hash, Hasher};
+use std::hash::Hasher;
 
 trait TraitWithGenerics<A, B> {
     fn foo(self) -> (A, B);
 }
 
 fn main() {
-    comptime
-    {
+    comptime {
         let constraint1 = quote { Default }.as_trait_constraint();
         let constraint2 = quote { TraitWithGenerics<Field, u32> }.as_trait_constraint();
 

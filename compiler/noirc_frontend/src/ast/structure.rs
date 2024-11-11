@@ -6,20 +6,28 @@ use crate::token::SecondaryAttribute;
 use iter_extended::vecmap;
 use noirc_errors::Span;
 
-use super::Documented;
+use super::{Documented, ItemVisibility};
 
 /// Ast node for a struct
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NoirStruct {
     pub name: Ident,
     pub attributes: Vec<SecondaryAttribute>,
+    pub visibility: ItemVisibility,
     pub generics: UnresolvedGenerics,
     pub fields: Vec<Documented<StructField>>,
     pub span: Span,
 }
 
+impl NoirStruct {
+    pub fn is_abi(&self) -> bool {
+        self.attributes.iter().any(|attr| attr.is_abi())
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct StructField {
+    pub visibility: ItemVisibility,
     pub name: Ident,
     pub typ: UnresolvedType,
 }

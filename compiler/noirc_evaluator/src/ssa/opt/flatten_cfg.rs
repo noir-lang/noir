@@ -142,7 +142,7 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         cfg::ControlFlowGraph,
         dfg::{CallStack, InsertInstructionResult},
-        function::{Function, FunctionId},
+        function::{Function, FunctionId, RuntimeType},
         function_inserter::FunctionInserter,
         instruction::{BinaryOp, Instruction, InstructionId, Intrinsic, TerminatorInstruction},
         types::Type,
@@ -254,7 +254,7 @@ fn flatten_function_cfg(function: &mut Function, no_predicates: &HashMap<Functio
     // This pass may run forever on a brillig function.
     // Analyze will check if the predecessors have been processed and push the block to the back of
     // the queue. This loops forever if there are still any loops present in the program.
-    if let crate::ssa::ir::function::RuntimeType::Brillig = function.runtime() {
+    if matches!(function.runtime(), RuntimeType::Brillig(_)) {
         return;
     }
     let cfg = ControlFlowGraph::with_function(function);
@@ -289,6 +289,7 @@ impl<'f> Context<'f> {
                 }
             }
         }
+        self.inserter.map_data_bus_in_place();
     }
 
     /// Returns the updated condition so that
@@ -924,7 +925,7 @@ mod test {
         ir::{
             dfg::DataFlowGraph,
             function::Function,
-            instruction::{BinaryOp, Instruction, Intrinsic, TerminatorInstruction},
+            instruction::{BinaryOp, Instruction, TerminatorInstruction},
             map::Id,
             types::Type,
             value::{Value, ValueId},
@@ -1486,8 +1487,7 @@ mod test {
         // Tests that it does not simplify a true constraint an always-false constraint
         // acir(inline) fn main f1 {
         //     b0(v0: [u8; 2]):
-        //       v4 = call sha256(v0, u8 2)
-        //       v5 = array_get v4, index u8 0
+        //       v5 = array_get v0, index u8 0
         //       v6 = cast v5 as u32
         //       v8 = truncate v6 to 1 bits, max_bit_size: 32
         //       v9 = cast v8 as u1
@@ -1519,13 +1519,8 @@ mod test {
         let array = builder.add_parameter(array_type);
 
         let zero = builder.numeric_constant(0_u128, Type::unsigned(8));
-        let two = builder.numeric_constant(2_u128, Type::unsigned(8));
 
-        let keccak =
-            builder.import_intrinsic_id(Intrinsic::BlackBox(acvm::acir::BlackBoxFunc::SHA256));
-        let v4 =
-            builder.insert_call(keccak, vec![array, two], vec![Type::Array(element_type, 32)])[0];
-        let v5 = builder.insert_array_get(v4, zero, Type::unsigned(8));
+        let v5 = builder.insert_array_get(array, zero, Type::unsigned(8));
         let v6 = builder.insert_cast(v5, Type::unsigned(32));
         let i_two = builder.numeric_constant(2_u128, Type::unsigned(32));
         let v8 = builder.insert_binary(v6, BinaryOp::Mod, i_two);

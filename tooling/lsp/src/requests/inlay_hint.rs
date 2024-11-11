@@ -15,10 +15,9 @@ use noirc_frontend::{
         UnresolvedTypeData, Visitor,
     },
     hir_def::stmt::HirPattern,
-    macros_api::NodeInterner,
-    node_interner::ReferenceId,
+    node_interner::{NodeInterner, ReferenceId},
     parser::{Item, ParsedSubModule},
-    Type, TypeBinding, TypeVariable, TypeVariableKind,
+    Kind, Type, TypeBinding, TypeVariable,
 };
 
 use crate::{utils, LspState};
@@ -98,8 +97,8 @@ impl<'a> InlayHintCollector<'a> {
                     ReferenceId::StructMember(struct_id, field_index) => {
                         let struct_type = self.interner.get_struct(struct_id);
                         let struct_type = struct_type.borrow();
-                        let (_field_name, field_type) = struct_type.field_at(field_index);
-                        self.push_type_hint(lsp_location, field_type, false);
+                        let field = struct_type.field_at(field_index);
+                        self.push_type_hint(lsp_location, &field.typ, false);
                     }
                     ReferenceId::Module(_)
                     | ReferenceId::Struct(_)
@@ -460,31 +459,19 @@ fn push_type_parts(typ: &Type, parts: &mut Vec<InlayHintLabelPart>, files: &File
             parts.push(string_part("&mut "));
             push_type_parts(typ, parts, files);
         }
-        Type::TypeVariable(var, TypeVariableKind::Normal) => {
-            push_type_variable_parts(var, parts, files);
-        }
-        Type::TypeVariable(binding, TypeVariableKind::Integer) => {
-            if let TypeBinding::Unbound(_) = &*binding.borrow() {
-                push_type_parts(&Type::default_int_type(), parts, files);
+        Type::TypeVariable(binding) => {
+            if let TypeBinding::Unbound(_, kind) = &*binding.borrow() {
+                match kind {
+                    Kind::Any | Kind::Normal => push_type_variable_parts(binding, parts, files),
+                    Kind::Integer => push_type_parts(&Type::default_int_type(), parts, files),
+                    Kind::IntegerOrField => parts.push(string_part("Field")),
+                    Kind::Numeric(ref typ) => push_type_parts(typ, parts, files),
+                }
             } else {
                 push_type_variable_parts(binding, parts, files);
             }
         }
-        Type::TypeVariable(binding, TypeVariableKind::IntegerOrField) => {
-            if let TypeBinding::Unbound(_) = &*binding.borrow() {
-                parts.push(string_part("Field"));
-            } else {
-                push_type_variable_parts(binding, parts, files);
-            }
-        }
-        Type::TypeVariable(binding, TypeVariableKind::Constant(n)) => {
-            if let TypeBinding::Unbound(_) = &*binding.borrow() {
-                // TypeVariableKind::Constant(n) binds to Type::Constant(n) by default, so just show that.
-                parts.push(string_part(n.to_string()));
-            } else {
-                push_type_variable_parts(binding, parts, files);
-            }
-        }
+        Type::CheckedCast { to, .. } => push_type_parts(to, parts, files),
 
         Type::FieldElement
         | Type::Integer(..)
@@ -530,6 +517,7 @@ fn get_expression_name(expression: &Expression) -> Option<String> {
         ExpressionKind::Cast(cast) => get_expression_name(&cast.lhs),
         ExpressionKind::Parenthesized(expr) => get_expression_name(expr),
         ExpressionKind::AsTraitPath(path) => Some(path.impl_item.to_string()),
+        ExpressionKind::TypePath(path) => Some(path.item.to_string()),
         ExpressionKind::Constructor(..)
         | ExpressionKind::Infix(..)
         | ExpressionKind::Index(..)

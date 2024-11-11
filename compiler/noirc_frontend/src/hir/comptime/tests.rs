@@ -14,7 +14,7 @@ use crate::hir::def_collector::dc_crate::DefCollector;
 use crate::hir::def_collector::dc_mod::collect_defs;
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleData};
 use crate::hir::{Context, ParsedFiles};
-use crate::parser::parse_program;
+use crate::parse_program;
 
 fn interpret_helper(src: &str) -> Result<Value, InterpreterError> {
     let file = FileId::default();
@@ -28,7 +28,8 @@ fn interpret_helper(src: &str) -> Result<Value, InterpreterError> {
         location,
         Vec::new(),
         Vec::new(),
-        false,
+        false, // is contract
+        false, // is struct
     )));
     assert_eq!(root, module_id);
 
@@ -46,7 +47,7 @@ fn interpret_helper(src: &str) -> Result<Value, InterpreterError> {
     let def_map = CrateDefMap { root: module_id, modules, krate, extern_prelude: BTreeMap::new() };
     let mut collector = DefCollector::new(def_map);
 
-    collect_defs(&mut collector, ast, FileId::dummy(), module_id, krate, &mut context, &[]);
+    collect_defs(&mut collector, ast, FileId::dummy(), module_id, krate, &mut context);
     context.def_maps.insert(krate, collector.def_map);
 
     let main = context.get_main_function(&krate).expect("Expected 'main' function");
@@ -75,6 +76,23 @@ fn interpreter_works() {
     let program = "comptime fn main() -> pub Field { 3 }";
     let result = interpret(program);
     assert_eq!(result, Value::Field(3u128.into()));
+}
+
+#[test]
+fn interpreter_type_checking_works() {
+    let program = "comptime fn main() -> pub u8 { 3 }";
+    let result = interpret(program);
+    assert_eq!(result, Value::U8(3u8));
+}
+
+#[test]
+fn let_statement_works() {
+    let program = "comptime fn main() -> pub i8 {
+        let x = 4;
+        x
+    }";
+    let result = interpret(program);
+    assert_eq!(result, Value::I8(4));
 }
 
 #[test]
@@ -158,6 +176,19 @@ fn for_loop() {
     }";
     let result = interpret(program);
     assert_eq!(result, Value::U8(15));
+}
+
+#[test]
+fn for_loop_inclusive() {
+    let program = "comptime fn main() -> pub u8 {
+        let mut x = 0;
+        for i in 0 ..= 6 {
+            x += i;
+        }
+        x
+    }";
+    let result = interpret(program);
+    assert_eq!(result, Value::U8(21));
 }
 
 #[test]
@@ -263,5 +294,5 @@ fn generic_functions() {
     }
     ";
     let result = interpret(program);
-    assert!(matches!(result, Value::U8(2)));
+    assert_eq!(result, Value::U8(2));
 }

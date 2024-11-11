@@ -7,7 +7,11 @@ fn main() {
     assert_eq(15, sum_static(Data { a: 5, b: 10 }));
 }
 
-fn foo<T, U>(x: T, u: U) where T: MyInto<U>, U: Eq {
+fn foo<T, U>(x: T, u: U)
+where
+    T: MyInto<U>,
+    U: Eq,
+{
     assert(x.into() == u);
 }
 
@@ -15,7 +19,10 @@ trait MyInto<T> {
     fn into(self) -> T;
 }
 
-impl<T, U, let N: u32> MyInto<[U; N]> for [T; N] where T: MyInto<U> {
+impl<T, U, let N: u32> MyInto<[U; N]> for [T; N]
+where
+    T: MyInto<U>,
+{
     fn into(self) -> [U; N] {
         self.map(|x: T| x.into())
     }
@@ -44,13 +51,19 @@ impl Serializable<2> for Data {
     }
 }
 
-fn sum<T, M>(data: T) -> Field where T: Serializable<M> {
+fn sum<T, let M: u32>(data: T) -> Field
+where
+    T: Serializable<M>,
+{
     let serialized = data.serialize();
     serialized.fold(0, |acc, elem| acc + elem)
 }
 
 // Test static trait method syntax
-fn sum_static<T, M>(data: T) -> Field where T: Serializable<M> {
+fn sum_static<T, let M: u32>(data: T) -> Field
+where
+    T: Serializable<M>,
+{
     let serialized = Serializable::serialize(data);
     serialized.fold(0, |acc, elem| acc + elem)
 }

@@ -1,5 +1,5 @@
 // docs:start:from-trait
-trait From<T> {
+pub trait From<T> {
     fn from(input: T) -> Self;
 }
 // docs:end:from-trait
@@ -11,11 +11,14 @@ impl<T> From<T> for T {
 }
 
 // docs:start:into-trait
-trait Into<T> {
+pub trait Into<T> {
     fn into(self) -> T;
 }
 
-impl<T, U> Into<T> for U where T: From<U> {
+impl<T, U> Into<T> for U
+where
+    T: From<U>,
+{
     fn into(self) -> T {
         T::from(self)
     }

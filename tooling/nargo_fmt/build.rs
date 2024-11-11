@@ -12,7 +12,7 @@ fn main() {
     // is the root of the repository and append the crate path
     let manifest_dir = match std::env::var("CARGO_MANIFEST_DIR") {
         Ok(dir) => PathBuf::from(dir),
-        Err(_) => std::env::current_dir().unwrap().join("crates").join("nargo_cli"),
+        Err(_) => std::env::current_dir().unwrap().join("tooling").join("nargo_fmt"),
     };
     let test_dir = manifest_dir.join("tests");
 
@@ -49,13 +49,6 @@ fn generate_formatter_tests(test_file: &mut File, test_data_dir: &Path) {
         let output_source_path = outputs_dir.join(file_name).display().to_string();
         let output_source = std::fs::read_to_string(output_source_path.clone()).unwrap();
 
-        let skip_idempotent_test =
-            // TODO(https://github.com/noir-lang/noir/issues/4766): spurious trailing space
-            test_name == "array" ||
-            // TODO(https://github.com/noir-lang/noir/issues/4767): pre-comment space
-            // TODO(https://github.com/noir-lang/noir/issues/4768): spurious newline
-            test_name == "tuple";
-
         write!(
             test_file,
             r##"
@@ -80,10 +73,9 @@ fn generate_formatter_tests(test_file: &mut File, test_data_dir: &Path) {
         )
         .expect("Could not write templated test file.");
 
-        if !skip_idempotent_test {
-            write!(
-                test_file,
-                r##"
+        write!(
+            test_file,
+            r##"
         #[test]
         fn format_idempotent_{test_name}() {{
             let expected_output = r#"{output_source}"#;
@@ -96,8 +88,7 @@ fn generate_formatter_tests(test_file: &mut File, test_data_dir: &Path) {
             similar_asserts::assert_eq!(fmt_text, expected_output);
         }}
                 "##
-            )
-            .expect("Could not write templated test file.");
-        }
+        )
+        .expect("Could not write templated test file.");
     }
 }

@@ -1,12 +1,12 @@
 use std::field::modulus_num_bits;
 use std::meta::unquote;
 
+// Numeric generics default to u32
+global three_field: Field = 3;
+
 fn main() {
-    comptime
-    {
-        unsafe {
-            foo::<3>(5)
-        };
+    comptime {
+        unsafe { foo::<three_field>(5) };
         submodule::bar();
     }
 }

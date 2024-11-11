@@ -5,7 +5,7 @@ fn main(bn254_modulus_be_bytes: [u8; 32], bn254_modulus_be_bits: [u1; 254]) {
 
     assert_reverse(
         std::field::modulus_be_bytes(),
-        std::field::modulus_le_bytes()
+        std::field::modulus_le_bytes(),
     );
 
     let modulus_be_byte_array = std::field::modulus_be_bytes();

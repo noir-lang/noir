@@ -3,15 +3,15 @@ trait LibTrait<N> {
     fn get_constant() -> Field;
 }
 
-global STRUCT_A_LEN: Field = 3;
-global STRUCT_B_LEN: Field = 5;
+pub global STRUCT_A_LEN: u32 = 3;
+pub global STRUCT_B_LEN: u32 = 5;
 
-struct StructA;
-struct StructB;
+pub struct StructA;
+pub struct StructB;
 
 impl LibTrait<u32> for StructA {
     fn broadcast() {
-        Self::get_constant();
+        let _ = Self::get_constant();
     }
 
     fn get_constant() -> Field {
@@ -20,7 +20,7 @@ impl LibTrait<u32> for StructA {
 }
 impl LibTrait<u64> for StructB {
     fn broadcast() {
-        Self::get_constant();
+        let _ = Self::get_constant();
     }
 
     fn get_constant() -> Field {

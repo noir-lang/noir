@@ -26,6 +26,9 @@ pub struct ModuleData {
     /// True if this module is a `contract Foo { ... }` module containing contract functions
     pub is_contract: bool,
 
+    /// True if this module is actually a struct
+    pub is_struct: bool,
+
     pub attributes: Vec<SecondaryAttribute>,
 }
 
@@ -36,6 +39,7 @@ impl ModuleData {
         outer_attributes: Vec<SecondaryAttribute>,
         inner_attributes: Vec<SecondaryAttribute>,
         is_contract: bool,
+        is_struct: bool,
     ) -> ModuleData {
         let mut attributes = outer_attributes;
         attributes.extend(inner_attributes);
@@ -47,6 +51,7 @@ impl ModuleData {
             definitions: ItemScope::default(),
             location,
             is_contract,
+            is_struct,
             attributes,
         }
     }
@@ -96,32 +101,49 @@ impl ModuleData {
         self.definitions.remove_definition(name);
     }
 
-    pub fn declare_global(&mut self, name: Ident, id: GlobalId) -> Result<(), (Ident, Ident)> {
-        self.declare(name, ItemVisibility::Public, id.into(), None)
+    pub fn declare_global(
+        &mut self,
+        name: Ident,
+        visibility: ItemVisibility,
+        id: GlobalId,
+    ) -> Result<(), (Ident, Ident)> {
+        self.declare(name, visibility, id.into(), None)
     }
 
-    pub fn declare_struct(&mut self, name: Ident, id: StructId) -> Result<(), (Ident, Ident)> {
-        self.declare(name, ItemVisibility::Public, ModuleDefId::TypeId(id), None)
+    pub fn declare_struct(
+        &mut self,
+        name: Ident,
+        visibility: ItemVisibility,
+        id: StructId,
+    ) -> Result<(), (Ident, Ident)> {
+        self.declare(name, visibility, ModuleDefId::TypeId(id), None)
     }
 
     pub fn declare_type_alias(
         &mut self,
         name: Ident,
+        visibility: ItemVisibility,
         id: TypeAliasId,
     ) -> Result<(), (Ident, Ident)> {
-        self.declare(name, ItemVisibility::Public, id.into(), None)
+        self.declare(name, visibility, id.into(), None)
     }
 
-    pub fn declare_trait(&mut self, name: Ident, id: TraitId) -> Result<(), (Ident, Ident)> {
-        self.declare(name, ItemVisibility::Public, ModuleDefId::TraitId(id), None)
+    pub fn declare_trait(
+        &mut self,
+        name: Ident,
+        visibility: ItemVisibility,
+        id: TraitId,
+    ) -> Result<(), (Ident, Ident)> {
+        self.declare(name, visibility, ModuleDefId::TraitId(id), None)
     }
 
     pub fn declare_child_module(
         &mut self,
         name: Ident,
+        visibility: ItemVisibility,
         child_id: ModuleId,
     ) -> Result<(), (Ident, Ident)> {
-        self.declare(name, ItemVisibility::Public, child_id.into(), None)
+        self.declare(name, visibility, child_id.into(), None)
     }
 
     pub fn find_func_with_name(&self, name: &Ident) -> Option<FuncId> {

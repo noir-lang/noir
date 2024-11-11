@@ -1,319 +1,493 @@
-use super::{
-    attributes::{attributes, validate_attributes},
-    block, fresh_statement, ident, keyword, maybe_comp_time, nothing, parameter_name_recovery,
-    parameter_recovery, parenthesized, parse_type, pattern,
-    primitives::token_kind,
-    self_parameter,
-    visibility::{item_visibility, visibility},
-    where_clause, NoirParser,
+use crate::ast::{
+    BlockExpression, GenericTypeArgs, Ident, Path, Pattern, UnresolvedTraitConstraint,
+    UnresolvedType,
 };
-use crate::token::{Keyword, Token, TokenKind};
-use crate::{
-    ast::{BlockExpression, IntegerBitSize},
-    parser::spanned,
-};
+use crate::token::{Attribute, Attributes, Keyword, Token};
+use crate::{ast::UnresolvedGenerics, parser::labels::ParsingRuleLabel};
 use crate::{
     ast::{
-        FunctionDefinition, FunctionReturnType, ItemVisibility, NoirFunction, Param, Visibility,
+        FunctionDefinition, FunctionReturnType, ItemVisibility, NoirFunction, Param,
+        UnresolvedTypeData, Visibility,
     },
-    macros_api::UnresolvedTypeData,
-    parser::{ParserError, ParserErrorReason},
+    parser::ParserErrorReason,
 };
-use crate::{
-    ast::{Signedness, UnresolvedGeneric, UnresolvedGenerics},
-    parser::labels::ParsingRuleLabel,
-};
+use acvm::AcirField;
 
-use chumsky::prelude::*;
 use noirc_errors::Span;
 
-/// function_definition: attribute function_modifiers 'fn' ident generics '(' function_parameters ')' function_return_type block
-///                      function_modifiers 'fn' ident generics '(' function_parameters ')' function_return_type block
-pub(super) fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
-    let body_or_error =
-        spanned(block(fresh_statement()).or_not()).validate(|(body, body_span), span, emit| {
-            if let Some(body) = body {
-                (body, body_span)
-            } else {
-                emit(ParserError::with_reason(
-                    ParserErrorReason::ExpectedLeftBraceOrArrowAfterFunctionParameters,
-                    span,
-                ));
-                (BlockExpression { statements: vec![] }, Span::from(span.end()..span.end()))
-            }
-        });
+use super::parse_many::separated_by_comma_until_right_paren;
+use super::pattern::SelfPattern;
+use super::{pattern::PatternOrSelf, Parser};
 
-    attributes()
-        .then(function_modifiers())
-        .then_ignore(keyword(Keyword::Fn))
-        .then(ident())
-        .then(generics())
-        .then(
-            parenthesized(function_parameters(allow_self))
-                .then(function_return_type())
-                .then(where_clause())
-                .then(body_or_error)
-                // Allow parsing just `fn foo` for recovery and LSP autocompletion
-                .or_not(),
+pub(crate) struct FunctionDefinitionWithOptionalBody {
+    pub(crate) name: Ident,
+    pub(crate) generics: UnresolvedGenerics,
+    pub(crate) parameters: Vec<Param>,
+    pub(crate) body: Option<BlockExpression>,
+    pub(crate) span: Span,
+    pub(crate) where_clause: Vec<UnresolvedTraitConstraint>,
+    pub(crate) return_type: FunctionReturnType,
+    pub(crate) return_visibility: Visibility,
+}
+
+impl<'a> Parser<'a> {
+    /// Function = 'fn' identifier Generics FunctionParameters ( '->' Visibility Type )? WhereClause ( Block | ';' )
+    pub(crate) fn parse_function(
+        &mut self,
+        attributes: Vec<(Attribute, Span)>,
+        visibility: ItemVisibility,
+        is_comptime: bool,
+        is_unconstrained: bool,
+        allow_self: bool,
+    ) -> NoirFunction {
+        self.parse_function_definition(
+            attributes,
+            visibility,
+            is_comptime,
+            is_unconstrained,
+            allow_self,
         )
-        .validate(|args, span, emit| {
-            let (
-                (((attributes, (is_unconstrained, visibility, is_comptime)), name), generics),
-                params_and_others,
-            ) = args;
+        .into()
+    }
 
-            // Validate collected attributes, filtering them into function and secondary variants
-            let attributes = validate_attributes(attributes, span, emit);
+    pub(crate) fn parse_function_definition(
+        &mut self,
+        attributes: Vec<(Attribute, Span)>,
+        visibility: ItemVisibility,
+        is_comptime: bool,
+        is_unconstrained: bool,
+        allow_self: bool,
+    ) -> FunctionDefinition {
+        let attributes = self.validate_attributes(attributes);
 
-            let function_definition = if let Some(params_and_others) = params_and_others {
-                let (
-                    ((parameters, (return_visibility, return_type)), where_clause),
-                    (body, body_span),
-                ) = params_and_others;
+        let func = self.parse_function_definition_with_optional_body(
+            false, // allow optional body
+            allow_self,
+        );
 
-                FunctionDefinition {
-                    span: body_span,
-                    name,
-                    attributes,
-                    is_unconstrained,
-                    visibility,
-                    is_comptime,
-                    generics,
-                    parameters,
-                    body,
-                    where_clause,
-                    return_type,
-                    return_visibility,
-                }
+        FunctionDefinition {
+            name: func.name,
+            attributes,
+            is_unconstrained,
+            is_comptime,
+            visibility,
+            generics: func.generics,
+            parameters: func.parameters,
+            body: func.body.unwrap_or_else(empty_body),
+            span: func.span,
+            where_clause: func.where_clause,
+            return_type: func.return_type,
+            return_visibility: func.return_visibility,
+        }
+    }
+
+    pub(super) fn parse_function_definition_with_optional_body(
+        &mut self,
+        allow_optional_body: bool,
+        allow_self: bool,
+    ) -> FunctionDefinitionWithOptionalBody {
+        let Some(name) = self.eat_ident() else {
+            self.expected_identifier();
+            return empty_function(self.previous_token_span);
+        };
+
+        let generics = self.parse_generics();
+        let parameters = self.parse_function_parameters(allow_self);
+
+        let (return_type, return_visibility) = if self.eat(Token::Arrow) {
+            let visibility = self.parse_visibility();
+            (FunctionReturnType::Ty(self.parse_type_or_error()), visibility)
+        } else {
+            (FunctionReturnType::Default(self.span_at_previous_token_end()), Visibility::Private)
+        };
+
+        let where_clause = self.parse_where_clause();
+
+        let body_start_span = self.current_token_span;
+        let body = if self.eat_semicolons() {
+            if !allow_optional_body {
+                self.push_error(ParserErrorReason::ExpectedFunctionBody, body_start_span);
+            }
+
+            None
+        } else {
+            Some(self.parse_block().unwrap_or_else(empty_body))
+        };
+
+        FunctionDefinitionWithOptionalBody {
+            name,
+            generics,
+            parameters,
+            body,
+            span: self.span_since(body_start_span),
+            where_clause,
+            return_type,
+            return_visibility,
+        }
+    }
+
+    /// FunctionParameters = '(' FunctionParametersList? ')'
+    ///
+    /// FunctionParametersList = FunctionParameter ( ',' FunctionParameter )* ','?
+    ///
+    /// FunctionParameter = Visibility PatternOrSelf ':' Type
+    fn parse_function_parameters(&mut self, allow_self: bool) -> Vec<Param> {
+        if !self.eat_left_paren() {
+            return Vec::new();
+        }
+
+        self.parse_many("parameters", separated_by_comma_until_right_paren(), |parser| {
+            parser.parse_function_parameter(allow_self)
+        })
+    }
+
+    fn parse_function_parameter(&mut self, allow_self: bool) -> Option<Param> {
+        loop {
+            let start_span = self.current_token_span;
+
+            let pattern_or_self = if allow_self {
+                self.parse_pattern_or_self()
             } else {
-                emit(ParserError::with_reason(
-                    ParserErrorReason::ExpectedLeftParenOrLeftBracketAfterFunctionName,
-                    span,
-                ));
+                self.parse_pattern().map(PatternOrSelf::Pattern)
+            };
 
-                let empty_span = Span::from(span.end()..span.end());
-                FunctionDefinition {
-                    span: empty_span,
-                    name,
-                    attributes,
-                    is_unconstrained,
-                    visibility,
-                    is_comptime,
-                    generics,
-                    parameters: Vec::new(),
-                    body: BlockExpression { statements: vec![] },
-                    where_clause: Vec::new(),
-                    return_type: FunctionReturnType::Default(empty_span),
-                    return_visibility: Visibility::Private,
+            let Some(pattern_or_self) = pattern_or_self else {
+                self.expected_label(ParsingRuleLabel::Pattern);
+
+                // Let's try with the next token
+                self.bump();
+                if self.at_eof() {
+                    return None;
+                } else {
+                    continue;
                 }
             };
-            function_definition.into()
-        })
-}
 
-/// function_modifiers: 'unconstrained'? (visibility)?
-///
-/// returns (is_unconstrained, visibility) for whether each keyword was present
-pub(super) fn function_modifiers() -> impl NoirParser<(bool, ItemVisibility, bool)> {
-    keyword(Keyword::Unconstrained).or_not().then(item_visibility()).then(maybe_comp_time()).map(
-        |((unconstrained, visibility), comptime)| (unconstrained.is_some(), visibility, comptime),
-    )
-}
+            return Some(match pattern_or_self {
+                PatternOrSelf::Pattern(pattern) => self.pattern_param(pattern, start_span),
+                PatternOrSelf::SelfPattern(self_pattern) => self.self_pattern_param(self_pattern),
+            });
+        }
+    }
 
-pub(super) fn numeric_generic() -> impl NoirParser<UnresolvedGeneric> {
-    keyword(Keyword::Let)
-        .ignore_then(ident())
-        .then_ignore(just(Token::Colon))
-        .then(parse_type())
-        .map(|(ident, typ)| UnresolvedGeneric::Numeric { ident, typ })
-        .validate(|generic, span, emit| {
-            if let UnresolvedGeneric::Numeric { typ, .. } = &generic {
-                if let UnresolvedTypeData::Integer(signedness, bit_size) = typ.typ {
-                    if matches!(signedness, Signedness::Signed)
-                        || matches!(bit_size, IntegerBitSize::SixtyFour)
-                    {
-                        emit(ParserError::with_reason(
-                            ParserErrorReason::ForbiddenNumericGenericType,
-                            span,
-                        ));
+    fn pattern_param(&mut self, pattern: Pattern, start_span: Span) -> Param {
+        let (visibility, typ) = if !self.eat_colon() {
+            self.push_error(
+                ParserErrorReason::MissingTypeForFunctionParameter,
+                Span::from(pattern.span().start()..self.current_token_span.end()),
+            );
+
+            let visibility = Visibility::Private;
+            let typ = UnresolvedType { typ: UnresolvedTypeData::Error, span: Span::default() };
+            (visibility, typ)
+        } else {
+            (self.parse_visibility(), self.parse_type_or_error())
+        };
+
+        Param { visibility, pattern, typ, span: self.span_since(start_span) }
+    }
+
+    fn self_pattern_param(&mut self, self_pattern: SelfPattern) -> Param {
+        let ident_span = self.previous_token_span;
+        let ident = Ident::new("self".to_string(), ident_span);
+        let path = Path::from_single("Self".to_owned(), ident_span);
+        let no_args = GenericTypeArgs::default();
+        let mut self_type = UnresolvedTypeData::Named(path, no_args, true).with_span(ident_span);
+        let mut pattern = Pattern::Identifier(ident);
+
+        if self_pattern.reference {
+            self_type =
+                UnresolvedTypeData::MutableReference(Box::new(self_type)).with_span(ident_span);
+        } else if self_pattern.mutable {
+            pattern = Pattern::Mutable(Box::new(pattern), ident_span, true);
+        }
+
+        Param {
+            visibility: Visibility::Private,
+            pattern,
+            typ: self_type,
+            span: self.span_since(ident_span),
+        }
+    }
+
+    /// Visibility
+    ///     = 'pub'
+    ///     | 'return_data'
+    ///     | 'call_data' '(' int ')'
+    ///     | nothing
+    fn parse_visibility(&mut self) -> Visibility {
+        if self.eat_keyword(Keyword::Pub) {
+            return Visibility::Public;
+        }
+
+        if self.eat_keyword(Keyword::ReturnData) {
+            return Visibility::ReturnData;
+        }
+
+        if self.eat_keyword(Keyword::CallData) {
+            if self.eat_left_paren() {
+                if let Some(int) = self.eat_int() {
+                    self.eat_or_error(Token::RightParen);
+
+                    let id = int.to_u128() as u32;
+                    return Visibility::CallData(id);
+                } else {
+                    self.expected_label(ParsingRuleLabel::Integer);
+                    self.eat_right_paren();
+                    return Visibility::CallData(0);
+                }
+            } else {
+                self.expected_token(Token::LeftParen);
+                return Visibility::CallData(0);
+            }
+        }
+
+        Visibility::Private
+    }
+
+    fn validate_attributes(&mut self, attributes: Vec<(Attribute, Span)>) -> Attributes {
+        let mut function = None;
+        let mut secondary = Vec::new();
+
+        for (index, (attribute, span)) in attributes.into_iter().enumerate() {
+            match attribute {
+                Attribute::Function(attr) => {
+                    if function.is_none() {
+                        function = Some((attr, index));
+                    } else {
+                        self.push_error(ParserErrorReason::MultipleFunctionAttributesFound, span);
                     }
                 }
+                Attribute::Secondary(attr) => secondary.push(attr),
             }
-            generic
-        })
+        }
+
+        Attributes { function, secondary }
+    }
 }
 
-pub(super) fn generic_type() -> impl NoirParser<UnresolvedGeneric> {
-    ident().map(UnresolvedGeneric::Variable)
+fn empty_function(span: Span) -> FunctionDefinitionWithOptionalBody {
+    FunctionDefinitionWithOptionalBody {
+        name: Ident::default(),
+        generics: Vec::new(),
+        parameters: Vec::new(),
+        body: None,
+        span: Span::from(span.end()..span.end()),
+        where_clause: Vec::new(),
+        return_type: FunctionReturnType::Default(Span::default()),
+        return_visibility: Visibility::Private,
+    }
 }
 
-pub(super) fn resolved_generic() -> impl NoirParser<UnresolvedGeneric> {
-    token_kind(TokenKind::QuotedType).map_with_span(|token, span| match token {
-        Token::QuotedType(id) => UnresolvedGeneric::Resolved(id, span),
-        _ => unreachable!("token_kind(QuotedType) guarantees we parse a quoted type"),
-    })
-}
-
-pub(super) fn generic() -> impl NoirParser<UnresolvedGeneric> {
-    generic_type().or(numeric_generic()).or(resolved_generic())
-}
-
-/// non_empty_ident_list: ident ',' non_empty_ident_list
-///                     | ident
-///
-/// generics: '<' non_empty_ident_list '>'
-///         | %empty
-pub(super) fn generics() -> impl NoirParser<UnresolvedGenerics> {
-    generic()
-        .separated_by(just(Token::Comma))
-        .allow_trailing()
-        .delimited_by(just(Token::Less), just(Token::Greater))
-        .or_not()
-        .map(|opt| opt.unwrap_or_default())
-}
-
-pub(super) fn function_return_type() -> impl NoirParser<(Visibility, FunctionReturnType)> {
-    #[allow(deprecated)]
-    just(Token::Arrow).ignore_then(visibility()).then(spanned(parse_type())).or_not().map_with_span(
-        |ret, span| match ret {
-            Some((visibility, (ty, _))) => (visibility, FunctionReturnType::Ty(ty)),
-            None => (Visibility::Private, FunctionReturnType::Default(span)),
-        },
-    )
-}
-
-fn function_parameters<'a>(allow_self: bool) -> impl NoirParser<Vec<Param>> + 'a {
-    let typ = parse_type().recover_via(parameter_recovery());
-
-    let full_parameter = pattern()
-        .recover_via(parameter_name_recovery())
-        .then_ignore(just(Token::Colon))
-        .then(visibility())
-        .then(typ)
-        .map_with_span(|((pattern, visibility), typ), span| Param {
-            visibility,
-            pattern,
-            typ,
-            span,
-        });
-
-    let self_parameter = if allow_self { self_parameter().boxed() } else { nothing().boxed() };
-
-    let parameter = full_parameter.or(self_parameter);
-
-    parameter
-        .separated_by(just(Token::Comma))
-        .allow_trailing()
-        .labelled(ParsingRuleLabel::Parameter)
+fn empty_body() -> BlockExpression {
+    BlockExpression { statements: Vec::new() }
 }
 
 #[cfg(test)]
-mod test {
-    use super::*;
-    use crate::parser::parser::test_helpers::*;
+mod tests {
+    use crate::{
+        ast::{ItemVisibility, NoirFunction, UnresolvedTypeData, Visibility},
+        parser::{
+            parser::{
+                parse_program,
+                tests::{
+                    expect_no_errors, get_single_error, get_single_error_reason,
+                    get_source_with_error_span,
+                },
+            },
+            ItemKind, ParserErrorReason,
+        },
+    };
 
-    #[test]
-    fn regression_skip_comment() {
-        parse_all(
-            function_definition(false),
-            vec![
-                "fn main(
-                // This comment should be skipped
-                x : Field,
-                // And this one
-                y : Field,
-            ) {
-            }",
-                "fn main(x : Field, y : Field,) {
-                foo::bar(
-                    // Comment for x argument
-                    x,
-                    // Comment for y argument
-                    y
-                )
-            }",
-            ],
-        );
+    fn parse_function_no_error(src: &str) -> NoirFunction {
+        let (mut module, errors) = parse_program(src);
+        expect_no_errors(&errors);
+        assert_eq!(module.items.len(), 1);
+        let item = module.items.remove(0);
+        let ItemKind::Function(noir_function) = item.kind else {
+            panic!("Expected function");
+        };
+        noir_function
     }
 
     #[test]
-    fn parse_function() {
-        parse_all(
-            function_definition(false),
-            vec![
-                "fn func_name() {}",
-                "fn f(foo: pub u8, y : pub Field) -> u8 { x + a }",
-                "fn f(f: pub Field, y : Field, z : Field) -> u8 { x + a }",
-                "fn func_name(f: Field, y : pub Field, z : pub [u8;5],) {}",
-                "fn f(f: pub Field, y : Field, z : Field) -> u8 { x + a }",
-                "fn f<T>(f: pub Field, y : T, z : Field) -> u8 { x + a }",
-                "fn func_name(x: [Field], y : [Field;2],y : pub [Field;2], z : pub [u8;5])  {}",
-                "fn main(x: pub u8, y: pub u8) -> pub [u8; 2] { [x, y] }",
-                "fn f(f: pub Field, y : Field, z : Field) -> u8 { x + a }",
-                "fn f<T>(f: pub Field, y : T, z : Field) -> u8 { x + a }",
-                "fn func_name<T>(f: Field, y : T) where T: SomeTrait {}",
-                "fn func_name<T>(f: Field, y : T) where T: SomeTrait + SomeTrait2 {}",
-                "fn func_name<T>(f: Field, y : T) where T: SomeTrait, T: SomeTrait2 {}",
-                "fn func_name<T>(f: Field, y : T) where T: SomeTrait<A> + SomeTrait2 {}",
-                "fn func_name<T>(f: Field, y : T) where T: SomeTrait<A, B> + SomeTrait2 {}",
-                "fn func_name<T>(f: Field, y : T) where T: SomeTrait<A, B> + SomeTrait2<C> {}",
-                "fn func_name<T>(f: Field, y : T) where T: SomeTrait + SomeTrait2<C> {}",
-                "fn func_name<T>(f: Field, y : T) where T: SomeTrait + SomeTrait2<C> + TraitY {}",
-                "fn func_name<T>(f: Field, y : T, z : U) where SomeStruct<T>: SomeTrait<U> {}",
-                // 'where u32: SomeTrait' is allowed in Rust.
-                // It will result in compiler error in case SomeTrait isn't implemented for u32.
-                "fn func_name<T>(f: Field, y : T) where u32: SomeTrait {}",
-                // A trailing plus is allowed by Rust, so we support it as well.
-                "fn func_name<T>(f: Field, y : T) where T: SomeTrait + {}",
-                // The following should produce compile error on later stage. From the parser's perspective it's fine
-                "fn func_name<A>(f: Field, y : Field, z : Field) where T: SomeTrait {}",
-                // TODO: this fails with known EOF != EOF error
-                // https://github.com/noir-lang/noir/issues/4763
-                // fn func_name(x: impl Eq) {} with error Expected an end of input but found end of input
-                // "fn func_name(x: impl Eq) {}",
-                "fn func_name<T>(x: impl Eq, y : T) where T: SomeTrait + Eq {}",
-                "fn func_name<let N: u32>(x: [Field; N]) {}",
-            ],
-        );
-
-        parse_all_failing(
-            function_definition(false),
-            vec![
-                "fn x2( f: []Field,,) {}",
-                "fn ( f: []Field) {}",
-                "fn ( f: []Field) {}",
-                // TODO: Check for more specific error messages
-                "fn func_name<T>(f: Field, y : pub Field, z : pub [u8;5],) where T: {}",
-                "fn func_name<T>(f: Field, y : pub Field, z : pub [u8;5],) where SomeTrait {}",
-                "fn func_name<T>(f: Field, y : pub Field, z : pub [u8;5],) SomeTrait {}",
-                // A leading plus is not allowed.
-                "fn func_name<T>(f: Field, y : T) where T: + SomeTrait {}",
-                "fn func_name<T>(f: Field, y : T) where T: TraitX + <Y> {}",
-                // Test ill-formed numeric generics
-                "fn func_name<let T>(y: T) {}",
-                "fn func_name<let T:>(y: T) {}",
-                "fn func_name<T:>(y: T) {}",
-                // Test failure of missing `let`
-                "fn func_name<T: u32>(y: T) {}",
-                // Test that signed numeric generics are banned
-                "fn func_name<let N: i8>() {}",
-                // Test that `u64` is banned
-                "fn func_name<let N: u64>(x: [Field; N]) {}",
-            ],
-        );
+    fn parse_simple_function() {
+        let src = "fn foo() {}";
+        let noir_function = parse_function_no_error(src);
+        assert_eq!("foo", noir_function.def.name.to_string());
+        assert!(noir_function.def.parameters.is_empty());
+        assert!(noir_function.def.generics.is_empty());
     }
 
     #[test]
-    fn parse_recover_function_without_body() {
-        let src = "fn foo(x: i32)";
+    fn parse_function_with_generics() {
+        let src = "fn foo<A>() {}";
+        let noir_function = parse_function_no_error(src);
+        assert_eq!(noir_function.def.generics.len(), 1);
+    }
 
-        let (noir_function, errors) = parse_recover(function_definition(false), src);
+    #[test]
+    fn parse_function_with_arguments() {
+        let src = "fn foo(x: Field, y: Field) {}";
+        let mut noir_function = parse_function_no_error(src);
+        assert_eq!(noir_function.def.parameters.len(), 2);
+
+        let param = noir_function.def.parameters.remove(0);
+        assert_eq!("x", param.pattern.to_string());
+        assert_eq!("Field", param.typ.to_string());
+        assert_eq!(param.visibility, Visibility::Private);
+
+        let param = noir_function.def.parameters.remove(0);
+        assert_eq!("y", param.pattern.to_string());
+        assert_eq!("Field", param.typ.to_string());
+        assert_eq!(param.visibility, Visibility::Private);
+    }
+
+    #[test]
+    fn parse_function_with_argument_pub_visibility() {
+        let src = "fn foo(x: pub Field) {}";
+        let mut noir_function = parse_function_no_error(src);
+        assert_eq!(noir_function.def.parameters.len(), 1);
+
+        let param = noir_function.def.parameters.remove(0);
+        assert_eq!("x", param.pattern.to_string());
+        assert_eq!("Field", param.typ.to_string());
+        assert_eq!(param.visibility, Visibility::Public);
+    }
+
+    #[test]
+    fn parse_function_with_argument_return_data_visibility() {
+        let src = "fn foo(x: return_data Field) {}";
+        let mut noir_function = parse_function_no_error(src);
+        assert_eq!(noir_function.def.parameters.len(), 1);
+
+        let param = noir_function.def.parameters.remove(0);
+        assert_eq!(param.visibility, Visibility::ReturnData);
+    }
+
+    #[test]
+    fn parse_function_with_argument_call_data_visibility() {
+        let src = "fn foo(x: call_data(42) Field) {}";
+        let mut noir_function = parse_function_no_error(src);
+        assert_eq!(noir_function.def.parameters.len(), 1);
+
+        let param = noir_function.def.parameters.remove(0);
+        assert_eq!(param.visibility, Visibility::CallData(42));
+    }
+
+    #[test]
+    fn parse_function_return_type() {
+        let src = "fn foo() -> Field {}";
+        let noir_function = parse_function_no_error(src);
+        assert_eq!(noir_function.def.return_visibility, Visibility::Private);
+        assert_eq!(noir_function.return_type().typ, UnresolvedTypeData::FieldElement);
+    }
+
+    #[test]
+    fn parse_function_return_visibility() {
+        let src = "fn foo() -> pub Field {}";
+        let noir_function = parse_function_no_error(src);
+        assert_eq!(noir_function.def.return_visibility, Visibility::Public);
+        assert_eq!(noir_function.return_type().typ, UnresolvedTypeData::FieldElement);
+    }
+
+    #[test]
+    fn parse_function_unclosed_parentheses() {
+        let src = "fn foo(x: i32,";
+        let (module, errors) = parse_program(src);
         assert_eq!(errors.len(), 1);
-        assert_eq!(errors[0].message, "expected { or -> after function parameters");
+        assert_eq!(module.items.len(), 1);
+        let item = &module.items[0];
+        let ItemKind::Function(noir_function) = &item.kind else {
+            panic!("Expected function");
+        };
+        assert_eq!("foo", noir_function.def.name.to_string());
+    }
 
-        let noir_function = noir_function.unwrap();
-        assert_eq!(noir_function.name(), "foo");
+    #[test]
+    fn parse_error_multiple_function_attributes_found() {
+        let src = "
+        #[foreign(foo)] #[oracle(bar)] fn foo() {}
+                        ^^^^^^^^^^^^^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let (_, errors) = parse_program(&src);
+        let reason = get_single_error_reason(&errors, span);
+        assert!(matches!(reason, ParserErrorReason::MultipleFunctionAttributesFound));
+    }
+
+    #[test]
+    fn parse_function_found_semicolon_instead_of_braces() {
+        let src = "
+        fn foo();
+                ^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let (_, errors) = parse_program(&src);
+        let reason = get_single_error_reason(&errors, span);
+        assert!(matches!(reason, ParserErrorReason::ExpectedFunctionBody));
+    }
+
+    #[test]
+    fn recovers_on_wrong_parameter_name() {
+        let src = "
+        fn foo(1 x: i32) {}
+               ^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let (module, errors) = parse_program(&src);
+        assert_eq!(module.items.len(), 1);
+        let ItemKind::Function(noir_function) = &module.items[0].kind else {
+            panic!("Expected function");
+        };
         assert_eq!(noir_function.parameters().len(), 1);
-        assert!(noir_function.def.body.statements.is_empty());
+
+        let error = get_single_error(&errors, span);
+        assert_eq!(error.to_string(), "Expected a pattern but found '1'");
+    }
+
+    #[test]
+    fn recovers_on_missing_colon_after_parameter_name() {
+        let src = "
+        fn foo(x, y: i32) {}
+               ^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let (module, errors) = parse_program(&src);
+        assert_eq!(module.items.len(), 1);
+        let ItemKind::Function(noir_function) = &module.items[0].kind else {
+            panic!("Expected function");
+        };
+        assert_eq!(noir_function.parameters().len(), 2);
+
+        let error = get_single_error(&errors, span);
+        assert!(error.to_string().contains("Missing type for function parameter"));
+    }
+
+    #[test]
+    fn recovers_on_missing_type_after_parameter_colon() {
+        let src = "
+        fn foo(x: , y: i32) {}
+                  ^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let (module, errors) = parse_program(&src);
+        assert_eq!(module.items.len(), 1);
+        let ItemKind::Function(noir_function) = &module.items[0].kind else {
+            panic!("Expected function");
+        };
+        assert_eq!(noir_function.parameters().len(), 2);
+
+        let error = get_single_error(&errors, span);
+        assert_eq!(error.to_string(), "Expected a type but found ','");
+    }
+
+    #[test]
+    fn parse_function_with_unconstrained_after_visibility() {
+        let src = "pub unconstrained fn foo() {}";
+        let noir_function = parse_function_no_error(src);
+        assert_eq!("foo", noir_function.def.name.to_string());
+        assert!(noir_function.def.is_unconstrained);
+        assert_eq!(noir_function.def.visibility, ItemVisibility::Public);
     }
 }

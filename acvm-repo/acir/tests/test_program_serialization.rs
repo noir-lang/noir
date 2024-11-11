@@ -91,10 +91,10 @@ fn multi_scalar_mul_circuit() {
     let bytes = Program::serialize_program(&program);
 
     let expected_serialization: Vec<u8> = vec![
-        31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 93, 141, 11, 10, 0, 32, 8, 67, 43, 181, 15, 116, 255,
-        227, 70, 74, 11, 86, 194, 195, 169, 83, 115, 58, 49, 156, 12, 29, 121, 58, 66, 117, 176,
-        144, 11, 105, 161, 222, 245, 42, 205, 13, 186, 58, 205, 233, 240, 25, 249, 11, 238, 40,
-        245, 19, 253, 255, 119, 159, 216, 103, 157, 249, 169, 193, 0, 0, 0,
+        31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 93, 77, 9, 14, 0, 32, 8, 202, 171, 227, 255, 255, 109,
+        217, 162, 141, 114, 99, 2, 162, 74, 57, 53, 18, 2, 46, 208, 70, 122, 99, 162, 43, 113, 35,
+        239, 102, 157, 230, 1, 94, 19, 45, 209, 145, 11, 202, 43, 238, 56, 249, 133, 254, 255, 187,
+        79, 45, 204, 84, 220, 246, 193, 0, 0, 0,
     ];
 
     assert_eq!(bytes, expected_serialization)
@@ -134,24 +134,24 @@ fn schnorr_verify_circuit() {
     let bytes = Program::serialize_program(&program);
 
     let expected_serialization: Vec<u8> = vec![
-        31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 85, 211, 103, 78, 2, 81, 24, 70, 225, 193, 6, 216, 123,
-        47, 216, 123, 239, 136, 136, 136, 136, 136, 187, 96, 255, 75, 32, 112, 194, 55, 201, 129,
-        100, 50, 79, 244, 7, 228, 222, 243, 102, 146, 254, 167, 221, 123, 50, 97, 222, 217, 120,
-        243, 116, 226, 61, 36, 15, 247, 158, 92, 120, 68, 30, 149, 199, 228, 172, 156, 147, 243,
-        242, 184, 60, 33, 79, 202, 83, 242, 180, 60, 35, 207, 202, 115, 242, 188, 188, 32, 47, 202,
-        75, 242, 178, 188, 34, 175, 202, 107, 242, 186, 188, 33, 111, 202, 91, 242, 182, 188, 35,
-        23, 228, 93, 121, 79, 222, 151, 15, 228, 67, 249, 72, 62, 150, 79, 228, 83, 249, 76, 62,
-        151, 47, 228, 75, 249, 74, 190, 150, 111, 228, 91, 249, 78, 190, 151, 31, 228, 71, 249, 73,
-        126, 150, 95, 228, 87, 185, 40, 191, 201, 37, 249, 93, 46, 203, 31, 114, 69, 254, 148, 171,
-        97, 58, 77, 226, 111, 95, 250, 127, 77, 254, 150, 235, 242, 143, 220, 144, 127, 229, 166,
-        252, 39, 183, 194, 255, 241, 253, 45, 253, 14, 182, 201, 38, 217, 34, 27, 100, 123, 233,
-        230, 242, 241, 155, 217, 20, 91, 98, 67, 108, 135, 205, 176, 21, 54, 194, 54, 216, 4, 91,
-        96, 3, 180, 79, 243, 180, 78, 227, 180, 77, 211, 180, 76, 195, 180, 75, 179, 133, 164, 223,
-        40, 109, 210, 36, 45, 210, 32, 237, 209, 28, 173, 209, 24, 109, 209, 20, 45, 209, 16, 237,
-        208, 12, 173, 208, 8, 109, 208, 4, 45, 208, 0, 119, 207, 157, 115, 215, 220, 113, 49, 238,
-        180, 20, 119, 88, 142, 59, 171, 196, 29, 85, 227, 46, 106, 113, 246, 245, 56, 235, 70, 156,
-        109, 51, 206, 50, 61, 179, 244, 220, 18, 157, 231, 192, 167, 11, 75, 28, 99, 152, 25, 5, 0,
-        0,
+        31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 85, 211, 103, 78, 2, 81, 24, 70, 225, 193, 130, 96, 239,
+        189, 96, 239, 189, 35, 34, 34, 34, 34, 238, 130, 253, 47, 129, 192, 9, 223, 36, 7, 146,
+        201, 60, 209, 31, 144, 123, 207, 155, 73, 250, 159, 118, 239, 201, 132, 121, 103, 227, 205,
+        211, 137, 247, 144, 60, 220, 123, 114, 225, 17, 121, 84, 206, 202, 99, 114, 78, 206, 203,
+        227, 242, 132, 60, 41, 79, 201, 211, 242, 140, 60, 43, 207, 201, 243, 242, 130, 188, 40,
+        47, 201, 203, 242, 138, 188, 42, 175, 201, 235, 242, 134, 188, 41, 111, 201, 219, 242, 142,
+        92, 144, 119, 229, 61, 121, 95, 62, 144, 15, 229, 35, 249, 88, 62, 145, 79, 229, 51, 249,
+        92, 190, 144, 47, 229, 43, 249, 90, 190, 145, 111, 229, 59, 249, 94, 126, 144, 31, 229, 39,
+        249, 89, 126, 145, 95, 229, 162, 252, 38, 151, 228, 119, 185, 44, 127, 200, 21, 249, 83,
+        174, 134, 233, 52, 137, 191, 125, 233, 255, 53, 249, 91, 174, 203, 63, 114, 67, 254, 149,
+        155, 242, 159, 220, 10, 255, 199, 247, 183, 244, 59, 216, 38, 155, 100, 139, 108, 144, 237,
+        165, 155, 203, 199, 111, 102, 83, 108, 137, 13, 177, 29, 54, 195, 86, 216, 8, 219, 96, 19,
+        108, 129, 13, 208, 62, 205, 211, 58, 141, 211, 54, 77, 211, 50, 13, 211, 46, 205, 22, 146,
+        126, 163, 180, 73, 147, 180, 72, 131, 180, 71, 115, 180, 70, 99, 180, 69, 83, 180, 68, 67,
+        180, 67, 51, 180, 66, 35, 180, 65, 19, 180, 64, 3, 220, 61, 119, 206, 93, 115, 199, 197,
+        184, 211, 82, 220, 97, 57, 238, 172, 18, 119, 84, 141, 187, 168, 197, 217, 215, 227, 172,
+        27, 113, 182, 205, 56, 203, 244, 204, 210, 115, 75, 116, 158, 3, 159, 46, 43, 32, 188, 53,
+        25, 5, 0, 0,
     ];
 
     assert_eq!(bytes, expected_serialization)
@@ -165,25 +165,25 @@ fn simple_brillig_foreign_call() {
     let brillig_bytecode = BrilligBytecode {
         bytecode: vec![
             brillig::Opcode::Const {
-                destination: MemoryAddress(0),
+                destination: MemoryAddress::direct(0),
                 bit_size: BitSize::Integer(IntegerBitSize::U32),
                 value: FieldElement::from(1_usize),
             },
             brillig::Opcode::Const {
-                destination: MemoryAddress(1),
+                destination: MemoryAddress::direct(1),
                 bit_size: BitSize::Integer(IntegerBitSize::U32),
                 value: FieldElement::from(0_usize),
             },
             brillig::Opcode::CalldataCopy {
-                destination_address: MemoryAddress(0),
-                size_address: MemoryAddress(0),
-                offset_address: MemoryAddress(1),
+                destination_address: MemoryAddress::direct(0),
+                size_address: MemoryAddress::direct(0),
+                offset_address: MemoryAddress::direct(1),
             },
             brillig::Opcode::ForeignCall {
                 function: "invert".into(),
-                destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(0))],
+                destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::direct(0))],
                 destination_value_types: vec![HeapValueType::field()],
-                inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(0))],
+                inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::direct(0))],
                 input_value_types: vec![HeapValueType::field()],
             },
             brillig::Opcode::Stop { return_data_offset: 0, return_data_size: 1 },
@@ -214,12 +214,12 @@ fn simple_brillig_foreign_call() {
     let bytes = Program::serialize_program(&program);
 
     let expected_serialization: Vec<u8> = vec![
-        31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 173, 81, 73, 10, 192, 48, 8, 140, 165, 91, 160, 183,
-        126, 196, 254, 160, 159, 233, 161, 151, 30, 74, 200, 251, 19, 136, 130, 132, 196, 75, 28,
-        16, 199, 17, 212, 65, 112, 5, 123, 14, 32, 190, 80, 230, 90, 130, 181, 155, 50, 142, 225,
-        2, 187, 89, 40, 239, 157, 106, 2, 82, 116, 138, 51, 118, 239, 171, 222, 108, 232, 218, 139,
-        125, 198, 179, 113, 83, 188, 29, 57, 86, 226, 239, 23, 159, 63, 104, 63, 238, 213, 45, 237,
-        108, 244, 18, 195, 174, 252, 193, 92, 2, 0, 0,
+        31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 173, 79, 73, 10, 128, 48, 12, 204, 40, 46, 5, 111, 126,
+        36, 254, 192, 207, 120, 240, 226, 65, 196, 247, 91, 48, 129, 80, 218, 122, 48, 3, 33, 147,
+        9, 89, 6, 244, 98, 140, 1, 225, 157, 100, 173, 45, 84, 91, 37, 243, 63, 44, 240, 219, 197,
+        246, 223, 38, 37, 176, 34, 85, 156, 169, 251, 144, 233, 183, 142, 206, 67, 114, 215, 121,
+        63, 15, 84, 135, 222, 157, 98, 244, 194, 247, 227, 222, 206, 11, 31, 19, 165, 186, 164,
+        207, 153, 222, 3, 91, 101, 84, 220, 120, 2, 0, 0,
     ];
 
     assert_eq!(bytes, expected_serialization)
@@ -242,55 +242,61 @@ fn complex_brillig_foreign_call() {
     let brillig_bytecode = BrilligBytecode {
         bytecode: vec![
             brillig::Opcode::Const {
-                destination: MemoryAddress(0),
+                destination: MemoryAddress::direct(0),
                 bit_size: BitSize::Integer(IntegerBitSize::U32),
                 value: FieldElement::from(3_usize),
             },
             brillig::Opcode::Const {
-                destination: MemoryAddress(1),
+                destination: MemoryAddress::direct(1),
                 bit_size: BitSize::Integer(IntegerBitSize::U32),
                 value: FieldElement::from(0_usize),
             },
             brillig::Opcode::CalldataCopy {
-                destination_address: MemoryAddress(32),
-                size_address: MemoryAddress(0),
-                offset_address: MemoryAddress(1),
+                destination_address: MemoryAddress::direct(32),
+                size_address: MemoryAddress::direct(0),
+                offset_address: MemoryAddress::direct(1),
             },
             brillig::Opcode::Const {
-                destination: MemoryAddress(0),
+                destination: MemoryAddress::direct(0),
                 value: FieldElement::from(32_usize),
                 bit_size: BitSize::Integer(IntegerBitSize::U32),
             },
             brillig::Opcode::Const {
-                destination: MemoryAddress(3),
+                destination: MemoryAddress::direct(3),
                 bit_size: BitSize::Integer(IntegerBitSize::U32),
                 value: FieldElement::from(1_usize),
             },
             brillig::Opcode::Const {
-                destination: MemoryAddress(4),
+                destination: MemoryAddress::direct(4),
                 bit_size: BitSize::Integer(IntegerBitSize::U32),
                 value: FieldElement::from(3_usize),
             },
             brillig::Opcode::CalldataCopy {
-                destination_address: MemoryAddress(1),
-                size_address: MemoryAddress(3),
-                offset_address: MemoryAddress(4),
+                destination_address: MemoryAddress::direct(1),
+                size_address: MemoryAddress::direct(3),
+                offset_address: MemoryAddress::direct(4),
             },
             // Oracles are named 'foreign calls' in brillig
             brillig::Opcode::ForeignCall {
                 function: "complex".into(),
                 inputs: vec![
-                    ValueOrArray::HeapArray(HeapArray { pointer: 0.into(), size: 3 }),
-                    ValueOrArray::MemoryAddress(MemoryAddress::from(1)),
+                    ValueOrArray::HeapArray(HeapArray {
+                        pointer: MemoryAddress::direct(0),
+                        size: 3,
+                    }),
+                    ValueOrArray::MemoryAddress(MemoryAddress::direct(1)),
                 ],
                 input_value_types: vec![
                     HeapValueType::Array { size: 3, value_types: vec![HeapValueType::field()] },
                     HeapValueType::field(),
                 ],
                 destinations: vec![
-                    ValueOrArray::HeapArray(HeapArray { pointer: 0.into(), size: 3 }),
-                    ValueOrArray::MemoryAddress(MemoryAddress::from(35)),
-                    ValueOrArray::MemoryAddress(MemoryAddress::from(36)),
+                    ValueOrArray::HeapArray(HeapArray {
+                        pointer: MemoryAddress::direct(0),
+                        size: 3,
+                    }),
+                    ValueOrArray::MemoryAddress(MemoryAddress::direct(35)),
+                    ValueOrArray::MemoryAddress(MemoryAddress::direct(36)),
                 ],
                 destination_value_types: vec![
                     HeapValueType::Array { size: 3, value_types: vec![HeapValueType::field()] },
@@ -338,17 +344,17 @@ fn complex_brillig_foreign_call() {
 
     let bytes = Program::serialize_program(&program);
     let expected_serialization: Vec<u8> = vec![
-        31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 213, 85, 81, 14, 194, 48, 8, 133, 118, 186, 53, 241,
-        207, 11, 152, 232, 1, 58, 189, 128, 119, 49, 254, 105, 244, 211, 227, 59, 50, 154, 49, 214,
-        100, 31, 163, 201, 246, 146, 133, 174, 5, 10, 15, 72, 17, 122, 52, 221, 135, 188, 222, 177,
-        116, 44, 105, 223, 195, 24, 73, 247, 206, 50, 46, 67, 139, 118, 190, 98, 169, 24, 221, 6,
-        98, 244, 5, 98, 4, 81, 255, 21, 214, 219, 178, 46, 166, 252, 249, 204, 252, 84, 208, 207,
-        215, 158, 255, 107, 150, 141, 38, 154, 140, 28, 76, 7, 111, 132, 212, 61, 65, 201, 116, 86,
-        217, 101, 115, 11, 226, 62, 99, 223, 145, 88, 56, 205, 228, 102, 127, 239, 53, 6, 69, 184,
-        97, 78, 109, 96, 127, 37, 106, 81, 11, 126, 100, 103, 17, 14, 48, 116, 213, 227, 243, 254,
-        190, 158, 63, 175, 40, 149, 102, 132, 179, 88, 95, 212, 57, 42, 59, 109, 43, 33, 31, 140,
-        156, 46, 102, 244, 230, 124, 31, 97, 104, 141, 244, 48, 253, 1, 180, 46, 168, 159, 181, 6,
-        0, 0,
+        31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 213, 85, 93, 10, 194, 48, 12, 78, 155, 233, 54, 240,
+        205, 11, 8, 122, 128, 76, 47, 176, 187, 136, 111, 138, 62, 122, 124, 45, 75, 88, 23, 139,
+        19, 76, 64, 63, 24, 89, 75, 242, 229, 159, 6, 24, 208, 60, 191, 192, 255, 11, 150, 145,
+        101, 186, 71, 152, 66, 116, 123, 150, 244, 29, 186, 96, 199, 69, 94, 49, 198, 63, 136, 17,
+        29, 98, 132, 172, 255, 63, 216, 111, 203, 190, 152, 214, 15, 11, 251, 83, 193, 176, 95, 75,
+        62, 215, 44, 27, 93, 232, 100, 20, 225, 117, 241, 38, 144, 233, 105, 149, 4, 229, 185, 183,
+        201, 232, 208, 42, 191, 198, 252, 36, 213, 216, 192, 103, 249, 250, 228, 185, 39, 225, 71,
+        23, 126, 234, 132, 191, 114, 234, 83, 173, 234, 149, 231, 146, 251, 93, 193, 56, 129, 199,
+        235, 229, 118, 62, 221, 177, 96, 170, 205, 19, 182, 234, 188, 43, 148, 108, 142, 67, 144,
+        63, 52, 239, 244, 67, 65, 127, 206, 102, 13, 227, 56, 201, 195, 246, 0, 155, 0, 46, 128,
+        245, 6, 0, 0,
     ];
 
     assert_eq!(bytes, expected_serialization)

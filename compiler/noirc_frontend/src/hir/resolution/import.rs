@@ -3,14 +3,17 @@ use thiserror::Error;
 
 use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::CompilationError;
-use crate::node_interner::ReferenceId;
+
+use crate::locations::ReferencesTracker;
 use crate::usage_tracker::UsageTracker;
+
 use std::collections::BTreeMap;
 
-use crate::ast::{Ident, ItemVisibility, Path, PathKind, PathSegment};
-use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId, PerNs};
+use crate::ast::{Ident, ItemVisibility, Path, PathKind};
+use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleData, ModuleDefId, ModuleId, PerNs};
 
 use super::errors::ResolverError;
+use super::visibility::item_in_module_is_visible;
 
 #[derive(Debug, Clone)]
 pub struct ImportDirective {
@@ -21,21 +24,17 @@ pub struct ImportDirective {
     pub is_prelude: bool,
 }
 
-struct NamespaceResolution {
-    module_id: ModuleId,
-    namespace: PerNs,
-    error: Option<PathResolutionError>,
+impl ImportDirective {
+    /// Returns the name that's brought into scope: either the alias or the last segment of the path
+    pub fn name(&self) -> Ident {
+        match &self.alias {
+            None => self.path.last_ident(),
+            Some(ident) => ident.clone(),
+        }
+    }
 }
 
-type NamespaceResolutionResult = Result<NamespaceResolution, PathResolutionError>;
-
-pub struct PathResolution {
-    pub module_def_id: ModuleDefId,
-
-    pub error: Option<PathResolutionError>,
-}
-
-pub(crate) type PathResolutionResult = Result<PathResolution, PathResolutionError>;
+type ImportResolutionResult = Result<ResolvedImport, PathResolutionError>;
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum PathResolutionError {
@@ -45,18 +44,18 @@ pub enum PathResolutionError {
     Private(Ident),
     #[error("There is no super module")]
     NoSuper(Span),
+    #[error("turbofish (`::<_>`) not allowed on {item}")]
+    TurbofishNotAllowedOnItem { item: String, span: Span },
+    #[error("{ident} is a {kind}, not a module")]
+    NotAModule { ident: Ident, kind: &'static str },
 }
 
 #[derive(Debug)]
 pub struct ResolvedImport {
-    // name of the namespace, either last path segment or an alias
-    pub name: Ident,
     // The symbol which we have resolved to
-    pub resolved_namespace: PerNs,
+    pub namespace: PerNs,
     // The module which we must add the resolved namespace to
-    pub module_scope: LocalModuleId,
-    pub is_prelude: bool,
-    pub error: Option<PathResolutionError>,
+    pub errors: Vec<PathResolutionError>,
 }
 
 impl From<PathResolutionError> for CompilationError {
@@ -80,389 +79,258 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
             PathResolutionError::NoSuper(span) => {
                 CustomDiagnostic::simple_error(error.to_string(), String::new(), *span)
             }
+            PathResolutionError::TurbofishNotAllowedOnItem { item: _, span } => {
+                CustomDiagnostic::simple_error(error.to_string(), String::new(), *span)
+            }
+            PathResolutionError::NotAModule { ident, kind: _ } => {
+                CustomDiagnostic::simple_error(error.to_string(), String::new(), ident.span())
+            }
         }
     }
 }
 
+/// Resolves a Path in a `use` statement, assuming it's located in `importing_module`.
+///
+/// If the imported name can't be found, `Err` will be returned. If it can be found, `Ok`
+/// will be returned with a potential list of errors if, for example, one of the segments
+/// is not accessible from the importing module (e.g. because it's private).
 pub fn resolve_import(
-    crate_id: CrateId,
-    import_directive: &ImportDirective,
+    path: Path,
+    importing_module: ModuleId,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     usage_tracker: &mut UsageTracker,
-    path_references: &mut Option<&mut Vec<ReferenceId>>,
-) -> Result<ResolvedImport, PathResolutionError> {
-    let module_scope = import_directive.module_id;
-    let NamespaceResolution {
-        module_id: resolved_module,
-        namespace: resolved_namespace,
-        mut error,
-    } = resolve_path_to_ns(
-        import_directive,
-        crate_id,
-        crate_id,
-        def_maps,
-        usage_tracker,
-        path_references,
-    )?;
-
-    let name = resolve_path_name(import_directive);
-
-    let visibility = resolved_namespace
-        .values
-        .or(resolved_namespace.types)
-        .map(|(_, visibility, _)| visibility)
-        .expect("Found empty namespace");
-
-    error = error.or_else(|| {
-        if can_reference_module_id(
-            def_maps,
-            crate_id,
-            import_directive.module_id,
-            resolved_module,
-            visibility,
-        ) {
-            None
-        } else {
-            Some(PathResolutionError::Private(name.clone()))
-        }
-    });
-
-    Ok(ResolvedImport {
-        name,
-        resolved_namespace,
-        module_scope,
-        is_prelude: import_directive.is_prelude,
-        error,
-    })
+    references_tracker: Option<ReferencesTracker>,
+) -> ImportResolutionResult {
+    let (path, module_id, references_tracker) =
+        resolve_path_kind(path, importing_module, def_maps, references_tracker)?;
+    let mut solver =
+        ImportSolver::new(importing_module, def_maps, usage_tracker, references_tracker);
+    solver.resolve_name_in_module(path, module_id)
 }
 
-fn resolve_path_to_ns(
-    import_directive: &ImportDirective,
-    crate_id: CrateId,
-    importing_crate: CrateId,
+/// Given a Path and a ModuleId it's being used in, this function returns a plain Path
+/// and a ModuleId where that plain Path should be resolved. That is, this method will
+/// resolve the Path kind and translate it to a plain path.
+///
+/// The third value in the tuple is a reference tracker that must be passed to this
+/// method, which is used in case the path kind is `dep`: the segment after `dep`
+/// will be linked to the root module of the external dependency.
+pub fn resolve_path_kind<'r>(
+    path: Path,
+    importing_module: ModuleId,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
-    usage_tracker: &mut UsageTracker,
-    path_references: &mut Option<&mut Vec<ReferenceId>>,
-) -> NamespaceResolutionResult {
-    let import_path = &import_directive.path.segments;
-
-    match import_directive.path.kind {
-        crate::ast::PathKind::Crate => {
-            // Resolve from the root of the crate
-            resolve_path_from_crate_root(
-                crate_id,
-                importing_crate,
-                import_path,
-                def_maps,
-                usage_tracker,
-                path_references,
-            )
-        }
-        crate::ast::PathKind::Plain => {
-            // There is a possibility that the import path is empty
-            // In that case, early return
-            if import_path.is_empty() {
-                return resolve_name_in_module(
-                    crate_id,
-                    importing_crate,
-                    import_path,
-                    import_directive.module_id,
-                    def_maps,
-                    true,
-                    usage_tracker,
-                    path_references,
-                );
-            }
-
-            let def_map = &def_maps[&crate_id];
-            let current_mod_id = ModuleId { krate: crate_id, local_id: import_directive.module_id };
-            let current_mod = &def_map.modules[current_mod_id.local_id.0];
-            let first_segment =
-                &import_path.first().expect("ice: could not fetch first segment").ident;
-            if current_mod.find_name(first_segment).is_none() {
-                // Resolve externally when first segment is unresolved
-                return resolve_external_dep(
-                    crate_id,
-                    // def_map,
-                    import_directive,
-                    def_maps,
-                    usage_tracker,
-                    path_references,
-                    importing_crate,
-                );
-            }
-
-            resolve_name_in_module(
-                crate_id,
-                importing_crate,
-                import_path,
-                import_directive.module_id,
-                def_maps,
-                true,
-                usage_tracker,
-                path_references,
-            )
-        }
-
-        crate::ast::PathKind::Dep => resolve_external_dep(
-            crate_id,
-            import_directive,
-            def_maps,
-            usage_tracker,
-            path_references,
-            importing_crate,
-        ),
-
-        crate::ast::PathKind::Super => {
-            if let Some(parent_module_id) =
-                def_maps[&crate_id].modules[import_directive.module_id.0].parent
-            {
-                resolve_name_in_module(
-                    crate_id,
-                    importing_crate,
-                    import_path,
-                    parent_module_id,
-                    def_maps,
-                    false,
-                    usage_tracker,
-                    path_references,
-                )
-            } else {
-                let span_start = import_directive.path.span().start();
-                let span = Span::from(span_start..span_start + 5); // 5 == "super".len()
-                Err(PathResolutionError::NoSuper(span))
-            }
-        }
-    }
+    references_tracker: Option<ReferencesTracker<'r>>,
+) -> Result<(Path, ModuleId, Option<ReferencesTracker<'r>>), PathResolutionError> {
+    let mut solver =
+        PathResolutionTargetResolver { importing_module, def_maps, references_tracker };
+    let (path, module_id) = solver.resolve(path)?;
+    Ok((path, module_id, solver.references_tracker))
 }
 
-fn resolve_path_from_crate_root(
-    crate_id: CrateId,
-    importing_crate: CrateId,
-
-    import_path: &[PathSegment],
-    def_maps: &BTreeMap<CrateId, CrateDefMap>,
-    usage_tracker: &mut UsageTracker,
-    path_references: &mut Option<&mut Vec<ReferenceId>>,
-) -> NamespaceResolutionResult {
-    let starting_mod = def_maps[&crate_id].root;
-    resolve_name_in_module(
-        crate_id,
-        importing_crate,
-        import_path,
-        starting_mod,
-        def_maps,
-        false,
-        usage_tracker,
-        path_references,
-    )
+struct PathResolutionTargetResolver<'def_maps, 'references_tracker> {
+    importing_module: ModuleId,
+    def_maps: &'def_maps BTreeMap<CrateId, CrateDefMap>,
+    references_tracker: Option<ReferencesTracker<'references_tracker>>,
 }
 
-#[allow(clippy::too_many_arguments)]
-fn resolve_name_in_module(
-    krate: CrateId,
-    importing_crate: CrateId,
-    import_path: &[PathSegment],
-    starting_mod: LocalModuleId,
-    def_maps: &BTreeMap<CrateId, CrateDefMap>,
-    plain: bool,
-    usage_tracker: &mut UsageTracker,
-    path_references: &mut Option<&mut Vec<ReferenceId>>,
-) -> NamespaceResolutionResult {
-    let def_map = &def_maps[&krate];
-    let mut current_mod_id = ModuleId { krate, local_id: starting_mod };
-    let mut current_mod = &def_map.modules[current_mod_id.local_id.0];
-
-    // There is a possibility that the import path is empty
-    // In that case, early return
-    if import_path.is_empty() {
-        return Ok(NamespaceResolution {
-            module_id: current_mod_id,
-            namespace: PerNs::types(current_mod_id.into()),
-            error: None,
-        });
+impl<'def_maps, 'references_tracker> PathResolutionTargetResolver<'def_maps, 'references_tracker> {
+    fn resolve(&mut self, path: Path) -> Result<(Path, ModuleId), PathResolutionError> {
+        match path.kind {
+            PathKind::Crate => self.resolve_crate_path(path),
+            PathKind::Plain => self.resolve_plain_path(path, self.importing_module),
+            PathKind::Dep => self.resolve_dep_path(path),
+            PathKind::Super => self.resolve_super_path(path),
+        }
     }
 
-    let first_segment = &import_path.first().expect("ice: could not fetch first segment").ident;
-    let mut current_ns = current_mod.find_name(first_segment);
-    if current_ns.is_none() {
-        return Err(PathResolutionError::Unresolved(first_segment.clone()));
+    fn resolve_crate_path(&mut self, path: Path) -> Result<(Path, ModuleId), PathResolutionError> {
+        let root_module = self.def_maps[&self.importing_module.krate].root;
+        let current_module = ModuleId { krate: self.importing_module.krate, local_id: root_module };
+        Ok((path, current_module))
     }
 
-    usage_tracker.mark_as_used(current_mod_id, first_segment);
+    fn resolve_plain_path(
+        &mut self,
+        path: Path,
+        current_module: ModuleId,
+    ) -> Result<(Path, ModuleId), PathResolutionError> {
+        // There is a possibility that the import path is empty. In that case, early return.
+        // This happens on import statements such as `use crate` or `use std`.
+        if path.segments.is_empty() {
+            return Ok((path, current_module));
+        }
 
-    let mut warning: Option<PathResolutionError> = None;
-    for (index, (last_segment, current_segment)) in
-        import_path.iter().zip(import_path.iter().skip(1)).enumerate()
-    {
-        let last_segment = &last_segment.ident;
-        let current_segment = &current_segment.ident;
+        let first_segment =
+            &path.segments.first().expect("ice: could not fetch first segment").ident;
+        if get_module(self.def_maps, current_module).find_name(first_segment).is_none() {
+            // Resolve externally when first segment is unresolved
+            return self.resolve_dep_path(path);
+        }
 
-        let (typ, visibility) = match current_ns.types {
-            None => return Err(PathResolutionError::Unresolved(last_segment.clone())),
-            Some((typ, visibility, _)) => (typ, visibility),
+        Ok((path, current_module))
+    }
+
+    fn resolve_dep_path(
+        &mut self,
+        mut path: Path,
+    ) -> Result<(Path, ModuleId), PathResolutionError> {
+        // Use extern_prelude to get the dep
+        let current_def_map = &self.def_maps[&self.importing_module.krate];
+
+        // Fetch the root module from the prelude
+        let crate_name = &path.segments.first().unwrap().ident;
+        let dep_module = current_def_map
+            .extern_prelude
+            .get(&crate_name.0.contents)
+            .ok_or_else(|| PathResolutionError::Unresolved(crate_name.to_owned()))?;
+
+        if let Some(references_tracker) = &mut self.references_tracker {
+            let span = crate_name.span();
+            references_tracker.add_reference(ModuleDefId::ModuleId(*dep_module), span, false);
+        }
+
+        // Now the path can be solved starting from the second segment as a plain path
+        path.kind = PathKind::Plain;
+        path.segments.remove(0);
+
+        Ok((path, *dep_module))
+    }
+
+    fn resolve_super_path(&mut self, path: Path) -> Result<(Path, ModuleId), PathResolutionError> {
+        let Some(parent_module_id) = get_module(self.def_maps, self.importing_module).parent else {
+            let span_start = path.span.start();
+            let span = Span::from(span_start..span_start + 5); // 5 == "super".len()
+            return Err(PathResolutionError::NoSuper(span));
         };
 
-        // In the type namespace, only Mod can be used in a path.
-        current_mod_id = match typ {
-            ModuleDefId::ModuleId(id) => {
-                if let Some(path_references) = path_references {
-                    path_references.push(ReferenceId::Module(id));
-                }
-                id
-            }
-            ModuleDefId::FunctionId(_) => panic!("functions cannot be in the type namespace"),
-            // TODO: If impls are ever implemented, types can be used in a path
-            ModuleDefId::TypeId(id) => {
-                if let Some(path_references) = path_references {
-                    path_references.push(ReferenceId::Struct(id));
-                }
-                id.module_id()
-            }
-            ModuleDefId::TypeAliasId(_) => panic!("type aliases cannot be used in type namespace"),
-            ModuleDefId::TraitId(id) => {
-                if let Some(path_references) = path_references {
-                    path_references.push(ReferenceId::Trait(id));
-                }
-                id.0
-            }
-            ModuleDefId::GlobalId(_) => panic!("globals cannot be in the type namespace"),
-        };
+        let current_module =
+            ModuleId { krate: self.importing_module.krate, local_id: parent_module_id };
+        Ok((path, current_module))
+    }
+}
 
-        warning = warning.or_else(|| {
-            // If the path is plain, the first segment will always refer to
+struct ImportSolver<'def_maps, 'usage_tracker, 'references_tracker> {
+    importing_module: ModuleId,
+    def_maps: &'def_maps BTreeMap<CrateId, CrateDefMap>,
+    usage_tracker: &'usage_tracker mut UsageTracker,
+    references_tracker: Option<ReferencesTracker<'references_tracker>>,
+}
+
+impl<'def_maps, 'usage_tracker, 'references_tracker>
+    ImportSolver<'def_maps, 'usage_tracker, 'references_tracker>
+{
+    fn new(
+        importing_module: ModuleId,
+        def_maps: &'def_maps BTreeMap<CrateId, CrateDefMap>,
+        usage_tracker: &'usage_tracker mut UsageTracker,
+        references_tracker: Option<ReferencesTracker<'references_tracker>>,
+    ) -> Self {
+        Self { importing_module, def_maps, usage_tracker, references_tracker }
+    }
+
+    fn resolve_name_in_module(
+        &mut self,
+        path: Path,
+        starting_module: ModuleId,
+    ) -> ImportResolutionResult {
+        // There is a possibility that the import path is empty. In that case, early return.
+        if path.segments.is_empty() {
+            return Ok(ResolvedImport {
+                namespace: PerNs::types(starting_module.into()),
+                errors: Vec::new(),
+            });
+        }
+
+        let plain_or_crate = matches!(path.kind, PathKind::Plain | PathKind::Crate);
+
+        // The current module and module ID as we resolve path segments
+        let mut current_module_id = starting_module;
+        let mut current_module = get_module(self.def_maps, starting_module);
+
+        let first_segment =
+            &path.segments.first().expect("ice: could not fetch first segment").ident;
+        let mut current_ns = current_module.find_name(first_segment);
+        if current_ns.is_none() {
+            return Err(PathResolutionError::Unresolved(first_segment.clone()));
+        }
+
+        self.usage_tracker.mark_as_referenced(current_module_id, first_segment);
+
+        let mut errors = Vec::new();
+        for (index, (last_segment, current_segment)) in
+            path.segments.iter().zip(path.segments.iter().skip(1)).enumerate()
+        {
+            let last_ident = &last_segment.ident;
+            let current_ident = &current_segment.ident;
+
+            let (typ, visibility) = match current_ns.types {
+                None => return Err(PathResolutionError::Unresolved(last_ident.clone())),
+                Some((typ, visibility, _)) => (typ, visibility),
+            };
+
+            self.add_reference(typ, last_segment.span, last_segment.ident.is_self_type_name());
+
+            // In the type namespace, only Mod can be used in a path.
+            current_module_id = match typ {
+                ModuleDefId::ModuleId(id) => id,
+                ModuleDefId::TypeId(id) => id.module_id(),
+                ModuleDefId::TypeAliasId(..) => {
+                    return Err(PathResolutionError::NotAModule {
+                        ident: last_segment.ident.clone(),
+                        kind: "type alias",
+                    });
+                }
+                ModuleDefId::TraitId(id) => id.0,
+                ModuleDefId::FunctionId(_) => panic!("functions cannot be in the type namespace"),
+                ModuleDefId::GlobalId(_) => panic!("globals cannot be in the type namespace"),
+            };
+
+            // If the path is plain or crate, the first segment will always refer to
             // something that's visible from the current module.
-            if (plain && index == 0)
-                || can_reference_module_id(
-                    def_maps,
-                    importing_crate,
-                    starting_mod,
-                    current_mod_id,
-                    visibility,
-                )
+            if !((plain_or_crate && index == 0)
+                || self.item_in_module_is_visible(current_module_id, visibility))
             {
-                None
-            } else {
-                Some(PathResolutionError::Private(last_segment.clone()))
+                errors.push(PathResolutionError::Private(last_ident.clone()));
             }
-        });
 
-        current_mod = &def_maps[&current_mod_id.krate].modules[current_mod_id.local_id.0];
+            current_module =
+                &self.def_maps[&current_module_id.krate].modules[current_module_id.local_id.0];
 
-        // Check if namespace
-        let found_ns = current_mod.find_name(current_segment);
+            // Check if namespace
+            let found_ns = current_module.find_name(current_ident);
+            if found_ns.is_none() {
+                return Err(PathResolutionError::Unresolved(current_ident.clone()));
+            }
 
-        if found_ns.is_none() {
-            return Err(PathResolutionError::Unresolved(current_segment.clone()));
+            self.usage_tracker.mark_as_referenced(current_module_id, current_ident);
+
+            current_ns = found_ns;
         }
 
-        usage_tracker.mark_as_used(current_mod_id, current_segment);
+        let (module_def_id, visibility, _) =
+            current_ns.values.or(current_ns.types).expect("Found empty namespace");
 
-        current_ns = found_ns;
+        self.add_reference(module_def_id, path.segments.last().unwrap().ident.span(), false);
+
+        if !self.item_in_module_is_visible(current_module_id, visibility) {
+            errors.push(PathResolutionError::Private(path.last_ident()));
+        }
+
+        Ok(ResolvedImport { namespace: current_ns, errors })
     }
 
-    Ok(NamespaceResolution { module_id: current_mod_id, namespace: current_ns, error: warning })
-}
-
-fn resolve_path_name(import_directive: &ImportDirective) -> Ident {
-    match &import_directive.alias {
-        None => import_directive.path.last_ident(),
-        Some(ident) => ident.clone(),
-    }
-}
-
-fn resolve_external_dep(
-    crate_id: CrateId,
-    directive: &ImportDirective,
-    def_maps: &BTreeMap<CrateId, CrateDefMap>,
-    usage_tracker: &mut UsageTracker,
-    path_references: &mut Option<&mut Vec<ReferenceId>>,
-    importing_crate: CrateId,
-) -> NamespaceResolutionResult {
-    // Use extern_prelude to get the dep
-    let path = &directive.path.segments;
-
-    let current_def_map = &def_maps[&crate_id];
-
-    // Fetch the root module from the prelude
-    let crate_name = &path.first().unwrap().ident;
-    let dep_module = current_def_map
-        .extern_prelude
-        .get(&crate_name.0.contents)
-        .ok_or_else(|| PathResolutionError::Unresolved(crate_name.to_owned()))?;
-
-    // Create an import directive for the dependency crate
-    // XXX: This will panic if the path is of the form `use std`. Ideal algorithm will not distinguish between crate and module
-    // See `singleton_import.nr` test case for a check that such cases are handled elsewhere.
-    let path_without_crate_name = &path[1..];
-
-    if let Some(path_references) = path_references {
-        path_references.push(ReferenceId::Module(*dep_module));
-    }
-
-    let path = Path {
-        segments: path_without_crate_name.to_vec(),
-        kind: PathKind::Plain,
-        span: Span::default(),
-    };
-    let dep_directive = ImportDirective {
-        visibility: ItemVisibility::Private,
-        module_id: dep_module.local_id,
-        path,
-        alias: directive.alias.clone(),
-        is_prelude: false,
-    };
-
-    resolve_path_to_ns(
-        &dep_directive,
-        dep_module.krate,
-        importing_crate,
-        def_maps,
-        usage_tracker,
-        path_references,
-    )
-}
-
-// Returns false if the given private function is being called from a non-child module, or
-// if the given pub(crate) function is being called from another crate. Otherwise returns true.
-pub fn can_reference_module_id(
-    def_maps: &BTreeMap<CrateId, CrateDefMap>,
-    importing_crate: CrateId,
-    current_module: LocalModuleId,
-    target_module: ModuleId,
-    visibility: ItemVisibility,
-) -> bool {
-    // Note that if the target module is in a different crate from the current module then we will either
-    // return true as the target module is public or return false as it is private without looking at the `CrateDefMap` in either case.
-    let same_crate = target_module.krate == importing_crate;
-    let target_crate_def_map = &def_maps[&target_module.krate];
-
-    match visibility {
-        ItemVisibility::Public => true,
-        ItemVisibility::PublicCrate => same_crate,
-        ItemVisibility::Private => {
-            same_crate
-                && module_descendent_of_target(
-                    target_crate_def_map,
-                    target_module.local_id,
-                    current_module,
-                )
+    fn add_reference(&mut self, reference_id: ModuleDefId, span: Span, is_self_type_name: bool) {
+        if let Some(references_tracker) = &mut self.references_tracker {
+            references_tracker.add_reference(reference_id, span, is_self_type_name);
         }
     }
+
+    fn item_in_module_is_visible(&self, module: ModuleId, visibility: ItemVisibility) -> bool {
+        item_in_module_is_visible(self.def_maps, self.importing_module, module, visibility)
+    }
 }
 
-// Returns true if `current` is a (potentially nested) child module of `target`.
-// This is also true if `current == target`.
-fn module_descendent_of_target(
-    def_map: &CrateDefMap,
-    target: LocalModuleId,
-    current: LocalModuleId,
-) -> bool {
-    if current == target {
-        return true;
-    }
-
-    def_map.modules[current.0]
-        .parent
-        .map_or(false, |parent| module_descendent_of_target(def_map, target, parent))
+fn get_module(def_maps: &BTreeMap<CrateId, CrateDefMap>, module: ModuleId) -> &ModuleData {
+    let message = "A crate should always be present for a given crate id";
+    &def_maps.get(&module.krate).expect(message).modules[module.local_id.0]
 }

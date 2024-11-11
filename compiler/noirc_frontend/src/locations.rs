@@ -1,13 +1,14 @@
 use fm::FileId;
-use noirc_errors::Location;
+use noirc_errors::{Location, Span};
 use rangemap::RangeMap;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
     ast::{FunctionDefinition, ItemVisibility},
     hir::def_map::{ModuleDefId, ModuleId},
-    macros_api::{NodeInterner, StructId},
-    node_interner::{DefinitionId, FuncId, GlobalId, ReferenceId, TraitId, TypeAliasId},
+    node_interner::{
+        DefinitionId, FuncId, GlobalId, NodeInterner, ReferenceId, StructId, TraitId, TypeAliasId,
+    },
 };
 use petgraph::prelude::NodeIndex as PetGraphIndex;
 
@@ -33,6 +34,27 @@ impl LocationIndices {
     }
 }
 
+pub struct ReferencesTracker<'a> {
+    interner: &'a mut NodeInterner,
+    file_id: FileId,
+}
+
+impl<'a> ReferencesTracker<'a> {
+    pub fn new(interner: &'a mut NodeInterner, file_id: FileId) -> Self {
+        Self { interner, file_id }
+    }
+
+    pub(crate) fn add_reference(
+        &mut self,
+        module_def_id: ModuleDefId,
+        span: Span,
+        is_self_type: bool,
+    ) {
+        let location = Location::new(span, self.file_id);
+        self.interner.add_module_def_id_reference(module_def_id, location, is_self_type);
+    }
+}
+
 impl NodeInterner {
     pub fn reference_location(&self, reference: ReferenceId) -> Location {
         match reference {
@@ -46,7 +68,10 @@ impl NodeInterner {
             ReferenceId::StructMember(id, field_index) => {
                 let struct_type = self.get_struct(id);
                 let struct_type = struct_type.borrow();
-                Location::new(struct_type.field_at(field_index).0.span(), struct_type.location.file)
+                Location::new(
+                    struct_type.field_at(field_index).name.span(),
+                    struct_type.location.file,
+                )
             }
             ReferenceId::Trait(id) => {
                 let trait_type = self.get_trait(id);
@@ -277,8 +302,12 @@ impl NodeInterner {
             .next()
     }
 
-    pub(crate) fn register_module(&mut self, id: ModuleId, name: String) {
-        let visibility = ItemVisibility::Public;
+    pub(crate) fn register_module(
+        &mut self,
+        id: ModuleId,
+        visibility: ItemVisibility,
+        name: String,
+    ) {
         self.register_name_for_auto_import(name, ModuleDefId::ModuleId(id), visibility, None);
     }
 
@@ -286,11 +315,10 @@ impl NodeInterner {
         &mut self,
         id: GlobalId,
         name: String,
+        visibility: ItemVisibility,
         parent_module_id: ModuleId,
     ) {
         self.add_definition_location(ReferenceId::Global(id), Some(parent_module_id));
-
-        let visibility = ItemVisibility::Public;
         self.register_name_for_auto_import(name, ModuleDefId::GlobalId(id), visibility, None);
     }
 
@@ -298,18 +326,21 @@ impl NodeInterner {
         &mut self,
         id: StructId,
         name: String,
+        visibility: ItemVisibility,
         parent_module_id: ModuleId,
     ) {
         self.add_definition_location(ReferenceId::Struct(id), Some(parent_module_id));
-
-        let visibility = ItemVisibility::Public;
         self.register_name_for_auto_import(name, ModuleDefId::TypeId(id), visibility, None);
     }
 
-    pub(crate) fn register_trait(&mut self, id: TraitId, name: String, parent_module_id: ModuleId) {
+    pub(crate) fn register_trait(
+        &mut self,
+        id: TraitId,
+        name: String,
+        visibility: ItemVisibility,
+        parent_module_id: ModuleId,
+    ) {
         self.add_definition_location(ReferenceId::Trait(id), Some(parent_module_id));
-
-        let visibility = ItemVisibility::Public;
         self.register_name_for_auto_import(name, ModuleDefId::TraitId(id), visibility, None);
     }
 
@@ -317,11 +348,10 @@ impl NodeInterner {
         &mut self,
         id: TypeAliasId,
         name: String,
+        visibility: ItemVisibility,
         parent_module_id: ModuleId,
     ) {
         self.add_definition_location(ReferenceId::Alias(id), Some(parent_module_id));
-
-        let visibility = ItemVisibility::Public;
         self.register_name_for_auto_import(name, ModuleDefId::TypeAliasId(id), visibility, None);
     }
 

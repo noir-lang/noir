@@ -1,17 +1,17 @@
-mod ctstring;
-mod expr;
-mod format_string;
-mod function_def;
-mod module;
-mod op;
-mod struct_def;
-mod trait_constraint;
-mod trait_def;
-mod trait_impl;
-mod typ;
-mod typed_expr;
-mod quoted;
-mod unresolved_type;
+pub mod ctstring;
+pub mod expr;
+pub mod format_string;
+pub mod function_def;
+pub mod module;
+pub mod op;
+pub mod struct_def;
+pub mod trait_constraint;
+pub mod trait_def;
+pub mod trait_impl;
+pub mod typ;
+pub mod typed_expr;
+pub mod quoted;
+pub mod unresolved_type;
 
 /// Calling unquote as a macro (via `unquote!(arg)`) will unquote
 /// its argument. Since this is the effect `!` already does, `unquote`
@@ -36,10 +36,11 @@ use crate::hash::poseidon2::Poseidon2Hasher;
 
 // A derive function is one that given a struct definition can
 // create us a quoted trait impl from it.
-type DeriveFunction = fn(StructDefinition) -> Quoted;
+pub type DeriveFunction = fn(StructDefinition) -> Quoted;
 
 // We'll keep a global HANDLERS map to keep track of the derive handler for each trait
-comptime mut global HANDLERS: UHashMap<TraitDefinition, DeriveFunction, BuildHasherDefault<Poseidon2Hasher>> = UHashMap::default();
+comptime mut global HANDLERS: UHashMap<TraitDefinition, DeriveFunction, BuildHasherDefault<Poseidon2Hasher>> =
+    UHashMap::default();
 
 // Given a struct and a slice of traits to derive, create trait impls for each.
 // This function is as simple as iterating over the slice, checking if we have a trait
@@ -51,9 +52,7 @@ pub comptime fn derive(s: StructDefinition, traits: [TraitDefinition]) -> Quoted
     let mut result = quote {};
 
     for trait_to_derive in traits {
-        let handler = unsafe {
-            HANDLERS.get(trait_to_derive)
-        };
+        let handler = unsafe { HANDLERS.get(trait_to_derive) };
         assert(handler.is_some(), f"No derive function registered for `{trait_to_derive}`");
 
         let trait_impl = handler.unwrap()(s);
@@ -92,7 +91,7 @@ pub comptime fn make_trait_impl<Env1, Env2>(
     function_signature: Quoted,
     for_each_field: fn[Env1](Quoted) -> Quoted,
     join_fields_with: Quoted,
-    body: fn[Env2](Quoted) -> Quoted
+    body: fn[Env2](Quoted) -> Quoted,
 ) -> Quoted {
     // docs:end:make_trait_impl
     let typ = s.as_type();
@@ -100,12 +99,10 @@ pub comptime fn make_trait_impl<Env1, Env2>(
     let where_clause = s.generics().map(|name| quote { $name: $trait_name }).join(quote {,});
 
     // `for_each_field(field1) $join_fields_with for_each_field(field2) $join_fields_with ...`
-    let fields = s.fields().map(
-        |f: (Quoted, Type)| {
+    let fields = s.fields().map(|f: (Quoted, Type)| {
         let name = f.0;
         for_each_field(name)
-    }
-    );
+    });
     let body = body(fields.join(join_fields_with));
 
     quote {
@@ -118,6 +115,8 @@ pub comptime fn make_trait_impl<Env1, Env2>(
 }
 
 mod tests {
+    use crate::meta::derive_via;
+
     // docs:start:quote-example
     comptime fn quote_one() -> Quoted {
         quote { 1 }
@@ -125,13 +124,17 @@ mod tests {
 
     #[test]
     fn returning_versus_macro_insertion() {
-        comptime
-        {
+        comptime {
             // let _a: Quoted = quote { 1 };
             let _a: Quoted = quote_one();
 
-            // let _b: i32 = 1;
-            let _b: i32 = quote_one!();
+            // let _b: Field = 1;
+            let _b: Field = quote_one!();
+
+            // Since integers default to fields, if we
+            // want a different type we have to explicitly cast
+            // let _c: i32 = 1 as i32;
+            let _c: i32 = quote_one!() as i32;
         }
     }
     // docs:end:quote-example
@@ -142,7 +145,10 @@ mod tests {
     }
 
     #[derive_field_count]
-    struct Bar { x: Field, y: [Field; 2] }
+    struct Bar {
+        x: Field,
+        y: [Field; 2],
+    }
 
     comptime fn derive_field_count(s: StructDefinition) -> Quoted {
         let typ = s.as_type();
@@ -159,7 +165,9 @@ mod tests {
 
     // docs:start:annotation-arguments-example
     #[assert_field_is_type(quote { i32 }.as_type())]
-    struct MyStruct { my_field: i32 }
+    struct MyStruct {
+        my_field: i32,
+    }
 
     comptime fn assert_field_is_type(s: StructDefinition, typ: Type) {
         // Assert the first field in `s` has type `typ`
@@ -170,7 +178,9 @@ mod tests {
 
     // docs:start:annotation-varargs-example
     #[assert_three_args(1, 2, 3)]
-    struct MyOtherStruct { my_other_field: u32 }
+    struct MyOtherStruct {
+        my_other_field: u32,
+    }
 
     #[varargs]
     comptime fn assert_three_args(_s: StructDefinition, args: [Field]) {
@@ -233,8 +243,24 @@ mod tests {
             method_signature,
             for_each_field,
             join_fields_with,
-            body
+            body,
         )
     }
     // docs:end:big-derive-usage-example
+
+    impl DoNothing for Bar {
+        fn do_nothing(_: Self) {}
+    }
+
+    // This function is just to remove unused warnings
+    fn remove_unused_warnings() {
+        let _: Bar = Bar { x: 1, y: [2, 3] };
+        let _: MyStruct = MyStruct { my_field: 1 };
+        let _: MyOtherStruct = MyOtherStruct { my_other_field: 2 };
+        let _ = derive_do_nothing(crate::panic::panic(f""));
+        let _ = derive_do_nothing_alt(crate::panic::panic(f""));
+        if false {
+            remove_unused_warnings();
+        }
+    }
 }

@@ -66,7 +66,7 @@ mod block;
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use fxhash::FxHashMap as HashMap;
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::{
     ir::{
@@ -91,12 +91,18 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn mem2reg(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            let mut context = PerFunctionContext::new(function);
-            context.mem2reg();
-            context.remove_instructions();
-            context.update_data_bus();
+            function.mem2reg();
         }
         self
+    }
+}
+
+impl Function {
+    pub(crate) fn mem2reg(&mut self) {
+        let mut context = PerFunctionContext::new(self);
+        context.mem2reg();
+        context.remove_instructions();
+        context.update_data_bus();
     }
 }
 
@@ -112,11 +118,20 @@ struct PerFunctionContext<'f> {
     ///
     /// We avoid removing individual instructions as we go since removing elements
     /// from the middle of Vecs many times will be slower than a single call to `retain`.
-    instructions_to_remove: BTreeSet<InstructionId>,
+    instructions_to_remove: HashSet<InstructionId>,
 
     /// Track a value's last load across all blocks.
     /// If a value is not used in anymore loads we can remove the last store to that value.
     last_loads: HashMap<ValueId, (InstructionId, BasicBlockId)>,
+
+    /// Track whether a reference was passed into another entry point
+    /// This is needed to determine whether we can remove a store.
+    calls_reference_input: HashSet<ValueId>,
+
+    /// Track whether a reference has been aliased, and store the respective
+    /// instruction that aliased that reference.
+    /// If that store has been set for removal, we can also remove this instruction.
+    aliased_references: HashMap<ValueId, HashSet<InstructionId>>,
 }
 
 impl<'f> PerFunctionContext<'f> {
@@ -129,8 +144,10 @@ impl<'f> PerFunctionContext<'f> {
             post_order,
             inserter: FunctionInserter::new(function),
             blocks: BTreeMap::new(),
-            instructions_to_remove: BTreeSet::new(),
+            instructions_to_remove: HashSet::default(),
             last_loads: HashMap::default(),
+            calls_reference_input: HashSet::default(),
+            aliased_references: HashMap::default(),
         }
     }
 
@@ -148,42 +165,114 @@ impl<'f> PerFunctionContext<'f> {
             self.analyze_block(block, references);
         }
 
+        let mut all_terminator_values = HashSet::default();
+        let mut per_func_block_params: HashSet<ValueId> = HashSet::default();
+        for (block_id, _) in self.blocks.iter() {
+            let block_params = self.inserter.function.dfg.block_parameters(*block_id);
+            per_func_block_params.extend(block_params.iter());
+            let terminator = self.inserter.function.dfg[*block_id].unwrap_terminator();
+            terminator.for_each_value(|value| {
+                self.recursively_add_values(value, &mut all_terminator_values);
+            });
+        }
+
         // If we never load from an address within a function we can remove all stores to that address.
         // This rule does not apply to reference parameters, which we must also check for before removing these stores.
-        for (block_id, block) in self.blocks.iter() {
-            let block_params = self.inserter.function.dfg.block_parameters(*block_id);
+        for (_, block) in self.blocks.iter() {
             for (store_address, store_instruction) in block.last_stores.iter() {
-                let is_reference_param = block_params.contains(store_address);
-                let terminator = self.inserter.function.dfg[*block_id].unwrap_terminator();
+                let store_alias_used = self.is_store_alias_used(
+                    store_address,
+                    block,
+                    &all_terminator_values,
+                    &per_func_block_params,
+                );
 
-                let is_return = matches!(terminator, TerminatorInstruction::Return { .. });
-                let remove_load = if is_return {
-                    // Determine whether the last store is used in the return value
-                    let mut is_return_value = false;
-                    terminator.for_each_value(|return_value| {
-                        is_return_value = return_value == *store_address || is_return_value;
-                    });
-
-                    // If the last load of a store is not part of the block with a return terminator,
-                    // we can safely remove this store.
-                    let last_load_not_in_return = self
-                        .last_loads
-                        .get(store_address)
-                        .map(|(_, last_load_block)| *last_load_block != *block_id)
-                        .unwrap_or(true);
-                    !is_return_value && last_load_not_in_return
-                } else {
-                    self.last_loads.get(store_address).is_none()
-                };
-
-                let is_reference_alias = block
+                let is_dereference = block
                     .expressions
                     .get(store_address)
                     .map_or(false, |expression| matches!(expression, Expression::Dereference(_)));
 
-                if remove_load && !is_reference_param && !is_reference_alias {
+                if self.last_loads.get(store_address).is_none()
+                    && !store_alias_used
+                    && !is_dereference
+                {
                     self.instructions_to_remove.insert(*store_instruction);
                 }
+            }
+        }
+    }
+
+    // Extra checks on where a reference can be used aside a load instruction.
+    // Even if all loads to a reference have been removed we need to make sure that
+    // an allocation did not come from an entry point or was passed to an entry point.
+    fn is_store_alias_used(
+        &self,
+        store_address: &ValueId,
+        block: &Block,
+        all_terminator_values: &HashSet<ValueId>,
+        per_func_block_params: &HashSet<ValueId>,
+    ) -> bool {
+        let reference_parameters = self.reference_parameters();
+
+        if let Some(expression) = block.expressions.get(store_address) {
+            if let Some(aliases) = block.aliases.get(expression) {
+                let allocation_aliases_parameter =
+                    aliases.any(|alias| reference_parameters.contains(&alias));
+                if allocation_aliases_parameter == Some(true) {
+                    return true;
+                }
+
+                let allocation_aliases_parameter =
+                    aliases.any(|alias| per_func_block_params.contains(&alias));
+                if allocation_aliases_parameter == Some(true) {
+                    return true;
+                }
+
+                let allocation_aliases_parameter =
+                    aliases.any(|alias| self.calls_reference_input.contains(&alias));
+                if allocation_aliases_parameter == Some(true) {
+                    return true;
+                }
+
+                let allocation_aliases_parameter =
+                    aliases.any(|alias| all_terminator_values.contains(&alias));
+                if allocation_aliases_parameter == Some(true) {
+                    return true;
+                }
+
+                let allocation_aliases_parameter = aliases.any(|alias| {
+                    if let Some(alias_instructions) = self.aliased_references.get(&alias) {
+                        self.instructions_to_remove.is_disjoint(alias_instructions)
+                    } else {
+                        false
+                    }
+                });
+                if allocation_aliases_parameter == Some(true) {
+                    return true;
+                }
+            }
+        }
+
+        false
+    }
+
+    /// Collect the input parameters of the function which are of reference type.
+    /// All references are mutable, so these inputs are shared with the function caller
+    /// and thus stores should not be eliminated, even if the blocks in this function
+    /// don't use them anywhere.
+    fn reference_parameters(&self) -> BTreeSet<ValueId> {
+        let parameters = self.inserter.function.parameters().iter();
+        parameters
+            .filter(|param| self.inserter.function.dfg.value_is_reference(**param))
+            .copied()
+            .collect()
+    }
+
+    fn recursively_add_values(&self, value: ValueId, set: &mut HashSet<ValueId>) {
+        set.insert(value);
+        if let Some((elements, _)) = self.inserter.function.dfg.get_array_constant(value) {
+            for array_element in elements {
+                self.recursively_add_values(array_element, set);
             }
         }
     }
@@ -217,6 +306,12 @@ impl<'f> PerFunctionContext<'f> {
     fn analyze_block(&mut self, block: BasicBlockId, mut references: Block) {
         let instructions = self.inserter.function.dfg[block].take_instructions();
 
+        // If this is the entry block, take all the block parameters and assume they may
+        // be aliased to each other
+        if block == self.inserter.function.entry_block() {
+            self.add_aliases_for_reference_parameters(block, &mut references);
+        }
+
         for instruction in instructions {
             self.analyze_instruction(block, &mut references, instruction);
         }
@@ -233,13 +328,51 @@ impl<'f> PerFunctionContext<'f> {
         self.blocks.insert(block, references);
     }
 
+    /// Go through each parameter and register that all reference parameters of the same type are
+    /// possibly aliased to each other. If there are parameters with nested references (arrays of
+    /// references or references containing other references) we give up and assume all parameter
+    /// references are `AliasSet::unknown()`.
+    fn add_aliases_for_reference_parameters(&self, block: BasicBlockId, references: &mut Block) {
+        let dfg = &self.inserter.function.dfg;
+        let params = dfg.block_parameters(block);
+
+        let mut aliases: HashMap<Type, AliasSet> = HashMap::default();
+
+        for param in params {
+            match dfg.type_of_value(*param) {
+                // If the type indirectly contains a reference we have to assume all references
+                // are unknown since we don't have any ValueIds to use.
+                Type::Reference(element) if element.contains_reference() => return,
+                Type::Reference(element) => {
+                    let empty_aliases = AliasSet::known_empty();
+                    let alias_set =
+                        aliases.entry(element.as_ref().clone()).or_insert(empty_aliases);
+                    alias_set.insert(*param);
+                }
+                typ if typ.contains_reference() => return,
+                _ => continue,
+            }
+        }
+
+        for aliases in aliases.into_values() {
+            let first = aliases.first();
+            let first = first.expect("All parameters alias at least themselves or we early return");
+
+            let expression = Expression::Other(first);
+            let previous = references.aliases.insert(expression.clone(), aliases.clone());
+            assert!(previous.is_none());
+
+            aliases.for_each(|alias| {
+                let previous = references.expressions.insert(alias, expression.clone());
+                assert!(previous.is_none());
+            });
+        }
+    }
+
     /// Add all instructions in `last_stores` to `self.instructions_to_remove` which do not
     /// possibly alias any parameters of the given function.
     fn remove_stores_that_do_not_alias_parameters(&mut self, references: &Block) {
-        let parameters = self.inserter.function.parameters().iter();
-        let reference_parameters = parameters
-            .filter(|param| self.inserter.function.dfg.value_is_reference(**param))
-            .collect::<BTreeSet<_>>();
+        let reference_parameters = self.reference_parameters();
 
         for (allocation, instruction) in &references.last_stores {
             if let Some(expression) = references.expressions.get(allocation) {
@@ -286,21 +419,6 @@ impl<'f> PerFunctionContext<'f> {
                 } else {
                     references.mark_value_used(address, self.inserter.function);
 
-                    let expression =
-                        references.expressions.entry(result).or_insert(Expression::Other(result));
-                    // Make sure this load result is marked an alias to itself
-                    if let Some(aliases) = references.aliases.get_mut(expression) {
-                        // If we have an alias set, add to the set
-                        aliases.insert(result);
-                    } else {
-                        // Otherwise, create a new alias set containing just the load result
-                        references
-                            .aliases
-                            .insert(Expression::Other(result), AliasSet::known(result));
-                    }
-                    // Mark that we know a load result is equivalent to the address of a load.
-                    references.set_known_value(result, address);
-
                     self.last_loads.insert(address, (instruction, block_id));
                 }
             }
@@ -316,11 +434,16 @@ impl<'f> PerFunctionContext<'f> {
                     self.instructions_to_remove.insert(*last_store);
                 }
 
-                let known_value = references.get_known_value(value);
-                if let Some(known_value) = known_value {
-                    let known_value_is_address = known_value == address;
-                    if known_value_is_address {
-                        self.instructions_to_remove.insert(instruction);
+                if self.inserter.function.dfg.value_is_reference(value) {
+                    if let Some(expression) = references.expressions.get(&value) {
+                        if let Some(aliases) = references.aliases.get(expression) {
+                            aliases.for_each(|alias| {
+                                self.aliased_references
+                                    .entry(alias)
+                                    .or_default()
+                                    .insert(instruction);
+                            });
+                        }
                     }
                 }
 
@@ -375,11 +498,26 @@ impl<'f> PerFunctionContext<'f> {
                     references.aliases.insert(expression, aliases);
                 }
             }
-            Instruction::Call { arguments, .. } => self.mark_all_unknown(arguments, references),
+            Instruction::Call { arguments, .. } => {
+                for arg in arguments {
+                    if self.inserter.function.dfg.value_is_reference(*arg) {
+                        if let Some(expression) = references.expressions.get(arg) {
+                            if let Some(aliases) = references.aliases.get(expression) {
+                                aliases.for_each(|alias| {
+                                    self.calls_reference_input.insert(alias);
+                                });
+                            }
+                        }
+                    }
+                }
+                self.mark_all_unknown(arguments, references);
+            }
             _ => (),
         }
     }
 
+    /// If `array` is an array constant that contains reference types, then insert each element
+    /// as a potential alias to the array itself.
     fn check_array_aliasing(&self, references: &mut Block, array: ValueId) {
         if let Some((elements, typ)) = self.inserter.function.dfg.get_array_constant(array) {
             if Self::contains_references(&typ) {
@@ -751,12 +889,14 @@ mod tests {
         // acir fn main f0 {
         //   b0():
         //     v9 = allocate
+        //     store Field 0 at v9
         //     v10 = allocate
         //     jmp b1()
         //   b1():
         //     return
         // }
         let ssa = ssa.mem2reg();
+        println!("{}", ssa);
 
         let main = ssa.main();
         assert_eq!(main.reachable_blocks().len(), 2);
@@ -765,12 +905,14 @@ mod tests {
         assert_eq!(count_loads(main.entry_block(), &main.dfg), 0);
         assert_eq!(count_loads(b1, &main.dfg), 0);
 
-        // All stores should be removed.
+        // The first store is not removed as it is used as a nested reference in another store.
+        // We would need to track whether the store where `v9` is the store value gets removed to know whether
+        // to remove it.
+        assert_eq!(count_stores(main.entry_block(), &main.dfg), 1);
         // The first store in b1 is removed since there is another store to the same reference
         // in the same block, and the store is not needed before the later store.
         // The rest of the stores are also removed as no loads are done within any blocks
         // to the stored values.
-        assert_eq!(count_stores(main.entry_block(), &main.dfg), 0);
         assert_eq!(count_stores(b1, &main.dfg), 0);
 
         let b1_instructions = main.dfg[b1].instructions();
@@ -815,7 +957,7 @@ mod tests {
         let mut builder = FunctionBuilder::new("main".into(), main_id);
 
         let v0 = builder.insert_allocate(Type::field());
-        let zero = builder.numeric_constant(0u128, Type::field());
+        let zero = builder.field_constant(0u128);
         builder.insert_store(v0, zero);
 
         let v2 = builder.insert_allocate(Type::field());
@@ -839,9 +981,9 @@ mod tests {
         // Loop body
         builder.switch_to_block(b2);
         let v5 = builder.insert_load(v2, v2_type.clone());
-        let two = builder.numeric_constant(2u128, Type::field());
+        let two = builder.field_constant(2u128);
         builder.insert_store(v5, two);
-        let one = builder.numeric_constant(1u128, Type::field());
+        let one = builder.field_constant(1u128);
         let v3_plus_one = builder.insert_binary(v3, BinaryOp::Add, one);
         builder.terminate_with_jmp(b1, vec![v3_plus_one]);
 
@@ -871,5 +1013,45 @@ mod tests {
 
         assert_eq!(count_loads(b2, &main.dfg), 1);
         assert_eq!(count_loads(b3, &main.dfg), 3);
+    }
+
+    #[test]
+    fn parameter_alias() {
+        // Do not assume parameters are not aliased to each other.
+        // The load below shouldn't be removed since `v0` could
+        // be aliased to `v1`.
+        //
+        // fn main f0 {
+        //   b0(v0: &mut Field, v1: &mut Field):
+        //     store Field 0 at v0
+        //     store Field 1 at v1
+        //     v4 = load v0
+        //     constrain v4 == Field 1
+        //     return
+        // }
+        let main_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+
+        let field_ref = Type::Reference(Arc::new(Type::field()));
+        let v0 = builder.add_parameter(field_ref.clone());
+        let v1 = builder.add_parameter(field_ref.clone());
+
+        let zero = builder.field_constant(0u128);
+        let one = builder.field_constant(0u128);
+        builder.insert_store(v0, zero);
+        builder.insert_store(v1, one);
+
+        let v4 = builder.insert_load(v0, Type::field());
+        builder.insert_constrain(v4, one, None);
+        builder.terminate_with_return(Vec::new());
+
+        let ssa = builder.finish();
+        let main = ssa.main();
+        assert_eq!(count_loads(main.entry_block(), &main.dfg), 1);
+
+        // No change expected
+        let ssa = ssa.mem2reg();
+        let main = ssa.main();
+        assert_eq!(count_loads(main.entry_block(), &main.dfg), 1);
     }
 }

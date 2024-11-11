@@ -5,7 +5,7 @@ keywords: [Noir, comptime, compile-time, metaprogramming, macros, quote, unquote
 sidebar_position: 15
 ---
 
-# Overview
+## Overview
 
 Metaprogramming in Noir is comprised of three parts:
 1. `comptime` code
@@ -21,7 +21,7 @@ for greater analysis and modification of programs.
 
 ---
 
-# Comptime
+## Comptime
 
 `comptime` is a new keyword in Noir which marks an item as executing or existing at compile-time. It can be used in several ways:
 
@@ -32,11 +32,11 @@ for greater analysis and modification of programs.
 - `comptime let` to define a variable whose value is evaluated at compile-time.
 - `comptime for` to run a for loop at compile-time. Syntax sugar for `comptime { for .. }`.
 
-## Scoping
+### Scoping
 
 Note that while in a `comptime` context, any runtime variables _local to the current function_ are never visible.
 
-## Evaluating
+### Evaluating
 
 Evaluation rules of `comptime` follows the normal unconstrained evaluation rules for other Noir code. There are a few things to note though:
 
@@ -62,7 +62,7 @@ For example, using globals to generate unique ids should be fine but relying on 
     function itself was called at compile-time previously, it will already be resolved and cannot be modified. To prevent accidentally calling functions you wish to modify
     at compile-time, it may be helpful to sort your `comptime` annotation functions into a different crate along with any dependencies they require.
 
-## Lowering
+### Lowering
 
 When a `comptime` value is used in runtime code it must be lowered into a runtime value. This means replacing the expression with the literal that it evaluated to. For example, the code:
 
@@ -102,7 +102,7 @@ comptime fn get_type() -> Type { ... }
 
 ---
 
-# (Quasi) Quote
+## (Quasi) Quote
 
 Macros in Noir are `comptime` functions which return code as a value which is inserted into the call site when it is lowered there.
 A code value in this case is of type `Quoted` and can be created by a `quote { ... }` expression.
@@ -121,7 +121,7 @@ Calling such a function at compile-time without `!` will just return the `Quoted
 For those familiar with quoting from other languages (primarily lisps), Noir's `quote` is actually a _quasiquote_.
 This means we can escape the quoting by using the unquote operator to splice values in the middle of quoted code.
 
-# Unquote
+## Unquote
 
 The unquote operator `$` is usable within a `quote` expression.
 It takes a variable as an argument, evaluates the variable, and splices the resulting value into the quoted token stream at that point. For example,
@@ -160,7 +160,7 @@ comptime {
 
 ---
 
-# Annotations
+## Annotations
 
 Annotations provide a way to run a `comptime` function on an item in the program.
 When you use an annotation, the function with the same name will be called with that item as an argument:
@@ -188,7 +188,7 @@ For example, this is the mechanism used to insert additional trait implementatio
 
 #include_code derive-field-count-example noir_stdlib/src/meta/mod.nr rust
 
-## Calling annotations with additional arguments
+### Calling annotations with additional arguments
 
 Arguments may optionally be given to annotations.
 When this is done, these additional arguments are passed to the annotation function after the item argument.
@@ -201,13 +201,13 @@ We can also take any number of arguments by adding the `varargs` annotation:
 
 ---
 
-# Comptime API
+## Comptime API
 
 Although `comptime`, `quote`, and unquoting provide a flexible base for writing macros,
 Noir's true metaprogramming ability comes from being able to interact with the compiler through a compile-time API.
 This API can be accessed through built-in functions in `std::meta` as well as on methods of several `comptime` types.
 
-The following is an incomplete list of some `comptime` types along with some useful methods on them.
+The following is an incomplete list of some `comptime` types along with some useful methods on them. You can see more in the standard library [Metaprogramming section](../standard_library/meta).
 
 - `Quoted`: A token stream
 - `Type`: The type of a Noir type
@@ -238,9 +238,20 @@ The following is an incomplete list of some `comptime` types along with some use
 There are many more functions available by exploring the `std::meta` module and its submodules.
 Using these methods is the key to writing powerful metaprogramming libraries.
 
+### `#[use_callers_scope]`
+
+Since certain functions such as `Quoted::as_type`, `Expression::as_type`, or `Quoted::as_trait_constraint` will attempt
+to resolve their contents in a particular scope - it can be useful to change the scope they resolve in. By default
+these functions will resolve in the current function's scope which is usually the attribute function they are called in.
+If you're working on a library however, this may be a completely different module or crate to the item you're trying to
+use the attribute on. If you want to be able to use `Quoted::as_type` to refer to types local to the caller's scope for
+example, you can annotate your attribute function with `#[use_callers_scope]`. This will ensure your attribute, and any
+closures it uses, can refer to anything in the caller's scope. `#[use_callers_scope]` also works recursively. So if both
+your attribute function and a helper function it calls use it, then they can both refer to the same original caller.
+
 ---
 
-# Example: Derive
+## Example: Derive
 
 Using all of the above, we can write a `derive` macro that behaves similarly to Rust's but is not built into the language.
 From the user's perspective it will look like this:

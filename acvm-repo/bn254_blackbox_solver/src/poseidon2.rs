@@ -543,6 +543,85 @@ impl<'a> Poseidon2<'a> {
     }
 }
 
+/// Performs a poseidon hash with a sponge construction equivalent to the one in poseidon2.nr
+///
+/// The `is_variable_length` parameter is there to so we can produce an equivalent hash with
+/// the Barretenberg implementation which distinguishes between variable and fixed length inputs.
+/// Set it to true if the input length matches the static size expected by the Noir function.
+pub fn poseidon_hash(
+    inputs: &[FieldElement],
+    is_variable_length: bool,
+) -> Result<FieldElement, BlackBoxResolutionError> {
+    let two_pow_64 = 18446744073709551616_u128.into();
+    let iv = FieldElement::from(inputs.len()) * two_pow_64;
+    let mut sponge = Poseidon2Sponge::new(iv, 3);
+    for input in inputs.iter() {
+        sponge.absorb(*input)?;
+    }
+    if is_variable_length {
+        sponge.absorb(FieldElement::from(1u32))?;
+    }
+    sponge.squeeze()
+}
+
+pub struct Poseidon2Sponge<'a> {
+    rate: usize,
+    poseidon: Poseidon2<'a>,
+    squeezed: bool,
+    cache: Vec<FieldElement>,
+    state: Vec<FieldElement>,
+}
+
+impl<'a> Poseidon2Sponge<'a> {
+    pub fn new(iv: FieldElement, rate: usize) -> Poseidon2Sponge<'a> {
+        let mut result = Poseidon2Sponge {
+            cache: Vec::with_capacity(rate),
+            state: vec![FieldElement::zero(); rate + 1],
+            squeezed: false,
+            rate,
+            poseidon: Poseidon2::new(),
+        };
+        result.state[rate] = iv;
+        result
+    }
+
+    fn perform_duplex(&mut self) -> Result<(), BlackBoxResolutionError> {
+        // zero-pad the cache
+        for _ in self.cache.len()..self.rate {
+            self.cache.push(FieldElement::zero());
+        }
+        // add the cache into sponge state
+        for i in 0..self.rate {
+            self.state[i] += self.cache[i];
+        }
+        self.state = self.poseidon.permutation(&self.state, 4)?;
+        Ok(())
+    }
+
+    pub fn absorb(&mut self, input: FieldElement) -> Result<(), BlackBoxResolutionError> {
+        assert!(!self.squeezed);
+        if self.cache.len() == self.rate {
+            // If we're absorbing, and the cache is full, apply the sponge permutation to compress the cache
+            self.perform_duplex()?;
+            self.cache = vec![input];
+        } else {
+            // If we're absorbing, and the cache is not full, add the input into the cache
+            self.cache.push(input);
+        }
+        Ok(())
+    }
+
+    pub fn squeeze(&mut self) -> Result<FieldElement, BlackBoxResolutionError> {
+        assert!(!self.squeezed);
+        // If we're in absorb mode, apply sponge permutation to compress the cache.
+        self.perform_duplex()?;
+        self.squeezed = true;
+
+        // Pop one item off the top of the permutation and return it.
+        Ok(self.state[0])
+    }
+}
+
 #[cfg(test)]
 mod test {
     use acir::AcirField;
@@ -561,5 +640,20 @@ mod test {
             field_from_hex("18A4F34C9C6F99335FF7638B82AEED9018026618358873C982BBDDE265B2ED6D"),
         ];
         assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn hash_smoke_test() {
+        let fields = [
+            FieldElement::from(1u128),
+            FieldElement::from(2u128),
+            FieldElement::from(3u128),
+            FieldElement::from(4u128),
+        ];
+        let result = super::poseidon_hash(&fields, false).expect("should hash successfully");
+        assert_eq!(
+            result,
+            field_from_hex("130bf204a32cac1f0ace56c78b731aa3809f06df2731ebcf6b3464a15788b1b9"),
+        );
     }
 }
