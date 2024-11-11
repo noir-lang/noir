@@ -229,10 +229,12 @@ mod tests {
         //
         // brillig fn main f0 {
         //     b0():
+        //       v0 = make_array [Field 0, Field 0, Field 0, Field 0, Field 0]
+        //       v1 = make_array [v0, v0]
         //       v3 = allocate
-        //       store [[Field 0, Field 0, Field 0, Field 0, Field 0], [Field 0, Field 0, Field 0, Field 0, Field 0]] at v3
+        //       store v1 at v3
         //       v4 = allocate
-        //       store [[Field 0, Field 0, Field 0, Field 0, Field 0], [Field 0, Field 0, Field 0, Field 0, Field 0]] at v4
+        //       store v1 at v4
         //       jmp b1(u32 0)
         //     b1(v6: u32):
         //       v8 = lt v6, u32 5
@@ -262,10 +264,10 @@ mod tests {
         let array_type = Type::Array(Arc::new(vec![Type::field()]), 5);
         let zero = builder.field_constant(0u128);
         let array_constant =
-            builder.array_constant(vector![zero, zero, zero, zero, zero], array_type.clone());
+            builder.insert_make_array(vector![zero, zero, zero, zero, zero], array_type.clone());
         let nested_array_type = Type::Array(Arc::new(vec![array_type.clone()]), 2);
         let nested_array_constant = builder
-            .array_constant(vector![array_constant, array_constant], nested_array_type.clone());
+            .insert_make_array(vector![array_constant, array_constant], nested_array_type.clone());
 
         let v3 = builder.insert_allocate(array_type.clone());
 

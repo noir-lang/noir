@@ -656,9 +656,9 @@ impl Instruction {
                     None
                 }
             }
-            Instruction::ArraySet { array: array_id, index, value, .. } => {
+            Instruction::ArraySet { array: array_id, index: index_id, value, .. } => {
                 let array = dfg.get_array_constant(*array_id);
-                let index = dfg.get_numeric_constant(*index);
+                let index = dfg.get_numeric_constant(*index_id);
                 if let (Some((array, _element_type)), Some(index)) = (array, index) {
                     let index =
                         index.try_to_u32().expect("Expected array index to fit in u32") as usize;
@@ -677,7 +677,7 @@ impl Instruction {
                     }
                 }
 
-                try_optimize_array_set_from_previous_get(dfg, *array, *index, *value)
+                try_optimize_array_set_from_previous_get(dfg, *array_id, *index_id, *value)
             }
             Instruction::Truncate { value, bit_size, max_bit_size } => {
                 if bit_size == max_bit_size {

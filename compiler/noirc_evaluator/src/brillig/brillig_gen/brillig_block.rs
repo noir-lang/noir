@@ -798,8 +798,6 @@ impl<'block> BrilligBlock<'block> {
                     self.initialize_constant_array(array, typ, dfg, items_pointer);
 
                     self.brillig_context.deallocate_register(items_pointer);
-
-                    new_variable
                 }
             }
         };
