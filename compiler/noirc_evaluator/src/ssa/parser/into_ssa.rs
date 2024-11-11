@@ -13,14 +13,8 @@ use super::{
 };
 
 impl ParsedSsa {
-    pub(crate) fn into_ssa(mut self) -> Result<Ssa, SsaError> {
-        let mut translator = Translator::new(&mut self)?;
-
-        for function in self.functions {
-            translator.translate_function(function)?;
-        }
-
-        Ok(translator.finish())
+    pub(crate) fn into_ssa(self) -> Result<Ssa, SsaError> {
+        Translator::translate(self)
     }
 }
 
@@ -38,7 +32,21 @@ struct Translator {
 }
 
 impl Translator {
+    fn translate(mut parsed_ssa: ParsedSsa) -> Result<Ssa, SsaError> {
+        let mut translator = Self::new(&mut parsed_ssa)?;
+
+        // Note that the `new` call above removed the main function,
+        // so all we are left with are non-main functions.
+        for function in parsed_ssa.functions {
+            translator.translate_non_main_function(function)?;
+        }
+
+        Ok(translator.finish())
+    }
+
     fn new(parsed_ssa: &mut ParsedSsa) -> Result<Self, SsaError> {
+        // A FunctionBuilder must be created with a main Function, so here wer remove it
+        // from the parsed SSA to avoid adding it twice later on.
         let main_function = parsed_ssa.functions.remove(0);
         let main_id = FunctionId::new(0);
         let mut builder = FunctionBuilder::new(main_function.external_name.clone(), main_id);
@@ -61,7 +69,7 @@ impl Translator {
         Ok(translator)
     }
 
-    fn translate_function(&mut self, function: ParsedFunction) -> Result<(), SsaError> {
+    fn translate_non_main_function(&mut self, function: ParsedFunction) -> Result<(), SsaError> {
         let function_id = self.functions[&function.internal_name];
         let external_name = function.external_name.clone();
 
