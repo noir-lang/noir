@@ -49,6 +49,7 @@ allow = [
     "ISC",
     "0BSD",
     "Unicode-DFS-2016",
+    "Unicode-3.0",
     "Unlicense",
     "Zlib",
     # https://github.com/briansmith/ring/issues/902
