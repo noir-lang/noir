@@ -88,13 +88,13 @@ struct Context {
     visited_blocks: HashSet<BasicBlockId>,
     block_queue: VecDeque<BasicBlockId>,
 
-    // Contains sets of values which are constrained to be equivalent to each other.
-    //
-    // The mapping's structure is `side_effects_enabled_var => (constrained_value => simplified_value)`.
-    //
-    // We partition the maps of constrained values according to the side-effects flag at the point
-    // at which the values are constrained. This prevents constraints which are only sometimes enforced
-    // being used to modify the rest of the program.
+    /// Contains sets of values which are constrained to be equivalent to each other.
+    ///
+    /// The mapping's structure is `side_effects_enabled_var => (constrained_value => simplified_value)`.
+    ///
+    /// We partition the maps of constrained values according to the side-effects flag at the point
+    /// at which the values are constrained. This prevents constraints which are only sometimes enforced
+    /// being used to modify the rest of the program.
     constraint_simplification_mappings: HashMap<ValueId, HashMap<ValueId, ValueId>>,
 
     // Cache of instructions without any side-effects along with their outputs.
@@ -110,6 +110,9 @@ struct Context {
 /// to deduplicate instructions across blocks as long as the new block dominates the original.
 type InstructionResultCache = HashMap<Instruction, HashMap<Option<ValueId>, ResultCache>>;
 
+/// Records the results of all duplicate [`Instruction`]s along with the blocks in which they sit.
+///
+/// For more information see [`InstructionResultCache`].
 #[derive(Default)]
 struct ResultCache {
     results: Vec<(BasicBlockId, Vec<ValueId>)>,
@@ -320,7 +323,7 @@ impl Context {
         instruction: &Instruction,
         side_effects_enabled_var: ValueId,
         block: BasicBlockId,
-    ) -> Option<&'a Vec<ValueId>> {
+    ) -> Option<&'a [ValueId]> {
         let results_for_instruction = self.cached_instruction_results.get(instruction)?;
 
         let predicate = self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
@@ -331,11 +334,18 @@ impl Context {
 }
 
 impl ResultCache {
+    /// Records that an `Instruction` in block `block` produced the result values `results`.
     fn cache(&mut self, block: BasicBlockId, results: Vec<ValueId>) {
         self.results.push((block, results));
     }
 
-    fn get(&self, block: BasicBlockId, dom: &mut DominatorTree) -> Option<&Vec<ValueId>> {
+    /// Returns a set of [`ValueId`]s produced from a copy of this [`Instruction`] which sits
+    /// within a block which dominates `block`.
+    ///
+    /// We require that the cached instruction's block dominates `block` in order to avoid
+    /// cycles causing issues (e.g. two instructions being replaced with the results of each other
+    /// such that neither instruction exists anymore.)
+    fn get(&self, block: BasicBlockId, dom: &mut DominatorTree) -> Option<&[ValueId]> {
         for (origin_block, results) in &self.results {
             if dom.dominates(*origin_block, block) {
                 return Some(results);
