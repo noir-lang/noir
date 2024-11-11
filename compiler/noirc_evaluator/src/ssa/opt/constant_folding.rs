@@ -87,6 +87,18 @@ struct Context {
     /// Maps pre-folded ValueIds to the new ValueIds obtained by re-inserting the instruction.
     visited_blocks: HashSet<BasicBlockId>,
     block_queue: Vec<BasicBlockId>,
+
+    // Contains sets of values which are constrained to be equivalent to each other.
+    //
+    // The mapping's structure is `side_effects_enabled_var => (constrained_value => simplified_value)`.
+    //
+    // We partition the maps of constrained values according to the side-effects flag at the point
+    // at which the values are constrained. This prevents constraints which are only sometimes enforced
+    // being used to modify the rest of the program.
+    constraint_simplification_mappings: HashMap<ValueId, HashMap<ValueId, ValueId>>,
+
+    // Cache of instructions without any side-effects along with their outputs.
+    cached_instruction_results: InstructionResultCache,
 }
 
 /// HashMap from (Instruction, side_effects_enabled_var) to the results of the instruction.
@@ -97,18 +109,6 @@ impl Context {
     fn fold_constants_in_block(&mut self, function: &mut Function, block: BasicBlockId) {
         let instructions = function.dfg[block].take_instructions();
 
-        // Cache of instructions without any side-effects along with their outputs.
-        let mut cached_instruction_results = HashMap::default();
-
-        // Contains sets of values which are constrained to be equivalent to each other.
-        //
-        // The mapping's structure is `side_effects_enabled_var => (constrained_value => simplified_value)`.
-        //
-        // We partition the maps of constrained values according to the side-effects flag at the point
-        // at which the values are constrained. This prevents constraints which are only sometimes enforced
-        // being used to modify the rest of the program.
-        let mut constraint_simplification_mappings: HashMap<ValueId, HashMap<ValueId, ValueId>> =
-            HashMap::default();
         let mut side_effects_enabled_var =
             function.dfg.make_constant(FieldElement::one(), Type::bool());
 
@@ -117,8 +117,6 @@ impl Context {
                 &mut function.dfg,
                 block,
                 instruction_id,
-                &mut cached_instruction_results,
-                &mut constraint_simplification_mappings,
                 &mut side_effects_enabled_var,
             );
         }
@@ -126,22 +124,19 @@ impl Context {
     }
 
     fn fold_constants_into_instruction(
-        &self,
+        &mut self,
         dfg: &mut DataFlowGraph,
         block: BasicBlockId,
         id: InstructionId,
-        instruction_result_cache: &mut InstructionResultCache,
-        constraint_simplification_mappings: &mut HashMap<ValueId, HashMap<ValueId, ValueId>>,
         side_effects_enabled_var: &mut ValueId,
     ) {
-        let constraint_simplification_mapping =
-            constraint_simplification_mappings.entry(*side_effects_enabled_var).or_default();
+        let constraint_simplification_mapping = self.get_constraint_map(*side_effects_enabled_var);
         let instruction = Self::resolve_instruction(id, dfg, constraint_simplification_mapping);
         let old_results = dfg.instruction_results(id).to_vec();
 
         // If a copy of this instruction exists earlier in the block, then reuse the previous results.
         if let Some(cached_results) =
-            Self::get_cached(dfg, instruction_result_cache, &instruction, *side_effects_enabled_var)
+            Self::get_cached(dfg, &mut self.cached_instruction_results, &instruction, *side_effects_enabled_var)
         {
             Self::replace_result_ids(dfg, &old_results, cached_results);
             return;
@@ -156,8 +151,6 @@ impl Context {
             instruction.clone(),
             new_results,
             dfg,
-            instruction_result_cache,
-            constraint_simplification_mapping,
             *side_effects_enabled_var,
         );
 
@@ -229,12 +222,10 @@ impl Context {
     }
 
     fn cache_instruction(
-        &self,
+        &mut self,
         instruction: Instruction,
         instruction_results: Vec<ValueId>,
         dfg: &DataFlowGraph,
-        instruction_result_cache: &mut InstructionResultCache,
-        constraint_simplification_mapping: &mut HashMap<ValueId, ValueId>,
         side_effects_enabled_var: ValueId,
     ) {
         if self.use_constraint_info {
@@ -248,18 +239,18 @@ impl Context {
 
                     // Prefer replacing with constants where possible.
                     (Value::NumericConstant { .. }, _) => {
-                        constraint_simplification_mapping.insert(rhs, lhs);
+                        self.get_constraint_map(side_effects_enabled_var).insert(rhs, lhs);
                     }
                     (_, Value::NumericConstant { .. }) => {
-                        constraint_simplification_mapping.insert(lhs, rhs);
+                        self.get_constraint_map(side_effects_enabled_var).insert(lhs, rhs);
                     }
                     // Otherwise prefer block parameters over instruction results.
                     // This is as block parameters are more likely to be a single witness rather than a full expression.
                     (Value::Param { .. }, Value::Instruction { .. }) => {
-                        constraint_simplification_mapping.insert(rhs, lhs);
+                        self.get_constraint_map(side_effects_enabled_var).insert(rhs, lhs);
                     }
                     (Value::Instruction { .. }, Value::Param { .. }) => {
-                        constraint_simplification_mapping.insert(lhs, rhs);
+                        self.get_constraint_map(side_effects_enabled_var).insert(lhs, rhs);
                     }
                     (_, _) => (),
                 }
@@ -273,11 +264,15 @@ impl Context {
                 self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
             let predicate = use_predicate.then_some(side_effects_enabled_var);
 
-            instruction_result_cache
+            self.cached_instruction_results
                 .entry(instruction)
                 .or_default()
                 .insert(predicate, instruction_results);
         }
+    }
+
+    fn get_constraint_map(&mut self, side_effects_enabled_var: ValueId) -> &mut HashMap<ValueId, ValueId> {
+        self.constraint_simplification_mappings.entry(side_effects_enabled_var).or_default()
     }
 
     /// Replaces a set of [`ValueId`]s inside the [`DataFlowGraph`] with another.
