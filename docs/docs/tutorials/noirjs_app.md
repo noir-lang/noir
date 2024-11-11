@@ -82,7 +82,7 @@ If you want to explore Nargo, feel free to go on a side-quest now and follow the
 
 Vite is a powerful tool to generate static websites. While it provides all kinds of features, let's just go barebones with some good old vanilla JS.
 
-To do this this, go back to the previous folder (`cd ..`) and create a new vite project by running `npm create vite` and choosing "Vanilla" and "Javascript".
+To do this, go back to the previous folder (`cd ..`) and create a new vite project by running `npm create vite` and choosing "Vanilla" and "Javascript".
 
 A wild `vite-project` directory should now appear in your root folder! Let's not waste any time and dive right in:
 
