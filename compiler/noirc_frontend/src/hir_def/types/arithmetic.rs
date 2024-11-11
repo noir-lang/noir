@@ -353,3 +353,52 @@ impl Type {
         Err(UnificationError)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use acvm::{AcirField, FieldElement};
+
+    use crate::{BinaryTypeOperator, Kind, Type, TypeVariable, TypeVariableId};
+
+    #[test]
+    fn solves_n_plus_one_minus_one() {
+        let n = Type::TypeVariable(TypeVariable::unbound(TypeVariableId(0), Kind::u32()));
+        let n_plus_one = Type::InfixExpr(
+            Box::new(n.clone()),
+            BinaryTypeOperator::Addition,
+            Box::new(Type::Constant(FieldElement::one(), Kind::u32())),
+        );
+        let n_plus_one_minus_one = Type::InfixExpr(
+            Box::new(n_plus_one),
+            BinaryTypeOperator::Subtraction,
+            Box::new(Type::Constant(FieldElement::one(), Kind::u32())),
+        );
+
+        let canonicalized_typ = n_plus_one_minus_one.canonicalize();
+
+        assert_eq!(n, canonicalized_typ);
+    }
+
+    #[test]
+    fn solves_n_plus_one_minus_one_array_length() {
+        let n = Type::TypeVariable(TypeVariable::unbound(TypeVariableId(0), Kind::u32()));
+        let n_plus_one = Type::InfixExpr(
+            Box::new(n.clone()),
+            BinaryTypeOperator::Addition,
+            Box::new(Type::Constant(FieldElement::one(), Kind::u32())),
+        );
+        let n_plus_one_minus_one = Type::InfixExpr(
+            Box::new(n_plus_one),
+            BinaryTypeOperator::Subtraction,
+            Box::new(Type::Constant(FieldElement::one(), Kind::u32())),
+        );
+
+        let n_field_array = Type::Array(Box::new(n), Box::new(Type::FieldElement));
+        let n_plus_one_minus_one_field_array =
+            Type::Array(Box::new(n_plus_one_minus_one), Box::new(Type::FieldElement));
+
+        let canonicalized_typ = n_plus_one_minus_one_field_array.canonicalize();
+
+        assert_eq!(n_field_array, canonicalized_typ);
+    }
+}
