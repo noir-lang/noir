@@ -197,11 +197,7 @@ impl<'a> Parser<'a> {
         }
 
         if let Some(target) = self.eat_identifier()? {
-            if let Some(instruction) = self.parse_assignment(target)? {
-                return Ok(Some(instruction));
-            }
-
-            return self.expected_instruction_or_terminator();
+            return Ok(Some(self.parse_assignment(target)?));
         }
 
         Ok(None)
@@ -300,7 +296,7 @@ impl<'a> Parser<'a> {
         Ok(Some(ParsedInstruction::Store { address, value }))
     }
 
-    fn parse_assignment(&mut self, target: Identifier) -> ParseResult<Option<ParsedInstruction>> {
+    fn parse_assignment(&mut self, target: Identifier) -> ParseResult<ParsedInstruction> {
         let mut targets = vec![target];
 
         while self.eat(Token::Comma)? {
@@ -315,7 +311,7 @@ impl<'a> Parser<'a> {
             let arguments = self.parse_arguments()?;
             self.eat_or_error(Token::Arrow)?;
             let types = self.parse_types()?;
-            return Ok(Some(ParsedInstruction::Call { targets, function, arguments, types }));
+            return Ok(ParsedInstruction::Call { targets, function, arguments, types });
         }
 
         if targets.len() > 1 {
@@ -329,7 +325,7 @@ impl<'a> Parser<'a> {
         if self.eat_keyword(Keyword::Allocate)? {
             self.eat_or_error(Token::Arrow)?;
             let typ = self.parse_type()?;
-            return Ok(Some(ParsedInstruction::Allocate { target, typ }));
+            return Ok(ParsedInstruction::Allocate { target, typ });
         }
 
         if self.eat_keyword(Keyword::ArrayGet)? {
@@ -339,7 +335,7 @@ impl<'a> Parser<'a> {
             let index = self.parse_value_or_error()?;
             self.eat_or_error(Token::Arrow)?;
             let element_type = self.parse_type()?;
-            return Ok(Some(ParsedInstruction::ArrayGet { target, element_type, array, index }));
+            return Ok(ParsedInstruction::ArrayGet { target, element_type, array, index });
         }
 
         if self.eat_keyword(Keyword::ArraySet)? {
@@ -351,26 +347,26 @@ impl<'a> Parser<'a> {
             self.eat_or_error(Token::Comma)?;
             self.eat_or_error(Token::Keyword(Keyword::Value))?;
             let value = self.parse_value_or_error()?;
-            return Ok(Some(ParsedInstruction::ArraySet { target, array, index, value, mutable }));
+            return Ok(ParsedInstruction::ArraySet { target, array, index, value, mutable });
         }
 
         if self.eat_keyword(Keyword::Cast)? {
             let lhs = self.parse_value_or_error()?;
             self.eat_or_error(Token::Keyword(Keyword::As))?;
             let typ = self.parse_type()?;
-            return Ok(Some(ParsedInstruction::Cast { target, lhs, typ }));
+            return Ok(ParsedInstruction::Cast { target, lhs, typ });
         }
 
         if self.eat_keyword(Keyword::Load)? {
             let value = self.parse_value_or_error()?;
             self.eat_or_error(Token::Arrow)?;
             let typ = self.parse_type()?;
-            return Ok(Some(ParsedInstruction::Load { target, value, typ }));
+            return Ok(ParsedInstruction::Load { target, value, typ });
         }
 
         if self.eat_keyword(Keyword::Not)? {
             let value = self.parse_value_or_error()?;
-            return Ok(Some(ParsedInstruction::Not { target, value }));
+            return Ok(ParsedInstruction::Not { target, value });
         }
 
         if self.eat_keyword(Keyword::Truncate)? {
@@ -382,17 +378,17 @@ impl<'a> Parser<'a> {
             self.eat_or_error(Token::Keyword(Keyword::MaxBitSize))?;
             self.eat_or_error(Token::Colon)?;
             let max_bit_size = self.eat_int_or_error()?.to_u128() as u32;
-            return Ok(Some(ParsedInstruction::Truncate { target, value, bit_size, max_bit_size }));
+            return Ok(ParsedInstruction::Truncate { target, value, bit_size, max_bit_size });
         }
 
         if let Some(op) = self.eat_binary_op()? {
             let lhs = self.parse_value_or_error()?;
             self.eat_or_error(Token::Comma)?;
             let rhs = self.parse_value_or_error()?;
-            return Ok(Some(ParsedInstruction::BinaryOp { target, lhs, op, rhs }));
+            return Ok(ParsedInstruction::BinaryOp { target, lhs, op, rhs });
         }
 
-        Ok(None)
+        self.expected_instruction_or_terminator()
     }
 
     fn parse_terminator(&mut self) -> ParseResult<ParsedTerminator> {
