@@ -51,6 +51,14 @@ impl<'f> FunctionInserter<'f> {
 
                     let new_array_clone = new_array.clone();
                     let new_id = self.function.dfg.make_array(new_array, typ.clone());
+
+                    // If we got the same value (can happen because a function's dfg will cache
+                    // identical arrays) we don't cache the new value as it would end to an infinite loop
+                    // when trying to resolve it.
+                    if new_id == value {
+                        return value;
+                    }
+
                     self.values.insert(value, new_id);
                     self.const_arrays.insert((new_array_clone, typ), new_id);
                     new_id
