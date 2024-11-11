@@ -28,6 +28,7 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         dfg::{DataFlowGraph, InsertInstructionResult},
+        dom::DominatorTree,
         function::Function,
         instruction::{Instruction, InstructionId},
         types::Type,
@@ -67,7 +68,7 @@ impl Function {
     /// The structure of this pass is simple:
     /// Go through each block and re-insert all instructions.
     pub(crate) fn constant_fold(&mut self, use_constraint_info: bool) {
-        let mut context = Context { use_constraint_info, ..Default::default() };
+        let mut context = Context::new(self, use_constraint_info);
         context.block_queue.push(self.entry_block());
 
         while let Some(block) = context.block_queue.pop() {
@@ -81,7 +82,6 @@ impl Function {
     }
 }
 
-#[derive(Default)]
 struct Context {
     use_constraint_info: bool,
     /// Maps pre-folded ValueIds to the new ValueIds obtained by re-inserting the instruction.
@@ -99,13 +99,34 @@ struct Context {
 
     // Cache of instructions without any side-effects along with their outputs.
     cached_instruction_results: InstructionResultCache,
+
+    dom: DominatorTree,
 }
 
 /// HashMap from (Instruction, side_effects_enabled_var) to the results of the instruction.
 /// Stored as a two-level map to avoid cloning Instructions during the `.get` call.
-type InstructionResultCache = HashMap<Instruction, HashMap<Option<ValueId>, Vec<ValueId>>>;
+///
+/// In addition to each result, the original BasicBlockId is stored as well. This allows us
+/// to deduplicate instructions across blocks as long as the new block dominates the original.
+type InstructionResultCache = HashMap<Instruction, HashMap<Option<ValueId>, ResultCache>>;
+
+#[derive(Default)]
+struct ResultCache {
+    results: Vec<(BasicBlockId, Vec<ValueId>)>,
+}
 
 impl Context {
+    fn new(function: &Function, use_constraint_info: bool) -> Self {
+        Self {
+            use_constraint_info,
+            visited_blocks: Default::default(),
+            block_queue: Default::default(),
+            constraint_simplification_mappings: Default::default(),
+            cached_instruction_results: Default::default(),
+            dom: DominatorTree::with_function(function),
+        }
+    }
+
     fn fold_constants_in_block(&mut self, function: &mut Function, block: BasicBlockId) {
         let instructions = function.dfg[block].take_instructions();
 
@@ -135,9 +156,15 @@ impl Context {
         let old_results = dfg.instruction_results(id).to_vec();
 
         // If a copy of this instruction exists earlier in the block, then reuse the previous results.
-        if let Some(cached_results) =
-            Self::get_cached(dfg, &mut self.cached_instruction_results, &instruction, *side_effects_enabled_var)
-        {
+        if let Some(cached_results) = Self::get_cached(
+            dfg,
+            &mut self.cached_instruction_results,
+            &instruction,
+            *side_effects_enabled_var,
+            self.use_constraint_info,
+            block,
+            &mut self.dom,
+        ) {
             Self::replace_result_ids(dfg, &old_results, cached_results);
             return;
         }
@@ -152,6 +179,7 @@ impl Context {
             new_results,
             dfg,
             *side_effects_enabled_var,
+            block,
         );
 
         // If we just inserted an `Instruction::EnableSideEffectsIf`, we need to update `side_effects_enabled_var`
@@ -227,6 +255,7 @@ impl Context {
         instruction_results: Vec<ValueId>,
         dfg: &DataFlowGraph,
         side_effects_enabled_var: ValueId,
+        block: BasicBlockId,
     ) {
         if self.use_constraint_info {
             // If the instruction was a constraint, then create a link between the two `ValueId`s
@@ -267,11 +296,16 @@ impl Context {
             self.cached_instruction_results
                 .entry(instruction)
                 .or_default()
-                .insert(predicate, instruction_results);
+                .entry(predicate)
+                .or_default()
+                .cache(block, instruction_results);
         }
     }
 
-    fn get_constraint_map(&mut self, side_effects_enabled_var: ValueId) -> &mut HashMap<ValueId, ValueId> {
+    fn get_constraint_map(
+        &mut self,
+        side_effects_enabled_var: ValueId,
+    ) -> &mut HashMap<ValueId, ValueId> {
         self.constraint_simplification_mappings.entry(side_effects_enabled_var).or_default()
     }
 
@@ -291,18 +325,31 @@ impl Context {
         instruction_result_cache: &'a mut InstructionResultCache,
         instruction: &Instruction,
         side_effects_enabled_var: ValueId,
+        use_constraint_info: bool,
+        block: BasicBlockId,
+        dom_tree: &mut DominatorTree,
     ) -> Option<&'a Vec<ValueId>> {
-        let results_for_instruction = instruction_result_cache.get(instruction);
+        let results_for_instruction = instruction_result_cache.get(instruction)?;
 
-        // See if there's a cached version with no predicate first
-        if let Some(results) = results_for_instruction.and_then(|map| map.get(&None)) {
-            return Some(results);
+        let predicate = use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
+        let predicate = predicate.then_some(side_effects_enabled_var);
+
+        results_for_instruction.get(&predicate)?.get(block, dom_tree)
+    }
+}
+
+impl ResultCache {
+    fn cache(&mut self, block: BasicBlockId, results: Vec<ValueId>) {
+        self.results.push((block, results));
+    }
+
+    fn get(&self, block: BasicBlockId, dom: &mut DominatorTree) -> Option<&Vec<ValueId>> {
+        for (origin_block, results) in &self.results {
+            if dom.dominates(block, *origin_block) {
+                return Some(results);
+            }
         }
-
-        let predicate =
-            instruction.requires_acir_gen_predicate(dfg).then_some(side_effects_enabled_var);
-
-        results_for_instruction.and_then(|map| map.get(&predicate))
+        None
     }
 }
 
