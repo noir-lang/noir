@@ -156,15 +156,9 @@ impl Context {
         let old_results = dfg.instruction_results(id).to_vec();
 
         // If a copy of this instruction exists earlier in the block, then reuse the previous results.
-        if let Some(cached_results) = Self::get_cached(
-            dfg,
-            &mut self.cached_instruction_results,
-            &instruction,
-            *side_effects_enabled_var,
-            self.use_constraint_info,
-            block,
-            &mut self.dom,
-        ) {
+        if let Some(cached_results) =
+            self.get_cached(dfg, &instruction, *side_effects_enabled_var, block)
+        {
             Self::replace_result_ids(dfg, &old_results, cached_results);
             return;
         }
@@ -321,20 +315,18 @@ impl Context {
     }
 
     fn get_cached<'a>(
+        &'a mut self,
         dfg: &DataFlowGraph,
-        instruction_result_cache: &'a mut InstructionResultCache,
         instruction: &Instruction,
         side_effects_enabled_var: ValueId,
-        use_constraint_info: bool,
         block: BasicBlockId,
-        dom_tree: &mut DominatorTree,
     ) -> Option<&'a Vec<ValueId>> {
-        let results_for_instruction = instruction_result_cache.get(instruction)?;
+        let results_for_instruction = self.cached_instruction_results.get(instruction)?;
 
-        let predicate = use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
+        let predicate = self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
         let predicate = predicate.then_some(side_effects_enabled_var);
 
-        results_for_instruction.get(&predicate)?.get(block, dom_tree)
+        results_for_instruction.get(&predicate)?.get(block, &mut self.dom)
     }
 }
 
