@@ -407,7 +407,7 @@ impl Builder {
         &mut self,
         lhs: ValueId,
         rhs: ValueId,
-        p2builder_op: fn(&mut AsmWriter, Target, Target) -> Target,
+        p2builder_op: impl Fn(&mut AsmWriter, Target, Target) -> Target,
     ) -> Result<P2Value, Plonky2GenError> {
         let (type_a, target_a) = self.get_integer(lhs)?;
         let (type_b, target_b) = self.get_integer(rhs)?;
@@ -563,15 +563,41 @@ impl Builder {
                     ),
 
                     super::ir::instruction::BinaryOp::Div => {
-                        self.convert_integer_op(lhs, rhs, |builder, t1, t2| {
-                            add_div_mod(builder, t1, t2).0
-                        })
+                        let (type_of_a, target_a) = self.get_integer(lhs)?;
+                        let (type_of_b, target_b) = self.get_integer(rhs)?;
+                        assert!(type_of_a == type_of_b);
+
+                        if let Some((bitsize, signed)) =
+                            Self::get_integer_bitsize_and_sign(&type_of_a) {
+                            self.convert_integer_op(lhs, rhs, |builder, t1, t2| {
+                                add_div_mod(builder, t1, t2, signed, bitsize).0
+                            })
+                        } else {
+                            let message = format!(
+                                "div op invoked on arguments of type {:?}",
+                                type_of_a
+                            );
+                            return Err(Plonky2GenError::ICE { message });
+                        }
                     }
 
                     super::ir::instruction::BinaryOp::Mod => {
-                        self.convert_integer_op(lhs, rhs, |asm_writer, t1, t2| {
-                            add_div_mod(asm_writer, t1, t2).1
-                        })
+                        let (type_of_a, target_a) = self.get_integer(lhs)?;
+                        let (type_of_b, target_b) = self.get_integer(rhs)?;
+                        assert!(type_of_a == type_of_b);
+
+                        if let Some((bitsize, signed)) =
+                            Self::get_integer_bitsize_and_sign(&type_of_a) {
+                            self.convert_integer_op(lhs, rhs, |asm_writer, t1, t2| {
+                                add_div_mod(asm_writer, t1, t2, signed, bitsize).1
+                            })
+                        } else {
+                            let message = format!(
+                                "mod op invoked on arguments of type {:?}",
+                                type_of_a
+                            );
+                            return Err(Plonky2GenError::ICE { message });
+                        }
                     }
 
                     super::ir::instruction::BinaryOp::Add => self.multi_convert_integer_op(

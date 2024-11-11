@@ -21,16 +21,20 @@ struct VariableIntDivGenerator {
     quotient: Target,
     remainder: Target,
     _phantom: PhantomData<P2Field>,
+    signed: bool,
+    bitsize: usize,
 }
 
 impl VariableIntDivGenerator {
-    fn new(asm_writer: &mut AsmWriter, numerator: Target, denominator: Target) -> Self {
+    fn new(asm_writer: &mut AsmWriter, numerator: Target, denominator: Target, signed: bool, bitsize: usize) -> Self {
         Self {
             numerator,
             denominator,
             quotient: asm_writer.add_virtual_target(),
             remainder: asm_writer.add_virtual_target(),
             _phantom: PhantomData,
+            signed,
+            bitsize
         }
     }
 
@@ -79,8 +83,47 @@ impl SimpleGenerator<P2Field, 2> for VariableIntDivGenerator {
         let mut quotient: u64 = 0;
         let mut remainder: u64 = 0;
         if denominator != 0 {
-            quotient = numerator / denominator;
-            remainder = numerator % denominator;
+            if self.signed {
+                match self.bitsize {
+                    8 => {
+                        quotient = (((numerator as i8) / (denominator as i8)) as u8) as u64;
+                        remainder = (((numerator as i8) % (denominator as i8)) as u8) as u64;
+                    }
+                    16 => {
+                        quotient = (((numerator as i16) / (denominator as i16)) as u16) as u64;
+                        remainder = (((numerator as i16) % (denominator as i16)) as u16) as u64;
+                    }
+                    32 => {
+                        quotient = (((numerator as i32) / (denominator as i32)) as u32) as u64;
+                        remainder = (((numerator as i32) % (denominator as i32)) as u32) as u64;
+                    }
+                    64 => {
+                        quotient = ((numerator as i64) / (denominator as i64)) as u64;
+                        remainder = ((numerator as i64) % (denominator as i64)) as u64;
+                    }
+                    _ => unreachable!()
+                }
+            } else {
+                match self.bitsize {
+                    8 => {
+                        quotient = ((numerator as u8) / (denominator as u8)) as u64;
+                        remainder = ((numerator as u8) % (denominator as u8)) as u64;
+                    }
+                    16 => {
+                        quotient = ((numerator as u16) / (denominator as u16)) as u64;
+                        remainder = ((numerator as u16) % (denominator as u16)) as u64;
+                    }
+                    32 => {
+                        quotient = ((numerator as u32) / (denominator as u32)) as u64;
+                        remainder = ((numerator as u32) % (denominator as u32)) as u64;
+                    }
+                    64 => {
+                        quotient = numerator / denominator;
+                        remainder = numerator % denominator;
+                    }
+                    _ => unreachable!()
+                }
+            }
         }
 
         out_buffer.set_target(self.quotient, P2Field::from_canonical_u64(quotient));
@@ -98,17 +141,20 @@ pub(crate) fn add_div_mod(
     asm_writer: &mut AsmWriter,
     numerator: Target,
     denominator: Target,
+    signed: bool,
+    bitsize: usize,
 ) -> (Target, Target) {
     asm_writer.comment_divmod_begin(numerator, denominator);
 
-    let generator = VariableIntDivGenerator::new(asm_writer, numerator, denominator);
+    let generator = VariableIntDivGenerator::new(asm_writer, numerator, denominator, signed, bitsize);
     asm_writer.get_mut_builder().add_simple_generator(generator.clone());
 
-    let q_times_d = asm_writer.mul(generator.quotient, denominator);
-    let q_times_d_plus_r = asm_writer.add(q_times_d, generator.remainder);
-    let sanity = asm_writer.is_equal(numerator, q_times_d_plus_r);
-    asm_writer.assert_bool(sanity);
-
+    if !signed {
+        let q_times_d = asm_writer.mul(generator.quotient, denominator);
+        let q_times_d_plus_r = asm_writer.add(q_times_d, generator.remainder);
+        let sanity = asm_writer.is_equal(numerator, q_times_d_plus_r);
+        asm_writer.assert_bool(sanity);
+    }
     let z = asm_writer.zero();
     let d_is_zero = asm_writer.is_equal(denominator, z);
     let d_is_not_zero = asm_writer.not(d_is_zero);
