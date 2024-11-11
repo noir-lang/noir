@@ -38,6 +38,14 @@ impl<'a> Lexer<'a> {
                 }
                 self.next_token()
             }
+            Some('/') if self.peek_char() == Some('/') => {
+                while let Some(char) = self.next_char() {
+                    if char == '\n' {
+                        break;
+                    }
+                }
+                self.next_token()
+            }
             Some('=') if self.peek_char() == Some('=') => self.double_char_token(Token::Equal),
             Some('=') => self.single_char_token(Token::Assign),
             Some(',') => self.single_char_token(Token::Comma),

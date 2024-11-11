@@ -1,6 +1,9 @@
 #![cfg(test)]
 
-use crate::{ssa::Ssa, trim_leading_whitespace_from_lines};
+use crate::{
+    ssa::{opt::assert_ssa_equals, Ssa},
+    trim_leading_whitespace_from_lines,
+};
 
 fn assert_ssa_roundtrip(src: &str) {
     let ssa = Ssa::from_str(src).unwrap();
@@ -388,4 +391,25 @@ fn test_mutable_reference_type() {
         }
         ";
     assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn test_parses_with_comments() {
+    let src = "
+        // This is a comment
+        acir(inline) fn main f0 {
+          b0(v0: &mut Field): // This is a block
+            return // Returns nothing
+        }
+        ";
+
+    let expected = "
+        acir(inline) fn main f0 {
+          b0(v0: &mut Field):
+            return
+        }
+        ";
+
+    let ssa = Ssa::from_str(src).unwrap();
+    assert_ssa_equals(ssa, expected);
 }
