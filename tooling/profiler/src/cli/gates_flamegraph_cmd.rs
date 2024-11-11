@@ -9,7 +9,7 @@ use noirc_artifacts::debug::DebugArtifact;
 use crate::flamegraph::{FlamegraphGenerator, InfernoFlamegraphGenerator, Sample};
 use crate::fs::read_program_from_file;
 use crate::gates_provider::{BackendGatesProvider, GatesProvider};
-use crate::opcode_formatter::AcirOrBrilligOpcode;
+use crate::opcode_formatter::{format_acir_opcode, AcirOrBrilligOpcode};
 
 #[derive(Debug, Clone, Args)]
 pub(crate) struct GatesFlamegraphCommand {
@@ -84,7 +84,7 @@ fn run_with_provider<Provider: GatesProvider, Generator: FlamegraphGenerator>(
             .zip(bytecode.opcodes)
             .enumerate()
             .map(|(index, (gates, opcode))| Sample {
-                opcode: Some(AcirOrBrilligOpcode::Acir(opcode)),
+                opcode: Some(format_acir_opcode(&opcode)),
                 call_stack: vec![OpcodeLocation::Acir(index)],
                 count: gates,
                 brillig_function_id: None,
@@ -143,9 +143,9 @@ mod tests {
     struct TestFlamegraphGenerator {}
 
     impl super::FlamegraphGenerator for TestFlamegraphGenerator {
-        fn generate_flamegraph<'files, F: AcirField>(
+        fn generate_flamegraph<'files>(
             &self,
-            _samples: Vec<Sample<F>>,
+            _samples: Vec<Sample>,
             _debug_symbols: &DebugInfo,
             _files: &'files impl Files<'files, FileId = fm::FileId>,
             _artifact_name: &str,

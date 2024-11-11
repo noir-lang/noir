@@ -13,13 +13,9 @@ use noirc_errors::reporter::line_and_column_from_span;
 use noirc_errors::Location;
 use noirc_evaluator::brillig::ProcedureId;
 
-use crate::opcode_formatter::AcirOrBrilligOpcode;
-
-use super::opcode_formatter::format_opcode;
-
 #[derive(Debug)]
-pub(crate) struct Sample<F: AcirField> {
-    pub(crate) opcode: Option<AcirOrBrilligOpcode<F>>,
+pub(crate) struct Sample {
+    pub(crate) opcode: Option<String>,
     pub(crate) call_stack: Vec<OpcodeLocation>,
     pub(crate) count: usize,
     pub(crate) brillig_function_id: Option<BrilligFunctionId>,
@@ -33,9 +29,9 @@ pub(crate) struct FoldedStackItem {
 
 pub(crate) trait FlamegraphGenerator {
     #[allow(clippy::too_many_arguments)]
-    fn generate_flamegraph<'files, F: AcirField>(
+    fn generate_flamegraph<'files>(
         &self,
-        samples: Vec<Sample<F>>,
+        samples: Vec<Sample>,
         debug_symbols: &DebugInfo,
         files: &'files impl Files<'files, FileId = fm::FileId>,
         artifact_name: &str,
@@ -49,9 +45,9 @@ pub(crate) struct InfernoFlamegraphGenerator {
 }
 
 impl FlamegraphGenerator for InfernoFlamegraphGenerator {
-    fn generate_flamegraph<'files, F: AcirField>(
+    fn generate_flamegraph<'files>(
         &self,
-        samples: Vec<Sample<F>>,
+        samples: Vec<Sample>,
         debug_symbols: &DebugInfo,
         files: &'files impl Files<'files, FileId = fm::FileId>,
         artifact_name: &str,
@@ -82,11 +78,12 @@ impl FlamegraphGenerator for InfernoFlamegraphGenerator {
     }
 }
 
-fn generate_folded_sorted_lines<'files, F: AcirField>(
-    samples: Vec<Sample<F>>,
+fn generate_folded_sorted_lines<'files>(
+    samples: Vec<Sample>,
     debug_symbols: &DebugInfo,
     files: &'files impl Files<'files, FileId = fm::FileId>,
 ) -> Vec<String> {
+    println!("About to generate sorted lines");
     // Create a nested hashmap with the stack items, folding the gates for all the callsites that are equal
     let mut folded_stack_items = BTreeMap::new();
 
@@ -109,8 +106,8 @@ fn generate_folded_sorted_lines<'files, F: AcirField>(
             location_names.extend(callsite_labels);
         }
 
-        if let Some(opcode) = &sample.opcode {
-            location_names.push(format_opcode(opcode));
+        if let Some(opcode) = sample.opcode {
+            location_names.push(opcode);
         }
 
         add_locations_to_folded_stack_items(&mut folded_stack_items, location_names, sample.count);
@@ -251,7 +248,10 @@ mod tests {
     use noirc_errors::{debug_info::DebugInfo, Location, Span};
     use std::{collections::BTreeMap, path::Path};
 
-    use crate::{flamegraph::Sample, opcode_formatter::AcirOrBrilligOpcode};
+    use crate::{
+        flamegraph::Sample,
+        opcode_formatter::{format_acir_opcode, AcirOrBrilligOpcode},
+    };
 
     use super::generate_folded_sorted_lines;
 
@@ -338,9 +338,9 @@ mod tests {
             BTreeMap::default(),
         );
 
-        let samples: Vec<Sample<FieldElement>> = vec![
+        let samples: Vec<Sample> = vec![
             Sample {
-                opcode: Some(AcirOrBrilligOpcode::Acir(AcirOpcode::AssertZero(
+                opcode: Some(format_acir_opcode(&AcirOpcode::AssertZero::<FieldElement>(
                     Expression::default(),
                 ))),
                 call_stack: vec![OpcodeLocation::Acir(0)],
@@ -348,7 +348,7 @@ mod tests {
                 brillig_function_id: None,
             },
             Sample {
-                opcode: Some(AcirOrBrilligOpcode::Acir(AcirOpcode::AssertZero(
+                opcode: Some(format_acir_opcode(&AcirOpcode::AssertZero::<FieldElement>(
                     Expression::default(),
                 ))),
                 call_stack: vec![OpcodeLocation::Acir(1)],
@@ -356,7 +356,7 @@ mod tests {
                 brillig_function_id: None,
             },
             Sample {
-                opcode: Some(AcirOrBrilligOpcode::Acir(AcirOpcode::MemoryInit {
+                opcode: Some(format_acir_opcode(&AcirOpcode::MemoryInit::<FieldElement> {
                     block_id: BlockId(0),
                     init: vec![],
                     block_type: acir::circuit::opcodes::BlockType::Memory,

@@ -369,6 +369,178 @@ impl<F: PrimeField> SubAssign for FieldElement<F> {
     }
 }
 
+#[derive(
+    Default, Debug, Hash, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize,
+)]
+pub struct ProfilingField {}
+
+impl std::fmt::Display for ProfilingField {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "profiling_field")
+    }
+}
+
+impl AcirField for ProfilingField {
+    fn one() -> Self {
+        todo!()
+    }
+
+    fn zero() -> Self {
+        todo!()
+    }
+
+    fn is_zero(&self) -> bool {
+        todo!()
+    }
+
+    fn is_one(&self) -> bool {
+        todo!()
+    }
+
+    fn pow(&self, exponent: &Self) -> Self {
+        todo!()
+    }
+
+    fn max_num_bits() -> u32 {
+        todo!()
+    }
+
+    fn max_num_bytes() -> u32 {
+        todo!()
+    }
+
+    fn modulus() -> BigUint {
+        todo!()
+    }
+
+    fn num_bits(&self) -> u32 {
+        todo!()
+    }
+
+    fn to_u128(self) -> u128 {
+        todo!()
+    }
+
+    fn try_into_u128(self) -> Option<u128> {
+        todo!()
+    }
+
+    fn to_i128(self) -> i128 {
+        todo!()
+    }
+
+    fn try_to_u64(&self) -> Option<u64> {
+        todo!()
+    }
+
+    fn try_to_u32(&self) -> Option<u32> {
+        todo!()
+    }
+
+    fn inverse(&self) -> Self {
+        todo!()
+    }
+
+    fn to_hex(self) -> String {
+        todo!()
+    }
+
+    fn from_hex(hex_str: &str) -> Option<Self> {
+        todo!()
+    }
+
+    fn to_be_bytes(self) -> Vec<u8> {
+        todo!()
+    }
+
+    fn from_be_bytes_reduce(bytes: &[u8]) -> Self {
+        todo!()
+    }
+
+    fn fetch_nearest_bytes(&self, num_bits: usize) -> Vec<u8> {
+        todo!()
+    }
+}
+
+impl Neg for ProfilingField {
+    type Output = ProfilingField;
+    fn neg(self) -> Self::Output {
+        todo!();
+    }
+}
+
+impl Mul for ProfilingField {
+    type Output = ProfilingField;
+    fn mul(mut self, rhs: ProfilingField) -> Self::Output {
+        todo!();
+    }
+}
+impl Div for ProfilingField {
+    type Output = ProfilingField;
+    #[allow(clippy::suspicious_arithmetic_impl)]
+    fn div(mut self, rhs: ProfilingField) -> Self::Output {
+        todo!();
+    }
+}
+impl Add for ProfilingField {
+    type Output = ProfilingField;
+    fn add(mut self, rhs: ProfilingField) -> Self::Output {
+        todo!();
+    }
+}
+impl AddAssign for ProfilingField {
+    fn add_assign(&mut self, rhs: ProfilingField) {
+        todo!();
+    }
+}
+
+impl Sub for ProfilingField {
+    type Output = ProfilingField;
+    fn sub(mut self, rhs: ProfilingField) -> Self::Output {
+        todo!();
+    }
+}
+impl SubAssign for ProfilingField {
+    fn sub_assign(&mut self, rhs: ProfilingField) {
+        todo!();
+    }
+}
+
+impl From<u128> for ProfilingField {
+    fn from(a: u128) -> ProfilingField {
+        ProfilingField {}
+    }
+}
+impl From<i128> for ProfilingField {
+    fn from(a: i128) -> ProfilingField {
+        ProfilingField {}
+    }
+}
+
+impl From<usize> for ProfilingField {
+    fn from(a: usize) -> ProfilingField {
+        ProfilingField {}
+    }
+}
+
+impl From<u64> for ProfilingField {
+    fn from(a: u64) -> ProfilingField {
+        ProfilingField {}
+    }
+}
+
+impl From<u32> for ProfilingField {
+    fn from(a: u32) -> ProfilingField {
+        ProfilingField {}
+    }
+}
+
+impl From<bool> for ProfilingField {
+    fn from(boolean: bool) -> ProfilingField {
+        ProfilingField {}
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{AcirField, FieldElement};

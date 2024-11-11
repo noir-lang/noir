@@ -136,11 +136,17 @@ fn format_brillig_opcode_kind<F>(opcode: &BrilligOpcode<F>) -> String {
     }
 }
 
+pub(crate) fn format_acir_opcode<F: AcirField>(opcode: &AcirOpcode<F>) -> String {
+    format!("acir::{}", format_acir_opcode_kind(opcode))
+}
+
+pub(crate) fn format_brillig_opcode<F: AcirField>(opcode: &BrilligOpcode<F>) -> String {
+    format!("brillig::{}", format_brillig_opcode_kind(opcode))
+}
+
 pub(crate) fn format_opcode<F: AcirField>(opcode: &AcirOrBrilligOpcode<F>) -> String {
     match opcode {
-        AcirOrBrilligOpcode::Acir(opcode) => format!("acir::{}", format_acir_opcode_kind(opcode)),
-        AcirOrBrilligOpcode::Brillig(opcode) => {
-            format!("brillig::{}", format_brillig_opcode_kind(opcode))
-        }
+        AcirOrBrilligOpcode::Acir(opcode) => format_acir_opcode(opcode),
+        AcirOrBrilligOpcode::Brillig(opcode) => format_brillig_opcode(opcode),
     }
 }
