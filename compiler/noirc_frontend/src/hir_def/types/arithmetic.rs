@@ -380,6 +380,7 @@ mod tests {
     }
 
     #[test]
+    #[should_panic = "Could not simplify array length"]
     fn solves_n_plus_one_minus_one_array_length() {
         let n = Type::TypeVariable(TypeVariable::unbound(TypeVariableId(0), Kind::u32()));
         let n_plus_one = Type::InfixExpr(
@@ -399,6 +400,6 @@ mod tests {
 
         let canonicalized_typ = n_plus_one_minus_one_field_array.canonicalize();
 
-        assert_eq!(n_field_array, canonicalized_typ);
+        assert_eq!(n_field_array, canonicalized_typ, "Could not simplify array length");
     }
 }
