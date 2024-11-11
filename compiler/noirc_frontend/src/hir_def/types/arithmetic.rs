@@ -111,6 +111,10 @@ impl Type {
 
                 Type::CheckedCast { from: Box::new(from), to: Box::new(to) }
             }
+            Type::Array(length, element) => Type::Array(
+                Box::new(length.canonicalize_helper(found_checked_cast, run_simplifications)),
+                element,
+            ),
             other => other,
         }
     }
@@ -380,7 +384,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic = "Could not simplify array length"]
     fn solves_n_plus_one_minus_one_array_length() {
         let n = Type::TypeVariable(TypeVariable::unbound(TypeVariableId(0), Kind::u32()));
         let n_plus_one = Type::InfixExpr(
