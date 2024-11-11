@@ -19,7 +19,7 @@
 //!
 //! This is the only pass which removes duplicated pure [`Instruction`]s however and so is needed when
 //! different blocks are merged, i.e. after the [`flatten_cfg`][super::flatten_cfg] pass.
-use std::collections::HashSet;
+use std::collections::{HashSet, VecDeque};
 
 use acvm::{acir::AcirField, FieldElement};
 use iter_extended::vecmap;
@@ -69,9 +69,9 @@ impl Function {
     /// Go through each block and re-insert all instructions.
     pub(crate) fn constant_fold(&mut self, use_constraint_info: bool) {
         let mut context = Context::new(self, use_constraint_info);
-        context.block_queue.push(self.entry_block());
+        context.block_queue.push_back(self.entry_block());
 
-        while let Some(block) = context.block_queue.pop() {
+        while let Some(block) = context.block_queue.pop_front() {
             if context.visited_blocks.contains(&block) {
                 continue;
             }
@@ -86,7 +86,7 @@ struct Context {
     use_constraint_info: bool,
     /// Maps pre-folded ValueIds to the new ValueIds obtained by re-inserting the instruction.
     visited_blocks: HashSet<BasicBlockId>,
-    block_queue: Vec<BasicBlockId>,
+    block_queue: VecDeque<BasicBlockId>,
 
     // Contains sets of values which are constrained to be equivalent to each other.
     //
@@ -337,7 +337,7 @@ impl ResultCache {
 
     fn get(&self, block: BasicBlockId, dom: &mut DominatorTree) -> Option<&Vec<ValueId>> {
         for (origin_block, results) in &self.results {
-            if dom.dominates(block, *origin_block) {
+            if dom.dominates(*origin_block, block) {
                 return Some(results);
             }
         }
@@ -929,5 +929,49 @@ mod test {
         let instructions = main.dfg[main.entry_block()].instructions();
         let ending_instruction_count = instructions.len();
         assert_eq!(ending_instruction_count, 1);
+    }
+
+    #[test]
+    fn deduplicate_across_blocks() {
+        // fn main f0 {
+        //   b0(v0: u1):
+        //     v1 = not v0
+        //     jmp b1()
+        //   b1():
+        //     v2 = not v0
+        //     return v2
+        // }
+        let main_id = Id::test_new(0);
+
+        // Compiling main
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        let b1 = builder.insert_block();
+
+        let v0 = builder.add_parameter(Type::bool());
+        let _v1 = builder.insert_not(v0);
+        builder.terminate_with_jmp(b1, Vec::new());
+
+        builder.switch_to_block(b1);
+        let v2 = builder.insert_not(v0);
+        builder.terminate_with_return(vec![v2]);
+
+        let ssa = builder.finish();
+        let main = ssa.main();
+        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 1);
+        assert_eq!(main.dfg[b1].instructions().len(), 1);
+
+        // Expected output:
+        //
+        // fn main f0 {
+        //   b0(v0: u1):
+        //     v1 = not v0
+        //     jmp b1()
+        //   b1():
+        //     return v1
+        // }
+        let ssa = ssa.fold_constants_using_constraints();
+        let main = ssa.main();
+        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 1);
+        assert_eq!(main.dfg[b1].instructions().len(), 0);
     }
 }
