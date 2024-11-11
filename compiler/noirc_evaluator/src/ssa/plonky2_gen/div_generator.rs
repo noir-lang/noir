@@ -26,7 +26,13 @@ struct VariableIntDivGenerator {
 }
 
 impl VariableIntDivGenerator {
-    fn new(asm_writer: &mut AsmWriter, numerator: Target, denominator: Target, signed: bool, bitsize: usize) -> Self {
+    fn new(
+        asm_writer: &mut AsmWriter,
+        numerator: Target,
+        denominator: Target,
+        signed: bool,
+        bitsize: usize,
+    ) -> Self {
         Self {
             numerator,
             denominator,
@@ -34,7 +40,7 @@ impl VariableIntDivGenerator {
             remainder: asm_writer.add_virtual_target(),
             _phantom: PhantomData,
             signed,
-            bitsize
+            bitsize,
         }
     }
 
@@ -101,7 +107,7 @@ impl SimpleGenerator<P2Field, 2> for VariableIntDivGenerator {
                         quotient = ((numerator as i64) / (denominator as i64)) as u64;
                         remainder = ((numerator as i64) % (denominator as i64)) as u64;
                     }
-                    _ => unreachable!()
+                    _ => unreachable!(),
                 }
             } else {
                 match self.bitsize {
@@ -121,7 +127,7 @@ impl SimpleGenerator<P2Field, 2> for VariableIntDivGenerator {
                         quotient = numerator / denominator;
                         remainder = numerator % denominator;
                     }
-                    _ => unreachable!()
+                    _ => unreachable!(),
                 }
             }
         }
@@ -146,7 +152,8 @@ pub(crate) fn add_div_mod(
 ) -> (Target, Target) {
     asm_writer.comment_divmod_begin(numerator, denominator);
 
-    let generator = VariableIntDivGenerator::new(asm_writer, numerator, denominator, signed, bitsize);
+    let generator =
+        VariableIntDivGenerator::new(asm_writer, numerator, denominator, signed, bitsize);
     asm_writer.get_mut_builder().add_simple_generator(generator.clone());
 
     if !signed {

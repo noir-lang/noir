@@ -568,15 +568,14 @@ impl Builder {
                         assert!(type_of_a == type_of_b);
 
                         if let Some((bitsize, signed)) =
-                            Self::get_integer_bitsize_and_sign(&type_of_a) {
+                            Self::get_integer_bitsize_and_sign(&type_of_a)
+                        {
                             self.convert_integer_op(lhs, rhs, |builder, t1, t2| {
                                 add_div_mod(builder, t1, t2, signed, bitsize).0
                             })
                         } else {
-                            let message = format!(
-                                "div op invoked on arguments of type {:?}",
-                                type_of_a
-                            );
+                            let message =
+                                format!("div op invoked on arguments of type {:?}", type_of_a);
                             return Err(Plonky2GenError::ICE { message });
                         }
                     }
@@ -587,15 +586,14 @@ impl Builder {
                         assert!(type_of_a == type_of_b);
 
                         if let Some((bitsize, signed)) =
-                            Self::get_integer_bitsize_and_sign(&type_of_a) {
+                            Self::get_integer_bitsize_and_sign(&type_of_a)
+                        {
                             self.convert_integer_op(lhs, rhs, |asm_writer, t1, t2| {
                                 add_div_mod(asm_writer, t1, t2, signed, bitsize).1
                             })
                         } else {
-                            let message = format!(
-                                "mod op invoked on arguments of type {:?}",
-                                type_of_a
-                            );
+                            let message =
+                                format!("mod op invoked on arguments of type {:?}", type_of_a);
                             return Err(Plonky2GenError::ICE { message });
                         }
                     }
