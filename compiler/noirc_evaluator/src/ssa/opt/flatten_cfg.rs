@@ -1364,40 +1364,29 @@ mod test {
         // Very simplified derived regression test for #1792
         // Tests that it does not simplify to a true constraint an always-false constraint
         // The original function is replaced by the following:
-        // fn main f1 {
-        //   b0():
-        //     jmpif u1 0 then: b1, else: b2
-        //   b1():
-        //     jmp b2()
-        //   b2():
-        //     constrain u1 0 // was incorrectly removed
-        //     return
-        // }
-        let main_id = Id::test_new(1);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        let src = "
+            acir(inline) fn main f1 {
+              b0():
+                jmpif u1 0 then: b1, else: b2
+              b1():
+                jmp b2()
+              b2():
+                constrain u1 0 == u1 1 // was incorrectly removed
+                return
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
 
-        builder.insert_block(); // entry
-
-        let b1 = builder.insert_block();
-        let b2 = builder.insert_block();
-        let v_true = builder.numeric_constant(true, Type::bool());
-        let v_false = builder.numeric_constant(false, Type::bool());
-        builder.terminate_with_jmpif(v_false, b1, b2);
-
-        builder.switch_to_block(b1);
-        builder.terminate_with_jmp(b2, vec![]);
-
-        builder.switch_to_block(b2);
-        builder.insert_constrain(v_false, v_true, None); // should not be removed
-        builder.terminate_with_return(vec![]);
-
-        let ssa = builder.finish().flatten_cfg();
-        let main = ssa.main();
-
-        // Assert we have not incorrectly removed a constraint:
-        use Instruction::Constrain;
-        let constrain_count = count_instruction(main, |ins| matches!(ins, Constrain(..)));
-        assert_eq!(constrain_count, 1);
+        let expected = "
+            acir(inline) fn main f0 {
+              b0():
+                enable_side_effects u1 1
+                constrain u1 0 == u1 1
+                return
+            }
+            ";
+        let ssa = ssa.flatten_cfg();
+        assert_ssa_equals(ssa, expected);
     }
 
     #[test]
