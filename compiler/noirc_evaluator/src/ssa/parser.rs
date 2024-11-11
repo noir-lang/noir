@@ -208,55 +208,25 @@ impl<'a> Parser<'a> {
     }
 
     fn eat_binary_op(&mut self) -> ParseResult<Option<BinaryOp>> {
-        if self.eat_keyword(Keyword::Add)? {
-            return Ok(Some(BinaryOp::Add));
-        }
+        let op = match self.token.token() {
+            Token::Keyword(Keyword::Add) => BinaryOp::Add,
+            Token::Keyword(Keyword::Sub) => BinaryOp::Sub,
+            Token::Keyword(Keyword::Mul) => BinaryOp::Mul,
+            Token::Keyword(Keyword::Div) => BinaryOp::Div,
+            Token::Keyword(Keyword::Eq) => BinaryOp::Eq,
+            Token::Keyword(Keyword::Mod) => BinaryOp::Mod,
+            Token::Keyword(Keyword::Lt) => BinaryOp::Lt,
+            Token::Keyword(Keyword::And) => BinaryOp::And,
+            Token::Keyword(Keyword::Or) => BinaryOp::Or,
+            Token::Keyword(Keyword::Xor) => BinaryOp::Xor,
+            Token::Keyword(Keyword::Shl) => BinaryOp::Shl,
+            Token::Keyword(Keyword::Shr) => BinaryOp::Shr,
+            _ => return Ok(None),
+        };
 
-        if self.eat_keyword(Keyword::Sub)? {
-            return Ok(Some(BinaryOp::Sub));
-        }
+        self.bump()?;
 
-        if self.eat_keyword(Keyword::Mul)? {
-            return Ok(Some(BinaryOp::Mul));
-        }
-
-        if self.eat_keyword(Keyword::Div)? {
-            return Ok(Some(BinaryOp::Div));
-        }
-
-        if self.eat_keyword(Keyword::Eq)? {
-            return Ok(Some(BinaryOp::Eq));
-        }
-
-        if self.eat_keyword(Keyword::Mod)? {
-            return Ok(Some(BinaryOp::Mod));
-        }
-
-        if self.eat_keyword(Keyword::Lt)? {
-            return Ok(Some(BinaryOp::Lt));
-        }
-
-        if self.eat_keyword(Keyword::And)? {
-            return Ok(Some(BinaryOp::And));
-        }
-
-        if self.eat_keyword(Keyword::Or)? {
-            return Ok(Some(BinaryOp::Or));
-        }
-
-        if self.eat_keyword(Keyword::Xor)? {
-            return Ok(Some(BinaryOp::Xor));
-        }
-
-        if self.eat_keyword(Keyword::Shl)? {
-            return Ok(Some(BinaryOp::Shl));
-        }
-
-        if self.eat_keyword(Keyword::Shr)? {
-            return Ok(Some(BinaryOp::Shr));
-        }
-
-        Ok(None)
+        Ok(Some(op))
     }
 
     fn parse_call(&mut self) -> ParseResult<Option<ParsedInstruction>> {
