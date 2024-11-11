@@ -44,7 +44,8 @@ impl Ssa {
 
         // Remove the brillig functions that are no longer called
         for func_id in brillig_functions.keys() {
-            // We never want to remove the main function (it could be brillig if `--force-brillig` was given)
+            // We never want to remove the main function (it could be `unconstrained` or it
+            // could have been turned into brillig if `--force-brillig` was given)
             if self.main_id == *func_id {
                 continue;
             }
