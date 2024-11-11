@@ -65,6 +65,18 @@ impl Ssa {
     }
 }
 
+/// Result of trying to optimize an instruction (any instruction) in this pass.
+enum OptimizeResult {
+    /// Nothing was done because the instruction wasn't a call to a brillig function,
+    /// or some arguments to it were not constants.
+    NotABrilligCall,
+    /// The instruction was a call to a brillig function, but we couldn't optimize it.
+    CannotOptimize(FunctionId),
+    /// The instruction was a call to a brillig function and we were able to optimize it,
+    /// returning the optimized function and the constant values it returned.
+    Optimized(Function, Vec<ValueId>),
+}
+
 impl Function {
     pub(crate) fn inline_const_brillig_calls(
         &mut self,
@@ -75,23 +87,41 @@ impl Function {
     ) {
         for block_id in self.reachable_blocks() {
             for instruction_id in self.dfg[block_id].take_instructions() {
-                if !self.optimize_const_brillig_call(
+                let optimize_result = self.optimize_const_brillig_call(
                     instruction_id,
                     brillig_functions,
                     brillig_functions_we_could_not_inline,
                     inliner_aggressiveness,
                     error_selector_to_type,
-                ) {
-                    self.dfg[block_id].instructions_mut().push(instruction_id);
+                );
+                match optimize_result {
+                    OptimizeResult::NotABrilligCall => {
+                        self.dfg[block_id].instructions_mut().push(instruction_id);
+                    }
+                    OptimizeResult::CannotOptimize(func_id) => {
+                        self.dfg[block_id].instructions_mut().push(instruction_id);
+                        brillig_functions_we_could_not_inline.insert(func_id);
+                    }
+                    OptimizeResult::Optimized(function, return_values) => {
+                        // Replace the instruction results with the constant values we got
+                        let current_results = self.dfg.instruction_results(instruction_id).to_vec();
+                        assert_eq!(return_values.len(), current_results.len());
+
+                        for (current_result_id, return_value_id) in
+                            current_results.iter().zip(return_values)
+                        {
+                            let new_return_value_id =
+                                function.copy_constant_to_function(return_value_id, self);
+                            self.dfg.set_value_from_id(*current_result_id, new_return_value_id);
+                        }
+                    }
                 }
             }
         }
     }
 
     /// Tries to optimize an instruction if it's a call that points to a brillig function,
-    /// and all its arguments are constant. If the optimization is successful, the
-    /// values returned by the brillig call are replaced by the constant values that the
-    /// function returns, and this method returns `true`.
+    /// and all its arguments are constant.
     fn optimize_const_brillig_call(
         &mut self,
         instruction_id: InstructionId,
@@ -99,29 +129,29 @@ impl Function {
         brillig_functions_we_could_not_inline: &mut HashSet<FunctionId>,
         inliner_aggressiveness: i64,
         error_selector_to_type: &BTreeMap<ErrorSelector, Type>,
-    ) -> bool {
+    ) -> OptimizeResult {
         let instruction = &self.dfg[instruction_id];
         let Instruction::Call { func: func_id, arguments } = instruction else {
-            return false;
+            return OptimizeResult::NotABrilligCall;
         };
 
         let func_value = &self.dfg[*func_id];
         let Value::Function(func_id) = func_value else {
-            return false;
+            return OptimizeResult::NotABrilligCall;
         };
+        let func_id = *func_id;
 
-        let Some(function) = brillig_functions.get(func_id) else {
-            return false;
+        let Some(function) = brillig_functions.get(&func_id) else {
+            return OptimizeResult::NotABrilligCall;
         };
 
         if !arguments.iter().all(|argument| self.dfg.is_constant(*argument)) {
-            brillig_functions_we_could_not_inline.insert(*func_id);
-            return false;
+            return OptimizeResult::CannotOptimize(func_id);
         }
 
         // The function we have is already a copy of the original function, but we need to clone
         // it again because there might be multiple calls to the same brillig function.
-        let mut function = Function::clone_with_id(*func_id, function);
+        let mut function = Function::clone_with_id(func_id, function);
 
         // Find the entry block and remove its parameters
         let entry_block_id = function.entry_block();
@@ -140,40 +170,28 @@ impl Function {
         // Try to fully optimize the function. If we can't, we can't inline it's constant value.
         let Ok(mut function) = optimize(function, inliner_aggressiveness, error_selector_to_type)
         else {
-            brillig_functions_we_could_not_inline.insert(*func_id);
-            return false;
+            return OptimizeResult::CannotOptimize(func_id);
         };
 
         let entry_block = &mut function.dfg[entry_block_id];
 
         // If the entry block has instructions, we can't inline it (we need a terminator)
         if !entry_block.instructions().is_empty() {
-            brillig_functions_we_could_not_inline.insert(*func_id);
-            return false;
+            brillig_functions_we_could_not_inline.insert(func_id);
+            return OptimizeResult::CannotOptimize(func_id);
         }
 
         let terminator = entry_block.take_terminator();
         let TerminatorInstruction::Return { return_values, call_stack: _ } = terminator else {
-            brillig_functions_we_could_not_inline.insert(*func_id);
-            return false;
+            return OptimizeResult::CannotOptimize(func_id);
         };
 
         // Sanity check: make sure all returned values are constant
         if !return_values.iter().all(|value_id| function.dfg.is_constant(*value_id)) {
-            brillig_functions_we_could_not_inline.insert(*func_id);
-            return false;
+            return OptimizeResult::CannotOptimize(func_id);
         }
 
-        // Replace the instruction results with the constant values we got
-        let current_results = self.dfg.instruction_results(instruction_id).to_vec();
-        assert_eq!(return_values.len(), current_results.len());
-
-        for (current_result_id, return_value_id) in current_results.iter().zip(return_values) {
-            let new_return_value_id = function.copy_constant_to_function(return_value_id, self);
-            self.dfg.set_value_from_id(*current_result_id, new_return_value_id);
-        }
-
-        true
+        OptimizeResult::Optimized(function, return_values)
     }
 
     /// Copies a constant from this function to another one.
