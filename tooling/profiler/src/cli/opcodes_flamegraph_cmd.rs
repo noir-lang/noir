@@ -9,7 +9,7 @@ use noirc_artifacts::debug::DebugArtifact;
 
 use crate::flamegraph::{FlamegraphGenerator, InfernoFlamegraphGenerator, Sample};
 use crate::fs::read_program_from_file;
-use crate::opcode_formatter::{format_acir_opcode, format_brillig_opcode, AcirOrBrilligOpcode};
+use crate::opcode_formatter::{format_acir_opcode, format_brillig_opcode};
 
 #[derive(Debug, Clone, Args)]
 pub(crate) struct OpcodesFlamegraphCommand {

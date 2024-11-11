@@ -39,7 +39,3 @@ pprof = { version = "0.12", features = [
 [[bench]]
 name = "criterion"
 harness = false
-
-[features]
-default = ["bn254"]
-bn254 = ["acir/bn254", "acvm_blackbox_solver/bn254"]

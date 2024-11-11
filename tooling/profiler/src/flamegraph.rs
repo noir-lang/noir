@@ -3,7 +3,6 @@ use std::{collections::BTreeMap, io::BufWriter};
 
 use acir::circuit::brillig::BrilligFunctionId;
 use acir::circuit::OpcodeLocation;
-use acir::AcirField;
 use color_eyre::eyre::{self};
 use fm::codespan_files::Files;
 use fxhash::FxHashMap as HashMap;
@@ -248,10 +247,7 @@ mod tests {
     use noirc_errors::{debug_info::DebugInfo, Location, Span};
     use std::{collections::BTreeMap, path::Path};
 
-    use crate::{
-        flamegraph::Sample,
-        opcode_formatter::{format_acir_opcode, AcirOrBrilligOpcode},
-    };
+    use crate::{flamegraph::Sample, opcode_formatter::format_acir_opcode};
 
     use super::generate_folded_sorted_lines;
 

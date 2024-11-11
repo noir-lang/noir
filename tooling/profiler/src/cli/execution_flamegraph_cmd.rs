@@ -1,13 +1,12 @@
 use std::path::{Path, PathBuf};
 
 use acir::circuit::OpcodeLocation;
-use acir::FieldElement;
 use clap::Args;
 use color_eyre::eyre::{self, Context};
 
 use crate::flamegraph::{FlamegraphGenerator, InfernoFlamegraphGenerator, Sample};
 use crate::fs::{read_inputs_from_file, read_program_from_file};
-use crate::opcode_formatter::{format_brillig_opcode, format_opcode, AcirOrBrilligOpcode};
+use crate::opcode_formatter::format_brillig_opcode;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use nargo::ops::DefaultForeignCallExecutor;
 use noirc_abi::input_parser::Format;
@@ -49,8 +48,6 @@ fn run_with_generator(
     let (inputs_map, _) = read_inputs_from_file(prover_toml_path, Format::Toml, &program.abi)?;
 
     let initial_witness = program.abi.encode(&inputs_map, None)?;
-    println!("Size of opcode {}", std::mem::size_of::<AcirOrBrilligOpcode<FieldElement>>());
-    println!("Size of sample {}", std::mem::size_of::<Sample>());
 
     println!("Executing");
     let (_, mut profiling_samples) = nargo::ops::execute_program_with_profiling(
@@ -62,8 +59,6 @@ fn run_with_generator(
     println!("Executed");
 
     println!("Collecting {} samples", profiling_samples.len());
-    println!("{} debug infos", program.debug_symbols.debug_infos.len());
-    println!("{} unconstrained fns", program.bytecode.unconstrained_functions.len());
 
     let profiling_samples: Vec<Sample> = profiling_samples
         .iter_mut()
@@ -80,7 +75,7 @@ fn run_with_generator(
                         None
                     }
                 })
-                .map(|opcode| format_brillig_opcode(opcode));
+                .map(format_brillig_opcode);
             Sample { opcode, call_stack, count: 1, brillig_function_id }
         })
         .collect();

@@ -14,14 +14,8 @@ pub use field_element::FieldElement as GenericFieldElement;
 cfg_if::cfg_if! {
     if #[cfg(feature = "bls12_381")] {
         pub type FieldElement = field_element::FieldElement<ark_bls12_381::Fr>;
-    }
-    // else if #[cfg(feature = "profiling")] {
-    //     pub type FieldElement = field_element::ProfilingField;
-    //     // pub type FieldElement = field_element::FieldElement<ark_bn254::Fr>;
-    // }
-    else {
+    } else {
         pub type FieldElement = field_element::FieldElement<ark_bn254::Fr>;
-        // pub type FieldElement = field_element::ProfilingField;
     }
 }
 

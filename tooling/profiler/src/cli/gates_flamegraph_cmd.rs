@@ -9,7 +9,7 @@ use noirc_artifacts::debug::DebugArtifact;
 use crate::flamegraph::{FlamegraphGenerator, InfernoFlamegraphGenerator, Sample};
 use crate::fs::read_program_from_file;
 use crate::gates_provider::{BackendGatesProvider, GatesProvider};
-use crate::opcode_formatter::{format_acir_opcode, AcirOrBrilligOpcode};
+use crate::opcode_formatter::format_acir_opcode;
 
 #[derive(Debug, Clone, Args)]
 pub(crate) struct GatesFlamegraphCommand {
