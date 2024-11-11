@@ -12,7 +12,7 @@ use crate::{
             instruction::{Instruction, InstructionId, TerminatorInstruction},
             value::{Value, ValueId},
         },
-        optimize_ssa_after_inline_const_brillig_calls, Ssa, SsaBuilder,
+        optimize_ssa_after_inline_const_brillig_calls, Ssa, SsaBuilder, UnrollMode,
     },
 };
 
@@ -235,6 +235,7 @@ fn optimize(
         // a single function. For inlining to work we need to know all other functions that
         // exist (so we can inline them). Here we choose to skip this optimization for simplicity reasons.
         false,
+        UnrollMode::Brillig,
     )?;
     Ok(ssa.functions.pop_first().unwrap().1)
 }

@@ -21,4 +21,4 @@ mod remove_if_else;
 mod resolve_is_unconstrained;
 mod runtime_separation;
 mod simplify_cfg;
-mod unrolling;
+pub(crate) mod unrolling;

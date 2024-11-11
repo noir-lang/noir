@@ -33,6 +33,7 @@ use noirc_frontend::{
     hir_def::{function::FunctionSignature, types::Type as HirType},
     monomorphization::ast::Program,
 };
+use opt::unrolling::UnrollMode;
 use tracing::{span, Level};
 
 use self::{
@@ -130,6 +131,7 @@ fn optimize_ssa(builder: SsaBuilder, inliner_aggressiveness: i64) -> Result<Ssa,
         builder,
         inliner_aggressiveness,
         true, // inline functions with no predicates
+        UnrollMode::Acir,
     )?;
     Ok(ssa)
 }
@@ -138,6 +140,7 @@ fn optimize_ssa_after_inline_const_brillig_calls(
     builder: SsaBuilder,
     inliner_aggressiveness: i64,
     inline_functions_with_no_predicates: bool,
+    unroll_mode: UnrollMode,
 ) -> Result<Ssa, RuntimeError> {
     let builder = builder
         // Run mem2reg with the CFG separated into blocks
@@ -148,7 +151,7 @@ fn optimize_ssa_after_inline_const_brillig_calls(
             Ssa::evaluate_static_assert_and_assert_constant,
             "After `static_assert` and `assert_constant`:",
         )?
-        .try_run_pass(Ssa::unroll_loops_iteratively, "After Unrolling:")?
+        .try_run_pass(|ssa| Ssa::unroll_loops_iteratively(ssa, unroll_mode), "After Unrolling:")?
         .run_pass(Ssa::simplify_cfg, "After Simplifying (2nd):")
         .run_pass(Ssa::flatten_cfg, "After Flattening:")
         .run_pass(Ssa::remove_bit_shifts, "After Removing Bit Shifts:")
@@ -457,11 +460,10 @@ impl SsaBuilder {
     }
 
     /// The same as `run_pass` but for passes that may fail
-    fn try_run_pass(
-        mut self,
-        pass: fn(Ssa) -> Result<Ssa, RuntimeError>,
-        msg: &str,
-    ) -> Result<Self, RuntimeError> {
+    fn try_run_pass<F>(mut self, pass: F, msg: &str) -> Result<Self, RuntimeError>
+    where
+        F: FnOnce(Ssa) -> Result<Ssa, RuntimeError>,
+    {
         self.ssa = time(msg, self.print_codegen_timings, || pass(self.ssa))?;
         Ok(self.print(msg))
     }
