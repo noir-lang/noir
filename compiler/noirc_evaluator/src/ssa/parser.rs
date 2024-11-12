@@ -324,7 +324,7 @@ impl<'a> Parser<'a> {
 
         if self.eat_keyword(Keyword::Allocate)? {
             self.eat_or_error(Token::Arrow)?;
-            let typ = self.parse_type()?;
+            let typ = self.parse_mutable_reference_type_or_error()?;
             return Ok(ParsedInstruction::Allocate { target, typ });
         }
 
@@ -588,13 +588,31 @@ impl<'a> Parser<'a> {
             return Ok(Type::Array(Arc::new(element_types), length.to_u128() as usize));
         }
 
-        if self.eat(Token::Ampersand)? {
-            self.eat_or_error(Token::Keyword(Keyword::Mut))?;
-            let typ = self.parse_type()?;
+        if let Some(typ) = self.parse_mutable_reference_type()? {
             return Ok(Type::Reference(Arc::new(typ)));
         }
 
         self.expected_type()
+    }
+
+    /// Parses `&mut Type`, returns `Type` if `&mut` was found, errors otherwise.
+    fn parse_mutable_reference_type_or_error(&mut self) -> ParseResult<Type> {
+        if let Some(typ) = self.parse_mutable_reference_type()? {
+            Ok(typ)
+        } else {
+            self.expected_token(Token::Ampersand)
+        }
+    }
+
+    /// Parses `&mut Type`, returns `Some(Type)` if `&mut` was found, `None` otherwise.
+    fn parse_mutable_reference_type(&mut self) -> ParseResult<Option<Type>> {
+        if !self.eat(Token::Ampersand)? {
+            return Ok(None);
+        }
+
+        self.eat_or_error(Token::Keyword(Keyword::Mut))?;
+        let typ = self.parse_type()?;
+        Ok(Some(typ))
     }
 
     fn eat_identifier_or_error(&mut self) -> ParseResult<Identifier> {

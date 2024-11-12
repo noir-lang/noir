@@ -327,7 +327,7 @@ fn test_allocate() {
     let src = "
         acir(inline) fn main f0 {
           b0():
-            v0 = allocate -> [Field; 3]
+            v0 = allocate -> &mut [Field; 3]
             return
         }
         ";

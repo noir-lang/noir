@@ -636,9 +636,9 @@ mod test {
                 v5 = add v0, Field 2
                 jmp b1(v5)
               b1(v1: Field):
-                v6 = allocate -> Field
+                v6 = allocate -> &mut Field
                 v7 = load v6 -> Field
-                v8 = allocate -> Field
+                v8 = allocate -> &mut Field
                 store Field 1 at v8
                 v9 = load v8 -> Field
                 v10 = add v9, Field 1
@@ -657,7 +657,7 @@ mod test {
                 v3 = add v0, Field 2
                 jmp b1(v3)
               b1(v1: Field):
-                v4 = allocate -> Field
+                v4 = allocate -> &mut Field
                 store Field 1 at v4
                 v6 = load v4 -> Field
                 v7 = add v6, Field 1

@@ -8,8 +8,6 @@ use acvm::acir::circuit::{ErrorSelector, STRING_ERROR_SELECTOR};
 use acvm::acir::AcirField;
 use iter_extended::vecmap;
 
-use crate::ssa::ir::types::Type;
-
 use super::{
     basic_block::BasicBlockId,
     dfg::DataFlowGraph,
@@ -184,26 +182,13 @@ fn display_instruction_inner(
         }
         Instruction::Call { func, arguments } => {
             let arguments = value_list(function, arguments);
-            let types = vecmap(results, |result| function.dfg.type_of_value(*result).to_string());
-            if types.is_empty() {
-                writeln!(f, "call {}({})", show(*func), arguments)
-            } else if types.len() == 1 {
-                writeln!(f, "call {}({}) -> {}", show(*func), arguments, types[0])
-            } else {
-                writeln!(f, "call {}({}) -> ({})", show(*func), arguments, types.join(", "))
-            }
+            writeln!(f, "call {}({}){}", show(*func), arguments, result_types(function, results))
         }
         Instruction::Allocate => {
-            assert_eq!(results.len(), 1);
-            let Type::Reference(typ) = function.dfg.type_of_value(results[0]) else {
-                panic!("Allocate instruction must have a reference type")
-            };
-            writeln!(f, "allocate -> {}", typ)
+            writeln!(f, "allocate{}", result_types(function, results))
         }
         Instruction::Load { address } => {
-            assert_eq!(results.len(), 1);
-            let typ = function.dfg.type_of_value(results[0]);
-            writeln!(f, "load {} -> {}", show(*address), typ)
+            writeln!(f, "load {}{}", show(*address), result_types(function, results))
         }
         Instruction::Store { address, value } => {
             writeln!(f, "store {} at {}", show(*value), show(*address))
@@ -212,9 +197,13 @@ fn display_instruction_inner(
             writeln!(f, "enable_side_effects {}", show(*condition))
         }
         Instruction::ArrayGet { array, index } => {
-            assert_eq!(results.len(), 1);
-            let typ = function.dfg.type_of_value(results[0]);
-            writeln!(f, "array_get {}, index {} -> {}", show(*array), show(*index), typ)
+            writeln!(
+                f,
+                "array_get {}, index {}{}",
+                show(*array),
+                show(*index),
+                result_types(function, results)
+            )
         }
         Instruction::ArraySet { array, index, value, mutable } => {
             let array = show(*array);
@@ -242,6 +231,17 @@ fn display_instruction_inner(
                 "if {then_condition} then {then_value} else if {else_condition} then {else_value}"
             )
         }
+    }
+}
+
+fn result_types(function: &Function, results: &[ValueId]) -> String {
+    let types = vecmap(results, |result| function.dfg.type_of_value(*result).to_string());
+    if types.is_empty() {
+        String::new()
+    } else if types.len() == 1 {
+        format!(" -> {}", types[0])
+    } else {
+        format!(" -> ({})", types.join(", "))
     }
 }
 

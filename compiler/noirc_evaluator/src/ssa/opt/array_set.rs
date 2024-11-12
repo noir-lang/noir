@@ -216,9 +216,9 @@ mod tests {
         let src = "
             brillig(inline) fn main f0 {
               b0():
-                v1 = allocate -> [Field; 5]
+                v1 = allocate -> &mut [Field; 5]
                 store [[Field 0, Field 0, Field 0, Field 0, Field 0] of Field, [Field 0, Field 0, Field 0, Field 0, Field 0] of Field] of [Field; 5] at v1
-                v6 = allocate -> [Field; 5]
+                v6 = allocate -> &mut [Field; 5]
                 store [[Field 0, Field 0, Field 0, Field 0, Field 0] of Field, [Field 0, Field 0, Field 0, Field 0, Field 0] of Field] of [Field; 5] at v6
                 jmp b1(u32 0)
               b1(v0: u32):
