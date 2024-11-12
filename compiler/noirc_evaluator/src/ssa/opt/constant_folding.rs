@@ -421,14 +421,14 @@ mod test {
 
         // Note that this constant guarantees that `v0/constant < 2^8`. We then do not need to truncate the result.
         let constant = 2_u128.pow(8);
-        let constant = main.dfg.make_constant(constant.into(), Type::field());
+        let constant = main.dfg.make_constant(constant.into(), Type::unsigned(16));
 
         main.dfg.set_value_from_id(v1, constant);
 
         let expected = "
             acir(inline) fn main f0 {
-              b0(v0: u16, v1: Field):
-                v3 = div v0, Field 256
+              b0(v0: u16, v1: u16):
+                v3 = div v0, u16 256
                 return v3
             }
             ";
