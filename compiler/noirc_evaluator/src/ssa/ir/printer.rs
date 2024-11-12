@@ -13,7 +13,6 @@ use super::{
     dfg::DataFlowGraph,
     function::Function,
     instruction::{ConstrainError, Instruction, InstructionId, TerminatorInstruction},
-    types::Type,
     value::{Value, ValueId},
 };
 
