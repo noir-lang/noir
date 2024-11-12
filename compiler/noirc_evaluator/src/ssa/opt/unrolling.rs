@@ -7,11 +7,11 @@
 //!    b. If we have previously modified any of the blocks in the loop,
 //!       restart from step 1 to refresh the context.
 //!    c. If not, try to unroll the loop. If successful, remember the modified
-//!       blocks. If unsuccessfully either error if the abort_on_error flag is set,
+//!       blocks. If unsuccessful either error if the abort_on_error flag is set,
 //!       or otherwise remember that the loop failed to unroll and leave it unmodified.
 //!
 //! Note that this pass also often creates superfluous jmp instructions in the
-//! program that will need to be removed by a later simplify cfg pass.
+//! program that will need to be removed by a later simplify CFG pass.
 //! Note also that unrolling is skipped for Brillig runtime and as a result
 //! we remove reference count instructions because they are only used by Brillig bytecode
 use std::collections::HashSet;
@@ -116,6 +116,32 @@ struct Loops {
 
 /// Find a loop in the program by finding a node that dominates any predecessor node.
 /// The edge where this happens will be the back-edge of the loop.
+///
+/// For example consider the following SSA of a basic loop:
+/// ```text
+/// main():
+///   v0 = ... start ...
+///   v1 = ... end ...
+///   jmp loop_entry(v0)
+/// loop_entry(i: Field):
+///   v2 = lt i v1
+///   jmpif v2, then: loop_body, else: loop_end
+/// loop_body():
+///   v3 = ... body ...
+///   v4 = add 1, i
+///   jmp loop_entry(v4)
+/// loop_end():
+/// ```
+///
+/// The CFG will look something like this:
+/// ```text
+/// main
+///   ↓
+/// loop_entry ←---↰
+///   ↓        ↘   |
+/// loop_end    loop_body     
+/// ```
+/// `loop_entry` has two predecessors: `main` and `loop_body`, and it dominates `loop_body`.
 fn find_all_loops(function: &Function) -> Loops {
     let cfg = ControlFlowGraph::with_function(function);
     let post_order = PostOrder::with_function(function);
@@ -127,6 +153,7 @@ fn find_all_loops(function: &Function) -> Loops {
         // These reachable checks wouldn't be needed if we only iterated over reachable blocks
         if dom_tree.is_reachable(block) {
             for predecessor in cfg.predecessors(block) {
+                // In the above example, we're looking for when `block` is `loop_entry` and `predecessor` is `loop_body`.
                 if dom_tree.is_reachable(predecessor) && dom_tree.dominates(block, predecessor) {
                     // predecessor -> block is the back-edge of a loop
                     loops.push(find_blocks_in_loop(block, predecessor, &cfg));
@@ -137,7 +164,7 @@ fn find_all_loops(function: &Function) -> Loops {
 
     // Sort loops by block size so that we unroll the larger, outer loops of nested loops first.
     // This is needed because inner loops may use the induction variable from their outer loops in
-    // their loop range.
+    // their loop range. We will start popping loops from the back.
     loops.sort_by_key(|loop_| loop_.blocks.len());
 
     Loops {
@@ -212,7 +239,63 @@ fn find_blocks_in_loop(
 }
 
 /// Unroll a single loop in the function.
-/// Returns Err(()) if it failed to unroll and Ok(()) otherwise.
+/// Returns Ok(()) if it succeeded, Err(callstack) if it failed,
+/// where the callstack indicates the location of the instruction
+/// that could not be processed, or empty if such information was
+/// not available.
+///
+/// Consider this example:
+/// ```text
+/// main():
+///   v0 = 0
+///   v1 = 3
+///   jmp loop_entry(v0)
+/// loop_entry(i: Field):
+///   v2 = lt i v1
+///   jmpif v2, then: loop_body, else: loop_end
+/// ```
+///
+/// The first step is to unroll the header by recognizing that jump condition
+/// is a constant, which means it will go to `loop_body`:
+/// ```text
+/// main():
+///   v0 = 0
+///   v1 = 2
+///   v2 = lt v0 v1
+///   // jmpif v2, then: loop_body, else: loop_end
+///   jmp dest: loop_body
+/// ```
+///
+/// Following that we unroll the loop body, which is the next source, replace
+/// the induction variable with the new value created in the body, and have
+/// another go at the header.
+/// ```text
+/// main():
+///   v0 = 0
+///   v1 = 2
+///   v2 = lt v0 v1
+///   v3 = ... body ...
+///   v4 = add 1, 0
+///   jmp loop_entry(v4)
+/// ```
+///
+/// At the end we reach a point where the condition evaluates to 0 and we jump to the end.
+/// ```text
+/// main():
+///   v0 = 0
+///   v1 = 2
+///   v2 = lt 0
+///   v3 = ... body ...
+///   v4 = add 1, v0
+///   v5 = lt v4 v1
+///   v6 = ... body ...
+///   v7 = add v4, 1
+///   v8 = lt v5 v1
+///   jmp loop_end
+/// ```
+///
+/// When e.g. `v8 = lt v5 v1` cannot be evaluated to a constant, the loop signals by returning `Err`
+/// that a few SSA passes are required to evaluate and simplify these values.
 fn unroll_loop(
     function: &mut Function,
     cfg: &ControlFlowGraph,
@@ -232,7 +315,7 @@ fn unroll_loop(
 
 /// The loop pre-header is the block that comes before the loop begins. Generally a header block
 /// is expected to have 2 predecessors: the pre-header and the final block of the loop which jumps
-/// back to the beginning.
+/// back to the beginning. Other predecessors can come from `break` or `continue`.
 fn get_pre_header(cfg: &ControlFlowGraph, loop_: &Loop) -> BasicBlockId {
     let mut pre_header = cfg
         .predecessors(loop_.header)
@@ -247,6 +330,17 @@ fn get_pre_header(cfg: &ControlFlowGraph, loop_: &Loop) -> BasicBlockId {
 ///
 /// Expects the current block to terminate in `jmp h(N)` where h is the loop header and N is
 /// a Field value.
+///
+/// Consider the following example:
+/// ```text
+/// main():
+///   v0 = ... start ...
+///   v1 = ... end ...
+///   jmp loop_entry(v0)
+/// loop_entry(i: Field):
+///   ...
+/// ```
+/// We're looking for the terminating jump of the `main` predecessor of `loop_entry`.
 fn get_induction_variable(function: &Function, block: BasicBlockId) -> Result<ValueId, CallStack> {
     match function.dfg[block].terminator() {
         Some(TerminatorInstruction::Jmp { arguments, call_stack: location, .. }) => {
@@ -288,8 +382,9 @@ fn unroll_loop_header<'a>(
     // Insert the current value of the loop induction variable into our context.
     let first_param = source_block.parameters()[0];
     context.inserter.try_map_value(first_param, induction_value);
+    // Copy over all instructions and a fresh terminator.
     context.inline_instructions_from_block();
-
+    // Mutate the terminator if possible so that it points at the iteration block.
     match context.dfg()[fresh_block].unwrap_terminator() {
         TerminatorInstruction::JmpIf { condition, then_destination, else_destination, call_stack } => {
             let condition = *condition;
@@ -304,6 +399,11 @@ fn unroll_loop_header<'a>(
                 // unroll_into block from now on.
                 context.insert_block = unroll_into;
 
+                // In the last iteration, `handle_jmpif` will have replaced `context.source_block`
+                // with the `else_destination`, that is, the `loop_end`, which signals that we 
+                // have no more loops to unroll, because that block was not part of the loop itself, 
+                // ie. it wasn't between `loop_header` and `loop_body`. Otherwise we have the `loop_body`
+                // in `source_block` and can unroll that into the destination.
                 Ok(loop_.blocks.contains(&context.source_block).then_some(context))
             } else {
                 // If this case is reached the loop either uses non-constant indices or we need
@@ -376,7 +476,8 @@ impl<'f> LoopIteration<'f> {
                 next_blocks.append(&mut blocks);
             }
         }
-
+        // After having unrolled all blocks in the loop body, we must know how to get back to the header;
+        // this is also the block into which we have to unroll into next.
         self.induction_value
             .expect("Expected to find the induction variable by end of loop iteration")
     }
@@ -384,6 +485,9 @@ impl<'f> LoopIteration<'f> {
     /// Unroll a single block in the current iteration of the loop
     fn unroll_loop_block(&mut self) -> Vec<BasicBlockId> {
         let mut next_blocks = self.unroll_loop_block_helper();
+        // If the loop body ends with a JmpIf then eliminate either destinations
+        // which are not one of the block we have seen as a destination of a terminator
+        // of a block we have already inlined.
         next_blocks.retain(|block| {
             let b = self.get_original_block(*block);
             self.loop_.blocks.contains(&b)
@@ -393,6 +497,7 @@ impl<'f> LoopIteration<'f> {
 
     /// Unroll a single block in the current iteration of the loop
     fn unroll_loop_block_helper(&mut self) -> Vec<BasicBlockId> {
+        // Copy instructions from the loop body to the unroll destination, replacing the terminator.
         self.inline_instructions_from_block();
         self.visited_blocks.insert(self.source_block);
 
@@ -402,14 +507,19 @@ impl<'f> LoopIteration<'f> {
                 then_destination,
                 else_destination,
                 call_stack,
-            } => self.handle_jmpif(
-                *condition,
-                *then_destination,
-                *else_destination,
-                call_stack.clone(),
-            ),
+            } =>
+            // Check where the loop body wants to jump (e.g if-then blocks).
+            {
+                self.handle_jmpif(
+                    *condition,
+                    *then_destination,
+                    *else_destination,
+                    call_stack.clone(),
+                )
+            }
             TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
                 if self.get_original_block(*destination) == self.loop_.header {
+                    // We found the back-edge of the loop.
                     assert_eq!(arguments.len(), 1);
                     self.induction_value = Some((self.insert_block, arguments[0]));
                 }
@@ -421,7 +531,10 @@ impl<'f> LoopIteration<'f> {
 
     /// Find the next branch(es) to take from a jmpif terminator and return them.
     /// If only one block is returned, it means the jmpif condition evaluated to a known
-    /// constant and we can safely take only the given branch.
+    /// constant and we can safely take only the given branch. In this case the method
+    /// also replaces the terminator of the insert block (a.k.a fresh block) to be a JMP,
+    /// and changes the source block in the context for the next iteration to be the
+    /// destination indicated by the constant condition (ie. the `then` or the `else`).
     fn handle_jmpif(
         &mut self,
         condition: ValueId,
@@ -467,10 +580,13 @@ impl<'f> LoopIteration<'f> {
         }
     }
 
+    /// Find the original ID of a block that replaced it.
     fn get_original_block(&self, block: BasicBlockId) -> BasicBlockId {
         self.original_blocks.get(&block).copied().unwrap_or(block)
     }
 
+    /// Copy over instructions from the source into the insert block,  
+    /// while simplifying instructions and keeping track of original block IDs.
     fn inline_instructions_from_block(&mut self) {
         let source_block = &self.dfg()[self.source_block];
         let instructions = source_block.instructions().to_vec();
@@ -479,6 +595,7 @@ impl<'f> LoopIteration<'f> {
         // instances of the induction variable or any values that were changed as a result
         // of the new induction variable value.
         for instruction in instructions {
+            // TODO (#6470): Now Brillig will be inlined as well.
             // Skip reference count instructions since they are only used for brillig, and brillig code is not unrolled
             if !matches!(
                 self.dfg()[instruction],
@@ -492,6 +609,8 @@ impl<'f> LoopIteration<'f> {
             .clone()
             .map_values(|value| self.inserter.resolve(value));
 
+        // Replace the blocks in the terminator with fresh one with the same parameters,
+        // while remembering which were the original block IDs.
         terminator.mutate_blocks(|block| self.get_or_insert_block(block));
         self.inserter.function.dfg.set_block_terminator(self.insert_block, terminator);
     }
