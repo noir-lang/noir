@@ -34,7 +34,7 @@ pub(crate) fn assert_ssa_equals(mut ssa: super::Ssa, expected: &str) {
     let expected = trim_leading_whitespace_from_lines(expected);
 
     if ssa != expected {
-        println!("Expected:\n~~~\n{}\n~~~\nGot:\n~~~\n{}\n~~~", expected, ssa);
-        similar_asserts::assert_eq!(expected, ssa);
+        println!("Got:\n~~~\n{}\n~~~\nExpected:\n~~~\n{}\n~~~", ssa, expected);
+        similar_asserts::assert_eq!(ssa, expected);
     }
 }
