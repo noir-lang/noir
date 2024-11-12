@@ -5,6 +5,7 @@ use noirc_errors::{Position, Span};
 use noirc_frontend::token::IntType;
 use num_bigint::BigInt;
 use num_traits::{Num, One};
+use thiserror::Error;
 
 use super::token::{Keyword, SpannedToken, Token};
 
@@ -237,9 +238,22 @@ impl<'a> Lexer<'a> {
 
 type SpannedTokenResult = Result<SpannedToken, LexerError>;
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub(crate) enum LexerError {
+    #[error("Unexpected character: {char}")]
     UnexpectedCharacter { char: char, span: Span },
+    #[error("Invalid integer literal")]
     InvalidIntegerLiteral { span: Span, found: String },
+    #[error("Integer literal too large")]
     IntegerLiteralTooLarge { span: Span, limit: String },
+}
+
+impl LexerError {
+    pub(crate) fn span(&self) -> Span {
+        match self {
+            LexerError::UnexpectedCharacter { span, .. }
+            | LexerError::InvalidIntegerLiteral { span, .. }
+            | LexerError::IntegerLiteralTooLarge { span, .. } => *span,
+        }
+    }
 }

@@ -1,3 +1,5 @@
+use std::fmt::{self, Display, Formatter};
+
 use acvm::FieldElement;
 use noirc_errors::Span;
 
@@ -39,6 +41,12 @@ pub(crate) struct Identifier {
 impl Identifier {
     pub(crate) fn new(name: String, span: Span) -> Self {
         Self { name, span }
+    }
+}
+
+impl Display for Identifier {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.name)
     }
 }
 

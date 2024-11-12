@@ -1,4 +1,7 @@
-use std::sync::Arc;
+use std::{
+    fmt::{self, Debug, Formatter},
+    sync::Arc,
+};
 
 use super::{
     ir::{instruction::BinaryOp, types::Type},
@@ -13,6 +16,7 @@ use ast::{
 use lexer::{Lexer, LexerError};
 use noirc_errors::Span;
 use noirc_frontend::{monomorphization::ast::InlineType, token::IntType};
+use thiserror::Error;
 use token::{Keyword, SpannedToken, Token};
 
 use crate::ssa::{ir::function::RuntimeType, parser::ast::ParsedTerminator};
@@ -24,21 +28,82 @@ mod tests;
 mod token;
 
 impl Ssa {
-    pub(crate) fn from_str(src: &str) -> Result<Ssa, SsaError> {
-        let mut parser = Parser::new(src).map_err(SsaError::ParserError)?;
-        let parsed_ssa = parser.parse_ssa().map_err(SsaError::ParserError)?;
-        parsed_ssa.into_ssa()
+    pub(crate) fn from_str(src: &str) -> Result<Ssa, SsaErrorWithSource> {
+        let mut parser =
+            Parser::new(src).map_err(|err| SsaErrorWithSource::parse_error(err, src))?;
+        let parsed_ssa =
+            parser.parse_ssa().map_err(|err| SsaErrorWithSource::parse_error(err, src))?;
+        parsed_ssa.into_ssa().map_err(|error| SsaErrorWithSource { src: src.to_string(), error })
     }
 }
 
-#[derive(Debug)]
+pub(crate) struct SsaErrorWithSource {
+    src: String,
+    error: SsaError,
+}
+
+impl SsaErrorWithSource {
+    fn parse_error(error: ParserError, src: &str) -> Self {
+        Self { src: src.to_string(), error: SsaError::ParserError(error) }
+    }
+}
+
+impl Debug for SsaErrorWithSource {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let span = self.error.span();
+
+        let mut byte: usize = 0;
+        for line in self.src.lines() {
+            let has_error =
+                byte <= span.start() as usize && span.end() as usize <= byte + line.len();
+            if has_error {
+                writeln!(f)?;
+            }
+
+            writeln!(f, "{}", line)?;
+
+            if has_error {
+                let offset = span.start() as usize - byte;
+                write!(f, "{}", " ".repeat(offset))?;
+                writeln!(f, "{}", "^".repeat((span.end() - span.start()) as usize))?;
+                write!(f, "{}", " ".repeat(offset))?;
+                writeln!(f, "{}", self.error)?;
+                writeln!(f)?;
+            }
+
+            byte += line.len() + 1; // "+ 1" for the newline
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug, Error)]
 pub(crate) enum SsaError {
+    #[error("{0}")]
     ParserError(ParserError),
+    #[error("Unknown variable `{0}`")]
     UnknownVariable(Identifier),
+    #[error("Unknown block `{0}`")]
     UnknownBlock(Identifier),
+    #[error("Unknown function `{0}`")]
     UnknownFunction(Identifier),
+    #[error("Mismatched return values")]
     MismatchedReturnValues { returns: Vec<Identifier>, expected: usize },
+    #[error("Variable `{0}` already defined")]
     VariableAlreadyDefined(Identifier),
+}
+
+impl SsaError {
+    fn span(&self) -> Span {
+        match self {
+            SsaError::ParserError(parser_error) => parser_error.span(),
+            SsaError::UnknownVariable(identifier)
+            | SsaError::UnknownBlock(identifier)
+            | SsaError::VariableAlreadyDefined(identifier)
+            | SsaError::UnknownFunction(identifier) => identifier.span,
+            SsaError::MismatchedReturnValues { returns, expected: _ } => returns[0].span,
+        }
+    }
 }
 
 type ParseResult<T> = Result<T, ParserError>;
@@ -788,17 +853,44 @@ impl<'a> Parser<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub(crate) enum ParserError {
+    #[error("{0}")]
     LexerError(LexerError),
+    #[error("Expected {token}, found {token}")]
     ExpectedToken { token: Token, found: Token, span: Span },
+    #[error("Expected one of {tokens:?}, found {found}")]
     ExpectedOneOfTokens { tokens: Vec<Token>, found: Token, span: Span },
+    #[error("Expected an identifier, found {found}")]
     ExpectedIdentifier { found: Token, span: Span },
+    #[error("Expected an int, found {found}")]
     ExpectedInt { found: Token, span: Span },
+    #[error("Expected a type, found {found}")]
     ExpectedType { found: Token, span: Span },
+    #[error("Expected an instruction or terminator, found {found}")]
     ExpectedInstructionOrTerminator { found: Token, span: Span },
+    #[error("Expected a value, found {found}")]
     ExpectedValue { found: Token, span: Span },
+    #[error("Multiple return values only allowed for call")]
     MultipleReturnValuesOnlyAllowedForCall { second_target: Identifier },
+}
+
+impl ParserError {
+    fn span(&self) -> Span {
+        match self {
+            ParserError::LexerError(err) => err.span(),
+            ParserError::ExpectedToken { span, .. }
+            | ParserError::ExpectedOneOfTokens { span, .. }
+            | ParserError::ExpectedIdentifier { span, .. }
+            | ParserError::ExpectedInt { span, .. }
+            | ParserError::ExpectedType { span, .. }
+            | ParserError::ExpectedInstructionOrTerminator { span, .. }
+            | ParserError::ExpectedValue { span, .. } => *span,
+            ParserError::MultipleReturnValuesOnlyAllowedForCall { second_target, .. } => {
+                second_target.span
+            }
+        }
+    }
 }
 
 fn eof_spanned_token() -> SpannedToken {
