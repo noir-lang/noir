@@ -12,8 +12,12 @@
 //!
 //! Note that this pass also often creates superfluous jmp instructions in the
 //! program that will need to be removed by a later simplify CFG pass.
-//! Note also that unrolling is skipped for Brillig runtime and as a result
-//! we remove reference count instructions because they are only used by Brillig bytecode
+//!
+//! Note also that unrolling is skipped for Brillig runtime, unless the loops are deemed
+//! sufficiently small that inlining can be done without increasing the bytecode.
+//!
+//! When unrolling ACIR code, we remove reference count instructions because they are
+//! only used by Brillig bytecode.
 use std::collections::HashSet;
 
 use acvm::acir::AcirField;
@@ -26,9 +30,9 @@ use crate::{
             cfg::ControlFlowGraph,
             dfg::{CallStack, DataFlowGraph},
             dom::DominatorTree,
-            function::{Function, RuntimeType},
+            function::Function,
             function_inserter::FunctionInserter,
-            instruction::{Instruction, TerminatorInstruction},
+            instruction::{Instruction, InstructionId, TerminatorInstruction},
             post_order::PostOrder,
             value::ValueId,
         },
@@ -43,7 +47,7 @@ impl Ssa {
     pub(crate) fn unroll_loops_iteratively(mut ssa: Ssa) -> Result<Ssa, RuntimeError> {
         // Try to unroll loops first:
         let mut unroll_errors;
-        (ssa, unroll_errors) = ssa.try_to_unroll_loops();
+        (ssa, unroll_errors) = ssa.try_unroll_loops();
 
         // Keep unrolling until no more errors are found
         while !unroll_errors.is_empty() {
@@ -58,7 +62,7 @@ impl Ssa {
             ssa = ssa.mem2reg();
 
             // Unroll again
-            (ssa, unroll_errors) = ssa.try_to_unroll_loops();
+            (ssa, unroll_errors) = ssa.try_unroll_loops();
             // If we didn't manage to unroll any more loops, exit
             if unroll_errors.len() >= prev_unroll_err_count {
                 return Err(unroll_errors.swap_remove(0));
@@ -71,23 +75,22 @@ impl Ssa {
     /// If any loop cannot be unrolled, it is left as-is or in a partially unrolled state.
     /// Returns the ssa along with all unrolling errors encountered
     #[tracing::instrument(level = "trace", skip(self))]
-    pub(crate) fn try_to_unroll_loops(mut self) -> (Ssa, Vec<RuntimeError>) {
+    fn try_unroll_loops(mut self) -> (Ssa, Vec<RuntimeError>) {
         let mut errors = vec![];
         for function in self.functions.values_mut() {
-            function.try_to_unroll_loops(&mut errors);
+            errors.extend(function.try_unroll_loops());
         }
         (self, errors)
     }
 }
 
 impl Function {
-    pub(crate) fn try_to_unroll_loops(&mut self, errors: &mut Vec<RuntimeError>) {
-        // Loop unrolling in brillig can lead to a code explosion currently. This can
-        // also be true for ACIR, but we have no alternative to unrolling in ACIR.
-        // Brillig also generally prefers smaller code rather than faster code.
-        if !matches!(self.runtime(), RuntimeType::Brillig(_)) {
-            errors.extend(find_all_loops(self).unroll_each_loop(self));
-        }
+    fn try_unroll_loops(&mut self) -> Vec<RuntimeError> {
+        // Loop unrolling in brillig can lead to a code explosion currently.
+        // This can also be true for ACIR, but we have no alternative to unrolling in ACIR.
+        // Brillig also generally prefers smaller code rather than faster code,
+        // so we only attempt to unroll small loops, which we decide on a case-by-case basis.
+        Loops::find_all(self).unroll_each(self)
     }
 }
 
@@ -101,7 +104,7 @@ struct Loop {
     back_edge_start: BasicBlockId,
 
     /// All the blocks contained within the loop, including `header` and `back_edge_start`.
-    pub(crate) blocks: HashSet<BasicBlockId>,
+    blocks: HashSet<BasicBlockId>,
 }
 
 struct Loops {
@@ -114,87 +117,89 @@ struct Loops {
     cfg: ControlFlowGraph,
 }
 
-/// Find a loop in the program by finding a node that dominates any predecessor node.
-/// The edge where this happens will be the back-edge of the loop.
-///
-/// For example consider the following SSA of a basic loop:
-/// ```text
-/// main():
-///   v0 = ... start ...
-///   v1 = ... end ...
-///   jmp loop_entry(v0)
-/// loop_entry(i: Field):
-///   v2 = lt i v1
-///   jmpif v2, then: loop_body, else: loop_end
-/// loop_body():
-///   v3 = ... body ...
-///   v4 = add 1, i
-///   jmp loop_entry(v4)
-/// loop_end():
-/// ```
-///
-/// The CFG will look something like this:
-/// ```text
-/// main
-///   ↓
-/// loop_entry ←---↰
-///   ↓        ↘   |
-/// loop_end    loop_body     
-/// ```
-/// `loop_entry` has two predecessors: `main` and `loop_body`, and it dominates `loop_body`.
-fn find_all_loops(function: &Function) -> Loops {
-    let cfg = ControlFlowGraph::with_function(function);
-    let post_order = PostOrder::with_function(function);
-    let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+impl Loops {
+    /// Find a loop in the program by finding a node that dominates any predecessor node.
+    /// The edge where this happens will be the back-edge of the loop.
+    ///
+    /// For example consider the following SSA of a basic loop:
+    /// ```text
+    /// main():
+    ///   v0 = ... start ...
+    ///   v1 = ... end ...
+    ///   jmp loop_entry(v0)
+    /// loop_entry(i: Field):
+    ///   v2 = lt i v1
+    ///   jmpif v2, then: loop_body, else: loop_end
+    /// loop_body():
+    ///   v3 = ... body ...
+    ///   v4 = add 1, i
+    ///   jmp loop_entry(v4)
+    /// loop_end():
+    /// ```
+    ///
+    /// The CFG will look something like this:
+    /// ```text
+    /// main
+    ///   ↓
+    /// loop_entry ←---↰
+    ///   ↓        ↘   |
+    /// loop_end    loop_body     
+    /// ```
+    /// `loop_entry` has two predecessors: `main` and `loop_body`, and it dominates `loop_body`.
+    fn find_all(function: &Function) -> Self {
+        let cfg = ControlFlowGraph::with_function(function);
+        let post_order = PostOrder::with_function(function);
+        let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
 
-    let mut loops = vec![];
+        let mut loops = vec![];
 
-    for (block, _) in function.dfg.basic_blocks_iter() {
-        // These reachable checks wouldn't be needed if we only iterated over reachable blocks
-        if dom_tree.is_reachable(block) {
-            for predecessor in cfg.predecessors(block) {
-                // In the above example, we're looking for when `block` is `loop_entry` and `predecessor` is `loop_body`.
-                if dom_tree.is_reachable(predecessor) && dom_tree.dominates(block, predecessor) {
-                    // predecessor -> block is the back-edge of a loop
-                    loops.push(find_blocks_in_loop(block, predecessor, &cfg));
+        for (block, _) in function.dfg.basic_blocks_iter() {
+            // These reachable checks wouldn't be needed if we only iterated over reachable blocks
+            if dom_tree.is_reachable(block) {
+                for predecessor in cfg.predecessors(block) {
+                    // In the above example, we're looking for when `block` is `loop_entry` and `predecessor` is `loop_body`.
+                    if dom_tree.is_reachable(predecessor) && dom_tree.dominates(block, predecessor)
+                    {
+                        // predecessor -> block is the back-edge of a loop
+                        loops.push(Loop::find_blocks_in_loop(block, predecessor, &cfg));
+                    }
                 }
             }
         }
+
+        // Sort loops by block size so that we unroll the larger, outer loops of nested loops first.
+        // This is needed because inner loops may use the induction variable from their outer loops in
+        // their loop range. We will start popping loops from the back.
+        loops.sort_by_key(|loop_| loop_.blocks.len());
+
+        Self {
+            failed_to_unroll: HashSet::new(),
+            yet_to_unroll: loops,
+            modified_blocks: HashSet::new(),
+            cfg,
+        }
     }
 
-    // Sort loops by block size so that we unroll the larger, outer loops of nested loops first.
-    // This is needed because inner loops may use the induction variable from their outer loops in
-    // their loop range. We will start popping loops from the back.
-    loops.sort_by_key(|loop_| loop_.blocks.len());
-
-    Loops {
-        failed_to_unroll: HashSet::new(),
-        yet_to_unroll: loops,
-        modified_blocks: HashSet::new(),
-        cfg,
-    }
-}
-
-impl Loops {
     /// Unroll all loops within a given function.
     /// Any loops which fail to be unrolled (due to using non-constant indices) will be unmodified.
-    fn unroll_each_loop(mut self, function: &mut Function) -> Vec<RuntimeError> {
+    fn unroll_each(mut self, function: &mut Function) -> Vec<RuntimeError> {
         let mut unroll_errors = vec![];
         while let Some(next_loop) = self.yet_to_unroll.pop() {
+            if function.runtime().is_brillig() {
+                // TODO (#6470): Decide whether to unroll this loop.
+                continue;
+            }
             // If we've previously modified a block in this loop we need to refresh the context.
             // This happens any time we have nested loops.
             if next_loop.blocks.iter().any(|block| self.modified_blocks.contains(block)) {
-                let mut new_context = find_all_loops(function);
-                new_context.failed_to_unroll = self.failed_to_unroll;
-                return unroll_errors
-                    .into_iter()
-                    .chain(new_context.unroll_each_loop(function))
-                    .collect();
+                let mut new_loops = Self::find_all(function);
+                new_loops.failed_to_unroll = self.failed_to_unroll;
+                return unroll_errors.into_iter().chain(new_loops.unroll_each(function)).collect();
             }
 
             // Don't try to unroll the loop again if it is known to fail
             if !self.failed_to_unroll.contains(&next_loop.header) {
-                match unroll_loop(function, &self.cfg, &next_loop) {
+                match next_loop.unroll(function, &self.cfg) {
                     Ok(_) => self.modified_blocks.extend(next_loop.blocks),
                     Err(call_stack) => {
                         self.failed_to_unroll.insert(next_loop.header);
@@ -207,123 +212,179 @@ impl Loops {
     }
 }
 
-/// Return each block that is in a loop starting in the given header block.
-/// Expects back_edge_start -> header to be the back edge of the loop.
-fn find_blocks_in_loop(
-    header: BasicBlockId,
-    back_edge_start: BasicBlockId,
-    cfg: &ControlFlowGraph,
-) -> Loop {
-    let mut blocks = HashSet::new();
-    blocks.insert(header);
+impl Loop {
+    /// Return each block that is in a loop starting in the given header block.
+    /// Expects back_edge_start -> header to be the back edge of the loop.
+    fn find_blocks_in_loop(
+        header: BasicBlockId,
+        back_edge_start: BasicBlockId,
+        cfg: &ControlFlowGraph,
+    ) -> Self {
+        let mut blocks = HashSet::new();
+        blocks.insert(header);
 
-    let mut insert = |block, stack: &mut Vec<BasicBlockId>| {
-        if !blocks.contains(&block) {
-            blocks.insert(block);
-            stack.push(block);
+        let mut insert = |block, stack: &mut Vec<BasicBlockId>| {
+            if !blocks.contains(&block) {
+                blocks.insert(block);
+                stack.push(block);
+            }
+        };
+
+        // Starting from the back edge of the loop, each predecessor of this block until
+        // the header is within the loop.
+        let mut stack = vec![];
+        insert(back_edge_start, &mut stack);
+
+        while let Some(block) = stack.pop() {
+            for predecessor in cfg.predecessors(block) {
+                insert(predecessor, &mut stack);
+            }
         }
-    };
 
-    // Starting from the back edge of the loop, each predecessor of this block until
-    // the header is within the loop.
-    let mut stack = vec![];
-    insert(back_edge_start, &mut stack);
-
-    while let Some(block) = stack.pop() {
-        for predecessor in cfg.predecessors(block) {
-            insert(predecessor, &mut stack);
-        }
+        Self { header, back_edge_start, blocks }
     }
 
-    Loop { header, back_edge_start, blocks }
-}
+    /// Unroll a single loop in the function.
+    /// Returns Ok(()) if it succeeded, Err(callstack) if it failed,
+    /// where the callstack indicates the location of the instruction
+    /// that could not be processed, or empty if such information was
+    /// not available.
+    ///
+    /// Consider this example:
+    /// ```text
+    /// main():
+    ///   v0 = 0
+    ///   v1 = 3
+    ///   jmp loop_entry(v0)
+    /// loop_entry(i: Field):
+    ///   v2 = lt i v1
+    ///   jmpif v2, then: loop_body, else: loop_end
+    /// ```
+    ///
+    /// The first step is to unroll the header by recognizing that jump condition
+    /// is a constant, which means it will go to `loop_body`:
+    /// ```text
+    /// main():
+    ///   v0 = 0
+    ///   v1 = 2
+    ///   v2 = lt v0 v1
+    ///   // jmpif v2, then: loop_body, else: loop_end
+    ///   jmp dest: loop_body
+    /// ```
+    ///
+    /// Following that we unroll the loop body, which is the next source, replace
+    /// the induction variable with the new value created in the body, and have
+    /// another go at the header.
+    /// ```text
+    /// main():
+    ///   v0 = 0
+    ///   v1 = 2
+    ///   v2 = lt v0 v1
+    ///   v3 = ... body ...
+    ///   v4 = add 1, 0
+    ///   jmp loop_entry(v4)
+    /// ```
+    ///
+    /// At the end we reach a point where the condition evaluates to 0 and we jump to the end.
+    /// ```text
+    /// main():
+    ///   v0 = 0
+    ///   v1 = 2
+    ///   v2 = lt 0
+    ///   v3 = ... body ...
+    ///   v4 = add 1, v0
+    ///   v5 = lt v4 v1
+    ///   v6 = ... body ...
+    ///   v7 = add v4, 1
+    ///   v8 = lt v5 v1
+    ///   jmp loop_end
+    /// ```
+    ///
+    /// When e.g. `v8 = lt v5 v1` cannot be evaluated to a constant, the loop signals by returning `Err`
+    /// that a few SSA passes are required to evaluate and simplify these values.
+    fn unroll(
+        self: &Loop,
+        function: &mut Function,
+        cfg: &ControlFlowGraph,
+    ) -> Result<(), CallStack> {
+        let mut unroll_into = self.get_pre_header(cfg);
+        let mut jump_value = get_induction_variable(function, unroll_into)?;
 
-/// Unroll a single loop in the function.
-/// Returns Ok(()) if it succeeded, Err(callstack) if it failed,
-/// where the callstack indicates the location of the instruction
-/// that could not be processed, or empty if such information was
-/// not available.
-///
-/// Consider this example:
-/// ```text
-/// main():
-///   v0 = 0
-///   v1 = 3
-///   jmp loop_entry(v0)
-/// loop_entry(i: Field):
-///   v2 = lt i v1
-///   jmpif v2, then: loop_body, else: loop_end
-/// ```
-///
-/// The first step is to unroll the header by recognizing that jump condition
-/// is a constant, which means it will go to `loop_body`:
-/// ```text
-/// main():
-///   v0 = 0
-///   v1 = 2
-///   v2 = lt v0 v1
-///   // jmpif v2, then: loop_body, else: loop_end
-///   jmp dest: loop_body
-/// ```
-///
-/// Following that we unroll the loop body, which is the next source, replace
-/// the induction variable with the new value created in the body, and have
-/// another go at the header.
-/// ```text
-/// main():
-///   v0 = 0
-///   v1 = 2
-///   v2 = lt v0 v1
-///   v3 = ... body ...
-///   v4 = add 1, 0
-///   jmp loop_entry(v4)
-/// ```
-///
-/// At the end we reach a point where the condition evaluates to 0 and we jump to the end.
-/// ```text
-/// main():
-///   v0 = 0
-///   v1 = 2
-///   v2 = lt 0
-///   v3 = ... body ...
-///   v4 = add 1, v0
-///   v5 = lt v4 v1
-///   v6 = ... body ...
-///   v7 = add v4, 1
-///   v8 = lt v5 v1
-///   jmp loop_end
-/// ```
-///
-/// When e.g. `v8 = lt v5 v1` cannot be evaluated to a constant, the loop signals by returning `Err`
-/// that a few SSA passes are required to evaluate and simplify these values.
-fn unroll_loop(
-    function: &mut Function,
-    cfg: &ControlFlowGraph,
-    loop_: &Loop,
-) -> Result<(), CallStack> {
-    let mut unroll_into = get_pre_header(cfg, loop_);
-    let mut jump_value = get_induction_variable(function, unroll_into)?;
+        while let Some(context) = self.unroll_header(function, unroll_into, jump_value)? {
+            let (last_block, last_value) = context.unroll_loop_iteration();
+            unroll_into = last_block;
+            jump_value = last_value;
+        }
 
-    while let Some(context) = unroll_loop_header(function, loop_, unroll_into, jump_value)? {
-        let (last_block, last_value) = context.unroll_loop_iteration();
-        unroll_into = last_block;
-        jump_value = last_value;
+        Ok(())
     }
 
-    Ok(())
-}
+    /// The loop pre-header is the block that comes before the loop begins. Generally a header block
+    /// is expected to have 2 predecessors: the pre-header and the final block of the loop which jumps
+    /// back to the beginning. Other predecessors can come from `break` or `continue`.
+    fn get_pre_header(&self, cfg: &ControlFlowGraph) -> BasicBlockId {
+        let mut pre_header = cfg
+            .predecessors(self.header)
+            .filter(|predecessor| *predecessor != self.back_edge_start)
+            .collect::<Vec<_>>();
 
-/// The loop pre-header is the block that comes before the loop begins. Generally a header block
-/// is expected to have 2 predecessors: the pre-header and the final block of the loop which jumps
-/// back to the beginning. Other predecessors can come from `break` or `continue`.
-fn get_pre_header(cfg: &ControlFlowGraph, loop_: &Loop) -> BasicBlockId {
-    let mut pre_header = cfg
-        .predecessors(loop_.header)
-        .filter(|predecessor| *predecessor != loop_.back_edge_start)
-        .collect::<Vec<_>>();
+        assert_eq!(pre_header.len(), 1);
+        pre_header.remove(0)
+    }
 
-    assert_eq!(pre_header.len(), 1);
-    pre_header.remove(0)
+    /// Unrolls the header block of the loop. This is the block that dominates all other blocks in the
+    /// loop and contains the jmpif instruction that lets us know if we should continue looping.
+    /// Returns Some(iteration context) if we should perform another iteration.
+    fn unroll_header<'a>(
+        &'a self,
+        function: &'a mut Function,
+        unroll_into: BasicBlockId,
+        induction_value: ValueId,
+    ) -> Result<Option<LoopIteration<'a>>, CallStack> {
+        // We insert into a fresh block first and move instructions into the unroll_into block later
+        // only once we verify the jmpif instruction has a constant condition. If it does not, we can
+        // just discard this fresh block and leave the loop unmodified.
+        let fresh_block = function.dfg.make_block();
+
+        let mut context = LoopIteration::new(function, self, fresh_block, self.header);
+        let source_block = &context.dfg()[context.source_block];
+        assert_eq!(source_block.parameters().len(), 1, "Expected only 1 argument in loop header");
+
+        // Insert the current value of the loop induction variable into our context.
+        let first_param = source_block.parameters()[0];
+        context.inserter.try_map_value(first_param, induction_value);
+        // Copy over all instructions and a fresh terminator.
+        context.inline_instructions_from_block();
+        // Mutate the terminator if possible so that it points at the iteration block.
+        match context.dfg()[fresh_block].unwrap_terminator() {
+        TerminatorInstruction::JmpIf { condition, then_destination, else_destination, call_stack } => {
+            let condition = *condition;
+            let next_blocks = context.handle_jmpif(condition, *then_destination, *else_destination, call_stack.clone());
+
+            // If there is only 1 next block the jmpif evaluated to a single known block.
+            // This is the expected case and lets us know if we should loop again or not.
+            if next_blocks.len() == 1 {
+                context.dfg_mut().inline_block(fresh_block, unroll_into);
+
+                // The fresh block is gone now so we're committing to insert into the original
+                // unroll_into block from now on.
+                context.insert_block = unroll_into;
+
+                // In the last iteration, `handle_jmpif` will have replaced `context.source_block`
+                // with the `else_destination`, that is, the `loop_end`, which signals that we 
+                // have no more loops to unroll, because that block was not part of the loop itself, 
+                // ie. it wasn't between `loop_header` and `loop_body`. Otherwise we have the `loop_body`
+                // in `source_block` and can unroll that into the destination.
+                Ok(self.blocks.contains(&context.source_block).then_some(context))
+            } else {
+                // If this case is reached the loop either uses non-constant indices or we need
+                // another pass, such as mem2reg to resolve them to constants.
+                Err(context.inserter.function.dfg.get_value_call_stack(condition))
+            }
+        }
+        other => unreachable!("Expected loop header to terminate in a JmpIf to the loop body, but found {other:?} instead"),
+    }
+    }
 }
 
 /// Return the induction value of the current iteration of the loop, from the given block's jmp arguments.
@@ -361,60 +422,6 @@ fn get_induction_variable(function: &Function, block: BasicBlockId) -> Result<Va
     }
 }
 
-/// Unrolls the header block of the loop. This is the block that dominates all other blocks in the
-/// loop and contains the jmpif instruction that lets us know if we should continue looping.
-/// Returns Some(iteration context) if we should perform another iteration.
-fn unroll_loop_header<'a>(
-    function: &'a mut Function,
-    loop_: &'a Loop,
-    unroll_into: BasicBlockId,
-    induction_value: ValueId,
-) -> Result<Option<LoopIteration<'a>>, CallStack> {
-    // We insert into a fresh block first and move instructions into the unroll_into block later
-    // only once we verify the jmpif instruction has a constant condition. If it does not, we can
-    // just discard this fresh block and leave the loop unmodified.
-    let fresh_block = function.dfg.make_block();
-
-    let mut context = LoopIteration::new(function, loop_, fresh_block, loop_.header);
-    let source_block = &context.dfg()[context.source_block];
-    assert_eq!(source_block.parameters().len(), 1, "Expected only 1 argument in loop header");
-
-    // Insert the current value of the loop induction variable into our context.
-    let first_param = source_block.parameters()[0];
-    context.inserter.try_map_value(first_param, induction_value);
-    // Copy over all instructions and a fresh terminator.
-    context.inline_instructions_from_block();
-    // Mutate the terminator if possible so that it points at the iteration block.
-    match context.dfg()[fresh_block].unwrap_terminator() {
-        TerminatorInstruction::JmpIf { condition, then_destination, else_destination, call_stack } => {
-            let condition = *condition;
-            let next_blocks = context.handle_jmpif(condition, *then_destination, *else_destination, call_stack.clone());
-
-            // If there is only 1 next block the jmpif evaluated to a single known block.
-            // This is the expected case and lets us know if we should loop again or not.
-            if next_blocks.len() == 1 {
-                context.dfg_mut().inline_block(fresh_block, unroll_into);
-
-                // The fresh block is gone now so we're committing to insert into the original
-                // unroll_into block from now on.
-                context.insert_block = unroll_into;
-
-                // In the last iteration, `handle_jmpif` will have replaced `context.source_block`
-                // with the `else_destination`, that is, the `loop_end`, which signals that we 
-                // have no more loops to unroll, because that block was not part of the loop itself, 
-                // ie. it wasn't between `loop_header` and `loop_body`. Otherwise we have the `loop_body`
-                // in `source_block` and can unroll that into the destination.
-                Ok(loop_.blocks.contains(&context.source_block).then_some(context))
-            } else {
-                // If this case is reached the loop either uses non-constant indices or we need
-                // another pass, such as mem2reg to resolve them to constants.
-                Err(context.inserter.function.dfg.get_value_call_stack(condition))
-            }
-        }
-        other => unreachable!("Expected loop header to terminate in a JmpIf to the loop body, but found {other:?} instead"),
-    }
-}
-
 /// The context object for each loop iteration.
 /// Notably each loop iteration maps each loop block to a fresh, unrolled block.
 struct LoopIteration<'f> {
@@ -437,6 +444,9 @@ struct LoopIteration<'f> {
     /// This is None until we visit the block which jumps back to the start of the
     /// loop, at which point we record its value and the block it was found in.
     induction_value: Option<(BasicBlockId, ValueId)>,
+
+    /// Whether to discard reference count instructions, which ACIR doesn't need but Brillig does.
+    skip_ref_counts: bool,
 }
 
 impl<'f> LoopIteration<'f> {
@@ -447,6 +457,7 @@ impl<'f> LoopIteration<'f> {
         source_block: BasicBlockId,
     ) -> Self {
         Self {
+            skip_ref_counts: function.runtime().is_acir(),
             inserter: FunctionInserter::new(function),
             loop_,
             insert_block,
@@ -595,14 +606,10 @@ impl<'f> LoopIteration<'f> {
         // instances of the induction variable or any values that were changed as a result
         // of the new induction variable value.
         for instruction in instructions {
-            // TODO (#6470): Now Brillig will be inlined as well.
-            // Skip reference count instructions since they are only used for brillig, and brillig code is not unrolled
-            if !matches!(
-                self.dfg()[instruction],
-                Instruction::IncrementRc { .. } | Instruction::DecrementRc { .. }
-            ) {
-                self.inserter.push_instruction(instruction, self.insert_block);
+            if self.skip_ref_counts && self.is_ref_count(instruction) {
+                continue;
             }
+            self.inserter.push_instruction(instruction, self.insert_block);
         }
         let mut terminator = self.dfg()[self.source_block]
             .unwrap_terminator()
@@ -613,6 +620,13 @@ impl<'f> LoopIteration<'f> {
         // while remembering which were the original block IDs.
         terminator.mutate_blocks(|block| self.get_or_insert_block(block));
         self.inserter.function.dfg.set_block_terminator(self.insert_block, terminator);
+    }
+
+    fn is_ref_count(&self, instruction: InstructionId) -> bool {
+        matches!(
+            self.dfg()[instruction],
+            Instruction::IncrementRc { .. } | Instruction::DecrementRc { .. }
+        )
     }
 
     fn dfg(&self) -> &DataFlowGraph {
@@ -693,7 +707,7 @@ mod tests {
 
         // The final block count is not 1 because unrolling creates some unnecessary jmps.
         // If a simplify cfg pass is ran afterward, the expected block count will be 1.
-        let (ssa, errors) = ssa.try_to_unroll_loops();
+        let (ssa, errors) = ssa.try_unroll_loops();
         assert_eq!(errors.len(), 0, "All loops should be unrolled");
         assert_eq!(ssa.main().reachable_blocks().len(), 5);
 
@@ -723,7 +737,7 @@ mod tests {
         assert_eq!(ssa.main().reachable_blocks().len(), 4);
 
         // Expected that we failed to unroll the loop
-        let (_, errors) = ssa.try_to_unroll_loops();
+        let (_, errors) = ssa.try_unroll_loops();
         assert_eq!(errors.len(), 1, "Expected to fail to unroll loop");
     }
 }
