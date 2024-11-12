@@ -25,7 +25,14 @@ mod unrolling;
 
 #[cfg(test)]
 pub(crate) fn assert_ssa_equals(mut ssa: super::Ssa, expected: &str) {
-    use crate::trim_leading_whitespace_from_lines;
+    // First check if `expected` is valid SSA by parsing it, otherwise
+    // the comparison will always fail but it won't be clear that it's because
+    // expected is not valid.
+    if let Err(err) = Ssa::from_str(expected) {
+        panic!("`expected` argument of `assert_ssa_equals` is not valid SSA:\n{:?}", err);
+    }
+
+    use crate::{ssa::Ssa, trim_leading_whitespace_from_lines};
 
     ssa.normalize_ids();
 
