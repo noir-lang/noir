@@ -773,7 +773,7 @@ impl<'block> BrilligBlock<'block> {
 
         for dead_variable in dead_variables {
             self.variables.remove_variable(
-                dead_variable.into(),
+                *dead_variable,
                 self.function_context,
                 self.brillig_context,
             );
