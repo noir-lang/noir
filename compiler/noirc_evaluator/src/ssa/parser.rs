@@ -81,15 +81,15 @@ impl Debug for SsaErrorWithSource {
 pub(crate) enum SsaError {
     #[error("{0}")]
     ParserError(ParserError),
-    #[error("Unknown variable `{0}`")]
+    #[error("Unknown variable '{0}'")]
     UnknownVariable(Identifier),
-    #[error("Unknown block `{0}`")]
+    #[error("Unknown block '{0}'")]
     UnknownBlock(Identifier),
-    #[error("Unknown function `{0}`")]
+    #[error("Unknown function '{0}'")]
     UnknownFunction(Identifier),
     #[error("Mismatched return values")]
     MismatchedReturnValues { returns: Vec<Identifier>, expected: usize },
-    #[error("Variable `{0}` already defined")]
+    #[error("Variable '{0}' already defined")]
     VariableAlreadyDefined(Identifier),
 }
 
@@ -647,10 +647,14 @@ impl<'a> Parser<'a> {
 
         if self.eat(Token::LeftBracket)? {
             let element_types = self.parse_types()?;
-            self.eat_or_error(Token::Semicolon)?;
-            let length = self.eat_int_or_error()?;
-            self.eat_or_error(Token::RightBracket)?;
-            return Ok(Type::Array(Arc::new(element_types), length.to_u128() as usize));
+            if self.eat(Token::Semicolon)? {
+                let length = self.eat_int_or_error()?;
+                self.eat_or_error(Token::RightBracket)?;
+                return Ok(Type::Array(Arc::new(element_types), length.to_u128() as usize));
+            } else {
+                self.eat_or_error(Token::RightBracket)?;
+                return Ok(Type::Slice(Arc::new(element_types)));
+            }
         }
 
         if let Some(typ) = self.parse_mutable_reference_type()? {
@@ -857,19 +861,19 @@ impl<'a> Parser<'a> {
 pub(crate) enum ParserError {
     #[error("{0}")]
     LexerError(LexerError),
-    #[error("Expected {token}, found {token}")]
+    #[error("Expected '{token}', found '{found}'")]
     ExpectedToken { token: Token, found: Token, span: Span },
     #[error("Expected one of {tokens:?}, found {found}")]
     ExpectedOneOfTokens { tokens: Vec<Token>, found: Token, span: Span },
-    #[error("Expected an identifier, found {found}")]
+    #[error("Expected an identifier, found '{found}'")]
     ExpectedIdentifier { found: Token, span: Span },
-    #[error("Expected an int, found {found}")]
+    #[error("Expected an int, found '{found}'")]
     ExpectedInt { found: Token, span: Span },
-    #[error("Expected a type, found {found}")]
+    #[error("Expected a type, found '{found}'")]
     ExpectedType { found: Token, span: Span },
-    #[error("Expected an instruction or terminator, found {found}")]
+    #[error("Expected an instruction or terminator, found '{found}'")]
     ExpectedInstructionOrTerminator { found: Token, span: Span },
-    #[error("Expected a value, found {found}")]
+    #[error("Expected a value, found '{found}'")]
     ExpectedValue { found: Token, span: Span },
     #[error("Multiple return values only allowed for call")]
     MultipleReturnValuesOnlyAllowedForCall { second_target: Identifier },

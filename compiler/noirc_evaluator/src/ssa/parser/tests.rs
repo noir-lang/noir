@@ -413,3 +413,15 @@ fn test_parses_with_comments() {
     let ssa = Ssa::from_str(src).unwrap();
     assert_normalized_ssa_equals(ssa, expected);
 }
+
+#[test]
+fn test_slice() {
+    let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            v2, v3 = call as_slice(v0) -> (u32, [Field])
+            return
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}

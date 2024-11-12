@@ -240,7 +240,7 @@ type SpannedTokenResult = Result<SpannedToken, LexerError>;
 
 #[derive(Debug, Error)]
 pub(crate) enum LexerError {
-    #[error("Unexpected character: {char}")]
+    #[error("Unexpected character: {char:?}")]
     UnexpectedCharacter { char: char, span: Span },
     #[error("Invalid integer literal")]
     InvalidIntegerLiteral { span: Span, found: String },
