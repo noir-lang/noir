@@ -294,7 +294,7 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
             }
             DefCollectorErrorKind::UnsupportedNumericGenericType(err) => err.into(),
             DefCollectorErrorKind::TestOnAssociatedFunction { span } => Diagnostic::simple_error(
-                "The `#[test]` attribute may only be used on a non-associated function".into(),
+                "The `#[test]` attribute is disallowed on `impl` methods".into(),
                 String::new(),
                 *span,
             ),
