@@ -626,10 +626,7 @@ impl<'f> LoopIteration<'f> {
 
 #[cfg(test)]
 mod tests {
-    use crate::ssa::{
-        function_builder::FunctionBuilder,
-        ir::{instruction::BinaryOp, map::Id, types::Type},
-    };
+    use crate::ssa::{opt::assert_normalized_ssa_equals, Ssa};
 
     #[test]
     fn unroll_nested_loops() {
@@ -640,162 +637,89 @@ mod tests {
         //         }
         //     }
         // }
-        //
-        // fn main f0 {
-        //   b0():
-        //     jmp b1(Field 0)
-        //   b1(v0: Field):  // header of outer loop
-        //     v1 = lt v0, Field 3
-        //     jmpif v1, then: b2, else: b3
-        //   b2():
-        //     jmp b4(Field 0)
-        //   b4(v2: Field):  // header of inner loop
-        //     v3 = lt v2, Field 4
-        //     jmpif v3, then: b5, else: b6
-        //   b5():
-        //     v4 = add v0, v2
-        //     v5 = lt Field 10, v4
-        //     constrain v5
-        //     v6 = add v2, Field 1
-        //     jmp b4(v6)
-        //   b6(): // end of inner loop
-        //     v7 = add v0, Field 1
-        //     jmp b1(v7)
-        //   b3(): // end of outer loop
-        //     return Field 0
-        // }
-        let main_id = Id::test_new(0);
+        let src = "
+            acir(inline) fn main f0 {
+                b0():
+                    jmp b1(Field 0)
+                b1(v0: Field):  // header of outer loop
+                    v1 = lt v0, Field 3
+                    jmpif v1 then: b2, else: b3
+                b2():
+                    jmp b4(Field 0)
+                b4(v2: Field):  // header of inner loop
+                    v3 = lt v2, Field 4
+                    jmpif v3 then: b5, else: b6
+                b5():
+                    v4 = add v0, v2
+                    v5 = lt Field 10, v4
+                    constrain v5 == Field 1
+                    v6 = add v2, Field 1
+                    jmp b4(v6)
+                b6(): // end of inner loop
+                    v7 = add v0, Field 1
+                    jmp b1(v7)
+                b3(): // end of outer loop
+                    return Field 0
+            }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
 
-        // Compiling main
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        let expected = "
+            acir(inline) fn main f0 {
+              b0():
+                constrain u1 0 == Field 1
+                constrain u1 0 == Field 1
+                constrain u1 0 == Field 1
+                constrain u1 0 == Field 1
+                jmp b1()
+              b1():
+                constrain u1 0 == Field 1
+                constrain u1 0 == Field 1
+                constrain u1 0 == Field 1
+                constrain u1 0 == Field 1
+                jmp b2()
+              b2():
+                constrain u1 0 == Field 1
+                constrain u1 0 == Field 1
+                constrain u1 0 == Field 1
+                constrain u1 0 == Field 1
+                jmp b3()
+              b3():
+                jmp b4()
+              b4():
+                return Field 0
+            }
+        ";
 
-        let b1 = builder.insert_block();
-        let b2 = builder.insert_block();
-        let b3 = builder.insert_block();
-        let b4 = builder.insert_block();
-        let b5 = builder.insert_block();
-        let b6 = builder.insert_block();
-
-        let v0 = builder.add_block_parameter(b1, Type::field());
-        let v2 = builder.add_block_parameter(b4, Type::field());
-
-        let zero = builder.field_constant(0u128);
-        let one = builder.field_constant(1u128);
-        let three = builder.field_constant(3u128);
-        let four = builder.field_constant(4u128);
-        let ten = builder.field_constant(10u128);
-
-        builder.terminate_with_jmp(b1, vec![zero]);
-
-        // b1
-        builder.switch_to_block(b1);
-        let v1 = builder.insert_binary(v0, BinaryOp::Lt, three);
-        builder.terminate_with_jmpif(v1, b2, b3);
-
-        // b2
-        builder.switch_to_block(b2);
-        builder.terminate_with_jmp(b4, vec![zero]);
-
-        // b3
-        builder.switch_to_block(b3);
-        builder.terminate_with_return(vec![zero]);
-
-        // b4
-        builder.switch_to_block(b4);
-        let v3 = builder.insert_binary(v2, BinaryOp::Lt, four);
-        builder.terminate_with_jmpif(v3, b5, b6);
-
-        // b5
-        builder.switch_to_block(b5);
-        let v4 = builder.insert_binary(v0, BinaryOp::Add, v2);
-        let v5 = builder.insert_binary(ten, BinaryOp::Lt, v4);
-        builder.insert_constrain(v5, one, None);
-        let v6 = builder.insert_binary(v2, BinaryOp::Add, one);
-        builder.terminate_with_jmp(b4, vec![v6]);
-
-        // b6
-        builder.switch_to_block(b6);
-        let v7 = builder.insert_binary(v0, BinaryOp::Add, one);
-        builder.terminate_with_jmp(b1, vec![v7]);
-
-        let ssa = builder.finish();
-        assert_eq!(ssa.main().reachable_blocks().len(), 7);
-
-        // Expected output:
-        //
-        // fn main f0 {
-        //   b0():
-        //     constrain Field 0
-        //     constrain Field 0
-        //     constrain Field 0
-        //     constrain Field 0
-        //     jmp b23()
-        //   b23():
-        //     constrain Field 0
-        //     constrain Field 0
-        //     constrain Field 0
-        //     constrain Field 0
-        //     jmp b27()
-        //   b27():
-        //     constrain Field 0
-        //     constrain Field 0
-        //     constrain Field 0
-        //     constrain Field 0
-        //     jmp b31()
-        //   b31():
-        //     jmp b3()
-        //   b3():
-        //     return Field 0
-        // }
         // The final block count is not 1 because unrolling creates some unnecessary jmps.
         // If a simplify cfg pass is ran afterward, the expected block count will be 1.
         let (ssa, errors) = ssa.try_to_unroll_loops();
         assert_eq!(errors.len(), 0, "All loops should be unrolled");
         assert_eq!(ssa.main().reachable_blocks().len(), 5);
+
+        assert_normalized_ssa_equals(ssa, expected);
     }
 
     // Test that the pass can still be run on loops which fail to unroll properly
     #[test]
     fn fail_to_unroll_loop() {
-        // fn main f0 {
-        //   b0(v0: Field):
-        //     jmp b1(v0)
-        //   b1(v1: Field):
-        //     v2 = lt v1, 5
-        //     jmpif v2, then: b2, else: b3
-        //   b2():
-        //     v3 = add v1, Field 1
-        //     jmp b1(v3)
-        //   b3():
-        //     return Field 0
-        // }
-        let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            jmp b1(v0)
+          b1(v1: Field):
+            v2 = lt v1, Field 5
+            jmpif v2 then: b2, else: b3
+          b2():
+            v3 = add v1, Field 1
+            jmp b1(v3)
+          b3():
+            return Field 0
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
 
-        let b1 = builder.insert_block();
-        let b2 = builder.insert_block();
-        let b3 = builder.insert_block();
-
-        let v0 = builder.add_parameter(Type::field());
-        let v1 = builder.add_block_parameter(b1, Type::field());
-
-        builder.terminate_with_jmp(b1, vec![v0]);
-
-        builder.switch_to_block(b1);
-        let five = builder.field_constant(5u128);
-        let v2 = builder.insert_binary(v1, BinaryOp::Lt, five);
-        builder.terminate_with_jmpif(v2, b2, b3);
-
-        builder.switch_to_block(b2);
-        let one = builder.field_constant(1u128);
-        let v3 = builder.insert_binary(v1, BinaryOp::Add, one);
-        builder.terminate_with_jmp(b1, vec![v3]);
-
-        builder.switch_to_block(b3);
-        let zero = builder.field_constant(0u128);
-        builder.terminate_with_return(vec![zero]);
-
-        let ssa = builder.finish();
+        // Sanity check
         assert_eq!(ssa.main().reachable_blocks().len(), 4);
 
         // Expected that we failed to unroll the loop
