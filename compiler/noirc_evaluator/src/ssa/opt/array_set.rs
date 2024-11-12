@@ -7,7 +7,7 @@ use crate::ssa::{
         function::{Function, RuntimeType},
         instruction::{Instruction, InstructionId, TerminatorInstruction},
         types::Type::{Array, Slice},
-        value::{RawValueId, ValueId},
+        value::{RawValueId, ResolvedValueId, ValueId},
     },
     ssa_gen::Ssa,
 };
@@ -56,7 +56,7 @@ struct Context<'f> {
     dfg: &'f DataFlowGraph,
     function_parameters: Vec<RawValueId>,
     is_brillig_runtime: bool,
-    array_to_last_use: HashMap<RawValueId, InstructionId>,
+    array_to_last_use: HashMap<ResolvedValueId, InstructionId>,
     instructions_that_can_be_made_mutable: HashSet<InstructionId>,
     // Mapping of an array that comes from a load and whether the address
     // it was loaded from is a reference parameter passed to the block.
@@ -91,18 +91,14 @@ impl<'f> Context<'f> {
                 Instruction::ArrayGet { array, .. } => {
                     let array = self.dfg.resolve(*array);
 
-                    if let Some(existing) =
-                        self.array_to_last_use.insert(array.raw(), *instruction_id)
-                    {
+                    if let Some(existing) = self.array_to_last_use.insert(array, *instruction_id) {
                         self.instructions_that_can_be_made_mutable.remove(&existing);
                     }
                 }
                 Instruction::ArraySet { array, value, .. } => {
                     let array = self.dfg.resolve(*array);
 
-                    if let Some(existing) =
-                        self.array_to_last_use.insert(array.raw(), *instruction_id)
-                    {
+                    if let Some(existing) = self.array_to_last_use.insert(array, *instruction_id) {
                         self.instructions_that_can_be_made_mutable.remove(&existing);
                     }
                     if self.is_brillig_runtime {
@@ -157,7 +153,7 @@ impl<'f> Context<'f> {
                             let argument = self.dfg.resolve(*argument);
 
                             if let Some(existing) =
-                                self.array_to_last_use.insert(argument.raw(), *instruction_id)
+                                self.array_to_last_use.insert(argument, *instruction_id)
                             {
                                 self.instructions_that_can_be_made_mutable.remove(&existing);
                             }
