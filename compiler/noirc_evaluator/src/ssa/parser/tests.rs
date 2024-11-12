@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use crate::{
-    ssa::{opt::assert_ssa_equals, Ssa},
+    ssa::{opt::assert_normalized_ssa_equals, Ssa},
     trim_leading_whitespace_from_lines,
 };
 
@@ -411,5 +411,5 @@ fn test_parses_with_comments() {
         ";
 
     let ssa = Ssa::from_str(src).unwrap();
-    assert_ssa_equals(ssa, expected);
+    assert_normalized_ssa_equals(ssa, expected);
 }

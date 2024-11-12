@@ -362,7 +362,7 @@ mod test {
     use crate::ssa::{
         function_builder::FunctionBuilder,
         ir::{map::Id, types::Type},
-        opt::assert_ssa_equals,
+        opt::assert_normalized_ssa_equals,
         Ssa,
     };
 
@@ -396,7 +396,7 @@ mod test {
             }
             ";
         let ssa = ssa.fold_constants();
-        assert_ssa_equals(ssa, expected);
+        assert_normalized_ssa_equals(ssa, expected);
     }
 
     #[test]
@@ -434,7 +434,7 @@ mod test {
             ";
 
         let ssa = ssa.fold_constants();
-        assert_ssa_equals(ssa, expected);
+        assert_normalized_ssa_equals(ssa, expected);
     }
 
     #[test]
@@ -473,7 +473,7 @@ mod test {
             ";
 
         let ssa = ssa.fold_constants();
-        assert_ssa_equals(ssa, expected);
+        assert_normalized_ssa_equals(ssa, expected);
     }
 
     #[test]
@@ -489,7 +489,7 @@ mod test {
             ";
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.fold_constants();
-        assert_ssa_equals(ssa, src);
+        assert_normalized_ssa_equals(ssa, src);
     }
 
     #[test]
@@ -517,7 +517,7 @@ mod test {
             ";
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.fold_constants();
-        assert_ssa_equals(ssa, expected);
+        assert_normalized_ssa_equals(ssa, expected);
     }
 
     #[test]
@@ -552,7 +552,7 @@ mod test {
 
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.fold_constants();
-        assert_ssa_equals(ssa, expected);
+        assert_normalized_ssa_equals(ssa, expected);
     }
 
     #[test]
@@ -584,7 +584,7 @@ mod test {
                 return
             }
             ";
-        assert_ssa_equals(ssa, expected);
+        assert_normalized_ssa_equals(ssa, expected);
     }
 
     // Regression for #4600
@@ -609,7 +609,7 @@ mod test {
 
         // Expected output is unchanged
         let ssa = ssa.fold_constants();
-        assert_ssa_equals(ssa, src);
+        assert_normalized_ssa_equals(ssa, src);
     }
 
     #[test]
@@ -659,7 +659,7 @@ mod test {
             ";
 
         let ssa = ssa.fold_constants_using_constraints();
-        assert_ssa_equals(ssa, expected);
+        assert_normalized_ssa_equals(ssa, expected);
     }
 
     // This test currently fails. It being fixed will address the issue https://github.com/noir-lang/noir/issues/5756

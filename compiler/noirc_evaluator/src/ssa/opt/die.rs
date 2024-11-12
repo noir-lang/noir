@@ -623,7 +623,7 @@ mod test {
     use crate::ssa::{
         function_builder::FunctionBuilder,
         ir::{instruction::Instruction, map::Id, types::Type},
-        opt::assert_ssa_equals,
+        opt::assert_normalized_ssa_equals,
         Ssa,
     };
 
@@ -667,7 +667,7 @@ mod test {
             }
             ";
         let ssa = ssa.dead_instruction_elimination();
-        assert_ssa_equals(ssa, expected);
+        assert_normalized_ssa_equals(ssa, expected);
     }
 
     #[test]
@@ -691,7 +691,7 @@ mod test {
             }
             ";
         let ssa = ssa.dead_instruction_elimination();
-        assert_ssa_equals(ssa, expected);
+        assert_normalized_ssa_equals(ssa, expected);
     }
 
     #[test]
@@ -715,7 +715,7 @@ mod test {
             }
             ";
         let ssa = ssa.dead_instruction_elimination();
-        assert_ssa_equals(ssa, expected);
+        assert_normalized_ssa_equals(ssa, expected);
     }
 
     #[test]
@@ -733,7 +733,7 @@ mod test {
 
         // We expect the output to be unchanged
         let ssa = ssa.dead_instruction_elimination();
-        assert_ssa_equals(ssa, src);
+        assert_normalized_ssa_equals(ssa, src);
     }
 
     #[test]
@@ -873,6 +873,6 @@ mod test {
             }
             ";
         let ssa = ssa.dead_instruction_elimination();
-        assert_ssa_equals(ssa, expected);
+        assert_normalized_ssa_equals(ssa, expected);
     }
 }

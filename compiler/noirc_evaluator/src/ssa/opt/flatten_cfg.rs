@@ -930,7 +930,7 @@ mod test {
             types::Type,
             value::{Value, ValueId},
         },
-        opt::assert_ssa_equals,
+        opt::assert_normalized_ssa_equals,
         Ssa,
     };
 
@@ -967,7 +967,7 @@ mod test {
             ";
 
         let ssa = ssa.flatten_cfg();
-        assert_ssa_equals(ssa, expected);
+        assert_normalized_ssa_equals(ssa, expected);
     }
 
     #[test]
@@ -999,7 +999,7 @@ mod test {
             ";
         let ssa = ssa.flatten_cfg();
         assert_eq!(ssa.main().reachable_blocks().len(), 1);
-        assert_ssa_equals(ssa, expected);
+        assert_normalized_ssa_equals(ssa, expected);
     }
 
     #[test]
@@ -1036,7 +1036,7 @@ mod test {
             }
             ";
         let ssa = ssa.flatten_cfg();
-        assert_ssa_equals(ssa, expected);
+        assert_normalized_ssa_equals(ssa, expected);
     }
 
     #[test]
@@ -1079,7 +1079,7 @@ mod test {
             }
             ";
         let ssa = ssa.flatten_cfg();
-        assert_ssa_equals(ssa, expected);
+        assert_normalized_ssa_equals(ssa, expected);
     }
 
     fn count_instruction(function: &Function, f: impl Fn(&Instruction) -> bool) -> usize {
@@ -1386,7 +1386,7 @@ mod test {
             }
             ";
         let ssa = ssa.flatten_cfg();
-        assert_ssa_equals(ssa, expected);
+        assert_normalized_ssa_equals(ssa, expected);
     }
 
     #[test]

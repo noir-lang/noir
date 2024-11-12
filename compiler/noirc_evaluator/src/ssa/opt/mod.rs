@@ -23,8 +23,11 @@ mod runtime_separation;
 mod simplify_cfg;
 mod unrolling;
 
+/// Asserts that the given SSA, after normalizing its IDs and printing it,
+/// is equal to the expected strings. Normalization is done so the IDs don't
+/// shift depending on whether temporary intermediate values were created.
 #[cfg(test)]
-pub(crate) fn assert_ssa_equals(mut ssa: super::Ssa, expected: &str) {
+pub(crate) fn assert_normalized_ssa_equals(mut ssa: super::Ssa, expected: &str) {
     // First check if `expected` is valid SSA by parsing it, otherwise
     // the comparison will always fail but it won't be clear that it's because
     // expected is not valid.
