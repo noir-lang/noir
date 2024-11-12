@@ -322,6 +322,16 @@ impl FunctionBuilder {
             .first()
     }
 
+    pub(crate) fn insert_mutable_array_set(
+        &mut self,
+        array: ValueId,
+        index: ValueId,
+        value: ValueId,
+    ) -> ValueId {
+        self.insert_instruction(Instruction::ArraySet { array, index, value, mutable: true }, None)
+            .first()
+    }
+
     /// Insert an instruction to increment an array's reference count. This only has an effect
     /// in unconstrained code where arrays are reference counted and copy on write.
     pub(crate) fn insert_inc_rc(&mut self, value: ValueId) {
