@@ -22,14 +22,18 @@ pub(crate) struct FunctionInserter<'f> {
     /// Map containing repeat array constants so that we do not initialize a new
     /// array unnecessarily. An extra tuple field is included as part of the key to
     /// distinguish between array/slice types.
-    array_cache: ArrayCache,
+    ///
+    /// This is optional since caching arrays relies on the inserter inserting strictly
+    /// in control-flow order. Otherwise, if arrays later in the program are cached first,
+    /// they may be refered to by instructions earlier in the program.
+    array_cache: Option<ArrayCache>,
 }
 
 pub(crate) type ArrayCache = HashMap<im::Vector<ValueId>, HashMap<Type, ValueId>>;
 
 impl<'f> FunctionInserter<'f> {
     pub(crate) fn new(function: &'f mut Function) -> FunctionInserter<'f> {
-        Self { function, values: HashMap::default(), array_cache: HashMap::default() }
+        Self { function, values: HashMap::default(), array_cache: None }
     }
 
     /// Resolves a ValueId to its new, updated value.
@@ -146,23 +150,25 @@ impl<'f> FunctionInserter<'f> {
     }
 
     fn get_cached_array(&self, elements: &im::Vector<ValueId>, typ: &Type) -> Option<ValueId> {
-        self.array_cache.get(elements)?.get(typ).copied()
+        self.array_cache.as_ref()?.get(elements)?.get(typ).copied()
     }
 
     fn cache_array(
-        arrays: &mut ArrayCache,
+        arrays: &mut Option<ArrayCache>,
         elements: im::Vector<ValueId>,
         typ: Type,
         result_id: ValueId,
     ) {
-        arrays.entry(elements).or_default().insert(typ, result_id);
+        if let Some(arrays) = arrays {
+            arrays.entry(elements).or_default().insert(typ, result_id);
+        }
     }
 
-    pub(crate) fn set_array_cache(&mut self, new_cache: ArrayCache) {
+    pub(crate) fn set_array_cache(&mut self, new_cache: Option<ArrayCache>) {
         self.array_cache = new_cache;
     }
 
-    pub(crate) fn into_array_cache(self) -> ArrayCache {
+    pub(crate) fn into_array_cache(self) -> Option<ArrayCache> {
         self.array_cache
     }
 

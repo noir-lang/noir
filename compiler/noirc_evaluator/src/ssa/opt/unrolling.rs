@@ -220,9 +220,13 @@ fn unroll_loop(
 ) -> Result<(), CallStack> {
     let mut unroll_into = get_pre_header(cfg, loop_);
     let mut jump_value = get_induction_variable(function, unroll_into)?;
-    let mut array_cache = ArrayCache::default();
+    let mut array_cache = Some(ArrayCache::default());
 
     while let Some(mut context) = unroll_loop_header(function, loop_, unroll_into, jump_value)? {
+        // The inserter's array cache must be explicitly enabled. This is to
+        // confirm that we're inserting in insertion order. This is true here since:
+        // 1. We have a fresh inserter for each loop
+        // 2. Each loop is unrolled in iteration order
         context.inserter.set_array_cache(array_cache);
         (unroll_into, jump_value, array_cache) = context.unroll_loop_iteration();
     }
@@ -364,7 +368,7 @@ impl<'f> LoopIteration<'f> {
     /// It is expected the terminator instructions are set up to branch into an empty block
     /// for further unrolling. When the loop is finished this will need to be mutated to
     /// jump to the end of the loop instead.
-    fn unroll_loop_iteration(mut self) -> (BasicBlockId, ValueId, ArrayCache) {
+    fn unroll_loop_iteration(mut self) -> (BasicBlockId, ValueId, Option<ArrayCache>) {
         let mut next_blocks = self.unroll_loop_block();
 
         while let Some(block) = next_blocks.pop() {
