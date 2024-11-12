@@ -565,7 +565,7 @@ impl Builder {
                     super::ir::instruction::BinaryOp::Div => {
                         let (type_of_a, target_a) = self.get_integer(lhs)?;
                         let (type_of_b, target_b) = self.get_integer(rhs)?;
-                        assert!(type_of_a == type_of_b);
+                        assert!((type_of_a == type_of_b) || (type_of_b == P2Type::Field));
 
                         if let Some((bitsize, signed)) =
                             Self::get_integer_bitsize_and_sign(&type_of_a)
