@@ -1045,6 +1045,7 @@ impl<'a> Context<'a> {
             }
         };
         // Ensure that array id is fully resolved.
+        let array = dfg.resolve(array);
         let array_typ = dfg.type_of_value(array);
         // Compiler sanity checks
         assert!(!array_typ.is_nested_slice(), "ICE: Nested slice type has reached ACIR generation");
@@ -1052,7 +1053,7 @@ impl<'a> Context<'a> {
             unreachable!("ICE: expected array or slice type");
         };
 
-        if self.handle_constant_index_wrapper(instruction, dfg, array, index, store_value)? {
+        if self.handle_constant_index_wrapper(instruction, dfg, array.into(), index, store_value)? {
             return Ok(());
         }
 
@@ -1076,7 +1077,7 @@ impl<'a> Context<'a> {
             None
         };
         let (new_index, new_value) = self.convert_array_operation_inputs(
-            array,
+            array.into(),
             dfg,
             index,
             store_value,
@@ -1086,7 +1087,7 @@ impl<'a> Context<'a> {
         if let Some(new_value) = new_value {
             self.array_set(instruction, new_index, new_value, dfg, mutable_array_set)?;
         } else {
-            self.array_get(instruction, array, new_index, dfg, offset.is_none())?;
+            self.array_get(instruction, array.into(), new_index, dfg, offset.is_none())?;
         }
 
         Ok(())
@@ -1100,6 +1101,7 @@ impl<'a> Context<'a> {
         index: ValueId,
         store_value: Option<ValueId>,
     ) -> Result<bool, RuntimeError> {
+        let array = dfg.resolve(array);
         let array_typ = dfg.type_of_value(array);
         // Compiler sanity checks
         assert!(!array_typ.is_nested_slice(), "ICE: Nested slice type has reached ACIR generation");
@@ -1107,7 +1109,7 @@ impl<'a> Context<'a> {
             unreachable!("ICE: expected array or slice type");
         };
 
-        match self.convert_value(array, dfg) {
+        match self.convert_value(array.into(), dfg) {
             AcirValue::Var(acir_var, _) => {
                 Err(RuntimeError::InternalError(InternalError::Unexpected {
                     expected: "an array value".to_string(),
