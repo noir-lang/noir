@@ -570,9 +570,8 @@ impl Builder {
                         if let Some((bitsize, signed)) =
                             Self::get_integer_bitsize_and_sign(&type_of_a)
                         {
-                            self.convert_integer_op(lhs, rhs, |builder, t1, t2| {
-                                add_div_mod(builder, t1, t2, signed, bitsize).0
-                            })
+                            let target = add_div_mod(&mut self.asm_writer, target_a, target_b, signed, bitsize).0;
+                            P2Value::make_integer(type_of_a, target)
                         } else {
                             let message =
                                 format!("div op invoked on arguments of type {:?}", type_of_a);
@@ -588,9 +587,8 @@ impl Builder {
                         if let Some((bitsize, signed)) =
                             Self::get_integer_bitsize_and_sign(&type_of_a)
                         {
-                            self.convert_integer_op(lhs, rhs, |asm_writer, t1, t2| {
-                                add_div_mod(asm_writer, t1, t2, signed, bitsize).1
-                            })
+                            let target = add_div_mod(&mut self.asm_writer, target_a, target_b, signed, bitsize).1;
+                            P2Value::make_integer(type_of_a, target)
                         } else {
                             let message =
                                 format!("mod op invoked on arguments of type {:?}", type_of_a);
