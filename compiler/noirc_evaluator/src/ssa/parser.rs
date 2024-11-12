@@ -647,10 +647,14 @@ impl<'a> Parser<'a> {
 
         if self.eat(Token::LeftBracket)? {
             let element_types = self.parse_types()?;
-            self.eat_or_error(Token::Semicolon)?;
-            let length = self.eat_int_or_error()?;
-            self.eat_or_error(Token::RightBracket)?;
-            return Ok(Type::Array(Arc::new(element_types), length.to_u128() as usize));
+            if self.eat(Token::Semicolon)? {
+                let length = self.eat_int_or_error()?;
+                self.eat_or_error(Token::RightBracket)?;
+                return Ok(Type::Array(Arc::new(element_types), length.to_u128() as usize));
+            } else {
+                self.eat_or_error(Token::RightBracket)?;
+                return Ok(Type::Slice(Arc::new(element_types)));
+            }
         }
 
         if let Some(typ) = self.parse_mutable_reference_type()? {
