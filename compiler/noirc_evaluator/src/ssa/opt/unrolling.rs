@@ -20,7 +20,7 @@
 //! only used by Brillig bytecode.
 use std::collections::HashSet;
 
-use acvm::acir::AcirField;
+use acvm::{acir::AcirField, FieldElement};
 
 use crate::{
     errors::RuntimeError,
@@ -32,7 +32,7 @@ use crate::{
             dom::DominatorTree,
             function::Function,
             function_inserter::FunctionInserter,
-            instruction::{Instruction, InstructionId, TerminatorInstruction},
+            instruction::{Binary, BinaryOp, Instruction, InstructionId, TerminatorInstruction},
             post_order::PostOrder,
             value::ValueId,
         },
@@ -244,6 +244,75 @@ impl Loop {
         Self { header, back_edge_start, blocks }
     }
 
+    /// Find the lower bound of the loop in the pre-header and return it
+    /// if it's a numeric constant, which it will be if the previous SSA
+    /// steps managed to inline it.
+    ///
+    /// Consider the following example of a `for i in 0..4` loop:
+    /// ```text
+    /// brillig(inline) fn main f0 {
+    ///   b0(v0: u32):                  // Pre-header
+    ///     ...
+    ///     jmp b1(u32 0)               // Lower-bound
+    ///   b1(v1: u32):
+    ///     v5 = lt v1, u32 4
+    ///     jmpif v5 then: b3, else: b2
+    /// ```
+    fn get_const_lower_bound(
+        &self,
+        function: &Function,
+        cfg: &ControlFlowGraph,
+    ) -> Result<Option<FieldElement>, CallStack> {
+        let pre_header = self.get_pre_header(cfg);
+        let jump_value = get_induction_variable(function, pre_header)?;
+        Ok(function.dfg.get_numeric_constant(jump_value))
+    }
+
+    /// Find the upper bound of the loop in the loop header and return it
+    /// if it's a numeric constant, which it will be if the previous SSA
+    /// steps managed to inline it.
+    ///
+    /// Consider the following example of a `for i in 0..4` loop:
+    /// ```text
+    /// brillig(inline) fn main f0 {
+    ///   b0(v0: u32):            
+    ///     ...
+    ///     jmp b1(u32 0)         
+    ///   b1(v1: u32):                  // Loop header
+    ///     v5 = lt v1, u32 4           // Upper bound
+    ///     jmpif v5 then: b3, else: b2
+    /// ```
+    fn get_const_upper_bound(&self, function: &Function) -> Option<FieldElement> {
+        let block = &function.dfg[self.header];
+        let instructions = block.instructions();
+        assert_eq!(
+            instructions.len(),
+            1,
+            "The header should just compare the induction variable and jump"
+        );
+        match &function.dfg[instructions[0]] {
+            Instruction::Binary(Binary { lhs: _, operator: BinaryOp::Lt, rhs }) => {
+                function.dfg.get_numeric_constant(*rhs)
+            }
+            other => panic!("Unexpected instruction in header: {other:?}"),
+        }
+    }
+
+    /// Get the lower and upper bounds of the loop if both are constant numeric values.
+    fn get_const_bounds(
+        &self,
+        function: &Function,
+        cfg: &ControlFlowGraph,
+    ) -> Result<Option<(FieldElement, FieldElement)>, CallStack> {
+        let Some(lower) = self.get_const_lower_bound(function, cfg)? else {
+            return Ok(None);
+        };
+        let Some(upper) = self.get_const_upper_bound(function) else {
+            return Ok(None);
+        };
+        Ok(Some((lower, upper)))
+    }
+
     /// Unroll a single loop in the function.
     /// Returns Ok(()) if it succeeded, Err(callstack) if it failed,
     /// where the callstack indicates the location of the instruction
@@ -302,11 +371,7 @@ impl Loop {
     ///
     /// When e.g. `v8 = lt v5 v1` cannot be evaluated to a constant, the loop signals by returning `Err`
     /// that a few SSA passes are required to evaluate and simplify these values.
-    fn unroll(
-        self: &Loop,
-        function: &mut Function,
-        cfg: &ControlFlowGraph,
-    ) -> Result<(), CallStack> {
+    fn unroll(&self, function: &mut Function, cfg: &ControlFlowGraph) -> Result<(), CallStack> {
         let mut unroll_into = self.get_pre_header(cfg);
         let mut jump_value = get_induction_variable(function, unroll_into)?;
 
@@ -390,7 +455,7 @@ impl Loop {
 /// Return the induction value of the current iteration of the loop, from the given block's jmp arguments.
 ///
 /// Expects the current block to terminate in `jmp h(N)` where h is the loop header and N is
-/// a Field value.
+/// a Field value. Returns an `Err` if this isn't the case.
 ///
 /// Consider the following example:
 /// ```text
@@ -640,7 +705,11 @@ impl<'f> LoopIteration<'f> {
 
 #[cfg(test)]
 mod tests {
+    use acvm::FieldElement;
+
     use crate::ssa::{opt::assert_normalized_ssa_equals, Ssa};
+
+    use super::Loops;
 
     #[test]
     fn unroll_nested_loops() {
@@ -739,5 +808,60 @@ mod tests {
         // Expected that we failed to unroll the loop
         let (_, errors) = ssa.try_unroll_loops();
         assert_eq!(errors.len(), 1, "Expected to fail to unroll loop");
+    }
+
+    #[test]
+    fn test_get_const_bounds() {
+        let ssa = brillig_unroll_test_case();
+        let function = ssa.main();
+        let loops = Loops::find_all(function);
+        assert_eq!(loops.yet_to_unroll.len(), 1);
+        let (lower, upper) = loops.yet_to_unroll[0]
+            .get_const_bounds(function, &loops.cfg)
+            .expect("should find bounds")
+            .expect("bounds are numeric const");
+        assert_eq!(lower, FieldElement::from(0u32));
+        assert_eq!(upper, FieldElement::from(4u32));
+    }
+
+    /// Simple test loop:
+    /// ```text
+    /// unconstrained fn main(sum: u32) {
+    ///     assert(loop(0, 4) == sum);
+    /// }
+    ///
+    /// fn loop(from: u32, to: u32) -> u32 {
+    ///      let mut sum = 0;
+    ///      for i in from..to {
+    ///          sum = sum + i;
+    ///      }
+    ///      sum
+    ///  }
+    /// ```
+    fn brillig_unroll_test_case() -> Ssa {
+        let src = "
+        // After `static_assert` and `assert_constant`:
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v2 = allocate -> &mut u32
+            store u32 0 at v2
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v5 = lt v1, u32 4
+            jmpif v5 then: b3, else: b2
+          b3():
+            v8 = load v2 -> u32
+            v9 = add v8, v1
+            store v9 at v2
+            v11 = add v1, u32 1
+            jmp b1(v11)
+          b2():
+            v6 = load v2 -> u32
+            v7 = eq v6, v0
+            constrain v6 == v0
+            return
+        }
+        ";
+        Ssa::from_str(src).unwrap()
     }
 }
