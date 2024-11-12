@@ -211,6 +211,7 @@ impl DependencyContext {
         for constrained_values in &self.constrained_values {
             let constrain_ancestors: HashSet<_> =
                 constrained_values.iter().flat_map(|v| self.collect_ancestors(*v)).collect();
+            trace!("checking constrain involving values {:?}", constrain_ancestors);
             for (brillig_call, brillig_values) in &self.brillig_values {
                 // If there is at least one value among the brillig call arguments
                 // along with all the results featuring in the constrain value ancestors,
@@ -247,7 +248,7 @@ impl DependencyContext {
     /// Build a set of all ValueIds the given ValueId descends from
     fn collect_ancestors(&self, value_id: ValueId) -> HashSet<ValueId> {
         let mut to_visit = vec![value_id];
-        let mut ancestors = HashSet::new();
+        let mut ancestors = HashSet::from([value_id]);
         while let Some(value_id) = to_visit.pop() {
             if let Some(values) = self.value_parents.get(&value_id) {
                 to_visit.extend(values);
@@ -638,7 +639,7 @@ mod test {
 
     #[test]
     #[traced_test]
-    /// Test where the results of a call to a brillig function are left unchecked with a later assert,
+    /// Test where a call to a brillig function is left unchecked with a later assert,
     /// by example of the program illustrating issue #5425 (simplified).
     fn test_underconstrained_value_detector_5425() {
         /*
@@ -736,7 +737,6 @@ mod test {
 
         let v22 = builder.insert_call(br_function, vec![v1], vec![type_u32.clone()])[0];
         let v23 = builder.insert_binary(v4, BinaryOp::Add, v22);
-        let _v24 = builder.insert_binary(v2, BinaryOp::Eq, v23);
 
         builder.insert_constrain(v2, v23, None);
 
@@ -755,6 +755,51 @@ mod test {
         builder.terminate_with_return(vec![v1]);
 
         let mut ssa = builder.finish();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constrains();
+        assert_eq!(ssa_level_warnings.len(), 1);
+    }
+
+    #[test]
+    #[traced_test]
+    /// Test where a call to a brillig function returning multiple result values
+    /// is left unchecked with a later assert involving all the results
+    fn test_unchecked_multiple_results_brillig() {
+        let type_u32 = Type::Numeric(NumericType::Unsigned { bit_size: 32 });
+
+        let main_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+
+        let v0 = builder.add_parameter(type_u32.clone());
+
+        let br_function_id = Id::test_new(1);
+        let br_function = builder.import_function(br_function_id);
+
+        // First call is constrained properly, involving both results
+        let call_results =
+            builder.insert_call(br_function, vec![v0], vec![type_u32.clone(), type_u32.clone()]);
+        let (v6, v7) = (call_results[0], call_results[1]);
+        let v8 = builder.insert_binary(v6, BinaryOp::Mul, v7);
+        builder.insert_constrain(v8, v0, None);
+
+        // Second call is insufficiently constrained, involving only one of the results
+        let call_results =
+            builder.insert_call(br_function, vec![v0], vec![type_u32.clone(), type_u32.clone()]);
+        let (v9, _) = (call_results[0], call_results[1]);
+        let v11 = builder.insert_binary(v9, BinaryOp::Mul, v9);
+        builder.insert_constrain(v11, v0, None);
+
+        builder.terminate_with_return(vec![]);
+
+        // We're faking the brillig function here, for simplicity's sake
+
+        builder.new_brillig_function("factor".into(), br_function_id, InlineType::default());
+        let v0 = builder.add_parameter(type_u32.clone());
+        let zero = builder.numeric_constant(0u32, type_u32.clone());
+
+        builder.terminate_with_return(vec![zero, zero]);
+
+        let mut ssa = builder.finish();
+
         let ssa_level_warnings = ssa.check_for_missing_brillig_constrains();
         assert_eq!(ssa_level_warnings.len(), 1);
     }
