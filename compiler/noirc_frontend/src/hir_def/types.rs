@@ -5,6 +5,9 @@ use std::{
     rc::Rc,
 };
 
+#[cfg(test)]
+use proptest_derive::Arbitrary;
+
 use acvm::{AcirField, FieldElement};
 
 use crate::{
@@ -91,6 +94,14 @@ pub enum Type {
     /// like `fn foo<T, U>(...) {}`. Unlike TypeVariables, they cannot be bound over.
     NamedGeneric(TypeVariable, Rc<String>),
 
+    /// A cast (to, from) that's checked at monomorphization.
+    ///
+    /// Simplifications on arithmetic generics are only allowed on the LHS.
+    CheckedCast {
+        from: Box<Type>,
+        to: Box<Type>,
+    },
+
     /// A functions with arguments, a return type and environment.
     /// the environment should be `Unit` by default,
     /// for closures it should contain a `Tuple` type with the captured
@@ -161,6 +172,11 @@ pub enum Kind {
 }
 
 impl Kind {
+    // Kind::Numeric constructor helper
+    pub fn numeric(typ: Type) -> Kind {
+        Kind::Numeric(Box::new(typ))
+    }
+
     pub(crate) fn is_error(&self) -> bool {
         match self.follow_bindings() {
             Self::Numeric(typ) => *typ == Type::Error,
@@ -188,7 +204,7 @@ impl Kind {
     }
 
     pub(crate) fn u32() -> Self {
-        Self::Numeric(Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)))
+        Self::numeric(Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo))
     }
 
     pub(crate) fn follow_bindings(&self) -> Self {
@@ -197,7 +213,7 @@ impl Kind {
             Self::Normal => Self::Normal,
             Self::Integer => Self::Integer,
             Self::IntegerOrField => Self::IntegerOrField,
-            Self::Numeric(typ) => Self::Numeric(Box::new(typ.follow_bindings())),
+            Self::Numeric(typ) => Self::numeric(typ.follow_bindings()),
         }
     }
 
@@ -241,11 +257,9 @@ impl Kind {
     /// during monomorphization.
     pub(crate) fn default_type(&self) -> Option<Type> {
         match self {
-            Kind::Any => None,
             Kind::IntegerOrField => Some(Type::default_int_or_field_type()),
             Kind::Integer => Some(Type::default_int_type()),
-            Kind::Normal => None,
-            Kind::Numeric(typ) => Some(*typ.clone()),
+            Kind::Any | Kind::Normal | Kind::Numeric(..) => None,
         }
     }
 
@@ -257,10 +271,21 @@ impl Kind {
     }
 
     /// Ensure the given value fits in self.integral_maximum_size()
-    fn ensure_value_fits(&self, value: FieldElement) -> Option<FieldElement> {
+    fn ensure_value_fits(
+        &self,
+        value: FieldElement,
+        span: Span,
+    ) -> Result<FieldElement, TypeCheckError> {
         match self.integral_maximum_size() {
-            None => Some(value),
-            Some(maximum_size) => (value <= maximum_size).then_some(value),
+            None => Ok(value),
+            Some(maximum_size) => (value <= maximum_size).then_some(value).ok_or_else(|| {
+                TypeCheckError::OverflowingConstant {
+                    value,
+                    kind: self.clone(),
+                    maximum_size,
+                    span,
+                }
+            }),
         }
     }
 }
@@ -654,6 +679,7 @@ impl<T> Shared<T> {
 
 /// A restricted subset of binary operators useable on
 /// type level integers for use in the array length positions of types.
+#[cfg_attr(test, derive(Arbitrary))]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum BinaryTypeOperator {
     Addition,
@@ -865,6 +891,7 @@ impl std::fmt::Display for Type {
                 TypeBinding::Unbound(_, _) if name.is_empty() => write!(f, "_"),
                 TypeBinding::Unbound(_, _) => write!(f, "{name}"),
             },
+            Type::CheckedCast { to, .. } => write!(f, "{to}"),
             Type::Constant(x, _kind) => write!(f, "{x}"),
             Type::Forall(typevars, typ) => {
                 let typevars = vecmap(typevars, |var| var.id().to_string());
@@ -889,7 +916,7 @@ impl std::fmt::Display for Type {
             }
             Type::Quoted(quoted) => write!(f, "{}", quoted),
             Type::InfixExpr(lhs, op, rhs) => {
-                let this = self.canonicalize();
+                let this = self.canonicalize_checked();
 
                 // Prevent infinite recursion
                 if this != *self {
@@ -1066,6 +1093,7 @@ impl Type {
             | Type::TypeVariable(..)
             | Type::TraitAsType(..)
             | Type::NamedGeneric(..)
+            | Type::CheckedCast { .. }
             | Type::Forall(..)
             | Type::Constant(..)
             | Type::Quoted(..)
@@ -1107,6 +1135,10 @@ impl Type {
 
             Type::NamedGeneric(_, _) => {
                 named_generic_is_numeric(self, found_names);
+            }
+            Type::CheckedCast { from, to } => {
+                to.find_numeric_type_vars(found_names);
+                from.find_numeric_type_vars(found_names);
             }
 
             Type::TraitAsType(_, _, args) => {
@@ -1189,8 +1221,9 @@ impl Type {
             | Type::Forall(_, _)
             | Type::Quoted(_)
             | Type::Slice(_)
-            | Type::InfixExpr(_, _, _)
             | Type::TraitAsType(..) => false,
+
+            Type::CheckedCast { to, .. } => to.is_valid_for_program_input(),
 
             Type::Alias(alias, generics) => {
                 let alias = alias.borrow();
@@ -1207,6 +1240,10 @@ impl Type {
                 .get_fields(generics)
                 .into_iter()
                 .all(|(_, field)| field.is_valid_for_program_input()),
+
+            Type::InfixExpr(lhs, _, rhs) => {
+                lhs.is_valid_for_program_input() && rhs.is_valid_for_program_input()
+            }
         }
     }
 
@@ -1240,6 +1277,8 @@ impl Type {
             // TODO: probably can allow code as it is all compile time
             | Type::Quoted(_)
             | Type::TraitAsType(..) => false,
+
+            Type::CheckedCast { to, .. } => to.is_valid_non_inlined_function_input(),
 
             Type::Alias(alias, generics) => {
                 let alias = alias.borrow();
@@ -1282,6 +1321,8 @@ impl Type {
                 }
             }
 
+            Type::CheckedCast { to, .. } => to.is_valid_for_unconstrained_boundary(),
+
             // Quoted objects only exist at compile-time where the only execution
             // environment is the interpreter. In this environment, they are valid.
             Type::Quoted(_) => true,
@@ -1314,6 +1355,7 @@ impl Type {
     pub fn generic_count(&self) -> usize {
         match self {
             Type::Forall(generics, _) => generics.len(),
+            Type::CheckedCast { to, .. } => to.generic_count(),
             Type::TypeVariable(type_variable) | Type::NamedGeneric(type_variable, _) => {
                 match &*type_variable.borrow() {
                     TypeBinding::Bound(binding) => binding.generic_count(),
@@ -1353,6 +1395,7 @@ impl Type {
 
     pub(crate) fn kind(&self) -> Kind {
         match self {
+            Type::CheckedCast { to, .. } => to.kind(),
             Type::NamedGeneric(var, _) => var.kind(),
             Type::Constant(_, kind) => kind.clone(),
             Type::TypeVariable(var) => match &*var.borrow() {
@@ -1360,23 +1403,24 @@ impl Type {
                 TypeBinding::Unbound(_, ref type_var_kind) => type_var_kind.clone(),
             },
             Type::InfixExpr(lhs, _op, rhs) => lhs.infix_kind(rhs),
+            Type::Alias(def, generics) => def.borrow().get_type(generics).kind(),
+            // This is a concrete FieldElement, not an IntegerOrField
             Type::FieldElement
+            | Type::Integer(..)
             | Type::Array(..)
             | Type::Slice(..)
-            | Type::Integer(..)
             | Type::Bool
             | Type::String(..)
             | Type::FmtString(..)
             | Type::Unit
             | Type::Tuple(..)
             | Type::Struct(..)
-            | Type::Alias(..)
             | Type::TraitAsType(..)
             | Type::Function(..)
             | Type::MutableReference(..)
             | Type::Forall(..)
-            | Type::Quoted(..)
-            | Type::Error => Kind::Normal,
+            | Type::Quoted(..) => Kind::Normal,
+            Type::Error => Kind::Any,
         }
     }
 
@@ -1387,32 +1431,33 @@ impl Type {
         if self_kind.unifies(&other_kind) {
             self_kind
         } else {
-            Kind::Numeric(Box::new(Type::Error))
+            Kind::numeric(Type::Error)
         }
     }
 
     /// Returns the number of field elements required to represent the type once encoded.
-    pub fn field_count(&self) -> u32 {
+    pub fn field_count(&self, location: &Location) -> u32 {
         match self {
             Type::FieldElement | Type::Integer { .. } | Type::Bool => 1,
             Type::Array(size, typ) => {
                 let length = size
-                    .evaluate_to_u32()
+                    .evaluate_to_u32(location.span)
                     .expect("Cannot have variable sized arrays as a parameter to main");
                 let typ = typ.as_ref();
-                length * typ.field_count()
+                length * typ.field_count(location)
             }
             Type::Struct(def, args) => {
                 let struct_type = def.borrow();
                 let fields = struct_type.get_fields(args);
-                fields.iter().fold(0, |acc, (_, field_type)| acc + field_type.field_count())
+                fields.iter().fold(0, |acc, (_, field_type)| acc + field_type.field_count(location))
             }
-            Type::Alias(def, generics) => def.borrow().get_type(generics).field_count(),
+            Type::CheckedCast { to, .. } => to.field_count(location),
+            Type::Alias(def, generics) => def.borrow().get_type(generics).field_count(location),
             Type::Tuple(fields) => {
-                fields.iter().fold(0, |acc, field_typ| acc + field_typ.field_count())
+                fields.iter().fold(0, |acc, field_typ| acc + field_typ.field_count(location))
             }
             Type::String(size) => size
-                .evaluate_to_u32()
+                .evaluate_to_u32(location.span)
                 .expect("Cannot have variable sized strings as a parameter to main"),
             Type::FmtString(_, _)
             | Type::Unit
@@ -1583,6 +1628,7 @@ impl Type {
         match self {
             Type::TypeVariable(var) => Some((var.1.clone(), var.kind())),
             Type::NamedGeneric(var, _) => Some((var.1.clone(), var.kind())),
+            Type::CheckedCast { to, .. } => to.get_inner_type_variable(),
             _ => None,
         }
     }
@@ -1697,6 +1743,10 @@ impl Type {
                 }
             }
 
+            (CheckedCast { to, .. }, other) | (other, CheckedCast { to, .. }) => {
+                to.try_unify(other, bindings)
+            }
+
             (NamedGeneric(binding, _), other) | (other, NamedGeneric(binding, _))
                 if !binding.borrow().is_unbound() =>
             {
@@ -1759,7 +1809,8 @@ impl Type {
             }
 
             (Constant(value, kind), other) | (other, Constant(value, kind)) => {
-                if let Some(other_value) = other.evaluate_to_field_element(kind) {
+                let dummy_span = Span::default();
+                if let Ok(other_value) = other.evaluate_to_field_element(kind, dummy_span) {
                     if *value == other_value && kind.unifies(&other.kind()) {
                         Ok(())
                     } else {
@@ -1927,41 +1978,106 @@ impl Type {
 
     /// If this type is a Type::Constant (used in array lengths), or is bound
     /// to a Type::Constant, return the constant as a u32.
-    pub fn evaluate_to_u32(&self) -> Option<u32> {
-        self.evaluate_to_field_element(&Kind::u32())
-            .and_then(|field_element| field_element.try_to_u32())
+    pub fn evaluate_to_u32(&self, span: Span) -> Result<u32, TypeCheckError> {
+        self.evaluate_to_field_element(&Kind::u32(), span).map(|field_element| {
+            field_element
+                .try_to_u32()
+                .expect("ICE: size should have already been checked by evaluate_to_field_element")
+        })
     }
 
     // TODO(https://github.com/noir-lang/noir/issues/6260): remove
     // the unifies checks once all kinds checks are implemented?
-    pub(crate) fn evaluate_to_field_element(&self, kind: &Kind) -> Option<acvm::FieldElement> {
+    pub(crate) fn evaluate_to_field_element(
+        &self,
+        kind: &Kind,
+        span: Span,
+    ) -> Result<acvm::FieldElement, TypeCheckError> {
+        let run_simplifications = true;
+        self.evaluate_to_field_element_helper(kind, span, run_simplifications)
+    }
+
+    /// evaluate_to_field_element with optional generic arithmetic simplifications
+    pub(crate) fn evaluate_to_field_element_helper(
+        &self,
+        kind: &Kind,
+        span: Span,
+        run_simplifications: bool,
+    ) -> Result<acvm::FieldElement, TypeCheckError> {
         if let Some((binding, binding_kind)) = self.get_inner_type_variable() {
             if let TypeBinding::Bound(binding) = &*binding.borrow() {
                 if kind.unifies(&binding_kind) {
-                    return binding.evaluate_to_field_element(&binding_kind);
+                    return binding.evaluate_to_field_element_helper(
+                        &binding_kind,
+                        span,
+                        run_simplifications,
+                    );
                 }
             }
         }
 
-        match self.canonicalize() {
+        let could_be_checked_cast = false;
+        match self.canonicalize_helper(could_be_checked_cast, run_simplifications) {
             Type::Constant(x, constant_kind) => {
                 if kind.unifies(&constant_kind) {
-                    kind.ensure_value_fits(x)
+                    kind.ensure_value_fits(x, span)
                 } else {
-                    None
+                    Err(TypeCheckError::TypeKindMismatch {
+                        expected_kind: format!("{}", constant_kind),
+                        expr_kind: format!("{}", kind),
+                        expr_span: span,
+                    })
                 }
             }
             Type::InfixExpr(lhs, op, rhs) => {
                 let infix_kind = lhs.infix_kind(&rhs);
                 if kind.unifies(&infix_kind) {
-                    let lhs_value = lhs.evaluate_to_field_element(&infix_kind)?;
-                    let rhs_value = rhs.evaluate_to_field_element(&infix_kind)?;
-                    op.function(lhs_value, rhs_value, &infix_kind)
+                    let lhs_value = lhs.evaluate_to_field_element_helper(
+                        &infix_kind,
+                        span,
+                        run_simplifications,
+                    )?;
+                    let rhs_value = rhs.evaluate_to_field_element_helper(
+                        &infix_kind,
+                        span,
+                        run_simplifications,
+                    )?;
+                    op.function(lhs_value, rhs_value, &infix_kind, span)
                 } else {
-                    None
+                    Err(TypeCheckError::TypeKindMismatch {
+                        expected_kind: format!("{}", kind),
+                        expr_kind: format!("{}", infix_kind),
+                        expr_span: span,
+                    })
                 }
             }
-            _ => None,
+            Type::CheckedCast { from, to } => {
+                let to_value = to.evaluate_to_field_element(kind, span)?;
+
+                // if both 'to' and 'from' evaluate to a constant,
+                // return None unless they match
+                let skip_simplifications = false;
+                if let Ok(from_value) =
+                    from.evaluate_to_field_element_helper(kind, span, skip_simplifications)
+                {
+                    if to_value == from_value {
+                        Ok(to_value)
+                    } else {
+                        let to = *to.clone();
+                        let from = *from.clone();
+                        Err(TypeCheckError::TypeCanonicalizationMismatch {
+                            to,
+                            from,
+                            to_value,
+                            from_value,
+                            span,
+                        })
+                    }
+                } else {
+                    Ok(to_value)
+                }
+            }
+            other => Err(TypeCheckError::NonConstantEvaluated { typ: other, span }),
         }
     }
 
@@ -2183,6 +2299,11 @@ impl Type {
                 let fields = fields.substitute_helper(type_bindings, substitute_bound_typevars);
                 Type::FmtString(Box::new(size), Box::new(fields))
             }
+            Type::CheckedCast { from, to } => {
+                let from = from.substitute_helper(type_bindings, substitute_bound_typevars);
+                let to = to.substitute_helper(type_bindings, substitute_bound_typevars);
+                Type::CheckedCast { from: Box::new(from), to: Box::new(to) }
+            }
             Type::NamedGeneric(binding, _) | Type::TypeVariable(binding) => {
                 substitute_binding(binding)
             }
@@ -2272,6 +2393,7 @@ impl Type {
                     || args.named.iter().any(|arg| arg.typ.occurs(target_id))
             }
             Type::Tuple(fields) => fields.iter().any(|field| field.occurs(target_id)),
+            Type::CheckedCast { from, to } => from.occurs(target_id) || to.occurs(target_id),
             Type::NamedGeneric(type_var, _) | Type::TypeVariable(type_var) => {
                 match &*type_var.borrow() {
                     TypeBinding::Bound(binding) => {
@@ -2330,6 +2452,11 @@ impl Type {
                 def.borrow().get_type(args).follow_bindings()
             }
             Tuple(args) => Tuple(vecmap(args, |arg| arg.follow_bindings())),
+            CheckedCast { from, to } => {
+                let from = Box::new(from.follow_bindings());
+                let to = Box::new(to.follow_bindings());
+                CheckedCast { from, to }
+            }
             TypeVariable(var) | NamedGeneric(var, _) => {
                 if let TypeBinding::Bound(typ) = &*var.borrow() {
                     return typ.follow_bindings();
@@ -2426,6 +2553,10 @@ impl Type {
                     generic.typ.replace_named_generics_with_type_variables();
                 }
             }
+            Type::CheckedCast { from, to } => {
+                from.replace_named_generics_with_type_variables();
+                to.replace_named_generics_with_type_variables();
+            }
             Type::NamedGeneric(var, _) => {
                 let type_binding = var.borrow();
                 if let TypeBinding::Bound(binding) = &*type_binding {
@@ -2483,6 +2614,7 @@ impl Type {
                 }
             }
             Type::Alias(alias, args) => alias.borrow().get_type(args).integral_maximum_size(),
+            Type::CheckedCast { to, .. } => to.integral_maximum_size(),
             Type::NamedGeneric(binding, _name) => match &*binding.borrow() {
                 TypeBinding::Bound(typ) => typ.integral_maximum_size(),
                 TypeBinding::Unbound(_, kind) => kind.integral_maximum_size(),
@@ -2542,28 +2674,39 @@ fn convert_array_expression_to_slice(
 
 impl BinaryTypeOperator {
     /// Perform the actual rust numeric operation associated with this operator
-    pub fn function(self, a: FieldElement, b: FieldElement, kind: &Kind) -> Option<FieldElement> {
+    pub fn function(
+        self,
+        a: FieldElement,
+        b: FieldElement,
+        kind: &Kind,
+        span: Span,
+    ) -> Result<FieldElement, TypeCheckError> {
         match kind.follow_bindings().integral_maximum_size() {
             None => match self {
-                BinaryTypeOperator::Addition => Some(a + b),
-                BinaryTypeOperator::Subtraction => Some(a - b),
-                BinaryTypeOperator::Multiplication => Some(a * b),
-                BinaryTypeOperator::Division => (b != FieldElement::zero()).then(|| a / b),
-                BinaryTypeOperator::Modulo => None,
+                BinaryTypeOperator::Addition => Ok(a + b),
+                BinaryTypeOperator::Subtraction => Ok(a - b),
+                BinaryTypeOperator::Multiplication => Ok(a * b),
+                BinaryTypeOperator::Division => (b != FieldElement::zero())
+                    .then(|| a / b)
+                    .ok_or(TypeCheckError::DivisionByZero { lhs: a, rhs: b, span }),
+                BinaryTypeOperator::Modulo => {
+                    Err(TypeCheckError::ModuloOnFields { lhs: a, rhs: b, span })
+                }
             },
             Some(_maximum_size) => {
                 let a = a.to_i128();
                 let b = b.to_i128();
 
+                let err = TypeCheckError::FailingBinaryOp { op: self, lhs: a, rhs: b, span };
                 let result = match self {
-                    BinaryTypeOperator::Addition => a.checked_add(b)?,
-                    BinaryTypeOperator::Subtraction => a.checked_sub(b)?,
-                    BinaryTypeOperator::Multiplication => a.checked_mul(b)?,
-                    BinaryTypeOperator::Division => a.checked_div(b)?,
-                    BinaryTypeOperator::Modulo => a.checked_rem(b)?,
+                    BinaryTypeOperator::Addition => a.checked_add(b).ok_or(err)?,
+                    BinaryTypeOperator::Subtraction => a.checked_sub(b).ok_or(err)?,
+                    BinaryTypeOperator::Multiplication => a.checked_mul(b).ok_or(err)?,
+                    BinaryTypeOperator::Division => a.checked_div(b).ok_or(err)?,
+                    BinaryTypeOperator::Modulo => a.checked_rem(b).ok_or(err)?,
                 };
 
-                Some(result.into())
+                Ok(result.into())
             }
         }
     }
@@ -2608,7 +2751,9 @@ impl From<&Type> for PrintableType {
         match value {
             Type::FieldElement => PrintableType::Field,
             Type::Array(size, typ) => {
-                let length = size.evaluate_to_u32().expect("Cannot print variable sized arrays");
+                let dummy_span = Span::default();
+                let length =
+                    size.evaluate_to_u32(dummy_span).expect("Cannot print variable sized arrays");
                 let typ = typ.as_ref();
                 PrintableType::Array { length, typ: Box::new(typ.into()) }
             }
@@ -2633,7 +2778,9 @@ impl From<&Type> for PrintableType {
             },
             Type::Bool => PrintableType::Boolean,
             Type::String(size) => {
-                let size = size.evaluate_to_u32().expect("Cannot print variable sized strings");
+                let dummy_span = Span::default();
+                let size =
+                    size.evaluate_to_u32(dummy_span).expect("Cannot print variable sized strings");
                 PrintableType::String { length: size }
             }
             Type::FmtString(_, _) => unreachable!("format strings cannot be printed"),
@@ -2649,6 +2796,7 @@ impl From<&Type> for PrintableType {
             Type::Alias(alias, args) => alias.borrow().get_type(args).into(),
             Type::TraitAsType(..) => unreachable!(),
             Type::Tuple(types) => PrintableType::Tuple { types: vecmap(types, |typ| typ.into()) },
+            Type::CheckedCast { to, .. } => to.as_ref().into(),
             Type::NamedGeneric(..) => unreachable!(),
             Type::Forall(..) => unreachable!(),
             Type::Function(arguments, return_type, env, unconstrained) => PrintableType::Function {
@@ -2723,6 +2871,7 @@ impl std::fmt::Debug for Type {
             }
             Type::Unit => write!(f, "()"),
             Type::Error => write!(f, "error"),
+            Type::CheckedCast { to, .. } => write!(f, "{:?}", to),
             Type::NamedGeneric(binding, name) => match binding.kind() {
                 Kind::Any | Kind::Normal | Kind::Integer | Kind::IntegerOrField => {
                     write!(f, "{}{:?}", name, binding)
@@ -2837,6 +2986,7 @@ impl std::hash::Hash for Type {
                 vars.hash(state);
                 typ.hash(state);
             }
+            Type::CheckedCast { to, .. } => to.hash(state),
             Type::Constant(value, _) => value.hash(state),
             Type::Quoted(typ) => typ.hash(state),
             Type::InfixExpr(lhs, op, rhs) => {
@@ -2903,6 +3053,7 @@ impl PartialEq for Type {
             (Forall(lhs_vars, lhs_type), Forall(rhs_vars, rhs_type)) => {
                 lhs_vars == rhs_vars && lhs_type == rhs_type
             }
+            (CheckedCast { to, .. }, other) | (other, CheckedCast { to, .. }) => **to == *other,
             (Constant(lhs, lhs_kind), Constant(rhs, rhs_kind)) => {
                 lhs == rhs && lhs_kind == rhs_kind
             }

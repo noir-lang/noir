@@ -12,10 +12,14 @@ use lsp_types::{
 };
 use noirc_errors::Span;
 use noirc_frontend::{
-    ast::{ConstructorExpression, ItemVisibility, NoirTraitImpl, Path, UseTree, Visitor},
+    ast::{
+        CallExpression, ConstructorExpression, ItemVisibility, MethodCallExpression, NoirTraitImpl,
+        Path, UseTree, Visitor,
+    },
     graph::CrateId,
     hir::def_map::{CrateDefMap, LocalModuleId, ModuleId},
     node_interner::NodeInterner,
+    usage_tracker::UsageTracker,
 };
 use noirc_frontend::{
     parser::{Item, ItemKind, ParsedSubModule},
@@ -29,6 +33,7 @@ use super::{process_request, to_lsp_location};
 mod fill_struct_fields;
 mod implement_missing_members;
 mod import_or_qualify;
+mod remove_bang_from_call;
 mod remove_unused_import;
 mod tests;
 
@@ -58,6 +63,7 @@ pub(crate) fn on_code_action_request(
                     args.crate_id,
                     args.def_maps,
                     args.interner,
+                    args.usage_tracker,
                 );
                 finder.find(&parsed_module)
             })
@@ -78,6 +84,7 @@ struct CodeActionFinder<'a> {
     module_id: ModuleId,
     def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
     interner: &'a NodeInterner,
+    usage_tracker: &'a UsageTracker,
     /// How many nested `mod` we are in deep
     nesting: usize,
     /// The line where an auto_import must be inserted
@@ -99,6 +106,7 @@ impl<'a> CodeActionFinder<'a> {
         krate: CrateId,
         def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
         interner: &'a NodeInterner,
+        usage_tracker: &'a UsageTracker,
     ) -> Self {
         // Find the module the current file belongs to
         let def_map = &def_maps[&krate];
@@ -120,6 +128,7 @@ impl<'a> CodeActionFinder<'a> {
             module_id,
             def_maps,
             interner,
+            usage_tracker,
             nesting: 0,
             auto_import_line: 0,
             use_segment_positions: UseSegmentPositions::default(),
@@ -247,6 +256,34 @@ impl<'a> Visitor for CodeActionFinder<'a> {
 
     fn visit_noir_trait_impl(&mut self, noir_trait_impl: &NoirTraitImpl, span: Span) -> bool {
         self.implement_missing_members(noir_trait_impl, span);
+
+        true
+    }
+
+    fn visit_call_expression(&mut self, call: &CallExpression, span: Span) -> bool {
+        if !self.includes_span(span) {
+            return false;
+        }
+
+        if call.is_macro_call {
+            self.remove_bang_from_call(call.func.span);
+        }
+
+        true
+    }
+
+    fn visit_method_call_expression(
+        &mut self,
+        method_call: &MethodCallExpression,
+        span: Span,
+    ) -> bool {
+        if !self.includes_span(span) {
+            return false;
+        }
+
+        if method_call.is_macro_call {
+            self.remove_bang_from_call(method_call.method_name.span());
+        }
 
         true
     }

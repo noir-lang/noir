@@ -30,6 +30,7 @@ use crate::brillig::{brillig_gen::brillig_fn::FunctionContext as BrilligFunction
 use crate::errors::{InternalError, InternalWarning, RuntimeError, SsaReport};
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
 use acvm::acir::circuit::opcodes::{AcirFunctionId, BlockType};
+use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use noirc_frontend::monomorphization::ast::InlineType;
 
 use acvm::acir::circuit::brillig::{BrilligBytecode, BrilligFunctionId};
@@ -156,7 +157,7 @@ struct Context<'a> {
     current_side_effects_enabled_var: AcirVar,
 
     /// Manages and builds the `AcirVar`s to which the converted SSA values refer.
-    acir_context: AcirContext<FieldElement>,
+    acir_context: AcirContext<FieldElement, Bn254BlackBoxSolver>,
 
     /// Track initialized acir dynamic arrays
     ///
@@ -1003,6 +1004,15 @@ impl<'a> Context<'a> {
                 }
             };
             entry_point.link_with(artifact);
+            // Insert the range of opcode locations occupied by a procedure
+            if let Some(procedure_id) = artifact.procedure {
+                let num_opcodes = entry_point.byte_code.len();
+                let previous_num_opcodes = entry_point.byte_code.len() - artifact.byte_code.len();
+                // We subtract one as to keep the range inclusive on both ends
+                entry_point
+                    .procedure_locations
+                    .insert(procedure_id, (previous_num_opcodes, num_opcodes - 1));
+            }
         }
         // Generate the final bytecode
         Ok(entry_point.finish())
@@ -2788,6 +2798,9 @@ impl<'a> Context<'a> {
             }
             Intrinsic::DerivePedersenGenerators => {
                 unreachable!("DerivePedersenGenerators can only be called with constants")
+            }
+            Intrinsic::FieldLessThan => {
+                unreachable!("FieldLessThan can only be called in unconstrained")
             }
         }
     }

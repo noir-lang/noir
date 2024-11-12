@@ -14,7 +14,7 @@ fn overflowing_u8() {
     if let CompilationError::TypeError(error) = &errors[0].0 {
         assert_eq!(
             error.to_string(),
-            "The value `2⁸` cannot fit into `u8` which has range `0..=255`"
+            "The value `256` cannot fit into `u8` which has range `0..=255`"
         );
     } else {
         panic!("Expected OverflowingAssignment error, got {:?}", errors[0].0);
@@ -52,7 +52,7 @@ fn overflowing_i8() {
     if let CompilationError::TypeError(error) = &errors[0].0 {
         assert_eq!(
             error.to_string(),
-            "The value `2⁷` cannot fit into `i8` which has range `-128..=127`"
+            "The value `128` cannot fit into `i8` which has range `-128..=127`"
         );
     } else {
         panic!("Expected OverflowingAssignment error, got {:?}", errors[0].0);

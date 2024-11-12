@@ -19,10 +19,9 @@ use crate::{
         resolution::errors::ResolverError,
     },
     hir_def::expr::{HirExpression, HirIdent},
-    lexer::Lexer,
     node_interner::{DefinitionKind, DependencyId, FuncId, NodeInterner, StructId, TraitId},
-    parser::{Item, ItemKind, Parser},
-    token::SecondaryAttribute,
+    parser::{Item, ItemKind},
+    token::{MetaAttribute, SecondaryAttribute},
     Type, TypeBindings, UnificationError,
 };
 
@@ -93,6 +92,7 @@ impl<'context> Elaborator<'context> {
         let mut elaborator = Elaborator::new(
             self.interner,
             self.def_maps,
+            self.usage_tracker,
             self.crate_id,
             self.debug_comptime_in_file,
             self.interpreter_call_stack.clone(),
@@ -160,9 +160,8 @@ impl<'context> Elaborator<'context> {
         if let SecondaryAttribute::Meta(attribute) = attribute {
             self.elaborate_in_comptime_context(|this| {
                 if let Err(error) = this.collect_comptime_attribute_name_on_item(
-                    &attribute.contents,
+                    attribute,
                     item.clone(),
-                    attribute.contents_span,
                     attribute_context,
                     attributes_to_run,
                 ) {
@@ -175,23 +174,17 @@ impl<'context> Elaborator<'context> {
     /// Resolve an attribute to the function it refers to and add it to `attributes_to_run`
     fn collect_comptime_attribute_name_on_item(
         &mut self,
-        attribute: &str,
+        attribute: &MetaAttribute,
         item: Value,
-        span: Span,
         attribute_context: AttributeContext,
         attributes_to_run: &mut CollectedAttributes,
     ) -> Result<(), (CompilationError, FileId)> {
         self.file = attribute_context.attribute_file;
         self.local_module = attribute_context.attribute_module;
+        let span = attribute.span;
 
-        let location = Location::new(span, self.file);
-        let Some((function, arguments)) = Self::parse_attribute(attribute, location)? else {
-            return Err((
-                ResolverError::UnableToParseAttribute { attribute: attribute.to_string(), span }
-                    .into(),
-                self.file,
-            ));
-        };
+        let function = Expression { kind: ExpressionKind::Variable(attribute.name.clone()), span };
+        let arguments = attribute.arguments.clone();
 
         // Elaborate the function, rolling back any errors generated in case it is unknown
         let error_count = self.errors.len();
@@ -202,19 +195,15 @@ impl<'context> Elaborator<'context> {
         let definition_id = match self.interner.expression(&function) {
             HirExpression::Ident(ident, _) => ident.id,
             _ => {
-                return Err((
-                    ResolverError::AttributeFunctionIsNotAPath { function: function_string, span }
-                        .into(),
-                    self.file,
-                ))
+                let error =
+                    ResolverError::AttributeFunctionIsNotAPath { function: function_string, span };
+                return Err((error.into(), self.file));
             }
         };
 
         let Some(definition) = self.interner.try_definition(definition_id) else {
-            return Err((
-                ResolverError::AttributeFunctionNotInScope { name: function_string, span }.into(),
-                self.file,
-            ));
+            let error = ResolverError::AttributeFunctionNotInScope { name: function_string, span };
+            return Err((error.into(), self.file));
         };
 
         let DefinitionKind::Function(function) = definition.kind else {
@@ -264,38 +253,6 @@ impl<'context> Elaborator<'context> {
         }
 
         Ok(())
-    }
-
-    /// Parses an attribute in the form of a function call (e.g. `#[foo(a b, c d)]`) into
-    /// the function and quoted arguments called (e.g. `("foo", vec![(a b, location), (c d, location)])`)
-    #[allow(clippy::type_complexity)]
-    pub(crate) fn parse_attribute(
-        annotation: &str,
-        location: Location,
-    ) -> Result<Option<(Expression, Vec<Expression>)>, (CompilationError, FileId)> {
-        let (tokens, mut lexing_errors) = Lexer::lex(annotation);
-        if !lexing_errors.is_empty() {
-            return Err((lexing_errors.swap_remove(0).into(), location.file));
-        }
-
-        let Some(expression) = Parser::for_tokens(tokens).parse_option(Parser::parse_expression)
-        else {
-            return Ok(None);
-        };
-
-        let (mut func, mut arguments) = match expression.kind {
-            ExpressionKind::Call(call) => (*call.func, call.arguments),
-            ExpressionKind::Variable(_) => (expression, Vec::new()),
-            _ => return Ok(None),
-        };
-
-        func.span = func.span.shift_by(location.span.start());
-
-        for argument in &mut arguments {
-            argument.span = argument.span.shift_by(location.span.start());
-        }
-
-        Ok(Some((func, arguments)))
     }
 
     fn handle_attribute_arguments(
@@ -410,6 +367,7 @@ impl<'context> Elaborator<'context> {
                 if let Some(id) = dc_mod::collect_function(
                     self.interner,
                     self.def_maps.get_mut(&self.crate_id).unwrap(),
+                    self.usage_tracker,
                     &function,
                     module_id,
                     self.file,
@@ -459,6 +417,7 @@ impl<'context> Elaborator<'context> {
                 let (global, error) = dc_mod::collect_global(
                     self.interner,
                     self.def_maps.get_mut(&self.crate_id).unwrap(),
+                    self.usage_tracker,
                     Documented::new(global, item.doc_comments),
                     visibility,
                     self.file,
@@ -475,6 +434,7 @@ impl<'context> Elaborator<'context> {
                 if let Some((type_id, the_struct)) = dc_mod::collect_struct(
                     self.interner,
                     self.def_maps.get_mut(&self.crate_id).unwrap(),
+                    self.usage_tracker,
                     Documented::new(struct_def, item.doc_comments),
                     self.file,
                     self.local_module,

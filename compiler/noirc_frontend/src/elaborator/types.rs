@@ -14,7 +14,6 @@ use crate::{
     hir::{
         comptime::{Interpreter, Value},
         def_collector::dc_crate::CompilationError,
-        def_map::ModuleDefId,
         resolution::{errors::ResolverError, import::PathResolutionError},
         type_check::{
             generics::{Generic, TraitGenerics},
@@ -39,14 +38,15 @@ use crate::{
     UnificationError,
 };
 
-use super::{lints, Elaborator};
+use super::{lints, path_resolution::PathResolutionItem, Elaborator};
 
 pub const SELF_TYPE_NAME: &str = "Self";
 pub const WILDCARD_TYPE: &str = "_";
 
 pub(super) struct TraitPathResolution {
     pub(super) method: TraitMethod,
-    pub(super) error: Option<PathResolutionError>,
+    pub(super) item: Option<PathResolutionItem>,
+    pub(super) errors: Vec<PathResolutionError>,
 }
 
 impl<'context> Elaborator<'context> {
@@ -192,7 +192,7 @@ impl<'context> Elaborator<'context> {
 
     // Resolve Self::Foo to an associated type on the current trait or trait impl
     fn lookup_associated_type_on_self(&self, path: &Path) -> Option<Type> {
-        if path.segments.len() == 2 && path.first_name() == SELF_TYPE_NAME {
+        if path.segments.len() == 2 && path.first_name() == Some(SELF_TYPE_NAME) {
             if let Some(trait_id) = self.current_trait {
                 let the_trait = self.interner.get_trait(trait_id);
                 if let Some(typ) = the_trait.get_associated_type(path.last_name()) {
@@ -404,7 +404,7 @@ impl<'context> Elaborator<'context> {
 
         // If we cannot find a local generic of the same name, try to look up a global
         match self.resolve_path_or_error(path.clone()) {
-            Ok(ModuleDefId::GlobalId(id)) => {
+            Ok(PathResolutionItem::Global(id)) => {
                 if let Some(current_item) = self.current_item {
                     self.interner.add_global_dependency(current_item, id);
                 }
@@ -414,7 +414,7 @@ impl<'context> Elaborator<'context> {
                 let kind = self
                     .interner
                     .get_global_let_statement(id)
-                    .map(|let_statement| Kind::Numeric(Box::new(let_statement.r#type)))
+                    .map(|let_statement| Kind::numeric(let_statement.r#type))
                     .unwrap_or(Kind::u32());
 
                 // TODO(https://github.com/noir-lang/noir/issues/6238):
@@ -462,14 +462,26 @@ impl<'context> Elaborator<'context> {
                             });
                             return Type::Error;
                         }
-                        if let Some(result) = op.function(lhs, rhs, &lhs_kind) {
-                            Type::Constant(result, lhs_kind)
-                        } else {
-                            self.push_err(ResolverError::OverflowInType { lhs, op, rhs, span });
-                            Type::Error
+                        match op.function(lhs, rhs, &lhs_kind, span) {
+                            Ok(result) => Type::Constant(result, lhs_kind),
+                            Err(err) => {
+                                let err = Box::new(err);
+                                self.push_err(ResolverError::BinaryOpError {
+                                    lhs,
+                                    op,
+                                    rhs,
+                                    err,
+                                    span,
+                                });
+                                Type::Error
+                            }
                         }
                     }
-                    (lhs, rhs) => Type::InfixExpr(Box::new(lhs), op, Box::new(rhs)).canonicalize(),
+                    (lhs, rhs) => {
+                        let infix = Type::InfixExpr(Box::new(lhs), op, Box::new(rhs));
+                        Type::CheckedCast { from: Box::new(infix.clone()), to: Box::new(infix) }
+                            .canonicalize()
+                    }
                 }
             }
             UnresolvedTypeExpression::AsTraitPath(path) => {
@@ -551,7 +563,8 @@ impl<'context> Elaborator<'context> {
                 let constraint = the_trait.as_constraint(path.span);
                 return Some(TraitPathResolution {
                     method: TraitMethod { method_id: method, constraint, assumed: true },
-                    error: None,
+                    item: None,
+                    errors: Vec::new(),
                 });
             }
         }
@@ -564,15 +577,15 @@ impl<'context> Elaborator<'context> {
     // E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
     fn resolve_trait_static_method(&mut self, path: &Path) -> Option<TraitPathResolution> {
         let path_resolution = self.resolve_path(path.clone()).ok()?;
-        let ModuleDefId::FunctionId(func_id) = path_resolution.module_def_id else { return None };
-
+        let func_id = path_resolution.item.function_id()?;
         let meta = self.interner.try_function_meta(&func_id)?;
         let the_trait = self.interner.get_trait(meta.trait_id?);
         let method = the_trait.find_method(path.last_name())?;
         let constraint = the_trait.as_constraint(path.span);
         Some(TraitPathResolution {
             method: TraitMethod { method_id: method, constraint, assumed: false },
-            error: path_resolution.error,
+            item: Some(path_resolution.item),
+            errors: path_resolution.errors,
         })
     }
 
@@ -600,7 +613,8 @@ impl<'context> Elaborator<'context> {
                 if let Some(method) = the_trait.find_method(path.last_name()) {
                     return Some(TraitPathResolution {
                         method: TraitMethod { method_id: method, constraint, assumed: true },
-                        error: None,
+                        item: None,
+                        errors: Vec::new(),
                     });
                 }
             }
@@ -1736,6 +1750,11 @@ impl<'context> Elaborator<'context> {
             | Type::Quoted(_)
             | Type::Forall(_, _) => (),
 
+            Type::CheckedCast { from, to } => {
+                Self::find_numeric_generics_in_type(from, found);
+                Self::find_numeric_generics_in_type(to, found);
+            }
+
             Type::TraitAsType(_, _, args) => {
                 for arg in &args.ordered {
                     Self::find_numeric_generics_in_type(arg, found);
@@ -1824,19 +1843,6 @@ impl<'context> Elaborator<'context> {
         let context = self.function_context.last_mut();
         let context = context.expect("The function_context stack should always be non-empty");
         context.trait_constraints.push((constraint, expr_id));
-    }
-
-    pub fn check_unsupported_turbofish_usage(&mut self, path: &Path, exclude_last_segment: bool) {
-        for (index, segment) in path.segments.iter().enumerate() {
-            if exclude_last_segment && index == path.segments.len() - 1 {
-                continue;
-            }
-
-            if segment.generics.is_some() {
-                let span = segment.turbofish_span();
-                self.push_err(TypeCheckError::UnsupportedTurbofishUsage { span });
-            }
-        }
     }
 
     pub fn bind_generics_from_trait_constraint(

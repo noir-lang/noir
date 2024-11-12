@@ -53,7 +53,7 @@ pub(super) fn compile_vector_remove_procedure<F: AcirField + DebugToString>(
     let target_vector = BrilligVector { pointer: new_vector_pointer_return };
     let index = SingleAddrVariable::new_usize(index_arg);
 
-    // First we need to allocate the target vector decrementing the size by removed_items.len()
+    // Reallocate if necessary
     let source_size = brillig_context.codegen_make_vector_length(source_vector);
 
     let target_size = SingleAddrVariable::new_usize(brillig_context.allocate_register());
@@ -64,19 +64,36 @@ pub(super) fn compile_vector_remove_procedure<F: AcirField + DebugToString>(
         BrilligBinaryOp::Sub,
     );
 
-    brillig_context.codegen_initialize_vector(target_vector, target_size);
+    let rc = brillig_context.allocate_register();
+    brillig_context.load_instruction(rc, source_vector.pointer);
+    let is_rc_one = brillig_context.allocate_register();
+    brillig_context.codegen_usize_op(rc, is_rc_one, BrilligBinaryOp::Equals, 1_usize);
 
-    // Copy the elements to the left of the index
     let source_vector_items_pointer =
         brillig_context.codegen_make_vector_items_pointer(source_vector);
-    let target_vector_items_pointer =
-        brillig_context.codegen_make_vector_items_pointer(target_vector);
 
-    brillig_context.codegen_mem_copy(
-        source_vector_items_pointer,
-        target_vector_items_pointer,
-        index,
-    );
+    let target_vector_items_pointer = brillig_context.allocate_register();
+
+    brillig_context.codegen_branch(is_rc_one, |brillig_context, is_rc_one| {
+        if is_rc_one {
+            brillig_context.mov_instruction(target_vector.pointer, source_vector.pointer);
+            brillig_context.codegen_update_vector_length(target_vector, target_size);
+            brillig_context
+                .codegen_vector_items_pointer(target_vector, target_vector_items_pointer);
+        } else {
+            brillig_context.codegen_initialize_vector(target_vector, target_size, None);
+
+            // Copy the elements to the left of the index
+            brillig_context
+                .codegen_vector_items_pointer(target_vector, target_vector_items_pointer);
+
+            brillig_context.codegen_mem_copy(
+                source_vector_items_pointer,
+                target_vector_items_pointer,
+                index,
+            );
+        }
+    });
 
     // Compute the source pointer after the removed items
     let source_pointer_after_index = brillig_context.allocate_register();
@@ -124,6 +141,8 @@ pub(super) fn compile_vector_remove_procedure<F: AcirField + DebugToString>(
         SingleAddrVariable::new_usize(item_count),
     );
 
+    brillig_context.deallocate_register(rc);
+    brillig_context.deallocate_register(is_rc_one);
     brillig_context.deallocate_register(source_pointer_after_index);
     brillig_context.deallocate_register(target_pointer_at_index);
     brillig_context.deallocate_register(item_count);

@@ -15,6 +15,7 @@ mod debug_cmd;
 mod execute_cmd;
 mod export_cmd;
 mod fmt_cmd;
+mod generate_completion_script_cmd;
 mod info_cmd;
 mod init_cmd;
 mod lsp_cmd;
@@ -69,6 +70,7 @@ enum NargoCommand {
     Lsp(lsp_cmd::LspCommand),
     #[command(hide = true)]
     Dap(dap_cmd::DapCommand),
+    GenerateCompletionScript(generate_completion_script_cmd::GenerateCompletionScriptCommand),
 }
 
 #[cfg(not(feature = "codegen-docs"))]
@@ -81,11 +83,22 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
     }
 
     // Search through parent directories to find package root if necessary.
-    if !matches!(
-        command,
-        NargoCommand::New(_) | NargoCommand::Init(_) | NargoCommand::Lsp(_) | NargoCommand::Dap(_)
-    ) {
-        config.program_dir = find_package_root(&config.program_dir)?;
+    match &command {
+        NargoCommand::Check(..)
+        | NargoCommand::Fmt(..)
+        | NargoCommand::Compile(..)
+        | NargoCommand::Execute(..)
+        | NargoCommand::Export(..)
+        | NargoCommand::Debug(..)
+        | NargoCommand::Test(..)
+        | NargoCommand::Info(..) => {
+            config.program_dir = find_package_root(&config.program_dir)?;
+        }
+        NargoCommand::New(..)
+        | NargoCommand::Init(..)
+        | NargoCommand::Lsp(..)
+        | NargoCommand::Dap(..)
+        | NargoCommand::GenerateCompletionScript(..) => (),
     }
 
     match command {
@@ -101,6 +114,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         NargoCommand::Lsp(args) => lsp_cmd::run(args, config),
         NargoCommand::Dap(args) => dap_cmd::run(args, config),
         NargoCommand::Fmt(args) => fmt_cmd::run(args, config),
+        NargoCommand::GenerateCompletionScript(args) => generate_completion_script_cmd::run(args),
     }?;
 
     Ok(())

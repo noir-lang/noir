@@ -11,6 +11,7 @@ use inferno::flamegraph::{from_lines, Options, TextTruncateDirection};
 use noirc_errors::debug_info::DebugInfo;
 use noirc_errors::reporter::line_and_column_from_span;
 use noirc_errors::Location;
+use noirc_evaluator::brillig::ProcedureId;
 
 use crate::opcode_formatter::AcirOrBrilligOpcode;
 
@@ -111,6 +112,7 @@ fn generate_folded_sorted_lines<'files, F: AcirField>(
         if let Some(opcode) = &sample.opcode {
             location_names.push(format_opcode(opcode));
         }
+
         add_locations_to_folded_stack_items(&mut folded_stack_items, location_names, sample.count);
     }
 
@@ -123,10 +125,20 @@ fn find_callsite_labels<'files>(
     brillig_function_id: Option<BrilligFunctionId>,
     files: &'files impl Files<'files, FileId = fm::FileId>,
 ) -> Vec<String> {
+    let mut procedure_id = None;
     let source_locations = debug_symbols.opcode_location(opcode_location).unwrap_or_else(|| {
         if let (Some(brillig_function_id), Some(brillig_location)) =
             (brillig_function_id, opcode_location.to_brillig_location())
         {
+            let procedure_locs = debug_symbols.brillig_procedure_locs.get(&brillig_function_id);
+            if let Some(procedure_locs) = procedure_locs {
+                for (procedure, range) in procedure_locs.iter() {
+                    if brillig_location.0 >= range.0 && brillig_location.0 <= range.1 {
+                        procedure_id = Some(*procedure);
+                        break;
+                    }
+                }
+            }
             let brillig_locations = debug_symbols.brillig_locations.get(&brillig_function_id);
             if let Some(brillig_locations) = brillig_locations {
                 brillig_locations.get(&brillig_location).cloned().unwrap_or_default()
@@ -137,10 +149,16 @@ fn find_callsite_labels<'files>(
             vec![]
         }
     });
-    let callsite_labels: Vec<_> = source_locations
+
+    let mut callsite_labels: Vec<_> = source_locations
         .into_iter()
         .map(|location| location_to_callsite_label(location, files))
         .collect();
+
+    if let Some(procedure_id) = procedure_id {
+        callsite_labels.push(format!("procedure::{}", ProcedureId::from_debug_id(procedure_id)));
+    }
+
     callsite_labels
 }
 
@@ -313,6 +331,7 @@ mod tests {
 
         let debug_info = DebugInfo::new(
             opcode_locations,
+            BTreeMap::default(),
             BTreeMap::default(),
             BTreeMap::default(),
             BTreeMap::default(),

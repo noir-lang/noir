@@ -508,9 +508,9 @@ fn hash_final_block(msg_block: MSG_BLOCK, mut state: STATE) -> HASH {
 
     // Return final hash as byte array
     for j in 0..8 {
-        let h_bytes: [u8; 4] = (state[7 - j] as Field).to_le_bytes();
+        let h_bytes: [u8; 4] = (state[j] as Field).to_be_bytes();
         for k in 0..4 {
-            out_h[31 - 4 * j - k] = h_bytes[k];
+            out_h[4 * j + k] = h_bytes[k];
         }
     }
 
@@ -519,10 +519,10 @@ fn hash_final_block(msg_block: MSG_BLOCK, mut state: STATE) -> HASH {
 
 mod tests {
     use super::{
-        attach_len_to_msg_block, build_msg_block, byte_into_item, get_item_byte, lshift8, make_item,
+        attach_len_to_msg_block, build_msg_block, byte_into_item, get_item_byte, make_item,
         set_item_byte_then_zeros, set_item_zeros,
     };
-    use super::{INT_BLOCK, INT_BLOCK_SIZE, MSG_BLOCK};
+    use super::INT_BLOCK;
     use super::sha256_var;
 
     #[test]
