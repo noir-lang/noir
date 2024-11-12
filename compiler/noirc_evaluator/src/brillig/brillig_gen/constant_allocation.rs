@@ -11,7 +11,7 @@ use crate::ssa::ir::{
     function::Function,
     instruction::InstructionId,
     post_order::PostOrder,
-    value::{RawValueId, ResolvedValueId, Value, ValueId},
+    value::{ResolvedValueId, Value, ValueId},
 };
 
 use super::variable_liveness::{collect_variables_of_value, variables_used_in_instruction};
@@ -23,7 +23,7 @@ pub(crate) enum InstructionLocation {
 }
 
 pub(crate) struct ConstantAllocation {
-    constant_usage: HashMap<RawValueId, HashMap<BasicBlockId, Vec<InstructionLocation>>>,
+    constant_usage: HashMap<ResolvedValueId, HashMap<BasicBlockId, Vec<InstructionLocation>>>,
     allocation_points: HashMap<BasicBlockId, HashMap<InstructionLocation, Vec<ValueId>>>,
     dominator_tree: DominatorTree,
     blocks_within_loops: HashSet<BasicBlockId>,
@@ -68,7 +68,7 @@ impl ConstantAllocation {
             |block_id: BasicBlockId, value_id: ResolvedValueId, location: InstructionLocation| {
                 if is_constant_value(value_id, &func.dfg) {
                     self.constant_usage
-                        .entry(value_id.raw())
+                        .entry(value_id)
                         .or_default()
                         .entry(block_id)
                         .or_default()
