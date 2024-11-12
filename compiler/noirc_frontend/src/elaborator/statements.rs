@@ -509,7 +509,7 @@ impl<'context> Elaborator<'context> {
         visibility: ItemVisibility,
         span: Span,
     ) {
-        if self.gag_field_visibility_errors > 0 {
+        if self.silence_field_visibility_errors > 0 {
             return;
         }
 

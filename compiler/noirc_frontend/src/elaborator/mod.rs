@@ -165,11 +165,11 @@ pub struct Elaborator<'context> {
 
     pub(crate) interpreter_call_stack: im::Vector<Location>,
 
-    /// If greather than 0, field visibility errors won't be reported.
+    /// If greater than 0, field visibility errors won't be reported.
     /// This is used when elaborating a comptime expression that is a struct constructor
     /// like `Foo { inner: 5 }`: in that case we already elaborated the code that led to
     /// that comptime value and any visibility errors were already reported.
-    gag_field_visibility_errors: usize,
+    silence_field_visibility_errors: usize,
 }
 
 #[derive(Default)]
@@ -219,7 +219,7 @@ impl<'context> Elaborator<'context> {
             current_trait: None,
             interpreter_call_stack,
             in_comptime_context: false,
-            gag_field_visibility_errors: 0,
+            silence_field_visibility_errors: 0,
         }
     }
 

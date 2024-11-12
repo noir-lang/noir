@@ -913,9 +913,9 @@ impl<'context> Elaborator<'context> {
                 // an ExprId and Type, but we don't want any visibility errors to happen
                 // here (they could if we have `Foo { inner: 5 }` and `inner` is not
                 // accessible from where this expression is being elaborated).
-                self.gag_field_visibility_errors += 1;
+                self.silence_field_visibility_errors += 1;
                 let value = self.elaborate_expression(new_expr);
-                self.gag_field_visibility_errors -= 1;
+                self.silence_field_visibility_errors -= 1;
                 value
             }
             Err(error) => make_error(self, error),
