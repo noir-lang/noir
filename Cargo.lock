@@ -3133,11 +3133,13 @@ dependencies = [
  "noirc_errors",
  "noirc_frontend",
  "num-bigint",
+ "num-traits",
  "proptest",
  "rayon",
  "serde",
  "serde_json",
  "serde_with",
+ "similar-asserts",
  "thiserror",
  "tracing",
 ]
