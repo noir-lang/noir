@@ -81,7 +81,6 @@ pub fn collect_defs(
         collector.def_collector.imports.push(ImportDirective {
             visibility: import.visibility,
             module_id: collector.module_id,
-            self_type_module_id: None,
             path: import.path,
             alias: import.alias,
             is_prelude: false,
@@ -562,7 +561,7 @@ impl<'a> ModCollector<'a> {
                                 name: Rc::new(name.to_string()),
                                 type_var: TypeVariable::unbound(
                                     type_variable_id,
-                                    Kind::Numeric(Box::new(typ)),
+                                    Kind::numeric(typ),
                                 ),
                                 span: name.span(),
                             });

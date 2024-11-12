@@ -5,35 +5,12 @@ use noirc_frontend::{
     graph::CrateId,
     hir::{
         def_map::{CrateDefMap, ModuleDefId, ModuleId},
-        resolution::visibility::can_reference_module_id,
+        resolution::visibility::item_in_module_is_visible,
     },
     node_interner::NodeInterner,
 };
 
 use crate::modules::get_parent_module;
-
-/// Returns true if an item with the given visibility in the target module
-/// is visible from the current module. For example:
-///
-/// mod foo {
-///     ^^^ <-- target module
-///   pub(crate) fn bar() {}
-///   ^^^^^^^^^^ <- visibility
-/// }
-pub(super) fn item_in_module_is_visible(
-    target_module_id: ModuleId,
-    current_module_id: ModuleId,
-    visibility: ItemVisibility,
-    def_maps: &BTreeMap<CrateId, CrateDefMap>,
-) -> bool {
-    can_reference_module_id(
-        def_maps,
-        current_module_id.krate,
-        current_module_id.local_id,
-        target_module_id,
-        visibility,
-    )
-}
 
 /// Returns true if the given ModuleDefId is visible from the current module, given its visibility.
 /// This will in turn check if the ModuleDefId parent modules are visible from the current module.
@@ -57,7 +34,7 @@ pub(super) fn module_def_id_is_visible(
 
     // Then check if it's visible, and upwards
     while let Some(module_id) = target_module_id {
-        if !item_in_module_is_visible(module_id, current_module_id, visibility, def_maps) {
+        if !item_in_module_is_visible(def_maps, current_module_id, module_id, visibility) {
             return false;
         }
 
