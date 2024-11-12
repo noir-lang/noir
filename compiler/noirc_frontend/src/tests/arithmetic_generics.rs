@@ -28,6 +28,36 @@ fn arithmetic_generics_canonicalization_deduplication_regression() {
 }
 
 #[test]
+fn checked_casts_do_not_prevent_canonicalization() {
+    // Regression test for https://github.com/noir-lang/noir/issues/6495
+    let source = r#"
+    pub trait Serialize<let N: u32> {
+        fn serialize(self) -> [Field; N];
+    }
+
+    pub struct Counted<T> {
+        pub inner: T,
+    }
+
+    pub fn append<T, let N: u32>(array1: [T; N]) -> [T; N + 1] {
+        [array1[0]; N + 1]
+    }
+
+    impl<T, let N: u32> Serialize<N> for Counted<T>
+    where
+        T: Serialize<N - 1>,
+    {
+        fn serialize(self) -> [Field; N] {
+            append(self.inner.serialize())
+        }
+    }
+    "#;
+    let errors = get_program_errors(source);
+    println!("{:?}", errors);
+    assert_eq!(errors.len(), 0);
+}
+
+#[test]
 fn arithmetic_generics_checked_cast_zeros() {
     let source = r#"
         struct W<let N: u1> {}
