@@ -306,7 +306,11 @@ impl<'f> PerFunctionContext<'f> {
     fn analyze_block(&mut self, block: BasicBlockId, mut references: Block) {
         let instructions = self.inserter.function.dfg[block].take_instructions();
 
-        self.add_aliases_for_reference_parameters(block, &mut references);
+        // If this is the entry block, take all the block parameters and assume they may
+        // be aliased to each other
+        if block == self.inserter.function.entry_block() {
+            self.add_aliases_for_reference_parameters(block, &mut references);
+        }
 
         for instruction in instructions {
             self.analyze_instruction(block, &mut references, instruction);
@@ -324,18 +328,44 @@ impl<'f> PerFunctionContext<'f> {
         self.blocks.insert(block, references);
     }
 
-    /// Add a self-alias for input parameters, similarly to how a newly allocated reference has
-    /// one alias already - itself. If we don't, then the checks using `reference_parameters()`
-    /// might find the default (empty) aliases and think the an input reference can be removed.
+    /// Go through each parameter and register that all reference parameters of the same type are
+    /// possibly aliased to each other. If there are parameters with nested references (arrays of
+    /// references or references containing other references) we give up and assume all parameter
+    /// references are `AliasSet::unknown()`.
     fn add_aliases_for_reference_parameters(&self, block: BasicBlockId, references: &mut Block) {
         let dfg = &self.inserter.function.dfg;
         let params = dfg.block_parameters(block);
-        let params = params.iter().filter(|p| dfg.value_is_reference(**p));
+
+        let mut aliases: HashMap<Type, AliasSet> = HashMap::default();
 
         for param in params {
-            let expression =
-                references.expressions.entry(*param).or_insert(Expression::Other(*param));
-            references.aliases.entry(expression.clone()).or_insert_with(|| AliasSet::known(*param));
+            match dfg.type_of_value(*param) {
+                // If the type indirectly contains a reference we have to assume all references
+                // are unknown since we don't have any ValueIds to use.
+                Type::Reference(element) if element.contains_reference() => return,
+                Type::Reference(element) => {
+                    let empty_aliases = AliasSet::known_empty();
+                    let alias_set =
+                        aliases.entry(element.as_ref().clone()).or_insert(empty_aliases);
+                    alias_set.insert(*param);
+                }
+                typ if typ.contains_reference() => return,
+                _ => continue,
+            }
+        }
+
+        for aliases in aliases.into_values() {
+            let first = aliases.first();
+            let first = first.expect("All parameters alias at least themselves or we early return");
+
+            let expression = Expression::Other(first);
+            let previous = references.aliases.insert(expression.clone(), aliases.clone());
+            assert!(previous.is_none());
+
+            aliases.for_each(|alias| {
+                let previous = references.expressions.insert(alias, expression.clone());
+                assert!(previous.is_none());
+            });
         }
     }
 
@@ -926,7 +956,7 @@ mod tests {
         let mut builder = FunctionBuilder::new("main".into(), main_id);
 
         let v0 = builder.insert_allocate(Type::field());
-        let zero = builder.numeric_constant(0u128, Type::field());
+        let zero = builder.field_constant(0u128);
         builder.insert_store(v0, zero);
 
         let v2 = builder.insert_allocate(Type::field());
@@ -950,9 +980,9 @@ mod tests {
         // Loop body
         builder.switch_to_block(b2);
         let v5 = builder.insert_load(v2, v2_type.clone());
-        let two = builder.numeric_constant(2u128, Type::field());
+        let two = builder.field_constant(2u128);
         builder.insert_store(v5, two);
-        let one = builder.numeric_constant(1u128, Type::field());
+        let one = builder.field_constant(1u128);
         let v3_plus_one = builder.insert_binary(v3, BinaryOp::Add, one);
         builder.terminate_with_jmp(b1, vec![v3_plus_one]);
 
@@ -982,5 +1012,45 @@ mod tests {
 
         assert_eq!(count_loads(b2, &main.dfg), 1);
         assert_eq!(count_loads(b3, &main.dfg), 3);
+    }
+
+    #[test]
+    fn parameter_alias() {
+        // Do not assume parameters are not aliased to each other.
+        // The load below shouldn't be removed since `v0` could
+        // be aliased to `v1`.
+        //
+        // fn main f0 {
+        //   b0(v0: &mut Field, v1: &mut Field):
+        //     store Field 0 at v0
+        //     store Field 1 at v1
+        //     v4 = load v0
+        //     constrain v4 == Field 1
+        //     return
+        // }
+        let main_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+
+        let field_ref = Type::Reference(Arc::new(Type::field()));
+        let v0 = builder.add_parameter(field_ref.clone());
+        let v1 = builder.add_parameter(field_ref.clone());
+
+        let zero = builder.field_constant(0u128);
+        let one = builder.field_constant(0u128);
+        builder.insert_store(v0, zero);
+        builder.insert_store(v1, one);
+
+        let v4 = builder.insert_load(v0, Type::field());
+        builder.insert_constrain(v4, one, None);
+        builder.terminate_with_return(Vec::new());
+
+        let ssa = builder.finish();
+        let main = ssa.main();
+        assert_eq!(count_loads(main.entry_block(), &main.dfg), 1);
+
+        // No change expected
+        let ssa = ssa.mem2reg();
+        let main = ssa.main();
+        assert_eq!(count_loads(main.entry_block(), &main.dfg), 1);
     }
 }
