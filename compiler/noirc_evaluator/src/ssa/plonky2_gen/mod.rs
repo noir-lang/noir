@@ -570,7 +570,14 @@ impl Builder {
                         if let Some((bitsize, signed)) =
                             Self::get_integer_bitsize_and_sign(&type_of_a)
                         {
-                            let target = add_div_mod(&mut self.asm_writer, target_a, target_b, signed, bitsize).0;
+                            let target = add_div_mod(
+                                &mut self.asm_writer,
+                                target_a,
+                                target_b,
+                                signed,
+                                bitsize,
+                            )
+                            .0;
                             P2Value::make_integer(type_of_a, target)
                         } else {
                             let message =
@@ -587,7 +594,14 @@ impl Builder {
                         if let Some((bitsize, signed)) =
                             Self::get_integer_bitsize_and_sign(&type_of_a)
                         {
-                            let target = add_div_mod(&mut self.asm_writer, target_a, target_b, signed, bitsize).1;
+                            let target = add_div_mod(
+                                &mut self.asm_writer,
+                                target_a,
+                                target_b,
+                                signed,
+                                bitsize,
+                            )
+                            .1;
                             P2Value::make_integer(type_of_a, target)
                         } else {
                             let message =
