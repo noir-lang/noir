@@ -25,13 +25,16 @@ use std::collections::{BTreeMap, HashMap};
 
 use self::config::{P2Builder, P2Config, P2Field};
 
-use crate::errors::{Plonky2GenError, RuntimeError};
 use crate::ssa::ir::{
     dfg::CallStack,
     instruction::Instruction,
     types::NumericType,
     types::Type,
     value::{Value, ValueId},
+};
+use crate::{
+    errors::{Plonky2GenError, RuntimeError},
+    ssa::ir::instruction::Endian,
 };
 
 #[derive(Debug, Eq, PartialEq)]
@@ -893,7 +896,7 @@ impl Builder {
                 self.set(destinations[0], new_array);
             }
 
-            Instruction::Call { func, arguments: _ } => {
+            Instruction::Call { func, arguments } => {
                 let func = self.dfg[func].clone();
 
                 match func {
@@ -906,6 +909,49 @@ impl Builder {
                                 });
                             }
                         },
+                        Intrinsic::ToBits(endian) => {
+                            if arguments.len() != 1 {
+                                panic!("Unexpected number of arguments for the ToBits() instrinsic (got {}, expected 1)", arguments.len());
+                            }
+                            let argument = arguments[0];
+                            let (type_of_a, target_a) = self.get_integer(argument)?;
+                            if let Some((bitsize, _)) =
+                                Self::get_integer_bitsize_and_sign(&type_of_a)
+                            {
+                                let mut split_vec = self.asm_writer.split_le(target_a, bitsize);
+                                match endian {
+                                    Endian::Big => {
+                                        split_vec.reverse();
+                                    }
+                                    Endian::Little => {}
+                                }
+
+                                let mut result: Vec<P2Target> = Vec::new();
+                                for t in split_vec {
+                                    result.push(P2Target::BoolTarget(t));
+                                }
+
+                                let p2value = P2Value {
+                                    typ: P2Type::Array(Box::new(P2Type::Boolean), result.len()),
+                                    target: P2Target::ArrayTarget(result),
+                                };
+
+                                let destinations: Vec<_> = self
+                                    .dfg
+                                    .instruction_results(instruction_id)
+                                    .iter()
+                                    .cloned()
+                                    .collect();
+                                assert!(destinations.len() == 1);
+                                self.set(destinations[0], p2value);
+                            } else {
+                                let message = format!(
+                                    "intrinsic ToBits invoked on arguments of type {:?}",
+                                    type_of_a
+                                );
+                                return Err(Plonky2GenError::ICE { message });
+                            }
+                        }
                         _ => {
                             let feature_name = format!("intrinsic {:?}", intrinsic);
                             return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
