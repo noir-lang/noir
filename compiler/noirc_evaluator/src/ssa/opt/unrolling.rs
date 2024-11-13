@@ -319,7 +319,7 @@ impl Loop {
     /// ```text
     /// main():
     ///   v0 = 0
-    ///   v1 = 3
+    ///   v1 = 2
     ///   jmp loop_entry(v0)
     /// loop_entry(i: Field):
     ///   v2 = lt i v1
@@ -503,7 +503,7 @@ impl Loop {
     /// ```
     ///
     /// We won't always find load _and_ store ops (e.g. the push above doesn't come with a store),
-    /// but it's likely that we `mem2reg` could eliminate a lot of the loads we can find, so we can
+    /// but it's likely that mem2reg could eliminate a lot of the loads we can find, so we can
     /// use this as an approximation of the gains we would see.
     fn find_pre_header_reference_values(
         &self,
@@ -644,7 +644,6 @@ impl Loop {
 ///     ...
 /// }
 /// ```
-const LOOP_BOILERPLATE_COUNT: usize = 5;
 #[derive(Debug)]
 struct BoilerplateStats {
     /// Number of iterations in the loop.
