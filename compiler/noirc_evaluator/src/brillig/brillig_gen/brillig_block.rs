@@ -160,13 +160,9 @@ impl<'block> BrilligBlock<'block> {
                 );
             }
             TerminatorInstruction::Return { return_values, .. } => {
-                let return_registers: Vec<_> = return_values
-                    .iter()
-                    .map(|value_id| {
-                        let return_variable = self.convert_ssa_value(*value_id, dfg);
-                        return_variable.extract_register()
-                    })
-                    .collect();
+                let return_registers = vecmap(return_values, |value_id| {
+                    self.convert_ssa_value(*value_id, dfg).extract_register()
+                });
                 self.brillig_context.codegen_return(&return_registers);
             }
         }
