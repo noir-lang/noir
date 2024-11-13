@@ -78,6 +78,9 @@ pub struct NoirTraitImpl {
     pub where_clause: Vec<UnresolvedTraitConstraint>,
 
     pub items: Vec<Documented<TraitImplItem>>,
+
+    /// true if generated at compile-time, e.g. from a trait alias
+    pub is_synthetic: bool,
 }
 
 /// Represents a simple trait constraint such as `where Foo: TraitY<U, V>`
@@ -230,6 +233,11 @@ impl Display for TraitBound {
 
 impl Display for NoirTraitImpl {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // Synthetic NoirTraitImpl's don't get printed
+        if self.is_synthetic {
+            return Ok(());
+        }
+
         write!(f, "impl")?;
         if !self.impl_generics.is_empty() {
             write!(

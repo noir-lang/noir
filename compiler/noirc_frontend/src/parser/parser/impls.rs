@@ -113,6 +113,7 @@ impl<'a> Parser<'a> {
         let object_type = self.parse_type_or_error();
         let where_clause = self.parse_where_clause();
         let items = self.parse_trait_impl_body();
+        let is_synthetic = false;
 
         NoirTraitImpl {
             impl_generics,
@@ -121,6 +122,7 @@ impl<'a> Parser<'a> {
             object_type,
             where_clause,
             items,
+            is_synthetic,
         }
     }
 

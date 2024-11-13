@@ -102,6 +102,7 @@ impl<'a> Parser<'a> {
             }
 
             let items = vec![];
+            let is_synthetic = true;
 
             NoirTraitImpl {
                 impl_generics,
@@ -110,6 +111,7 @@ impl<'a> Parser<'a> {
                 object_type,
                 where_clause,
                 items,
+                is_synthetic,
             }
         });
 
@@ -372,6 +374,7 @@ mod tests {
         assert_eq!(noir_trait_alias.bounds[0].to_string(), "Bar");
         assert_eq!(noir_trait_alias.bounds[1].to_string(), "Baz<A>");
         assert!(noir_trait_impl.items.is_empty());
+        assert!(noir_trait_impl.is_synthetic);
 
         // Equivalent to
         let src = "trait Foo<A, B>: Bar + Baz<A> {}";
@@ -425,6 +428,7 @@ mod tests {
         assert_eq!(noir_trait_impl.where_clause[1].to_string(), "#T: Bar");
         assert_eq!(noir_trait_impl.where_clause[2].to_string(), "#T: Baz<A>");
         assert!(noir_trait_impl.items.is_empty());
+        assert!(noir_trait_impl.is_synthetic);
 
         // Equivalent to
         let src = "trait Foo<A, B>: Bar + Baz<A> where A: Z {}";
@@ -540,6 +544,7 @@ mod tests {
         assert_eq!(noir_trait_impl.where_clause[0].to_string(), "#T: Bar");
         assert_eq!(noir_trait_impl.where_clause[1].to_string(), "#T: Baz");
         assert!(noir_trait_impl.items.is_empty());
+        assert!(noir_trait_impl.is_synthetic);
 
         // Equivalent to
         let src = "trait Foo: Bar + Baz {}";

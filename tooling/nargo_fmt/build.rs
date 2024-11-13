@@ -47,7 +47,10 @@ fn generate_formatter_tests(test_file: &mut File, test_data_dir: &Path) {
             .join("\n");
 
         let output_source_path = outputs_dir.join(file_name).display().to_string();
-        let output_source = std::fs::read_to_string(output_source_path.clone()).unwrap();
+        let output_source =
+            std::fs::read_to_string(output_source_path.clone()).unwrap_or_else(|_| {
+                panic!("expected output source at {:?} was not found", &output_source_path)
+            });
 
         write!(
             test_file,
