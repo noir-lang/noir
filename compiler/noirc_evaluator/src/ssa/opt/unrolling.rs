@@ -208,10 +208,8 @@ impl Loops {
     fn unroll_each(mut self, function: &mut Function) -> Vec<RuntimeError> {
         let mut unroll_errors = vec![];
         while let Some(next_loop) = self.yet_to_unroll.pop() {
-            if function.runtime().is_brillig() {
-                if !next_loop.is_small_loop(function, &self.cfg) {
-                    continue;
-                }
+            if function.runtime().is_brillig() && !next_loop.is_small_loop(function, &self.cfg) {
+                continue;
             }
             // If we've previously modified a block in this loop we need to refresh the context.
             // This happens any time we have nested loops.
@@ -1136,7 +1134,7 @@ mod tests {
         let mut loops = Loops::find_all(function);
         let loop0 = loops.yet_to_unroll.pop().unwrap();
         let stats = loop0.boilerplate_stats(function, &loops.cfg).unwrap();
-        assert_eq!(stats.is_small(), false);
+        assert!(!stats.is_small(), "the loop should be considered large");
 
         let (ssa, errors) = ssa.try_unroll_loops();
         assert_eq!(errors.len(), 0, "Unroll should have no errors");
