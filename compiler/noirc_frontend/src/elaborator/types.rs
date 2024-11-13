@@ -34,7 +34,7 @@ use crate::{
         TraitImplKind, TraitMethodId,
     },
     token::SecondaryAttribute,
-    Generics, Kind, ResolvedGeneric, Type, TypeBinding, TypeBindings, TypeVariable,
+    BinaryTypeOperator, Generics, Kind, ResolvedGeneric, Type, TypeBinding, TypeBindings, TypeVariable,
     UnificationError,
 };
 
@@ -458,7 +458,7 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn resolve_global_to_type(rhs: ExprId, kind: Kind, span: Span) -> Option<Type> {
+    fn resolve_global_to_type(&mut self, rhs: ExprId, kind: Kind, span: Span) -> Option<Type> {
         match self.interner.expression(&rhs) {
              HirExpression::Literal(HirLiteral::Integer(int, false)) => {
                  // int.try_into_u128().ok_or(Some(ResolverError::IntegerTooLarge { span }))
@@ -469,7 +469,7 @@ impl<'context> Elaborator<'context> {
                      match definition.kind {
                          DefinitionKind::Global(global_id) => {
                              // nested case: return a Type::Global instead of recursing
-                             Some(Type::Global(global_id, kind))
+                             Some(Type::Global(global_id, definition.name.into(), kind))
 
                              // TODO cleanup
                              // let let_statement = interner.get_global_let_statement(global_id);
@@ -498,8 +498,8 @@ impl<'context> Elaborator<'context> {
              HirExpression::Infix(infix) => {
                  // let lhs = try_eval_array_length_id_with_fuel(interner, infix.lhs, span, fuel - 1)?;
                  // let rhs = try_eval_array_length_id_with_fuel(interner, infix.rhs, span, fuel - 1)?;
-                 let lhs = self.resolve_global_to_type(infix.lhs, kind, span);
-                 let rhs = self.resolve_global_to_type(infix.rhs, kind, span);
+                 let lhs = Box::new(self.resolve_global_to_type(infix.lhs, kind, span)?);
+                 let rhs = Box::new(self.resolve_global_to_type(infix.rhs, kind, span)?);
 
                  let op = match infix.operator.kind {
                      BinaryOpKind::Add => Some(BinaryTypeOperator::Addition),
@@ -520,18 +520,16 @@ impl<'context> Elaborator<'context> {
                      // BinaryOpKind::Xor => Ok(lhs ^ rhs),
                      // BinaryOpKind::ShiftRight => Ok(lhs >> rhs),
                      // BinaryOpKind::ShiftLeft => Ok(lhs << rhs),
-                     _ => None,
-                 };
 
-                 if op.is_none() {
-                    // TODO: new error
-                    let err = ResolverError::InvalidArrayLengthExpr { span };
-                    self.push_err(err);
-                 }
+                     _ => {
+                        // TODO: new error
+                        let err = ResolverError::InvalidArrayLengthExpr { span };
+                        self.push_err(err);
+                        None
+                     }
+                 }?;
 
-                 op.map(|op| {
-                    Type::InfixExpr(lhs, op, rhs)
-                 })
+                 Some(Type::InfixExpr(lhs, op, rhs))
              }
 
              // TODO: comptime only?

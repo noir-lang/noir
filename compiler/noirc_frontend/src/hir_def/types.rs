@@ -13,7 +13,7 @@ use acvm::{AcirField, FieldElement};
 use crate::{
     ast::{IntegerBitSize, ItemVisibility},
     hir::type_check::{generics::TraitGenerics, TypeCheckError},
-    node_interner::{ExprId, NodeInterner, TraitId, TypeAliasId},
+    node_interner::{ExprId, GlobalId, NodeInterner, TraitId, TypeAliasId},
 };
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
@@ -95,7 +95,7 @@ pub enum Type {
     NamedGeneric(TypeVariable, Rc<String>),
 
     // TODO docs
-    Global(GlobalId, Ident),
+    Global(GlobalId, Rc<String>, Kind),
 
     /// A cast (to, from) that's checked at monomorphization.
     ///
@@ -894,7 +894,7 @@ impl std::fmt::Display for Type {
                 TypeBinding::Unbound(_, _) if name.is_empty() => write!(f, "_"),
                 TypeBinding::Unbound(_, _) => write!(f, "{name}"),
             },
-            Type::Global(id, name) => write!(f, "{name}"),
+            Type::Global(id, name, _kind) => write!(f, "{name}"),
             Type::CheckedCast { to, .. } => write!(f, "{to}"),
             Type::Constant(x, _kind) => write!(f, "{x}"),
             Type::Forall(typevars, typ) => {
@@ -1099,7 +1099,7 @@ impl Type {
             | Type::NamedGeneric(..)
 
             // TODO recurse inside here?
-            | Type::GlobalId(..)
+            | Type::Global(..)
             | Type::CheckedCast { .. }
             | Type::Forall(..)
             | Type::Constant(..)
@@ -1133,7 +1133,7 @@ impl Type {
             | Type::Constant(_, _)
             | Type::Forall(_, _)
             // TODO
-            | Type::Global(_, _)
+            | Type::Global(..)
             | Type::Quoted(_) => {}
 
             Type::TypeVariable(type_var) => {
@@ -1415,7 +1415,7 @@ impl Type {
         match self {
             Type::CheckedCast { to, .. } => to.kind(),
             Type::NamedGeneric(var, _) => var.kind(),
-            Type::Global(id, _name, kind) => kind,
+            Type::Global(id, _name, kind) => kind.clone(),
             Type::Constant(_, kind) => kind.clone(),
             Type::TypeVariable(var) => match &*var.borrow() {
                 TypeBinding::Bound(ref typ) => typ.kind(),
@@ -2527,7 +2527,7 @@ impl Type {
             // Expect that this function should only be called on instantiated types
             Forall(..) => unreachable!(),
             // TODO Type::Global
-            FieldElement | Integer(_, _) | Bool | Constant(_, _) | Global | Unit | Quoted(_) | Error => {
+            FieldElement | Integer(_, _) | Bool | Constant(_, _) | Global(..) | Unit | Quoted(_) | Error => {
                 self.clone()
             }
         }
@@ -3098,7 +3098,7 @@ impl PartialEq for Type {
             (Forall(lhs_vars, lhs_type), Forall(rhs_vars, rhs_type)) => {
                 lhs_vars == rhs_vars && lhs_type == rhs_type
             }
-            (Global(lhs_id, _name, _kind), Global(rhs_id, _name, _kind)) => lhs_id == rhs_id,
+            (Global(lhs_id, _, _), Global(rhs_id, _, _)) => lhs_id == rhs_id,
             (CheckedCast { to, .. }, other) | (other, CheckedCast { to, .. }) => **to == *other,
             (Constant(lhs, lhs_kind), Constant(rhs, rhs_kind)) => {
                 lhs == rhs && lhs_kind == rhs_kind
