@@ -143,7 +143,7 @@ impl Loops {
     ///   ↓
     /// loop_entry ←---↰
     ///   ↓        ↘   |
-    /// loop_end    loop_body     
+    /// loop_end    loop_body
     /// ```
     /// `loop_entry` has two predecessors: `main` and `loop_body`, and it dominates `loop_body`.
     fn find_all(function: &Function) -> Self {
@@ -275,9 +275,9 @@ impl Loop {
     /// Consider the following example of a `for i in 0..4` loop:
     /// ```text
     /// brillig(inline) fn main f0 {
-    ///   b0(v0: u32):            
+    ///   b0(v0: u32):
     ///     ...
-    ///     jmp b1(u32 0)         
+    ///     jmp b1(u32 0)
     ///   b1(v1: u32):                  // Loop header
     ///     v5 = lt v1, u32 4           // Upper bound
     ///     jmpif v5 then: b3, else: b2
@@ -422,33 +422,111 @@ impl Loop {
         context.inline_instructions_from_block();
         // Mutate the terminator if possible so that it points at the iteration block.
         match context.dfg()[fresh_block].unwrap_terminator() {
-        TerminatorInstruction::JmpIf { condition, then_destination, else_destination, call_stack } => {
-            let condition = *condition;
-            let next_blocks = context.handle_jmpif(condition, *then_destination, *else_destination, call_stack.clone());
+            TerminatorInstruction::JmpIf { condition, then_destination, else_destination, call_stack } => {
+                let condition = *condition;
+                let next_blocks = context.handle_jmpif(condition, *then_destination, *else_destination, call_stack.clone());
 
-            // If there is only 1 next block the jmpif evaluated to a single known block.
-            // This is the expected case and lets us know if we should loop again or not.
-            if next_blocks.len() == 1 {
-                context.dfg_mut().inline_block(fresh_block, unroll_into);
+                // If there is only 1 next block the jmpif evaluated to a single known block.
+                // This is the expected case and lets us know if we should loop again or not.
+                if next_blocks.len() == 1 {
+                    context.dfg_mut().inline_block(fresh_block, unroll_into);
 
-                // The fresh block is gone now so we're committing to insert into the original
-                // unroll_into block from now on.
-                context.insert_block = unroll_into;
+                    // The fresh block is gone now so we're committing to insert into the original
+                    // unroll_into block from now on.
+                    context.insert_block = unroll_into;
 
-                // In the last iteration, `handle_jmpif` will have replaced `context.source_block`
-                // with the `else_destination`, that is, the `loop_end`, which signals that we 
-                // have no more loops to unroll, because that block was not part of the loop itself, 
-                // ie. it wasn't between `loop_header` and `loop_body`. Otherwise we have the `loop_body`
-                // in `source_block` and can unroll that into the destination.
-                Ok(self.blocks.contains(&context.source_block).then_some(context))
-            } else {
-                // If this case is reached the loop either uses non-constant indices or we need
-                // another pass, such as mem2reg to resolve them to constants.
-                Err(context.inserter.function.dfg.get_value_call_stack(condition))
+                    // In the last iteration, `handle_jmpif` will have replaced `context.source_block`
+                    // with the `else_destination`, that is, the `loop_end`, which signals that we
+                    // have no more loops to unroll, because that block was not part of the loop itself,
+                    // ie. it wasn't between `loop_header` and `loop_body`. Otherwise we have the `loop_body`
+                    // in `source_block` and can unroll that into the destination.
+                    Ok(self.blocks.contains(&context.source_block).then_some(context))
+                } else {
+                    // If this case is reached the loop either uses non-constant indices or we need
+                    // another pass, such as mem2reg to resolve them to constants.
+                    Err(context.inserter.function.dfg.get_value_call_stack(condition))
+                }
             }
+            other => unreachable!("Expected loop header to terminate in a JmpIf to the loop body, but found {other:?} instead"),
         }
-        other => unreachable!("Expected loop header to terminate in a JmpIf to the loop body, but found {other:?} instead"),
     }
+
+    /// Find all reference values which were allocated before the pre-header.
+    ///
+    /// These are accessible inside the loop body, and they can be involved
+    /// in load/store operations that could be eliminated if we unrolled the
+    /// body into the pre-header.
+    ///
+    /// Consider this loop:
+    /// ```text
+    /// let mut sum = 0;
+    /// let mut arr = &[];
+    /// for i in 0..3 {
+    ///     sum = sum + i;
+    ///     arr.push_back(sum)
+    /// }
+    /// sum
+    /// ```
+    ///
+    /// The SSA has a load+store for the `sum` and a load+push for the `arr`:
+    /// ```text
+    /// b0(v0: u32):
+    ///   v2 = allocate -> &mut u32     // reference allocated for `sum`
+    ///   store u32 0 at v2             // initial value for `sum`
+    ///   v4 = allocate -> &mut u32     // reference allocated for the length of `arr`
+    ///   store u32 0 at v4             // initial length of `arr`
+    ///   inc_rc [] of u32              // storage for `arr`
+    ///   v6 = allocate -> &mut [u32]   // reference allocated to point at the storage of `arr`
+    ///   store [] of u32 at v6         // initial value for the storage of `arr`
+    ///   jmp b1(u32 0)                 // start looping from 0
+    /// b1(v1: u32):                    // `i` induction variable
+    ///   v8 = lt v1, u32 3             // loop until 3
+    ///   jmpif v8 then: b3, else: b2
+    /// b3():
+    ///   v11 = load v2 -> u32          // load `sum`
+    ///   v12 = add v11, v1             // add `i` to `sum`
+    ///   store v12 at v2               // store updated `sum`
+    ///   v13 = load v4 -> u32          // load length of `arr`
+    ///   v14 = load v6 -> [u32]        // load storage of `arr`
+    ///   v16, v17 = call slice_push_back(v13, v14, v12) -> (u32, [u32]) // builtin to push, will store to storage and length references
+    ///   v19 = add v1, u32 1           // increase `arr`
+    ///   jmp b1(v19)                   // back-edge of the loop
+    /// b2():                           // after the loop
+    ///   v9 = load v2 -> u32           // read final value of `sum`
+    /// ```
+    ///
+    /// We won't always find load _and_ store ops (e.g. the push above doesn't come with a store),
+    /// but it's likely that we `mem2reg` could eliminate a lot of the loads we can find, so we can
+    /// use this as an approximation of the gains we would see.
+    fn find_pre_header_reference_values(
+        &self,
+        function: &Function,
+        cfg: &ControlFlowGraph,
+    ) -> HashSet<ValueId> {
+        // We need to traverse blocks from the pre-header up to the block entry point.
+        let pre_header = self.get_pre_header(cfg);
+        let function_entry = function.entry_block();
+
+        // The algorithm to collect blocks in the loop is fine for us.
+        let blocks = Self::find_blocks_in_loop(function_entry, pre_header, cfg).blocks;
+
+        // Collect allocations in all blocks above the header.
+        let allocations = blocks.iter().flat_map(|b| {
+            function.dfg[*b]
+                .instructions()
+                .iter()
+                .filter(|i| matches!(&function.dfg[**i], Instruction::Allocate))
+                .map(|i| {
+                    // Get the value into which the allocation was stored.
+                    function.dfg.instruction_results(*i)[0]
+                })
+        });
+
+        // Collect reference parameters of the function itself.
+        let params =
+            function.parameters().iter().filter(|p| function.dfg.value_is_reference(**p)).copied();
+
+        params.chain(allocations).collect()
     }
 }
 
@@ -661,7 +739,7 @@ impl<'f> LoopIteration<'f> {
         self.original_blocks.get(&block).copied().unwrap_or(block)
     }
 
-    /// Copy over instructions from the source into the insert block,  
+    /// Copy over instructions from the source into the insert block,
     /// while simplifying instructions and keeping track of original block IDs.
     fn inline_instructions_from_block(&mut self) {
         let source_block = &self.dfg()[self.source_block];
@@ -707,7 +785,7 @@ impl<'f> LoopIteration<'f> {
 mod tests {
     use acvm::FieldElement;
 
-    use crate::ssa::{opt::assert_normalized_ssa_equals, Ssa};
+    use crate::ssa::{ir::value::ValueId, opt::assert_normalized_ssa_equals, Ssa};
 
     use super::Loops;
 
@@ -822,6 +900,17 @@ mod tests {
             .expect("bounds are numeric const");
         assert_eq!(lower, FieldElement::from(0u32));
         assert_eq!(upper, FieldElement::from(4u32));
+    }
+
+    #[test]
+    fn test_find_pre_header_reference_values() {
+        let ssa = brillig_unroll_test_case();
+        let function = ssa.main();
+        let loops = Loops::find_all(function);
+        assert_eq!(loops.yet_to_unroll.len(), 1);
+        let refs = loops.yet_to_unroll[0].find_pre_header_reference_values(function, &loops.cfg);
+        assert_eq!(refs.len(), 1);
+        assert!(refs.contains(&ValueId::new(2)));
     }
 
     /// Simple test loop:
