@@ -41,6 +41,29 @@ use crate::{
 };
 use fxhash::FxHashMap as HashMap;
 
+/// Number of instructions which are complete loop boilerplate,
+/// the ones facilitating jumps and the increment of the loop
+/// variable.
+///
+/// All the instructions in the following example are boilerplate:
+/// ```text
+/// brillig(inline) fn main f0 {
+///   b0(v0: u32):
+///     ...
+///     jmp b1(u32 0)
+///   b1(v1: u32):
+///     v5 = lt v1, u32 4
+///     jmpif v5 then: b3, else: b2
+///   b3():
+///     ...
+///     v11 = add v1, u32 1
+///     jmp b1(v11)
+///   b2():
+///     ...
+/// }
+/// ```
+const LOOP_BOILERPLATE_COUNT: usize = 5;
+
 impl Ssa {
     /// Loop unrolling can return errors, since ACIR functions need to be fully unrolled.
     /// This meta-pass will keep trying to unroll loops and simplifying the SSA until no more errors are found.
@@ -565,6 +588,27 @@ impl Loop {
             })
             .sum()
     }
+
+    /// Decide if this loop is small enough that it can be inlined in a way that the number
+    /// of unrolled instructions times the number of iterations would result in smaller bytecode
+    /// than if we keep the loops with their overheads.
+    fn is_small_loop(&self, function: &Function, cfg: &ControlFlowGraph) -> bool {
+        let Ok(Some((lower, upper))) = self.get_const_bounds(function, cfg) else {
+            return false;
+        };
+        let Some(lower) = lower.try_to_u64() else {
+            return false;
+        };
+        let Some(upper) = upper.try_to_u64() else {
+            return false;
+        };
+        let num_iterations = (upper - lower) as usize;
+        let refs = self.find_pre_header_reference_values(function, cfg);
+        let (loads, stores) = self.count_loads_and_stores(function, &refs);
+        let all_instructions = self.count_all_instructions(function);
+        let useful_instructions = all_instructions - loads - stores - LOOP_BOILERPLATE_COUNT;
+        useful_instructions * num_iterations < all_instructions
+    }
 }
 
 /// Return the induction value of the current iteration of the loop, from the given block's jmp arguments.
@@ -958,6 +1002,16 @@ mod tests {
 
         let all = loop0.count_all_instructions(function);
         assert_eq!(all, 7);
+    }
+
+    #[test]
+    fn test_is_small_loop() {
+        let ssa = brillig_unroll_test_case();
+        let function = ssa.main();
+        let mut loops = Loops::find_all(function);
+        let loop0 = loops.yet_to_unroll.pop().unwrap();
+
+        assert!(loop0.is_small_loop(function, &loops.cfg));
     }
 
     /// Simple test loop:
