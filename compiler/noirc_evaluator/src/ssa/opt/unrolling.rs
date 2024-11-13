@@ -515,7 +515,7 @@ mod tests {
     fn try_to_unroll_loops(mut ssa: Ssa) -> (Ssa, Vec<RuntimeError>) {
         let mut errors = vec![];
         for function in ssa.functions.values_mut() {
-            function.try_to_unroll_loops(&mut errors);
+            errors.extend(function.try_to_unroll_loops());
         }
         (ssa, errors)
     }
