@@ -72,18 +72,6 @@ impl Ssa {
         }
         Ok(ssa)
     }
-
-    /// Tries to unroll all loops in each SSA function.
-    /// If any loop cannot be unrolled, it is left as-is or in a partially unrolled state.
-    /// Returns the ssa along with all unrolling errors encountered
-    #[tracing::instrument(level = "trace", skip(self))]
-    fn try_unroll_loops(mut self) -> (Ssa, Vec<RuntimeError>) {
-        let mut errors = vec![];
-        for function in self.functions.values_mut() {
-            errors.extend(function.try_unroll_loops());
-        }
-        (self, errors)
-    }
 }
 
 impl Function {
@@ -593,15 +581,10 @@ impl Loop {
         let header = &function.dfg[self.header];
         let induction_var = header.parameters()[0];
 
-        let mut increments = 0;
-        for instruction in back.instructions() {
-            let instruction = &function.dfg[*instruction];
-            if matches!(instruction, Instruction::Binary(Binary { lhs, operator: BinaryOp::Add, rhs: _ }) if *lhs == induction_var)
-            {
-                increments += 1;
-            }
-        }
-        increments
+        back.instructions().iter().filter(|instruction|  {
+            let instruction = &function.dfg[**instruction];
+            matches!(instruction, Instruction::Binary(Binary { lhs, operator: BinaryOp::Add, rhs: _ }) if *lhs == induction_var)
+        }).count()
     }
 
     /// Decide if this loop is small enough that it can be inlined in a way that the number
@@ -1170,7 +1153,7 @@ mod tests {
         }
         ";
 
-        let (ssa, errors) = ssa.try_unroll_loops();
+        let (ssa, errors) = try_unroll_loops(ssa);
         assert_eq!(errors.len(), 0, "Unroll should have no errors");
         assert_eq!(ssa.main().reachable_blocks().len(), 2, "The loop should be unrolled");
 
@@ -1182,7 +1165,7 @@ mod tests {
     fn test_brillig_unroll_6470_small() {
         // Few enough iterations so that we can perform the unroll.
         let ssa = brillig_unroll_test_case_6470(3);
-        let (ssa, errors) = ssa.try_unroll_loops();
+        let (ssa, errors) = try_unroll_loops(ssa);
         assert_eq!(errors.len(), 0, "Unroll should have no errors");
         assert_eq!(ssa.main().reachable_blocks().len(), 2, "The loop should be unrolled");
 
@@ -1227,7 +1210,7 @@ mod tests {
         let stats = loop0_stats(&ssa);
         assert!(!stats.is_small(), "the loop should be considered large");
 
-        let (ssa, errors) = ssa.try_unroll_loops();
+        let (ssa, errors) = try_unroll_loops(ssa);
         assert_eq!(errors.len(), 0, "Unroll should have no errors");
         assert_eq!(
             ssa.main().reachable_blocks().len(),
@@ -1285,7 +1268,7 @@ mod tests {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let (ssa, errors) = ssa.try_unroll_loops();
+        let (ssa, errors) = try_unroll_loops(ssa);
         assert_eq!(errors.len(), 0, "Unroll should have no errors");
         assert_eq!(ssa.main().reachable_blocks().len(), 8, "Nothing should be unrolled");
     }
