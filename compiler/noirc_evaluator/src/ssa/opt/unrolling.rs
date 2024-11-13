@@ -42,9 +42,16 @@ impl Ssa {
     /// This meta-pass will keep trying to unroll loops and simplifying the SSA until no more errors are found.
     #[tracing::instrument(level = "trace", skip(ssa))]
     pub(crate) fn unroll_loops_iteratively(mut ssa: Ssa) -> Result<Ssa, RuntimeError> {
-        for (_, function) in ssa.functions.iter_mut() {
+        let acir_functions = ssa.functions.iter_mut().filter(|(_, func)| {
+            // Loop unrolling in brillig can lead to a code explosion currently. This can
+            // also be true for ACIR, but we have no alternative to unrolling in ACIR.
+            // Brillig also generally prefers smaller code rather than faster code.
+            !matches!(func.runtime(), RuntimeType::Brillig(_))
+        });
+
+        for (_, function) in acir_functions {
             // Try to unroll loops first:
-            let unroll_errors = function.try_to_unroll_loops();
+            let mut unroll_errors = function.try_to_unroll_loops();
 
             // Keep unrolling until no more errors are found
             while !unroll_errors.is_empty() {
@@ -59,7 +66,7 @@ impl Ssa {
                 function.mem2reg();
 
                 // Unroll again
-                let mut unroll_errors = function.try_to_unroll_loops();
+                unroll_errors = function.try_to_unroll_loops();
                 // If we didn't manage to unroll any more loops, exit
                 if unroll_errors.len() >= prev_unroll_err_count {
                     return Err(unroll_errors.swap_remove(0));
@@ -73,14 +80,7 @@ impl Ssa {
 
 impl Function {
     fn try_to_unroll_loops(&mut self) -> Vec<RuntimeError> {
-        // Loop unrolling in brillig can lead to a code explosion currently. This can
-        // also be true for ACIR, but we have no alternative to unrolling in ACIR.
-        // Brillig also generally prefers smaller code rather than faster code.
-        if !matches!(self.runtime(), RuntimeType::Brillig(_)) {
-            find_all_loops(self).unroll_each_loop(self)
-        } else {
-            Vec::new()
-        }
+        find_all_loops(self).unroll_each_loop(self)
     }
 }
 
