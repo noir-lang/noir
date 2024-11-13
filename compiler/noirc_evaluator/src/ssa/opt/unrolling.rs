@@ -262,7 +262,7 @@ impl Loop {
         function: &Function,
         cfg: &ControlFlowGraph,
     ) -> Result<Option<FieldElement>, CallStack> {
-        let pre_header = self.get_pre_header(cfg);
+        let pre_header = self.get_pre_header(function, cfg)?;
         let jump_value = get_induction_variable(function, pre_header)?;
         Ok(function.dfg.get_numeric_constant(jump_value))
     }
@@ -378,7 +378,7 @@ impl Loop {
     /// When e.g. `v8 = lt v5 v1` cannot be evaluated to a constant, the loop signals by returning `Err`
     /// that a few SSA passes are required to evaluate and simplify these values.
     fn unroll(&self, function: &mut Function, cfg: &ControlFlowGraph) -> Result<(), CallStack> {
-        let mut unroll_into = self.get_pre_header(cfg);
+        let mut unroll_into = self.get_pre_header(function, cfg)?;
         let mut jump_value = get_induction_variable(function, unroll_into)?;
 
         while let Some(context) = self.unroll_header(function, unroll_into, jump_value)? {
@@ -393,14 +393,27 @@ impl Loop {
     /// The loop pre-header is the block that comes before the loop begins. Generally a header block
     /// is expected to have 2 predecessors: the pre-header and the final block of the loop which jumps
     /// back to the beginning. Other predecessors can come from `break` or `continue`.
-    fn get_pre_header(&self, cfg: &ControlFlowGraph) -> BasicBlockId {
+    fn get_pre_header(
+        &self,
+        function: &Function,
+        cfg: &ControlFlowGraph,
+    ) -> Result<BasicBlockId, CallStack> {
         let mut pre_header = cfg
             .predecessors(self.header)
             .filter(|predecessor| *predecessor != self.back_edge_start)
             .collect::<Vec<_>>();
 
-        assert_eq!(pre_header.len(), 1);
-        pre_header.remove(0)
+        if function.runtime().is_acir() {
+            assert_eq!(pre_header.len(), 1);
+            Ok(pre_header.remove(0))
+        } else {
+            if pre_header.len() == 1 {
+                Ok(pre_header.remove(0))
+            } else {
+                // We can come back into the header from multiple blocks, so we can't unroll this.
+                Err(CallStack::new())
+            }
+        }
     }
 
     /// Unrolls the header block of the loop. This is the block that dominates all other blocks in the
@@ -508,9 +521,9 @@ impl Loop {
         &self,
         function: &Function,
         cfg: &ControlFlowGraph,
-    ) -> HashSet<ValueId> {
+    ) -> Result<HashSet<ValueId>, CallStack> {
         // We need to traverse blocks from the pre-header up to the block entry point.
-        let pre_header = self.get_pre_header(cfg);
+        let pre_header = self.get_pre_header(function, cfg)?;
         let function_entry = function.entry_block();
 
         // The algorithm to collect blocks in the loop is fine for us.
@@ -532,7 +545,7 @@ impl Loop {
         let params =
             function.parameters().iter().filter(|p| function.dfg.value_is_reference(**p)).copied();
 
-        params.chain(allocations).collect()
+        Ok(params.chain(allocations).collect())
     }
 
     /// Count the number of load and store instructions of specific variables in the loop.
@@ -598,7 +611,8 @@ impl Loop {
         self.boilerplate_stats(function, cfg).map(|s| s.is_small()).unwrap_or_default()
     }
 
-    /// Collect boilerplate stats if we can figure out the upper and lower bounds of the loop.
+    /// Collect boilerplate stats if we can figure out the upper and lower bounds of the loop,
+    /// and the loop doesn't have multiple back-edges from breaks and continues.
     fn boilerplate_stats(
         &self,
         function: &Function,
@@ -613,7 +627,9 @@ impl Loop {
         let Some(upper) = upper.try_to_u64() else {
             return None;
         };
-        let refs = self.find_pre_header_reference_values(function, cfg);
+        let Ok(refs) = self.find_pre_header_reference_values(function, cfg) else {
+            return None;
+        };
         let (loads, stores) = self.count_loads_and_stores(function, &refs);
         let increments = self.count_induction_increments(function);
         let all_instructions = self.count_all_instructions(function);
@@ -1071,7 +1087,7 @@ mod tests {
         let mut loops = Loops::find_all(function);
         let loop0 = loops.yet_to_unroll.pop().unwrap();
 
-        let refs = loop0.find_pre_header_reference_values(function, &loops.cfg);
+        let refs = loop0.find_pre_header_reference_values(function, &loops.cfg).unwrap();
         assert_eq!(refs.len(), 1);
         assert!(refs.contains(&ValueId::new(2)));
 
@@ -1197,11 +1213,7 @@ mod tests {
     fn test_brillig_unroll_6470_large() {
         // More iterations than it can unroll
         let ssa = brillig_unroll_test_case_6470(6);
-
-        let function = ssa.main();
-        let mut loops = Loops::find_all(function);
-        let loop0 = loops.yet_to_unroll.pop().unwrap();
-        let stats = loop0.boilerplate_stats(function, &loops.cfg).unwrap();
+        let stats = loop0_stats(&ssa);
         assert!(!stats.is_small(), "the loop should be considered large");
 
         let (ssa, errors) = ssa.try_unroll_loops();
@@ -1211,6 +1223,60 @@ mod tests {
             4,
             "The loop should be considered too costly to unroll"
         );
+    }
+
+    #[test]
+    fn test_brillig_unroll_break_and_continue() {
+        // unconstrained fn main() {
+        //     let mut count = 0;
+        //     for i in 0..10 {
+        //         if i == 2 {
+        //             continue;
+        //         }
+        //         if i == 5 {
+        //             break;
+        //         }
+        //         count += 1;
+        //     }
+        //     assert(count == 4);
+        // }
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v1 = allocate -> &mut Field
+            store Field 0 at v1
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v5 = lt v0, u32 10
+            jmpif v5 then: b2, else: b6
+          b2():
+            v7 = eq v0, u32 2
+            jmpif v7 then: b7, else: b3
+          b7():
+            v18 = add v0, u32 1
+            jmp b1(v18)
+          b3():
+            v9 = eq v0, u32 5
+            jmpif v9 then: b5, else: b4
+          b5():
+            jmp b6()
+          b6():
+            v15 = load v1 -> Field
+            v17 = eq v15, Field 4
+            constrain v15 == Field 4
+            return
+          b4():
+            v10 = load v1 -> Field
+            v12 = add v10, Field 1
+            store v12 at v1
+            v14 = add v0, u32 1
+            jmp b1(v14)
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let (ssa, errors) = ssa.try_unroll_loops();
+        assert_eq!(errors.len(), 0, "Unroll should have no errors");
+        assert_eq!(ssa.main().reachable_blocks().len(), 8, "Nothing should be unrolled");
     }
 
     /// Simple test loop:
