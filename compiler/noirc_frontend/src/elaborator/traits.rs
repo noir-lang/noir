@@ -23,6 +23,8 @@ use super::Elaborator;
 impl<'context> Elaborator<'context> {
     pub fn collect_traits(&mut self, traits: &BTreeMap<TraitId, UnresolvedTrait>) {
         for (trait_id, unresolved_trait) in traits {
+            self.local_module = unresolved_trait.module_id;
+
             self.recover_generics(|this| {
                 this.current_trait = Some(*trait_id);
 
