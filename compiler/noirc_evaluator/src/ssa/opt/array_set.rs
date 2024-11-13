@@ -223,15 +223,15 @@ mod tests {
                 jmp b1(u32 0)
               b1(v0: u32):
                 v12 = lt v0, u32 5
-                jmpif v12 then: b3, else: b2
-              b3():
+                jmpif v12 then: b2, else: b5
+              b2():
                 v13 = eq v0, u32 5
-                jmpif v13 then: b4, else: b5
-              b4():
+                jmpif v13 then: b3, else: b4
+              b3():
                 v14 = load v1 -> [[Field; 5]; 2]
                 store v14 at v6
-                jmp b5()
-              b5():
+                jmp b4()
+              b4():
                 v15 = load v1 -> [[Field; 5]; 2]
                 v16 = array_get v15, index Field 0 -> [Field; 5]
                 v18 = array_set v16, index v0, value Field 20
@@ -239,7 +239,7 @@ mod tests {
                 store v19 at v1
                 v21 = add v0, u32 1
                 jmp b1(v21)
-              b2():
+              b5():
                 return
             }
             ";
