@@ -22,6 +22,7 @@ fxhash.workspace = true
 iter-extended.workspace = true
 thiserror.workspace = true
 num-bigint = "0.4"
+num-traits.workspace = true
 im.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -36,7 +37,8 @@ codespan-reporting.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true
+similar-asserts.workspace = true
 
 [features]
 bn254 = ["noirc_frontend/bn254"]
-bls12_381= []
+bls12_381 = []

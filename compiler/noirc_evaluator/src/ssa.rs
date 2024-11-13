@@ -48,6 +48,7 @@ pub(super) mod function_builder;
 pub mod ir;
 mod opt;
 pub mod plonky2_gen;
+mod parser;
 pub mod ssa_gen;
 
 pub struct SsaEvaluatorOptions {
@@ -108,7 +109,7 @@ pub(crate) fn optimize_into_acir(
     .run_pass(Ssa::remove_paired_rc, "After Removing Paired rc_inc & rc_decs:")
     .run_pass(Ssa::separate_runtime, "After Runtime Separation:")
     .run_pass(Ssa::resolve_is_unconstrained, "After Resolving IsUnconstrained:")
-    .run_pass(|ssa| ssa.inline_functions(options.inliner_aggressiveness), "After Inlining:")
+    .run_pass(|ssa| ssa.inline_functions(options.inliner_aggressiveness), "After Inlining (1st):")
     // Run mem2reg with the CFG separated into blocks
     .run_pass(Ssa::mem2reg, "After Mem2Reg (1st):")
     .run_pass(Ssa::simplify_cfg, "After Simplifying (1st):")
@@ -129,7 +130,7 @@ pub(crate) fn optimize_into_acir(
     // may create an SSA which inlining fails to handle.
     .run_pass(
         |ssa| ssa.inline_functions_with_no_predicates(options.inliner_aggressiveness),
-        "After Inlining:",
+        "After Inlining (2nd):",
     )
     .run_pass(Ssa::remove_if_else, "After Remove IfElse:")
     .run_pass(Ssa::fold_constants, "After Constant Folding:")
