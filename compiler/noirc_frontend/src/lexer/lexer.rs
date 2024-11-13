@@ -340,11 +340,11 @@ impl<'a> Lexer<'a> {
 
         // Check if word an int type
         // if no error occurred, then it is either a valid integer type or it is not an int type
-        let parsed_token = IntType::lookup_int_type(&word)?;
+        let parsed_token = IntType::lookup_int_type(&word);
 
         // Check if it is an int type
-        if let Some(int_type_token) = parsed_token {
-            return Ok(int_type_token.into_span(start, end));
+        if let Some(int_type) = parsed_token {
+            return Ok(Token::IntType(int_type).into_span(start, end));
         }
 
         // Else it is just an identifier
