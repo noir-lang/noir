@@ -528,6 +528,32 @@ impl Loop {
 
         params.chain(allocations).collect()
     }
+
+    /// Count the number of load and store instructions of specific variables in the loop.
+    ///
+    /// Returns `(loads, stores)` in case we want to differentiate in the estimates.
+    fn count_loads_and_stores(
+        &self,
+        function: &Function,
+        refs: &HashSet<ValueId>,
+    ) -> (usize, usize) {
+        let mut loads = 0;
+        let mut stores = 0;
+        for block in &self.blocks {
+            for instruction in function.dfg[*block].instructions() {
+                match &function.dfg[*instruction] {
+                    Instruction::Load { address } if refs.contains(address) => {
+                        loads += 1;
+                    }
+                    Instruction::Store { address, .. } if refs.contains(address) => {
+                        stores += 1;
+                    }
+                    _ => {}
+                }
+            }
+        }
+        (loads, stores)
+    }
 }
 
 /// Return the induction value of the current iteration of the loop, from the given block's jmp arguments.
@@ -894,10 +920,12 @@ mod tests {
         let function = ssa.main();
         let loops = Loops::find_all(function);
         assert_eq!(loops.yet_to_unroll.len(), 1);
+
         let (lower, upper) = loops.yet_to_unroll[0]
             .get_const_bounds(function, &loops.cfg)
             .expect("should find bounds")
             .expect("bounds are numeric const");
+
         assert_eq!(lower, FieldElement::from(0u32));
         assert_eq!(upper, FieldElement::from(4u32));
     }
@@ -906,11 +934,16 @@ mod tests {
     fn test_find_pre_header_reference_values() {
         let ssa = brillig_unroll_test_case();
         let function = ssa.main();
-        let loops = Loops::find_all(function);
-        assert_eq!(loops.yet_to_unroll.len(), 1);
-        let refs = loops.yet_to_unroll[0].find_pre_header_reference_values(function, &loops.cfg);
+        let mut loops = Loops::find_all(function);
+        let loop0 = loops.yet_to_unroll.pop().unwrap();
+
+        let refs = loop0.find_pre_header_reference_values(function, &loops.cfg);
         assert_eq!(refs.len(), 1);
         assert!(refs.contains(&ValueId::new(2)));
+
+        let (loads, stores) = loop0.count_loads_and_stores(function, &refs);
+        assert_eq!(loads, 1);
+        assert_eq!(stores, 1);
     }
 
     /// Simple test loop:
