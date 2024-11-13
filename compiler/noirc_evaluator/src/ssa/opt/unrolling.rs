@@ -408,13 +408,11 @@ impl Loop {
         if function.runtime().is_acir() {
             assert_eq!(pre_header.len(), 1);
             Ok(pre_header.remove(0))
+        } else if pre_header.len() == 1 {
+            Ok(pre_header.remove(0))
         } else {
-            if pre_header.len() == 1 {
-                Ok(pre_header.remove(0))
-            } else {
-                // We can come back into the header from multiple blocks, so we can't unroll this.
-                Err(CallStack::new())
-            }
+            // We can come back into the header from multiple blocks, so we can't unroll this.
+            Err(CallStack::new())
         }
     }
 
