@@ -293,6 +293,13 @@ impl Loop {
             Instruction::Binary(Binary { lhs: _, operator: BinaryOp::Lt, rhs }) => {
                 function.dfg.get_numeric_constant(*rhs)
             }
+            Instruction::Binary(Binary { lhs: _, operator: BinaryOp::Eq, rhs }) => {
+                // `for i in 0..1` is turned into:
+                // b1(v0: u32):
+                //   v12 = eq v0, u32 0
+                //   jmpif v12 then: b3, else: b2
+                function.dfg.get_numeric_constant(*rhs).map(|c| c + FieldElement::one())
+            }
             other => panic!("Unexpected instruction in header: {other:?}"),
         }
     }
