@@ -213,6 +213,9 @@ impl DependencyContext {
                 constrained_values.iter().flat_map(|v| self.collect_ancestors(*v)).collect();
             trace!("checking constrain involving values {:?}", constrain_ancestors);
             for (brillig_call, brillig_values) in &self.brillig_values {
+                if covered_brillig_calls.contains(brillig_call) {
+                    continue;
+                }
                 // If there is at least one value among the brillig call arguments
                 // along with all the results featuring in the constrain value ancestors,
                 // consider the call properly covered
@@ -248,10 +251,16 @@ impl DependencyContext {
     /// Build a set of all ValueIds the given ValueId descends from
     fn collect_ancestors(&self, value_id: ValueId) -> HashSet<ValueId> {
         let mut to_visit = vec![value_id];
+        let mut visited = HashSet::new();
         let mut ancestors = HashSet::from([value_id]);
         while let Some(value_id) = to_visit.pop() {
+            visited.insert(value_id);
             if let Some(values) = self.value_parents.get(&value_id) {
-                to_visit.extend(values);
+                for value in values {
+                    if !visited.contains(value) {
+                        to_visit.push(*value);
+                    }
+                }
                 ancestors.extend(values);
             }
         }
