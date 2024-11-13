@@ -425,3 +425,14 @@ fn test_slice() {
         ";
     assert_ssa_roundtrip(src);
 }
+
+#[test]
+fn test_negative() {
+    let src = "
+        acir(inline) fn main f0 {
+          b0():
+            return Field -1
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}

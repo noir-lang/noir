@@ -44,28 +44,30 @@ use fxhash::FxHashMap as HashMap;
 impl Ssa {
     /// Loop unrolling can return errors, since ACIR functions need to be fully unrolled.
     /// This meta-pass will keep trying to unroll loops and simplifying the SSA until no more errors are found.
+    #[tracing::instrument(level = "trace", skip(ssa))]
     pub(crate) fn unroll_loops_iteratively(mut ssa: Ssa) -> Result<Ssa, RuntimeError> {
-        // Try to unroll loops first:
-        let mut unroll_errors;
-        (ssa, unroll_errors) = ssa.try_unroll_loops();
+        for (_, function) in ssa.functions.iter_mut() {
+            // Try to unroll loops first:
+            let mut unroll_errors = function.try_unroll_loops();
 
-        // Keep unrolling until no more errors are found
-        while !unroll_errors.is_empty() {
-            let prev_unroll_err_count = unroll_errors.len();
+            // Keep unrolling until no more errors are found
+            while !unroll_errors.is_empty() {
+                let prev_unroll_err_count = unroll_errors.len();
 
-            // Simplify the SSA before retrying
+                // Simplify the SSA before retrying
 
-            // Do a mem2reg after the last unroll to aid simplify_cfg
-            ssa = ssa.mem2reg();
-            ssa = ssa.simplify_cfg();
-            // Do another mem2reg after simplify_cfg to aid the next unroll
-            ssa = ssa.mem2reg();
+                // Do a mem2reg after the last unroll to aid simplify_cfg
+                function.mem2reg();
+                function.simplify_function();
+                // Do another mem2reg after simplify_cfg to aid the next unroll
+                function.mem2reg();
 
-            // Unroll again
-            (ssa, unroll_errors) = ssa.try_unroll_loops();
-            // If we didn't manage to unroll any more loops, exit
-            if unroll_errors.len() >= prev_unroll_err_count {
-                return Err(unroll_errors.swap_remove(0));
+                // Unroll again
+                unroll_errors = function.try_unroll_loops();
+                // If we didn't manage to unroll any more loops, exit
+                if unroll_errors.len() >= prev_unroll_err_count {
+                    return Err(unroll_errors.swap_remove(0));
+                }
             }
         }
         Ok(ssa)
@@ -85,11 +87,11 @@ impl Ssa {
 }
 
 impl Function {
+    // Loop unrolling in brillig can lead to a code explosion currently.
+    // This can also be true for ACIR, but we have no alternative to unrolling in ACIR.
+    // Brillig also generally prefers smaller code rather than faster code,
+    // so we only attempt to unroll small loops, which we decide on a case-by-case basis.
     fn try_unroll_loops(&mut self) -> Vec<RuntimeError> {
-        // Loop unrolling in brillig can lead to a code explosion currently.
-        // This can also be true for ACIR, but we have no alternative to unrolling in ACIR.
-        // Brillig also generally prefers smaller code rather than faster code,
-        // so we only attempt to unroll small loops, which we decide on a case-by-case basis.
         Loops::find_all(self).unroll_each(self)
     }
 }
@@ -961,9 +963,20 @@ impl<'f> LoopIteration<'f> {
 mod tests {
     use acvm::FieldElement;
 
+    use crate::errors::RuntimeError;
     use crate::ssa::{ir::value::ValueId, opt::assert_normalized_ssa_equals, Ssa};
 
     use super::{BoilerplateStats, Loops};
+
+    /// Tries to unroll all loops in each SSA function.
+    /// If any loop cannot be unrolled, it is left as-is or in a partially unrolled state.
+    fn try_unroll_loops(mut ssa: Ssa) -> (Ssa, Vec<RuntimeError>) {
+        let mut errors = vec![];
+        for function in ssa.functions.values_mut() {
+            errors.extend(function.try_unroll_loops());
+        }
+        (ssa, errors)
+    }
 
     #[test]
     fn unroll_nested_loops() {
@@ -1030,7 +1043,7 @@ mod tests {
 
         // The final block count is not 1 because unrolling creates some unnecessary jmps.
         // If a simplify cfg pass is ran afterward, the expected block count will be 1.
-        let (ssa, errors) = ssa.try_unroll_loops();
+        let (ssa, errors) = try_unroll_loops(ssa);
         assert_eq!(errors.len(), 0, "All loops should be unrolled");
         assert_eq!(ssa.main().reachable_blocks().len(), 5);
 
@@ -1060,7 +1073,7 @@ mod tests {
         assert_eq!(ssa.main().reachable_blocks().len(), 4);
 
         // Expected that we failed to unroll the loop
-        let (_, errors) = ssa.try_unroll_loops();
+        let (_, errors) = try_unroll_loops(ssa);
         assert_eq!(errors.len(), 1, "Expected to fail to unroll loop");
     }
 
