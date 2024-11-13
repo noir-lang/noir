@@ -793,7 +793,7 @@ mod test {
         // We're faking the brillig function here, for simplicity's sake
 
         builder.new_brillig_function("factor".into(), br_function_id, InlineType::default());
-        let v0 = builder.add_parameter(type_u32.clone());
+        builder.add_parameter(type_u32.clone());
         let zero = builder.numeric_constant(0u32, type_u32.clone());
 
         builder.terminate_with_return(vec![zero, zero]);
