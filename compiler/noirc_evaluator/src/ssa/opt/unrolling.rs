@@ -41,29 +41,6 @@ use crate::{
 };
 use fxhash::FxHashMap as HashMap;
 
-/// Number of instructions which are complete loop boilerplate,
-/// the ones facilitating jumps and the increment of the loop
-/// variable.
-///
-/// All the instructions in the following example are boilerplate:
-/// ```text
-/// brillig(inline) fn main f0 {
-///   b0(v0: u32):
-///     ...
-///     jmp b1(u32 0)
-///   b1(v1: u32):
-///     v5 = lt v1, u32 4
-///     jmpif v5 then: b3, else: b2
-///   b3():
-///     ...
-///     v11 = add v1, u32 1
-///     jmp b1(v11)
-///   b2():
-///     ...
-/// }
-/// ```
-const LOOP_BOILERPLATE_COUNT: usize = 5;
-
 impl Ssa {
     /// Loop unrolling can return errors, since ACIR functions need to be fully unrolled.
     /// This meta-pass will keep trying to unroll loops and simplifying the SSA until no more errors are found.
@@ -276,7 +253,7 @@ impl Loop {
     ///   b0(v0: u32):                  // Pre-header
     ///     ...
     ///     jmp b1(u32 0)               // Lower-bound
-    ///   b1(v1: u32):
+    ///   b1(v1: u32):                  // Induction variable
     ///     v5 = lt v1, u32 4
     ///     jmpif v5 then: b3, else: b2
     /// ```
@@ -588,6 +565,25 @@ impl Loop {
             .sum()
     }
 
+    /// Count the number of increments to the induction variable.
+    /// It should be one, but it can be duplicated.
+    /// The increment should be in the block where the back-edge was found.
+    fn count_induction_increments(&self, function: &Function) -> usize {
+        let back = &function.dfg[self.back_edge_start];
+        let header = &function.dfg[self.header];
+        let induction_var = header.parameters()[0];
+
+        let mut increments = 0;
+        for instruction in back.instructions() {
+            let instruction = &function.dfg[*instruction];
+            if matches!(instruction, Instruction::Binary(Binary { lhs, operator: BinaryOp::Add, rhs: _ }) if *lhs == induction_var)
+            {
+                increments += 1;
+            }
+        }
+        increments
+    }
+
     /// Decide if this loop is small enough that it can be inlined in a way that the number
     /// of unrolled instructions times the number of iterations would result in smaller bytecode
     /// than if we keep the loops with their overheads.
@@ -612,34 +608,77 @@ impl Loop {
         };
         let refs = self.find_pre_header_reference_values(function, cfg);
         let (loads, stores) = self.count_loads_and_stores(function, &refs);
+        let increments = self.count_induction_increments(function);
         let all_instructions = self.count_all_instructions(function);
-        let useful_instructions = all_instructions - loads - stores - LOOP_BOILERPLATE_COUNT;
+
         Some(BoilerplateStats {
             iterations: (upper - lower) as usize,
             loads,
             stores,
+            increments,
             all_instructions,
-            useful_instructions,
         })
     }
 }
 
+/// All the instructions in the following example are boilerplate:
+/// ```text
+/// brillig(inline) fn main f0 {
+///   b0(v0: u32):
+///     ...
+///     jmp b1(u32 0)
+///   b1(v1: u32):
+///     v5 = lt v1, u32 4
+///     jmpif v5 then: b3, else: b2
+///   b3():
+///     ...
+///     v11 = add v1, u32 1
+///     jmp b1(v11)
+///   b2():
+///     ...
+/// }
+/// ```
+const LOOP_BOILERPLATE_COUNT: usize = 5;
 #[derive(Debug)]
 struct BoilerplateStats {
+    /// Number of iterations in the loop.
     iterations: usize,
+    /// Number of loads  pre-header references in the loop.
     loads: usize,
+    /// Number of stores into pre-header references in the loop.
     stores: usize,
+    /// Number of increments to the induction variable (might be duplicated).
+    increments: usize,
+    /// Number of instructions in the loop, including boilerplate,
+    /// but excluding the boilerplate which is outside the loop.
     all_instructions: usize,
-    useful_instructions: usize,
 }
 
 impl BoilerplateStats {
+    /// Instruction count if we leave the loop as-is.
+    /// It's the instructions in the loop, plus the one to kick it off in the pre-header.
+    fn baseline_instructions(&self) -> usize {
+        self.all_instructions + 1
+    }
+
+    /// Estimated number of _useful_ instructions, which is the ones in the loop
+    /// minus all in-loop boilerplate.
+    fn useful_instructions(&self) -> usize {
+        let boilerplate = 3; // Two jumps + plus the comparison with the upper bound
+        self.all_instructions - self.loads - self.stores - self.increments - boilerplate
+    }
+
+    /// Estimated number of instructions if we unroll the loop.
+    fn unrolled_instructions(&self) -> usize {
+        self.useful_instructions() * self.iterations
+    }
+
     /// A small loop is where if we unroll it into the pre-header then considering the
     /// number of iterations we still end up with a smaller bytecode than if we leave
     /// the blocks in tact with all the boilerplate involved in jumping, and the extra
     /// reference access instructions.
     fn is_small(&self) -> bool {
-        self.useful_instructions * self.iterations < self.all_instructions
+        self.unrolled_instructions() < self.baseline_instructions()
     }
 }
 
@@ -862,7 +901,7 @@ impl<'f> LoopIteration<'f> {
         // instances of the induction variable or any values that were changed as a result
         // of the new induction variable value.
         for instruction in instructions {
-            if self.skip_ref_counts && self.is_ref_count(instruction) {
+            if self.skip_ref_counts && self.is_refcount(instruction) {
                 continue;
             }
             self.inserter.push_instruction(instruction, self.insert_block);
@@ -878,7 +917,8 @@ impl<'f> LoopIteration<'f> {
         self.inserter.function.dfg.set_block_terminator(self.insert_block, terminator);
     }
 
-    fn is_ref_count(&self, instruction: InstructionId) -> bool {
+    /// Is the instruction an `Rc`?
+    fn is_refcount(&self, instruction: InstructionId) -> bool {
         matches!(
             self.dfg()[instruction],
             Instruction::IncrementRc { .. } | Instruction::DecrementRc { .. }
@@ -900,7 +940,7 @@ mod tests {
 
     use crate::ssa::{ir::value::ValueId, opt::assert_normalized_ssa_equals, Ssa};
 
-    use super::Loops;
+    use super::{BoilerplateStats, Loops};
 
     #[test]
     fn unroll_nested_loops() {
@@ -1037,15 +1077,34 @@ mod tests {
     }
 
     #[test]
-    fn test_is_small_loop() {
+    fn test_boilerplate_stats() {
         let ssa = brillig_unroll_test_case();
-        let function = ssa.main();
-        let mut loops = Loops::find_all(function);
-        let loop0 = loops.yet_to_unroll.pop().unwrap();
-
-        assert!(loop0.is_small_loop(function, &loops.cfg));
+        let stats = loop0_stats(&ssa);
+        assert_eq!(stats.iterations, 4);
+        assert_eq!(stats.all_instructions, 2 + 5); // Instructions in b1 and b3
+        assert_eq!(stats.increments, 1);
+        assert_eq!(stats.loads, 1);
+        assert_eq!(stats.stores, 1);
+        assert_eq!(stats.useful_instructions(), 1); // Adding to sum
+        assert_eq!(stats.baseline_instructions(), 8);
+        assert!(stats.is_small());
     }
 
+    #[test]
+    fn test_boilerplate_stats_6470() {
+        let ssa = brillig_unroll_test_case_6470(3);
+        let stats = loop0_stats(&ssa);
+        assert_eq!(stats.iterations, 3);
+        assert_eq!(stats.all_instructions, 2 + 8); // Instructions in b1 and b3
+        assert_eq!(stats.increments, 2);
+        assert_eq!(stats.loads, 1);
+        assert_eq!(stats.stores, 1);
+        assert_eq!(stats.useful_instructions(), 3); // array get, add, array set
+        assert_eq!(stats.baseline_instructions(), 11);
+        assert!(stats.is_small());
+    }
+
+    /// Test that we can unroll a small loop.
     #[test]
     fn test_brillig_unroll_small_loop() {
         let ssa = brillig_unroll_test_case();
@@ -1084,6 +1143,7 @@ mod tests {
         assert_normalized_ssa_equals(ssa, expected);
     }
 
+    /// Test that we can unroll the loop in the ticket if we don't have too many iterations.
     #[test]
     fn test_brillig_unroll_6470_small() {
         // Few enough iterations so that we can perform the unroll.
@@ -1125,6 +1185,7 @@ mod tests {
         assert_normalized_ssa_equals(ssa, expected);
     }
 
+    /// Test that with more iterations it's not unrolled.
     #[test]
     fn test_brillig_unroll_6470_large() {
         // More iterations than it can unroll
@@ -1218,7 +1279,7 @@ mod tests {
             v10 = array_get v0, index v1 -> u64
             v12 = add v10, u64 1
             v13 = array_set v9, index v1, value v12
-            v15 = add v1, u32 1
+            v15 = add v1, u32 1                        // duplicate unused increment
             store v13 at v4
             v16 = add v1, u32 1
             jmp b1(v16)
@@ -1230,5 +1291,12 @@ mod tests {
         "
         );
         Ssa::from_str(&src).unwrap()
+    }
+
+    fn loop0_stats(ssa: &Ssa) -> BoilerplateStats {
+        let function = ssa.main();
+        let mut loops = Loops::find_all(function);
+        let loop0 = loops.yet_to_unroll.pop().expect("there should be a loop");
+        loop0.boilerplate_stats(function, &loops.cfg).expect("there should be stats")
     }
 }
