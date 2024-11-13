@@ -554,6 +554,17 @@ impl Loop {
         }
         (loads, stores)
     }
+
+    /// Count the number of instructions in the loop, including the terminating jumps.
+    fn count_all_instructions(&self, function: &Function) -> usize {
+        self.blocks
+            .iter()
+            .map(|block| {
+                let block = &function.dfg[*block];
+                block.instructions().len() + block.terminator().map(|_| 1).unwrap_or_default()
+            })
+            .sum()
+    }
 }
 
 /// Return the induction value of the current iteration of the loop, from the given block's jmp arguments.
@@ -944,6 +955,9 @@ mod tests {
         let (loads, stores) = loop0.count_loads_and_stores(function, &refs);
         assert_eq!(loads, 1);
         assert_eq!(stores, 1);
+
+        let all = loop0.count_all_instructions(function);
+        assert_eq!(all, 7);
     }
 
     /// Simple test loop:
