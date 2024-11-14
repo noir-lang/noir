@@ -519,7 +519,6 @@ impl<'f> Context<'f> {
             let instruction = Instruction::IfElse {
                 then_condition: cond_context.then_branch.condition,
                 then_value: then_arg,
-                else_condition: cond_context.else_branch.as_ref().unwrap().condition,
                 else_value: else_arg,
             };
             let call_stack = cond_context.call_stack.clone();
@@ -669,13 +668,10 @@ impl<'f> Context<'f> {
                             )
                             .first();
 
-                        let not = Instruction::Not(condition);
-                        let else_condition = self.insert_instruction(not, call_stack.clone());
-
                         let instruction = Instruction::IfElse {
                             then_condition: condition,
                             then_value: value,
-                            else_condition,
+
                             else_value: previous_value,
                         };
 
