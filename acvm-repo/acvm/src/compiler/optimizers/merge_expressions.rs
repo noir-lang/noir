@@ -1,7 +1,11 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use acir::{
-    circuit::{brillig::BrilligInputs, opcodes::BlockId, Circuit, Opcode},
+    circuit::{
+        brillig::{BrilligInputs, BrilligOutputs},
+        opcodes::BlockId,
+        Circuit, Opcode,
+    },
     native_types::{Expression, Witness},
     AcirField,
 };
