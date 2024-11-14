@@ -281,6 +281,18 @@ pub(crate) enum Instruction {
         else_condition: ValueId,
         else_value: ValueId,
     },
+
+    /// An alias to another existing instruction.
+    ///
+    /// These may be inserted when deduplicating instructions during constant folding.
+    /// If the first instruction doesn't dominate the other instances of it, the other
+    /// instances will be replaced with Alias instructions to avoid duplicating work.
+    /// An alternative is hoisting them out of their blocks to a common dominator but
+    /// this means instructions that weren't executed before may be - such as when
+    /// hoisting out of an `else` block and into the happy path of a program.
+    ///
+    /// Only pure instructions may be aliased. Otherwise program behavior may change.
+    Alias { original: InstructionId },
 }
 
 impl Instruction {
@@ -309,6 +321,7 @@ impl Instruction {
             Instruction::Allocate { .. }
             | Instruction::Load { .. }
             | Instruction::ArrayGet { .. }
+            | Instruction::Alias { .. }
             | Instruction::Call { .. } => InstructionResultType::Unknown,
         }
     }
@@ -360,6 +373,10 @@ impl Instruction {
             | ArraySet { .. } => {
                 deduplicate_with_predicate || !self.requires_acir_gen_predicate(dfg)
             }
+
+            // To insert an alias instruction, it is required that the original instruction must
+            // be able to be deduplicated
+            Alias { .. } => true,
         }
     }
 
@@ -384,6 +401,7 @@ impl Instruction {
             | Load { .. }
             | ArrayGet { .. }
             | IfElse { .. }
+            | Alias { .. }
             | ArraySet { .. } => true,
 
             Constrain(..)
@@ -446,6 +464,7 @@ impl Instruction {
             | Instruction::Load { .. }
             | Instruction::Store { .. }
             | Instruction::IfElse { .. }
+            | Instruction::Alias { .. }
             | Instruction::IncrementRc { .. }
             | Instruction::DecrementRc { .. } => false,
         }
@@ -519,6 +538,7 @@ impl Instruction {
                     else_value: f(*else_value),
                 }
             }
+            Instruction::Alias { original } => Instruction::Alias { original: *original },
         }
     }
 
@@ -579,6 +599,7 @@ impl Instruction {
                 f(*else_condition);
                 f(*else_value);
             }
+            Instruction::Alias { .. } => (),
         }
     }
 
@@ -760,6 +781,7 @@ impl Instruction {
                     None
                 }
             }
+            Instruction::Alias { .. } => None,
         }
     }
 }
