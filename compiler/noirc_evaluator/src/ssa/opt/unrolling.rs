@@ -46,6 +46,7 @@ impl Ssa {
     /// This meta-pass will keep trying to unroll loops and simplifying the SSA until no more errors are found.
     #[tracing::instrument(level = "trace", skip(ssa))]
     pub(crate) fn unroll_loops_iteratively(mut ssa: Ssa) -> Result<Ssa, RuntimeError> {
+        ssa.normalize_ids();
         for (_, function) in ssa.functions.iter_mut() {
             // Try to unroll loops first:
             let mut unroll_errors = function.try_unroll_loops();
@@ -669,8 +670,12 @@ impl BoilerplateStats {
     /// Estimated number of _useful_ instructions, which is the ones in the loop
     /// minus all in-loop boilerplate.
     fn useful_instructions(&self) -> usize {
-        let boilerplate = 3; // Two jumps + plus the comparison with the upper bound
-        self.all_instructions - self.loads - self.stores - self.increments - boilerplate
+        // Two jumps + plus the comparison with the upper bound
+        let boilerplate = 3;
+        // Be conservative and only assume that mem2reg gets rid of load followed by store.
+        // NB we have not checked that these are actual pairs.
+        let load_and_store = self.loads.min(self.stores) * 2;
+        self.all_instructions - self.increments - load_and_store - boilerplate
     }
 
     /// Estimated number of instructions if we unroll the loop.
