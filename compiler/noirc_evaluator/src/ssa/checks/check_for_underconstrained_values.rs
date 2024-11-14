@@ -207,6 +207,11 @@ impl DependencyContext {
     /// Check if the constrained values can be traced back to brillig calls.
     /// For every brillig call not properly constrained, emit a corresponding warning.
     fn collect_warnings(&mut self, function: &Function) -> Vec<SsaReport> {
+        // the check is unneeded if there are no brillig calls
+        if self.brillig_values.is_empty() {
+            return vec![];
+        }
+
         let mut covered_brillig_calls: HashSet<InstructionId> = HashSet::new();
         for constrained_values in &self.constrained_values {
             let constrain_ancestors: HashSet<_> =
@@ -230,6 +235,11 @@ impl DependencyContext {
                     covered_brillig_calls.insert(*brillig_call);
                 }
             }
+
+            // stop checking if all the brillig calls are already found covered
+            if covered_brillig_calls.len() == self.brillig_values.len() {
+                break;
+            }
         }
 
         // For each unchecked brillig call, emit a warning
@@ -251,6 +261,8 @@ impl DependencyContext {
     /// Build a set of all ValueIds the given ValueId descends from
     fn collect_ancestors(&self, value_id: ValueId) -> HashSet<ValueId> {
         let mut to_visit = vec![value_id];
+        // loops are possible judging by testing on noir-contracts,
+        // so don't revisit nodes
         let mut visited = HashSet::new();
         let mut ancestors = HashSet::from([value_id]);
         while let Some(value_id) = to_visit.pop() {
