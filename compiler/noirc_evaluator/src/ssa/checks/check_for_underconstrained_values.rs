@@ -213,7 +213,9 @@ impl DependencyContext {
         }
 
         let mut covered_brillig_calls: HashSet<InstructionId> = HashSet::new();
-        for constrained_values in &self.constrained_values {
+
+        // reverse order of constrains to check the ones with fewest ancestors first
+        for constrained_values in self.constrained_values.iter().rev() {
             let constrain_ancestors: HashSet<_> =
                 constrained_values.iter().flat_map(|v| self.collect_ancestors(*v)).collect();
             trace!("checking constrain involving values {:?}", constrain_ancestors);
