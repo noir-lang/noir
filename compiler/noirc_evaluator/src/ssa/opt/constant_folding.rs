@@ -31,6 +31,7 @@ use crate::ssa::{
         dom::DominatorTree,
         function::Function,
         instruction::{Instruction, InstructionId},
+        map::Id,
         types::Type,
         value::{Value, ValueId},
     },
@@ -101,6 +102,10 @@ struct Context {
     cached_instruction_results: InstructionResultCache,
 
     dom: DominatorTree,
+
+    /// Track each use of a value so that we can hoist them recursively and update instructions
+    /// that referred to them previously.
+    value_uses: ValueUses,
 }
 
 /// HashMap from (Instruction, side_effects_enabled_var) to the results of the instruction.
@@ -108,7 +113,14 @@ struct Context {
 ///
 /// In addition to each result, the original BasicBlockId is stored as well. This allows us
 /// to deduplicate instructions across blocks as long as the new block dominates the original.
-type InstructionResultCache = HashMap<Instruction, HashMap<Option<ValueId>, ResultCache>>;
+#[derive(Default)]
+struct InstructionResultCache {
+    cache: HashMap<InstructionId, HashMap<Option<ValueId>, ResultCache>>,
+
+    instructions: HashMap<Instruction, InstructionId>,
+}
+
+type ValueUses = HashMap<ValueId, HashSet<InstructionId>>;
 
 /// Records the results of all duplicate [`Instruction`]s along with the blocks in which they sit.
 ///
@@ -127,6 +139,7 @@ impl Context {
             constraint_simplification_mappings: Default::default(),
             cached_instruction_results: Default::default(),
             dom: DominatorTree::with_function(function),
+            value_uses: Default::default(),
         }
     }
 
@@ -178,7 +191,14 @@ impl Context {
         }
 
         // Otherwise, try inserting the instruction again to apply any optimizations using the newly resolved inputs.
-        let new_results = Self::push_instruction(id, instruction.clone(), &old_results, block, dfg);
+        let (new_results, instruction_id) = Self::push_instruction(
+            id,
+            instruction.clone(),
+            &old_results,
+            block,
+            dfg,
+            &mut self.value_uses,
+        );
 
         Self::replace_result_ids(dfg, &old_results, &new_results);
 
@@ -188,6 +208,7 @@ impl Context {
             dfg,
             *side_effects_enabled_var,
             block,
+            instruction_id,
         );
 
         // If we just inserted an `Instruction::EnableSideEffectsIf`, we need to update `side_effects_enabled_var`
@@ -237,33 +258,46 @@ impl Context {
         old_results: &[ValueId],
         block: BasicBlockId,
         dfg: &mut DataFlowGraph,
-    ) -> Vec<ValueId> {
+        value_uses: &mut ValueUses,
+    ) -> (Vec<ValueId>, Option<InstructionId>) {
         let ctrl_typevars = instruction
             .requires_ctrl_typevars()
             .then(|| vecmap(old_results, |result| dfg.type_of_value(*result)));
 
+        let mut values_in_instruction = Vec::new();
+        instruction.for_each_value(|value| values_in_instruction.push(value));
+
         let call_stack = dfg.get_call_stack(id);
-        let new_results =
+        let (new_results, instruction_id) =
             match dfg.insert_instruction_and_results(instruction, block, ctrl_typevars, call_stack)
             {
-                InsertInstructionResult::SimplifiedTo(new_result) => vec![new_result],
-                InsertInstructionResult::SimplifiedToMultiple(new_results) => new_results,
-                InsertInstructionResult::Results(_, new_results) => new_results.to_vec(),
-                InsertInstructionResult::InstructionRemoved => vec![],
+                InsertInstructionResult::SimplifiedTo(new_result) => (vec![new_result], None),
+                InsertInstructionResult::SimplifiedToMultiple(new_results) => (new_results, None),
+                InsertInstructionResult::Results(instruction, new_results) => {
+                    (new_results.to_vec(), Some(instruction))
+                }
+                InsertInstructionResult::InstructionRemoved => (vec![], None),
             };
         // Optimizations while inserting the instruction should not change the number of results.
         assert_eq!(old_results.len(), new_results.len());
 
-        new_results
+        if let Some(instruction_id) = instruction_id {
+            for value in &new_results {
+                value_uses.entry(*value).or_default().insert(instruction_id);
+            }
+        }
+
+        (new_results, instruction_id)
     }
 
     fn cache_instruction(
         &mut self,
         instruction: Instruction,
         instruction_results: Vec<ValueId>,
-        dfg: &DataFlowGraph,
+        dfg: &mut DataFlowGraph,
         side_effects_enabled_var: ValueId,
         block: BasicBlockId,
+        instruction_id: Option<InstructionId>,
     ) {
         if self.use_constraint_info {
             // If the instruction was a constraint, then create a link between the two `ValueId`s
@@ -301,12 +335,43 @@ impl Context {
                 self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
             let predicate = use_predicate.then_some(side_effects_enabled_var);
 
-            self.cached_instruction_results
-                .entry(instruction)
-                .or_default()
-                .entry(predicate)
-                .or_default()
-                .cache(block, instruction_results);
+            // If the instruction is already cached, that means we're overwriting a previous result
+            // because an instruction was hoisted. For better optimizations, we update the older
+            // cached value here so that instructions depending on it depend on the newly-hoisted
+            // version instead.
+            if let Some(cache_result) =
+                self.get_cached(dfg, &instruction, side_effects_enabled_var, block)
+            {
+                let results = cache_result.results();
+                Self::replace_result_ids(dfg, &instruction_results, results);
+
+                // Any of these should lead back to the original instruction so we just grab the first
+                for result in results.to_vec() {
+                    if let Some(uses) = self.value_uses.get(&result) {
+                        for instruction_id in uses {
+                            // Grab the updated version of the instruction
+                            let instruction =
+                                dfg[*instruction_id].map_values(|value| dfg.resolve(value));
+
+                            // And map it to the old(!) id so that future instructions will see
+                            // they have a predecessor duplicate
+                            self.cached_instruction_results
+                                .map_instruction(instruction, *instruction_id);
+                        }
+                    }
+                }
+            }
+
+            // We can't cache the result if it was optimized out
+            if let Some(instruction_id) = instruction_id {
+                self.cached_instruction_results.insert(
+                    instruction,
+                    instruction_id,
+                    predicate,
+                    block,
+                    instruction_results,
+                );
+            }
         }
     }
 
@@ -335,12 +400,10 @@ impl Context {
         side_effects_enabled_var: ValueId,
         block: BasicBlockId,
     ) -> Option<CacheResult> {
-        let results_for_instruction = self.cached_instruction_results.get(instruction)?;
-
         let predicate = self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
         let predicate = predicate.then_some(side_effects_enabled_var);
 
-        results_for_instruction.get(&predicate)?.get(block, &mut self.dom)
+        self.cached_instruction_results.get(instruction, &predicate, block, &mut self.dom)
     }
 }
 
@@ -374,6 +437,52 @@ impl ResultCache {
 enum CacheResult<'a> {
     Cached(&'a [ValueId]),
     NeedToHoistToCommonBlock(BasicBlockId, &'a [ValueId]),
+}
+
+impl CacheResult<'_> {
+    fn results(&self) -> &[Id<Value>] {
+        match self {
+            CacheResult::Cached(results) => results,
+            CacheResult::NeedToHoistToCommonBlock(_, results) => results,
+        }
+    }
+}
+
+impl InstructionResultCache {
+    fn get(
+        &self,
+        instruction: &Instruction,
+        predicate: &Option<ValueId>,
+        block: BasicBlockId,
+        dom: &mut DominatorTree,
+    ) -> Option<CacheResult> {
+        let id = self.instructions.get(instruction)?;
+        self.cache.get(id)?.get(predicate)?.get(block, dom)
+    }
+
+    fn insert(
+        &mut self,
+        instruction: Instruction,
+        instruction_id: InstructionId,
+        predicate: Option<ValueId>,
+        block: BasicBlockId,
+        results: Vec<ValueId>,
+    ) {
+        // Don't overwrite the previous id if it exists
+        let instruction_id = *self.instructions.entry(instruction).or_insert(instruction_id);
+
+        self.cache
+            .entry(instruction_id)
+            .or_default()
+            .entry(predicate)
+            .or_default()
+            .cache(block, results);
+    }
+
+    fn map_instruction(&mut self, instruction: Instruction, id: InstructionId) {
+        // Overwrite the id if necessary
+        self.instructions.insert(instruction, id);
+    }
 }
 
 #[cfg(test)]
@@ -816,17 +925,16 @@ mod test {
               b0(v0: u32):
                 v2 = lt u32 1000, v0
                 v4 = add v0, u32 1
+                v5 = lt v0, v4
                 jmpif v2 then: b1, else: b2
               b1():
-                v5 = add v0, u32 1
-                v6 = lt v0, v5
-                constrain v6 == u1 1
+                v6 = add v0, u32 1
+                v7 = lt v0, v6
+                constrain v7 == u1 1
                 jmp b2()
               b2():
                 jmpif v2 then: b3, else: b4
               b3():
-                v8 = lt v0, v4
-                constrain v8 == u1 1
                 jmp b4()
               b4():
                 return
