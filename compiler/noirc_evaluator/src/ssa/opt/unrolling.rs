@@ -46,7 +46,6 @@ impl Ssa {
     /// This meta-pass will keep trying to unroll loops and simplifying the SSA until no more errors are found.
     #[tracing::instrument(level = "trace", skip(ssa))]
     pub(crate) fn unroll_loops_iteratively(mut ssa: Ssa) -> Result<Ssa, RuntimeError> {
-        ssa.normalize_ids();
         for (_, function) in ssa.functions.iter_mut() {
             // Try to unroll loops first:
             let mut unroll_errors = function.try_unroll_loops();
