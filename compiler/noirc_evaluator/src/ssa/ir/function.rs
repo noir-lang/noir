@@ -187,6 +187,15 @@ impl Function {
 
         unreachable!("SSA Function {} has no reachable return instruction!", self.id())
     }
+
+    /// True if this function has only one block.
+    /// This is most common for acir functions after the flattening pass but can
+    /// apply to simple brillig functions as well.
+    /// This is faster than checking `self.reachable_blocks().len() == 1`.
+    pub(crate) fn has_only_one_block(&self) -> bool {
+        let terminator = &self.dfg[self.entry_block].terminator();
+        matches!(terminator, Some(TerminatorInstruction::Return { .. }))
+    }
 }
 
 impl std::fmt::Display for RuntimeType {

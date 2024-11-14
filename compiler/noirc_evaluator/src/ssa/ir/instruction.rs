@@ -21,7 +21,7 @@ use super::{
     dfg::{CallStack, DataFlowGraph},
     map::Id,
     types::{NumericType, Type},
-    value::{Value, ValueId},
+    value::{Value, ValueId}, function::Function,
 };
 
 mod binary;
@@ -325,10 +325,14 @@ impl Instruction {
     /// rely on predicates can be deduplicated as well.
     pub(crate) fn can_be_deduplicated(
         &self,
-        dfg: &DataFlowGraph,
-        deduplicate_with_predicate: bool,
+        function: &Function,
+        mut deduplicate_with_predicate: bool,
     ) -> bool {
         use Instruction::*;
+
+        // If an instruction can only be deduplicated with a predicate then we also
+        // cannot move it across blocks since multiple blocks imply no predicates.
+        deduplicate_with_predicate &= function.has_only_one_block();
 
         match self {
             // These either have side-effects or interact with memory
@@ -339,7 +343,7 @@ impl Instruction {
             | IncrementRc { .. }
             | DecrementRc { .. } => false,
 
-            Call { func, .. } => match dfg[*func] {
+            Call { func, .. } => match function.dfg[*func] {
                 Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
                 _ => false,
             },
@@ -358,7 +362,7 @@ impl Instruction {
             | IfElse { .. }
             | ArrayGet { .. }
             | ArraySet { .. } => {
-                deduplicate_with_predicate || !self.requires_acir_gen_predicate(dfg)
+                deduplicate_with_predicate || !self.requires_acir_gen_predicate(&function.dfg)
             }
         }
     }

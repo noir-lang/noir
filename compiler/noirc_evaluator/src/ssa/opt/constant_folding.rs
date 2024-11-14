@@ -146,46 +146,45 @@ impl Context {
     fn fold_constants_in_block(&mut self, function: &mut Function, block: BasicBlockId) {
         let instructions = function.dfg[block].take_instructions();
 
-        let mut side_effects_enabled_var =
+        let mut predicate =
             function.dfg.make_constant(FieldElement::one(), Type::bool());
 
         for instruction_id in instructions {
-            self.fold_constants_into_instruction(
-                &mut function.dfg,
-                block,
-                instruction_id,
-                &mut side_effects_enabled_var,
-            );
+            self.fold_constants_into_instruction(function, block, instruction_id, &mut predicate);
         }
         self.block_queue.extend(function.dfg[block].successors());
     }
 
     fn fold_constants_into_instruction(
         &mut self,
-        dfg: &mut DataFlowGraph,
+        function: &mut Function,
         mut block: BasicBlockId,
         id: InstructionId,
         side_effects_enabled_var: &mut ValueId,
     ) {
+        let dfg = &mut function.dfg;
         let constraint_simplification_mapping = self.get_constraint_map(*side_effects_enabled_var);
         let instruction = Self::resolve_instruction(id, dfg, constraint_simplification_mapping);
         let old_results = dfg.instruction_results(id).to_vec();
 
         // If a copy of this instruction exists earlier in the block, then reuse the previous results.
-        if let Some(cache_result) =
-            self.get_cached(dfg, &instruction, *side_effects_enabled_var, block)
-        {
-            match cache_result {
-                CacheResult::Cached(cached) => {
-                    Self::replace_result_ids(dfg, &old_results, cached);
-                    return;
-                }
-                CacheResult::NeedToHoistToCommonBlock(dominator, _cached) => {
-                    // Just change the block to insert in the common dominator instead.
-                    // This will only move the current instance of the instruction right now.
-                    // When constant folding is run a second time later on, it'll catch
-                    // that the previous instance can be deduplicated to this instance.
-                    block = dominator;
+        if instruction.can_be_deduplicated(function, self.use_constraint_info) {
+
+            if let Some(cache_result) =
+                self.get_cached(&function.dfg, &instruction, *side_effects_enabled_var, block)
+            {
+                match cache_result {
+                    CacheResult::Cached(cached) => {
+                        Self::replace_result_ids(&mut function.dfg, &old_results, cached);
+                        return;
+                    }
+                    CacheResult::NeedToHoistToCommonBlock(dominator, _cached) => {
+                        // Just change the block to insert in the common dominator instead.
+                        // This will only move the current instance of the instruction right now.
+                        // When constant folding is run a second time later on, it'll catch
+                        // that the previous instance can be deduplicated to this instance.
+                        block = dominator;
+                    }
                 }
             }
         }
@@ -196,16 +195,16 @@ impl Context {
             instruction.clone(),
             &old_results,
             block,
-            dfg,
+            &mut function.dfg,
             &mut self.value_uses,
         );
 
-        Self::replace_result_ids(dfg, &old_results, &new_results);
+        Self::replace_result_ids(&mut function.dfg, &old_results, &new_results);
 
         self.cache_instruction(
             instruction.clone(),
             new_results,
-            dfg,
+            function,
             *side_effects_enabled_var,
             block,
             instruction_id,
@@ -294,7 +293,7 @@ impl Context {
         &mut self,
         instruction: Instruction,
         instruction_results: Vec<ValueId>,
-        dfg: &mut DataFlowGraph,
+        function: &mut Function,
         side_effects_enabled_var: ValueId,
         block: BasicBlockId,
         instruction_id: Option<InstructionId>,
@@ -304,7 +303,7 @@ impl Context {
             // to map from the more complex to the simpler value.
             if let Instruction::Constrain(lhs, rhs, _) = instruction {
                 // These `ValueId`s should be fully resolved now.
-                match (&dfg[lhs], &dfg[rhs]) {
+                match (&function.dfg[lhs], &function.dfg[rhs]) {
                     // Ignore trivial constraints
                     (Value::NumericConstant { .. }, Value::NumericConstant { .. }) => (),
 
@@ -330,15 +329,18 @@ impl Context {
 
         // If the instruction doesn't have side-effects and if it won't interact with enable_side_effects during acir_gen,
         // we cache the results so we can reuse them if the same instruction appears again later in the block.
-        if instruction.can_be_deduplicated(dfg, self.use_constraint_info) {
+        //
+        // TODO: Check for single block
+        if instruction.can_be_deduplicated(function, self.use_constraint_info) {
             let use_predicate =
-                self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
+                self.use_constraint_info && instruction.requires_acir_gen_predicate(&function.dfg);
             let predicate = use_predicate.then_some(side_effects_enabled_var);
 
             // If the instruction is already cached, that means we're overwriting a previous result
             // because an instruction was hoisted. For better optimizations, we update the older
             // cached value here so that instructions depending on it depend on the newly-hoisted
             // version instead.
+            let dfg = &mut function.dfg;
             if let Some(cache_result) =
                 self.get_cached(dfg, &instruction, side_effects_enabled_var, block)
             {
