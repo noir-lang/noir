@@ -1030,6 +1030,18 @@ impl<'interner> Monomorphizer<'interner> {
                 binding.bind(HirType::default_int_or_field_type());
                 ast::Type::Field
             }
+            HirType::Global(_global_id, _name, _kind) => {
+
+                // let let_stmt = self.interner.get_global_let_statement(*global_id).expect(
+                //     "Globals should have a corresponding let statement by monomorphization",
+                // );
+                
+                // TODO implement
+                panic!("convert_type(Type::Global(..), _)");
+
+                // let resolved_global = todo!("TODO");
+                // Self::convert_type(resolved_global, location)?
+            }
 
             HirType::CheckedCast { from, to } => {
                 Self::check_checked_cast(from, to, location)?;
@@ -1140,6 +1152,9 @@ impl<'interner> Monomorphizer<'interner> {
                     Err(MonomorphizationError::UnknownConstant { location })
                 } else {
                     Ok(())
+
+                    // TODO: add kind.default_type().is_some() check as with HirType::Global below
+                    // Self::check_type(kind.default_type().unwrap(), location)
                 }
             }
             HirType::CheckedCast { from, to } => {
@@ -1156,6 +1171,15 @@ impl<'interner> Monomorphizer<'interner> {
                 }
 
                 Ok(())
+            }
+            HirType::Global(_global_id, _name, kind) => {
+                if kind.is_error() || kind.default_type().is_none() {
+                    // TODO new error
+                    Err(MonomorphizationError::UnknownConstant { location })
+                } else {
+                    Self::check_type(&kind.default_type().unwrap(), location)
+                    
+                }
             }
 
             HirType::TypeVariable(ref binding) => {

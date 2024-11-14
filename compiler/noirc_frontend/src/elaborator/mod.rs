@@ -912,6 +912,8 @@ impl<'context> Elaborator<'context> {
             | Type::TraitAsType(..)
             | Type::TypeVariable(..)
             | Type::NamedGeneric(..)
+            // TODO always marked as used?
+            | Type::Global(..)
             | Type::Function(..)
             | Type::Forall(..)
             | Type::Error => (),
@@ -1529,6 +1531,8 @@ impl<'context> Elaborator<'context> {
             | Type::TraitAsType(..)
             | Type::Constant(..)
             | Type::NamedGeneric(..)
+            // TODO no items unless comptime, right?
+            | Type::Global(..)
             | Type::Error => (),
         }
     }

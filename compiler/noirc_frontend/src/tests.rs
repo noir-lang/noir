@@ -1347,7 +1347,13 @@ fn operators_in_global_used_in_type() {
             let _array: [Field; COUNT] = [1, 2, 3];
         }
     "#;
-    assert_eq!(get_program_errors(src).len(), 0);
+
+    // TODO cleanup
+    let errors = get_program_errors(src);
+    dbg!(&errors);
+
+    // assert_eq!(get_program_errors(src).len(), 0);
+    assert_eq!(errors.len(), 0);
 }
 
 #[test]
@@ -1995,6 +2001,7 @@ fn numeric_generic_u16_array_size() {
     ));
 }
 
+// TODO close issue
 // TODO(https://github.com/noir-lang/noir/issues/6238):
 // The EvaluatedGlobalIsntU32 warning is a stopgap
 // (originally from https://github.com/noir-lang/noir/issues/6125)
@@ -2010,15 +2017,7 @@ fn numeric_generic_field_larger_than_u32() {
         }
     "#;
     let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 2);
-    assert!(matches!(
-        errors[0].0,
-        CompilationError::TypeError(TypeCheckError::EvaluatedGlobalIsntU32 { .. }),
-    ));
-    assert!(matches!(
-        errors[1].0,
-        CompilationError::ResolverError(ResolverError::IntegerTooLarge { .. })
-    ));
+    assert_eq!(errors.len(), 0);
 }
 
 // TODO(https://github.com/noir-lang/noir/issues/6238):
@@ -2047,17 +2046,17 @@ fn numeric_generic_field_arithmetic_larger_than_u32() {
         }
     "#;
     let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 2);
 
+    // TODO cleanup
+    dbg!(&errors);
+
+    // TODO debug remaining error
+    assert_eq!(errors.len(), 1);
     assert!(matches!(
         errors[0].0,
-        CompilationError::TypeError(TypeCheckError::EvaluatedGlobalIsntU32 { .. }),
+        CompilationError::ResolverError(ResolverError::UnusedVariable { .. }),
     ));
 
-    assert!(matches!(
-        errors[1].0,
-        CompilationError::ResolverError(ResolverError::UnusedVariable { .. })
-    ));
 }
 
 #[test]
@@ -2184,25 +2183,31 @@ fn numeric_generics_type_kind_mismatch() {
     }
     "#;
     let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 3);
 
-    // TODO(https://github.com/noir-lang/noir/issues/6238):
-    // The EvaluatedGlobalIsntU32 warning is a stopgap
+    // TODO cleanup
+    dbg!(&errors);
+
+    assert_eq!(errors.len(), 1);
+
     assert!(matches!(
         errors[0].0,
-        CompilationError::TypeError(TypeCheckError::EvaluatedGlobalIsntU32 { .. }),
-    ));
-
-    assert!(matches!(
-        errors[1].0,
         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
     ));
 
-    // TODO(https://github.com/noir-lang/noir/issues/6238): see above
-    assert!(matches!(
-        errors[2].0,
-        CompilationError::TypeError(TypeCheckError::EvaluatedGlobalIsntU32 { .. }),
-    ));
+    // TODO close issue
+    // // TODO(https://github.com/noir-lang/noir/issues/6238):
+    // // The EvaluatedGlobalIsntU32 warning is a stopgap
+    // assert!(matches!(
+    //     errors[0].0,
+    //     CompilationError::TypeError(TypeCheckError::EvaluatedGlobalIsntU32 { .. }),
+    // ));
+
+    // // TODO(https://github.com/noir-lang/noir/issues/6238): see above
+    // assert!(matches!(
+    //     errors[2].0,
+    //     CompilationError::TypeError(TypeCheckError::EvaluatedGlobalIsntU32 { .. }),
+    // ));
+
 }
 
 #[test]
@@ -3269,13 +3274,9 @@ fn non_u32_as_array_length() {
     "#;
 
     let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 2);
+    assert_eq!(errors.len(), 1);
     assert!(matches!(
         errors[0].0,
-        CompilationError::TypeError(TypeCheckError::EvaluatedGlobalIsntU32 { .. })
-    ));
-    assert!(matches!(
-        errors[1].0,
         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. })
     ));
 }

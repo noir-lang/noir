@@ -167,6 +167,9 @@ impl<'context> Elaborator<'context> {
                 if let PathResolutionItem::Struct(struct_id) = item {
                     Some(self.get_struct(struct_id))
                 } else {
+                    // TODO cleanup
+                    dbg!("lookup_struct_or_error: resolved non-struct", &item);
+
                     self.push_err(ResolverError::Expected {
                         expected: "type",
                         got: item.description(),
@@ -205,6 +208,9 @@ impl<'context> Elaborator<'context> {
                 Some(alias.instantiate(self.interner))
             }
             Ok(other) => {
+                // TODO cleanup
+                dbg!("lookup_type_or_error", &other);
+
                 self.push_err(ResolverError::Expected {
                     expected: "type",
                     got: other.description(),

@@ -262,7 +262,9 @@ impl Kind {
         match self {
             Kind::IntegerOrField => Some(Type::default_int_or_field_type()),
             Kind::Integer => Some(Type::default_int_type()),
-            Kind::Any | Kind::Normal | Kind::Numeric(..) => None,
+            // TODO: default Numerics to their type?
+            Kind::Numeric(typ) => Some(*typ.clone()),
+            Kind::Any | Kind::Normal => None,
         }
     }
 
@@ -894,7 +896,7 @@ impl std::fmt::Display for Type {
                 TypeBinding::Unbound(_, _) if name.is_empty() => write!(f, "_"),
                 TypeBinding::Unbound(_, _) => write!(f, "{name}"),
             },
-            Type::Global(id, name, _kind) => write!(f, "{name}"),
+            Type::Global(_id, name, _kind) => write!(f, "{name}"),
             Type::CheckedCast { to, .. } => write!(f, "{to}"),
             Type::Constant(x, _kind) => write!(f, "{x}"),
             Type::Forall(typevars, typ) => {
@@ -1415,7 +1417,7 @@ impl Type {
         match self {
             Type::CheckedCast { to, .. } => to.kind(),
             Type::NamedGeneric(var, _) => var.kind(),
-            Type::Global(id, _name, kind) => kind.clone(),
+            Type::Global(_id, _name, kind) => kind.clone(),
             Type::Constant(_, kind) => kind.clone(),
             Type::TypeVariable(var) => match &*var.borrow() {
                 TypeBinding::Bound(ref typ) => typ.kind(),
@@ -1813,6 +1815,9 @@ impl Type {
                 if id_a == id_b {
                     Ok(())
                 } else {
+                    // TODO
+                    panic!("TODO: Globals failed to unify");
+
                     Err(UnificationError)
                 }
             }

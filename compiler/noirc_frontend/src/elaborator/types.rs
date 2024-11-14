@@ -416,22 +416,22 @@ impl<'context> Elaborator<'context> {
                     .get_global_let_statement(id)
                     .map(|let_statement| Kind::numeric(let_statement.r#type))
                     .unwrap_or(Kind::u32());
+                
+                // TODO cleanup
+                dbg!("lookup_generic_or_global_type: kind unifying", &kind);
 
-                // TODO(https://github.com/noir-lang/noir/issues/6238):
-                // support non-u32 generics here
-                if !kind.unifies(&Kind::u32()) {
-                    let error = TypeCheckError::EvaluatedGlobalIsntU32 {
-                        expected_kind: Kind::u32().to_string(),
-                        expr_kind: kind.to_string(),
-                        expr_span: path.span(),
-                    };
-                    self.push_err(error);
-                    return None;
-                }
-
-                // "TODO: get_global_let_statement above -> InfixExpr / Constant / ensure comptime"
-                // Some(Type::Constant(self.eval_global_as_array_length(id, path).into(), kind))
-                // Some(Type::Global(id, path, kind))
+                // TODO: close issue after test passes
+                // // TODO(https://github.com/noir-lang/noir/issues/6238):
+                // // support non-u32 generics here
+                // if !kind.unifies(&Kind::u32()) {
+                //     let error = TypeCheckError::EvaluatedGlobalIsntU32 {
+                //         expected_kind: Kind::u32().to_string(),
+                //         expr_kind: kind.to_string(),
+                //         expr_span: path.span(),
+                //     };
+                //     self.push_err(error);
+                //     return None;
+                // }
 
                 let Some(stmt) = self.interner.get_global_let_statement(id) else {
                     if let Some(global) = self.unresolved_globals.remove(&id) {
@@ -447,113 +447,118 @@ impl<'context> Elaborator<'context> {
                 let rhs = stmt.expression;
                 let span = self.interner.expr_span(&rhs);
 
-                self.resolve_global_to_type(rhs, kind, span)
 
+                // TODO propagate error
+                let result = self.interner.get_global_as_type(rhs, kind, span);
                 
+                // TODO cleanup
+                dbg!("lookup_generic_or_global_type: reached result", &result);
 
-
+                result.ok()
 
             }
             _ => None,
         }
     }
 
-    fn resolve_global_to_type(&mut self, rhs: ExprId, kind: Kind, span: Span) -> Option<Type> {
-        match self.interner.expression(&rhs) {
-             HirExpression::Literal(HirLiteral::Integer(int, false)) => {
-                 // int.try_into_u128().ok_or(Some(ResolverError::IntegerTooLarge { span }))
-                 Some(Type::Constant(int, kind))
-             }
-             HirExpression::Ident(ident, _) => {
-                 if let Some(definition) = self.interner.try_definition(ident.id) {
-                     match definition.kind {
-                         DefinitionKind::Global(global_id) => {
-                             // nested case: return a Type::Global instead of recursing
-                             Some(Type::Global(global_id, definition.name.into(), kind))
-
-                             // TODO cleanup
-                             // let let_statement = interner.get_global_let_statement(global_id);
-                             // if let Some(let_statement) = let_statement {
-                             //     let expression = let_statement.expression;
-                             //     try_eval_array_length_id_with_fuel(interner, expression, span, fuel - 1)
-                             // } else {
-                             //     Err(Some(ResolverError::InvalidArrayLengthExpr { span }))
-                             // }
-                         }
-                         _ => {
-                             // TODO: new error
-                             let err = ResolverError::InvalidArrayLengthExpr { span };
-                             self.push_err(err);
-                             None
-                         },
-                     }
-                 } else {
-                     // TODO: new error
-                     let err = ResolverError::InvalidArrayLengthExpr { span };
-                     self.push_err(err);
-                     None
-                 }
-
-             }
-             HirExpression::Infix(infix) => {
-                 // let lhs = try_eval_array_length_id_with_fuel(interner, infix.lhs, span, fuel - 1)?;
-                 // let rhs = try_eval_array_length_id_with_fuel(interner, infix.rhs, span, fuel - 1)?;
-                 let lhs = Box::new(self.resolve_global_to_type(infix.lhs, kind, span)?);
-                 let rhs = Box::new(self.resolve_global_to_type(infix.rhs, kind, span)?);
-
-                 let op = match infix.operator.kind {
-                     BinaryOpKind::Add => Some(BinaryTypeOperator::Addition),
-                     BinaryOpKind::Subtract => Some(BinaryTypeOperator::Subtraction),
-                     BinaryOpKind::Multiply => Some(BinaryTypeOperator::Multiplication),
-                     BinaryOpKind::Divide => Some(BinaryTypeOperator::Division),
-                     BinaryOpKind::Modulo => Some(BinaryTypeOperator::Modulo),
-
-                     // TODO: support in InfixExpr?
-                     // BinaryOpKind::Equal => Ok((lhs == rhs) as u128),
-                     // BinaryOpKind::NotEqual => Ok((lhs != rhs) as u128),
-                     // BinaryOpKind::Less => Ok((lhs < rhs) as u128),
-                     // BinaryOpKind::LessEqual => Ok((lhs <= rhs) as u128),
-                     // BinaryOpKind::Greater => Ok((lhs > rhs) as u128),
-                     // BinaryOpKind::GreaterEqual => Ok((lhs >= rhs) as u128),
-                     // BinaryOpKind::And => Ok(lhs & rhs),
-                     // BinaryOpKind::Or => Ok(lhs | rhs),
-                     // BinaryOpKind::Xor => Ok(lhs ^ rhs),
-                     // BinaryOpKind::ShiftRight => Ok(lhs >> rhs),
-                     // BinaryOpKind::ShiftLeft => Ok(lhs << rhs),
-
-                     _ => {
-                        // TODO: new error
-                        let err = ResolverError::InvalidArrayLengthExpr { span };
-                        self.push_err(err);
-                        None
-                     }
-                 }?;
-
-                 Some(Type::InfixExpr(lhs, op, rhs))
-             }
-
-             // TODO: comptime only?
-             // HirExpression::Cast(cast) => {
-             //     let lhs = try_eval_array_length_id_with_fuel(interner, cast.lhs, span, fuel - 1)?;
-             //     let lhs_value = Value::Field(lhs.into());
-             //     let evaluated_value =
-             //         Interpreter::evaluate_cast_one_step(&cast, rhs, lhs_value, interner)
-             //             .map_err(|error| Some(ResolverError::ArrayLengthInterpreter { error }))?;
-             // 
-             //     evaluated_value
-             //         .to_u128()
-             //         .ok_or_else(|| Some(ResolverError::InvalidArrayLengthExpr { span }))
-             // }
-
-             _other => {
-                 // TODO: new error
-                 let err = ResolverError::InvalidArrayLengthExpr { span };
-                 self.push_err(err);
-                 None
-             },
-        }
-
-    }
+    // TODO cleanup
+    // "TODO_move_to_interner.resolve_global_definition_to_type"
+    // fn resolve_global_to_type(&mut self, rhs: ExprId, kind: Kind, span: Span) -> Option<Type> {
+    //     match self.interner.expression(&rhs) {
+    //          HirExpression::Literal(HirLiteral::Integer(int, false)) => {
+    //              // int.try_into_u128().ok_or(Some(ResolverError::IntegerTooLarge { span }))
+    //              Some(Type::Constant(int, kind))
+    //          }
+    //          HirExpression::Ident(ident, _) => {
+    //              if let Some(definition) = self.interner.try_definition(ident.id) {
+    //                  match definition.kind {
+    //                      DefinitionKind::Global(global_id) => {
+    //                          // nested case: return a Type::Global instead of recursing
+    //                          Some(Type::Global(global_id, definition.name.clone().into(), kind))
+    //
+    //                          // TODO cleanup
+    //                          // let let_statement = interner.get_global_let_statement(global_id);
+    //                          // if let Some(let_statement) = let_statement {
+    //                          //     let expression = let_statement.expression;
+    //                          //     try_eval_array_length_id_with_fuel(interner, expression, span, fuel - 1)
+    //                          // } else {
+    //                          //     Err(Some(ResolverError::InvalidArrayLengthExpr { span }))
+    //                          // }
+    //                      }
+    //                      _ => {
+    //                          // TODO: new error
+    //                          let err = ResolverError::InvalidArrayLengthExpr { span };
+    //                          self.push_err(err);
+    //                          None
+    //                      },
+    //                  }
+    //              } else {
+    //                  // TODO: new error
+    //                  let err = ResolverError::InvalidArrayLengthExpr { span };
+    //                  self.push_err(err);
+    //                  None
+    //              }
+    //
+    //          }
+    //          HirExpression::Infix(infix) => {
+    //              // let lhs = try_eval_array_length_id_with_fuel(interner, infix.lhs, span, fuel - 1)?;
+    //              // let rhs = try_eval_array_length_id_with_fuel(interner, infix.rhs, span, fuel - 1)?;
+    //              let lhs = Box::new(self.resolve_global_to_type(infix.lhs, kind.clone(), span)?);
+    //              let rhs = Box::new(self.resolve_global_to_type(infix.rhs, kind.clone(), span)?);
+    //
+    //              let op = match infix.operator.kind {
+    //                  BinaryOpKind::Add => Some(BinaryTypeOperator::Addition),
+    //                  BinaryOpKind::Subtract => Some(BinaryTypeOperator::Subtraction),
+    //                  BinaryOpKind::Multiply => Some(BinaryTypeOperator::Multiplication),
+    //                  BinaryOpKind::Divide => Some(BinaryTypeOperator::Division),
+    //                  BinaryOpKind::Modulo => Some(BinaryTypeOperator::Modulo),
+    //
+    //                  // TODO: support in InfixExpr?
+    //                  // BinaryOpKind::Equal => Ok((lhs == rhs) as u128),
+    //                  // BinaryOpKind::NotEqual => Ok((lhs != rhs) as u128),
+    //                  // BinaryOpKind::Less => Ok((lhs < rhs) as u128),
+    //                  // BinaryOpKind::LessEqual => Ok((lhs <= rhs) as u128),
+    //                  // BinaryOpKind::Greater => Ok((lhs > rhs) as u128),
+    //                  // BinaryOpKind::GreaterEqual => Ok((lhs >= rhs) as u128),
+    //                  // BinaryOpKind::And => Ok(lhs & rhs),
+    //                  // BinaryOpKind::Or => Ok(lhs | rhs),
+    //                  // BinaryOpKind::Xor => Ok(lhs ^ rhs),
+    //                  // BinaryOpKind::ShiftRight => Ok(lhs >> rhs),
+    //                  // BinaryOpKind::ShiftLeft => Ok(lhs << rhs),
+    //
+    //                  _ => {
+    //                     // TODO: new error
+    //                     let err = ResolverError::InvalidArrayLengthExpr { span };
+    //                     self.push_err(err);
+    //                     None
+    //                  }
+    //              }?;
+    //
+    //              Some(Type::InfixExpr(lhs, op, rhs))
+    //          }
+    //
+    //          // TODO: comptime only?
+    //          // HirExpression::Cast(cast) => {
+    //          //     let lhs = try_eval_array_length_id_with_fuel(interner, cast.lhs, span, fuel - 1)?;
+    //          //     let lhs_value = Value::Field(lhs.into());
+    //          //     let evaluated_value =
+    //          //         Interpreter::evaluate_cast_one_step(&cast, rhs, lhs_value, interner)
+    //          //             .map_err(|error| Some(ResolverError::ArrayLengthInterpreter { error }))?;
+    //          // 
+    //          //     evaluated_value
+    //          //         .to_u128()
+    //          //         .ok_or_else(|| Some(ResolverError::InvalidArrayLengthExpr { span }))
+    //          // }
+    //
+    //          _other => {
+    //              // TODO: new error
+    //              let err = ResolverError::InvalidArrayLengthExpr { span };
+    //              self.push_err(err);
+    //              None
+    //          },
+    //     }
+    //
+    // }
 
 
     pub(super) fn convert_expression_type(
@@ -758,31 +763,31 @@ impl<'context> Elaborator<'context> {
             .or_else(|| self.resolve_trait_method_by_named_generic(path))
     }
 
-    // TODO remove
-    fn eval_global_as_array_length(&mut self, global_id: GlobalId, path: &Path) -> u32 {
-        let Some(stmt) = self.interner.get_global_let_statement(global_id) else {
-            if let Some(global) = self.unresolved_globals.remove(&global_id) {
-                self.elaborate_global(global);
-                return self.eval_global_as_array_length(global_id, path);
-            } else {
-                let path = path.clone();
-                self.push_err(ResolverError::NoSuchNumericTypeVariable { path });
-                return 0;
-            }
-        };
-
-        let length = stmt.expression;
-        let span = self.interner.expr_span(&length);
-        let result = try_eval_array_length_id(self.interner, length, span);
-
-        match result.map(|length| length.try_into()) {
-            Ok(Ok(length_value)) => return length_value,
-            Ok(Err(_cast_err)) => self.push_err(ResolverError::IntegerTooLarge { span }),
-            Err(Some(error)) => self.push_err(error),
-            Err(None) => (),
-        }
-        0
-    }
+    // // TODO remove
+    // fn eval_global_as_array_length(&mut self, global_id: GlobalId, path: &Path) -> u32 {
+    //     let Some(stmt) = self.interner.get_global_let_statement(global_id) else {
+    //         if let Some(global) = self.unresolved_globals.remove(&global_id) {
+    //             self.elaborate_global(global);
+    //             return self.eval_global_as_array_length(global_id, path);
+    //         } else {
+    //             let path = path.clone();
+    //             self.push_err(ResolverError::NoSuchNumericTypeVariable { path });
+    //             return 0;
+    //         }
+    //     };
+    //
+    //     let length = stmt.expression;
+    //     let span = self.interner.expr_span(&length);
+    //     let result = try_eval_array_length_id(self.interner, length, span);
+    //
+    //     match result.map(|length| length.try_into()) {
+    //         Ok(Ok(length_value)) => return length_value,
+    //         Ok(Err(_cast_err)) => self.push_err(ResolverError::IntegerTooLarge { span }),
+    //         Err(Some(error)) => self.push_err(error),
+    //         Err(None) => (),
+    //     }
+    //     0
+    // }
 
     pub(super) fn unify(
         &mut self,
@@ -1871,6 +1876,7 @@ impl<'context> Elaborator<'context> {
             | Type::TypeVariable(_)
             | Type::Constant(..)
             | Type::NamedGeneric(_, _)
+            | Type::Global(..)
             | Type::Quoted(_)
             | Type::Forall(_, _) => (),
 
