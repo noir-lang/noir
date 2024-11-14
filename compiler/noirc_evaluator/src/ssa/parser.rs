@@ -735,10 +735,17 @@ impl<'a> Parser<'a> {
     }
 
     fn eat_int(&mut self) -> ParseResult<Option<FieldElement>> {
+        let negative = self.eat(Token::Dash)?;
+
         if matches!(self.token.token(), Token::Int(..)) {
             let token = self.bump()?;
             match token.into_token() {
-                Token::Int(int) => Ok(Some(int)),
+                Token::Int(mut int) => {
+                    if negative {
+                        int = -int;
+                    }
+                    Ok(Some(int))
+                }
                 _ => unreachable!(),
             }
         } else {

@@ -7,12 +7,11 @@ use crate::ssa::{
         function::{Function, RuntimeType},
         instruction::{Instruction, InstructionId, TerminatorInstruction},
         types::Type::{Array, Slice},
-        value::{RawValueId, ResolvedValueId, ValueId},
+        value::{RawValueId, ResolvedValueId},
     },
     ssa_gen::Ssa,
 };
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
-use iter_extended::vecmap;
 
 impl Ssa {
     /// Map arrays with the last instruction that uses it
@@ -29,17 +28,21 @@ impl Ssa {
 
 impl Function {
     pub(crate) fn array_set_optimization(&mut self) {
+        if matches!(self.runtime(), RuntimeType::Brillig(_)) {
+            // Brillig is supposed to use refcounting to decide whether to mutate an array;
+            // array mutation was only meant for ACIR. We could use it with Brillig as well,
+            // but then some of the optimizations that we can do in ACIR around shared
+            // references have to be skipped, which makes it more cumbersome.
+            return;
+        }
+
         let reachable_blocks = self.reachable_blocks();
 
         if !self.runtime().is_entry_point() {
             assert_eq!(reachable_blocks.len(), 1, "Expected there to be 1 block remaining in Acir function for array_set optimization");
         }
 
-        let mut context = Context::new(
-            &self.dfg,
-            self.parameters(),
-            matches!(self.runtime(), RuntimeType::Brillig(_)),
-        );
+        let mut context = Context::new(&self.dfg);
 
         for block in reachable_blocks.iter() {
             context.analyze_last_uses(*block);
@@ -54,8 +57,6 @@ impl Function {
 
 struct Context<'f> {
     dfg: &'f DataFlowGraph,
-    function_parameters: Vec<RawValueId>,
-    is_brillig_runtime: bool,
     array_to_last_use: HashMap<ResolvedValueId, InstructionId>,
     instructions_that_can_be_made_mutable: HashSet<InstructionId>,
     // Mapping of an array that comes from a load and whether the address
@@ -65,15 +66,9 @@ struct Context<'f> {
 }
 
 impl<'f> Context<'f> {
-    fn new(
-        dfg: &'f DataFlowGraph,
-        function_parameters: &'f [ValueId],
-        is_brillig_runtime: bool,
-    ) -> Self {
+    fn new(dfg: &'f DataFlowGraph) -> Self {
         Context {
             dfg,
-            function_parameters: vecmap(function_parameters, |v| v.raw()),
-            is_brillig_runtime,
             array_to_last_use: HashMap::default(),
             instructions_that_can_be_made_mutable: HashSet::default(),
             arrays_from_load: HashMap::default(),
@@ -95,20 +90,11 @@ impl<'f> Context<'f> {
                         self.instructions_that_can_be_made_mutable.remove(&existing);
                     }
                 }
-                Instruction::ArraySet { array, value, .. } => {
+                Instruction::ArraySet { array, .. } => {
                     let array = self.dfg.resolve(*array);
 
                     if let Some(existing) = self.array_to_last_use.insert(array, *instruction_id) {
                         self.instructions_that_can_be_made_mutable.remove(&existing);
-                    }
-                    if self.is_brillig_runtime {
-                        let value = self.dfg.resolve(*value);
-
-                        if let Some(existing) = self.inner_nested_arrays.get(&value.raw()) {
-                            self.instructions_that_can_be_made_mutable.remove(existing);
-                        }
-                        let result = self.dfg.instruction_results(*instruction_id)[0];
-                        self.inner_nested_arrays.insert(result.raw(), *instruction_id);
                     }
 
                     // If the array we are setting does not come from a load we can safely mark it mutable.
@@ -129,17 +115,13 @@ impl<'f> Context<'f> {
                         }
                     });
 
-                    // We cannot safely mutate slices that are inputs to the function, as they might be shared with the caller.
-                    // NB checking the block parameters is not enough, as we might have jumped into a parameterless blocks inside the function.
-                    let is_function_param = self.function_parameters.contains(&array.raw());
-
                     let can_mutate =
                         if let Some(is_from_param) = self.arrays_from_load.get(&array.raw()) {
                             // If the array was loaded from a reference parameter, we cannot
                             // safely mark that array mutable as it may be shared by another value.
                             !is_from_param && is_return_block
                         } else {
-                            !is_array_in_terminator && !is_function_param
+                            !is_array_in_terminator
                         };
 
                     if can_mutate {
