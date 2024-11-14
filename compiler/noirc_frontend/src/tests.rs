@@ -3692,3 +3692,51 @@ fn allows_struct_with_generic_infix_type_as_main_input_3() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn disallows_test_attribute_on_impl_method() {
+    let src = r#"
+    pub struct Foo {}
+    impl Foo {
+        #[test]
+        fn foo() {}
+    }
+
+    fn main() {}
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::DefinitionError(DefCollectorErrorKind::TestOnAssociatedFunction {
+            span: _
+        })
+    ));
+}
+
+#[test]
+fn disallows_test_attribute_on_trait_impl_method() {
+    let src = r#"
+    pub trait Trait {
+        fn foo() {}
+    }
+
+    pub struct Foo {}
+    impl Trait for Foo {
+        #[test]
+        fn foo() {}
+    }
+
+    fn main() {}
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::DefinitionError(DefCollectorErrorKind::TestOnAssociatedFunction {
+            span: _
+        })
+    ));
+}
