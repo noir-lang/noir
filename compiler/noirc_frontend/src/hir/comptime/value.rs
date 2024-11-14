@@ -502,19 +502,53 @@ impl Value {
         Ok(vec![token])
     }
 
-    /// Converts any unsigned `Value` into a `u128`.
-    /// Returns `None` for negative integers.
-    pub(crate) fn to_u128(&self) -> Option<u128> {
+    // TODO: unused
+    // /// Converts any unsigned `Value` into a `u128`.
+    // /// Returns `None` for negative integers and non-integral `Value`s.
+    // pub(crate) fn to_u128(&self) -> Option<u128> {
+    //     match self {
+    //         Self::Field(value) => Some(value.to_u128()),
+    //         Self::I8(value) => (*value >= 0).then_some(*value as u128),
+    //         Self::I16(value) => (*value >= 0).then_some(*value as u128),
+    //         Self::I32(value) => (*value >= 0).then_some(*value as u128),
+    //         Self::I64(value) => (*value >= 0).then_some(*value as u128),
+    //         Self::U8(value) => Some(*value as u128),
+    //         Self::U16(value) => Some(*value as u128),
+    //         Self::U32(value) => Some(*value as u128),
+    //         Self::U64(value) => Some(*value as u128),
+    //         _ => None,
+    //     }
+    // }
+
+    /// Returns false for non-integral `Value`s.
+    pub(crate) fn is_integral(&self) -> bool {
         match self {
-            Self::Field(value) => Some(value.to_u128()),
-            Self::I8(value) => (*value >= 0).then_some(*value as u128),
-            Self::I16(value) => (*value >= 0).then_some(*value as u128),
-            Self::I32(value) => (*value >= 0).then_some(*value as u128),
-            Self::I64(value) => (*value >= 0).then_some(*value as u128),
-            Self::U8(value) => Some(*value as u128),
-            Self::U16(value) => Some(*value as u128),
-            Self::U32(value) => Some(*value as u128),
-            Self::U64(value) => Some(*value as u128),
+            Self::Field(_) => true,
+            Self::I8(_) => true,
+            Self::I16(_) => true,
+            Self::I32(_) => true,
+            Self::I64(_) => true,
+            Self::U8(_) => true,
+            Self::U16(_) => true,
+            Self::U32(_) => true,
+            Self::U64(_) => true,
+            _ => false,
+        }
+    }
+
+    /// Converts any unsigned `Value` into a `FieldElement`.
+    /// Returns `None` for negative integers and non-integral `Value`s.
+    pub(crate) fn to_field_element(&self) -> Option<FieldElement> {
+        match self {
+            Self::Field(value) => Some(*value),
+            Self::I8(value) => (*value >= 0).then_some((*value as u128).into()),
+            Self::I16(value) => (*value >= 0).then_some((*value as u128).into()),
+            Self::I32(value) => (*value >= 0).then_some((*value as u128).into()),
+            Self::I64(value) => (*value >= 0).then_some((*value as u128).into()),
+            Self::U8(value) => Some((*value as u128).into()),
+            Self::U16(value) => Some((*value as u128).into()),
+            Self::U32(value) => Some((*value as u128).into()),
+            Self::U64(value) => Some((*value as u128).into()),
             _ => None,
         }
     }

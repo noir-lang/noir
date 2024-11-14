@@ -1304,7 +1304,21 @@ fn deny_cyclic_globals() {
         global B = A;
         fn main() {}
     "#;
-    assert_eq!(get_program_errors(src).len(), 1);
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 3);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::InterpreterError(InterpreterError::VariableNotInScope { .. })
+    ));
+    assert!(matches!(
+        errors[1].0,
+        CompilationError::InterpreterError(InterpreterError::NonComptimeVarReferenced { .. })
+    ));
+    assert!(matches!(
+        errors[2].0,
+        CompilationError::ResolverError(ResolverError::DependencyCycle { .. })
+    ));
 }
 
 #[test]
@@ -1347,13 +1361,7 @@ fn operators_in_global_used_in_type() {
             let _array: [Field; COUNT] = [1, 2, 3];
         }
     "#;
-
-    // TODO cleanup
-    let errors = get_program_errors(src);
-    dbg!(&errors);
-
-    // assert_eq!(get_program_errors(src).len(), 0);
-    assert_eq!(errors.len(), 0);
+    assert_eq!(get_program_errors(src).len(), 0);
 }
 
 #[test]
@@ -2183,12 +2191,7 @@ fn numeric_generics_type_kind_mismatch() {
     }
     "#;
     let errors = get_program_errors(src);
-
-    // TODO cleanup
-    dbg!(&errors);
-
     assert_eq!(errors.len(), 1);
-
     assert!(matches!(
         errors[0].0,
         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
@@ -3229,6 +3232,8 @@ fn infer_globals_to_u32_from_type_use() {
     "#;
 
     let errors = get_program_errors(src);
+    // TODO cleanup
+    dbg!(&errors);
     assert_eq!(errors.len(), 0);
 }
 
@@ -3691,5 +3696,9 @@ fn allows_struct_with_generic_infix_type_as_main_input_3() {
 
         fn main(_x: Foo<N * 2>) {}
     "#;
+
+    // TODO cleanup
+    let errors = get_program_errors(src);
+    dbg!(&errors);
     assert_no_errors(src);
 }

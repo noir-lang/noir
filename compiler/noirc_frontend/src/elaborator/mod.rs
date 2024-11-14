@@ -912,8 +912,9 @@ impl<'context> Elaborator<'context> {
             | Type::TraitAsType(..)
             | Type::TypeVariable(..)
             | Type::NamedGeneric(..)
+            // TODO cleanup
             // TODO always marked as used?
-            | Type::Global(..)
+            // | Type::Global(..)
             | Type::Function(..)
             | Type::Forall(..)
             | Type::Error => (),
@@ -1531,8 +1532,9 @@ impl<'context> Elaborator<'context> {
             | Type::TraitAsType(..)
             | Type::Constant(..)
             | Type::NamedGeneric(..)
+            // TODO cleanup
             // TODO no items unless comptime, right?
-            | Type::Global(..)
+            // | Type::Global(..)
             | Type::Error => (),
         }
     }
@@ -1661,16 +1663,23 @@ impl<'context> Elaborator<'context> {
             self.push_err(ResolverError::MutableGlobal { span });
         }
 
-        let (let_statement, _typ) = if comptime {
-            self.elaborate_in_comptime_context(|this| this.elaborate_let(let_stmt, Some(global_id)))
-        } else {
-            self.elaborate_let(let_stmt, Some(global_id))
-        };
+        // TODO: throw error if !comptime and evaluates function?
+
+        // TODO cleanup
+        // let (let_statement, _typ) = if comptime {
+        //     self.elaborate_in_comptime_context(|this| this.elaborate_let(let_stmt, Some(global_id)))
+        // } else {
+        //     self.elaborate_let(let_stmt, Some(global_id))
+        // };
+        let (let_statement, _typ) =
+            self.elaborate_in_comptime_context(|this| this.elaborate_let(let_stmt, Some(global_id)));
 
         let statement_id = self.interner.get_global(global_id).let_statement;
         self.interner.replace_statement(statement_id, let_statement);
 
-        if comptime {
+        // TODO cleanup
+        // if comptime {
+        if true {
             self.elaborate_comptime_global(global_id);
         }
 
