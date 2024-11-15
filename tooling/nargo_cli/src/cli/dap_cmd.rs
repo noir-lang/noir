@@ -7,8 +7,9 @@ use nargo::constants::PROVER_INPUT_FILE;
 use nargo::workspace::Workspace;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::input_parser::Format;
-use noirc_driver::{CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING};
-use noirc_frontend::graph::CrateName;
+use noirc_driver::{
+    graph::CrateName, CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING,
+};
 
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::Path;

@@ -12,10 +12,8 @@ use nargo::workspace::Workspace;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{
-    compile_no_check, CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING,
+    compile_no_check, CompileOptions, CompiledProgram, CrateName, NOIR_ARTIFACT_VERSION_STRING,
 };
-
-use noirc_frontend::graph::CrateName;
 
 use clap::Args;
 

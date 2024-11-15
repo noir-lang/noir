@@ -9,9 +9,8 @@ use nargo::{
 use noirc_abi::input_parser::InputValue;
 use noirc_driver::{
     compile_main, file_manager_with_stdlib, prepare_crate, CompilationResult, CompileOptions,
-    CompiledProgram, CrateId,
+    CompiledProgram, Context, CrateId,
 };
-use noirc_frontend::hir::Context;
 use proptest::prelude::*;
 use sha3::Digest;
 

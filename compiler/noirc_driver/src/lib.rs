@@ -16,7 +16,6 @@ use noirc_evaluator::errors::RuntimeError;
 use noirc_evaluator::ssa::SsaProgramArtifact;
 use noirc_frontend::debug::build_debug_crate_file;
 use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
-use noirc_frontend::hir::Context;
 use noirc_frontend::monomorphization::{
     errors::MonomorphizationError, monomorphize, monomorphize_debug,
 };
@@ -35,7 +34,10 @@ use debug::filter_relevant_files;
 
 pub use contract::{CompiledContract, CompiledContractOutputs, ContractFunction};
 pub use debug::DebugFile;
-pub use noirc_frontend::graph::{CrateId, CrateName};
+pub use noirc_frontend::{
+    graph::{CrateId, CrateName},
+    hir::Context,
+};
 pub use program::CompiledProgram;
 
 const STD_CRATE_NAME: &str = "std";

@@ -13,9 +13,10 @@ use nargo::{
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
 use noirc_driver::{
-    check_crate, compute_function_abi, CompileOptions, CrateId, NOIR_ARTIFACT_VERSION_STRING,
+    check_crate, compute_function_abi, CompileOptions, Context, CrateId,
+    NOIR_ARTIFACT_VERSION_STRING,
 };
-use noirc_frontend::hir::{Context, ParsedFiles};
+use noirc_frontend::hir::ParsedFiles;
 
 use super::fs::write_to_file;
 use super::NargoConfig;

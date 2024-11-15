@@ -19,11 +19,8 @@ use std::{
 };
 
 use fm::{FileManager, FILE_EXTENSION};
-use noirc_driver::{add_dep, prepare_crate, prepare_dependency};
-use noirc_frontend::{
-    graph::{CrateId, CrateName},
-    hir::{def_map::parse_file, Context, ParsedFiles},
-};
+use noirc_driver::{add_dep, prepare_crate, prepare_dependency, Context, CrateId, CrateName};
+use noirc_frontend::hir::{def_map::parse_file, ParsedFiles};
 use package::{Dependency, Package};
 use rayon::prelude::*;
 use walkdir::WalkDir;
