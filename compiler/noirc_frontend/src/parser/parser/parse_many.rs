@@ -52,7 +52,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Same as parse_many, but returns a bool indicating whether a trailing separator was found.
-    pub(super) fn parse_many_to_many_return_trailing_separator_if_any<T, F>(
+    fn parse_many_to_many_return_trailing_separator_if_any<T, F>(
         &mut self,
         items: &'static str,
         separated_by: SeparatedBy,
