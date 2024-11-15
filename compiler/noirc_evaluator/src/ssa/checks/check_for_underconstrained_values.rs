@@ -145,13 +145,14 @@ impl DependencyContext {
                 // For memory operations, we have to link up the stored value as a parent
                 // of one loaded from the same memory slot
                 Instruction::Store { address, value } => {
-                    self.memory_slots.insert(*address, *value);
+                    self.memory_slots.insert(*address, function.dfg.resolve(*value));
                 }
                 Instruction::Load { address } => {
                     // Remember the value stored at address as parent for the results
                     if let Some(value_id) = self.memory_slots.get(address) {
                         for result in results {
-                            self.value_parents.entry(result).or_default().push(*value_id);
+                            self.value_parents.entry(result).or_default()
+                                .push(function.dfg.resolve(*value_id));
                         }
                     } else {
                         debug!("load instruction {} has attempted to access previously unused memory location, skipping",
@@ -160,12 +161,14 @@ impl DependencyContext {
                 }
                 // Record the constrain instruction arguments to check them against those
                 // involved in brillig calls
-                Instruction::Constrain(value1, value2, _) => {
-                    self.constrained_values.push(vec![*value1, *value2]);
+                Instruction::Constrain(value_id1, value_id2, _) => {
+                    self.constrained_values.push(vec![
+                        function.dfg.resolve(*value_id1), 
+                        function.dfg.resolve(*value_id2)]);
                 }
                 // Consider range check to also be constraining
                 Instruction::RangeCheck { value, .. } => {
-                    self.constrained_values.push(vec![*value]);
+                    self.constrained_values.push(vec![function.dfg.resolve(*value)]);
                 }
                 Instruction::Call { func: func_id, arguments } => {
                     match &function.dfg[*func_id] {

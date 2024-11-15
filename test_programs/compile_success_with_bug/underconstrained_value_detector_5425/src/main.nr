@@ -1,37 +1,20 @@
-unconstrained fn maximum_price(options: [u32; 3]) -> u32 {
-    let mut maximum_option = 0;
-    for option in options {
-        if (option > maximum_option) {
-            maximum_option = option;
-        }
-    }
-    maximum_option
+pub global TWO_POW_128: Field = 0x100000000000000000000000000000000;
+
+unconstrained fn decompose_hint(x: Field) -> (Field, Field) {
+    (0, 0)
 }
 
-fn main(sandwiches: pub [u32; 3], drinks: pub [u32; 3], snacks: pub [u32; 3], best_value: u32) {
-    let meal_deal_cost: u32 = 390;
-    let most_expensive_sandwich = maximum_price(sandwiches);
-    let mut sandwich_exists = false;
-    for sandwich_price in sandwiches {
-        assert(sandwich_price <= most_expensive_sandwich);
-        sandwich_exists |= sandwich_price == most_expensive_sandwich;
-    }
-    assert(sandwich_exists);
+fn decompose(x: Field) -> (Field, Field) {
+    unsafe {
+        let (xlo, xhi) = decompose_hint(x);
 
-    let most_expensive_drink = maximum_price(drinks);
-    let mut drink_exists = false;
-    for drink_price in drinks {
-        assert(drink_price <= most_expensive_drink);
-        drink_exists |= drink_price == most_expensive_drink;
+        xlo.assert_max_bit_size::<128>();
+        xhi.assert_max_bit_size::<128>();
+        //assert_eq(x, xlo + TWO_POW_128 * xhi);
+        (xlo, xhi)
     }
-    assert(drink_exists);
+}
 
-    let most_expensive_snack = maximum_price(snacks);
-    assert(
-        best_value
-            == (
-                most_expensive_sandwich + most_expensive_drink + most_expensive_snack
-                    - meal_deal_cost
-            ),
-    );
+pub fn main(x: Field) -> pub (Field, Field) {
+    decompose(x)
 }
