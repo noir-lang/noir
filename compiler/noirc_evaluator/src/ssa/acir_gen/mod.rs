@@ -9,7 +9,7 @@ use self::acir_ir::generated_acir::BrilligStdlibFunc;
 use super::function_builder::data_bus::DataBus;
 use super::ir::dfg::CallStack;
 use super::ir::function::FunctionId;
-use super::ir::instruction::{ConstrainError, ErrorType};
+use super::ir::instruction::{ConstrainError, ErrorType, Hint};
 use super::ir::printer::try_to_extract_string_from_error_payload;
 use super::{
     ir::{
@@ -2170,6 +2170,11 @@ impl<'a> Context<'a> {
         result_ids: &[ValueId],
     ) -> Result<Vec<AcirValue>, RuntimeError> {
         match intrinsic {
+            Intrinsic::Hint(Hint::BlackBox) => {
+                // Identity function; at the ACIR level this is a no-op, it only affects the SSA.
+                assert_eq!(arguments.len(), 1, "ICE: BlackBox hint must have a single argument.");
+                Ok(vec![self.convert_value(arguments[0], dfg)])
+            }
             Intrinsic::BlackBox(black_box) => {
                 // Slices are represented as a tuple of (length, slice contents).
                 // We must check the inputs to determine if there are slices
