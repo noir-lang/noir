@@ -97,6 +97,26 @@ struct DependencyContext {
     constrained_values: Vec<Vec<ValueId>>,
     // Map of brillig call ids to sets of their arguments and results
     brillig_values: HashMap<InstructionId, (HashSet<ValueId>, HashSet<ValueId>)>,
+    tainted: HashMap<InstructionId, BrilligTaintedIds>,
+}
+
+#[derive(Clone)]
+struct BrilligTaintedIds {
+    arguments: HashSet<ValueId>,
+    results: Vec<HashSet<ValueId>>,
+}
+
+impl BrilligTaintedIds {
+    fn mark_child(&mut self, parent: &ValueId, child: ValueId) {
+        if self.arguments.contains(parent) {
+            self.arguments.insert(child);
+        }
+        for result in &mut self.results {
+            if result.contains(parent) {
+                result.insert(child);
+            }
+        }
+    }
 }
 
 impl DependencyContext {
@@ -133,7 +153,7 @@ impl DependencyContext {
                 }
             });
 
-            // Assign parent arguments to non-constant results
+            // Collect non-constant instruction results
             for value_id in function.dfg.instruction_results(*instruction).iter() {
                 if function.dfg.get_numeric_constant(*value_id).is_none() {
                     results.push(function.dfg.resolve(*value_id));
@@ -168,13 +188,21 @@ impl DependencyContext {
                     if let Value::Function(callee) = &function.dfg[*func_id] {
                         if let RuntimeType::Brillig(_) = all_functions[&callee].runtime() {
                             trace!("brillig function {} called at {}", callee, instruction);
+                            self.tainted.insert(
+                                *instruction,
+                                BrilligTaintedIds {
+                                    arguments: HashSet::from_iter(arguments.clone()),
+                                    results: results.iter().map(|v| HashSet::from([*v])).collect(),
+                                }
+                            );
+                            
                             self.brillig_values.insert(
                                 *instruction,
                                 (
                                     HashSet::from_iter(arguments.clone()),
                                     HashSet::from_iter(results),
                                 ),
-                            );
+                            ); 
                         }
                     }
                 }
