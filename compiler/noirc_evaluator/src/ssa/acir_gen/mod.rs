@@ -2172,8 +2172,12 @@ impl<'a> Context<'a> {
         match intrinsic {
             Intrinsic::Hint(Hint::BlackBox) => {
                 // Identity function; at the ACIR level this is a no-op, it only affects the SSA.
-                assert_eq!(arguments.len(), 1, "ICE: BlackBox hint must have a single argument.");
-                Ok(vec![self.convert_value(arguments[0], dfg)])
+                assert_eq!(
+                    arguments.len(),
+                    result_ids.len(),
+                    "ICE: BlackBox input and output lengths should match."
+                );
+                Ok(arguments.iter().map(|v| self.convert_value(*v, dfg)).collect())
             }
             Intrinsic::BlackBox(black_box) => {
                 // Slices are represented as a tuple of (length, slice contents).
