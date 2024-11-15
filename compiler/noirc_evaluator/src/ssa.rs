@@ -155,7 +155,7 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
         .run_pass(Ssa::remove_enable_side_effects, "After EnableSideEffectsIf removal:")
         .run_pass(Ssa::fold_constants_using_constraints, "After Constraint Folding:")
         .run_pass(Ssa::dead_instruction_elimination, "After Dead Instruction Elimination:")
-        .run_pass(Ssa::simplify_cfg, "After Simplifying:")
+        .run_pass(Ssa::simplify_cfg, "After Simplifying (3rd):")
         .run_pass(Ssa::array_set_optimization, "After Array Set Optimizations:")
         .finish())
 }
