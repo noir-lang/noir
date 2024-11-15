@@ -163,17 +163,73 @@ impl DependencyContext {
                 Instruction::Constrain(value1, value2, _) => {
                     self.constrained_values.push(vec![*value1, *value2]);
                 }
-                // Record arguments/results for each brillig call for the check
+                // Consider range check to also be constraining
+                Instruction::RangeCheck { value, .. } => {
+                    self.constrained_values.push(vec![*value]);
+                }
                 Instruction::Call { func: func_id, arguments } => {
-                    if let Value::Function(callee) = &function.dfg[*func_id] {
-                        if let RuntimeType::Brillig(_) = all_functions[&callee].runtime() {
-                            trace!("brillig function {} called at {}", callee, instruction);
-                            self.brillig_values.insert(
-                                *instruction,
-                                (
-                                    HashSet::from_iter(arguments.clone()),
-                                    HashSet::from_iter(results),
-                                ),
+                    match &function.dfg[*func_id] {
+                        Value::Intrinsic(intrinsic) => match intrinsic {
+                            Intrinsic::ApplyRangeConstraint | Intrinsic::AssertConstant => {
+                                // Consider these intrinsic arguments constrained
+                                self.constrained_values.push(arguments.clone());
+                            }
+                            Intrinsic::AsWitness | Intrinsic::IsUnconstrained => {
+                                // These intrinsics won't affect the dependency graph
+                            }
+                            Intrinsic::ArrayLen
+                            | Intrinsic::ArrayAsStrUnchecked
+                            | Intrinsic::AsField
+                            | Intrinsic::AsSlice
+                            | Intrinsic::BlackBox(..)
+                            | Intrinsic::DerivePedersenGenerators
+                            | Intrinsic::FromField
+                            | Intrinsic::SlicePushBack
+                            | Intrinsic::SlicePushFront
+                            | Intrinsic::SlicePopBack
+                            | Intrinsic::SlicePopFront
+                            | Intrinsic::SliceInsert
+                            | Intrinsic::SliceRemove
+                            | Intrinsic::StaticAssert
+                            | Intrinsic::StrAsBytes
+                            | Intrinsic::ToBits(..)
+                            | Intrinsic::ToRadix(..)
+                            | Intrinsic::FieldLessThan => {
+                                // Record all the function arguments as parents of the results
+                                for result in results {
+                                    self.value_parents.entry(result).or_default().extend(arguments);
+                                }
+                            }
+                        },
+                        Value::Function(callee) => match all_functions[&callee].runtime() {
+                            RuntimeType::Brillig(_) => {
+                                // Record arguments/results for each brillig call for the check
+                                trace!("brillig function {} called at {}", callee, instruction);
+                                self.brillig_values.insert(
+                                    *instruction,
+                                    (
+                                        HashSet::from_iter(arguments.clone()),
+                                        HashSet::from_iter(results),
+                                    ),
+                                );
+                            }
+                            RuntimeType::Acir(..) => {
+                                // Record all the function arguments as parents of the results
+                                for result in results {
+                                    self.value_parents.entry(result).or_default().extend(arguments);
+                                }
+                            }
+                        },
+                        Value::ForeignFunction(..) => {
+                            debug!("should not be able to reach foreign function from non-brillig functions, {func_id} in function {}", function.name());
+                        }
+                        Value::Array { .. }
+                        | Value::Instruction { .. }
+                        | Value::NumericConstant { .. }
+                        | Value::Param { .. } => {
+                            debug!(
+                                "should not be able to call {func_id} in function {}",
+                                function.name()
                             );
                         }
                     }
@@ -194,8 +250,7 @@ impl DependencyContext {
                 Instruction::Allocate { .. }
                 | Instruction::DecrementRc { .. }
                 | Instruction::EnableSideEffectsIf { .. }
-                | Instruction::IncrementRc { .. }
-                | Instruction::RangeCheck { .. } => {}
+                | Instruction::IncrementRc { .. } => {}
             }
         }
 
