@@ -5,8 +5,11 @@
 
 pub mod errors;
 
+mod acir_gen;
+
 // SSA code to create the SSA based IR
 // for functions and execute different optimizations.
+
 pub mod ssa;
 
 pub mod brillig;

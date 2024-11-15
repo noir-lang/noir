@@ -1,12 +1,7 @@
 //! `GeneratedAcir` is constructed as part of the `acir_gen` pass to accumulate all of the ACIR
 //! program as it is being converted from SSA form.
-use std::{collections::BTreeMap, u32};
+use std::collections::BTreeMap;
 
-use crate::{
-    brillig::{brillig_gen::brillig_directive, brillig_ir::artifact::GeneratedBrillig},
-    errors::{InternalError, RuntimeError, SsaReport},
-    ssa::ir::dfg::CallStack,
-};
 use acvm::acir::{
     circuit::{
         brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
@@ -19,6 +14,12 @@ use acvm::acir::{
 use acvm::{
     acir::AcirField,
     acir::{circuit::directives::Directive, native_types::Expression},
+};
+
+use crate::{
+    brillig::{brillig_gen::brillig_directive, brillig_ir::artifact::GeneratedBrillig},
+    errors::{InternalError, RuntimeError, SsaReport},
+    ssa::ir::dfg::CallStack,
 };
 
 use iter_extended::vecmap;
