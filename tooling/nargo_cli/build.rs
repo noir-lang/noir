@@ -168,7 +168,11 @@ fn generate_test_cases(
     }
     let test_cases = test_cases.join("\n");
 
-    // Use a common mutex for all test cases.
+    // We need to isolate test cases in the same group, otherwise they overwrite each other's artifacts.
+    // On CI we use `cargo nextest`, which runs tests in different processes; for this we use a file lock.
+    // Locally we might be using `cargo test`, which run tests in the same process; in this case the file lock
+    // wouldn't work, becuase the process itself has the lock, and it looks like it can have N instances without
+    // any problems; for this reason we also use a `Mutex`.
     let mutex_name = format! {"TEST_MUTEX_{}", test_name.to_uppercase()};
     write!(
         test_file,
@@ -180,10 +184,16 @@ lazy_static::lazy_static! {{
 
 {test_cases}
 fn test_{test_name}(force_brillig: bool, inliner_aggressiveness: i64) {{
-    // Ignore poisoning errors if some of the matrix cases failed.
-    let _guard = {mutex_name}.lock().unwrap_or_else(|e| e.into_inner()); 
-
     let test_program_dir = PathBuf::from("{test_dir}");
+
+    // Ignore poisoning errors if some of the matrix cases failed.
+    let mutex_guard = {mutex_name}.lock().unwrap_or_else(|e| e.into_inner());
+
+    let file_guard = file_lock::FileLock::lock(
+        test_program_dir.join("Nargo.toml"),
+        true,
+        file_lock::FileOptions::new().read(true).write(true).append(true)
+    ).expect("failed to lock Nargo.toml");
 
     let mut nargo = Command::cargo_bin("nargo").unwrap();
     nargo.arg("--program-dir").arg(test_program_dir);
@@ -194,6 +204,9 @@ fn test_{test_name}(force_brillig: bool, inliner_aggressiveness: i64) {{
     }}
 
     {test_content}
+
+    drop(file_guard);
+    drop(mutex_guard);
 }}
 "#
     )
@@ -363,7 +376,7 @@ fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Pa
             "info",
             &format!(
                 r#"
-                nargo.arg("--json");                
+                nargo.arg("--json");
                 {assert_zero_opcodes}
             "#,
             ),

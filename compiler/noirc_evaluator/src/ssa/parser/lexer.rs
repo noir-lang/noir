@@ -60,6 +60,7 @@ impl<'a> Lexer<'a> {
             Some(']') => self.single_char_token(Token::RightBracket),
             Some('&') => self.single_char_token(Token::Ampersand),
             Some('-') if self.peek_char() == Some('>') => self.double_char_token(Token::Arrow),
+            Some('-') => self.single_char_token(Token::Dash),
             Some(ch) if ch.is_ascii_alphanumeric() || ch == '_' => self.eat_alpha_numeric(ch),
             Some(char) => Err(LexerError::UnexpectedCharacter {
                 char,
@@ -240,7 +241,7 @@ type SpannedTokenResult = Result<SpannedToken, LexerError>;
 
 #[derive(Debug, Error)]
 pub(crate) enum LexerError {
-    #[error("Unexpected character: {char}")]
+    #[error("Unexpected character: {char:?}")]
     UnexpectedCharacter { char: char, span: Span },
     #[error("Invalid integer literal")]
     InvalidIntegerLiteral { span: Span, found: String },
