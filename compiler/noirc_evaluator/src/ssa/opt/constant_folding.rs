@@ -113,9 +113,9 @@ type InstructionResultCache = HashMap<Instruction, HashMap<Option<ValueId>, Resu
 /// Records the results of all duplicate [`Instruction`]s along with the blocks in which they sit.
 ///
 /// For more information see [`InstructionResultCache`].
-#[derive(Default)]
 struct ResultCache {
     results: Vec<(BasicBlockId, Vec<ValueId>)>,
+    original_instruction: InstructionId,
 }
 
 impl Context {
@@ -159,15 +159,23 @@ impl Context {
         let old_results = dfg.instruction_results(id).to_vec();
 
         // If a copy of this instruction exists earlier in the block, then reuse the previous results.
-        if let Some(cached_results) =
-            self.get_cached(dfg, &instruction, *side_effects_enabled_var, block)
-        {
-            Self::replace_result_ids(dfg, &old_results, cached_results);
-            return;
+        if instruction.can_be_deduplicated(dfg, self.use_constraint_info) {
+            let can_be_moved = instruction.can_be_moved(dfg);
+
+            if let Some((cached_results, instruction_id)) =
+                self.get_cached(dfg, &instruction, *side_effects_enabled_var, block, can_be_moved)
+            {
+                Self::replace_result_ids(dfg, &old_results, cached_results);
+                if let Some(instruction_id) = instruction_id {
+                    dfg[block].insert_instruction(instruction_id);
+                }
+                return;
+            }
         }
 
         // Otherwise, try inserting the instruction again to apply any optimizations using the newly resolved inputs.
-        let new_results = Self::push_instruction(id, instruction.clone(), &old_results, block, dfg);
+        let (new_results, instruction_id) =
+            Self::push_instruction(id, instruction.clone(), &old_results, block, dfg);
 
         Self::replace_result_ids(dfg, &old_results, &new_results);
 
@@ -177,6 +185,7 @@ impl Context {
             dfg,
             *side_effects_enabled_var,
             block,
+            instruction_id,
         );
 
         // If we just inserted an `Instruction::EnableSideEffectsIf`, we need to update `side_effects_enabled_var`
@@ -226,24 +235,26 @@ impl Context {
         old_results: &[ValueId],
         block: BasicBlockId,
         dfg: &mut DataFlowGraph,
-    ) -> Vec<ValueId> {
+    ) -> (Vec<ValueId>, Option<InstructionId>) {
         let ctrl_typevars = instruction
             .requires_ctrl_typevars()
             .then(|| vecmap(old_results, |result| dfg.type_of_value(*result)));
 
         let call_stack = dfg.get_call_stack(id);
-        let new_results =
+        let (new_results, instruction_id) =
             match dfg.insert_instruction_and_results(instruction, block, ctrl_typevars, call_stack)
             {
-                InsertInstructionResult::SimplifiedTo(new_result) => vec![new_result],
-                InsertInstructionResult::SimplifiedToMultiple(new_results) => new_results,
-                InsertInstructionResult::Results(_, new_results) => new_results.to_vec(),
-                InsertInstructionResult::InstructionRemoved => vec![],
+                InsertInstructionResult::SimplifiedTo(new_result) => (vec![new_result], None),
+                InsertInstructionResult::SimplifiedToMultiple(new_results) => (new_results, None),
+                InsertInstructionResult::Results(instruction_id, new_results) => {
+                    (new_results.to_vec(), Some(instruction_id))
+                }
+                InsertInstructionResult::InstructionRemoved => (vec![], None),
             };
         // Optimizations while inserting the instruction should not change the number of results.
         assert_eq!(old_results.len(), new_results.len());
 
-        new_results
+        (new_results, instruction_id)
     }
 
     fn cache_instruction(
@@ -253,6 +264,7 @@ impl Context {
         dfg: &DataFlowGraph,
         side_effects_enabled_var: ValueId,
         block: BasicBlockId,
+        instruction_id: Option<InstructionId>,
     ) {
         if self.use_constraint_info {
             // If the instruction was a constraint, then create a link between the two `ValueId`s
@@ -285,17 +297,19 @@ impl Context {
 
         // If the instruction doesn't have side-effects and if it won't interact with enable_side_effects during acir_gen,
         // we cache the results so we can reuse them if the same instruction appears again later in the block.
-        if instruction.can_be_deduplicated(dfg, self.use_constraint_info) {
-            let use_predicate =
-                self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
-            let predicate = use_predicate.then_some(side_effects_enabled_var);
+        if let Some(instruction_id) = instruction_id {
+            if instruction.can_be_deduplicated(dfg, self.use_constraint_info) {
+                let use_predicate =
+                    self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
+                let predicate = use_predicate.then_some(side_effects_enabled_var);
 
-            self.cached_instruction_results
-                .entry(instruction)
-                .or_default()
-                .entry(predicate)
-                .or_default()
-                .cache(block, instruction_results);
+                self.cached_instruction_results
+                    .entry(instruction)
+                    .or_default()
+                    .entry(predicate)
+                    .or_insert_with(|| ResultCache::new(instruction_id))
+                    .cache(block, instruction_results);
+            }
         }
     }
 
@@ -323,17 +337,22 @@ impl Context {
         instruction: &Instruction,
         side_effects_enabled_var: ValueId,
         block: BasicBlockId,
-    ) -> Option<&'a [ValueId]> {
+        can_be_moved: bool,
+    ) -> Option<CacheResult> {
         let results_for_instruction = self.cached_instruction_results.get(instruction)?;
 
         let predicate = self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
         let predicate = predicate.then_some(side_effects_enabled_var);
 
-        results_for_instruction.get(&predicate)?.get(block, &mut self.dom)
+        results_for_instruction.get(&predicate)?.get(block, &mut self.dom, can_be_moved)
     }
 }
 
 impl ResultCache {
+    fn new(original_instruction: InstructionId) -> Self {
+        Self { original_instruction, results: Vec::new() }
+    }
+
     /// Records that an `Instruction` in block `block` produced the result values `results`.
     fn cache(&mut self, block: BasicBlockId, results: Vec<ValueId>) {
         self.results.push((block, results));
@@ -345,15 +364,26 @@ impl ResultCache {
     /// We require that the cached instruction's block dominates `block` in order to avoid
     /// cycles causing issues (e.g. two instructions being replaced with the results of each other
     /// such that neither instruction exists anymore.)
-    fn get(&self, block: BasicBlockId, dom: &mut DominatorTree) -> Option<&[ValueId]> {
+    fn get(
+        &self,
+        block: BasicBlockId,
+        dom: &mut DominatorTree,
+        can_be_moved: bool,
+    ) -> Option<CacheResult> {
         for (origin_block, results) in &self.results {
             if dom.dominates(*origin_block, block) {
-                return Some(results);
+                return Some((results, None));
             }
+        }
+        if can_be_moved && !self.results.is_empty() {
+            let results = &self.results[0].1;
+            return Some((results, Some(self.original_instruction)));
         }
         None
     }
 }
+
+type CacheResult<'a> = (&'a [ValueId], Option<InstructionId>);
 
 #[cfg(test)]
 mod test {

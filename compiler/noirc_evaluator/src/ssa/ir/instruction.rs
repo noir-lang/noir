@@ -363,6 +363,41 @@ impl Instruction {
         }
     }
 
+    /// True if this instruction can be moved to a different block without changing semantics.
+    /// Note that this assumes any values referenced are still defined in the other block.
+    pub(crate) fn can_be_moved(&self, dfg: &DataFlowGraph) -> bool {
+        use Instruction::*;
+
+        match self {
+            // These either have side-effects or interact with memory
+            EnableSideEffectsIf { .. }
+            | Allocate
+            | Load { .. }
+            | Store { .. }
+            | Constrain(..)
+            | RangeCheck { .. }
+            | IncrementRc { .. }
+            | DecrementRc { .. } => false,
+
+            Call { func, .. } => match dfg[*func] {
+                Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
+                _ => false,
+            },
+
+            // These can have different behavior depending on the EnableSideEffectsIf context.
+            // Replacing them with a similar instruction potentially enables replacing an instruction
+            // with one that was disabled. See
+            // https://github.com/noir-lang/noir/pull/4716#issuecomment-2047846328.
+            Binary(_)
+            | Cast(_, _)
+            | Not(_)
+            | Truncate { .. }
+            | IfElse { .. }
+            | ArrayGet { .. }
+            | ArraySet { .. } => !self.requires_acir_gen_predicate(dfg),
+        }
+    }
+
     pub(crate) fn can_eliminate_if_unused(&self, dfg: &DataFlowGraph) -> bool {
         use Instruction::*;
         match self {
