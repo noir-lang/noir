@@ -823,8 +823,8 @@ impl<'block> BrilligBlock<'block> {
             )
         });
 
-        for (arg, ret) in argument_variables.into_iter().zip(return_variables) {
-            self.brillig_context.mov_instruction(arg.extract_register(), ret.extract_register());
+        for (src, dst) in argument_variables.into_iter().zip(return_variables) {
+            self.brillig_context.mov_instruction(dst.extract_register(), src.extract_register());
         }
     }
 
