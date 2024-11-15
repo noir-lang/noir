@@ -115,7 +115,7 @@ type InstructionResultCache = HashMap<Instruction, HashMap<Option<ValueId>, Resu
 /// For more information see [`InstructionResultCache`].
 #[derive(Default)]
 struct ResultCache {
-    result: Option<(BasicBlockId, Vec<ValueId>)>,
+    results: Vec<(BasicBlockId, Vec<ValueId>)>,
 }
 
 impl Context {
@@ -336,20 +336,19 @@ impl Context {
         block: BasicBlockId,
     ) -> Option<CacheResult> {
         let results_for_instruction = self.cached_instruction_results.get(instruction)?;
+        let is_make_array = matches!(instruction, Instruction::MakeArray { .. });
 
         let predicate = self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
         let predicate = predicate.then_some(side_effects_enabled_var);
 
-        results_for_instruction.get(&predicate)?.get(block, &mut self.dom)
+        results_for_instruction.get(&predicate)?.get(block, &mut self.dom, is_make_array)
     }
 }
 
 impl ResultCache {
     /// Records that an `Instruction` in block `block` produced the result values `results`.
     fn cache(&mut self, block: BasicBlockId, results: Vec<ValueId>) {
-        if self.result.is_none() {
-            self.result = Some((block, results));
-        }
+        self.results.push((block, results));
     }
 
     /// Returns a set of [`ValueId`]s produced from a copy of this [`Instruction`] which sits
@@ -358,16 +357,24 @@ impl ResultCache {
     /// We require that the cached instruction's block dominates `block` in order to avoid
     /// cycles causing issues (e.g. two instructions being replaced with the results of each other
     /// such that neither instruction exists anymore.)
-    fn get(&self, block: BasicBlockId, dom: &mut DominatorTree) -> Option<CacheResult> {
-        self.result.as_ref().map(|(origin_block, results)| {
+    fn get(
+        &self,
+        block: BasicBlockId,
+        dom: &mut DominatorTree,
+        is_make_array: bool,
+    ) -> Option<CacheResult> {
+        for (origin_block, results) in &self.results {
             if dom.dominates(*origin_block, block) {
-                CacheResult::Cached(results)
-            } else {
-                // Insert a copy of this instruction in the common dominator
-                let dominator = dom.common_dominator(*origin_block, block);
-                CacheResult::NeedToHoistToCommonBlock(dominator, results)
+                return Some(CacheResult::Cached(results));
             }
-        })
+        }
+        if is_make_array && !self.results.is_empty() {
+            // Insert a copy of this instruction in the common dominator
+            let (origin_block, results) = &self.results[0];
+            let dominator = dom.common_dominator(*origin_block, block);
+            return Some(CacheResult::NeedToHoistToCommonBlock(dominator, results));
+        }
+        None
     }
 }
 
