@@ -414,7 +414,7 @@ impl Builder {
     ) -> Result<P2Value, Plonky2GenError> {
         let (type_a, target_a) = self.get_integer(lhs)?;
         let (type_b, target_b) = self.get_integer(rhs)?;
-        if type_a != type_b {
+        if type_a != type_b && type_a != P2Type::Field && type_b != P2Type::Field {
             let message = format!("mismatching arg types: {:?} and {:?}", type_a, type_b);
             return Err(Plonky2GenError::ICE { message });
         }
