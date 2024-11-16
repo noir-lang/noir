@@ -20,7 +20,7 @@ use num_bigint::BigUint;
 use std::cmp::Ordering;
 use std::{borrow::Cow, hash::Hash};
 
-use crate::brillig::{brillig_gen::brillig_directive, brillig_ir::artifact::GeneratedBrillig};
+use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
 use crate::errors::{InternalBug, InternalError, RuntimeError, SsaReport};
 use crate::ssa::ir::{
     dfg::CallStack, instruction::Endian, types::NumericType, types::Type as SsaType,
@@ -28,7 +28,7 @@ use crate::ssa::ir::{
 
 use super::big_int::BigIntContext;
 use super::generated_acir::{BrilligStdlibFunc, GeneratedAcir, PLACEHOLDER_BRILLIG_INDEX};
-use super::{AcirDynamicArray, AcirValue};
+use super::{brillig_directive, AcirDynamicArray, AcirValue};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 /// High level Type descriptor for Variables.
