@@ -1008,6 +1008,7 @@ impl Builder {
                 let bit_size = match typ {
                     Type::Numeric(numeric_type) => match numeric_type {
                         NumericType::Unsigned { bit_size } => bit_size,
+                        NumericType::NativeField => 64,
                         _ => {
                             let feature_name = format!("cast to {numeric_type}");
                             return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
