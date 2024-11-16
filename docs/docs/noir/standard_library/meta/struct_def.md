@@ -17,7 +17,7 @@ Adds an attribute to the struct.
 
 #include_code add_generic noir_stdlib/src/meta/struct_def.nr rust
 
-Adds an generic to the struct. Returns the new generic type.
+Adds a generic to the struct. Returns the new generic type.
 Errors if the given generic name isn't a single identifier or if
 the struct already has a generic with the same name.
 
