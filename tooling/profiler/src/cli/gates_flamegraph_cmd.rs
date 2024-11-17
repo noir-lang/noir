@@ -94,7 +94,6 @@ fn run_with_provider<Provider: GatesProvider, Generator: FlamegraphGenerator>(
         flamegraph_generator.generate_flamegraph(
             samples,
             &debug_artifact.debug_symbols[func_idx],
-            false,
             &debug_artifact,
             artifact_path.to_str().unwrap(),
             &func_name,
@@ -148,7 +147,6 @@ mod tests {
             &self,
             _samples: Vec<S>,
             _debug_symbols: &DebugInfo,
-            _forced_brillig: bool,
             _files: &'files impl Files<'files, FileId = fm::FileId>,
             _artifact_name: &str,
             _function_name: &str,

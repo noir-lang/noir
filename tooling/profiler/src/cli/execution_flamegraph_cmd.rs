@@ -3,11 +3,8 @@ use std::path::{Path, PathBuf};
 use acir::circuit::OpcodeLocation;
 use clap::Args;
 use color_eyre::eyre::{self, Context};
-use fxhash::FxHashMap as HashMap;
 
-use crate::flamegraph::{
-    BrilligExecutionSample, CompilationSample, FlamegraphGenerator, InfernoFlamegraphGenerator,
-};
+use crate::flamegraph::{BrilligExecutionSample, FlamegraphGenerator, InfernoFlamegraphGenerator};
 use crate::fs::{read_inputs_from_file, read_program_from_file};
 use crate::opcode_formatter::format_brillig_opcode;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
@@ -90,7 +87,6 @@ fn run_with_generator(
     flamegraph_generator.generate_flamegraph(
         profiling_samples,
         &debug_artifact.debug_symbols[0],
-        true,
         &debug_artifact,
         artifact_path.to_str().unwrap(),
         "main",

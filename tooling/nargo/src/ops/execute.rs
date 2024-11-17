@@ -230,8 +230,6 @@ pub fn execute_program_with_profiling<
     foreign_call_executor: &mut E,
 ) -> Result<(WitnessStack<F>, ProfilingSamples), NargoError<F>> {
     let profiling_active = true;
-    let prof_sample_size = std::mem::size_of::<ProfilingSample>();
-    println!("prof sample size: {}", prof_sample_size);
     execute_program_inner(
         program,
         initial_witness,
