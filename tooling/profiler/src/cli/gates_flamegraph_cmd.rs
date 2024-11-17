@@ -106,10 +106,7 @@ fn run_with_provider<Provider: GatesProvider, Generator: FlamegraphGenerator>(
 
 #[cfg(test)]
 mod tests {
-    use acir::{
-        circuit::{Circuit, Program},
-        AcirField,
-    };
+    use acir::circuit::{Circuit, Program};
     use color_eyre::eyre::{self};
     use fm::codespan_files::Files;
     use noirc_artifacts::program::ProgramArtifact;
@@ -120,7 +117,7 @@ mod tests {
     };
 
     use crate::{
-        flamegraph::{CompilationSample, Sample},
+        flamegraph::Sample,
         gates_provider::{BackendGatesReport, BackendGatesResponse, GatesProvider},
     };
 
