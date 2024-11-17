@@ -45,6 +45,12 @@ fn run_with_generator(
     let program =
         read_program_from_file(artifact_path).context("Error reading program from file")?;
 
+    assert_eq!(
+        program.bytecode.unconstrained_functions.len(),
+        1,
+        "This command should only be run with a program force compiled to Brillig"
+    );
+
     let (inputs_map, _) = read_inputs_from_file(prover_toml_path, Format::Toml, &program.abi)?;
 
     let initial_witness = program.abi.encode(&inputs_map, None)?;
@@ -76,7 +82,7 @@ fn run_with_generator(
                     }
                 })
                 .map(format_brillig_opcode);
-            BrilligExecutionSample { opcode, call_stack }
+            BrilligExecutionSample { opcode, call_stack, brillig_function_id }
         })
         .collect();
 

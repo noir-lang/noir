@@ -51,6 +51,7 @@ impl Sample for CompilationSample {
 pub(crate) struct BrilligExecutionSample {
     pub(crate) opcode: Option<String>,
     pub(crate) call_stack: Vec<OpcodeLocation>,
+    pub(crate) brillig_function_id: Option<BrilligFunctionId>,
 }
 
 impl Sample for BrilligExecutionSample {
@@ -59,7 +60,8 @@ impl Sample for BrilligExecutionSample {
     }
 
     fn brillig_function_id(&self) -> Option<BrilligFunctionId> {
-        Some(BrilligFunctionId(0))
+        // Some(BrilligFunctionId(0))
+        self.brillig_function_id
     }
 
     fn call_stack(&self) -> &[OpcodeLocation] {
