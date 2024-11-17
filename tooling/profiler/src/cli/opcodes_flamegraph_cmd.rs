@@ -7,7 +7,7 @@ use color_eyre::eyre::{self, Context};
 
 use noirc_artifacts::debug::DebugArtifact;
 
-use crate::flamegraph::{FlamegraphGenerator, InfernoFlamegraphGenerator, Sample};
+use crate::flamegraph::{CompilationSample, FlamegraphGenerator, InfernoFlamegraphGenerator};
 use crate::fs::read_program_from_file;
 use crate::opcode_formatter::{format_acir_opcode, format_brillig_opcode};
 
@@ -59,9 +59,10 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
             .opcodes
             .iter()
             .enumerate()
-            .map(|(index, opcode)| Sample {
+            .map(|(index, opcode)| CompilationSample {
                 opcode: Some(format_acir_opcode(opcode)),
                 call_stack: vec![OpcodeLocation::Acir(index)],
+                // call_stack_index: 0,
                 count: 1,
                 brillig_function_id: None,
             })
@@ -70,6 +71,7 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
         flamegraph_generator.generate_flamegraph(
             samples,
             &debug_artifact.debug_symbols[func_idx],
+            false,
             &debug_artifact,
             artifact_path.to_str().unwrap(),
             &func_name,
@@ -96,12 +98,14 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
                 .bytecode
                 .into_iter()
                 .enumerate()
-                .map(|(brillig_index, opcode)| Sample {
+                .map(|(brillig_index, opcode)| CompilationSample {
                     opcode: Some(format_brillig_opcode(&opcode)),
                     call_stack: vec![OpcodeLocation::Brillig {
                         acir_index: acir_opcode_index,
                         brillig_index,
                     }],
+                    // call_stack_index: 0,
+                    // count: None,
                     count: 1,
                     brillig_function_id: Some(BrilligFunctionId(brillig_fn_index as u32)),
                 })
@@ -110,6 +114,7 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
             flamegraph_generator.generate_flamegraph(
                 samples,
                 &debug_artifact.debug_symbols[acir_fn_index],
+                false,
                 &debug_artifact,
                 artifact_path.to_str().unwrap(),
                 &format!("brillig_{}", brillig_fn_index),
@@ -146,7 +151,7 @@ mod tests {
             brillig::{BrilligBytecode, BrilligFunctionId},
             Circuit, Opcode, Program,
         },
-        AcirField, FieldElement,
+        FieldElement,
     };
     use color_eyre::eyre::{self};
     use fm::codespan_files::Files;
@@ -160,10 +165,11 @@ mod tests {
     struct TestFlamegraphGenerator {}
 
     impl super::FlamegraphGenerator for TestFlamegraphGenerator {
-        fn generate_flamegraph<'files>(
+        fn generate_flamegraph<'files, S: Sample>(
             &self,
-            _samples: Vec<Sample>,
+            _samples: Vec<S>,
             _debug_symbols: &DebugInfo,
+            _forced_brillig: bool,
             _files: &'files impl Files<'files, FileId = fm::FileId>,
             _artifact_name: &str,
             _function_name: &str,

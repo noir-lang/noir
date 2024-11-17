@@ -3,8 +3,11 @@ use std::path::{Path, PathBuf};
 use acir::circuit::OpcodeLocation;
 use clap::Args;
 use color_eyre::eyre::{self, Context};
+use fxhash::FxHashMap as HashMap;
 
-use crate::flamegraph::{FlamegraphGenerator, InfernoFlamegraphGenerator, Sample};
+use crate::flamegraph::{
+    BrilligExecutionSample, CompilationSample, FlamegraphGenerator, InfernoFlamegraphGenerator,
+};
 use crate::fs::{read_inputs_from_file, read_program_from_file};
 use crate::opcode_formatter::format_brillig_opcode;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
@@ -60,11 +63,11 @@ fn run_with_generator(
 
     println!("Collecting {} samples", profiling_samples.len());
 
-    let profiling_samples: Vec<Sample> = profiling_samples
+    let profiling_samples: Vec<BrilligExecutionSample> = profiling_samples
         .iter_mut()
         .map(|sample| {
             let call_stack = std::mem::take(&mut sample.call_stack);
-            let brillig_function_id = sample.brillig_function_id;
+            let brillig_function_id = std::mem::take(&mut sample.brillig_function_id);
             let last_entry = call_stack.last();
             let opcode = brillig_function_id
                 .and_then(|id| program.bytecode.unconstrained_functions.get(id.0 as usize))
@@ -76,7 +79,7 @@ fn run_with_generator(
                     }
                 })
                 .map(format_brillig_opcode);
-            Sample { opcode, call_stack, count: 1, brillig_function_id }
+            BrilligExecutionSample { opcode, call_stack }
         })
         .collect();
 
@@ -87,6 +90,7 @@ fn run_with_generator(
     flamegraph_generator.generate_flamegraph(
         profiling_samples,
         &debug_artifact.debug_symbols[0],
+        true,
         &debug_artifact,
         artifact_path.to_str().unwrap(),
         "main",

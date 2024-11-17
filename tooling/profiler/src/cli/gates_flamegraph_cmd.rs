@@ -6,7 +6,7 @@ use color_eyre::eyre::{self, Context};
 
 use noirc_artifacts::debug::DebugArtifact;
 
-use crate::flamegraph::{FlamegraphGenerator, InfernoFlamegraphGenerator, Sample};
+use crate::flamegraph::{CompilationSample, FlamegraphGenerator, InfernoFlamegraphGenerator};
 use crate::fs::read_program_from_file;
 use crate::gates_provider::{BackendGatesProvider, GatesProvider};
 use crate::opcode_formatter::format_acir_opcode;
@@ -83,9 +83,11 @@ fn run_with_provider<Provider: GatesProvider, Generator: FlamegraphGenerator>(
             .into_iter()
             .zip(bytecode.opcodes)
             .enumerate()
-            .map(|(index, (gates, opcode))| Sample {
+            .map(|(index, (gates, opcode))| CompilationSample {
                 opcode: Some(format_acir_opcode(&opcode)),
                 call_stack: vec![OpcodeLocation::Acir(index)],
+                // call_stack_index: 0,
+                // count: Some(gates),
                 count: gates,
                 brillig_function_id: None,
             })
@@ -94,6 +96,7 @@ fn run_with_provider<Provider: GatesProvider, Generator: FlamegraphGenerator>(
         flamegraph_generator.generate_flamegraph(
             samples,
             &debug_artifact.debug_symbols[func_idx],
+            false,
             &debug_artifact,
             artifact_path.to_str().unwrap(),
             &func_name,
@@ -120,7 +123,7 @@ mod tests {
     };
 
     use crate::{
-        flamegraph::Sample,
+        flamegraph::{CompilationSample, Sample},
         gates_provider::{BackendGatesReport, BackendGatesResponse, GatesProvider},
     };
 
@@ -143,10 +146,11 @@ mod tests {
     struct TestFlamegraphGenerator {}
 
     impl super::FlamegraphGenerator for TestFlamegraphGenerator {
-        fn generate_flamegraph<'files>(
+        fn generate_flamegraph<'files, S: Sample>(
             &self,
-            _samples: Vec<Sample>,
+            _samples: Vec<S>,
             _debug_symbols: &DebugInfo,
+            _forced_brillig: bool,
             _files: &'files impl Files<'files, FileId = fm::FileId>,
             _artifact_name: &str,
             _function_name: &str,

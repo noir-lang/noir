@@ -4,7 +4,8 @@ use acvm::acir::circuit::{
 };
 use acvm::acir::native_types::WitnessStack;
 use acvm::pwg::{
-    ACVMStatus, ErrorLocation, OpcodeNotSolvable, OpcodeResolutionError, ProfilingSamples, ACVM,
+    ACVMStatus, ErrorLocation, OpcodeNotSolvable, OpcodeResolutionError, ProfilingSample,
+    ProfilingSamples, ACVM,
 };
 use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
 use acvm::{AcirField, BlackBoxFunctionSolver};
@@ -229,6 +230,8 @@ pub fn execute_program_with_profiling<
     foreign_call_executor: &mut E,
 ) -> Result<(WitnessStack<F>, ProfilingSamples), NargoError<F>> {
     let profiling_active = true;
+    let prof_sample_size = std::mem::size_of::<ProfilingSample>();
+    println!("prof sample size: {}", prof_sample_size);
     execute_program_inner(
         program,
         initial_witness,
