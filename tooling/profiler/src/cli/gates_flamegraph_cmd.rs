@@ -86,8 +86,6 @@ fn run_with_provider<Provider: GatesProvider, Generator: FlamegraphGenerator>(
             .map(|(index, (gates, opcode))| CompilationSample {
                 opcode: Some(format_acir_opcode(&opcode)),
                 call_stack: vec![OpcodeLocation::Acir(index)],
-                // call_stack_index: 0,
-                // count: Some(gates),
                 count: gates,
                 brillig_function_id: None,
             })

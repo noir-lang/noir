@@ -62,7 +62,6 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
             .map(|(index, opcode)| CompilationSample {
                 opcode: Some(format_acir_opcode(opcode)),
                 call_stack: vec![OpcodeLocation::Acir(index)],
-                // call_stack_index: 0,
                 count: 1,
                 brillig_function_id: None,
             })
@@ -104,8 +103,6 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
                         acir_index: acir_opcode_index,
                         brillig_index,
                     }],
-                    // call_stack_index: 0,
-                    // count: None,
                     count: 1,
                     brillig_function_id: Some(BrilligFunctionId(brillig_fn_index as u32)),
                 })

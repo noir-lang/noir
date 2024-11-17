@@ -26,7 +26,6 @@ pub(crate) trait Sample {
 pub(crate) struct CompilationSample {
     pub(crate) opcode: Option<String>,
     pub(crate) call_stack: Vec<OpcodeLocation>,
-    // pub(crate) call_stack_index: u32,
     pub(crate) count: usize,
     pub(crate) brillig_function_id: Option<BrilligFunctionId>,
 }
