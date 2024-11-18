@@ -428,11 +428,13 @@ impl<'f> PerFunctionContext<'f> {
 
                 self.check_array_aliasing(references, value);
 
+                // FIXME: This causes errors in the sha256 tests
+                //
                 // If there was another store to this instruction without any (unremoved) loads or
                 // function calls in-between, we can remove the previous store.
-                if let Some(last_store) = references.last_stores.get(&address) {
-                    self.instructions_to_remove.insert(*last_store);
-                }
+                // if let Some(last_store) = references.last_stores.get(&address) {
+                //     self.instructions_to_remove.insert(*last_store);
+                // }
 
                 if self.inserter.function.dfg.value_is_reference(value) {
                     if let Some(expression) = references.expressions.get(&value) {
@@ -908,16 +910,19 @@ mod tests {
         // We would need to track whether the store where `v9` is the store value gets removed to know whether
         // to remove it.
         assert_eq!(count_stores(main.entry_block(), &main.dfg), 1);
+
         // The first store in b1 is removed since there is another store to the same reference
         // in the same block, and the store is not needed before the later store.
         // The rest of the stores are also removed as no loads are done within any blocks
         // to the stored values.
-        assert_eq!(count_stores(b1, &main.dfg), 0);
+        //
+        // NOTE: This store is not removed due to the FIXME when handling Instruction::Store.
+        assert_eq!(count_stores(b1, &main.dfg), 1);
 
         let b1_instructions = main.dfg[b1].instructions();
 
-        // We expect the last eq to be optimized out
-        assert_eq!(b1_instructions.len(), 0);
+        // We expect the last eq to be optimized out, only the store from above remains
+        assert_eq!(b1_instructions.len(), 1);
     }
 
     #[test]
