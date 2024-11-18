@@ -1606,13 +1606,6 @@ impl<'a> Context<'a> {
         match array_typ {
             Type::Array(_, _) | Type::Slice(_) => {
                 match &dfg[array_id] {
-                    // Value::Array { array, .. } => {
-                    //     for (i, value) in array.iter().enumerate() {
-                    //         flat_elem_type_sizes.push(
-                    //             self.flattened_slice_size(*value, dfg) + flat_elem_type_sizes[i],
-                    //         );
-                    //     }
-                    // }
                     Value::Instruction { .. } | Value::Param { .. } => {
                         // An instruction representing the slice means it has been processed previously during ACIR gen.
                         // Use the previously defined result of an array operation to fetch the internal type information.
