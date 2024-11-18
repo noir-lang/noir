@@ -141,6 +141,8 @@ pub(crate) fn optimize_into_acir(
         ssa.to_brillig(options.enable_brillig_logging)
     });
 
+    let ssa = ssa.inline_const_brillig_calls(&brillig);
+
     let artifacts = time("SSA to ACIR", options.print_codegen_timings, || {
         ssa.into_acir(&brillig, options.expression_width)
     })?;
