@@ -2936,7 +2936,7 @@ mod test {
     use std::collections::BTreeMap;
 
     use crate::{
-        acir_gen::BrilligStdlibFunc,
+        acir::BrilligStdlibFunc,
         brillig::Brillig,
         ssa::{
             function_builder::FunctionBuilder,

@@ -36,7 +36,7 @@ use noirc_frontend::{
 use ssa_gen::Ssa;
 use tracing::{span, Level};
 
-use crate::acir_gen::{Artifacts, GeneratedAcir};
+use crate::acir::{Artifacts, GeneratedAcir};
 
 mod checks;
 pub(super) mod function_builder;
