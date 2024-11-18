@@ -31,7 +31,7 @@ impl AliasSet {
         Self { aliases: Some(BTreeSet::new()) }
     }
 
-    pub(super) fn known_many(aliases: im::Vector<ValueId>) -> AliasSet {
+    pub(super) fn known_many(aliases: &im::Vector<ValueId>) -> AliasSet {
         Self { aliases: Some(aliases.iter().copied().collect()) }
     }
 
@@ -76,5 +76,12 @@ impl AliasSet {
                 f(*alias);
             }
         }
+    }
+
+    /// Return the first ValueId in the alias set as long as there is at least one.
+    /// The ordering is arbitrary (by lowest ValueId) so this method should only be
+    /// used when you need an arbitrary ValueId from the alias set.
+    pub(super) fn first(&self) -> Option<ValueId> {
+        self.aliases.as_ref().and_then(|aliases| aliases.first().copied())
     }
 }

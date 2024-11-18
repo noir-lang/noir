@@ -160,9 +160,7 @@ impl<'f> PerFunctionContext<'f> {
             let block_params = self.inserter.function.dfg.block_parameters(*block_id);
             per_func_block_params.extend(block_params.iter());
             let terminator = self.inserter.function.dfg[*block_id].unwrap_terminator();
-            terminator.for_each_value(|value| {
-                self.recursively_add_values(value, &mut all_terminator_values);
-            });
+            terminator.for_each_value(|value| all_terminator_values.insert(value));
         }
     }
 
@@ -176,15 +174,6 @@ impl<'f> PerFunctionContext<'f> {
             .filter(|param| self.inserter.function.dfg.value_is_reference(**param))
             .copied()
             .collect()
-    }
-
-    fn recursively_add_values(&self, value: ValueId, set: &mut HashSet<ValueId>) {
-        set.insert(value);
-        if let Some((elements, _)) = self.inserter.function.dfg.get_array_constant(value) {
-            for array_element in elements {
-                self.recursively_add_values(array_element, set);
-            }
-        }
     }
 
     /// The value of each reference at the start of the given block is the unification
@@ -215,7 +204,12 @@ impl<'f> PerFunctionContext<'f> {
     /// at the end of this block will be remembered in `self.blocks`.
     fn analyze_block(&mut self, block: BasicBlockId, mut references: Block) {
         let instructions = self.inserter.function.dfg[block].take_instructions();
-        self.add_aliases_for_reference_parameters(block, &mut references);
+
+        // If this is the entry block, take all the block parameters and assume they may
+        // be aliased to each other
+        if block == self.inserter.function.entry_block() {
+            self.add_aliases_for_reference_parameters(block, &mut references);
+        }
 
         for instruction in instructions {
             self.analyze_instruction(block, &mut references, instruction);
@@ -225,13 +219,15 @@ impl<'f> PerFunctionContext<'f> {
         self.blocks.insert(block, references);
     }
 
-    /// Add a self-alias for input parameters, similarly to how a newly allocated reference has
-    /// one alias already - itself. If we don't, then the checks using `reference_parameters()`
-    /// might find the default (empty) aliases and think the an input reference can be removed.
+    /// Go through each parameter and register that all reference parameters of the same type are
+    /// possibly aliased to each other. If there are parameters with nested references (arrays of
+    /// references or references containing other references) we give up and assume all parameter
+    /// references are `AliasSet::unknown()`.
     fn add_aliases_for_reference_parameters(&self, block: BasicBlockId, references: &mut Block) {
         let dfg = &self.inserter.function.dfg;
         let params = dfg.block_parameters(block);
-        let params = params.iter().filter(|p| dfg.value_is_reference(**p));
+
+        let mut aliases: HashMap<Type, AliasSet> = HashMap::default();
 
         for param in params {
             references.fresh_reference(*param);
@@ -274,8 +270,8 @@ impl<'f> PerFunctionContext<'f> {
                 let address = self.inserter.function.dfg.resolve(*address);
                 let value = self.inserter.function.dfg.resolve(*value);
 
-                self.check_array_aliasing(references, value);
-
+                // FIXME: This causes errors in the sha256 tests
+                //
                 // If there was another store to this instruction without any (unremoved) loads or
                 // function calls in-between, we can remove the previous store.
                 // if let Some(last_store) = references.last_stores.get(&address) {
@@ -351,20 +347,18 @@ impl<'f> PerFunctionContext<'f> {
             Instruction::Call { arguments, .. } => {
                 self.mark_all_unknown(arguments, references);
             }
-            _ => (),
-        }
-    }
+            Instruction::MakeArray { elements, typ } => {
+                // If `array` is an array constant that contains reference types, then insert each element
+                // as a potential alias to the array itself.
+                if Self::contains_references(typ) {
+                    let array = self.inserter.function.dfg.instruction_results(instruction)[0];
+                    let aliases = AliasSet::known_many(elements);
 
-    /// If `array` is an array constant that contains reference types, then insert each element
-    /// as a potential alias to the array itself.
-    fn check_array_aliasing(&self, references: &mut Block, array: ValueId) {
-        if let Some((elements, typ)) = self.inserter.function.dfg.get_array_constant(array) {
-            if Self::contains_references(&typ) {
-                // TODO: Check if type directly holds references or holds arrays that hold references
-                let expr = Expression::ArrayElement(Box::new(Expression::Other(array)));
-                let aliases = AliasSet::known_many(elements);
-                references.add_expression_with_aliases(array, expr, &aliases);
+                    let expr = Expression::ArrayElement(Box::new(Expression::Other(array)));
+                    references.add_expression_with_aliases(array, expr, &aliases);
+                }
             }
+            _ => (),
         }
     }
 
@@ -455,10 +449,11 @@ mod tests {
         // fn func() {
         //   b0():
         //     v0 = allocate
-        //     store [Field 1, Field 2] in v0
-        //     v1 = load v0
-        //     v2 = array_get v1, index 1
-        //     return v2
+        //     v1 = make_array [Field 1, Field 2]
+        //     store v1 in v0
+        //     v2 = load v0
+        //     v3 = array_get v2, index 1
+        //     return v3
         // }
 
         let func_id = Id::test_new(0);
@@ -469,12 +464,12 @@ mod tests {
 
         let element_type = Arc::new(vec![Type::field()]);
         let array_type = Type::Array(element_type, 2);
-        let array = builder.array_constant(vector![one, two], array_type.clone());
+        let v1 = builder.insert_make_array(vector![one, two], array_type.clone());
 
-        builder.insert_store(v0, array);
-        let v1 = builder.insert_load(v0, array_type);
-        let v2 = builder.insert_array_get(v1, one, Type::field());
-        builder.terminate_with_return(vec![v2]);
+        builder.insert_store(v0, v1);
+        let v2 = builder.insert_load(v0, array_type);
+        let v3 = builder.insert_array_get(v2, one, Type::field());
+        builder.terminate_with_return(vec![v3]);
 
         let ssa = builder.finish().mem2reg().fold_constants();
 
@@ -729,16 +724,19 @@ mod tests {
         // We would need to track whether the store where `v9` is the store value gets removed to know whether
         // to remove it.
         assert_eq!(count_stores(main.entry_block(), &main.dfg), 1);
+
         // The first store in b1 is removed since there is another store to the same reference
         // in the same block, and the store is not needed before the later store.
         // The rest of the stores are also removed as no loads are done within any blocks
         // to the stored values.
-        assert_eq!(count_stores(b1, &main.dfg), 0);
+        //
+        // NOTE: This store is not removed due to the FIXME when handling Instruction::Store.
+        assert_eq!(count_stores(b1, &main.dfg), 1);
 
         let b1_instructions = main.dfg[b1].instructions();
 
-        // We expect the last eq to be optimized out
-        assert_eq!(b1_instructions.len(), 0);
+        // We expect the last eq to be optimized out, only the store from above remains
+        assert_eq!(b1_instructions.len(), 1);
     }
 
     #[test]
@@ -777,7 +775,7 @@ mod tests {
         let mut builder = FunctionBuilder::new("main".into(), main_id);
 
         let v0 = builder.insert_allocate(Type::field());
-        let zero = builder.numeric_constant(0u128, Type::field());
+        let zero = builder.field_constant(0u128);
         builder.insert_store(v0, zero);
 
         let v2 = builder.insert_allocate(Type::field());
@@ -801,9 +799,9 @@ mod tests {
         // Loop body
         builder.switch_to_block(b2);
         let v5 = builder.insert_load(v2, v2_type.clone());
-        let two = builder.numeric_constant(2u128, Type::field());
+        let two = builder.field_constant(2u128);
         builder.insert_store(v5, two);
-        let one = builder.numeric_constant(1u128, Type::field());
+        let one = builder.field_constant(1u128);
         let v3_plus_one = builder.insert_binary(v3, BinaryOp::Add, one);
         builder.terminate_with_jmp(b1, vec![v3_plus_one]);
 
@@ -833,5 +831,45 @@ mod tests {
 
         assert_eq!(count_loads(b2, &main.dfg), 1);
         assert_eq!(count_loads(b3, &main.dfg), 3);
+    }
+
+    #[test]
+    fn parameter_alias() {
+        // Do not assume parameters are not aliased to each other.
+        // The load below shouldn't be removed since `v0` could
+        // be aliased to `v1`.
+        //
+        // fn main f0 {
+        //   b0(v0: &mut Field, v1: &mut Field):
+        //     store Field 0 at v0
+        //     store Field 1 at v1
+        //     v4 = load v0
+        //     constrain v4 == Field 1
+        //     return
+        // }
+        let main_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+
+        let field_ref = Type::Reference(Arc::new(Type::field()));
+        let v0 = builder.add_parameter(field_ref.clone());
+        let v1 = builder.add_parameter(field_ref.clone());
+
+        let zero = builder.field_constant(0u128);
+        let one = builder.field_constant(0u128);
+        builder.insert_store(v0, zero);
+        builder.insert_store(v1, one);
+
+        let v4 = builder.insert_load(v0, Type::field());
+        builder.insert_constrain(v4, one, None);
+        builder.terminate_with_return(Vec::new());
+
+        let ssa = builder.finish();
+        let main = ssa.main();
+        assert_eq!(count_loads(main.entry_block(), &main.dfg), 1);
+
+        // No change expected
+        let ssa = ssa.mem2reg();
+        let main = ssa.main();
+        assert_eq!(count_loads(main.entry_block(), &main.dfg), 1);
     }
 }

@@ -27,7 +27,7 @@ use crate::{
             dfg::{CallStack, DataFlowGraph},
             dom::DominatorTree,
             function::{Function, RuntimeType},
-            function_inserter::FunctionInserter,
+            function_inserter::{ArrayCache, FunctionInserter},
             instruction::{Instruction, TerminatorInstruction},
             post_order::PostOrder,
             value::ValueId,
@@ -40,54 +40,47 @@ use fxhash::FxHashMap as HashMap;
 impl Ssa {
     /// Loop unrolling can return errors, since ACIR functions need to be fully unrolled.
     /// This meta-pass will keep trying to unroll loops and simplifying the SSA until no more errors are found.
+    #[tracing::instrument(level = "trace", skip(ssa))]
     pub(crate) fn unroll_loops_iteratively(mut ssa: Ssa) -> Result<Ssa, RuntimeError> {
-        // Try to unroll loops first:
-        let mut unroll_errors;
-        (ssa, unroll_errors) = ssa.try_to_unroll_loops();
+        let acir_functions = ssa.functions.iter_mut().filter(|(_, func)| {
+            // Loop unrolling in brillig can lead to a code explosion currently. This can
+            // also be true for ACIR, but we have no alternative to unrolling in ACIR.
+            // Brillig also generally prefers smaller code rather than faster code.
+            !matches!(func.runtime(), RuntimeType::Brillig(_))
+        });
 
-        // Keep unrolling until no more errors are found
-        while !unroll_errors.is_empty() {
-            let prev_unroll_err_count = unroll_errors.len();
+        for (_, function) in acir_functions {
+            // Try to unroll loops first:
+            let mut unroll_errors = function.try_to_unroll_loops();
 
-            // Simplify the SSA before retrying
+            // Keep unrolling until no more errors are found
+            while !unroll_errors.is_empty() {
+                let prev_unroll_err_count = unroll_errors.len();
 
-            // Do a mem2reg after the last unroll to aid simplify_cfg
-            ssa = ssa.mem2reg();
-            ssa = ssa.simplify_cfg();
-            // Do another mem2reg after simplify_cfg to aid the next unroll
-            ssa = ssa.mem2reg();
+                // Simplify the SSA before retrying
 
-            // Unroll again
-            (ssa, unroll_errors) = ssa.try_to_unroll_loops();
-            // If we didn't manage to unroll any more loops, exit
-            if unroll_errors.len() >= prev_unroll_err_count {
-                return Err(unroll_errors.swap_remove(0));
+                // Do a mem2reg after the last unroll to aid simplify_cfg
+                function.mem2reg();
+                function.simplify_function();
+                // Do another mem2reg after simplify_cfg to aid the next unroll
+                function.mem2reg();
+
+                // Unroll again
+                unroll_errors = function.try_to_unroll_loops();
+                // If we didn't manage to unroll any more loops, exit
+                if unroll_errors.len() >= prev_unroll_err_count {
+                    return Err(unroll_errors.swap_remove(0));
+                }
             }
         }
-        Ok(ssa)
-    }
 
-    /// Tries to unroll all loops in each SSA function.
-    /// If any loop cannot be unrolled, it is left as-is or in a partially unrolled state.
-    /// Returns the ssa along with all unrolling errors encountered
-    #[tracing::instrument(level = "trace", skip(self))]
-    pub(crate) fn try_to_unroll_loops(mut self) -> (Ssa, Vec<RuntimeError>) {
-        let mut errors = vec![];
-        for function in self.functions.values_mut() {
-            function.try_to_unroll_loops(&mut errors);
-        }
-        (self, errors)
+        Ok(ssa)
     }
 }
 
 impl Function {
-    pub(crate) fn try_to_unroll_loops(&mut self, errors: &mut Vec<RuntimeError>) {
-        // Loop unrolling in brillig can lead to a code explosion currently. This can
-        // also be true for ACIR, but we have no alternative to unrolling in ACIR.
-        // Brillig also generally prefers smaller code rather than faster code.
-        if !matches!(self.runtime(), RuntimeType::Brillig(_)) {
-            errors.extend(find_all_loops(self).unroll_each_loop(self));
-        }
+    fn try_to_unroll_loops(&mut self) -> Vec<RuntimeError> {
+        find_all_loops(self).unroll_each_loop(self)
     }
 }
 
@@ -220,11 +213,21 @@ fn unroll_loop(
 ) -> Result<(), CallStack> {
     let mut unroll_into = get_pre_header(cfg, loop_);
     let mut jump_value = get_induction_variable(function, unroll_into)?;
+    let mut array_cache = Some(ArrayCache::default());
 
-    while let Some(context) = unroll_loop_header(function, loop_, unroll_into, jump_value)? {
-        let (last_block, last_value) = context.unroll_loop_iteration();
-        unroll_into = last_block;
-        jump_value = last_value;
+    while let Some(mut context) = unroll_loop_header(function, loop_, unroll_into, jump_value)? {
+        // The inserter's array cache must be explicitly enabled. This is to
+        // confirm that we're inserting in insertion order. This is true here since:
+        // 1. We have a fresh inserter for each loop
+        // 2. Each loop is unrolled in iteration order
+        //
+        // Within a loop we do not insert in insertion order. This is fine however since the
+        // array cache is buffered with a separate fresh_array_cache which collects arrays
+        // but does not deduplicate. When we later call `into_array_cache`, that will merge
+        // the fresh cache in with the old one so that each iteration of the loop can cache
+        // from previous iterations but not the current iteration.
+        context.inserter.set_array_cache(array_cache, unroll_into);
+        (unroll_into, jump_value, array_cache) = context.unroll_loop_iteration();
     }
 
     Ok(())
@@ -364,7 +367,7 @@ impl<'f> LoopIteration<'f> {
     /// It is expected the terminator instructions are set up to branch into an empty block
     /// for further unrolling. When the loop is finished this will need to be mutated to
     /// jump to the end of the loop instead.
-    fn unroll_loop_iteration(mut self) -> (BasicBlockId, ValueId) {
+    fn unroll_loop_iteration(mut self) -> (BasicBlockId, ValueId, Option<ArrayCache>) {
         let mut next_blocks = self.unroll_loop_block();
 
         while let Some(block) = next_blocks.pop() {
@@ -377,8 +380,11 @@ impl<'f> LoopIteration<'f> {
             }
         }
 
-        self.induction_value
-            .expect("Expected to find the induction variable by end of loop iteration")
+        let (end_block, induction_value) = self
+            .induction_value
+            .expect("Expected to find the induction variable by end of loop iteration");
+
+        (end_block, induction_value, self.inserter.into_array_cache())
     }
 
     /// Unroll a single block in the current iteration of the loop
@@ -507,10 +513,25 @@ impl<'f> LoopIteration<'f> {
 
 #[cfg(test)]
 mod tests {
-    use crate::ssa::{
-        function_builder::FunctionBuilder,
-        ir::{instruction::BinaryOp, map::Id, types::Type},
+    use crate::{
+        errors::RuntimeError,
+        ssa::{
+            function_builder::FunctionBuilder,
+            ir::{instruction::BinaryOp, map::Id, types::Type},
+        },
     };
+
+    use super::Ssa;
+
+    /// Tries to unroll all loops in each SSA function.
+    /// If any loop cannot be unrolled, it is left as-is or in a partially unrolled state.
+    fn try_to_unroll_loops(mut ssa: Ssa) -> (Ssa, Vec<RuntimeError>) {
+        let mut errors = vec![];
+        for function in ssa.functions.values_mut() {
+            errors.extend(function.try_to_unroll_loops());
+        }
+        (ssa, errors)
+    }
 
     #[test]
     fn unroll_nested_loops() {
@@ -630,7 +651,7 @@ mod tests {
         // }
         // The final block count is not 1 because unrolling creates some unnecessary jmps.
         // If a simplify cfg pass is ran afterward, the expected block count will be 1.
-        let (ssa, errors) = ssa.try_to_unroll_loops();
+        let (ssa, errors) = try_to_unroll_loops(ssa);
         assert_eq!(errors.len(), 0, "All loops should be unrolled");
         assert_eq!(ssa.main().reachable_blocks().len(), 5);
     }
@@ -680,7 +701,7 @@ mod tests {
         assert_eq!(ssa.main().reachable_blocks().len(), 4);
 
         // Expected that we failed to unroll the loop
-        let (_, errors) = ssa.try_to_unroll_loops();
+        let (_, errors) = try_to_unroll_loops(ssa);
         assert_eq!(errors.len(), 1, "Expected to fail to unroll loop");
     }
 }

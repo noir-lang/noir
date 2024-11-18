@@ -5,6 +5,9 @@ use std::{
     rc::Rc,
 };
 
+#[cfg(test)]
+use proptest_derive::Arbitrary;
+
 use acvm::{AcirField, FieldElement};
 
 use crate::{
@@ -169,15 +172,16 @@ pub enum Kind {
 }
 
 impl Kind {
+    // Kind::Numeric constructor helper
+    pub fn numeric(typ: Type) -> Kind {
+        Kind::Numeric(Box::new(typ))
+    }
+
     pub(crate) fn is_error(&self) -> bool {
         match self.follow_bindings() {
             Self::Numeric(typ) => *typ == Type::Error,
             _ => false,
         }
-    }
-
-    pub(crate) fn is_numeric(&self) -> bool {
-        matches!(self.follow_bindings(), Self::Numeric { .. })
     }
 
     pub(crate) fn is_type_level_field_element(&self) -> bool {
@@ -196,7 +200,7 @@ impl Kind {
     }
 
     pub(crate) fn u32() -> Self {
-        Self::Numeric(Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)))
+        Self::numeric(Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo))
     }
 
     pub(crate) fn follow_bindings(&self) -> Self {
@@ -205,7 +209,7 @@ impl Kind {
             Self::Normal => Self::Normal,
             Self::Integer => Self::Integer,
             Self::IntegerOrField => Self::IntegerOrField,
-            Self::Numeric(typ) => Self::Numeric(Box::new(typ.follow_bindings())),
+            Self::Numeric(typ) => Self::numeric(typ.follow_bindings()),
         }
     }
 
@@ -367,10 +371,6 @@ impl ResolvedGeneric {
     pub fn kind(&self) -> Kind {
         self.type_var.kind()
     }
-
-    pub(crate) fn is_numeric(&self) -> bool {
-        self.kind().is_numeric()
-    }
 }
 
 enum FunctionCoercionResult {
@@ -514,13 +514,6 @@ impl StructType {
 
     pub fn field_names(&self) -> BTreeSet<Ident> {
         self.fields.iter().map(|field| field.name.clone()).collect()
-    }
-
-    /// Search the fields of a struct for any types with a `TypeKind::Numeric`
-    pub fn find_numeric_generics_in_fields(&self, found_names: &mut Vec<String>) {
-        for field in self.fields.iter() {
-            field.typ.find_numeric_type_vars(found_names);
-        }
     }
 
     /// Instantiate this struct type, returning a Vec of the new generic args (in
@@ -671,6 +664,7 @@ impl<T> Shared<T> {
 
 /// A restricted subset of binary operators useable on
 /// type level integers for use in the array length positions of types.
+#[cfg_attr(test, derive(Arbitrary))]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum BinaryTypeOperator {
     Addition,
@@ -1093,99 +1087,6 @@ impl Type {
         }
     }
 
-    pub fn find_numeric_type_vars(&self, found_names: &mut Vec<String>) {
-        // Return whether the named generic has a Kind::Numeric and save its name
-        let named_generic_is_numeric = |typ: &Type, found_names: &mut Vec<String>| {
-            if let Type::NamedGeneric(var, name) = typ {
-                if var.kind().is_numeric() {
-                    found_names.push(name.to_string());
-                    true
-                } else {
-                    false
-                }
-            } else {
-                false
-            }
-        };
-
-        match self {
-            Type::FieldElement
-            | Type::Integer(_, _)
-            | Type::Bool
-            | Type::Unit
-            | Type::Error
-            | Type::Constant(_, _)
-            | Type::Forall(_, _)
-            | Type::Quoted(_) => {}
-
-            Type::TypeVariable(type_var) => {
-                if let TypeBinding::Bound(typ) = &*type_var.borrow() {
-                    named_generic_is_numeric(typ, found_names);
-                }
-            }
-
-            Type::NamedGeneric(_, _) => {
-                named_generic_is_numeric(self, found_names);
-            }
-            Type::CheckedCast { from, to } => {
-                to.find_numeric_type_vars(found_names);
-                from.find_numeric_type_vars(found_names);
-            }
-
-            Type::TraitAsType(_, _, args) => {
-                for arg in args.ordered.iter() {
-                    arg.find_numeric_type_vars(found_names);
-                }
-                for arg in args.named.iter() {
-                    arg.typ.find_numeric_type_vars(found_names);
-                }
-            }
-            Type::Array(length, elem) => {
-                elem.find_numeric_type_vars(found_names);
-                named_generic_is_numeric(length, found_names);
-            }
-            Type::Slice(elem) => elem.find_numeric_type_vars(found_names),
-            Type::Tuple(fields) => {
-                for field in fields.iter() {
-                    field.find_numeric_type_vars(found_names);
-                }
-            }
-            Type::Function(parameters, return_type, env, _unconstrained) => {
-                for parameter in parameters.iter() {
-                    parameter.find_numeric_type_vars(found_names);
-                }
-                return_type.find_numeric_type_vars(found_names);
-                env.find_numeric_type_vars(found_names);
-            }
-            Type::Struct(_, generics) => {
-                for generic in generics.iter() {
-                    if !named_generic_is_numeric(generic, found_names) {
-                        generic.find_numeric_type_vars(found_names);
-                    }
-                }
-            }
-            Type::Alias(_, generics) => {
-                for generic in generics.iter() {
-                    if !named_generic_is_numeric(generic, found_names) {
-                        generic.find_numeric_type_vars(found_names);
-                    }
-                }
-            }
-            Type::MutableReference(element) => element.find_numeric_type_vars(found_names),
-            Type::String(length) => {
-                named_generic_is_numeric(length, found_names);
-            }
-            Type::FmtString(length, elements) => {
-                elements.find_numeric_type_vars(found_names);
-                named_generic_is_numeric(length, found_names);
-            }
-            Type::InfixExpr(lhs, _op, rhs) => {
-                lhs.find_numeric_type_vars(found_names);
-                rhs.find_numeric_type_vars(found_names);
-            }
-        }
-    }
-
     /// True if this type can be used as a parameter to `main` or a contract function.
     /// This is only false for unsized types like slices or slices that do not make sense
     /// as a program input such as named generics or mutable references.
@@ -1212,7 +1113,6 @@ impl Type {
             | Type::Forall(_, _)
             | Type::Quoted(_)
             | Type::Slice(_)
-            | Type::InfixExpr(_, _, _)
             | Type::TraitAsType(..) => false,
 
             Type::CheckedCast { to, .. } => to.is_valid_for_program_input(),
@@ -1232,6 +1132,10 @@ impl Type {
                 .get_fields(generics)
                 .into_iter()
                 .all(|(_, field)| field.is_valid_for_program_input()),
+
+            Type::InfixExpr(lhs, _, rhs) => {
+                lhs.is_valid_for_program_input() && rhs.is_valid_for_program_input()
+            }
         }
     }
 
@@ -1419,7 +1323,7 @@ impl Type {
         if self_kind.unifies(&other_kind) {
             self_kind
         } else {
-            Kind::Numeric(Box::new(Type::Error))
+            Kind::numeric(Type::Error)
         }
     }
 
