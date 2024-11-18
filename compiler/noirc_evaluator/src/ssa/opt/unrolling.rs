@@ -514,7 +514,8 @@ impl Loop {
         let pre_header = self.get_pre_header(function, cfg)?;
         let function_entry = function.entry_block();
 
-        // The algorithm to collect blocks in the loop is fine for us.
+        // The algorithm in `find_blocks_in_loop` expects to collect the blocks between the header and the back-edge of the loop,
+        // but technically works the same if we go from the pre-header up to the function entry as well.
         let blocks = Self::find_blocks_in_loop(function_entry, pre_header, cfg).blocks;
 
         // Collect allocations in all blocks above the header.
@@ -748,9 +749,6 @@ struct LoopIteration<'f> {
     /// This is None until we visit the block which jumps back to the start of the
     /// loop, at which point we record its value and the block it was found in.
     induction_value: Option<(BasicBlockId, ValueId)>,
-
-    /// Whether to discard reference count instructions, which ACIR doesn't need but Brillig does.
-    skip_ref_counts: bool,
 }
 
 impl<'f> LoopIteration<'f> {
@@ -761,7 +759,6 @@ impl<'f> LoopIteration<'f> {
         source_block: BasicBlockId,
     ) -> Self {
         Self {
-            skip_ref_counts: function.runtime().is_acir(),
             inserter: FunctionInserter::new(function),
             loop_,
             insert_block,
@@ -822,16 +819,12 @@ impl<'f> LoopIteration<'f> {
                 then_destination,
                 else_destination,
                 call_stack,
-            } =>
-            // Check where the loop body wants to jump (e.g if-then blocks).
-            {
-                self.handle_jmpif(
-                    *condition,
-                    *then_destination,
-                    *else_destination,
-                    call_stack.clone(),
-                )
-            }
+            } => self.handle_jmpif(
+                *condition,
+                *then_destination,
+                *else_destination,
+                call_stack.clone(),
+            ),
             TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
                 if self.get_original_block(*destination) == self.loop_.header {
                     // We found the back-edge of the loop.
@@ -910,7 +903,8 @@ impl<'f> LoopIteration<'f> {
         // instances of the induction variable or any values that were changed as a result
         // of the new induction variable value.
         for instruction in instructions {
-            if self.skip_ref_counts && self.is_refcount(instruction) {
+            // Reference counting is only used by Brillig, ACIR doesn't need them.
+            if self.inserter.function.runtime().is_acir() && self.is_refcount(instruction) {
                 continue;
             }
             self.inserter.push_instruction(instruction, self.insert_block);
