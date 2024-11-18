@@ -75,3 +75,34 @@ fn replace_known_slice_lengths(
         func.dfg.set_value_from_id(original_slice_length, known_length);
     });
 }
+
+#[cfg(test)]
+mod test {
+    use crate::ssa::opt::assert_normalized_ssa_equals;
+
+    use super::Ssa;
+
+    #[test]
+    fn as_slice_length_optimization() {
+        // In this code we expect `return v2` to be replaced with `return u32 3` because
+        // that's the length of the v0 array.
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: [Field; 3]):
+                v2, v3 = call as_slice(v0) -> (u32, [Field])
+                return v2
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let expected = "
+            acir(inline) fn main f0 {
+              b0(v0: [Field; 3]):
+                v2, v3 = call as_slice(v0) -> (u32, [Field])
+                return u32 3
+            }
+            ";
+        let ssa = ssa.as_slice_optimization();
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+}
