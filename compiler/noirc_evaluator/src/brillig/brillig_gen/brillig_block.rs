@@ -160,13 +160,9 @@ impl<'block> BrilligBlock<'block> {
                 );
             }
             TerminatorInstruction::Return { return_values, .. } => {
-                let return_registers: Vec<_> = return_values
-                    .iter()
-                    .map(|value_id| {
-                        let return_variable = self.convert_ssa_value(*value_id, dfg);
-                        return_variable.extract_register()
-                    })
-                    .collect();
+                let return_registers = vecmap(return_values, |value_id| {
+                    self.convert_ssa_value(*value_id, dfg).extract_register()
+                });
                 self.brillig_context.codegen_return(&return_registers);
             }
         }
@@ -762,6 +758,43 @@ impl<'block> BrilligBlock<'block> {
             }
             Instruction::IfElse { .. } => {
                 unreachable!("IfElse instructions should not be possible in brillig")
+            }
+            Instruction::MakeArray { elements: array, typ } => {
+                let value_id = dfg.instruction_results(instruction_id)[0];
+                if !self.variables.is_allocated(&value_id) {
+                    let new_variable = self.variables.define_variable(
+                        self.function_context,
+                        self.brillig_context,
+                        value_id,
+                        dfg,
+                    );
+
+                    // Initialize the variable
+                    match new_variable {
+                        BrilligVariable::BrilligArray(brillig_array) => {
+                            self.brillig_context.codegen_initialize_array(brillig_array);
+                        }
+                        BrilligVariable::BrilligVector(vector) => {
+                            let size = self
+                                .brillig_context
+                                .make_usize_constant_instruction(array.len().into());
+                            self.brillig_context.codegen_initialize_vector(vector, size, None);
+                            self.brillig_context.deallocate_single_addr(size);
+                        }
+                        _ => unreachable!(
+                            "ICE: Cannot initialize array value created as {new_variable:?}"
+                        ),
+                    };
+
+                    // Write the items
+                    let items_pointer = self
+                        .brillig_context
+                        .codegen_make_array_or_vector_items_pointer(new_variable);
+
+                    self.initialize_constant_array(array, typ, dfg, items_pointer);
+
+                    self.brillig_context.deallocate_register(items_pointer);
+                }
             }
         };
 
@@ -1497,46 +1530,6 @@ impl<'block> BrilligBlock<'block> {
 
                     self.brillig_context
                         .const_instruction(new_variable.extract_single_addr(), *constant);
-                    new_variable
-                }
-            }
-            Value::Array { array, typ } => {
-                if self.variables.is_allocated(&value_id) {
-                    self.variables.get_allocation(self.function_context, value_id, dfg)
-                } else {
-                    let new_variable = self.variables.define_variable(
-                        self.function_context,
-                        self.brillig_context,
-                        value_id,
-                        dfg,
-                    );
-
-                    // Initialize the variable
-                    match new_variable {
-                        BrilligVariable::BrilligArray(brillig_array) => {
-                            self.brillig_context.codegen_initialize_array(brillig_array);
-                        }
-                        BrilligVariable::BrilligVector(vector) => {
-                            let size = self
-                                .brillig_context
-                                .make_usize_constant_instruction(array.len().into());
-                            self.brillig_context.codegen_initialize_vector(vector, size, None);
-                            self.brillig_context.deallocate_single_addr(size);
-                        }
-                        _ => unreachable!(
-                            "ICE: Cannot initialize array value created as {new_variable:?}"
-                        ),
-                    };
-
-                    // Write the items
-                    let items_pointer = self
-                        .brillig_context
-                        .codegen_make_array_or_vector_items_pointer(new_variable);
-
-                    self.initialize_constant_array(array, typ, dfg, items_pointer);
-
-                    self.brillig_context.deallocate_register(items_pointer);
-
                     new_variable
                 }
             }
