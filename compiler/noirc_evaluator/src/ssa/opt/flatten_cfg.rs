@@ -598,7 +598,7 @@ impl<'f> Context<'f> {
         &mut self,
         id: InstructionId,
         previous_allocate_result: &mut Option<ValueId>,
-    ) -> Vec<ValueId> {
+    ) {
         let (instruction, call_stack) = self.inserter.map_instruction(id);
         let instruction = self.handle_instruction_side_effects(
             instruction,
@@ -609,9 +609,7 @@ impl<'f> Context<'f> {
         let instruction_is_allocate = matches!(&instruction, Instruction::Allocate);
         let entry = self.inserter.function.entry_block();
         let results = self.inserter.push_instruction_value(instruction, id, entry, call_stack);
-
         *previous_allocate_result = instruction_is_allocate.then(|| results.first());
-        results.results().into_owned()
     }
 
     /// If we are currently in a branch, we need to modify constrain instructions

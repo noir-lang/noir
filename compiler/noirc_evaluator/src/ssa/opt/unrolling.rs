@@ -220,7 +220,13 @@ fn unroll_loop(
         // confirm that we're inserting in insertion order. This is true here since:
         // 1. We have a fresh inserter for each loop
         // 2. Each loop is unrolled in iteration order
-        context.inserter.set_array_cache(array_cache);
+        //
+        // Within a loop we do not insert in insertion order. This is fine however since the
+        // array cache is buffered with a separate fresh_array_cache which collects arrays
+        // but does not deduplicate. When we later call `into_array_cache`, that will merge
+        // the fresh cache in with the old one so that each iteration of the loop can cache
+        // from previous iterations but not the current iteration.
+        context.inserter.set_array_cache(array_cache, unroll_into);
         (unroll_into, jump_value, array_cache) = context.unroll_loop_iteration();
     }
 

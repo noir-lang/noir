@@ -171,9 +171,7 @@ impl<'f> PerFunctionContext<'f> {
             let block_params = self.inserter.function.dfg.block_parameters(*block_id);
             per_func_block_params.extend(block_params.iter());
             let terminator = self.inserter.function.dfg[*block_id].unwrap_terminator();
-            terminator.for_each_value(|value| {
-                self.recursively_add_values(value, &mut all_terminator_values);
-            });
+            terminator.for_each_value(|value| all_terminator_values.insert(value));
         }
 
         // If we never load from an address within a function we can remove all stores to that address.
@@ -266,15 +264,6 @@ impl<'f> PerFunctionContext<'f> {
             .filter(|param| self.inserter.function.dfg.value_is_reference(**param))
             .copied()
             .collect()
-    }
-
-    fn recursively_add_values(&self, value: ValueId, set: &mut HashSet<ValueId>) {
-        set.insert(value);
-        if let Some((elements, _)) = self.inserter.function.dfg.get_array_constant(value) {
-            for array_element in elements {
-                self.recursively_add_values(array_element, set);
-            }
-        }
     }
 
     /// The value of each reference at the start of the given block is the unification
@@ -426,8 +415,6 @@ impl<'f> PerFunctionContext<'f> {
                 let address = self.inserter.function.dfg.resolve(*address);
                 let value = self.inserter.function.dfg.resolve(*value);
 
-                self.check_array_aliasing(references, value);
-
                 // FIXME: This causes errors in the sha256 tests
                 //
                 // If there was another store to this instruction without any (unremoved) loads or
@@ -514,24 +501,22 @@ impl<'f> PerFunctionContext<'f> {
                 }
                 self.mark_all_unknown(arguments, references);
             }
-            _ => (),
-        }
-    }
+            Instruction::MakeArray { elements, typ } => {
+                // If `array` is an array constant that contains reference types, then insert each element
+                // as a potential alias to the array itself.
+                if Self::contains_references(typ) {
+                    let array = self.inserter.function.dfg.instruction_results(instruction)[0];
 
-    /// If `array` is an array constant that contains reference types, then insert each element
-    /// as a potential alias to the array itself.
-    fn check_array_aliasing(&self, references: &mut Block, array: ValueId) {
-        if let Some((elements, typ)) = self.inserter.function.dfg.get_array_constant(array) {
-            if Self::contains_references(&typ) {
-                // TODO: Check if type directly holds references or holds arrays that hold references
-                let expr = Expression::ArrayElement(Box::new(Expression::Other(array)));
-                references.expressions.insert(array, expr.clone());
-                let aliases = references.aliases.entry(expr).or_default();
+                    let expr = Expression::ArrayElement(Box::new(Expression::Other(array)));
+                    references.expressions.insert(array, expr.clone());
+                    let aliases = references.aliases.entry(expr).or_default();
 
-                for element in elements {
-                    aliases.insert(element);
+                    for element in elements {
+                        aliases.insert(*element);
+                    }
                 }
             }
+            _ => (),
         }
     }
 
