@@ -518,3 +518,41 @@ fn visibility_bug_inside_comptime() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn errors_if_accessing_private_struct_member_inside_comptime_context() {
+    let src = r#"
+    mod foo {
+        pub struct Foo {
+            inner: Field,
+        }
+    
+        impl Foo {
+            pub fn new(inner: Field) -> Self {
+                Self { inner }
+            }
+        }
+    }
+    
+    use foo::Foo;
+    
+    fn main() {
+        comptime { 
+            let foo = Foo::new(5);
+            let _ = foo.inner;
+        };
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ResolverError(ResolverError::PathResolutionError(
+        PathResolutionError::Private(ident),
+    )) = &errors[0].0
+    else {
+        panic!("Expected a private error");
+    };
+
+    assert_eq!(ident.to_string(), "inner");
+}
