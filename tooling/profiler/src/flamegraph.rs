@@ -135,7 +135,6 @@ fn generate_folded_sorted_lines<'files, S: Sample>(
     debug_symbols: &DebugInfo,
     files: &'files impl Files<'files, FileId = fm::FileId>,
 ) -> Vec<String> {
-    println!("About to generate sorted lines");
     // Create a nested hashmap with the stack items, folding the gates for all the callsites that are equal
     let mut folded_stack_items = BTreeMap::new();
 
