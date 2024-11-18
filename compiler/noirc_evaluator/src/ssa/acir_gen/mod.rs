@@ -1745,13 +1745,6 @@ impl<'a> Context<'a> {
     fn flattened_slice_size(&mut self, array_id: ValueId, dfg: &DataFlowGraph) -> usize {
         let mut size = 0;
         match &dfg[array_id] {
-            // Value::Array { array, .. } => {
-            //     // The array is going to be the flattened outer array
-            //     // Flattened slice size from SSA value does not need to be multiplied by the len
-            //     for value in array {
-            //         size += self.flattened_slice_size(*value, dfg);
-            //     }
-            // }
             Value::NumericConstant { .. } => {
                 size += 1;
             }
