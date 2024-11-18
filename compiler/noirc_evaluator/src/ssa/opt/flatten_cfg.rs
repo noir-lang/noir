@@ -598,7 +598,7 @@ impl<'f> Context<'f> {
         &mut self,
         id: InstructionId,
         previous_allocate_result: &mut Option<ValueId>,
-    ) -> Vec<ValueId> {
+    ) {
         let (instruction, call_stack) = self.inserter.map_instruction(id);
         let instruction = self.handle_instruction_side_effects(
             instruction,
@@ -609,9 +609,7 @@ impl<'f> Context<'f> {
         let instruction_is_allocate = matches!(&instruction, Instruction::Allocate);
         let entry = self.inserter.function.entry_block();
         let results = self.inserter.push_instruction_value(instruction, id, entry, call_stack);
-
         *previous_allocate_result = instruction_is_allocate.then(|| results.first());
-        results.results().into_owned()
     }
 
     /// If we are currently in a branch, we need to modify constrain instructions
@@ -727,8 +725,8 @@ impl<'f> Context<'f> {
                     }
                     Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul)) => {
                         let points_array_idx = if matches!(
-                            self.inserter.function.dfg[arguments[0]],
-                            Value::Array { .. }
+                            self.inserter.function.dfg.type_of_value(arguments[0]),
+                            Type::Array { .. }
                         ) {
                             0
                         } else {
@@ -736,15 +734,15 @@ impl<'f> Context<'f> {
                             // which means the array is the second argument
                             1
                         };
-                        let (array_with_predicate, array_typ) = self
-                            .apply_predicate_to_msm_argument(
-                                arguments[points_array_idx],
-                                condition,
-                                call_stack.clone(),
-                            );
+                        let (elements, typ) = self.apply_predicate_to_msm_argument(
+                            arguments[points_array_idx],
+                            condition,
+                            call_stack.clone(),
+                        );
 
-                        arguments[points_array_idx] =
-                            self.inserter.function.dfg.make_array(array_with_predicate, array_typ);
+                        let instruction = Instruction::MakeArray { elements, typ };
+                        let array = self.insert_instruction(instruction, call_stack);
+                        arguments[points_array_idx] = array;
                         Instruction::Call { func, arguments }
                     }
                     _ => Instruction::Call { func, arguments },
@@ -767,7 +765,7 @@ impl<'f> Context<'f> {
     ) -> (im::Vector<ValueId>, Type) {
         let array_typ;
         let mut array_with_predicate = im::Vector::new();
-        if let Value::Array { array, typ } = &self.inserter.function.dfg[argument] {
+        if let Some((array, typ)) = &self.inserter.function.dfg.get_array_constant(argument) {
             array_typ = typ.clone();
             for (i, value) in array.clone().iter().enumerate() {
                 if i % 3 == 2 {
