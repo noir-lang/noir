@@ -273,9 +273,6 @@ pub(crate) enum Instruction {
     ///     else_value
     /// }
     /// ```
-    ///
-    /// Where we save the result of !then_condition so that we have the same
-    /// ValueId for it each time.
     IfElse { then_condition: ValueId, then_value: ValueId, else_value: ValueId },
 
     /// Creates a new array or slice.
