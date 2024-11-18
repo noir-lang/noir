@@ -199,29 +199,31 @@ mod tests {
         let src = "
             brillig(inline) fn main f0 {
               b0():
-                v1 = allocate -> &mut [Field; 5]
-                store [[Field 0, Field 0, Field 0, Field 0, Field 0] of Field, [Field 0, Field 0, Field 0, Field 0, Field 0] of Field] of [Field; 5] at v1
-                v6 = allocate -> &mut [Field; 5]
-                store [[Field 0, Field 0, Field 0, Field 0, Field 0] of Field, [Field 0, Field 0, Field 0, Field 0, Field 0] of Field] of [Field; 5] at v6
+                v2 = make_array [Field 0, Field 0, Field 0, Field 0, Field 0] : [Field; 5]
+                v3 = make_array [v2, v2] : [[Field; 5]; 2]
+                v4 = allocate -> &mut [Field; 5]
+                store v3 at v4
+                v5 = allocate -> &mut [Field; 5]
+                store v3 at v5
                 jmp b1(u32 0)
               b1(v0: u32):
-                v12 = lt v0, u32 5
-                jmpif v12 then: b3, else: b2
+                v8 = lt v0, u32 5
+                jmpif v8 then: b3, else: b2
               b3():
-                v13 = eq v0, u32 5
-                jmpif v13 then: b4, else: b5
+                v9 = eq v0, u32 5
+                jmpif v9 then: b4, else: b5
               b4():
-                v14 = load v1 -> [[Field; 5]; 2]
-                store v14 at v6
+                v10 = load v4 -> [[Field; 5]; 2]
+                store v10 at v5
                 jmp b5()
               b5():
-                v15 = load v1 -> [[Field; 5]; 2]
-                v16 = array_get v15, index Field 0 -> [Field; 5]
-                v18 = array_set v16, index v0, value Field 20
-                v19 = array_set v15, index v0, value v18
-                store v19 at v1
-                v21 = add v0, u32 1
-                jmp b1(v21)
+                v11 = load v4 -> [[Field; 5]; 2]
+                v12 = array_get v11, index Field 0 -> [Field; 5]
+                v14 = array_set v12, index v0, value Field 20
+                v15 = array_set v11, index v0, value v14
+                store v15 at v4
+                v17 = add v0, u32 1
+                jmp b1(v17)
               b2():
                 return
             }
