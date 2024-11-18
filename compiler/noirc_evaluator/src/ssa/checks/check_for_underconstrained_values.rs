@@ -943,4 +943,41 @@ mod test {
         let ssa_level_warnings = ssa.check_for_missing_brillig_constrains();
         assert_eq!(ssa_level_warnings.len(), 0);
     }
+
+    #[test]
+    #[traced_test]
+    /// Test where a brillig function call is constrained with a range check
+    /// (should _not_ lead to a false positive failed check)
+    fn test_range_checked_brillig() {
+        let type_u32 = Type::Numeric(NumericType::Unsigned { bit_size: 32 });
+
+        let main_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+
+        let v0 = builder.add_parameter(type_u32.clone());
+
+        let br_function_id = Id::test_new(1);
+        let br_function = builder.import_function(br_function_id);
+
+        // The call is constrained properly with a range check, involving
+        // both brillig call argument and result
+        let call_results = builder.insert_call(br_function, vec![v0], vec![type_u32.clone()]);
+        let v1 = call_results[0];
+        let v2 = builder.insert_binary(v1, BinaryOp::Add, v0);
+        builder.insert_range_check(v2, 32, None);
+
+        builder.terminate_with_return(vec![]);
+
+        // We're faking the brillig function here, for simplicity's sake
+
+        builder.new_brillig_function("dummy".into(), br_function_id, InlineType::default());
+        builder.add_parameter(type_u32.clone());
+        let zero = builder.numeric_constant(0u32, type_u32.clone());
+        builder.terminate_with_return(vec![zero]);
+
+        let mut ssa = builder.finish();
+
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constrains();
+        assert_eq!(ssa_level_warnings.len(), 0);
+    }
 }
