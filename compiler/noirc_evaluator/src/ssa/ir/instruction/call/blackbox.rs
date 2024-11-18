@@ -73,21 +73,25 @@ pub(super) fn simplify_msm(
     // TODO: Handle MSMs where a subset of the terms are constant.
     match (dfg.get_array_constant(arguments[0]), dfg.get_array_constant(arguments[1])) {
         (Some((points, _)), Some((scalars, _))) => {
-            let points: Vec<FieldElement> = points
+            let Some(points) = points
                 .into_iter()
-                .map(|id| {
-                    dfg.get_numeric_constant(id)
-                        .expect("value id from array should point at constant")
-                })
-                .collect();
+                .map(|id| dfg.get_numeric_constant(id))
+                .collect::<Option<Vec<_>>>()
+            else {
+                return SimplifyResult::None;
+            };
 
-            let scalars = scalars.into_iter().map(|id| {
-                dfg.get_numeric_constant(id).expect("value id from array should point at constant")
-            });
+            let Some(scalars) = scalars
+                .into_iter()
+                .map(|id| dfg.get_numeric_constant(id))
+                .collect::<Option<Vec<_>>>()
+            else {
+                return SimplifyResult::None;
+            };
 
             let mut scalars_lo = Vec::new();
             let mut scalars_hi = Vec::new();
-            for (i, scalar) in scalars.enumerate() {
+            for (i, scalar) in scalars.into_iter().enumerate() {
                 if i % 2 == 0 {
                     scalars_lo.push(scalar);
                 } else {
