@@ -13,6 +13,7 @@ use acvm::{AcirField, FieldElement};
 use crate::{
     ast::{IntegerBitSize, ItemVisibility},
     hir::type_check::{generics::TraitGenerics, TypeCheckError},
+    hir_def::iterative_unification::Unifier,
     node_interner::{ExprId, NodeInterner, TraitId, TypeAliasId},
 };
 use iter_extended::vecmap;
@@ -1425,7 +1426,7 @@ impl Type {
     }
 
     /// Unifies self and other kinds or fails with a Kind error
-    fn infix_kind(&self, other: &Self) -> Kind {
+    pub(crate) fn infix_kind(&self, other: &Self) -> Kind {
         let self_kind = self.kind();
         let other_kind = other.kind();
         if self_kind.unifies(&other_kind) {
@@ -1511,7 +1512,7 @@ impl Type {
     /// Try to bind a PolymorphicInt variable to self, succeeding if self is an integer, field,
     /// other PolymorphicInt type, or type variable. If successful, the binding is placed in the
     /// given TypeBindings map rather than linked immediately.
-    fn try_bind_to_polymorphic_int(
+    pub(crate) fn try_bind_to_polymorphic_int(
         &self,
         var: &TypeVariable,
         bindings: &mut TypeBindings,
@@ -1589,7 +1590,7 @@ impl Type {
     ///
     /// If successful, the binding is placed in the
     /// given TypeBindings map rather than linked immediately.
-    fn try_bind_to(
+    pub(crate) fn try_bind_to(
         &self,
         var: &TypeVariable,
         bindings: &mut TypeBindings,
@@ -1639,8 +1640,8 @@ impl Type {
     /// will correctly handle generic types.
     pub fn unify(&self, expected: &Type) -> Result<(), UnificationError> {
         let mut bindings = TypeBindings::new();
-
-        self.try_unify(expected, &mut bindings).map(|()| {
+        let mut unifier = Unifier::new();
+        unifier.unify(self, expected, &mut bindings).map(|()| {
             // Commit any type bindings on success
             Self::apply_type_bindings(bindings);
         })
@@ -2727,7 +2728,7 @@ impl BinaryTypeOperator {
     }
 
     /// Return the operator that will "undo" this operation if applied to the rhs
-    fn approx_inverse(self) -> Option<BinaryTypeOperator> {
+    pub(crate) fn approx_inverse(self) -> Option<BinaryTypeOperator> {
         match self {
             BinaryTypeOperator::Addition => Some(BinaryTypeOperator::Subtraction),
             BinaryTypeOperator::Subtraction => Some(BinaryTypeOperator::Addition),
