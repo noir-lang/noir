@@ -177,7 +177,6 @@ impl DependencyContext {
                     let arguments = arguments
                         .iter()
                         .filter(|v| function.dfg.get_numeric_constant(**v).is_none());
-                    //.copied();
 
                     match &function.dfg[*func_id] {
                         Value::Intrinsic(intrinsic) => match intrinsic {
