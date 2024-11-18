@@ -184,10 +184,6 @@ impl Kind {
         }
     }
 
-    pub(crate) fn is_numeric(&self) -> bool {
-        matches!(self.follow_bindings(), Self::Numeric { .. })
-    }
-
     pub(crate) fn is_type_level_field_element(&self) -> bool {
         let type_level = false;
         self.is_field_element(type_level)
@@ -375,10 +371,6 @@ impl ResolvedGeneric {
     pub fn kind(&self) -> Kind {
         self.type_var.kind()
     }
-
-    pub(crate) fn is_numeric(&self) -> bool {
-        self.kind().is_numeric()
-    }
 }
 
 enum FunctionCoercionResult {
@@ -522,13 +514,6 @@ impl StructType {
 
     pub fn field_names(&self) -> BTreeSet<Ident> {
         self.fields.iter().map(|field| field.name.clone()).collect()
-    }
-
-    /// Search the fields of a struct for any types with a `TypeKind::Numeric`
-    pub fn find_numeric_generics_in_fields(&self, found_names: &mut Vec<String>) {
-        for field in self.fields.iter() {
-            field.typ.find_numeric_type_vars(found_names);
-        }
     }
 
     /// Instantiate this struct type, returning a Vec of the new generic args (in
@@ -1099,99 +1084,6 @@ impl Type {
             | Type::Quoted(..)
             | Type::InfixExpr(..)
             | Type::Error => false,
-        }
-    }
-
-    pub fn find_numeric_type_vars(&self, found_names: &mut Vec<String>) {
-        // Return whether the named generic has a Kind::Numeric and save its name
-        let named_generic_is_numeric = |typ: &Type, found_names: &mut Vec<String>| {
-            if let Type::NamedGeneric(var, name) = typ {
-                if var.kind().is_numeric() {
-                    found_names.push(name.to_string());
-                    true
-                } else {
-                    false
-                }
-            } else {
-                false
-            }
-        };
-
-        match self {
-            Type::FieldElement
-            | Type::Integer(_, _)
-            | Type::Bool
-            | Type::Unit
-            | Type::Error
-            | Type::Constant(_, _)
-            | Type::Forall(_, _)
-            | Type::Quoted(_) => {}
-
-            Type::TypeVariable(type_var) => {
-                if let TypeBinding::Bound(typ) = &*type_var.borrow() {
-                    named_generic_is_numeric(typ, found_names);
-                }
-            }
-
-            Type::NamedGeneric(_, _) => {
-                named_generic_is_numeric(self, found_names);
-            }
-            Type::CheckedCast { from, to } => {
-                to.find_numeric_type_vars(found_names);
-                from.find_numeric_type_vars(found_names);
-            }
-
-            Type::TraitAsType(_, _, args) => {
-                for arg in args.ordered.iter() {
-                    arg.find_numeric_type_vars(found_names);
-                }
-                for arg in args.named.iter() {
-                    arg.typ.find_numeric_type_vars(found_names);
-                }
-            }
-            Type::Array(length, elem) => {
-                elem.find_numeric_type_vars(found_names);
-                named_generic_is_numeric(length, found_names);
-            }
-            Type::Slice(elem) => elem.find_numeric_type_vars(found_names),
-            Type::Tuple(fields) => {
-                for field in fields.iter() {
-                    field.find_numeric_type_vars(found_names);
-                }
-            }
-            Type::Function(parameters, return_type, env, _unconstrained) => {
-                for parameter in parameters.iter() {
-                    parameter.find_numeric_type_vars(found_names);
-                }
-                return_type.find_numeric_type_vars(found_names);
-                env.find_numeric_type_vars(found_names);
-            }
-            Type::Struct(_, generics) => {
-                for generic in generics.iter() {
-                    if !named_generic_is_numeric(generic, found_names) {
-                        generic.find_numeric_type_vars(found_names);
-                    }
-                }
-            }
-            Type::Alias(_, generics) => {
-                for generic in generics.iter() {
-                    if !named_generic_is_numeric(generic, found_names) {
-                        generic.find_numeric_type_vars(found_names);
-                    }
-                }
-            }
-            Type::MutableReference(element) => element.find_numeric_type_vars(found_names),
-            Type::String(length) => {
-                named_generic_is_numeric(length, found_names);
-            }
-            Type::FmtString(length, elements) => {
-                elements.find_numeric_type_vars(found_names);
-                named_generic_is_numeric(length, found_names);
-            }
-            Type::InfixExpr(lhs, _op, rhs) => {
-                lhs.find_numeric_type_vars(found_names);
-                rhs.find_numeric_type_vars(found_names);
-            }
         }
     }
 

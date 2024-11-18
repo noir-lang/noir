@@ -44,6 +44,3 @@ noirc_abi.workspace = true
 noirc_driver.workspace = true
 tempfile.workspace = true
 
-[features]
-default = ["bn254"]
-bn254 = ["acir/bn254"]
