@@ -1123,8 +1123,8 @@ mod tests {
     fn test_brillig_unroll_small_loop() {
         let ssa = brillig_unroll_test_case();
 
-        // Example taken from an equivalent ACIR program (ie. remove the `unconstrained`) and run
-        // `cargo run -q -p nargo_cli --  --program-dir . compile --show-ssa`
+        // Expectation taken by compiling the Noir program as ACIR,
+        // ie. by removing the `unconstrained` from `main`.
         let expected = "
         brillig(inline) fn main f0 {
           b0(v0: u32):
@@ -1203,19 +1203,17 @@ mod tests {
     #[test]
     fn test_brillig_unroll_6470_large() {
         // More iterations than it can unroll
-        let ssa = brillig_unroll_test_case_6470(6);
+        let parse_ssa = || brillig_unroll_test_case_6470(6);
+        let ssa = parse_ssa();
         let stats = loop0_stats(&ssa);
         assert!(!stats.is_small(), "the loop should be considered large");
 
         let (ssa, errors) = try_unroll_loops(ssa);
         assert_eq!(errors.len(), 0, "Unroll should have no errors");
-        assert_eq!(
-            ssa.main().reachable_blocks().len(),
-            4,
-            "The loop should be considered too costly to unroll"
-        );
+        assert_normalized_ssa_equals(ssa, parse_ssa().to_string().as_str());
     }
 
+    /// Test that `break` and `continue` stop unrolling without any panic.
     #[test]
     fn test_brillig_unroll_break_and_continue() {
         // unconstrained fn main() {
@@ -1267,7 +1265,7 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let (ssa, errors) = try_unroll_loops(ssa);
         assert_eq!(errors.len(), 0, "Unroll should have no errors");
-        assert_eq!(ssa.main().reachable_blocks().len(), 8, "Nothing should be unrolled");
+        assert_normalized_ssa_equals(ssa, src);
     }
 
     /// Simple test loop:
@@ -1284,6 +1282,9 @@ mod tests {
     ///      sum
     ///  }
     /// ```
+    /// We can check what the ACIR unrolling behavior would be by
+    /// removing the `unconstrained` from the `main` function and
+    /// compiling the program with `nargo --test-program . compile --show-ssa`.
     fn brillig_unroll_test_case() -> Ssa {
         let src = "
         // After `static_assert` and `assert_constant`:
@@ -1357,6 +1358,7 @@ mod tests {
         Ssa::from_str(&src).unwrap()
     }
 
+    // Boilerplate stats of the first loop in the SSA.
     fn loop0_stats(ssa: &Ssa) -> BoilerplateStats {
         let function = ssa.main();
         let mut loops = Loops::find_all(function);
