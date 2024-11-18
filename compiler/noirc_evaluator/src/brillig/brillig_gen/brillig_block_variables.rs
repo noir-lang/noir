@@ -13,27 +13,27 @@ use crate::{
     ssa::ir::{
         dfg::DataFlowGraph,
         types::{CompositeType, Type},
-        value::{ResolvedValueId, ValueId},
+        value::ValueId,
     },
 };
 
-use super::brillig_fn::FunctionContext;
+use super::{brillig_fn::FunctionContext, FinalValueId};
 
 #[derive(Debug, Default)]
-pub(crate) struct BlockVariables {
+pub(super) struct BlockVariables {
     // Since we're generating Brillig bytecode here, there shouldn't be any more value ID replacements
     // and we can use the final resolved ID.
-    available_variables: HashSet<ResolvedValueId>,
+    available_variables: HashSet<FinalValueId>,
 }
 
 impl BlockVariables {
     /// Creates a BlockVariables instance. It uses the variables that are live in to the block and the global available variables (block parameters)
-    pub(crate) fn new(live_in: HashSet<ResolvedValueId>) -> Self {
+    pub(super) fn new(live_in: HashSet<FinalValueId>) -> Self {
         BlockVariables { available_variables: live_in }
     }
 
     /// Returns all variables that have not been removed at this point.
-    pub(crate) fn get_available_variables(
+    pub(super) fn get_available_variables(
         &self,
         function_context: &FunctionContext,
     ) -> Vec<BrilligVariable> {
@@ -50,14 +50,14 @@ impl BlockVariables {
     }
 
     /// For a given SSA value id, define the variable and return the corresponding cached allocation.
-    pub(crate) fn define_variable(
+    pub(super) fn define_variable(
         &mut self,
         function_context: &mut FunctionContext,
         brillig_context: &mut BrilligContext<FieldElement, Stack>,
         value_id: ValueId,
         dfg: &DataFlowGraph,
     ) -> BrilligVariable {
-        let value_id = dfg.resolve(value_id);
+        let value_id = dfg.resolve(value_id).into();
         let variable = allocate_value(value_id, brillig_context, dfg);
 
         if function_context.ssa_value_allocations.insert(value_id, variable).is_some() {
@@ -70,7 +70,7 @@ impl BlockVariables {
     }
 
     /// Defines a variable that fits in a single register and returns the allocated register.
-    pub(crate) fn define_single_addr_variable(
+    pub(super) fn define_single_addr_variable(
         &mut self,
         function_context: &mut FunctionContext,
         brillig_context: &mut BrilligContext<FieldElement, Stack>,
@@ -82,9 +82,9 @@ impl BlockVariables {
     }
 
     /// Removes a variable so it's not used anymore within this block.
-    pub(crate) fn remove_variable(
+    pub(super) fn remove_variable(
         &mut self,
-        value_id: ResolvedValueId,
+        value_id: FinalValueId,
         function_context: &mut FunctionContext,
         brillig_context: &mut BrilligContext<FieldElement, Stack>,
     ) {
@@ -97,15 +97,15 @@ impl BlockVariables {
     }
 
     /// Checks if a variable is allocated.
-    pub(crate) fn is_allocated(&self, value_id: ResolvedValueId) -> bool {
+    pub(super) fn is_allocated(&self, value_id: FinalValueId) -> bool {
         self.available_variables.contains(&value_id)
     }
 
     /// For a given SSA value id, return the corresponding cached allocation.
-    pub(crate) fn get_allocation(
+    pub(super) fn get_allocation(
         &mut self,
         function_context: &FunctionContext,
-        value_id: ResolvedValueId,
+        value_id: FinalValueId,
     ) -> BrilligVariable {
         assert!(
             self.available_variables.contains(&value_id),
@@ -120,13 +120,13 @@ impl BlockVariables {
 }
 
 /// Computes the length of an array. This will match with the indexes that SSA will issue
-pub(crate) fn compute_array_length(item_typ: &CompositeType, elem_count: usize) -> usize {
+pub(super) fn compute_array_length(item_typ: &CompositeType, elem_count: usize) -> usize {
     item_typ.len() * elem_count
 }
 
 /// For a given value_id, allocates the necessary registers to hold it.
-pub(crate) fn allocate_value<F, Registers: RegisterAllocator>(
-    value_id: ResolvedValueId,
+pub(super) fn allocate_value<F, Registers: RegisterAllocator>(
+    value_id: FinalValueId,
     brillig_context: &mut BrilligContext<F, Registers>,
     dfg: &DataFlowGraph,
 ) -> BrilligVariable {

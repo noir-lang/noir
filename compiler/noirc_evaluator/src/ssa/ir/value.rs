@@ -15,22 +15,27 @@ use super::{
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) enum Unresolved {}
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
+/// Resolved marker; doesn't implement `Hash` so it can't be stored in maps.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize /* PartialOrd, Ord, Hash */)]
 pub(crate) enum Resolved {}
+
+pub(crate) trait IsResolved {}
+
+impl IsResolved for Resolved {}
 
 pub(crate) trait Resolution {
     fn is_resolved() -> bool;
 }
 
-impl Resolution for Resolved {
-    fn is_resolved() -> bool {
-        true
-    }
-}
-
 impl Resolution for Unresolved {
     fn is_resolved() -> bool {
         false
+    }
+}
+
+impl<R: IsResolved> Resolution for R {
+    fn is_resolved() -> bool {
+        true
     }
 }
 
@@ -63,7 +68,7 @@ impl<R> ValueId<R> {
 
     /// Demote an ID into an unresolved one.
     pub(crate) fn unresolved(self) -> ValueId<Unresolved> {
-        ValueId::new(Id::new(self.id.to_usize()))
+        ValueId::new(self.id)
     }
 }
 
@@ -109,8 +114,8 @@ impl<R> AsRef<Id<Value>> for ValueId<R> {
 }
 
 /// Demote a resolved ID into an unresolved one.
-impl From<ValueId<Resolved>> for ValueId<Unresolved> {
-    fn from(value: ValueId<Resolved>) -> Self {
+impl<R: IsResolved> From<ValueId<R>> for ValueId<Unresolved> {
+    fn from(value: ValueId<R>) -> Self {
         value.unresolved()
     }
 }

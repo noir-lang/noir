@@ -10,28 +10,29 @@ use crate::{
         function::{Function, FunctionId},
         post_order::PostOrder,
         types::Type,
-        value::ResolvedValueId,
     },
 };
 use fxhash::FxHashMap as HashMap;
 
-use super::{constant_allocation::ConstantAllocation, variable_liveness::VariableLiveness};
+use super::{
+    constant_allocation::ConstantAllocation, variable_liveness::VariableLiveness, FinalValueId,
+};
 
 pub(crate) struct FunctionContext {
-    pub(crate) function_id: FunctionId,
+    pub(super) function_id: FunctionId,
     /// Map from SSA values its allocation. Since values can be only defined once in SSA form, we insert them here on when we allocate them at their definition.
-    pub(crate) ssa_value_allocations: HashMap<ResolvedValueId, BrilligVariable>,
+    pub(super) ssa_value_allocations: HashMap<FinalValueId, BrilligVariable>,
     /// The block ids of the function in reverse post order.
-    pub(crate) blocks: Vec<BasicBlockId>,
+    pub(super) blocks: Vec<BasicBlockId>,
     /// Liveness information for each variable in the function.
-    pub(crate) liveness: VariableLiveness,
+    pub(super) liveness: VariableLiveness,
     /// Information on where to allocate constants
-    pub(crate) constant_allocation: ConstantAllocation,
+    pub(super) constant_allocation: ConstantAllocation,
 }
 
 impl FunctionContext {
     /// Creates a new function context. It will allocate parameters for all blocks and compute the liveness of every variable.
-    pub(crate) fn new(function: &Function) -> Self {
+    pub(super) fn new(function: &Function) -> Self {
         let id = function.id();
 
         let mut reverse_post_order = Vec::new();

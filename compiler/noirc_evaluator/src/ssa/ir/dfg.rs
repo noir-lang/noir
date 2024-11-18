@@ -10,7 +10,7 @@ use super::{
     },
     map::DenseMap,
     types::Type,
-    value::{RawValueId, Resolution, ResolvedValueId, Value, ValueId},
+    value::{IsResolved, RawValueId, Resolution, ResolvedValueId, Unresolved, Value, ValueId},
 };
 
 use acvm::{acir::AcirField, FieldElement};
@@ -581,16 +581,19 @@ impl std::ops::IndexMut<InstructionId> for DataFlowGraph {
 
 /// Indexing the DFG by unresolved value IDs is all over the codebase,
 /// but it's not obvious whether we should apply resolution.
-impl std::ops::Index<ValueId> for DataFlowGraph {
+impl std::ops::Index<ValueId<Unresolved>> for DataFlowGraph {
     type Output = Value;
-    fn index(&self, id: ValueId) -> &Self::Output {
+    fn index(&self, id: ValueId<Unresolved>) -> &Self::Output {
         &self.values[id.raw()]
     }
 }
 
-impl std::ops::Index<ResolvedValueId> for DataFlowGraph {
-    type Output = Value; // The value can still contain unresolved IDs.
-    fn index(&self, id: ResolvedValueId) -> &Self::Output {
+impl<R> std::ops::Index<ValueId<R>> for DataFlowGraph
+where
+    R: IsResolved,
+{
+    type Output = Value;
+    fn index(&self, id: ValueId<R>) -> &Self::Output {
         &self.values[id.raw()]
     }
 }

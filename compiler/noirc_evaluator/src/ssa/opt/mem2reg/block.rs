@@ -3,10 +3,22 @@ use std::borrow::Cow;
 use crate::ssa::ir::{
     function::Function,
     instruction::{Instruction, InstructionId},
-    value::{RawValueId, Resolved, ResolvedValueId, ValueId},
+    value::{IsResolved, RawValueId, ResolvedValueId, ValueId},
 };
 
 use super::alias_set::AliasSet;
+
+/// Private resolution type, to limit the scope of storing them in data structures.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(super) enum ContextResolved {}
+
+impl IsResolved for ContextResolved {}
+
+impl From<ResolvedValueId> for ValueId<ContextResolved> {
+    fn from(value: ResolvedValueId) -> Self {
+        ValueId::new(value.raw())
+    }
+}
 
 /// A `Block` acts as a per-block context for the mem2reg pass.
 /// Most notably, it contains the current alias set thought to track each
@@ -33,7 +45,7 @@ pub(super) struct Block {
     pub(super) references: im::OrdMap<RawValueId, ReferenceValue>,
 
     /// The last instance of a `Store` instruction to each address in this block
-    pub(super) last_stores: im::OrdMap<ResolvedValueId, InstructionId>,
+    pub(super) last_stores: im::OrdMap<ValueId<ContextResolved>, InstructionId>,
 }
 
 /// An `Expression` here is used to represent a canonical key
@@ -43,14 +55,14 @@ pub(super) struct Block {
 pub(super) enum Expression {
     Dereference(Box<Expression>),
     ArrayElement(Box<Expression>),
-    Other(ValueId<Resolved>),
+    Other(ValueId<ContextResolved>),
 }
 
 /// Every reference's value is either Known and can be optimized away, or Unknown.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub(super) enum ReferenceValue {
     Unknown,
-    Known(ResolvedValueId),
+    Known(ValueId<ContextResolved>),
 }
 
 impl ReferenceValue {
@@ -65,7 +77,10 @@ impl ReferenceValue {
 
 impl Block {
     /// If the given reference id points to a known value, return the value
-    pub(super) fn get_known_value(&self, address: ResolvedValueId) -> Option<ResolvedValueId> {
+    pub(super) fn get_known_value(
+        &self,
+        address: ValueId<ContextResolved>,
+    ) -> Option<ValueId<ContextResolved>> {
         if let Some(expression) = self.expressions.get(&address.raw()) {
             if let Some(aliases) = self.aliases.get(expression) {
                 // We could allow multiple aliases if we check that the reference
@@ -82,15 +97,19 @@ impl Block {
     }
 
     /// If the given address is known, set its value to `ReferenceValue::Known(value)`.
-    pub(super) fn set_known_value(&mut self, address: ResolvedValueId, value: ResolvedValueId) {
+    pub(super) fn set_known_value(
+        &mut self,
+        address: ValueId<ContextResolved>,
+        value: ValueId<ContextResolved>,
+    ) {
         self.set_value(address, ReferenceValue::Known(value));
     }
 
-    pub(super) fn set_unknown(&mut self, address: ResolvedValueId) {
+    pub(super) fn set_unknown(&mut self, address: ValueId<ContextResolved>) {
         self.set_value(address, ReferenceValue::Unknown);
     }
 
-    fn set_value(&mut self, address: ResolvedValueId, value: ReferenceValue) {
+    fn set_value(&mut self, address: ValueId<ContextResolved>, value: ReferenceValue) {
         let expression =
             self.expressions.entry(address.raw()).or_insert(Expression::Other(address));
         let aliases = self.aliases.entry(expression.clone()).or_default();
@@ -152,7 +171,7 @@ impl Block {
     pub(super) fn remember_dereference(
         &mut self,
         function: &Function,
-        address: ResolvedValueId,
+        address: ValueId<ContextResolved>,
         result: ValueId,
     ) {
         if function.dfg.value_is_reference(result) {
@@ -171,7 +190,7 @@ impl Block {
     /// Iterate through each known alias of the given address and apply the function `f` to each.
     fn for_each_alias_of<T>(
         &mut self,
-        address: ResolvedValueId,
+        address: ValueId<ContextResolved>,
         mut f: impl FnMut(&mut Self, ValueId) -> T,
     ) {
         if let Some(expr) = self.expressions.get(&address.raw()) {
@@ -183,20 +202,20 @@ impl Block {
         }
     }
 
-    fn keep_last_stores_for(&mut self, address: ResolvedValueId, function: &Function) {
+    fn keep_last_stores_for(&mut self, address: ValueId<ContextResolved>, function: &Function) {
         self.keep_last_store(address, function);
         self.for_each_alias_of(address, |t, alias| {
-            t.keep_last_store(function.dfg.resolve(alias), function);
+            t.keep_last_store(function.dfg.resolve(alias).into(), function);
         });
     }
 
-    fn keep_last_store(&mut self, address: ResolvedValueId, function: &Function) {
+    fn keep_last_store(&mut self, address: ValueId<ContextResolved>, function: &Function) {
         if let Some(instruction) = self.last_stores.remove(&address) {
             // Whenever we decide we want to keep a store instruction, we also need
             // to go through its stored value and mark that used as well.
             match &function.dfg[instruction] {
                 Instruction::Store { value, .. } => {
-                    self.mark_value_used(function.dfg.resolve(*value), function);
+                    self.mark_value_used(function.dfg.resolve(*value).into(), function);
                 }
                 other => {
                     unreachable!("last_store held an id of a non-store instruction: {other:?}")
@@ -205,14 +224,14 @@ impl Block {
         }
     }
 
-    pub(super) fn mark_value_used(&mut self, value: ResolvedValueId, function: &Function) {
+    pub(super) fn mark_value_used(&mut self, value: ValueId<ContextResolved>, function: &Function) {
         self.keep_last_stores_for(value, function);
 
         // We must do a recursive check for arrays since they're the only Values which may contain
         // other ValueIds.
         if let Some((array, _)) = function.dfg.get_array_constant(value) {
             for value in array {
-                self.mark_value_used(function.dfg.resolve(value), function);
+                self.mark_value_used(function.dfg.resolve(value).into(), function);
             }
         }
     }

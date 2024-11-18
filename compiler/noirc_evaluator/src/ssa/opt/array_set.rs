@@ -7,7 +7,7 @@ use crate::ssa::{
         function::{Function, RuntimeType},
         instruction::{Instruction, InstructionId, TerminatorInstruction},
         types::Type::{Array, Slice},
-        value::{RawValueId, ResolvedValueId},
+        value::{RawValueId, ResolvedValueId, ValueId},
     },
     ssa_gen::Ssa,
 };
@@ -55,9 +55,21 @@ impl Function {
     }
 }
 
+/// Private resolution type, to limit the scope of storing them in data structures.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(super) enum ContextResolved {}
+
+//impl IsResolved for ContextResolved {}
+
+impl From<ResolvedValueId> for ValueId<ContextResolved> {
+    fn from(value: ResolvedValueId) -> Self {
+        ValueId::new(value.raw())
+    }
+}
+
 struct Context<'f> {
     dfg: &'f DataFlowGraph,
-    array_to_last_use: HashMap<ResolvedValueId, InstructionId>,
+    array_to_last_use: HashMap<ValueId<ContextResolved>, InstructionId>,
     instructions_that_can_be_made_mutable: HashSet<InstructionId>,
     // Mapping of an array that comes from a load and whether the address
     // it was loaded from is a reference parameter passed to the block.
@@ -86,14 +98,18 @@ impl<'f> Context<'f> {
                 Instruction::ArrayGet { array, .. } => {
                     let array = self.dfg.resolve(*array);
 
-                    if let Some(existing) = self.array_to_last_use.insert(array, *instruction_id) {
+                    if let Some(existing) =
+                        self.array_to_last_use.insert(array.into(), *instruction_id)
+                    {
                         self.instructions_that_can_be_made_mutable.remove(&existing);
                     }
                 }
                 Instruction::ArraySet { array, .. } => {
                     let array = self.dfg.resolve(*array);
 
-                    if let Some(existing) = self.array_to_last_use.insert(array, *instruction_id) {
+                    if let Some(existing) =
+                        self.array_to_last_use.insert(array.into(), *instruction_id)
+                    {
                         self.instructions_that_can_be_made_mutable.remove(&existing);
                     }
 
@@ -135,7 +151,7 @@ impl<'f> Context<'f> {
                             let argument = self.dfg.resolve(*argument);
 
                             if let Some(existing) =
-                                self.array_to_last_use.insert(argument, *instruction_id)
+                                self.array_to_last_use.insert(argument.into(), *instruction_id)
                             {
                                 self.instructions_that_can_be_made_mutable.remove(&existing);
                             }

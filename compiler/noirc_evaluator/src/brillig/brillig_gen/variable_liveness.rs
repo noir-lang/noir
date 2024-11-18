@@ -9,12 +9,12 @@ use crate::ssa::ir::{
     function::Function,
     instruction::{Instruction, InstructionId},
     post_order::PostOrder,
-    value::{ResolvedValueId, Value, ValueId},
+    value::{Value, ValueId},
 };
 
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
-use super::constant_allocation::ConstantAllocation;
+use super::{constant_allocation::ConstantAllocation, FinalValueId};
 
 /// A back edge is an edge from a node to one of its ancestors. It denotes a loop in the CFG.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -45,11 +45,11 @@ fn find_back_edges(
 }
 
 /// Collects the underlying variables inside a value id. It might be more than one, for example in constant arrays that are constructed with multiple vars.
-pub(crate) fn collect_variables_of_value(
+pub(super) fn collect_variables_of_value(
     value_id: ValueId,
     dfg: &DataFlowGraph,
-) -> Option<ResolvedValueId> {
-    let value_id = dfg.resolve(value_id);
+) -> Option<FinalValueId> {
+    let value_id = dfg.resolve(value_id).into();
     let value = &dfg[value_id];
 
     match value {
@@ -61,7 +61,7 @@ pub(crate) fn collect_variables_of_value(
     }
 }
 
-pub(crate) fn variables_used_in_instruction(
+pub(super) fn variables_used_in_instruction(
     instruction: &Instruction,
     dfg: &DataFlowGraph,
 ) -> Variables {
@@ -86,7 +86,7 @@ fn variables_used_in_block(block: &BasicBlock, dfg: &DataFlowGraph) -> Variables
         .collect();
 
     // We consider block parameters used, so they live up to the block that owns them.
-    used.extend(block.parameters().iter().map(|p| p.resolved()));
+    used.extend(block.parameters().iter().map(|p| FinalValueId::from(p.resolved())));
 
     if let Some(terminator) = block.terminator() {
         terminator.for_each_value(|value_id| {
@@ -97,7 +97,7 @@ fn variables_used_in_block(block: &BasicBlock, dfg: &DataFlowGraph) -> Variables
     used
 }
 
-type Variables = HashSet<ResolvedValueId>;
+type Variables = HashSet<FinalValueId>;
 
 fn compute_used_before_def(
     block: &BasicBlock,
@@ -113,7 +113,7 @@ fn compute_used_before_def(
 type LastUses = HashMap<InstructionId, Variables>;
 
 /// A struct representing the liveness of variables throughout a function.
-pub(crate) struct VariableLiveness {
+pub(super) struct VariableLiveness {
     cfg: ControlFlowGraph,
     post_order: PostOrder,
     dominator_tree: DominatorTree,
@@ -127,7 +127,7 @@ pub(crate) struct VariableLiveness {
 
 impl VariableLiveness {
     /// Computes the liveness of variables throughout a function.
-    pub(crate) fn from_function(func: &Function, constants: &ConstantAllocation) -> Self {
+    pub(super) fn from_function(func: &Function, constants: &ConstantAllocation) -> Self {
         let cfg = ControlFlowGraph::with_function(func);
         let post_order = PostOrder::with_function(func);
         let dominator_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
@@ -151,12 +151,12 @@ impl VariableLiveness {
     }
 
     /// The set of values that are alive before the block starts executing
-    pub(crate) fn get_live_in(&self, block_id: &BasicBlockId) -> &Variables {
+    pub(super) fn get_live_in(&self, block_id: &BasicBlockId) -> &Variables {
         self.live_in.get(block_id).expect("Live ins should have been calculated")
     }
 
     /// The set of values that are alive after the block has finished executed
-    pub(crate) fn get_live_out(&self, block_id: &BasicBlockId) -> Variables {
+    pub(super) fn get_live_out(&self, block_id: &BasicBlockId) -> Variables {
         let mut live_out = HashSet::default();
         for successor_id in self.cfg.successors(*block_id) {
             live_out.extend(self.get_live_in(&successor_id));
@@ -165,14 +165,14 @@ impl VariableLiveness {
     }
 
     /// A map of instruction id to the set of values that die after the instruction has executed
-    pub(crate) fn get_last_uses(&self, block_id: &BasicBlockId) -> &LastUses {
+    pub(super) fn get_last_uses(&self, block_id: &BasicBlockId) -> &LastUses {
         self.last_uses.get(block_id).expect("Last uses should have been calculated")
     }
 
     /// Retrieves the list of block params the given block is defining.
     /// Block params are defined before the block that owns them (since they are used by the predecessor blocks). They must be defined in the immediate dominator.
     /// This is the last point where the block param can be allocated without it being allocated in different places in different branches.
-    pub(crate) fn defined_block_params(&self, block_id: &BasicBlockId) -> Vec<ValueId> {
+    pub(super) fn defined_block_params(&self, block_id: &BasicBlockId) -> Vec<ValueId> {
         self.param_definitions.get(block_id).cloned().unwrap_or_default()
     }
 
@@ -244,13 +244,13 @@ impl VariableLiveness {
         let mut defined_vars = HashSet::default();
 
         for parameter in self.defined_block_params(&block_id) {
-            defined_vars.insert(dfg.resolve(parameter));
+            defined_vars.insert(dfg.resolve(parameter).into());
         }
 
         for instruction_id in block.instructions() {
             let result_values = dfg.instruction_results(*instruction_id);
             for result_value in result_values {
-                defined_vars.insert(dfg.resolve(*result_value));
+                defined_vars.insert(dfg.resolve(*result_value).into());
             }
         }
 
@@ -338,10 +338,10 @@ mod test {
     use crate::ssa::ir::map::Id;
     use crate::ssa::ir::types::Type;
 
-    use super::{ResolvedValueId, ValueId};
+    use super::{FinalValueId, ValueId};
 
-    fn resolved_set(it: &[ValueId]) -> FxHashSet<ResolvedValueId> {
-        FxHashSet::from_iter(it.iter().map(|v| v.resolved()))
+    fn resolved_set(it: &[ValueId]) -> FxHashSet<FinalValueId> {
+        FxHashSet::from_iter(it.iter().map(|v| v.resolved().into()))
     }
 
     #[test]
@@ -637,7 +637,7 @@ mod test {
             liveness
                 .defined_block_params(&block_id)
                 .iter()
-                .map(|p| p.resolved())
+                .map(|p| p.resolved().into())
                 .collect::<super::Variables>()
         };
 

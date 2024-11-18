@@ -32,7 +32,7 @@ use crate::ssa::{
         function::Function,
         instruction::{Instruction, InstructionId},
         types::Type,
-        value::{RawValueId, Resolved, ResolvedValueId, Value, ValueId},
+        value::{IsResolved, RawValueId, Value, ValueId},
     },
     ssa_gen::Ssa,
 };
@@ -103,13 +103,19 @@ struct Context {
     dom: DominatorTree,
 }
 
+/// Private resolution type, to limit the scope of storing them in data structures.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+enum ContextResolved {}
+
+impl IsResolved for ContextResolved {}
+
 /// HashMap from (Instruction, side_effects_enabled_var) to the results of the instruction.
 /// Stored as a two-level map to avoid cloning Instructions during the `.get` call.
 ///
 /// In addition to each result, the original BasicBlockId is stored as well. This allows us
 /// to deduplicate instructions across blocks as long as the new block dominates the original.
 type InstructionResultCache =
-    HashMap<Instruction<Resolved>, HashMap<Option<RawValueId>, ResultCache>>;
+    HashMap<Instruction<ContextResolved>, HashMap<Option<RawValueId>, ResultCache>>;
 
 /// Records the results of all duplicate [`Instruction`]s along with the blocks in which they sit.
 ///
@@ -209,7 +215,7 @@ impl Context {
         instruction_id: InstructionId,
         dfg: &DataFlowGraph,
         constraint_simplification_mapping: &HashMap<RawValueId, ValueId>,
-    ) -> Instruction<Resolved> {
+    ) -> Instruction<ContextResolved> {
         let instruction = dfg[instruction_id].clone();
 
         // Alternate between resolving `value_id` in the `dfg` and checking to see if the resolved value
@@ -221,11 +227,11 @@ impl Context {
             dfg: &DataFlowGraph,
             cache: &HashMap<RawValueId, ValueId>,
             value_id: ValueId,
-        ) -> ResolvedValueId {
-            let resolved_id = dfg.resolve(value_id);
-            match cache.get(&resolved_id.raw()) {
+        ) -> ValueId<ContextResolved> {
+            let resolved_id = dfg.resolve(value_id).raw();
+            match cache.get(&resolved_id) {
                 Some(cached_value) => resolve_cache(dfg, cache, *cached_value),
-                None => resolved_id,
+                None => ValueId::new(resolved_id),
             }
         }
 
@@ -266,7 +272,7 @@ impl Context {
 
     fn cache_instruction(
         &mut self,
-        instruction: Instruction<Resolved>,
+        instruction: Instruction<ContextResolved>,
         instruction_results: Vec<ValueId>,
         dfg: &DataFlowGraph,
         side_effects_enabled_var: ValueId,
@@ -342,7 +348,7 @@ impl Context {
     fn get_cached(
         &mut self,
         dfg: &DataFlowGraph,
-        instruction: &Instruction<Resolved>,
+        instruction: &Instruction<ContextResolved>,
         side_effects_enabled_var: ValueId,
         block: BasicBlockId,
     ) -> Option<CacheResult> {

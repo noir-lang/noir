@@ -66,6 +66,7 @@ mod block;
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use block::ContextResolved;
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::{
@@ -77,7 +78,7 @@ use crate::ssa::{
         instruction::{Instruction, InstructionId, TerminatorInstruction},
         post_order::PostOrder,
         types::Type,
-        value::{RawValueId, ResolvedValueId, ValueId},
+        value::{RawValueId, ValueId},
     },
     ssa_gen::Ssa,
 };
@@ -348,7 +349,7 @@ impl<'f> PerFunctionContext<'f> {
             let first = aliases.first();
             let first = first.expect("All parameters alias at least themselves or we early return");
 
-            let expression = Expression::Other(first.resolved());
+            let expression = Expression::Other(first.resolved().into());
             let previous = references.aliases.insert(expression.clone(), aliases.clone());
             assert!(previous.is_none());
 
@@ -396,7 +397,7 @@ impl<'f> PerFunctionContext<'f> {
 
         match &self.inserter.function.dfg[instruction] {
             Instruction::Load { address } => {
-                let address = self.inserter.function.dfg.resolve(*address);
+                let address = ValueId::from(self.inserter.function.dfg.resolve(*address));
 
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
                 references.remember_dereference(self.inserter.function, address, result);
@@ -413,8 +414,8 @@ impl<'f> PerFunctionContext<'f> {
                 }
             }
             Instruction::Store { address, value } => {
-                let address = self.inserter.function.dfg.resolve(*address);
-                let value = self.inserter.function.dfg.resolve(*value);
+                let address = self.inserter.function.dfg.resolve(*address).into();
+                let value = self.inserter.function.dfg.resolve(*value).into();
 
                 // FIXME: This causes errors in the sha256 tests
                 //
@@ -443,12 +444,12 @@ impl<'f> PerFunctionContext<'f> {
             Instruction::Allocate => {
                 // Register the new reference
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
-                let expr = Expression::Other(result.resolved());
+                let expr = Expression::Other(result.resolved().into());
                 references.expressions.insert(result.raw(), expr.clone());
                 references.aliases.insert(expr, AliasSet::known(result));
             }
             Instruction::ArrayGet { array, .. } => {
-                let array = self.inserter.function.dfg.resolve(*array);
+                let array = self.inserter.function.dfg.resolve(*array).into();
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
                 references.mark_value_used(array, self.inserter.function);
 
@@ -460,7 +461,7 @@ impl<'f> PerFunctionContext<'f> {
                 }
             }
             Instruction::ArraySet { array, value, .. } => {
-                let array = self.inserter.function.dfg.resolve(*array);
+                let array = self.inserter.function.dfg.resolve(*array).into();
                 references.mark_value_used(array, self.inserter.function);
                 let element_type = self.inserter.function.dfg.type_of_value(*value);
 
@@ -507,7 +508,7 @@ impl<'f> PerFunctionContext<'f> {
                 // as a potential alias to the array itself.
                 if Self::contains_references(typ) {
                     let array = self.inserter.function.dfg.instruction_results(instruction)[0];
-                    let array = self.inserter.function.dfg.resolve(array);
+                    let array = self.inserter.function.dfg.resolve(array).into();
 
                     let expr = Expression::ArrayElement(Box::new(Expression::Other(array)));
                     references.expressions.insert(array.raw(), expr.clone());
@@ -533,7 +534,12 @@ impl<'f> PerFunctionContext<'f> {
         }
     }
 
-    fn set_aliases(&self, references: &mut Block, address: ResolvedValueId, new_aliases: AliasSet) {
+    fn set_aliases(
+        &self,
+        references: &mut Block,
+        address: ValueId<ContextResolved>,
+        new_aliases: AliasSet,
+    ) {
         let expression =
             references.expressions.entry(address.raw()).or_insert(Expression::Other(address));
         let aliases = references.aliases.entry(expression.clone()).or_default();
@@ -543,7 +549,7 @@ impl<'f> PerFunctionContext<'f> {
     fn mark_all_unknown(&self, values: &[ValueId], references: &mut Block) {
         for value in values {
             if self.inserter.function.dfg.value_is_reference(*value) {
-                let value = self.inserter.function.dfg.resolve(*value);
+                let value = self.inserter.function.dfg.resolve(*value).into();
                 references.set_unknown(value);
                 references.mark_value_used(value, self.inserter.function);
             }

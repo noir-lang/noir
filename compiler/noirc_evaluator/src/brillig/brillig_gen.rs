@@ -13,7 +13,24 @@ use super::brillig_ir::{
     artifact::{BrilligArtifact, Label},
     BrilligContext,
 };
-use crate::ssa::ir::function::Function;
+use crate::ssa::ir::{
+    function::Function,
+    value::{IsResolved, ResolvedValueId, ValueId},
+};
+
+/// Private resolution type, to limit the scope of storing them in data structures.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+struct FinalResolved {}
+
+impl IsResolved for FinalResolved {}
+
+type FinalValueId = ValueId<FinalResolved>;
+
+impl From<ResolvedValueId> for FinalValueId {
+    fn from(value: ResolvedValueId) -> Self {
+        ValueId::new(value.raw())
+    }
+}
 
 /// Converting an SSA function into Brillig bytecode.
 pub(crate) fn convert_ssa_function(
