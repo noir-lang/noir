@@ -2,7 +2,11 @@ use std::collections::BTreeSet;
 
 use iter_extended::vecmap;
 use noirc_frontend::monomorphization::ast::InlineType;
+use petgraph::graph::NodeIndex;
+use petgraph::prelude::DiGraph;
 use serde::{Deserialize, Serialize};
+
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use super::basic_block::BasicBlockId;
 use super::dfg::DataFlowGraph;
@@ -186,6 +190,55 @@ impl Function {
         }
 
         unreachable!("SSA Function {} has no reachable return instruction!", self.id())
+    }
+
+    /// Return each SCC (strongly-connected component) of the CFG of this function
+    /// in postorder. In practice this is identical to a normal CFG except that
+    /// blocks within loops will all be grouped together in the same SCC.
+    pub(crate) fn postorder_scc_cfg(&self) -> Vec<Vec<BasicBlockId>> {
+        let mut cfg = DiGraph::new();
+        let mut stack = vec![self.entry_block];
+
+        let mut visited = HashSet::default();
+        let mut block_to_index = HashMap::default();
+        let mut index_to_block = HashMap::default();
+
+        // Add or create a block node in the cfg
+        let mut get_block_index = |cfg: &mut DiGraph<_, _>, block| {
+            block_to_index.get(&block).copied().unwrap_or_else(|| {
+                let index = cfg.add_node(block);
+                block_to_index.insert(block, index);
+                index_to_block.insert(index, block);
+                index
+            })
+        };
+
+        // Populate each reachable block & edges between them
+        while let Some(block) = stack.pop() {
+            if visited.insert(block) {
+                let block_index = get_block_index(&mut cfg, block);
+
+                for successor in self.dfg[block].successors() {
+                    stack.push(successor);
+                    let successor_index = get_block_index(&mut cfg, successor);
+                    cfg.add_edge(block_index, successor_index, ());
+                }
+            }
+        }
+
+        // Perform tarjan_scc to get strongly connected components.
+        // Lucky for us, this already returns SCCs in postorder.
+        let postorder: Vec<Vec<NodeIndex>> = petgraph::algo::tarjan_scc(&cfg);
+        vecmap(postorder, |indices| vecmap(indices, |index| index_to_block[&index]))
+    }
+
+    /// True if this function has only one block. This is expected for very simple
+    /// functions with no control flow, and any function that flattening was done on.
+    ///
+    /// This is equivalent to but faster than `self.reachable_blocks() == 1`
+    pub(crate) fn has_only_one_block(&self) -> bool {
+        let terminator = self.dfg[self.entry_block].terminator();
+        matches!(terminator, Some(TerminatorInstruction::Return { .. }))
     }
 }
 

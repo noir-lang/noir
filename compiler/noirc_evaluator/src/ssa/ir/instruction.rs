@@ -408,7 +408,7 @@ impl Instruction {
             // after the DIE pass.
             Store { .. } => {
                 matches!(function.runtime(), RuntimeType::Acir(_))
-                    && function.reachable_blocks().len() == 1
+                    && function.has_only_one_block()
             }
 
             Constrain(..)

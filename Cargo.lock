@@ -3145,6 +3145,7 @@ dependencies = [
  "noirc_frontend",
  "num-bigint",
  "num-traits",
+ "petgraph",
  "proptest",
  "rayon",
  "serde",

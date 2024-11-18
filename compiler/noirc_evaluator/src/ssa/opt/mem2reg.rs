@@ -156,13 +156,21 @@ impl<'f> PerFunctionContext<'f> {
     /// This function is expected to be the same one that the internal cfg, post_order, and
     /// dom_tree were created from.
     fn mem2reg(&mut self) {
-        // Iterate each block in reverse post order = forward order
-        let mut block_order = PostOrder::with_function(self.inserter.function).into_vec();
+        // Iterate over each strongly connected component in reverse post order = forward order
+        let mut block_order = self.inserter.function.postorder_scc_cfg();
         block_order.reverse();
 
-        for block in block_order {
-            let references = self.find_starting_references(block);
-            self.analyze_block(block, references);
+        for scc in block_order {
+            if scc.len() == 1 {
+                let block = scc[0];
+                let references = self.find_starting_references(block);
+                self.analyze_block(block, references);
+            } else {
+                for block in scc.into_iter().rev() {
+                    let references = self.find_starting_references(block);
+                    self.analyze_block(block, references);
+                }
+            }
         }
 
         let mut all_terminator_values = HashSet::default();
@@ -279,7 +287,7 @@ impl<'f> PerFunctionContext<'f> {
             // If we started with an empty block, an empty block union'd with any other block
             // is always also empty so we'd never be able to track any references across blocks.
             predecessors.fold(first, |block, predecessor| {
-                let predecessor = self.blocks.entry(predecessor).or_default();
+                let predecessor = self.blocks.get(&predecessor);
                 block.unify(predecessor)
             })
         } else {

@@ -29,6 +29,7 @@ tracing.workspace = true
 chrono = "0.4.37"
 rayon.workspace = true
 cfg-if.workspace = true
+petgraph.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true

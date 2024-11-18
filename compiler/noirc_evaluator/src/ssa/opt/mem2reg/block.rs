@@ -46,19 +46,24 @@ pub(super) enum Expression {
     Other(ValueId),
 }
 
-/// Every reference's value is either Known and can be optimized away, or Unknown.
+/// Every reference's value is either Known and can be optimized away, Unknown, or not yet known.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub(super) enum ReferenceValue {
     Unknown,
     Known(ValueId),
+    NotYetKnown,
 }
 
 impl ReferenceValue {
     fn unify(self, other: Self) -> Self {
-        if self == other {
-            self
-        } else {
-            ReferenceValue::Unknown
+        use ReferenceValue::*;
+
+        match (self, other) {
+            (Known(a), Known(b)) if a == b => Known(a),
+            // (NotYetKnown, NotYetKnown)
+            // | (NotYetKnown, Known(_))
+            // | (Known(_), NotYetKnown) => NotYetKnown,
+            _ => Unknown,
         }
     }
 }
@@ -115,32 +120,41 @@ impl Block {
         self.last_stores.clear();
     }
 
-    pub(super) fn unify(mut self, other: &Self) -> Self {
-        for (value_id, expression) in &other.expressions {
-            if let Some(existing) = self.expressions.get(value_id) {
-                assert_eq!(existing, expression, "Expected expressions for {value_id} to be equal");
-            } else {
-                self.expressions.insert(*value_id, expression.clone());
+    pub(super) fn unify(mut self, other: Option<&Self>) -> Self {
+        if let Some(other) = other {
+            for (value_id, expression) in &other.expressions {
+                if let Some(existing) = self.expressions.get(value_id) {
+                    assert_eq!(existing, expression, "Expected expressions for {value_id} to be equal");
+                } else {
+                    self.expressions.insert(*value_id, expression.clone());
+                }
             }
-        }
 
-        for (expression, new_aliases) in &other.aliases {
-            let expression = expression.clone();
+            for (expression, new_aliases) in &other.aliases {
+                let expression = expression.clone();
 
-            self.aliases
-                .entry(expression)
-                .and_modify(|aliases| aliases.unify(new_aliases))
-                .or_insert_with(|| new_aliases.clone());
-        }
-
-        // Keep only the references present in both maps.
-        let mut intersection = im::OrdMap::new();
-        for (value_id, reference) in &other.references {
-            if let Some(existing) = self.references.get(value_id) {
-                intersection.insert(*value_id, existing.unify(*reference));
+                self.aliases
+                    .entry(expression)
+                    .and_modify(|aliases| aliases.unify(new_aliases))
+                    .or_insert_with(|| new_aliases.clone());
             }
+
+            // Keep only the references present in both maps.
+            let mut intersection = im::OrdMap::new();
+            for (value_id, reference) in &other.references {
+                if let Some(existing) = self.references.get(value_id) {
+                    intersection.insert(*value_id, existing.unify(*reference));
+                }
+            }
+            self.references = intersection;
+        } else {
+            // set each reference to NotYetKnown
+            let mut new_map = im::OrdMap::new();
+            for reference in self.references.keys() {
+                new_map.insert(*reference, ReferenceValue::NotYetKnown);
+            }
+            self.references = new_map;
         }
-        self.references = intersection;
 
         self
     }
