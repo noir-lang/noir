@@ -11,7 +11,7 @@ use crate::ssa::ir::{
     function::Function,
     instruction::InstructionId,
     post_order::PostOrder,
-    value::{ResolvedValueId, Value, ValueId},
+    value::{ResolvedValueId, Value},
 };
 
 use super::variable_liveness::{collect_variables_of_value, variables_used_in_instruction};
@@ -24,7 +24,7 @@ pub(crate) enum InstructionLocation {
 
 pub(crate) struct ConstantAllocation {
     constant_usage: HashMap<ResolvedValueId, HashMap<BasicBlockId, Vec<InstructionLocation>>>,
-    allocation_points: HashMap<BasicBlockId, HashMap<InstructionLocation, Vec<ValueId>>>,
+    allocation_points: HashMap<BasicBlockId, HashMap<InstructionLocation, Vec<ResolvedValueId>>>,
     dominator_tree: DominatorTree,
     blocks_within_loops: HashSet<BasicBlockId>,
 }
@@ -47,7 +47,7 @@ impl ConstantAllocation {
         instance
     }
 
-    pub(crate) fn allocated_in_block(&self, block_id: BasicBlockId) -> Vec<ValueId> {
+    pub(crate) fn allocated_in_block(&self, block_id: BasicBlockId) -> Vec<ResolvedValueId> {
         self.allocation_points.get(&block_id).map_or(Vec::default(), |allocations| {
             allocations.iter().flat_map(|(_, constants)| constants.iter()).copied().collect()
         })
@@ -57,7 +57,7 @@ impl ConstantAllocation {
         &self,
         block_id: BasicBlockId,
         location: InstructionLocation,
-    ) -> Vec<ValueId> {
+    ) -> Vec<ResolvedValueId> {
         self.allocation_points.get(&block_id).map_or(Vec::default(), |allocations| {
             allocations.get(&location).map_or(Vec::default(), |constants| constants.clone())
         })
@@ -100,9 +100,8 @@ impl ConstantAllocation {
     fn decide_allocation_points(&mut self, func: &Function) {
         for (constant_id, usage_in_blocks) in self.constant_usage.iter() {
             let block_ids: Vec<_> = usage_in_blocks.iter().map(|(block_id, _)| *block_id).collect();
-            let constant_id = constant_id.into();
 
-            let allocation_point = self.decide_allocation_point(constant_id, &block_ids, func);
+            let allocation_point = self.decide_allocation_point(*constant_id, &block_ids, func);
 
             // If the allocation point is one of the places where it's used, we take the first usage in the allocation point.
             // Otherwise, we allocate it at the terminator of the allocation point.
@@ -121,13 +120,13 @@ impl ConstantAllocation {
                 .or_default()
                 .entry(location)
                 .or_default()
-                .push(constant_id);
+                .push(*constant_id);
         }
     }
 
     fn decide_allocation_point(
         &self,
-        constant_id: ValueId,
+        constant_id: ResolvedValueId,
         blocks_where_is_used: &[BasicBlockId],
         func: &Function,
     ) -> BasicBlockId {

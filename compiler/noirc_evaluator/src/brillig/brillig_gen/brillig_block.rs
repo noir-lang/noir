@@ -9,7 +9,7 @@ use crate::brillig::brillig_ir::{
 };
 use crate::ssa::ir::dfg::CallStack;
 use crate::ssa::ir::instruction::ConstrainError;
-use crate::ssa::ir::value::ResolvedValueId;
+use crate::ssa::ir::value::{Resolution, ResolvedValueId};
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
     dfg::DataFlowGraph,
@@ -1498,14 +1498,18 @@ impl<'block> BrilligBlock<'block> {
         }
     }
 
-    fn initialize_constants(&mut self, constants: &[ValueId], dfg: &DataFlowGraph) {
+    fn initialize_constants(&mut self, constants: &[ResolvedValueId], dfg: &DataFlowGraph) {
         for &constant_id in constants {
             self.convert_ssa_value(constant_id, dfg);
         }
     }
 
     /// Converts an SSA `ValueId` into a `RegisterOrMemory`. Initializes if necessary.
-    fn convert_ssa_value(&mut self, value_id: ValueId, dfg: &DataFlowGraph) -> BrilligVariable {
+    fn convert_ssa_value<R: Resolution>(
+        &mut self,
+        value_id: ValueId<R>,
+        dfg: &DataFlowGraph,
+    ) -> BrilligVariable {
         let value_id = dfg.resolve(value_id);
         let value = &dfg[value_id];
 

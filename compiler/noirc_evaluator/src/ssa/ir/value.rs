@@ -115,13 +115,6 @@ impl From<ValueId<Resolved>> for ValueId<Unresolved> {
     }
 }
 
-/// Demote any ID into an unresolved one.
-impl<R> From<&ValueId<R>> for ValueId<Unresolved> {
-    fn from(value: &ValueId<R>) -> Self {
-        value.unresolved()
-    }
-}
-
 impl From<Id<Value>> for ValueId<Unresolved> {
     fn from(value: Id<Value>) -> Self {
         ValueId::new(value)

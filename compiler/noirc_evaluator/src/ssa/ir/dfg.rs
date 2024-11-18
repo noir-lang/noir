@@ -248,10 +248,13 @@ impl DataFlowGraph {
     /// `ValueId`, this function will return the `ValueId` from which the substitution was taken.
     /// If `original_value_id`'s underlying `Value` has not been substituted, the same `ValueId`
     /// is returned.
-    pub(crate) fn resolve(&self, original_value_id: ValueId) -> ResolvedValueId {
+    pub(crate) fn resolve<R: Resolution>(&self, original_value_id: ValueId<R>) -> ResolvedValueId {
+        if R::is_resolved() {
+            return ResolvedValueId::new(original_value_id.raw());
+        }
         match self.replaced_value_ids.get(original_value_id.as_ref()) {
             Some(id) => self.resolve(*id),
-            None => original_value_id.resolved(),
+            None => ResolvedValueId::new(original_value_id.raw()),
         }
     }
 
@@ -347,11 +350,7 @@ impl DataFlowGraph {
 
     /// Resolve and get a value by ID
     fn resolve_value<R: Resolution>(&self, original_value_id: ValueId<R>) -> &Value {
-        let id = if R::is_resolved() {
-            original_value_id.raw()
-        } else {
-            self.resolve(original_value_id.unresolved()).raw()
-        };
+        let id = self.resolve(original_value_id.unresolved()).raw();
         &self.values[id]
     }
 
@@ -544,7 +543,7 @@ impl DataFlowGraph {
     }
 
     /// True if the given ValueId refers to a (recursively) constant value
-    pub(crate) fn is_constant(&self, argument: ValueId) -> bool {
+    pub(crate) fn is_constant<R: Resolution>(&self, argument: ValueId<R>) -> bool {
         match &self.resolve_value(argument) {
             Value::Param { .. } => false,
             Value::Instruction { instruction, .. } => match &self[*instruction] {

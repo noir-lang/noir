@@ -213,7 +213,7 @@ impl VariableLiveness {
     ) {
         let mut defined = self.compute_defined_variables(block_id, &func.dfg);
 
-        defined.extend(constants.allocated_in_block(block_id).iter().map(|c| c.resolved()));
+        defined.extend(constants.allocated_in_block(block_id));
 
         let block: &BasicBlock = &func.dfg[block_id];
 
