@@ -1,6 +1,6 @@
-//! This module defines an SSA pass that detects if the final function has any subgraphs independent from inputs and outputs.
-//! If this is the case, then part of the final circuit can be completely replaced by any other passing circuit, since there are no constraints ensuring connections.
-//! So the compiler informs the developer of this as a bug
+//! This module defines security SSA passes detecting constraint problems leading to possible
+//! soundness vulnerabilities.
+//! The compiler informs the developer of these as bugs.
 use crate::errors::{InternalBug, SsaReport};
 use crate::ssa::ir::basic_block::BasicBlockId;
 use crate::ssa::ir::function::RuntimeType;
@@ -14,6 +14,8 @@ use std::collections::{BTreeMap, HashSet};
 use tracing::{debug, trace};
 
 impl Ssa {
+    /// This function provides an SSA pass that detects if the final function has any subgraphs independent from inputs and outputs.
+    /// If this is the case, then part of the final circuit can be completely replaced by any other passing circuit, since there are no constraints ensuring connections.
     /// Go through each top-level non-brillig function and detect if it has independent subgraphs
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn check_for_underconstrained_values(&mut self) -> Vec<SsaReport> {
@@ -898,5 +900,47 @@ mod test {
 
         let ssa_level_warnings = ssa.check_for_missing_brillig_constrains();
         assert_eq!(ssa_level_warnings.len(), 1);
+    }
+
+    #[test]
+    #[traced_test]
+    /// Test where a brillig function is called with a constant argument
+    /// (should _not_ lead to a false positive failed check
+    /// if all the results are constrained)
+    fn test_checked_brillig_with_constant_arguments() {
+        let type_u32 = Type::Numeric(NumericType::Unsigned { bit_size: 32 });
+
+        let main_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+
+        let v0 = builder.add_parameter(type_u32.clone());
+
+        let seven = builder.field_constant(7u128);
+
+        let br_function_id = Id::test_new(1);
+        let br_function = builder.import_function(br_function_id);
+
+        // The call is constrained properly, involving both results
+        // (but the argument to the brillig is a constant)
+        let call_results =
+            builder.insert_call(br_function, vec![seven], vec![type_u32.clone(), type_u32.clone()]);
+        let (v6, v7) = (call_results[0], call_results[1]);
+        let v8 = builder.insert_binary(v6, BinaryOp::Mul, v7);
+        builder.insert_constrain(v8, v0, None);
+
+        builder.terminate_with_return(vec![]);
+
+        // We're faking the brillig function here, for simplicity's sake
+
+        builder.new_brillig_function("factor".into(), br_function_id, InlineType::default());
+        builder.add_parameter(Type::field());
+        let zero = builder.numeric_constant(0u32, type_u32.clone());
+
+        builder.terminate_with_return(vec![zero, zero]);
+
+        let mut ssa = builder.finish();
+
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constrains();
+        assert_eq!(ssa_level_warnings.len(), 0);
     }
 }
