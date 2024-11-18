@@ -797,9 +797,8 @@ impl<'f> LoopIteration<'f> {
     /// Unroll a single block in the current iteration of the loop
     fn unroll_loop_block(&mut self) -> Vec<BasicBlockId> {
         let mut next_blocks = self.unroll_loop_block_helper();
-        // If the loop body ends with a JmpIf then eliminate either destinations
-        // which are not one of the block we have seen as a destination of a terminator
-        // of a block we have already inlined.
+        // Guarantee that the next blocks we set up to be unrolled, are actually part of the loop,
+        // which we recorded while inlining the instructions of the blocks already processed.
         next_blocks.retain(|block| {
             let b = self.get_original_block(*block);
             self.loop_.blocks.contains(&b)
@@ -840,7 +839,7 @@ impl<'f> LoopIteration<'f> {
     /// Find the next branch(es) to take from a jmpif terminator and return them.
     /// If only one block is returned, it means the jmpif condition evaluated to a known
     /// constant and we can safely take only the given branch. In this case the method
-    /// also replaces the terminator of the insert block (a.k.a fresh block) to be a JMP,
+    /// also replaces the terminator of the insert block (a.k.a fresh block) to be a `Jmp`,
     /// and changes the source block in the context for the next iteration to be the
     /// destination indicated by the constant condition (ie. the `then` or the `else`).
     fn handle_jmpif(
