@@ -163,12 +163,18 @@ impl<'f> PerFunctionContext<'f> {
         for scc in block_order {
             if scc.len() == 1 {
                 let block = scc[0];
-                let references = self.find_starting_references(block);
+                let references = self.find_starting_references(block, false);
                 self.analyze_block(block, references);
             } else {
-                for block in scc.into_iter().rev() {
-                    let references = self.find_starting_references(block);
-                    self.analyze_block(block, references);
+                // let first_block = *scc.last().unwrap();
+                for block in scc.iter().rev() {
+                    let references = self.find_starting_references(*block, false);
+                    self.analyze_block(*block, references);
+                }
+
+                for block in scc.iter().rev() {
+                    let references = self.find_starting_references(*block, true);
+                    self.analyze_block(*block, references);
                 }
             }
         }
@@ -276,7 +282,7 @@ impl<'f> PerFunctionContext<'f> {
 
     /// The value of each reference at the start of the given block is the unification
     /// of the value of the same reference at the end of its predecessor blocks.
-    fn find_starting_references(&mut self, block: BasicBlockId) -> Block {
+    fn find_starting_references(&mut self, block: BasicBlockId, ignore_not_yet_known: bool) -> Block {
         let mut predecessors = self.cfg.predecessors(block);
 
         if let Some(first_predecessor) = predecessors.next() {
@@ -286,9 +292,9 @@ impl<'f> PerFunctionContext<'f> {
             // Note that we have to start folding with the first block as the accumulator.
             // If we started with an empty block, an empty block union'd with any other block
             // is always also empty so we'd never be able to track any references across blocks.
-            predecessors.fold(first, |block, predecessor| {
-                let predecessor = self.blocks.get(&predecessor);
-                block.unify(predecessor)
+            predecessors.fold(first, |block, predecessor_id| {
+                let predecessor = self.blocks.get(&predecessor_id);
+                block.unify(predecessor, ignore_not_yet_known)
             })
         } else {
             Block::default()

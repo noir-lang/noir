@@ -55,14 +55,19 @@ pub(super) enum ReferenceValue {
 }
 
 impl ReferenceValue {
-    fn unify(self, other: Self) -> Self {
+    fn unify(self, other: Self, ignore_not_yet_known: bool) -> Self {
         use ReferenceValue::*;
 
         match (self, other) {
             (Known(a), Known(b)) if a == b => Known(a),
-            // (NotYetKnown, NotYetKnown)
-            // | (NotYetKnown, Known(_))
-            // | (Known(_), NotYetKnown) => NotYetKnown,
+            (NotYetKnown, NotYetKnown) => NotYetKnown,
+
+            (NotYetKnown, Known(_))
+            | (Known(_), NotYetKnown) if !ignore_not_yet_known => NotYetKnown,
+
+            (NotYetKnown, Known(v))
+            | (Known(v), NotYetKnown) => Known(v),
+
             _ => Unknown,
         }
     }
@@ -120,7 +125,7 @@ impl Block {
         self.last_stores.clear();
     }
 
-    pub(super) fn unify(mut self, other: Option<&Self>) -> Self {
+    pub(super) fn unify(mut self, other: Option<&Self>, ignore_not_yet_known: bool) -> Self {
         if let Some(other) = other {
             for (value_id, expression) in &other.expressions {
                 if let Some(existing) = self.expressions.get(value_id) {
@@ -143,7 +148,7 @@ impl Block {
             let mut intersection = im::OrdMap::new();
             for (value_id, reference) in &other.references {
                 if let Some(existing) = self.references.get(value_id) {
-                    intersection.insert(*value_id, existing.unify(*reference));
+                    intersection.insert(*value_id, existing.unify(*reference, ignore_not_yet_known));
                 }
             }
             self.references = intersection;
