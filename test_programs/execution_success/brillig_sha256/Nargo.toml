@@ -1,6 +1,0 @@
-[package]
-name = "brillig_sha256"
-type = "bin"
-authors = [""]
-
-[dependencies]
