@@ -60,7 +60,6 @@ impl Sample for BrilligExecutionSample {
     }
 
     fn brillig_function_id(&self) -> Option<BrilligFunctionId> {
-        // Some(BrilligFunctionId(0))
         self.brillig_function_id
     }
 
