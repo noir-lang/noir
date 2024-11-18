@@ -197,7 +197,8 @@ mod test {
         //     inc_rc v0
         //     inc_rc v0
         //     dec_rc v0
-        //     return [v0]
+        //     v1 = make_array [v0]
+        //     return v1
         // }
         let main_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("foo".into(), main_id);
@@ -211,8 +212,8 @@ mod test {
         builder.insert_dec_rc(v0);
 
         let outer_array_type = Type::Array(Arc::new(vec![inner_array_type]), 1);
-        let array = builder.array_constant(vec![v0].into(), outer_array_type);
-        builder.terminate_with_return(vec![array]);
+        let v1 = builder.insert_make_array(vec![v0].into(), outer_array_type);
+        builder.terminate_with_return(vec![v1]);
 
         let ssa = builder.finish().remove_paired_rc();
         let main = ssa.main();

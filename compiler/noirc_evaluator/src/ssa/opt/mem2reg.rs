@@ -165,15 +165,13 @@ impl<'f> PerFunctionContext<'f> {
             self.analyze_block(block, references);
         }
 
-        let mut all_terminator_values = HashSet::default();
+        let mut all_terminator_values: HashSet<RawValueId> = HashSet::default();
         let mut per_func_block_params: HashSet<RawValueId> = HashSet::default();
         for (block_id, _) in self.blocks.iter() {
             let block_params = self.inserter.function.dfg.block_parameters(*block_id);
             per_func_block_params.extend(block_params.iter().map(|p| p.raw()));
             let terminator = self.inserter.function.dfg[*block_id].unwrap_terminator();
-            terminator.for_each_value(|value| {
-                self.recursively_add_values(value, &mut all_terminator_values);
-            });
+            terminator.for_each_value(|value| all_terminator_values.insert(value.raw()));
         }
 
         // If we never load from an address within a function we can remove all stores to that address.
@@ -267,15 +265,6 @@ impl<'f> PerFunctionContext<'f> {
             .filter(|param| self.inserter.function.dfg.value_is_reference(**param))
             .map(|v| v.raw())
             .collect()
-    }
-
-    fn recursively_add_values(&self, value: ValueId, set: &mut HashSet<RawValueId>) {
-        set.insert(value.raw());
-        if let Some((elements, _)) = self.inserter.function.dfg.get_array_constant(value) {
-            for array_element in elements {
-                self.recursively_add_values(array_element, set);
-            }
-        }
     }
 
     /// The value of each reference at the start of the given block is the unification
@@ -427,13 +416,13 @@ impl<'f> PerFunctionContext<'f> {
                 let address = self.inserter.function.dfg.resolve(*address);
                 let value = self.inserter.function.dfg.resolve(*value);
 
-                self.check_array_aliasing(references, value);
-
+                // FIXME: This causes errors in the sha256 tests
+                //
                 // If there was another store to this instruction without any (unremoved) loads or
                 // function calls in-between, we can remove the previous store.
-                if let Some(last_store) = references.last_stores.get(&address) {
-                    self.instructions_to_remove.insert(*last_store);
-                }
+                // if let Some(last_store) = references.last_stores.get(&address) {
+                //     self.instructions_to_remove.insert(*last_store);
+                // }
 
                 if self.inserter.function.dfg.value_is_reference(value) {
                     if let Some(expression) = references.expressions.get(&value.raw()) {
@@ -513,24 +502,23 @@ impl<'f> PerFunctionContext<'f> {
                 }
                 self.mark_all_unknown(arguments, references);
             }
-            _ => (),
-        }
-    }
+            Instruction::MakeArray { elements, typ } => {
+                // If `array` is an array constant that contains reference types, then insert each element
+                // as a potential alias to the array itself.
+                if Self::contains_references(typ) {
+                    let array = self.inserter.function.dfg.instruction_results(instruction)[0];
+                    let array = self.inserter.function.dfg.resolve(array);
 
-    /// If `array` is an array constant that contains reference types, then insert each element
-    /// as a potential alias to the array itself.
-    fn check_array_aliasing(&self, references: &mut Block, array: ResolvedValueId) {
-        if let Some((elements, typ)) = self.inserter.function.dfg.get_array_constant(array) {
-            if Self::contains_references(&typ) {
-                // TODO: Check if type directly holds references or holds arrays that hold references
-                let expr = Expression::ArrayElement(Box::new(Expression::Other(array)));
-                references.expressions.insert(array.raw(), expr.clone());
-                let aliases = references.aliases.entry(expr).or_default();
+                    let expr = Expression::ArrayElement(Box::new(Expression::Other(array)));
+                    references.expressions.insert(array.raw(), expr.clone());
+                    let aliases = references.aliases.entry(expr).or_default();
 
-                for element in elements {
-                    aliases.insert(element);
+                    for element in elements {
+                        aliases.insert(*element);
+                    }
                 }
             }
+            _ => (),
         }
     }
 
@@ -628,23 +616,19 @@ mod tests {
             instruction::{BinaryOp, Instruction, Intrinsic, TerminatorInstruction},
             map::Id,
             types::Type,
-            value::{Resolved, Value},
         },
     };
-
-    fn resolved_value(value: &Value) -> Value<Resolved> {
-        value.clone().map_values(|v| v.resolved())
-    }
 
     #[test]
     fn test_simple() {
         // fn func() {
         //   b0():
         //     v0 = allocate
-        //     store [Field 1, Field 2] in v0
-        //     v1 = load v0
-        //     v2 = array_get v1, index 1
-        //     return v2
+        //     v1 = make_array [Field 1, Field 2]
+        //     store v1 in v0
+        //     v2 = load v0
+        //     v3 = array_get v2, index 1
+        //     return v3
         // }
 
         let func_id = Id::test_new(0);
@@ -655,12 +639,12 @@ mod tests {
 
         let element_type = Arc::new(vec![Type::field()]);
         let array_type = Type::Array(element_type, 2);
-        let array = builder.array_constant(vector![one, two], array_type.clone());
+        let v1 = builder.insert_make_array(vector![one, two], array_type.clone());
 
-        builder.insert_store(v0, array);
-        let v1 = builder.insert_load(v0, array_type);
-        let v2 = builder.insert_array_get(v1, one, Type::field());
-        builder.terminate_with_return(vec![v2]);
+        builder.insert_store(v0, v1);
+        let v2 = builder.insert_load(v0, array_type);
+        let v3 = builder.insert_array_get(v2, one, Type::field());
+        builder.terminate_with_return(vec![v3]);
 
         let ssa = builder.finish().mem2reg().fold_constants();
 
@@ -674,7 +658,7 @@ mod tests {
             TerminatorInstruction::Return { return_values, .. } => return_values.first().unwrap(),
             _ => unreachable!(),
         };
-        assert_eq!(resolved_value(&func.dfg[*ret_val_id]), resolved_value(&func.dfg[two]));
+        assert_eq!(&func.dfg[*ret_val_id], &func.dfg[two]);
     }
 
     #[test]
@@ -710,7 +694,7 @@ mod tests {
             TerminatorInstruction::Return { return_values, .. } => return_values.first().unwrap(),
             _ => unreachable!(),
         };
-        assert_eq!(resolved_value(&func.dfg[*ret_val_id]), resolved_value(&func.dfg[one]));
+        assert_eq!(&func.dfg[*ret_val_id], &func.dfg[one]);
     }
 
     #[test]
@@ -915,16 +899,19 @@ mod tests {
         // We would need to track whether the store where `v9` is the store value gets removed to know whether
         // to remove it.
         assert_eq!(count_stores(main.entry_block(), &main.dfg), 1);
+
         // The first store in b1 is removed since there is another store to the same reference
         // in the same block, and the store is not needed before the later store.
         // The rest of the stores are also removed as no loads are done within any blocks
         // to the stored values.
-        assert_eq!(count_stores(b1, &main.dfg), 0);
+        //
+        // NOTE: This store is not removed due to the FIXME when handling Instruction::Store.
+        assert_eq!(count_stores(b1, &main.dfg), 1);
 
         let b1_instructions = main.dfg[b1].instructions();
 
-        // We expect the last eq to be optimized out
-        assert_eq!(b1_instructions.len(), 0);
+        // We expect the last eq to be optimized out, only the store from above remains
+        assert_eq!(b1_instructions.len(), 1);
     }
 
     #[test]

@@ -266,12 +266,6 @@ impl DataFlowGraph {
         id
     }
 
-    /// Create a new constant array value from the given elements
-    pub(crate) fn make_array(&mut self, array: im::Vector<ValueId>, typ: Type) -> ValueId {
-        assert!(matches!(typ, Type::Array(..) | Type::Slice(_)));
-        self.make_value(Value::Array { array, typ })
-    }
-
     /// Gets or creates a ValueId for the given FunctionId.
     pub(crate) fn import_function(&mut self, function: FunctionId) -> ValueId {
         if let Some(existing) = self.functions.get(&function) {
@@ -481,8 +475,11 @@ impl DataFlowGraph {
         value: ValueId<R>,
     ) -> Option<(im::Vector<ValueId>, Type)> {
         match &self.resolve_value(value) {
+            Value::Instruction { instruction, .. } => match &self.instructions[*instruction] {
+                Instruction::MakeArray { elements, typ } => Some((elements.clone(), typ.clone())),
+                _ => None,
+            },
             // Arrays are shared, so cloning them is cheap
-            Value::Array { array, typ } => Some((array.clone(), typ.clone())),
             _ => None,
         }
     }
@@ -497,7 +494,11 @@ impl DataFlowGraph {
     }
 
     /// A constant index less than the array length is safe
-    pub(crate) fn is_safe_index(&self, index: ValueId, array: ValueId) -> bool {
+    pub(crate) fn is_safe_index<R: Resolution>(
+        &self,
+        index: ValueId<R>,
+        array: ValueId<R>,
+    ) -> bool {
         #[allow(clippy::match_like_matches_macro)]
         match (self.type_of_value(array), self.get_numeric_constant(index)) {
             (Type::Array(_, len), Some(index)) if index.to_u128() < (len as u128) => true,
@@ -545,8 +546,13 @@ impl DataFlowGraph {
     /// True if the given ValueId refers to a (recursively) constant value
     pub(crate) fn is_constant(&self, argument: ValueId) -> bool {
         match &self.resolve_value(argument) {
-            Value::Instruction { .. } | Value::Param { .. } => false,
-            Value::Array { array, .. } => array.iter().all(|element| self.is_constant(*element)),
+            Value::Param { .. } => false,
+            Value::Instruction { instruction, .. } => match &self[*instruction] {
+                Instruction::MakeArray { elements, .. } => {
+                    elements.iter().all(|element| self.is_constant(*element))
+                }
+                _ => false,
+            },
             _ => true,
         }
     }
@@ -607,6 +613,7 @@ impl std::ops::IndexMut<BasicBlockId> for DataFlowGraph {
 // The result of calling DataFlowGraph::insert_instruction can
 // be a list of results or a single ValueId if the instruction was simplified
 // to an existing value.
+#[derive(Debug)]
 pub(crate) enum InsertInstructionResult<'dfg> {
     /// Results is the standard case containing the instruction id and the results of that instruction.
     Results(InstructionId, &'dfg [ValueId]),

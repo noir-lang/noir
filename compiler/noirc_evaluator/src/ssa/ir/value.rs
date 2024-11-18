@@ -46,13 +46,13 @@ pub(crate) type RawValueId = Id<Value>;
 #[derive(Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[serde(transparent)]
 pub(crate) struct ValueId<R = Unresolved> {
-    id: Id<Value<R>>,
+    id: Id<Value>,
     #[serde(skip)]
     _marker: PhantomData<R>,
 }
 
 impl<R> ValueId<R> {
-    pub(crate) fn new(id: Id<Value<R>>) -> Self {
+    pub(crate) fn new(id: Id<Value>) -> Self {
         Self { id, _marker: PhantomData }
     }
 
@@ -102,8 +102,8 @@ impl<R> std::fmt::Display for ValueId<R> {
 /// The underlying ID is often used to index into maps, but in general
 /// we have to be careful when we use this method and how we compare
 /// the raw IDs.
-impl<R> AsRef<Id<Value<R>>> for ValueId<R> {
-    fn as_ref(&self) -> &Id<Value<R>> {
+impl<R> AsRef<Id<Value>> for ValueId<R> {
+    fn as_ref(&self) -> &Id<Value> {
         &self.id
     }
 }
@@ -122,14 +122,13 @@ impl<R> From<&ValueId<R>> for ValueId<Unresolved> {
     }
 }
 
-/// Wrap an `Id` into an equivalent `ValueId``
-impl<R> From<Id<Value<R>>> for ValueId<R> {
-    fn from(value: Id<Value<R>>) -> Self {
+impl From<Id<Value>> for ValueId<Unresolved> {
+    fn from(value: Id<Value>) -> Self {
         ValueId::new(value)
     }
 }
-impl<R> From<&Id<Value<R>>> for ValueId<R> {
-    fn from(value: &Id<Value<R>>) -> Self {
+impl From<&Id<Value>> for ValueId<Unresolved> {
+    fn from(value: &Id<Value>) -> Self {
         ValueId::new(*value)
     }
 }
@@ -137,7 +136,7 @@ impl<R> From<&Id<Value<R>>> for ValueId<R> {
 /// Value is the most basic type allowed in the IR.
 /// Transition Note: A Id<Value> is similar to `NodeId` in our previous IR.
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
-pub(crate) enum Value<R = Unresolved> {
+pub(crate) enum Value {
     /// This value was created due to an instruction
     ///
     /// instruction -- This is the instruction which defined it
@@ -158,9 +157,6 @@ pub(crate) enum Value<R = Unresolved> {
     /// This Value originates from a numeric constant
     NumericConstant { constant: FieldElement, typ: Type },
 
-    /// Represents a constant array value
-    Array { array: im::Vector<ValueId<R>>, typ: Type },
-
     /// This Value refers to a function in the IR.
     /// Functions always have the type Type::Function.
     /// If the argument or return types are needed, users should retrieve
@@ -178,33 +174,16 @@ pub(crate) enum Value<R = Unresolved> {
     ForeignFunction(String),
 }
 
-impl<R> Value<R> {
+impl Value {
     /// Retrieves the type of this Value
     pub(crate) fn get_type(&self) -> &Type {
         match self {
             Value::Instruction { typ, .. } => typ,
             Value::Param { typ, .. } => typ,
             Value::NumericConstant { typ, .. } => typ,
-            Value::Array { typ, .. } => typ,
             Value::Function { .. } => &Type::Function,
             Value::Intrinsic { .. } => &Type::Function,
             Value::ForeignFunction { .. } => &Type::Function,
-        }
-    }
-
-    pub(crate) fn map_values<S>(self, f: impl Fn(ValueId<R>) -> ValueId<S>) -> Value<S> {
-        match self {
-            Value::Instruction { instruction, position, typ } => {
-                Value::Instruction { instruction, position, typ }
-            }
-            Value::Param { block, position, typ } => Value::Param { block, position, typ },
-            Value::NumericConstant { constant, typ } => Value::NumericConstant { constant, typ },
-            Value::Array { array, typ } => {
-                Value::Array { array: array.into_iter().map(f).collect(), typ }
-            }
-            Value::Function(id) => Value::Function(id),
-            Value::Intrinsic(intrinsic) => Value::Intrinsic(intrinsic),
-            Value::ForeignFunction(s) => Value::ForeignFunction(s),
         }
     }
 }
