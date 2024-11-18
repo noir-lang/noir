@@ -68,6 +68,25 @@ impl FunctionContext {
         }
     }
 
+    pub(crate) fn try_ssa_type_to_parameter(typ: &Type) -> Option<BrilligParameter> {
+        match typ {
+            Type::Numeric(_) | Type::Reference(_) => {
+                Some(BrilligParameter::SingleAddr(get_bit_size_from_ssa_type(typ)))
+            }
+            Type::Array(item_type, size) => {
+                let mut parameters = Vec::new();
+                for item_typ in item_type.iter() {
+                    let Some(param) = FunctionContext::try_ssa_type_to_parameter(item_typ) else {
+                        return None;
+                    };
+                    parameters.push(param);
+                }
+                Some(BrilligParameter::Array(parameters, *size))
+            }
+            _ => None,
+        }
+    }
+
     /// Collects the return values of a given function
     pub(crate) fn return_values(func: &Function) -> Vec<BrilligParameter> {
         func.returns()
