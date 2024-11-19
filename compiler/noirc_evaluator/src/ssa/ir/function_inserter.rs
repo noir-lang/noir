@@ -43,11 +43,11 @@ impl<'f> FunctionInserter<'f> {
     /// Resolves a ValueId to its new, updated value.
     /// If there is no updated value for this id, this returns the same
     /// ValueId that was passed in.
-    pub(crate) fn resolve(&mut self, value: ValueId) -> ResolvedValueId {
+    pub(crate) fn resolve(&mut self, value: ValueId) -> ResolvedValueId<'f> {
         let value = self.function.dfg.resolve(value);
         match self.values.get(&value.raw()) {
             Some(value) => self.resolve(*value),
-            None => value,
+            None => ValueId::new(value.raw()),
         }
     }
 
@@ -119,7 +119,7 @@ impl<'f> FunctionInserter<'f> {
         call_stack: CallStack,
     ) -> InsertInstructionResult {
         let results = self.function.dfg.instruction_results(id);
-        let results = vecmap(results, |id| self.function.dfg.resolve(*id));
+        let results = vecmap(results, |id| self.function.dfg.resolve(*id).detach());
 
         let ctrl_typevars = instruction
             .requires_ctrl_typevars()
@@ -209,7 +209,7 @@ impl<'f> FunctionInserter<'f> {
     /// ValueId (from the source_function) and its new ValueId in the destination function.
     pub(crate) fn insert_new_instruction_results(
         values: &mut HashMap<RawValueId, ValueId>,
-        old_results: &[ResolvedValueId],
+        old_results: &[ResolvedValueId<'f>],
         new_results: &InsertInstructionResult,
     ) {
         assert_eq!(old_results.len(), new_results.len());

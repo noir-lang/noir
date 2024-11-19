@@ -59,9 +59,7 @@ impl Function {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(super) enum ContextResolved {}
 
-//impl IsResolved for ContextResolved {}
-
-impl From<ResolvedValueId> for ValueId<ContextResolved> {
+impl From<ResolvedValueId<'_>> for ValueId<ContextResolved> {
     fn from(value: ResolvedValueId) -> Self {
         ValueId::new(value.raw())
     }

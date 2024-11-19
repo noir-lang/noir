@@ -15,13 +15,24 @@ use super::{
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) enum Unresolved {}
 
-/// Resolved marker; doesn't implement `Hash` so it can't be stored in maps.
+/// Marker for resolved status.
+///
+/// Doesn't implement `Hash` so it can't be stored in maps.
+/// It has a lifetime so it's not easy to store it in data structures,
+/// where it could become stale. Instead we can implement module specific
+/// variants when we can prove that persisting them is safe because the
+/// IDs are not going to be changed between use.
+///
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize /* PartialOrd, Ord, Hash */)]
-pub(crate) enum Resolved {}
+pub(crate) struct Resolved<'a> {
+    _marker: PhantomData<&'a ()>,
+}
+
+pub(crate) type ResolvedValueId<'a> = ValueId<Resolved<'a>>;
 
 pub(crate) trait IsResolved {}
 
-impl IsResolved for Resolved {}
+impl<'a> IsResolved for Resolved<'a> {}
 
 pub(crate) trait Resolution {
     fn is_resolved() -> bool;
@@ -38,9 +49,6 @@ impl<R: IsResolved> Resolution for R {
         true
     }
 }
-
-/// A resolved value ID is something we can directly compare.
-pub(crate) type ResolvedValueId = ValueId<Resolved>;
 
 /// A raw value ID that can be used as a key in maps.
 pub(crate) type RawValueId = Id<Value>;
@@ -79,8 +87,15 @@ impl ValueId<Unresolved> {
         self.id == other.id
     }
     /// Promote an unresolved ID into a resolved one.
-    pub(crate) fn resolved(self) -> ValueId<Resolved> {
-        ValueId::new(Id::new(self.id.to_usize()))
+    pub(crate) fn resolved(self) -> ValueId<Resolved<'static>> {
+        ValueId::new(self.id)
+    }
+}
+
+impl<'a> ValueId<Resolved<'a>> {
+    /// Change the lifetime of a resolution.
+    pub(crate) fn detach<'b>(self) -> ValueId<Resolved<'b>> {
+        ValueId::new(self.id)
     }
 }
 
@@ -119,7 +134,6 @@ impl<R: IsResolved> From<ValueId<R>> for ValueId<Unresolved> {
         value.unresolved()
     }
 }
-
 impl From<Id<Value>> for ValueId<Unresolved> {
     fn from(value: Id<Value>) -> Self {
         ValueId::new(value)

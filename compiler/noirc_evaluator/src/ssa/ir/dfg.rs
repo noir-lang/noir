@@ -250,11 +250,11 @@ impl DataFlowGraph {
     /// is returned.
     pub(crate) fn resolve<R: Resolution>(&self, original_value_id: ValueId<R>) -> ResolvedValueId {
         if R::is_resolved() {
-            return ResolvedValueId::new(original_value_id.raw());
+            return ValueId::new(original_value_id.raw());
         }
         match self.replaced_value_ids.get(original_value_id.as_ref()) {
             Some(id) => self.resolve(*id),
-            None => ResolvedValueId::new(original_value_id.raw()),
+            None => ValueId::new(original_value_id.raw()),
         }
     }
 
@@ -350,7 +350,7 @@ impl DataFlowGraph {
 
     /// Resolve and get a value by ID
     fn resolve_value<R: Resolution>(&self, original_value_id: ValueId<R>) -> &Value {
-        let id = self.resolve(original_value_id.unresolved()).raw();
+        let id = self.resolve(original_value_id).raw();
         &self.values[id]
     }
 

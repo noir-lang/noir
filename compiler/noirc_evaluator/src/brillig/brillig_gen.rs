@@ -26,8 +26,8 @@ impl IsResolved for FinalResolved {}
 
 type FinalValueId = ValueId<FinalResolved>;
 
-impl From<ResolvedValueId> for FinalValueId {
-    fn from(value: ResolvedValueId) -> Self {
+impl From<ResolvedValueId<'_>> for FinalValueId {
+    fn from(value: ResolvedValueId<'_>) -> Self {
         ValueId::new(value.raw())
     }
 }
