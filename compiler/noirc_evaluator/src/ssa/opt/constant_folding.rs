@@ -326,36 +326,15 @@ impl<'brillig> Context<'brillig> {
         brillig_info: Option<BrilligInfo>,
         brillig_functions_we_could_not_inline: &mut HashSet<FunctionId>,
     ) -> Vec<ValueId> {
-        // Check if this is a call to a brillig function with all constant arguments.
-        // If so, we can try to evaluate that function and replace the results with the evaluation results.
-        if let Some(brillig_info) = brillig_info {
-            let evaluation_result = Self::evaluate_const_brillig_call(
-                &instruction,
-                brillig_info.brillig,
-                brillig_info.brillig_functions,
-                dfg,
-            );
-
-            match evaluation_result {
-                EvaluationResult::NotABrilligCall => (),
-                EvaluationResult::CannotEvaluate(id) => {
-                    brillig_functions_we_could_not_inline.insert(id);
-                }
-                EvaluationResult::Evaluated(memory_values) => {
-                    let mut memory_index = 0;
-                    let new_results = vecmap(old_results, |old_result| {
-                        let typ = dfg.type_of_value(*old_result);
-                        Self::new_value_for_type_and_memory_values(
-                            typ,
-                            block,
-                            &memory_values,
-                            &mut memory_index,
-                            dfg,
-                        )
-                    });
-                    return new_results;
-                }
-            }
+        if let Some(new_results) = Self::try_inline_brillig_call_with_all_constants(
+            &instruction,
+            old_results,
+            block,
+            dfg,
+            brillig_info,
+            brillig_functions_we_could_not_inline,
+        ) {
+            return new_results;
         }
 
         let ctrl_typevars = instruction
@@ -461,6 +440,46 @@ impl<'brillig> Context<'brillig> {
         let predicate = predicate.then_some(side_effects_enabled_var);
 
         results_for_instruction.get(&predicate)?.get(block, &mut self.dom)
+    }
+
+    /// Checks if the given instruction is a call to a brillig function with all constant arguments.
+    /// If so, we can try to evaluate that function and replace the results with the evaluation results.
+    fn try_inline_brillig_call_with_all_constants(
+        instruction: &Instruction,
+        old_results: &[ValueId],
+        block: BasicBlockId,
+        dfg: &mut DataFlowGraph,
+        brillig_info: Option<BrilligInfo>,
+        brillig_functions_we_could_not_inline: &mut HashSet<FunctionId>,
+    ) -> Option<Vec<ValueId>> {
+        let evaluation_result = Self::evaluate_const_brillig_call(
+            instruction,
+            brillig_info?.brillig,
+            brillig_info?.brillig_functions,
+            dfg,
+        );
+
+        match evaluation_result {
+            EvaluationResult::NotABrilligCall => None,
+            EvaluationResult::CannotEvaluate(func_id) => {
+                brillig_functions_we_could_not_inline.insert(func_id);
+                None
+            }
+            EvaluationResult::Evaluated(memory_values) => {
+                let mut memory_index = 0;
+                let new_results = vecmap(old_results, |old_result| {
+                    let typ = dfg.type_of_value(*old_result);
+                    Self::new_value_for_type_and_memory_values(
+                        typ,
+                        block,
+                        &memory_values,
+                        &mut memory_index,
+                        dfg,
+                    )
+                });
+                Some(new_results)
+            }
+        }
     }
 
     /// Tries to evaluate an instruction if it's a call that points to a brillig function,
