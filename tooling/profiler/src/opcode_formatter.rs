@@ -2,12 +2,6 @@ use acir::brillig::{BinaryFieldOp, BinaryIntOp, BlackBoxOp, Opcode as BrilligOpc
 use acir::circuit::{directives::Directive, opcodes::BlackBoxFuncCall, Opcode as AcirOpcode};
 use acir::AcirField;
 
-#[derive(Debug)]
-pub(crate) enum AcirOrBrilligOpcode<F: AcirField> {
-    Acir(AcirOpcode<F>),
-    Brillig(BrilligOpcode<F>),
-}
-
 fn format_blackbox_function<F>(call: &BlackBoxFuncCall<F>) -> String {
     match call {
         BlackBoxFuncCall::AES128Encrypt { .. } => "aes128_encrypt".to_string(),
@@ -136,11 +130,10 @@ fn format_brillig_opcode_kind<F>(opcode: &BrilligOpcode<F>) -> String {
     }
 }
 
-pub(crate) fn format_opcode<F: AcirField>(opcode: &AcirOrBrilligOpcode<F>) -> String {
-    match opcode {
-        AcirOrBrilligOpcode::Acir(opcode) => format!("acir::{}", format_acir_opcode_kind(opcode)),
-        AcirOrBrilligOpcode::Brillig(opcode) => {
-            format!("brillig::{}", format_brillig_opcode_kind(opcode))
-        }
-    }
+pub(crate) fn format_acir_opcode<F: AcirField>(opcode: &AcirOpcode<F>) -> String {
+    format!("acir::{}", format_acir_opcode_kind(opcode))
+}
+
+pub(crate) fn format_brillig_opcode<F: AcirField>(opcode: &BrilligOpcode<F>) -> String {
+    format!("brillig::{}", format_brillig_opcode_kind(opcode))
 }

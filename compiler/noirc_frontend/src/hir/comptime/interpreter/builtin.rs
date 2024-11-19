@@ -42,7 +42,7 @@ use crate::{
 };
 
 use self::builtin_helpers::{eq_item, get_array, get_ctstring, get_str, get_u8, hash_item, lex};
-use super::Interpreter;
+use super::{foreign, Interpreter};
 
 pub(crate) mod builtin_helpers;
 
@@ -57,6 +57,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
         let interner = &mut self.elaborator.interner;
         let call_stack = &self.elaborator.interpreter_call_stack;
         match name {
+            "apply_range_constraint" => foreign::apply_range_constraint(arguments, location),
             "array_as_str_unchecked" => array_as_str_unchecked(interner, arguments, location),
             "array_len" => array_len(interner, arguments, location),
             "assert_constant" => Ok(Value::Bool(true)),

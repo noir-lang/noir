@@ -91,7 +91,7 @@ impl<'a> ValueMerger<'a> {
         dfg: &mut DataFlowGraph,
         block: BasicBlockId,
         then_condition: ValueId,
-        else_condition: ValueId,
+        _else_condition: ValueId,
         then_value: ValueId,
         else_value: ValueId,
     ) -> ValueId {
@@ -114,31 +114,38 @@ impl<'a> ValueMerger<'a> {
         // We must cast the bool conditions to the actual numeric type used by each value.
         let then_condition = dfg
             .insert_instruction_and_results(
-                Instruction::Cast(then_condition, then_type),
-                block,
-                None,
-                call_stack.clone(),
-            )
-            .first();
-        let else_condition = dfg
-            .insert_instruction_and_results(
-                Instruction::Cast(else_condition, else_type),
+                Instruction::Cast(then_condition, Type::field()),
                 block,
                 None,
                 call_stack.clone(),
             )
             .first();
 
-        let mul = Instruction::binary(BinaryOp::Mul, then_condition, then_value);
-        let then_value =
-            dfg.insert_instruction_and_results(mul, block, None, call_stack.clone()).first();
+        let then_field = Instruction::Cast(then_value, Type::field());
+        let then_field_value =
+            dfg.insert_instruction_and_results(then_field, block, None, call_stack.clone()).first();
 
-        let mul = Instruction::binary(BinaryOp::Mul, else_condition, else_value);
-        let else_value =
-            dfg.insert_instruction_and_results(mul, block, None, call_stack.clone()).first();
+        let else_field = Instruction::Cast(else_value, Type::field());
+        let else_field_value =
+            dfg.insert_instruction_and_results(else_field, block, None, call_stack.clone()).first();
 
-        let add = Instruction::binary(BinaryOp::Add, then_value, else_value);
-        dfg.insert_instruction_and_results(add, block, None, call_stack).first()
+        let diff = Instruction::binary(BinaryOp::Sub, then_field_value, else_field_value);
+        let diff_value =
+            dfg.insert_instruction_and_results(diff, block, None, call_stack.clone()).first();
+
+        let conditional_diff = Instruction::binary(BinaryOp::Mul, then_condition, diff_value);
+        let conditional_diff_value = dfg
+            .insert_instruction_and_results(conditional_diff, block, None, call_stack.clone())
+            .first();
+
+        let merged_field =
+            Instruction::binary(BinaryOp::Add, else_field_value, conditional_diff_value);
+        let merged_field_value = dfg
+            .insert_instruction_and_results(merged_field, block, None, call_stack.clone())
+            .first();
+
+        let merged = Instruction::Cast(merged_field_value, then_type);
+        dfg.insert_instruction_and_results(merged, block, None, call_stack).first()
     }
 
     /// Given an if expression that returns an array: `if c { array1 } else { array2 }`,
@@ -202,7 +209,9 @@ impl<'a> ValueMerger<'a> {
             }
         }
 
-        self.dfg.make_array(merged, typ)
+        let instruction = Instruction::MakeArray { elements: merged, typ };
+        let call_stack = self.call_stack.clone();
+        self.dfg.insert_instruction_and_results(instruction, self.block, None, call_stack).first()
     }
 
     fn merge_slice_values(
@@ -276,7 +285,9 @@ impl<'a> ValueMerger<'a> {
             }
         }
 
-        self.dfg.make_array(merged, typ)
+        let instruction = Instruction::MakeArray { elements: merged, typ };
+        let call_stack = self.call_stack.clone();
+        self.dfg.insert_instruction_and_results(instruction, self.block, None, call_stack).first()
     }
 
     /// Construct a dummy value to be attached to the smaller of two slices being merged.
@@ -296,7 +307,11 @@ impl<'a> ValueMerger<'a> {
                         array.push_back(self.make_slice_dummy_data(typ));
                     }
                 }
-                self.dfg.make_array(array, typ.clone())
+                let instruction = Instruction::MakeArray { elements: array, typ: typ.clone() };
+                let call_stack = self.call_stack.clone();
+                self.dfg
+                    .insert_instruction_and_results(instruction, self.block, None, call_stack)
+                    .first()
             }
             Type::Slice(_) => {
                 // TODO(#3188): Need to update flattening to use true user facing length of slices

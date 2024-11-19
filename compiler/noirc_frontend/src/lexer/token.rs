@@ -4,7 +4,6 @@ use std::fmt::{self, Display};
 
 use crate::{
     ast::{Expression, Path},
-    lexer::errors::LexerErrorKind,
     node_interner::{
         ExprId, InternedExpressionKind, InternedPattern, InternedStatementKind,
         InternedUnresolvedTypeData, QuotedTypeId,
@@ -598,7 +597,7 @@ impl IntType {
     // XXX: Result<Option<Token, LexerErrorKind>
     // Is not the best API. We could split this into two functions. One that checks if the
     // word is a integer, which only returns an Option
-    pub(crate) fn lookup_int_type(word: &str) -> Result<Option<Token>, LexerErrorKind> {
+    pub fn lookup_int_type(word: &str) -> Option<IntType> {
         // Check if the first string is a 'u' or 'i'
 
         let is_signed = if word.starts_with('i') {
@@ -606,20 +605,20 @@ impl IntType {
         } else if word.starts_with('u') {
             false
         } else {
-            return Ok(None);
+            return None;
         };
 
         // Word start with 'u' or 'i'. Check if the latter is an integer
 
         let str_as_u32 = match word[1..].parse::<u32>() {
             Ok(str_as_u32) => str_as_u32,
-            Err(_) => return Ok(None),
+            Err(_) => return None,
         };
 
         if is_signed {
-            Ok(Some(Token::IntType(IntType::Signed(str_as_u32))))
+            Some(IntType::Signed(str_as_u32))
         } else {
-            Ok(Some(Token::IntType(IntType::Unsigned(str_as_u32))))
+            Some(IntType::Unsigned(str_as_u32))
         }
     }
 }

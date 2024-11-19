@@ -59,6 +59,12 @@ const IGNORED_BRILLIG_TESTS: [&str; 11] = [
     "is_unconstrained",
 ];
 
+/// Tests which aren't expected to work with the default inliner cases.
+const INLINER_MIN_OVERRIDES: [(&str, i64); 1] = [
+    // 0 works if PoseidonHasher::write is tagged as `inline_always`, otherwise 22.
+    ("eddsa", 0),
+];
+
 /// Some tests are expected to have warnings
 /// These should be fixed and removed from this list.
 const TESTS_WITH_EXPECTED_WARNINGS: [&str; 2] = [
@@ -94,12 +100,42 @@ struct MatrixConfig {
     vary_brillig: bool,
     // Only seems to have an effect on the `execute_success` cases.
     vary_inliner: bool,
+    // If there is a non-default minimum inliner aggressiveness to use with the brillig tests.
+    min_inliner: i64,
 }
 
-/// Generate all test cases for a given test directory.
-/// These will be executed serially, but independently from other test directories.
-/// Running multiple tests on the same directory concurrently risks overriding each
-/// others compilation artifacts.
+// Enum to be able to preserve readable test labels and also compare to numbers.
+enum Inliner {
+    Min,
+    Default,
+    Max,
+    Custom(i64),
+}
+
+impl Inliner {
+    fn value(&self) -> i64 {
+        match self {
+            Inliner::Min => i64::MIN,
+            Inliner::Default => 0,
+            Inliner::Max => i64::MAX,
+            Inliner::Custom(i) => *i,
+        }
+    }
+    fn label(&self) -> String {
+        match self {
+            Inliner::Min => "i64::MIN".to_string(),
+            Inliner::Default => "0".to_string(),
+            Inliner::Max => "i64::MAX".to_string(),
+            Inliner::Custom(i) => i.to_string(),
+        }
+    }
+}
+
+/// Generate all test cases for a given test name (expected to be unique for the test directory),
+/// based on the matrix configuration. These will be executed serially, but concurrently with
+/// other test directories. Running multiple tests on the same directory would risk overriding
+/// each others compilation artifacts, which is why this method injects a mutex shared by
+/// all cases in the test matrix, as long as the test name and directory has a 1-to-1 relationship.
 fn generate_test_cases(
     test_file: &mut File,
     test_name: &str,
@@ -108,11 +144,39 @@ fn generate_test_cases(
     test_content: &str,
     matrix_config: &MatrixConfig,
 ) {
+    let brillig_cases = if matrix_config.vary_brillig { vec![false, true] } else { vec![false] };
+    let inliner_cases = if matrix_config.vary_inliner {
+        let mut cases = vec![Inliner::Min, Inliner::Default, Inliner::Max];
+        if !cases.iter().any(|c| c.value() == matrix_config.min_inliner) {
+            cases.push(Inliner::Custom(matrix_config.min_inliner));
+        }
+        cases
+    } else {
+        vec![Inliner::Default]
+    };
+
+    // We can't use a `#[test_matrix(brillig_cases, inliner_cases)` if we only want to limit the
+    // aggressiveness range for the brillig tests, and let them go full range on the ACIR case.
+    let mut test_cases = Vec::new();
+    for brillig in &brillig_cases {
+        for inliner in &inliner_cases {
+            if *brillig && inliner.value() < matrix_config.min_inliner {
+                continue;
+            }
+            test_cases.push(format!(
+                "#[test_case::test_case(ForceBrillig({brillig}), Inliner({}))]",
+                inliner.label()
+            ));
+        }
+    }
+    let test_cases = test_cases.join("\n");
+
+    // We need to isolate test cases in the same group, otherwise they overwrite each other's artifacts.
+    // On CI we use `cargo nextest`, which runs tests in different processes; for this we use a file lock.
+    // Locally we might be using `cargo test`, which run tests in the same process; in this case the file lock
+    // wouldn't work, becuase the process itself has the lock, and it looks like it can have N instances without
+    // any problems; for this reason we also use a `Mutex`.
     let mutex_name = format! {"TEST_MUTEX_{}", test_name.to_uppercase()};
-    let brillig_cases = if matrix_config.vary_brillig { "[false, true]" } else { "[false]" };
-    let _inliner_cases = if matrix_config.vary_inliner { "[i64::MIN, 0, i64::MAX]" } else { "[0]" };
-    // TODO (#6429): Remove this once the failing tests are fixed.
-    let inliner_cases = "[i64::MAX]";
     write!(
         test_file,
         r#"
@@ -121,25 +185,31 @@ lazy_static::lazy_static! {{
     static ref {mutex_name}: std::sync::Mutex<()> = std::sync::Mutex::new(());
 }}
 
-#[test_case::test_matrix(
-    {brillig_cases}, 
-    {inliner_cases}
-)]
-fn test_{test_name}(force_brillig: bool, inliner_aggressiveness: i64) {{
-    // Ignore poisoning errors if some of the matrix cases failed.
-    let _guard = {mutex_name}.lock().unwrap_or_else(|e| e.into_inner()); 
-
+{test_cases}
+fn test_{test_name}(force_brillig: ForceBrillig, inliner_aggressiveness: Inliner) {{
     let test_program_dir = PathBuf::from("{test_dir}");
+
+    // Ignore poisoning errors if some of the matrix cases failed.
+    let mutex_guard = {mutex_name}.lock().unwrap_or_else(|e| e.into_inner());
+
+    let file_guard = file_lock::FileLock::lock(
+        test_program_dir.join("Nargo.toml"),
+        true,
+        file_lock::FileOptions::new().read(true).write(true).append(true)
+    ).expect("failed to lock Nargo.toml");
 
     let mut nargo = Command::cargo_bin("nargo").unwrap();
     nargo.arg("--program-dir").arg(test_program_dir);
     nargo.arg("{test_command}").arg("--force");
-    nargo.arg("--inliner-aggressiveness").arg(inliner_aggressiveness.to_string());
-    if force_brillig {{
+    nargo.arg("--inliner-aggressiveness").arg(inliner_aggressiveness.0.to_string());
+    if force_brillig.0 {{
         nargo.arg("--force-brillig");
     }}
 
     {test_content}
+
+    drop(file_guard);
+    drop(mutex_guard);
 }}
 "#
     )
@@ -171,6 +241,11 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
             &MatrixConfig {
                 vary_brillig: !IGNORED_BRILLIG_TESTS.contains(&test_name.as_str()),
                 vary_inliner: true,
+                min_inliner: INLINER_MIN_OVERRIDES
+                    .iter()
+                    .find(|(n, _)| *n == test_name.as_str())
+                    .map(|(_, i)| *i)
+                    .unwrap_or(i64::MIN),
             },
         );
     }
@@ -304,7 +379,7 @@ fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Pa
             "info",
             &format!(
                 r#"
-                nargo.arg("--json");                
+                nargo.arg("--json");
                 {assert_zero_opcodes}
             "#,
             ),

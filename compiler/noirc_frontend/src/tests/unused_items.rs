@@ -294,3 +294,23 @@ fn no_warning_on_self_in_trait_impl() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn resolves_trait_where_clause_in_the_correct_module() {
+    // This is a regression test for https://github.com/noir-lang/noir/issues/6479
+    let src = r#" 
+    mod foo {
+        pub trait Foo {}
+    }
+    
+    use foo::Foo;
+    
+    pub trait Bar<T>
+    where
+        T: Foo,
+    {}
+    
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}

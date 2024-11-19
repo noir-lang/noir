@@ -1511,6 +1511,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "file-lock"
+version = "2.1.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "040b48f80a749da50292d0f47a1e2d5bf1d772f52836c07f64bfccc62ba6e664"
+dependencies = [
+ "cc",
+ "libc",
+]
+
+[[package]]
 name = "filetime"
 version = "0.2.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2777,6 +2787,7 @@ dependencies = [
  "criterion",
  "dap",
  "dirs",
+ "file-lock",
  "fm",
  "iai",
  "iter-extended",
@@ -3133,11 +3144,13 @@ dependencies = [
  "noirc_errors",
  "noirc_frontend",
  "num-bigint",
+ "num-traits",
  "proptest",
  "rayon",
  "serde",
  "serde_json",
  "serde_with",
+ "similar-asserts",
  "thiserror",
  "tracing",
 ]
