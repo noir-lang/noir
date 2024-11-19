@@ -98,3 +98,50 @@ fn keccakf1600(
     let array: Vector<Value> = result_lanes.into_iter().map(Value::U64).collect();
     Ok(Value::Array(array, typ))
 }
+
+#[cfg(test)]
+mod tests {
+    use acvm::acir::BlackBoxFunc;
+    use noirc_errors::Location;
+    use strum::IntoEnumIterator;
+
+    use crate::hir::comptime::tests::with_interpreter;
+    use crate::hir::comptime::InterpreterError::{ArgumentCountMismatch, Unimplemented};
+
+    use super::call_foreign;
+
+    #[test]
+    fn test_blackbox_implemented() {
+        let dummy = "
+        comptime fn main() -> pub u8 {
+            0
+        }
+        ";
+        let not_implemented = with_interpreter(&dummy, |interpreter, _, _| {
+            let no_location = Location::dummy();
+            let mut not_implemented = Vec::new();
+
+            for blackbox in BlackBoxFunc::iter() {
+                let name = blackbox.name();
+                match call_foreign(interpreter.elaborator.interner, name, Vec::new(), no_location) {
+                    Ok(_) => {
+                        // Exists and works with no args
+                    }
+                    Err(ArgumentCountMismatch { .. }) => {
+                        // Exists but doesn't work with no args
+                    }
+                    Err(Unimplemented { .. }) => not_implemented.push(name),
+                    Err(other) => panic!("unexpected error: {other:?}"),
+                };
+            }
+
+            not_implemented
+        });
+
+        assert_eq!(
+            not_implemented.len(),
+            0,
+            "unimplemented blackbox functions: {not_implemented:?}"
+        );
+    }
+}

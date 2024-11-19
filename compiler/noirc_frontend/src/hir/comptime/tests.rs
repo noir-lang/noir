@@ -11,7 +11,7 @@ use super::errors::InterpreterError;
 use super::value::Value;
 use super::Interpreter;
 use crate::elaborator::Elaborator;
-use crate::hir::def_collector::dc_crate::DefCollector;
+use crate::hir::def_collector::dc_crate::{CompilationError, DefCollector};
 use crate::hir::def_collector::dc_mod::collect_defs;
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleData};
 use crate::hir::{Context, ParsedFiles};
@@ -19,7 +19,10 @@ use crate::node_interner::FuncId;
 use crate::parse_program;
 
 /// Create an interpreter for a code snippet and pass it to a test function.
-fn with_interpreter<T>(src: &str, f: impl FnOnce(&mut Interpreter, FuncId) -> T) -> T {
+pub(crate) fn with_interpreter<T>(
+    src: &str,
+    f: impl FnOnce(&mut Interpreter, FuncId, &[(CompilationError, FileId)]) -> T,
+) -> T {
     let file = FileId::default();
 
     // Can't use Index::test_new here for some reason, even with #[cfg(test)].
@@ -58,16 +61,17 @@ fn with_interpreter<T>(src: &str, f: impl FnOnce(&mut Interpreter, FuncId) -> T)
     let mut elaborator =
         Elaborator::elaborate_and_return_self(&mut context, krate, collector.items, None);
 
-    assert_eq!(elaborator.errors.len(), 0);
+    let errors = elaborator.errors.clone();
 
     let mut interpreter = elaborator.setup_interpreter();
 
-    f(&mut interpreter, main)
+    f(&mut interpreter, main, &errors)
 }
 
 /// Evaluate a code snippet by calling the `main` function.
 fn interpret_helper(src: &str) -> Result<Value, InterpreterError> {
-    with_interpreter(src, |interpreter, main| {
+    with_interpreter(src, |interpreter, main, errors| {
+        assert_eq!(errors.len(), 0);
         let no_location = Location::dummy();
         interpreter.call_function(main, Vec::new(), HashMap::new(), no_location)
     })
