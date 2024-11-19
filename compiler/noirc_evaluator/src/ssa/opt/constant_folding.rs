@@ -95,6 +95,45 @@ impl Ssa {
             function.constant_fold(false, brillig_info);
         }
 
+        // It could happen that we inlined all calls to a given brillig function.
+        // In that case it's unused so we can remove it. This is what we check next.
+        self.remove_unused_brillig_functions(brillig_functions)
+    }
+
+    fn remove_unused_brillig_functions(
+        mut self,
+        mut brillig_functions: BTreeMap<FunctionId, Function>,
+    ) -> Ssa {
+        // Remove from the above map functions that are called
+        for function in self.functions.values() {
+            for block_id in function.reachable_blocks() {
+                for instruction_id in function.dfg[block_id].instructions() {
+                    let instruction = &function.dfg[*instruction_id];
+                    let Instruction::Call { func: func_id, arguments: _ } = instruction else {
+                        continue;
+                    };
+
+                    let func_value = &function.dfg[*func_id];
+                    let Value::Function(func_id) = func_value else { continue };
+
+                    brillig_functions.remove(func_id);
+                }
+            }
+        }
+
+        // The ones that remain are never called: let's remove them.
+        for func_id in brillig_functions.keys() {
+            // We never want to remove the main function (it could be `unconstrained` or it
+            // could have been turned into brillig if `--force-brillig` was given).
+            // We also don't want to remove entry points.
+            if self.main_id == *func_id || self.entry_point_to_generated_index.contains_key(func_id)
+            {
+                continue;
+            }
+
+            self.functions.remove(func_id);
+        }
+
         self
     }
 }

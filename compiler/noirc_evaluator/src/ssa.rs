@@ -153,7 +153,6 @@ pub(crate) fn optimize_into_acir(
         |ssa| ssa.fold_constants_with_brillig(&brillig),
         "After Constant Folding with Brillig:",
     )
-    .run_pass(Ssa::remove_unused_brillig_functions, "After Remove Unused Brillig Functions:")
     .run_pass(Ssa::dead_instruction_elimination, "After Dead Instruction Elimination:")
     .finish();
 
