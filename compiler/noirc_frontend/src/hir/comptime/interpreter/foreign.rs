@@ -201,7 +201,7 @@ mod tests {
             0
         }
         ";
-        let not_implemented = with_interpreter(&dummy, |interpreter, _, _| {
+        let not_implemented = with_interpreter(dummy, |interpreter, _, _| {
             let no_location = Location::dummy();
             let mut not_implemented = Vec::new();
 
