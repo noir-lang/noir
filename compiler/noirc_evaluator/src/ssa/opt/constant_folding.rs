@@ -627,6 +627,7 @@ enum EvaluationResult {
     /// or some arguments to it were not constants.
     NotABrilligCall,
     /// The instruction was a call to a brillig function, but we couldn't evaluate it.
+    /// This can occur in the situation where the brillig function reaches a "trap" or a foreign call opcode.
     CannotEvaluate(FunctionId),
     /// The instruction was a call to a brillig function and we were able to evaluate it,
     /// returning evaluation memory values.
