@@ -349,7 +349,7 @@ impl<'f> PerFunctionContext<'f> {
             let first = aliases.first();
             let first = first.expect("All parameters alias at least themselves or we early return");
 
-            let expression = Expression::Other(first.resolved().into());
+            let expression = Expression::Other(ValueId::new(first.raw()));
             let previous = references.aliases.insert(expression.clone(), aliases.clone());
             assert!(previous.is_none());
 
@@ -444,7 +444,7 @@ impl<'f> PerFunctionContext<'f> {
             Instruction::Allocate => {
                 // Register the new reference
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
-                let expr = Expression::Other(result.resolved().into());
+                let expr = Expression::Other(ValueId::new(result.raw()));
                 references.expressions.insert(result.raw(), expr.clone());
                 references.aliases.insert(expr, AliasSet::known(result));
             }
@@ -737,7 +737,7 @@ mod tests {
         // Since the mem2reg pass simplifies as it goes, the id of the allocate instruction result
         // is most likely no longer v0. We have to retrieve the new id here.
         let allocate_id = func.dfg.instruction_results(instructions[0])[0];
-        assert_eq!(ret_val_id.resolved(), allocate_id.resolved());
+        assert_eq!(ret_val_id.raw(), allocate_id.raw());
     }
 
     fn count_stores(block: BasicBlockId, dfg: &DataFlowGraph) -> usize {

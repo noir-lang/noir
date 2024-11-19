@@ -814,7 +814,7 @@ impl Instruction {
     /// Pretend the value IDs have been resolved.
     #[cfg(test)]
     pub(crate) fn resolved(&self) -> Instruction<super::value::Resolved> {
-        self.map_values(|v| v.resolved())
+        self.map_values(|v| ValueId::new(v.raw()))
     }
 }
 

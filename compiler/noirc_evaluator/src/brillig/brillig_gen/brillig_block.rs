@@ -9,7 +9,7 @@ use crate::brillig::brillig_ir::{
 };
 use crate::ssa::ir::dfg::CallStack;
 use crate::ssa::ir::instruction::ConstrainError;
-use crate::ssa::ir::value::{Resolution, ResolvedValueId};
+use crate::ssa::ir::value::{RawValueId, Resolution};
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
     dfg::DataFlowGraph,
@@ -1575,13 +1575,12 @@ impl<'block> BrilligBlock<'block> {
         let item_types = typ.clone().element_types();
 
         // Find out if we are repeating the same item over and over
-        let first_item: Vec<ResolvedValueId> =
-            data.iter().take(item_types.len()).map(|v| v.resolved()).collect();
+        let first_item: Vec<RawValueId> =
+            data.iter().take(item_types.len()).map(|v| v.raw()).collect();
         let mut is_repeating = true;
 
         for item_index in (item_types.len()..data.len()).step_by(item_types.len()) {
-            let item: Vec<_> =
-                (0..item_types.len()).map(|i| data[item_index + i].resolved()).collect();
+            let item: Vec<_> = (0..item_types.len()).map(|i| data[item_index + i].raw()).collect();
             if first_item != item {
                 is_repeating = false;
                 break;

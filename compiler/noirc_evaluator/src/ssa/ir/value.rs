@@ -86,7 +86,7 @@ impl ValueId<Unresolved> {
     pub(crate) fn unresolved_eq(&self, other: &Self) -> bool {
         self.id == other.id
     }
-    /// Promote an unresolved ID into a resolved one.
+    #[cfg(test)]
     pub(crate) fn resolved(self) -> ValueId<Resolved<'static>> {
         ValueId::new(self.id)
     }

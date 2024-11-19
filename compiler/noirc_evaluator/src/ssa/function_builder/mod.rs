@@ -521,8 +521,8 @@ mod tests {
         // let bits: [u1; 8] = x.to_le_bits();
         let func_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("func".into(), func_id);
-        let one = builder.numeric_constant(FieldElement::one(), Type::bool()).resolved();
-        let zero = builder.numeric_constant(FieldElement::zero(), Type::bool()).resolved();
+        let one = builder.numeric_constant(FieldElement::one(), Type::bool()).raw();
+        let zero = builder.numeric_constant(FieldElement::zero(), Type::bool()).raw();
 
         let to_bits_id = builder.import_intrinsic_id(Intrinsic::ToBits(Endian::Little));
         let input = builder.numeric_constant(FieldElement::from(7_u128), Type::field());
@@ -532,9 +532,9 @@ mod tests {
             builder.insert_call(to_bits_id, vec![input, length], result_types).into_owned();
 
         let slice = builder.current_function.dfg.get_array_constant(call_results[0]).unwrap().0;
-        assert_eq!(slice[0].resolved(), one);
-        assert_eq!(slice[1].resolved(), one);
-        assert_eq!(slice[2].resolved(), one);
-        assert_eq!(slice[3].resolved(), zero);
+        assert_eq!(slice[0].raw(), one);
+        assert_eq!(slice[1].raw(), one);
+        assert_eq!(slice[2].raw(), one);
+        assert_eq!(slice[3].raw(), zero);
     }
 }

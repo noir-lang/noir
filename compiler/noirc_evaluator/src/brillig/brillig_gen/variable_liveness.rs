@@ -86,7 +86,7 @@ fn variables_used_in_block(block: &BasicBlock, dfg: &DataFlowGraph) -> Variables
         .collect();
 
     // We consider block parameters used, so they live up to the block that owns them.
-    used.extend(block.parameters().iter().map(|p| FinalValueId::from(p.resolved())));
+    used.extend(block.parameters().iter().map(|p| FinalValueId::new(p.raw())));
 
     if let Some(terminator) = block.terminator() {
         terminator.for_each_value(|value_id| {
@@ -341,7 +341,7 @@ mod test {
     use super::{FinalValueId, ValueId};
 
     fn resolved_set(it: &[ValueId]) -> FxHashSet<FinalValueId> {
-        FxHashSet::from_iter(it.iter().map(|v| v.resolved().into()))
+        FxHashSet::from_iter(it.iter().map(|v| FinalValueId::new(v.raw())))
     }
 
     #[test]
@@ -637,7 +637,7 @@ mod test {
             liveness
                 .defined_block_params(&block_id)
                 .iter()
-                .map(|p| p.resolved().into())
+                .map(|p| FinalValueId::new(p.raw()))
                 .collect::<super::Variables>()
         };
 
