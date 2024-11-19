@@ -36,6 +36,9 @@ pub(crate) enum Value {
     /// This Value originates from a numeric constant
     NumericConstant { constant: FieldElement, typ: Type },
 
+    /// Represents a constant array value
+    Array { array: im::Vector<ValueId>, typ: Type },
+
     /// This Value refers to a function in the IR.
     /// Functions always have the type Type::Function.
     /// If the argument or return types are needed, users should retrieve
@@ -60,6 +63,7 @@ impl Value {
             Value::Instruction { typ, .. } => typ,
             Value::Param { typ, .. } => typ,
             Value::NumericConstant { typ, .. } => typ,
+            Value::Array { typ, .. } => typ,
             Value::Function { .. } => &Type::Function,
             Value::Intrinsic { .. } => &Type::Function,
             Value::ForeignFunction { .. } => &Type::Function,

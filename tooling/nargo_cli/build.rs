@@ -163,10 +163,7 @@ fn generate_test_cases(
             if *brillig && inliner.value() < matrix_config.min_inliner {
                 continue;
             }
-            test_cases.push(format!(
-                "#[test_case::test_case(ForceBrillig({brillig}), Inliner({}))]",
-                inliner.label()
-            ));
+            test_cases.push(format!("#[test_case::test_case({brillig}, {})]", inliner.label()));
         }
     }
     let test_cases = test_cases.join("\n");
@@ -186,7 +183,7 @@ lazy_static::lazy_static! {{
 }}
 
 {test_cases}
-fn test_{test_name}(force_brillig: ForceBrillig, inliner_aggressiveness: Inliner) {{
+fn test_{test_name}(force_brillig: bool, inliner_aggressiveness: i64) {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
     // Ignore poisoning errors if some of the matrix cases failed.
@@ -201,8 +198,8 @@ fn test_{test_name}(force_brillig: ForceBrillig, inliner_aggressiveness: Inliner
     let mut nargo = Command::cargo_bin("nargo").unwrap();
     nargo.arg("--program-dir").arg(test_program_dir);
     nargo.arg("{test_command}").arg("--force");
-    nargo.arg("--inliner-aggressiveness").arg(inliner_aggressiveness.0.to_string());
-    if force_brillig.0 {{
+    nargo.arg("--inliner-aggressiveness").arg(inliner_aggressiveness.to_string());
+    if force_brillig {{
         nargo.arg("--force-brillig");
     }}
 

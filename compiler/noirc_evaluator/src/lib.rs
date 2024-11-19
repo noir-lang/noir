@@ -5,9 +5,11 @@
 
 pub mod errors;
 
-mod acir;
-pub mod brillig;
+// SSA code to create the SSA based IR
+// for functions and execute different optimizations.
 pub mod ssa;
+
+pub mod brillig;
 
 pub use ssa::create_program;
 

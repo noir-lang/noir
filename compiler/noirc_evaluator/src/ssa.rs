@@ -28,16 +28,19 @@ use acvm::{
 
 use noirc_errors::debug_info::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables};
 
+use noirc_frontend::ast::Visibility;
 use noirc_frontend::{
-    ast::Visibility,
     hir_def::{function::FunctionSignature, types::Type as HirType},
     monomorphization::ast::Program,
 };
-use ssa_gen::Ssa;
 use tracing::{span, Level};
 
-use crate::acir::{Artifacts, GeneratedAcir};
+use self::{
+    acir_gen::{Artifacts, GeneratedAcir},
+    ssa_gen::Ssa,
+};
 
+mod acir_gen;
 mod checks;
 pub(super) mod function_builder;
 pub mod ir;

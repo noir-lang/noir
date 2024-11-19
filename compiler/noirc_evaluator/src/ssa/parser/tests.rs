@@ -54,36 +54,33 @@ fn test_return_integer() {
 }
 
 #[test]
-fn test_make_array() {
+fn test_return_array() {
     let src = "
         acir(inline) fn main f0 {
           b0():
-            v1 = make_array [Field 1] : [Field; 1]
-            return v1
+            return [Field 1] of Field
         }
         ";
     assert_ssa_roundtrip(src);
 }
 
 #[test]
-fn test_make_empty_array() {
+fn test_return_empty_array() {
     let src = "
         acir(inline) fn main f0 {
           b0():
-            v0 = make_array [] : [Field; 0]
-            return v0
+            return [] of Field
         }
         ";
     assert_ssa_roundtrip(src);
 }
 
 #[test]
-fn test_make_composite_array() {
+fn test_return_composite_array() {
     let src = "
         acir(inline) fn main f0 {
           b0():
-            v2 = make_array [Field 1, Field 2] : [(Field, Field); 1]
-            return v2
+            return [Field 1, Field 2] of (Field, Field)
         }
         ";
     assert_ssa_roundtrip(src);
@@ -154,9 +151,7 @@ fn test_call_multiple_return_values() {
         }
         acir(inline) fn foo f1 {
           b0():
-            v3 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
-            v5 = make_array [Field 4] : [Field; 1]
-            return v3, v5
+            return [Field 1, Field 2, Field 3] of Field, [Field 4] of Field
         }
         ";
     assert_ssa_roundtrip(src);

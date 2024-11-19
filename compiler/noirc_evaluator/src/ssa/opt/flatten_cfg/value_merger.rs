@@ -209,9 +209,7 @@ impl<'a> ValueMerger<'a> {
             }
         }
 
-        let instruction = Instruction::MakeArray { elements: merged, typ };
-        let call_stack = self.call_stack.clone();
-        self.dfg.insert_instruction_and_results(instruction, self.block, None, call_stack).first()
+        self.dfg.make_array(merged, typ)
     }
 
     fn merge_slice_values(
@@ -285,9 +283,7 @@ impl<'a> ValueMerger<'a> {
             }
         }
 
-        let instruction = Instruction::MakeArray { elements: merged, typ };
-        let call_stack = self.call_stack.clone();
-        self.dfg.insert_instruction_and_results(instruction, self.block, None, call_stack).first()
+        self.dfg.make_array(merged, typ)
     }
 
     /// Construct a dummy value to be attached to the smaller of two slices being merged.
@@ -307,11 +303,7 @@ impl<'a> ValueMerger<'a> {
                         array.push_back(self.make_slice_dummy_data(typ));
                     }
                 }
-                let instruction = Instruction::MakeArray { elements: array, typ: typ.clone() };
-                let call_stack = self.call_stack.clone();
-                self.dfg
-                    .insert_instruction_and_results(instruction, self.block, None, call_stack)
-                    .first()
+                self.dfg.make_array(array, typ.clone())
             }
             Type::Slice(_) => {
                 // TODO(#3188): Need to update flattening to use true user facing length of slices
