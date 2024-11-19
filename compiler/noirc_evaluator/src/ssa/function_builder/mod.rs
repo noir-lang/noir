@@ -458,7 +458,13 @@ impl FunctionBuilder {
         match self.type_of_value(value) {
             Type::Numeric(_) => (),
             Type::Function => (),
-            Type::Reference(_) => (),
+            Type::Reference(element) => {
+                if element.contains_an_array() {
+                    let reference = value;
+                    let value = self.insert_load(reference, element.as_ref().clone());
+                    self.update_array_reference_count(value, increment);
+                }
+            }
             Type::Array(..) | Type::Slice(..) => {
                 // If there are nested arrays or slices, we wait until ArrayGet
                 // is issued to increment the count of that array.
