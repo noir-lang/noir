@@ -40,7 +40,7 @@ jobs:
 
       - name: Build and archive tests
         run: cargo nextest archive --workspace --release --archive-file nextest-archive.tar.zst
-      
+
       - name: Upload archive to workflow
         uses: actions/upload-artifact@v4
         with:
@@ -57,7 +57,7 @@ jobs:
         partition: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.74.1
         with:
@@ -67,13 +67,14 @@ jobs:
         uses: taiki-e/install-action@v2
         with:
           tool: nextest@0.9.67
-      
+
       - name: Download archive
         uses: actions/download-artifact@v4
         with:
           name: nextest-archive
       - name: Run tests
         run: |
+          RUST_MIN_STACK=8388608 \
           cargo nextest run --archive-file nextest-archive.tar.zst \
             --partition count:${{ matrix.partition }}/4 \
             --no-fail-fast
@@ -85,9 +86,9 @@ jobs:
     runs-on: ubuntu-latest
     # We want this job to always run (even if the dependant jobs fail) as we want this job to fail rather than skipping.
     if: ${{ always() }}
-    needs: 
+    needs:
       - run-tests
-    
+
     steps:
       - name: Report overall success
         run: |

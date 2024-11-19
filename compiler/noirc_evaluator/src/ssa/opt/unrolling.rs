@@ -496,7 +496,7 @@ impl<'f> LoopIteration<'f> {
         let mut terminator = self.dfg()[self.source_block]
             .unwrap_terminator()
             .clone()
-            .map_values(|value| self.inserter.resolve(value));
+            .map_values(|value| self.inserter.resolve(value).into());
 
         terminator.mutate_blocks(|block| self.get_or_insert_block(block));
         self.inserter.function.dfg.set_block_terminator(self.insert_block, terminator);

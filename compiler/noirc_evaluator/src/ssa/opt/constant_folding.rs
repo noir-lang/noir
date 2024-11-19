@@ -32,7 +32,7 @@ use crate::ssa::{
         function::Function,
         instruction::{Instruction, InstructionId},
         types::Type,
-        value::{Value, ValueId},
+        value::{IsResolved, RawValueId, Value, ValueId},
     },
     ssa_gen::Ssa,
 };
@@ -95,7 +95,7 @@ struct Context {
     /// We partition the maps of constrained values according to the side-effects flag at the point
     /// at which the values are constrained. This prevents constraints which are only sometimes enforced
     /// being used to modify the rest of the program.
-    constraint_simplification_mappings: HashMap<ValueId, HashMap<ValueId, ValueId>>,
+    constraint_simplification_mappings: HashMap<RawValueId, HashMap<RawValueId, ValueId>>,
 
     // Cache of instructions without any side-effects along with their outputs.
     cached_instruction_results: InstructionResultCache,
@@ -103,12 +103,19 @@ struct Context {
     dom: DominatorTree,
 }
 
+/// Private resolution type, to limit the scope of storing them in data structures.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+enum ContextResolved {}
+
+impl IsResolved for ContextResolved {}
+
 /// HashMap from (Instruction, side_effects_enabled_var) to the results of the instruction.
 /// Stored as a two-level map to avoid cloning Instructions during the `.get` call.
 ///
 /// In addition to each result, the original BasicBlockId is stored as well. This allows us
 /// to deduplicate instructions across blocks as long as the new block dominates the original.
-type InstructionResultCache = HashMap<Instruction, HashMap<Option<ValueId>, ResultCache>>;
+type InstructionResultCache =
+    HashMap<Instruction<ContextResolved>, HashMap<Option<RawValueId>, ResultCache>>;
 
 /// Records the results of all duplicate [`Instruction`]s along with the blocks in which they sit.
 ///
@@ -178,7 +185,13 @@ impl Context {
         }
 
         // Otherwise, try inserting the instruction again to apply any optimizations using the newly resolved inputs.
-        let new_results = Self::push_instruction(id, instruction.clone(), &old_results, block, dfg);
+        let new_results = Self::push_instruction(
+            id,
+            instruction.map_values(|v| v.unresolved()),
+            &old_results,
+            block,
+            dfg,
+        );
 
         Self::replace_result_ids(dfg, &old_results, &new_results);
 
@@ -193,7 +206,7 @@ impl Context {
         // If we just inserted an `Instruction::EnableSideEffectsIf`, we need to update `side_effects_enabled_var`
         // so that we use the correct set of constrained values in future.
         if let Instruction::EnableSideEffectsIf { condition } = instruction {
-            *side_effects_enabled_var = condition;
+            *side_effects_enabled_var = condition.into();
         };
     }
 
@@ -201,8 +214,8 @@ impl Context {
     fn resolve_instruction(
         instruction_id: InstructionId,
         dfg: &DataFlowGraph,
-        constraint_simplification_mapping: &HashMap<ValueId, ValueId>,
-    ) -> Instruction {
+        constraint_simplification_mapping: &HashMap<RawValueId, ValueId>,
+    ) -> Instruction<ContextResolved> {
         let instruction = dfg[instruction_id].clone();
 
         // Alternate between resolving `value_id` in the `dfg` and checking to see if the resolved value
@@ -212,13 +225,13 @@ impl Context {
         // constraints to the cache.
         fn resolve_cache(
             dfg: &DataFlowGraph,
-            cache: &HashMap<ValueId, ValueId>,
+            cache: &HashMap<RawValueId, ValueId>,
             value_id: ValueId,
-        ) -> ValueId {
-            let resolved_id = dfg.resolve(value_id);
+        ) -> ValueId<ContextResolved> {
+            let resolved_id = dfg.resolve(value_id).raw();
             match cache.get(&resolved_id) {
                 Some(cached_value) => resolve_cache(dfg, cache, *cached_value),
-                None => resolved_id,
+                None => ValueId::new(resolved_id),
             }
         }
 
@@ -259,7 +272,7 @@ impl Context {
 
     fn cache_instruction(
         &mut self,
-        instruction: Instruction,
+        instruction: Instruction<ContextResolved>,
         instruction_results: Vec<ValueId>,
         dfg: &DataFlowGraph,
         side_effects_enabled_var: ValueId,
@@ -276,18 +289,22 @@ impl Context {
 
                     // Prefer replacing with constants where possible.
                     (Value::NumericConstant { .. }, _) => {
-                        self.get_constraint_map(side_effects_enabled_var).insert(rhs, lhs);
+                        self.get_constraint_map(side_effects_enabled_var)
+                            .insert(rhs.raw(), lhs.into());
                     }
                     (_, Value::NumericConstant { .. }) => {
-                        self.get_constraint_map(side_effects_enabled_var).insert(lhs, rhs);
+                        self.get_constraint_map(side_effects_enabled_var)
+                            .insert(lhs.raw(), rhs.into());
                     }
                     // Otherwise prefer block parameters over instruction results.
                     // This is as block parameters are more likely to be a single witness rather than a full expression.
                     (Value::Param { .. }, Value::Instruction { .. }) => {
-                        self.get_constraint_map(side_effects_enabled_var).insert(rhs, lhs);
+                        self.get_constraint_map(side_effects_enabled_var)
+                            .insert(rhs.raw(), lhs.into());
                     }
                     (Value::Instruction { .. }, Value::Param { .. }) => {
-                        self.get_constraint_map(side_effects_enabled_var).insert(lhs, rhs);
+                        self.get_constraint_map(side_effects_enabled_var)
+                            .insert(lhs.raw(), rhs.into());
                     }
                     (_, _) => (),
                 }
@@ -299,7 +316,7 @@ impl Context {
         if instruction.can_be_deduplicated(dfg, self.use_constraint_info) {
             let use_predicate =
                 self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
-            let predicate = use_predicate.then_some(side_effects_enabled_var);
+            let predicate = use_predicate.then_some(side_effects_enabled_var).map(|v| v.raw());
 
             self.cached_instruction_results
                 .entry(instruction)
@@ -313,8 +330,8 @@ impl Context {
     fn get_constraint_map(
         &mut self,
         side_effects_enabled_var: ValueId,
-    ) -> &mut HashMap<ValueId, ValueId> {
-        self.constraint_simplification_mappings.entry(side_effects_enabled_var).or_default()
+    ) -> &mut HashMap<RawValueId, ValueId> {
+        self.constraint_simplification_mappings.entry(side_effects_enabled_var.raw()).or_default()
     }
 
     /// Replaces a set of [`ValueId`]s inside the [`DataFlowGraph`] with another.
@@ -331,14 +348,14 @@ impl Context {
     fn get_cached(
         &mut self,
         dfg: &DataFlowGraph,
-        instruction: &Instruction,
+        instruction: &Instruction<ContextResolved>,
         side_effects_enabled_var: ValueId,
         block: BasicBlockId,
     ) -> Option<CacheResult> {
         let results_for_instruction = self.cached_instruction_results.get(instruction)?;
 
         let predicate = self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
-        let predicate = predicate.then_some(side_effects_enabled_var);
+        let predicate = predicate.then_some(side_effects_enabled_var).map(|v| v.raw());
 
         results_for_instruction.get(&predicate)?.get(block, &mut self.dom)
     }
@@ -722,7 +739,7 @@ mod test {
         let array1 = builder.insert_make_array(array_contents.clone(), typ.clone());
         let array2 = builder.insert_make_array(array_contents, typ.clone());
 
-        assert_ne!(array1, array2, "arrays were not assigned different value ids");
+        assert_ne!(array1.raw(), array2.raw(), "arrays were not assigned different value ids");
 
         let keccakf1600 =
             builder.import_intrinsic("keccakf1600").expect("keccakf1600 intrinsic should exist");

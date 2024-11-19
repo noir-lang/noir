@@ -7,7 +7,7 @@ use crate::ssa::{
         function::{Function, RuntimeType},
         instruction::{Instruction, InstructionId, TerminatorInstruction},
         types::Type::{Array, Slice},
-        value::ValueId,
+        value::{RawValueId, ResolvedValueId, ValueId},
     },
     ssa_gen::Ssa,
 };
@@ -55,14 +55,24 @@ impl Function {
     }
 }
 
+/// Private resolution type, to limit the scope of storing them in data structures.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(super) enum ContextResolved {}
+
+impl From<ResolvedValueId<'_>> for ValueId<ContextResolved> {
+    fn from(value: ResolvedValueId) -> Self {
+        ValueId::new(value.raw())
+    }
+}
+
 struct Context<'f> {
     dfg: &'f DataFlowGraph,
-    array_to_last_use: HashMap<ValueId, InstructionId>,
+    array_to_last_use: HashMap<ValueId<ContextResolved>, InstructionId>,
     instructions_that_can_be_made_mutable: HashSet<InstructionId>,
     // Mapping of an array that comes from a load and whether the address
     // it was loaded from is a reference parameter passed to the block.
-    arrays_from_load: HashMap<ValueId, bool>,
-    inner_nested_arrays: HashMap<ValueId, InstructionId>,
+    arrays_from_load: HashMap<RawValueId, bool>,
+    inner_nested_arrays: HashMap<RawValueId, InstructionId>,
 }
 
 impl<'f> Context<'f> {
@@ -86,14 +96,18 @@ impl<'f> Context<'f> {
                 Instruction::ArrayGet { array, .. } => {
                     let array = self.dfg.resolve(*array);
 
-                    if let Some(existing) = self.array_to_last_use.insert(array, *instruction_id) {
+                    if let Some(existing) =
+                        self.array_to_last_use.insert(array.into(), *instruction_id)
+                    {
                         self.instructions_that_can_be_made_mutable.remove(&existing);
                     }
                 }
                 Instruction::ArraySet { array, .. } => {
                     let array = self.dfg.resolve(*array);
 
-                    if let Some(existing) = self.array_to_last_use.insert(array, *instruction_id) {
+                    if let Some(existing) =
+                        self.array_to_last_use.insert(array.into(), *instruction_id)
+                    {
                         self.instructions_that_can_be_made_mutable.remove(&existing);
                     }
 
@@ -115,14 +129,14 @@ impl<'f> Context<'f> {
                         }
                     });
 
-                    let can_mutate = if let Some(is_from_param) = self.arrays_from_load.get(&array)
-                    {
-                        // If the array was loaded from a reference parameter, we cannot
-                        // safely mark that array mutable as it may be shared by another value.
-                        !is_from_param && is_return_block
-                    } else {
-                        !is_array_in_terminator
-                    };
+                    let can_mutate =
+                        if let Some(is_from_param) = self.arrays_from_load.get(&array.raw()) {
+                            // If the array was loaded from a reference parameter, we cannot
+                            // safely mark that array mutable as it may be shared by another value.
+                            !is_from_param && is_return_block
+                        } else {
+                            !is_array_in_terminator
+                        };
 
                     if can_mutate {
                         self.instructions_that_can_be_made_mutable.insert(*instruction_id);
@@ -135,7 +149,7 @@ impl<'f> Context<'f> {
                             let argument = self.dfg.resolve(*argument);
 
                             if let Some(existing) =
-                                self.array_to_last_use.insert(argument, *instruction_id)
+                                self.array_to_last_use.insert(argument.into(), *instruction_id)
                             {
                                 self.instructions_that_can_be_made_mutable.remove(&existing);
                             }
@@ -145,9 +159,12 @@ impl<'f> Context<'f> {
                 Instruction::Load { address } => {
                     let result = self.dfg.instruction_results(*instruction_id)[0];
                     if matches!(self.dfg.type_of_value(result), Array { .. } | Slice { .. }) {
-                        let is_reference_param =
-                            self.dfg.block_parameters(block_id).contains(address);
-                        self.arrays_from_load.insert(result, is_reference_param);
+                        let is_reference_param = self
+                            .dfg
+                            .block_parameters(block_id)
+                            .iter()
+                            .any(|p| p.unresolved_eq(address));
+                        self.arrays_from_load.insert(result.raw(), is_reference_param);
                     }
                 }
                 _ => (),

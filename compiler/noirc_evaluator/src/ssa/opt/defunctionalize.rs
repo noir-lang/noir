@@ -16,7 +16,7 @@ use crate::ssa::{
         function::{Function, FunctionId, Signature},
         instruction::{BinaryOp, Instruction},
         types::{NumericType, Type},
-        value::{Value, ValueId},
+        value::{RawValueId, Value, ValueId},
     },
     ssa_gen::Ssa,
 };
@@ -76,7 +76,7 @@ impl DefunctionalizationContext {
 
     /// Defunctionalize a single function
     fn defunctionalize(&mut self, func: &mut Function) {
-        let mut call_target_values = HashSet::new();
+        let mut call_target_values: HashSet<RawValueId> = HashSet::new();
 
         for block_id in func.reachable_blocks() {
             let block = &func.dfg[block_id];
@@ -112,12 +112,12 @@ impl DefunctionalizationContext {
                             arguments.insert(0, target_func_id);
                         }
                         let func = apply_function_value_id;
-                        call_target_values.insert(func);
+                        call_target_values.insert(func.raw());
 
                         replacement_instruction = Some(Instruction::Call { func, arguments });
                     }
                     Value::Function(..) => {
-                        call_target_values.insert(target_func_id);
+                        call_target_values.insert(target_func_id.raw());
                     }
                     _ => {}
                 }
@@ -134,7 +134,7 @@ impl DefunctionalizationContext {
                 match &func.dfg[value_id] {
                     // If the value is a static function, transform it to the function id
                     Value::Function(id) => {
-                        if !call_target_values.contains(&value_id) {
+                        if !call_target_values.contains(value_id.as_ref()) {
                             let new_value =
                                 func.dfg.make_constant(function_id_to_field(*id), Type::field());
                             func.dfg.set_value_from_id(value_id, new_value);

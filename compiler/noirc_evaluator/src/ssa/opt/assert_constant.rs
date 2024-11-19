@@ -68,9 +68,9 @@ fn check_instruction(
     let static_assert_id = function.dfg.import_intrinsic(Intrinsic::StaticAssert);
     match &function.dfg[instruction] {
         Instruction::Call { func, arguments } => {
-            if *func == assert_constant_id {
+            if assert_constant_id.unresolved_eq(func) {
                 evaluate_assert_constant(function, instruction, arguments)
-            } else if *func == static_assert_id {
+            } else if static_assert_id.unresolved_eq(func) {
                 evaluate_static_assert(function, instruction, arguments)
             } else {
                 Ok(true)

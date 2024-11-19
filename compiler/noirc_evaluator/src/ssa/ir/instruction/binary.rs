@@ -2,7 +2,8 @@ use acvm::{acir::AcirField, FieldElement};
 use serde::{Deserialize, Serialize};
 
 use super::{
-    DataFlowGraph, Instruction, InstructionResultType, NumericType, SimplifyResult, Type, ValueId,
+    DataFlowGraph, Instruction, InstructionResultType, NumericType, SimplifyResult, Type,
+    Unresolved, ValueId,
 };
 
 /// Binary Operations allowed in the IR.
@@ -66,24 +67,26 @@ impl std::fmt::Display for BinaryOp {
 
 /// A binary instruction in the IR.
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
-pub(crate) struct Binary {
+pub(crate) struct Binary<R = Unresolved> {
     /// Left hand side of the binary operation
-    pub(crate) lhs: ValueId,
+    pub(crate) lhs: ValueId<R>,
     /// Right hand side of the binary operation
-    pub(crate) rhs: ValueId,
+    pub(crate) rhs: ValueId<R>,
     /// The binary operation to apply
     pub(crate) operator: BinaryOp,
 }
 
-impl Binary {
+impl<R> Binary<R> {
     /// The type of this Binary instruction's result
-    pub(crate) fn result_type(&self) -> InstructionResultType {
+    pub(crate) fn result_type(&self) -> InstructionResultType<R> {
         match self.operator {
             BinaryOp::Eq | BinaryOp::Lt => InstructionResultType::Known(Type::bool()),
             _ => InstructionResultType::Operand(self.lhs),
         }
     }
+}
 
+impl Binary {
     /// Try to simplify this binary instruction, returning the new value if possible.
     pub(super) fn simplify(&self, dfg: &mut DataFlowGraph) -> SimplifyResult {
         let lhs = dfg.get_numeric_constant(self.lhs);

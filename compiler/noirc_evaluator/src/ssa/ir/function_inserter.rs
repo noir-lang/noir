@@ -7,7 +7,7 @@ use super::{
     dfg::{CallStack, InsertInstructionResult},
     function::Function,
     instruction::{Instruction, InstructionId},
-    value::ValueId,
+    value::{RawValueId, ResolvedValueId, ValueId},
 };
 use fxhash::FxHashMap as HashMap;
 
@@ -17,7 +17,7 @@ use fxhash::FxHashMap as HashMap;
 pub(crate) struct FunctionInserter<'f> {
     pub(crate) function: &'f mut Function,
 
-    values: HashMap<ValueId, ValueId>,
+    values: HashMap<RawValueId, ValueId>,
 
     /// Map containing repeat array constants so that we do not initialize a new
     /// array unnecessarily. An extra tuple field is included as part of the key to
@@ -33,7 +33,7 @@ pub(crate) struct FunctionInserter<'f> {
     pre_loop: Option<BasicBlockId>,
 }
 
-pub(crate) type ArrayCache = HashMap<im::Vector<ValueId>, HashMap<Type, ValueId>>;
+pub(crate) type ArrayCache = HashMap<im::Vector<RawValueId>, HashMap<Type, ValueId>>;
 
 impl<'f> FunctionInserter<'f> {
     pub(crate) fn new(function: &'f mut Function) -> FunctionInserter<'f> {
@@ -43,37 +43,39 @@ impl<'f> FunctionInserter<'f> {
     /// Resolves a ValueId to its new, updated value.
     /// If there is no updated value for this id, this returns the same
     /// ValueId that was passed in.
-    pub(crate) fn resolve(&mut self, mut value: ValueId) -> ValueId {
-        value = self.function.dfg.resolve(value);
-        match self.values.get(&value) {
+    pub(crate) fn resolve(&mut self, value: ValueId) -> ResolvedValueId<'f> {
+        let value = self.function.dfg.resolve(value);
+        match self.values.get(&value.raw()) {
             Some(value) => self.resolve(*value),
-            None => value,
+            None => ValueId::new(value.raw()),
         }
     }
 
     /// Insert a key, value pair if the key isn't already present in the map
     pub(crate) fn try_map_value(&mut self, key: ValueId, value: ValueId) {
-        if key == value {
+        if key.unresolved_eq(&value) {
             // This case is technically not needed since try_map_value isn't meant to change
             // existing entries, but we should never have a value in the map referring to itself anyway.
-            self.values.remove(&key);
+            self.values.remove(key.as_ref());
         } else {
-            self.values.entry(key).or_insert(value);
+            self.values.entry(key.raw()).or_insert(value);
         }
     }
 
     /// Insert a key, value pair in the map
     pub(crate) fn map_value(&mut self, key: ValueId, value: ValueId) {
-        if key == value {
-            self.values.remove(&key);
+        if key.unresolved_eq(&value) {
+            self.values.remove(key.as_ref());
         } else {
-            self.values.insert(key, value);
+            self.values.insert(key.raw(), value);
         }
     }
 
+    /// Maps an instruction, replacing any ValueId in the instruction with the
+    /// resolved version of that value id from this FunctionInserter's internal value mapping.
     pub(crate) fn map_instruction(&mut self, id: InstructionId) -> (Instruction, CallStack) {
         (
-            self.function.dfg[id].clone().map_values(|id| self.resolve(id)),
+            self.function.dfg[id].clone().map_values(|id| self.resolve(id).into()),
             self.function.dfg.get_call_stack(id),
         )
     }
@@ -82,7 +84,7 @@ impl<'f> FunctionInserter<'f> {
     /// resolved version of that value id from this FunctionInserter's internal value mapping.
     pub(crate) fn map_terminator_in_place(&mut self, block: BasicBlockId) {
         let mut terminator = self.function.dfg[block].take_terminator();
-        terminator.mutate_values(|value| self.resolve(value));
+        terminator.mutate_values(|value| self.resolve(value).into());
         self.function.dfg[block].set_terminator(terminator);
     }
 
@@ -90,7 +92,7 @@ impl<'f> FunctionInserter<'f> {
     /// resolved version of that value id from this FunctionInserter's internal value mapping.
     pub(crate) fn map_data_bus_in_place(&mut self) {
         let data_bus = self.function.dfg.data_bus.clone();
-        let data_bus = data_bus.map_values(|value| self.resolve(value));
+        let data_bus = data_bus.map_values(|value| self.resolve(value).into());
         self.function.dfg.data_bus = data_bus;
     }
 
@@ -117,7 +119,7 @@ impl<'f> FunctionInserter<'f> {
         call_stack: CallStack,
     ) -> InsertInstructionResult {
         let results = self.function.dfg.instruction_results(id);
-        let results = vecmap(results, |id| self.function.dfg.resolve(*id));
+        let results = vecmap(results, |id| self.function.dfg.resolve(*id).detach());
 
         let ctrl_typevars = instruction
             .requires_ctrl_typevars()
@@ -129,9 +131,10 @@ impl<'f> FunctionInserter<'f> {
         // in control-flow order. Otherwise we could refer to ValueIds defined later in the program.
         let make_array = if let Instruction::MakeArray { elements, typ } = &instruction {
             if self.array_is_constant(elements) {
-                if let Some(fetched_value) = self.get_cached_array(elements, typ) {
+                let elements = elements.iter().map(|v| v.raw()).collect::<im::Vector<_>>();
+                if let Some(fetched_value) = self.get_cached_array(&elements, typ) {
                     assert_eq!(results.len(), 1);
-                    self.values.insert(results[0], fetched_value);
+                    self.values.insert(results[0].raw(), fetched_value);
                     return InsertInstructionResult::SimplifiedTo(fetched_value);
                 }
 
@@ -166,13 +169,13 @@ impl<'f> FunctionInserter<'f> {
         new_results
     }
 
-    fn get_cached_array(&self, elements: &im::Vector<ValueId>, typ: &Type) -> Option<ValueId> {
+    fn get_cached_array(&self, elements: &im::Vector<RawValueId>, typ: &Type) -> Option<ValueId> {
         self.array_cache.as_ref()?.get(elements)?.get(typ).copied()
     }
 
     fn cache_array(
         arrays: &mut Option<ArrayCache>,
-        elements: im::Vector<ValueId>,
+        elements: im::Vector<RawValueId>,
         typ: Type,
         result_id: ValueId,
     ) {
@@ -205,24 +208,24 @@ impl<'f> FunctionInserter<'f> {
     /// Modify the values HashMap to remember the mapping between an instruction result's previous
     /// ValueId (from the source_function) and its new ValueId in the destination function.
     pub(crate) fn insert_new_instruction_results(
-        values: &mut HashMap<ValueId, ValueId>,
-        old_results: &[ValueId],
+        values: &mut HashMap<RawValueId, ValueId>,
+        old_results: &[ResolvedValueId<'f>],
         new_results: &InsertInstructionResult,
     ) {
         assert_eq!(old_results.len(), new_results.len());
 
         match new_results {
             InsertInstructionResult::SimplifiedTo(new_result) => {
-                values.insert(old_results[0], *new_result);
+                values.insert(old_results[0].raw(), *new_result);
             }
             InsertInstructionResult::SimplifiedToMultiple(new_results) => {
                 for (old_result, new_result) in old_results.iter().zip(new_results) {
-                    values.insert(*old_result, *new_result);
+                    values.insert(old_result.raw(), *new_result);
                 }
             }
             InsertInstructionResult::Results(_, new_results) => {
                 for (old_result, new_result) in old_results.iter().zip(*new_results) {
-                    values.insert(*old_result, *new_result);
+                    values.insert(old_result.raw(), *new_result);
                 }
             }
             InsertInstructionResult::InstructionRemoved => (),
@@ -233,7 +236,7 @@ impl<'f> FunctionInserter<'f> {
         let old_parameters = self.function.dfg.block_parameters(block);
 
         for (param, new_param) in old_parameters.iter().zip(new_values) {
-            self.values.entry(*param).or_insert(*new_param);
+            self.values.entry(param.raw()).or_insert(*new_param);
         }
     }
 
@@ -247,7 +250,7 @@ impl<'f> FunctionInserter<'f> {
 
         for (param, new_param) in old_parameters.iter().zip(new_parameters) {
             // Don't overwrite any existing entries to avoid overwriting the induction variable
-            self.values.entry(*param).or_insert(*new_param);
+            self.values.entry(param.raw()).or_insert(*new_param);
         }
     }
 }

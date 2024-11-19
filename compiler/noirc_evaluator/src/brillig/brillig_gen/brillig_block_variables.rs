@@ -13,7 +13,7 @@ use crate::{
     ssa::ir::{
         dfg::DataFlowGraph,
         types::{CompositeType, Type},
-        value::ValueId,
+        value::{FinalValueId, ValueId},
     },
 };
 
@@ -21,12 +21,14 @@ use super::brillig_fn::FunctionContext;
 
 #[derive(Debug, Default)]
 pub(crate) struct BlockVariables {
-    available_variables: HashSet<ValueId>,
+    // Since we're generating Brillig bytecode here, there shouldn't be any more value ID replacements
+    // and we can use the final resolved ID.
+    available_variables: HashSet<FinalValueId>,
 }
 
 impl BlockVariables {
     /// Creates a BlockVariables instance. It uses the variables that are live in to the block and the global available variables (block parameters)
-    pub(crate) fn new(live_in: HashSet<ValueId>) -> Self {
+    pub(crate) fn new(live_in: HashSet<FinalValueId>) -> Self {
         BlockVariables { available_variables: live_in }
     }
 
@@ -55,7 +57,7 @@ impl BlockVariables {
         value_id: ValueId,
         dfg: &DataFlowGraph,
     ) -> BrilligVariable {
-        let value_id = dfg.resolve(value_id);
+        let value_id = dfg.resolve(value_id).detach();
         let variable = allocate_value(value_id, brillig_context, dfg);
 
         if function_context.ssa_value_allocations.insert(value_id, variable).is_some() {
@@ -82,32 +84,29 @@ impl BlockVariables {
     /// Removes a variable so it's not used anymore within this block.
     pub(crate) fn remove_variable(
         &mut self,
-        value_id: &ValueId,
+        value_id: FinalValueId,
         function_context: &mut FunctionContext,
         brillig_context: &mut BrilligContext<FieldElement, Stack>,
     ) {
-        assert!(self.available_variables.remove(value_id), "ICE: Variable is not available");
+        assert!(self.available_variables.remove(&value_id), "ICE: Variable is not available");
         let variable = function_context
             .ssa_value_allocations
-            .get(value_id)
+            .get(&value_id)
             .expect("ICE: Variable allocation not found");
         brillig_context.deallocate_register(variable.extract_register());
     }
 
     /// Checks if a variable is allocated.
-    pub(crate) fn is_allocated(&self, value_id: &ValueId) -> bool {
-        self.available_variables.contains(value_id)
+    pub(crate) fn is_allocated(&self, value_id: FinalValueId) -> bool {
+        self.available_variables.contains(&value_id)
     }
 
     /// For a given SSA value id, return the corresponding cached allocation.
     pub(crate) fn get_allocation(
         &mut self,
         function_context: &FunctionContext,
-        value_id: ValueId,
-        dfg: &DataFlowGraph,
+        value_id: FinalValueId,
     ) -> BrilligVariable {
-        let value_id = dfg.resolve(value_id);
-
         assert!(
             self.available_variables.contains(&value_id),
             "ICE: ValueId {value_id:?} is not available"
@@ -127,7 +126,7 @@ pub(crate) fn compute_array_length(item_typ: &CompositeType, elem_count: usize) 
 
 /// For a given value_id, allocates the necessary registers to hold it.
 pub(crate) fn allocate_value<F, Registers: RegisterAllocator>(
-    value_id: ValueId,
+    value_id: FinalValueId,
     brillig_context: &mut BrilligContext<F, Registers>,
     dfg: &DataFlowGraph,
 ) -> BrilligVariable {

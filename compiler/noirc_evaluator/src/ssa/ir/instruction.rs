@@ -22,7 +22,7 @@ use super::{
     function::Function,
     map::Id,
     types::{NumericType, Type},
-    value::{Value, ValueId},
+    value::{Resolution, Unresolved, Value, ValueId},
 };
 
 mod binary;
@@ -190,27 +190,27 @@ pub(crate) enum Endian {
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
 /// Instructions are used to perform tasks.
 /// The instructions that the IR is able to specify are listed below.
-pub(crate) enum Instruction {
+pub(crate) enum Instruction<R = Unresolved> {
     /// Binary Operations like +, -, *, /, ==, !=
-    Binary(Binary),
+    Binary(Binary<R>),
 
     /// Converts `Value` into Typ
-    Cast(ValueId, Type),
+    Cast(ValueId<R>, Type),
 
     /// Computes a bit wise not
-    Not(ValueId),
+    Not(ValueId<R>),
 
     /// Truncates `value` to `bit_size`
-    Truncate { value: ValueId, bit_size: u32, max_bit_size: u32 },
+    Truncate { value: ValueId<R>, bit_size: u32, max_bit_size: u32 },
 
     /// Constrains two values to be equal to one another.
-    Constrain(ValueId, ValueId, Option<ConstrainError>),
+    Constrain(ValueId<R>, ValueId<R>, Option<ConstrainError<R>>),
 
     /// Range constrain `value` to `max_bit_size`
-    RangeCheck { value: ValueId, max_bit_size: u32, assert_message: Option<String> },
+    RangeCheck { value: ValueId<R>, max_bit_size: u32, assert_message: Option<String> },
 
     /// Performs a function call with a list of its arguments.
-    Call { func: ValueId, arguments: Vec<ValueId> },
+    Call { func: ValueId<R>, arguments: Vec<ValueId<R>> },
 
     /// Allocates a region of memory. Note that this is not concerned with
     /// the type of memory, the type of element is determined when loading this memory.
@@ -218,10 +218,10 @@ pub(crate) enum Instruction {
     Allocate,
 
     /// Loads a value from memory.
-    Load { address: ValueId },
+    Load { address: ValueId<R> },
 
     /// Writes a value to memory.
-    Store { address: ValueId, value: ValueId },
+    Store { address: ValueId<R>, value: ValueId<R> },
 
     /// Provides a context for all instructions that follow up until the next
     /// `EnableSideEffectsIf` is encountered, for stating a condition that determines whether
@@ -240,29 +240,29 @@ pub(crate) enum Instruction {
     /// This instruction is only emitted after the cfg flattening pass, and is used to annotate
     /// instruction regions with an condition that corresponds to their position in the CFG's
     /// if-branching structure.
-    EnableSideEffectsIf { condition: ValueId },
+    EnableSideEffectsIf { condition: ValueId<R> },
 
     /// Retrieve a value from an array at the given index
-    ArrayGet { array: ValueId, index: ValueId },
+    ArrayGet { array: ValueId<R>, index: ValueId<R> },
 
     /// Creates a new array with the new value at the given index. All other elements are identical
     /// to those in the given array. This will not modify the original array unless `mutable` is
     /// set. This flag is off by default and only enabled when optimizations determine it is safe.
-    ArraySet { array: ValueId, index: ValueId, value: ValueId, mutable: bool },
+    ArraySet { array: ValueId<R>, index: ValueId<R>, value: ValueId<R>, mutable: bool },
 
     /// An instruction to increment the reference count of a value.
     ///
     /// This currently only has an effect in Brillig code where array sharing and copy on write is
     /// implemented via reference counting. In ACIR code this is done with im::Vector and these
     /// IncrementRc instructions are ignored.
-    IncrementRc { value: ValueId },
+    IncrementRc { value: ValueId<R> },
 
     /// An instruction to decrement the reference count of a value.
     ///
     /// This currently only has an effect in Brillig code where array sharing and copy on write is
     /// implemented via reference counting. In ACIR code this is done with im::Vector and these
     /// DecrementRc instructions are ignored.
-    DecrementRc { value: ValueId },
+    DecrementRc { value: ValueId<R> },
 
     /// Merge two values returned from opposite branches of a conditional into one.
     ///
@@ -273,23 +273,26 @@ pub(crate) enum Instruction {
     ///     else_value
     /// }
     /// ```
-    IfElse { then_condition: ValueId, then_value: ValueId, else_value: ValueId },
+    ///
+    /// Where we save the result of !then_condition so that we have the same
+    /// ValueId for it each time.
+    IfElse { then_condition: ValueId<R>, then_value: ValueId<R>, else_value: ValueId<R> },
 
     /// Creates a new array or slice.
     ///
     /// `typ` should be an array or slice type with an element type
     /// matching each of the `elements` values' types.
-    MakeArray { elements: im::Vector<ValueId>, typ: Type },
+    MakeArray { elements: im::Vector<ValueId<R>>, typ: Type },
 }
 
-impl Instruction {
+impl<R: Resolution> Instruction<R> {
     /// Returns a binary instruction with the given operator, lhs, and rhs
-    pub(crate) fn binary(operator: BinaryOp, lhs: ValueId, rhs: ValueId) -> Instruction {
+    pub(crate) fn binary(operator: BinaryOp, lhs: ValueId<R>, rhs: ValueId<R>) -> Instruction<R> {
         Instruction::Binary(Binary { lhs, operator, rhs })
     }
 
     /// Returns the type that this instruction will return.
-    pub(crate) fn result_type(&self) -> InstructionResultType {
+    pub(crate) fn result_type(&self) -> InstructionResultType<R> {
         match self {
             Instruction::Binary(binary) => binary.result_type(),
             Instruction::Cast(_, typ) | Instruction::MakeArray { typ, .. } => {
@@ -320,158 +323,13 @@ impl Instruction {
         matches!(self.result_type(), InstructionResultType::Unknown)
     }
 
-    /// Indicates if the instruction can be safely replaced with the results of another instruction with the same inputs.
-    /// If `deduplicate_with_predicate` is set, we assume we're deduplicating with the instruction
-    /// and its predicate, rather than just the instruction. Setting this means instructions that
-    /// rely on predicates can be deduplicated as well.
-    pub(crate) fn can_be_deduplicated(
-        &self,
-        dfg: &DataFlowGraph,
-        deduplicate_with_predicate: bool,
-    ) -> bool {
-        use Instruction::*;
-
-        match self {
-            // These either have side-effects or interact with memory
-            EnableSideEffectsIf { .. }
-            | Allocate
-            | Load { .. }
-            | Store { .. }
-            | IncrementRc { .. }
-            | DecrementRc { .. } => false,
-
-            Call { func, .. } => match dfg[*func] {
-                Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
-                _ => false,
-            },
-
-            // We can deduplicate these instructions if we know the predicate is also the same.
-            Constrain(..) | RangeCheck { .. } => deduplicate_with_predicate,
-
-            // This should never be side-effectful
-            MakeArray { .. } => true,
-
-            // These can have different behavior depending on the EnableSideEffectsIf context.
-            // Replacing them with a similar instruction potentially enables replacing an instruction
-            // with one that was disabled. See
-            // https://github.com/noir-lang/noir/pull/4716#issuecomment-2047846328.
-            Binary(_)
-            | Cast(_, _)
-            | Not(_)
-            | Truncate { .. }
-            | IfElse { .. }
-            | ArrayGet { .. }
-            | ArraySet { .. } => {
-                deduplicate_with_predicate || !self.requires_acir_gen_predicate(dfg)
-            }
-        }
-    }
-
-    pub(crate) fn can_eliminate_if_unused(&self, function: &Function) -> bool {
-        use Instruction::*;
-        match self {
-            Binary(binary) => {
-                if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) {
-                    if let Some(rhs) = function.dfg.get_numeric_constant(binary.rhs) {
-                        rhs != FieldElement::zero()
-                    } else {
-                        false
-                    }
-                } else {
-                    true
-                }
-            }
-            Cast(_, _)
-            | Not(_)
-            | Truncate { .. }
-            | Allocate
-            | Load { .. }
-            | ArrayGet { .. }
-            | IfElse { .. }
-            | ArraySet { .. }
-            | MakeArray { .. } => true,
-
-            // Store instructions must be removed by DIE in acir code, any load
-            // instructions should already be unused by that point.
-            //
-            // Note that this check assumes that it is being performed after the flattening
-            // pass and after the last mem2reg pass. This is currently the case for the DIE
-            // pass where this check is done, but does mean that we cannot perform mem2reg
-            // after the DIE pass.
-            Store { .. } => {
-                matches!(function.runtime(), RuntimeType::Acir(_))
-                    && function.reachable_blocks().len() == 1
-            }
-
-            Constrain(..)
-            | EnableSideEffectsIf { .. }
-            | IncrementRc { .. }
-            | DecrementRc { .. }
-            | RangeCheck { .. } => false,
-
-            // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
-            Call { func, .. } => match function.dfg[*func] {
-                // Explicitly allows removal of unused ec operations, even if they can fail
-                Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul))
-                | Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::EmbeddedCurveAdd)) => true,
-                Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
-
-                // All foreign functions are treated as having side effects.
-                // This is because they can be used to pass information
-                // from the ACVM to the external world during execution.
-                Value::ForeignFunction(_) => false,
-
-                // We must assume that functions contain a side effect as we cannot inspect more deeply.
-                Value::Function(_) => false,
-
-                _ => false,
-            },
-        }
-    }
-
-    /// If true the instruction will depends on enable_side_effects context during acir-gen
-    pub(crate) fn requires_acir_gen_predicate(&self, dfg: &DataFlowGraph) -> bool {
-        match self {
-            Instruction::Binary(binary)
-                if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) =>
-            {
-                true
-            }
-
-            Instruction::ArrayGet { array, index } => {
-                // `ArrayGet`s which read from "known good" indices from an array should not need a predicate.
-                !dfg.is_safe_index(*index, *array)
-            }
-
-            Instruction::EnableSideEffectsIf { .. } | Instruction::ArraySet { .. } => true,
-
-            Instruction::Call { func, .. } => match dfg[*func] {
-                Value::Function(_) => true,
-                Value::Intrinsic(intrinsic) => {
-                    matches!(intrinsic, Intrinsic::SliceInsert | Intrinsic::SliceRemove)
-                }
-                _ => false,
-            },
-            Instruction::Cast(_, _)
-            | Instruction::Binary(_)
-            | Instruction::Not(_)
-            | Instruction::Truncate { .. }
-            | Instruction::Constrain(_, _, _)
-            | Instruction::RangeCheck { .. }
-            | Instruction::Allocate
-            | Instruction::Load { .. }
-            | Instruction::Store { .. }
-            | Instruction::IfElse { .. }
-            | Instruction::IncrementRc { .. }
-            | Instruction::DecrementRc { .. }
-            | Instruction::MakeArray { .. } => false,
-        }
-    }
-
     /// Maps each ValueId inside this instruction to a new ValueId, returning the new instruction.
     /// Note that the returned instruction is fresh and will not have an assigned InstructionId
     /// until it is manually inserted in a DataFlowGraph later.
-    pub(crate) fn map_values(&self, mut f: impl FnMut(ValueId) -> ValueId) -> Instruction {
+    pub(crate) fn map_values<S>(
+        &self,
+        mut f: impl FnMut(ValueId<R>) -> ValueId<S>,
+    ) -> Instruction<S> {
         match self {
             Instruction::Binary(binary) => Instruction::Binary(Binary {
                 lhs: f(binary.lhs),
@@ -494,7 +352,7 @@ impl Instruction {
                         *selector,
                         vecmap(payload_values.iter().copied(), f),
                     ),
-                    _ => error.clone(),
+                    ConstrainError::StaticString(s) => ConstrainError::StaticString(s.clone()),
                 });
                 Instruction::Constrain(lhs, rhs, assert_message)
             }
@@ -541,7 +399,7 @@ impl Instruction {
     }
 
     /// Applies a function to each input value this instruction holds.
-    pub(crate) fn for_each_value<T>(&self, mut f: impl FnMut(ValueId) -> T) {
+    pub(crate) fn for_each_value<T>(&self, mut f: impl FnMut(ValueId<R>) -> T) {
         match self {
             Instruction::Binary(binary) => {
                 f(binary.lhs);
@@ -601,6 +459,156 @@ impl Instruction {
                     f(*element);
                 }
             }
+        }
+    }
+
+    /// Indicates if the instruction can be safely replaced with the results of another instruction with the same inputs.
+    /// If `deduplicate_with_predicate` is set, we assume we're deduplicating with the instruction
+    /// and its predicate, rather than just the instruction. Setting this means instructions that
+    /// rely on predicates can be deduplicated as well.
+    pub(crate) fn can_be_deduplicated(
+        &self,
+        dfg: &DataFlowGraph,
+        deduplicate_with_predicate: bool,
+    ) -> bool {
+        use Instruction::*;
+
+        match self {
+            // These either have side-effects or interact with memory
+            EnableSideEffectsIf { .. }
+            | Allocate
+            | Load { .. }
+            | Store { .. }
+            | IncrementRc { .. }
+            | DecrementRc { .. } => false,
+
+            Call { func, .. } => match dfg[func.unresolved()] {
+                Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
+                _ => false,
+            },
+
+            // We can deduplicate these instructions if we know the predicate is also the same.
+            Constrain(..) | RangeCheck { .. } => deduplicate_with_predicate,
+
+            // This should never be side-effectful
+            MakeArray { .. } => true,
+
+            // These can have different behavior depending on the EnableSideEffectsIf context.
+            // Replacing them with a similar instruction potentially enables replacing an instruction
+            // with one that was disabled. See
+            // https://github.com/noir-lang/noir/pull/4716#issuecomment-2047846328.
+            Binary(_)
+            | Cast(_, _)
+            | Not(_)
+            | Truncate { .. }
+            | IfElse { .. }
+            | ArrayGet { .. }
+            | ArraySet { .. } => {
+                deduplicate_with_predicate || !self.requires_acir_gen_predicate(dfg)
+            }
+        }
+    }
+
+    /// If true the instruction will depends on enable_side_effects context during acir-gen
+    pub(crate) fn requires_acir_gen_predicate(&self, dfg: &DataFlowGraph) -> bool {
+        match self {
+            Instruction::Binary(binary)
+                if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) =>
+            {
+                true
+            }
+
+            Instruction::ArrayGet { array, index } => {
+                // `ArrayGet`s which read from "known good" indices from an array should not need a predicate.
+                !dfg.is_safe_index(*index, *array)
+            }
+
+            Instruction::EnableSideEffectsIf { .. } | Instruction::ArraySet { .. } => true,
+
+            Instruction::Call { func, .. } => match dfg[func.unresolved()] {
+                Value::Function(_) => true,
+                Value::Intrinsic(intrinsic) => {
+                    matches!(intrinsic, Intrinsic::SliceInsert | Intrinsic::SliceRemove)
+                }
+                _ => false,
+            },
+            Instruction::Cast(_, _)
+            | Instruction::Binary(_)
+            | Instruction::Not(_)
+            | Instruction::Truncate { .. }
+            | Instruction::Constrain(_, _, _)
+            | Instruction::RangeCheck { .. }
+            | Instruction::Allocate
+            | Instruction::Load { .. }
+            | Instruction::Store { .. }
+            | Instruction::IfElse { .. }
+            | Instruction::IncrementRc { .. }
+            | Instruction::DecrementRc { .. }
+            | Instruction::MakeArray { .. } => false,
+        }
+    }
+}
+
+impl Instruction {
+    pub(crate) fn can_eliminate_if_unused(&self, function: &Function) -> bool {
+        use Instruction::*;
+        match self {
+            Binary(binary) => {
+                if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) {
+                    if let Some(rhs) = function.dfg.get_numeric_constant(binary.rhs) {
+                        rhs != FieldElement::zero()
+                    } else {
+                        false
+                    }
+                } else {
+                    true
+                }
+            }
+            Cast(_, _)
+            | Not(_)
+            | Truncate { .. }
+            | Allocate
+            | Load { .. }
+            | ArrayGet { .. }
+            | IfElse { .. }
+            | ArraySet { .. }
+            | MakeArray { .. } => true,
+
+            // Store instructions must be removed by DIE in acir code, any load
+            // instructions should already be unused by that point.
+            //
+            // Note that this check assumes that it is being performed after the flattening
+            // pass and after the last mem2reg pass. This is currently the case for the DIE
+            // pass where this check is done, but does mean that we cannot perform mem2reg
+            // after the DIE pass.
+            Store { .. } => {
+                matches!(function.runtime(), RuntimeType::Acir(_))
+                    && function.reachable_blocks().len() == 1
+            }
+
+            Constrain(..)
+            | EnableSideEffectsIf { .. }
+            | IncrementRc { .. }
+            | DecrementRc { .. }
+            | RangeCheck { .. } => false,
+
+            // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
+            Call { func, .. } => match function.dfg[*func] {
+                // Explicitly allows removal of unused ec operations, even if they can fail
+                Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul))
+                | Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::EmbeddedCurveAdd)) => true,
+                Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
+
+                // All foreign functions are treated as having side effects.
+                // This is because they can be used to pass information
+                // from the ACVM to the external world during execution.
+                Value::ForeignFunction(_) => false,
+
+                // We must assume that functions contain a side effect as we cannot inspect more deeply.
+                Value::Function(_) => false,
+
+                _ => false,
+            },
         }
     }
 
@@ -770,7 +778,7 @@ impl Instruction {
                 let then_value = dfg.resolve(*then_value);
                 let else_value = dfg.resolve(*else_value);
                 if then_value == else_value {
-                    return SimplifiedTo(then_value);
+                    return SimplifiedTo(then_value.into());
                 }
 
                 if matches!(&typ, Type::Numeric(_)) {
@@ -780,8 +788,8 @@ impl Instruction {
                         dfg,
                         block,
                         then_condition,
-                        then_value,
-                        else_value,
+                        then_value.into(),
+                        else_value.into(),
                     );
                     SimplifiedTo(result)
                 } else {
@@ -790,6 +798,12 @@ impl Instruction {
             }
             Instruction::MakeArray { .. } => None,
         }
+    }
+
+    /// Pretend the value IDs have been resolved.
+    #[cfg(test)]
+    pub(crate) fn resolved(&self) -> Instruction<super::value::Resolved> {
+        self.map_values(|v| ValueId::new(v.raw()))
     }
 }
 
@@ -810,7 +824,7 @@ impl Instruction {
 ///   - If the array value is from a previous array-set, we recur.
 fn try_optimize_array_get_from_previous_set(
     dfg: &DataFlowGraph,
-    mut array_id: Id<Value>,
+    mut array_id: ValueId,
     target_index: FieldElement,
 ) -> SimplifyResult {
     let mut elements = None;
@@ -888,10 +902,10 @@ fn try_optimize_array_set_from_previous_get(
     let array_from_get = match &dfg[target_value] {
         Value::Instruction { instruction, .. } => match &dfg[*instruction] {
             Instruction::ArrayGet { array, index } => {
-                if *array == array_id && *index == target_index {
+                if array_id.unresolved_eq(array) && target_index.unresolved_eq(index) {
                     // If array and index match from the value, we can immediately simplify
                     return SimplifyResult::SimplifiedTo(array_id);
-                } else if *index == target_index {
+                } else if target_index.unresolved_eq(index) {
                     *array
                 } else {
                     return SimplifyResult::None;
@@ -929,7 +943,7 @@ fn try_optimize_array_set_from_previous_get(
                         return SimplifyResult::None;
                     }
 
-                    if *array == array_from_get {
+                    if array_from_get.unresolved_eq(array) {
                         return SimplifyResult::SimplifiedTo(original_array_id);
                     }
 
@@ -960,11 +974,11 @@ pub(crate) fn error_selector_from_type(typ: &ErrorType) -> ErrorSelector {
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
-pub(crate) enum ConstrainError {
+pub(crate) enum ConstrainError<R = Unresolved> {
     // Static string errors are not handled inside the program as data for efficiency reasons.
     StaticString(String),
     // These errors are handled by the program as data.
-    Dynamic(ErrorSelector, Vec<ValueId>),
+    Dynamic(ErrorSelector, Vec<ValueId<R>>),
 }
 
 impl From<String> for ConstrainError {
@@ -980,9 +994,9 @@ impl From<String> for Box<ConstrainError> {
 }
 
 /// The possible return values for Instruction::return_types
-pub(crate) enum InstructionResultType {
+pub(crate) enum InstructionResultType<R = Unresolved> {
     /// The result type of this instruction matches that of this operand
-    Operand(ValueId),
+    Operand(ValueId<R>),
 
     /// The result type of this instruction is known to be this type - independent of its operands.
     Known(Type),
@@ -1002,7 +1016,7 @@ pub(crate) enum InstructionResultType {
 /// to split up instructions like this, as we are sure that these instructions
 /// will not be in the list of instructions for a basic block.
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
-pub(crate) enum TerminatorInstruction {
+pub(crate) enum TerminatorInstruction<R = Unresolved> {
     /// Control flow
     ///
     /// Jump If
@@ -1010,7 +1024,7 @@ pub(crate) enum TerminatorInstruction {
     /// If the condition is true: jump to the specified `then_destination`.
     /// Otherwise, jump to the specified `else_destination`.
     JmpIf {
-        condition: ValueId,
+        condition: ValueId<R>,
         then_destination: BasicBlockId,
         else_destination: BasicBlockId,
         call_stack: CallStack,
@@ -1021,7 +1035,7 @@ pub(crate) enum TerminatorInstruction {
     /// Jumps to specified `destination` with `arguments`.
     /// The CallStack here is expected to be used to issue an error when the start range of
     /// a for loop cannot be deduced at compile-time.
-    Jmp { destination: BasicBlockId, arguments: Vec<ValueId>, call_stack: CallStack },
+    Jmp { destination: BasicBlockId, arguments: Vec<ValueId<R>>, call_stack: CallStack },
 
     /// Return from the current function with the given return values.
     ///
@@ -1030,15 +1044,15 @@ pub(crate) enum TerminatorInstruction {
     /// unconditionally jump to a single exit block with the return values
     /// as the block arguments. Then the exit block can terminate in a return
     /// instruction returning these values.
-    Return { return_values: Vec<ValueId>, call_stack: CallStack },
+    Return { return_values: Vec<ValueId<R>>, call_stack: CallStack },
 }
 
-impl TerminatorInstruction {
+impl<R> TerminatorInstruction<R> {
     /// Map each ValueId in this terminator to a new value.
-    pub(crate) fn map_values(
+    pub(crate) fn map_values<S>(
         &self,
-        mut f: impl FnMut(ValueId) -> ValueId,
-    ) -> TerminatorInstruction {
+        mut f: impl FnMut(ValueId<R>) -> ValueId<S>,
+    ) -> TerminatorInstruction<S> {
         use TerminatorInstruction::*;
         match self {
             JmpIf { condition, then_destination, else_destination, call_stack } => JmpIf {
@@ -1058,7 +1072,9 @@ impl TerminatorInstruction {
             },
         }
     }
+}
 
+impl TerminatorInstruction {
     /// Mutate each ValueId to a new ValueId using the given mapping function
     pub(crate) fn mutate_values(&mut self, mut f: impl FnMut(ValueId) -> ValueId) {
         use TerminatorInstruction::*;
@@ -1125,21 +1141,21 @@ impl TerminatorInstruction {
 
 /// Contains the result to Instruction::simplify, specifying how the instruction
 /// should be simplified.
-pub(crate) enum SimplifyResult {
+pub(crate) enum SimplifyResult<R = Unresolved> {
     /// Replace this function's result with the given value
-    SimplifiedTo(ValueId),
+    SimplifiedTo(ValueId<R>),
 
     /// Replace this function's results with the given values
     /// Used for when there are multiple return values from
     /// a function such as a tuple
-    SimplifiedToMultiple(Vec<ValueId>),
+    SimplifiedToMultiple(Vec<ValueId<R>>),
 
     /// Replace this function with an simpler but equivalent instruction.
-    SimplifiedToInstruction(Instruction),
+    SimplifiedToInstruction(Instruction<R>),
 
     /// Replace this function with a set of simpler but equivalent instructions.
     /// This is currently only to be used for [`Instruction::Constrain`].
-    SimplifiedToInstructionMultiple(Vec<Instruction>),
+    SimplifiedToInstructionMultiple(Vec<Instruction<R>>),
 
     /// Remove the instruction, it is unnecessary
     Remove,
@@ -1148,8 +1164,8 @@ pub(crate) enum SimplifyResult {
     None,
 }
 
-impl SimplifyResult {
-    pub(crate) fn instructions(self) -> Option<Vec<Instruction>> {
+impl<R> SimplifyResult<R> {
+    pub(crate) fn instructions(self) -> Option<Vec<Instruction<R>>> {
         match self {
             SimplifyResult::SimplifiedToInstruction(instruction) => Some(vec![instruction]),
             SimplifyResult::SimplifiedToInstructionMultiple(instructions) => Some(instructions),

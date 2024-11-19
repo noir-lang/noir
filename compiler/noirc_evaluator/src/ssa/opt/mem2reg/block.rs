@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use crate::ssa::ir::{
     function::Function,
     instruction::{Instruction, InstructionId},
-    value::ValueId,
+    value::{RawValueId, ResolvedValueId, ValueId},
 };
 
 use super::alias_set::AliasSet;
@@ -15,45 +15,45 @@ use super::alias_set::AliasSet;
 /// are expected to match the values held by each ValueId at the very end
 /// of a block.
 #[derive(Debug, Default, Clone)]
-pub(super) struct Block {
+pub(super) struct Block<'a> {
     /// Maps a ValueId to the Expression it represents.
     /// Multiple ValueIds can map to the same Expression, e.g.
     /// dereferences to the same allocation.
-    pub(super) expressions: im::OrdMap<ValueId, Expression>,
+    pub(super) expressions: im::OrdMap<RawValueId, Expression<'a>>,
 
     /// Each expression is tracked as to how many aliases it
     /// may have. If there is only 1, we can attempt to optimize
     /// out any known loads to that alias. Note that "alias" here
     /// includes the original reference as well.
-    pub(super) aliases: im::OrdMap<Expression, AliasSet>,
+    pub(super) aliases: im::OrdMap<Expression<'a>, AliasSet>,
 
     /// Each allocate instruction result (and some reference block parameters)
     /// will map to a Reference value which tracks whether the last value stored
     /// to the reference is known.
-    pub(super) references: im::OrdMap<ValueId, ReferenceValue>,
+    pub(super) references: im::OrdMap<RawValueId, ReferenceValue<'a>>,
 
     /// The last instance of a `Store` instruction to each address in this block
-    pub(super) last_stores: im::OrdMap<ValueId, InstructionId>,
+    pub(super) last_stores: im::OrdMap<ResolvedValueId<'a>, InstructionId>,
 }
 
 /// An `Expression` here is used to represent a canonical key
 /// into the aliases map since otherwise two dereferences of the
 /// same address will be given different ValueIds.
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
-pub(super) enum Expression {
-    Dereference(Box<Expression>),
-    ArrayElement(Box<Expression>),
-    Other(ValueId),
+pub(super) enum Expression<'a> {
+    Dereference(Box<Expression<'a>>),
+    ArrayElement(Box<Expression<'a>>),
+    Other(ResolvedValueId<'a>),
 }
 
 /// Every reference's value is either Known and can be optimized away, or Unknown.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub(super) enum ReferenceValue {
+pub(super) enum ReferenceValue<'a> {
     Unknown,
-    Known(ValueId),
+    Known(ResolvedValueId<'a>),
 }
 
-impl ReferenceValue {
+impl<'a> ReferenceValue<'a> {
     fn unify(self, other: Self) -> Self {
         if self == other {
             self
@@ -63,15 +63,19 @@ impl ReferenceValue {
     }
 }
 
-impl Block {
+impl<'a> Block<'a> {
     /// If the given reference id points to a known value, return the value
-    pub(super) fn get_known_value(&self, address: ValueId) -> Option<ValueId> {
-        if let Some(expression) = self.expressions.get(&address) {
+    pub(super) fn get_known_value(
+        &self,
+        address: ResolvedValueId<'a>,
+    ) -> Option<ResolvedValueId<'a>> {
+        if let Some(expression) = self.expressions.get(&address.raw()) {
             if let Some(aliases) = self.aliases.get(expression) {
                 // We could allow multiple aliases if we check that the reference
                 // value in each is equal.
                 if let Some(alias) = aliases.single_alias() {
-                    if let Some(ReferenceValue::Known(value)) = self.references.get(&alias) {
+                    if let Some(ReferenceValue::Known(value)) = self.references.get(alias.as_ref())
+                    {
                         return Some(*value);
                     }
                 }
@@ -81,16 +85,21 @@ impl Block {
     }
 
     /// If the given address is known, set its value to `ReferenceValue::Known(value)`.
-    pub(super) fn set_known_value(&mut self, address: ValueId, value: ValueId) {
+    pub(super) fn set_known_value(
+        &mut self,
+        address: ResolvedValueId<'a>,
+        value: ResolvedValueId<'a>,
+    ) {
         self.set_value(address, ReferenceValue::Known(value));
     }
 
-    pub(super) fn set_unknown(&mut self, address: ValueId) {
+    pub(super) fn set_unknown(&mut self, address: ResolvedValueId<'a>) {
         self.set_value(address, ReferenceValue::Unknown);
     }
 
-    fn set_value(&mut self, address: ValueId, value: ReferenceValue) {
-        let expression = self.expressions.entry(address).or_insert(Expression::Other(address));
+    fn set_value(&mut self, address: ResolvedValueId<'a>, value: ReferenceValue<'a>) {
+        let expression =
+            self.expressions.entry(address.raw()).or_insert(Expression::Other(address));
         let aliases = self.aliases.entry(expression.clone()).or_default();
 
         if aliases.is_unknown() {
@@ -98,12 +107,12 @@ impl Block {
             // Now we have to invalidate every reference we know of
             self.invalidate_all_references();
         } else if let Some(alias) = aliases.single_alias() {
-            self.references.insert(alias, value);
+            self.references.insert(alias.raw(), value);
         } else {
             // More than one alias. We're not sure which it refers to so we have to
             // conservatively invalidate all references it may refer to.
             aliases.for_each(|alias| {
-                if let Some(reference_value) = self.references.get_mut(&alias) {
+                if let Some(reference_value) = self.references.get_mut(&alias.raw()) {
                     *reference_value = ReferenceValue::Unknown;
                 }
             });
@@ -150,15 +159,15 @@ impl Block {
     pub(super) fn remember_dereference(
         &mut self,
         function: &Function,
-        address: ValueId,
+        address: ResolvedValueId<'a>,
         result: ValueId,
     ) {
         if function.dfg.value_is_reference(result) {
             if let Some(known_address) = self.get_known_value(address) {
-                self.expressions.insert(result, Expression::Other(known_address));
+                self.expressions.insert(result.raw(), Expression::Other(known_address));
             } else {
                 let expression = Expression::Dereference(Box::new(Expression::Other(address)));
-                self.expressions.insert(result, expression);
+                self.expressions.insert(result.raw(), expression);
                 // No known aliases to insert for this expression... can we find an alias
                 // even if we don't have a known address? If not we'll have to invalidate all
                 // known references if this reference is ever stored to.
@@ -169,10 +178,10 @@ impl Block {
     /// Iterate through each known alias of the given address and apply the function `f` to each.
     fn for_each_alias_of<T>(
         &mut self,
-        address: ValueId,
+        address: ResolvedValueId<'a>,
         mut f: impl FnMut(&mut Self, ValueId) -> T,
     ) {
-        if let Some(expr) = self.expressions.get(&address) {
+        if let Some(expr) = self.expressions.get(&address.raw()) {
             if let Some(aliases) = self.aliases.get(expr).cloned() {
                 aliases.for_each(|alias| {
                     f(self, alias);
@@ -181,21 +190,20 @@ impl Block {
         }
     }
 
-    fn keep_last_stores_for(&mut self, address: ValueId, function: &Function) {
-        let address = function.dfg.resolve(address);
+    fn keep_last_stores_for(&mut self, address: ResolvedValueId<'a>, function: &Function) {
         self.keep_last_store(address, function);
-        self.for_each_alias_of(address, |t, alias| t.keep_last_store(alias, function));
+        self.for_each_alias_of(address, |t, alias| {
+            t.keep_last_store(function.dfg.resolve(alias).detach(), function);
+        });
     }
 
-    fn keep_last_store(&mut self, address: ValueId, function: &Function) {
-        let address = function.dfg.resolve(address);
-
+    fn keep_last_store(&mut self, address: ResolvedValueId<'a>, function: &Function) {
         if let Some(instruction) = self.last_stores.remove(&address) {
             // Whenever we decide we want to keep a store instruction, we also need
             // to go through its stored value and mark that used as well.
             match &function.dfg[instruction] {
                 Instruction::Store { value, .. } => {
-                    self.mark_value_used(*value, function);
+                    self.mark_value_used(function.dfg.resolve(*value).detach(), function);
                 }
                 other => {
                     unreachable!("last_store held an id of a non-store instruction: {other:?}")
@@ -204,14 +212,14 @@ impl Block {
         }
     }
 
-    pub(super) fn mark_value_used(&mut self, value: ValueId, function: &Function) {
+    pub(super) fn mark_value_used(&mut self, value: ResolvedValueId<'a>, function: &Function) {
         self.keep_last_stores_for(value, function);
 
         // We must do a recursive check for arrays since they're the only Values which may contain
         // other ValueIds.
         if let Some((array, _)) = function.dfg.get_array_constant(value) {
             for value in array {
-                self.mark_value_used(value, function);
+                self.mark_value_used(function.dfg.resolve(value).detach(), function);
             }
         }
     }
@@ -229,7 +237,7 @@ impl Block {
     }
 
     pub(super) fn get_aliases_for_value(&self, value: ValueId) -> Cow<AliasSet> {
-        if let Some(expression) = self.expressions.get(&value) {
+        if let Some(expression) = self.expressions.get(value.as_ref()) {
             if let Some(aliases) = self.aliases.get(expression) {
                 return Cow::Borrowed(aliases);
             }

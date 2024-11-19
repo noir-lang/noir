@@ -14,9 +14,8 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         dfg::{CallStack, DataFlowGraph},
         instruction::Intrinsic,
-        map::Id,
         types::Type,
-        value::{Value, ValueId},
+        value::{RawValueId, Value, ValueId},
     },
     opt::flatten_cfg::value_merger::ValueMerger,
 };
@@ -435,9 +434,9 @@ fn simplify_slice_push_back(
         .insert_instruction_and_results(set_last_slice_value_instr, block, None, call_stack.clone())
         .first();
 
-    let mut slice_sizes = HashMap::default();
-    slice_sizes.insert(set_last_slice_value, slice_size / element_size);
-    slice_sizes.insert(new_slice, slice_size / element_size);
+    let mut slice_sizes: HashMap<RawValueId, _> = HashMap::default();
+    slice_sizes.insert(set_last_slice_value.raw(), slice_size / element_size);
+    slice_sizes.insert(new_slice.raw(), slice_size / element_size);
 
     let unknown = &mut HashMap::default();
     let mut value_merger =
@@ -683,7 +682,7 @@ fn constant_to_radix(
     }
 }
 
-fn to_u8_vec(dfg: &DataFlowGraph, values: im::Vector<Id<Value>>) -> Vec<u8> {
+fn to_u8_vec(dfg: &DataFlowGraph, values: im::Vector<ValueId>) -> Vec<u8> {
     values
         .iter()
         .map(|id| {
@@ -695,7 +694,7 @@ fn to_u8_vec(dfg: &DataFlowGraph, values: im::Vector<Id<Value>>) -> Vec<u8> {
         .collect()
 }
 
-fn array_is_constant(dfg: &DataFlowGraph, values: &im::Vector<Id<Value>>) -> bool {
+fn array_is_constant(dfg: &DataFlowGraph, values: &im::Vector<ValueId>) -> bool {
     values.iter().all(|value| dfg.get_numeric_constant(*value).is_some())
 }
 

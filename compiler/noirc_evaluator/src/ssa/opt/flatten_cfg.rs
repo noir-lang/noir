@@ -145,7 +145,7 @@ use crate::ssa::{
         function_inserter::FunctionInserter,
         instruction::{BinaryOp, Instruction, InstructionId, Intrinsic, TerminatorInstruction},
         types::Type,
-        value::{Value, ValueId},
+        value::{RawValueId, Value, ValueId},
     },
     ssa_gen::Ssa,
 };
@@ -195,7 +195,7 @@ struct Context<'f> {
 
     /// Maps SSA array values with a slice type to their size.
     /// This is maintained by appropriate calls to the `SliceCapacityTracker` and is used by the `ValueMerger`.
-    slice_sizes: HashMap<ValueId, usize>,
+    slice_sizes: HashMap<RawValueId, usize>,
 
     /// Stack of block arguments
     /// When processing a block, we pop this stack to get its arguments
@@ -367,7 +367,8 @@ impl<'f> Context<'f> {
                 )
             }
             TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
-                let arguments = vecmap(arguments.clone(), |value| self.inserter.resolve(value));
+                let arguments =
+                    vecmap(arguments.clone(), |value| self.inserter.resolve(value).into());
                 self.arguments_stack.push(arguments);
                 if work_list.contains(destination) {
                     if work_list.last() == Some(destination) {
@@ -384,6 +385,7 @@ impl<'f> Context<'f> {
                 let return_values =
                     vecmap(return_values.clone(), |value| self.inserter.resolve(value));
                 let new_return = TerminatorInstruction::Return { return_values, call_stack };
+                let new_return = new_return.map_values(|v| v.into());
                 let entry = self.inserter.function.entry_block();
 
                 self.inserter.function.dfg.set_block_terminator(entry, new_return);
@@ -407,11 +409,11 @@ impl<'f> Context<'f> {
 
         let branch = ConditionalBranch {
             old_condition,
-            condition: self.link_condition(then_condition),
+            condition: self.link_condition(then_condition.into()),
             last_block: *then_destination,
         };
         let cond_context = ConditionalContext {
-            condition: then_condition,
+            condition: then_condition.into(),
             entry_block: *if_entry,
             then_branch: branch,
             else_branch: None,
@@ -518,8 +520,8 @@ impl<'f> Context<'f> {
         let args = vecmap(args, |(then_arg, else_arg)| {
             let instruction = Instruction::IfElse {
                 then_condition: cond_context.then_branch.condition,
-                then_value: then_arg,
-                else_value: else_arg,
+                then_value: then_arg.into(),
+                else_value: else_arg.into(),
             };
             let call_stack = cond_context.call_stack.clone();
             self.inserter
@@ -652,7 +654,10 @@ impl<'f> Context<'f> {
                 Instruction::Store { address, value } => {
                     // If this instruction immediately follows an allocate, and stores to that
                     // address there is no previous value to load and we don't need a merge anyway.
-                    if Some(address) == previous_allocate_result {
+                    if previous_allocate_result
+                        .map(|r| r.unresolved_eq(&address))
+                        .unwrap_or_default()
+                    {
                         Instruction::Store { address, value }
                     } else {
                         // Instead of storing `value`, store `if condition { value } else { previous_value }`
@@ -1019,7 +1024,7 @@ mod test {
             builder.insert_store(r1, value);
         };
 
-        let test_function = Id::test_new(1);
+        let test_function = ValueId::from(Id::test_new(1));
 
         let call_test_function = |builder: &mut FunctionBuilder, block: u128| {
             let block = builder.field_constant(block);

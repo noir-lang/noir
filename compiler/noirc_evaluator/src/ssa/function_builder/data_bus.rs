@@ -1,6 +1,10 @@
 use std::{collections::BTreeMap, sync::Arc};
 
-use crate::ssa::ir::{function::RuntimeType, types::Type, value::ValueId};
+use crate::ssa::ir::{
+    function::RuntimeType,
+    types::Type,
+    value::{RawValueId, ValueId},
+};
 use acvm::FieldElement;
 use fxhash::FxHashMap as HashMap;
 use noirc_frontend::ast;
@@ -21,7 +25,7 @@ pub(crate) enum DatabusVisibility {
 pub(crate) struct DataBusBuilder {
     pub(crate) values: im::Vector<ValueId>,
     index: usize,
-    pub(crate) map: HashMap<ValueId, usize>,
+    pub(crate) map: HashMap<RawValueId, usize>,
     pub(crate) databus: Option<ValueId>,
     call_data_id: Option<u32>,
 }
@@ -60,7 +64,7 @@ pub(crate) struct CallData {
     /// The id to this calldata assigned by the user
     pub(crate) call_data_id: u32,
     pub(crate) array_id: ValueId,
-    pub(crate) index_map: HashMap<ValueId, usize>,
+    pub(crate) index_map: HashMap<RawValueId, usize>,
 }
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
@@ -78,7 +82,7 @@ impl DataBus {
             .map(|cd| {
                 let mut call_data_map = HashMap::default();
                 for (k, v) in cd.index_map.iter() {
-                    call_data_map.insert(f(*k), *v);
+                    call_data_map.insert(f(k.into()).raw(), *v);
                 }
                 CallData {
                     array_id: f(cd.array_id),
@@ -87,7 +91,7 @@ impl DataBus {
                 }
             })
             .collect();
-        DataBus { call_data, return_data: self.return_data.map(&mut f) }
+        DataBus { call_data, return_data: self.return_data.map(f) }
     }
 
     pub(crate) fn call_data_array(&self) -> Vec<(u32, ValueId)> {
@@ -122,7 +126,7 @@ impl FunctionBuilder {
                 databus.index += 1;
             }
             Type::Array(typ, len) => {
-                databus.map.insert(value, databus.index);
+                databus.map.insert(value.raw(), databus.index);
 
                 let mut index = 0;
                 for _i in 0..len {
