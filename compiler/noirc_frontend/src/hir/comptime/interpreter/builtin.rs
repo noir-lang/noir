@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use acvm::{AcirField, FieldElement};
+use acvm::{acir::BlackBoxFunc, AcirField, FieldElement};
 use builtin_helpers::{
     block_expression_to_value, check_argument_count, check_function_not_yet_resolved,
     check_one_argument, check_three_arguments, check_two_arguments, get_bool, get_expr, get_field,
@@ -42,7 +42,7 @@ use crate::{
 };
 
 use self::builtin_helpers::{eq_item, get_array, get_ctstring, get_str, get_u8, hash_item, lex};
-use super::{foreign::call_foreign, Interpreter};
+use super::Interpreter;
 
 pub(crate) mod builtin_helpers;
 
@@ -57,7 +57,10 @@ impl<'local, 'context> Interpreter<'local, 'context> {
         let interner = &mut self.elaborator.interner;
         let call_stack = &self.elaborator.interpreter_call_stack;
         match name {
-            "apply_range_constraint" => call_foreign(interner, "range", arguments, location),
+            blackbox if BlackBoxFunc::is_valid_black_box_func_name(blackbox) => {
+                self.call_foreign(blackbox, arguments, location)
+            }
+            "apply_range_constraint" => self.call_foreign("range", arguments, location),
             "array_as_str_unchecked" => array_as_str_unchecked(interner, arguments, location),
             "array_len" => array_len(interner, arguments, location),
             "assert_constant" => Ok(Value::Bool(true)),

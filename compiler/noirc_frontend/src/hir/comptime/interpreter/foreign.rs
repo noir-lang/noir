@@ -1,9 +1,10 @@
 use acvm::{
-    acir::BlackBoxFunc, blackbox_solver::BlackBoxFunctionSolver, AcirField, BlackBoxResolutionError,
+    acir::BlackBoxFunc,
+    blackbox_solver::{BigintSolverWithId, BlackBoxFunctionSolver},
+    AcirField, BlackBoxResolutionError,
 };
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use im::Vector;
-use iter_extended::try_vecmap;
 use noirc_errors::Location;
 
 use crate::{
@@ -11,12 +12,27 @@ use crate::{
     node_interner::NodeInterner,
 };
 
-use super::builtin::builtin_helpers::{
-    check_one_argument, check_two_arguments, get_array, get_field, get_u32, get_u64,
+use super::{
+    builtin::builtin_helpers::{
+        check_one_argument, check_two_arguments, get_array_map, get_field, get_u32, get_u64,
+    },
+    Interpreter,
 };
 
-pub(super) fn call_foreign(
+impl<'local, 'context> Interpreter<'local, 'context> {
+    pub(super) fn call_foreign(
+        &mut self,
+        name: &str,
+        arguments: Vec<(Value, Location)>,
+        location: Location,
+    ) -> IResult<Value> {
+        call_foreign(self.elaborator.interner, &mut self.bigint_solver, name, arguments, location)
+    }
+}
+
+fn call_foreign(
     interner: &mut NodeInterner,
+    _bigint_solver: &mut BigintSolverWithId,
     name: &str,
     arguments: Vec<(Value, Location)>,
     location: Location,
@@ -26,7 +42,7 @@ pub(super) fn call_foreign(
         "keccakf1600" => keccakf1600(interner, arguments, location),
         "range" => apply_range_constraint(arguments, location),
         _ => {
-            let item = format!("Comptime evaluation for builtin function {name}");
+            let item = format!("Comptime evaluation for foreign function {name}");
             Err(InterpreterError::Unimplemented { item, location })
         }
     }
@@ -58,12 +74,9 @@ fn poseidon2_permutation(
     location: Location,
 ) -> IResult<Value> {
     let (input, state_length) = check_two_arguments(arguments, location)?;
-    let input_location = input.1;
 
-    let (input, typ) = get_array(interner, input)?;
+    let (input, typ) = get_array_map(interner, input, get_field)?;
     let state_length = get_u32(state_length)?;
-
-    let input = try_vecmap(input, |integer| get_field((integer, input_location)))?;
 
     // Currently locked to only bn254!
     let fields = Bn254BlackBoxSolver
@@ -80,11 +93,8 @@ fn keccakf1600(
     location: Location,
 ) -> IResult<Value> {
     let input = check_one_argument(arguments, location)?;
-    let input_location = input.1;
 
-    let (input, typ) = get_array(interner, input)?;
-
-    let input = try_vecmap(input, |integer| get_u64((integer, input_location)))?;
+    let (input, typ) = get_array_map(interner, input, get_u64)?;
 
     let mut state = [0u64; 25];
     for (it, input_value) in state.iter_mut().zip(input.iter()) {
@@ -121,7 +131,13 @@ mod tests {
 
             for blackbox in BlackBoxFunc::iter() {
                 let name = blackbox.name();
-                match call_foreign(interpreter.elaborator.interner, name, Vec::new(), no_location) {
+                match call_foreign(
+                    interpreter.elaborator.interner,
+                    &mut interpreter.bigint_solver,
+                    name,
+                    Vec::new(),
+                    no_location,
+                ) {
                     Ok(_) => {
                         // Exists and works with no args
                     }

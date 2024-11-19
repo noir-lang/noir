@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 use std::{collections::hash_map::Entry, rc::Rc};
 
+use acvm::blackbox_solver::BigintSolverWithId;
 use acvm::{acir::AcirField, FieldElement};
 use fm::FileId;
 use im::Vector;
@@ -62,6 +63,9 @@ pub struct Interpreter<'local, 'interner> {
     /// multiple times. Without this map, when one of these inner functions exits we would
     /// unbind the generic completely instead of resetting it to its previous binding.
     bound_generics: Vec<HashMap<TypeVariable, (Type, Kind)>>,
+
+    /// Stateful bigint calculator.
+    bigint_solver: BigintSolverWithId,
 }
 
 #[allow(unused)]
@@ -71,9 +75,14 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         crate_id: CrateId,
         current_function: Option<FuncId>,
     ) -> Self {
-        let bound_generics = Vec::new();
-        let in_loop = false;
-        Self { elaborator, crate_id, current_function, bound_generics, in_loop }
+        Self {
+            elaborator,
+            crate_id,
+            current_function,
+            bound_generics: Vec::new(),
+            in_loop: false,
+            bigint_solver: BigintSolverWithId::default(),
+        }
     }
 
     pub(crate) fn call_function(
@@ -227,11 +236,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             .expect("all builtin functions must contain a function  attribute which contains the opcode which it links to");
 
         if let Some(builtin) = func_attrs.builtin() {
-            let builtin = builtin.clone();
-            self.call_builtin(&builtin, arguments, return_type, location)
+            self.call_builtin(builtin.clone().as_str(), arguments, return_type, location)
         } else if let Some(foreign) = func_attrs.foreign() {
-            let foreign = foreign.clone();
-            foreign::call_foreign(self.elaborator.interner, &foreign, arguments, location)
+            self.call_foreign(foreign.clone().as_str(), arguments, location)
         } else if let Some(oracle) = func_attrs.oracle() {
             if oracle == "print" {
                 self.print_oracle(arguments)

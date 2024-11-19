@@ -2,6 +2,7 @@ use std::hash::Hash;
 use std::{hash::Hasher, rc::Rc};
 
 use acvm::FieldElement;
+use iter_extended::try_vecmap;
 use noirc_errors::Location;
 
 use crate::hir::comptime::display::tokens_to_string;
@@ -112,6 +113,28 @@ pub(crate) fn get_slice(
             type_mismatch(value, expected, location)
         }
     }
+}
+
+/// Interpret the input as a slice, then map each element.
+pub(crate) fn get_slice_map<T>(
+    interner: &NodeInterner,
+    (value, location): (Value, Location),
+    f: impl Fn((Value, Location)) -> IResult<T>,
+) -> IResult<(Vec<T>, Type)> {
+    let (values, typ) = get_slice(interner, (value, location))?;
+    let values = try_vecmap(values, |value| f((value, location)))?;
+    Ok((values, typ))
+}
+
+/// Interpret the input as an array, then map each element.
+pub(crate) fn get_array_map<T>(
+    interner: &NodeInterner,
+    (value, location): (Value, Location),
+    f: impl Fn((Value, Location)) -> IResult<T>,
+) -> IResult<(Vec<T>, Type)> {
+    let (values, typ) = get_array(interner, (value, location))?;
+    let values = try_vecmap(values, |value| f((value, location)))?;
+    Ok((values, typ))
 }
 
 pub(crate) fn get_str(
