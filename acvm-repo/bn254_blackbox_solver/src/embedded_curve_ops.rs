@@ -16,7 +16,6 @@ pub fn multi_scalar_mul(
     scalars_hi: &[FieldElement],
 ) -> Result<(FieldElement, FieldElement, FieldElement), BlackBoxResolutionError> {
     if points.len() != 3 * scalars_lo.len() || scalars_lo.len() != scalars_hi.len() {
-        dbg!(&points.len(), &scalars_lo.len(), &scalars_hi.len());
         return Err(BlackBoxResolutionError::Failed(
             BlackBoxFunc::MultiScalarMul,
             "Points and scalars must have the same length".to_string(),
