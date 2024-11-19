@@ -456,8 +456,9 @@ fn compile_contract_inner(
             .secondary
             .iter()
             .filter_map(|attr| match attr {
-                SecondaryAttribute::Tag(attribute) => Some(attribute.contents.clone()),
-                SecondaryAttribute::Meta(attribute) => Some(attribute.to_string()),
+                SecondaryAttribute::Tag(attribute) | SecondaryAttribute::Meta(attribute) => {
+                    Some(attribute.contents.clone())
+                }
                 _ => None,
             })
             .collect();

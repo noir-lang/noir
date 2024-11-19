@@ -78,7 +78,6 @@ dirs.workspace = true
 assert_cmd = "2.0.8"
 assert_fs = "1.0.10"
 predicates = "2.1.5"
-file-lock = "2.1.11"
 fm.workspace = true
 criterion.workspace = true
 pprof.workspace = true
@@ -89,7 +88,6 @@ sha3.workspace = true
 iai = "0.1.1"
 test-binary = "3.0.2"
 test-case.workspace = true
-lazy_static.workspace = true
 light-poseidon = "0.2.0"
 
 

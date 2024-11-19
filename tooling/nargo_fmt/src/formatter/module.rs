@@ -6,7 +6,9 @@ use super::Formatter;
 
 impl<'a> Formatter<'a> {
     pub(super) fn format_module_declaration(&mut self, module_declaration: ModuleDeclaration) {
-        self.format_secondary_attributes(module_declaration.outer_attributes);
+        if !module_declaration.outer_attributes.is_empty() {
+            self.format_attributes();
+        }
         self.write_indentation();
         self.format_item_visibility(module_declaration.visibility);
         self.write_keyword(Keyword::Mod);
@@ -16,7 +18,9 @@ impl<'a> Formatter<'a> {
     }
 
     pub(super) fn format_submodule(&mut self, submodule: ParsedSubModule) {
-        self.format_secondary_attributes(submodule.outer_attributes);
+        if !submodule.outer_attributes.is_empty() {
+            self.format_attributes();
+        }
         self.write_indentation();
         self.format_item_visibility(submodule.visibility);
         if submodule.is_contract {

@@ -1,6 +1,7 @@
 fn main(mut x: Field) {
     add1(&mut x);
     assert(x == 3);
+
     let mut s = S { y: x };
     s.add2();
     assert(s.y == 5);
@@ -20,16 +21,18 @@ fn main(mut x: Field) {
     let mut c = C { foo: 0, bar: &mut C2 { array: &mut [1, 2] } };
     *c.bar.array = [3, 4];
     assert(*c.bar.array == [3, 4]);
+
     regression_1887();
     regression_2054();
     regression_2030();
     regression_2255();
-    regression_6443();
+
     assert(x == 3);
     regression_2218_if_inner_if(x, 10);
     regression_2218_if_inner_else(20, x);
     regression_2218_else(x, 3);
     regression_2218_loop(x, 10);
+
     regression_2560(s_ref);
 }
 
@@ -103,7 +106,6 @@ fn regression_2030() {
     let _ = *array[0];
     *array[0] = 1;
 }
-
 // The `mut x: &mut ...` caught a bug handling lvalues where a double-dereference would occur internally
 // in one step rather than being tracked by two separate steps. This lead to assigning the 1 value to the
 // incorrect outer `mut` reference rather than the correct `&mut` reference.
@@ -114,18 +116,6 @@ fn regression_2255() {
 }
 
 fn regression_2255_helper(mut x: &mut Field) {
-    *x = 1;
-}
-
-// Similar to `regression_2255` but without the double-dereferencing.
-// The test checks that `mem2reg` does not eliminate storing to a reference passed as a parameter.
-fn regression_6443() {
-    let x = &mut 0;
-    regression_6443_helper(x);
-    assert(*x == 1);
-}
-
-fn regression_6443_helper(x: &mut Field) {
     *x = 1;
 }
 

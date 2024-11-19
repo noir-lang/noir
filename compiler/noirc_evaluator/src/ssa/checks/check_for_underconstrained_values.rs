@@ -191,8 +191,7 @@ impl Context {
                 | Instruction::Load { .. }
                 | Instruction::Not(..)
                 | Instruction::Store { .. }
-                | Instruction::Truncate { .. }
-                | Instruction::MakeArray { .. } => {
+                | Instruction::Truncate { .. } => {
                     self.value_sets.push(instruction_arguments_and_results);
                 }
 
@@ -248,7 +247,8 @@ impl Context {
                         Value::ForeignFunction(..) => {
                             panic!("Should not be able to reach foreign function from non-brillig functions, {func_id} in function {}", function.name());
                         }
-                        Value::Instruction { .. }
+                        Value::Array { .. }
+                        | Value::Instruction { .. }
                         | Value::NumericConstant { .. }
                         | Value::Param { .. } => {
                             panic!("At the point we are running disconnect there shouldn't be any other values as arguments")

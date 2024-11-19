@@ -246,23 +246,22 @@ impl<'a> Parser<'a> {
     }
 
     fn validate_attributes(&mut self, attributes: Vec<(Attribute, Span)>) -> Attributes {
-        let mut function = None;
+        let mut primary = None;
         let mut secondary = Vec::new();
 
-        for (index, (attribute, span)) in attributes.into_iter().enumerate() {
+        for (attribute, span) in attributes {
             match attribute {
                 Attribute::Function(attr) => {
-                    if function.is_none() {
-                        function = Some((attr, index));
-                    } else {
+                    if primary.is_some() {
                         self.push_error(ParserErrorReason::MultipleFunctionAttributesFound, span);
                     }
+                    primary = Some(attr);
                 }
                 Attribute::Secondary(attr) => secondary.push(attr),
             }
         }
 
-        Attributes { function, secondary }
+        Attributes { function: primary, secondary }
     }
 }
 

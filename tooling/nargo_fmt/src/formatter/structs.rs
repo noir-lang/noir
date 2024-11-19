@@ -8,7 +8,9 @@ use crate::chunks::ChunkGroup;
 
 impl<'a> Formatter<'a> {
     pub(super) fn format_struct(&mut self, noir_struct: NoirStruct) {
-        self.format_secondary_attributes(noir_struct.attributes);
+        if !noir_struct.attributes.is_empty() {
+            self.format_attributes();
+        }
         self.write_indentation();
         self.format_item_visibility(noir_struct.visibility);
         self.write_keyword(Keyword::Struct);

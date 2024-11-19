@@ -9,7 +9,7 @@ use crate::{
     },
     hir::{
         def_collector::dc_crate::CompilationError,
-        resolution::errors::ResolverError,
+        resolution::{errors::ResolverError, import::PathResolutionItem},
         type_check::{Source, TypeCheckError},
     },
     hir_def::{
@@ -20,7 +20,7 @@ use crate::{
     Kind, Shared, StructType, Type, TypeAlias, TypeBindings,
 };
 
-use super::{path_resolution::PathResolutionItem, Elaborator, ResolverMeta};
+use super::{Elaborator, ResolverMeta};
 
 impl<'context> Elaborator<'context> {
     pub(super) fn elaborate_pattern(

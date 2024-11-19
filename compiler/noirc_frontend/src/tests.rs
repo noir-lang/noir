@@ -1,7 +1,6 @@
 #![cfg(test)]
 
 mod aliases;
-mod arithmetic_generics;
 mod bound_checks;
 mod imports;
 mod metaprogramming;
@@ -37,8 +36,6 @@ use crate::hir::def_collector::dc_crate::DefCollector;
 use crate::hir::def_map::{CrateDefMap, LocalModuleId};
 use crate::hir_def::expr::HirExpression;
 use crate::hir_def::stmt::HirStatement;
-use crate::monomorphization::ast::Program;
-use crate::monomorphization::errors::MonomorphizationError;
 use crate::monomorphization::monomorphize;
 use crate::parser::{ItemKind, ParserErrorReason};
 use crate::token::SecondaryAttribute;
@@ -60,15 +57,6 @@ pub(crate) fn remove_experimental_warnings(errors: &mut Vec<(CompilationError, F
 }
 
 pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(CompilationError, FileId)>) {
-    get_program_with_maybe_parser_errors(
-        src, false, // allow parser errors
-    )
-}
-
-pub(crate) fn get_program_with_maybe_parser_errors(
-    src: &str,
-    allow_parser_errors: bool,
-) -> (ParsedModule, Context, Vec<(CompilationError, FileId)>) {
     let root = std::path::Path::new("/");
     let fm = FileManager::new(root);
 
@@ -81,7 +69,7 @@ pub(crate) fn get_program_with_maybe_parser_errors(
     let mut errors = vecmap(parser_errors, |e| (e.into(), root_file_id));
     remove_experimental_warnings(&mut errors);
 
-    if allow_parser_errors || !has_parser_error(&errors) {
+    if !has_parser_error(&errors) {
         let inner_attributes: Vec<SecondaryAttribute> = program
             .items
             .iter()
@@ -1251,18 +1239,10 @@ fn resolve_fmt_strings() {
     }
 }
 
-fn monomorphize_program(src: &str) -> Result<Program, MonomorphizationError> {
+fn check_rewrite(src: &str, expected: &str) {
     let (_program, mut context, _errors) = get_program(src);
     let main_func_id = context.def_interner.find_function("main").unwrap();
-    monomorphize(main_func_id, &mut context.def_interner)
-}
-
-fn get_monomorphization_error(src: &str) -> Option<MonomorphizationError> {
-    monomorphize_program(src).err()
-}
-
-fn check_rewrite(src: &str, expected: &str) {
-    let program = monomorphize_program(src).unwrap();
+    let program = monomorphize(main_func_id, &mut context.def_interner).unwrap();
     assert!(format!("{}", program) == expected);
 }
 
@@ -3210,6 +3190,25 @@ fn as_trait_path_syntax_no_impl() {
 }
 
 #[test]
+fn arithmetic_generics_canonicalization_deduplication_regression() {
+    let source = r#"
+        struct ArrData<let N: u32> {
+            a: [Field; N],
+            b: [Field; N + N - 1],
+        }
+
+        fn main() {
+            let _f: ArrData<5> = ArrData {
+                a: [0; 5],
+                b: [0; 9],
+            };
+        }
+    "#;
+    let errors = get_program_errors(source);
+    assert_eq!(errors.len(), 0);
+}
+
+#[test]
 fn infer_globals_to_u32_from_type_use() {
     let src = r#"
         global ARRAY_LEN = 3;
@@ -3394,36 +3393,6 @@ fn arithmetic_generics_rounding_fail() {
 
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
-    assert!(matches!(
-        errors[0].0,
-        CompilationError::TypeError(TypeCheckError::TypeMismatch { .. })
-    ));
-}
-
-#[test]
-fn arithmetic_generics_rounding_fail_on_struct() {
-    let src = r#"
-        struct W<let N: u32> {}
-
-        fn foo<let N: u32, let M: u32>(_x: W<N>, _y: W<M>) -> W<N / M * M> {
-            W {}
-        }
-
-        fn main() {
-            let w_2: W<2> = W {};
-            let w_3: W<3> = W {};
-            // Do not simplify N/M*M to just N
-            // This should be 3/2*2 = 2, not 3
-            let _: W<3> = foo(w_3, w_2);
-        }
-    "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-    assert!(matches!(
-        errors[0].0,
-        CompilationError::TypeError(TypeCheckError::TypeMismatch { .. })
-    ));
 }
 
 #[test]
@@ -3653,90 +3622,4 @@ fn use_type_alias_to_generic_concrete_type_in_method_call() {
         }
     "#;
     assert_no_errors(src);
-}
-
-#[test]
-fn allows_struct_with_generic_infix_type_as_main_input_1() {
-    let src = r#"
-        struct Foo<let N: u32> {
-            x: [u64; N * 2],
-        }
-
-        fn main(_x: Foo<18>) {}
-    "#;
-    assert_no_errors(src);
-}
-
-#[test]
-fn allows_struct_with_generic_infix_type_as_main_input_2() {
-    let src = r#"
-        struct Foo<let N: u32> {
-            x: [u64; N * 2],
-        }
-
-        fn main(_x: Foo<2 * 9>) {}
-    "#;
-    assert_no_errors(src);
-}
-
-#[test]
-fn allows_struct_with_generic_infix_type_as_main_input_3() {
-    let src = r#"
-        struct Foo<let N: u32> {
-            x: [u64; N * 2],
-        }
-
-        global N = 9;
-
-        fn main(_x: Foo<N * 2>) {}
-    "#;
-    assert_no_errors(src);
-}
-
-#[test]
-fn disallows_test_attribute_on_impl_method() {
-    let src = r#"
-    pub struct Foo {}
-    impl Foo {
-        #[test]
-        fn foo() {}
-    }
-
-    fn main() {}
-    "#;
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    assert!(matches!(
-        errors[0].0,
-        CompilationError::DefinitionError(DefCollectorErrorKind::TestOnAssociatedFunction {
-            span: _
-        })
-    ));
-}
-
-#[test]
-fn disallows_test_attribute_on_trait_impl_method() {
-    let src = r#"
-    pub trait Trait {
-        fn foo() {}
-    }
-
-    pub struct Foo {}
-    impl Trait for Foo {
-        #[test]
-        fn foo() {}
-    }
-
-    fn main() {}
-    "#;
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    assert!(matches!(
-        errors[0].0,
-        CompilationError::DefinitionError(DefCollectorErrorKind::TestOnAssociatedFunction {
-            span: _
-        })
-    ));
 }

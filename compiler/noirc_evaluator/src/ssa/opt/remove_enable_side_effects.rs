@@ -145,8 +145,7 @@ impl Context {
             | RangeCheck { .. }
             | IfElse { .. }
             | IncrementRc { .. }
-            | DecrementRc { .. }
-            | MakeArray { .. } => false,
+            | DecrementRc { .. } => false,
 
             EnableSideEffectsIf { .. }
             | ArrayGet { .. }

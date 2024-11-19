@@ -16,7 +16,7 @@ use crate::{
         InternedUnresolvedTypeData, QuotedTypeId,
     },
     parser::{Item, ItemKind, ParsedSubModule},
-    token::{MetaAttribute, SecondaryAttribute, Tokens},
+    token::{CustomAttribute, SecondaryAttribute, Tokens},
     ParsedModule, QuotedType,
 };
 
@@ -474,9 +474,7 @@ pub trait Visitor {
         true
     }
 
-    fn visit_meta_attribute(&mut self, _: &MetaAttribute, _target: AttributeTarget) -> bool {
-        true
-    }
+    fn visit_custom_attribute(&mut self, _: &CustomAttribute, _target: AttributeTarget) {}
 }
 
 impl ParsedModule {
@@ -1443,22 +1441,15 @@ impl SecondaryAttribute {
     }
 
     pub fn accept_children(&self, target: AttributeTarget, visitor: &mut impl Visitor) {
-        if let SecondaryAttribute::Meta(meta_attribute) = self {
-            meta_attribute.accept(target, visitor);
+        if let SecondaryAttribute::Meta(custom) = self {
+            custom.accept(target, visitor);
         }
     }
 }
 
-impl MetaAttribute {
+impl CustomAttribute {
     pub fn accept(&self, target: AttributeTarget, visitor: &mut impl Visitor) {
-        if visitor.visit_meta_attribute(self, target) {
-            self.accept_children(visitor);
-        }
-    }
-
-    pub fn accept_children(&self, visitor: &mut impl Visitor) {
-        self.name.accept(visitor);
-        visit_expressions(&self.arguments, visitor);
+        visitor.visit_custom_attribute(self, target);
     }
 }
 

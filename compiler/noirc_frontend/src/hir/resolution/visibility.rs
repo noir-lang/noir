@@ -7,43 +7,34 @@ use std::collections::BTreeMap;
 use crate::ast::ItemVisibility;
 use crate::hir::def_map::{CrateDefMap, DefMaps, LocalModuleId, ModuleId};
 
-/// Returns true if an item with the given visibility in the target module
-/// is visible from the current module. For example:
-/// ```text
-/// mod foo {
-///     ^^^ <-- target module
-///   pub(crate) fn bar() {}
-///   ^^^^^^^^^^ <- visibility
-/// }
-/// ```
-pub fn item_in_module_is_visible(
+// Returns false if the given private function is being called from a non-child module, or
+// if the given pub(crate) function is being called from another crate. Otherwise returns true.
+pub fn can_reference_module_id(
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
-    current_module: ModuleId,
+    importing_crate: CrateId,
+    current_module: LocalModuleId,
     target_module: ModuleId,
     visibility: ItemVisibility,
 ) -> bool {
     // Note that if the target module is in a different crate from the current module then we will either
     // return true as the target module is public or return false as it is private without looking at the `CrateDefMap` in either case.
-    let same_crate = target_module.krate == current_module.krate;
+    let same_crate = target_module.krate == importing_crate;
 
     match visibility {
         ItemVisibility::Public => true,
         ItemVisibility::PublicCrate => same_crate,
         ItemVisibility::Private => {
-            if !same_crate {
-                return false;
-            }
-
             let target_crate_def_map = &def_maps[&target_module.krate];
-            module_descendent_of_target(
-                target_crate_def_map,
-                target_module.local_id,
-                current_module.local_id,
-            ) || module_is_parent_of_struct_module(
-                target_crate_def_map,
-                current_module.local_id,
-                target_module.local_id,
-            )
+            same_crate
+                && (module_descendent_of_target(
+                    target_crate_def_map,
+                    target_module.local_id,
+                    current_module,
+                ) || module_is_parent_of_struct_module(
+                    target_crate_def_map,
+                    current_module,
+                    target_module.local_id,
+                ))
         }
     }
 }
@@ -125,9 +116,10 @@ pub fn method_call_is_visible(
         ItemVisibility::Private => {
             if object_type.is_primitive() {
                 let func_module = interner.function_module(func_id);
-                item_in_module_is_visible(
+                can_reference_module_id(
                     def_maps,
-                    current_module,
+                    current_module.krate,
+                    current_module.local_id,
                     func_module,
                     modifiers.visibility,
                 )

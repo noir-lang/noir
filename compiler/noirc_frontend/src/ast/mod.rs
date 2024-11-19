@@ -19,9 +19,6 @@ pub use visitor::Visitor;
 pub use expression::*;
 pub use function::*;
 
-#[cfg(test)]
-use proptest_derive::Arbitrary;
-
 use acvm::FieldElement;
 pub use docs::*;
 use noirc_errors::Span;
@@ -40,7 +37,6 @@ use crate::{
 use acvm::acir::AcirField;
 use iter_extended::vecmap;
 
-#[cfg_attr(test, derive(Arbitrary))]
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Ord, PartialOrd)]
 pub enum IntegerBitSize {
     One,

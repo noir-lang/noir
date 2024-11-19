@@ -53,7 +53,7 @@ Two files will be created.
 
 Glancing at _main.nr_ , we can see that inputs in Noir are private by default, but can be labeled public using the keyword `pub`. This means that we will _assert_ that we know a value `x` which is different from `y` without revealing `x`:
 
-```rust
+```rust title="src/main.nr"
 fn main(x : Field, y : pub Field) {
     assert(x != y);
 }
@@ -68,10 +68,11 @@ We can now use `nargo` to generate a _Prover.toml_ file, where our input values 
 ```sh
 cd hello_world
 nargo check
+```
 
 Let's feed some valid values into this file:
 
-```toml
+```toml title="Prover.toml"
 x = "1"
 y = "2"
 ```
@@ -82,7 +83,7 @@ We're now ready to compile and execute our Noir program. By default the `nargo e
 nargo execute
 ```
 
-The witness corresponding to this execution will then be written to the file _./target/witness-name.gz_.
+The witness corresponding to this execution will be written to the file _./target/witness-name.gz_.
 
 The command also automatically compiles your Noir program if it was not already / was edited, which you may notice the compiled artifacts being written to the file _./target/hello_world.json_.
 
@@ -93,20 +94,31 @@ With circuit compiled and witness generated, we're ready to prove.
 Different proving backends may provide different tools and commands to work with Noir programs. Here Barretenberg's `bb` CLI tool is used as an example:
 
 ```sh
-bb prove -b ./target/hello_world.json -w ./target/hello_world.gz -o ./target/proof
+~/.bb/bb prove -b ./target/hello_world.json -w ./target/hello_world.gz -o ./target/proof
 ```
 
 :::tip
 
-Naming can be confusing, specially as you pass them to the `bb` commands. If unsure, it won't hurt to delete the target folder and start anew to make sure you're using the most recent versions of the compiled circuit and witness.
+You may get an error:
+
+```
+error while loading shared libraries: libc++.so.1: cannot open shared object file: No such file or directory
+```
+
+If you do, you need to install the `libc++-dev` package.
+For example, on Ubuntu you use this command:
+
+```sh
+sudo apt-get install libc++-dev
+```
 
 :::
 
 The proof is now generated in the `target` folder. To verify it we first need to compute the verification key from the compiled circuit, and use it to verify:
 
 ```sh
-bb write_vk -b ./target/hello_world.json -o ./target/vk
-bb verify -k ./target/vk -p ./target/proof
+~/.bb/bb write_vk -b ./target/hello_world.json -o ./target/vk
+~/.bb/bb verify -k ./target/vk -p ./target/proof
 ```
 
 :::info

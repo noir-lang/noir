@@ -47,6 +47,7 @@ pub(crate) fn on_hover_request(
                             file_id,
                             byte_index,
                             args.crate_id,
+                            args.interner,
                             args.def_maps,
                         );
                         finder.find(&parsed_module)
@@ -679,7 +680,6 @@ impl<'a> TypeLinksGatherer<'a> {
                 self.gather_type_links(lhs);
                 self.gather_type_links(rhs);
             }
-            Type::CheckedCast { to, .. } => self.gather_type_links(to),
             Type::FieldElement
             | Type::Integer(..)
             | Type::Bool

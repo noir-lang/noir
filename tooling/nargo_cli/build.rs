@@ -59,12 +59,6 @@ const IGNORED_BRILLIG_TESTS: [&str; 11] = [
     "is_unconstrained",
 ];
 
-/// Tests which aren't expected to work with the default inliner cases.
-const INLINER_MIN_OVERRIDES: [(&str, i64); 1] = [
-    // 0 works if PoseidonHasher::write is tagged as `inline_always`, otherwise 22.
-    ("eddsa", 0),
-];
-
 /// Some tests are expected to have warnings
 /// These should be fixed and removed from this list.
 const TESTS_WITH_EXPECTED_WARNINGS: [&str; 2] = [
@@ -94,122 +88,22 @@ fn read_test_cases(
     })
 }
 
-#[derive(Default)]
-struct MatrixConfig {
-    // Only used with execution, and only on selected tests.
-    vary_brillig: bool,
-    // Only seems to have an effect on the `execute_success` cases.
-    vary_inliner: bool,
-    // If there is a non-default minimum inliner aggressiveness to use with the brillig tests.
-    min_inliner: i64,
-}
-
-// Enum to be able to preserve readable test labels and also compare to numbers.
-enum Inliner {
-    Min,
-    Default,
-    Max,
-    Custom(i64),
-}
-
-impl Inliner {
-    fn value(&self) -> i64 {
-        match self {
-            Inliner::Min => i64::MIN,
-            Inliner::Default => 0,
-            Inliner::Max => i64::MAX,
-            Inliner::Custom(i) => *i,
-        }
-    }
-    fn label(&self) -> String {
-        match self {
-            Inliner::Min => "i64::MIN".to_string(),
-            Inliner::Default => "0".to_string(),
-            Inliner::Max => "i64::MAX".to_string(),
-            Inliner::Custom(i) => i.to_string(),
-        }
-    }
-}
-
-/// Generate all test cases for a given test name (expected to be unique for the test directory),
-/// based on the matrix configuration. These will be executed serially, but concurrently with
-/// other test directories. Running multiple tests on the same directory would risk overriding
-/// each others compilation artifacts, which is why this method injects a mutex shared by
-/// all cases in the test matrix, as long as the test name and directory has a 1-to-1 relationship.
-fn generate_test_cases(
+fn generate_test_case(
     test_file: &mut File,
     test_name: &str,
     test_dir: &std::path::Display,
-    test_command: &str,
     test_content: &str,
-    matrix_config: &MatrixConfig,
 ) {
-    let brillig_cases = if matrix_config.vary_brillig { vec![false, true] } else { vec![false] };
-    let inliner_cases = if matrix_config.vary_inliner {
-        let mut cases = vec![Inliner::Min, Inliner::Default, Inliner::Max];
-        if !cases.iter().any(|c| c.value() == matrix_config.min_inliner) {
-            cases.push(Inliner::Custom(matrix_config.min_inliner));
-        }
-        cases
-    } else {
-        vec![Inliner::Default]
-    };
-
-    // We can't use a `#[test_matrix(brillig_cases, inliner_cases)` if we only want to limit the
-    // aggressiveness range for the brillig tests, and let them go full range on the ACIR case.
-    let mut test_cases = Vec::new();
-    for brillig in &brillig_cases {
-        for inliner in &inliner_cases {
-            if *brillig && inliner.value() < matrix_config.min_inliner {
-                continue;
-            }
-            test_cases.push(format!(
-                "#[test_case::test_case(ForceBrillig({brillig}), Inliner({}))]",
-                inliner.label()
-            ));
-        }
-    }
-    let test_cases = test_cases.join("\n");
-
-    // We need to isolate test cases in the same group, otherwise they overwrite each other's artifacts.
-    // On CI we use `cargo nextest`, which runs tests in different processes; for this we use a file lock.
-    // Locally we might be using `cargo test`, which run tests in the same process; in this case the file lock
-    // wouldn't work, becuase the process itself has the lock, and it looks like it can have N instances without
-    // any problems; for this reason we also use a `Mutex`.
-    let mutex_name = format! {"TEST_MUTEX_{}", test_name.to_uppercase()};
     write!(
         test_file,
         r#"
-lazy_static::lazy_static! {{
-    /// Prevent concurrent tests in the matrix from overwriting the compilation artifacts in {test_dir}
-    static ref {mutex_name}: std::sync::Mutex<()> = std::sync::Mutex::new(());
-}}
-
-{test_cases}
-fn test_{test_name}(force_brillig: ForceBrillig, inliner_aggressiveness: Inliner) {{
+#[test]
+fn test_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
-
-    // Ignore poisoning errors if some of the matrix cases failed.
-    let mutex_guard = {mutex_name}.lock().unwrap_or_else(|e| e.into_inner());
-
-    let file_guard = file_lock::FileLock::lock(
-        test_program_dir.join("Nargo.toml"),
-        true,
-        file_lock::FileOptions::new().read(true).write(true).append(true)
-    ).expect("failed to lock Nargo.toml");
 
     let mut nargo = Command::cargo_bin("nargo").unwrap();
     nargo.arg("--program-dir").arg(test_program_dir);
-    nargo.arg("{test_command}").arg("--force");
-    nargo.arg("--inliner-aggressiveness").arg(inliner_aggressiveness.0.to_string());
-    if force_brillig.0 {{
-        nargo.arg("--force-brillig");
-    }}
-
     {test_content}
-
-    drop(file_guard);
-    drop(mutex_guard);
 }}
 "#
     )
@@ -230,24 +124,27 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
     for (test_name, test_dir) in test_cases {
         let test_dir = test_dir.display();
 
-        generate_test_cases(
+        generate_test_case(
             test_file,
             &test_name,
             &test_dir,
-            "execute",
             r#"
-                nargo.assert().success();
-            "#,
-            &MatrixConfig {
-                vary_brillig: !IGNORED_BRILLIG_TESTS.contains(&test_name.as_str()),
-                vary_inliner: true,
-                min_inliner: INLINER_MIN_OVERRIDES
-                    .iter()
-                    .find(|(n, _)| *n == test_name.as_str())
-                    .map(|(_, i)| *i)
-                    .unwrap_or(i64::MIN),
-            },
+                nargo.arg("execute").arg("--force");
+            
+                nargo.assert().success();"#,
         );
+
+        if !IGNORED_BRILLIG_TESTS.contains(&test_name.as_str()) {
+            generate_test_case(
+                test_file,
+                &format!("{test_name}_brillig"),
+                &test_dir,
+                r#"
+                nargo.arg("execute").arg("--force").arg("--force-brillig");
+            
+                nargo.assert().success();"#,
+            );
+        }
     }
     writeln!(test_file, "}}").unwrap();
 }
@@ -266,15 +163,14 @@ fn generate_execution_failure_tests(test_file: &mut File, test_data_dir: &Path) 
     for (test_name, test_dir) in test_cases {
         let test_dir = test_dir.display();
 
-        generate_test_cases(
+        generate_test_case(
             test_file,
             &test_name,
             &test_dir,
-            "execute",
             r#"
-                nargo.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());
-            "#,
-            &MatrixConfig::default(),
+                nargo.arg("execute").arg("--force");
+            
+                nargo.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());"#,
         );
     }
     writeln!(test_file, "}}").unwrap();
@@ -294,15 +190,14 @@ fn generate_noir_test_success_tests(test_file: &mut File, test_data_dir: &Path) 
     for (test_name, test_dir) in test_cases {
         let test_dir = test_dir.display();
 
-        generate_test_cases(
+        generate_test_case(
             test_file,
             &test_name,
             &test_dir,
-            "test",
             r#"
-                nargo.assert().success();
-            "#,
-            &MatrixConfig::default(),
+        nargo.arg("test");
+        
+        nargo.assert().success();"#,
         );
     }
     writeln!(test_file, "}}").unwrap();
@@ -321,15 +216,14 @@ fn generate_noir_test_failure_tests(test_file: &mut File, test_data_dir: &Path) 
     .unwrap();
     for (test_name, test_dir) in test_cases {
         let test_dir = test_dir.display();
-        generate_test_cases(
+        generate_test_case(
             test_file,
             &test_name,
             &test_dir,
-            "test",
             r#"
-                nargo.assert().failure();
-            "#,
-            &MatrixConfig::default(),
+        nargo.arg("test");
+        
+        nargo.assert().failure();"#,
         );
     }
     writeln!(test_file, "}}").unwrap();
@@ -372,18 +266,16 @@ fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Pa
         assert_eq!(num_opcodes.as_u64().expect("number of opcodes should fit in a u64"), 0);
         "#;
 
-        generate_test_cases(
+        generate_test_case(
             test_file,
             &test_name,
             &test_dir,
-            "info",
             &format!(
                 r#"
-                nargo.arg("--json");
-                {assert_zero_opcodes}
-            "#,
+                nargo.arg("info").arg("--json").arg("--force");
+                
+                {assert_zero_opcodes}"#,
             ),
-            &MatrixConfig::default(),
         );
     }
     writeln!(test_file, "}}").unwrap();
@@ -403,15 +295,13 @@ fn generate_compile_success_contract_tests(test_file: &mut File, test_data_dir: 
     for (test_name, test_dir) in test_cases {
         let test_dir = test_dir.display();
 
-        generate_test_cases(
+        generate_test_case(
             test_file,
             &test_name,
             &test_dir,
-            "compile",
             r#"
-                nargo.assert().success().stderr(predicate::str::contains("warning:").not());
-            "#,
-            &MatrixConfig::default(),
+        nargo.arg("compile").arg("--force");
+        nargo.assert().success().stderr(predicate::str::contains("warning:").not());"#,
         );
     }
     writeln!(test_file, "}}").unwrap();
@@ -432,15 +322,13 @@ fn generate_compile_success_no_bug_tests(test_file: &mut File, test_data_dir: &P
     for (test_name, test_dir) in test_cases {
         let test_dir = test_dir.display();
 
-        generate_test_cases(
+        generate_test_case(
             test_file,
             &test_name,
             &test_dir,
-            "compile",
             r#"
-                nargo.assert().success().stderr(predicate::str::contains("bug:").not());
-            "#,
-            &MatrixConfig::default(),
+        nargo.arg("compile").arg("--force");
+        nargo.assert().success().stderr(predicate::str::contains("bug:").not());"#,
         );
     }
     writeln!(test_file, "}}").unwrap();
@@ -460,15 +348,13 @@ fn generate_compile_failure_tests(test_file: &mut File, test_data_dir: &Path) {
     for (test_name, test_dir) in test_cases {
         let test_dir = test_dir.display();
 
-        generate_test_cases(
+        generate_test_case(
             test_file,
             &test_name,
             &test_dir,
-            "compile",
-            r#"
-                nargo.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());
-            "#,
-            &MatrixConfig::default(),
+            r#"nargo.arg("compile").arg("--force");
+        
+        nargo.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());"#,
         );
     }
     writeln!(test_file, "}}").unwrap();
