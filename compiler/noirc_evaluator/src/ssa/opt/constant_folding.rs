@@ -32,7 +32,8 @@ use iter_extended::vecmap;
 
 use crate::{
     brillig::{
-        brillig_gen::{brillig_fn::FunctionContext, gen_brillig_for},
+        brillig_gen::gen_brillig_for,
+        brillig_ir::{artifact::BrilligParameter, brillig_variable::get_bit_size_from_ssa_type},
         Brillig,
     },
     ssa::{
@@ -511,7 +512,7 @@ impl<'brillig> Context<'brillig> {
         let mut brillig_arguments = Vec::new();
         for argument in arguments {
             let typ = dfg.type_of_value(*argument);
-            let Some(parameter) = FunctionContext::try_ssa_type_to_parameter(&typ) else {
+            let Some(parameter) = type_to_brillig_parameter(&typ) else {
                 return EvaluationResult::CannotEvaluate(*func_id);
             };
             brillig_arguments.push(parameter);
@@ -520,7 +521,7 @@ impl<'brillig> Context<'brillig> {
         // Check that return value types are supported by brillig
         for return_id in func.returns().iter() {
             let typ = func.dfg.type_of_value(*return_id);
-            if FunctionContext::try_ssa_type_to_parameter(&typ).is_none() {
+            if type_to_brillig_parameter(&typ).is_none() {
                 return EvaluationResult::CannotEvaluate(*func_id);
             }
         }
@@ -651,6 +652,21 @@ enum EvaluationResult {
     /// The instruction was a call to a brillig function and we were able to evaluate it,
     /// returning evaluation memory values.
     Evaluated(Vec<MemoryValue<FieldElement>>),
+}
+
+/// Similar to FunctionContext::ssa_type_to_parameter but never panics and disallows reference types.
+pub(crate) fn type_to_brillig_parameter(typ: &Type) -> Option<BrilligParameter> {
+    match typ {
+        Type::Numeric(_) => Some(BrilligParameter::SingleAddr(get_bit_size_from_ssa_type(typ))),
+        Type::Array(item_type, size) => {
+            let mut parameters = Vec::with_capacity(item_type.len());
+            for item_typ in item_type.iter() {
+                parameters.push(type_to_brillig_parameter(item_typ)?);
+            }
+            Some(BrilligParameter::Array(parameters, *size))
+        }
+        _ => None,
+    }
 }
 
 fn value_id_to_calldata(value_id: ValueId, dfg: &DataFlowGraph, calldata: &mut Vec<FieldElement>) {
