@@ -17,8 +17,6 @@ curl -L noirup.dev | bash
 noirup
 ```
 
-Once installed, you can [set up shell completions for the `nargo` command](setting_up_shell_completions).
-
 ### Proving backend
 
 After installing Noir, we install a proving backend to work with our Noir programs.

@@ -38,10 +38,9 @@ impl Buffer {
     }
 
     /// Trim spaces from the end of the buffer.
-    pub(crate) fn trim_spaces(&mut self) {
+    pub(super) fn trim_spaces(&mut self) {
         while self.buffer.ends_with(' ') {
             self.buffer.truncate(self.buffer.len() - 1);
-            self.current_line_width -= 1;
         }
     }
 
@@ -49,7 +48,6 @@ impl Buffer {
     pub(super) fn trim_comma(&mut self) -> bool {
         if self.buffer.ends_with(',') {
             self.buffer.truncate(self.buffer.len() - 1);
-            self.current_line_width -= 1;
             true
         } else {
             false

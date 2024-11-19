@@ -105,7 +105,7 @@ impl HirPattern {
         }
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             HirPattern::Identifier(ident) => ident.location,
             HirPattern::Mutable(_, location)

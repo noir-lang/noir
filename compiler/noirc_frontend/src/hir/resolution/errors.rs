@@ -5,7 +5,7 @@ use thiserror::Error;
 
 use crate::{
     ast::{Ident, UnsupportedNumericGenericType},
-    hir::{comptime::InterpreterError, type_check::TypeCheckError},
+    hir::comptime::InterpreterError,
     parser::ParserError,
     usage_tracker::UnusedItem,
     Type,
@@ -127,12 +127,11 @@ pub enum ResolverError {
     NamedTypeArgs { span: Span, item_kind: &'static str },
     #[error("Associated constants may only be a field or integer type")]
     AssociatedConstantsMustBeNumeric { span: Span },
-    #[error("Computing `{lhs} {op} {rhs}` failed with error {err}")]
-    BinaryOpError {
+    #[error("Overflow in `{lhs} {op} {rhs}`")]
+    OverflowInType {
         lhs: FieldElement,
         op: crate::BinaryTypeOperator,
         rhs: FieldElement,
-        err: Box<TypeCheckError>,
         span: Span,
     },
     #[error("`quote` cannot be used in runtime code")]
@@ -535,10 +534,10 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *span,
                 )
             }
-            ResolverError::BinaryOpError { lhs, op, rhs, err, span } => {
+            ResolverError::OverflowInType { lhs, op, rhs, span } => {
                 Diagnostic::simple_error(
-                    format!("Computing `{lhs} {op} {rhs}` failed with error {err}"),
-                    String::new(),
+                    format!("Overflow in `{lhs} {op} {rhs}`"),
+                    "Overflow here".to_string(),
                     *span,
                 )
             }

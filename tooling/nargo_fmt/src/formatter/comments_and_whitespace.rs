@@ -162,7 +162,8 @@ impl<'a> Formatter<'a> {
                         // will never write two consecutive spaces.
                         self.write_space_without_skipping_whitespace_and_comments();
                     }
-                    self.write_current_token_and_bump();
+                    self.write_current_token();
+                    self.bump();
                     passed_whitespace = false;
                     last_was_block_comment = true;
                     self.written_comments_count += 1;

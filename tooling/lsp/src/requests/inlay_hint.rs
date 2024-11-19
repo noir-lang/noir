@@ -471,7 +471,6 @@ fn push_type_parts(typ: &Type, parts: &mut Vec<InlayHintLabelPart>, files: &File
                 push_type_variable_parts(binding, parts, files);
             }
         }
-        Type::CheckedCast { to, .. } => push_type_parts(to, parts, files),
 
         Type::FieldElement
         | Type::Integer(..)

@@ -17,4 +17,4 @@ by a particular proving system to create a proof.
   - Add the crate name to the `linked-versions` plugin list
   - If you added the new crate as a dependency in the root `Cargo.toml`, add it to the extra-files of the root package.
 - In `.release-please-manifest.json`, add the new crate with the same version of the others.
-- In [publish.yml](.github/workflows/publish.yml), add the new crate to the `publish` job after its dependencies.
+- In [publish.yml](https://github.com/noir-lang/noir/blob/master/.github/workflows/publish-acvm.yml), add the new crate to the `publish` job after its dependencies.

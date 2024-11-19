@@ -3,14 +3,13 @@ use noirc_frontend::{
         BlockExpression, FunctionReturnType, Ident, ItemVisibility, NoirFunction, Param,
         UnresolvedGenerics, UnresolvedTraitConstraint, Visibility,
     },
-    token::{Attributes, Keyword, Token},
+    token::{Keyword, Token},
 };
 
 use super::Formatter;
 use crate::chunks::{ChunkGroup, TextChunk};
 
 pub(super) struct FunctionToFormat {
-    pub(super) attributes: Attributes,
     pub(super) visibility: ItemVisibility,
     pub(super) name: Ident,
     pub(super) generics: UnresolvedGenerics,
@@ -24,7 +23,6 @@ pub(super) struct FunctionToFormat {
 impl<'a> Formatter<'a> {
     pub(super) fn format_function(&mut self, func: NoirFunction) {
         self.format_function_impl(FunctionToFormat {
-            attributes: func.def.attributes,
             visibility: func.def.visibility,
             name: func.def.name,
             generics: func.def.generics,
@@ -39,7 +37,7 @@ impl<'a> Formatter<'a> {
     pub(super) fn format_function_impl(&mut self, func: FunctionToFormat) {
         let has_where_clause = !func.where_clause.is_empty();
 
-        self.format_attributes(func.attributes);
+        self.format_attributes();
         self.write_indentation();
         self.format_function_modifiers(func.visibility);
         self.write_keyword(Keyword::Fn);
@@ -280,12 +278,16 @@ impl<'a> Formatter<'a> {
     }
 
     pub(super) fn format_function_body(&mut self, body: BlockExpression) {
-        let mut group = ChunkGroup::new();
-        self.chunk_formatter().format_block_expression_contents(
-            body, true, // force multiple newlines
-            &mut group,
-        );
-        self.format_chunk_group(group);
+        if body.is_empty() {
+            self.format_empty_block_contents();
+        } else {
+            let mut group = ChunkGroup::new();
+            self.chunk_formatter().format_non_empty_block_expression_contents(
+                body, true, // force multiple lines
+                &mut group,
+            );
+            self.format_chunk_group(group);
+        }
     }
 }
 
@@ -531,48 +533,6 @@ fn baz() { let  z  = 3  ;
             }
 
 ";
-        assert_format(src, expected);
-    }
-
-    #[test]
-    fn comment_in_body_respects_newlines() {
-        let src = "fn foo() {
-    let x = 1;
-
-    // comment
-
-    let y = 2;
-}
-";
-        let expected = src;
-        assert_format(src, expected);
-    }
-
-    #[test]
-    fn final_comment_in_body_respects_newlines() {
-        let src = "fn foo() {
-    let x = 1;
-
-    let y = 2;
-
-    // comment
-}
-";
-        let expected = src;
-        assert_format(src, expected);
-    }
-
-    #[test]
-    fn initial_comment_in_body_respects_newlines() {
-        let src = "fn foo() {
-    // comment
-
-    let x = 1;
-
-    let y = 2;
-}
-";
-        let expected = src;
         assert_format(src, expected);
     }
 }

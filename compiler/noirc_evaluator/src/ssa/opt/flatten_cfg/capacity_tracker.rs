@@ -26,23 +26,25 @@ impl<'a> SliceCapacityTracker<'a> {
     ) {
         match instruction {
             Instruction::ArrayGet { array, .. } => {
-                if let Some((_, array_type)) = self.dfg.get_array_constant(*array) {
-                    if array_type.contains_slice_element() {
-                        // Initial insertion into the slice sizes map
-                        // Any other insertions should only occur if the value is already
-                        // a part of the map.
-                        self.compute_slice_capacity(*array, slice_sizes);
-                    }
+                let array_typ = self.dfg.type_of_value(*array);
+                let array_value = &self.dfg[*array];
+                if matches!(array_value, Value::Array { .. }) && array_typ.contains_slice_element()
+                {
+                    // Initial insertion into the slice sizes map
+                    // Any other insertions should only occur if the value is already
+                    // a part of the map.
+                    self.compute_slice_capacity(*array, slice_sizes);
                 }
             }
             Instruction::ArraySet { array, value, .. } => {
-                if let Some((_, array_type)) = self.dfg.get_array_constant(*array) {
-                    if array_type.contains_slice_element() {
-                        // Initial insertion into the slice sizes map
-                        // Any other insertions should only occur if the value is already
-                        // a part of the map.
-                        self.compute_slice_capacity(*array, slice_sizes);
-                    }
+                let array_typ = self.dfg.type_of_value(*array);
+                let array_value = &self.dfg[*array];
+                if matches!(array_value, Value::Array { .. }) && array_typ.contains_slice_element()
+                {
+                    // Initial insertion into the slice sizes map
+                    // Any other insertions should only occur if the value is already
+                    // a part of the map.
+                    self.compute_slice_capacity(*array, slice_sizes);
                 }
 
                 let value_typ = self.dfg.type_of_value(*value);
@@ -159,7 +161,7 @@ impl<'a> SliceCapacityTracker<'a> {
         array_id: ValueId,
         slice_sizes: &mut HashMap<ValueId, usize>,
     ) {
-        if let Some((array, typ)) = self.dfg.get_array_constant(array_id) {
+        if let Value::Array { array, typ } = &self.dfg[array_id] {
             // Compiler sanity check
             assert!(!typ.is_nested_slice(), "ICE: Nested slices are not allowed and should not have reached the flattening pass of SSA");
             if let Type::Slice(_) = typ {

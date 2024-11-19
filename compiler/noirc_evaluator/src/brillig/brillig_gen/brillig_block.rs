@@ -2,7 +2,6 @@ use crate::brillig::brillig_ir::artifact::Label;
 use crate::brillig::brillig_ir::brillig_variable::{
     type_to_heap_value_type, BrilligArray, BrilligVariable, SingleAddrVariable,
 };
-
 use crate::brillig::brillig_ir::registers::Stack;
 use crate::brillig::brillig_ir::{
     BrilligBinaryOp, BrilligContext, ReservedRegisters, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
@@ -160,9 +159,13 @@ impl<'block> BrilligBlock<'block> {
                 );
             }
             TerminatorInstruction::Return { return_values, .. } => {
-                let return_registers = vecmap(return_values, |value_id| {
-                    self.convert_ssa_value(*value_id, dfg).extract_register()
-                });
+                let return_registers: Vec<_> = return_values
+                    .iter()
+                    .map(|value_id| {
+                        let return_variable = self.convert_ssa_value(*value_id, dfg);
+                        return_variable.extract_register()
+                    })
+                    .collect();
                 self.brillig_context.codegen_return(&return_registers);
             }
         }
@@ -759,43 +762,6 @@ impl<'block> BrilligBlock<'block> {
             Instruction::IfElse { .. } => {
                 unreachable!("IfElse instructions should not be possible in brillig")
             }
-            Instruction::MakeArray { elements: array, typ } => {
-                let value_id = dfg.instruction_results(instruction_id)[0];
-                if !self.variables.is_allocated(&value_id) {
-                    let new_variable = self.variables.define_variable(
-                        self.function_context,
-                        self.brillig_context,
-                        value_id,
-                        dfg,
-                    );
-
-                    // Initialize the variable
-                    match new_variable {
-                        BrilligVariable::BrilligArray(brillig_array) => {
-                            self.brillig_context.codegen_initialize_array(brillig_array);
-                        }
-                        BrilligVariable::BrilligVector(vector) => {
-                            let size = self
-                                .brillig_context
-                                .make_usize_constant_instruction(array.len().into());
-                            self.brillig_context.codegen_initialize_vector(vector, size, None);
-                            self.brillig_context.deallocate_single_addr(size);
-                        }
-                        _ => unreachable!(
-                            "ICE: Cannot initialize array value created as {new_variable:?}"
-                        ),
-                    };
-
-                    // Write the items
-                    let items_pointer = self
-                        .brillig_context
-                        .codegen_make_array_or_vector_items_pointer(new_variable);
-
-                    self.initialize_constant_array(array, typ, dfg, items_pointer);
-
-                    self.brillig_context.deallocate_register(items_pointer);
-                }
-            }
         };
 
         let dead_variables = self
@@ -1236,7 +1202,7 @@ impl<'block> BrilligBlock<'block> {
         let brillig_binary_op = match binary.operator {
             BinaryOp::Div => {
                 if is_signed {
-                    self.brillig_context.convert_signed_division(left, right, result_variable);
+                    self.convert_signed_division(left, right, result_variable);
                     return;
                 } else if is_field {
                     BrilligBinaryOp::FieldDiv
@@ -1268,14 +1234,7 @@ impl<'block> BrilligBlock<'block> {
             BinaryOp::Or => BrilligBinaryOp::Or,
             BinaryOp::Xor => BrilligBinaryOp::Xor,
             BinaryOp::Shl => BrilligBinaryOp::Shl,
-            BinaryOp::Shr => {
-                if is_signed {
-                    self.convert_signed_shr(left, right, result_variable);
-                    return;
-                } else {
-                    BrilligBinaryOp::Shr
-                }
-            }
+            BinaryOp::Shr => BrilligBinaryOp::Shr,
         };
 
         self.brillig_context.binary_instruction(left, right, result_variable, brillig_binary_op);
@@ -1291,6 +1250,98 @@ impl<'block> BrilligBlock<'block> {
         );
     }
 
+    /// Splits a two's complement signed integer in the sign bit and the absolute value.
+    /// For example, -6 i8 (11111010) is split to 00000110 (6, absolute value) and 1 (is_negative).
+    fn absolute_value(
+        &mut self,
+        num: SingleAddrVariable,
+        absolute_value: SingleAddrVariable,
+        result_is_negative: SingleAddrVariable,
+    ) {
+        let max_positive = self
+            .brillig_context
+            .make_constant_instruction(((1_u128 << (num.bit_size - 1)) - 1).into(), num.bit_size);
+
+        // Compute if num is negative
+        self.brillig_context.binary_instruction(
+            max_positive,
+            num,
+            result_is_negative,
+            BrilligBinaryOp::LessThan,
+        );
+
+        // Two's complement of num
+        let zero = self.brillig_context.make_constant_instruction(0_usize.into(), num.bit_size);
+        let twos_complement =
+            SingleAddrVariable::new(self.brillig_context.allocate_register(), num.bit_size);
+        self.brillig_context.binary_instruction(zero, num, twos_complement, BrilligBinaryOp::Sub);
+
+        // absolute_value = result_is_negative ? twos_complement : num
+        self.brillig_context.codegen_branch(result_is_negative.address, |ctx, is_negative| {
+            if is_negative {
+                ctx.mov_instruction(absolute_value.address, twos_complement.address);
+            } else {
+                ctx.mov_instruction(absolute_value.address, num.address);
+            }
+        });
+
+        self.brillig_context.deallocate_single_addr(zero);
+        self.brillig_context.deallocate_single_addr(max_positive);
+        self.brillig_context.deallocate_single_addr(twos_complement);
+    }
+
+    fn convert_signed_division(
+        &mut self,
+        left: SingleAddrVariable,
+        right: SingleAddrVariable,
+        result: SingleAddrVariable,
+    ) {
+        let left_is_negative = SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
+        let left_abs_value =
+            SingleAddrVariable::new(self.brillig_context.allocate_register(), left.bit_size);
+
+        let right_is_negative =
+            SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
+        let right_abs_value =
+            SingleAddrVariable::new(self.brillig_context.allocate_register(), right.bit_size);
+
+        let result_is_negative =
+            SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
+
+        // Compute both absolute values
+        self.absolute_value(left, left_abs_value, left_is_negative);
+        self.absolute_value(right, right_abs_value, right_is_negative);
+
+        // Perform the division on the absolute values
+        self.brillig_context.binary_instruction(
+            left_abs_value,
+            right_abs_value,
+            result,
+            BrilligBinaryOp::UnsignedDiv,
+        );
+
+        // Compute result sign
+        self.brillig_context.binary_instruction(
+            left_is_negative,
+            right_is_negative,
+            result_is_negative,
+            BrilligBinaryOp::Xor,
+        );
+
+        // If result has to be negative, perform two's complement
+        self.brillig_context.codegen_if(result_is_negative.address, |ctx| {
+            let zero = ctx.make_constant_instruction(0_usize.into(), result.bit_size);
+            ctx.binary_instruction(zero, result, result, BrilligBinaryOp::Sub);
+            ctx.deallocate_single_addr(zero);
+        });
+
+        self.brillig_context.deallocate_single_addr(left_is_negative);
+        self.brillig_context.deallocate_single_addr(left_abs_value);
+        self.brillig_context.deallocate_single_addr(right_is_negative);
+        self.brillig_context.deallocate_single_addr(right_abs_value);
+        self.brillig_context.deallocate_single_addr(result_is_negative);
+    }
+
     fn convert_signed_modulo(
         &mut self,
         left: SingleAddrVariable,
@@ -1303,7 +1354,7 @@ impl<'block> BrilligBlock<'block> {
             SingleAddrVariable::new(self.brillig_context.allocate_register(), left.bit_size);
 
         // i = left / right
-        self.brillig_context.convert_signed_division(left, right, scratch_var_i);
+        self.convert_signed_division(left, right, scratch_var_i);
 
         // j = i * right
         self.brillig_context.binary_instruction(
@@ -1348,56 +1399,6 @@ impl<'block> BrilligBlock<'block> {
         self.brillig_context.deallocate_single_addr(biased_left);
         self.brillig_context.deallocate_single_addr(biased_right);
         self.brillig_context.deallocate_single_addr(bias);
-    }
-
-    fn convert_signed_shr(
-        &mut self,
-        left: SingleAddrVariable,
-        right: SingleAddrVariable,
-        result: SingleAddrVariable,
-    ) {
-        // Check if left is negative
-        let left_is_negative = SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
-        let max_positive = self
-            .brillig_context
-            .make_constant_instruction(((1_u128 << (left.bit_size - 1)) - 1).into(), left.bit_size);
-        self.brillig_context.binary_instruction(
-            max_positive,
-            left,
-            left_is_negative,
-            BrilligBinaryOp::LessThan,
-        );
-
-        self.brillig_context.codegen_branch(left_is_negative.address, |ctx, is_negative| {
-            if is_negative {
-                let one = ctx.make_constant_instruction(1_u128.into(), left.bit_size);
-
-                // computes 2^right
-                let two = ctx.make_constant_instruction(2_u128.into(), left.bit_size);
-                let two_pow = ctx.make_constant_instruction(1_u128.into(), left.bit_size);
-                let right_u32 = SingleAddrVariable::new(ctx.allocate_register(), 32);
-                ctx.cast(right_u32, right);
-                let pow_body = |ctx: &mut BrilligContext<_, _>, _: SingleAddrVariable| {
-                    ctx.binary_instruction(two_pow, two, two_pow, BrilligBinaryOp::Mul);
-                };
-                ctx.codegen_for_loop(None, right_u32.address, None, pow_body);
-
-                // Right shift using division on 1-complement
-                ctx.binary_instruction(left, one, result, BrilligBinaryOp::Add);
-                ctx.convert_signed_division(result, two_pow, result);
-                ctx.binary_instruction(result, one, result, BrilligBinaryOp::Sub);
-
-                // Clean-up
-                ctx.deallocate_single_addr(one);
-                ctx.deallocate_single_addr(two);
-                ctx.deallocate_single_addr(two_pow);
-                ctx.deallocate_single_addr(right_u32);
-            } else {
-                ctx.binary_instruction(left, right, result, BrilligBinaryOp::Shr);
-            }
-        });
-
-        self.brillig_context.deallocate_single_addr(left_is_negative);
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1530,6 +1531,46 @@ impl<'block> BrilligBlock<'block> {
 
                     self.brillig_context
                         .const_instruction(new_variable.extract_single_addr(), *constant);
+                    new_variable
+                }
+            }
+            Value::Array { array, typ } => {
+                if self.variables.is_allocated(&value_id) {
+                    self.variables.get_allocation(self.function_context, value_id, dfg)
+                } else {
+                    let new_variable = self.variables.define_variable(
+                        self.function_context,
+                        self.brillig_context,
+                        value_id,
+                        dfg,
+                    );
+
+                    // Initialize the variable
+                    match new_variable {
+                        BrilligVariable::BrilligArray(brillig_array) => {
+                            self.brillig_context.codegen_initialize_array(brillig_array);
+                        }
+                        BrilligVariable::BrilligVector(vector) => {
+                            let size = self
+                                .brillig_context
+                                .make_usize_constant_instruction(array.len().into());
+                            self.brillig_context.codegen_initialize_vector(vector, size, None);
+                            self.brillig_context.deallocate_single_addr(size);
+                        }
+                        _ => unreachable!(
+                            "ICE: Cannot initialize array value created as {new_variable:?}"
+                        ),
+                    };
+
+                    // Write the items
+                    let items_pointer = self
+                        .brillig_context
+                        .codegen_make_array_or_vector_items_pointer(new_variable);
+
+                    self.initialize_constant_array(array, typ, dfg, items_pointer);
+
+                    self.brillig_context.deallocate_register(items_pointer);
+
                     new_variable
                 }
             }

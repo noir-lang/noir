@@ -223,7 +223,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         location: Location,
     ) -> IResult<Value> {
         let attributes = self.elaborator.interner.function_attributes(&function);
-        let func_attrs = attributes.function()
+        let func_attrs = attributes.function.as_ref()
             .expect("all builtin functions must contain a function  attribute which contains the opcode which it links to");
 
         if let Some(builtin) = func_attrs.builtin() {
@@ -585,25 +585,20 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             }
             DefinitionKind::NumericGeneric(type_variable, numeric_typ) => {
                 let value = match &*type_variable.borrow() {
-                    TypeBinding::Unbound(_, _) => {
-                        let typ = self.elaborator.interner.id_type(id);
-                        let location = self.elaborator.interner.expr_location(&id);
-                        Err(InterpreterError::NonIntegerArrayLength { typ, err: None, location })
-                    }
+                    TypeBinding::Unbound(_, _) => None,
                     TypeBinding::Bound(binding) => {
-                        let span = self.elaborator.interner.id_location(id).span;
-                        binding
-                            .evaluate_to_field_element(&Kind::Numeric(numeric_typ.clone()), span)
-                            .map_err(|err| {
-                                let typ = Type::TypeVariable(type_variable.clone());
-                                let err = Some(Box::new(err));
-                                let location = self.elaborator.interner.expr_location(&id);
-                                InterpreterError::NonIntegerArrayLength { typ, err, location }
-                            })
+                        binding.evaluate_to_field_element(&Kind::Numeric(numeric_typ.clone()))
                     }
-                }?;
+                };
 
-                self.evaluate_integer(value, false, id)
+                if let Some(value) = value {
+                    let typ = self.elaborator.interner.id_type(id);
+                    self.evaluate_integer(value, false, id)
+                } else {
+                    let location = self.elaborator.interner.expr_location(&id);
+                    let typ = Type::TypeVariable(type_variable.clone());
+                    Err(InterpreterError::NonIntegerArrayLength { typ, location })
+                }
             }
         }
     }
@@ -810,17 +805,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirArrayLiteral::Repeated { repeated_element, length } => {
                 let element = self.evaluate(repeated_element)?;
 
-                let span = self.elaborator.interner.id_location(id).span;
-                match length.evaluate_to_u32(span) {
-                    Ok(length) => {
-                        let elements = (0..length).map(|_| element.clone()).collect();
-                        Ok(Value::Array(elements, typ))
-                    }
-                    Err(err) => {
-                        let err = Some(Box::new(err));
-                        let location = self.elaborator.interner.expr_location(&id);
-                        Err(InterpreterError::NonIntegerArrayLength { typ: length, err, location })
-                    }
+                if let Some(length) = length.evaluate_to_u32() {
+                    let elements = (0..length).map(|_| element.clone()).collect();
+                    Ok(Value::Array(elements, typ))
+                } else {
+                    let location = self.elaborator.interner.expr_location(&id);
+                    Err(InterpreterError::NonIntegerArrayLength { typ: length, location })
                 }
             }
         }

@@ -82,8 +82,6 @@ pub enum DefCollectorErrorKind {
     },
     #[error("{0}")]
     UnsupportedNumericGenericType(#[from] UnsupportedNumericGenericType),
-    #[error("The `#[test]` attribute may only be used on a non-associated function")]
-    TestOnAssociatedFunction { span: Span },
 }
 
 impl DefCollectorErrorKind {
@@ -293,12 +291,6 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
                 diag
             }
             DefCollectorErrorKind::UnsupportedNumericGenericType(err) => err.into(),
-            DefCollectorErrorKind::TestOnAssociatedFunction { span } => Diagnostic::simple_error(
-                "The `#[test]` attribute is disallowed on `impl` methods".into(),
-                String::new(),
-                *span,
-            ),
-
         }
     }
 }

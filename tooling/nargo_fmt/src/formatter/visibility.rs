@@ -37,7 +37,8 @@ impl<'a> Formatter<'a> {
                 self.write_keyword(Keyword::CallData);
                 self.write_left_paren();
                 self.skip_comments_and_whitespace();
-                self.write_current_token_and_bump();
+                self.write_current_token();
+                self.bump();
                 self.skip_comments_and_whitespace();
                 self.write_right_paren();
                 self.write_space();

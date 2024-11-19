@@ -368,7 +368,6 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                 self.string.push(' ');
                 self.append_type(right);
             }
-            Type::CheckedCast { to, .. } => self.append_type(to),
             Type::Constant(..)
             | Type::Integer(_, _)
             | Type::Bool

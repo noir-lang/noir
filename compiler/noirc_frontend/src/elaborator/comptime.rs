@@ -19,9 +19,10 @@ use crate::{
         resolution::errors::ResolverError,
     },
     hir_def::expr::{HirExpression, HirIdent},
+    lexer::Lexer,
     node_interner::{DefinitionKind, DependencyId, FuncId, NodeInterner, StructId, TraitId},
-    parser::{Item, ItemKind},
-    token::{MetaAttribute, SecondaryAttribute},
+    parser::{Item, ItemKind, Parser},
+    token::SecondaryAttribute,
     Type, TypeBindings, UnificationError,
 };
 
@@ -161,9 +162,10 @@ impl<'context> Elaborator<'context> {
         if let SecondaryAttribute::Meta(attribute) = attribute {
             self.elaborate_in_comptime_context(|this| {
                 if let Err(error) = this.run_comptime_attribute_name_on_item(
-                    attribute,
+                    &attribute.contents,
                     item.clone(),
                     span,
+                    attribute.contents_span,
                     attribute_context,
                     generated_items,
                 ) {
@@ -175,21 +177,27 @@ impl<'context> Elaborator<'context> {
 
     fn run_comptime_attribute_name_on_item(
         &mut self,
-        attribute: &MetaAttribute,
+        attribute: &str,
         item: Value,
         span: Span,
+        attribute_span: Span,
         attribute_context: AttributeContext,
         generated_items: &mut CollectedItems,
     ) -> Result<(), (CompilationError, FileId)> {
         self.file = attribute_context.attribute_file;
         self.local_module = attribute_context.attribute_module;
 
-        let location = Location::new(attribute.span, self.file);
-        let function = Expression {
-            kind: ExpressionKind::Variable(attribute.name.clone()),
-            span: attribute.span,
+        let location = Location::new(attribute_span, self.file);
+        let Some((function, arguments)) = Self::parse_attribute(attribute, location)? else {
+            return Err((
+                ResolverError::UnableToParseAttribute {
+                    attribute: attribute.to_string(),
+                    span: attribute_span,
+                }
+                .into(),
+                self.file,
+            ));
         };
-        let arguments = attribute.arguments.clone();
 
         // Elaborate the function, rolling back any errors generated in case it is unknown
         let error_count = self.errors.len();
@@ -203,7 +211,7 @@ impl<'context> Elaborator<'context> {
                 return Err((
                     ResolverError::AttributeFunctionIsNotAPath {
                         function: function_string,
-                        span: attribute.span,
+                        span: attribute_span,
                     }
                     .into(),
                     self.file,
@@ -215,7 +223,7 @@ impl<'context> Elaborator<'context> {
             return Err((
                 ResolverError::AttributeFunctionNotInScope {
                     name: function_string,
-                    span: attribute.span,
+                    span: attribute_span,
                 }
                 .into(),
                 self.file,
@@ -259,6 +267,38 @@ impl<'context> Elaborator<'context> {
         }
 
         Ok(())
+    }
+
+    /// Parses an attribute in the form of a function call (e.g. `#[foo(a b, c d)]`) into
+    /// the function and quoted arguments called (e.g. `("foo", vec![(a b, location), (c d, location)])`)
+    #[allow(clippy::type_complexity)]
+    pub(crate) fn parse_attribute(
+        annotation: &str,
+        location: Location,
+    ) -> Result<Option<(Expression, Vec<Expression>)>, (CompilationError, FileId)> {
+        let (tokens, mut lexing_errors) = Lexer::lex(annotation);
+        if !lexing_errors.is_empty() {
+            return Err((lexing_errors.swap_remove(0).into(), location.file));
+        }
+
+        let Some(expression) = Parser::for_tokens(tokens).parse_option(Parser::parse_expression)
+        else {
+            return Ok(None);
+        };
+
+        let (mut func, mut arguments) = match expression.kind {
+            ExpressionKind::Call(call) => (*call.func, call.arguments),
+            ExpressionKind::Variable(_) => (expression, Vec::new()),
+            _ => return Ok(None),
+        };
+
+        func.span = func.span.shift_by(location.span.start());
+
+        for argument in &mut arguments {
+            argument.span = argument.span.shift_by(location.span.start());
+        }
+
+        Ok(Some((func, arguments)))
     }
 
     fn handle_attribute_arguments(
@@ -452,14 +492,7 @@ impl<'context> Elaborator<'context> {
             }
             ItemKind::Impl(r#impl) => {
                 let module = self.module_id();
-                dc_mod::collect_impl(
-                    self.interner,
-                    generated_items,
-                    r#impl,
-                    self.file,
-                    module,
-                    &mut self.errors,
-                );
+                dc_mod::collect_impl(self.interner, generated_items, r#impl, self.file, module);
             }
 
             ItemKind::ModuleDecl(_)
