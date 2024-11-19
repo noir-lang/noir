@@ -23,6 +23,7 @@ use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait, Unr
 use crate::hir::def_map::DefMaps;
 use crate::hir::def_map::{LocalModuleId, ModuleDefId, ModuleId};
 use crate::hir::type_check::generics::TraitGenerics;
+use crate::hir_def::iterative_unification::Unifier;
 use crate::hir_def::traits::NamedType;
 use crate::hir_def::traits::ResolvedTraitBound;
 use crate::QuotedType;
@@ -1569,12 +1570,18 @@ impl NodeInterner {
                 |impl_generics: &[Type], impl_associated_types: &[NamedType]| {
                     trait_generics.iter().zip(impl_generics).all(|(trait_generic, impl_generic)| {
                         let impl_generic = impl_generic.force_substitute(&instantiation_bindings);
-                        trait_generic.try_unify(&impl_generic, &mut fresh_bindings).is_ok()
+                        Unifier::try_unify(trait_generic, &impl_generic, &mut fresh_bindings)
+                            .is_ok()
                     }) && trait_associated_types.iter().zip(impl_associated_types).all(
                         |(trait_generic, impl_generic)| {
                             let impl_generic2 =
                                 impl_generic.typ.force_substitute(&instantiation_bindings);
-                            trait_generic.typ.try_unify(&impl_generic2, &mut fresh_bindings).is_ok()
+                            Unifier::try_unify(
+                                &trait_generic.typ,
+                                &impl_generic2,
+                                &mut fresh_bindings,
+                            )
+                            .is_ok()
                         },
                     )
                 };
@@ -1593,8 +1600,8 @@ impl NodeInterner {
             if !check_trait_generics(&trait_generics.ordered, &trait_generics.named) {
                 continue;
             }
-
-            if object_type.try_unify(&existing_object_type, &mut fresh_bindings).is_ok() {
+            if Unifier::try_unify(&object_type, &existing_object_type, &mut fresh_bindings).is_ok()
+            {
                 if let TraitImplKind::Normal(impl_id) = impl_kind {
                     let trait_impl = self.get_trait_implementation(*impl_id);
                     let trait_impl = trait_impl.borrow();

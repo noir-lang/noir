@@ -17,7 +17,7 @@
 //! (monomorphization::ast::Expression).
 pub mod expr;
 pub mod function;
-mod iterative_unification;
+pub mod iterative_unification;
 pub mod stmt;
 pub mod traits;
 pub mod types;

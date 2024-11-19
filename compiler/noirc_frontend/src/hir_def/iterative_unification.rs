@@ -21,10 +21,21 @@ impl Unifier {
     }
 
     // Adds types to the temporary storage and returns their index
-    fn to_unite(&mut self, lhs: &Type, rhs: &Type) -> (usize, usize) {
+    fn for_unite(&mut self, lhs: &Type, rhs: &Type) -> (usize, usize) {
         let lhs_id = self.add(lhs);
         let rhs_id = self.add(rhs);
         (lhs_id, rhs_id)
+    }
+
+    /// `try_unify` is a bit of a misnomer since although errors are not committed,
+    /// any unified bindings are on success.
+    pub(crate) fn try_unify(
+        lhs: &Type,
+        rhs: &Type,
+        bindings: &mut TypeBindings,
+    ) -> Result<(), UnificationError> {
+        let mut unifier = Unifier::new();
+        unifier.unify(lhs, rhs, bindings)
     }
 
     /// Iterative version of type unification
@@ -36,7 +47,7 @@ impl Unifier {
         rhs: &Type,
         bindings: &mut TypeBindings,
     ) -> Result<(), UnificationError> {
-        let mut to_process = vec![self.to_unite(lhs, rhs)];
+        let mut to_process = vec![self.for_unite(lhs, rhs)];
         while let Some((a, b)) = to_process.pop() {
             let (a, b) = (self.types[a].clone(), self.types[b].clone());
             let to_unit = self.try_unify_single(&a, &b, bindings)?;
@@ -45,6 +56,8 @@ impl Unifier {
         Ok(())
     }
 
+    /// Try to unify a type variable to `self`.
+    /// This is a helper function factored out from try_unify.
     fn try_unify_to_type_variable_iter(
         &mut self,
         lhs: usize,
@@ -65,15 +78,12 @@ impl Unifier {
             TypeBinding::Unbound(id, _) => {
                 // We may have already "bound" this type variable in this call to
                 // try_unify, so check those bindings as well.
-                match bindings.clone().get(id) {
-                    Some((_, kind, binding)) => {
-                        if !self.kind_unifies_iter(&kind, &binding.kind()) {
-                            return Err(UnificationError);
-                        }
-                        let bind_id = self.add(binding);
-                        return Ok(vec![(bind_id, lhs)]);
+                if let Some((_, kind, binding)) = bindings.clone().get(id) {
+                    if !self.kind_unifies_iter(kind, &binding.kind()) {
+                        return Err(UnificationError);
                     }
-                    None => (),
+                    let bind_id = self.add(binding);
+                    return Ok(vec![(bind_id, lhs)]);
                 }
                 // Otherwise, bind it
                 bind_variable(bindings)?;
@@ -105,7 +115,7 @@ impl Unifier {
 
             (Alias(alias, args), other) | (other, Alias(alias, args)) => {
                 let alias = alias.borrow().get_type(args);
-                Ok(vec![self.to_unite(other, &alias)])
+                Ok(vec![self.for_unite(other, &alias)])
             }
 
             (TypeVariable(var), other) | (other, TypeVariable(var)) => {
@@ -150,15 +160,15 @@ impl Unifier {
             }
 
             (Array(len_a, elem_a), Array(len_b, elem_b)) => {
-                Ok(vec![self.to_unite(len_a, len_b), self.to_unite(elem_a, elem_b)])
+                Ok(vec![self.for_unite(len_a, len_b), self.for_unite(elem_a, elem_b)])
             }
 
-            (Slice(elem_a), Slice(elem_b)) => Ok(vec![self.to_unite(elem_a, elem_b)]),
+            (Slice(elem_a), Slice(elem_b)) => Ok(vec![self.for_unite(elem_a, elem_b)]),
 
-            (String(len_a), String(len_b)) => Ok(vec![self.to_unite(len_a, len_b)]),
+            (String(len_a), String(len_b)) => Ok(vec![self.for_unite(len_a, len_b)]),
 
             (FmtString(len_a, elements_a), FmtString(len_b, elements_b)) => {
-                Ok(vec![self.to_unite(len_a, len_b), self.to_unite(elements_a, elements_b)])
+                Ok(vec![self.for_unite(len_a, len_b), self.for_unite(elements_a, elements_b)])
             }
 
             (Tuple(elements_a), Tuple(elements_b)) => {
@@ -167,7 +177,7 @@ impl Unifier {
                 } else {
                     let mut to_unit = Vec::new();
                     for (a, b) in elements_a.iter().zip(elements_b) {
-                        to_unit.push(self.to_unite(a, b));
+                        to_unit.push(self.for_unite(a, b));
                     }
                     Ok(to_unit)
                 }
@@ -180,7 +190,7 @@ impl Unifier {
                 if id_a == id_b && args_a.len() == args_b.len() {
                     let mut to_unit = Vec::new();
                     for (a, b) in args_a.iter().zip(args_b) {
-                        to_unit.push(self.to_unite(a, b));
+                        to_unit.push(self.for_unite(a, b));
                     }
                     Ok(to_unit)
                 } else {
@@ -189,14 +199,14 @@ impl Unifier {
             }
 
             (CheckedCast { to, .. }, other) | (other, CheckedCast { to, .. }) => {
-                Ok(vec![self.to_unite(to, other)])
+                Ok(vec![self.for_unite(to, other)])
             }
 
             (NamedGeneric(binding, _), other) | (other, NamedGeneric(binding, _))
                 if !binding.borrow().is_unbound() =>
             {
                 if let TypeBinding::Bound(link) = &*binding.borrow() {
-                    Ok(vec![self.to_unite(link, other)])
+                    Ok(vec![self.for_unite(link, other)])
                 } else {
                     unreachable!("If guard ensures binding is bound")
                 }
@@ -222,10 +232,10 @@ impl Unifier {
                 if unconstrained_a == unconstrained_b && params_a.len() == params_b.len() {
                     let mut to_unit = Vec::new();
                     for (a, b) in params_a.iter().zip(params_b.iter()) {
-                        to_unit.push(self.to_unite(a, b));
+                        to_unit.push(self.for_unite(a, b));
                     }
-                    to_unit.push(self.to_unite(env_a, env_b));
-                    to_unit.push(self.to_unite(ret_b, ret_a));
+                    to_unit.push(self.for_unite(env_a, env_b));
+                    to_unit.push(self.for_unite(ret_b, ret_a));
                     Ok(to_unit)
                 } else {
                     Err(UnificationError)
@@ -233,7 +243,7 @@ impl Unifier {
             }
 
             (MutableReference(elem_a), MutableReference(elem_b)) => {
-                Ok(vec![self.to_unite(elem_a, elem_b)])
+                Ok(vec![self.for_unite(elem_a, elem_b)])
             }
 
             (InfixExpr(lhs_a, op_a, rhs_a), InfixExpr(lhs_b, op_b, rhs_b)) => {
@@ -246,11 +256,11 @@ impl Unifier {
                         let rhs_a_value = rhs_a.evaluate_to_field_element(&kind_a, dummy_span);
                         let rhs_b_value = rhs_b.evaluate_to_field_element(&kind_b, dummy_span);
                         if rhs_a_value.is_ok() && rhs_b_value.is_ok() {
-                            return Ok(vec![self.to_unite(lhs_a, lhs_b)]);
+                            return Ok(vec![self.for_unite(lhs_a, lhs_b)]);
                         }
                     }
 
-                    Ok(vec![self.to_unite(lhs_a, lhs_b), self.to_unite(rhs_a, rhs_b)])
+                    Ok(vec![self.for_unite(lhs_a, lhs_b), self.for_unite(rhs_a, rhs_b)])
                 } else {
                     Err(UnificationError)
                 }
@@ -259,7 +269,7 @@ impl Unifier {
             (Constant(value, kind), other) | (other, Constant(value, kind)) => {
                 let dummy_span = Span::default();
                 if let Ok(other_value) = other.evaluate_to_field_element(kind, dummy_span) {
-                    if *value == other_value && self.kind_unifies_iter(&kind, &other.kind()) {
+                    if *value == other_value && self.kind_unifies_iter(kind, &other.kind()) {
                         Ok(Vec::new())
                     } else {
                         Err(UnificationError)
@@ -272,7 +282,7 @@ impl Unifier {
                             inverse,
                             rhs.clone(),
                         );
-                        Ok(vec![self.to_unite(&new_type, lhs)])
+                        Ok(vec![self.for_unite(&new_type, lhs)])
                     } else {
                         Err(UnificationError)
                     }

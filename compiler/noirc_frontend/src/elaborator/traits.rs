@@ -12,6 +12,7 @@ use crate::{
     hir::{def_collector::dc_crate::UnresolvedTrait, type_check::TypeCheckError},
     hir_def::{
         function::Parameters,
+        iterative_unification::Unifier,
         traits::{ResolvedTraitBound, TraitFunction},
     },
     node_interner::{DependencyId, FuncId, NodeInterner, ReferenceId, TraitId},
@@ -345,7 +346,7 @@ fn check_function_type_matches_expected_type(
 
         if params_a.len() == params_b.len() {
             for (i, (a, b)) in params_a.iter().zip(params_b.iter()).enumerate() {
-                if a.try_unify(b, &mut bindings).is_err() {
+                if Unifier::try_unify(a, b, &mut bindings).is_err() {
                     errors.push(TypeCheckError::TraitMethodParameterTypeMismatch {
                         method_name: method_name.to_string(),
                         expected_typ: a.to_string(),
@@ -356,7 +357,7 @@ fn check_function_type_matches_expected_type(
                 }
             }
 
-            if ret_b.try_unify(ret_a, &mut bindings).is_err() {
+            if Unifier::try_unify(ret_b, ret_a, &mut bindings).is_err() {
                 errors.push(TypeCheckError::TypeMismatch {
                     expected_typ: ret_a.to_string(),
                     expr_typ: ret_b.to_string(),

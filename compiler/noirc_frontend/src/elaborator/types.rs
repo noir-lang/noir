@@ -26,6 +26,7 @@ use crate::{
             HirMethodReference, HirPrefixExpression, TraitMethod,
         },
         function::{FuncMeta, Parameters},
+        iterative_unification::Unifier,
         stmt::HirStatement,
         traits::{NamedType, ResolvedTraitBound, Trait, TraitConstraint},
     },
@@ -682,7 +683,7 @@ impl<'context> Elaborator<'context> {
         make_error: impl FnOnce() -> TypeCheckError,
     ) {
         let mut bindings = TypeBindings::new();
-        if actual.try_unify(expected, &mut bindings).is_err() {
+        if Unifier::try_unify(actual, expected, &mut bindings).is_err() {
             self.errors.push((make_error().into(), file));
         }
     }
