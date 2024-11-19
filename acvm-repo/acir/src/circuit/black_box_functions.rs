@@ -4,12 +4,10 @@
 //! implemented in more basic constraints.
 
 use serde::{Deserialize, Serialize};
-#[cfg(test)]
-use strum_macros::EnumIter;
 
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Clone, Debug, Hash, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(EnumIter))]
+#[cfg_attr(any(test, feature = "enum_iter"), derive(strum_macros::EnumIter))]
 pub enum BlackBoxFunc {
     /// Ciphers (encrypts) the provided plaintext using AES128 in CBC mode,
     /// padding the input using PKCS#7.

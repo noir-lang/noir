@@ -6,6 +6,7 @@ version = 3
 name = "acir"
 version = "0.54.0"
 dependencies = [
+ "acir",
  "acir_field",
  "base64 0.21.7",
  "bincode",
