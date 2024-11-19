@@ -228,7 +228,7 @@ impl<'brillig> Context<'brillig> {
             }
         }
 
-        let new_results = 
+        let new_results =
         // First try to inline a call to a brillig function with all constant arguments.
         Self::try_inline_brillig_call_with_all_constants(
             &instruction,
