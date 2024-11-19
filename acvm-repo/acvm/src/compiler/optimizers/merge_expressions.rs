@@ -154,7 +154,12 @@ impl MergeExpressionsOptimizer {
     fn witness_inputs<F: AcirField>(&self, opcode: &Opcode<F>) -> BTreeSet<Witness> {
         match opcode {
             Opcode::AssertZero(expr) => CircuitSimulator::expr_wit(expr),
-            Opcode::BlackBoxFuncCall(bb_func) => bb_func.get_input_witnesses(),
+            Opcode::BlackBoxFuncCall(bb_func) => {
+                let mut witnesses = bb_func.get_input_witnesses();
+                witnesses.extend(bb_func.get_outputs_vec());
+
+                witnesses
+            }
             Opcode::MemoryOp { block_id: _, op, predicate } => {
                 //index et value, et predicate
                 let mut witnesses = CircuitSimulator::expr_wit(&op.index);
@@ -290,7 +295,6 @@ mod tests {
             public_parameters: PublicInputs::default(),
             return_values: PublicInputs::default(),
             assert_messages: Default::default(),
-            recursive: false,
         };
         check_circuit(circuit);
     }
@@ -343,7 +347,6 @@ mod tests {
             public_parameters: PublicInputs::default(),
             return_values: PublicInputs::default(),
             assert_messages: Default::default(),
-            recursive: false,
         };
         check_circuit(circuit);
     }
