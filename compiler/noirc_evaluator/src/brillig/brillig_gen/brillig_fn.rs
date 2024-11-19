@@ -74,12 +74,9 @@ impl FunctionContext {
                 Some(BrilligParameter::SingleAddr(get_bit_size_from_ssa_type(typ)))
             }
             Type::Array(item_type, size) => {
-                let mut parameters = Vec::new();
+                let mut parameters = Vec::with_capacity(item_type.len());
                 for item_typ in item_type.iter() {
-                    let Some(param) = FunctionContext::try_ssa_type_to_parameter(item_typ) else {
-                        return None;
-                    };
-                    parameters.push(param);
+                    parameters.push(FunctionContext::try_ssa_type_to_parameter(item_typ)?);
                 }
                 Some(BrilligParameter::Array(parameters, *size))
             }
