@@ -248,24 +248,23 @@ impl Unifier {
 
             (InfixExpr(lhs_a, op_a, rhs_a), InfixExpr(lhs_b, op_b, rhs_b)) => {
                 if op_a == op_b {
-                    // Try to simplify if both expressions have constant terms
-                    if op_a.approx_inverse().is_some() {
-                        let kind_a = lhs_a.infix_kind(rhs_a);
-                        let kind_b = lhs_a.infix_kind(rhs_b);
-                        let dummy_span = Span::default();
-                        let rhs_a_value = rhs_a.evaluate_to_field_element(&kind_a, dummy_span);
-                        let rhs_b_value = rhs_b.evaluate_to_field_element(&kind_b, dummy_span);
-                        if rhs_a_value.is_ok() && rhs_b_value.is_ok() {
-                            return Ok(vec![self.for_unite(lhs_a, lhs_b)]);
-                        }
-                    }
+                    // We need to preserve the original bindings since if syntactic equality
+                    // fails we fall back to other equality strategies.
+                    let mut new_bindings = bindings.clone();
+                    let lhs_result = Unifier::try_unify(lhs_a, lhs_b, &mut new_bindings);
+                    let rhs_result = Unifier::try_unify(rhs_a, rhs_b, &mut new_bindings);
 
-                    Ok(vec![self.for_unite(lhs_a, lhs_b), self.for_unite(rhs_a, rhs_b)])
+                    if lhs_result.is_ok() && rhs_result.is_ok() {
+                        *bindings = new_bindings;
+                        Ok(Vec::new())
+                    } else {
+                        lhs.try_unify_by_moving_constant_terms(&rhs, bindings)?;
+                        Ok(Vec::new())
+                    }
                 } else {
                     Err(UnificationError)
                 }
             }
-
             (Constant(value, kind), other) | (other, Constant(value, kind)) => {
                 let dummy_span = Span::default();
                 if let Ok(other_value) = other.evaluate_to_field_element(kind, dummy_span) {

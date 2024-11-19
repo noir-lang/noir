@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 use acvm::{AcirField, FieldElement};
 use noirc_errors::Span;
 
+use super::{TypeBindings, UnificationError, Unifier};
 use crate::{BinaryTypeOperator, Type};
 
 impl Type {
@@ -322,6 +323,52 @@ impl Type {
             }
             _ => None,
         }
+    }
+
+    /// Try to unify equations like `(..) + 3 = (..) + 1`
+    /// by transforming them to `(..) + 2 =  (..)`
+    pub fn try_unify_by_moving_constant_terms(
+        &self,
+        other: &Type,
+        bindings: &mut TypeBindings,
+    ) -> Result<(), UnificationError> {
+        if let Type::InfixExpr(lhs_a, op_a, rhs_a) = self {
+            if let Some(inverse) = op_a.approx_inverse() {
+                let kind = lhs_a.infix_kind(rhs_a);
+                let dummy_span = Span::default();
+                if let Ok(rhs_a_value) = rhs_a.evaluate_to_field_element(&kind, dummy_span) {
+                    let rhs_a = Box::new(Type::Constant(rhs_a_value, kind));
+                    let new_other = Type::InfixExpr(Box::new(other.clone()), inverse, rhs_a);
+
+                    let mut tmp_bindings = bindings.clone();
+                    if Unifier::try_unify(lhs_a, &new_other, &mut tmp_bindings).is_ok() {
+                        //if lhs_a.try_unify(&new_other, &mut tmp_bindings).is_ok() {
+                        *bindings = tmp_bindings;
+                        return Ok(());
+                    }
+                }
+            }
+        }
+
+        if let Type::InfixExpr(lhs_b, op_b, rhs_b) = other {
+            if let Some(inverse) = op_b.approx_inverse() {
+                let kind = lhs_b.infix_kind(rhs_b);
+                let dummy_span = Span::default();
+                if let Ok(rhs_b_value) = rhs_b.evaluate_to_field_element(&kind, dummy_span) {
+                    let rhs_b = Box::new(Type::Constant(rhs_b_value, kind));
+                    let new_self = Type::InfixExpr(Box::new(self.clone()), inverse, rhs_b);
+
+                    let mut tmp_bindings = bindings.clone();
+                    if Unifier::try_unify(&new_self, lhs_b, &mut tmp_bindings).is_ok() {
+                        // if new_self.try_unify(lhs_b, &mut tmp_bindings).is_ok() {
+                        *bindings = tmp_bindings;
+                        return Ok(());
+                    }
+                }
+            }
+        }
+
+        Err(UnificationError)
     }
 }
 
