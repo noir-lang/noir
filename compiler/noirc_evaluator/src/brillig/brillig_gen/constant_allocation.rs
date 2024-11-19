@@ -89,7 +89,8 @@ impl ConstantAllocation {
             }
             if let Some(terminator_instruction) = block.terminator() {
                 terminator_instruction.for_each_value(|value_id| {
-                    if let Some(variable) = collect_variables_of_value(value_id, &func.dfg) {
+                    let variables = collect_variables_of_value(value_id, &func.dfg);
+                    for variable in variables {
                         record_if_constant(block_id, variable, InstructionLocation::Terminator);
                     }
                 });
@@ -165,7 +166,7 @@ impl ConstantAllocation {
 }
 
 pub(crate) fn is_constant_value(id: ValueId, dfg: &DataFlowGraph) -> bool {
-    matches!(&dfg[dfg.resolve(id)], Value::NumericConstant { .. })
+    matches!(&dfg[dfg.resolve(id)], Value::NumericConstant { .. } | Value::Array { .. })
 }
 
 /// For a given function, finds all the blocks that are within loops

@@ -229,11 +229,7 @@ impl std::fmt::Display for Type {
             Type::Reference(element) => write!(f, "&mut {element}"),
             Type::Array(element, length) => {
                 let elements = vecmap(element.iter(), |element| element.to_string());
-                if elements.len() == 1 {
-                    write!(f, "[{}; {length}]", elements.join(", "))
-                } else {
-                    write!(f, "[({}); {length}]", elements.join(", "))
-                }
+                write!(f, "[{}; {length}]", elements.join(", "))
             }
             Type::Slice(element) => {
                 let elements = vecmap(element.iter(), |element| element.to_string());
