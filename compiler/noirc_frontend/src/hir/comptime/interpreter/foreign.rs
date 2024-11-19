@@ -8,8 +8,10 @@ use im::Vector;
 use noirc_errors::Location;
 
 use crate::{
+    ast::{IntegerBitSize, Signedness},
     hir::comptime::{errors::IResult, InterpreterError, Value},
     node_interner::NodeInterner,
+    Type,
 };
 
 use super::{
@@ -35,16 +37,20 @@ fn call_foreign(
     interner: &mut NodeInterner,
     bigint_solver: &mut BigintSolverWithId,
     name: &str,
-    arguments: Vec<(Value, Location)>,
+    args: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
+    use BlackBoxFunc::*;
     match name {
-        "bigint_from_le_bytes" => {
-            bigint_from_le_bytes(interner, bigint_solver, arguments, location)
-        }
-        "poseidon2_permutation" => poseidon2_permutation(interner, arguments, location),
-        "keccakf1600" => keccakf1600(interner, arguments, location),
-        "range" => apply_range_constraint(arguments, location),
+        "bigint_from_le_bytes" => bigint_from_le_bytes(interner, bigint_solver, args, location),
+        "bigint_to_le_bytes" => bigint_to_le_bytes(bigint_solver, args, location),
+        "bigint_add" => bigint_op(bigint_solver, BigIntAdd, args, location),
+        "bigint_sub" => bigint_op(bigint_solver, BigIntSub, args, location),
+        "bigint_mul" => bigint_op(bigint_solver, BigIntMul, args, location),
+        "bigint_div" => bigint_op(bigint_solver, BigIntDiv, args, location),
+        "poseidon2_permutation" => poseidon2_permutation(interner, args, location),
+        "keccakf1600" => keccakf1600(interner, args, location),
+        "range" => apply_range_constraint(args, location),
         _ => {
             let item = format!("Comptime evaluation for foreign function '{name}'");
             Err(InterpreterError::Unimplemented { item, location })
@@ -71,7 +77,7 @@ fn apply_range_constraint(arguments: Vec<(Value, Location)>, location: Location)
     }
 }
 
-/// `fn from_le_bytes(bytes: [u8], modulus: [u8]) -> BigInt {}`
+/// `fn from_le_bytes(bytes: [u8], modulus: [u8]) -> BigInt`
 ///
 /// Returns the ID of the new bigint allocated by the solver.
 fn bigint_from_le_bytes(
@@ -87,6 +93,51 @@ fn bigint_from_le_bytes(
 
     let id = solver
         .bigint_from_bytes(&bytes, &modulus)
+        .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
+
+    Ok(Value::U32(id))
+}
+
+/// `fn to_le_bytes(self) -> [u8; 32]`
+///
+/// Take the ID of a bigint and returned its content.
+fn bigint_to_le_bytes(
+    solver: &mut BigintSolverWithId,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let id = check_one_argument(arguments, location)?;
+    let id = get_u32(id)?;
+
+    let mut bytes =
+        solver.bigint_to_bytes(id).map_err(|e| InterpreterError::BlackBoxError(e, location))?;
+
+    assert!(bytes.len() <= 32);
+    bytes.resize(32, 0);
+
+    let result = bytes.into_iter().map(Value::U8).collect();
+    let result = Value::Array(result, Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight));
+
+    Ok(result)
+}
+
+/// `fn bigint_add(self, other: BigInt) -> BigInt`
+///
+/// Takes two previous allocated IDs, gets the values from the solver,
+/// stores the result of the operation, returns the new ID.
+fn bigint_op(
+    solver: &mut BigintSolverWithId,
+    func: BlackBoxFunc,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (lhs, rhs) = check_two_arguments(arguments, location)?;
+
+    let lhs = get_u32(lhs)?;
+    let rhs = get_u32(rhs)?;
+
+    let id = solver
+        .bigint_op(lhs, rhs, func)
         .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
 
     Ok(Value::U32(id))
