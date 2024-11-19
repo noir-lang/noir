@@ -1,4 +1,6 @@
-use acvm::blackbox_solver::BlackBoxFunctionSolver;
+use acvm::{
+    acir::BlackBoxFunc, blackbox_solver::BlackBoxFunctionSolver, AcirField, BlackBoxResolutionError,
+};
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use im::Vector;
 use iter_extended::try_vecmap;
@@ -26,6 +28,28 @@ pub(super) fn call_foreign(
             let item = format!("Comptime evaluation for builtin function {name}");
             Err(InterpreterError::Unimplemented { item, location })
         }
+    }
+}
+
+pub(super) fn apply_range_constraint(
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (value, num_bits) = check_two_arguments(arguments, location)?;
+
+    let input = get_field(value)?;
+    let num_bits = get_u32(num_bits)?;
+
+    if input.num_bits() < num_bits {
+        Ok(Value::Unit)
+    } else {
+        Err(InterpreterError::BlackBoxError(
+            BlackBoxResolutionError::Failed(
+                BlackBoxFunc::RANGE,
+                "value exceeds range check bounds".to_owned(),
+            ),
+            location,
+        ))
     }
 }
 

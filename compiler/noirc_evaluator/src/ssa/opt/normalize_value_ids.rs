@@ -179,19 +179,6 @@ impl IdMaps {
             Value::NumericConstant { constant, typ } => {
                 new_function.dfg.make_constant(*constant, typ.clone())
             }
-            Value::Array { array, typ } => {
-                if let Some(value) = self.values.get(&old_value) {
-                    return *value;
-                }
-
-                let array = array
-                    .iter()
-                    .map(|value| self.map_value(new_function, old_function, *value))
-                    .collect();
-                let new_value = new_function.dfg.make_array(array, typ.clone());
-                self.values.insert(old_value, new_value);
-                new_value
-            }
             Value::Intrinsic(intrinsic) => new_function.dfg.import_intrinsic(*intrinsic),
             Value::ForeignFunction(name) => new_function.dfg.import_foreign_function(name),
         }
