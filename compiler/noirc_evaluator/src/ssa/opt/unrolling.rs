@@ -1180,32 +1180,33 @@ mod tests {
 
         // The IDs are shifted by one compared to what the ACIR version printed.
         let expected = "
-        brillig(inline) fn __validate_gt_remainder f0 {
+        brillig(inline) fn main f0 {
           b0(v0: [u64; 6]):
             inc_rc v0
-            inc_rc [u64 0, u64 0, u64 0, u64 0, u64 0, u64 0] of u64
+            v2 = make_array [u64 0, u64 0, u64 0, u64 0, u64 0, u64 0] : [u64; 6]
+            inc_rc v2
             v3 = allocate -> &mut [u64; 6]
-            store [u64 0, u64 0, u64 0, u64 0, u64 0, u64 0] of u64 at v3
-            v5 = load v3 -> [u64; 6]
-            v7 = array_get v0, index u32 0 -> u64
-            v9 = add v7, u64 1
-            v10 = array_set v5, index u32 0, value v9
-            store v10 at v3
-            v11 = load v3 -> [u64; 6]
-            v13 = array_get v0, index u32 1 -> u64
-            v14 = add v13, u64 1
-            v15 = array_set v11, index u32 1, value v14
-            store v15 at v3
-            v16 = load v3 -> [u64; 6]
-            v18 = array_get v0, index u32 2 -> u64
-            v19 = add v18, u64 1
-            v20 = array_set v16, index u32 2, value v19
-            store v20 at v3
+            store v2 at v3
+            v4 = load v3 -> [u64; 6]
+            v6 = array_get v0, index u32 0 -> u64
+            v8 = add v6, u64 1
+            v9 = array_set v4, index u32 0, value v8
+            store v9 at v3
+            v10 = load v3 -> [u64; 6]
+            v12 = array_get v0, index u32 1 -> u64
+            v13 = add v12, u64 1
+            v14 = array_set v10, index u32 1, value v13
+            store v14 at v3
+            v15 = load v3 -> [u64; 6]
+            v17 = array_get v0, index u32 2 -> u64
+            v18 = add v17, u64 1
+            v19 = array_set v15, index u32 2, value v18
+            store v19 at v3
             jmp b1()
           b1():
-            v21 = load v3 -> [u64; 6]
+            v20 = load v3 -> [u64; 6]
             dec_rc v0
-            return v21
+            return v20
         }
         ";
         assert_normalized_ssa_equals(ssa, expected);
@@ -1341,12 +1342,13 @@ mod tests {
         let src = format!(
             "
         // After `static_assert` and `assert_constant`:
-        brillig(inline) fn __validate_gt_remainder f0 {{
+        brillig(inline) fn main f0 {{
           b0(v0: [u64; 6]):
             inc_rc v0
-            inc_rc [u64 0, u64 0, u64 0, u64 0, u64 0, u64 0] of u64
+            v3 = make_array [u64 0, u64 0, u64 0, u64 0, u64 0, u64 0] : [u64; 6]
+            inc_rc v3
             v4 = allocate -> &mut [u64; 6]
-            store [u64 0, u64 0, u64 0, u64 0, u64 0, u64 0] of u64 at v4
+            store v3 at v4
             jmp b1(u32 0)
           b1(v1: u32):
             v7 = lt v1, u32 {num_iterations}
@@ -1356,9 +1358,9 @@ mod tests {
             v10 = array_get v0, index v1 -> u64
             v12 = add v10, u64 1
             v13 = array_set v9, index v1, value v12
-            v15 = add v1, u32 1                        // duplicate unused increment
+            v15 = add v1, u32 1
             store v13 at v4
-            v16 = add v1, u32 1
+            v16 = add v1, u32 1 // duplicate
             jmp b1(v16)
           b2():
             v8 = load v4 -> [u64; 6]
