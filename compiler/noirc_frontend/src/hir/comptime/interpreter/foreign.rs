@@ -24,6 +24,7 @@ pub(super) fn call_foreign(
     match name {
         "poseidon2_permutation" => poseidon2_permutation(interner, arguments, location),
         "keccakf1600" => keccakf1600(interner, arguments, location),
+        "range" => apply_range_constraint(arguments, location),
         _ => {
             let item = format!("Comptime evaluation for builtin function {name}");
             Err(InterpreterError::Unimplemented { item, location })
@@ -31,10 +32,7 @@ pub(super) fn call_foreign(
     }
 }
 
-pub(super) fn apply_range_constraint(
-    arguments: Vec<(Value, Location)>,
-    location: Location,
-) -> IResult<Value> {
+fn apply_range_constraint(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     let (value, num_bits) = check_two_arguments(arguments, location)?;
 
     let input = get_field(value)?;
