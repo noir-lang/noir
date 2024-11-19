@@ -57,10 +57,8 @@ impl Ssa {
     /// See [`constant_folding`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn fold_constants(mut self) -> Ssa {
-        let mut brillig_functions_we_could_not_inline = HashSet::new();
-
         for function in self.functions.values_mut() {
-            function.constant_fold(false, None, &mut brillig_functions_we_could_not_inline);
+            function.constant_fold(false, None);
         }
         self
     }
@@ -72,10 +70,8 @@ impl Ssa {
     /// See [`constant_folding`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn fold_constants_using_constraints(mut self) -> Ssa {
-        let mut brillig_functions_we_could_not_inline = HashSet::new();
-
         for function in self.functions.values_mut() {
-            function.constant_fold(true, None, &mut brillig_functions_we_could_not_inline);
+            function.constant_fold(true, None);
         }
         self
     }
@@ -91,28 +87,10 @@ impl Ssa {
             };
         }
 
-        // Keep track of which brillig functions we couldn't completely inline: we'll remove the ones we could.
-        let mut brillig_functions_we_could_not_inline = HashSet::new();
-
         let brillig_info = Some(BrilligInfo { brillig, brillig_functions: &brillig_functions });
 
         for function in self.functions.values_mut() {
-            function.constant_fold(false, brillig_info, &mut brillig_functions_we_could_not_inline);
-        }
-
-        // Remove the brillig functions that are no longer called
-        for func_id in brillig_functions.keys() {
-            // We never want to remove the main function (it could be `unconstrained` or it
-            // could have been turned into brillig if `--force-brillig` was given).
-            // We also don't want to remove entry points.
-            if self.main_id == *func_id
-                || brillig_functions_we_could_not_inline.contains(func_id)
-                || self.entry_point_to_generated_index.contains_key(func_id)
-            {
-                continue;
-            }
-
-            self.functions.remove(func_id);
+            function.constant_fold(false, brillig_info);
         }
 
         self
@@ -126,7 +104,6 @@ impl Function {
         &mut self,
         use_constraint_info: bool,
         brillig_info: Option<BrilligInfo>,
-        brillig_functions_we_could_not_inline: &mut HashSet<FunctionId>,
     ) {
         let mut context = Context::new(self, use_constraint_info, brillig_info);
         context.block_queue.push_back(self.entry_block());
@@ -137,7 +114,7 @@ impl Function {
             }
 
             context.visited_blocks.insert(block);
-            context.fold_constants_in_block(self, block, brillig_functions_we_could_not_inline);
+            context.fold_constants_in_block(self, block);
         }
     }
 }
@@ -202,12 +179,7 @@ impl<'brillig> Context<'brillig> {
         }
     }
 
-    fn fold_constants_in_block(
-        &mut self,
-        function: &mut Function,
-        block: BasicBlockId,
-        brillig_functions_we_could_not_inline: &mut HashSet<FunctionId>,
-    ) {
+    fn fold_constants_in_block(&mut self, function: &mut Function, block: BasicBlockId) {
         let instructions = function.dfg[block].take_instructions();
 
         let mut side_effects_enabled_var =
@@ -219,7 +191,6 @@ impl<'brillig> Context<'brillig> {
                 block,
                 instruction_id,
                 &mut side_effects_enabled_var,
-                brillig_functions_we_could_not_inline,
             );
         }
         self.block_queue.extend(function.dfg[block].successors());
@@ -231,7 +202,6 @@ impl<'brillig> Context<'brillig> {
         mut block: BasicBlockId,
         id: InstructionId,
         side_effects_enabled_var: &mut ValueId,
-        brillig_functions_we_could_not_inline: &mut HashSet<FunctionId>,
     ) {
         let constraint_simplification_mapping = self.get_constraint_map(*side_effects_enabled_var);
         let instruction = Self::resolve_instruction(id, dfg, constraint_simplification_mapping);
@@ -256,16 +226,25 @@ impl<'brillig> Context<'brillig> {
             }
         }
 
-        // Otherwise, try inserting the instruction again to apply any optimizations using the newly resolved inputs.
-        let new_results = Self::push_instruction(
-            id,
-            instruction.clone(),
+        let new_results = 
+        // First try to inline a call to a brillig function with all constant arguments.
+        Self::try_inline_brillig_call_with_all_constants(
+            &instruction,
             &old_results,
             block,
             dfg,
             self.brillig_info,
-            brillig_functions_we_could_not_inline,
-        );
+        )
+        .unwrap_or_else(|| {
+            // Otherwise, try inserting the instruction again to apply any optimizations using the newly resolved inputs.
+            Self::push_instruction(
+                id,
+                instruction.clone(),
+                &old_results,
+                block,
+                dfg,
+            )
+        });
 
         Self::replace_result_ids(dfg, &old_results, &new_results);
 
@@ -324,20 +303,7 @@ impl<'brillig> Context<'brillig> {
         old_results: &[ValueId],
         block: BasicBlockId,
         dfg: &mut DataFlowGraph,
-        brillig_info: Option<BrilligInfo>,
-        brillig_functions_we_could_not_inline: &mut HashSet<FunctionId>,
     ) -> Vec<ValueId> {
-        if let Some(new_results) = Self::try_inline_brillig_call_with_all_constants(
-            &instruction,
-            old_results,
-            block,
-            dfg,
-            brillig_info,
-            brillig_functions_we_could_not_inline,
-        ) {
-            return new_results;
-        }
-
         let ctrl_typevars = instruction
             .requires_ctrl_typevars()
             .then(|| vecmap(old_results, |result| dfg.type_of_value(*result)));
@@ -451,7 +417,6 @@ impl<'brillig> Context<'brillig> {
         block: BasicBlockId,
         dfg: &mut DataFlowGraph,
         brillig_info: Option<BrilligInfo>,
-        brillig_functions_we_could_not_inline: &mut HashSet<FunctionId>,
     ) -> Option<Vec<ValueId>> {
         let evaluation_result = Self::evaluate_const_brillig_call(
             instruction,
@@ -461,11 +426,7 @@ impl<'brillig> Context<'brillig> {
         );
 
         match evaluation_result {
-            EvaluationResult::NotABrilligCall => None,
-            EvaluationResult::CannotEvaluate(func_id) => {
-                brillig_functions_we_could_not_inline.insert(func_id);
-                None
-            }
+            EvaluationResult::NotABrilligCall | EvaluationResult::CannotEvaluate(_) => None,
             EvaluationResult::Evaluated(memory_values) => {
                 let mut memory_index = 0;
                 let new_results = vecmap(old_results, |old_result| {
