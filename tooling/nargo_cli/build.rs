@@ -152,7 +152,7 @@ fn generate_test_cases(
         }
         cases
     } else {
-        vec![Inliner::Max]
+        vec![Inliner::Default]
     };
 
     // We can't use a `#[test_matrix(brillig_cases, inliner_cases)` if we only want to limit the
@@ -163,7 +163,10 @@ fn generate_test_cases(
             if *brillig && inliner.value() < matrix_config.min_inliner {
                 continue;
             }
-            test_cases.push(format!("#[test_case::test_case({brillig}, {})]", inliner.label()));
+            test_cases.push(format!(
+                "#[test_case::test_case(ForceBrillig({brillig}), Inliner({}))]",
+                inliner.label()
+            ));
         }
     }
     let test_cases = test_cases.join("\n");
@@ -183,7 +186,7 @@ lazy_static::lazy_static! {{
 }}
 
 {test_cases}
-fn test_{test_name}(force_brillig: bool, inliner_aggressiveness: i64) {{
+fn test_{test_name}(force_brillig: ForceBrillig, inliner_aggressiveness: Inliner) {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
     // Ignore poisoning errors if some of the matrix cases failed.
@@ -198,8 +201,8 @@ fn test_{test_name}(force_brillig: bool, inliner_aggressiveness: i64) {{
     let mut nargo = Command::cargo_bin("nargo").unwrap();
     nargo.arg("--program-dir").arg(test_program_dir);
     nargo.arg("{test_command}").arg("--force");
-    nargo.arg("--inliner-aggressiveness").arg(inliner_aggressiveness.to_string());
-    if force_brillig {{
+    nargo.arg("--inliner-aggressiveness").arg(inliner_aggressiveness.0.to_string());
+    if force_brillig.0 {{
         nargo.arg("--force-brillig");
     }}
 
@@ -237,7 +240,7 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
             "#,
             &MatrixConfig {
                 vary_brillig: !IGNORED_BRILLIG_TESTS.contains(&test_name.as_str()),
-                vary_inliner: false,
+                vary_inliner: true,
                 min_inliner: INLINER_MIN_OVERRIDES
                     .iter()
                     .find(|(n, _)| *n == test_name.as_str())

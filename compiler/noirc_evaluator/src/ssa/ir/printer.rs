@@ -69,17 +69,6 @@ fn value(function: &Function, id: ValueId) -> String {
         }
         Value::Function(id) => id.to_string(),
         Value::Intrinsic(intrinsic) => intrinsic.to_string(),
-        Value::Array { array, typ } => {
-            let elements = vecmap(array, |element| value(function, *element));
-            let element_types = &typ.clone().element_types();
-            let element_types_str =
-                element_types.iter().map(|typ| typ.to_string()).collect::<Vec<String>>().join(", ");
-            if element_types.len() == 1 {
-                format!("[{}] of {}", elements.join(", "), element_types_str)
-            } else {
-                format!("[{}] of ({})", elements.join(", "), element_types_str)
-            }
-        }
         Value::Param { .. } | Value::Instruction { .. } | Value::ForeignFunction(_) => {
             id.to_string()
         }
@@ -220,16 +209,35 @@ fn display_instruction_inner(
         Instruction::RangeCheck { value, max_bit_size, .. } => {
             writeln!(f, "range_check {} to {} bits", show(*value), *max_bit_size,)
         }
-        Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
+        Instruction::IfElse { then_condition, then_value, else_value } => {
             let then_condition = show(*then_condition);
             let then_value = show(*then_value);
-            let else_condition = show(*else_condition);
             let else_value = show(*else_value);
-            writeln!(
-                f,
-                "if {then_condition} then {then_value} else if {else_condition} then {else_value}"
-            )
+            writeln!(f, "if {then_condition} then {then_value} else {else_value}")
         }
+        Instruction::MakeArray { elements, typ } => {
+            write!(f, "make_array [")?;
+
+            for (i, element) in elements.iter().enumerate() {
+                if i != 0 {
+                    write!(f, ", ")?;
+                }
+                write!(f, "{}", show(*element))?;
+            }
+
+            writeln!(f, "] : {typ}")
+        }
+    }
+}
+
+fn result_types(function: &Function, results: &[ValueId]) -> String {
+    let types = vecmap(results, |result| function.dfg.type_of_value(*result).to_string());
+    if types.is_empty() {
+        String::new()
+    } else if types.len() == 1 {
+        format!(" -> {}", types[0])
+    } else {
+        format!(" -> ({})", types.join(", "))
     }
 }
 
@@ -253,13 +261,9 @@ pub(crate) fn try_to_extract_string_from_error_payload(
     (is_string_type && (values.len() == 1))
         .then_some(())
         .and_then(|()| {
-            let Value::Array { array: values, .. } = &dfg[values[0]] else {
-                return None;
-            };
-            let fields: Option<Vec<_>> =
-                values.iter().map(|value_id| dfg.get_numeric_constant(*value_id)).collect();
-
-            fields
+            let (values, _) = &dfg.get_array_constant(values[0])?;
+            let values = values.iter().map(|value_id| dfg.get_numeric_constant(*value_id));
+            values.collect::<Option<Vec<_>>>()
         })
         .map(|fields| {
             fields

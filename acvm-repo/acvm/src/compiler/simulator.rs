@@ -1,6 +1,7 @@
 use acir::{
     circuit::{
         brillig::{BrilligInputs, BrilligOutputs},
+        directives::Directive,
         opcodes::{BlockId, FunctionInput},
         Circuit, Opcode,
     },
@@ -83,6 +84,17 @@ impl CircuitSimulator {
                 }
                 true
             }
+            Opcode::Directive(directive) => match directive {
+                Directive::ToLeRadix { a, b, .. } => {
+                    if !self.can_solve_expression(a) {
+                        return false;
+                    }
+                    for w in b {
+                        self.mark_solvable(*w);
+                    }
+                    true
+                }
+            },
             Opcode::MemoryOp { block_id, op, predicate } => {
                 if !self.can_solve_expression(&op.index) {
                     return false;
@@ -234,6 +246,7 @@ mod tests {
             public_parameters,
             return_values: PublicInputs::default(),
             assert_messages: Default::default(),
+            recursive: false,
         }
     }
 

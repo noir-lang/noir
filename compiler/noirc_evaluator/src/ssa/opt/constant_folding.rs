@@ -19,7 +19,7 @@
 //!
 //! This is the only pass which removes duplicated pure [`Instruction`]s however and so is needed when
 //! different blocks are merged, i.e. after the [`flatten_cfg`][super::flatten_cfg] pass.
-use std::collections::HashSet;
+use std::collections::{HashSet, VecDeque};
 
 use acvm::{acir::AcirField, FieldElement};
 use iter_extended::vecmap;
@@ -28,6 +28,7 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         dfg::{DataFlowGraph, InsertInstructionResult},
+        dom::DominatorTree,
         function::Function,
         instruction::{Instruction, InstructionId},
         types::Type,
@@ -67,10 +68,10 @@ impl Function {
     /// The structure of this pass is simple:
     /// Go through each block and re-insert all instructions.
     pub(crate) fn constant_fold(&mut self, use_constraint_info: bool) {
-        let mut context = Context { use_constraint_info, ..Default::default() };
-        context.block_queue.push(self.entry_block());
+        let mut context = Context::new(self, use_constraint_info);
+        context.block_queue.push_back(self.entry_block());
 
-        while let Some(block) = context.block_queue.pop() {
+        while let Some(block) = context.block_queue.pop_front() {
             if context.visited_blocks.contains(&block) {
                 continue;
             }
@@ -81,34 +82,57 @@ impl Function {
     }
 }
 
-#[derive(Default)]
 struct Context {
     use_constraint_info: bool,
     /// Maps pre-folded ValueIds to the new ValueIds obtained by re-inserting the instruction.
     visited_blocks: HashSet<BasicBlockId>,
-    block_queue: Vec<BasicBlockId>,
+    block_queue: VecDeque<BasicBlockId>,
+
+    /// Contains sets of values which are constrained to be equivalent to each other.
+    ///
+    /// The mapping's structure is `side_effects_enabled_var => (constrained_value => simplified_value)`.
+    ///
+    /// We partition the maps of constrained values according to the side-effects flag at the point
+    /// at which the values are constrained. This prevents constraints which are only sometimes enforced
+    /// being used to modify the rest of the program.
+    constraint_simplification_mappings: HashMap<ValueId, HashMap<ValueId, ValueId>>,
+
+    // Cache of instructions without any side-effects along with their outputs.
+    cached_instruction_results: InstructionResultCache,
+
+    dom: DominatorTree,
 }
 
 /// HashMap from (Instruction, side_effects_enabled_var) to the results of the instruction.
 /// Stored as a two-level map to avoid cloning Instructions during the `.get` call.
-type InstructionResultCache = HashMap<Instruction, HashMap<Option<ValueId>, Vec<ValueId>>>;
+///
+/// In addition to each result, the original BasicBlockId is stored as well. This allows us
+/// to deduplicate instructions across blocks as long as the new block dominates the original.
+type InstructionResultCache = HashMap<Instruction, HashMap<Option<ValueId>, ResultCache>>;
+
+/// Records the results of all duplicate [`Instruction`]s along with the blocks in which they sit.
+///
+/// For more information see [`InstructionResultCache`].
+#[derive(Default)]
+struct ResultCache {
+    result: Option<(BasicBlockId, Vec<ValueId>)>,
+}
 
 impl Context {
+    fn new(function: &Function, use_constraint_info: bool) -> Self {
+        Self {
+            use_constraint_info,
+            visited_blocks: Default::default(),
+            block_queue: Default::default(),
+            constraint_simplification_mappings: Default::default(),
+            cached_instruction_results: Default::default(),
+            dom: DominatorTree::with_function(function),
+        }
+    }
+
     fn fold_constants_in_block(&mut self, function: &mut Function, block: BasicBlockId) {
         let instructions = function.dfg[block].take_instructions();
 
-        // Cache of instructions without any side-effects along with their outputs.
-        let mut cached_instruction_results = HashMap::default();
-
-        // Contains sets of values which are constrained to be equivalent to each other.
-        //
-        // The mapping's structure is `side_effects_enabled_var => (constrained_value => simplified_value)`.
-        //
-        // We partition the maps of constrained values according to the side-effects flag at the point
-        // at which the values are constrained. This prevents constraints which are only sometimes enforced
-        // being used to modify the rest of the program.
-        let mut constraint_simplification_mappings: HashMap<ValueId, HashMap<ValueId, ValueId>> =
-            HashMap::default();
         let mut side_effects_enabled_var =
             function.dfg.make_constant(FieldElement::one(), Type::bool());
 
@@ -117,8 +141,6 @@ impl Context {
                 &mut function.dfg,
                 block,
                 instruction_id,
-                &mut cached_instruction_results,
-                &mut constraint_simplification_mappings,
                 &mut side_effects_enabled_var,
             );
         }
@@ -126,25 +148,33 @@ impl Context {
     }
 
     fn fold_constants_into_instruction(
-        &self,
+        &mut self,
         dfg: &mut DataFlowGraph,
-        block: BasicBlockId,
+        mut block: BasicBlockId,
         id: InstructionId,
-        instruction_result_cache: &mut InstructionResultCache,
-        constraint_simplification_mappings: &mut HashMap<ValueId, HashMap<ValueId, ValueId>>,
         side_effects_enabled_var: &mut ValueId,
     ) {
-        let constraint_simplification_mapping =
-            constraint_simplification_mappings.entry(*side_effects_enabled_var).or_default();
+        let constraint_simplification_mapping = self.get_constraint_map(*side_effects_enabled_var);
         let instruction = Self::resolve_instruction(id, dfg, constraint_simplification_mapping);
         let old_results = dfg.instruction_results(id).to_vec();
 
         // If a copy of this instruction exists earlier in the block, then reuse the previous results.
-        if let Some(cached_results) =
-            Self::get_cached(dfg, instruction_result_cache, &instruction, *side_effects_enabled_var)
+        if let Some(cache_result) =
+            self.get_cached(dfg, &instruction, *side_effects_enabled_var, block)
         {
-            Self::replace_result_ids(dfg, &old_results, cached_results);
-            return;
+            match cache_result {
+                CacheResult::Cached(cached) => {
+                    Self::replace_result_ids(dfg, &old_results, cached);
+                    return;
+                }
+                CacheResult::NeedToHoistToCommonBlock(dominator, _cached) => {
+                    // Just change the block to insert in the common dominator instead.
+                    // This will only move the current instance of the instruction right now.
+                    // When constant folding is run a second time later on, it'll catch
+                    // that the previous instance can be deduplicated to this instance.
+                    block = dominator;
+                }
+            }
         }
 
         // Otherwise, try inserting the instruction again to apply any optimizations using the newly resolved inputs.
@@ -156,9 +186,8 @@ impl Context {
             instruction.clone(),
             new_results,
             dfg,
-            instruction_result_cache,
-            constraint_simplification_mapping,
             *side_effects_enabled_var,
+            block,
         );
 
         // If we just inserted an `Instruction::EnableSideEffectsIf`, we need to update `side_effects_enabled_var`
@@ -229,13 +258,12 @@ impl Context {
     }
 
     fn cache_instruction(
-        &self,
+        &mut self,
         instruction: Instruction,
         instruction_results: Vec<ValueId>,
         dfg: &DataFlowGraph,
-        instruction_result_cache: &mut InstructionResultCache,
-        constraint_simplification_mapping: &mut HashMap<ValueId, ValueId>,
         side_effects_enabled_var: ValueId,
+        block: BasicBlockId,
     ) {
         if self.use_constraint_info {
             // If the instruction was a constraint, then create a link between the two `ValueId`s
@@ -248,18 +276,18 @@ impl Context {
 
                     // Prefer replacing with constants where possible.
                     (Value::NumericConstant { .. }, _) => {
-                        constraint_simplification_mapping.insert(rhs, lhs);
+                        self.get_constraint_map(side_effects_enabled_var).insert(rhs, lhs);
                     }
                     (_, Value::NumericConstant { .. }) => {
-                        constraint_simplification_mapping.insert(lhs, rhs);
+                        self.get_constraint_map(side_effects_enabled_var).insert(lhs, rhs);
                     }
                     // Otherwise prefer block parameters over instruction results.
                     // This is as block parameters are more likely to be a single witness rather than a full expression.
                     (Value::Param { .. }, Value::Instruction { .. }) => {
-                        constraint_simplification_mapping.insert(rhs, lhs);
+                        self.get_constraint_map(side_effects_enabled_var).insert(rhs, lhs);
                     }
                     (Value::Instruction { .. }, Value::Param { .. }) => {
-                        constraint_simplification_mapping.insert(lhs, rhs);
+                        self.get_constraint_map(side_effects_enabled_var).insert(lhs, rhs);
                     }
                     (_, _) => (),
                 }
@@ -273,11 +301,20 @@ impl Context {
                 self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
             let predicate = use_predicate.then_some(side_effects_enabled_var);
 
-            instruction_result_cache
+            self.cached_instruction_results
                 .entry(instruction)
                 .or_default()
-                .insert(predicate, instruction_results);
+                .entry(predicate)
+                .or_default()
+                .cache(block, instruction_results);
         }
+    }
+
+    fn get_constraint_map(
+        &mut self,
+        side_effects_enabled_var: ValueId,
+    ) -> &mut HashMap<ValueId, ValueId> {
+        self.constraint_simplification_mappings.entry(side_effects_enabled_var).or_default()
     }
 
     /// Replaces a set of [`ValueId`]s inside the [`DataFlowGraph`] with another.
@@ -291,24 +328,52 @@ impl Context {
         }
     }
 
-    fn get_cached<'a>(
+    fn get_cached(
+        &mut self,
         dfg: &DataFlowGraph,
-        instruction_result_cache: &'a mut InstructionResultCache,
         instruction: &Instruction,
         side_effects_enabled_var: ValueId,
-    ) -> Option<&'a Vec<ValueId>> {
-        let results_for_instruction = instruction_result_cache.get(instruction);
+        block: BasicBlockId,
+    ) -> Option<CacheResult> {
+        let results_for_instruction = self.cached_instruction_results.get(instruction)?;
 
-        // See if there's a cached version with no predicate first
-        if let Some(results) = results_for_instruction.and_then(|map| map.get(&None)) {
-            return Some(results);
-        }
+        let predicate = self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
+        let predicate = predicate.then_some(side_effects_enabled_var);
 
-        let predicate =
-            instruction.requires_acir_gen_predicate(dfg).then_some(side_effects_enabled_var);
-
-        results_for_instruction.and_then(|map| map.get(&predicate))
+        results_for_instruction.get(&predicate)?.get(block, &mut self.dom)
     }
+}
+
+impl ResultCache {
+    /// Records that an `Instruction` in block `block` produced the result values `results`.
+    fn cache(&mut self, block: BasicBlockId, results: Vec<ValueId>) {
+        if self.result.is_none() {
+            self.result = Some((block, results));
+        }
+    }
+
+    /// Returns a set of [`ValueId`]s produced from a copy of this [`Instruction`] which sits
+    /// within a block which dominates `block`.
+    ///
+    /// We require that the cached instruction's block dominates `block` in order to avoid
+    /// cycles causing issues (e.g. two instructions being replaced with the results of each other
+    /// such that neither instruction exists anymore.)
+    fn get(&self, block: BasicBlockId, dom: &mut DominatorTree) -> Option<CacheResult> {
+        self.result.as_ref().map(|(origin_block, results)| {
+            if dom.dominates(*origin_block, block) {
+                CacheResult::Cached(results)
+            } else {
+                // Insert a copy of this instruction in the common dominator
+                let dominator = dom.common_dominator(*origin_block, block);
+                CacheResult::NeedToHoistToCommonBlock(dominator, results)
+            }
+        })
+    }
+}
+
+enum CacheResult<'a> {
+    Cached(&'a [ValueId]),
+    NeedToHoistToCommonBlock(BasicBlockId, &'a [ValueId]),
 }
 
 #[cfg(test)]
@@ -440,7 +505,8 @@ mod test {
             acir(inline) fn main f0 {
               b0(v0: Field):
                 v2 = add v0, Field 1
-                return [v2] of Field
+                v3 = make_array [v2] : [Field; 1]
+                return v3
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
@@ -546,6 +612,16 @@ mod test {
     // Regression for #4600
     #[test]
     fn array_get_regression() {
+        // fn main f0 {
+        //   b0(v0: u1, v1: u64):
+        //     enable_side_effects_if v0
+        //     v2 = make_array [Field 0, Field 1]
+        //     v3 = array_get v2, index v1
+        //     v4 = not v0
+        //     enable_side_effects_if v4
+        //     v5 = array_get v2, index v1
+        // }
+        //
         // We want to make sure after constant folding both array_gets remain since they are
         // under different enable_side_effects_if contexts and thus one may be disabled while
         // the other is not. If one is removed, it is possible e.g. v4 is replaced with v2 which
@@ -554,10 +630,11 @@ mod test {
             acir(inline) fn main f0 {
               b0(v0: u1, v1: u64):
                 enable_side_effects v0
-                v5 = array_get [Field 0, Field 1] of Field, index v1 -> Field
+                v4 = make_array [Field 0, Field 1] : [Field; 2]
+                v5 = array_get v4, index v1 -> Field
                 v6 = not v0
                 enable_side_effects v6
-                v8 = array_get [Field 0, Field 1] of Field, index v1 -> Field
+                v7 = array_get v4, index v1 -> Field
                 return
             }
             ";
@@ -618,14 +695,14 @@ mod test {
         assert_normalized_ssa_equals(ssa, expected);
     }
 
-    // This test currently fails. It being fixed will address the issue https://github.com/noir-lang/noir/issues/5756
     #[test]
-    #[should_panic]
     fn constant_array_deduplication() {
         // fn main f0 {
         //   b0(v0: u64):
-        //     v5 = call keccakf1600([v0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0])
-        //     v6 = call keccakf1600([v0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0])
+        //     v1 = make_array [v0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0]
+        //     v2 = make_array [v0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0]
+        //     v5 = call keccakf1600(v1)
+        //     v6 = call keccakf1600(v2)
         // }
         //
         // Here we're checking a situation where two identical arrays are being initialized twice and being assigned separate `ValueId`s.
@@ -638,19 +715,20 @@ mod test {
         let zero = builder.numeric_constant(0u128, Type::unsigned(64));
         let typ = Type::Array(Arc::new(vec![Type::unsigned(64)]), 25);
 
-        let array_contents = vec![
+        let array_contents = im::vector![
             v0, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero,
             zero, zero, zero, zero, zero, zero, zero, zero, zero, zero,
         ];
-        let array1 = builder.array_constant(array_contents.clone().into(), typ.clone());
-        let array2 = builder.array_constant(array_contents.into(), typ.clone());
+        let array1 = builder.insert_make_array(array_contents.clone(), typ.clone());
+        let array2 = builder.insert_make_array(array_contents, typ.clone());
 
-        assert_eq!(array1, array2, "arrays were assigned different value ids");
+        assert_ne!(array1, array2, "arrays were not assigned different value ids");
 
         let keccakf1600 =
             builder.import_intrinsic("keccakf1600").expect("keccakf1600 intrinsic should exist");
         let _v10 = builder.insert_call(keccakf1600, vec![array1], vec![typ.clone()]);
         let _v11 = builder.insert_call(keccakf1600, vec![array2], vec![typ.clone()]);
+        builder.terminate_with_return(Vec::new());
 
         let mut ssa = builder.finish();
         ssa.normalize_ids();
@@ -660,8 +738,13 @@ mod test {
         let main = ssa.main();
         let instructions = main.dfg[main.entry_block()].instructions();
         let starting_instruction_count = instructions.len();
-        assert_eq!(starting_instruction_count, 2);
+        assert_eq!(starting_instruction_count, 4);
 
+        // fn main f0 {
+        //   b0(v0: u64):
+        //     v1 = make_array [v0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0]
+        //     v5 = call keccakf1600(v1)
+        // }
         let ssa = ssa.fold_constants();
 
         println!("{ssa}");
@@ -669,6 +752,106 @@ mod test {
         let main = ssa.main();
         let instructions = main.dfg[main.entry_block()].instructions();
         let ending_instruction_count = instructions.len();
-        assert_eq!(ending_instruction_count, 1);
+        assert_eq!(ending_instruction_count, 2);
+    }
+
+    #[test]
+    fn deduplicate_across_blocks() {
+        // fn main f0 {
+        //   b0(v0: u1):
+        //     v1 = not v0
+        //     jmp b1()
+        //   b1():
+        //     v2 = not v0
+        //     return v2
+        // }
+        let main_id = Id::test_new(0);
+
+        // Compiling main
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        let b1 = builder.insert_block();
+
+        let v0 = builder.add_parameter(Type::bool());
+        let _v1 = builder.insert_not(v0);
+        builder.terminate_with_jmp(b1, Vec::new());
+
+        builder.switch_to_block(b1);
+        let v2 = builder.insert_not(v0);
+        builder.terminate_with_return(vec![v2]);
+
+        let ssa = builder.finish();
+        let main = ssa.main();
+        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 1);
+        assert_eq!(main.dfg[b1].instructions().len(), 1);
+
+        // Expected output:
+        //
+        // fn main f0 {
+        //   b0(v0: u1):
+        //     v1 = not v0
+        //     jmp b1()
+        //   b1():
+        //     return v1
+        // }
+        let ssa = ssa.fold_constants_using_constraints();
+        let main = ssa.main();
+        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 1);
+        assert_eq!(main.dfg[b1].instructions().len(), 0);
+    }
+
+    #[test]
+    fn deduplicate_across_non_dominated_blocks() {
+        let src = "
+            brillig(inline) fn main f0 {
+              b0(v0: u32):
+                v2 = lt u32 1000, v0
+                jmpif v2 then: b1, else: b2
+              b1():
+                v4 = add v0, u32 1
+                v5 = lt v0, v4
+                constrain v5 == u1 1
+                jmp b2()
+              b2():
+                v7 = lt u32 1000, v0
+                jmpif v7 then: b3, else: b4
+              b3():
+                v8 = add v0, u32 1
+                v9 = lt v0, v8
+                constrain v9 == u1 1
+                jmp b4()
+              b4():
+                return
+            }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        // v4 has been hoisted, although:
+        // - v5 has not yet been removed since it was encountered earlier in the program
+        // - v8 hasn't been recognized as a duplicate of v6 yet since they still reference v4 and
+        //   v5 respectively
+        let expected = "
+            brillig(inline) fn main f0 {
+              b0(v0: u32):
+                v2 = lt u32 1000, v0
+                v4 = add v0, u32 1
+                jmpif v2 then: b1, else: b2
+              b1():
+                v5 = add v0, u32 1
+                v6 = lt v0, v5
+                constrain v6 == u1 1
+                jmp b2()
+              b2():
+                jmpif v2 then: b3, else: b4
+              b3():
+                v8 = lt v0, v4
+                constrain v8 == u1 1
+                jmp b4()
+              b4():
+                return
+            }
+        ";
+
+        let ssa = ssa.fold_constants_using_constraints();
+        assert_normalized_ssa_equals(ssa, expected);
     }
 }

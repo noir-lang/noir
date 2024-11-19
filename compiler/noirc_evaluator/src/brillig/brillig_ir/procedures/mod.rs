@@ -17,6 +17,7 @@ use array_copy::compile_array_copy_procedure;
 use array_reverse::compile_array_reverse_procedure;
 use check_max_stack_depth::compile_check_max_stack_depth_procedure;
 use mem_copy::compile_mem_copy_procedure;
+use noirc_errors::debug_info::ProcedureDebugId;
 use prepare_vector_insert::compile_prepare_vector_insert_procedure;
 use prepare_vector_push::compile_prepare_vector_push_procedure;
 use revert_with_string::compile_revert_with_string_procedure;
@@ -104,6 +105,59 @@ impl std::fmt::Display for ProcedureId {
             ProcedureId::VectorRemove => write!(f, "VectorRemove"),
             ProcedureId::CheckMaxStackDepth => write!(f, "CheckMaxStackDepth"),
             ProcedureId::RevertWithString(_) => write!(f, "RevertWithString"),
+        }
+    }
+}
+
+impl ProcedureId {
+    pub(crate) fn to_debug_id(self) -> ProcedureDebugId {
+        ProcedureDebugId(match self {
+            ProcedureId::ArrayCopy => 0,
+            ProcedureId::ArrayReverse => 1,
+            ProcedureId::VectorCopy => 2,
+            ProcedureId::MemCopy => 3,
+            ProcedureId::PrepareVectorPush(true) => 4,
+            ProcedureId::PrepareVectorPush(false) => 5,
+            ProcedureId::VectorPopFront => 6,
+            ProcedureId::VectorPopBack => 7,
+            ProcedureId::PrepareVectorInsert => 8,
+            ProcedureId::VectorRemove => 9,
+            ProcedureId::CheckMaxStackDepth => 10,
+        })
+    }
+
+    pub fn from_debug_id(debug_id: ProcedureDebugId) -> Self {
+        let inner = debug_id.0;
+        match inner {
+            0 => ProcedureId::ArrayCopy,
+            1 => ProcedureId::ArrayReverse,
+            2 => ProcedureId::VectorCopy,
+            3 => ProcedureId::MemCopy,
+            4 => ProcedureId::PrepareVectorPush(true),
+            5 => ProcedureId::PrepareVectorPush(false),
+            6 => ProcedureId::VectorPopFront,
+            7 => ProcedureId::VectorPopBack,
+            8 => ProcedureId::PrepareVectorInsert,
+            9 => ProcedureId::VectorRemove,
+            10 => ProcedureId::CheckMaxStackDepth,
+            _ => panic!("Unsupported procedure debug ID of {inner} was supplied"),
+        }
+    }
+}
+
+impl std::fmt::Display for ProcedureId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ProcedureId::ArrayCopy => write!(f, "ArrayCopy"),
+            ProcedureId::ArrayReverse => write!(f, "ArrayReverse"),
+            ProcedureId::VectorCopy => write!(f, "VectorCopy"),
+            ProcedureId::MemCopy => write!(f, "MemCopy"),
+            ProcedureId::PrepareVectorPush(flag) => write!(f, "PrepareVectorPush({flag})"),
+            ProcedureId::VectorPopFront => write!(f, "VectorPopFront"),
+            ProcedureId::VectorPopBack => write!(f, "VectorPopBack"),
+            ProcedureId::PrepareVectorInsert => write!(f, "PrepareVectorInsert"),
+            ProcedureId::VectorRemove => write!(f, "VectorRemove"),
+            ProcedureId::CheckMaxStackDepth => write!(f, "CheckMaxStackDepth"),
         }
     }
 }

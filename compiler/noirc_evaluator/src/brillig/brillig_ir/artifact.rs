@@ -7,6 +7,8 @@ use crate::ErrorType;
 
 use super::procedures::ProcedureId;
 
+use super::procedures::ProcedureId;
+
 /// Represents a parameter or a return value of an entry point function.
 #[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
 pub(crate) enum BrilligParameter {

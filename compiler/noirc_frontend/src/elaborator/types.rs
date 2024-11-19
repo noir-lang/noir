@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::BTreeMap, rc::Rc};
+use std::{borrow::Cow, rc::Rc};
 
 use acvm::acir::AcirField;
 use iter_extended::vecmap;
@@ -25,7 +25,7 @@ use crate::{
             HirBinaryOp, HirCallExpression, HirExpression, HirLiteral, HirMemberAccess,
             HirMethodReference, HirPrefixExpression, TraitMethod,
         },
-        function::{FuncMeta, Parameters},
+        function::FuncMeta,
         stmt::HirStatement,
         traits::{NamedType, ResolvedTraitBound, Trait, TraitConstraint},
     },
@@ -34,8 +34,7 @@ use crate::{
         TraitImplKind, TraitMethodId,
     },
     token::SecondaryAttribute,
-    Generics, Kind, ResolvedGeneric, Type, TypeBinding, TypeBindings, TypeVariable,
-    UnificationError,
+    Generics, Kind, ResolvedGeneric, Type, TypeBinding, TypeBindings, UnificationError,
 };
 
 use super::{lints, path_resolution::PathResolutionItem, Elaborator};
@@ -1722,110 +1721,6 @@ impl<'context> Elaborator<'context> {
             });
         } else {
             self.generics.push(resolved_generic.clone());
-        }
-    }
-
-    pub fn find_numeric_generics(
-        parameters: &Parameters,
-        return_type: &Type,
-    ) -> Vec<(String, TypeVariable)> {
-        let mut found = BTreeMap::new();
-        for (_, parameter, _) in &parameters.0 {
-            Self::find_numeric_generics_in_type(parameter, &mut found);
-        }
-        Self::find_numeric_generics_in_type(return_type, &mut found);
-        found.into_iter().collect()
-    }
-
-    fn find_numeric_generics_in_type(typ: &Type, found: &mut BTreeMap<String, TypeVariable>) {
-        match typ {
-            Type::FieldElement
-            | Type::Integer(_, _)
-            | Type::Bool
-            | Type::Unit
-            | Type::Error
-            | Type::TypeVariable(_)
-            | Type::Constant(..)
-            | Type::NamedGeneric(_, _)
-            | Type::Quoted(_)
-            | Type::Forall(_, _) => (),
-
-            Type::CheckedCast { from, to } => {
-                Self::find_numeric_generics_in_type(from, found);
-                Self::find_numeric_generics_in_type(to, found);
-            }
-
-            Type::TraitAsType(_, _, args) => {
-                for arg in &args.ordered {
-                    Self::find_numeric_generics_in_type(arg, found);
-                }
-                for arg in &args.named {
-                    Self::find_numeric_generics_in_type(&arg.typ, found);
-                }
-            }
-
-            Type::Array(length, element_type) => {
-                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
-                    found.insert(name.to_string(), type_variable.clone());
-                }
-                Self::find_numeric_generics_in_type(element_type, found);
-            }
-
-            Type::Slice(element_type) => {
-                Self::find_numeric_generics_in_type(element_type, found);
-            }
-
-            Type::Tuple(fields) => {
-                for field in fields {
-                    Self::find_numeric_generics_in_type(field, found);
-                }
-            }
-
-            Type::Function(parameters, return_type, _env, _unconstrained) => {
-                for parameter in parameters {
-                    Self::find_numeric_generics_in_type(parameter, found);
-                }
-                Self::find_numeric_generics_in_type(return_type, found);
-            }
-
-            Type::Struct(struct_type, generics) => {
-                for (i, generic) in generics.iter().enumerate() {
-                    if let Type::NamedGeneric(type_variable, name) = generic {
-                        if struct_type.borrow().generics[i].is_numeric() {
-                            found.insert(name.to_string(), type_variable.clone());
-                        }
-                    } else {
-                        Self::find_numeric_generics_in_type(generic, found);
-                    }
-                }
-            }
-            Type::Alias(alias, generics) => {
-                for (i, generic) in generics.iter().enumerate() {
-                    if let Type::NamedGeneric(type_variable, name) = generic {
-                        if alias.borrow().generics[i].is_numeric() {
-                            found.insert(name.to_string(), type_variable.clone());
-                        }
-                    } else {
-                        Self::find_numeric_generics_in_type(generic, found);
-                    }
-                }
-            }
-            Type::MutableReference(element) => Self::find_numeric_generics_in_type(element, found),
-            Type::String(length) => {
-                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
-                    found.insert(name.to_string(), type_variable.clone());
-                }
-            }
-            Type::FmtString(length, fields) => {
-                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
-                    found.insert(name.to_string(), type_variable.clone());
-                }
-                Self::find_numeric_generics_in_type(fields, found);
-            }
-            Type::InfixExpr(lhs, _op, rhs) => {
-                Self::find_numeric_generics_in_type(lhs, found);
-                Self::find_numeric_generics_in_type(rhs, found);
-            }
         }
     }
 
