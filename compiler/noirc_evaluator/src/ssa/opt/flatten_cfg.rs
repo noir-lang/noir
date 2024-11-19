@@ -521,7 +521,6 @@ impl<'f> Context<'f> {
             let instruction = Instruction::IfElse {
                 then_condition: cond_context.then_branch.condition,
                 then_value: then_arg.into(),
-                else_condition: cond_context.else_branch.as_ref().unwrap().condition,
                 else_value: else_arg.into(),
             };
             let call_stack = cond_context.call_stack.clone();
@@ -672,13 +671,10 @@ impl<'f> Context<'f> {
                             )
                             .first();
 
-                        let not = Instruction::Not(condition);
-                        let else_condition = self.insert_instruction(not, call_stack.clone());
-
                         let instruction = Instruction::IfElse {
                             then_condition: condition,
                             then_value: value,
-                            else_condition,
+
                             else_value: previous_value,
                         };
 
@@ -912,13 +908,12 @@ mod test {
               b0(v0: u1, v1: &mut Field):
                 enable_side_effects v0
                 v2 = load v1 -> Field
-                v3 = not v0
-                v4 = cast v0 as Field
-                v6 = sub Field 5, v2
-                v7 = mul v4, v6
-                v8 = add v2, v7
-                store v8 at v1
-                v9 = not v0
+                v3 = cast v0 as Field
+                v5 = sub Field 5, v2
+                v6 = mul v3, v5
+                v7 = add v2, v6
+                store v7 at v1
+                v8 = not v0
                 enable_side_effects u1 1
                 return
             }
@@ -950,20 +945,19 @@ mod test {
               b0(v0: u1, v1: &mut Field):
                 enable_side_effects v0
                 v2 = load v1 -> Field
-                v3 = not v0
-                v4 = cast v0 as Field
-                v6 = sub Field 5, v2
-                v7 = mul v4, v6
-                v8 = add v2, v7
-                store v8 at v1
-                v9 = not v0
-                enable_side_effects v9
-                v10 = load v1 -> Field
-                v11 = cast v9 as Field
-                v13 = sub Field 6, v10
-                v14 = mul v11, v13
-                v15 = add v10, v14
-                store v15 at v1
+                v3 = cast v0 as Field
+                v5 = sub Field 5, v2
+                v6 = mul v3, v5
+                v7 = add v2, v6
+                store v7 at v1
+                v8 = not v0
+                enable_side_effects v8
+                v9 = load v1 -> Field
+                v10 = cast v8 as Field
+                v12 = sub Field 6, v9
+                v13 = mul v10, v12
+                v14 = add v9, v13
+                store v14 at v1
                 enable_side_effects u1 1
                 return
             }
@@ -1311,24 +1305,23 @@ mod test {
             v9 = add v7, Field 1
             v10 = cast v9 as u8
             v11 = load v6 -> u8
-            v12 = not v5
-            v13 = cast v4 as Field
-            v14 = cast v11 as Field
-            v15 = sub v9, v14
-            v16 = mul v13, v15
-            v17 = add v14, v16
-            v18 = cast v17 as u8
-            store v18 at v6
-            v19 = not v5
-            enable_side_effects v19
-            v20 = load v6 -> u8
+            v12 = cast v4 as Field
+            v13 = cast v11 as Field
+            v14 = sub v9, v13
+            v15 = mul v12, v14
+            v16 = add v13, v15
+            v17 = cast v16 as u8
+            store v17 at v6
+            v18 = not v5
+            enable_side_effects v18
+            v19 = load v6 -> u8
+            v20 = cast v18 as Field
             v21 = cast v19 as Field
-            v22 = cast v20 as Field
-            v24 = sub Field 0, v22
-            v25 = mul v21, v24
-            v26 = add v22, v25
-            v27 = cast v26 as u8
-            store v27 at v6
+            v23 = sub Field 0, v21
+            v24 = mul v20, v23
+            v25 = add v21, v24
+            v26 = cast v25 as u8
+            store v26 at v6
             enable_side_effects u1 1
             constrain v5 == u1 1
             return
