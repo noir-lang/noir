@@ -236,7 +236,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "unresolved_type_is_unit" => unresolved_type_is_unit(interner, arguments, location),
             "zeroed" => zeroed(return_type, location.span),
             _ => {
-                let item = format!("Comptime evaluation for builtin function {name}");
+                let item = format!("Comptime evaluation for builtin function '{name}'");
                 Err(InterpreterError::Unimplemented { item, location })
             }
         }

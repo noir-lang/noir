@@ -14,7 +14,8 @@ use crate::{
 
 use super::{
     builtin::builtin_helpers::{
-        check_one_argument, check_two_arguments, get_array_map, get_field, get_u32, get_u64,
+        check_one_argument, check_two_arguments, get_array_map, get_field, get_slice_map, get_u32,
+        get_u64, get_u8,
     },
     Interpreter,
 };
@@ -32,17 +33,20 @@ impl<'local, 'context> Interpreter<'local, 'context> {
 
 fn call_foreign(
     interner: &mut NodeInterner,
-    _bigint_solver: &mut BigintSolverWithId,
+    bigint_solver: &mut BigintSolverWithId,
     name: &str,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     match name {
+        "bigint_from_le_bytes" => {
+            bigint_from_le_bytes(interner, bigint_solver, arguments, location)
+        }
         "poseidon2_permutation" => poseidon2_permutation(interner, arguments, location),
         "keccakf1600" => keccakf1600(interner, arguments, location),
         "range" => apply_range_constraint(arguments, location),
         _ => {
-            let item = format!("Comptime evaluation for foreign function {name}");
+            let item = format!("Comptime evaluation for foreign function '{name}'");
             Err(InterpreterError::Unimplemented { item, location })
         }
     }
@@ -65,6 +69,27 @@ fn apply_range_constraint(arguments: Vec<(Value, Location)>, location: Location)
             location,
         ))
     }
+}
+
+/// `fn from_le_bytes(bytes: [u8], modulus: [u8]) -> BigInt {}`
+///
+/// Returns the ID of the new bigint allocated by the solver.
+fn bigint_from_le_bytes(
+    interner: &mut NodeInterner,
+    solver: &mut BigintSolverWithId,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (bytes, modulus) = check_two_arguments(arguments, location)?;
+
+    let (bytes, _) = get_slice_map(interner, bytes, get_u8)?;
+    let (modulus, _) = get_slice_map(interner, modulus, get_u8)?;
+
+    let id = solver
+        .bigint_from_bytes(&bytes, &modulus)
+        .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
+
+    Ok(Value::U32(id))
 }
 
 // poseidon2_permutation<let N: u32>(_input: [Field; N], _state_length: u32) -> [Field; N]
