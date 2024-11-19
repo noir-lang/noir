@@ -3144,6 +3144,7 @@ dependencies = [
  "noirc_errors",
  "noirc_frontend",
  "num-bigint",
+ "num-traits",
  "proptest",
  "rayon",
  "serde",
