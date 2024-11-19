@@ -9,7 +9,7 @@ use crate::brillig::brillig_ir::{
 };
 use crate::ssa::ir::dfg::CallStack;
 use crate::ssa::ir::instruction::ConstrainError;
-use crate::ssa::ir::value::{RawValueId, Resolution};
+use crate::ssa::ir::value::{FinalValueId, RawValueId, Resolution};
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
     dfg::DataFlowGraph,
@@ -31,24 +31,23 @@ use super::brillig_black_box::convert_black_box_call;
 use super::brillig_block_variables::BlockVariables;
 use super::brillig_fn::FunctionContext;
 use super::constant_allocation::InstructionLocation;
-use super::FinalValueId;
 
 /// Generate the compilation artifacts for compiling a function into brillig bytecode.
-pub(super) struct BrilligBlock<'block> {
-    pub(super) function_context: &'block mut FunctionContext,
+pub(crate) struct BrilligBlock<'block> {
+    pub(crate) function_context: &'block mut FunctionContext,
     /// The basic block that is being converted
-    pub(super) block_id: BasicBlockId,
+    pub(crate) block_id: BasicBlockId,
     /// Context for creating brillig opcodes
-    pub(super) brillig_context: &'block mut BrilligContext<FieldElement, Stack>,
+    pub(crate) brillig_context: &'block mut BrilligContext<FieldElement, Stack>,
     /// Tracks the available variable during the codegen of the block
-    pub(super) variables: BlockVariables,
+    pub(crate) variables: BlockVariables,
     /// For each instruction, the set of values that are not used anymore after it.
-    pub(super) last_uses: HashMap<InstructionId, HashSet<FinalValueId>>,
+    pub(crate) last_uses: HashMap<InstructionId, HashSet<FinalValueId>>,
 }
 
 impl<'block> BrilligBlock<'block> {
     /// Converts an SSA Basic block into a sequence of Brillig opcodes
-    pub(super) fn compile(
+    pub(crate) fn compile(
         function_context: &'block mut FunctionContext,
         brillig_context: &'block mut BrilligContext<FieldElement, Stack>,
         block_id: BasicBlockId,
@@ -151,7 +150,7 @@ impl<'block> BrilligBlock<'block> {
                 let target_block = &dfg[*destination_block];
                 for (src, dest) in arguments.iter().zip(target_block.parameters()) {
                     // Destinations are block parameters so they should have been allocated previously.
-                    let dest = dfg.resolve(*dest).into();
+                    let dest = dfg.resolve(*dest).detach();
                     let destination = self.variables.get_allocation(self.function_context, dest);
                     let source = self.convert_ssa_value(*src, dfg);
                     self.brillig_context
@@ -763,7 +762,7 @@ impl<'block> BrilligBlock<'block> {
             }
             Instruction::MakeArray { elements: array, typ } => {
                 let value_id = dfg.instruction_results(instruction_id)[0];
-                if !self.variables.is_allocated(dfg.resolve(value_id).into()) {
+                if !self.variables.is_allocated(dfg.resolve(value_id).detach()) {
                     let new_variable = self.variables.define_variable(
                         self.function_context,
                         self.brillig_context,
@@ -1511,7 +1510,7 @@ impl<'block> BrilligBlock<'block> {
         value_id: ValueId<R>,
         dfg: &DataFlowGraph,
     ) -> BrilligVariable {
-        let value_id = dfg.resolve(value_id).into();
+        let value_id = dfg.resolve(value_id).detach();
         let value = &dfg[value_id];
 
         match value {
@@ -1849,7 +1848,7 @@ impl<'block> BrilligBlock<'block> {
 }
 
 /// Returns the type of the operation considering the types of the operands
-pub(super) fn type_of_binary_operation(lhs_type: &Type, rhs_type: &Type, op: BinaryOp) -> Type {
+pub(crate) fn type_of_binary_operation(lhs_type: &Type, rhs_type: &Type, op: BinaryOp) -> Type {
     match (lhs_type, rhs_type) {
         (_, Type::Function) | (Type::Function, _) => {
             unreachable!("Functions are invalid in binary operations")

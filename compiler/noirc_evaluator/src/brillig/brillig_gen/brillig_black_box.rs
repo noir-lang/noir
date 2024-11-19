@@ -14,7 +14,7 @@ use crate::brillig::brillig_ir::{
 /// Transforms SSA's black box function calls into the corresponding brillig instructions
 /// Extracting arguments and results from the SSA function call
 /// And making any necessary type conversions to adapt noir's blackbox calls to brillig's
-pub(super) fn convert_black_box_call<F: AcirField + DebugToString, Registers: RegisterAllocator>(
+pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: RegisterAllocator>(
     brillig_context: &mut BrilligContext<F, Registers>,
     bb_func: &BlackBoxFunc,
     function_arguments: &[BrilligVariable],

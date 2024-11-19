@@ -9,12 +9,12 @@ use crate::ssa::ir::{
     function::Function,
     instruction::{Instruction, InstructionId},
     post_order::PostOrder,
-    value::{Value, ValueId},
+    value::{FinalValueId, Value, ValueId},
 };
 
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
-use super::{constant_allocation::ConstantAllocation, FinalValueId};
+use super::constant_allocation::ConstantAllocation;
 
 /// A back edge is an edge from a node to one of its ancestors. It denotes a loop in the CFG.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -45,11 +45,11 @@ fn find_back_edges(
 }
 
 /// Collects the underlying variables inside a value id. It might be more than one, for example in constant arrays that are constructed with multiple vars.
-pub(super) fn collect_variables_of_value(
+pub(crate) fn collect_variables_of_value(
     value_id: ValueId,
     dfg: &DataFlowGraph,
 ) -> Option<FinalValueId> {
-    let value_id = dfg.resolve(value_id).into();
+    let value_id = dfg.resolve(value_id).detach();
     let value = &dfg[value_id];
 
     match value {
@@ -61,7 +61,7 @@ pub(super) fn collect_variables_of_value(
     }
 }
 
-pub(super) fn variables_used_in_instruction(
+pub(crate) fn variables_used_in_instruction(
     instruction: &Instruction,
     dfg: &DataFlowGraph,
 ) -> Variables {
@@ -113,7 +113,7 @@ fn compute_used_before_def(
 type LastUses = HashMap<InstructionId, Variables>;
 
 /// A struct representing the liveness of variables throughout a function.
-pub(super) struct VariableLiveness {
+pub(crate) struct VariableLiveness {
     cfg: ControlFlowGraph,
     post_order: PostOrder,
     dominator_tree: DominatorTree,
@@ -127,7 +127,7 @@ pub(super) struct VariableLiveness {
 
 impl VariableLiveness {
     /// Computes the liveness of variables throughout a function.
-    pub(super) fn from_function(func: &Function, constants: &ConstantAllocation) -> Self {
+    pub(crate) fn from_function(func: &Function, constants: &ConstantAllocation) -> Self {
         let cfg = ControlFlowGraph::with_function(func);
         let post_order = PostOrder::with_function(func);
         let dominator_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
@@ -151,12 +151,12 @@ impl VariableLiveness {
     }
 
     /// The set of values that are alive before the block starts executing
-    pub(super) fn get_live_in(&self, block_id: &BasicBlockId) -> &Variables {
+    pub(crate) fn get_live_in(&self, block_id: &BasicBlockId) -> &Variables {
         self.live_in.get(block_id).expect("Live ins should have been calculated")
     }
 
     /// The set of values that are alive after the block has finished executed
-    pub(super) fn get_live_out(&self, block_id: &BasicBlockId) -> Variables {
+    pub(crate) fn get_live_out(&self, block_id: &BasicBlockId) -> Variables {
         let mut live_out = HashSet::default();
         for successor_id in self.cfg.successors(*block_id) {
             live_out.extend(self.get_live_in(&successor_id));
@@ -165,14 +165,14 @@ impl VariableLiveness {
     }
 
     /// A map of instruction id to the set of values that die after the instruction has executed
-    pub(super) fn get_last_uses(&self, block_id: &BasicBlockId) -> &LastUses {
+    pub(crate) fn get_last_uses(&self, block_id: &BasicBlockId) -> &LastUses {
         self.last_uses.get(block_id).expect("Last uses should have been calculated")
     }
 
     /// Retrieves the list of block params the given block is defining.
     /// Block params are defined before the block that owns them (since they are used by the predecessor blocks). They must be defined in the immediate dominator.
     /// This is the last point where the block param can be allocated without it being allocated in different places in different branches.
-    pub(super) fn defined_block_params(&self, block_id: &BasicBlockId) -> Vec<ValueId> {
+    pub(crate) fn defined_block_params(&self, block_id: &BasicBlockId) -> Vec<ValueId> {
         self.param_definitions.get(block_id).cloned().unwrap_or_default()
     }
 
@@ -244,13 +244,13 @@ impl VariableLiveness {
         let mut defined_vars = HashSet::default();
 
         for parameter in self.defined_block_params(&block_id) {
-            defined_vars.insert(dfg.resolve(parameter).into());
+            defined_vars.insert(dfg.resolve(parameter).detach());
         }
 
         for instruction_id in block.instructions() {
             let result_values = dfg.instruction_results(*instruction_id);
             for result_value in result_values {
-                defined_vars.insert(dfg.resolve(*result_value).into());
+                defined_vars.insert(dfg.resolve(*result_value).detach());
             }
         }
 

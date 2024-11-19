@@ -4,22 +4,25 @@
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::ir::{
-    basic_block::BasicBlockId, cfg::ControlFlowGraph, dfg::DataFlowGraph, dom::DominatorTree,
-    function::Function, instruction::InstructionId, post_order::PostOrder, value::Value,
+    basic_block::BasicBlockId,
+    cfg::ControlFlowGraph,
+    dfg::DataFlowGraph,
+    dom::DominatorTree,
+    function::Function,
+    instruction::InstructionId,
+    post_order::PostOrder,
+    value::{FinalValueId, Value},
 };
 
-use super::{
-    variable_liveness::{collect_variables_of_value, variables_used_in_instruction},
-    FinalValueId,
-};
+use super::variable_liveness::{collect_variables_of_value, variables_used_in_instruction};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(super) enum InstructionLocation {
+pub(crate) enum InstructionLocation {
     Instruction(InstructionId),
     Terminator,
 }
 
-pub(super) struct ConstantAllocation {
+pub(crate) struct ConstantAllocation {
     constant_usage: HashMap<FinalValueId, HashMap<BasicBlockId, Vec<InstructionLocation>>>,
     allocation_points: HashMap<BasicBlockId, HashMap<InstructionLocation, Vec<FinalValueId>>>,
     dominator_tree: DominatorTree,
@@ -27,7 +30,7 @@ pub(super) struct ConstantAllocation {
 }
 
 impl ConstantAllocation {
-    pub(super) fn from_function(func: &Function) -> Self {
+    pub(crate) fn from_function(func: &Function) -> Self {
         let cfg = ControlFlowGraph::with_function(func);
         let post_order = PostOrder::with_function(func);
         let mut dominator_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
@@ -44,13 +47,13 @@ impl ConstantAllocation {
         instance
     }
 
-    pub(super) fn allocated_in_block(&self, block_id: BasicBlockId) -> Vec<FinalValueId> {
+    pub(crate) fn allocated_in_block(&self, block_id: BasicBlockId) -> Vec<FinalValueId> {
         self.allocation_points.get(&block_id).map_or(Vec::default(), |allocations| {
             allocations.iter().flat_map(|(_, constants)| constants.iter()).copied().collect()
         })
     }
 
-    pub(super) fn allocated_at_location(
+    pub(crate) fn allocated_at_location(
         &self,
         block_id: BasicBlockId,
         location: InstructionLocation,
@@ -161,7 +164,7 @@ impl ConstantAllocation {
     }
 }
 
-pub(super) fn is_constant_value(id: FinalValueId, dfg: &DataFlowGraph) -> bool {
+pub(crate) fn is_constant_value(id: FinalValueId, dfg: &DataFlowGraph) -> bool {
     matches!(&dfg[id], Value::NumericConstant { .. })
 }
 

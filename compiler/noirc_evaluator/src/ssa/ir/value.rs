@@ -17,18 +17,15 @@ pub(crate) enum Unresolved {}
 
 /// Marker for resolved status.
 ///
-/// Doesn't implement `Hash` so it can't be stored in maps.
-/// It has a lifetime so it's not easy to store it in data structures,
-/// where it could become stale. Instead we can implement module specific
-/// variants when we can prove that persisting them is safe because the
-/// IDs are not going to be changed between use.
-///
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize /* PartialOrd, Ord, Hash */)]
+/// It has a lifetime so it's not easy to store it in data structures forever,
+/// where it could become stale.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, PartialOrd, Ord, Hash)]
 pub(crate) struct Resolved<'a> {
     _marker: PhantomData<&'a ()>,
 }
 
 pub(crate) type ResolvedValueId<'a> = ValueId<Resolved<'a>>;
+pub(crate) type FinalValueId = ValueId<Resolved<'static>>;
 
 pub(crate) trait IsResolved {}
 
@@ -94,6 +91,10 @@ impl ValueId<Unresolved> {
 
 impl<'a> ValueId<Resolved<'a>> {
     /// Change the lifetime of a resolution.
+    ///
+    /// This is typically used to detach the lifetime of a resolved value ID
+    /// from the `DataFlowGraph` which was used to resolve it, so that it
+    /// can live in a different context.
     pub(crate) fn detach<'b>(self) -> ValueId<Resolved<'b>> {
         ValueId::new(self.id)
     }

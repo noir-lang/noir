@@ -66,7 +66,6 @@ mod block;
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use block::ContextResolved;
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::{
@@ -78,7 +77,7 @@ use crate::ssa::{
         instruction::{Instruction, InstructionId, TerminatorInstruction},
         post_order::PostOrder,
         types::Type,
-        value::{RawValueId, ValueId},
+        value::{RawValueId, ResolvedValueId, ValueId},
     },
     ssa_gen::Ssa,
 };
@@ -111,7 +110,7 @@ struct PerFunctionContext<'f> {
     cfg: ControlFlowGraph,
     post_order: PostOrder,
 
-    blocks: BTreeMap<BasicBlockId, Block>,
+    blocks: BTreeMap<BasicBlockId, Block<'f>>,
 
     inserter: FunctionInserter<'f>,
 
@@ -270,7 +269,7 @@ impl<'f> PerFunctionContext<'f> {
 
     /// The value of each reference at the start of the given block is the unification
     /// of the value of the same reference at the end of its predecessor blocks.
-    fn find_starting_references(&mut self, block: BasicBlockId) -> Block {
+    fn find_starting_references(&mut self, block: BasicBlockId) -> Block<'f> {
         let mut predecessors = self.cfg.predecessors(block);
 
         if let Some(first_predecessor) = predecessors.next() {
@@ -294,7 +293,7 @@ impl<'f> PerFunctionContext<'f> {
     /// This will remove any known loads in the block and track the value of references
     /// as they are stored to. When this function is finished, the value of each reference
     /// at the end of this block will be remembered in `self.blocks`.
-    fn analyze_block(&mut self, block: BasicBlockId, mut references: Block) {
+    fn analyze_block(&mut self, block: BasicBlockId, mut references: Block<'f>) {
         let instructions = self.inserter.function.dfg[block].take_instructions();
 
         // If this is the entry block, take all the block parameters and assume they may
@@ -383,7 +382,7 @@ impl<'f> PerFunctionContext<'f> {
     fn analyze_instruction(
         &mut self,
         block_id: BasicBlockId,
-        references: &mut Block,
+        references: &mut Block<'f>,
         mut instruction: InstructionId,
     ) {
         // If the instruction was simplified and optimized out of the program we shouldn't analyze
@@ -397,7 +396,7 @@ impl<'f> PerFunctionContext<'f> {
 
         match &self.inserter.function.dfg[instruction] {
             Instruction::Load { address } => {
-                let address = ValueId::from(self.inserter.function.dfg.resolve(*address));
+                let address = self.inserter.function.dfg.resolve(*address).detach();
 
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
                 references.remember_dereference(self.inserter.function, address, result);
@@ -414,8 +413,8 @@ impl<'f> PerFunctionContext<'f> {
                 }
             }
             Instruction::Store { address, value } => {
-                let address = self.inserter.function.dfg.resolve(*address).into();
-                let value = self.inserter.function.dfg.resolve(*value).into();
+                let address = self.inserter.function.dfg.resolve(*address).detach();
+                let value = self.inserter.function.dfg.resolve(*value).detach();
 
                 // FIXME: This causes errors in the sha256 tests
                 //
@@ -449,7 +448,7 @@ impl<'f> PerFunctionContext<'f> {
                 references.aliases.insert(expr, AliasSet::known(result));
             }
             Instruction::ArrayGet { array, .. } => {
-                let array = self.inserter.function.dfg.resolve(*array).into();
+                let array = self.inserter.function.dfg.resolve(*array).detach();
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
                 references.mark_value_used(array, self.inserter.function);
 
@@ -461,7 +460,7 @@ impl<'f> PerFunctionContext<'f> {
                 }
             }
             Instruction::ArraySet { array, value, .. } => {
-                let array = self.inserter.function.dfg.resolve(*array).into();
+                let array = self.inserter.function.dfg.resolve(*array).detach();
                 references.mark_value_used(array, self.inserter.function);
                 let element_type = self.inserter.function.dfg.type_of_value(*value);
 
@@ -508,7 +507,7 @@ impl<'f> PerFunctionContext<'f> {
                 // as a potential alias to the array itself.
                 if Self::contains_references(typ) {
                     let array = self.inserter.function.dfg.instruction_results(instruction)[0];
-                    let array = self.inserter.function.dfg.resolve(array).into();
+                    let array = self.inserter.function.dfg.resolve(array).detach();
 
                     let expr = Expression::ArrayElement(Box::new(Expression::Other(array)));
                     references.expressions.insert(array.raw(), expr.clone());
@@ -536,8 +535,8 @@ impl<'f> PerFunctionContext<'f> {
 
     fn set_aliases(
         &self,
-        references: &mut Block,
-        address: ValueId<ContextResolved>,
+        references: &mut Block<'f>,
+        address: ResolvedValueId<'f>,
         new_aliases: AliasSet,
     ) {
         let expression =
@@ -549,7 +548,7 @@ impl<'f> PerFunctionContext<'f> {
     fn mark_all_unknown(&self, values: &[ValueId], references: &mut Block) {
         for value in values {
             if self.inserter.function.dfg.value_is_reference(*value) {
-                let value = self.inserter.function.dfg.resolve(*value).into();
+                let value = self.inserter.function.dfg.resolve(*value).detach();
                 references.set_unknown(value);
                 references.mark_value_used(value, self.inserter.function);
             }

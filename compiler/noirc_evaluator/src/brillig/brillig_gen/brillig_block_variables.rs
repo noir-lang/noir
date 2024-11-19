@@ -13,14 +13,14 @@ use crate::{
     ssa::ir::{
         dfg::DataFlowGraph,
         types::{CompositeType, Type},
-        value::ValueId,
+        value::{FinalValueId, ValueId},
     },
 };
 
-use super::{brillig_fn::FunctionContext, FinalValueId};
+use super::brillig_fn::FunctionContext;
 
 #[derive(Debug, Default)]
-pub(super) struct BlockVariables {
+pub(crate) struct BlockVariables {
     // Since we're generating Brillig bytecode here, there shouldn't be any more value ID replacements
     // and we can use the final resolved ID.
     available_variables: HashSet<FinalValueId>,
@@ -28,12 +28,12 @@ pub(super) struct BlockVariables {
 
 impl BlockVariables {
     /// Creates a BlockVariables instance. It uses the variables that are live in to the block and the global available variables (block parameters)
-    pub(super) fn new(live_in: HashSet<FinalValueId>) -> Self {
+    pub(crate) fn new(live_in: HashSet<FinalValueId>) -> Self {
         BlockVariables { available_variables: live_in }
     }
 
     /// Returns all variables that have not been removed at this point.
-    pub(super) fn get_available_variables(
+    pub(crate) fn get_available_variables(
         &self,
         function_context: &FunctionContext,
     ) -> Vec<BrilligVariable> {
@@ -50,14 +50,14 @@ impl BlockVariables {
     }
 
     /// For a given SSA value id, define the variable and return the corresponding cached allocation.
-    pub(super) fn define_variable(
+    pub(crate) fn define_variable(
         &mut self,
         function_context: &mut FunctionContext,
         brillig_context: &mut BrilligContext<FieldElement, Stack>,
         value_id: ValueId,
         dfg: &DataFlowGraph,
     ) -> BrilligVariable {
-        let value_id = dfg.resolve(value_id).into();
+        let value_id = dfg.resolve(value_id).detach();
         let variable = allocate_value(value_id, brillig_context, dfg);
 
         if function_context.ssa_value_allocations.insert(value_id, variable).is_some() {
@@ -70,7 +70,7 @@ impl BlockVariables {
     }
 
     /// Defines a variable that fits in a single register and returns the allocated register.
-    pub(super) fn define_single_addr_variable(
+    pub(crate) fn define_single_addr_variable(
         &mut self,
         function_context: &mut FunctionContext,
         brillig_context: &mut BrilligContext<FieldElement, Stack>,
@@ -82,7 +82,7 @@ impl BlockVariables {
     }
 
     /// Removes a variable so it's not used anymore within this block.
-    pub(super) fn remove_variable(
+    pub(crate) fn remove_variable(
         &mut self,
         value_id: FinalValueId,
         function_context: &mut FunctionContext,
@@ -97,12 +97,12 @@ impl BlockVariables {
     }
 
     /// Checks if a variable is allocated.
-    pub(super) fn is_allocated(&self, value_id: FinalValueId) -> bool {
+    pub(crate) fn is_allocated(&self, value_id: FinalValueId) -> bool {
         self.available_variables.contains(&value_id)
     }
 
     /// For a given SSA value id, return the corresponding cached allocation.
-    pub(super) fn get_allocation(
+    pub(crate) fn get_allocation(
         &mut self,
         function_context: &FunctionContext,
         value_id: FinalValueId,
@@ -120,12 +120,12 @@ impl BlockVariables {
 }
 
 /// Computes the length of an array. This will match with the indexes that SSA will issue
-pub(super) fn compute_array_length(item_typ: &CompositeType, elem_count: usize) -> usize {
+pub(crate) fn compute_array_length(item_typ: &CompositeType, elem_count: usize) -> usize {
     item_typ.len() * elem_count
 }
 
 /// For a given value_id, allocates the necessary registers to hold it.
-pub(super) fn allocate_value<F, Registers: RegisterAllocator>(
+pub(crate) fn allocate_value<F, Registers: RegisterAllocator>(
     value_id: FinalValueId,
     brillig_context: &mut BrilligContext<F, Registers>,
     dfg: &DataFlowGraph,
