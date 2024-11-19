@@ -6,14 +6,10 @@ use acvm::acir::{
     circuit::{
         brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
         opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
-        AssertionPayload, BrilligOpcodeLocation, OpcodeLocation,
+        AssertionPayload, BrilligOpcodeLocation, ErrorSelector, OpcodeLocation,
     },
-    native_types::Witness,
-    BlackBoxFunc,
-};
-use acvm::{
-    acir::AcirField,
-    acir::{circuit::directives::Directive, native_types::Expression},
+    native_types::{Expression, Witness},
+    AcirField, BlackBoxFunc,
 };
 
 use super::brillig_directive;
@@ -21,6 +17,7 @@ use crate::{
     brillig::brillig_ir::artifact::GeneratedBrillig,
     errors::{InternalError, RuntimeError, SsaReport},
     ssa::ir::dfg::CallStack,
+    ErrorType,
 };
 
 use iter_extended::vecmap;
@@ -66,6 +63,9 @@ pub(crate) struct GeneratedAcir<F: AcirField> {
     /// Correspondence between an opcode index and the error message associated with it.
     pub(crate) assertion_payloads: BTreeMap<OpcodeLocation, AssertionPayload<F>>,
 
+    /// Correspondence between error selectors and types associated with them.
+    pub(crate) error_types: BTreeMap<ErrorSelector, ErrorType>,
+
     pub(crate) warnings: Vec<SsaReport>,
 
     /// Name for the corresponding entry point represented by this Acir-gen output.
@@ -94,6 +94,7 @@ pub(crate) type BrilligProcedureRangeMap = BTreeMap<ProcedureDebugId, (usize, us
 pub(crate) enum BrilligStdlibFunc {
     Inverse,
     Quotient,
+    ToLeBytes,
 }
 
 impl BrilligStdlibFunc {
@@ -101,6 +102,7 @@ impl BrilligStdlibFunc {
         match self {
             BrilligStdlibFunc::Inverse => brillig_directive::directive_invert(),
             BrilligStdlibFunc::Quotient => brillig_directive::directive_quotient(),
+            BrilligStdlibFunc::ToLeBytes => brillig_directive::directive_to_radix(),
         }
     }
 }
@@ -379,12 +381,7 @@ impl<F: AcirField> GeneratedAcir<F> {
             "ICE: Radix must be a power of 2"
         );
 
-        let limb_witnesses = vecmap(0..limb_count, |_| self.next_witness_index());
-        self.push_opcode(AcirOpcode::Directive(Directive::ToLeRadix {
-            a: input_expr.clone(),
-            b: limb_witnesses.clone(),
-            radix,
-        }));
+        let limb_witnesses = self.brillig_to_radix(input_expr, radix, limb_count);
 
         let mut composed_limbs = Expression::default();
 
@@ -403,6 +400,54 @@ impl<F: AcirField> GeneratedAcir<F> {
         self.assert_is_zero(input_expr - &composed_limbs);
 
         Ok(limb_witnesses)
+    }
+
+    /// Adds brillig opcode for to_radix
+    ///
+    /// This code will decompose `expr` in a radix-base
+    /// and return  `Witnesses` which may (or not, because it does not apply constraints)
+    /// be limbs resulting from the decomposition.
+    ///
+    /// Safety: It is the callers responsibility to ensure that the
+    /// resulting `Witnesses` are properly constrained.
+    pub(crate) fn brillig_to_radix(
+        &mut self,
+        expr: &Expression<F>,
+        radix: u32,
+        limb_count: u32,
+    ) -> Vec<Witness> {
+        // Create the witness for the result
+        let limb_witnesses = vecmap(0..limb_count, |_| self.next_witness_index());
+
+        // Get the decomposition brillig code
+        let le_bytes_code = brillig_directive::directive_to_radix();
+        // Prepare the inputs/outputs
+        let limbs_nb = Expression {
+            mul_terms: Vec::new(),
+            linear_combinations: Vec::new(),
+            q_c: F::from(limb_count as u128),
+        };
+        let radix_expr = Expression {
+            mul_terms: Vec::new(),
+            linear_combinations: Vec::new(),
+            q_c: F::from(radix as u128),
+        };
+        let inputs = vec![
+            BrilligInputs::Single(expr.clone()),
+            BrilligInputs::Single(limbs_nb),
+            BrilligInputs::Single(radix_expr),
+        ];
+        let outputs = vec![BrilligOutputs::Array(limb_witnesses.clone())];
+
+        self.brillig_call(
+            None,
+            &le_bytes_code,
+            inputs,
+            outputs,
+            PLACEHOLDER_BRILLIG_INDEX,
+            Some(BrilligStdlibFunc::ToLeBytes),
+        );
+        limb_witnesses
     }
 
     /// Adds an inversion brillig opcode.
@@ -587,15 +632,8 @@ impl<F: AcirField> GeneratedAcir<F> {
             return;
         }
 
-        // TODO(https://github.com/noir-lang/noir/issues/5792)
-        for (brillig_index, message) in generated_brillig.assert_messages.iter() {
-            self.assertion_payloads.insert(
-                OpcodeLocation::Brillig {
-                    acir_index: self.opcodes.len() - 1,
-                    brillig_index: *brillig_index,
-                },
-                AssertionPayload::StaticString(message.clone()),
-            );
+        for (error_selector, error_type) in generated_brillig.error_types.iter() {
+            self.record_error_type(*error_selector, error_type.clone());
         }
 
         if inserted_func_before {
@@ -637,6 +675,20 @@ impl<F: AcirField> GeneratedAcir<F> {
 
     pub(crate) fn last_acir_opcode_location(&self) -> OpcodeLocation {
         OpcodeLocation::Acir(self.opcodes.len() - 1)
+    }
+
+    pub(crate) fn record_error_type(&mut self, selector: ErrorSelector, typ: ErrorType) {
+        self.error_types.insert(selector, typ);
+    }
+
+    pub(crate) fn generate_assertion_message_payload(
+        &mut self,
+        message: String,
+    ) -> AssertionPayload<F> {
+        let error_type = ErrorType::String(message);
+        let error_selector = error_type.selector();
+        self.record_error_type(error_selector, error_type);
+        AssertionPayload { error_selector: error_selector.as_u64(), payload: Vec::new() }
     }
 }
 

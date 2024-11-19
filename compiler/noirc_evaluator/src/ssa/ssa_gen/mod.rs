@@ -21,7 +21,7 @@ use self::{
     value::{Tree, Values},
 };
 
-use super::ir::instruction::error_selector_from_type;
+use super::ir::instruction::ErrorType;
 use super::{
     function_builder::data_bus::DataBus,
     ir::{
@@ -707,24 +707,23 @@ impl<'a> FunctionContext<'a> {
         assert_message: &Option<Box<(Expression, HirType)>>,
     ) -> Result<Option<ConstrainError>, RuntimeError> {
         let Some(assert_message_payload) = assert_message else { return Ok(None) };
-
-        if let Expression::Literal(ast::Literal::Str(static_string)) = &assert_message_payload.0 {
-            return Ok(Some(ConstrainError::StaticString(static_string.clone())));
-        }
-
         let (assert_message_expression, assert_message_typ) = assert_message_payload.as_ref();
 
-        let values = self.codegen_expression(assert_message_expression)?.into_value_list(self);
-
-        let error_type_id = error_selector_from_type(assert_message_typ);
-        // Do not record string errors in the ABI
-        match assert_message_typ {
-            HirType::String(_) => {}
-            _ => {
-                self.builder.record_error_type(error_type_id, assert_message_typ.clone());
+        if let Expression::Literal(ast::Literal::Str(static_string)) = assert_message_expression {
+            Ok(Some(ConstrainError::StaticString(static_string.clone())))
+        } else {
+            let error_type = ErrorType::Dynamic(assert_message_typ.clone());
+            let selector = error_type.selector();
+            let values = self.codegen_expression(assert_message_expression)?.into_value_list(self);
+            let is_string_type = matches!(assert_message_typ, HirType::String(_));
+            // Record custom types in the builder, outside of SSA instructions
+            // This is made to avoid having Hir types in the SSA code.
+            if !is_string_type {
+                self.builder.record_error_type(selector, assert_message_typ.clone());
             }
-        };
-        Ok(Some(ConstrainError::Dynamic(error_type_id, values)))
+
+            Ok(Some(ConstrainError::Dynamic(selector, is_string_type, values)))
+        }
     }
 
     fn codegen_assign(&mut self, assign: &ast::Assign) -> Result<Values, RuntimeError> {

@@ -36,7 +36,7 @@ As you've read in the [explainer](../explainers/explainer-recursion.md), a recur
 
 In a standard recursive app, you're also dealing with at least two circuits. For the purpose of this guide, we will assume the following:
 
-- `main`: a circuit of type `assert(x != y)`, where `main` is marked with a `#[recursive]` attribute. This attribute states that the backend should generate proofs that are friendly for verification within another circuit.
+- `main`: a circuit of type `assert(x != y)`, which we want to embed in another circuit recursively. For example when proving with the `bb` tool, we can use the `--recursive` CLI option to tell the backend that it should generate proofs that are friendly for verification within another circuit.
 - `recursive`: a circuit that verifies `main`
 
 For a full example of how recursive proofs work, please refer to the [noir-examples](https://github.com/noir-lang/noir-examples) repository. We will *not* be using it as a reference for this guide.
@@ -50,7 +50,7 @@ For recursion, this doesn't happen, and the only need for `noir_js` is only to `
 It is also recommended that you instantiate the backend with as many threads as possible, to allow for maximum concurrency:
 
 ```js
-const backend = new Backend(circuit, { threads: 8 })
+const backend = new UltraPlonkBackend(circuit, { threads: 8 }, { recursive: true })
 ```
 
 :::tip

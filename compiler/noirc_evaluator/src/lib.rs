@@ -10,6 +10,7 @@ pub mod brillig;
 pub mod ssa;
 
 pub use ssa::create_program;
+pub use ssa::ir::instruction::ErrorType;
 
 /// Trims leading whitespace from each line of the input string, according to
 /// how much leading whitespace there is on the first non-empty line.

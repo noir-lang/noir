@@ -10,24 +10,6 @@ Noir supports recursively verifying proofs, meaning you verify the proof of a No
 
 Read [the explainer on recursion](../../explainers/explainer-recursion.md) to know more about this function and the [guide on how to use it.](../../how_to/how-to-recursion.md)
 
-## The `#[recursive]` Attribute
-
-In Noir, the `#[recursive]` attribute is used to indicate that a circuit is designed for recursive proof generation. When applied, it informs the compiler and the tooling that the circuit should be compiled in a way that makes its proofs suitable for recursive verification. This attribute eliminates the need for manual flagging of recursion at the tooling level, streamlining the proof generation process for recursive circuits.
-
-### Example usage with `#[recursive]`
-
-```rust
-#[recursive]
-fn main(x: Field, y: pub Field) {
-    assert(x == y, "x and y are not equal");
-}
-
-// This marks the circuit as recursion-friendly and indicates that proofs generated from this circuit
-// are intended for recursive verification.
-```
-
-By incorporating this attribute directly in the circuit's definition, tooling like Nargo and NoirJS can automatically execute recursive-specific duties for Noir programs (e.g. recursive-friendly proof artifact generation) without additional flags or configurations.
-
 ## Verifying Recursive Proofs
 
 ```rust
