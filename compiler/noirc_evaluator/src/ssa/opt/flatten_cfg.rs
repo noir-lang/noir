@@ -1300,24 +1300,23 @@ mod test {
             v9 = add v7, Field 1
             v10 = cast v9 as u8
             v11 = load v6 -> u8
-            v12 = not v5
-            v13 = cast v4 as Field
-            v14 = cast v11 as Field
-            v15 = sub v9, v14
-            v16 = mul v13, v15
-            v17 = add v14, v16
-            v18 = cast v17 as u8
-            store v18 at v6
-            v19 = not v5
-            enable_side_effects v19
-            v20 = load v6 -> u8
+            v12 = cast v4 as Field
+            v13 = cast v11 as Field
+            v14 = sub v9, v13
+            v15 = mul v12, v14
+            v16 = add v13, v15
+            v17 = cast v16 as u8
+            store v17 at v6
+            v18 = not v5
+            enable_side_effects v18
+            v19 = load v6 -> u8
+            v20 = cast v18 as Field
             v21 = cast v19 as Field
-            v22 = cast v20 as Field
-            v24 = sub Field 0, v22
-            v25 = mul v21, v24
-            v26 = add v22, v25
-            v27 = cast v26 as u8
-            store v27 at v6
+            v23 = sub Field 0, v21
+            v24 = mul v20, v23
+            v25 = add v21, v24
+            v26 = cast v25 as u8
+            store v26 at v6
             enable_side_effects u1 1
             constrain v5 == u1 1
             return
