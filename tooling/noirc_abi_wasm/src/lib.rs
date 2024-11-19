@@ -157,5 +157,6 @@ pub fn abi_decode_error(
             <JsValue as JsValueSerdeExt>::from_serde(&json_types)
                 .map_err(|err| err.to_string().into())
         }
+        AbiErrorType::String { string } => Ok(JsValue::from_str(&string)),
     }
 }

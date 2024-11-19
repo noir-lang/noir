@@ -1,5 +1,5 @@
 use acir::{
-    circuit::{brillig::BrilligOutputs, directives::Directive, Circuit, ExpressionWidth, Opcode},
+    circuit::{brillig::BrilligOutputs, Circuit, ExpressionWidth, Opcode},
     native_types::{Expression, Witness},
     AcirField,
 };
@@ -101,17 +101,6 @@ pub(super) fn transform_internal<F: AcirField>(
                     transformer.mark_solvable(witness);
                 }
 
-                new_acir_opcode_positions.push(acir_opcode_positions[index]);
-                transformed_opcodes.push(opcode);
-            }
-            Opcode::Directive(ref directive) => {
-                match directive {
-                    Directive::ToLeRadix { b, .. } => {
-                        for witness in b {
-                            transformer.mark_solvable(*witness);
-                        }
-                    }
-                }
                 new_acir_opcode_positions.push(acir_opcode_positions[index]);
                 transformed_opcodes.push(opcode);
             }

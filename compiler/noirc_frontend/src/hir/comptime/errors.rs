@@ -3,7 +3,10 @@ use std::rc::Rc;
 
 use crate::{
     ast::TraitBound,
-    hir::{def_collector::dc_crate::CompilationError, type_check::NoMatchingImplFoundError},
+    hir::{
+        def_collector::dc_crate::CompilationError,
+        type_check::{NoMatchingImplFoundError, TypeCheckError},
+    },
     parser::ParserError,
     Type,
 };
@@ -87,6 +90,7 @@ pub enum InterpreterError {
     },
     NonIntegerArrayLength {
         typ: Type,
+        err: Option<Box<TypeCheckError>>,
         location: Location,
     },
     NonNumericCasted {
@@ -228,6 +232,7 @@ pub enum InterpreterError {
     },
     UnknownArrayLength {
         length: Type,
+        err: Box<TypeCheckError>,
         location: Location,
     },
 
@@ -435,9 +440,13 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let secondary = "This is likely a bug".into();
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
-            InterpreterError::NonIntegerArrayLength { typ, location } => {
+            InterpreterError::NonIntegerArrayLength { typ, err, location } => {
                 let msg = format!("Non-integer array length: `{typ}`");
-                let secondary = "Array lengths must be integers".into();
+                let secondary = if let Some(err) = err {
+                    format!("Array lengths must be integers, but evaluating `{typ}` resulted in `{err}`")
+                } else {
+                    "Array lengths must be integers".to_string()
+                };
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
             InterpreterError::NonNumericCasted { typ, location } => {
@@ -640,9 +649,10 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let msg = format!("`{expression}` is not a valid function body");
                 CustomDiagnostic::simple_error(msg, String::new(), location.span)
             }
-            InterpreterError::UnknownArrayLength { length, location } => {
+            InterpreterError::UnknownArrayLength { length, err, location } => {
                 let msg = format!("Could not determine array length `{length}`");
-                CustomDiagnostic::simple_error(msg, String::new(), location.span)
+                let secondary = format!("Evaluating the length failed with: `{err}`");
+                CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
         }
     }

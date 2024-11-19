@@ -237,13 +237,11 @@ pub enum InlineType {
 
 impl From<&Attributes> for InlineType {
     fn from(attributes: &Attributes) -> Self {
-        attributes.function.as_ref().map_or(InlineType::default(), |func_attribute| {
-            match func_attribute {
-                FunctionAttribute::Fold => InlineType::Fold,
-                FunctionAttribute::NoPredicates => InlineType::NoPredicates,
-                FunctionAttribute::InlineAlways => InlineType::InlineAlways,
-                _ => InlineType::default(),
-            }
+        attributes.function().map_or(InlineType::default(), |func_attribute| match func_attribute {
+            FunctionAttribute::Fold => InlineType::Fold,
+            FunctionAttribute::NoPredicates => InlineType::NoPredicates,
+            FunctionAttribute::InlineAlways => InlineType::InlineAlways,
+            _ => InlineType::default(),
         })
     }
 }
@@ -325,8 +323,6 @@ pub struct Program {
     pub main_function_signature: FunctionSignature,
     pub return_location: Option<Location>,
     pub return_visibility: Visibility,
-    /// Indicates to a backend whether a SNARK-friendly prover should be used.
-    pub recursive: bool,
     pub debug_variables: DebugVariables,
     pub debug_functions: DebugFunctions,
     pub debug_types: DebugTypes,
@@ -340,7 +336,6 @@ impl Program {
         main_function_signature: FunctionSignature,
         return_location: Option<Location>,
         return_visibility: Visibility,
-        recursive: bool,
         debug_variables: DebugVariables,
         debug_functions: DebugFunctions,
         debug_types: DebugTypes,
@@ -351,7 +346,6 @@ impl Program {
             main_function_signature,
             return_location,
             return_visibility,
-            recursive,
             debug_variables,
             debug_functions,
             debug_types,

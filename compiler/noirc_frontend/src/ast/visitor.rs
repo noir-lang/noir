@@ -16,7 +16,7 @@ use crate::{
         InternedUnresolvedTypeData, QuotedTypeId,
     },
     parser::{Item, ItemKind, ParsedSubModule},
-    token::{CustomAttribute, SecondaryAttribute, Tokens},
+    token::{MetaAttribute, SecondaryAttribute, Tokens},
     ParsedModule, QuotedType,
 };
 
@@ -474,7 +474,9 @@ pub trait Visitor {
         true
     }
 
-    fn visit_custom_attribute(&mut self, _: &CustomAttribute, _target: AttributeTarget) {}
+    fn visit_meta_attribute(&mut self, _: &MetaAttribute, _target: AttributeTarget) -> bool {
+        true
+    }
 }
 
 impl ParsedModule {
@@ -1245,7 +1247,9 @@ impl TypePath {
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
         self.typ.accept(visitor);
-        self.turbofish.accept(visitor);
+        if let Some(turbofish) = &self.turbofish {
+            turbofish.accept(visitor);
+        }
     }
 }
 
@@ -1439,15 +1443,22 @@ impl SecondaryAttribute {
     }
 
     pub fn accept_children(&self, target: AttributeTarget, visitor: &mut impl Visitor) {
-        if let SecondaryAttribute::Meta(custom) = self {
-            custom.accept(target, visitor);
+        if let SecondaryAttribute::Meta(meta_attribute) = self {
+            meta_attribute.accept(target, visitor);
         }
     }
 }
 
-impl CustomAttribute {
+impl MetaAttribute {
     pub fn accept(&self, target: AttributeTarget, visitor: &mut impl Visitor) {
-        visitor.visit_custom_attribute(self, target);
+        if visitor.visit_meta_attribute(self, target) {
+            self.accept_children(visitor);
+        }
+    }
+
+    pub fn accept_children(&self, visitor: &mut impl Visitor) {
+        self.name.accept(visitor);
+        visit_expressions(&self.arguments, visitor);
     }
 }
 

@@ -204,6 +204,17 @@ impl Type {
             Type::Slice(element_types) | Type::Array(element_types, _) => element_types[0].first(),
         }
     }
+
+    /// True if this is a reference type or if it is a composite type which contains a reference.
+    pub(crate) fn contains_reference(&self) -> bool {
+        match self {
+            Type::Reference(_) => true,
+            Type::Numeric(_) | Type::Function => false,
+            Type::Array(elements, _) | Type::Slice(elements) => {
+                elements.iter().any(|elem| elem.contains_reference())
+            }
+        }
+    }
 }
 
 /// Composite Types are essentially flattened struct or tuple types.
@@ -218,7 +229,11 @@ impl std::fmt::Display for Type {
             Type::Reference(element) => write!(f, "&mut {element}"),
             Type::Array(element, length) => {
                 let elements = vecmap(element.iter(), |element| element.to_string());
-                write!(f, "[{}; {length}]", elements.join(", "))
+                if elements.len() == 1 {
+                    write!(f, "[{}; {length}]", elements.join(", "))
+                } else {
+                    write!(f, "[({}); {length}]", elements.join(", "))
+                }
             }
             Type::Slice(element) => {
                 let elements = vecmap(element.iter(), |element| element.to_string());

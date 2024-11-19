@@ -2350,13 +2350,13 @@ fn main() {
     #[test]
     async fn test_suggests_built_in_function_attribute() {
         let src = r#"
-            #[dep>|<]
+            #[no_pred>|<]
             fn foo() {}
         "#;
 
         assert_completion_excluding_auto_import(
             src,
-            vec![simple_completion_item("deprecated", CompletionItemKind::METHOD, None)],
+            vec![simple_completion_item("no_predicates", CompletionItemKind::METHOD, None)],
         )
         .await;
     }

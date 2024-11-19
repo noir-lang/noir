@@ -382,9 +382,9 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
             formatter.format_type(type_path.typ);
             formatter.write_token(Token::DoubleColon);
             formatter.write_identifier(type_path.item);
-            if !type_path.turbofish.is_empty() {
+            if let Some(turbofish) = type_path.turbofish {
                 formatter.write_token(Token::DoubleColon);
-                formatter.format_generic_type_args(type_path.turbofish);
+                formatter.format_generic_type_args(turbofish);
             }
         }));
         group
@@ -1133,11 +1133,15 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
                 if count > 0 {
                     // If newlines follow, we first add a line, then add the comment chunk
                     group.lines(count > 1);
-                    group.leading_comment(self.skip_comments_and_whitespace_chunk());
+                    group.leading_comment(self.chunk(|formatter| {
+                        formatter.skip_comments_and_whitespace_writing_multiple_lines_if_found();
+                    }));
                     ignore_next = self.ignore_next;
                 } else {
                     // Otherwise, add the comment first as it's a trailing comment
-                    group.trailing_comment(self.skip_comments_and_whitespace_chunk());
+                    group.trailing_comment(self.chunk(|formatter| {
+                        formatter.skip_comments_and_whitespace_writing_multiple_lines_if_found();
+                    }));
                     ignore_next = self.ignore_next;
                     group.line();
                 }
@@ -1146,6 +1150,20 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
             self.format_statement(statement, group, ignore_next);
         }
 
+        // See how many newlines follow the last statement
+        let count = self.following_newlines_count();
+
+        group.text(self.chunk(|formatter| {
+            formatter.skip_whitespace();
+        }));
+
+        // After skipping whitespace we check if there's a comment. If so, we respect
+        // how many lines were before that comment.
+        if count > 0 && matches!(self.token, Token::LineComment(..) | Token::BlockComment(..)) {
+            group.lines(count > 1);
+        }
+
+        // Finally format the comment, if any
         group.text(self.chunk(|formatter| {
             formatter.skip_comments_and_whitespace();
         }));

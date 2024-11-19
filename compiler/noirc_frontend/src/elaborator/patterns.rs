@@ -9,7 +9,7 @@ use crate::{
     },
     hir::{
         def_collector::dc_crate::CompilationError,
-        resolution::{errors::ResolverError, import::PathResolutionItem},
+        resolution::errors::ResolverError,
         type_check::{Source, TypeCheckError},
     },
     hir_def::{
@@ -17,10 +17,10 @@ use crate::{
         stmt::HirPattern,
     },
     node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, TraitImplKind},
-    Kind, ResolvedGeneric, Shared, StructType, Type, TypeBindings,
+    Kind, Shared, StructType, Type, TypeAlias, TypeBindings,
 };
 
-use super::{Elaborator, ResolverMeta};
+use super::{path_resolution::PathResolutionItem, Elaborator, ResolverMeta};
 
 impl<'context> Elaborator<'context> {
     pub(super) fn elaborate_pattern(
@@ -413,19 +413,20 @@ impl<'context> Elaborator<'context> {
         unresolved_turbofish: Option<Vec<UnresolvedType>>,
         span: Span,
     ) -> Option<Vec<Type>> {
-        let direct_generics = self.interner.function_meta(func_id).direct_generics.clone();
+        let direct_generic_kinds =
+            vecmap(&self.interner.function_meta(func_id).direct_generics, |generic| generic.kind());
 
         unresolved_turbofish.map(|unresolved_turbofish| {
-            if unresolved_turbofish.len() != direct_generics.len() {
+            if unresolved_turbofish.len() != direct_generic_kinds.len() {
                 let type_check_err = TypeCheckError::IncorrectTurbofishGenericCount {
-                    expected_count: direct_generics.len(),
+                    expected_count: direct_generic_kinds.len(),
                     actual_count: unresolved_turbofish.len(),
                     span,
                 };
                 self.push_err(type_check_err);
             }
 
-            self.resolve_turbofish_generics(&direct_generics, unresolved_turbofish)
+            self.resolve_turbofish_generics(direct_generic_kinds, unresolved_turbofish)
         })
     }
 
@@ -436,13 +437,69 @@ impl<'context> Elaborator<'context> {
         unresolved_turbofish: Option<Vec<UnresolvedType>>,
         span: Span,
     ) -> Vec<Type> {
+        let kinds = vecmap(&struct_type.generics, |generic| generic.kind());
+        self.resolve_item_turbofish_generics(
+            "struct",
+            &struct_type.name.0.contents,
+            kinds,
+            generics,
+            unresolved_turbofish,
+            span,
+        )
+    }
+
+    pub(super) fn resolve_trait_turbofish_generics(
+        &mut self,
+        trait_name: &str,
+        trait_generic_kinds: Vec<Kind>,
+        generics: Vec<Type>,
+        unresolved_turbofish: Option<Vec<UnresolvedType>>,
+        span: Span,
+    ) -> Vec<Type> {
+        self.resolve_item_turbofish_generics(
+            "trait",
+            trait_name,
+            trait_generic_kinds,
+            generics,
+            unresolved_turbofish,
+            span,
+        )
+    }
+
+    pub(super) fn resolve_alias_turbofish_generics(
+        &mut self,
+        type_alias: &TypeAlias,
+        generics: Vec<Type>,
+        unresolved_turbofish: Option<Vec<UnresolvedType>>,
+        span: Span,
+    ) -> Vec<Type> {
+        let kinds = vecmap(&type_alias.generics, |generic| generic.kind());
+        self.resolve_item_turbofish_generics(
+            "alias",
+            &type_alias.name.0.contents,
+            kinds,
+            generics,
+            unresolved_turbofish,
+            span,
+        )
+    }
+
+    pub(super) fn resolve_item_turbofish_generics(
+        &mut self,
+        item_kind: &'static str,
+        item_name: &str,
+        item_generic_kinds: Vec<Kind>,
+        generics: Vec<Type>,
+        unresolved_turbofish: Option<Vec<UnresolvedType>>,
+        span: Span,
+    ) -> Vec<Type> {
         let Some(turbofish_generics) = unresolved_turbofish else {
             return generics;
         };
 
         if turbofish_generics.len() != generics.len() {
             self.push_err(TypeCheckError::GenericCountMismatch {
-                item: format!("struct {}", struct_type.name),
+                item: format!("{item_kind} {item_name}"),
                 expected: generics.len(),
                 found: turbofish_generics.len(),
                 span,
@@ -450,17 +507,17 @@ impl<'context> Elaborator<'context> {
             return generics;
         }
 
-        self.resolve_turbofish_generics(&struct_type.generics, turbofish_generics)
+        self.resolve_turbofish_generics(item_generic_kinds, turbofish_generics)
     }
 
     pub(super) fn resolve_turbofish_generics(
         &mut self,
-        generics: &[ResolvedGeneric],
+        kinds: Vec<Kind>,
         turbofish_generics: Vec<UnresolvedType>,
     ) -> Vec<Type> {
-        let generics_with_types = generics.iter().zip(turbofish_generics);
-        vecmap(generics_with_types, |(generic, unresolved_type)| {
-            self.resolve_type_inner(unresolved_type, &generic.kind())
+        let kinds_with_types = kinds.into_iter().zip(turbofish_generics);
+        vecmap(kinds_with_types, |(kind, unresolved_type)| {
+            self.resolve_type_inner(unresolved_type, &kind)
         })
     }
 
@@ -526,15 +583,50 @@ impl<'context> Elaborator<'context> {
                     generics.span,
                 )
             }
-            PathResolutionItem::TypeAliasFunction(_type_alias_id, Some(generics), _func_id) => {
-                // TODO: https://github.com/noir-lang/noir/issues/6311
-                self.push_err(TypeCheckError::UnsupportedTurbofishUsage { span: generics.span });
-                Vec::new()
+            PathResolutionItem::TypeAliasFunction(type_alias_id, generics, _func_id) => {
+                let type_alias = self.interner.get_type_alias(type_alias_id);
+                let type_alias = type_alias.borrow();
+                let alias_generics = vecmap(&type_alias.generics, |generic| {
+                    self.interner.next_type_variable_with_kind(generic.kind())
+                });
+
+                // First solve the generics on the alias, if any
+                let generics = if let Some(generics) = generics {
+                    self.resolve_alias_turbofish_generics(
+                        &type_alias,
+                        alias_generics,
+                        Some(generics.generics),
+                        generics.span,
+                    )
+                } else {
+                    alias_generics
+                };
+
+                // Now instantiate the underlying struct with those generics, the struct might
+                // have more generics than those in the alias, like in this example:
+                //
+                // type Alias<T> = Struct<T, i32>;
+                let typ = type_alias.get_type(&generics);
+                let Type::Struct(_, generics) = typ else {
+                    // See https://github.com/noir-lang/noir/issues/6398
+                    panic!("Expected type alias to point to struct")
+                };
+
+                generics
             }
-            PathResolutionItem::TraitFunction(_trait_id, Some(generics), _func_id) => {
-                // TODO: https://github.com/noir-lang/noir/issues/6310
-                self.push_err(TypeCheckError::UnsupportedTurbofishUsage { span: generics.span });
-                Vec::new()
+            PathResolutionItem::TraitFunction(trait_id, Some(generics), _func_id) => {
+                let trait_ = self.interner.get_trait(trait_id);
+                let kinds = vecmap(&trait_.generics, |generic| generic.kind());
+                let trait_generics =
+                    vecmap(&kinds, |kind| self.interner.next_type_variable_with_kind(kind.clone()));
+
+                self.resolve_trait_turbofish_generics(
+                    &trait_.name.to_string(),
+                    kinds,
+                    trait_generics,
+                    Some(generics.generics),
+                    generics.span,
+                )
             }
             _ => Vec::new(),
         }
@@ -552,7 +644,7 @@ impl<'context> Elaborator<'context> {
                     id: self.interner.trait_method_id(trait_path_resolution.method.method_id),
                     impl_kind: ImplKind::TraitMethod(trait_path_resolution.method),
                 },
-                None,
+                trait_path_resolution.item,
             )
         } else {
             // If the Path is being used as an Expression, then it is referring to a global from a separate module
@@ -762,8 +854,8 @@ impl<'context> Elaborator<'context> {
             .func_id(self.interner)
             .expect("Expected trait function to be a DefinitionKind::Function");
 
-        let generics = self.resolve_type_args(path.turbofish, func_id, span).0;
-        let generics = (!generics.is_empty()).then_some(generics);
+        let generics =
+            path.turbofish.map(|turbofish| self.resolve_type_args(turbofish, func_id, span).0);
 
         let location = Location::new(span, self.file);
         let id = self.interner.function_definition_id(func_id);

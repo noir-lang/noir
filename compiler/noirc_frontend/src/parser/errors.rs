@@ -95,6 +95,15 @@ pub enum ParserErrorReason {
     AssociatedTypesNotAllowedInPaths,
     #[error("Associated types are not allowed on a method call")]
     AssociatedTypesNotAllowedInMethodCalls,
+    #[error(
+        "Wrong number of arguments for attribute `{}`. Expected {}, found {}",
+        name,
+        if min == max { min.to_string() } else { format!("between {} and {}", min, max) },
+        found
+    )]
+    WrongNumberOfAttributeArguments { name: String, min: usize, max: usize, found: usize },
+    #[error("The `deprecated` attribute expects a string argument")]
+    DeprecatedAttributeExpectsAStringArgument,
 }
 
 /// Represents a parsing error, or a parsing error in the making.

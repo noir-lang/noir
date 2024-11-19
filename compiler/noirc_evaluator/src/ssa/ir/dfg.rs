@@ -74,8 +74,9 @@ pub(crate) struct DataFlowGraph {
     blocks: DenseMap<BasicBlock>,
 
     /// Debugging information about which `ValueId`s have had their underlying `Value` substituted
-    /// for that of another. This information is purely used for printing the SSA, and has no
-    /// material effect on the SSA itself.
+    /// for that of another. In theory this information is purely used for printing the SSA,
+    /// and has no material effect on the SSA itself, however in practice the IDs can get out of
+    /// sync and may need this resolution before they can be compared.
     #[serde(skip)]
     replaced_value_ids: HashMap<ValueId, ValueId>,
 

@@ -9,7 +9,7 @@ use self::acir_ir::generated_acir::BrilligStdlibFunc;
 use super::function_builder::data_bus::DataBus;
 use super::ir::dfg::CallStack;
 use super::ir::function::FunctionId;
-use super::ir::instruction::{ConstrainError, ErrorType};
+use super::ir::instruction::ConstrainError;
 use super::ir::printer::try_to_extract_string_from_error_payload;
 use super::{
     ir::{
@@ -30,6 +30,7 @@ use crate::brillig::{brillig_gen::brillig_fn::FunctionContext as BrilligFunction
 use crate::errors::{InternalError, InternalWarning, RuntimeError, SsaReport};
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
 use acvm::acir::circuit::opcodes::{AcirFunctionId, BlockType};
+use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use noirc_frontend::monomorphization::ast::InlineType;
 
 use acvm::acir::circuit::brillig::{BrilligBytecode, BrilligFunctionId};
@@ -40,6 +41,7 @@ use acvm::{acir::circuit::opcodes::BlockId, acir::AcirField, FieldElement};
 use fxhash::FxHashMap as HashMap;
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
+use noirc_frontend::Type as HirType;
 
 #[derive(Default)]
 struct SharedContext<F> {
@@ -156,7 +158,7 @@ struct Context<'a> {
     current_side_effects_enabled_var: AcirVar,
 
     /// Manages and builds the `AcirVar`s to which the converted SSA values refer.
-    acir_context: AcirContext<FieldElement>,
+    acir_context: AcirContext<FieldElement, Bn254BlackBoxSolver>,
 
     /// Track initialized acir dynamic arrays
     ///
@@ -283,7 +285,7 @@ pub(crate) type Artifacts = (
     Vec<GeneratedAcir<FieldElement>>,
     Vec<BrilligBytecode<FieldElement>>,
     Vec<String>,
-    BTreeMap<ErrorSelector, ErrorType>,
+    BTreeMap<ErrorSelector, HirType>,
 );
 
 impl Ssa {
@@ -296,6 +298,7 @@ impl Ssa {
         let mut acirs = Vec::new();
         // TODO: can we parallelize this?
         let mut shared_context = SharedContext::default();
+
         for function in self.functions.values() {
             let context = Context::new(&mut shared_context, expression_width);
             if let Some(mut generated_acir) =
@@ -675,16 +678,19 @@ impl<'a> Context<'a> {
 
                 let assert_payload = if let Some(error) = assert_message {
                     match error {
-                        ConstrainError::StaticString(string) => {
-                            Some(AssertionPayload::StaticString(string.clone()))
-                        }
-                        ConstrainError::Dynamic(error_selector, values) => {
+                        ConstrainError::StaticString(string) => Some(
+                            self.acir_context.generate_assertion_message_payload(string.clone()),
+                        ),
+                        ConstrainError::Dynamic(error_selector, is_string_type, values) => {
                             if let Some(constant_string) = try_to_extract_string_from_error_payload(
-                                *error_selector,
+                                *is_string_type,
                                 values,
                                 dfg,
                             ) {
-                                Some(AssertionPayload::StaticString(constant_string))
+                                Some(
+                                    self.acir_context
+                                        .generate_assertion_message_payload(constant_string),
+                                )
                             } else {
                                 let acir_vars: Vec<_> = values
                                     .iter()
@@ -694,10 +700,10 @@ impl<'a> Context<'a> {
                                 let expressions_or_memory =
                                     self.acir_context.vars_to_expressions_or_memory(&acir_vars)?;
 
-                                Some(AssertionPayload::Dynamic(
-                                    error_selector.as_u64(),
-                                    expressions_or_memory,
-                                ))
+                                Some(AssertionPayload {
+                                    error_selector: error_selector.as_u64(),
+                                    payload: expressions_or_memory,
+                                })
                             }
                         }
                     }
@@ -992,7 +998,7 @@ impl<'a> Context<'a> {
 
         // Link the entry point with all dependencies
         while let Some(unresolved_fn_label) = entry_point.first_unresolved_function_call() {
-            let artifact = &brillig.find_by_label(unresolved_fn_label);
+            let artifact = &brillig.find_by_label(unresolved_fn_label.clone());
             let artifact = match artifact {
                 Some(artifact) => artifact,
                 None => {
@@ -1003,6 +1009,15 @@ impl<'a> Context<'a> {
                 }
             };
             entry_point.link_with(artifact);
+            // Insert the range of opcode locations occupied by a procedure
+            if let Some(procedure_id) = &artifact.procedure {
+                let num_opcodes = entry_point.byte_code.len();
+                let previous_num_opcodes = entry_point.byte_code.len() - artifact.byte_code.len();
+                // We subtract one as to keep the range inclusive on both ends
+                entry_point
+                    .procedure_locations
+                    .insert(procedure_id.clone(), (previous_num_opcodes, num_opcodes - 1));
+            }
         }
         // Generate the final bytecode
         Ok(entry_point.finish())

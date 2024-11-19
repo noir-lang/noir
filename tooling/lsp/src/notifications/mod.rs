@@ -166,6 +166,7 @@ pub(crate) fn process_workspace_for_noir_document(
                 crate_graph: context.crate_graph,
                 node_interner: context.def_interner,
                 def_maps: context.def_maps,
+                usage_tracker: context.usage_tracker,
             },
         );
 

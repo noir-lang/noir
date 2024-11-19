@@ -13,6 +13,7 @@ use acvm::acir::circuit::opcodes::{
 };
 use acvm::acir::circuit::{AssertionPayload, ExpressionOrMemory, ExpressionWidth, Opcode};
 use acvm::brillig_vm::{MemoryValue, VMStatus, VM};
+use acvm::BlackBoxFunctionSolver;
 use acvm::{
     acir::AcirField,
     acir::{
@@ -107,7 +108,9 @@ impl From<NumericType> for AcirType {
 /// Context object which holds the relationship between
 /// `Variables`(AcirVar) and types such as `Expression` and `Witness`
 /// which are placed into ACIR.
-pub(crate) struct AcirContext<F: AcirField> {
+pub(crate) struct AcirContext<F: AcirField, B: BlackBoxFunctionSolver<F>> {
+    blackbox_solver: B,
+
     /// Two-way map that links `AcirVar` to `AcirVarData`.
     ///
     /// The vars object is an instance of the `TwoWayMap`, which provides a bidirectional mapping between `AcirVar` and `AcirVarData`.
@@ -132,7 +135,7 @@ pub(crate) struct AcirContext<F: AcirField> {
     pub(crate) warnings: Vec<SsaReport>,
 }
 
-impl<F: AcirField> AcirContext<F> {
+impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
     pub(crate) fn set_expression_width(&mut self, expression_width: ExpressionWidth) {
         self.expression_width = expression_width;
     }
@@ -1108,10 +1111,10 @@ impl<F: AcirField> AcirContext<F> {
                 let witness = self.var_to_witness(witness_var)?;
                 self.acir_ir.range_constraint(witness, *bit_size)?;
                 if let Some(message) = message {
-                    self.acir_ir.assertion_payloads.insert(
-                        self.acir_ir.last_acir_opcode_location(),
-                        AssertionPayload::StaticString(message.clone()),
-                    );
+                    let payload = self.generate_assertion_message_payload(message.clone());
+                    self.acir_ir
+                        .assertion_payloads
+                        .insert(self.acir_ir.last_acir_opcode_location(), payload);
                 }
             }
             NumericType::NativeField => {
@@ -1758,8 +1761,8 @@ impl<F: AcirField> AcirContext<F> {
             brillig_stdlib_func,
         );
 
-        fn range_constraint_value<G: AcirField>(
-            context: &mut AcirContext<G>,
+        fn range_constraint_value<G: AcirField, C: BlackBoxFunctionSolver<G>>(
+            context: &mut AcirContext<G, C>,
             value: &AcirValue,
         ) -> Result<(), RuntimeError> {
             match value {
@@ -1878,7 +1881,7 @@ impl<F: AcirField> AcirContext<F> {
         inputs: &[BrilligInputs<F>],
         outputs_types: &[AcirType],
     ) -> Option<Vec<AcirValue>> {
-        let mut memory = (execute_brillig(code, inputs)?).into_iter();
+        let mut memory = (execute_brillig(code, &self.blackbox_solver, inputs)?).into_iter();
 
         let outputs_var = vecmap(outputs_types.iter(), |output| match output {
             AcirType::NumericType(_) => {
@@ -2068,6 +2071,13 @@ impl<F: AcirField> AcirContext<F> {
         self.acir_ir.push_opcode(Opcode::Call { id, inputs, outputs, predicate });
         Ok(results)
     }
+
+    pub(crate) fn generate_assertion_message_payload(
+        &mut self,
+        message: String,
+    ) -> AssertionPayload<F> {
+        self.acir_ir.generate_assertion_message_payload(message)
+    }
 }
 
 /// Enum representing the possible values that a
@@ -2164,8 +2174,9 @@ pub(crate) struct AcirVar(usize);
 /// Returns the finished state of the Brillig VM if execution can complete.
 ///
 /// Returns `None` if complete execution of the Brillig bytecode is not possible.
-fn execute_brillig<F: AcirField>(
+fn execute_brillig<F: AcirField, B: BlackBoxFunctionSolver<F>>(
     code: &[BrilligOpcode<F>],
+    blackbox_solver: &B,
     inputs: &[BrilligInputs<F>],
 ) -> Option<Vec<MemoryValue<F>>> {
     // Set input values
@@ -2191,12 +2202,8 @@ fn execute_brillig<F: AcirField>(
     }
 
     // Instantiate a Brillig VM given the solved input registers and memory, along with the Brillig bytecode.
-    //
-    // We pass a stubbed solver here as a concrete solver implies a field choice which conflicts with this function
-    // being generic.
-    let solver = acvm::blackbox_solver::StubbedBlackBoxSolver;
     let profiling_active = false;
-    let mut vm = VM::new(calldata, code, Vec::new(), &solver, profiling_active);
+    let mut vm = VM::new(calldata, code, Vec::new(), blackbox_solver, profiling_active);
 
     // Run the Brillig VM on these inputs, bytecode, etc!
     let vm_status = vm.process_opcodes();

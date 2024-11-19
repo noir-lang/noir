@@ -2,7 +2,6 @@ use std::compat;
 use std::ec::consts::te::baby_jubjub;
 use std::ec::tecurve::affine::Point as TEPoint;
 use std::eddsa::{eddsa_poseidon_verify, eddsa_to_pub, eddsa_verify};
-use std::hash;
 use std::hash::poseidon2::Poseidon2Hasher;
 
 fn main(msg: pub Field, _priv_key_a: Field, _priv_key_b: Field) {

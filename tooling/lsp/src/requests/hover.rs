@@ -679,6 +679,7 @@ impl<'a> TypeLinksGatherer<'a> {
                 self.gather_type_links(lhs);
                 self.gather_type_links(rhs);
             }
+            Type::CheckedCast { to, .. } => self.gather_type_links(to),
             Type::FieldElement
             | Type::Integer(..)
             | Type::Bool

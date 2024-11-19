@@ -24,7 +24,7 @@ impl<'a> CodeActionFinder<'a> {
             return;
         }
 
-        let Some(unused_items) = self.interner.unused_items().get(&self.module_id) else {
+        let Some(unused_items) = self.usage_tracker.unused_items().get(&self.module_id) else {
             return;
         };
 

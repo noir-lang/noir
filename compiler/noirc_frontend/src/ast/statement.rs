@@ -408,7 +408,7 @@ pub struct AsTraitPath {
 pub struct TypePath {
     pub typ: UnresolvedType,
     pub item: Ident,
-    pub turbofish: GenericTypeArgs,
+    pub turbofish: Option<GenericTypeArgs>,
 }
 
 // Note: Path deliberately doesn't implement Recoverable.
@@ -445,11 +445,6 @@ impl Path {
         self.span
     }
 
-    pub fn first_segment(&self) -> PathSegment {
-        assert!(!self.segments.is_empty());
-        self.segments.first().unwrap().clone()
-    }
-
     pub fn last_segment(&self) -> PathSegment {
         assert!(!self.segments.is_empty());
         self.segments.last().unwrap().clone()
@@ -459,9 +454,8 @@ impl Path {
         self.last_segment().ident
     }
 
-    pub fn first_name(&self) -> &str {
-        assert!(!self.segments.is_empty());
-        &self.segments.first().unwrap().ident.0.contents
+    pub fn first_name(&self) -> Option<&str> {
+        self.segments.first().map(|segment| segment.ident.0.contents.as_str())
     }
 
     pub fn last_name(&self) -> &str {

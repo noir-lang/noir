@@ -73,7 +73,7 @@ impl UsageTracker {
         };
     }
 
-    pub(crate) fn unused_items(&self) -> &HashMap<ModuleId, HashMap<Ident, UnusedItem>> {
+    pub fn unused_items(&self) -> &HashMap<ModuleId, HashMap<Ident, UnusedItem>> {
         &self.unused_items
     }
 }

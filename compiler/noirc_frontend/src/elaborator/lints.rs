@@ -1,5 +1,5 @@
 use crate::{
-    ast::{FunctionKind, Ident, NoirFunction, Signedness, UnaryOp, Visibility},
+    ast::{Ident, NoirFunction, Signedness, UnaryOp, Visibility},
     graph::CrateId,
     hir::{
         resolution::errors::{PubPosition, ResolverError},
@@ -67,7 +67,7 @@ pub(super) fn low_level_function_outside_stdlib(
     crate_id: CrateId,
 ) -> Option<ResolverError> {
     let is_low_level_function =
-        modifiers.attributes.function.as_ref().map_or(false, |func| func.is_low_level());
+        modifiers.attributes.function().map_or(false, |func| func.is_low_level());
     if !crate_id.is_stdlib() && is_low_level_function {
         let ident = func_meta_name_ident(func, modifiers);
         Some(ResolverError::LowLevelFunctionOutsideOfStdlib { ident })
@@ -81,8 +81,7 @@ pub(super) fn oracle_not_marked_unconstrained(
     func: &FuncMeta,
     modifiers: &FunctionModifiers,
 ) -> Option<ResolverError> {
-    let is_oracle_function =
-        modifiers.attributes.function.as_ref().map_or(false, |func| func.is_oracle());
+    let is_oracle_function = modifiers.attributes.function().map_or(false, |func| func.is_oracle());
     if is_oracle_function && !modifiers.is_unconstrained {
         let ident = func_meta_name_ident(func, modifiers);
         Some(ResolverError::OracleMarkedAsConstrained { ident })
@@ -105,8 +104,7 @@ pub(super) fn oracle_called_from_constrained_function(
     }
 
     let function_attributes = interner.function_attributes(called_func);
-    let is_oracle_call =
-        function_attributes.function.as_ref().map_or(false, |func| func.is_oracle());
+    let is_oracle_call = function_attributes.function().map_or(false, |func| func.is_oracle());
     if is_oracle_call {
         Some(ResolverError::UnconstrainedOracleReturnToConstrained { span })
     } else {
@@ -122,19 +120,6 @@ pub(super) fn missing_pub(func: &FuncMeta, modifiers: &FunctionModifiers) -> Opt
     {
         let ident = func_meta_name_ident(func, modifiers);
         Some(ResolverError::NecessaryPub { ident })
-    } else {
-        None
-    }
-}
-
-/// `#[recursive]` attribute is only allowed for entry point functions
-pub(super) fn recursive_non_entrypoint_function(
-    func: &FuncMeta,
-    modifiers: &FunctionModifiers,
-) -> Option<ResolverError> {
-    if !func.is_entry_point && func.kind == FunctionKind::Recursive {
-        let ident = func_meta_name_ident(func, modifiers);
-        Some(ResolverError::MisplacedRecursiveAttribute { ident })
     } else {
         None
     }

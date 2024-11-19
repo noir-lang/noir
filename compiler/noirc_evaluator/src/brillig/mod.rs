@@ -18,6 +18,8 @@ use crate::ssa::{
 use fxhash::FxHashMap as HashMap;
 use std::{borrow::Cow, collections::BTreeSet};
 
+pub use self::brillig_ir::procedures::ProcedureId;
+
 /// Context structure for the brillig pass.
 /// It stores brillig-related data required for brillig generation.
 #[derive(Default)]
