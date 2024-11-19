@@ -1,7 +1,5 @@
 use std::collections::HashMap;
 
-use im::Vector;
-
 use crate::ssa::{
     function_builder::FunctionBuilder,
     ir::{basic_block::BasicBlockId, function::FunctionId, value::ValueId},
@@ -217,6 +215,14 @@ impl Translator {
                 let value = self.translate_value(value)?;
                 self.builder.increment_array_reference_count(value);
             }
+            ParsedInstruction::MakeArray { target, elements, typ } => {
+                let elements = elements
+                    .into_iter()
+                    .map(|element| self.translate_value(element))
+                    .collect::<Result<_, _>>()?;
+                let value_id = self.builder.insert_make_array(elements, typ);
+                self.define_variable(target, value_id)?;
+            }
             ParsedInstruction::Load { target, value, typ } => {
                 let value = self.translate_value(value)?;
                 let value_id = self.builder.insert_load(value, typ);
@@ -258,13 +264,6 @@ impl Translator {
         match value {
             ParsedValue::NumericConstant { constant, typ } => {
                 Ok(self.builder.numeric_constant(constant, typ))
-            }
-            ParsedValue::Array { values, typ } => {
-                let mut translated_values = Vector::new();
-                for value in values {
-                    translated_values.push_back(self.translate_value(value)?);
-                }
-                Ok(self.builder.array_constant(translated_values, typ))
             }
             ParsedValue::Variable(identifier) => self.lookup_variable(identifier),
         }
