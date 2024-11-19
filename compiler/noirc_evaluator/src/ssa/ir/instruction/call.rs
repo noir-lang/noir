@@ -443,12 +443,8 @@ fn simplify_slice_push_back(
     let mut value_merger =
         ValueMerger::new(dfg, block, &mut slice_sizes, unknown, None, call_stack);
 
-    let new_slice = value_merger.merge_values(
-        len_not_equals_capacity,
-        len_equals_capacity,
-        set_last_slice_value,
-        new_slice,
-    );
+    let new_slice =
+        value_merger.merge_values(len_not_equals_capacity, set_last_slice_value, new_slice);
 
     SimplifyResult::SimplifiedToMultiple(vec![new_slice_length, new_slice])
 }
@@ -572,7 +568,9 @@ fn simplify_black_box_func(
             acvm::blackbox_solver::ecdsa_secp256r1_verify,
         ),
 
-        BlackBoxFunc::MultiScalarMul => SimplifyResult::None,
+        BlackBoxFunc::MultiScalarMul => {
+            blackbox::simplify_msm(dfg, solver, arguments, block, call_stack)
+        }
         BlackBoxFunc::EmbeddedCurveAdd => {
             blackbox::simplify_ec_add(dfg, solver, arguments, block, call_stack)
         }

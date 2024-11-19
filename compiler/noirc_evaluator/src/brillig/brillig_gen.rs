@@ -58,7 +58,7 @@ pub(crate) fn gen_brillig_for(
 
     // Link the entry point with all dependencies
     while let Some(unresolved_fn_label) = entry_point.first_unresolved_function_call() {
-        let artifact = &brillig.find_by_label(unresolved_fn_label);
+        let artifact = &brillig.find_by_label(unresolved_fn_label.clone());
         let artifact = match artifact {
             Some(artifact) => artifact,
             None => {
@@ -70,13 +70,13 @@ pub(crate) fn gen_brillig_for(
         };
         entry_point.link_with(artifact);
         // Insert the range of opcode locations occupied by a procedure
-        if let Some(procedure_id) = artifact.procedure {
+        if let Some(procedure_id) = &artifact.procedure {
             let num_opcodes = entry_point.byte_code.len();
             let previous_num_opcodes = entry_point.byte_code.len() - artifact.byte_code.len();
             // We subtract one as to keep the range inclusive on both ends
             entry_point
                 .procedure_locations
-                .insert(procedure_id, (previous_num_opcodes, num_opcodes - 1));
+                .insert(procedure_id.clone(), (previous_num_opcodes, num_opcodes - 1));
         }
     }
     // Generate the final bytecode

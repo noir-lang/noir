@@ -21,7 +21,7 @@ use self::{
     value::{Tree, Values},
 };
 
-use super::ir::instruction::error_selector_from_type;
+use super::ir::instruction::ErrorType;
 use super::{
     function_builder::data_bus::DataBus,
     ir::{
@@ -466,6 +466,7 @@ impl<'a> FunctionContext<'a> {
     ///
     /// For example, the loop `for i in start .. end { body }` is codegen'd as:
     ///
+    /// ```text
     ///   v0 = ... codegen start ...
     ///   v1 = ... codegen end ...
     ///   br loop_entry(v0)
@@ -478,6 +479,7 @@ impl<'a> FunctionContext<'a> {
     ///   br loop_entry(v4)
     /// loop_end():
     ///   ... This is the current insert point after codegen_for finishes ...
+    /// ```
     fn codegen_for(&mut self, for_expr: &ast::For) -> Result<Values, RuntimeError> {
         let loop_entry = self.builder.insert_block();
         let loop_body = self.builder.insert_block();
@@ -529,6 +531,7 @@ impl<'a> FunctionContext<'a> {
     ///
     /// For example, the expression `if cond { a } else { b }` is codegen'd as:
     ///
+    /// ```text
     ///   v0 = ... codegen cond ...
     ///   brif v0, then: then_block, else: else_block
     /// then_block():
@@ -539,16 +542,19 @@ impl<'a> FunctionContext<'a> {
     ///   br end_if(v2)
     /// end_if(v3: ?):  // Type of v3 matches the type of a and b
     ///   ... This is the current insert point after codegen_if finishes ...
+    /// ```
     ///
     /// As another example, the expression `if cond { a }` is codegen'd as:
     ///
+    /// ```text
     ///   v0 = ... codegen cond ...
-    ///   brif v0, then: then_block, else: end_block
+    ///   brif v0, then: then_block, else: end_if
     /// then_block:
     ///   v1 = ... codegen a ...
     ///   br end_if()
     /// end_if:  // No block parameter is needed. Without an else, the unit value is always returned.
     ///   ... This is the current insert point after codegen_if finishes ...
+    /// ```
     fn codegen_if(&mut self, if_expr: &ast::If) -> Result<Values, RuntimeError> {
         let condition = self.codegen_non_tuple_expression(&if_expr.condition)?;
 
@@ -701,24 +707,23 @@ impl<'a> FunctionContext<'a> {
         assert_message: &Option<Box<(Expression, HirType)>>,
     ) -> Result<Option<ConstrainError>, RuntimeError> {
         let Some(assert_message_payload) = assert_message else { return Ok(None) };
-
-        if let Expression::Literal(ast::Literal::Str(static_string)) = &assert_message_payload.0 {
-            return Ok(Some(ConstrainError::StaticString(static_string.clone())));
-        }
-
         let (assert_message_expression, assert_message_typ) = assert_message_payload.as_ref();
 
-        let values = self.codegen_expression(assert_message_expression)?.into_value_list(self);
-
-        let error_type_id = error_selector_from_type(assert_message_typ);
-        // Do not record string errors in the ABI
-        match assert_message_typ {
-            HirType::String(_) => {}
-            _ => {
-                self.builder.record_error_type(error_type_id, assert_message_typ.clone());
+        if let Expression::Literal(ast::Literal::Str(static_string)) = assert_message_expression {
+            Ok(Some(ConstrainError::StaticString(static_string.clone())))
+        } else {
+            let error_type = ErrorType::Dynamic(assert_message_typ.clone());
+            let selector = error_type.selector();
+            let values = self.codegen_expression(assert_message_expression)?.into_value_list(self);
+            let is_string_type = matches!(assert_message_typ, HirType::String(_));
+            // Record custom types in the builder, outside of SSA instructions
+            // This is made to avoid having Hir types in the SSA code.
+            if !is_string_type {
+                self.builder.record_error_type(selector, assert_message_typ.clone());
             }
-        };
-        Ok(Some(ConstrainError::Dynamic(error_type_id, values)))
+
+            Ok(Some(ConstrainError::Dynamic(selector, is_string_type, values)))
+        }
     }
 
     fn codegen_assign(&mut self, assign: &ast::Assign) -> Result<Values, RuntimeError> {

@@ -1,5 +1,5 @@
 use acir::brillig::{BinaryFieldOp, BinaryIntOp, BlackBoxOp, Opcode as BrilligOpcode};
-use acir::circuit::{directives::Directive, opcodes::BlackBoxFuncCall, Opcode as AcirOpcode};
+use acir::circuit::{opcodes::BlackBoxFuncCall, Opcode as AcirOpcode};
 use acir::AcirField;
 
 fn format_blackbox_function<F>(call: &BlackBoxFuncCall<F>) -> String {
@@ -51,12 +51,6 @@ fn format_blackbox_op(call: &BlackBoxOp) -> String {
     }
 }
 
-fn format_directive_kind<F>(directive: &Directive<F>) -> String {
-    match directive {
-        Directive::ToLeRadix { .. } => "to_le_radix".to_string(),
-    }
-}
-
 fn format_acir_opcode_kind<F>(opcode: &AcirOpcode<F>) -> String {
     match opcode {
         AcirOpcode::AssertZero(_) => "arithmetic".to_string(),
@@ -65,9 +59,6 @@ fn format_acir_opcode_kind<F>(opcode: &AcirOpcode<F>) -> String {
         }
         AcirOpcode::MemoryOp { .. } => "memory::op".to_string(),
         AcirOpcode::MemoryInit { .. } => "memory::init".to_string(),
-        AcirOpcode::Directive(directive) => {
-            format!("directive::{}", format_directive_kind(directive))
-        }
         AcirOpcode::BrilligCall { id, .. } => format!("brillig_call({id})"),
         AcirOpcode::Call { .. } => "acir_call".to_string(),
     }

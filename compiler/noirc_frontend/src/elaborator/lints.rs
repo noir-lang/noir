@@ -1,5 +1,5 @@
 use crate::{
-    ast::{FunctionKind, Ident, NoirFunction, Signedness, UnaryOp, Visibility},
+    ast::{Ident, NoirFunction, Signedness, UnaryOp, Visibility},
     graph::CrateId,
     hir::{
         resolution::errors::{PubPosition, ResolverError},
@@ -120,19 +120,6 @@ pub(super) fn missing_pub(func: &FuncMeta, modifiers: &FunctionModifiers) -> Opt
     {
         let ident = func_meta_name_ident(func, modifiers);
         Some(ResolverError::NecessaryPub { ident })
-    } else {
-        None
-    }
-}
-
-/// `#[recursive]` attribute is only allowed for entry point functions
-pub(super) fn recursive_non_entrypoint_function(
-    func: &FuncMeta,
-    modifiers: &FunctionModifiers,
-) -> Option<ResolverError> {
-    if !func.is_entry_point && func.kind == FunctionKind::Recursive {
-        let ident = func_meta_name_ident(func, modifiers);
-        Some(ResolverError::MisplacedRecursiveAttribute { ident })
     } else {
         None
     }
