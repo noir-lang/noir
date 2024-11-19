@@ -39,7 +39,7 @@ use crate::ssa::{
         dfg::{CallStack, DataFlowGraph},
         function::{Function, FunctionId, RuntimeType},
         instruction::{
-            Binary, BinaryOp, ConstrainError, ErrorType, Instruction, InstructionId, Intrinsic,
+            Binary, BinaryOp, ConstrainError, Instruction, InstructionId, Intrinsic,
             TerminatorInstruction,
         },
         map::Id,
@@ -52,6 +52,7 @@ use crate::ssa::{
 use acir_variable::{AcirContext, AcirType, AcirVar};
 use generated_acir::BrilligStdlibFunc;
 pub(crate) use generated_acir::GeneratedAcir;
+use noirc_frontend::hir_def::types::Type as HirType;
 
 #[derive(Default)]
 struct SharedContext<F> {

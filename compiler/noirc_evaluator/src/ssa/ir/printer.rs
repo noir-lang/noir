@@ -241,17 +241,6 @@ fn result_types(function: &Function, results: &[ValueId]) -> String {
     }
 }
 
-fn result_types(function: &Function, results: &[ValueId]) -> String {
-    let types = vecmap(results, |result| function.dfg.type_of_value(*result).to_string());
-    if types.is_empty() {
-        String::new()
-    } else if types.len() == 1 {
-        format!(" -> {}", types[0])
-    } else {
-        format!(" -> ({})", types.join(", "))
-    }
-}
-
 /// Tries to extract a constant string from an error payload.
 pub(crate) fn try_to_extract_string_from_error_payload(
     is_string_type: bool,

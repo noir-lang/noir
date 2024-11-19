@@ -8,12 +8,8 @@ use acvm::acir::{
         opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
         AssertionPayload, BrilligOpcodeLocation, ErrorSelector, OpcodeLocation,
     },
-    native_types::Witness,
-    BlackBoxFunc,
-};
-use acvm::{
-    acir::AcirField,
-    acir::{circuit::directives::Directive, native_types::Expression},
+    native_types::{Expression, Witness},
+    AcirField, BlackBoxFunc,
 };
 
 use super::brillig_directive;
@@ -21,6 +17,7 @@ use crate::{
     brillig::brillig_ir::artifact::GeneratedBrillig,
     errors::{InternalError, RuntimeError, SsaReport},
     ssa::ir::dfg::CallStack,
+    ErrorType,
 };
 
 use iter_extended::vecmap;

@@ -31,6 +31,7 @@ use noirc_errors::debug_info::{DebugFunctions, DebugInfo, DebugTypes, DebugVaria
 
 use noirc_frontend::ast::Visibility;
 use noirc_frontend::{hir_def::function::FunctionSignature, monomorphization::ast::Program};
+use ssa_gen::Ssa;
 use tracing::{span, Level};
 
 use crate::acir::{Artifacts, GeneratedAcir};
@@ -39,7 +40,6 @@ mod checks;
 pub(super) mod function_builder;
 pub mod ir;
 mod opt;
-mod parser;
 pub mod ssa_gen;
 
 pub struct SsaEvaluatorOptions {
