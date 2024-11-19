@@ -466,6 +466,7 @@ impl<'a> FunctionContext<'a> {
     ///
     /// For example, the loop `for i in start .. end { body }` is codegen'd as:
     ///
+    /// ```text
     ///   v0 = ... codegen start ...
     ///   v1 = ... codegen end ...
     ///   br loop_entry(v0)
@@ -478,6 +479,7 @@ impl<'a> FunctionContext<'a> {
     ///   br loop_entry(v4)
     /// loop_end():
     ///   ... This is the current insert point after codegen_for finishes ...
+    /// ```
     fn codegen_for(&mut self, for_expr: &ast::For) -> Result<Values, RuntimeError> {
         let loop_entry = self.builder.insert_block();
         let loop_body = self.builder.insert_block();
@@ -529,6 +531,7 @@ impl<'a> FunctionContext<'a> {
     ///
     /// For example, the expression `if cond { a } else { b }` is codegen'd as:
     ///
+    /// ```text
     ///   v0 = ... codegen cond ...
     ///   brif v0, then: then_block, else: else_block
     /// then_block():
@@ -539,16 +542,19 @@ impl<'a> FunctionContext<'a> {
     ///   br end_if(v2)
     /// end_if(v3: ?):  // Type of v3 matches the type of a and b
     ///   ... This is the current insert point after codegen_if finishes ...
+    /// ```
     ///
     /// As another example, the expression `if cond { a }` is codegen'd as:
     ///
+    /// ```text
     ///   v0 = ... codegen cond ...
-    ///   brif v0, then: then_block, else: end_block
+    ///   brif v0, then: then_block, else: end_if
     /// then_block:
     ///   v1 = ... codegen a ...
     ///   br end_if()
     /// end_if:  // No block parameter is needed. Without an else, the unit value is always returned.
     ///   ... This is the current insert point after codegen_if finishes ...
+    /// ```
     fn codegen_if(&mut self, if_expr: &ast::If) -> Result<Values, RuntimeError> {
         let condition = self.codegen_non_tuple_expression(&if_expr.condition)?;
 

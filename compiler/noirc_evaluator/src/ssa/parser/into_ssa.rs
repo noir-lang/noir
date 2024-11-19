@@ -25,7 +25,11 @@ struct Translator {
     /// Maps block names to their IDs
     blocks: HashMap<FunctionId, HashMap<String, BasicBlockId>>,
 
-    /// Maps variable names to their IDs
+    /// Maps variable names to their IDs.
+    ///
+    /// This is necessary because the SSA we parse might have undergone some
+    /// passes already which replaced some of the original IDs. The translator
+    /// will recreate the SSA step by step, which can result in a new ID layout.
     variables: HashMap<FunctionId, HashMap<String, ValueId>>,
 }
 
@@ -307,7 +311,13 @@ impl Translator {
     }
 
     fn finish(self) -> Ssa {
-        self.builder.finish()
+        let mut ssa = self.builder.finish();
+        // Normalize the IDs so we have a better chance of matching the SSA we parsed
+        // after the step-by-step reconstruction done during translation. This assumes
+        // that the SSA we parsed was printed by the `SsaBuilder`, which normalizes
+        // before each print.
+        ssa.normalize_ids();
+        ssa
     }
 
     fn current_function_id(&self) -> FunctionId {
