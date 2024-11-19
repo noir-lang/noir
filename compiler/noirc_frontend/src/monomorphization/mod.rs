@@ -960,6 +960,8 @@ impl<'interner> Monomorphizer<'interner> {
 
     /// Iterative version of convert_type, for a subset of types
     /// It defaults to the recursive version for the other types
+    /// Because a program can potentially have extremely long chains of type variables that are bind to other types variables,
+    /// recursively handling these types can lead to stack overflows, thus we do it iteratively.
     fn convert_type_iter(
         typ: &HirType,
         location: Location,
