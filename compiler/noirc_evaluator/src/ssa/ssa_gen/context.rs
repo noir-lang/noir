@@ -929,7 +929,7 @@ impl<'a> FunctionContext<'a> {
     /// This will issue DecrementRc instructions for any arrays in the given starting scope
     /// block's parameters. Arrays that are also used in terminator instructions for the scope are
     /// ignored.
-    pub(crate) fn end_scope(&mut self, scope: BasicBlockId, terminator_args: &[ValueId]) {
+    pub(crate) fn end_function(&mut self, scope: BasicBlockId, terminator_args: &[ValueId]) {
         let mut dropped_parameters =
             self.builder.current_function.dfg.block_parameters(scope).to_vec();
 
