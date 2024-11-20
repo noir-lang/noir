@@ -82,7 +82,6 @@ impl Function {
     }
 }
 
-#[derive(Debug, Clone)]
 pub(super) struct Loop {
     /// The header block of a loop is the block which dominates all the
     /// other blocks in the loop.
