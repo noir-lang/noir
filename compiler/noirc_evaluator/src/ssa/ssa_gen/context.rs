@@ -736,7 +736,6 @@ impl<'a> FunctionContext<'a> {
             // Reference counting in brillig relies on us incrementing reference
             // counts when arrays/slices are constructed or indexed.
             // Thus, if we dereference an lvalue which happens to be array/slice we should increment its reference counter.
-            // self.builder.increment_array_reference_count(reference);
             self.builder.insert_load(reference, element_type).into()
         })
     }
