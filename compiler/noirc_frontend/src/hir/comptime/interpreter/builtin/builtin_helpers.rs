@@ -9,6 +9,7 @@ use crate::hir::comptime::display::tokens_to_string;
 use crate::hir::comptime::value::add_token_spans;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
+use crate::Kind;
 use crate::{
     ast::{
         BlockExpression, ExpressionKind, Ident, IntegerBitSize, LValue, Pattern, Signedness,
@@ -544,4 +545,12 @@ pub(super) fn eq_item<T: Eq>(
     let self_arg = get_item(self_arg)?;
     let other_arg = get_item(other_arg)?;
     Ok(Value::Bool(self_arg == other_arg))
+}
+
+/// Type to be used in `Value::Array(<values>, <array-type>)`.
+pub(crate) fn byte_array_type(len: usize) -> Type {
+    Type::Array(
+        Box::new(Type::Constant(len.into(), Kind::u32())),
+        Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)),
+    )
 }

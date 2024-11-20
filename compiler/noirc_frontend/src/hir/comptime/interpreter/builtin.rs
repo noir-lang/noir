@@ -2,13 +2,13 @@ use std::rc::Rc;
 
 use acvm::{acir::BlackBoxFunc, AcirField, FieldElement};
 use builtin_helpers::{
-    block_expression_to_value, check_argument_count, check_function_not_yet_resolved,
-    check_one_argument, check_three_arguments, check_two_arguments, get_bool, get_expr, get_field,
-    get_format_string, get_function_def, get_module, get_quoted, get_slice, get_struct,
-    get_trait_constraint, get_trait_def, get_trait_impl, get_tuple, get_type, get_typed_expr,
-    get_u32, get_unresolved_type, has_named_attribute, hir_pattern_to_tokens,
-    mutate_func_meta_type, parse, quote_ident, replace_func_meta_parameters,
-    replace_func_meta_return_type,
+    block_expression_to_value, byte_array_type, check_argument_count,
+    check_function_not_yet_resolved, check_one_argument, check_three_arguments,
+    check_two_arguments, get_bool, get_expr, get_field, get_format_string, get_function_def,
+    get_module, get_quoted, get_slice, get_struct, get_trait_constraint, get_trait_def,
+    get_trait_impl, get_tuple, get_type, get_typed_expr, get_u32, get_unresolved_type,
+    has_named_attribute, hir_pattern_to_tokens, mutate_func_meta_type, parse, quote_ident,
+    replace_func_meta_parameters, replace_func_meta_return_type,
 };
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
@@ -325,10 +325,7 @@ fn str_as_bytes(
     let string = get_str(interner, string)?;
 
     let bytes: im::Vector<Value> = string.bytes().map(Value::U8).collect();
-    let byte_array_type = Type::Array(
-        Box::new(Type::Constant(bytes.len().into(), Kind::u32())),
-        Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)),
-    );
+    let byte_array_type = byte_array_type(bytes.len());
     Ok(Value::Array(bytes, byte_array_type))
 }
 
@@ -821,10 +818,8 @@ fn to_le_radix(
             Some(digit) => Value::U8(*digit),
             None => Value::U8(0),
         });
-    Ok(Value::Array(
-        decomposed_integer.into(),
-        Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight),
-    ))
+    let result_type = byte_array_type(decomposed_integer.len());
+    Ok(Value::Array(decomposed_integer.into(), result_type))
 }
 
 fn compute_to_radix_le(field: FieldElement, radix: u32) -> Vec<u8> {

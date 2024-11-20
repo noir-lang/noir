@@ -8,10 +8,11 @@ use im::Vector;
 use noirc_errors::Location;
 
 use crate::{
-    ast::{IntegerBitSize, Signedness},
-    hir::comptime::{errors::IResult, InterpreterError, Value},
+    hir::comptime::{
+        errors::IResult, interpreter::builtin::builtin_helpers::byte_array_type, InterpreterError,
+        Value,
+    },
     node_interner::NodeInterner,
-    Kind, Type,
 };
 
 use super::{
@@ -115,10 +116,7 @@ fn bigint_to_le_bytes(
     assert!(bytes.len() <= 32);
     bytes.resize(32, 0);
 
-    let result_type = Type::Array(
-        Box::new(Type::Constant(bytes.len().into(), Kind::u32())),
-        Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)),
-    );
+    let result_type = byte_array_type(bytes.len());
     let result = bytes.into_iter().map(Value::U8).collect();
     let result = Value::Array(result, result_type);
 
