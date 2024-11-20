@@ -1668,8 +1668,8 @@ impl<'context> Elaborator<'context> {
         // } else {
         //     self.elaborate_let(let_stmt, Some(global_id))
         // };
-        let (let_statement, _typ) =
-            self.elaborate_in_comptime_context(|this| this.elaborate_let(let_stmt, Some(global_id)));
+        let (let_statement, _typ) = self
+            .elaborate_in_comptime_context(|this| this.elaborate_let(let_stmt, Some(global_id)));
 
         let statement_id = self.interner.get_global(global_id).let_statement;
         self.interner.replace_statement(statement_id, let_statement);

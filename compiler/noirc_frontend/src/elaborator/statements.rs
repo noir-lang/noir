@@ -77,13 +77,7 @@ impl<'context> Elaborator<'context> {
         let expr_span = let_stmt.expression.span;
         let (expression, expr_type) = self.elaborate_expression(let_stmt.expression);
 
-        // TODO cleanup
-        let let_stmt_type = let_stmt.r#type.clone();
-
         let annotated_type = self.resolve_inferred_type(let_stmt.r#type);
-
-        // TODO cleanup
-        dbg!("elaborate_let", &let_stmt_type, &annotated_type, &expr_type, &self.errors);
 
         let definition = match global_id {
             None => DefinitionKind::Local(Some(expression)),

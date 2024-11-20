@@ -1032,14 +1032,13 @@ impl<'interner> Monomorphizer<'interner> {
             //     // let let_stmt = self.interner.get_global_let_statement(*global_id).expect(
             //     //     "Globals should have a corresponding let statement by monomorphization",
             //     // );
-            //     
+            //
             //     // TODO implement
             //     panic!("convert_type(Type::Global(..), _)");
             //
             //     // let resolved_global = todo!("TODO");
             //     // Self::convert_type(resolved_global, location)?
             // }
-
             HirType::CheckedCast { from, to } => {
                 Self::check_checked_cast(from, to, location)?;
                 Self::convert_type(to, location)?
@@ -1177,10 +1176,9 @@ impl<'interner> Monomorphizer<'interner> {
             //         Err(MonomorphizationError::UnknownConstant { location })
             //     } else {
             //         Self::check_type(&kind.default_type().unwrap(), location)
-            //         
+            //
             //     }
             // }
-
             HirType::TypeVariable(ref binding) => {
                 let type_var_kind = match &*binding.borrow() {
                     TypeBinding::Bound(binding) => {

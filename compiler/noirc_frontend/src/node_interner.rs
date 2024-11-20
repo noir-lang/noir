@@ -29,7 +29,7 @@ use crate::QuotedType;
 
 use crate::ast::{BinaryOpKind, FunctionDefinition, ItemVisibility};
 use crate::hir::resolution::errors::ResolverError;
-use crate::hir_def::expr::{HirIdent, HirLiteral};
+use crate::hir_def::expr::HirIdent;
 use crate::hir_def::stmt::HirLetStatement;
 use crate::hir_def::traits::TraitImpl;
 use crate::hir_def::traits::{Trait, TraitConstraint};
@@ -41,7 +41,6 @@ use crate::hir_def::{
 };
 use crate::locations::LocationIndices;
 use crate::token::{Attributes, SecondaryAttribute};
-use crate::BinaryTypeOperator;
 use crate::GenericTypeVars;
 use crate::Generics;
 use crate::{Shared, TypeAlias, TypeBindings, TypeVariable, TypeVariableId};
@@ -1136,112 +1135,6 @@ impl NodeInterner {
             _ => panic!("ice: all globals should correspond to a statement in the interner"),
         }
     }
-
-    // TODO cleanup
-    // // TODO: real error type
-    // pub(crate) fn get_global_as_type(&self, rhs: ExprId, kind: Kind, span: Span) -> Result<Type, ()> {
-    //     match self.expression(&rhs) {
-    //          HirExpression::Literal(HirLiteral::Integer(int, false)) => {
-    //              // TODO: here is where support for negative globals would be included (make issue
-    //              // or link to existing issue)
-    //
-    //              // TODO: need to check kind.integral_maximum_size() here?
-    //              // int.try_into_u128().ok_or(Some(ResolverError::IntegerTooLarge { span }))
-    //              Ok(Type::Constant(int, kind))
-    //          }
-    //          HirExpression::Ident(ident, _) => {
-    //              if let Some(definition) = self.try_definition(ident.id) {
-    //                  match definition.kind {
-    //                      DefinitionKind::Global(global_id) => {
-    //                          // nested case: return a Type::Global instead of recursing
-    //                          Ok(Type::Global(global_id, definition.name.clone().into(), kind))
-    //
-    //                          // TODO cleanup
-    //                          // let let_statement = interner.get_global_let_statement(global_id);
-    //                          // if let Some(let_statement) = let_statement {
-    //                          //     let expression = let_statement.expression;
-    //                          //     try_eval_array_length_id_with_fuel(interner, expression, span, fuel - 1)
-    //                          // } else {
-    //                          //     Err(Some(ResolverError::InvalidArrayLengthExpr { span }))
-    //                          // }
-    //                      }
-    //                      _ => {
-    //                          // TODO: new error
-    //                          // let err = ResolverError::InvalidArrayLengthExpr { span };
-    //                          // self.push_err(err);
-    //                          // None
-    //                          Err(())
-    //                      },
-    //                  }
-    //              } else {
-    //                  // TODO: new error
-    //                  // let err = ResolverError::InvalidArrayLengthExpr { span };
-    //                  // self.push_err(err);
-    //                  // None
-    //                  Err(())
-    //              }
-    //
-    //          }
-    //          HirExpression::Infix(infix) => {
-    //              let lhs = Box::new(self.get_global_as_type(infix.lhs, kind.clone(), span)?);
-    //              let rhs = Box::new(self.get_global_as_type(infix.rhs, kind.clone(), span)?);
-    //
-    //              let op = match infix.operator.kind {
-    //                  BinaryOpKind::Add => Ok(BinaryTypeOperator::Addition),
-    //                  BinaryOpKind::Subtract => Ok(BinaryTypeOperator::Subtraction),
-    //                  BinaryOpKind::Multiply => Ok(BinaryTypeOperator::Multiplication),
-    //                  BinaryOpKind::Divide => Ok(BinaryTypeOperator::Division),
-    //                  BinaryOpKind::Modulo => Ok(BinaryTypeOperator::Modulo),
-    //
-    //                  // TODO: support in InfixExpr?
-    //                  // BinaryOpKind::Equal => Ok((lhs == rhs) as u128),
-    //                  // BinaryOpKind::NotEqual => Ok((lhs != rhs) as u128),
-    //                  // BinaryOpKind::Less => Ok((lhs < rhs) as u128),
-    //                  // BinaryOpKind::LessEqual => Ok((lhs <= rhs) as u128),
-    //                  // BinaryOpKind::Greater => Ok((lhs > rhs) as u128),
-    //                  // BinaryOpKind::GreaterEqual => Ok((lhs >= rhs) as u128),
-    //                  // BinaryOpKind::And => Ok(lhs & rhs),
-    //                  // BinaryOpKind::Or => Ok(lhs | rhs),
-    //                  // BinaryOpKind::Xor => Ok(lhs ^ rhs),
-    //                  // BinaryOpKind::ShiftRight => Ok(lhs >> rhs),
-    //                  // BinaryOpKind::ShiftLeft => Ok(lhs << rhs),
-    //
-    //                  _ => {
-    //                     // TODO: new error
-    //                     // let err = ResolverError::InvalidArrayLengthExpr { span };
-    //                     // self.push_err(err);
-    //                     // None
-    //                     Err(())
-    //                  }
-    //              }?;
-    //
-    //              Ok(Type::InfixExpr(lhs, op, rhs))
-    //          }
-    //
-    //          // TODO: comptime only?
-    //          // HirExpression::Cast(cast) => {
-    //          //     let lhs = try_eval_array_length_id_with_fuel(interner, cast.lhs, span, fuel - 1)?;
-    //          //     let lhs_value = Value::Field(lhs.into());
-    //          //     let evaluated_value =
-    //          //         Interpreter::evaluate_cast_one_step(&cast, rhs, lhs_value, interner)
-    //          //             .map_err(|error| Some(ResolverError::ArrayLengthInterpreter { error }))?;
-    //          // 
-    //          //     evaluated_value
-    //          //         .to_u128()
-    //          //         .ok_or_else(|| Some(ResolverError::InvalidArrayLengthExpr { span }))
-    //          // }
-    //
-    //          _other => {
-    //              // TODO: new error
-    //              // let err = ResolverError::InvalidArrayLengthExpr { span };
-    //              // self.push_err(err);
-    //              // None
-    //              Err(())
-    //          },
-    //     }
-    //
-    // }
-
 
     /// Returns the interned expression corresponding to `expr_id`
     pub fn expression(&self, expr_id: &ExprId) -> HirExpression {
@@ -2547,8 +2440,6 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         | Type::Struct(_, _)
         | Type::InfixExpr(..)
         | Type::CheckedCast { .. }
-        // TODO cleanup
-        // | Type::Global(..)
         | Type::TraitAsType(..) => None,
     }
 }

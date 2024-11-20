@@ -5,7 +5,6 @@ use fm::{FileMap, PathString};
 use lsp_types::{Hover, HoverContents, HoverParams, MarkupContent, MarkupKind};
 use noirc_frontend::{
     ast::{ItemVisibility, Visibility},
-    elaborator::types::try_eval_array_length_id,
     hir::def_map::ModuleId,
     hir_def::{
         expr::{HirArrayLiteral, HirExpression, HirLiteral},
@@ -235,10 +234,13 @@ fn format_global(id: GlobalId, args: &ProcessRequestCallbackArgs) -> String {
 fn get_global_value(interner: &NodeInterner, expr: ExprId) -> Option<String> {
     let span = interner.expr_span(&expr);
 
-    // Globals as array lengths are extremely common, so we try that first.
-    if let Ok(result) = try_eval_array_length_id(interner, expr, span) {
-        return Some(result.to_string());
-    }
+    // TODO: I think this can be safely dropped because globals will always
+    // be in the interner now
+    //
+    // // Globals as array lengths are extremely common, so we try that first.
+    // if let Ok(result) = try_eval_array_length_id(interner, expr, span) {
+    //     return Some(result.to_string());
+    // }
 
     match interner.expression(&expr) {
         HirExpression::Literal(literal) => match literal {

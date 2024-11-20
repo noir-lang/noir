@@ -1,6 +1,5 @@
 use std::{borrow::Cow, rc::Rc};
 
-use acvm::acir::AcirField;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 use rustc_hash::FxHashMap as HashMap;
@@ -12,7 +11,6 @@ use crate::{
         UnresolvedTypeData, UnresolvedTypeExpression,
     },
     hir::{
-        comptime::{Interpreter, Value},
         def_collector::dc_crate::CompilationError,
         resolution::{errors::ResolverError, import::PathResolutionError},
         type_check::{
@@ -30,12 +28,10 @@ use crate::{
         traits::{NamedType, ResolvedTraitBound, Trait, TraitConstraint},
     },
     node_interner::{
-        DefinitionKind, DependencyId, ExprId, GlobalId, ImplSearchErrorKind, NodeInterner, TraitId,
-        TraitImplKind, TraitMethodId,
+        DependencyId, ExprId, ImplSearchErrorKind, NodeInterner, TraitId, TraitImplKind,
+        TraitMethodId,
     },
     token::SecondaryAttribute,
-    BinaryTypeOperator, Generics, Kind, ResolvedGeneric, Type, TypeBinding, TypeBindings, TypeVariable,
-    UnificationError,
     Generics, Kind, ResolvedGeneric, Type, TypeBinding, TypeBindings, UnificationError,
 };
 
@@ -415,9 +411,15 @@ impl<'context> Elaborator<'context> {
                 let kind = self
                     .interner
                     .get_global_let_statement(id)
-                    .map(|let_statement| Kind::numeric(let_statement.r#type))
+                    .map(|let_statement| {
+                        if let_statement.r#type == Type::FieldElement {
+                            Kind::IntegerOrField
+                        } else {
+                            Kind::numeric(let_statement.r#type)
+                        }
+                    })
                     .unwrap_or(Kind::u32());
-                
+
                 // TODO: close issue after test passes
                 // // TODO(https://github.com/noir-lang/noir/issues/6238):
                 // // support non-u32 generics here
@@ -452,20 +454,6 @@ impl<'context> Elaborator<'context> {
                     return None;
                 };
 
-                // TODO: fix kind of global: may need to bring back a version of the cast from
-                // before
-                let global_type = global_value.get_type().into_owned();
-                let global_value_kind = if global_type == Type::FieldElement {
-                    Kind::IntegerOrField
-                } else {
-                    Kind::Numeric(Box::new(global_type))
-                };
-
-                if !kind.unifies(&global_value_kind) {
-                    panic!("global evaluates to invalid type for its kind: {:?} {:?}", &kind, &global_value);
-                }
-                dbg!("lookup_generic_or_global_type", &kind, &global_value_kind);
-
                 // TODO error instead of panic
                 let Some(global_value) = global_value.to_field_element() else {
                     if global_value.is_integral() {
@@ -480,14 +468,16 @@ impl<'context> Elaborator<'context> {
                     Err(_err) => {
                         // TODO: error instead of panic
                         // self.push_err(err);
-                        panic!("evaluated global exceeds the size of its kind: {:?} ; {:?}", &global_value, &kind);
+                        panic!(
+                            "evaluated global exceeds the size of its kind: {:?} ; {:?}",
+                            &global_value, &kind
+                        );
 
                         return None;
                     }
                 };
 
                 Some(Type::Constant(global_value, kind))
-
             }
             _ => None,
         }

@@ -2028,6 +2028,7 @@ fn numeric_generic_field_larger_than_u32() {
     assert_eq!(errors.len(), 0);
 }
 
+// TODO: close issue
 // TODO(https://github.com/noir-lang/noir/issues/6238):
 // The EvaluatedGlobalIsntU32 warning is a stopgap
 // (originally from https://github.com/noir-lang/noir/issues/6126)
@@ -2036,10 +2037,8 @@ fn numeric_generic_field_arithmetic_larger_than_u32() {
     let src = r#"
         struct Foo<let F: Field> {}
 
-        impl<let F: Field> Foo<F> {
-            fn size(self) -> Field {
-                F
-            }
+        fn size<let F: Field>(_x: Foo<F>) -> Field {
+            F
         }
 
         // 2^32 - 1
@@ -2050,7 +2049,7 @@ fn numeric_generic_field_arithmetic_larger_than_u32() {
         }
 
         fn main() {
-            let _ = foo::<A>().size();
+            let _ = size(foo::<A>());
         }
     "#;
     let errors = get_program_errors(src);
@@ -2059,12 +2058,11 @@ fn numeric_generic_field_arithmetic_larger_than_u32() {
     dbg!(&errors);
 
     // TODO debug remaining error
-    assert_eq!(errors.len(), 1);
-    assert!(matches!(
-        errors[0].0,
-        CompilationError::ResolverError(ResolverError::UnusedVariable { .. }),
-    ));
-
+    assert_eq!(errors.len(), 0);
+    // assert!(matches!(
+    //     errors[0].0,
+    //     CompilationError::ResolverError(ResolverError::UnusedVariable { .. }),
+    // ));
 }
 
 #[test]
@@ -2210,7 +2208,6 @@ fn numeric_generics_type_kind_mismatch() {
     //     errors[2].0,
     //     CompilationError::TypeError(TypeCheckError::EvaluatedGlobalIsntU32 { .. }),
     // ));
-
 }
 
 #[test]
@@ -3232,8 +3229,6 @@ fn infer_globals_to_u32_from_type_use() {
     "#;
 
     let errors = get_program_errors(src);
-    // TODO cleanup
-    dbg!(&errors);
     assert_eq!(errors.len(), 0);
 }
 
@@ -3696,10 +3691,6 @@ fn allows_struct_with_generic_infix_type_as_main_input_3() {
 
         fn main(_x: Foo<N * 2>) {}
     "#;
-
-    // TODO cleanup
-    let errors = get_program_errors(src);
-    dbg!(&errors);
     assert_no_errors(src);
 }
 
