@@ -1,6 +1,5 @@
 pub mod black_box_functions;
 pub mod brillig;
-pub mod directives;
 pub mod opcodes;
 
 use crate::native_types::{Expression, Witness};
@@ -68,11 +67,6 @@ pub struct Circuit<F> {
     // c++ code at the moment when it is, due to OpcodeLocation needing a comparison
     // implementation which is never generated.
     pub assert_messages: Vec<(OpcodeLocation, AssertionPayload<F>)>,
-
-    /// States whether the backend should use a SNARK recursion friendly prover.
-    /// If implemented by a backend, this means that proofs generated with this circuit
-    /// will be friendly for recursively verifying inside of another SNARK.
-    pub recursive: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -82,9 +76,9 @@ pub enum ExpressionOrMemory<F> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum AssertionPayload<F> {
-    StaticString(String),
-    Dynamic(/* error_selector */ u64, Vec<ExpressionOrMemory<F>>),
+pub struct AssertionPayload<F> {
+    pub error_selector: u64,
+    pub payload: Vec<ExpressionOrMemory<F>>,
 }
 
 #[derive(Debug, Copy, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
@@ -119,12 +113,6 @@ impl<'de> Deserialize<'de> for ErrorSelector {
         Ok(ErrorSelector(as_u64))
     }
 }
-
-/// This selector indicates that the payload is a string.
-/// This is used to parse any error with a string payload directly,
-/// to avoid users having to parse the error externally to the ACVM.
-/// Only non-string errors need to be parsed externally to the ACVM using the circuit ABI.
-pub const STRING_ERROR_SELECTOR: ErrorSelector = ErrorSelector(0);
 
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct RawAssertionPayload<F> {
@@ -445,7 +433,6 @@ mod tests {
             public_parameters: PublicInputs(BTreeSet::from_iter(vec![Witness(2), Witness(12)])),
             return_values: PublicInputs(BTreeSet::from_iter(vec![Witness(4), Witness(12)])),
             assert_messages: Default::default(),
-            recursive: false,
         };
         let program = Program { functions: vec![circuit], unconstrained_functions: Vec::new() };
 
@@ -481,7 +468,6 @@ mod tests {
             public_parameters: PublicInputs(BTreeSet::from_iter(vec![Witness(2)])),
             return_values: PublicInputs(BTreeSet::from_iter(vec![Witness(2)])),
             assert_messages: Default::default(),
-            recursive: false,
         };
         let program = Program { functions: vec![circuit], unconstrained_functions: Vec::new() };
 

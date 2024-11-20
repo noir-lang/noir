@@ -1,16 +1,23 @@
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
-use crate::ssa::{ir::{function::{Function, RuntimeType}, function_inserter::FunctionInserter, value::ValueId}, Ssa};
+use crate::ssa::{
+    ir::{
+        function::{Function, RuntimeType},
+        function_inserter::FunctionInserter,
+        value::ValueId,
+    },
+    Ssa,
+};
 
-use super::{constant_folding::replace_result_ids, unrolling::{find_all_loops, get_pre_header, Loops}};
+use super::{constant_folding::replace_result_ids, unrolling::Loops};
 
 impl Ssa {
-
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn loop_invariant_code_motion(mut self) -> Ssa {
-        let brillig_functions = self.functions.iter_mut().filter(|(_, func)| {
-            matches!(func.runtime(), RuntimeType::Brillig(_))
-        });
+        let brillig_functions = self
+            .functions
+            .iter_mut()
+            .filter(|(_, func)| matches!(func.runtime(), RuntimeType::Brillig(_)));
 
         for (_, function) in brillig_functions {
             function.loop_invariant_code_motion();
@@ -22,7 +29,7 @@ impl Ssa {
 
 impl Function {
     fn loop_invariant_code_motion(&mut self) {
-        find_all_loops(self).hoist_loop_invariants(self);
+        Loops::find_all(self).hoist_loop_invariants(self);
     }
 }
 
@@ -31,7 +38,9 @@ impl Loops {
         let mut inserter = FunctionInserter::new(function);
 
         for loop_ in self.yet_to_unroll {
-            let unroll_into = get_pre_header(&self.cfg, &loop_);
+            let Ok(unroll_into) = loop_.get_pre_header(&inserter.function, &self.cfg) else {
+                continue;
+            };
 
             let mut defined_in_loop: HashSet<ValueId> = HashSet::default();
             for block in loop_.blocks.iter() {
@@ -54,7 +63,9 @@ impl Loops {
                         instr_args_defined_in_loop |= defined_in_loop.contains(&value);
                     });
 
-                    if !instr_args_defined_in_loop && instruction.can_be_deduplicated(&inserter.function.dfg, false) {
+                    if !instr_args_defined_in_loop
+                        && instruction.can_be_deduplicated(&inserter.function.dfg, false)
+                    {
                         instructions_to_hoist.push(instruction_id);
                     } else {
                         instructions_to_keep.push(instruction_id);
@@ -64,9 +75,10 @@ impl Loops {
             }
 
             // Insert instructions we wish to hoist into the pre-header first
-            // The loop body and exit are dependent upon these instructions being mapped first 
+            // The loop body and exit are dependent upon these instructions being mapped first
             for instruction_id in instructions_to_hoist {
-                let old_results = inserter.function.dfg.instruction_results(instruction_id).to_vec();
+                let old_results =
+                    inserter.function.dfg.instruction_results(instruction_id).to_vec();
 
                 if let Some(new_id) = inserter.push_instruction(instruction_id, unroll_into) {
                     let new_results = inserter.function.dfg.instruction_results(new_id).to_vec();
@@ -77,10 +89,12 @@ impl Loops {
             // Add back and map unchanged loop body instructions
             for (block, instructions_to_keep) in block_to_instructions {
                 for instruction_id in instructions_to_keep.iter() {
-                    let old_results = inserter.function.dfg.instruction_results(*instruction_id).to_vec();
+                    let old_results =
+                        inserter.function.dfg.instruction_results(*instruction_id).to_vec();
 
                     if let Some(new_id) = inserter.push_instruction(*instruction_id, block) {
-                        let new_results = inserter.function.dfg.instruction_results(new_id).to_vec();
+                        let new_results =
+                            inserter.function.dfg.instruction_results(new_id).to_vec();
                         replace_result_ids(&mut inserter.function.dfg, &old_results, &new_results);
                     }
                 }
@@ -91,8 +105,8 @@ impl Loops {
 
 #[cfg(test)]
 mod test {
-    use crate::ssa::Ssa;
     use crate::ssa::opt::assert_normalized_ssa_equals;
+    use crate::ssa::Ssa;
 
     #[test]
     fn simple_loop_invariant_code_motion() {

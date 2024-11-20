@@ -39,7 +39,7 @@ use crate::ssa::{
         dfg::{CallStack, DataFlowGraph},
         function::{Function, FunctionId, RuntimeType},
         instruction::{
-            Binary, BinaryOp, ConstrainError, ErrorType, Instruction, InstructionId, Intrinsic,
+            Binary, BinaryOp, ConstrainError, Instruction, InstructionId, Intrinsic,
             TerminatorInstruction,
         },
         map::Id,
@@ -52,6 +52,7 @@ use crate::ssa::{
 use acir_variable::{AcirContext, AcirType, AcirVar};
 use generated_acir::BrilligStdlibFunc;
 pub(crate) use generated_acir::GeneratedAcir;
+use noirc_frontend::hir_def::types::Type as HirType;
 
 #[derive(Default)]
 struct SharedContext<F> {
@@ -295,7 +296,7 @@ pub(crate) type Artifacts = (
     Vec<GeneratedAcir<FieldElement>>,
     Vec<BrilligBytecode<FieldElement>>,
     Vec<String>,
-    BTreeMap<ErrorSelector, ErrorType>,
+    BTreeMap<ErrorSelector, HirType>,
 );
 
 impl Ssa {
@@ -308,6 +309,7 @@ impl Ssa {
         let mut acirs = Vec::new();
         // TODO: can we parallelize this?
         let mut shared_context = SharedContext::default();
+
         for function in self.functions.values() {
             let context = Context::new(&mut shared_context, expression_width);
             if let Some(mut generated_acir) =
@@ -687,16 +689,19 @@ impl<'a> Context<'a> {
 
                 let assert_payload = if let Some(error) = assert_message {
                     match error {
-                        ConstrainError::StaticString(string) => {
-                            Some(AssertionPayload::StaticString(string.clone()))
-                        }
-                        ConstrainError::Dynamic(error_selector, values) => {
+                        ConstrainError::StaticString(string) => Some(
+                            self.acir_context.generate_assertion_message_payload(string.clone()),
+                        ),
+                        ConstrainError::Dynamic(error_selector, is_string_type, values) => {
                             if let Some(constant_string) = try_to_extract_string_from_error_payload(
-                                *error_selector,
+                                *is_string_type,
                                 values,
                                 dfg,
                             ) {
-                                Some(AssertionPayload::StaticString(constant_string))
+                                Some(
+                                    self.acir_context
+                                        .generate_assertion_message_payload(constant_string),
+                                )
                             } else {
                                 let acir_vars: Vec<_> = values
                                     .iter()
@@ -706,10 +711,10 @@ impl<'a> Context<'a> {
                                 let expressions_or_memory =
                                     self.acir_context.vars_to_expressions_or_memory(&acir_vars)?;
 
-                                Some(AssertionPayload::Dynamic(
-                                    error_selector.as_u64(),
-                                    expressions_or_memory,
-                                ))
+                                Some(AssertionPayload {
+                                    error_selector: error_selector.as_u64(),
+                                    payload: expressions_or_memory,
+                                })
                             }
                         }
                     }
@@ -1010,7 +1015,7 @@ impl<'a> Context<'a> {
 
         // Link the entry point with all dependencies
         while let Some(unresolved_fn_label) = entry_point.first_unresolved_function_call() {
-            let artifact = &brillig.find_by_label(unresolved_fn_label);
+            let artifact = &brillig.find_by_label(unresolved_fn_label.clone());
             let artifact = match artifact {
                 Some(artifact) => artifact,
                 None => {
@@ -1022,13 +1027,13 @@ impl<'a> Context<'a> {
             };
             entry_point.link_with(artifact);
             // Insert the range of opcode locations occupied by a procedure
-            if let Some(procedure_id) = artifact.procedure {
+            if let Some(procedure_id) = &artifact.procedure {
                 let num_opcodes = entry_point.byte_code.len();
                 let previous_num_opcodes = entry_point.byte_code.len() - artifact.byte_code.len();
                 // We subtract one as to keep the range inclusive on both ends
                 entry_point
                     .procedure_locations
-                    .insert(procedure_id, (previous_num_opcodes, num_opcodes - 1));
+                    .insert(procedure_id.clone(), (previous_num_opcodes, num_opcodes - 1));
             }
         }
         // Generate the final bytecode
