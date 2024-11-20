@@ -164,7 +164,7 @@ impl Context {
         {
             match cache_result {
                 CacheResult::Cached(cached) => {
-                    Self::replace_result_ids(dfg, &old_results, cached);
+                    replace_result_ids(dfg, &old_results, cached);
                     return;
                 }
                 CacheResult::NeedToHoistToCommonBlock(dominator, _cached) => {
@@ -180,7 +180,7 @@ impl Context {
         // Otherwise, try inserting the instruction again to apply any optimizations using the newly resolved inputs.
         let new_results = Self::push_instruction(id, instruction.clone(), &old_results, block, dfg);
 
-        Self::replace_result_ids(dfg, &old_results, &new_results);
+        replace_result_ids(dfg, &old_results, &new_results);
 
         self.cache_instruction(
             instruction.clone(),
@@ -317,17 +317,6 @@ impl Context {
         self.constraint_simplification_mappings.entry(side_effects_enabled_var).or_default()
     }
 
-    /// Replaces a set of [`ValueId`]s inside the [`DataFlowGraph`] with another.
-    fn replace_result_ids(
-        dfg: &mut DataFlowGraph,
-        old_results: &[ValueId],
-        new_results: &[ValueId],
-    ) {
-        for (old_result, new_result) in old_results.iter().zip(new_results) {
-            dfg.set_value_from_id(*old_result, *new_result);
-        }
-    }
-
     fn get_cached(
         &mut self,
         dfg: &DataFlowGraph,
@@ -341,6 +330,17 @@ impl Context {
         let predicate = predicate.then_some(side_effects_enabled_var);
 
         results_for_instruction.get(&predicate)?.get(block, &mut self.dom)
+    }
+}
+
+/// Replaces a set of [`ValueId`]s inside the [`DataFlowGraph`] with another.
+pub(super) fn replace_result_ids(
+    dfg: &mut DataFlowGraph,
+    old_results: &[ValueId],
+    new_results: &[ValueId],
+) {
+    for (old_result, new_result) in old_results.iter().zip(new_results) {
+        dfg.set_value_from_id(*old_result, *new_result);
     }
 }
 

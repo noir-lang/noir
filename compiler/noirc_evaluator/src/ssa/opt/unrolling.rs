@@ -14,8 +14,6 @@
 //! program that will need to be removed by a later simplify cfg pass.
 //! Note also that unrolling is skipped for Brillig runtime and as a result
 //! we remove reference count instructions because they are only used by Brillig bytecode
-use std::collections::HashSet;
-
 use acvm::acir::AcirField;
 
 use crate::{
@@ -35,7 +33,7 @@ use crate::{
         ssa_gen::Ssa,
     },
 };
-use fxhash::FxHashMap as HashMap;
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 impl Ssa {
     /// Loop unrolling can return errors, since ACIR functions need to be fully unrolled.
@@ -84,7 +82,7 @@ impl Function {
     }
 }
 
-struct Loop {
+pub(super) struct Loop {
     /// The header block of a loop is the block which dominates all the
     /// other blocks in the loop.
     header: BasicBlockId,
@@ -94,22 +92,22 @@ struct Loop {
     back_edge_start: BasicBlockId,
 
     /// All the blocks contained within the loop, including `header` and `back_edge_start`.
-    pub(crate) blocks: HashSet<BasicBlockId>,
+    pub(super) blocks: HashSet<BasicBlockId>,
 }
 
-struct Loops {
+pub(super) struct Loops {
     /// The loops that failed to be unrolled so that we do not try to unroll them again.
     /// Each loop is identified by its header block id.
     failed_to_unroll: HashSet<BasicBlockId>,
 
-    yet_to_unroll: Vec<Loop>,
+    pub(super) yet_to_unroll: Vec<Loop>,
     modified_blocks: HashSet<BasicBlockId>,
-    cfg: ControlFlowGraph,
+    pub(super) cfg: ControlFlowGraph,
 }
 
 /// Find a loop in the program by finding a node that dominates any predecessor node.
 /// The edge where this happens will be the back-edge of the loop.
-fn find_all_loops(function: &Function) -> Loops {
+pub(super) fn find_all_loops(function: &Function) -> Loops {
     let cfg = ControlFlowGraph::with_function(function);
     let post_order = PostOrder::with_function(function);
     let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
@@ -134,9 +132,9 @@ fn find_all_loops(function: &Function) -> Loops {
     loops.sort_by_key(|loop_| loop_.blocks.len());
 
     Loops {
-        failed_to_unroll: HashSet::new(),
+        failed_to_unroll: HashSet::default(),
         yet_to_unroll: loops,
-        modified_blocks: HashSet::new(),
+        modified_blocks: HashSet::default(),
         cfg,
     }
 }
@@ -180,7 +178,7 @@ fn find_blocks_in_loop(
     back_edge_start: BasicBlockId,
     cfg: &ControlFlowGraph,
 ) -> Loop {
-    let mut blocks = HashSet::new();
+    let mut blocks = HashSet::default();
     blocks.insert(header);
 
     let mut insert = |block, stack: &mut Vec<BasicBlockId>| {
@@ -236,7 +234,7 @@ fn unroll_loop(
 /// The loop pre-header is the block that comes before the loop begins. Generally a header block
 /// is expected to have 2 predecessors: the pre-header and the final block of the loop which jumps
 /// back to the beginning.
-fn get_pre_header(cfg: &ControlFlowGraph, loop_: &Loop) -> BasicBlockId {
+pub(super) fn get_pre_header(cfg: &ControlFlowGraph, loop_: &Loop) -> BasicBlockId {
     let mut pre_header = cfg
         .predecessors(loop_.header)
         .filter(|predecessor| *predecessor != loop_.back_edge_start)
