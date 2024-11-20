@@ -1,3 +1,12 @@
+//! The loop invariant code motion pass moves code from inside a loop to before the loop
+//! if that code will always have the same result on every iteration of the loop.
+//!
+//! To identify a loop invariant, check whether all of an instruction's values are:
+//! - Outside of the loop
+//! - Constant
+//! - Already marked as loop invariants
+//!
+//! We also check that we are not hoisting instructions with side effects.
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::{
@@ -46,6 +55,7 @@ impl Loops {
                 continue;
             };
 
+            // Gather the variables declared within the loop
             let mut defined_in_loop: HashSet<ValueId> = HashSet::default();
             for block in loop_.blocks.iter() {
                 let params = inserter.function.dfg.block_parameters(*block);
@@ -56,25 +66,37 @@ impl Loops {
                 }
             }
 
+            // Instructions to move to the preheader
             let mut instructions_to_hoist = Vec::new();
+            // Mapping to track unchanged instructions per block
             let mut block_to_instructions = HashMap::default();
+            // Track already found loop invariants
+            let mut loop_invariants = HashSet::default();
             for block in loop_.blocks.iter() {
                 let mut instructions_to_keep = Vec::new();
                 for instruction_id in inserter.function.dfg[*block].take_instructions() {
-                    // let instruction_id = *instruction_id;
-                    let mut instr_args_defined_in_loop = false;
+                    let mut is_not_loop_invariant = false;
                     // The list of blocks for a nested loop contain any inner loops as well.
                     // We may have already re-inserted new instructions if two loops share blocks
                     // so we need to map all the values in the instruction which we want to check.
                     let (instruction, _) = inserter.map_instruction(instruction_id);
                     instruction.for_each_value(|value| {
-                        // TODO: Allow hoisting of values that are defined in the loop but are already marked loop invariants
-                        instr_args_defined_in_loop |= defined_in_loop.contains(&value);
+                        // We are implicitly checking whether the values are constant as well.
+                        // The set of values defined in the loop only contains instruction results and block parameters
+                        // which cannot be constants.
+                        is_not_loop_invariant |=
+                            defined_in_loop.contains(&value) && !loop_invariants.contains(&value);
                     });
 
-                    if !instr_args_defined_in_loop
+                    if !is_not_loop_invariant
                         && instruction.can_be_deduplicated(&inserter.function.dfg, false)
                     {
+                        // We need to collect the results as we then mutably borrow to resolve the ValueIds
+                        let results =
+                            inserter.function.dfg.instruction_results(instruction_id).to_vec();
+                        let results = results.into_iter().map(|value| inserter.resolve(value));
+
+                        loop_invariants.extend(results);
                         instructions_to_hoist.push(instruction_id);
                     } else {
                         instructions_to_keep.push(instruction_id);
@@ -245,6 +267,68 @@ mod test {
         ";
 
         let ssa = ssa.loop_invariant_code_motion();
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn hoist_invariant_with_invariant_as_argument() {
+        // Check that an instruction which has arguments defined in the loop
+        // but which are already marked loop invariants is still hoisted to the preheader.
+        //
+        // For example, in b3 we have the following instructions:
+        // ```text
+        // v6 = mul v0, v1
+        // v7 = mul v6, v0
+        // ```
+        // `v6` should be marked a loop invariants as `v0` and `v1` are both declared outside of the loop.
+        // As we will be hoisting `v6 = mul v0, v1` to the loop preheader we know that we can also
+        // hoist `v7 = mul v6, v0`.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v5 = lt v2, u32 4
+            jmpif v5 then: b3, else: b2
+          b3():
+            v6 = mul v0, v1
+            v7 = mul v6, v0
+            v8 = eq v7, u32 12
+            constrain v7 == u32 12
+            v9 = add v2, u32 1
+            jmp b1(v9)
+          b2():
+            return
+        }
+        ";
+
+        let mut ssa = Ssa::from_str(src).unwrap();
+        let main = ssa.main_mut();
+
+        let instructions = main.dfg[main.entry_block()].instructions();
+        assert_eq!(instructions.len(), 0); // The final return is not counted
+
+        let expected = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            v3 = mul v0, v1
+            v4 = mul v3, v0
+            v6 = eq v4, u32 12
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v9 = lt v2, u32 4
+            jmpif v9 then: b3, else: b2
+          b3():
+            constrain v4 == u32 12
+            v11 = add v2, u32 1
+            jmp b1(v11)
+          b2():
+            return
+        }
+        ";
+
+        let ssa = ssa.loop_invariant_code_motion();
+        println!("{}", ssa);
         assert_normalized_ssa_equals(ssa, expected);
     }
 }
