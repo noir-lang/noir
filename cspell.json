@@ -171,6 +171,7 @@
         "PLONKish",
         "pprof",
         "precomputes",
+        "preheader",
         "preimage",
         "preprocess",
         "prettytable",

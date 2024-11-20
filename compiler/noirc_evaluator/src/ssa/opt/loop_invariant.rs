@@ -41,7 +41,8 @@ impl Loops {
         let mut inserter = FunctionInserter::new(function);
 
         for loop_ in self.yet_to_unroll {
-            let Ok(unroll_into) = loop_.get_pre_header(inserter.function, &self.cfg) else {
+            let Ok(pre_header) = loop_.get_pre_header(inserter.function, &self.cfg) else {
+                // If the loop does not have a preheader we skip hoisting loop invariants for this loop
                 continue;
             };
 
@@ -60,6 +61,7 @@ impl Loops {
             for block in loop_.blocks.iter() {
                 let mut instructions_to_keep = Vec::new();
                 for instruction_id in inserter.function.dfg[*block].take_instructions() {
+                    // let instruction_id = *instruction_id;
                     let mut instr_args_defined_in_loop = false;
                     // The list of blocks for a nested loop contain any inner loops as well.
                     // We may have already re-inserted new instructions if two loops share blocks
@@ -92,12 +94,14 @@ impl Loops {
                     instruction_id,
                     instruction,
                     &old_results,
-                    unroll_into,
+                    pre_header,
                     &mut inserter.function.dfg,
                 );
 
                 replace_result_ids(&mut inserter.function.dfg, &old_results, &new_results);
             }
+
+            inserter.map_terminator_in_place(pre_header);
 
             // Add back and map unchanged loop body instructions
             for (block, instructions_to_keep) in block_to_instructions {
@@ -116,6 +120,8 @@ impl Loops {
 
                     replace_result_ids(&mut inserter.function.dfg, &old_results, &new_results);
                 }
+
+                inserter.map_terminator_in_place(block);
             }
         }
     }
