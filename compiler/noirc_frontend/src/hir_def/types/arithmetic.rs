@@ -342,7 +342,6 @@ impl Type {
 
                     let mut tmp_bindings = bindings.clone();
                     if Unifier::try_unify(lhs_a, &new_other, &mut tmp_bindings).is_ok() {
-                        //if lhs_a.try_unify(&new_other, &mut tmp_bindings).is_ok() {
                         *bindings = tmp_bindings;
                         return Ok(());
                     }
@@ -360,7 +359,6 @@ impl Type {
 
                     let mut tmp_bindings = bindings.clone();
                     if Unifier::try_unify(&new_self, lhs_b, &mut tmp_bindings).is_ok() {
-                        // if new_self.try_unify(lhs_b, &mut tmp_bindings).is_ok() {
                         *bindings = tmp_bindings;
                         return Ok(());
                     }
