@@ -1,3 +1,5 @@
+use iter_extended::vecmap;
+
 use crate::{
     parser::{labels::ParsingRuleLabel, Item, ItemKind},
     token::{Keyword, Token},
@@ -13,31 +15,32 @@ impl<'a> Parser<'a> {
     }
 
     pub(crate) fn parse_module_items(&mut self, nested: bool) -> Vec<Item> {
-        self.parse_many("items", without_separator(), |parser| {
+        self.parse_many_to_many("items", without_separator(), |parser| {
             parser.parse_module_item_in_list(nested)
         })
     }
 
-    fn parse_module_item_in_list(&mut self, nested: bool) -> Option<Item> {
+    fn parse_module_item_in_list(&mut self, nested: bool) -> Vec<Item> {
         loop {
             // We only break out of the loop on `}` if we are inside a `mod { ..`
             if nested && self.at(Token::RightBrace) {
-                return None;
+                return vec![];
             }
 
             // We always break on EOF (we don't error because if we are inside `mod { ..`
             // the outer parsing logic will error instead)
             if self.at_eof() {
-                return None;
+                return vec![];
             }
 
-            let Some(item) = self.parse_item() else {
+            let parsed_items = self.parse_item();
+            if parsed_items.is_empty() {
                 // If we couldn't parse an item we check which token we got
                 match self.token.token() {
                     Token::RightBrace if nested => {
-                        return None;
+                        return vec![];
                     }
-                    Token::EOF => return None,
+                    Token::EOF => return vec![],
                     _ => (),
                 }
 
@@ -47,7 +50,7 @@ impl<'a> Parser<'a> {
                 continue;
             };
 
-            return Some(item);
+            return parsed_items;
         }
     }
 
@@ -85,15 +88,19 @@ impl<'a> Parser<'a> {
     }
 
     /// Item = OuterDocComments ItemKind
-    fn parse_item(&mut self) -> Option<Item> {
+    fn parse_item(&mut self) -> Vec<Item> {
         let start_span = self.current_token_span;
         let doc_comments = self.parse_outer_doc_comments();
-        let kind = self.parse_item_kind()?;
+        let kinds = self.parse_item_kind();
         let span = self.span_since(start_span);
 
-        Some(Item { kind, span, doc_comments })
+        vecmap(kinds, |kind| Item { kind, span, doc_comments: doc_comments.clone() })
     }
 
+    /// This method returns one 'ItemKind' in the majority of cases.
+    /// The current exception is when parsing a trait alias,
+    /// which returns both the trait and the impl.
+    ///
     /// ItemKind
     ///     = InnerAttribute
     ///     | Attributes Modifiers
@@ -106,9 +113,9 @@ impl<'a> Parser<'a> {
     ///         | TypeAlias
     ///         | Function
     ///         )
-    fn parse_item_kind(&mut self) -> Option<ItemKind> {
+    fn parse_item_kind(&mut self) -> Vec<ItemKind> {
         if let Some(kind) = self.parse_inner_attribute() {
-            return Some(ItemKind::InnerAttribute(kind));
+            return vec![ItemKind::InnerAttribute(kind)];
         }
 
         let start_span = self.current_token_span;
@@ -122,78 +129,81 @@ impl<'a> Parser<'a> {
             self.comptime_mutable_and_unconstrained_not_applicable(modifiers);
 
             let use_tree = self.parse_use_tree();
-            return Some(ItemKind::Import(use_tree, modifiers.visibility));
+            return vec![ItemKind::Import(use_tree, modifiers.visibility)];
         }
 
         if let Some(is_contract) = self.eat_mod_or_contract() {
             self.comptime_mutable_and_unconstrained_not_applicable(modifiers);
 
-            return Some(self.parse_mod_or_contract(attributes, is_contract, modifiers.visibility));
+            return vec![self.parse_mod_or_contract(attributes, is_contract, modifiers.visibility)];
         }
 
         if self.eat_keyword(Keyword::Struct) {
             self.comptime_mutable_and_unconstrained_not_applicable(modifiers);
 
-            return Some(ItemKind::Struct(self.parse_struct(
+            return vec![ItemKind::Struct(self.parse_struct(
                 attributes,
                 modifiers.visibility,
                 start_span,
-            )));
+            ))];
         }
 
         if self.eat_keyword(Keyword::Impl) {
             self.comptime_mutable_and_unconstrained_not_applicable(modifiers);
 
-            return Some(match self.parse_impl() {
+            return vec![match self.parse_impl() {
                 Impl::Impl(type_impl) => ItemKind::Impl(type_impl),
                 Impl::TraitImpl(noir_trait_impl) => ItemKind::TraitImpl(noir_trait_impl),
-            });
+            }];
         }
 
         if self.eat_keyword(Keyword::Trait) {
             self.comptime_mutable_and_unconstrained_not_applicable(modifiers);
 
-            return Some(ItemKind::Trait(self.parse_trait(
-                attributes,
-                modifiers.visibility,
-                start_span,
-            )));
+            let (noir_trait, noir_impl) =
+                self.parse_trait(attributes, modifiers.visibility, start_span);
+            let mut output = vec![ItemKind::Trait(noir_trait)];
+            if let Some(noir_impl) = noir_impl {
+                output.push(ItemKind::TraitImpl(noir_impl));
+            }
+
+            return output;
         }
 
         if self.eat_keyword(Keyword::Global) {
             self.unconstrained_not_applicable(modifiers);
 
-            return Some(ItemKind::Global(
+            return vec![ItemKind::Global(
                 self.parse_global(
                     attributes,
                     modifiers.comptime.is_some(),
                     modifiers.mutable.is_some(),
                 ),
                 modifiers.visibility,
-            ));
+            )];
         }
 
         if self.eat_keyword(Keyword::Type) {
             self.comptime_mutable_and_unconstrained_not_applicable(modifiers);
 
-            return Some(ItemKind::TypeAlias(
+            return vec![ItemKind::TypeAlias(
                 self.parse_type_alias(modifiers.visibility, start_span),
-            ));
+            )];
         }
 
         if self.eat_keyword(Keyword::Fn) {
             self.mutable_not_applicable(modifiers);
 
-            return Some(ItemKind::Function(self.parse_function(
+            return vec![ItemKind::Function(self.parse_function(
                 attributes,
                 modifiers.visibility,
                 modifiers.comptime.is_some(),
                 modifiers.unconstrained.is_some(),
                 false, // allow_self
-            )));
+            ))];
         }
 
-        None
+        vec![]
     }
 
     fn eat_mod_or_contract(&mut self) -> Option<bool> {
