@@ -39,3 +39,13 @@ fn test_aes128_encrypt() {
     let cipher_len = clear_len + 16 - clear_len % 16;
     assert_eq(ciphertext.len(), cipher_len);
 }
+
+#[test]
+fn test_blake2s() {
+    let hash = comptime {
+        let text = [104, 101, 108, 108, 111];
+        std::hash::blake2s(text)
+    };
+    assert_eq(hash[0], 0x19);
+    assert_eq(hash[31], 0x25);
+}

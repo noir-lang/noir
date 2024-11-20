@@ -51,6 +51,7 @@ fn call_foreign(
         "bigint_sub" => bigint_op(bigint_solver, BigIntSub, args, location),
         "bigint_mul" => bigint_op(bigint_solver, BigIntMul, args, location),
         "bigint_div" => bigint_op(bigint_solver, BigIntDiv, args, location),
+        "blake2s" => blake2s(interner, args, location),
         "poseidon2_permutation" => poseidon2_permutation(interner, args, location),
         "keccakf1600" => keccakf1600(interner, args, location),
         "range" => apply_range_constraint(args, location),
@@ -161,7 +162,22 @@ fn bigint_op(
     Ok(Value::U32(id))
 }
 
-// poseidon2_permutation<let N: u32>(_input: [Field; N], _state_length: u32) -> [Field; N]
+/// `pub fn blake2s<let N: u32>(input: [u8; N]) -> [u8; 32]`
+fn blake2s(
+    interner: &mut NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let inputs = check_one_argument(arguments, location)?;
+
+    let (inputs, _) = get_array_map(interner, inputs, get_u8)?;
+    let output = acvm_blackbox_solver::blake2s(&inputs)
+        .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
+
+    Ok(to_byte_array(&output))
+}
+
+/// `poseidon2_permutation<let N: u32>(_input: [Field; N], _state_length: u32) -> [Field; N]`
 fn poseidon2_permutation(
     interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
