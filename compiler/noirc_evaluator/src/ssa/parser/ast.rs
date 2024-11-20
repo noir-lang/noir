@@ -104,6 +104,11 @@ pub(crate) enum ParsedInstruction {
         value: ParsedValue,
         typ: Type,
     },
+    MakeArray {
+        target: Identifier,
+        elements: Vec<ParsedValue>,
+        typ: Type,
+    },
     Not {
         target: Identifier,
         value: ParsedValue,
@@ -131,9 +136,8 @@ pub(crate) enum ParsedTerminator {
     Return(Vec<ParsedValue>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) enum ParsedValue {
     NumericConstant { constant: FieldElement, typ: Type },
-    Array { values: Vec<ParsedValue>, typ: Type },
     Variable(Identifier),
 }

@@ -3,6 +3,7 @@
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use im::Vector;
 use noirc_errors::Location;
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
 use crate::ssa::{
     ir::{
@@ -24,9 +25,8 @@ impl Ssa {
     /// unused results.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn dead_instruction_elimination(mut self) -> Ssa {
-        for function in self.functions.values_mut() {
-            function.dead_instruction_elimination(true);
-        }
+        self.functions.par_iter_mut().for_each(|(_, func)| func.dead_instruction_elimination(true));
+
         self
     }
 }
@@ -172,7 +172,7 @@ impl Context {
     fn is_unused(&self, instruction_id: InstructionId, function: &Function) -> bool {
         let instruction = &function.dfg[instruction_id];
 
-        if instruction.can_eliminate_if_unused(&function.dfg) {
+        if instruction.can_eliminate_if_unused(function) {
             let results = function.dfg.instruction_results(instruction_id);
             results.iter().all(|result| !self.used_values.contains(result))
         } else if let Instruction::Call { func, arguments } = instruction {
@@ -192,29 +192,11 @@ impl Context {
         });
     }
 
-    /// Inspects a value recursively (as it could be an array) and marks all comprised instruction
-    /// results as used.
+    /// Inspects a value and marks all instruction results as used.
     fn mark_used_instruction_results(&mut self, dfg: &DataFlowGraph, value_id: ValueId) {
         let value_id = dfg.resolve(value_id);
-        match &dfg[value_id] {
-            Value::Instruction { .. } => {
-                self.used_values.insert(value_id);
-            }
-            Value::Array { array, .. } => {
-                self.used_values.insert(value_id);
-                for elem in array {
-                    self.mark_used_instruction_results(dfg, *elem);
-                }
-            }
-            Value::Param { .. } => {
-                self.used_values.insert(value_id);
-            }
-            Value::NumericConstant { .. } => {
-                self.used_values.insert(value_id);
-            }
-            _ => {
-                // Does not comprise of any instruction results
-            }
+        if matches!(&dfg[value_id], Value::Instruction { .. } | Value::Param { .. }) {
+            self.used_values.insert(value_id);
         }
     }
 
@@ -740,10 +722,11 @@ mod test {
     fn keep_inc_rc_on_borrowed_array_store() {
         // acir(inline) fn main f0 {
         //     b0():
+        //       v1 = make_array [u32 0, u32 0]
         //       v2 = allocate
-        //       inc_rc [u32 0, u32 0]
-        //       store [u32 0, u32 0] at v2
-        //       inc_rc [u32 0, u32 0]
+        //       inc_rc v1
+        //       store v1 at v2
+        //       inc_rc v1
         //       jmp b1()
         //     b1():
         //       v3 = load v2
@@ -756,11 +739,11 @@ mod test {
         let mut builder = FunctionBuilder::new("main".into(), main_id);
         let zero = builder.numeric_constant(0u128, Type::unsigned(32));
         let array_type = Type::Array(Arc::new(vec![Type::unsigned(32)]), 2);
-        let array = builder.array_constant(vector![zero, zero], array_type.clone());
+        let v1 = builder.insert_make_array(vector![zero, zero], array_type.clone());
         let v2 = builder.insert_allocate(array_type.clone());
-        builder.increment_array_reference_count(array);
-        builder.insert_store(v2, array);
-        builder.increment_array_reference_count(array);
+        builder.increment_array_reference_count(v1);
+        builder.insert_store(v2, v1);
+        builder.increment_array_reference_count(v1);
 
         let b1 = builder.insert_block();
         builder.terminate_with_jmp(b1, vec![]);
@@ -775,14 +758,14 @@ mod test {
         let main = ssa.main();
 
         // The instruction count never includes the terminator instruction
-        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 4);
+        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 5);
         assert_eq!(main.dfg[b1].instructions().len(), 2);
 
         // We expect the output to be unchanged
         let ssa = ssa.dead_instruction_elimination();
         let main = ssa.main();
 
-        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 4);
+        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 5);
         assert_eq!(main.dfg[b1].instructions().len(), 2);
     }
 

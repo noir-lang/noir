@@ -184,10 +184,6 @@ impl Kind {
         }
     }
 
-    pub(crate) fn is_numeric(&self) -> bool {
-        matches!(self.follow_bindings(), Self::Numeric { .. })
-    }
-
     pub(crate) fn is_type_level_field_element(&self) -> bool {
         let type_level = false;
         self.is_field_element(type_level)
@@ -375,10 +371,6 @@ impl ResolvedGeneric {
     pub fn kind(&self) -> Kind {
         self.type_var.kind()
     }
-
-    pub(crate) fn is_numeric(&self) -> bool {
-        self.kind().is_numeric()
-    }
 }
 
 enum FunctionCoercionResult {
@@ -522,13 +514,6 @@ impl StructType {
 
     pub fn field_names(&self) -> BTreeSet<Ident> {
         self.fields.iter().map(|field| field.name.clone()).collect()
-    }
-
-    /// Search the fields of a struct for any types with a `TypeKind::Numeric`
-    pub fn find_numeric_generics_in_fields(&self, found_names: &mut Vec<String>) {
-        for field in self.fields.iter() {
-            field.typ.find_numeric_type_vars(found_names);
-        }
     }
 
     /// Instantiate this struct type, returning a Vec of the new generic args (in
@@ -1102,99 +1087,6 @@ impl Type {
         }
     }
 
-    pub fn find_numeric_type_vars(&self, found_names: &mut Vec<String>) {
-        // Return whether the named generic has a Kind::Numeric and save its name
-        let named_generic_is_numeric = |typ: &Type, found_names: &mut Vec<String>| {
-            if let Type::NamedGeneric(var, name) = typ {
-                if var.kind().is_numeric() {
-                    found_names.push(name.to_string());
-                    true
-                } else {
-                    false
-                }
-            } else {
-                false
-            }
-        };
-
-        match self {
-            Type::FieldElement
-            | Type::Integer(_, _)
-            | Type::Bool
-            | Type::Unit
-            | Type::Error
-            | Type::Constant(_, _)
-            | Type::Forall(_, _)
-            | Type::Quoted(_) => {}
-
-            Type::TypeVariable(type_var) => {
-                if let TypeBinding::Bound(typ) = &*type_var.borrow() {
-                    named_generic_is_numeric(typ, found_names);
-                }
-            }
-
-            Type::NamedGeneric(_, _) => {
-                named_generic_is_numeric(self, found_names);
-            }
-            Type::CheckedCast { from, to } => {
-                to.find_numeric_type_vars(found_names);
-                from.find_numeric_type_vars(found_names);
-            }
-
-            Type::TraitAsType(_, _, args) => {
-                for arg in args.ordered.iter() {
-                    arg.find_numeric_type_vars(found_names);
-                }
-                for arg in args.named.iter() {
-                    arg.typ.find_numeric_type_vars(found_names);
-                }
-            }
-            Type::Array(length, elem) => {
-                elem.find_numeric_type_vars(found_names);
-                named_generic_is_numeric(length, found_names);
-            }
-            Type::Slice(elem) => elem.find_numeric_type_vars(found_names),
-            Type::Tuple(fields) => {
-                for field in fields.iter() {
-                    field.find_numeric_type_vars(found_names);
-                }
-            }
-            Type::Function(parameters, return_type, env, _unconstrained) => {
-                for parameter in parameters.iter() {
-                    parameter.find_numeric_type_vars(found_names);
-                }
-                return_type.find_numeric_type_vars(found_names);
-                env.find_numeric_type_vars(found_names);
-            }
-            Type::Struct(_, generics) => {
-                for generic in generics.iter() {
-                    if !named_generic_is_numeric(generic, found_names) {
-                        generic.find_numeric_type_vars(found_names);
-                    }
-                }
-            }
-            Type::Alias(_, generics) => {
-                for generic in generics.iter() {
-                    if !named_generic_is_numeric(generic, found_names) {
-                        generic.find_numeric_type_vars(found_names);
-                    }
-                }
-            }
-            Type::MutableReference(element) => element.find_numeric_type_vars(found_names),
-            Type::String(length) => {
-                named_generic_is_numeric(length, found_names);
-            }
-            Type::FmtString(length, elements) => {
-                elements.find_numeric_type_vars(found_names);
-                named_generic_is_numeric(length, found_names);
-            }
-            Type::InfixExpr(lhs, _op, rhs) => {
-                lhs.find_numeric_type_vars(found_names);
-                rhs.find_numeric_type_vars(found_names);
-            }
-        }
-    }
-
     /// True if this type can be used as a parameter to `main` or a contract function.
     /// This is only false for unsized types like slices or slices that do not make sense
     /// as a program input such as named generics or mutable references.
@@ -1655,12 +1547,15 @@ impl Type {
     ) -> Result<(), UnificationError> {
         use Type::*;
 
-        let lhs = match self {
+        let lhs = self.follow_bindings_shallow();
+        let rhs = other.follow_bindings_shallow();
+
+        let lhs = match lhs.as_ref() {
             Type::InfixExpr(..) => Cow::Owned(self.canonicalize()),
             other => Cow::Borrowed(other),
         };
 
-        let rhs = match other {
+        let rhs = match rhs.as_ref() {
             Type::InfixExpr(..) => Cow::Owned(other.canonicalize()),
             other => Cow::Borrowed(other),
         };
@@ -2491,6 +2386,21 @@ impl Type {
             FieldElement | Integer(_, _) | Bool | Constant(_, _) | Unit | Quoted(_) | Error => {
                 self.clone()
             }
+        }
+    }
+
+    /// Follow bindings if this is a type variable or generic to the first non-typevariable
+    /// type. Unlike `follow_bindings`, this won't recursively follow any bindings on any
+    /// fields or arguments of this type.
+    pub fn follow_bindings_shallow(&self) -> Cow<Type> {
+        match self {
+            Type::TypeVariable(var) | Type::NamedGeneric(var, _) => {
+                if let TypeBinding::Bound(typ) = &*var.borrow() {
+                    return Cow::Owned(typ.follow_bindings_shallow().into_owned());
+                }
+                Cow::Borrowed(self)
+            }
+            other => Cow::Borrowed(other),
         }
     }
 
