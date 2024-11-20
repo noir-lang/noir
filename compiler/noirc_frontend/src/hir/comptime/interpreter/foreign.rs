@@ -51,7 +51,8 @@ fn call_foreign(
         "bigint_sub" => bigint_op(bigint_solver, BigIntSub, args, location),
         "bigint_mul" => bigint_op(bigint_solver, BigIntMul, args, location),
         "bigint_div" => bigint_op(bigint_solver, BigIntDiv, args, location),
-        "blake2s" => blake2s(interner, args, location),
+        "blake2s" => blake_hash(interner, args, location, acvm_blackbox_solver::blake2s),
+        "blake3" => blake_hash(interner, args, location, acvm_blackbox_solver::blake3),
         "poseidon2_permutation" => poseidon2_permutation(interner, args, location),
         "keccakf1600" => keccakf1600(interner, args, location),
         "range" => apply_range_constraint(args, location),
@@ -162,17 +163,20 @@ fn bigint_op(
     Ok(Value::U32(id))
 }
 
-/// `pub fn blake2s<let N: u32>(input: [u8; N]) -> [u8; 32]`
-fn blake2s(
+/// ```text
+/// pub fn blake2s<let N: u32>(input: [u8; N]) -> [u8; 32]
+/// pub fn blake3<let N: u32>(input: [u8; N]) -> [u8; 32]
+/// ```
+fn blake_hash(
     interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
+    f: impl Fn(&[u8]) -> Result<[u8; 32], BlackBoxResolutionError>,
 ) -> IResult<Value> {
     let inputs = check_one_argument(arguments, location)?;
 
     let (inputs, _) = get_array_map(interner, inputs, get_u8)?;
-    let output = acvm_blackbox_solver::blake2s(&inputs)
-        .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
+    let output = f(&inputs).map_err(|e| InterpreterError::BlackBoxError(e, location))?;
 
     Ok(to_byte_array(&output))
 }

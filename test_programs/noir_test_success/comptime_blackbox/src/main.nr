@@ -49,3 +49,13 @@ fn test_blake2s() {
     assert_eq(hash[0], 0x19);
     assert_eq(hash[31], 0x25);
 }
+
+#[test]
+fn test_blake3() {
+    let hash = comptime {
+        let text = [104, 101, 108, 108, 111];
+        std::hash::blake3(text)
+    };
+    assert_eq(hash[0], 0xea);
+    assert_eq(hash[31], 0x0f);
+}
