@@ -3161,7 +3161,6 @@ name = "noirc_frontend"
 version = "0.38.0"
 dependencies = [
  "acvm",
- "acvm_blackbox_solver",
  "base64 0.21.7",
  "bn254_blackbox_solver",
  "cfg-if 1.0.0",

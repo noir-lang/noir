@@ -51,8 +51,8 @@ fn call_foreign(
         "bigint_sub" => bigint_op(bigint_solver, BigIntSub, args, location),
         "bigint_mul" => bigint_op(bigint_solver, BigIntMul, args, location),
         "bigint_div" => bigint_op(bigint_solver, BigIntDiv, args, location),
-        "blake2s" => blake_hash(interner, args, location, acvm_blackbox_solver::blake2s),
-        "blake3" => blake_hash(interner, args, location, acvm_blackbox_solver::blake3),
+        "blake2s" => blake_hash(interner, args, location, acvm::blackbox_solver::blake2s),
+        "blake3" => blake_hash(interner, args, location, acvm::blackbox_solver::blake3),
         "poseidon2_permutation" => poseidon2_permutation(interner, args, location),
         "keccakf1600" => keccakf1600(interner, args, location),
         "range" => apply_range_constraint(args, location),
@@ -72,10 +72,10 @@ fn aes128_encrypt(
     let (inputs, iv, key) = check_three_arguments(arguments, location)?;
 
     let (inputs, _) = get_array_map(interner, inputs, get_u8)?;
-    let iv = get_fixed_array_map(interner, iv, get_u8)?;
-    let key = get_fixed_array_map(interner, key, get_u8)?;
+    let (iv, _) = get_fixed_array_map(interner, iv, get_u8)?;
+    let (key, _) = get_fixed_array_map(interner, key, get_u8)?;
 
-    let output = acvm_blackbox_solver::aes128_encrypt(&inputs, iv, key)
+    let output = acvm::blackbox_solver::aes128_encrypt(&inputs, iv, key)
         .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
 
     Ok(to_byte_slice(&output))
@@ -201,6 +201,7 @@ fn poseidon2_permutation(
     Ok(Value::Array(array, typ))
 }
 
+/// `fn keccakf1600(input: [u64; 25]) -> [u64; 25] {}`
 fn keccakf1600(
     interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
@@ -208,12 +209,8 @@ fn keccakf1600(
 ) -> IResult<Value> {
     let input = check_one_argument(arguments, location)?;
 
-    let (input, typ) = get_array_map(interner, input, get_u64)?;
+    let (state, typ) = get_fixed_array_map(interner, input, get_u64)?;
 
-    let mut state = [0u64; 25];
-    for (it, input_value) in state.iter_mut().zip(input.iter()) {
-        *it = *input_value;
-    }
     let result_lanes = acvm::blackbox_solver::keccakf1600(state)
         .map_err(|error| InterpreterError::BlackBoxError(error, location))?;
 
