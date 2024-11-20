@@ -116,6 +116,7 @@ pub(crate) fn get_slice(
 }
 
 /// Interpret the input as a slice, then map each element.
+/// Returns the values in the slice and the original type.
 pub(crate) fn get_slice_map<T>(
     interner: &NodeInterner,
     (value, location): (Value, Location),
@@ -127,6 +128,7 @@ pub(crate) fn get_slice_map<T>(
 }
 
 /// Interpret the input as an array, then map each element.
+/// Returns the values in the array and the original array type.
 pub(crate) fn get_array_map<T>(
     interner: &NodeInterner,
     (value, location): (Value, Location),
