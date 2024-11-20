@@ -57,7 +57,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             })?;
             let key: [u8; 16] =
                 to_u8_vec(read_heap_array(memory, key)).try_into().map_err(|_| {
-                    BlackBoxResolutionError::Failed(bb_func, "Invalid ley length".to_string())
+                    BlackBoxResolutionError::Failed(bb_func, "Invalid key length".to_string())
                 })?;
             let ciphertext = aes128_encrypt(&inputs, iv, key)?;
 

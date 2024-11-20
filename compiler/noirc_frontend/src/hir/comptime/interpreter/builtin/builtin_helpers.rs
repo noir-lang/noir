@@ -140,6 +140,22 @@ pub(crate) fn get_array_map<T>(
     Ok((values, typ))
 }
 
+/// Get an array and convert it to a fixed size.
+pub(crate) fn get_fixed_array_map<T, const N: usize>(
+    interner: &NodeInterner,
+    (value, location): (Value, Location),
+    f: impl Fn((Value, Location)) -> IResult<T>,
+) -> IResult<[T; N]> {
+    let (values, typ) = get_array_map(interner, (value, location), f)?;
+
+    values.try_into().map_err(|_| {
+        // Assuming that `values.len()` corresponds to `typ`.
+        let Type::Array(_, ref elem) = typ else { unreachable!("it's an array") };
+        let expected = Type::Array(Box::new(Type::Constant(N.into(), Kind::u32())), elem.clone());
+        InterpreterError::TypeMismatch { expected, actual: typ, location }
+    })
+}
+
 pub(crate) fn get_str(
     interner: &NodeInterner,
     (value, location): (Value, Location),
@@ -553,4 +569,19 @@ pub(crate) fn byte_array_type(len: usize) -> Type {
         Box::new(Type::Constant(len.into(), Kind::u32())),
         Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)),
     )
+}
+
+/// Type to be used in `Value::Slice(<values>, <slice-type>)`.
+pub(crate) fn byte_slice_type() -> Type {
+    Type::Slice(Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)))
+}
+
+/// Create a `Value::Array` from bytes.
+pub(crate) fn to_byte_array(values: &[u8]) -> Value {
+    Value::Array(values.iter().copied().map(Value::U8).collect(), byte_array_type(values.len()))
+}
+
+/// Create a `Value::Slice` from bytes.
+pub(crate) fn to_byte_slice(values: &[u8]) -> Value {
+    Value::Slice(values.iter().copied().map(Value::U8).collect(), byte_slice_type())
 }

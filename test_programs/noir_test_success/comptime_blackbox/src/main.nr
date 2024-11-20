@@ -26,3 +26,16 @@ fn test_to_le_radix() {
         let _num = bigint::BigInt::from_le_bytes(bytes, bigint::bn254_fq);
     };
 }
+
+#[test]
+fn test_aes128_encrypt() {
+    let ciphertext = comptime {
+        let plaintext: [u8; 5] = [1, 2, 3, 4, 5];
+        let iv: [u8; 16] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
+        let key: [u8; 16] = [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25];
+        std::aes128::aes128_encrypt(plaintext, iv, key)
+    };
+    let clear_len = 5;
+    let cipher_len = clear_len + 16 - clear_len % 16;
+    assert_eq(ciphertext.len(), cipher_len);
+}
