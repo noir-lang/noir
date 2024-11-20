@@ -188,6 +188,7 @@ fn keccakf1600(
 #[cfg(test)]
 mod tests {
     use acvm::acir::BlackBoxFunc;
+    use im::HashSet;
     use noirc_errors::Location;
     use strum::IntoEnumIterator;
 
@@ -196,6 +197,7 @@ mod tests {
 
     use super::call_foreign;
 
+    /// Check that all `BlackBoxFunc` are covered by `call_foreign`.
     #[test]
     fn test_blackbox_implemented() {
         let dummy = "
@@ -203,14 +205,23 @@ mod tests {
             0
         }
         ";
+
+        let skip: HashSet<BlackBoxFunc> = HashSet::from_iter([
+            // Schnorr to be removed
+            BlackBoxFunc::SchnorrVerify,
+            // `acvm::blackbox_solver::bit_xor` exists for field elements,
+            // but the compiler says XOR on `Field` is not supported, only on ints,
+            // and the the SSA to Brillig transformation also expects these to be
+            // handled as a BinaryOp, which the Interpreter implements for ints.
+            BlackBoxFunc::XOR,
+            BlackBoxFunc::AND,
+        ]);
+
         let not_implemented = with_interpreter(dummy, |interpreter, _, _| {
             let no_location = Location::dummy();
             let mut not_implemented = Vec::new();
 
-            for blackbox in BlackBoxFunc::iter().filter(|func|
-                // Schnorr to be removed
-                *func != BlackBoxFunc::SchnorrVerify)
-            {
+            for blackbox in BlackBoxFunc::iter().filter(|func| !skip.contains(func)) {
                 let name = blackbox.name();
                 match call_foreign(
                     interpreter.elaborator.interner,
@@ -233,9 +244,8 @@ mod tests {
             not_implemented
         });
 
-        assert_eq!(
-            not_implemented.len(),
-            0,
+        assert!(
+            not_implemented.is_empty(),
             "unimplemented blackbox functions: {not_implemented:?}"
         );
     }
