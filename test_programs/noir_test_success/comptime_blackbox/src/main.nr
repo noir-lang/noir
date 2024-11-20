@@ -59,3 +59,18 @@ fn test_blake3() {
     assert_eq(hash[0], 0xea);
     assert_eq(hash[31], 0x0f);
 }
+
+#[test]
+fn test_ecdsa_secp256k1() {
+    let valid = comptime {
+        let pub_key_x: [u8; 32] = [1; 32];
+        let pub_key_y: [u8; 32] = [2; 32];
+        let signature: [u8; 64] = [3; 64];
+        let hashed_message: [u8; 32] = [4; 32];
+
+        let valid1 = std::ecdsa_secp256k1::verify_signature(pub_key_x, pub_key_y, signature, hashed_message);
+        let valid2 = std::ecdsa_secp256k1::verify_signature_slice(pub_key_x, pub_key_y, signature, hashed_message.as_slice());
+        valid1 | valid2
+    };
+    assert_eq(valid, false);
+}

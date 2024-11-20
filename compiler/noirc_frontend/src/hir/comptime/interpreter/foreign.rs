@@ -13,12 +13,14 @@ use crate::{
         Value,
     },
     node_interner::NodeInterner,
+    Type,
 };
 
 use super::{
     builtin::builtin_helpers::{
-        check_one_argument, check_three_arguments, check_two_arguments, get_array_map, get_field,
-        get_fixed_array_map, get_slice_map, get_u32, get_u64, get_u8, to_byte_slice,
+        check_arguments, check_one_argument, check_three_arguments, check_two_arguments,
+        get_array_map, get_field, get_fixed_array_map, get_slice_map, get_u32, get_u64, get_u8,
+        to_byte_slice,
     },
     Interpreter,
 };
@@ -53,6 +55,12 @@ fn call_foreign(
         "bigint_div" => bigint_op(bigint_solver, BigIntDiv, args, location),
         "blake2s" => blake_hash(interner, args, location, acvm::blackbox_solver::blake2s),
         "blake3" => blake_hash(interner, args, location, acvm::blackbox_solver::blake3),
+        "ecdsa_secp256k1" => ecdsa_secp256_verify(
+            interner,
+            args,
+            location,
+            acvm::blackbox_solver::ecdsa_secp256k1_verify,
+        ),
         "poseidon2_permutation" => poseidon2_permutation(interner, args, location),
         "keccakf1600" => keccakf1600(interner, args, location),
         "range" => apply_range_constraint(args, location),
@@ -163,6 +171,7 @@ fn bigint_op(
     Ok(Value::U32(id))
 }
 
+/// Run one of the Blake hash functions.
 /// ```text
 /// pub fn blake2s<let N: u32>(input: [u8; N]) -> [u8; 32]
 /// pub fn blake3<let N: u32>(input: [u8; N]) -> [u8; 32]
@@ -179,6 +188,47 @@ fn blake_hash(
     let output = f(&inputs).map_err(|e| InterpreterError::BlackBoxError(e, location))?;
 
     Ok(to_byte_array(&output))
+}
+
+/// Run one of the Secp256 signature verifications.
+/// ```text
+/// pub fn verify_signature<let N: u32>(
+///   public_key_x: [u8; 32],
+///   public_key_y: [u8; 32],
+///   signature: [u8; 64],
+///   message_hash: [u8; N],
+/// ) -> bool
+
+/// pub fn verify_signature_slice(
+///   public_key_x: [u8; 32],
+///   public_key_y: [u8; 32],
+///   signature: [u8; 64],
+///   message_hash: [u8],
+/// ) -> bool
+/// ```
+fn ecdsa_secp256_verify(
+    interner: &mut NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+    f: impl Fn(&[u8], &[u8; 32], &[u8; 32], &[u8; 64]) -> Result<bool, BlackBoxResolutionError>,
+) -> IResult<Value> {
+    let [pub_key_x, pub_key_y, sig, msg_hash] = check_arguments(arguments, location)?;
+
+    let (pub_key_x, _) = get_fixed_array_map(interner, pub_key_x, get_u8)?;
+    let (pub_key_y, _) = get_fixed_array_map(interner, pub_key_y, get_u8)?;
+    let (sig, _) = get_fixed_array_map(interner, sig, get_u8)?;
+
+    // Hash can be an array or slice.
+    let (msg_hash, _) = if matches!(msg_hash.0.get_type().as_ref(), Type::Array(_, _)) {
+        get_array_map(interner, msg_hash.clone(), get_u8)?
+    } else {
+        get_slice_map(interner, msg_hash, get_u8)?
+    };
+
+    let is_valid = f(&msg_hash, &pub_key_x, &pub_key_y, &sig)
+        .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
+
+    Ok(Value::Bool(is_valid))
 }
 
 /// `poseidon2_permutation<let N: u32>(_input: [Field; N], _state_length: u32) -> [Field; N]`

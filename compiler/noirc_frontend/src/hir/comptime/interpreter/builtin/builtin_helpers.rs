@@ -47,38 +47,40 @@ pub(crate) fn check_argument_count(
 }
 
 pub(crate) fn check_one_argument(
-    mut arguments: Vec<(Value, Location)>,
+    arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<(Value, Location)> {
-    check_argument_count(1, &arguments, location)?;
+    let [arg1] = check_arguments(arguments, location)?;
 
-    Ok(arguments.pop().unwrap())
+    Ok(arg1)
 }
 
 pub(crate) fn check_two_arguments(
-    mut arguments: Vec<(Value, Location)>,
+    arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<((Value, Location), (Value, Location))> {
-    check_argument_count(2, &arguments, location)?;
+    let [arg1, arg2] = check_arguments(arguments, location)?;
 
-    let argument2 = arguments.pop().unwrap();
-    let argument1 = arguments.pop().unwrap();
-
-    Ok((argument1, argument2))
+    Ok((arg1, arg2))
 }
 
 #[allow(clippy::type_complexity)]
 pub(crate) fn check_three_arguments(
-    mut arguments: Vec<(Value, Location)>,
+    arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<((Value, Location), (Value, Location), (Value, Location))> {
-    check_argument_count(3, &arguments, location)?;
+    let [arg1, arg2, arg3] = check_arguments(arguments, location)?;
 
-    let argument3 = arguments.pop().unwrap();
-    let argument2 = arguments.pop().unwrap();
-    let argument1 = arguments.pop().unwrap();
+    Ok((arg1, arg2, arg3))
+}
 
-    Ok((argument1, argument2, argument3))
+#[allow(clippy::type_complexity)]
+pub(crate) fn check_arguments<const N: usize>(
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<[(Value, Location); N]> {
+    check_argument_count(N, &arguments, location)?;
+    Ok(arguments.try_into().expect("checked arg count"))
 }
 
 pub(crate) fn get_array(
