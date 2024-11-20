@@ -178,7 +178,7 @@ impl Context {
         }
 
         // Otherwise, try inserting the instruction again to apply any optimizations using the newly resolved inputs.
-        let new_results = Self::push_instruction(id, instruction.clone(), &old_results, block, dfg);
+        let new_results = push_instruction(id, instruction.clone(), &old_results, block, dfg);
 
         replace_result_ids(dfg, &old_results, &new_results);
 
@@ -225,36 +225,6 @@ impl Context {
         // Resolve any inputs to ensure that we're comparing like-for-like instructions.
         instruction
             .map_values(|value_id| resolve_cache(dfg, constraint_simplification_mapping, value_id))
-    }
-
-    /// Pushes a new [`Instruction`] into the [`DataFlowGraph`] which applies any optimizations
-    /// based on newly resolved values for its inputs.
-    ///
-    /// This may result in the [`Instruction`] being optimized away or replaced with a constant value.
-    fn push_instruction(
-        id: InstructionId,
-        instruction: Instruction,
-        old_results: &[ValueId],
-        block: BasicBlockId,
-        dfg: &mut DataFlowGraph,
-    ) -> Vec<ValueId> {
-        let ctrl_typevars = instruction
-            .requires_ctrl_typevars()
-            .then(|| vecmap(old_results, |result| dfg.type_of_value(*result)));
-
-        let call_stack = dfg.get_call_stack(id);
-        let new_results =
-            match dfg.insert_instruction_and_results(instruction, block, ctrl_typevars, call_stack)
-            {
-                InsertInstructionResult::SimplifiedTo(new_result) => vec![new_result],
-                InsertInstructionResult::SimplifiedToMultiple(new_results) => new_results,
-                InsertInstructionResult::Results(_, new_results) => new_results.to_vec(),
-                InsertInstructionResult::InstructionRemoved => vec![],
-            };
-        // Optimizations while inserting the instruction should not change the number of results.
-        assert_eq!(old_results.len(), new_results.len());
-
-        new_results
     }
 
     fn cache_instruction(
@@ -331,6 +301,35 @@ impl Context {
 
         results_for_instruction.get(&predicate)?.get(block, &mut self.dom)
     }
+}
+
+/// Pushes a new [`Instruction`] into the [`DataFlowGraph`] which applies any optimizations
+/// based on newly resolved values for its inputs.
+///
+/// This may result in the [`Instruction`] being optimized away or replaced with a constant value.
+pub(super) fn push_instruction(
+    id: InstructionId,
+    instruction: Instruction,
+    old_results: &[ValueId],
+    block: BasicBlockId,
+    dfg: &mut DataFlowGraph,
+) -> Vec<ValueId> {
+    let ctrl_typevars = instruction
+        .requires_ctrl_typevars()
+        .then(|| vecmap(old_results, |result| dfg.type_of_value(*result)));
+
+    let call_stack = dfg.get_call_stack(id);
+    let new_results =
+        match dfg.insert_instruction_and_results(instruction, block, ctrl_typevars, call_stack) {
+            InsertInstructionResult::SimplifiedTo(new_result) => vec![new_result],
+            InsertInstructionResult::SimplifiedToMultiple(new_results) => new_results,
+            InsertInstructionResult::Results(_, new_results) => new_results.to_vec(),
+            InsertInstructionResult::InstructionRemoved => vec![],
+        };
+    // Optimizations while inserting the instruction should not change the number of results.
+    assert_eq!(old_results.len(), new_results.len());
+
+    new_results
 }
 
 /// Replaces a set of [`ValueId`]s inside the [`DataFlowGraph`] with another.

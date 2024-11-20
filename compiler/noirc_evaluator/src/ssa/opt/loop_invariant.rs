@@ -9,7 +9,10 @@ use crate::ssa::{
     Ssa,
 };
 
-use super::{constant_folding::replace_result_ids, unrolling::Loops};
+use super::{
+    constant_folding::{push_instruction, replace_result_ids},
+    unrolling::Loops,
+};
 
 impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
@@ -38,7 +41,7 @@ impl Loops {
         let mut inserter = FunctionInserter::new(function);
 
         for loop_ in self.yet_to_unroll {
-            let Ok(unroll_into) = loop_.get_pre_header(&inserter.function, &self.cfg) else {
+            let Ok(unroll_into) = loop_.get_pre_header(inserter.function, &self.cfg) else {
                 continue;
             };
 
@@ -58,8 +61,12 @@ impl Loops {
                 let mut instructions_to_keep = Vec::new();
                 for instruction_id in inserter.function.dfg[*block].take_instructions() {
                     let mut instr_args_defined_in_loop = false;
-                    let instruction = &inserter.function.dfg[instruction_id];
+                    // The list of blocks for a nested loop contain any inner loops as well.
+                    // We may have already re-inserted new instructions if two loops share blocks
+                    // so we need to map all the values in the instruction which we want to check.
+                    let (instruction, _) = inserter.map_instruction(instruction_id);
                     instruction.for_each_value(|value| {
+                        // TODO: Allow hoisting of values that are defined in the loop but are already marked loop invariants
                         instr_args_defined_in_loop |= defined_in_loop.contains(&value);
                     });
 
@@ -80,10 +87,16 @@ impl Loops {
                 let old_results =
                     inserter.function.dfg.instruction_results(instruction_id).to_vec();
 
-                if let Some(new_id) = inserter.push_instruction(instruction_id, unroll_into) {
-                    let new_results = inserter.function.dfg.instruction_results(new_id).to_vec();
-                    replace_result_ids(&mut inserter.function.dfg, &old_results, &new_results);
-                }
+                let (instruction, _) = inserter.map_instruction(instruction_id);
+                let new_results = push_instruction(
+                    instruction_id,
+                    instruction,
+                    &old_results,
+                    unroll_into,
+                    &mut inserter.function.dfg,
+                );
+
+                replace_result_ids(&mut inserter.function.dfg, &old_results, &new_results);
             }
 
             // Add back and map unchanged loop body instructions
@@ -92,11 +105,16 @@ impl Loops {
                     let old_results =
                         inserter.function.dfg.instruction_results(*instruction_id).to_vec();
 
-                    if let Some(new_id) = inserter.push_instruction(*instruction_id, block) {
-                        let new_results =
-                            inserter.function.dfg.instruction_results(new_id).to_vec();
-                        replace_result_ids(&mut inserter.function.dfg, &old_results, &new_results);
-                    }
+                    let (instruction, _) = inserter.map_instruction(*instruction_id);
+                    let new_results = push_instruction(
+                        *instruction_id,
+                        instruction,
+                        &old_results,
+                        block,
+                        &mut inserter.function.dfg,
+                    );
+
+                    replace_result_ids(&mut inserter.function.dfg, &old_results, &new_results);
                 }
             }
         }
@@ -146,6 +164,73 @@ mod test {
           b3():
             v8 = eq v3, u32 6
             constrain v3 == u32 6
+            v10 = add v2, u32 1
+            jmp b1(v10)
+          b2():
+            return
+        }
+        ";
+
+        let ssa = ssa.loop_invariant_code_motion();
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn nested_loop_invariant_code_motion() {
+        // Check that a loop invariant in the inner loop of a nested loop
+        // is hoisted to the parent loop's pre-header block.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v6 = lt v2, u32 4
+            jmpif v6 then: b3, else: b2
+          b3():
+            jmp b4(u32 0)
+          b4(v3: u32):
+            v7 = lt v3, u32 4
+            jmpif v7 then: b6, else: b5
+          b6():
+            v10 = mul v0, v1
+            v12 = eq v10, u32 6
+            constrain v10 == u32 6
+            v13 = add v3, u32 1
+            jmp b4(v13)
+          b5():
+            v9 = add v2, u32 1
+            jmp b1(v9)
+          b2():
+            return
+        }
+        ";
+
+        let mut ssa = Ssa::from_str(src).unwrap();
+        let main = ssa.main_mut();
+
+        let instructions = main.dfg[main.entry_block()].instructions();
+        assert_eq!(instructions.len(), 0); // The final return is not counted
+
+        // `v10 = mul v0, v1` in b6 should now be `v4 = mul v0, v1` in b0
+        let expected = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            v4 = mul v0, v1
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v7 = lt v2, u32 4
+            jmpif v7 then: b3, else: b2
+          b3():
+            jmp b4(u32 0)
+          b4(v3: u32):
+            v8 = lt v3, u32 4
+            jmpif v8 then: b6, else: b5
+          b6():
+            v12 = eq v4, u32 6
+            constrain v4 == u32 6
+            v13 = add v3, u32 1
+            jmp b4(v13)
+          b5():
             v10 = add v2, u32 1
             jmp b1(v10)
           b2():

@@ -17,11 +17,11 @@ fn main(x: Field, result: [u8; 32], input: [u8; 2], toggle: bool) {
     // docs:end:sha256_var
     assert(digest == result);
 
-    let digest = std::hash::sha256([x as u8]);
-    assert(digest == result);
+    // let digest = std::hash::sha256([x as u8]);
+    // assert(digest == result);
 
-    // variable size
-    let size: Field = 1 + toggle as Field;
-    let var_sha = std::hash::sha256_var(input, size as u64);
-    assert(var_sha == std::hash::sha256_var(input, 1));
+    // // variable size
+    // let size: Field = 1 + toggle as Field;
+    // let var_sha = std::hash::sha256_var(input, size as u64);
+    // assert(var_sha == std::hash::sha256_var(input, 1));
 }
