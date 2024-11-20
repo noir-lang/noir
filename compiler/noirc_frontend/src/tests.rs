@@ -2017,9 +2017,9 @@ fn numeric_generic_u16_array_size() {
 fn numeric_generic_field_larger_than_u32() {
     let src = r#"
         global A: Field = 4294967297;
-        
+
         fn foo<let A: Field>() { }
-        
+
         fn main() {
             let _ = foo::<A>();
         }
@@ -2041,14 +2041,14 @@ fn numeric_generic_field_arithmetic_larger_than_u32() {
                 F
             }
         }
-        
+
         // 2^32 - 1
         global A: Field = 4294967295;
-        
+
         fn foo<let A: Field>() -> Foo<A + A> {
             Foo {}
         }
-        
+
         fn main() {
             let _ = foo::<A>().size();
         }
@@ -3475,7 +3475,7 @@ fn unconditional_recursion_fail() {
         fn main() -> pub u64 {
             foo(1, main())
         }
-        fn foo(a: u64, b: u64) -> u64 { 
+        fn foo(a: u64, b: u64) -> u64 {
             a + b
         }
         "#,
@@ -3701,4 +3701,52 @@ fn allows_struct_with_generic_infix_type_as_main_input_3() {
     let errors = get_program_errors(src);
     dbg!(&errors);
     assert_no_errors(src);
+}
+
+#[test]
+fn disallows_test_attribute_on_impl_method() {
+    let src = r#"
+    pub struct Foo {}
+    impl Foo {
+        #[test]
+        fn foo() {}
+    }
+
+    fn main() {}
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::DefinitionError(DefCollectorErrorKind::TestOnAssociatedFunction {
+            span: _
+        })
+    ));
+}
+
+#[test]
+fn disallows_test_attribute_on_trait_impl_method() {
+    let src = r#"
+    pub trait Trait {
+        fn foo() {}
+    }
+
+    pub struct Foo {}
+    impl Trait for Foo {
+        #[test]
+        fn foo() {}
+    }
+
+    fn main() {}
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::DefinitionError(DefCollectorErrorKind::TestOnAssociatedFunction {
+            span: _
+        })
+    ));
 }

@@ -38,5 +38,5 @@ fn main(
             a_as_bounded_vec.push(value);
         }
     }
-    a_as_bounded_vec.storage
+    a_as_bounded_vec.storage()
 }

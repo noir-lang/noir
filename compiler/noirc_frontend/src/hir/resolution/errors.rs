@@ -83,8 +83,6 @@ pub enum ResolverError {
     InvalidClosureEnvironment { typ: Type, span: Span },
     #[error("Nested slices, i.e. slices within an array or slice, are not supported")]
     NestedSlices { span: Span },
-    #[error("#[recursive] attribute is only allowed on entry points to a program")]
-    MisplacedRecursiveAttribute { ident: Ident },
     #[error("#[abi(tag)] attribute is only allowed in contracts")]
     AbiAttributeOutsideContract { span: Span },
     #[error("Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library")]
@@ -217,13 +215,11 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 diagnostic
             }
             ResolverError::UnconditionalRecursion { name, span} => {
-                let mut diagnostic = Diagnostic::simple_warning(
+                Diagnostic::simple_warning(
                     format!("function `{name}` cannot return without recursing"),
                     "function cannot return without recursing".to_string(),
                     *span,
-                );
-                diagnostic.unnecessary = true;
-                diagnostic
+                )
             }
             ResolverError::VariableNotDeclared { name, span } => Diagnostic::simple_error(
                 format!("cannot find `{name}` in this scope "),
@@ -383,18 +379,6 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 "Try to use a constant sized array or BoundedVec instead".into(),
                 *span,
             ),
-            ResolverError::MisplacedRecursiveAttribute { ident } => {
-                let name = &ident.0.contents;
-
-                let mut diag = Diagnostic::simple_error(
-                    format!("misplaced #[recursive] attribute on function {name} rather than the main function"),
-                    "misplaced #[recursive] attribute".to_string(),
-                    ident.0.span(),
-                );
-
-                diag.add_note("The `#[recursive]` attribute specifies to the backend whether it should use a prover which generates proofs that are friendly for recursive verification in another circuit".to_owned());
-                diag
-            }
             ResolverError::AbiAttributeOutsideContract { span } => {
                 Diagnostic::simple_error(
                     "#[abi(tag)] attributes can only be used in contracts".to_string(),

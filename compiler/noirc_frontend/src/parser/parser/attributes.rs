@@ -215,10 +215,6 @@ impl<'a> Parser<'a> {
             "oracle" => self.parse_single_name_attribute(ident, arguments, start_span, |name| {
                 Attribute::Function(FunctionAttribute::Oracle(name))
             }),
-            "recursive" => {
-                let attr = Attribute::Function(FunctionAttribute::Recursive);
-                self.parse_no_args_attribute(ident, arguments, attr)
-            }
             "use_callers_scope" => {
                 let attr = Attribute::Secondary(SecondaryAttribute::UseCallersScope);
                 self.parse_no_args_attribute(ident, arguments, attr)
@@ -501,13 +497,6 @@ mod tests {
     fn parses_attribute_oracle() {
         let src = "#[oracle(foo)]";
         let expected = Attribute::Function(FunctionAttribute::Oracle("foo".to_string()));
-        parse_attribute_no_errors(src, expected);
-    }
-
-    #[test]
-    fn parses_attribute_recursive() {
-        let src = "#[recursive]";
-        let expected = Attribute::Function(FunctionAttribute::Recursive);
         parse_attribute_no_errors(src, expected);
     }
 

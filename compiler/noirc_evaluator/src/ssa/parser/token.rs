@@ -57,6 +57,8 @@ pub(crate) enum Token {
     Equal,
     /// &
     Ampersand,
+    /// -
+    Dash,
     Eof,
 }
 
@@ -90,6 +92,7 @@ impl Display for Token {
             Token::Arrow => write!(f, "->"),
             Token::Equal => write!(f, "=="),
             Token::Ampersand => write!(f, "&"),
+            Token::Dash => write!(f, "-"),
             Token::Eof => write!(f, "(end of stream)"),
         }
     }
@@ -133,6 +136,7 @@ pub(crate) enum Keyword {
     Jmpif,
     Load,
     Lt,
+    MakeArray,
     MaxBitSize,
     Mod,
     Mul,
@@ -187,6 +191,7 @@ impl Keyword {
             "jmpif" => Keyword::Jmpif,
             "load" => Keyword::Load,
             "lt" => Keyword::Lt,
+            "make_array" => Keyword::MakeArray,
             "max_bit_size" => Keyword::MaxBitSize,
             "mod" => Keyword::Mod,
             "mul" => Keyword::Mul,
@@ -245,6 +250,7 @@ impl Display for Keyword {
             Keyword::Jmpif => write!(f, "jmpif"),
             Keyword::Load => write!(f, "load"),
             Keyword::Lt => write!(f, "lt"),
+            Keyword::MakeArray => write!(f, "make_array"),
             Keyword::MaxBitSize => write!(f, "max_bit_size"),
             Keyword::Mod => write!(f, "mod"),
             Keyword::Mul => write!(f, "mul"),
