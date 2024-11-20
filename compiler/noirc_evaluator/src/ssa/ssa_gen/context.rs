@@ -172,9 +172,9 @@ impl<'a> FunctionContext<'a> {
     /// Always returns a Value::Mutable wrapping the allocate instruction.
     pub(super) fn new_mutable_variable(&mut self, value_to_store: ValueId) -> Value {
         let element_type = self.builder.current_function.dfg.type_of_value(value_to_store);
+        self.builder.increment_array_reference_count(value_to_store);
         let alloc = self.builder.insert_allocate(element_type);
         self.builder.insert_store(alloc, value_to_store);
-        self.builder.increment_array_reference_count(value_to_store);
         let typ = self.builder.type_of_value(value_to_store);
         Value::Mutable(alloc, typ)
     }
