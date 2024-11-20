@@ -4,6 +4,7 @@ use std::{borrow::Cow, collections::BTreeMap, sync::Arc};
 
 use acvm::{acir::circuit::ErrorSelector, FieldElement};
 use noirc_errors::Location;
+use noirc_frontend::hir_def::types::Type as HirType;
 use noirc_frontend::monomorphization::ast::InlineType;
 
 use crate::ssa::ir::{
@@ -19,7 +20,7 @@ use super::{
         basic_block::BasicBlock,
         dfg::{CallStack, InsertInstructionResult},
         function::RuntimeType,
-        instruction::{ConstrainError, ErrorType, InstructionId, Intrinsic},
+        instruction::{ConstrainError, InstructionId, Intrinsic},
     },
     ssa_gen::Ssa,
 };
@@ -36,7 +37,7 @@ pub(crate) struct FunctionBuilder {
     current_block: BasicBlockId,
     finished_functions: Vec<Function>,
     call_stack: CallStack,
-    error_types: BTreeMap<ErrorSelector, ErrorType>,
+    error_types: BTreeMap<ErrorSelector, HirType>,
 }
 
 impl FunctionBuilder {
@@ -477,7 +478,7 @@ impl FunctionBuilder {
         }
     }
 
-    pub(crate) fn record_error_type(&mut self, selector: ErrorSelector, typ: ErrorType) {
+    pub(crate) fn record_error_type(&mut self, selector: ErrorSelector, typ: HirType) {
         self.error_types.insert(selector, typ);
     }
 }

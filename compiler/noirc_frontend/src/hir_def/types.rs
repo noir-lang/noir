@@ -2156,6 +2156,21 @@ impl Type {
         }
     }
 
+    /// Follow bindings if this is a type variable or generic to the first non-typevariable
+    /// type. Unlike `follow_bindings`, this won't recursively follow any bindings on any
+    /// fields or arguments of this type.
+    pub fn follow_bindings_shallow(&self) -> Cow<Type> {
+        match self {
+            Type::TypeVariable(var) | Type::NamedGeneric(var, _) => {
+                if let TypeBinding::Bound(typ) = &*var.borrow() {
+                    return Cow::Owned(typ.follow_bindings_shallow().into_owned());
+                }
+                Cow::Borrowed(self)
+            }
+            other => Cow::Borrowed(other),
+        }
+    }
+
     pub fn from_generics(generics: &GenericTypeVars) -> Vec<Type> {
         vecmap(generics, |var| Type::TypeVariable(var.clone()))
     }

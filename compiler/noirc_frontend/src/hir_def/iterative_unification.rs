@@ -100,12 +100,15 @@ impl Unifier {
     ) -> Result<Vec<(usize, usize)>, UnificationError> {
         use Type::*;
 
-        let lhs: Cow<Type> = match lhs {
+        let lhs = lhs.follow_bindings_shallow();
+        let rhs = rhs.follow_bindings_shallow();
+
+        let lhs: Cow<Type> = match lhs.as_ref() {
             Type::InfixExpr(..) => Cow::Owned(lhs.canonicalize()),
             other => Cow::Borrowed(other),
         };
 
-        let rhs: Cow<Type> = match rhs {
+        let rhs: Cow<Type> = match rhs.as_ref() {
             Type::InfixExpr(..) => Cow::Owned(rhs.canonicalize()),
             other => Cow::Borrowed(other),
         };

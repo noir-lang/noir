@@ -152,7 +152,7 @@ pub fn monomorphize_debug(
         .collect();
 
     let functions = vecmap(monomorphizer.finished_functions, |(_, f)| f);
-    let FuncMeta { return_visibility, kind, .. } = monomorphizer.interner.function_meta(&main);
+    let FuncMeta { return_visibility, .. } = monomorphizer.interner.function_meta(&main);
 
     let (debug_variables, debug_functions, debug_types) =
         monomorphizer.debug_type_tracker.extract_vars_and_types();
@@ -162,7 +162,6 @@ pub fn monomorphize_debug(
         function_sig,
         monomorphizer.return_location,
         *return_visibility,
-        *kind == FunctionKind::Recursive,
         debug_variables,
         debug_functions,
         debug_types,
@@ -247,11 +246,6 @@ impl<'interner> Monomorphizer<'interner> {
                             "ice: function marked as builtin, but attribute kind does not match this",
                         );
                         Definition::Oracle(opcode.to_string())
-                    }
-                    FunctionKind::Recursive => {
-                        let id =
-                            self.queue_function(id, expr_id, typ, turbofish_generics, trait_method);
-                        Definition::Function(id)
                     }
                 }
             }
@@ -1015,7 +1009,8 @@ impl<'interner> Monomorphizer<'interner> {
 
     /// Convert a non-tuple/struct type to a monomorphized type
     fn convert_type(typ: &HirType, location: Location) -> Result<ast::Type, MonomorphizationError> {
-        Ok(match typ {
+        let typ = typ.follow_bindings_shallow();
+        Ok(match typ.as_ref() {
             HirType::FieldElement => ast::Type::Field,
             HirType::Integer(sign, bits) => ast::Type::Integer(*sign, *bits),
             HirType::Bool => ast::Type::Bool,
@@ -1189,7 +1184,8 @@ impl<'interner> Monomorphizer<'interner> {
 
     // Similar to `convert_type` but returns an error if any type variable can't be defaulted.
     fn check_type(typ: &HirType, location: Location) -> Result<(), MonomorphizationError> {
-        match typ {
+        let typ = typ.follow_bindings_shallow();
+        match typ.as_ref() {
             HirType::FieldElement
             | HirType::Integer(..)
             | HirType::Bool
