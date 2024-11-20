@@ -61,35 +61,60 @@ fn test_blake3() {
 }
 
 /// Test that ecdsa_secp256k1 is implemented.
-/// Actual cryptography is ignored.
 #[test]
 fn test_ecdsa_secp256k1() {
-    let valid = comptime {
-        let pub_key_x: [u8; 32] = [1; 32];
-        let pub_key_y: [u8; 32] = [2; 32];
-        let signature: [u8; 64] = [3; 64];
-        let hashed_message: [u8; 32] = [4; 32];
+    let (valid_array, valid_slice) = comptime {
+        let pub_key_x: [u8; 32] = hex_to_bytes("a0434d9e47f3c86235477c7b1ae6ae5d3442d49b1943c2b752a68e2a47e247c7").as_array();
+        let pub_key_y: [u8; 32] = hex_to_bytes("893aba425419bc27a3b6c7e693a24c696f794c2ed877a1593cbee53b037368d7").as_array();
+        let signature: [u8; 64] = hex_to_bytes("e5081c80ab427dc370346f4a0e31aa2bad8d9798c38061db9ae55a4e8df454fd28119894344e71b78770cc931d61f480ecbb0b89d6eb69690161e49a715fcd55").as_array();
+        let hashed_message: [u8; 32] = hex_to_bytes("3a73f4123a5cd2121f21cd7e8d358835476949d035d9c2da6806b4633ac8c1e2").as_array();
 
-        let valid1 = std::ecdsa_secp256k1::verify_signature(pub_key_x, pub_key_y, signature, hashed_message);
-        let valid2 = std::ecdsa_secp256k1::verify_signature_slice(pub_key_x, pub_key_y, signature, hashed_message.as_slice());
-        valid1 | valid2
+        let valid_array = std::ecdsa_secp256k1::verify_signature(pub_key_x, pub_key_y, signature, hashed_message);
+        let valid_slice = std::ecdsa_secp256k1::verify_signature_slice(pub_key_x, pub_key_y, signature, hashed_message.as_slice());
+
+        (valid_array, valid_slice)
     };
-    assert_eq(valid, false);
+    assert(valid_array);
+    assert(valid_slice);
 }
 
 /// Test that ecdsa_secp256r1 is implemented.
-/// Actual cryptography is ignored.
 #[test]
 fn test_ecdsa_secp256r1() {
-    let valid = comptime {
-        let pub_key_x: [u8; 32] = [1; 32];
-        let pub_key_y: [u8; 32] = [2; 32];
-        let signature: [u8; 64] = [3; 64];
-        let hashed_message: [u8; 32] = [4; 32];
+    let (valid_array, valid_slice) = comptime {
+        let pub_key_x: [u8; 32] = hex_to_bytes("550f471003f3df97c3df506ac797f6721fb1a1fb7b8f6f83d224498a65c88e24").as_array();
+        let pub_key_y: [u8; 32] = hex_to_bytes("136093d7012e509a73715cbd0b00a3cc0ff4b5c01b3ffa196ab1fb327036b8e6").as_array();
+        let signature: [u8; 64] = hex_to_bytes("2c70a8d084b62bfc5ce03641caf9f72ad4da8c81bfe6ec9487bb5e1bef62a13218ad9ee29eaf351fdc50f1520c425e9b908a07278b43b0ec7b872778c14e0784").as_array();
+        let hashed_message: [u8; 32] = hex_to_bytes("54705ba3baafdbdfba8c5f9a70f7a89bee98d906b53e31074da7baecdc0da9ad").as_array();
 
-        let valid1 = std::ecdsa_secp256r1::verify_signature(pub_key_x, pub_key_y, signature, hashed_message);
-        let valid2 = std::ecdsa_secp256r1::verify_signature_slice(pub_key_x, pub_key_y, signature, hashed_message.as_slice());
-        valid1 | valid2
+        let valid_array = std::ecdsa_secp256r1::verify_signature(pub_key_x, pub_key_y, signature, hashed_message);
+        let valid_slice = std::ecdsa_secp256r1::verify_signature_slice(pub_key_x, pub_key_y, signature, hashed_message.as_slice());
+        (valid_array, valid_slice)
     };
-    assert_eq(valid, false);
+    assert(valid_array);
+    assert(valid_slice);
+}
+
+/// Parse a lowercase hexadecimal string (without 0x prefix) as byte slice.
+comptime fn hex_to_bytes<let N: u32>(s: str<N>) -> [u8] {
+    assert(N % 2 == 0);
+    let mut out = &[];
+    let bz = s.as_bytes();
+    let mut h: u32 = 0;
+    for i in 0 .. bz.len() {
+        let ascii = bz[i];
+        let d = if ascii < 58 {
+            ascii - 48
+        } else {
+            assert(ascii >= 97); // enforce >= 'a'
+            assert(ascii <= 102); // enforce <= 'f'
+            ascii - 87
+        };
+        h = h * 16 + d as u32;
+        if i % 2 == 1 {
+            out = out.push_back(h as u8);
+            h = 0;
+        }
+    }
+    out
 }
