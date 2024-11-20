@@ -207,7 +207,10 @@ mod tests {
             let no_location = Location::dummy();
             let mut not_implemented = Vec::new();
 
-            for blackbox in BlackBoxFunc::iter() {
+            for blackbox in BlackBoxFunc::iter().filter(|func|
+                // Schnorr to be removed
+                *func != BlackBoxFunc::SchnorrVerify)
+            {
                 let name = blackbox.name();
                 match call_foreign(
                     interpreter.elaborator.interner,
@@ -217,10 +220,10 @@ mod tests {
                     no_location,
                 ) {
                     Ok(_) => {
-                        // Exists and works with no args
+                        // Exists and works with no args (unlikely)
                     }
                     Err(ArgumentCountMismatch { .. }) => {
-                        // Exists but doesn't work with no args
+                        // Exists but doesn't work with no args (expected)
                     }
                     Err(Unimplemented { .. }) => not_implemented.push(name),
                     Err(other) => panic!("unexpected error: {other:?}"),
