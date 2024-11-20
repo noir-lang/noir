@@ -1070,14 +1070,14 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::TraitAsType(..) => {
                 unreachable!("All TraitAsType should be replaced before calling convert_type");
             }
-            HirType::NamedGeneric(_, _) => Self::convert_type_iter(typ, location)?,
+            HirType::NamedGeneric(_, _) => Self::convert_type_iter(&typ, location)?,
 
             HirType::CheckedCast { from, to } => {
                 Self::check_checked_cast(from, to, location)?;
                 Self::convert_type(to, location)?
             }
 
-            HirType::TypeVariable(_) => Self::convert_type_iter(typ, location)?,
+            HirType::TypeVariable(_) => Self::convert_type_iter(&typ, location)?,
 
             HirType::Struct(def, args) => {
                 // Not all generic arguments may be used in a struct's fields so we have to check
@@ -1218,7 +1218,7 @@ impl<'interner> Monomorphizer<'interner> {
                 Ok(())
             }
 
-            HirType::TypeVariable(_) => Self::check_type_iter(typ, location),
+            HirType::TypeVariable(_) => Self::check_type_iter(&typ, location),
 
             HirType::Struct(_def, args) => {
                 for arg in args {
