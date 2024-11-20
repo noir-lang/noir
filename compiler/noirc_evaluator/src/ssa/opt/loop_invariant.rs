@@ -165,10 +165,9 @@ mod test {
               jmpif v5 then: b3, else: b2
           b3():
               v6 = mul v0, v1
-              v8 = eq v6, u32 6
               constrain v6 == u32 6
-              v10 = add v2, u32 1
-              jmp b1(v10)
+              v8 = add v2, u32 1
+              jmp b1(v8)
           b2():
               return
         }
@@ -190,10 +189,9 @@ mod test {
             v6 = lt v2, u32 4
             jmpif v6 then: b3, else: b2
           b3():
-            v8 = eq v3, u32 6
             constrain v3 == u32 6
-            v10 = add v2, u32 1
-            jmp b1(v10)
+            v9 = add v2, u32 1
+            jmp b1(v9)
           b2():
             return
         }
@@ -221,10 +219,9 @@ mod test {
             jmpif v7 then: b6, else: b5
           b6():
             v10 = mul v0, v1
-            v12 = eq v10, u32 6
             constrain v10 == u32 6
-            v13 = add v3, u32 1
-            jmp b4(v13)
+            v12 = add v3, u32 1
+            jmp b4(v12)
           b5():
             v9 = add v2, u32 1
             jmp b1(v9)
@@ -254,10 +251,9 @@ mod test {
             v8 = lt v3, u32 4
             jmpif v8 then: b6, else: b5
           b6():
-            v12 = eq v4, u32 6
             constrain v4 == u32 6
-            v13 = add v3, u32 1
-            jmp b4(v13)
+            v12 = add v3, u32 1
+            jmp b4(v12)
           b5():
             v10 = add v2, u32 1
             jmp b1(v10)
@@ -328,7 +324,6 @@ mod test {
         ";
 
         let ssa = ssa.loop_invariant_code_motion();
-        println!("{}", ssa);
         assert_normalized_ssa_equals(ssa, expected);
     }
 }
