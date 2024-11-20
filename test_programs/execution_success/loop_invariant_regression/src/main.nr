@@ -8,6 +8,6 @@ fn loop(upper_bound: u32, x: u32, y: u32) {
     for _ in 0..upper_bound {
         let mut z = x * y;
         z = z * x;
-        assert_eq(z, 6);
+        assert_eq(z, 12);
     }
 }
