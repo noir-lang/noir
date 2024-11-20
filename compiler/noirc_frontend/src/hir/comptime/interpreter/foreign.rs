@@ -61,6 +61,12 @@ fn call_foreign(
             location,
             acvm::blackbox_solver::ecdsa_secp256k1_verify,
         ),
+        "ecdsa_secp256r1" => ecdsa_secp256_verify(
+            interner,
+            args,
+            location,
+            acvm::blackbox_solver::ecdsa_secp256r1_verify,
+        ),
         "poseidon2_permutation" => poseidon2_permutation(interner, args, location),
         "keccakf1600" => keccakf1600(interner, args, location),
         "range" => apply_range_constraint(args, location),
