@@ -1,5 +1,5 @@
 [package]
-name = "brillig_unitialised_arrays"
+name = "brillig_uninitialized_arrays"
 type = "bin"
 authors = [""]
 
