@@ -630,3 +630,12 @@ pub(crate) fn to_byte_array(values: &[u8]) -> Value {
 pub(crate) fn to_byte_slice(values: &[u8]) -> Value {
     Value::Slice(values.iter().copied().map(Value::U8).collect(), byte_slice_type())
 }
+
+/// Create a `Value::Array` from fields.
+pub(crate) fn to_field_array(values: &[FieldElement]) -> Value {
+    let typ = Type::Array(
+        Box::new(Type::Constant(values.len().into(), Kind::u32())),
+        Box::new(Type::FieldElement),
+    );
+    Value::Array(values.iter().copied().map(Value::Field).collect(), typ)
+}
