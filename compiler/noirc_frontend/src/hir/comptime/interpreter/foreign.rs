@@ -70,6 +70,7 @@ fn call_foreign(
         "poseidon2_permutation" => poseidon2_permutation(interner, args, location),
         "keccakf1600" => keccakf1600(interner, args, location),
         "range" => apply_range_constraint(args, location),
+        "sha256_compression" => sha256_compression(interner, args, location),
         _ => {
             let item = format!("Comptime evaluation for foreign function '{name}'");
             Err(InterpreterError::Unimplemented { item, location })
@@ -272,6 +273,23 @@ fn keccakf1600(
 
     let array: Vector<Value> = result_lanes.into_iter().map(Value::U64).collect();
     Ok(Value::Array(array, typ))
+}
+
+/// `pub fn sha256_compression(input: [u32; 16], state: [u32; 8]) -> [u32; 8]`
+fn sha256_compression(
+    interner: &mut NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (input, state) = check_two_arguments(arguments, location)?;
+
+    let (input, _) = get_fixed_array_map(interner, input, get_u32)?;
+    let (mut state, typ) = get_fixed_array_map(interner, state, get_u32)?;
+
+    acvm::blackbox_solver::sha256_compression(&mut state, &input);
+
+    let state = state.into_iter().map(Value::U32).collect();
+    Ok(Value::Array(state, typ))
 }
 
 #[cfg(test)]

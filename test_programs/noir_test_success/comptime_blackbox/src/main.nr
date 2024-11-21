@@ -99,7 +99,7 @@ fn test_ecdsa_secp256r1() {
 #[test]
 fn test_sha256() {
     let hash = comptime {
-        let input: [u8; 2] = [0, 0];
+        let input: [u8; 1] = [0xbd];
         std::hash::sha256(input)
     };
     assert_eq(hash[0], 0x68);
