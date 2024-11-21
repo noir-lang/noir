@@ -75,20 +75,23 @@ impl Loops {
             for block in loop_.blocks.iter() {
                 let mut instructions_to_keep = Vec::new();
                 for instruction_id in inserter.function.dfg[*block].take_instructions() {
-                    let mut is_not_loop_invariant = false;
+                    let mut is_loop_variant = true;
                     // The list of blocks for a nested loop contain any inner loops as well.
                     // We may have already re-inserted new instructions if two loops share blocks
                     // so we need to map all the values in the instruction which we want to check.
                     let (instruction, _) = inserter.map_instruction(instruction_id);
                     instruction.for_each_value(|value| {
+                        // If an instruction value is defined in the loop and not already a loop invariant
+                        // the instruction results are not loop invariants.
+                        //
                         // We are implicitly checking whether the values are constant as well.
                         // The set of values defined in the loop only contains instruction results and block parameters
                         // which cannot be constants.
-                        is_not_loop_invariant |=
-                            defined_in_loop.contains(&value) && !loop_invariants.contains(&value);
+                        is_loop_variant &=
+                            !defined_in_loop.contains(&value) || loop_invariants.contains(&value);
                     });
 
-                    if !is_not_loop_invariant
+                    if is_loop_variant
                         && instruction.can_be_deduplicated(&inserter.function.dfg, false)
                     {
                         // We need to collect the results as we then mutably borrow to resolve the ValueIds
