@@ -81,17 +81,24 @@ pub(super) fn mutate_input_map(
     prng: &mut XorShiftRng,
 ) -> InputMap {
     let vec_dictionary: Vec<FieldElement> = dictionary.iter().map(|x| *x).collect();
+    let total_params = abi.parameters.len();
+    let chosen_param = prng.gen_range(0..total_params);
     abi.parameters
         .iter()
-        .map(|param| {
+        .enumerate()
+        .map(|(idx, param)| {
             (
                 param.name.clone(),
-                mutate_input_value(
-                    &param.typ,
-                    &previous_input_map[&param.name],
-                    &vec_dictionary,
-                    prng,
-                ),
+                if idx == chosen_param {
+                    mutate_input_value(
+                        &param.typ,
+                        &previous_input_map[&param.name],
+                        &vec_dictionary,
+                        prng,
+                    )
+                } else {
+                    previous_input_map[&param.name].clone()
+                },
             )
         })
         .collect()

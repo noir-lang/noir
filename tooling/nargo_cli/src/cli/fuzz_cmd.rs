@@ -249,11 +249,17 @@ fn display_fuzzing_report(
                     .expect("Failed to set color");
                 writeln!(writer, "ok").expect("Failed to write to stderr");
             }
-            FuzzingRunStatus::Fail { message, error_diagnostic } => {
+            FuzzingRunStatus::Fail { message, counterexample, error_diagnostic } => {
                 writer
                     .set_color(ColorSpec::new().set_fg(Some(Color::Red)))
                     .expect("Failed to set color");
+
                 writeln!(writer, "FAIL\n{message}\n").expect("Failed to write to stderr");
+                match counterexample {
+                    Some(input_map) => writeln!(writer, "failing input: {:?}", input_map)
+                        .expect("Failed to write to stderr"),
+                    _ => (),
+                }
                 if let Some(diag) = error_diagnostic {
                     noirc_errors::reporter::report_all(
                         file_manager.as_file_map(),

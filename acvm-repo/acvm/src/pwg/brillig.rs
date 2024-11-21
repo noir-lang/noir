@@ -68,6 +68,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         acir_index: usize,
         brillig_function_id: BrilligFunctionId,
         profiling_active: bool,
+        fuzzing_active: bool,
     ) -> Result<Self, OpcodeResolutionError<F>> {
         let vm = Self::setup_brillig_vm(
             initial_witness,
@@ -76,6 +77,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
             brillig_bytecode,
             bb_solver,
             profiling_active,
+            fuzzing_active,
         )?;
         Ok(Self { vm, acir_index, function_id: brillig_function_id })
     }
@@ -87,6 +89,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         brillig_bytecode: &'b [BrilligOpcode<F>],
         bb_solver: &'b B,
         profiling_active: bool,
+        fuzzing_active: bool,
     ) -> Result<VM<'b, F, B>, OpcodeResolutionError<F>> {
         // Set input values
         let mut calldata: Vec<F> = Vec::new();
@@ -134,7 +137,14 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
 
         // Instantiate a Brillig VM given the solved calldata
         // along with the Brillig bytecode.
-        let vm = VM::new(calldata, brillig_bytecode, vec![], bb_solver, profiling_active);
+        let vm = VM::new(
+            calldata,
+            brillig_bytecode,
+            vec![],
+            bb_solver,
+            profiling_active,
+            fuzzing_active,
+        );
         Ok(vm)
     }
 
@@ -148,6 +158,10 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
 
     pub fn get_call_stack(&self) -> Vec<usize> {
         self.vm.get_call_stack()
+    }
+
+    pub fn get_fuzzing_trace(&self) -> Vec<u8> {
+        self.vm.get_fuzzing_trace()
     }
 
     pub(crate) fn solve(&mut self) -> Result<BrilligSolverStatus<F>, OpcodeResolutionError<F>> {

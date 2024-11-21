@@ -23,6 +23,7 @@ use black_box::{evaluate_black_box, BrilligBigintSolver};
 // Re-export `brillig`.
 pub use acir::brillig;
 pub use memory::{Memory, MemoryValue, MEMORY_ADDRESSING_BIT_SIZE};
+use num_traits::Zero;
 
 mod arithmetic;
 mod black_box;
@@ -101,6 +102,10 @@ pub struct VM<'a, F, B: BlackBoxFunctionSolver<F>> {
     profiling_active: bool,
     // Samples for profiling the VM execution.
     profiling_samples: BrilligProfilingSamples,
+    // Fuzzer tracing memory
+    fuzzer_trace: Vec<u32>,
+    // The vm should trace fuzzing
+    fuzzing_active: bool,
 }
 
 impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
@@ -111,6 +116,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         foreign_call_results: Vec<ForeignCallResult<F>>,
         black_box_solver: &'a B,
         profiling_active: bool,
+        fuzzing_active: bool,
     ) -> Self {
         Self {
             calldata,
@@ -125,11 +131,17 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
             bigint_solver: Default::default(),
             profiling_active,
             profiling_samples: Vec::with_capacity(bytecode.len()),
+            fuzzer_trace: if fuzzing_active { vec![0; 65536] } else { Vec::new() },
+            fuzzing_active,
         }
     }
 
     pub fn is_profiling_active(&self) -> bool {
         self.profiling_active
+    }
+
+    pub fn is_fuzzing_active(&self) -> bool {
+        self.fuzzing_active
     }
 
     pub fn take_profiling_samples(&mut self) -> BrilligProfilingSamples {
@@ -227,7 +239,33 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
 
         self.process_opcode_internal()
     }
+    fn trace_fuzzing_jump(&mut self, destination: usize) {
+        const JUMP_PRIME: usize = 997;
+        const MOD_PRIME: usize = 65321;
+        if self.fuzzing_active {
+            let index = (self.program_counter + (destination * JUMP_PRIME)) % MOD_PRIME;
+            self.fuzzer_trace[index] += 1;
+        }
+    }
+    fn trace_fuzzing_call(&mut self, destination: usize) {
+        const CALL_PRIME: usize = 3001;
+        const MOD_PRIME: usize = 65321;
+        if self.fuzzing_active {
+            let index = (self.program_counter + (destination * CALL_PRIME)) % MOD_PRIME;
+            self.fuzzer_trace[index] += 1;
+        }
+    }
 
+    pub fn get_fuzzing_trace(&self) -> Vec<u8> {
+        if !self.fuzzing_active {
+            Vec::new()
+        } else {
+            self.fuzzer_trace
+                .iter()
+                .map(|x| if x.is_zero() { 0 } else { (x.ilog2() + 1) as u8 })
+                .collect()
+        }
+    }
     fn process_opcode_internal(&mut self) -> VMStatus<F> {
         let opcode = &self.bytecode[self.program_counter];
         match opcode {
@@ -265,15 +303,19 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 // We use 0 to mean false and any other value to mean true
                 let condition_value = self.memory.read(*condition);
                 if condition_value.try_into().expect("condition value is not a boolean") {
+                    self.trace_fuzzing_jump(*destination);
                     return self.set_program_counter(*destination);
                 }
+                self.trace_fuzzing_jump(self.program_counter + 1);
                 self.increment_program_counter()
             }
             Opcode::JumpIfNot { condition, location: destination } => {
                 let condition_value = self.memory.read(*condition);
                 if condition_value.try_into().expect("condition value is not a boolean") {
+                    self.trace_fuzzing_jump(self.program_counter + 1);
                     return self.increment_program_counter();
                 }
+                self.trace_fuzzing_jump(*destination);
                 self.set_program_counter(*destination)
             }
             Opcode::CalldataCopy { destination_address, size_address, offset_address } => {
@@ -378,6 +420,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
             Opcode::Call { location } => {
                 // Push a return location
                 self.call_stack.push(self.program_counter);
+                self.trace_fuzzing_call(*location);
                 self.set_program_counter(*location)
             }
             Opcode::Const { destination, value, bit_size } => {

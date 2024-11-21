@@ -210,6 +210,11 @@ pub struct ACVM<'a, F, B: BlackBoxFunctionSolver<F>> {
     profiling_active: bool,
 
     profiling_samples: ProfilingSamples,
+
+    // Whether we need to trace brillig execution for fuzzing
+    brillig_fuzzing_active: bool,
+
+    brillig_fuzzing_trace: Option<Vec<u8>>,
 }
 
 impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
@@ -236,12 +241,23 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             assertion_payloads,
             profiling_active: false,
             profiling_samples: Vec::new(),
+            brillig_fuzzing_active: false,
+            brillig_fuzzing_trace: None,
         }
     }
 
     // Enable profiling
     pub fn with_profiler(&mut self, profiling_active: bool) {
         self.profiling_active = profiling_active;
+    }
+
+    // Enable brillig fuzzing
+    pub fn with_brillig_fuzzing(&mut self, brillig_fuzzing_active: bool) {
+        self.brillig_fuzzing_active = brillig_fuzzing_active;
+    }
+
+    pub fn get_brillig_fuzzing_trace(&self) -> Option<Vec<u8>> {
+        self.brillig_fuzzing_trace.clone()
     }
 
     /// Returns a reference to the current state of the ACVM's [`WitnessMap`].
@@ -527,6 +543,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
                 self.instruction_pointer,
                 *id,
                 self.profiling_active,
+                self.brillig_fuzzing_active,
             )?,
         };
 
@@ -542,6 +559,9 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
                 unreachable!("Brillig solver still in progress")
             }
             BrilligSolverStatus::Finished => {
+                if self.brillig_fuzzing_active {
+                    self.brillig_fuzzing_trace = Some((&solver).get_fuzzing_trace())
+                }
                 // Write execution outputs
                 if self.profiling_active {
                     let profiling_info =
@@ -621,6 +641,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             self.instruction_pointer,
             *id,
             self.profiling_active,
+            self.brillig_fuzzing_active,
         );
         match solver {
             Ok(solver) => StepResult::IntoBrillig(solver),

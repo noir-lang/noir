@@ -1,18 +1,28 @@
 use std::path::PathBuf;
 
 use acvm::{
-    acir::native_types::{WitnessMap, WitnessStack},
+    acir::{
+        brillig,
+        native_types::{WitnessMap, WitnessStack},
+    },
     BlackBoxFunctionSolver, FieldElement,
 };
+use noirc_abi::InputMap;
 use noirc_driver::{compile_no_check, CompileOptions};
 use noirc_errors::FileDiagnostic;
 use noirc_frontend::hir::{def_map::FuzzingHarness, Context};
+
+use crate::ops::execute::execute_program_with_brillig_fuzzing;
 
 use super::{execute_program, DefaultForeignCallExecutor};
 
 pub enum FuzzingRunStatus {
     Pass,
-    Fail { message: String, error_diagnostic: Option<FileDiagnostic> },
+    Fail {
+        message: String,
+        counterexample: Option<InputMap>,
+        error_diagnostic: Option<FileDiagnostic>,
+    },
     CompileError(FileDiagnostic),
 }
 
@@ -43,6 +53,7 @@ pub fn run_fuzzing_harness<B: BlackBoxFunctionSolver<FieldElement>>(
     if fuzzing_harness_has_no_arguments {
         return FuzzingRunStatus::Fail {
             message: ("Fuzzing harness has no arguments".to_owned()),
+            counterexample: (None),
             error_diagnostic: (None),
         };
     }
@@ -70,8 +81,8 @@ pub fn run_fuzzing_harness<B: BlackBoxFunctionSolver<FieldElement>>(
                 use acvm::acir::circuit::Program;
                 use noir_greybox_fuzzer::FuzzedExecutor;
 
-                let executor = |program: &Program<FieldElement>,
-                                initial_witness: WitnessMap<FieldElement>|
+                let acir_executor = |program: &Program<FieldElement>,
+                                     initial_witness: WitnessMap<FieldElement>|
                  -> Result<WitnessStack<FieldElement>, String> {
                     execute_program(
                         program,
@@ -86,8 +97,32 @@ pub fn run_fuzzing_harness<B: BlackBoxFunctionSolver<FieldElement>>(
                     )
                     .map_err(|err| err.to_string())
                 };
-                let fuzzer =
-                    FuzzedExecutor::new(acir_program.into(), brillig_program.into(), executor);
+
+                let brillig_executor = |program: &Program<FieldElement>,
+                                        initial_witness: WitnessMap<FieldElement>|
+                 -> Result<
+                    (WitnessStack<FieldElement>, Option<Vec<u8>>),
+                    String,
+                > {
+                    execute_program_with_brillig_fuzzing(
+                        program,
+                        initial_witness,
+                        blackbox_solver,
+                        &mut DefaultForeignCallExecutor::<FieldElement>::new(
+                            false,
+                            foreign_call_resolver_url,
+                            root_path.clone(),
+                            package_name.clone(),
+                        ),
+                    )
+                    .map_err(|err| err.to_string())
+                };
+                let fuzzer = FuzzedExecutor::new(
+                    acir_program.into(),
+                    brillig_program.into(),
+                    acir_executor,
+                    brillig_executor,
+                );
 
                 let result = fuzzer.fuzz();
                 if result.success {
@@ -95,6 +130,7 @@ pub fn run_fuzzing_harness<B: BlackBoxFunctionSolver<FieldElement>>(
                 } else {
                     FuzzingRunStatus::Fail {
                         message: result.reason.unwrap_or_default(),
+                        counterexample: result.counterexample,
                         error_diagnostic: None,
                     }
                 }

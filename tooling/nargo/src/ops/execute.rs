@@ -1,3 +1,4 @@
+use acvm::acir::brillig;
 use acvm::acir::circuit::brillig::BrilligBytecode;
 use acvm::acir::circuit::{
     OpcodeLocation, Program, ResolvedAssertionPayload, ResolvedOpcodeLocation,
@@ -38,6 +39,9 @@ struct ProgramExecutor<'a, F, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecut
     // Flag that states whether we want to profile the VM. Profiling can add extra
     // execution costs so we want to make sure we only trigger it explicitly.
     profiling_active: bool,
+
+    // Flag that states whether we want to trace brillig VM execution
+    brillig_fuzzing_active: bool,
 }
 
 impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
@@ -49,6 +53,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
         blackbox_solver: &'a B,
         foreign_call_executor: &'a mut E,
         profiling_active: bool,
+        brillig_fuzzing_active: bool,
     ) -> Self {
         ProgramExecutor {
             functions,
@@ -59,6 +64,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
             call_stack: Vec::default(),
             current_function_index: 0,
             profiling_active,
+            brillig_fuzzing_active,
         }
     }
 
@@ -70,7 +76,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
     fn execute_circuit(
         &mut self,
         initial_witness: WitnessMap<F>,
-    ) -> Result<(WitnessMap<F>, ProfilingSamples), NargoError<F>> {
+    ) -> Result<(WitnessMap<F>, ProfilingSamples, Option<Vec<u8>>), NargoError<F>> {
         let circuit = &self.functions[self.current_function_index];
         let mut acvm = ACVM::new(
             self.blackbox_solver,
@@ -80,6 +86,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
             &circuit.assert_messages,
         );
         acvm.with_profiler(self.profiling_active);
+        acvm.with_brillig_fuzzing(self.brillig_fuzzing_active);
 
         loop {
             let solver_status = acvm.solve();
@@ -165,7 +172,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
                     let acir_to_call = &self.functions[call_info.id.as_usize()];
                     let initial_witness = call_info.initial_witness;
                     // TODO: Profiling among multiple circuits is not supported
-                    let (call_solved_witness, _) = self.execute_circuit(initial_witness)?;
+                    let (call_solved_witness, _, _) = self.execute_circuit(initial_witness)?;
 
                     // Set tracking index back to the parent function after ACIR call execution
                     self.current_function_index = acir_function_caller;
@@ -195,7 +202,8 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
         self.call_stack.clear();
 
         let profiling_samples = acvm.take_profiling_samples();
-        Ok((acvm.finalize(), profiling_samples))
+        let fuzzing_trace = acvm.get_brillig_fuzzing_trace();
+        Ok((acvm.finalize(), profiling_samples, fuzzing_trace))
     }
 }
 
@@ -206,12 +214,14 @@ pub fn execute_program<F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCal
     foreign_call_executor: &mut E,
 ) -> Result<WitnessStack<F>, NargoError<F>> {
     let profiling_active = false;
-    let (witness_stack, profiling_samples) = execute_program_inner(
+    let brillig_fuzzing_active = false;
+    let (witness_stack, profiling_samples, _) = execute_program_inner(
         program,
         initial_witness,
         blackbox_solver,
         foreign_call_executor,
         profiling_active,
+        brillig_fuzzing_active,
     )?;
     assert!(profiling_samples.is_empty(), "Expected no profiling samples");
 
@@ -229,15 +239,45 @@ pub fn execute_program_with_profiling<
     foreign_call_executor: &mut E,
 ) -> Result<(WitnessStack<F>, ProfilingSamples), NargoError<F>> {
     let profiling_active = true;
-    execute_program_inner(
+    let brillig_fuzzing_active = false;
+    match execute_program_inner(
         program,
         initial_witness,
         blackbox_solver,
         foreign_call_executor,
         profiling_active,
-    )
+        brillig_fuzzing_active,
+    ) {
+        Ok((witness_stack, profiling_samples, ..)) => Ok((witness_stack, profiling_samples)),
+        Err(err) => Err(err),
+    }
 }
-
+pub fn execute_program_with_brillig_fuzzing<
+    F: AcirField,
+    B: BlackBoxFunctionSolver<F>,
+    E: ForeignCallExecutor<F>,
+>(
+    program: &Program<F>,
+    initial_witness: WitnessMap<F>,
+    blackbox_solver: &B,
+    foreign_call_executor: &mut E,
+) -> Result<(WitnessStack<F>, Option<Vec<u8>>), NargoError<F>> {
+    let profiling_active = false;
+    let brillig_fuzzing_active = true;
+    match execute_program_inner(
+        program,
+        initial_witness,
+        blackbox_solver,
+        foreign_call_executor,
+        profiling_active,
+        brillig_fuzzing_active,
+    ) {
+        Ok((witness_stack, _profiling_samples, brillig_fuzzing_trace)) => {
+            Ok((witness_stack, brillig_fuzzing_trace))
+        }
+        Err(err) => Err(err),
+    }
+}
 #[tracing::instrument(level = "trace", skip_all)]
 fn execute_program_inner<F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>(
     program: &Program<F>,
@@ -245,16 +285,19 @@ fn execute_program_inner<F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignC
     blackbox_solver: &B,
     foreign_call_executor: &mut E,
     profiling_active: bool,
-) -> Result<(WitnessStack<F>, ProfilingSamples), NargoError<F>> {
+    brillig_fuzzing_active: bool,
+) -> Result<(WitnessStack<F>, ProfilingSamples, Option<Vec<u8>>), NargoError<F>> {
     let mut executor = ProgramExecutor::new(
         &program.functions,
         &program.unconstrained_functions,
         blackbox_solver,
         foreign_call_executor,
         profiling_active,
+        brillig_fuzzing_active,
     );
-    let (main_witness, profiling_samples) = executor.execute_circuit(initial_witness)?;
+    let (main_witness, profiling_samples, brillig_fuzzing_trace) =
+        executor.execute_circuit(initial_witness)?;
     executor.witness_stack.push(0, main_witness);
 
-    Ok((executor.finalize(), profiling_samples))
+    Ok((executor.finalize(), profiling_samples, brillig_fuzzing_trace))
 }
