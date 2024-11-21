@@ -88,7 +88,7 @@ fn call_foreign(
         _ => {
             let explanation = match name {
                 "schnorr_verify" => Some("Schnorr verification will be removed.".into()),
-                "and" | "xor" => Some("It should be turned a binary operation instead.".into()),
+                "and" | "xor" => Some("It should be turned into a binary operation.".into()),
                 "recursive_aggregation" => Some("A proof cannot be verified at comptime.".into()),
                 _ => None,
             };
