@@ -990,8 +990,28 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             };
         }
 
+        /// Generate matches for comparison operations on all types, returning `Bool`.
+        macro_rules! match_cmp_all {
+            (($lhs_value:ident as $lhs:ident $op:literal $rhs_value:ident as $rhs:ident) => $expr:expr) => {
+                match_values! {
+                    ($lhs_value as $lhs $op $rhs_value as $rhs) {
+                        Field(FieldElement) from [Field]  to Bool => Some($expr),
+                        Bool(bool) from [Bool]            to Bool => Some($expr),
+                        I8(i8)   from [I8]                to Bool => Some($expr),
+                        I16(i16) from [I8, I16]           to Bool => Some($expr),
+                        I32(i32) from [I8, I16, I32]      to Bool => Some($expr),
+                        I64(i64) from [I8, I16, I32, I64] to Bool => Some($expr),
+                        U8(u8)   from [U8]                to Bool => Some($expr),
+                        U16(u16) from [U8, U16]           to Bool => Some($expr),
+                        U32(u32) from [U8, U16, U32]      to Bool => Some($expr),
+                        U64(u64) from [U8, U16, U32, U64] to Bool => Some($expr),
+                    }
+                }
+            };
+        }
+
         /// Generate matches for comparison operations on `Field` and integers, returning `Bool`.
-        macro_rules! match_cmp {
+        macro_rules! match_cmp_num {
             (($lhs_value:ident as $lhs:ident $op:literal $rhs_value:ident as $rhs:ident) => $expr:expr) => {
                 match_values! {
                     ($lhs_value as $lhs $op $rhs_value as $rhs) {
@@ -1072,22 +1092,22 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     int: lhs.checked_div(rhs),
                 }
             },
-            BinaryOpKind::Equal => match_cmp! {
+            BinaryOpKind::Equal => match_cmp_all! {
                 (lhs_value as lhs "==" rhs_value as rhs) => lhs == rhs
             },
-            BinaryOpKind::NotEqual => match_cmp! {
+            BinaryOpKind::NotEqual => match_cmp_all! {
                 (lhs_value as lhs "!=" rhs_value as rhs) => lhs != rhs
             },
-            BinaryOpKind::Less => match_cmp! {
+            BinaryOpKind::Less => match_cmp_num! {
                 (lhs_value as lhs "<" rhs_value as rhs) => lhs < rhs
             },
-            BinaryOpKind::LessEqual => match_cmp! {
+            BinaryOpKind::LessEqual => match_cmp_num! {
                 (lhs_value as lhs "<=" rhs_value as rhs) => lhs <= rhs
             },
-            BinaryOpKind::Greater => match_cmp! {
+            BinaryOpKind::Greater => match_cmp_num! {
                 (lhs_value as lhs ">" rhs_value as rhs) => lhs > rhs
             },
-            BinaryOpKind::GreaterEqual => match_cmp! {
+            BinaryOpKind::GreaterEqual => match_cmp_num! {
                 (lhs_value as lhs ">=" rhs_value as rhs) => lhs >= rhs
             },
             BinaryOpKind::And => match_bitwise! {
