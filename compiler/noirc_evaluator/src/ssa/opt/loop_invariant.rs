@@ -68,7 +68,7 @@ impl Loops {
             for block in loop_.blocks.iter() {
                 let mut instructions_to_keep = Vec::new();
                 for instruction_id in inserter.function.dfg[*block].take_instructions() {
-                    let mut is_loop_variant = true;
+                    let mut is_loop_invariant = true;
                     // The list of blocks for a nested loop contain any inner loops as well.
                     // We may have already re-inserted new instructions if two loops share blocks
                     // so we need to map all the values in the instruction which we want to check.
@@ -80,20 +80,13 @@ impl Loops {
                         // We are implicitly checking whether the values are constant as well.
                         // The set of values defined in the loop only contains instruction results and block parameters
                         // which cannot be constants.
-                        is_loop_variant &=
+                        is_loop_invariant &=
                             !defined_in_loop.contains(&value) || loop_invariants.contains(&value);
                     });
 
-                    let results =
-                        inserter.function.dfg.instruction_results(instruction_id).to_vec();
-                    let results = results
-                        .into_iter()
-                        .map(|value| inserter.resolve(value))
-                        .collect::<Vec<_>>();
-
-                    if is_loop_variant
-                        && instruction.can_be_deduplicated(&inserter.function.dfg, false)
-                    {
+                    let hoist_invariant = is_loop_invariant
+                        && instruction.can_be_deduplicated(&inserter.function.dfg, false);
+                    if hoist_invariant {
                         inserter.push_instruction(instruction_id, pre_header);
                     } else {
                         instructions_to_keep.push(instruction_id);
@@ -101,6 +94,8 @@ impl Loops {
                         inserter.push_instruction(instruction_id, *block);
                     }
 
+                    let results =
+                        inserter.function.dfg.instruction_results(instruction_id).to_vec();
                     // We will have new IDs after pushing instructions.
                     // We should mark the resolved result IDs as also being defined within the loop.
                     let results = results
@@ -109,23 +104,23 @@ impl Loops {
                         .collect::<Vec<_>>();
                     defined_in_loop.extend(results.iter());
 
-                    if is_loop_variant
-                        && instruction.can_be_deduplicated(&inserter.function.dfg, false)
-                    {
+                    // We also want the update result IDs when we are marking loop invariants as we may not
+                    // be going through the blocks of the loop in execution order
+                    if hoist_invariant {
                         loop_invariants.extend(results.iter());
                     }
                 }
             }
+        }
 
-            // Map instructions in blocks not from loops as they may have instructions
-            // which are reliant upon values from the loops.
-            let blocks = inserter.function.reachable_blocks();
-            for block in blocks {
-                for instruction_id in inserter.function.dfg[block].take_instructions() {
-                    inserter.push_instruction(instruction_id, block);
-                }
-                inserter.map_terminator_in_place(block);
+        // Map instructions in blocks not from loops as they may have instructions
+        // which are reliant upon values from the loops.
+        let blocks = inserter.function.reachable_blocks();
+        for block in blocks {
+            for instruction_id in inserter.function.dfg[block].take_instructions() {
+                inserter.push_instruction(instruction_id, block);
             }
+            inserter.map_terminator_in_place(block);
         }
     }
 }
