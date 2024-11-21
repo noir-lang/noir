@@ -4,13 +4,10 @@ use std::hash::{Hash, Hasher};
 
 use acvm::{
     acir::AcirField,
-    acir::{
-        circuit::{ErrorSelector, STRING_ERROR_SELECTOR},
-        BlackBoxFunc,
-    },
+    acir::{circuit::ErrorSelector, BlackBoxFunc},
     FieldElement,
 };
-use fxhash::FxHasher;
+use fxhash::FxHasher64;
 use iter_extended::vecmap;
 use noirc_frontend::hir_def::types::Type as HirType;
 
@@ -273,15 +270,13 @@ pub(crate) enum Instruction {
     ///     else_value
     /// }
     /// ```
+    IfElse { then_condition: ValueId, then_value: ValueId, else_value: ValueId },
+
+    /// Creates a new array or slice.
     ///
-    /// Where we save the result of !then_condition so that we have the same
-    /// ValueId for it each time.
-    IfElse {
-        then_condition: ValueId,
-        then_value: ValueId,
-        else_condition: ValueId,
-        else_value: ValueId,
-    },
+    /// `typ` should be an array or slice type with an element type
+    /// matching each of the `elements` values' types.
+    MakeArray { elements: im::Vector<ValueId>, typ: Type },
 }
 
 impl Instruction {
@@ -294,7 +289,9 @@ impl Instruction {
     pub(crate) fn result_type(&self) -> InstructionResultType {
         match self {
             Instruction::Binary(binary) => binary.result_type(),
-            Instruction::Cast(_, typ) => InstructionResultType::Known(typ.clone()),
+            Instruction::Cast(_, typ) | Instruction::MakeArray { typ, .. } => {
+                InstructionResultType::Known(typ.clone())
+            }
             Instruction::Not(value)
             | Instruction::Truncate { value, .. }
             | Instruction::ArraySet { array: value, .. }
@@ -348,6 +345,9 @@ impl Instruction {
             // We can deduplicate these instructions if we know the predicate is also the same.
             Constrain(..) | RangeCheck { .. } => deduplicate_with_predicate,
 
+            // This should never be side-effectful
+            MakeArray { .. } => true,
+
             // These can have different behavior depending on the EnableSideEffectsIf context.
             // Replacing them with a similar instruction potentially enables replacing an instruction
             // with one that was disabled. See
@@ -385,7 +385,8 @@ impl Instruction {
             | Load { .. }
             | ArrayGet { .. }
             | IfElse { .. }
-            | ArraySet { .. } => true,
+            | ArraySet { .. }
+            | MakeArray { .. } => true,
 
             // Store instructions must be removed by DIE in acir code, any load
             // instructions should already be unused by that point.
@@ -459,7 +460,8 @@ impl Instruction {
             | Instruction::Store { .. }
             | Instruction::IfElse { .. }
             | Instruction::IncrementRc { .. }
-            | Instruction::DecrementRc { .. } => false,
+            | Instruction::DecrementRc { .. }
+            | Instruction::MakeArray { .. } => false,
         }
     }
 
@@ -485,10 +487,13 @@ impl Instruction {
                 let lhs = f(*lhs);
                 let rhs = f(*rhs);
                 let assert_message = assert_message.as_ref().map(|error| match error {
-                    ConstrainError::Dynamic(selector, payload_values) => ConstrainError::Dynamic(
-                        *selector,
-                        payload_values.iter().map(|&value| f(value)).collect(),
-                    ),
+                    ConstrainError::Dynamic(selector, is_string, payload_values) => {
+                        ConstrainError::Dynamic(
+                            *selector,
+                            *is_string,
+                            payload_values.iter().map(|&value| f(value)).collect(),
+                        )
+                    }
                     _ => error.clone(),
                 });
                 Instruction::Constrain(lhs, rhs, assert_message)
@@ -523,14 +528,15 @@ impl Instruction {
                     assert_message: assert_message.clone(),
                 }
             }
-            Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
-                Instruction::IfElse {
-                    then_condition: f(*then_condition),
-                    then_value: f(*then_value),
-                    else_condition: f(*else_condition),
-                    else_value: f(*else_value),
-                }
-            }
+            Instruction::IfElse { then_condition, then_value, else_value } => Instruction::IfElse {
+                then_condition: f(*then_condition),
+                then_value: f(*then_value),
+                else_value: f(*else_value),
+            },
+            Instruction::MakeArray { elements, typ } => Instruction::MakeArray {
+                elements: elements.iter().copied().map(f).collect(),
+                typ: typ.clone(),
+            },
         }
     }
 
@@ -556,7 +562,7 @@ impl Instruction {
             Instruction::Constrain(lhs, rhs, assert_error) => {
                 f(*lhs);
                 f(*rhs);
-                if let Some(ConstrainError::Dynamic(_, values)) = assert_error.as_ref() {
+                if let Some(ConstrainError::Dynamic(_, _, values)) = assert_error.as_ref() {
                     values.iter().for_each(|&val| {
                         f(val);
                     });
@@ -585,11 +591,15 @@ impl Instruction {
             | Instruction::RangeCheck { value, .. } => {
                 f(*value);
             }
-            Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
+            Instruction::IfElse { then_condition, then_value, else_value } => {
                 f(*then_condition);
                 f(*then_value);
-                f(*else_condition);
                 f(*else_value);
+            }
+            Instruction::MakeArray { elements, typ: _ } => {
+                for element in elements {
+                    f(*element);
+                }
             }
         }
     }
@@ -646,20 +656,28 @@ impl Instruction {
                     None
                 }
             }
-            Instruction::ArraySet { array, index, value, .. } => {
-                let array_const = dfg.get_array_constant(*array);
-                let index_const = dfg.get_numeric_constant(*index);
-                if let (Some((array, element_type)), Some(index)) = (array_const, index_const) {
+            Instruction::ArraySet { array: array_id, index: index_id, value, .. } => {
+                let array = dfg.get_array_constant(*array_id);
+                let index = dfg.get_numeric_constant(*index_id);
+                if let (Some((array, _element_type)), Some(index)) = (array, index) {
                     let index =
                         index.try_to_u32().expect("Expected array index to fit in u32") as usize;
 
                     if index < array.len() {
-                        let new_array = dfg.make_array(array.update(index, *value), element_type);
-                        return SimplifiedTo(new_array);
+                        let elements = array.update(index, *value);
+                        let typ = dfg.type_of_value(*array_id);
+                        let instruction = Instruction::MakeArray { elements, typ };
+                        let new_array = dfg.insert_instruction_and_results(
+                            instruction,
+                            block,
+                            Option::None,
+                            call_stack.clone(),
+                        );
+                        return SimplifiedTo(new_array.first());
                     }
                 }
 
-                try_optimize_array_set_from_previous_get(dfg, *array, *index, *value)
+                try_optimize_array_set_from_previous_get(dfg, *array_id, *index_id, *value)
             }
             Instruction::Truncate { value, bit_size, max_bit_size } => {
                 if bit_size == max_bit_size {
@@ -738,7 +756,7 @@ impl Instruction {
                     None
                 }
             }
-            Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
+            Instruction::IfElse { then_condition, then_value, else_value } => {
                 let typ = dfg.type_of_value(*then_value);
 
                 if let Some(constant) = dfg.get_numeric_constant(*then_condition) {
@@ -757,13 +775,11 @@ impl Instruction {
 
                 if matches!(&typ, Type::Numeric(_)) {
                     let then_condition = *then_condition;
-                    let else_condition = *else_condition;
 
                     let result = ValueMerger::merge_numeric_values(
                         dfg,
                         block,
                         then_condition,
-                        else_condition,
                         then_value,
                         else_value,
                     );
@@ -772,6 +788,7 @@ impl Instruction {
                     None
                 }
             }
+            Instruction::MakeArray { .. } => None,
         }
     }
 }
@@ -815,12 +832,12 @@ fn try_optimize_array_get_from_previous_set(
                             return SimplifyResult::None;
                         }
                     }
+                    Instruction::MakeArray { elements: array, typ: _ } => {
+                        elements = Some(array.clone());
+                        break;
+                    }
                     _ => return SimplifyResult::None,
                 }
-            }
-            Value::Array { array, typ: _ } => {
-                elements = Some(array.clone());
-                break;
             }
             _ => return SimplifyResult::None,
         }
@@ -927,18 +944,18 @@ fn try_optimize_array_set_from_previous_get(
     SimplifyResult::None
 }
 
-pub(crate) type ErrorType = HirType;
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub enum ErrorType {
+    String(String),
+    Dynamic(HirType),
+}
 
-pub(crate) fn error_selector_from_type(typ: &ErrorType) -> ErrorSelector {
-    match typ {
-        ErrorType::String(_) => STRING_ERROR_SELECTOR,
-        _ => {
-            let mut hasher = FxHasher::default();
-            typ.hash(&mut hasher);
-            let hash = hasher.finish();
-            assert!(hash != 0, "ICE: Error type {} collides with the string error type", typ);
-            ErrorSelector::new(hash)
-        }
+impl ErrorType {
+    pub fn selector(&self) -> ErrorSelector {
+        let mut hasher = FxHasher64::default();
+        self.hash(&mut hasher);
+        let hash = hasher.finish();
+        ErrorSelector::new(hash)
     }
 }
 
@@ -947,7 +964,8 @@ pub(crate) enum ConstrainError {
     // Static string errors are not handled inside the program as data for efficiency reasons.
     StaticString(String),
     // These errors are handled by the program as data.
-    Dynamic(ErrorSelector, Vec<ValueId>),
+    // We use a boolean to indicate if the error is a string for printing purposes.
+    Dynamic(ErrorSelector, /* is_string */ bool, Vec<ValueId>),
 }
 
 impl From<String> for ConstrainError {

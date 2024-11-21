@@ -1,7 +1,5 @@
 use std::collections::HashMap;
 
-use im::Vector;
-
 use crate::ssa::{
     function_builder::FunctionBuilder,
     ir::{basic_block::BasicBlockId, function::FunctionId, value::ValueId},
@@ -27,7 +25,11 @@ struct Translator {
     /// Maps block names to their IDs
     blocks: HashMap<FunctionId, HashMap<String, BasicBlockId>>,
 
-    /// Maps variable names to their IDs
+    /// Maps variable names to their IDs.
+    ///
+    /// This is necessary because the SSA we parse might have undergone some
+    /// passes already which replaced some of the original IDs. The translator
+    /// will recreate the SSA step by step, which can result in a new ID layout.
     variables: HashMap<FunctionId, HashMap<String, ValueId>>,
 }
 
@@ -213,6 +215,14 @@ impl Translator {
                 let value = self.translate_value(value)?;
                 self.builder.increment_array_reference_count(value);
             }
+            ParsedInstruction::MakeArray { target, elements, typ } => {
+                let elements = elements
+                    .into_iter()
+                    .map(|element| self.translate_value(element))
+                    .collect::<Result<_, _>>()?;
+                let value_id = self.builder.insert_make_array(elements, typ);
+                self.define_variable(target, value_id)?;
+            }
             ParsedInstruction::Load { target, value, typ } => {
                 let value = self.translate_value(value)?;
                 let value_id = self.builder.insert_load(value, typ);
@@ -254,13 +264,6 @@ impl Translator {
         match value {
             ParsedValue::NumericConstant { constant, typ } => {
                 Ok(self.builder.numeric_constant(constant, typ))
-            }
-            ParsedValue::Array { values, typ } => {
-                let mut translated_values = Vector::new();
-                for value in values {
-                    translated_values.push_back(self.translate_value(value)?);
-                }
-                Ok(self.builder.array_constant(translated_values, typ))
             }
             ParsedValue::Variable(identifier) => self.lookup_variable(identifier),
         }
@@ -308,7 +311,13 @@ impl Translator {
     }
 
     fn finish(self) -> Ssa {
-        self.builder.finish()
+        let mut ssa = self.builder.finish();
+        // Normalize the IDs so we have a better chance of matching the SSA we parsed
+        // after the step-by-step reconstruction done during translation. This assumes
+        // that the SSA we parsed was printed by the `SsaBuilder`, which normalizes
+        // before each print.
+        ssa.normalize_ids();
+        ssa
     }
 
     fn current_function_id(&self) -> FunctionId {

@@ -10,6 +10,11 @@ use super::Formatter;
 
 impl<'a> Formatter<'a> {
     pub(super) fn format_trait_impl(&mut self, trait_impl: NoirTraitImpl) {
+        // skip synthetic trait impl's, e.g. generated from trait aliases
+        if trait_impl.is_synthetic {
+            return;
+        }
+
         let has_where_clause = !trait_impl.where_clause.is_empty();
 
         self.write_indentation();

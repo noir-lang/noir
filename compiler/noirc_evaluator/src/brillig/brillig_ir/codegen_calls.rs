@@ -73,6 +73,6 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             .iter()
             .for_each(|destination| self.registers.ensure_register_is_allocated(*destination));
         self.codegen_mov_registers_to_registers(sources, destinations);
-        self.stop_instruction();
+        self.return_instruction();
     }
 }

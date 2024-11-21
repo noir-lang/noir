@@ -45,7 +45,7 @@ impl<'a> ValueMerger<'a> {
 
     /// Merge two values a and b from separate basic blocks to a single value.
     /// If these two values are numeric, the result will be
-    /// `then_condition * then_value + else_condition * else_value`.
+    /// `then_condition * (then_value - else_value) + else_value`.
     /// Otherwise, if the values being merged are arrays, a new array will be made
     /// recursively from combining each element of both input arrays.
     ///
@@ -54,7 +54,6 @@ impl<'a> ValueMerger<'a> {
     pub(crate) fn merge_values(
         &mut self,
         then_condition: ValueId,
-        else_condition: ValueId,
         then_value: ValueId,
         else_value: ValueId,
     ) -> ValueId {
@@ -70,15 +69,14 @@ impl<'a> ValueMerger<'a> {
                 self.dfg,
                 self.block,
                 then_condition,
-                else_condition,
                 then_value,
                 else_value,
             ),
             typ @ Type::Array(_, _) => {
-                self.merge_array_values(typ, then_condition, else_condition, then_value, else_value)
+                self.merge_array_values(typ, then_condition, then_value, else_value)
             }
             typ @ Type::Slice(_) => {
-                self.merge_slice_values(typ, then_condition, else_condition, then_value, else_value)
+                self.merge_slice_values(typ, then_condition, then_value, else_value)
             }
             Type::Reference(_) => panic!("Cannot return references from an if expression"),
             Type::Function => panic!("Cannot return functions from an if expression"),
@@ -86,12 +84,11 @@ impl<'a> ValueMerger<'a> {
     }
 
     /// Merge two numeric values a and b from separate basic blocks to a single value. This
-    /// function would return the result of `if c { a } else { b }` as  `c*a + (!c)*b`.
+    /// function would return the result of `if c { a } else { b }` as  `c * (a-b) + b`.
     pub(crate) fn merge_numeric_values(
         dfg: &mut DataFlowGraph,
         block: BasicBlockId,
         then_condition: ValueId,
-        _else_condition: ValueId,
         then_value: ValueId,
         else_value: ValueId,
     ) -> ValueId {
@@ -155,7 +152,6 @@ impl<'a> ValueMerger<'a> {
         &mut self,
         typ: Type,
         then_condition: ValueId,
-        else_condition: ValueId,
         then_value: ValueId,
         else_value: ValueId,
     ) -> ValueId {
@@ -170,7 +166,6 @@ impl<'a> ValueMerger<'a> {
 
         if let Some(result) = self.try_merge_only_changed_indices(
             then_condition,
-            else_condition,
             then_value,
             else_value,
             actual_length,
@@ -200,23 +195,19 @@ impl<'a> ValueMerger<'a> {
                 let then_element = get_element(then_value, typevars.clone());
                 let else_element = get_element(else_value, typevars);
 
-                merged.push_back(self.merge_values(
-                    then_condition,
-                    else_condition,
-                    then_element,
-                    else_element,
-                ));
+                merged.push_back(self.merge_values(then_condition, then_element, else_element));
             }
         }
 
-        self.dfg.make_array(merged, typ)
+        let instruction = Instruction::MakeArray { elements: merged, typ };
+        let call_stack = self.call_stack.clone();
+        self.dfg.insert_instruction_and_results(instruction, self.block, None, call_stack).first()
     }
 
     fn merge_slice_values(
         &mut self,
         typ: Type,
         then_condition: ValueId,
-        else_condition: ValueId,
         then_value_id: ValueId,
         else_value_id: ValueId,
     ) -> ValueId {
@@ -274,16 +265,13 @@ impl<'a> ValueMerger<'a> {
                 let else_element =
                     get_element(else_value_id, typevars, else_len * element_types.len());
 
-                merged.push_back(self.merge_values(
-                    then_condition,
-                    else_condition,
-                    then_element,
-                    else_element,
-                ));
+                merged.push_back(self.merge_values(then_condition, then_element, else_element));
             }
         }
 
-        self.dfg.make_array(merged, typ)
+        let instruction = Instruction::MakeArray { elements: merged, typ };
+        let call_stack = self.call_stack.clone();
+        self.dfg.insert_instruction_and_results(instruction, self.block, None, call_stack).first()
     }
 
     /// Construct a dummy value to be attached to the smaller of two slices being merged.
@@ -303,7 +291,11 @@ impl<'a> ValueMerger<'a> {
                         array.push_back(self.make_slice_dummy_data(typ));
                     }
                 }
-                self.dfg.make_array(array, typ.clone())
+                let instruction = Instruction::MakeArray { elements: array, typ: typ.clone() };
+                let call_stack = self.call_stack.clone();
+                self.dfg
+                    .insert_instruction_and_results(instruction, self.block, None, call_stack)
+                    .first()
             }
             Type::Slice(_) => {
                 // TODO(#3188): Need to update flattening to use true user facing length of slices
@@ -322,7 +314,6 @@ impl<'a> ValueMerger<'a> {
     fn try_merge_only_changed_indices(
         &mut self,
         then_condition: ValueId,
-        else_condition: ValueId,
         then_value: ValueId,
         else_value: ValueId,
         array_length: usize,
@@ -406,8 +397,7 @@ impl<'a> ValueMerger<'a> {
             let then_element = get_element(then_value, typevars.clone());
             let else_element = get_element(else_value, typevars);
 
-            let value =
-                self.merge_values(then_condition, else_condition, then_element, else_element);
+            let value = self.merge_values(then_condition, then_element, else_element);
 
             array = self.insert_array_set(array, index, value, Some(condition)).first();
         }
