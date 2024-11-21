@@ -307,7 +307,7 @@ impl Context {
 /// based on newly resolved values for its inputs.
 ///
 /// This may result in the [`Instruction`] being optimized away or replaced with a constant value.
-pub(super) fn push_instruction(
+fn push_instruction(
     id: InstructionId,
     instruction: Instruction,
     old_results: &[ValueId],
@@ -333,11 +333,7 @@ pub(super) fn push_instruction(
 }
 
 /// Replaces a set of [`ValueId`]s inside the [`DataFlowGraph`] with another.
-pub(super) fn replace_result_ids(
-    dfg: &mut DataFlowGraph,
-    old_results: &[ValueId],
-    new_results: &[ValueId],
-) {
+fn replace_result_ids(dfg: &mut DataFlowGraph, old_results: &[ValueId], new_results: &[ValueId]) {
     for (old_result, new_result) in old_results.iter().zip(new_results) {
         dfg.set_value_from_id(*old_result, *new_result);
     }

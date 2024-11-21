@@ -7,7 +7,7 @@
 //! - Already marked as loop invariants
 //!
 //! We also check that we are not hoisting instructions with side effects.
-use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use fxhash::FxHashSet as HashSet;
 
 use crate::ssa::{
     ir::{
@@ -18,10 +18,7 @@ use crate::ssa::{
     Ssa,
 };
 
-use super::{
-    constant_folding::{push_instruction, replace_result_ids},
-    unrolling::Loops,
-};
+use super::unrolling::Loops;
 
 impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
@@ -66,12 +63,8 @@ impl Loops {
                 }
             }
 
-            // Instructions to move to the preheader
-            let mut instructions_to_hoist = Vec::new();
-            // Mapping to track unchanged instructions per block
-            let mut block_to_instructions = HashMap::default();
             // Track already found loop invariants
-            let mut loop_invariants = HashSet::default();
+            let mut loop_invariants: HashSet<ValueId> = HashSet::default();
             for block in loop_.blocks.iter() {
                 let mut instructions_to_keep = Vec::new();
                 for instruction_id in inserter.function.dfg[*block].take_instructions() {
@@ -91,61 +84,46 @@ impl Loops {
                             !defined_in_loop.contains(&value) || loop_invariants.contains(&value);
                     });
 
+                    let results =
+                        inserter.function.dfg.instruction_results(instruction_id).to_vec();
+                    let results = results
+                        .into_iter()
+                        .map(|value| inserter.resolve(value))
+                        .collect::<Vec<_>>();
+
                     if is_loop_variant
                         && instruction.can_be_deduplicated(&inserter.function.dfg, false)
                     {
-                        // We need to collect the results as we then mutably borrow to resolve the ValueIds
-                        let results =
-                            inserter.function.dfg.instruction_results(instruction_id).to_vec();
-                        let results = results.into_iter().map(|value| inserter.resolve(value));
-
-                        loop_invariants.extend(results);
-                        instructions_to_hoist.push(instruction_id);
+                        inserter.push_instruction(instruction_id, pre_header);
                     } else {
                         instructions_to_keep.push(instruction_id);
+
+                        inserter.push_instruction(instruction_id, *block);
+                    }
+
+                    // We will have new IDs after pushing instructions.
+                    // We should mark the resolved result IDs as also being defined within the loop.
+                    let results = results
+                        .into_iter()
+                        .map(|value| inserter.resolve(value))
+                        .collect::<Vec<_>>();
+                    defined_in_loop.extend(results.iter());
+
+                    if is_loop_variant
+                        && instruction.can_be_deduplicated(&inserter.function.dfg, false)
+                    {
+                        loop_invariants.extend(results.iter());
                     }
                 }
-                block_to_instructions.insert(*block, instructions_to_keep);
             }
 
-            // Insert instructions we wish to hoist into the pre-header first
-            // The loop body and exit are dependent upon these instructions being mapped first
-            for instruction_id in instructions_to_hoist {
-                let old_results =
-                    inserter.function.dfg.instruction_results(instruction_id).to_vec();
-
-                let (instruction, _) = inserter.map_instruction(instruction_id);
-                let new_results = push_instruction(
-                    instruction_id,
-                    instruction,
-                    &old_results,
-                    pre_header,
-                    &mut inserter.function.dfg,
-                );
-
-                replace_result_ids(&mut inserter.function.dfg, &old_results, &new_results);
-            }
-
-            inserter.map_terminator_in_place(pre_header);
-
-            // Add back and map unchanged loop body instructions
-            for (block, instructions_to_keep) in block_to_instructions {
-                for instruction_id in instructions_to_keep.iter() {
-                    let old_results =
-                        inserter.function.dfg.instruction_results(*instruction_id).to_vec();
-
-                    let (instruction, _) = inserter.map_instruction(*instruction_id);
-                    let new_results = push_instruction(
-                        *instruction_id,
-                        instruction,
-                        &old_results,
-                        block,
-                        &mut inserter.function.dfg,
-                    );
-
-                    replace_result_ids(&mut inserter.function.dfg, &old_results, &new_results);
+            // Map instructions in blocks not from loops as they may have instructions
+            // which are reliant upon values from the loops.
+            let blocks = inserter.function.reachable_blocks();
+            for block in blocks {
+                for instruction_id in inserter.function.dfg[block].take_instructions() {
+                    inserter.push_instruction(instruction_id, block);
                 }
-
                 inserter.map_terminator_in_place(block);
             }
         }

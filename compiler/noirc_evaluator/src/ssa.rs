@@ -103,10 +103,8 @@ pub(crate) fn optimize_into_acir(
         Ssa::evaluate_static_assert_and_assert_constant,
         "After `static_assert` and `assert_constant`:",
     )?
-    .try_run_pass(Ssa::unroll_loops_iteratively, "After Unrolling:")?
-    // We unroll small Brillig loops based off a comparison between the number of unrolled instructions
-    // and the loop overhead. Loop invariant code motion can affect this calculation so we run it after unrolling.
     .run_pass(Ssa::loop_invariant_code_motion, "After Loop Invariant Code Motion:")
+    .try_run_pass(Ssa::unroll_loops_iteratively, "After Unrolling:")?
     .run_pass(Ssa::simplify_cfg, "After Simplifying (2nd):")
     .run_pass(Ssa::flatten_cfg, "After Flattening:")
     .run_pass(Ssa::remove_bit_shifts, "After Removing Bit Shifts:")
