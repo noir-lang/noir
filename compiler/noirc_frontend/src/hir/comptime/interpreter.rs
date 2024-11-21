@@ -934,40 +934,23 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         };
 
         /// Generate matches that can promote the type of one side to the other if they are compatible.
-        ///
-        /// ```ignore
-        /// BinaryOpKind::Subtract => match (lhs_value, rhs_value) {
-        ///     (Value::I16(lhs), Value::I8(rhs)) => {
-        ///         let rhs = rhs as i16;
-        ///         Ok(Value::I16(lhs.checked_sub(rhs).ok_or(error("-"))?))
-        ///     }
-        /// }
-        /// ```
         macro_rules! match_values {
             (($lhs_value:ident as $lhs:ident $op:literal $rhs_value:ident as $rhs:ident) {
                 $(
-                    $variant:ident($typ:ty) from [$($promoted:ident),+] to $result:ident => $expr:expr
+                    ($lhs_var:ident, $rhs_var:ident) to $res_var:ident => $expr:expr
                 ),*
                 $(,)?
              }
             ) => {
                 match ($lhs_value, $rhs_value) {
                     $(
-                        $(
-                            (Value::$variant($lhs), Value::$promoted($rhs)) => {
-                                let $rhs = $rhs as $typ;
-                                Ok(Value::$result(($expr).ok_or(error($op))?))
-                            },
-                        )*
-                        $(
-                            (Value::$promoted($lhs), Value::$variant($rhs)) => {
-                                let $lhs = $lhs as $typ;
-                                Ok(Value::$result(($expr).ok_or(error($op))?))
-                            },
-                        )*
+                    (Value::$lhs_var($lhs), Value::$rhs_var($rhs)) => {
+                        Ok(Value::$res_var(($expr).ok_or(error($op))?))
+                    },
                     )*
-                    (lhs, rhs) =>
-                        Err(error($op)),
+                    (lhs, rhs) => {
+                        Err(error($op))
+                    },
                 }
             };
         }
@@ -977,15 +960,15 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             (($lhs_value:ident as $lhs:ident $op:literal $rhs_value:ident as $rhs:ident) { field: $field_expr:expr, int: $int_expr:expr, }) => {
                 match_values! {
                     ($lhs_value as $lhs $op $rhs_value as $rhs) {
-                        Field(FieldElement) from [Field]  to Field => Some($field_expr),
-                        I8(i8)   from [I8]                to I8    => $int_expr,
-                        I16(i16) from [I8, I16]           to I16   => $int_expr,
-                        I32(i32) from [I8, I16, I32]      to I32   => $int_expr,
-                        I64(i64) from [I8, I16, I32, I64] to I64   => $int_expr,
-                        U8(u8)   from [U8]                to U8    => $int_expr,
-                        U16(u16) from [U8, U16]           to U16   => $int_expr,
-                        U32(u32) from [U8, U16, U32]      to U32   => $int_expr,
-                        U64(u64) from [U8, U16, U32, U64] to U64   => $int_expr,
+                        (Field, Field) to Field => Some($field_expr),
+                        (I8,  I8)      to I8    => $int_expr,
+                        (I16, I16)     to I16   => $int_expr,
+                        (I32, I32)     to I32   => $int_expr,
+                        (I64, I64)     to I64   => $int_expr,
+                        (U8,  U8)      to U8    => $int_expr,
+                        (U16, U16)     to U16   => $int_expr,
+                        (U32, U32)     to U32   => $int_expr,
+                        (U64, U64)     to U64   => $int_expr,
                     }
                 }
             };
@@ -996,16 +979,16 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             (($lhs_value:ident as $lhs:ident $op:literal $rhs_value:ident as $rhs:ident) => $expr:expr) => {
                 match_values! {
                     ($lhs_value as $lhs $op $rhs_value as $rhs) {
-                        Field(FieldElement) from [Field]  to Bool => Some($expr),
-                        Bool(bool) from [Bool]            to Bool => Some($expr),
-                        I8(i8)   from [I8]                to Bool => Some($expr),
-                        I16(i16) from [I8, I16]           to Bool => Some($expr),
-                        I32(i32) from [I8, I16, I32]      to Bool => Some($expr),
-                        I64(i64) from [I8, I16, I32, I64] to Bool => Some($expr),
-                        U8(u8)   from [U8]                to Bool => Some($expr),
-                        U16(u16) from [U8, U16]           to Bool => Some($expr),
-                        U32(u32) from [U8, U16, U32]      to Bool => Some($expr),
-                        U64(u64) from [U8, U16, U32, U64] to Bool => Some($expr),
+                        (Field, Field) to Bool => Some($expr),
+                        (Bool, Bool)   to Bool => Some($expr),
+                        (I8,  I8)      to Bool => Some($expr),
+                        (I16, I16)     to Bool => Some($expr),
+                        (I32, I32)     to Bool => Some($expr),
+                        (I64, I64)     to Bool => Some($expr),
+                        (U8,  U8)      to Bool => Some($expr),
+                        (U16, U16)     to Bool => Some($expr),
+                        (U32, U32)     to Bool => Some($expr),
+                        (U64, U64)     to Bool => Some($expr),
                     }
                 }
             };
@@ -1016,15 +999,15 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             (($lhs_value:ident as $lhs:ident $op:literal $rhs_value:ident as $rhs:ident) => $expr:expr) => {
                 match_values! {
                     ($lhs_value as $lhs $op $rhs_value as $rhs) {
-                        Bool(bool) from [Bool]            to Bool => Some($expr),
-                        I8(i8)   from [I8]                to I8   => Some($expr),
-                        I16(i16) from [I8, I16]           to I16  => Some($expr),
-                        I32(i32) from [I8, I16, I32]      to I32  => Some($expr),
-                        I64(i64) from [I8, I16, I32, I64] to I64  => Some($expr),
-                        U8(u8)   from [U8]                to U8   => Some($expr),
-                        U16(u16) from [U8, U16]           to U16  => Some($expr),
-                        U32(u32) from [U8, U16, U32]      to U32  => Some($expr),
-                        U64(u64) from [U8, U16, U32, U64] to U64  => Some($expr),
+                        (Bool, Bool)   to Bool => Some($expr),
+                        (I8,  I8)      to I8   => Some($expr),
+                        (I16, I16)     to I16  => Some($expr),
+                        (I32, I32)     to I32  => Some($expr),
+                        (I64, I64)     to I64  => Some($expr),
+                        (U8,  U8)      to U8   => Some($expr),
+                        (U16, U16)     to U16  => Some($expr),
+                        (U32, U32)     to U32  => Some($expr),
+                        (U64, U64)     to U64  => Some($expr),
                     }
                 }
             };
@@ -1035,14 +1018,32 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             (($lhs_value:ident as $lhs:ident $op:literal $rhs_value:ident as $rhs:ident) => $expr:expr) => {
                 match_values! {
                     ($lhs_value as $lhs $op $rhs_value as $rhs) {
-                        I8(i8)   from [I8]                to I8   => $expr,
-                        I16(i16) from [I8, I16]           to I16  => $expr,
-                        I32(i32) from [I8, I16, I32]      to I32  => $expr,
-                        I64(i64) from [I8, I16, I32, I64] to I64  => $expr,
-                        U8(u8)   from [U8]                to U8   => $expr,
-                        U16(u16) from [U8, U16]           to U16  => $expr,
-                        U32(u32) from [U8, U16, U32]      to U32  => $expr,
-                        U64(u64) from [U8, U16, U32, U64] to U64  => $expr,
+                        (I8,  I8)      to I8   => $expr,
+                        (I16, I16)     to I16  => $expr,
+                        (I32, I32)     to I32  => $expr,
+                        (I64, I64)     to I64  => $expr,
+                        (U8,  U8)      to U8   => $expr,
+                        (U16, U16)     to U16  => $expr,
+                        (U32, U32)     to U32  => $expr,
+                        (U64, U64)     to U64  => $expr,
+                    }
+                }
+            };
+        }
+
+        /// Generate matches for bit shifting, which in Noir only accepts `u8` for RHS.
+        macro_rules! match_bitshift {
+            (($lhs_value:ident as $lhs:ident $op:literal $rhs_value:ident as $rhs:ident) => $expr:expr) => {
+                match_values! {
+                    ($lhs_value as $lhs $op $rhs_value as $rhs) {
+                        (I8,  U8)      to I8   => $expr,
+                        (I16, U8)      to I16  => $expr,
+                        (I32, U8)      to I32  => $expr,
+                        (I64, U8)      to I64  => $expr,
+                        (U8,  U8)      to U8   => $expr,
+                        (U16, U8)      to U16  => $expr,
+                        (U32, U8)      to U32  => $expr,
+                        (U64, U8)      to U64  => $expr,
                     }
                 }
             };
@@ -1101,16 +1102,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             BinaryOpKind::Xor => match_bitwise! {
                 (lhs_value as lhs "^" rhs_value as rhs) => lhs ^ rhs
             },
-            BinaryOpKind::ShiftRight => {
-                match_integer! {
-                    (lhs_value as lhs ">>" rhs_value as rhs) =>  rhs.try_into().ok().and_then(|rhs| lhs.checked_shr(rhs))
-                }
-            }
-            BinaryOpKind::ShiftLeft => {
-                match_integer! {
-                    (lhs_value as lhs "<<" rhs_value as rhs) => rhs.try_into().ok().and_then(|rhs| lhs.checked_shl(rhs))
-                }
-            }
+            BinaryOpKind::ShiftRight => match_bitshift! {
+                (lhs_value as lhs ">>" rhs_value as rhs) => rhs.try_into().ok().and_then(|rhs| lhs.checked_shr(rhs))
+            },
+            BinaryOpKind::ShiftLeft => match_bitshift! {
+                (lhs_value as lhs "<<" rhs_value as rhs) => rhs.try_into().ok().and_then(|rhs| lhs.checked_shl(rhs))
+            },
             BinaryOpKind::Modulo => match_integer! {
                 (lhs_value as lhs "%" rhs_value as rhs) => lhs.checked_rem(rhs)
             },

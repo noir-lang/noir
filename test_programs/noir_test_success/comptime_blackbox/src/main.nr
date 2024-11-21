@@ -29,6 +29,16 @@ fn test_to_le_radix() {
 }
 
 #[test]
+fn test_bitshift() {
+    let c = comptime {
+        let a: i32 = 10;
+        let b: u32 = 4;
+        a << b as u8
+    };
+    assert_eq(c, 160);
+}
+
+#[test]
 fn test_aes128_encrypt() {
     let ciphertext = comptime {
         let plaintext: [u8; 5] = [1, 2, 3, 4, 5];
