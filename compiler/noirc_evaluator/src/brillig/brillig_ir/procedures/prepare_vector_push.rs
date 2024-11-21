@@ -185,6 +185,7 @@ pub(crate) fn reallocate_vector_for_insertion<
                             target_vector,
                             target_size,
                             Some(source_capacity),
+                            Some(1),
                         );
                     }
                 });
@@ -201,6 +202,7 @@ pub(crate) fn reallocate_vector_for_insertion<
                     target_vector,
                     target_size,
                     Some(double_size),
+                    Some(1),
                 );
                 brillig_context.deallocate_single_addr(double_size);
             }

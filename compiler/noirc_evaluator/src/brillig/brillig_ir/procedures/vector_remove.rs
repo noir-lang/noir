@@ -81,7 +81,7 @@ pub(super) fn compile_vector_remove_procedure<F: AcirField + DebugToString>(
             brillig_context
                 .codegen_vector_items_pointer(target_vector, target_vector_items_pointer);
         } else {
-            brillig_context.codegen_initialize_vector(target_vector, target_size, None);
+            brillig_context.codegen_initialize_vector(target_vector, target_size, None, Some(1));
 
             // Copy the elements to the left of the index
             brillig_context

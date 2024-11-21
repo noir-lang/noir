@@ -492,6 +492,7 @@ impl<'block> BrilligBlock<'block> {
                         destination_vector,
                         source_size_register,
                         None,
+                        None,
                     );
 
                     // Items
@@ -772,13 +773,14 @@ impl<'block> BrilligBlock<'block> {
                     // Initialize the variable
                     match new_variable {
                         BrilligVariable::BrilligArray(brillig_array) => {
-                            self.brillig_context.codegen_initialize_array(brillig_array);
+                            self.brillig_context.codegen_initialize_array(brillig_array, None);
                         }
                         BrilligVariable::BrilligVector(vector) => {
                             let size = self
                                 .brillig_context
                                 .make_usize_constant_instruction(array.len().into());
-                            self.brillig_context.codegen_initialize_vector(vector, size, None);
+                            self.brillig_context
+                                .codegen_initialize_vector(vector, size, None, None);
                             self.brillig_context.deallocate_single_addr(size);
                         }
                         _ => unreachable!(
@@ -1773,7 +1775,7 @@ impl<'block> BrilligBlock<'block> {
             unreachable!("ICE: allocate_foreign_call_array() expects an array, got {typ:?}")
         };
 
-        self.brillig_context.codegen_initialize_array(array);
+        self.brillig_context.codegen_initialize_array(array, None);
 
         let mut index = 0_usize;
         for _ in 0..*size {

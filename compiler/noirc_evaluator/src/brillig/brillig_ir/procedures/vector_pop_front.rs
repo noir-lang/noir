@@ -95,9 +95,10 @@ pub(super) fn compile_vector_pop_front_procedure<F: AcirField + DebugToString>(
                 target_vector,
                 target_size,
                 Some(source_capacity),
+                Some(1),
             );
         } else {
-            brillig_context.codegen_initialize_vector(target_vector, target_size, None);
+            brillig_context.codegen_initialize_vector(target_vector, target_size, None, Some(1));
 
             let target_vector_items_pointer =
                 brillig_context.codegen_make_vector_items_pointer(target_vector);
