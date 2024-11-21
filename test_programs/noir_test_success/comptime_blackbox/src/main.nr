@@ -1,5 +1,6 @@
 //! Tests to show that the comptime interpreter implement blackbox functions.
 use std::bigint;
+use std::embedded_curve_ops::{EmbeddedCurvePoint, EmbeddedCurveScalar, multi_scalar_mul};
 
 /// Test that all bigint operations work in comptime.
 #[test]
@@ -104,6 +105,19 @@ fn test_sha256() {
     };
     assert_eq(hash[0], 0x68);
     assert_eq(hash[31], 0x2b);
+}
+
+/// Test that `embedded_curve_add` and `multi_scalar_mul` are implemented.
+#[test]
+fn test_embedded_curve_ops() {
+    let (sum, mul) = comptime {
+        let g1 = EmbeddedCurvePoint { x: 1, y: 17631683881184975370165255887551781615748388533673675138860, is_infinite: false };
+        let s1 = EmbeddedCurveScalar { lo: 1, hi: 0 };
+        let sum = g1 + g1;
+        let mul = multi_scalar_mul([g1, g1], [s1, s1]);
+        (sum, mul)
+    };
+    assert_eq(sum, mul);
 }
 
 /// Parse a lowercase hexadecimal string (without 0x prefix) as byte slice.
