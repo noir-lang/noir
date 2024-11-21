@@ -913,7 +913,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
     }
 
-    #[allow(clippy::useless_conversion)]
+    #[allow(clippy::useless_conversion, clippy::bool_comparison)]
     fn evaluate_infix(&mut self, infix: HirInfixExpression, id: ExprId) -> IResult<Value> {
         let lhs_value = self.evaluate(infix.lhs)?;
         let rhs_value = self.evaluate(infix.rhs)?;
