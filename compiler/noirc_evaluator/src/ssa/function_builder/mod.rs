@@ -442,25 +442,20 @@ impl FunctionBuilder {
     /// within the given value. If the given value is not an array and does not contain
     /// any arrays, this does nothing.
     pub(crate) fn increment_array_reference_count(&mut self, value: ValueId) {
-        self.update_array_reference_count(value, true, true);
+        self.update_array_reference_count(value, true);
     }
 
     /// Insert instructions to decrement the reference count of any array(s) stored
     /// within the given value. If the given value is not an array and does not contain
     /// any arrays, this does nothing.
     pub(crate) fn decrement_array_reference_count(&mut self, value: ValueId) {
-        self.update_array_reference_count(value, false, true);
+        self.update_array_reference_count(value, false);
     }
 
     /// Increment or decrement the given value's reference count if it is an array.
     /// If it is not an array, this does nothing. Note that inc_rc and dec_rc instructions
     /// are ignored outside of unconstrained code.
-    pub(crate) fn update_array_reference_count(
-        &mut self,
-        value: ValueId,
-        increment: bool,
-        found_ref: bool,
-    ) {
+    fn update_array_reference_count(&mut self, value: ValueId, increment: bool) {
         match self.type_of_value(value) {
             Type::Numeric(_) => (),
             Type::Function => (),
@@ -468,18 +463,16 @@ impl FunctionBuilder {
                 if element.contains_an_array() {
                     let reference = value;
                     let value = self.insert_load(reference, element.as_ref().clone());
-                    self.update_array_reference_count(value, increment, true);
+                    self.update_array_reference_count(value, increment);
                 }
             }
             Type::Array(..) | Type::Slice(..) => {
                 // If there are nested arrays or slices, we wait until ArrayGet
                 // is issued to increment the count of that array.
-                if found_ref {
-                    if increment {
-                        self.insert_inc_rc(value);
-                    } else {
-                        self.insert_dec_rc(value);
-                    }
+                if increment {
+                    self.insert_inc_rc(value);
+                } else {
+                    self.insert_dec_rc(value);
                 }
             }
         }
