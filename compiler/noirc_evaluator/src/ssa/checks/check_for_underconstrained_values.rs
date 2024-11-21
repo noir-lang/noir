@@ -106,11 +106,11 @@ struct BrilligTaintedIds {
 }
 
 impl BrilligTaintedIds {
-    // Add children of a given parent to the tainted value set
-    // (for arguments one set is enough, for results we keep them
-    // separate as all the results should be covered along
-    // with a single argument in the forthcoming check)
-    fn mark_children(&mut self, parent: &ValueId, children: &[ValueId]) {
+    /// Add children of a given parent to the tainted value set
+    /// (for arguments one set is enough, for results we keep them
+    /// separate as all the results should be covered along
+    /// with a single argument in the forthcoming check)
+    fn update_children(&mut self, parent: &ValueId, children: &[ValueId]) {
         if self.arguments.contains(parent) {
             self.arguments.extend(children);
         }
@@ -121,7 +121,7 @@ impl BrilligTaintedIds {
         }
     }
 
-    // If brillig call is properly constrained by the given ids, return true
+    /// If brillig call is properly constrained by the given ids, return true
     fn check_constrained(&self, constrained_values: &HashSet<ValueId>) -> bool {
         // Every result should be constrained
         let results_constrained = self
@@ -138,9 +138,8 @@ impl BrilligTaintedIds {
 }
 
 impl DependencyContext {
-    /// Build the dependency graph of variable ValueIds, also storing
-    /// information on value ids involved in constrain operations
-    /// and brillig calls
+    /// Build the dependency context of variable ValueIds, storing
+    /// information on value ids involved in unchecked brillig calls
     fn build(&mut self, function: &Function, all_functions: &BTreeMap<FunctionId, Function>) {
         self.block_queue.push(function.entry_block());
         while let Some(block) = self.block_queue.pop() {
@@ -159,10 +158,12 @@ impl DependencyContext {
         all_functions: &BTreeMap<FunctionId, Function>,
     ) {
         trace!("processing instructions of block {} of function {}", block, function);
+        let mut arguments = Vec::new();
+        let mut results = Vec::new();
 
         for instruction in function.dfg[block].instructions() {
-            let mut arguments = Vec::new();
-            let mut results = Vec::new();
+            arguments.clear();
+            results.clear();
 
             // Collect non-constant instruction arguments
             function.dfg[*instruction].for_each_value(|value_id| {
@@ -314,17 +315,17 @@ impl DependencyContext {
         warnings
     }
 
-    // Update sets of value ids that can be traced back to recorded brillig calls
+    /// Update sets of value ids that can be traced back to recorded brillig calls
     fn update_children(&mut self, parents: &[ValueId], children: &[ValueId]) {
         for (_, tainted_ids) in self.tainted.iter_mut() {
             for parent in parents {
-                tainted_ids.mark_children(parent, children);
+                tainted_ids.update_children(parent, children);
             }
         }
     }
 
-    // Check if any of the recorded brillig calls has been properly constrained
-    // by given values, if so stop following it
+    /// Check if any of the recorded brillig calls has been properly constrained
+    /// by given values, if so stop following it
     fn clear_constrained(&mut self, constrained_values: &[ValueId]) {
         trace!("attempting to clear brillig calls constrained by values: {:?}", constrained_values);
         let constrained_values: HashSet<_> = HashSet::from_iter(constrained_values.iter().copied());
