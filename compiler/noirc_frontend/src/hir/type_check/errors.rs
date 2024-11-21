@@ -210,7 +210,7 @@ pub enum TypeCheckError {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NoMatchingImplFoundError {
-    constraints: Vec<(Type, String)>,
+    pub(crate) constraints: Vec<(Type, String)>,
     pub span: Span,
 }
 

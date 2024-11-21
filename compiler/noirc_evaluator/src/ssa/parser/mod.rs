@@ -28,6 +28,11 @@ mod tests;
 mod token;
 
 impl Ssa {
+    /// Creates an Ssa object from the given string.
+    ///
+    /// Note that the resulting Ssa might not be exactly the same as the given string.
+    /// This is because, internally, the Ssa is built using a `FunctionBuilder`, so
+    /// some instructions might be simplified while they are inserted.
     pub(crate) fn from_str(src: &str) -> Result<Ssa, SsaErrorWithSource> {
         let mut parser =
             Parser::new(src).map_err(|err| SsaErrorWithSource::parse_error(err, src))?;
