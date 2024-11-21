@@ -12,6 +12,8 @@ use super::{
     BrilligContext, ReservedRegisters, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
 };
 
+const INITIAL_ARRAY_REF_COUNT: usize = 0;
+
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     /// Allocates an array of size `size` and stores the pointer to the array
     /// in `pointer_register`
@@ -424,7 +426,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.indirect_const_instruction(
             array.pointer,
             BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
-            1_usize.into(),
+            INITIAL_ARRAY_REF_COUNT.into(),
         );
     }
 
@@ -438,7 +440,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.indirect_const_instruction(
             vector.pointer,
             BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
-            1_usize.into(),
+            INITIAL_ARRAY_REF_COUNT.into(),
         );
 
         // Write size
@@ -498,7 +500,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.indirect_const_instruction(
             vector.pointer,
             BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
-            1_usize.into(),
+            INITIAL_ARRAY_REF_COUNT.into(),
         );
 
         // Initialize size
