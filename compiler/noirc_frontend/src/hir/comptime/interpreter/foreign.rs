@@ -45,6 +45,7 @@ fn call_foreign(
     location: Location,
 ) -> IResult<Value> {
     use BlackBoxFunc::*;
+
     match name {
         "aes128_encrypt" => aes128_encrypt(interner, args, location),
         "bigint_from_le_bytes" => bigint_from_le_bytes(interner, bigint_solver, args, location),
@@ -73,7 +74,21 @@ fn call_foreign(
         "sha256_compression" => sha256_compression(interner, args, location),
         _ => {
             let item = format!("Comptime evaluation for foreign function '{name}'");
-            Err(InterpreterError::Unimplemented { item, location })
+            let explanation = match name {
+                "schnorr_verify" => Some("Schnorr verification will be removed."),
+                "and" | "xor" => Some("It should be turned a binary operation instead."),
+                "recursive_aggregation" => Some("A proof cannot be verified at comptime."),
+                _ => None,
+            };
+            if let Some(e) = explanation {
+                Err(InterpreterError::WillNotImplement {
+                    item,
+                    location,
+                    explanation: e.to_string(),
+                })
+            } else {
+                Err(InterpreterError::Unimplemented { item, location })
+            }
         }
     }
 }
@@ -295,12 +310,13 @@ fn sha256_compression(
 #[cfg(test)]
 mod tests {
     use acvm::acir::BlackBoxFunc;
-    use im::HashSet;
     use noirc_errors::Location;
     use strum::IntoEnumIterator;
 
     use crate::hir::comptime::tests::with_interpreter;
-    use crate::hir::comptime::InterpreterError::{ArgumentCountMismatch, Unimplemented};
+    use crate::hir::comptime::InterpreterError::{
+        ArgumentCountMismatch, Unimplemented, WillNotImplement,
+    };
 
     use super::call_foreign;
 
@@ -313,22 +329,11 @@ mod tests {
         }
         ";
 
-        let skip: HashSet<BlackBoxFunc> = HashSet::from_iter([
-            // Schnorr to be removed
-            BlackBoxFunc::SchnorrVerify,
-            // `acvm::blackbox_solver::bit_xor` exists for field elements,
-            // but the compiler says XOR on `Field` is not supported, only on ints,
-            // and the the SSA to Brillig transformation also expects these to be
-            // handled as a BinaryOp, which the Interpreter implements for ints.
-            BlackBoxFunc::XOR,
-            BlackBoxFunc::AND,
-        ]);
-
         let not_implemented = with_interpreter(dummy, |interpreter, _, _| {
             let no_location = Location::dummy();
             let mut not_implemented = Vec::new();
 
-            for blackbox in BlackBoxFunc::iter().filter(|func| !skip.contains(func)) {
+            for blackbox in BlackBoxFunc::iter() {
                 let name = blackbox.name();
                 match call_foreign(
                     interpreter.elaborator.interner,
@@ -343,6 +348,7 @@ mod tests {
                     Err(ArgumentCountMismatch { .. }) => {
                         // Exists but doesn't work with no args (expected)
                     }
+                    Err(WillNotImplement { .. }) => {}
                     Err(Unimplemented { .. }) => not_implemented.push(name),
                     Err(other) => panic!("unexpected error: {other:?}"),
                 };
