@@ -490,12 +490,95 @@ trait CompSciStudent: Programmer + Student {
 }
 ```
 
+### Trait Aliases
+
+Similar to the proposed Rust feature for [trait aliases](https://github.com/rust-lang/rust/blob/4d215e2426d52ca8d1af166d5f6b5e172afbff67/src/doc/unstable-book/src/language-features/trait-alias.md),
+Noir supports aliasing one or more traits and using those aliases wherever
+traits would normally be used.
+
+```rust
+trait Foo {
+    fn foo(self) -> Self;
+}
+
+trait Bar {
+    fn bar(self) -> Self;
+}
+
+// Equivalent to:
+// trait Baz: Foo + Bar {}
+//
+// impl<T> Baz for T where T: Foo + Bar {}
+trait Baz = Foo + Bar;
+
+// We can use `Baz` to refer to `Foo + Bar`
+fn baz<T>(x: T) -> T where T: Baz {
+    x.foo().bar()
+}
+```
+
+#### Generic Trait Aliases
+
+Trait aliases can also be generic by placing the generic arguments after the
+trait name. These generics are in scope of every item within the trait alias.
+
+```rust
+trait Foo {
+    fn foo(self) -> Self;
+}
+
+trait Bar<T> {
+    fn bar(self) -> T;
+}
+
+// Equivalent to:
+// trait Baz<T>: Foo + Bar<T> {}
+//
+// impl<T, U> Baz<T> for U where U: Foo + Bar<T> {}
+trait Baz<T> = Foo + Bar<T>;
+```
+
+#### Trait Alias Where Clauses
+
+Trait aliases support where clauses to add trait constraints to any of their
+generic arguments, e.g. ensuring `T: Baz` for a trait alias `Qux<T>`.
+
+```rust
+trait Foo {
+    fn foo(self) -> Self;
+}
+
+trait Bar<T> {
+    fn bar(self) -> T;
+}
+
+trait Baz {
+    fn baz(self) -> bool;
+}
+
+// Equivalent to:
+// trait Qux<T>: Foo + Bar<T> where T: Baz {}
+//
+// impl<T, U> Qux<T> for U where
+//     U: Foo + Bar<T>,
+//     T: Baz,
+// {}
+trait Qux<T> = Foo + Bar<T> where T: Baz;
+```
+
+Note that while trait aliases support where clauses,
+the equivalent traits can fail due to [#6467](https://github.com/noir-lang/noir/issues/6467)
+
 ### Visibility
 
-By default, like functions, traits are private to the module they exist in. You can use `pub`
-to make the trait public or `pub(crate)` to make it public to just its crate:
+By default, like functions, traits and trait aliases are private to the module
+they exist in. You can use `pub` to make the trait public or `pub(crate)` to make
+it public to just its crate:
 
 ```rust
 // This trait is now public
 pub trait Trait {}
+
+// This trait alias is now public
+pub trait Baz = Foo + Bar;
 ```
