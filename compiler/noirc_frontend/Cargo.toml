@@ -35,7 +35,6 @@ strum_macros.workspace = true
 
 
 [dev-dependencies]
-acvm = { workspace = true, features = ["enum_iter"] }
 base64.workspace = true
 proptest.workspace = true
 proptest-derive = "0.5.0"

@@ -31,7 +31,6 @@ bls12_381 = [
     "brillig_vm/bls12_381",
     "acvm_blackbox_solver/bls12_381",
 ]
-enum_iter = ["acir/enum_iter"]
 
 [dev-dependencies]
 ark-bls12-381 = { version = "^0.4.0", default-features = false, features = [
@@ -42,4 +41,3 @@ bn254_blackbox_solver.workspace = true
 proptest.workspace = true
 zkhash = { version = "^0.2.0", default-features = false }
 num-bigint.workspace = true
-
