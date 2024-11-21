@@ -11,14 +11,16 @@ use fxhash::FxHashSet as HashSet;
 
 use crate::ssa::{
     ir::{
+        basic_block::BasicBlockId,
         function::{Function, RuntimeType},
         function_inserter::FunctionInserter,
+        instruction::InstructionId,
         value::ValueId,
     },
     Ssa,
 };
 
-use super::unrolling::Loops;
+use super::unrolling::{Loop, Loops};
 
 impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
@@ -44,83 +46,113 @@ impl Function {
 
 impl Loops {
     fn hoist_loop_invariants(self, function: &mut Function) {
-        let mut inserter = FunctionInserter::new(function);
+        let mut context = LoopInvariantContext::new(function);
 
-        for loop_ in self.yet_to_unroll {
-            let Ok(pre_header) = loop_.get_pre_header(inserter.function, &self.cfg) else {
+        for loop_ in self.yet_to_unroll.iter() {
+            let Ok(pre_header) = loop_.get_pre_header(context.inserter.function, &self.cfg) else {
                 // If the loop does not have a preheader we skip hoisting loop invariants for this loop
                 continue;
             };
-
-            // Gather the variables declared within the loop
-            let mut defined_in_loop: HashSet<ValueId> = HashSet::default();
-            for block in loop_.blocks.iter() {
-                let params = inserter.function.dfg.block_parameters(*block);
-                defined_in_loop.extend(params);
-                for instruction_id in inserter.function.dfg[*block].instructions() {
-                    let results = inserter.function.dfg.instruction_results(*instruction_id);
-                    defined_in_loop.extend(results);
-                }
-            }
-
-            // Track already found loop invariants
-            let mut loop_invariants: HashSet<ValueId> = HashSet::default();
-            for block in loop_.blocks.iter() {
-                let mut instructions_to_keep = Vec::new();
-                for instruction_id in inserter.function.dfg[*block].take_instructions() {
-                    let mut is_loop_invariant = true;
-                    // The list of blocks for a nested loop contain any inner loops as well.
-                    // We may have already re-inserted new instructions if two loops share blocks
-                    // so we need to map all the values in the instruction which we want to check.
-                    let (instruction, _) = inserter.map_instruction(instruction_id);
-                    instruction.for_each_value(|value| {
-                        // If an instruction value is defined in the loop and not already a loop invariant
-                        // the instruction results are not loop invariants.
-                        //
-                        // We are implicitly checking whether the values are constant as well.
-                        // The set of values defined in the loop only contains instruction results and block parameters
-                        // which cannot be constants.
-                        is_loop_invariant &=
-                            !defined_in_loop.contains(&value) || loop_invariants.contains(&value);
-                    });
-
-                    let hoist_invariant = is_loop_invariant
-                        && instruction.can_be_deduplicated(&inserter.function.dfg, false);
-                    if hoist_invariant {
-                        inserter.push_instruction(instruction_id, pre_header);
-                    } else {
-                        instructions_to_keep.push(instruction_id);
-
-                        inserter.push_instruction(instruction_id, *block);
-                    }
-
-                    let results =
-                        inserter.function.dfg.instruction_results(instruction_id).to_vec();
-                    // We will have new IDs after pushing instructions.
-                    // We should mark the resolved result IDs as also being defined within the loop.
-                    let results = results
-                        .into_iter()
-                        .map(|value| inserter.resolve(value))
-                        .collect::<Vec<_>>();
-                    defined_in_loop.extend(results.iter());
-
-                    // We also want the update result IDs when we are marking loop invariants as we may not
-                    // be going through the blocks of the loop in execution order
-                    if hoist_invariant {
-                        loop_invariants.extend(results.iter());
-                    }
-                }
-            }
+            context.hoist_loop_invariants(loop_, pre_header);
         }
 
-        // Map instructions in blocks not from loops as they may have instructions
-        // which are reliant upon values from the loops.
-        let blocks = inserter.function.reachable_blocks();
-        for block in blocks {
-            for instruction_id in inserter.function.dfg[block].take_instructions() {
-                inserter.push_instruction(instruction_id, block);
+        context.map_dependent_instructions();
+    }
+}
+
+struct LoopInvariantContext<'f> {
+    inserter: FunctionInserter<'f>,
+    defined_in_loop: HashSet<ValueId>,
+    loop_invariants: HashSet<ValueId>,
+}
+
+impl<'f> LoopInvariantContext<'f> {
+    fn new(function: &'f mut Function) -> Self {
+        Self {
+            inserter: FunctionInserter::new(function),
+            defined_in_loop: HashSet::default(),
+            loop_invariants: HashSet::default(),
+        }
+    }
+
+    fn hoist_loop_invariants(&mut self, loop_: &Loop, pre_header: BasicBlockId) {
+        self.set_values_defined_in_loop(loop_);
+
+        for block in loop_.blocks.iter() {
+            for instruction_id in self.inserter.function.dfg[*block].take_instructions() {
+                let hoist_invariant = self.can_hoist_invariant(instruction_id);
+
+                if hoist_invariant {
+                    self.inserter.push_instruction(instruction_id, pre_header);
+                } else {
+                    self.inserter.push_instruction(instruction_id, *block);
+                }
+
+                self.update_values_defined_in_loop_and_invariants(instruction_id, hoist_invariant);
             }
-            inserter.map_terminator_in_place(block);
+        }
+    }
+
+    /// Gather the variables declared within the loop
+    fn set_values_defined_in_loop(&mut self, loop_: &Loop) {
+        for block in loop_.blocks.iter() {
+            let params = self.inserter.function.dfg.block_parameters(*block);
+            self.defined_in_loop.extend(params);
+            for instruction_id in self.inserter.function.dfg[*block].instructions() {
+                let results = self.inserter.function.dfg.instruction_results(*instruction_id);
+                self.defined_in_loop.extend(results);
+            }
+        }
+    }
+
+    /// Update any values defined in the loop and loop invariants after a
+    /// analyzing and re-inserting a loop's instruction.
+    fn update_values_defined_in_loop_and_invariants(
+        &mut self,
+        instruction_id: InstructionId,
+        hoist_invariant: bool,
+    ) {
+        let results = self.inserter.function.dfg.instruction_results(instruction_id).to_vec();
+        // We will have new IDs after pushing instructions.
+        // We should mark the resolved result IDs as also being defined within the loop.
+        let results =
+            results.into_iter().map(|value| self.inserter.resolve(value)).collect::<Vec<_>>();
+        self.defined_in_loop.extend(results.iter());
+
+        // We also want the update result IDs when we are marking loop invariants as we may not
+        // be going through the blocks of the loop in execution order
+        if hoist_invariant {
+            // Track already found loop invariants
+            self.loop_invariants.extend(results.iter());
+        }
+    }
+
+    fn can_hoist_invariant(&mut self, instruction_id: InstructionId) -> bool {
+        let mut is_loop_invariant = true;
+        // The list of blocks for a nested loop contain any inner loops as well.
+        // We may have already re-inserted new instructions if two loops share blocks
+        // so we need to map all the values in the instruction which we want to check.
+        let (instruction, _) = self.inserter.map_instruction(instruction_id);
+        instruction.for_each_value(|value| {
+            // If an instruction value is defined in the loop and not already a loop invariant
+            // the instruction results are not loop invariants.
+            //
+            // We are implicitly checking whether the values are constant as well.
+            // The set of values defined in the loop only contains instruction results and block parameters
+            // which cannot be constants.
+            is_loop_invariant &=
+                !self.defined_in_loop.contains(&value) || self.loop_invariants.contains(&value);
+        });
+        is_loop_invariant && instruction.can_be_deduplicated(&self.inserter.function.dfg, false)
+    }
+
+    fn map_dependent_instructions(&mut self) {
+        let blocks = self.inserter.function.reachable_blocks();
+        for block in blocks {
+            for instruction_id in self.inserter.function.dfg[block].take_instructions() {
+                self.inserter.push_instruction(instruction_id, block);
+            }
+            self.inserter.map_terminator_in_place(block);
         }
     }
 }
@@ -309,29 +341,29 @@ mod test {
         // However, as the instruction has side effects, we want to make sure
         // we do not hoist the instruction to the loop preheader.
         let src = "
-      brillig(inline) fn main f0 {
-        b0(v0: u32, v1: u32):
-          v4 = make_array [u32 0, u32 0, u32 0, u32 0, u32 0] : [u32; 5]
-          inc_rc v4
-          v5 = allocate -> &mut [u32; 5]
-          store v4 at v5
-          jmp b1(u32 0)
-        b1(v2: u32):
-          v7 = lt v2, u32 4
-          jmpif v7 then: b3, else: b2
-        b3():
-          v12 = load v5 -> [u32; 5]
-          v13 = array_set v12, index v0, value v1
-          store v13 at v5
-          v15 = add v2, u32 1
-          jmp b1(v15)
-        b2():
-          v8 = load v5 -> [u32; 5]
-          v10 = array_get v8, index u32 2 -> u32
-          constrain v10 == u32 3
-          return
-      }
-      ";
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            v4 = make_array [u32 0, u32 0, u32 0, u32 0, u32 0] : [u32; 5]
+            inc_rc v4
+            v5 = allocate -> &mut [u32; 5]
+            store v4 at v5
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v7 = lt v2, u32 4
+            jmpif v7 then: b3, else: b2
+          b3():
+            v12 = load v5 -> [u32; 5]
+            v13 = array_set v12, index v0, value v1
+            store v13 at v5
+            v15 = add v2, u32 1
+            jmp b1(v15)
+          b2():
+            v8 = load v5 -> [u32; 5]
+            v10 = array_get v8, index u32 2 -> u32
+            constrain v10 == u32 3
+            return
+        }
+        ";
 
         let mut ssa = Ssa::from_str(src).unwrap();
         let main = ssa.main_mut();
