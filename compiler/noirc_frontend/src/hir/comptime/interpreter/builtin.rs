@@ -57,9 +57,6 @@ impl<'local, 'context> Interpreter<'local, 'context> {
         let interner = &mut self.elaborator.interner;
         let call_stack = &self.elaborator.interpreter_call_stack;
         match name {
-            blackbox if BlackBoxFunc::is_valid_black_box_func_name(blackbox) => {
-                self.call_foreign(blackbox, arguments, location)
-            }
             "apply_range_constraint" => self.call_foreign("range", arguments, location),
             "array_as_str_unchecked" => array_as_str_unchecked(interner, arguments, location),
             "array_len" => array_len(interner, arguments, location),
@@ -235,6 +232,9 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "unresolved_type_is_field" => unresolved_type_is_field(interner, arguments, location),
             "unresolved_type_is_unit" => unresolved_type_is_unit(interner, arguments, location),
             "zeroed" => zeroed(return_type, location.span),
+            blackbox if BlackBoxFunc::is_valid_black_box_func_name(blackbox) => {
+                self.call_foreign(blackbox, arguments, location)
+            }
             _ => {
                 let item = format!("Comptime evaluation for builtin function '{name}'");
                 Err(InterpreterError::Unimplemented { item, location })
