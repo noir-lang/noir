@@ -329,4 +329,45 @@ mod test {
         let ssa = ssa.loop_invariant_code_motion();
         assert_normalized_ssa_equals(ssa, expected);
     }
+
+    #[test]
+    fn do_not_hoist_instructions_with_side_effects() {
+        // In `v12 = load v5` in `b3`, `v5` is defined outside the loop.
+        // However, as the instruction has side effects, we want to make sure
+        // we do not hoist the instruction to the loop preheader.
+        let src = "
+      brillig(inline) fn main f0 {
+        b0(v0: u32, v1: u32):
+          v4 = make_array [u32 0, u32 0, u32 0, u32 0, u32 0] : [u32; 5]
+          inc_rc v4
+          v5 = allocate -> &mut [u32; 5]
+          store v4 at v5
+          jmp b1(u32 0)
+        b1(v2: u32):
+          v7 = lt v2, u32 4
+          jmpif v7 then: b3, else: b2
+        b3():
+          v12 = load v5 -> [u32; 5]
+          v13 = array_set v12, index v0, value v1
+          store v13 at v5
+          v15 = add v2, u32 1
+          jmp b1(v15)
+        b2():
+          v8 = load v5 -> [u32; 5]
+          v10 = array_get v8, index u32 2 -> u32
+          constrain v10 == u32 3
+          return
+      }
+      ";
+
+        let mut ssa = Ssa::from_str(src).unwrap();
+        let main = ssa.main_mut();
+
+        let instructions = main.dfg[main.entry_block()].instructions();
+        assert_eq!(instructions.len(), 4); // The final return is not counted
+
+        let ssa = ssa.loop_invariant_code_motion();
+        // The code should be unchanged
+        assert_normalized_ssa_equals(ssa, src);
+    }
 }
