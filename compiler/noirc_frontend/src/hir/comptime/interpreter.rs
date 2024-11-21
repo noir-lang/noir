@@ -933,7 +933,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         use InterpreterError::InvalidValuesForBinary;
         match infix.operator.kind {
-            BinaryOpKind::Add => match (lhs_value.clone(), rhs_value.clone()) {
+            BinaryOpKind::Add => match (lhs_value, rhs_value) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Field(lhs + rhs)),
                 (Value::I8(lhs), Value::I8(rhs)) => {
                     Ok(Value::I8(lhs.checked_add(rhs).ok_or(error("+"))?))
@@ -961,7 +961,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 }
                 (lhs, rhs) => Err(error("+")),
             },
-            BinaryOpKind::Subtract => match (lhs_value.clone(), rhs_value.clone()) {
+            BinaryOpKind::Subtract => match (lhs_value, rhs_value) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Field(lhs - rhs)),
                 (Value::I8(lhs), Value::I8(rhs)) => {
                     Ok(Value::I8(lhs.checked_sub(rhs).ok_or(error("-"))?))
@@ -989,7 +989,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 }
                 (lhs, rhs) => Err(error("-")),
             },
-            BinaryOpKind::Multiply => match (lhs_value.clone(), rhs_value.clone()) {
+            BinaryOpKind::Multiply => match (lhs_value, rhs_value) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Field(lhs * rhs)),
                 (Value::I8(lhs), Value::I8(rhs)) => {
                     Ok(Value::I8(lhs.checked_mul(rhs).ok_or(error("*"))?))
@@ -1017,7 +1017,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 }
                 (lhs, rhs) => Err(error("*")),
             },
-            BinaryOpKind::Divide => match (lhs_value.clone(), rhs_value.clone()) {
+            BinaryOpKind::Divide => match (lhs_value, rhs_value) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Field(lhs / rhs)),
                 (Value::I8(lhs), Value::I8(rhs)) => {
                     Ok(Value::I8(lhs.checked_div(rhs).ok_or(error("/"))?))
@@ -1045,7 +1045,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 }
                 (lhs, rhs) => Err(error("/")),
             },
-            BinaryOpKind::Equal => match (lhs_value.clone(), rhs_value.clone()) {
+            BinaryOpKind::Equal => match (lhs_value, rhs_value) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Bool(lhs == rhs)),
                 (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::Bool(lhs == rhs)),
                 (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::Bool(lhs == rhs)),
@@ -1058,7 +1058,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Value::Bool(lhs), Value::Bool(rhs)) => Ok(Value::Bool(lhs == rhs)),
                 (lhs, rhs) => Err(error("==")),
             },
-            BinaryOpKind::NotEqual => match (lhs_value.clone(), rhs_value.clone()) {
+            BinaryOpKind::NotEqual => match (lhs_value, rhs_value) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Bool(lhs != rhs)),
                 (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::Bool(lhs != rhs)),
                 (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::Bool(lhs != rhs)),
@@ -1071,7 +1071,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Value::Bool(lhs), Value::Bool(rhs)) => Ok(Value::Bool(lhs != rhs)),
                 (lhs, rhs) => Err(error("!=")),
             },
-            BinaryOpKind::Less => match (lhs_value.clone(), rhs_value.clone()) {
+            BinaryOpKind::Less => match (lhs_value, rhs_value) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Bool(lhs < rhs)),
                 (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::Bool(lhs < rhs)),
                 (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::Bool(lhs < rhs)),
@@ -1083,7 +1083,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs < rhs)),
                 (lhs, rhs) => Err(error("<")),
             },
-            BinaryOpKind::LessEqual => match (lhs_value.clone(), rhs_value.clone()) {
+            BinaryOpKind::LessEqual => match (lhs_value, rhs_value) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Bool(lhs <= rhs)),
                 (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::Bool(lhs <= rhs)),
                 (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::Bool(lhs <= rhs)),
@@ -1095,7 +1095,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs <= rhs)),
                 (lhs, rhs) => Err(error("<=")),
             },
-            BinaryOpKind::Greater => match (lhs_value.clone(), rhs_value.clone()) {
+            BinaryOpKind::Greater => match (lhs_value, rhs_value) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Bool(lhs > rhs)),
                 (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::Bool(lhs > rhs)),
                 (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::Bool(lhs > rhs)),
@@ -1107,7 +1107,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs > rhs)),
                 (lhs, rhs) => Err(error(">")),
             },
-            BinaryOpKind::GreaterEqual => match (lhs_value.clone(), rhs_value.clone()) {
+            BinaryOpKind::GreaterEqual => match (lhs_value, rhs_value) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Bool(lhs >= rhs)),
                 (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::Bool(lhs >= rhs)),
                 (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::Bool(lhs >= rhs)),
@@ -1119,7 +1119,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs >= rhs)),
                 (lhs, rhs) => Err(error(">=")),
             },
-            BinaryOpKind::And => match (lhs_value.clone(), rhs_value.clone()) {
+            BinaryOpKind::And => match (lhs_value, rhs_value) {
                 (Value::Bool(lhs), Value::Bool(rhs)) => Ok(Value::Bool(lhs & rhs)),
                 (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::I8(lhs & rhs)),
                 (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::I16(lhs & rhs)),
@@ -1131,7 +1131,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs & rhs)),
                 (lhs, rhs) => Err(error("&")),
             },
-            BinaryOpKind::Or => match (lhs_value.clone(), rhs_value.clone()) {
+            BinaryOpKind::Or => match (lhs_value, rhs_value) {
                 (Value::Bool(lhs), Value::Bool(rhs)) => Ok(Value::Bool(lhs | rhs)),
                 (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::I8(lhs | rhs)),
                 (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::I16(lhs | rhs)),
@@ -1143,7 +1143,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs | rhs)),
                 (lhs, rhs) => Err(error("|")),
             },
-            BinaryOpKind::Xor => match (lhs_value.clone(), rhs_value.clone()) {
+            BinaryOpKind::Xor => match (lhs_value, rhs_value) {
                 (Value::Bool(lhs), Value::Bool(rhs)) => Ok(Value::Bool(lhs ^ rhs)),
                 (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::I8(lhs ^ rhs)),
                 (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::I16(lhs ^ rhs)),
@@ -1155,7 +1155,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs ^ rhs)),
                 (lhs, rhs) => Err(error("^")),
             },
-            BinaryOpKind::ShiftRight => match (lhs_value.clone(), rhs_value.clone()) {
+            BinaryOpKind::ShiftRight => match (lhs_value, rhs_value) {
                 (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::I8(
                     lhs.checked_shr(rhs.try_into().map_err(|_| error(">>"))?).ok_or(error(">>"))?,
                 )),
@@ -1182,7 +1182,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 )),
                 (lhs, rhs) => Err(error(">>")),
             },
-            BinaryOpKind::ShiftLeft => match (lhs_value.clone(), rhs_value.clone()) {
+            BinaryOpKind::ShiftLeft => match (lhs_value, rhs_value) {
                 (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::I8(
                     lhs.checked_shl(rhs.try_into().map_err(|_| error("<<"))?).ok_or(error("<<"))?,
                 )),
@@ -1209,7 +1209,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 )),
                 (lhs, rhs) => Err(error("<<")),
             },
-            BinaryOpKind::Modulo => match (lhs_value.clone(), rhs_value.clone()) {
+            BinaryOpKind::Modulo => match (lhs_value, rhs_value) {
                 (Value::I8(lhs), Value::I8(rhs)) => {
                     Ok(Value::I8(lhs.checked_rem(rhs).ok_or(error("%"))?))
                 }
