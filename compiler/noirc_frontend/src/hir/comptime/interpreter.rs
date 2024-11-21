@@ -913,6 +913,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
     }
 
+    #[allow(clippy::useless_conversion)]
     fn evaluate_infix(&mut self, infix: HirInfixExpression, id: ExprId) -> IResult<Value> {
         let lhs_value = self.evaluate(infix.lhs)?;
         let rhs_value = self.evaluate(infix.rhs)?;
@@ -1098,12 +1099,16 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             BinaryOpKind::Xor => match_bitwise! {
                 (lhs_value as lhs "^" rhs_value as rhs) => lhs ^ rhs
             },
-            BinaryOpKind::ShiftRight => match_integer! {
-                (lhs_value as lhs ">>" rhs_value as rhs) => rhs.try_into().ok().and_then(|rhs| lhs.checked_shr(rhs))
-            },
-            BinaryOpKind::ShiftLeft => match_integer! {
-                (lhs_value as lhs "<<" rhs_value as rhs) => rhs.try_into().ok().and_then(|rhs| lhs.checked_shl(rhs))
-            },
+            BinaryOpKind::ShiftRight => {
+                match_integer! {
+                    (lhs_value as lhs ">>" rhs_value as rhs) =>  rhs.try_into().ok().and_then(|rhs| lhs.checked_shr(rhs))
+                }
+            }
+            BinaryOpKind::ShiftLeft => {
+                match_integer! {
+                    (lhs_value as lhs "<<" rhs_value as rhs) => rhs.try_into().ok().and_then(|rhs| lhs.checked_shl(rhs))
+                }
+            }
             BinaryOpKind::Modulo => match_integer! {
                 (lhs_value as lhs "%" rhs_value as rhs) => lhs.checked_rem(rhs)
             },
