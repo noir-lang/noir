@@ -20,7 +20,7 @@ use super::{
     builtin::builtin_helpers::{
         check_arguments, check_one_argument, check_three_arguments, check_two_arguments,
         get_array_map, get_bool, get_field, get_fixed_array_map, get_slice_map, get_struct_field,
-        get_struct_fields, get_u32, get_u64, get_u8, to_byte_slice, to_field_array,
+        get_struct_fields, get_u32, get_u64, get_u8, to_byte_slice, to_field_array, to_struct,
     },
     Interpreter,
 };
@@ -30,9 +30,17 @@ impl<'local, 'context> Interpreter<'local, 'context> {
         &mut self,
         name: &str,
         arguments: Vec<(Value, Location)>,
+        return_type: Type,
         location: Location,
     ) -> IResult<Value> {
-        call_foreign(self.elaborator.interner, &mut self.bigint_solver, name, arguments, location)
+        call_foreign(
+            self.elaborator.interner,
+            &mut self.bigint_solver,
+            name,
+            arguments,
+            return_type,
+            location,
+        )
     }
 }
 
@@ -42,18 +50,21 @@ fn call_foreign(
     bigint_solver: &mut BigintSolverWithId,
     name: &str,
     args: Vec<(Value, Location)>,
+    return_type: Type,
     location: Location,
 ) -> IResult<Value> {
     use BlackBoxFunc::*;
 
     match name {
         "aes128_encrypt" => aes128_encrypt(interner, args, location),
-        "bigint_from_le_bytes" => bigint_from_le_bytes(interner, bigint_solver, args, location),
+        "bigint_from_le_bytes" => {
+            bigint_from_le_bytes(interner, bigint_solver, args, return_type, location)
+        }
         "bigint_to_le_bytes" => bigint_to_le_bytes(bigint_solver, args, location),
-        "bigint_add" => bigint_op(bigint_solver, BigIntAdd, args, location),
-        "bigint_sub" => bigint_op(bigint_solver, BigIntSub, args, location),
-        "bigint_mul" => bigint_op(bigint_solver, BigIntMul, args, location),
-        "bigint_div" => bigint_op(bigint_solver, BigIntDiv, args, location),
+        "bigint_add" => bigint_op(bigint_solver, BigIntAdd, args, return_type, location),
+        "bigint_sub" => bigint_op(bigint_solver, BigIntSub, args, return_type, location),
+        "bigint_mul" => bigint_op(bigint_solver, BigIntMul, args, return_type, location),
+        "bigint_div" => bigint_op(bigint_solver, BigIntDiv, args, return_type, location),
         "blake2s" => blake_hash(interner, args, location, acvm::blackbox_solver::blake2s),
         "blake3" => blake_hash(interner, args, location, acvm::blackbox_solver::blake3),
         "ecdsa_secp256k1" => ecdsa_secp256_verify(
@@ -136,6 +147,7 @@ fn bigint_from_le_bytes(
     interner: &mut NodeInterner,
     solver: &mut BigintSolverWithId,
     arguments: Vec<(Value, Location)>,
+    return_type: Type,
     location: Location,
 ) -> IResult<Value> {
     let (bytes, modulus) = check_two_arguments(arguments, location)?;
@@ -147,7 +159,7 @@ fn bigint_from_le_bytes(
         .bigint_from_bytes(&bytes, &modulus)
         .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
 
-    Ok(Value::U32(id))
+    Ok(to_bigint(id, return_type))
 }
 
 /// `fn to_le_bytes(self) -> [u8; 32]`
@@ -158,8 +170,8 @@ fn bigint_to_le_bytes(
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    let id = check_one_argument(arguments, location)?;
-    let id = get_u32(id)?;
+    let int = check_one_argument(arguments, location)?;
+    let id = get_bigint_id(int)?;
 
     let mut bytes =
         solver.bigint_to_bytes(id).map_err(|e| InterpreterError::BlackBoxError(e, location))?;
@@ -178,18 +190,19 @@ fn bigint_op(
     solver: &mut BigintSolverWithId,
     func: BlackBoxFunc,
     arguments: Vec<(Value, Location)>,
+    return_type: Type,
     location: Location,
 ) -> IResult<Value> {
     let (lhs, rhs) = check_two_arguments(arguments, location)?;
 
-    let lhs = get_u32(lhs)?;
-    let rhs = get_u32(rhs)?;
+    let lhs = get_bigint_id(lhs)?;
+    let rhs = get_bigint_id(rhs)?;
 
     let id = solver
         .bigint_op(lhs, rhs, func)
         .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
 
-    Ok(Value::U32(id))
+    Ok(to_bigint(id, return_type))
 }
 
 /// Run one of the Blake hash functions.
@@ -355,6 +368,17 @@ fn sha256_compression(
     Ok(Value::Array(state, typ))
 }
 
+/// Decode a `BigInt` struct.
+///
+/// Returns the ID of the value in the solver.
+fn get_bigint_id((value, location): (Value, Location)) -> IResult<u32> {
+    let (fields, typ) = get_struct_fields("BigInt", (value, location))?;
+    let p = get_struct_field("pointer", &fields, &typ, location, get_u32)?;
+    let m = get_struct_field("modulus", &fields, &typ, location, get_u32)?;
+    assert_eq!(p, m, "`pointer` and `modulus` are expected to be the same");
+    Ok(p)
+}
+
 /// Decode an `EmbeddedCurvePoint` struct.
 ///
 /// Returns `(x, y, is_infinite)`.
@@ -380,6 +404,10 @@ fn get_embedded_curve_scalar(
     Ok((lo, hi))
 }
 
+fn to_bigint(id: u32, typ: Type) -> Value {
+    to_struct([("pointer", Value::U32(id)), ("modulus", Value::U32(id))], typ)
+}
+
 #[cfg(test)]
 mod tests {
     use acvm::acir::BlackBoxFunc;
@@ -390,6 +418,7 @@ mod tests {
     use crate::hir::comptime::InterpreterError::{
         ArgumentCountMismatch, InvalidInComptimeContext, Unimplemented,
     };
+    use crate::Type;
 
     use super::call_foreign;
 
@@ -413,6 +442,7 @@ mod tests {
                     &mut interpreter.bigint_solver,
                     name,
                     Vec::new(),
+                    Type::Unit,
                     no_location,
                 ) {
                     Ok(_) => {

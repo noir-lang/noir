@@ -238,7 +238,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         if let Some(builtin) = func_attrs.builtin() {
             self.call_builtin(builtin.clone().as_str(), arguments, return_type, location)
         } else if let Some(foreign) = func_attrs.foreign() {
-            self.call_foreign(foreign.clone().as_str(), arguments, location)
+            let func_meta = &self.elaborator.interner.func_meta[&function];
+            self.call_foreign(foreign.clone().as_str(), arguments, return_type, location)
         } else if let Some(oracle) = func_attrs.oracle() {
             if oracle == "print" {
                 self.print_oracle(arguments)

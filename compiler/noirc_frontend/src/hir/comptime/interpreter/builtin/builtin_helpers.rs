@@ -639,3 +639,12 @@ pub(crate) fn to_field_array(values: &[FieldElement]) -> Value {
     );
     Value::Array(values.iter().copied().map(Value::Field).collect(), typ)
 }
+
+/// Create a `Value::Struct` from fields and the expected return type.
+pub(crate) fn to_struct(
+    fields: impl IntoIterator<Item = (&'static str, Value)>,
+    typ: Type,
+) -> Value {
+    let fields = fields.into_iter().map(|(k, v)| (Rc::new(k.to_string()), v)).collect();
+    Value::Struct(fields, typ)
+}
