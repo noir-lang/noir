@@ -931,16 +931,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             InterpreterError::InvalidValuesForBinary { lhs, rhs, location, operator }
         };
 
-        /// Helper for picking the input or an optionally different result type for the return value.
-        macro_rules! return_value {
-            ($variant:ident, $result:ident) => {
-                Value::$result
-            };
-            ($variant:ident) => {
-                Value::$variant
-            };
-        }
-
         /// Generate matches that can promote the type of one side to the other if they are compatible.
         ///
         /// ```ignore
