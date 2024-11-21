@@ -686,11 +686,17 @@ impl Attributes {
         matches!(self.function(), Some(FunctionAttribute::Test(_)))
     }
 
+    pub fn is_fuzzing_harness(&self) -> bool {
+        matches!(self.function(), Some(FunctionAttribute::FuzzingHarness))
+    }
+
     /// True if these attributes mean the given function is an entry point function if it was
     /// defined within a contract. Note that this does not check if the function is actually part
     /// of a contract.
     pub fn is_contract_entry_point(&self) -> bool {
-        !self.has_contract_library_method() && !self.is_test_function()
+        !self.has_contract_library_method()
+            && !self.is_test_function()
+            && !self.is_fuzzing_harness()
     }
 
     /// Returns note if a deprecated secondary attribute is found
@@ -757,6 +763,7 @@ pub enum FunctionAttribute {
     Fold,
     NoPredicates,
     InlineAlways,
+    FuzzingHarness,
 }
 
 impl FunctionAttribute {
@@ -821,6 +828,7 @@ impl FunctionAttribute {
             FunctionAttribute::Fold => "fold",
             FunctionAttribute::NoPredicates => "no_predicates",
             FunctionAttribute::InlineAlways => "inline_always",
+            FunctionAttribute::FuzzingHarness => "fuzz",
         }
     }
 }
@@ -836,6 +844,7 @@ impl fmt::Display for FunctionAttribute {
             FunctionAttribute::Fold => write!(f, "#[fold]"),
             FunctionAttribute::NoPredicates => write!(f, "#[no_predicates]"),
             FunctionAttribute::InlineAlways => write!(f, "#[inline_always]"),
+            FunctionAttribute::FuzzingHarness => write!(f, "#[fuzz]"),
         }
     }
 }

@@ -204,6 +204,10 @@ impl<'a> Parser<'a> {
             "foreign" => self.parse_single_name_attribute(ident, arguments, start_span, |name| {
                 Attribute::Function(FunctionAttribute::Foreign(name))
             }),
+            "fuzz" => {
+                let attr = Attribute::Function(FunctionAttribute::FuzzingHarness);
+                self.parse_no_args_attribute(ident, arguments, attr)
+            }
             "inline_always" => {
                 let attr = Attribute::Function(FunctionAttribute::InlineAlways);
                 self.parse_no_args_attribute(ident, arguments, attr)

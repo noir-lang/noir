@@ -53,7 +53,8 @@ impl<'a> Formatter<'a> {
             FunctionAttribute::Recursive
             | FunctionAttribute::Fold
             | FunctionAttribute::NoPredicates
-            | FunctionAttribute::InlineAlways => self.format_no_args_attribute(),
+            | FunctionAttribute::InlineAlways
+            | FunctionAttribute::FuzzingHarness => self.format_no_args_attribute(),
         }
 
         self.write_line();

@@ -184,6 +184,30 @@ impl CrateDefMap {
     }
 
     /// Go through all modules in this crate, and find all functions in
+    /// each module with the #[fuzz] attribute
+    pub fn get_all_fuzzing_harnesses<'a>(
+        &'a self,
+        interner: &'a NodeInterner,
+    ) -> impl Iterator<Item = FuzzingHarness> + 'a {
+        self.modules.iter().flat_map(|(_, module)| {
+            module.value_definitions().filter_map(|id| {
+                if let Some(func_id) = id.as_function() {
+                    let attributes = interner.function_attributes(&func_id);
+                    match attributes.function() {
+                        Some(FunctionAttribute::FuzzingHarness) => {
+                            let location = interner.function_meta(&func_id).name.location;
+                            Some(FuzzingHarness::new(func_id, location))
+                        }
+                        _ => None,
+                    }
+                } else {
+                    None
+                }
+            })
+        })
+    }
+
+    /// Go through all modules in this crate, and find all functions in
     /// each module with the #[export] attribute
     pub fn get_all_exported_functions<'a>(
         &'a self,
@@ -377,5 +401,25 @@ impl TestFunction {
             TestScope::None => None,
             TestScope::ShouldFailWith { reason } => reason.as_deref(),
         }
+    }
+}
+
+pub struct FuzzingHarness {
+    id: FuncId,
+    location: Location,
+}
+
+impl FuzzingHarness {
+    fn new(id: FuncId, location: Location) -> Self {
+        FuzzingHarness { id, location }
+    }
+
+    /// Returns the function id of the test function
+    pub fn get_id(&self) -> FuncId {
+        self.id
+    }
+
+    pub fn file_id(&self) -> FileId {
+        self.location.file
     }
 }

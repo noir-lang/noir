@@ -14,7 +14,7 @@ use crate::parser::ParserError;
 use crate::usage_tracker::UsageTracker;
 use crate::{Generics, Kind, ParsedModule, ResolvedGeneric, TypeVariable};
 use def_collector::dc_crate::CompilationError;
-use def_map::{Contract, CrateDefMap};
+use def_map::{Contract, CrateDefMap, FuzzingHarness};
 use fm::{FileId, FileManager};
 use iter_extended::vecmap;
 use noirc_errors::Location;
@@ -241,6 +241,34 @@ impl Context<'_, '_> {
                     FunctionNameMatch::Contains(pattern) => fully_qualified_name
                         .contains(pattern)
                         .then_some((fully_qualified_name, test_function)),
+                }
+            })
+            .collect()
+    }
+
+    /// Returns a list of all functions in the current crate marked with #[fuzz]
+    /// whose names contain the given pattern string. An empty pattern string
+    /// will return all functions marked with #[fuzz].
+    pub fn get_all_fuzzing_harnesses_in_crate_matching(
+        &self,
+        crate_id: &CrateId,
+        pattern: FunctionNameMatch,
+    ) -> Vec<(String, FuzzingHarness)> {
+        let interner = &self.def_interner;
+        let def_map = self.def_map(crate_id).expect("The local crate should be analyzed already");
+
+        def_map
+            .get_all_fuzzing_harnesses(interner)
+            .filter_map(|fuzzing_harness| {
+                let fully_qualified_name =
+                    self.fully_qualified_function_name(crate_id, &fuzzing_harness.get_id());
+                match &pattern {
+                    FunctionNameMatch::Anything => Some((fully_qualified_name, fuzzing_harness)),
+                    FunctionNameMatch::Exact(pattern) => (&fully_qualified_name == pattern)
+                        .then_some((fully_qualified_name, fuzzing_harness)),
+                    FunctionNameMatch::Contains(pattern) => fully_qualified_name
+                        .contains(pattern)
+                        .then_some((fully_qualified_name, fuzzing_harness)),
                 }
             })
             .collect()

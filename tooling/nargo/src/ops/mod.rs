@@ -8,12 +8,14 @@ pub use self::foreign_calls::{DefaultForeignCallExecutor, ForeignCall, ForeignCa
 pub use self::optimize::{optimize_contract, optimize_program};
 pub use self::transform::{transform_contract, transform_program};
 
+pub use self::fuzz::{run_fuzzing_harness, FuzzingRunStatus};
 pub use self::test::{run_test, TestStatus};
 
 mod check;
 mod compile;
 mod execute;
 mod foreign_calls;
+mod fuzz;
 mod optimize;
 mod test;
 mod transform;
