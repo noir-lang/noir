@@ -42,7 +42,6 @@ mod reflection {
     use crate::{
         circuit::{
             brillig::{BrilligInputs, BrilligOutputs},
-            directives::Directive,
             opcodes::{BlackBoxFuncCall, BlockType, ConstantOrWitnessEnum, FunctionInput},
             AssertionPayload, Circuit, ExpressionOrMemory, ExpressionWidth, Opcode, OpcodeLocation,
             Program,
@@ -77,7 +76,6 @@ mod reflection {
         tracer.trace_simple_type::<BrilligOpcode<FieldElement>>().unwrap();
         tracer.trace_simple_type::<BinaryIntOp>().unwrap();
         tracer.trace_simple_type::<BlackBoxOp>().unwrap();
-        tracer.trace_simple_type::<Directive<FieldElement>>().unwrap();
         tracer.trace_simple_type::<ValueOrArray>().unwrap();
         tracer.trace_simple_type::<HeapValueType>().unwrap();
         tracer.trace_simple_type::<AssertionPayload<FieldElement>>().unwrap();
