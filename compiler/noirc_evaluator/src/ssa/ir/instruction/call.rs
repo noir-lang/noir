@@ -368,6 +368,8 @@ pub(super) fn simplify_call(
                 SimplifyResult::None
             }
         }
+        Intrinsic::ArrayRefCount => SimplifyResult::None,
+        Intrinsic::SliceRefCount => SimplifyResult::None,
     }
 }
 

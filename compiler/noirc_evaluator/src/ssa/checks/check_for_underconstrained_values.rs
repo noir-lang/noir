@@ -205,16 +205,18 @@ impl Context {
                             | Intrinsic::IsUnconstrained => {}
                             Intrinsic::ArrayLen
                             | Intrinsic::ArrayAsStrUnchecked
+                            | Intrinsic::ArrayRefCount
                             | Intrinsic::AsField
                             | Intrinsic::AsSlice
                             | Intrinsic::BlackBox(..)
                             | Intrinsic::DerivePedersenGenerators
                             | Intrinsic::FromField
+                            | Intrinsic::SliceInsert
                             | Intrinsic::SlicePushBack
                             | Intrinsic::SlicePushFront
                             | Intrinsic::SlicePopBack
                             | Intrinsic::SlicePopFront
-                            | Intrinsic::SliceInsert
+                            | Intrinsic::SliceRefCount
                             | Intrinsic::SliceRemove
                             | Intrinsic::StaticAssert
                             | Intrinsic::StrAsBytes
