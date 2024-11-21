@@ -1,9 +1,9 @@
 use acvm::{
     acir::BlackBoxFunc,
     blackbox_solver::{BigintSolverWithId, BlackBoxFunctionSolver},
-    AcirField, BlackBoxResolutionError,
+    AcirField, BlackBoxResolutionError, FieldElement,
 };
-use bn254_blackbox_solver::Bn254BlackBoxSolver;
+use bn254_blackbox_solver::Bn254BlackBoxSolver; // Currently locked to only bn254!
 use im::Vector;
 use noirc_errors::Location;
 
@@ -13,14 +13,14 @@ use crate::{
         Value,
     },
     node_interner::NodeInterner,
-    Type,
+    Kind, Type,
 };
 
 use super::{
     builtin::builtin_helpers::{
         check_arguments, check_one_argument, check_three_arguments, check_two_arguments,
-        get_array_map, get_field, get_fixed_array_map, get_slice_map, get_u32, get_u64, get_u8,
-        to_byte_slice,
+        get_array_map, get_bool, get_field, get_fixed_array_map, get_slice_map, get_struct_field,
+        get_struct_fields, get_u32, get_u64, get_u8, to_byte_slice,
     },
     Interpreter,
 };
@@ -68,6 +68,7 @@ fn call_foreign(
             location,
             acvm::blackbox_solver::ecdsa_secp256r1_verify,
         ),
+        "embedded_curve_add" => embedded_curve_add(args, location),
         "poseidon2_permutation" => poseidon2_permutation(interner, args, location),
         "keccakf1600" => keccakf1600(interner, args, location),
         "range" => apply_range_constraint(args, location),
@@ -253,6 +254,34 @@ fn ecdsa_secp256_verify(
     Ok(Value::Bool(is_valid))
 }
 
+/// ```
+/// fn embedded_curve_add(
+///     point1: EmbeddedCurvePoint,
+///     point2: EmbeddedCurvePoint,
+/// ) -> [Field; 3]
+/// ```
+fn embedded_curve_add(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    let (point1, point2) = check_two_arguments(arguments, location)?;
+
+    let (p1x, p1y, p1inf) = get_embedded_curve_point(point1)?;
+    let (p2x, p2y, p2inf) = get_embedded_curve_point(point2)?;
+
+    let p1 = [p1x, p1y, p1inf.into()];
+    let p2 = [p2x, p2y, p2inf.into()];
+
+    let (x, y, inf) = bn254_blackbox_solver::embedded_curve_add(p1, p2)
+        .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
+
+    let values = Vector::from_iter([x, y, inf].map(Value::Field));
+
+    let return_type = Type::Array(
+        Box::new(Type::Constant(values.len().into(), Kind::u32())),
+        Box::new(Type::FieldElement),
+    );
+
+    Ok(Value::Array(values, return_type))
+}
+
 /// `poseidon2_permutation<let N: u32>(_input: [Field; N], _state_length: u32) -> [Field; N]`
 fn poseidon2_permutation(
     interner: &mut NodeInterner,
@@ -264,7 +293,6 @@ fn poseidon2_permutation(
     let (input, typ) = get_array_map(interner, input, get_field)?;
     let state_length = get_u32(state_length)?;
 
-    // Currently locked to only bn254!
     let fields = Bn254BlackBoxSolver
         .poseidon2_permutation(&input, state_length)
         .map_err(|error| InterpreterError::BlackBoxError(error, location))?;
@@ -305,6 +333,19 @@ fn sha256_compression(
 
     let state = state.into_iter().map(Value::U32).collect();
     Ok(Value::Array(state, typ))
+}
+
+/// Decode an `EmbeddedCurvePoint` struct.
+///
+/// Returns `(x, y, is_infinite)`.
+fn get_embedded_curve_point(
+    (value, location): (Value, Location),
+) -> IResult<(FieldElement, FieldElement, bool)> {
+    let (fields, typ) = get_struct_fields("EmbeddedCurvePoint", (value, location))?;
+    let x = get_struct_field("x", &fields, &typ, location, get_field)?;
+    let y = get_struct_field("y", &fields, &typ, location, get_field)?;
+    let is_infinite = get_struct_field("is_infinite", &fields, &typ, location, get_bool)?;
+    Ok((x, y, is_infinite))
 }
 
 #[cfg(test)]

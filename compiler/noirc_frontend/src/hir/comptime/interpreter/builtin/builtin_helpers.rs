@@ -9,7 +9,6 @@ use crate::hir::comptime::display::tokens_to_string;
 use crate::hir::comptime::value::add_token_spans;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
-use crate::Kind;
 use crate::{
     ast::{
         BlockExpression, ExpressionKind, Ident, IntegerBitSize, LValue, Pattern, Signedness,
@@ -32,6 +31,8 @@ use crate::{
     token::{SecondaryAttribute, Token, Tokens},
     QuotedType, Type,
 };
+use crate::{Kind, Shared, StructType};
+use rustc_hash::FxHashMap as HashMap;
 
 pub(crate) fn check_argument_count(
     expected: usize,
@@ -95,6 +96,47 @@ pub(crate) fn get_array(
             type_mismatch(value, expected, location)
         }
     }
+}
+
+/// Get the fields if the value is a `Value::Struct`, otherwise report that a struct type
+/// with `name` is expected. Returns the `Type` but doesn't verify that it's called `name`.
+pub(crate) fn get_struct_fields(
+    name: &str,
+    (value, location): (Value, Location),
+) -> IResult<(HashMap<Rc<String>, Value>, Type)> {
+    match value {
+        Value::Struct(fields, typ) => Ok((fields, typ)),
+        _ => {
+            let expected = StructType::new(
+                StructId::dummy_id(),
+                Ident::new(name.to_string(), location.span),
+                location,
+                Vec::new(),
+                Vec::new(),
+            );
+            let expected = Type::Struct(Shared::new(expected), Vec::new());
+            type_mismatch(value, expected, location)
+        }
+    }
+}
+
+/// Get a specific field of a struct and apply a decoder function on it.
+pub(crate) fn get_struct_field<T>(
+    field_name: &str,
+    struct_fields: &HashMap<Rc<String>, Value>,
+    struct_type: &Type,
+    location: Location,
+    f: impl Fn((Value, Location)) -> IResult<T>,
+) -> IResult<T> {
+    let key = Rc::new(field_name.to_string());
+    let Some(value) = struct_fields.get(&key) else {
+        return Err(InterpreterError::ExpectedStructToHaveField {
+            typ: struct_type.clone(),
+            field_name: Rc::into_inner(key).unwrap(),
+            location,
+        });
+    };
+    f((value.clone(), location))
 }
 
 pub(crate) fn get_bool((value, location): (Value, Location)) -> IResult<bool> {
