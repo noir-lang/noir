@@ -75,7 +75,6 @@ fn call_foreign(
         "range" => apply_range_constraint(args, location),
         "sha256_compression" => sha256_compression(interner, args, location),
         _ => {
-            let item = format!("Comptime evaluation for foreign function '{name}'");
             let explanation = match name {
                 "schnorr_verify" => Some("Schnorr verification will be removed.".into()),
                 "and" | "xor" => Some("It should be turned a binary operation instead.".into()),
@@ -83,8 +82,10 @@ fn call_foreign(
                 _ => None,
             };
             if let Some(explanation) = explanation {
-                Err(InterpreterError::WillNotImplement { item, location, explanation })
+                let item = format!("Attempting to evaluate foreign function '{name}'");
+                Err(InterpreterError::InvalidInComptimeContext { item, location, explanation })
             } else {
+                let item = format!("Comptime evaluation for foreign function '{name}'");
                 Err(InterpreterError::Unimplemented { item, location })
             }
         }
@@ -387,7 +388,7 @@ mod tests {
 
     use crate::hir::comptime::tests::with_interpreter;
     use crate::hir::comptime::InterpreterError::{
-        ArgumentCountMismatch, Unimplemented, WillNotImplement,
+        ArgumentCountMismatch, InvalidInComptimeContext, Unimplemented,
     };
 
     use super::call_foreign;
@@ -420,7 +421,7 @@ mod tests {
                     Err(ArgumentCountMismatch { .. }) => {
                         // Exists but doesn't work with no args (expected)
                     }
-                    Err(WillNotImplement { .. }) => {}
+                    Err(InvalidInComptimeContext { .. }) => {}
                     Err(Unimplemented { .. }) => not_implemented.push(name),
                     Err(other) => panic!("unexpected error: {other:?}"),
                 };

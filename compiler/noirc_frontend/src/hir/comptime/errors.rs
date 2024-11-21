@@ -200,7 +200,7 @@ pub enum InterpreterError {
         item: String,
         location: Location,
     },
-    WillNotImplement {
+    InvalidInComptimeContext {
         item: String,
         location: Location,
         explanation: String,
@@ -296,7 +296,7 @@ impl InterpreterError {
             | InterpreterError::UnsupportedTopLevelItemUnquote { location, .. }
             | InterpreterError::ComptimeDependencyCycle { location, .. }
             | InterpreterError::Unimplemented { location, .. }
-            | InterpreterError::WillNotImplement { location, .. }
+            | InterpreterError::InvalidInComptimeContext { location, .. }
             | InterpreterError::NoImpl { location, .. }
             | InterpreterError::ImplMethodTypeMismatch { location, .. }
             | InterpreterError::DebugEvaluateComptime { location, .. }
@@ -546,8 +546,8 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let msg = format!("{item} is currently unimplemented");
                 CustomDiagnostic::simple_error(msg, String::new(), location.span)
             }
-            InterpreterError::WillNotImplement { item, location, explanation } => {
-                let msg = format!("{item} is not going to be implemented");
+            InterpreterError::InvalidInComptimeContext { item, location, explanation } => {
+                let msg = format!("{item} is invalid in comptime context");
                 CustomDiagnostic::simple_error(msg, explanation.clone(), location.span)
             }
             InterpreterError::BreakNotInLoop { location } => {
