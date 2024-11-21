@@ -43,8 +43,8 @@ fn test_aes128_encrypt() {
 #[test]
 fn test_blake2s() {
     let hash = comptime {
-        let text = [104, 101, 108, 108, 111];
-        std::hash::blake2s(text)
+        let input = [104, 101, 108, 108, 111];
+        std::hash::blake2s(input)
     };
     assert_eq(hash[0], 0x19);
     assert_eq(hash[31], 0x25);
@@ -53,8 +53,8 @@ fn test_blake2s() {
 #[test]
 fn test_blake3() {
     let hash = comptime {
-        let text = [104, 101, 108, 108, 111];
-        std::hash::blake3(text)
+        let input = [104, 101, 108, 108, 111];
+        std::hash::blake3(input)
     };
     assert_eq(hash[0], 0xea);
     assert_eq(hash[31], 0x0f);
@@ -93,6 +93,17 @@ fn test_ecdsa_secp256r1() {
     };
     assert(valid_array);
     assert(valid_slice);
+}
+
+/// Test that sha256_compression is implemented.
+#[test]
+fn test_sha256() {
+    let hash = comptime {
+        let input: [u8; 2] = [0, 0];
+        std::hash::sha256(input)
+    };
+    assert_eq(hash[0], 0x68);
+    assert_eq(hash[31], 0x2b);
 }
 
 /// Parse a lowercase hexadecimal string (without 0x prefix) as byte slice.
