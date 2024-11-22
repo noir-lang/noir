@@ -1,4 +1,4 @@
-use crate::token::{Attribute, DocStyle};
+use crate::token::DocStyle;
 
 use super::{
     errors::LexerErrorKind,
@@ -139,7 +139,7 @@ impl<'a> Lexer<'a> {
             Some('f') => self.eat_format_string_or_alpha_numeric(),
             Some('r') => self.eat_raw_string_or_alpha_numeric(),
             Some('q') => self.eat_quote_or_alpha_numeric(),
-            Some('#') => self.eat_attribute(),
+            Some('#') => self.eat_attribute_start(),
             Some(ch) if ch.is_ascii_alphanumeric() || ch == '_' => self.eat_alpha_numeric(ch),
             Some(ch) => {
                 // We don't report invalid tokens in the source as errors until parsing to
@@ -282,7 +282,7 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn eat_attribute(&mut self) -> SpannedTokenResult {
+    fn eat_attribute_start(&mut self) -> SpannedTokenResult {
         let start = self.position;
 
         let is_inner = if self.peek_char_is('!') {
@@ -301,40 +301,14 @@ impl<'a> Lexer<'a> {
         }
         self.next_char();
 
-        let contents_start = self.position + 1;
-
-        let word = self.eat_while(None, |ch| ch != ']');
-
-        let contents_end = self.position;
-
-        if !self.peek_char_is(']') {
-            return Err(LexerErrorKind::UnexpectedCharacter {
-                span: Span::single_char(self.position),
-                expected: "]".to_owned(),
-                found: self.next_char(),
-            });
+        let is_tag = self.peek_char_is('\'');
+        if is_tag {
+            self.next_char();
         }
-        self.next_char();
 
         let end = self.position;
 
-        let span = Span::inclusive(start, end);
-        let contents_span = Span::inclusive(contents_start, contents_end);
-
-        let attribute = Attribute::lookup_attribute(&word, span, contents_span)?;
-        if is_inner {
-            match attribute {
-                Attribute::Function(attribute) => Err(LexerErrorKind::InvalidInnerAttribute {
-                    span: Span::from(start..end),
-                    found: attribute.to_string(),
-                }),
-                Attribute::Secondary(attribute) => {
-                    Ok(Token::InnerAttribute(attribute).into_span(start, end))
-                }
-            }
-        } else {
-            Ok(Token::Attribute(attribute).into_span(start, end))
-        }
+        Ok(Token::AttributeStart { is_inner, is_tag }.into_span(start, end))
     }
 
     //XXX(low): Can increase performance if we use iterator semantic and utilize some of the methods on String. See below
@@ -366,11 +340,11 @@ impl<'a> Lexer<'a> {
 
         // Check if word an int type
         // if no error occurred, then it is either a valid integer type or it is not an int type
-        let parsed_token = IntType::lookup_int_type(&word)?;
+        let parsed_token = IntType::lookup_int_type(&word);
 
         // Check if it is an int type
-        if let Some(int_type_token) = parsed_token {
-            return Ok(int_type_token.into_span(start, end));
+        if let Some(int_type) = parsed_token {
+            return Ok(Token::IntType(int_type).into_span(start, end));
         }
 
         // Else it is just an identifier
@@ -570,7 +544,11 @@ impl<'a> Lexer<'a> {
             return self.lookup_word_token(word, start, end);
         }
 
-        let delimiter = self.next_token()?;
+        let mut delimiter = self.next_token()?;
+        while let Token::Whitespace(_) = delimiter.token() {
+            delimiter = self.next_token()?;
+        }
+
         let (start_delim, end_delim) = match delimiter.token() {
             Token::LeftBrace => (Token::LeftBrace, Token::RightBrace),
             Token::LeftBracket => (Token::LeftBracket, Token::RightBracket),
@@ -716,7 +694,6 @@ mod tests {
     use iter_extended::vecmap;
 
     use super::*;
-    use crate::token::{CustomAttribute, FunctionAttribute, SecondaryAttribute, TestScope};
 
     #[test]
     fn test_single_multi_char() {
@@ -776,179 +753,39 @@ mod tests {
     }
 
     #[test]
-    fn deprecated_attribute() {
-        let input = r#"#[deprecated]"#;
+    fn test_attribute_start() {
+        let input = r#"#[something]"#;
         let mut lexer = Lexer::new(input);
 
         let token = lexer.next_token().unwrap();
-        assert_eq!(
-            token.token(),
-            &Token::Attribute(Attribute::Secondary(SecondaryAttribute::Deprecated(None)))
-        );
+        assert_eq!(token.token(), &Token::AttributeStart { is_inner: false, is_tag: false });
     }
 
     #[test]
-    fn test_attribute_with_common_punctuation() {
-        let input =
-            r#"#[test(should_fail_with = "stmt. q? exclaim! & symbols, 1% shouldn't fail")]"#;
-        let mut lexer = Lexer::new(input);
-
-        let token = lexer.next_token().unwrap().token().clone();
-        assert_eq!(
-            token,
-            Token::Attribute(Attribute::Function(FunctionAttribute::Test(
-                TestScope::ShouldFailWith {
-                    reason: "stmt. q? exclaim! & symbols, 1% shouldn't fail".to_owned().into()
-                }
-            )))
-        );
-    }
-
-    #[test]
-    fn deprecated_attribute_with_note() {
-        let input = r#"#[deprecated("hello")]"#;
+    fn test_attribute_start_with_tag() {
+        let input = r#"#['something]"#;
         let mut lexer = Lexer::new(input);
 
         let token = lexer.next_token().unwrap();
-        assert_eq!(
-            token.token(),
-            &Token::Attribute(Attribute::Secondary(crate::token::SecondaryAttribute::Deprecated(
-                "hello".to_string().into()
-            )))
-        );
+        assert_eq!(token.token(), &Token::AttributeStart { is_inner: false, is_tag: true });
     }
 
     #[test]
-    fn test_custom_gate_syntax() {
-        let input = "#[foreign(sha256)]#[foreign(blake2s)]#[builtin(sum)]";
-
-        let expected = vec![
-            Token::Attribute(Attribute::Function(FunctionAttribute::Foreign("sha256".to_string()))),
-            Token::Attribute(Attribute::Function(FunctionAttribute::Foreign(
-                "blake2s".to_string(),
-            ))),
-            Token::Attribute(Attribute::Function(FunctionAttribute::Builtin("sum".to_string()))),
-        ];
-
-        let mut lexer = Lexer::new(input);
-        for token in expected.into_iter() {
-            let got = lexer.next_token().unwrap();
-            assert_eq!(got, token);
-        }
-    }
-
-    #[test]
-    fn custom_attribute() {
-        let input = r#"#[custom(hello)]"#;
-        let mut lexer = Lexer::new(input);
-
-        let token = lexer.next_token().unwrap();
-        assert_eq!(
-            token.token(),
-            &Token::Attribute(Attribute::Secondary(SecondaryAttribute::Custom(CustomAttribute {
-                contents: "custom(hello)".to_string(),
-                span: Span::from(0..16),
-                contents_span: Span::from(2..15)
-            })))
-        );
-    }
-
-    #[test]
-    fn test_attribute() {
-        let input = r#"#[test]"#;
-        let mut lexer = Lexer::new(input);
-
-        let token = lexer.next_token().unwrap();
-        assert_eq!(
-            token.token(),
-            &Token::Attribute(Attribute::Function(FunctionAttribute::Test(TestScope::None)))
-        );
-    }
-
-    #[test]
-    fn fold_attribute() {
-        let input = r#"#[fold]"#;
-
-        let mut lexer = Lexer::new(input);
-        let token = lexer.next_token().unwrap();
-
-        assert_eq!(token.token(), &Token::Attribute(Attribute::Function(FunctionAttribute::Fold)));
-    }
-
-    #[test]
-    fn contract_library_method_attribute() {
-        let input = r#"#[contract_library_method]"#;
-        let mut lexer = Lexer::new(input);
-
-        let token = lexer.next_token().unwrap();
-        assert_eq!(
-            token.token(),
-            &Token::Attribute(Attribute::Secondary(SecondaryAttribute::ContractLibraryMethod))
-        );
-    }
-
-    #[test]
-    fn test_attribute_with_valid_scope() {
-        let input = r#"#[test(should_fail)]"#;
-        let mut lexer = Lexer::new(input);
-
-        let token = lexer.next_token().unwrap();
-        assert_eq!(
-            token.token(),
-            &Token::Attribute(Attribute::Function(FunctionAttribute::Test(
-                TestScope::ShouldFailWith { reason: None }
-            )))
-        );
-    }
-
-    #[test]
-    fn test_attribute_with_valid_scope_should_fail_with() {
-        let input = r#"#[test(should_fail_with = "hello")]"#;
-        let mut lexer = Lexer::new(input);
-
-        let token = lexer.next_token().unwrap();
-        assert_eq!(
-            token.token(),
-            &Token::Attribute(Attribute::Function(FunctionAttribute::Test(
-                TestScope::ShouldFailWith { reason: Some("hello".to_owned()) }
-            )))
-        );
-    }
-
-    #[test]
-    fn test_attribute_with_invalid_scope() {
-        let input = r#"#[test(invalid_scope)]"#;
-        let mut lexer = Lexer::new(input);
-
-        let token = lexer.next().unwrap();
-        let err = match token {
-            Ok(_) => panic!("test has an invalid scope, so expected an error"),
-            Err(err) => err,
-        };
-
-        // Check if error is MalformedFuncAttribute and found is "foo"
-        let sub_string = match err {
-            LexerErrorKind::MalformedFuncAttribute { found, .. } => found,
-            _ => panic!("expected malformed func attribute error"),
-        };
-
-        assert_eq!(sub_string, "test(invalid_scope)");
-    }
-
-    #[test]
-    fn test_inner_attribute() {
+    fn test_inner_attribute_start() {
         let input = r#"#![something]"#;
         let mut lexer = Lexer::new(input);
 
         let token = lexer.next_token().unwrap();
-        assert_eq!(
-            token.token(),
-            &Token::InnerAttribute(SecondaryAttribute::Custom(CustomAttribute {
-                contents: "something".to_string(),
-                span: Span::from(0..13),
-                contents_span: Span::from(3..12),
-            }))
-        );
+        assert_eq!(token.token(), &Token::AttributeStart { is_inner: true, is_tag: false });
+    }
+
+    #[test]
+    fn test_inner_attribute_start_with_tag() {
+        let input = r#"#!['something]"#;
+        let mut lexer = Lexer::new(input);
+
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.token(), &Token::AttributeStart { is_inner: true, is_tag: true });
     }
 
     #[test]

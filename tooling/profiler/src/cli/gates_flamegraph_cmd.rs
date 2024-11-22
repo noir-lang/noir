@@ -6,10 +6,10 @@ use color_eyre::eyre::{self, Context};
 
 use noirc_artifacts::debug::DebugArtifact;
 
-use crate::flamegraph::{FlamegraphGenerator, InfernoFlamegraphGenerator, Sample};
+use crate::flamegraph::{CompilationSample, FlamegraphGenerator, InfernoFlamegraphGenerator};
 use crate::fs::read_program_from_file;
 use crate::gates_provider::{BackendGatesProvider, GatesProvider};
-use crate::opcode_formatter::AcirOrBrilligOpcode;
+use crate::opcode_formatter::format_acir_opcode;
 
 #[derive(Debug, Clone, Args)]
 pub(crate) struct GatesFlamegraphCommand {
@@ -83,8 +83,8 @@ fn run_with_provider<Provider: GatesProvider, Generator: FlamegraphGenerator>(
             .into_iter()
             .zip(bytecode.opcodes)
             .enumerate()
-            .map(|(index, (gates, opcode))| Sample {
-                opcode: AcirOrBrilligOpcode::Acir(opcode),
+            .map(|(index, (gates, opcode))| CompilationSample {
+                opcode: Some(format_acir_opcode(&opcode)),
                 call_stack: vec![OpcodeLocation::Acir(index)],
                 count: gates,
                 brillig_function_id: None,
@@ -106,10 +106,7 @@ fn run_with_provider<Provider: GatesProvider, Generator: FlamegraphGenerator>(
 
 #[cfg(test)]
 mod tests {
-    use acir::{
-        circuit::{Circuit, Program},
-        AcirField,
-    };
+    use acir::circuit::{Circuit, Program};
     use color_eyre::eyre::{self};
     use fm::codespan_files::Files;
     use noirc_artifacts::program::ProgramArtifact;
@@ -143,9 +140,9 @@ mod tests {
     struct TestFlamegraphGenerator {}
 
     impl super::FlamegraphGenerator for TestFlamegraphGenerator {
-        fn generate_flamegraph<'files, F: AcirField>(
+        fn generate_flamegraph<'files, S: Sample>(
             &self,
-            _samples: Vec<Sample<F>>,
+            _samples: Vec<S>,
             _debug_symbols: &DebugInfo,
             _files: &'files impl Files<'files, FileId = fm::FileId>,
             _artifact_name: &str,

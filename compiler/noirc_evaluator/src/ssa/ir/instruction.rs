@@ -4,21 +4,19 @@ use std::hash::{Hash, Hasher};
 
 use acvm::{
     acir::AcirField,
-    acir::{
-        circuit::{ErrorSelector, STRING_ERROR_SELECTOR},
-        BlackBoxFunc,
-    },
+    acir::{circuit::ErrorSelector, BlackBoxFunc},
     FieldElement,
 };
-use fxhash::FxHasher;
+use fxhash::FxHasher64;
 use iter_extended::vecmap;
 use noirc_frontend::hir_def::types::Type as HirType;
 
-use crate::ssa::opt::flatten_cfg::value_merger::ValueMerger;
+use crate::ssa::{ir::function::RuntimeType, opt::flatten_cfg::value_merger::ValueMerger};
 
 use super::{
     basic_block::BasicBlockId,
     dfg::{CallStack, DataFlowGraph},
+    function::Function,
     map::Id,
     types::{NumericType, Type},
     value::{Value, ValueId},
@@ -72,6 +70,7 @@ pub(crate) enum Intrinsic {
     AsWitness,
     IsUnconstrained,
     DerivePedersenGenerators,
+    FieldLessThan,
 }
 
 impl std::fmt::Display for Intrinsic {
@@ -100,6 +99,7 @@ impl std::fmt::Display for Intrinsic {
             Intrinsic::AsWitness => write!(f, "as_witness"),
             Intrinsic::IsUnconstrained => write!(f, "is_unconstrained"),
             Intrinsic::DerivePedersenGenerators => write!(f, "derive_pedersen_generators"),
+            Intrinsic::FieldLessThan => write!(f, "field_less_than"),
         }
     }
 }
@@ -118,20 +118,21 @@ impl Intrinsic {
             // These apply a constraint that the input must fit into a specified number of limbs.
             Intrinsic::ToBits(_) | Intrinsic::ToRadix(_) => true,
 
+            // These imply a check that the slice is non-empty and should fail otherwise.
+            Intrinsic::SlicePopBack | Intrinsic::SlicePopFront | Intrinsic::SliceRemove => true,
+
             Intrinsic::ArrayLen
             | Intrinsic::ArrayAsStrUnchecked
             | Intrinsic::AsSlice
             | Intrinsic::SlicePushBack
             | Intrinsic::SlicePushFront
-            | Intrinsic::SlicePopBack
-            | Intrinsic::SlicePopFront
             | Intrinsic::SliceInsert
-            | Intrinsic::SliceRemove
             | Intrinsic::StrAsBytes
             | Intrinsic::FromField
             | Intrinsic::AsField
             | Intrinsic::IsUnconstrained
-            | Intrinsic::DerivePedersenGenerators => false,
+            | Intrinsic::DerivePedersenGenerators
+            | Intrinsic::FieldLessThan => false,
 
             // Some black box functions have side-effects
             Intrinsic::BlackBox(func) => matches!(
@@ -169,6 +170,8 @@ impl Intrinsic {
             "as_witness" => Some(Intrinsic::AsWitness),
             "is_unconstrained" => Some(Intrinsic::IsUnconstrained),
             "derive_pedersen_generators" => Some(Intrinsic::DerivePedersenGenerators),
+            "field_less_than" => Some(Intrinsic::FieldLessThan),
+
             other => BlackBoxFunc::lookup(other).map(Intrinsic::BlackBox),
         }
     }
@@ -267,15 +270,13 @@ pub(crate) enum Instruction {
     ///     else_value
     /// }
     /// ```
+    IfElse { then_condition: ValueId, then_value: ValueId, else_value: ValueId },
+
+    /// Creates a new array or slice.
     ///
-    /// Where we save the result of !then_condition so that we have the same
-    /// ValueId for it each time.
-    IfElse {
-        then_condition: ValueId,
-        then_value: ValueId,
-        else_condition: ValueId,
-        else_value: ValueId,
-    },
+    /// `typ` should be an array or slice type with an element type
+    /// matching each of the `elements` values' types.
+    MakeArray { elements: im::Vector<ValueId>, typ: Type },
 }
 
 impl Instruction {
@@ -288,7 +289,9 @@ impl Instruction {
     pub(crate) fn result_type(&self) -> InstructionResultType {
         match self {
             Instruction::Binary(binary) => binary.result_type(),
-            Instruction::Cast(_, typ) => InstructionResultType::Known(typ.clone()),
+            Instruction::Cast(_, typ) | Instruction::MakeArray { typ, .. } => {
+                InstructionResultType::Known(typ.clone())
+            }
             Instruction::Not(value)
             | Instruction::Truncate { value, .. }
             | Instruction::ArraySet { array: value, .. }
@@ -342,6 +345,9 @@ impl Instruction {
             // We can deduplicate these instructions if we know the predicate is also the same.
             Constrain(..) | RangeCheck { .. } => deduplicate_with_predicate,
 
+            // This should never be side-effectful
+            MakeArray { .. } => true,
+
             // These can have different behavior depending on the EnableSideEffectsIf context.
             // Replacing them with a similar instruction potentially enables replacing an instruction
             // with one that was disabled. See
@@ -358,12 +364,12 @@ impl Instruction {
         }
     }
 
-    pub(crate) fn can_eliminate_if_unused(&self, dfg: &DataFlowGraph) -> bool {
+    pub(crate) fn can_eliminate_if_unused(&self, function: &Function) -> bool {
         use Instruction::*;
         match self {
             Binary(binary) => {
                 if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) {
-                    if let Some(rhs) = dfg.get_numeric_constant(binary.rhs) {
+                    if let Some(rhs) = function.dfg.get_numeric_constant(binary.rhs) {
                         rhs != FieldElement::zero()
                     } else {
                         false
@@ -379,17 +385,29 @@ impl Instruction {
             | Load { .. }
             | ArrayGet { .. }
             | IfElse { .. }
-            | ArraySet { .. } => true,
+            | ArraySet { .. }
+            | MakeArray { .. } => true,
+
+            // Store instructions must be removed by DIE in acir code, any load
+            // instructions should already be unused by that point.
+            //
+            // Note that this check assumes that it is being performed after the flattening
+            // pass and after the last mem2reg pass. This is currently the case for the DIE
+            // pass where this check is done, but does mean that we cannot perform mem2reg
+            // after the DIE pass.
+            Store { .. } => {
+                matches!(function.runtime(), RuntimeType::Acir(_))
+                    && function.reachable_blocks().len() == 1
+            }
 
             Constrain(..)
-            | Store { .. }
             | EnableSideEffectsIf { .. }
             | IncrementRc { .. }
             | DecrementRc { .. }
             | RangeCheck { .. } => false,
 
             // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
-            Call { func, .. } => match dfg[*func] {
+            Call { func, .. } => match function.dfg[*func] {
                 // Explicitly allows removal of unused ec operations, even if they can fail
                 Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul))
                 | Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::EmbeddedCurveAdd)) => true,
@@ -442,7 +460,8 @@ impl Instruction {
             | Instruction::Store { .. }
             | Instruction::IfElse { .. }
             | Instruction::IncrementRc { .. }
-            | Instruction::DecrementRc { .. } => false,
+            | Instruction::DecrementRc { .. }
+            | Instruction::MakeArray { .. } => false,
         }
     }
 
@@ -468,10 +487,13 @@ impl Instruction {
                 let lhs = f(*lhs);
                 let rhs = f(*rhs);
                 let assert_message = assert_message.as_ref().map(|error| match error {
-                    ConstrainError::Dynamic(selector, payload_values) => ConstrainError::Dynamic(
-                        *selector,
-                        payload_values.iter().map(|&value| f(value)).collect(),
-                    ),
+                    ConstrainError::Dynamic(selector, is_string, payload_values) => {
+                        ConstrainError::Dynamic(
+                            *selector,
+                            *is_string,
+                            payload_values.iter().map(|&value| f(value)).collect(),
+                        )
+                    }
                     _ => error.clone(),
                 });
                 Instruction::Constrain(lhs, rhs, assert_message)
@@ -506,14 +528,15 @@ impl Instruction {
                     assert_message: assert_message.clone(),
                 }
             }
-            Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
-                Instruction::IfElse {
-                    then_condition: f(*then_condition),
-                    then_value: f(*then_value),
-                    else_condition: f(*else_condition),
-                    else_value: f(*else_value),
-                }
-            }
+            Instruction::IfElse { then_condition, then_value, else_value } => Instruction::IfElse {
+                then_condition: f(*then_condition),
+                then_value: f(*then_value),
+                else_value: f(*else_value),
+            },
+            Instruction::MakeArray { elements, typ } => Instruction::MakeArray {
+                elements: elements.iter().copied().map(f).collect(),
+                typ: typ.clone(),
+            },
         }
     }
 
@@ -539,7 +562,7 @@ impl Instruction {
             Instruction::Constrain(lhs, rhs, assert_error) => {
                 f(*lhs);
                 f(*rhs);
-                if let Some(ConstrainError::Dynamic(_, values)) = assert_error.as_ref() {
+                if let Some(ConstrainError::Dynamic(_, _, values)) = assert_error.as_ref() {
                     values.iter().for_each(|&val| {
                         f(val);
                     });
@@ -568,11 +591,15 @@ impl Instruction {
             | Instruction::RangeCheck { value, .. } => {
                 f(*value);
             }
-            Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
+            Instruction::IfElse { then_condition, then_value, else_value } => {
                 f(*then_condition);
                 f(*then_value);
-                f(*else_condition);
                 f(*else_value);
+            }
+            Instruction::MakeArray { elements, typ: _ } => {
+                for element in elements {
+                    f(*element);
+                }
             }
         }
     }
@@ -629,20 +656,28 @@ impl Instruction {
                     None
                 }
             }
-            Instruction::ArraySet { array, index, value, .. } => {
-                let array_const = dfg.get_array_constant(*array);
-                let index_const = dfg.get_numeric_constant(*index);
-                if let (Some((array, element_type)), Some(index)) = (array_const, index_const) {
+            Instruction::ArraySet { array: array_id, index: index_id, value, .. } => {
+                let array = dfg.get_array_constant(*array_id);
+                let index = dfg.get_numeric_constant(*index_id);
+                if let (Some((array, _element_type)), Some(index)) = (array, index) {
                     let index =
                         index.try_to_u32().expect("Expected array index to fit in u32") as usize;
 
                     if index < array.len() {
-                        let new_array = dfg.make_array(array.update(index, *value), element_type);
-                        return SimplifiedTo(new_array);
+                        let elements = array.update(index, *value);
+                        let typ = dfg.type_of_value(*array_id);
+                        let instruction = Instruction::MakeArray { elements, typ };
+                        let new_array = dfg.insert_instruction_and_results(
+                            instruction,
+                            block,
+                            Option::None,
+                            call_stack.clone(),
+                        );
+                        return SimplifiedTo(new_array.first());
                     }
                 }
 
-                try_optimize_array_set_from_previous_get(dfg, *array, *index, *value)
+                try_optimize_array_set_from_previous_get(dfg, *array_id, *index_id, *value)
             }
             Instruction::Truncate { value, bit_size, max_bit_size } => {
                 if bit_size == max_bit_size {
@@ -721,7 +756,7 @@ impl Instruction {
                     None
                 }
             }
-            Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
+            Instruction::IfElse { then_condition, then_value, else_value } => {
                 let typ = dfg.type_of_value(*then_value);
 
                 if let Some(constant) = dfg.get_numeric_constant(*then_condition) {
@@ -740,13 +775,11 @@ impl Instruction {
 
                 if matches!(&typ, Type::Numeric(_)) {
                     let then_condition = *then_condition;
-                    let else_condition = *else_condition;
 
                     let result = ValueMerger::merge_numeric_values(
                         dfg,
                         block,
                         then_condition,
-                        else_condition,
                         then_value,
                         else_value,
                     );
@@ -755,6 +788,7 @@ impl Instruction {
                     None
                 }
             }
+            Instruction::MakeArray { .. } => None,
         }
     }
 }
@@ -798,12 +832,12 @@ fn try_optimize_array_get_from_previous_set(
                             return SimplifyResult::None;
                         }
                     }
+                    Instruction::MakeArray { elements: array, typ: _ } => {
+                        elements = Some(array.clone());
+                        break;
+                    }
                     _ => return SimplifyResult::None,
                 }
-            }
-            Value::Array { array, typ: _ } => {
-                elements = Some(array.clone());
-                break;
             }
             _ => return SimplifyResult::None,
         }
@@ -818,39 +852,110 @@ fn try_optimize_array_get_from_previous_set(
     SimplifyResult::None
 }
 
+/// If we have an array set whose value is from an array get on the same array at the same index,
+/// we can simplify that array set to the array we were looking to perform an array set upon.
+///
+/// Simple case:
+/// v3 = array_get v1, index v2
+/// v5 = array_set v1, index v2, value v3
+///
+/// If we could not immediately simplify the array set from its value, we can try to follow
+/// the array set backwards in the case we have constant indices:
+///
+/// v3 = array_get v1, index 1
+/// v5 = array_set v1, index 2, value [Field 100, Field 101, Field 102]
+/// v7 = array_set mut v5, index 1, value v3
+///
+/// We want to optimize `v7` to `v5`. We see that `v3` comes from an array get to `v1`. We follow `v5` backwards and see an array set
+/// to `v1` and see that the previous array set occurs to a different constant index.
+///
+/// For each array_set:
+/// - If the index is non-constant we fail the optimization since any index may be changed.
+/// - If the index is constant and is our target index, we conservatively fail the optimization.
+/// - Otherwise, we check the array value of the `array_set`. We will refer to this array as array'.
+///   In the case above, array' is `v1` from `v5 = array set ...`
+///   - If the original `array_set` value comes from an `array_get`, check the array in that `array_get` against array'.
+///   - If the two values are equal we can simplify.
+///     - Continuing the example above, as we have `v3 = array_get v1, index 1`, `v1` is
+///       what we want to check against array'. We now know we can simplify `v7` to `v5` as it is unchanged.
+///   - If they are not equal, recur marking the current `array_set` array as the new array id to use in the checks
 fn try_optimize_array_set_from_previous_get(
     dfg: &DataFlowGraph,
-    array_id: ValueId,
+    mut array_id: ValueId,
     target_index: ValueId,
     target_value: ValueId,
 ) -> SimplifyResult {
-    match &dfg[target_value] {
+    let array_from_get = match &dfg[target_value] {
         Value::Instruction { instruction, .. } => match &dfg[*instruction] {
             Instruction::ArrayGet { array, index } => {
                 if *array == array_id && *index == target_index {
-                    SimplifyResult::SimplifiedTo(array_id)
+                    // If array and index match from the value, we can immediately simplify
+                    return SimplifyResult::SimplifiedTo(array_id);
+                } else if *index == target_index {
+                    *array
                 } else {
-                    SimplifyResult::None
+                    return SimplifyResult::None;
                 }
             }
-            _ => SimplifyResult::None,
+            _ => return SimplifyResult::None,
         },
-        _ => SimplifyResult::None,
+        _ => return SimplifyResult::None,
+    };
+
+    // At this point we have determined that the value we are writing in the `array_set` instruction
+    // comes from an `array_get` from the same index at which we want to write it at.
+    // It's possible that we're acting on the same array where other indices have been mutated in between
+    // the `array_get` and `array_set` (resulting in the `array_id` not matching).
+    //
+    // We then inspect the set of `array_set`s which which led to the current array the `array_set` is acting on.
+    // If we can work back to the array on which the `array_get` was reading from without having another `array_set`
+    // act on the same index then we can be sure that the new `array_set` can be removed without affecting the final result.
+    let Some(target_index) = dfg.get_numeric_constant(target_index) else {
+        return SimplifyResult::None;
+    };
+
+    let original_array_id = array_id;
+    // Arbitrary number of maximum tries just to prevent this optimization from taking too long.
+    let max_tries = 5;
+    for _ in 0..max_tries {
+        match &dfg[array_id] {
+            Value::Instruction { instruction, .. } => match &dfg[*instruction] {
+                Instruction::ArraySet { array, index, .. } => {
+                    let Some(index) = dfg.get_numeric_constant(*index) else {
+                        return SimplifyResult::None;
+                    };
+
+                    if index == target_index {
+                        return SimplifyResult::None;
+                    }
+
+                    if *array == array_from_get {
+                        return SimplifyResult::SimplifiedTo(original_array_id);
+                    }
+
+                    array_id = *array; // recur
+                }
+                _ => return SimplifyResult::None,
+            },
+            _ => return SimplifyResult::None,
+        }
     }
+
+    SimplifyResult::None
 }
 
-pub(crate) type ErrorType = HirType;
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub enum ErrorType {
+    String(String),
+    Dynamic(HirType),
+}
 
-pub(crate) fn error_selector_from_type(typ: &ErrorType) -> ErrorSelector {
-    match typ {
-        ErrorType::String(_) => STRING_ERROR_SELECTOR,
-        _ => {
-            let mut hasher = FxHasher::default();
-            typ.hash(&mut hasher);
-            let hash = hasher.finish();
-            assert!(hash != 0, "ICE: Error type {} collides with the string error type", typ);
-            ErrorSelector::new(hash)
-        }
+impl ErrorType {
+    pub fn selector(&self) -> ErrorSelector {
+        let mut hasher = FxHasher64::default();
+        self.hash(&mut hasher);
+        let hash = hasher.finish();
+        ErrorSelector::new(hash)
     }
 }
 
@@ -859,7 +964,8 @@ pub(crate) enum ConstrainError {
     // Static string errors are not handled inside the program as data for efficiency reasons.
     StaticString(String),
     // These errors are handled by the program as data.
-    Dynamic(ErrorSelector, Vec<ValueId>),
+    // We use a boolean to indicate if the error is a string for printing purposes.
+    Dynamic(ErrorSelector, /* is_string */ bool, Vec<ValueId>),
 }
 
 impl From<String> for ConstrainError {

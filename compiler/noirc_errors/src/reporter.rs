@@ -10,7 +10,7 @@ use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
 pub struct CustomDiagnostic {
     pub message: String,
     pub secondaries: Vec<CustomLabel>,
-    notes: Vec<String>,
+    pub notes: Vec<String>,
     pub kind: DiagnosticKind,
     pub deprecated: bool,
     pub unnecessary: bool,

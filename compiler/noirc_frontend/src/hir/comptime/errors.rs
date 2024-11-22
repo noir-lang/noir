@@ -3,7 +3,10 @@ use std::rc::Rc;
 
 use crate::{
     ast::TraitBound,
-    hir::{def_collector::dc_crate::CompilationError, type_check::NoMatchingImplFoundError},
+    hir::{
+        def_collector::dc_crate::CompilationError,
+        type_check::{NoMatchingImplFoundError, TypeCheckError},
+    },
     parser::ParserError,
     Type,
 };
@@ -87,6 +90,7 @@ pub enum InterpreterError {
     },
     NonIntegerArrayLength {
         typ: Type,
+        err: Option<Box<TypeCheckError>>,
         location: Location,
     },
     NonNumericCasted {
@@ -226,6 +230,11 @@ pub enum InterpreterError {
         location: Location,
         expression: String,
     },
+    UnknownArrayLength {
+        length: Type,
+        err: Box<TypeCheckError>,
+        location: Location,
+    },
 
     // These cases are not errors, they are just used to prevent us from running more code
     // until the loop can be resumed properly. These cases will never be displayed to users.
@@ -299,7 +308,8 @@ impl InterpreterError {
             | InterpreterError::DuplicateGeneric { duplicate_location: location, .. }
             | InterpreterError::TypeAnnotationsNeededForMethodCall { location }
             | InterpreterError::CannotResolveExpression { location, .. }
-            | InterpreterError::CannotSetFunctionBody { location, .. } => *location,
+            | InterpreterError::CannotSetFunctionBody { location, .. }
+            | InterpreterError::UnknownArrayLength { location, .. } => *location,
 
             InterpreterError::FailedToParseMacro { error, file, .. } => {
                 Location::new(error.span(), *file)
@@ -430,9 +440,13 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let secondary = "This is likely a bug".into();
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
-            InterpreterError::NonIntegerArrayLength { typ, location } => {
+            InterpreterError::NonIntegerArrayLength { typ, err, location } => {
                 let msg = format!("Non-integer array length: `{typ}`");
-                let secondary = "Array lengths must be integers".into();
+                let secondary = if let Some(err) = err {
+                    format!("Array lengths must be integers, but evaluating `{typ}` resulted in `{err}`")
+                } else {
+                    "Array lengths must be integers".to_string()
+                };
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
             InterpreterError::NonNumericCasted { typ, location } => {
@@ -634,6 +648,11 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             InterpreterError::CannotSetFunctionBody { location, expression } => {
                 let msg = format!("`{expression}` is not a valid function body");
                 CustomDiagnostic::simple_error(msg, String::new(), location.span)
+            }
+            InterpreterError::UnknownArrayLength { length, err, location } => {
+                let msg = format!("Could not determine array length `{length}`");
+                let secondary = format!("Evaluating the length failed with: `{err}`");
+                CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
         }
     }

@@ -1,6 +1,6 @@
-use crate::hash::{Hash, Hasher};
-use crate::cmp::{Ordering, Ord, Eq};
+use crate::cmp::{Eq, Ord, Ordering};
 use crate::default::Default;
+use crate::hash::{Hash, Hasher};
 
 pub struct Option<T> {
     _is_some: bool,
@@ -43,7 +43,11 @@ impl<T> Option<T> {
 
     /// Returns the wrapped value if `self.is_some()`. Otherwise, returns the given default value.
     pub fn unwrap_or(self, default: T) -> T {
-        if self._is_some { self._value } else { default }
+        if self._is_some {
+            self._value
+        } else {
+            default
+        }
     }
 
     /// Returns the wrapped value if `self.is_some()`. Otherwise, calls the given function to return
@@ -57,7 +61,7 @@ impl<T> Option<T> {
     }
 
     /// Asserts `self.is_some()` with a provided custom message and returns the contained `Some` value
-    fn expect<let N: u32, MessageTypes>(self, message: fmtstr<N, MessageTypes>) -> T {
+    pub fn expect<let N: u32, MessageTypes>(self, message: fmtstr<N, MessageTypes>) -> T {
         assert(self.is_some(), message);
         self._value
     }
@@ -112,19 +116,31 @@ impl<T> Option<T> {
 
     /// If self is Some, return self. Otherwise, return `other`.
     pub fn or(self, other: Self) -> Self {
-        if self._is_some { self } else { other }
+        if self._is_some {
+            self
+        } else {
+            other
+        }
     }
 
     /// If self is Some, return self. Otherwise, return `default()`.
     pub fn or_else<Env>(self, default: fn[Env]() -> Self) -> Self {
-        if self._is_some { self } else { default() }
+        if self._is_some {
+            self
+        } else {
+            default()
+        }
     }
 
     // If only one of the two Options is Some, return that option.
     // Otherwise, if both options are Some or both are None, None is returned.
     pub fn xor(self, other: Self) -> Self {
         if self._is_some {
-            if other._is_some { Option::none() } else { self }
+            if other._is_some {
+                Option::none()
+            } else {
+                self
+            }
         } else if other._is_some {
             other
         } else {
@@ -163,7 +179,10 @@ impl<T> Default for Option<T> {
     }
 }
 
-impl<T> Eq for Option<T> where T: Eq {
+impl<T> Eq for Option<T>
+where
+    T: Eq,
+{
     fn eq(self, other: Self) -> bool {
         if self._is_some == other._is_some {
             if self._is_some {
@@ -177,8 +196,14 @@ impl<T> Eq for Option<T> where T: Eq {
     }
 }
 
-impl<T> Hash for Option<T> where T: Hash {
-    fn hash<H>(self, state: &mut H) where H: Hasher {
+impl<T> Hash for Option<T>
+where
+    T: Hash,
+{
+    fn hash<H>(self, state: &mut H)
+    where
+        H: Hasher,
+    {
         self._is_some.hash(state);
         if self._is_some {
             self._value.hash(state);
@@ -187,7 +212,10 @@ impl<T> Hash for Option<T> where T: Hash {
 }
 
 // For this impl we're declaring Option::none < Option::some
-impl<T> Ord for Option<T> where T: Ord {
+impl<T> Ord for Option<T>
+where
+    T: Ord,
+{
     fn cmp(self, other: Self) -> Ordering {
         if self._is_some {
             if other._is_some {

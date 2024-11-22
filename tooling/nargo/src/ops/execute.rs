@@ -3,7 +3,9 @@ use acvm::acir::circuit::{
     OpcodeLocation, Program, ResolvedAssertionPayload, ResolvedOpcodeLocation,
 };
 use acvm::acir::native_types::WitnessStack;
-use acvm::pwg::{ACVMStatus, ErrorLocation, OpcodeNotSolvable, OpcodeResolutionError, ACVM};
+use acvm::pwg::{
+    ACVMStatus, ErrorLocation, OpcodeNotSolvable, OpcodeResolutionError, ProfilingSamples, ACVM,
+};
 use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
 use acvm::{AcirField, BlackBoxFunctionSolver};
 
@@ -32,6 +34,10 @@ struct ProgramExecutor<'a, F, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecut
     // This is used to fetch the function we want to execute
     // and to resolve call stack locations across many function calls.
     current_function_index: usize,
+
+    // Flag that states whether we want to profile the VM. Profiling can add extra
+    // execution costs so we want to make sure we only trigger it explicitly.
+    profiling_active: bool,
 }
 
 impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
@@ -42,6 +48,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
         unconstrained_functions: &'a [BrilligBytecode<F>],
         blackbox_solver: &'a B,
         foreign_call_executor: &'a mut E,
+        profiling_active: bool,
     ) -> Self {
         ProgramExecutor {
             functions,
@@ -51,6 +58,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
             foreign_call_executor,
             call_stack: Vec::default(),
             current_function_index: 0,
+            profiling_active,
         }
     }
 
@@ -62,7 +70,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
     fn execute_circuit(
         &mut self,
         initial_witness: WitnessMap<F>,
-    ) -> Result<WitnessMap<F>, NargoError<F>> {
+    ) -> Result<(WitnessMap<F>, ProfilingSamples), NargoError<F>> {
         let circuit = &self.functions[self.current_function_index];
         let mut acvm = ACVM::new(
             self.blackbox_solver,
@@ -71,6 +79,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
             self.unconstrained_functions,
             &circuit.assert_messages,
         );
+        acvm.with_profiler(self.profiling_active);
 
         loop {
             let solver_status = acvm.solve();
@@ -155,7 +164,8 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
                     // Execute the ACIR call
                     let acir_to_call = &self.functions[call_info.id.as_usize()];
                     let initial_witness = call_info.initial_witness;
-                    let call_solved_witness = self.execute_circuit(initial_witness)?;
+                    // TODO: Profiling among multiple circuits is not supported
+                    let (call_solved_witness, _) = self.execute_circuit(initial_witness)?;
 
                     // Set tracking index back to the parent function after ACIR call execution
                     self.current_function_index = acir_function_caller;
@@ -184,25 +194,67 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
         // included in a failure case.
         self.call_stack.clear();
 
-        Ok(acvm.finalize())
+        let profiling_samples = acvm.take_profiling_samples();
+        Ok((acvm.finalize(), profiling_samples))
     }
 }
 
-#[tracing::instrument(level = "trace", skip_all)]
 pub fn execute_program<F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>(
     program: &Program<F>,
     initial_witness: WitnessMap<F>,
     blackbox_solver: &B,
     foreign_call_executor: &mut E,
 ) -> Result<WitnessStack<F>, NargoError<F>> {
+    let profiling_active = false;
+    let (witness_stack, profiling_samples) = execute_program_inner(
+        program,
+        initial_witness,
+        blackbox_solver,
+        foreign_call_executor,
+        profiling_active,
+    )?;
+    assert!(profiling_samples.is_empty(), "Expected no profiling samples");
+
+    Ok(witness_stack)
+}
+
+pub fn execute_program_with_profiling<
+    F: AcirField,
+    B: BlackBoxFunctionSolver<F>,
+    E: ForeignCallExecutor<F>,
+>(
+    program: &Program<F>,
+    initial_witness: WitnessMap<F>,
+    blackbox_solver: &B,
+    foreign_call_executor: &mut E,
+) -> Result<(WitnessStack<F>, ProfilingSamples), NargoError<F>> {
+    let profiling_active = true;
+    execute_program_inner(
+        program,
+        initial_witness,
+        blackbox_solver,
+        foreign_call_executor,
+        profiling_active,
+    )
+}
+
+#[tracing::instrument(level = "trace", skip_all)]
+fn execute_program_inner<F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>(
+    program: &Program<F>,
+    initial_witness: WitnessMap<F>,
+    blackbox_solver: &B,
+    foreign_call_executor: &mut E,
+    profiling_active: bool,
+) -> Result<(WitnessStack<F>, ProfilingSamples), NargoError<F>> {
     let mut executor = ProgramExecutor::new(
         &program.functions,
         &program.unconstrained_functions,
         blackbox_solver,
         foreign_call_executor,
+        profiling_active,
     );
-    let main_witness = executor.execute_circuit(initial_witness)?;
+    let (main_witness, profiling_samples) = executor.execute_circuit(initial_witness)?;
     executor.witness_stack.push(0, main_witness);
 
-    Ok(executor.finalize())
+    Ok((executor.finalize(), profiling_samples))
 }

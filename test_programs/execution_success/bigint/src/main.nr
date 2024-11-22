@@ -7,8 +7,8 @@ fn main(mut x: [u8; 5], y: [u8; 5]) {
     let mut a_be_bytes = [0; 32];
     let mut b_be_bytes = [0; 32];
     for i in 0..5 {
-        a_be_bytes[31-i] = x[i];
-        b_be_bytes[31-i] = y[i];
+        a_be_bytes[31 - i] = x[i];
+        b_be_bytes[31 - i] = y[i];
     }
     let a_field = std::field::bytes32_to_field(a_be_bytes);
     let b_field = std::field::bytes32_to_field(b_be_bytes);
@@ -44,15 +44,17 @@ fn main(mut x: [u8; 5], y: [u8; 5]) {
     big_int_example(x[0], x[1]);
 
     // Regression for issue #4882
-    let num_b:[u8;32] = [
-        0, 0, 0, 240, 147, 245, 225, 67, 145, 112, 185, 121, 72, 232, 51, 40, 93, 88, 129, 129, 182, 69, 80, 184, 41, 160, 49, 225, 114, 78, 100, 48
+    let num_b: [u8; 32] = [
+        0, 0, 0, 240, 147, 245, 225, 67, 145, 112, 185, 121, 72, 232, 51, 40, 93, 88, 129, 129, 182,
+        69, 80, 184, 41, 160, 49, 225, 114, 78, 100, 48,
     ];
-    let num2_b:[u8;7] = [126, 193, 45, 39, 188, 84, 11];
+    let num2_b: [u8; 7] = [126, 193, 45, 39, 188, 84, 11];
     let num = bigint::Bn254Fr::from_le_bytes(num_b.as_slice());
     let num2 = bigint::Bn254Fr::from_le_bytes(num2_b.as_slice());
 
-    let ret_b:[u8;32] = [
-        131, 62, 210, 200, 215, 160, 214, 67, 145, 112, 185, 121, 72, 232, 51, 40, 93, 88, 129, 129, 182, 69, 80, 184, 41, 160, 49, 225, 114, 78, 100, 48
+    let ret_b: [u8; 32] = [
+        131, 62, 210, 200, 215, 160, 214, 67, 145, 112, 185, 121, 72, 232, 51, 40, 93, 88, 129, 129,
+        182, 69, 80, 184, 41, 160, 49, 225, 114, 78, 100, 48,
     ];
     let ret = bigint::Bn254Fr::from_le_bytes(ret_b.as_slice());
     assert(ret == num.mul(num2));

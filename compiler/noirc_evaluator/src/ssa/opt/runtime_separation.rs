@@ -70,7 +70,7 @@ impl RuntimeSeparatorContext {
         processed_functions.insert((within_brillig, current_func_id));
 
         let func = &ssa.functions[&current_func_id];
-        if func.runtime() == RuntimeType::Brillig {
+        if matches!(func.runtime(), RuntimeType::Brillig(_)) {
             within_brillig = true;
         }
 
@@ -97,17 +97,20 @@ impl RuntimeSeparatorContext {
 
     fn convert_acir_functions_called_from_brillig_to_brillig(&mut self, ssa: &mut Ssa) {
         for acir_func_id in self.acir_functions_called_from_brillig.iter() {
+            let RuntimeType::Acir(inline_type) = ssa.functions[acir_func_id].runtime() else {
+                unreachable!("Function to transform to brillig should be ACIR")
+            };
             let cloned_id = ssa.clone_fn(*acir_func_id);
             let new_func =
                 ssa.functions.get_mut(&cloned_id).expect("Cloned function should exist in SSA");
-            new_func.set_runtime(RuntimeType::Brillig);
+            new_func.set_runtime(RuntimeType::Brillig(inline_type));
             self.mapped_functions.insert(*acir_func_id, cloned_id);
         }
     }
 
     fn replace_calls_to_mapped_functions(&self, ssa: &mut Ssa) {
         for (_function_id, func) in ssa.functions.iter_mut() {
-            if func.runtime() == RuntimeType::Brillig {
+            if matches!(func.runtime(), RuntimeType::Brillig(_)) {
                 for called_func_value_id in called_functions_values(func).iter() {
                     let Value::Function(called_func_id) = &func.dfg[*called_func_value_id] else {
                         unreachable!("Value should be a function")
@@ -207,7 +210,7 @@ mod test {
         // }
         let foo_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("foo".into(), foo_id);
-        builder.current_function.set_runtime(RuntimeType::Brillig);
+        builder.current_function.set_runtime(RuntimeType::Brillig(InlineType::default()));
 
         let bar_id = Id::test_new(1);
         let bar = builder.import_function(bar_id);
@@ -239,7 +242,7 @@ mod test {
 
         // All functions should be brillig now
         for func in separated.functions.values() {
-            assert_eq!(func.runtime(), RuntimeType::Brillig);
+            assert_eq!(func.runtime(), RuntimeType::Brillig(InlineType::default()));
         }
     }
 
@@ -289,7 +292,7 @@ mod test {
         let v1 = builder.insert_call(baz, Vec::new(), vec![Type::field()]).to_vec();
         builder.terminate_with_return(vec![v0[0], v1[0]]);
 
-        builder.new_brillig_function("bar".into(), bar_id);
+        builder.new_brillig_function("bar".into(), bar_id, InlineType::default());
         let baz = builder.import_function(baz_id);
         let v0 = builder.insert_call(baz, Vec::new(), vec![Type::field()]).to_vec();
         builder.terminate_with_return(v0);
@@ -337,12 +340,12 @@ mod test {
         let baz_acir = find_func_by_name(&separated, &main_calls, "baz");
 
         assert_eq!(baz_acir.runtime(), RuntimeType::Acir(InlineType::Inline));
-        assert_eq!(bar.runtime(), RuntimeType::Brillig);
+        assert_eq!(bar.runtime(), RuntimeType::Brillig(InlineType::default()));
 
         let bar_calls = called_functions(bar);
         assert_eq!(bar_calls.len(), 1);
 
         let baz_brillig = find_func_by_name(&separated, &bar_calls, "baz");
-        assert_eq!(baz_brillig.runtime(), RuntimeType::Brillig);
+        assert_eq!(baz_brillig.runtime(), RuntimeType::Brillig(InlineType::default()));
     }
 }

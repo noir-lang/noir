@@ -20,6 +20,8 @@ pub enum LexerErrorKind {
     IntegerLiteralTooLarge { span: Span, limit: String },
     #[error("{:?} is not a valid attribute", found)]
     MalformedFuncAttribute { span: Span, found: String },
+    #[error("Malformed test attribute")]
+    MalformedTestAttribute { span: Span },
     #[error("{:?} is not a valid inner attribute", found)]
     InvalidInnerAttribute { span: Span, found: String },
     #[error("Logical and used instead of bitwise and")]
@@ -61,6 +63,7 @@ impl LexerErrorKind {
             LexerErrorKind::InvalidIntegerLiteral { span, .. } => *span,
             LexerErrorKind::IntegerLiteralTooLarge { span, .. } => *span,
             LexerErrorKind::MalformedFuncAttribute { span, .. } => *span,
+            LexerErrorKind::MalformedTestAttribute { span, .. } => *span,
             LexerErrorKind::InvalidInnerAttribute { span, .. } => *span,
             LexerErrorKind::LogicalAnd { span } => *span,
             LexerErrorKind::UnterminatedBlockComment { span } => *span,
@@ -109,6 +112,11 @@ impl LexerErrorKind {
                 format!(" {found} is not a valid attribute"),
                 *span,
             ),
+            LexerErrorKind::MalformedTestAttribute { span } => (
+                "Malformed test attribute".to_string(),
+                "The test attribute can be written in one of these forms: `#[test]`, `#[test(should_fail)]` or `#[test(should_fail_with = \"message\")]`".to_string(),
+                *span,
+            ),
             LexerErrorKind::InvalidInnerAttribute { span, found } => (
                 "Invalid inner attribute".to_string(),
                 format!(" {found} is not a valid inner attribute"),
@@ -141,12 +149,5 @@ impl<'a> From<&'a LexerErrorKind> for Diagnostic {
     fn from(error: &'a LexerErrorKind) -> Diagnostic {
         let (primary, secondary, span) = error.parts();
         Diagnostic::simple_error(primary, secondary, span)
-    }
-}
-
-impl From<LexerErrorKind> for chumsky::error::Simple<SpannedToken, Span> {
-    fn from(error: LexerErrorKind) -> Self {
-        let (_, message, span) = error.parts();
-        chumsky::error::Simple::custom(span, message)
     }
 }

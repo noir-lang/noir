@@ -10,7 +10,7 @@ pub fn poseidon_hash<let N: u32>(inputs: [Field; N]) -> Field {
 
 fn main(
     to_hash: [[Field; HASH_LENGTH]; NUM_HASHES],
-    enable: [bool; NUM_HASHES]
+    enable: [bool; NUM_HASHES],
 ) -> pub [Field; NUM_HASHES + 1] {
     let mut result = [0; NUM_HASHES + 1];
     for i in 0..NUM_HASHES {

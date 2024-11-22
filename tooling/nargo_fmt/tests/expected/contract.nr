@@ -5,13 +5,22 @@
 contract Benchmarking {
     use aztec::protocol_types::abis::function_selector::FunctionSelector;
 
-    use value_note::{utils::{increment, decrement}, value_note::{VALUE_NOTE_LEN, ValueNote, ValueNoteMethods}};
+    use value_note::{
+        utils::{decrement, increment},
+        value_note::{VALUE_NOTE_LEN, ValueNote, ValueNoteMethods},
+    };
 
     use aztec::{
-        context::Context, note::{note_getter_options::NoteGetterOptions, note_header::NoteHeader},
-        log::emit_unencrypted_log, state_vars::{Map, PublicMutable, PrivateSet},
-        types::type_serialization::field_serialization::{FieldSerializationMethods, FIELD_SERIALIZED_LEN},
-        types::address::AztecAddress
+        context::Context,
+        log::emit_unencrypted_log,
+        note::{note_getter_options::NoteGetterOptions, note_header::NoteHeader},
+        state_vars::{Map, PrivateSet, PublicMutable},
+        types::{
+            address::AztecAddress,
+            type_serialization::field_serialization::{
+                FIELD_SERIALIZED_LEN, FieldSerializationMethods,
+            },
+        },
     };
 
     struct Storage {
@@ -25,13 +34,15 @@ contract Benchmarking {
                 notes: Map::new(
                     context,
                     1,
-                    |context, slot| { PrivateSet::new(context, slot, ValueNoteMethods) }
+                    |context, slot| PrivateSet::new(context, slot, ValueNoteMethods),
                 ),
                 balances: Map::new(
                     context,
                     2,
-                    |context, slot| { PublicMutable::new(context, slot, FieldSerializationMethods) }
-                )
+                    |context, slot| {
+                        PublicMutable::new(context, slot, FieldSerializationMethods)
+                    },
+                ),
             }
         }
     }
@@ -63,10 +74,8 @@ contract Benchmarking {
         storage.balances.at(owner).write(current + value);
         let _callStackItem1 = context.call_public_function(
             context.this_address(),
-            comptime {
-            FunctionSelector::from_signature("broadcast(Field)")
-        },
-            [owner]
+            comptime { FunctionSelector::from_signature("broadcast(Field)") },
+            [owner],
         );
     }
 

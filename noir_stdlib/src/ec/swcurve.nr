@@ -3,25 +3,25 @@ pub mod affine {
     // Points are represented by two-dimensional Cartesian coordinates.
     // Group operations are implemented in terms of those in CurveGroup (in this case, extended Twisted Edwards) coordinates
     // for reasons of efficiency, cf. <https://en.wikibooks.org/wiki/Cryptography/Prime_Curve/Jacobian_Coordinates>.
-    use crate::ec::swcurve::curvegroup;
-    use crate::ec::safe_inverse;
-    use crate::ec::is_square;
-    use crate::ec::sqrt;
     use crate::cmp::Eq;
+    use crate::ec::is_square;
+    use crate::ec::safe_inverse;
+    use crate::ec::sqrt;
+    use crate::ec::swcurve::curvegroup;
 
     // Curve specification
     pub struct Curve { // Short Weierstrass curve
         // Coefficients in defining equation y^2 = x^3 + ax + b
-        a: Field,
-        b: Field,
+        pub a: Field,
+        pub b: Field,
         // Generator as point in Cartesian coordinates
-        gen: Point
+        pub gen: Point,
     }
     // Point in Cartesian coordinates
     pub struct Point {
-        x: Field,
-        y: Field,
-        infty: bool // Indicator for point at infinity
+        pub x: Field,
+        pub y: Field,
+        pub infty: bool, // Indicator for point at infinity
     }
 
     impl Point {
@@ -36,8 +36,8 @@ pub mod affine {
         }
 
         // Conversion to CurveGroup coordinates
-        fn into_group(self) -> curvegroup::Point {
-            let Self {x, y, infty} = self;
+        pub fn into_group(self) -> curvegroup::Point {
+            let Self { x, y, infty } = self;
 
             if infty {
                 curvegroup::Point::zero()
@@ -52,16 +52,16 @@ pub mod affine {
         }
 
         // Negation
-        fn negate(self) -> Self {
-            let Self {x, y, infty} = self;
+        pub fn negate(self) -> Self {
+            let Self { x, y, infty } = self;
             Self { x, y: 0 - y, infty }
         }
     }
 
     impl Eq for Point {
         fn eq(self, p: Self) -> bool {
-            let Self {x: x1, y: y1, infty: inf1} = self;
-            let Self {x: x2, y: y2, infty: inf2} = p;
+            let Self { x: x1, y: y1, infty: inf1 } = self;
+            let Self { x: x2, y: y2, infty: inf2 } = p;
 
             (inf1 & inf2) | (!inf1 & !inf2 & (x1 == x2) & (y1 == y2))
         }
@@ -82,15 +82,15 @@ pub mod affine {
         }
 
         // Conversion to CurveGroup coordinates
-        fn into_group(self) -> curvegroup::Curve {
-            let Curve{a, b, gen} = self;
+        pub fn into_group(self) -> curvegroup::Curve {
+            let Curve { a, b, gen } = self;
 
             curvegroup::Curve { a, b, gen: gen.into_group() }
         }
 
         // Membership check
         pub fn contains(self, p: Point) -> bool {
-            let Point {x, y, infty} = p;
+            let Point { x, y, infty } = p;
             infty | (y * y == x * x * x + self.a * x + self.b)
         }
 
@@ -100,14 +100,14 @@ pub mod affine {
         }
 
         // Mixed point addition, i.e. first argument in affine, second in CurveGroup coordinates.
-        fn mixed_add(self, p1: Point, p2: curvegroup::Point) -> curvegroup::Point {
+        pub fn mixed_add(self, p1: Point, p2: curvegroup::Point) -> curvegroup::Point {
             if p1.is_zero() {
                 p2
             } else if p2.is_zero() {
                 p1.into_group()
             } else {
-                let Point {x: x1, y: y1, infty: _inf} = p1;
-                let curvegroup::Point {x: x2, y: y2, z: z2} = p2;
+                let Point { x: x1, y: y1, infty: _inf } = p1;
+                let curvegroup::Point { x: x2, y: y2, z: z2 } = p2;
                 let you1 = x1 * z2 * z2;
                 let you2 = x2;
                 let s1 = y1 * z2 * z2 * z2;
@@ -133,7 +133,7 @@ pub mod affine {
 
         // Scalar multiplication with scalar represented by a bit array (little-endian convention).
         // If k is the natural number represented by `bits`, then this computes p + ... + p k times.
-        fn bit_mul<let N: u32>(self, bits: [u1; N], p: Point) -> Point {
+        pub fn bit_mul<let N: u32>(self, bits: [u1; N], p: Point) -> Point {
             self.into_group().bit_mul(bits, p.into_group()).into_affine()
         }
 
@@ -161,11 +161,11 @@ pub mod affine {
         // Simplified Shallue-van de Woestijne-Ulas map-to-curve method; see <https://www.ietf.org/archive/id/draft-irtf-cfrg-hash-to-curve-16.html#name-simplified-shallue-van-de-w>.
         // First determine non-square z != -1 in Field s.t. g(x) - z irreducible over Field and g(b/(z*a)) is square,
         // where g(x) = x^3 + a*x + b. swu_map(c,z,.) then maps a Field element to a point on curve c.
-        fn swu_map(self, z: Field, u: Field) -> Point {
+        pub fn swu_map(self, z: Field, u: Field) -> Point {
             // Check whether curve is admissible
             assert(self.a * self.b != 0);
 
-            let Curve {a, b, gen: _gen} = self;
+            let Curve { a, b, gen: _gen } = self;
 
             let tv1 = safe_inverse(z * z * u * u * u * u + u * u * z);
             let x1 = if tv1 == 0 {
@@ -176,7 +176,7 @@ pub mod affine {
             let gx1 = x1 * x1 * x1 + a * x1 + b;
             let x2 = z * u * u * x1;
             let gx2 = x2 * x2 * x2 + a * x2 + b;
-            let (x,y) = if is_square(gx1) {
+            let (x, y) = if is_square(gx1) {
                 (x1, sqrt(gx1))
             } else {
                 (x2, sqrt(gx2))
@@ -190,22 +190,22 @@ pub mod curvegroup {
     // CurveGroup representation of Weierstrass curves
     // Points are represented by three-dimensional Jacobian coordinates.
     // See <https://en.wikibooks.org/wiki/Cryptography/Prime_Curve/Jacobian_Coordinates> for details.
-    use crate::ec::swcurve::affine;
     use crate::cmp::Eq;
+    use crate::ec::swcurve::affine;
 
     // Curve specification
     pub struct Curve { // Short Weierstrass curve
         // Coefficients in defining equation y^2 = x^3 + axz^4 + bz^6
-        a: Field,
-        b: Field,
+        pub a: Field,
+        pub b: Field,
         // Generator as point in Cartesian coordinates
-        gen: Point
+        pub gen: Point,
     }
     // Point in three-dimensional Jacobian coordinates
     pub struct Point {
-        x: Field,
-        y: Field,
-        z: Field // z = 0 corresponds to point at infinity.
+        pub x: Field,
+        pub y: Field,
+        pub z: Field, // z = 0 corresponds to point at infinity.
     }
 
     impl Point {
@@ -221,7 +221,7 @@ pub mod curvegroup {
 
         // Conversion to affine coordinates
         pub fn into_affine(self) -> affine::Point {
-            let Self {x, y, z} = self;
+            let Self { x, y, z } = self;
 
             if z == 0 {
                 affine::Point::zero()
@@ -236,21 +236,24 @@ pub mod curvegroup {
         }
 
         // Negation
-        fn negate(self) -> Self {
-            let Self {x, y, z} = self;
+        pub fn negate(self) -> Self {
+            let Self { x, y, z } = self;
             Self { x, y: 0 - y, z }
         }
     }
 
     impl Eq for Point {
         fn eq(self, p: Self) -> bool {
-            let Self {x: x1, y: y1, z: z1} = self;
-            let Self {x: x2, y: y2, z: z2} = p;
+            let Self { x: x1, y: y1, z: z1 } = self;
+            let Self { x: x2, y: y2, z: z2 } = p;
 
-            ((z1 == 0) & (z2 == 0)) | ((z1 != 0)
-                    & (z2 != 0)
-                    & (x1 * z2 * z2 == x2 * z1 * z1)
-                    & (y1 * z2 * z2 * z2 == y2 * z1 * z1 * z1))
+            ((z1 == 0) & (z2 == 0))
+                | (
+                    (z1 != 0)
+                        & (z2 != 0)
+                        & (x1 * z2 * z2 == x2 * z1 * z1)
+                        & (y1 * z2 * z2 * z2 == y2 * z1 * z1 * z1)
+                )
         }
     }
 
@@ -270,14 +273,14 @@ pub mod curvegroup {
 
         // Conversion to affine coordinates
         pub fn into_affine(self) -> affine::Curve {
-            let Curve{a, b, gen} = self;
+            let Curve { a, b, gen } = self;
 
             affine::Curve { a, b, gen: gen.into_affine() }
         }
 
         // Membership check
         pub fn contains(self, p: Point) -> bool {
-            let Point {x, y, z} = p;
+            let Point { x, y, z } = p;
             if z == 0 {
                 true
             } else {
@@ -292,8 +295,8 @@ pub mod curvegroup {
             } else if p2.is_zero() {
                 p1
             } else {
-                let Point {x: x1, y: y1, z: z1} = p1;
-                let Point {x: x2, y: y2, z: z2} = p2;
+                let Point { x: x1, y: y1, z: z1 } = p1;
+                let Point { x: x2, y: y2, z: z2 } = p2;
                 let you1 = x1 * z2 * z2;
                 let you2 = x2 * z1 * z1;
                 let s1 = y1 * z2 * z2 * z2;
@@ -319,7 +322,7 @@ pub mod curvegroup {
 
         // Point doubling
         pub fn double(self, p: Point) -> Point {
-            let Point {x, y, z} = p;
+            let Point { x, y, z } = p;
 
             if p.is_zero() {
                 p
@@ -338,13 +341,18 @@ pub mod curvegroup {
 
         // Scalar multiplication with scalar represented by a bit array (little-endian convention).
         // If k is the natural number represented by `bits`, then this computes p + ... + p k times.
-        fn bit_mul<let N: u32>(self, bits: [u1; N], p: Point) -> Point {
+        pub fn bit_mul<let N: u32>(self, bits: [u1; N], p: Point) -> Point {
             let mut out = Point::zero();
 
             for i in 0..N {
                 out = self.add(
                     self.add(out, out),
-                    if(bits[N - i - 1] == 0) {Point::zero()} else {p});
+                    if (bits[N - i - 1] == 0) {
+                        Point::zero()
+                    } else {
+                        p
+                    },
+                );
             }
 
             out
@@ -363,7 +371,7 @@ pub mod curvegroup {
         }
 
         // Multi-scalar multiplication (n[0]*p[0] + ... + n[N]*p[N], where * denotes scalar multiplication)
-        fn msm<let N: u32>(self, n: [Field; N], p: [Point; N]) -> Point {
+        pub fn msm<let N: u32>(self, n: [Field; N], p: [Point; N]) -> Point {
             let mut out = Point::zero();
 
             for i in 0..N {
@@ -379,7 +387,7 @@ pub mod curvegroup {
         }
 
         // Simplified SWU map-to-curve method
-        fn swu_map(self, z: Field, u: Field) -> Point {
+        pub fn swu_map(self, z: Field, u: Field) -> Point {
             self.into_affine().swu_map(z, u).into_group()
         }
     }

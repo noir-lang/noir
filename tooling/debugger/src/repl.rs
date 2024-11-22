@@ -1,11 +1,12 @@
 use crate::context::{DebugCommandResult, DebugContext, DebugLocation};
 
-use acvm::acir::brillig::{BitSize, IntegerBitSize};
+use acvm::acir::brillig::BitSize;
 use acvm::acir::circuit::brillig::{BrilligBytecode, BrilligFunctionId};
 use acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
 use acvm::acir::native_types::{Witness, WitnessMap, WitnessStack};
 use acvm::brillig_vm::brillig::Opcode as BrilligOpcode;
 use acvm::brillig_vm::MemoryValue;
+use acvm::AcirField;
 use acvm::{BlackBoxFunctionSolver, FieldElement};
 use nargo::NargoError;
 use noirc_driver::CompiledProgram;
@@ -369,11 +370,13 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
             return;
         };
 
-        for (index, value) in memory
-            .iter()
-            .enumerate()
-            .filter(|(_, value)| !matches!(value, MemoryValue::Integer(_, IntegerBitSize::U0)))
-        {
+        for (index, value) in memory.iter().enumerate() {
+            // Zero field is the default value, we omit it when printing memory
+            if let MemoryValue::Field(field) = value {
+                if field == &FieldElement::zero() {
+                    continue;
+                }
+            }
             println!("{index} = {}", value);
         }
     }

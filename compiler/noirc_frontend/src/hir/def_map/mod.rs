@@ -2,7 +2,8 @@ use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::{CompilationError, DefCollector};
 use crate::hir::Context;
 use crate::node_interner::{FuncId, GlobalId, NodeInterner, StructId};
-use crate::parser::{parse_program, ParsedModule, ParserError};
+use crate::parse_program;
+use crate::parser::{ParsedModule, ParserError};
 use crate::token::{FunctionAttribute, SecondaryAttribute, TestScope};
 use fm::{FileId, FileManager};
 use noirc_arena::{Arena, Index};
@@ -168,7 +169,7 @@ impl CrateDefMap {
             module.value_definitions().filter_map(|id| {
                 if let Some(func_id) = id.as_function() {
                     let attributes = interner.function_attributes(&func_id);
-                    match &attributes.function {
+                    match attributes.function() {
                         Some(FunctionAttribute::Test(scope)) => {
                             let location = interner.function_meta(&func_id).name.location;
                             Some(TestFunction::new(func_id, scope.clone(), location))

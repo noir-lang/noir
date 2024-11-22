@@ -222,6 +222,8 @@ pub enum InlineType {
     /// All function calls are expected to be inlined into a single ACIR.
     #[default]
     Inline,
+    /// Functions marked as inline always will always be inlined, even in brillig contexts.
+    InlineAlways,
     /// Functions marked as foldable will not be inlined and compiled separately into ACIR
     Fold,
     /// Functions marked to have no predicates will not be inlined in the default inlining pass
@@ -235,12 +237,11 @@ pub enum InlineType {
 
 impl From<&Attributes> for InlineType {
     fn from(attributes: &Attributes) -> Self {
-        attributes.function.as_ref().map_or(InlineType::default(), |func_attribute| {
-            match func_attribute {
-                FunctionAttribute::Fold => InlineType::Fold,
-                FunctionAttribute::NoPredicates => InlineType::NoPredicates,
-                _ => InlineType::default(),
-            }
+        attributes.function().map_or(InlineType::default(), |func_attribute| match func_attribute {
+            FunctionAttribute::Fold => InlineType::Fold,
+            FunctionAttribute::NoPredicates => InlineType::NoPredicates,
+            FunctionAttribute::InlineAlways => InlineType::InlineAlways,
+            _ => InlineType::default(),
         })
     }
 }
@@ -249,6 +250,7 @@ impl InlineType {
     pub fn is_entry_point(&self) -> bool {
         match self {
             InlineType::Inline => false,
+            InlineType::InlineAlways => false,
             InlineType::Fold => true,
             InlineType::NoPredicates => false,
         }
@@ -259,6 +261,7 @@ impl std::fmt::Display for InlineType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             InlineType::Inline => write!(f, "inline"),
+            InlineType::InlineAlways => write!(f, "inline_always"),
             InlineType::Fold => write!(f, "fold"),
             InlineType::NoPredicates => write!(f, "no_predicates"),
         }
@@ -320,8 +323,6 @@ pub struct Program {
     pub main_function_signature: FunctionSignature,
     pub return_location: Option<Location>,
     pub return_visibility: Visibility,
-    /// Indicates to a backend whether a SNARK-friendly prover should be used.  
-    pub recursive: bool,
     pub debug_variables: DebugVariables,
     pub debug_functions: DebugFunctions,
     pub debug_types: DebugTypes,
@@ -335,7 +336,6 @@ impl Program {
         main_function_signature: FunctionSignature,
         return_location: Option<Location>,
         return_visibility: Visibility,
-        recursive: bool,
         debug_variables: DebugVariables,
         debug_functions: DebugFunctions,
         debug_types: DebugTypes,
@@ -346,7 +346,6 @@ impl Program {
             main_function_signature,
             return_location,
             return_visibility,
-            recursive,
             debug_variables,
             debug_functions,
             debug_types,

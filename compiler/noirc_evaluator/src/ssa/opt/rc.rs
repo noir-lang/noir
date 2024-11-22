@@ -155,6 +155,8 @@ fn remove_instructions(to_remove: HashSet<InstructionId>, function: &mut Functio
 mod test {
     use std::sync::Arc;
 
+    use noirc_frontend::monomorphization::ast::InlineType;
+
     use crate::ssa::{
         function_builder::FunctionBuilder,
         ir::{
@@ -195,11 +197,12 @@ mod test {
         //     inc_rc v0
         //     inc_rc v0
         //     dec_rc v0
-        //     return [v0]
+        //     v1 = make_array [v0]
+        //     return v1
         // }
         let main_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("foo".into(), main_id);
-        builder.set_runtime(RuntimeType::Brillig);
+        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
 
         let inner_array_type = Type::Array(Arc::new(vec![Type::field()]), 2);
         let v0 = builder.add_parameter(inner_array_type.clone());
@@ -209,8 +212,8 @@ mod test {
         builder.insert_dec_rc(v0);
 
         let outer_array_type = Type::Array(Arc::new(vec![inner_array_type]), 1);
-        let array = builder.array_constant(vec![v0].into(), outer_array_type);
-        builder.terminate_with_return(vec![array]);
+        let v1 = builder.insert_make_array(vec![v0].into(), outer_array_type);
+        builder.terminate_with_return(vec![v1]);
 
         let ssa = builder.finish().remove_paired_rc();
         let main = ssa.main();

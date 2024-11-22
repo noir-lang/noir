@@ -18,6 +18,8 @@ use crate::ssa::{
 use fxhash::FxHashMap as HashMap;
 use std::{borrow::Cow, collections::BTreeSet};
 
+pub use self::brillig_ir::procedures::ProcedureId;
+
 /// Context structure for the brillig pass.
 /// It stores brillig-related data required for brillig generation.
 #[derive(Default)]
@@ -65,7 +67,9 @@ impl Ssa {
         let brillig_reachable_function_ids = self
             .functions
             .iter()
-            .filter_map(|(id, func)| (func.runtime() == RuntimeType::Brillig).then_some(*id))
+            .filter_map(|(id, func)| {
+                matches!(func.runtime(), RuntimeType::Brillig(_)).then_some(*id)
+            })
             .collect::<BTreeSet<_>>();
 
         let mut brillig = Brillig::default();

@@ -1,14 +1,8 @@
 comptime mut global COUNTER = 0;
 
 fn main() {
-    comptime
-    {
-        increment()
-    };
-    comptime
-    {
-        increment()
-    };
+    comptime { increment() };
+    comptime { increment() };
 
     assert_eq(get_counter(), 2);
 }

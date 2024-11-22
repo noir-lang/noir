@@ -1,5 +1,5 @@
 // Tests a very simple Brillig function.
-// 
+//
 // The features being tested are cast operations on brillig
 fn main() {
     unsafe {

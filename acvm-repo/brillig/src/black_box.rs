@@ -22,14 +22,9 @@ pub enum BlackBoxOp {
         message: HeapVector,
         output: HeapArray,
     },
-    /// Calculates the Keccak256 hash of the inputs.
-    Keccak256 {
-        message: HeapVector,
-        output: HeapArray,
-    },
     /// Keccak Permutation function of 1600 width
     Keccakf1600 {
-        message: HeapVector,
+        input: HeapArray,
         output: HeapArray,
     },
     /// Verifies a ECDSA signature over the secp256k1 curve.
@@ -55,18 +50,6 @@ pub enum BlackBoxOp {
         message: HeapVector,
         signature: HeapVector,
         result: MemoryAddress,
-    },
-    /// Will be deprecated
-    PedersenCommitment {
-        inputs: HeapVector,
-        domain_separator: MemoryAddress,
-        output: HeapArray,
-    },
-    /// Will be deprecated
-    PedersenHash {
-        inputs: HeapVector,
-        domain_separator: MemoryAddress,
-        output: MemoryAddress,
     },
     /// Performs multi scalar multiplication over the embedded curve.
     MultiScalarMul {
@@ -119,8 +102,8 @@ pub enum BlackBoxOp {
         len: MemoryAddress,
     },
     Sha256Compression {
-        input: HeapVector,
-        hash_values: HeapVector,
+        input: HeapArray,
+        hash_values: HeapArray,
         output: HeapArray,
     },
     ToRadix {

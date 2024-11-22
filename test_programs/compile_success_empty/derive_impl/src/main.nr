@@ -1,7 +1,9 @@
 comptime fn derive_default(typ: StructDefinition) -> Quoted {
     let generics = typ.generics();
     assert_eq(
-        generics.len(), 0, "derive_default: Deriving Default on generic types is currently unimplemented"
+        generics.len(),
+        0,
+        "derive_default: Deriving Default on generic types is currently unimplemented",
     );
 
     let type_name = typ.as_type();

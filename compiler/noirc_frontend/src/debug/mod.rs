@@ -1,5 +1,6 @@
 use crate::ast::PathSegment;
-use crate::parser::{parse_program, ParsedModule};
+use crate::parse_program;
+use crate::parser::ParsedModule;
 use crate::{
     ast,
     ast::{Path, PathKind},

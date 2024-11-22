@@ -37,7 +37,7 @@ impl Ssa {
 
 impl Function {
     pub(crate) fn remove_enable_side_effects(&mut self) {
-        if matches!(self.runtime(), RuntimeType::Brillig) {
+        if matches!(self.runtime(), RuntimeType::Brillig(_)) {
             // Brillig functions do not make use of the `EnableSideEffects` instruction so are unaffected by this pass.
             return;
         }
@@ -145,7 +145,8 @@ impl Context {
             | RangeCheck { .. }
             | IfElse { .. }
             | IncrementRc { .. }
-            | DecrementRc { .. } => false,
+            | DecrementRc { .. }
+            | MakeArray { .. } => false,
 
             EnableSideEffectsIf { .. }
             | ArrayGet { .. }
@@ -178,7 +179,8 @@ impl Context {
                     | Intrinsic::AsSlice
                     | Intrinsic::AsWitness
                     | Intrinsic::IsUnconstrained
-                    | Intrinsic::DerivePedersenGenerators => false,
+                    | Intrinsic::DerivePedersenGenerators
+                    | Intrinsic::FieldLessThan => false,
                 },
 
                 // We must assume that functions contain a side effect as we cannot inspect more deeply.

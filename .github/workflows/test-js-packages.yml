@@ -73,7 +73,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: noirc_abi_wasm
-          path: | 
+          path: |
             ./tooling/noirc_abi_wasm/nodejs
             ./tooling/noirc_abi_wasm/web
           retention-days: 10
@@ -263,9 +263,6 @@ jobs:
       - name: Build noir_js_types
         run: yarn workspace @noir-lang/types build
 
-      - name: Build barretenberg wrapper
-        run: yarn workspace @noir-lang/backend_barretenberg build
-
       - name: Run noir_js tests
         run: |
           yarn workspace @noir-lang/noir_js build
@@ -416,7 +413,7 @@ jobs:
       - name: Setup `integration-tests`
         run: |
           # Note the lack of spaces between package names.
-          PACKAGES_TO_BUILD="@noir-lang/types,@noir-lang/backend_barretenberg,@noir-lang/noir_js"
+          PACKAGES_TO_BUILD="@noir-lang/types,@noir-lang/noir_js"
           yarn workspaces foreach -vtp --from "{$PACKAGES_TO_BUILD}" run build
 
       - name: Run `integration-tests`
@@ -461,7 +458,7 @@ jobs:
       - name: Setup `integration-tests`
         run: |
           # Note the lack of spaces between package names.
-          PACKAGES_TO_BUILD="@noir-lang/types,@noir-lang/backend_barretenberg,@noir-lang/noir_js"
+          PACKAGES_TO_BUILD="@noir-lang/types,@noir-lang/noir_js"
           yarn workspaces foreach -vtp --from "{$PACKAGES_TO_BUILD}" run build
 
       - name: Run `integration-tests`
@@ -524,7 +521,7 @@ jobs:
         - { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-contracts }
         # Disabled as aztec-packages requires a setup-step in order to generate a `Nargo.toml`
         #- { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits }
-        - { repo: zac-williamson/noir-edwards, path: ./, ref: 037e44b2ee8557c51f6aef9bb9d63ea9e32722d1  }
+        - { repo: noir-lang/noir-edwards, path: ./, ref: 3188ea74fe3b059219a2ea87899589c266256d74  }
     name: Check external repo - ${{ matrix.project.repo }}
     steps:
       - name: Checkout
@@ -565,7 +562,7 @@ jobs:
     runs-on: ubuntu-latest
     # We want this job to always run (even if the dependant jobs fail) as we want this job to fail rather than skipping.
     if: ${{ always() }}
-    needs: 
+    needs:
       - test-acvm_js-node
       - test-acvm_js-browser
       - test-noirc-abi

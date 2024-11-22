@@ -14,7 +14,7 @@ use crate::hir::def_collector::dc_crate::DefCollector;
 use crate::hir::def_collector::dc_mod::collect_defs;
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleData};
 use crate::hir::{Context, ParsedFiles};
-use crate::parser::parse_program;
+use crate::parse_program;
 
 fn interpret_helper(src: &str) -> Result<Value, InterpreterError> {
     let file = FileId::default();
@@ -76,6 +76,23 @@ fn interpreter_works() {
     let program = "comptime fn main() -> pub Field { 3 }";
     let result = interpret(program);
     assert_eq!(result, Value::Field(3u128.into()));
+}
+
+#[test]
+fn interpreter_type_checking_works() {
+    let program = "comptime fn main() -> pub u8 { 3 }";
+    let result = interpret(program);
+    assert_eq!(result, Value::U8(3u8));
+}
+
+#[test]
+fn let_statement_works() {
+    let program = "comptime fn main() -> pub i8 {
+        let x = 4;
+        x
+    }";
+    let result = interpret(program);
+    assert_eq!(result, Value::I8(4));
 }
 
 #[test]
@@ -277,5 +294,5 @@ fn generic_functions() {
     }
     ";
     let result = interpret(program);
-    assert!(matches!(result, Value::U8(2)));
+    assert_eq!(result, Value::U8(2));
 }

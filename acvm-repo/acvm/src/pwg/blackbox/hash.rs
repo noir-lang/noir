@@ -49,7 +49,7 @@ fn get_hash_input<F: AcirField>(
             // in the message, then we error.
             if num_bytes_to_take > message_input.len() {
                 return Err(OpcodeResolutionError::BlackBoxFunctionFailed(
-                        acir::BlackBoxFunc::Keccak256,
+                        acir::BlackBoxFunc::Blake2s,
                         format!("the number of bytes to take from the message is more than the number of bytes in the message. {} > {}", num_bytes_to_take, message_input.len()),
                     ));
             }

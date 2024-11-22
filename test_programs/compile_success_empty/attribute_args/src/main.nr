@@ -1,7 +1,7 @@
 #[attr_with_args(1, 2)]
-#[varargs(1, 2)]
-#[varargs(1, 2, 3, 4)]
-struct Foo {}
+#[attr_with_varargs(1, 2)]
+#[attr_with_varargs(1, 2, 3, 4)]
+pub struct Foo {}
 
 comptime fn attr_with_args(s: StructDefinition, a: Field, b: Field) {
     // Ensure all variables are in scope.
@@ -12,7 +12,7 @@ comptime fn attr_with_args(s: StructDefinition, a: Field, b: Field) {
 }
 
 #[varargs]
-comptime fn varargs(s: StructDefinition, t: [Field]) {
+comptime fn attr_with_varargs(s: StructDefinition, t: [Field]) {
     let _ = s;
     for _ in t {}
     assert(t.len() < 5);

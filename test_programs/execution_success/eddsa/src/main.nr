@@ -1,8 +1,7 @@
 use std::compat;
 use std::ec::consts::te::baby_jubjub;
 use std::ec::tecurve::affine::Point as TEPoint;
-use std::hash;
-use std::eddsa::{eddsa_to_pub, eddsa_poseidon_verify, eddsa_verify};
+use std::eddsa::{eddsa_poseidon_verify, eddsa_to_pub, eddsa_verify};
 use std::hash::poseidon2::Poseidon2Hasher;
 
 fn main(msg: pub Field, _priv_key_a: Field, _priv_key_b: Field) {
@@ -50,6 +49,8 @@ fn main(msg: pub Field, _priv_key_a: Field, _priv_key_b: Field) {
         // User A's signature over the message can't be used with another message
         assert(!eddsa_poseidon_verify(pub_key_a.x, pub_key_a.y, s_a, r8_a.x, r8_a.y, msg + 1));
         // Using a different hash should fail
-        assert(!eddsa_verify::<Poseidon2Hasher>(pub_key_a.x, pub_key_a.y, s_a, r8_a.x, r8_a.y, msg));
+        assert(
+            !eddsa_verify::<Poseidon2Hasher>(pub_key_a.x, pub_key_a.y, s_a, r8_a.x, r8_a.y, msg),
+        );
     }
 }

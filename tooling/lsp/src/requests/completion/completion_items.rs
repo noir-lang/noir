@@ -35,6 +35,14 @@ impl<'a> NodeFinder<'a> {
                 | ModuleDefId::TypeAliasId(_)
                 | ModuleDefId::TraitId(_) => (),
             },
+            RequestedItems::OnlyTraits => match module_def_id {
+                ModuleDefId::FunctionId(_) | ModuleDefId::GlobalId(_) | ModuleDefId::TypeId(_) => {
+                    return Vec::new()
+                }
+                ModuleDefId::ModuleId(_)
+                | ModuleDefId::TypeAliasId(_)
+                | ModuleDefId::TraitId(_) => (),
+            },
             RequestedItems::OnlyAttributeFunctions(..) => {
                 if !matches!(module_def_id, ModuleDefId::FunctionId(..)) {
                     return Vec::new();

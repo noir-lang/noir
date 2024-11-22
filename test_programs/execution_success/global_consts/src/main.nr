@@ -10,8 +10,8 @@ global T_LEN: u32 = 2;
 global DERIVED: Field = M as Field + L;
 
 struct Dummy {
-     x: [Field; N],
-     y: [Field; foo::MAGIC_NUMBER]
+    x: [Field; N],
+    y: [Field; foo::MAGIC_NUMBER],
 }
 
 struct Test {
@@ -31,7 +31,7 @@ fn main(
     a: [Field; M + N - N],
     b: [Field; 30 + N / 2],
     c: pub [Field; foo::MAGIC_NUMBER],
-    d: [Field; foo::bar::N]
+    d: [Field; foo::bar::N],
 ) {
     let test_struct = Dummy { x: d, y: c };
 
@@ -109,7 +109,7 @@ mod my_submodule {
 }
 
 struct Foo {
-  a: Field,
+    a: Field,
 }
 
 struct Bar {}
@@ -121,6 +121,4 @@ impl Bar {
 }
 
 // Regression for #1440
-global foo = Foo {
-    a: Bar::get_a(),
-};
+global foo = Foo { a: Bar::get_a() };

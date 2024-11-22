@@ -1,6 +1,6 @@
-#[outer_attribute]
+#['outer_attribute]
 mod foo {
-    #![some_attribute]
+    #!['some_attribute]
     pub fn x() {}
     pub fn y() {}
     pub fn z() {}
@@ -12,7 +12,7 @@ mod foo {
 
 contract bar {}
 
-#[some_attribute]
+#['some_attribute]
 mod another_module {}
 
 #[outer_attribute_func]
@@ -47,7 +47,7 @@ comptime fn outer_attribute_separate_module(m: Module) {
     increment_counter();
 }
 
-struct Foo {}
+pub struct Foo {}
 
 #[add_function]
 mod add_to_me {
@@ -59,15 +59,14 @@ comptime fn add_function(m: Module) {
         quote { pub fn added_function() -> super::Foo {
             add_to_me_function();
             super::Foo {}
-    } }
+    } },
     );
 }
 
 fn main() {
     let _ = foo::Struct1 {};
 
-    comptime
-    {
+    comptime {
         // Check Module::is_contract
         let foo = quote { foo }.as_module().unwrap();
         assert(!foo.is_contract());
@@ -120,8 +119,7 @@ mod baz {
 
 #[test]
 fn as_module_test() {
-    comptime
-    {
+    comptime {
         let my_mod = quote { baz::qux }.as_module().unwrap();
         assert_eq(my_mod.name(), quote { qux });
     }

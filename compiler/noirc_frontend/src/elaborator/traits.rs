@@ -10,8 +10,11 @@ use crate::{
         UnresolvedTraitConstraint, UnresolvedType,
     },
     hir::{def_collector::dc_crate::UnresolvedTrait, type_check::TypeCheckError},
-    hir_def::{function::Parameters, traits::TraitFunction},
-    node_interner::{FuncId, NodeInterner, ReferenceId, TraitId},
+    hir_def::{
+        function::Parameters,
+        traits::{ResolvedTraitBound, TraitFunction},
+    },
+    node_interner::{DependencyId, FuncId, NodeInterner, ReferenceId, TraitId},
     ResolvedGeneric, Type, TypeBindings,
 };
 
@@ -20,6 +23,8 @@ use super::Elaborator;
 impl<'context> Elaborator<'context> {
     pub fn collect_traits(&mut self, traits: &BTreeMap<TraitId, UnresolvedTrait>) {
         for (trait_id, unresolved_trait) in traits {
+            self.local_module = unresolved_trait.module_id;
+
             self.recover_generics(|this| {
                 this.current_trait = Some(*trait_id);
 
@@ -29,15 +34,26 @@ impl<'context> Elaborator<'context> {
                     &resolved_generics,
                 );
 
+                let where_clause =
+                    this.resolve_trait_constraints(&unresolved_trait.trait_def.where_clause);
+
                 // Each associated type in this trait is also an implicit generic
                 for associated_type in &this.interner.get_trait(*trait_id).associated_types {
                     this.generics.push(associated_type.clone());
+                }
+
+                let resolved_trait_bounds = this.resolve_trait_bounds(unresolved_trait);
+                for bound in &resolved_trait_bounds {
+                    this.interner
+                        .add_trait_dependency(DependencyId::Trait(bound.trait_id), *trait_id);
                 }
 
                 let methods = this.resolve_trait_methods(*trait_id, unresolved_trait);
 
                 this.interner.update_trait(*trait_id, |trait_def| {
                     trait_def.set_methods(methods);
+                    trait_def.set_trait_bounds(resolved_trait_bounds);
+                    trait_def.set_where_clause(where_clause);
                 });
             });
 
@@ -51,6 +67,14 @@ impl<'context> Elaborator<'context> {
         }
 
         self.current_trait = None;
+    }
+
+    fn resolve_trait_bounds(
+        &mut self,
+        unresolved_trait: &UnresolvedTrait,
+    ) -> Vec<ResolvedTraitBound> {
+        let bounds = &unresolved_trait.trait_def.bounds;
+        bounds.iter().filter_map(|bound| self.resolve_trait_bound(bound)).collect()
     }
 
     fn resolve_trait_methods(

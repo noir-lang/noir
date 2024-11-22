@@ -80,7 +80,7 @@ jobs:
 
       - name: Build docs
         env:
-          MATOMO_ENV: staging # not really a secret, it will show in the footer anyway
+          ENV: staging # not really a secret, it will show in the footer anyway
         run: yarn workspaces foreach -Rpt --from docs run build
 
       - name: Upload artifact

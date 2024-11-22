@@ -2,18 +2,13 @@ import { expect } from 'chai';
 import assert_lt_json from '../../circuits/assert_lt/target/assert_lt.json' assert { type: 'json' };
 import fold_fibonacci_json from '../../circuits/fold_fibonacci/target/fold_fibonacci.json' assert { type: 'json' };
 import { Noir } from '@noir-lang/noir_js';
-import {
-  BarretenbergBackend as Backend,
-  BarretenbergVerifier as Verifier,
-  UltraHonkBackend,
-  UltraHonkVerifier,
-} from '@noir-lang/backend_barretenberg';
+import { BarretenbergVerifier, UltraPlonkBackend, UltraHonkBackend } from '@aztec/bb.js';
 import { CompiledCircuit } from '@noir-lang/types';
 
 const assert_lt_program = assert_lt_json as CompiledCircuit;
 const fold_fibonacci_program = fold_fibonacci_json as CompiledCircuit;
 
-const backend = new Backend(assert_lt_program);
+const backend = new UltraPlonkBackend(assert_lt_program.bytecode);
 
 it('end-to-end proof creation and verification (outer)', async () => {
   // Noir.Js part
@@ -53,8 +48,8 @@ it('end-to-end proof creation and verification (outer) -- Verifier API', async (
   const verificationKey = await backend.getVerificationKey();
 
   // Proof verification
-  const verifier = new Verifier();
-  const isValid = await verifier.verifyProof(proof, verificationKey);
+  const verifier = new BarretenbergVerifier();
+  const isValid = await verifier.verifyUltraPlonkProof(proof, verificationKey);
   expect(isValid).to.be.true;
 });
 
@@ -94,7 +89,7 @@ it('end-to-end proving and verification with different instances', async () => {
   // bb.js part
   const proof = await backend.generateProof(witness);
 
-  const verifier = new Backend(assert_lt_program);
+  const verifier = new UltraPlonkBackend(assert_lt_program.bytecode);
   const proof_is_valid = await verifier.verifyProof(proof);
   expect(proof_is_valid).to.be.true;
 });
@@ -148,7 +143,7 @@ it('end-to-end proof creation and verification for multiple ACIR circuits (inner
   // bb.js part
   //
   // Proof creation
-  const backend = new Backend(fold_fibonacci_program);
+  const backend = new UltraPlonkBackend(fold_fibonacci_program.bytecode);
   const proof = await backend.generateProof(witness);
 
   // Proof verification
@@ -156,7 +151,7 @@ it('end-to-end proof creation and verification for multiple ACIR circuits (inner
   expect(isValid).to.be.true;
 });
 
-const honkBackend = new UltraHonkBackend(assert_lt_program);
+const honkBackend = new UltraHonkBackend(assert_lt_program.bytecode);
 
 it('UltraHonk end-to-end proof creation and verification (outer)', async () => {
   // Noir.Js part
@@ -196,8 +191,8 @@ it('UltraHonk end-to-end proof creation and verification (outer) -- Verifier API
   const verificationKey = await honkBackend.getVerificationKey();
 
   // Proof verification
-  const verifier = new UltraHonkVerifier();
-  const isValid = await verifier.verifyProof(proof, verificationKey);
+  const verifier = new BarretenbergVerifier();
+  const isValid = await verifier.verifyUltraHonkProof(proof, verificationKey);
   expect(isValid).to.be.true;
 });
 
@@ -236,7 +231,7 @@ it('UltraHonk end-to-end proving and verification with different instances', asy
   // bb.js part
   const proof = await honkBackend.generateProof(witness);
 
-  const verifier = new UltraHonkBackend(assert_lt_program);
+  const verifier = new UltraHonkBackend(assert_lt_program.bytecode);
   const proof_is_valid = await verifier.verifyProof(proof);
   expect(proof_is_valid).to.be.true;
 });
@@ -283,7 +278,7 @@ it('UltraHonk end-to-end proof creation and verification for multiple ACIR circu
   // bb.js part
   //
   // Proof creation
-  const honkBackend = new UltraHonkBackend(fold_fibonacci_program);
+  const honkBackend = new UltraHonkBackend(fold_fibonacci_program.bytecode);
   const proof = await honkBackend.generateProof(witness);
 
   // Proof verification

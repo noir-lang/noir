@@ -18,13 +18,21 @@ impl Fieldable for [u32; 3] {
 
 impl Fieldable for bool {
     fn to_field(self) -> Field {
-        if self { 14 } else { 3 }
+        if self {
+            14
+        } else {
+            3
+        }
     }
 }
 
 impl Fieldable for (u32, bool) {
     fn to_field(self) -> Field {
-        if self.1 { self.0 as Field } else { 32 }
+        if self.1 {
+            self.0 as Field
+        } else {
+            32
+        }
     }
 }
 

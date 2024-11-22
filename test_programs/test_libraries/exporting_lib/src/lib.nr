@@ -1,8 +1,8 @@
-struct MyStruct {
-    inner: Field
+pub struct MyStruct {
+    pub inner: Field
 }
 
-type FooStruct = MyStruct;
+pub type FooStruct = MyStruct;
 
 pub fn is_struct_zero(val: MyStruct) -> bool {
     val.inner == 0

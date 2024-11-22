@@ -7,12 +7,14 @@ use acir::{
 
 // The various passes that we can use over ACIR
 mod optimizers;
+mod simulator;
 mod transformers;
 
 pub use optimizers::optimize;
 use optimizers::optimize_internal;
-pub use transformers::transform;
+pub use simulator::CircuitSimulator;
 use transformers::transform_internal;
+pub use transformers::{transform, MIN_EXPRESSION_WIDTH};
 
 /// This module moves and decomposes acir opcodes. The transformation map allows consumers of this module to map
 /// metadata they had about the opcodes to the new opcode structure generated after the transformation.

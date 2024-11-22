@@ -1,4 +1,4 @@
-use lsp_types::{Position, Range, TextEdit};
+use lsp_types::TextEdit;
 use noirc_errors::Location;
 use noirc_frontend::{
     ast::{Ident, Path},
@@ -8,6 +8,10 @@ use noirc_frontend::{
 use crate::{
     byte_span_to_range,
     modules::{relative_module_full_path, relative_module_id_path},
+    use_segment_positions::{
+        use_completion_item_additional_text_edits, UseCompletionItemAdditionTextEditsRequest,
+    },
+    visibility::module_def_id_is_visible,
 };
 
 use super::CodeActionFinder;
@@ -38,6 +42,17 @@ impl<'a> CodeActionFinder<'a> {
             }
 
             for (module_def_id, visibility, defining_module) in entries {
+                if !module_def_id_is_visible(
+                    *module_def_id,
+                    self.module_id,
+                    *visibility,
+                    *defining_module,
+                    self.interner,
+                    self.def_maps,
+                ) {
+                    continue;
+                }
+
                 let module_full_path = if let Some(defining_module) = defining_module {
                     relative_module_id_path(
                         *defining_module,
@@ -48,11 +63,9 @@ impl<'a> CodeActionFinder<'a> {
                 } else {
                     let Some(module_full_path) = relative_module_full_path(
                         *module_def_id,
-                        *visibility,
                         self.module_id,
                         current_module_parent_id,
                         self.interner,
-                        self.def_maps,
                     ) else {
                         continue;
                     };
@@ -82,25 +95,21 @@ impl<'a> CodeActionFinder<'a> {
     }
 
     fn push_import_code_action(&mut self, full_path: &str) {
-        let line = self.auto_import_line as u32;
-        let character = (self.nesting * 4) as u32;
-        let indent = " ".repeat(self.nesting * 4);
-        let mut newlines = "\n";
-
-        // If the line we are inserting into is not an empty line, insert an extra line to make some room
-        if let Some(line_text) = self.lines.get(line as usize) {
-            if !line_text.trim().is_empty() {
-                newlines = "\n\n";
-            }
-        }
-
         let title = format!("Import {}", full_path);
-        let text_edit = TextEdit {
-            range: Range { start: Position { line, character }, end: Position { line, character } },
-            new_text: format!("use {};{}{}", full_path, newlines, indent),
-        };
 
-        let code_action = self.new_quick_fix(title, text_edit);
+        let text_edits = use_completion_item_additional_text_edits(
+            UseCompletionItemAdditionTextEditsRequest {
+                full_path,
+                files: self.files,
+                file: self.file,
+                lines: &self.lines,
+                nesting: self.nesting,
+                auto_import_line: self.auto_import_line,
+            },
+            &self.use_segment_positions,
+        );
+
+        let code_action = self.new_quick_fix_multiple_edits(title, text_edits);
         self.code_actions.push(code_action);
     }
 
@@ -133,7 +142,7 @@ mod tests {
 
         let src = r#"
         mod foo {
-            mod bar {
+            pub mod bar {
                 pub struct SomeTypeInBar {}
             }
         }
@@ -143,7 +152,7 @@ mod tests {
 
         let expected = r#"
         mod foo {
-            mod bar {
+            pub mod bar {
                 pub struct SomeTypeInBar {}
             }
         }
@@ -159,7 +168,7 @@ mod tests {
         let title = "Import foo::bar::SomeTypeInBar";
 
         let src = r#"mod foo {
-    mod bar {
+    pub mod bar {
         pub struct SomeTypeInBar {}
     }
 }
@@ -169,7 +178,7 @@ fn foo(x: SomeType>|<InBar) {}"#;
         let expected = r#"use foo::bar::SomeTypeInBar;
 
 mod foo {
-    mod bar {
+    pub mod bar {
         pub struct SomeTypeInBar {}
     }
 }
@@ -185,8 +194,8 @@ fn foo(x: SomeTypeInBar) {}"#;
 
         let src = r#"
         mod foo {
-            mod bar {
-                mod some_module_in_bar {}
+            pub mod bar {
+                pub mod some_module_in_bar {}
             }
         }
 
@@ -197,8 +206,8 @@ fn foo(x: SomeTypeInBar) {}"#;
 
         let expected = r#"
         mod foo {
-            mod bar {
-                mod some_module_in_bar {}
+            pub mod bar {
+                pub mod some_module_in_bar {}
             }
         }
 
@@ -215,8 +224,8 @@ fn foo(x: SomeTypeInBar) {}"#;
         let title = "Import foo::bar::some_module_in_bar";
 
         let src = r#"mod foo {
-    mod bar {
-        mod some_module_in_bar {}
+    pub mod bar {
+        pub(crate) mod some_module_in_bar {}
     }
 }
 
@@ -227,14 +236,41 @@ fn main() {
         let expected = r#"use foo::bar::some_module_in_bar;
 
 mod foo {
-    mod bar {
-        mod some_module_in_bar {}
+    pub mod bar {
+        pub(crate) mod some_module_in_bar {}
     }
 }
 
 fn main() {
     some_module_in_bar
 }"#;
+
+        assert_code_action(title, src, expected).await;
+    }
+
+    #[test]
+    async fn test_import_code_action_for_struct_inserts_into_existing_use() {
+        let title = "Import foo::bar::SomeTypeInBar";
+
+        let src = r#"use foo::bar::SomeOtherType;
+
+mod foo {
+    pub mod bar {
+        pub struct SomeTypeInBar {}
+    }
+}
+
+fn foo(x: SomeType>|<InBar) {}"#;
+
+        let expected = r#"use foo::bar::{SomeOtherType, SomeTypeInBar};
+
+mod foo {
+    pub mod bar {
+        pub struct SomeTypeInBar {}
+    }
+}
+
+fn foo(x: SomeTypeInBar) {}"#;
 
         assert_code_action(title, src, expected).await;
     }

@@ -7,7 +7,7 @@ fn main() {
 }
 
 struct MyStruct579 {
-    array_param: [u32; 2]
+    array_param: [u32; 2],
 }
 
 impl MyStruct579 {
@@ -20,7 +20,7 @@ fn test(flag: bool) -> MyStruct579 {
     let mut my_struct = MyStruct579::new([0; 2]);
 
     if flag == true {
-        my_struct=  MyStruct579::new([1; 2]);
+        my_struct = MyStruct579::new([1; 2]);
     }
     my_struct
 }

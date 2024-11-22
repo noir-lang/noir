@@ -1,5 +1,5 @@
 #[foo]
-struct Foo {}
+pub struct Foo {}
 
 fn main() {
     assert_eq(ONE, 1);

@@ -544,12 +544,22 @@ impl<'a> Poseidon2<'a> {
 }
 
 /// Performs a poseidon hash with a sponge construction equivalent to the one in poseidon2.nr
-pub fn poseidon_hash(inputs: &[FieldElement]) -> Result<FieldElement, BlackBoxResolutionError> {
+///
+/// The `is_variable_length` parameter is there to so we can produce an equivalent hash with
+/// the Barretenberg implementation which distinguishes between variable and fixed length inputs.
+/// Set it to true if the input length matches the static size expected by the Noir function.
+pub fn poseidon_hash(
+    inputs: &[FieldElement],
+    is_variable_length: bool,
+) -> Result<FieldElement, BlackBoxResolutionError> {
     let two_pow_64 = 18446744073709551616_u128.into();
     let iv = FieldElement::from(inputs.len()) * two_pow_64;
     let mut sponge = Poseidon2Sponge::new(iv, 3);
     for input in inputs.iter() {
         sponge.absorb(*input)?;
+    }
+    if is_variable_length {
+        sponge.absorb(FieldElement::from(1u32))?;
     }
     sponge.squeeze()
 }
@@ -640,7 +650,7 @@ mod test {
             FieldElement::from(3u128),
             FieldElement::from(4u128),
         ];
-        let result = super::poseidon_hash(&fields).expect("should hash successfully");
+        let result = super::poseidon_hash(&fields, false).expect("should hash successfully");
         assert_eq!(
             result,
             field_from_hex("130bf204a32cac1f0ace56c78b731aa3809f06df2731ebcf6b3464a15788b1b9"),

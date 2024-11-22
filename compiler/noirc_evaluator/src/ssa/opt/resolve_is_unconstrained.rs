@@ -48,7 +48,7 @@ impl Function {
             self.dfg.replace_result(instruction_id, original_return_id);
 
             let is_within_unconstrained = self.dfg.make_constant(
-                FieldElement::from(matches!(self.runtime(), RuntimeType::Brillig)),
+                FieldElement::from(matches!(self.runtime(), RuntimeType::Brillig(_))),
                 Type::bool(),
             );
             // Replace all uses of the original return value with the constant

@@ -115,6 +115,11 @@ impl Context {
             terminator.mutate_blocks(|old_block| self.new_ids.blocks[&old_block]);
             new_function.dfg.set_block_terminator(new_block_id, terminator);
         }
+
+        // Also map the values in the databus
+        let old_databus = &old_function.dfg.data_bus;
+        new_function.dfg.data_bus = old_databus
+            .map_values(|old_value| self.new_ids.map_value(new_function, old_function, old_value));
     }
 }
 
@@ -173,19 +178,6 @@ impl IdMaps {
 
             Value::NumericConstant { constant, typ } => {
                 new_function.dfg.make_constant(*constant, typ.clone())
-            }
-            Value::Array { array, typ } => {
-                if let Some(value) = self.values.get(&old_value) {
-                    return *value;
-                }
-
-                let array = array
-                    .iter()
-                    .map(|value| self.map_value(new_function, old_function, *value))
-                    .collect();
-                let new_value = new_function.dfg.make_array(array, typ.clone());
-                self.values.insert(old_value, new_value);
-                new_value
             }
             Value::Intrinsic(intrinsic) => new_function.dfg.import_intrinsic(*intrinsic),
             Value::ForeignFunction(name) => new_function.dfg.import_foreign_function(name),

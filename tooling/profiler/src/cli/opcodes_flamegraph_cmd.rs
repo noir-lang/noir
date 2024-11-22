@@ -7,9 +7,9 @@ use color_eyre::eyre::{self, Context};
 
 use noirc_artifacts::debug::DebugArtifact;
 
-use crate::flamegraph::{FlamegraphGenerator, InfernoFlamegraphGenerator, Sample};
+use crate::flamegraph::{CompilationSample, FlamegraphGenerator, InfernoFlamegraphGenerator};
 use crate::fs::read_program_from_file;
-use crate::opcode_formatter::AcirOrBrilligOpcode;
+use crate::opcode_formatter::{format_acir_opcode, format_brillig_opcode};
 
 #[derive(Debug, Clone, Args)]
 pub(crate) struct OpcodesFlamegraphCommand {
@@ -59,8 +59,8 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
             .opcodes
             .iter()
             .enumerate()
-            .map(|(index, opcode)| Sample {
-                opcode: AcirOrBrilligOpcode::Acir(opcode.clone()),
+            .map(|(index, opcode)| CompilationSample {
+                opcode: Some(format_acir_opcode(opcode)),
                 call_stack: vec![OpcodeLocation::Acir(index)],
                 count: 1,
                 brillig_function_id: None,
@@ -96,8 +96,8 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
                 .bytecode
                 .into_iter()
                 .enumerate()
-                .map(|(brillig_index, opcode)| Sample {
-                    opcode: AcirOrBrilligOpcode::Brillig(opcode),
+                .map(|(brillig_index, opcode)| CompilationSample {
+                    opcode: Some(format_brillig_opcode(&opcode)),
                     call_stack: vec![OpcodeLocation::Brillig {
                         acir_index: acir_opcode_index,
                         brillig_index,
@@ -146,7 +146,7 @@ mod tests {
             brillig::{BrilligBytecode, BrilligFunctionId},
             Circuit, Opcode, Program,
         },
-        AcirField, FieldElement,
+        FieldElement,
     };
     use color_eyre::eyre::{self};
     use fm::codespan_files::Files;
@@ -160,9 +160,9 @@ mod tests {
     struct TestFlamegraphGenerator {}
 
     impl super::FlamegraphGenerator for TestFlamegraphGenerator {
-        fn generate_flamegraph<'files, F: AcirField>(
+        fn generate_flamegraph<'files, S: Sample>(
             &self,
-            _samples: Vec<Sample<F>>,
+            _samples: Vec<S>,
             _debug_symbols: &DebugInfo,
             _files: &'files impl Files<'files, FileId = fm::FileId>,
             _artifact_name: &str,
