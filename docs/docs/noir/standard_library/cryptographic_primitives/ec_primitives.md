@@ -97,6 +97,5 @@ fn bjj_pub_key(priv_key: Field) -> Point
 This would come in handy in a Merkle proof.
 
 - EdDSA signature verification: This is a matter of combining these primitives with a suitable hash
-  function. See
-  [feat(stdlib): EdDSA sig verification noir#1136](https://github.com/noir-lang/noir/pull/1136) for
-  the case of Baby Jubjub and the Poseidon hash function.
+  function. See the [eddsa](https://github.com/noir-lang/eddsa) library an example of eddsa signature verification
+  over the Baby Jubjub curve.

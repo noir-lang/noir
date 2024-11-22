@@ -103,6 +103,7 @@ pub(crate) fn optimize_into_acir(
         Ssa::evaluate_static_assert_and_assert_constant,
         "After `static_assert` and `assert_constant`:",
     )?
+    .run_pass(Ssa::loop_invariant_code_motion, "After Loop Invariant Code Motion:")
     .try_run_pass(Ssa::unroll_loops_iteratively, "After Unrolling:")?
     .run_pass(Ssa::simplify_cfg, "After Simplifying (2nd):")
     .run_pass(Ssa::flatten_cfg, "After Flattening:")
@@ -139,6 +140,23 @@ pub(crate) fn optimize_into_acir(
     let brillig = time("SSA to Brillig", options.print_codegen_timings, || {
         ssa.to_brillig(options.enable_brillig_logging)
     });
+
+    let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
+    let ssa_gen_span_guard = ssa_gen_span.enter();
+
+    let ssa = SsaBuilder {
+        ssa,
+        print_ssa_passes: options.enable_ssa_logging,
+        print_codegen_timings: options.print_codegen_timings,
+    }
+    .run_pass(
+        |ssa| ssa.fold_constants_with_brillig(&brillig),
+        "After Constant Folding with Brillig:",
+    )
+    .run_pass(Ssa::dead_instruction_elimination, "After Dead Instruction Elimination:")
+    .finish();
+
+    drop(ssa_gen_span_guard);
 
     let artifacts = time("SSA to ACIR", options.print_codegen_timings, || {
         ssa.into_acir(&brillig, options.expression_width)
