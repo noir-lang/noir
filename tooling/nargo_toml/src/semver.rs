@@ -3,11 +3,14 @@ use nargo::{
     package::{Dependency, Package},
     workspace::Workspace,
 };
-use semver::{Error, Version, VersionReq};
+use noirc_driver::CrateName;
+use semver::{Error, Prerelease, Version, VersionReq};
 
 // Parse a semver compatible version string
 pub(crate) fn parse_semver_compatible_version(version: &str) -> Result<Version, Error> {
-    Version::parse(version)
+    let mut version = Version::parse(version)?;
+    version.pre = Prerelease::EMPTY;
+    Ok(version)
 }
 
 // Check that all of the packages in the workspace are compatible with the current compiler version
@@ -25,10 +28,7 @@ pub(crate) fn semver_check_workspace(
 }
 
 // Check that a package and all of its dependencies are compatible with the current compiler version
-pub(crate) fn semver_check_package(
-    package: &Package,
-    compiler_version: &Version,
-) -> Result<(), SemverError> {
+fn semver_check_package(package: &Package, compiler_version: &Version) -> Result<(), SemverError> {
     // Check that this package's compiler version requirements are satisfied
     if let Some(version) = &package.compiler_required_version {
         let version_req = match VersionReq::parse(version) {
@@ -40,6 +40,9 @@ pub(crate) fn semver_check_package(
                 })
             }
         };
+
+        validate_compiler_version_requirement(&package.name, &version_req)?;
+
         if !version_req.matches(compiler_version) {
             return Err(SemverError::IncompatibleVersion {
                 package_name: package.name.clone(),
@@ -56,6 +59,20 @@ pub(crate) fn semver_check_package(
                 semver_check_package(package, compiler_version)?;
             }
         }
+    }
+
+    Ok(())
+}
+
+fn validate_compiler_version_requirement(
+    package_name: &CrateName,
+    required_compiler_version: &VersionReq,
+) -> Result<(), SemverError> {
+    if required_compiler_version.comparators.iter().any(|comparator| !comparator.pre.is_empty()) {
+        return Err(SemverError::InvalidCompilerVersionRequirement {
+            package_name: package_name.clone(),
+            required_compiler_version: required_compiler_version.to_string(),
+        });
     }
 
     Ok(())
@@ -188,6 +205,26 @@ mod tests {
 
         if let Err(err) = semver_check_package(&package, &compiler_version) {
             panic!("semver check should have passed. compiler version is 0.2.0 and required version from the package is >=0.1.0\n error: {err:?}")
+        };
+    }
+
+    #[test]
+    fn test_semver_prerelease() {
+        let compiler_version = parse_semver_compatible_version("1.0.0-beta.0").unwrap();
+
+        let package = Package {
+            compiler_required_version: Some(">=0.1.0".to_string()),
+            root_dir: PathBuf::new(),
+            package_type: PackageType::Library,
+            entry_path: PathBuf::new(),
+            name: CrateName::from_str("test").unwrap(),
+            dependencies: BTreeMap::new(),
+            version: Some("1.0".to_string()),
+            expression_width: None,
+        };
+
+        if let Err(err) = semver_check_package(&package, &compiler_version) {
+            panic!("{err}");
         };
     }
 
