@@ -213,7 +213,11 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
         let mut iter = bytes.iter().skip_while(|x| (**x) == 0);
 
         // The first non-zero byte in the decomposition may have some leading zero-bits.
-        let head_byte = iter.next().copied().unwrap_or(0);
+        let Some(head_byte) = iter.next() else {
+            // If we don't have a non-zero byte then the field element is zero,
+            // which we consider to require a single bit to represent.
+            return 1;
+        };
         let num_bits_for_head_byte = head_byte.ilog2();
 
         // Each remaining byte in the byte decomposition requires 8 bits.
