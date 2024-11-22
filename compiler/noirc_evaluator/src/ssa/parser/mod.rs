@@ -316,9 +316,11 @@ impl<'a> Parser<'a> {
 
         let assert_message = if self.eat(Token::Comma)? {
             if let Some(str) = self.eat_str()? {
-                Some(AssertMessage::String(str))
+                Some(AssertMessage::Static(str))
+            } else if self.eat_keyword(Keyword::Data)? {
+                Some(AssertMessage::Dynamic(self.parse_comma_separated_values()?))
             } else {
-                todo!("Dynamic assert message")
+                return self.expected_string_or_data();
             }
         } else {
             None
@@ -839,6 +841,13 @@ impl<'a> Parser<'a> {
         })
     }
 
+    fn expected_string_or_data<T>(&mut self) -> ParseResult<T> {
+        Err(ParserError::ExpectedStringOrData {
+            found: self.token.token().clone(),
+            span: self.token.to_span(),
+        })
+    }
+
     fn expected_identifier<T>(&mut self) -> ParseResult<T> {
         Err(ParserError::ExpectedIdentifier {
             found: self.token.token().clone(),
@@ -900,6 +909,8 @@ pub(crate) enum ParserError {
     ExpectedType { found: Token, span: Span },
     #[error("Expected an instruction or terminator, found '{found}'")]
     ExpectedInstructionOrTerminator { found: Token, span: Span },
+    #[error("Expected a string literal or 'data', found '{found}'")]
+    ExpectedStringOrData { found: Token, span: Span },
     #[error("Expected a value, found '{found}'")]
     ExpectedValue { found: Token, span: Span },
     #[error("Multiple return values only allowed for call")]
@@ -916,6 +927,7 @@ impl ParserError {
             | ParserError::ExpectedInt { span, .. }
             | ParserError::ExpectedType { span, .. }
             | ParserError::ExpectedInstructionOrTerminator { span, .. }
+            | ParserError::ExpectedStringOrData { span, .. }
             | ParserError::ExpectedValue { span, .. } => *span,
             ParserError::MultipleReturnValuesOnlyAllowedForCall { second_target, .. } => {
                 second_target.span

@@ -132,7 +132,8 @@ pub(crate) enum ParsedInstruction {
 
 #[derive(Debug)]
 pub(crate) enum AssertMessage {
-    String(String),
+    Static(String),
+    Dynamic(Vec<ParsedValue>),
 }
 
 #[derive(Debug)]

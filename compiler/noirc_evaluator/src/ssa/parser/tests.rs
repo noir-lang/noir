@@ -227,6 +227,19 @@ fn test_constrain_with_static_message() {
 }
 
 #[test]
+fn test_constrain_with_dynamic_message() {
+    let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v7 = make_array [u8 123, u8 120, u8 125, u8 32, u8 123, u8 121, u8 125] : [u8; 7]
+            constrain v0 == Field 1, data v7, u32 2, v0, v1
+            return
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
 fn test_enable_side_effects() {
     let src = "
         acir(inline) fn main f0 {
