@@ -23,7 +23,7 @@ Oracles are functions that provide this feature.
 
 An example usage for Oracles is proving something on-chain. For example, proving that the ETH-USDC quote was below a certain target at a certain block time. Or even making more complex proofs like proving the ownership of an NFT as an anonymous login method.
 
-Another interesting use case is to defer expensive calculations to be made outside of the Noir program, and then constraining the result; similar to the use of [unconstrained functions](../noir/concepts//unconstrained.md).
+Another interesting use case is to defer expensive calculations to be made outside of the Noir program, and then constraining the result; similar to the use of [unconstrained functions](../noir/concepts/unconstrained.md).
 
 In short, anything that can be constrained in a Noir program but needs to be fetched from an external source is a great candidate to be used in oracles.
 
