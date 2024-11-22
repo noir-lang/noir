@@ -33,7 +33,7 @@ impl Function {
     }
 }
 
-fn known_slice_lengths(func: &Function) -> HashMap<InstructionId, usize> {
+fn known_slice_lengths(func: &Function) -> HashMap<InstructionId, u32> {
     let mut known_slice_lengths = HashMap::default();
     for block_id in func.reachable_blocks() {
         let block = &func.dfg[block_id];
@@ -61,7 +61,7 @@ fn known_slice_lengths(func: &Function) -> HashMap<InstructionId, usize> {
 
 fn replace_known_slice_lengths(
     func: &mut Function,
-    known_slice_lengths: HashMap<InstructionId, usize>,
+    known_slice_lengths: HashMap<InstructionId, u32>,
 ) {
     known_slice_lengths.into_iter().for_each(|(instruction_id, known_length)| {
         let call_returns = func.dfg.instruction_results(instruction_id);
