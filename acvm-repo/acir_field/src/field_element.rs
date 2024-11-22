@@ -373,7 +373,7 @@ mod tests {
 
     proptest! {
         #[test]
-        fn num_bits_agrees_with_ilog2(num: u128) {
+        fn num_bits_agrees_with_ilog2(num in 1u128..) {
             let field = FieldElement::<ark_bn254::Fr>::from(num);
             prop_assert_eq!(field.num_bits(), num.ilog2());
         }
