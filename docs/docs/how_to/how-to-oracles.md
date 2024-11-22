@@ -22,7 +22,7 @@ This guide shows you how to use oracles in your Noir program. For the sake of cl
 
 This guide has 3 major steps:
 
-1. How to modify our Noir program to make use of oracle calls as unconstrained function
+1. How to modify our Noir program to make use of oracle calls as unconstrained functions
 2. How to write a JSON RPC Server to resolve these oracle calls with Nargo
 3. How to use them in Nargo and how to provide a custom resolver in NoirJS
 
