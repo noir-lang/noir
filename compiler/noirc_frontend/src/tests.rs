@@ -3254,17 +3254,26 @@ fn dont_infer_globals_to_u32_from_type_use() {
 }
 
 #[test]
-fn infer_partial_global_types() {
+fn dont_infer_partial_global_types() {
     let src = r#"
         pub global ARRAY: [Field; _] = [0; 3];
+        pub global NESTED_ARRAY: [[Field; _]; 3] = [[]; 3];
         pub global STR: str<_> = "hi";
+        pub global NESTED_STR: [str<_>] = &["hi"];
         pub global FMT_STR: fmtstr<_, _> = f"hi {ARRAY}";
+        pub global TUPLE_WITH_MULTIPLE: ([str<_>], [[Field; _]; 3]) = (&["hi"], [[]; 3]);
 
         fn main() { }
     "#;
 
     let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 0);
+    assert_eq!(errors.len(), 6);
+    for (error, _file_id) in errors {
+        assert!(matches!(
+            error,
+            CompilationError::ResolverError(ResolverError::UnspecifiedGlobalType { .. })
+        ));
+    }
 }
 
 #[test]
