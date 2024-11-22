@@ -8,7 +8,7 @@ use crate::{
     ast::{
         AsTraitPath, BinaryOpKind, GenericTypeArgs, Ident, IntegerBitSize, Path, PathKind,
         Signedness, UnaryOp, UnresolvedGeneric, UnresolvedGenerics, UnresolvedType,
-        UnresolvedTypeData, UnresolvedTypeExpression,
+        UnresolvedTypeData, UnresolvedTypeExpression, WILDCARD_TYPE,
     },
     hir::{
         def_collector::dc_crate::CompilationError,
@@ -38,7 +38,6 @@ use crate::{
 use super::{lints, path_resolution::PathResolutionItem, Elaborator};
 
 pub const SELF_TYPE_NAME: &str = "Self";
-pub const WILDCARD_TYPE: &str = "_";
 
 pub(super) struct TraitPathResolution {
     pub(super) method: TraitMethod,

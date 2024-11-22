@@ -1,4 +1,4 @@
-comptime mut global COUNTER = 0;
+comptime mut global COUNTER: Field = 0;
 
 fn main() {
     comptime { increment() };

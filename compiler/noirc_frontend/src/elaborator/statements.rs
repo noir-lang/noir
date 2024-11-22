@@ -76,8 +76,16 @@ impl<'context> Elaborator<'context> {
     ) -> (HirStatement, Type) {
         let expr_span = let_stmt.expression.span;
         let (expression, expr_type) = self.elaborate_expression(let_stmt.expression);
-
+        let type_contains_unspecified = let_stmt.r#type.contains_unspecified();
         let annotated_type = self.resolve_inferred_type(let_stmt.r#type);
+
+        // Require the top-level of a global's type to be fully-specified
+        if type_contains_unspecified && global_id.is_some() {
+            let span = expr_span;
+            let expected_type = annotated_type.clone();
+            let error = ResolverError::UnspecifiedGlobalType { span, expected_type };
+            self.push_err(error);
+        }
 
         let definition = match global_id {
             None => DefinitionKind::Local(Some(expression)),
