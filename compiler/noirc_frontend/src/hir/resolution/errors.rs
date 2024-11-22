@@ -101,7 +101,7 @@ pub enum ResolverError {
     JumpOutsideLoop { is_break: bool, span: Span },
     #[error("Only `comptime` globals can be mutable")]
     MutableGlobal { span: Span },
-    #[error("Globals must have a specified type (RHS inferred to have type `{expected_type}`)")]
+    #[error("Globals must have a specified type")]
     UnspecifiedGlobalType { span: Span, expected_type: Type },
     #[error("Self-referential structs are not supported")]
     SelfReferentialStruct { span: Span },
@@ -435,8 +435,8 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             },
             ResolverError::UnspecifiedGlobalType { span, expected_type } => {
                 Diagnostic::simple_error(
-                    format!("Globals must have a specified type (RHS inferred to have type `{expected_type}`)"),
-                    String::new(),
+                    "Globals must have a specified type".to_string(),
+                    format!("Inferred type is `{expected_type}`"),
                     *span,
                 )
             },
