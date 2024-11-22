@@ -341,7 +341,7 @@ mod test {
         // However, as the instruction has side effects, we want to make sure
         // we do not hoist the instruction to the loop preheader.
         // Keeping this load then also prevents any instructions that use
-        // this load result from being hoisted as well.
+        // the load's result from being hoisted as well.
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: u32, v1: u32):
