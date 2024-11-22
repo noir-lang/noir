@@ -10,8 +10,8 @@ use super::{
 
 use acvm::{AcirField, FieldElement};
 use ast::{
-    Identifier, ParsedBlock, ParsedFunction, ParsedInstruction, ParsedParameter, ParsedSsa,
-    ParsedValue,
+    AssertMessage, Identifier, ParsedBlock, ParsedFunction, ParsedInstruction, ParsedParameter,
+    ParsedSsa, ParsedValue,
 };
 use lexer::{Lexer, LexerError};
 use noirc_errors::Span;
@@ -313,7 +313,20 @@ impl<'a> Parser<'a> {
         let lhs = self.parse_value_or_error()?;
         self.eat_or_error(Token::Equal)?;
         let rhs = self.parse_value_or_error()?;
-        Ok(Some(ParsedInstruction::Constrain { lhs, rhs }))
+
+        let assert_message = if self.eat(Token::Comma)? {
+            if let Some(str) = self.eat_str()? {
+                Some(AssertMessage::Static(str))
+            } else if self.eat_keyword(Keyword::Data)? {
+                Some(AssertMessage::Dynamic(self.parse_comma_separated_values()?))
+            } else {
+                return self.expected_string_or_data();
+            }
+        } else {
+            None
+        };
+
+        Ok(Some(ParsedInstruction::Constrain { lhs, rhs, assert_message }))
     }
 
     fn parse_decrement_rc(&mut self) -> ParseResult<Option<ParsedInstruction>> {
@@ -654,6 +667,10 @@ impl<'a> Parser<'a> {
             return Ok(Type::Reference(Arc::new(typ)));
         }
 
+        if self.eat_keyword(Keyword::Function)? {
+            return Ok(Type::Function);
+        }
+
         self.expected_type()
     }
 
@@ -767,6 +784,18 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn eat_str(&mut self) -> ParseResult<Option<String>> {
+        if matches!(self.token.token(), Token::Str(..)) {
+            let token = self.bump()?;
+            match token.into_token() {
+                Token::Str(string) => Ok(Some(string)),
+                _ => unreachable!(),
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
     fn eat(&mut self, token: Token) -> ParseResult<bool> {
         if self.token.token() == &token {
             self.bump()?;
@@ -807,6 +836,13 @@ impl<'a> Parser<'a> {
 
     fn expected_instruction_or_terminator<T>(&mut self) -> ParseResult<T> {
         Err(ParserError::ExpectedInstructionOrTerminator {
+            found: self.token.token().clone(),
+            span: self.token.to_span(),
+        })
+    }
+
+    fn expected_string_or_data<T>(&mut self) -> ParseResult<T> {
+        Err(ParserError::ExpectedStringOrData {
             found: self.token.token().clone(),
             span: self.token.to_span(),
         })
@@ -873,6 +909,8 @@ pub(crate) enum ParserError {
     ExpectedType { found: Token, span: Span },
     #[error("Expected an instruction or terminator, found '{found}'")]
     ExpectedInstructionOrTerminator { found: Token, span: Span },
+    #[error("Expected a string literal or 'data', found '{found}'")]
+    ExpectedStringOrData { found: Token, span: Span },
     #[error("Expected a value, found '{found}'")]
     ExpectedValue { found: Token, span: Span },
     #[error("Multiple return values only allowed for call")]
@@ -889,6 +927,7 @@ impl ParserError {
             | ParserError::ExpectedInt { span, .. }
             | ParserError::ExpectedType { span, .. }
             | ParserError::ExpectedInstructionOrTerminator { span, .. }
+            | ParserError::ExpectedStringOrData { span, .. }
             | ParserError::ExpectedValue { span, .. } => *span,
             ParserError::MultipleReturnValuesOnlyAllowedForCall { second_target, .. } => {
                 second_target.span

@@ -5,7 +5,6 @@ use super::NargoConfig;
 use clap::Args;
 use nargo::constants::{PKG_FILE, SRC_DIR};
 use nargo::package::{CrateName, PackageType};
-use noirc_driver::NOIRC_VERSION;
 use std::path::PathBuf;
 
 /// Create a Noir project in the current directory.
@@ -66,7 +65,6 @@ pub(crate) fn initialize_project(
 name = "{package_name}"
 type = "{package_type}"
 authors = [""]
-compiler_version = ">={NOIRC_VERSION}"
 
 [dependencies]"#
     );
