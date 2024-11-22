@@ -87,18 +87,17 @@ fn call_foreign(
         "sha256_compression" => sha256_compression(interner, args, location),
         _ => {
             let explanation = match name {
-                "schnorr_verify" => Some("Schnorr verification will be removed.".into()),
-                "and" | "xor" => Some("It should be turned into a binary operation.".into()),
-                "recursive_aggregation" => Some("A proof cannot be verified at comptime.".into()),
-                _ => None,
+                "schnorr_verify" => "Schnorr verification will be removed.".into(),
+                "and" | "xor" => "It should be turned into a binary operation.".into(),
+                "recursive_aggregation" => "A proof cannot be verified at comptime.".into(),
+                _ => {
+                    let item = format!("Comptime evaluation for foreign function '{name}'");
+                    return Err(InterpreterError::Unimplemented { item, location })
+                }
             };
-            if let Some(explanation) = explanation {
-                let item = format!("Attempting to evaluate foreign function '{name}'");
-                Err(InterpreterError::InvalidInComptimeContext { item, location, explanation })
-            } else {
-                let item = format!("Comptime evaluation for foreign function '{name}'");
-                Err(InterpreterError::Unimplemented { item, location })
-            }
+
+            let item = format!("Attempting to evaluate foreign function '{name}'");
+            Err(InterpreterError::InvalidInComptimeContext { item, location, explanation })
         }
     }
 }
