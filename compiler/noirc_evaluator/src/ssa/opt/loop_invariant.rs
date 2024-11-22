@@ -143,7 +143,7 @@ impl<'f> LoopInvariantContext<'f> {
             is_loop_invariant &=
                 !self.defined_in_loop.contains(&value) || self.loop_invariants.contains(&value);
         });
-        is_loop_invariant && instruction.can_be_deduplicated(&self.inserter.function.dfg, false)
+        is_loop_invariant && instruction.can_be_deduplicated(&self.inserter.function.dfg, true)
     }
 
     fn map_dependent_instructions(&mut self) {
@@ -340,6 +340,8 @@ mod test {
         // In `v12 = load v5` in `b3`, `v5` is defined outside the loop.
         // However, as the instruction has side effects, we want to make sure
         // we do not hoist the instruction to the loop preheader.
+        // Keeping this load then also prevents any instructions that use
+        // this load result from being hoisted as well.
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: u32, v1: u32):
@@ -374,5 +376,69 @@ mod test {
         let ssa = ssa.loop_invariant_code_motion();
         // The code should be unchanged
         assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn hoist_instructions_only_affected_by_acir_gen_predicate() {
+        // Certain instructions have "side effects", but only during ACIR gen.
+        // The loop invariant code motion pass is expected to only ever operate
+        // over Brillig functions so we can hoist any instructions that would depend
+        // upon a predicate generated in ACIR gen.
+        //
+        // e.g. If we have an array operation on a dynamic index
+        // that is deemed to be a loop invariant, we can safely hoist that instruction
+        // to the loop's preheader.
+        //
+        // In the snippet below we expect `v7 = array_get v3, index v0` to be hoisted
+        // even though `v0` is dynamic.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            v3 = make_array [v0, v1, v0, v1] : [u32; 4]
+            inc_rc v3
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v6 = lt v2, u32 4
+            jmpif v6 then: b3, else: b2
+          b3():
+            v7 = array_get v3, index v0 -> u32
+            v8 = mul v7, v1
+            v10 = eq v8, u32 6
+            constrain v8 == u32 6
+            v12 = add v2, u32 1
+            jmp b1(v12)
+          b2():
+            return
+        }
+        ";
+
+        let mut ssa = Ssa::from_str(src).unwrap();
+        let main = ssa.main_mut();
+
+        let instructions = main.dfg[main.entry_block()].instructions();
+        assert_eq!(instructions.len(), 2); // The final return is not counted
+
+        let expected = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            v3 = make_array [v0, v1, v0, v1] : [u32; 4]
+            inc_rc v3
+            v4 = array_get v3, index v0 -> u32
+            v5 = mul v4, v1
+            v7 = eq v5, u32 6
+            constrain v5 == u32 6
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v10 = lt v2, u32 4
+            jmpif v10 then: b3, else: b2
+          b3():
+            v12 = add v2, u32 1
+            jmp b1(v12)
+          b2():
+            return
+        }
+        ";
+        let ssa = ssa.loop_invariant_code_motion();
+        assert_normalized_ssa_equals(ssa, expected);
     }
 }
