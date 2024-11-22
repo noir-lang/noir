@@ -75,7 +75,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         assert!(source_field.bit_size == F::max_num_bits());
         assert!(radix.bit_size == 32);
 
-        self.codegen_initialize_array(target_array);
+        self.codegen_initialize_array(target_array, None);
 
         let heap_array = self.codegen_brillig_array_to_heap_array(target_array);
 

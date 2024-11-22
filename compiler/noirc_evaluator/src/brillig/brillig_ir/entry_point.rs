@@ -199,7 +199,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         let deflattened_items_pointer = if is_vector {
             let vector = BrilligVector { pointer: deflattened_array_pointer };
 
-            self.codegen_initialize_vector(vector, deflattened_size_variable, None);
+            self.codegen_initialize_vector(vector, deflattened_size_variable, None, Some(1));
 
             self.codegen_make_vector_items_pointer(vector)
         } else {
@@ -207,7 +207,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
                 pointer: deflattened_array_pointer,
                 size: item_count * item_type.len(),
             };
-            self.codegen_initialize_array(arr);
+            self.codegen_initialize_array(arr, Some(1));
             self.codegen_make_array_items_pointer(arr)
         };
 

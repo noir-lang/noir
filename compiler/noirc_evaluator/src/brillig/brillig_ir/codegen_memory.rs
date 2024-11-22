@@ -12,6 +12,8 @@ use super::{
     BrilligContext, ReservedRegisters, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
 };
 
+const INITIAL_ARRAY_REF_COUNT: usize = 0;
+
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     /// Allocates an array of size `size` and stores the pointer to the array
     /// in `pointer_register`
@@ -419,12 +421,16 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     }
 
     /// Initializes an array, allocating memory to store its representation and initializing the reference counter.
-    pub(crate) fn codegen_initialize_array(&mut self, array: BrilligArray) {
+    pub(crate) fn codegen_initialize_array(
+        &mut self,
+        array: BrilligArray,
+        initial_rc: Option<usize>,
+    ) {
         self.codegen_allocate_immediate_mem(array.pointer, array.size + 1);
         self.indirect_const_instruction(
             array.pointer,
             BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
-            1_usize.into(),
+            initial_rc.unwrap_or(INITIAL_ARRAY_REF_COUNT).into(),
         );
     }
 
@@ -433,12 +439,13 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         vector: BrilligVector,
         size: SingleAddrVariable,
         capacity: Option<SingleAddrVariable>,
+        initial_rc: Option<usize>,
     ) {
         // Write RC
         self.indirect_const_instruction(
             vector.pointer,
             BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
-            1_usize.into(),
+            initial_rc.unwrap_or(INITIAL_ARRAY_REF_COUNT).into(),
         );
 
         // Write size
@@ -459,6 +466,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         vector: BrilligVector,
         size: SingleAddrVariable,
         capacity: Option<SingleAddrVariable>, // Defaults to size if None
+        initial_rc: Option<usize>,            // Defaults to INITIAL_ARRAY_REF_COUNT if none
     ) {
         let allocation_size = self.allocate_register();
         // Allocation size = capacity + 3 (rc, size, capacity)
@@ -471,7 +479,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.codegen_allocate_mem(vector.pointer, allocation_size);
         self.deallocate_register(allocation_size);
 
-        self.codegen_initialize_vector_metadata(vector, size, capacity);
+        self.codegen_initialize_vector_metadata(vector, size, capacity, initial_rc);
     }
 
     /// We don't know the length of a vector returned externally before the call
@@ -498,7 +506,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.indirect_const_instruction(
             vector.pointer,
             BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
-            1_usize.into(),
+            INITIAL_ARRAY_REF_COUNT.into(),
         );
 
         // Initialize size

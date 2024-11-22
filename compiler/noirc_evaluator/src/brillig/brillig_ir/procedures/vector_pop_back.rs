@@ -78,7 +78,7 @@ pub(super) fn compile_vector_pop_back_procedure<F: AcirField + DebugToString>(
             brillig_context.codegen_update_vector_length(target_vector, target_size);
         } else {
             // We need to clone the source vector
-            brillig_context.codegen_initialize_vector(target_vector, target_size, None);
+            brillig_context.codegen_initialize_vector(target_vector, target_size, None, Some(1));
 
             let target_vector_items_pointer =
                 brillig_context.codegen_make_vector_items_pointer(target_vector);
