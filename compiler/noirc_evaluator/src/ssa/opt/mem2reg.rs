@@ -673,7 +673,6 @@ mod tests {
 
     use acvm::{acir::AcirField, FieldElement};
     use im::vector;
-    use noirc_frontend::monomorphization::ast::InlineType;
 
     use crate::ssa::{
         function_builder::FunctionBuilder,
@@ -684,7 +683,10 @@ mod tests {
             map::Id,
             types::Type,
         },
+        opt::assert_normalized_ssa_equals,
     };
+
+    use super::Ssa;
 
     #[test]
     fn test_simple() {
@@ -1120,316 +1122,154 @@ mod tests {
         // This tests starts with two loads from the same unknown load.
         // Specifically you should look for `load v2` in `b3`.
         // We should be able to remove the second repeated load.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 0 at v0
+            v2 = allocate -> &mut &mut Field
+            store v0 at v2
+            jmp b1(Field 0)
+          b1(v3: Field):
+            v4 = eq v3, Field 0
+            jmpif v4 then: b2, else: b3
+          b2():
+            v5 = load v2 -> &mut Field
+            store Field 2 at v5
+            v8 = add v3, Field 1
+            jmp b1(v8)
+          b3():
+            v9 = load v0 -> Field
+            v10 = eq v9, Field 2
+            constrain v9 == Field 2
+            v11 = load v2 -> &mut Field
+            v12 = load v2 -> &mut Field
+            v13 = load v12 -> Field
+            v14 = eq v13, Field 2
+            constrain v13 == Field 2
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        // The repeated load from v3 should be removed
+        // b3 should only have three loads now rather than four previously
         //
-        // acir(inline) fn main f0 {
-        //     b0():
-        //       v0 = allocate
-        //       store Field 0 at v0
-        //       v2 = allocate
-        //       store v0 at v2
-        //       jmp b1(Field 0)
-        //     b1(v3: Field):
-        //       v4 = eq v3, Field 0
-        //       jmpif v4 then: b2, else: b3
-        //     b2():
-        //       v5 = load v2
-        //       store Field 2 at v5
-        //       v8 = add v3, Field 1
-        //       jmp b1(v8)
-        //     b3():
-        //       v9 = load v0
-        //       v10 = eq v9, Field 2
-        //       constrain v9 == Field 2
-        //       v11 = load v2
-        //       v12 = load v2
-        //       v13 = load v12
-        //       v14 = eq v13, Field 2
-        //       constrain v13 == Field 2
-        //       return
-        //   }
-        let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        // All stores are expected to remain.
+        let expected = "
+        acir(inline) fn main f0 {
+          b0():
+            v1 = allocate -> &mut Field
+            store Field 0 at v1
+            v3 = allocate -> &mut &mut Field
+            store v1 at v3
+            jmp b1(Field 0)
+          b1(v0: Field):
+            v4 = eq v0, Field 0
+            jmpif v4 then: b3, else: b2
+          b3():
+            v11 = load v3 -> &mut Field
+            store Field 2 at v11
+            v13 = add v0, Field 1
+            jmp b1(v13)
+          b2():
+            v5 = load v1 -> Field
+            v7 = eq v5, Field 2
+            constrain v5 == Field 2
+            v8 = load v3 -> &mut Field
+            v9 = load v8 -> Field
+            v10 = eq v9, Field 2
+            constrain v9 == Field 2
+            return
+        }
+        ";
 
-        let v0 = builder.insert_allocate(Type::field());
-        let zero = builder.numeric_constant(0u128, Type::field());
-        builder.insert_store(v0, zero);
-
-        let v2 = builder.insert_allocate(Type::field());
-        // Construct alias
-        builder.insert_store(v2, v0);
-        let v2_type = builder.current_function.dfg.type_of_value(v2);
-        assert!(builder.current_function.dfg.value_is_reference(v2));
-
-        let b1 = builder.insert_block();
-        builder.terminate_with_jmp(b1, vec![zero]);
-
-        // Loop header
-        builder.switch_to_block(b1);
-        let v3 = builder.add_block_parameter(b1, Type::field());
-        let is_zero = builder.insert_binary(v3, BinaryOp::Eq, zero);
-
-        let b2 = builder.insert_block();
-        let b3 = builder.insert_block();
-        builder.terminate_with_jmpif(is_zero, b2, b3);
-
-        // Loop body
-        builder.switch_to_block(b2);
-        let v5 = builder.insert_load(v2, v2_type.clone());
-        let two = builder.numeric_constant(2u128, Type::field());
-        builder.insert_store(v5, two);
-        let one = builder.numeric_constant(1u128, Type::field());
-        let v3_plus_one = builder.insert_binary(v3, BinaryOp::Add, one);
-        builder.terminate_with_jmp(b1, vec![v3_plus_one]);
-
-        builder.switch_to_block(b3);
-        let v9 = builder.insert_load(v0, Type::field());
-
-        let _ = builder.insert_binary(v9, BinaryOp::Eq, two);
-
-        builder.insert_constrain(v9, two, None);
-        let _v11 = builder.insert_load(v2, v2_type.clone());
-        let v12 = builder.insert_load(v2, v2_type);
-        let v13 = builder.insert_load(v12, Type::field());
-        let _ = builder.insert_binary(v13, BinaryOp::Eq, two);
-
-        builder.insert_constrain(v13, two, None);
-        builder.terminate_with_return(vec![]);
-
-        let ssa = builder.finish();
-
-        // Expected result:
-        // acir(inline) fn main f0 {
-        //     b0():
-        //       v14 = allocate
-        //       store Field 0 at v14
-        //       v15 = allocate
-        //       store v14 at v15
-        //       jmp b1(Field 0)
-        //     b1(v3: Field):
-        //       v16 = eq v3, Field 0
-        //       jmpif v16 then: b2, else: b3
-        //     b2():
-        //       v22 = load v15
-        //       store Field 2 at v22
-        //       v23 = add v3, Field 1
-        //       jmp b1(v23)
-        //     b3():
-        //       v17 = load v14
-        //       v18 = eq v17, Field 2
-        //       constrain v17 == Field 2
-        //       v19 = load v15
-        //       v21 = eq v19, Field 2
-        //       constrain v19 == Field 2
-        //       return
-        //   }
         let ssa = ssa.mem2reg();
-
-        let main = ssa.main();
-        assert_eq!(main.reachable_blocks().len(), 4);
-
-        // The stores from the original SSA should remain
-        assert_eq!(count_stores(main.entry_block(), &main.dfg), 2);
-        assert_eq!(count_stores(b2, &main.dfg), 1);
-
-        assert_eq!(count_loads(b2, &main.dfg), 1);
-        // The repeated load to v2 should be removed
-        assert_eq!(count_loads(b3, &main.dfg), 3);
+        assert_normalized_ssa_equals(ssa, expected);
     }
 
     #[test]
     fn keep_repeat_loads_passed_to_a_call() {
-        // The test is the exact same as `remove_repeat_loads` above except with the following `b3`:
-        //
-        // b3():
-        //   v9 = load v0
-        //   v10 = eq v9, Field 2
-        //   constrain v9 == Field 2
-        //   v11 = load v2
-        //   call f1(v2)
-        //   v13 = load v2
-        //   v14 = load v12
-        //   v15 = eq v14, Field 2
-        //   constrain v14 == Field 2
-        //   return
-        //
-        // Where f1 is the following function with a reference parameter:
-        //
-        // acir(inline) fn foo f1 {
-        //   b0(v0: &mut Field):
-        //     return
-        // }
-        let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        // The test is the exact same as `remove_repeat_loads` above except with the call
+        // to `f1` between the repeated loads.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v1 = allocate -> &mut Field
+            store Field 0 at v1
+            v3 = allocate -> &mut &mut Field
+            store v1 at v3
+            jmp b1(Field 0)
+          b1(v0: Field):
+            v4 = eq v0, Field 0
+            jmpif v4 then: b3, else: b2
+          b3():
+            v13 = load v3 -> &mut Field
+            store Field 2 at v13
+            v15 = add v0, Field 1
+            jmp b1(v15)
+          b2():
+            v5 = load v1 -> Field
+            v7 = eq v5, Field 2
+            constrain v5 == Field 2
+            v8 = load v3 -> &mut Field
+            call f1(v3)
+            v10 = load v3 -> &mut Field
+            v11 = load v10 -> Field
+            v12 = eq v11, Field 2
+            constrain v11 == Field 2
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0(v0: &mut Field):
+            return
+        }  
+        ";
 
-        let v0 = builder.insert_allocate(Type::field());
-        let zero = builder.numeric_constant(0u128, Type::field());
-        builder.insert_store(v0, zero);
+        let ssa = Ssa::from_str(src).unwrap();
 
-        let v2 = builder.insert_allocate(Type::field());
-        // Construct alias
-        builder.insert_store(v2, v0);
-        let v2_type = builder.current_function.dfg.type_of_value(v2);
-        assert!(builder.current_function.dfg.value_is_reference(v2));
-
-        let b1 = builder.insert_block();
-        builder.terminate_with_jmp(b1, vec![zero]);
-
-        // Loop header
-        builder.switch_to_block(b1);
-        let v3 = builder.add_block_parameter(b1, Type::field());
-        let is_zero = builder.insert_binary(v3, BinaryOp::Eq, zero);
-
-        let b2 = builder.insert_block();
-        let b3 = builder.insert_block();
-        builder.terminate_with_jmpif(is_zero, b2, b3);
-
-        // Loop body
-        builder.switch_to_block(b2);
-        let v5 = builder.insert_load(v2, v2_type.clone());
-        let two = builder.numeric_constant(2u128, Type::field());
-        builder.insert_store(v5, two);
-        let one = builder.numeric_constant(1u128, Type::field());
-        let v3_plus_one = builder.insert_binary(v3, BinaryOp::Add, one);
-        builder.terminate_with_jmp(b1, vec![v3_plus_one]);
-
-        builder.switch_to_block(b3);
-        let v9 = builder.insert_load(v0, Type::field());
-
-        let _ = builder.insert_binary(v9, BinaryOp::Eq, two);
-
-        builder.insert_constrain(v9, two, None);
-        let v11 = builder.insert_load(v2, v2_type.clone());
-
-        let foo_id = Id::test_new(1);
-        let foo = builder.import_function(foo_id);
-        builder.insert_call(foo, vec![v2], vec![]);
-
-        let v12 = builder.insert_load(v2, v2_type);
-        let v13 = builder.insert_load(v12, Type::field());
-        let _ = builder.insert_binary(v13, BinaryOp::Eq, two);
-
-        builder.insert_constrain(v11, two, None);
-        builder.terminate_with_return(vec![]);
-
-        builder.new_function("foo".into(), foo_id, InlineType::default());
-        let _foo_v0 = builder.add_parameter(Type::Reference(Arc::new(Type::field())));
-        builder.terminate_with_return(vec![]);
-
-        let ssa = builder.finish();
-
-        // Expected result of `b3` should be the unchanged:
-        //
-        // b3():
-        //   v18 = load v15
-        //   v19 = eq v18, Field 2
-        //   constrain v18 == Field 2
-        //   v20 = load v16
-        //   call f1(v16)
-        //   v21 = load v16
-        //   v22 = eq v21, Field 2
-        //   constrain v20 == Field 2
-        //   return
         let ssa = ssa.mem2reg();
-
-        let main = ssa.main();
-        assert_eq!(main.reachable_blocks().len(), 4);
-
-        // The stores from the original SSA should remain
-        assert_eq!(count_stores(main.entry_block(), &main.dfg), 2);
-        assert_eq!(count_stores(b2, &main.dfg), 1);
-
-        assert_eq!(count_loads(b2, &main.dfg), 1);
-        // The repeated loads to v2 should remain as it is passed as a reference argument.
-        assert_eq!(count_loads(b3, &main.dfg), 4);
+        // We expect the program to be unchanged
+        assert_normalized_ssa_equals(ssa, src);
     }
 
     #[test]
     fn keep_repeat_loads_with_alias_store() {
         // v7, v8, and v9 alias one another. We want to make sure that a repeat load to v7 with a store
         // to its aliases in between the repeat loads does not remove those loads.
-        //
-        // acir(inline) fn main f0 {
-        //     b0(v4: u1):
-        //       jmpif v4 then: b1, else: b2
-        //     b1():
-        //       v5 = allocate
-        //       store Field 0 at v5
-        //       jmp b3(v5, v5, v5)
-        //     b3(v7: &mut Field, v8: &mut Field, v9: &mut Field):
-        //       v10 = load v7
-        //       store Field 2 at v8
-        //       v11 = load v7
-        //       store Field 1 at v9
-        //       v12 = load v7
-        //       store Field 3 at v9
-        //       v13 = load v7
-        //       constrain v10 == Field 0 // assume v4 = true, but this is just so v10 is not unused
-        //       constrain v11 == Field 2
-        //       constrain v12 == Field 1
-        //       constrain v13 == Field 3
-        //       return
-        //     b2():
-        //       v6 = allocate
-        //       store Field 1 at v6
-        //       jmp b3(v6, v6, v6)
-        //   }
-        let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-        let b1 = builder.insert_block();
-        let b2 = builder.insert_block();
-        let b3 = builder.insert_block();
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b2, else: b1
+          b2():
+            v6 = allocate -> &mut Field
+            store Field 0 at v6
+            jmp b3(v6, v6, v6)
+          b3(v1: &mut Field, v2: &mut Field, v3: &mut Field):
+            v8 = load v1 -> Field
+            store Field 2 at v2
+            v10 = load v1 -> Field
+            store Field 1 at v3
+            v11 = load v1 -> Field
+            store Field 3 at v3
+            v13 = load v1 -> Field
+            constrain v8 == Field 0
+            constrain v10 == Field 2
+            constrain v11 == Field 1
+            constrain v13 == Field 3
+            return
+          b1():
+            v4 = allocate -> &mut Field
+            store Field 1 at v4
+            jmp b3(v4, v4, v4)
+        }
+        ";
 
-        let zero = builder.field_constant(0u128);
-        let one = builder.field_constant(1u128);
-        let two = builder.field_constant(2u128);
-        let three = builder.field_constant(3u128);
+        let ssa = Ssa::from_str(src).unwrap();
 
-        let v4 = builder.add_parameter(Type::bool());
-        builder.terminate_with_jmpif(v4, b1, b2);
-
-        builder.switch_to_block(b1);
-        let v5 = builder.insert_allocate(Type::field());
-        builder.insert_store(v5, zero);
-        builder.terminate_with_jmp(b3, vec![v5, v5, v5]);
-
-        builder.switch_to_block(b2);
-        let v6 = builder.insert_allocate(Type::field());
-        builder.insert_store(v6, one);
-        builder.terminate_with_jmp(b3, vec![v6, v6, v6]);
-
-        builder.switch_to_block(b3);
-        let v7 = builder.add_block_parameter(b3, Type::Reference(Arc::new(Type::field())));
-        let v8 = builder.add_block_parameter(b3, Type::Reference(Arc::new(Type::field())));
-        let v9 = builder.add_block_parameter(b3, Type::Reference(Arc::new(Type::field())));
-
-        let v10 = builder.insert_load(v7, Type::field());
-        builder.insert_store(v8, two);
-        let v11 = builder.insert_load(v7, Type::field());
-        builder.insert_store(v9, one);
-        // We expect this load to be removed
-        let v12 = builder.insert_load(v7, Type::field());
-        builder.insert_store(v9, three);
-        let v13 = builder.insert_load(v7, Type::field());
-
-        builder.insert_constrain(v10, zero, None);
-        builder.insert_constrain(v11, two, None);
-        builder.insert_constrain(v12, one, None);
-        builder.insert_constrain(v13, three, None);
-
-        builder.terminate_with_return(vec![]);
-
-        let ssa = builder.finish();
-
-        // Expected result should be the same as above
         let ssa = ssa.mem2reg();
-        let main = ssa.main();
-        assert_eq!(main.reachable_blocks().len(), 4);
-
-        // The stores from the original SSA should remain, although both are removed
-        assert_eq!(count_stores(b1, &main.dfg), 1);
-        assert_eq!(count_stores(b2, &main.dfg), 1);
-
-        // The repeated loads from v3 should not be removed
-        assert_eq!(count_loads(b3, &main.dfg), 4);
+        // We expect the program to be unchanged
+        assert_normalized_ssa_equals(ssa, src);
     }
 }
