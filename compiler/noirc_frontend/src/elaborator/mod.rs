@@ -170,6 +170,9 @@ pub struct Elaborator<'context> {
     /// like `Foo { inner: 5 }`: in that case we already elaborated the code that led to
     /// that comptime value and any visibility errors were already reported.
     silence_field_visibility_errors: usize,
+
+    // TODO remove
+    pub(crate) debug_counter: usize,
 }
 
 #[derive(Default)]
@@ -220,6 +223,9 @@ impl<'context> Elaborator<'context> {
             interpreter_call_stack,
             in_comptime_context: false,
             silence_field_visibility_errors: 0,
+
+            // TODO remove
+            debug_counter: 0,
         }
     }
 
@@ -1655,6 +1661,9 @@ impl<'context> Elaborator<'context> {
         } else {
             None
         };
+
+        // TODO cleanup
+        dbg!("elaborate_global", &name);
 
         if !self.in_contract()
             && let_stmt.attributes.iter().any(|attr| matches!(attr, SecondaryAttribute::Abi(_)))

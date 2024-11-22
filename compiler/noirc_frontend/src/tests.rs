@@ -1302,7 +1302,9 @@ fn deny_cyclic_globals() {
     let src = r#"
         global A: u32 = B;
         global B: u32 = A;
-        fn main() {}
+
+        // TODO un-comment
+        // fn main() {}
     "#;
 
     let errors = get_program_errors(src);

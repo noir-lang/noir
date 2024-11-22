@@ -48,6 +48,11 @@ pub(super) struct TraitPathResolution {
 impl<'context> Elaborator<'context> {
     /// Translates an UnresolvedType to a Type with a `TypeKind::Normal`
     pub(crate) fn resolve_type(&mut self, typ: UnresolvedType) -> Type {
+        // TODO cleanup
+        // if !matches!(typ.typ, UnresolvedTypeData::Integer(_, _)) {
+        //     panic!("resolve_type {:?}", &typ);
+        // }
+
         let span = typ.span;
         let resolved_type = self.resolve_type_inner(typ, &Kind::Normal);
         if resolved_type.is_nested_slice() {
@@ -207,6 +212,10 @@ impl<'context> Elaborator<'context> {
     }
 
     fn resolve_named_type(&mut self, path: Path, args: GenericTypeArgs) -> Type {
+        // TODO cleanup
+        dbg!("resolve_named_type", &path);
+        // panic!("resolve_named_type");
+
         if args.is_empty() {
             if let Some(typ) = self.lookup_generic_or_global_type(&path) {
                 return typ;
@@ -388,6 +397,31 @@ impl<'context> Elaborator<'context> {
     }
 
     pub fn lookup_generic_or_global_type(&mut self, path: &Path) -> Option<Type> {
+
+        // TODO remove
+        // panic!("looping! {:?}", path);
+        // if self.debug_counter > 3200 {
+        // if self.debug_counter > 0 {
+        //     panic!("looping!");
+        // } else {
+        //     self.debug_counter += 1;
+        // }
+
+        // TODO cleanup
+        // dbg!("lookup_generic_or_global_type", &path, self.current_item, &self.interner.dependency_graph);
+        // dbg!("lookup_generic_or_global_type", &path.as_string(), self.current_item);
+
+        // TODO cleanup
+        // match self.current_item {
+        //     Some(DependencyId::Function(func_id)) => {
+        //         dbg!("lookup_generic_or_global_type fn:", self.interner.function(&func_id));
+        //     }
+        //     _ => (),
+        // }
+
+        // TODO cleanup
+        panic!("lookup_generic_or_global_type");
+
         if path.segments.len() == 1 {
             let name = path.last_name();
             if let Some(generic) = self.find_generic(name) {
@@ -401,8 +435,15 @@ impl<'context> Elaborator<'context> {
         // If we cannot find a local generic of the same name, try to look up a global
         match self.resolve_path_or_error(path.clone()) {
             Ok(PathResolutionItem::Global(id)) => {
+                // TODO cleanup
+                dbg!("lookup_generic_or_global_type: found global", &id, &self.current_item);
+
                 if let Some(current_item) = self.current_item {
                     self.interner.add_global_dependency(current_item, id);
+
+                    // TODO: why doesn't this work?
+                    let errors = self.interner.check_for_dependency_cycles();
+                    assert_eq!(errors.len(), 0);
                 }
 
                 let reference_location = Location::new(path.span(), self.file);

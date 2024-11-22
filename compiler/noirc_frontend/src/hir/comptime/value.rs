@@ -294,6 +294,10 @@ impl Value {
             | Value::ModuleDefinition(_) => {
                 let typ = self.get_type().into_owned();
                 let value = self.display(interner).to_string();
+
+                // TODO
+                dbg!("into_expression", &typ, &value, &location);
+
                 return Err(InterpreterError::CannotInlineMacro { typ, value, location });
             }
         };
@@ -409,6 +413,9 @@ impl Value {
             Value::Pointer(element, true) => {
                 return element.unwrap_or_clone().into_hir_expression(interner, location);
             }
+            Value::Closure(hir_lambda, _args, _typ, _opt_func_id, _module_id) => {
+                HirExpression::Lambda(hir_lambda)
+            }
             Value::TypedExpr(TypedExpr::StmtId(..))
             | Value::Expr(..)
             | Value::Pointer(..)
@@ -420,10 +427,13 @@ impl Value {
             | Value::Zeroed(_)
             | Value::Type(_)
             | Value::UnresolvedType(_)
-            | Value::Closure(..)
             | Value::ModuleDefinition(_) => {
                 let typ = self.get_type().into_owned();
                 let value = self.display(interner).to_string();
+
+                // TODO
+                dbg!("into_hir_expression", &typ, &value, &location);
+
                 return Err(InterpreterError::CannotInlineMacro { value, typ, location });
             }
         };
@@ -548,6 +558,10 @@ impl Value {
             _ => {
                 let typ = self.get_type().into_owned();
                 let value = self.display(interner).to_string();
+
+                // TODO
+                dbg!("into_top_level_items", &typ, &value, &location);
+
                 Err(InterpreterError::CannotInlineMacro { value, typ, location })
             }
         }
