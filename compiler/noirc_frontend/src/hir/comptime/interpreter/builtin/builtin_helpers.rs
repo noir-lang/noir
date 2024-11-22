@@ -195,7 +195,9 @@ pub(crate) fn get_fixed_array_map<T, const N: usize>(
 
     values.try_into().map(|v| (v, typ.clone())).map_err(|_| {
         // Assuming that `values.len()` corresponds to `typ`.
-        let Type::Array(_, ref elem) = typ else { unreachable!("it's an array") };
+        let Type::Array(_, ref elem) = typ else {
+            unreachable!("get_array_map checked it was an array")
+        };
         let expected = Type::Array(Box::new(Type::Constant(N.into(), Kind::u32())), elem.clone());
         InterpreterError::TypeMismatch { expected, actual: typ, location }
     })
