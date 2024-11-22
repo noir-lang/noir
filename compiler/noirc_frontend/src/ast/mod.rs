@@ -32,6 +32,7 @@ pub use traits::*;
 pub use type_alias::*;
 
 use crate::{
+    elaborator::types::WILDCARD_TYPE,
     node_interner::{InternedUnresolvedTypeData, QuotedTypeId},
     parser::{ParserError, ParserErrorReason},
     token::IntType,
@@ -160,10 +161,29 @@ pub enum UnresolvedTypeData {
     Error,
 }
 
+impl UnresolvedTypeData {
+    pub(crate) fn is_unspecified(&self) -> bool {
+        match self {
+            UnresolvedTypeData::Unspecified => true,
+            // '_' is unspecified
+            UnresolvedTypeData::Named(path, _, _) => {
+                path.to_ident().map(|ident| ident.0.contents) == Some(WILDCARD_TYPE.to_string())
+            }
+            _ => false,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct UnresolvedType {
     pub typ: UnresolvedTypeData,
     pub span: Span,
+}
+
+impl UnresolvedType {
+    pub(crate) fn is_unspecified(&self) -> bool {
+        self.typ.is_unspecified()
+    }
 }
 
 /// An argument to a generic type or trait.

@@ -1304,7 +1304,21 @@ fn deny_cyclic_globals() {
         global B = A;
         fn main() {}
     "#;
-    assert_eq!(get_program_errors(src).len(), 1);
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 3);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::ResolverError(ResolverError::UnspecifiedGlobalType { .. })
+    ));
+    assert!(matches!(
+        errors[1].0,
+        CompilationError::ResolverError(ResolverError::UnspecifiedGlobalType { .. })
+    ));
+    assert!(matches!(
+        errors[2].0,
+        CompilationError::ResolverError(ResolverError::DependencyCycle { .. })
+    ));
 }
 
 #[test]
@@ -3210,11 +3224,55 @@ fn as_trait_path_syntax_no_impl() {
 }
 
 #[test]
-fn infer_globals_to_u32_from_type_use() {
+fn dont_infer_globals_to_u32_from_type_use() {
     let src = r#"
         global ARRAY_LEN = 3;
-        global STR_LEN = 2;
+        global STR_LEN: _ = 2;
         global FMT_STR_LEN = 2;
+
+        fn main() {
+            let _a: [u32; ARRAY_LEN] = [1, 2, 3];
+            let _b: str<STR_LEN> = "hi";
+            let _c: fmtstr<FMT_STR_LEN, _> = f"hi";
+        }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 3);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::ResolverError(ResolverError::UnspecifiedGlobalType { .. })
+    ));
+    assert!(matches!(
+        errors[1].0,
+        CompilationError::ResolverError(ResolverError::UnspecifiedGlobalType { .. })
+    ));
+    assert!(matches!(
+        errors[2].0,
+        CompilationError::ResolverError(ResolverError::UnspecifiedGlobalType { .. })
+    ));
+}
+
+#[test]
+fn infer_partial_global_types() {
+    let src = r#"
+        pub global ARRAY: [Field; _] = [0; 3];
+        pub global STR: str<_> = "hi";
+        pub global FMT_STR: fmtstr<_, _> = f"hi {ARRAY}";
+
+        fn main() { }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 0);
+}
+
+#[test]
+fn u32_globals_as_sizes_in_types() {
+    let src = r#"
+        global ARRAY_LEN: u32 = 3;
+        global STR_LEN: u32 = 2;
+        global FMT_STR_LEN: u32 = 2;
 
         fn main() {
             let _a: [u32; ARRAY_LEN] = [1, 2, 3];
@@ -3686,7 +3744,7 @@ fn allows_struct_with_generic_infix_type_as_main_input_3() {
             x: [u64; N * 2],
         }
 
-        global N = 9;
+        global N: u32 = 9;
 
         fn main(_x: Foo<N * 2>) {}
     "#;
