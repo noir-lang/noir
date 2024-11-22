@@ -92,7 +92,7 @@ fn call_foreign(
                 "recursive_aggregation" => "A proof cannot be verified at comptime.".into(),
                 _ => {
                     let item = format!("Comptime evaluation for foreign function '{name}'");
-                    return Err(InterpreterError::Unimplemented { item, location })
+                    return Err(InterpreterError::Unimplemented { item, location });
                 }
             };
 
