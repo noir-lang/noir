@@ -944,6 +944,7 @@ pub fn collect_function(
     } else {
         function.name() == MAIN_FUNCTION
     };
+    let is_exported = function.def.attributes.is_exported();
 
     let name = function.name_ident().clone();
     let func_id = interner.push_empty_fn();
@@ -954,7 +955,7 @@ pub fn collect_function(
         interner.register_function(func_id, &function.def);
     }
 
-    if !is_test && !is_entry_point_function {
+    if !is_test && !is_entry_point_function && !is_exported {
         let item = UnusedItem::Function(func_id);
         usage_tracker.add_unused_item(module, name.clone(), item, visibility);
     }

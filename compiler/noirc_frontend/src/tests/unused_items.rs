@@ -314,3 +314,16 @@ fn resolves_trait_where_clause_in_the_correct_module() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn no_warning_no_exported_function() {
+    let src = r#" 
+    #[export]
+    fn bench_test(x: Field) -> Field {
+        x
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}

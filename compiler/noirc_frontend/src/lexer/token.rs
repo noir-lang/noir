@@ -692,6 +692,10 @@ impl Attributes {
         !self.has_contract_library_method() && !self.is_test_function()
     }
 
+    pub fn is_exported(&self) -> bool {
+        self.secondary.iter().any(|attribute| attribute == &SecondaryAttribute::Export)
+    }
+
     /// Returns note if a deprecated secondary attribute is found
     pub fn get_deprecated_note(&self) -> Option<Option<String>> {
         self.secondary.iter().find_map(|attr| match attr {
