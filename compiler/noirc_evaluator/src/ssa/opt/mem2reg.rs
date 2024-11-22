@@ -511,7 +511,7 @@ impl<'f> PerFunctionContext<'f> {
                     references.expressions.insert(array, expr.clone());
                     let aliases = references.aliases.entry(expr).or_default();
 
-                    for element in elements {
+                    for element in elements.as_ref() {
                         aliases.insert(*element);
                     }
                 }

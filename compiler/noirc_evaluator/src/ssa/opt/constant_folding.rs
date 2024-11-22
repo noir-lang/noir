@@ -591,7 +591,7 @@ impl<'brillig> Context<'brillig> {
                 }
 
                 let instruction = Instruction::MakeArray {
-                    elements: new_array_values,
+                    elements: Box::new(new_array_values),
                     typ: Type::Array(types, length),
                 };
                 let instruction_id = dfg.make_instruction(instruction, None);

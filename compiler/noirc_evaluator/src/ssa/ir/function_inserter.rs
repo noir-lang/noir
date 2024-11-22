@@ -160,7 +160,7 @@ impl<'f> FunctionInserter<'f> {
         // pass a sequence point and all blocks that may be before the current insertion point
         // are finished.
         if let Some((elements, typ)) = make_array {
-            Self::cache_array(&mut self.array_cache, elements, typ, new_results.first());
+            Self::cache_array(&mut self.array_cache, *elements, typ, new_results.first());
         }
 
         Self::insert_new_instruction_results(&mut self.values, &results, &new_results);

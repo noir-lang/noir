@@ -359,7 +359,8 @@ impl FunctionBuilder {
         typ: Type,
     ) -> ValueId {
         assert!(matches!(typ, Type::Array(..) | Type::Slice(_)));
-        self.insert_instruction(Instruction::MakeArray { elements, typ }, None).first()
+        self.insert_instruction(Instruction::MakeArray { elements: Box::new(elements), typ }, None)
+            .first()
     }
 
     /// Terminates the current block with the given terminator instruction

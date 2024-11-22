@@ -276,7 +276,7 @@ pub(crate) enum Instruction {
     ///
     /// `typ` should be an array or slice type with an element type
     /// matching each of the `elements` values' types.
-    MakeArray { elements: im::Vector<ValueId>, typ: Type },
+    MakeArray { elements: Box<im::Vector<ValueId>>, typ: Type },
 }
 
 impl Instruction {
@@ -534,7 +534,7 @@ impl Instruction {
                 else_value: f(*else_value),
             },
             Instruction::MakeArray { elements, typ } => Instruction::MakeArray {
-                elements: elements.iter().copied().map(f).collect(),
+                elements: Box::new(elements.iter().copied().map(f).collect()),
                 typ: typ.clone(),
             },
         }
@@ -597,7 +597,7 @@ impl Instruction {
                 f(*else_value);
             }
             Instruction::MakeArray { elements, typ: _ } => {
-                for element in elements {
+                for element in elements.as_ref() {
                     f(*element);
                 }
             }
@@ -666,7 +666,8 @@ impl Instruction {
                     if index < array.len() {
                         let elements = array.update(index, *value);
                         let typ = dfg.type_of_value(*array_id);
-                        let instruction = Instruction::MakeArray { elements, typ };
+                        let instruction =
+                            Instruction::MakeArray { elements: Box::new(elements), typ };
                         let new_array = dfg.insert_instruction_and_results(
                             instruction,
                             block,

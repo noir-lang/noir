@@ -53,7 +53,7 @@ pub(super) fn simplify_ec_add(
             let typ = Type::Array(Arc::new(vec![Type::field()]), 3);
 
             let elements = im::vector![result_x, result_y, result_is_infinity];
-            let instruction = Instruction::MakeArray { elements, typ };
+            let instruction = Instruction::MakeArray { elements: Box::new(elements), typ };
             let result_array =
                 dfg.insert_instruction_and_results(instruction, block, None, call_stack.clone());
 
@@ -111,7 +111,7 @@ pub(super) fn simplify_msm(
 
             let elements = im::vector![result_x, result_y, result_is_infinity];
             let typ = Type::Array(Arc::new(vec![Type::field()]), 3);
-            let instruction = Instruction::MakeArray { elements, typ };
+            let instruction = Instruction::MakeArray { elements: Box::new(elements), typ };
             let result_array =
                 dfg.insert_instruction_and_results(instruction, block, None, call_stack.clone());
 

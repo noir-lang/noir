@@ -199,7 +199,7 @@ impl<'a> ValueMerger<'a> {
             }
         }
 
-        let instruction = Instruction::MakeArray { elements: merged, typ };
+        let instruction = Instruction::MakeArray { elements: Box::new(merged), typ };
         let call_stack = self.call_stack.clone();
         self.dfg.insert_instruction_and_results(instruction, self.block, None, call_stack).first()
     }
@@ -269,7 +269,7 @@ impl<'a> ValueMerger<'a> {
             }
         }
 
-        let instruction = Instruction::MakeArray { elements: merged, typ };
+        let instruction = Instruction::MakeArray { elements: Box::new(merged), typ };
         let call_stack = self.call_stack.clone();
         self.dfg.insert_instruction_and_results(instruction, self.block, None, call_stack).first()
     }
@@ -291,7 +291,8 @@ impl<'a> ValueMerger<'a> {
                         array.push_back(self.make_slice_dummy_data(typ));
                     }
                 }
-                let instruction = Instruction::MakeArray { elements: array, typ: typ.clone() };
+                let instruction =
+                    Instruction::MakeArray { elements: Box::new(array), typ: typ.clone() };
                 let call_stack = self.call_stack.clone();
                 self.dfg
                     .insert_instruction_and_results(instruction, self.block, None, call_stack)

@@ -621,7 +621,7 @@ fn make_array(
     block: BasicBlockId,
     call_stack: &CallStack,
 ) -> ValueId {
-    let instruction = Instruction::MakeArray { elements, typ };
+    let instruction = Instruction::MakeArray { elements: Box::new(elements), typ };
     let call_stack = call_stack.clone();
     dfg.insert_instruction_and_results(instruction, block, None, call_stack).first()
 }

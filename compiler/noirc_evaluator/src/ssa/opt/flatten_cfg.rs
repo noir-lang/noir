@@ -736,7 +736,8 @@ impl<'f> Context<'f> {
                             call_stack.clone(),
                         );
 
-                        let instruction = Instruction::MakeArray { elements, typ };
+                        let instruction =
+                            Instruction::MakeArray { elements: Box::new(elements), typ };
                         let array = self.insert_instruction(instruction, call_stack);
                         arguments[points_array_idx] = array;
                         Instruction::Call { func, arguments }
