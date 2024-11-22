@@ -393,7 +393,7 @@ fn get_embedded_curve_point(
 
 /// Decode an `EmbeddedCurveScalar` struct.
 ///
-/// Returns `(hi, lo)`.
+/// Returns `(lo, hi)`.
 fn get_embedded_curve_scalar(
     (value, location): (Value, Location),
 ) -> IResult<(FieldElement, FieldElement)> {
