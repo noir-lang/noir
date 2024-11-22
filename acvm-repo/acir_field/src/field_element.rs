@@ -371,6 +371,14 @@ mod tests {
     use super::{AcirField, FieldElement};
     use proptest::prelude::*;
 
+    proptest! {
+        #[test]
+        fn num_bits_agrees_with_ilog2(num: u128) {
+            let field = FieldElement::<ark_bn254::Fr>::from(num);
+            prop_assert_eq!(field.num_bits(), num.ilog2());
+        }
+    }
+
     #[test]
     fn serialize_fixed_test_vectors() {
         // Serialized field elements from of 0, -1, -2, -3
