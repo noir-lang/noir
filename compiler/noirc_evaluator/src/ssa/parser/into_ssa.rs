@@ -2,12 +2,15 @@ use std::collections::HashMap;
 
 use crate::ssa::{
     function_builder::FunctionBuilder,
-    ir::{basic_block::BasicBlockId, function::FunctionId, value::ValueId},
+    ir::{
+        basic_block::BasicBlockId, function::FunctionId, instruction::ConstrainError,
+        value::ValueId,
+    },
 };
 
 use super::{
-    Identifier, ParsedBlock, ParsedFunction, ParsedInstruction, ParsedSsa, ParsedTerminator,
-    ParsedValue, RuntimeType, Ssa, SsaError,
+    ast::AssertMessage, Identifier, ParsedBlock, ParsedFunction, ParsedInstruction, ParsedSsa,
+    ParsedTerminator, ParsedValue, RuntimeType, Ssa, SsaError,
 };
 
 impl ParsedSsa {
@@ -198,10 +201,16 @@ impl Translator {
                 let value_id = self.builder.insert_cast(lhs, typ);
                 self.define_variable(target, value_id)?;
             }
-            ParsedInstruction::Constrain { lhs, rhs } => {
+            ParsedInstruction::Constrain { lhs, rhs, assert_message } => {
                 let lhs = self.translate_value(lhs)?;
                 let rhs = self.translate_value(rhs)?;
-                self.builder.insert_constrain(lhs, rhs, None);
+                let assert_message = match assert_message {
+                    Some(AssertMessage::String(string)) => {
+                        Some(ConstrainError::StaticString(string))
+                    }
+                    None => None,
+                };
+                self.builder.insert_constrain(lhs, rhs, assert_message);
             }
             ParsedInstruction::DecrementRc { value } => {
                 let value = self.translate_value(value)?;

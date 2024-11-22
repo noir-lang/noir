@@ -10,8 +10,8 @@ use super::{
 
 use acvm::{AcirField, FieldElement};
 use ast::{
-    Identifier, ParsedBlock, ParsedFunction, ParsedInstruction, ParsedParameter, ParsedSsa,
-    ParsedValue,
+    AssertMessage, Identifier, ParsedBlock, ParsedFunction, ParsedInstruction, ParsedParameter,
+    ParsedSsa, ParsedValue,
 };
 use lexer::{Lexer, LexerError};
 use noirc_errors::Span;
@@ -313,7 +313,18 @@ impl<'a> Parser<'a> {
         let lhs = self.parse_value_or_error()?;
         self.eat_or_error(Token::Equal)?;
         let rhs = self.parse_value_or_error()?;
-        Ok(Some(ParsedInstruction::Constrain { lhs, rhs }))
+
+        let assert_message = if self.eat(Token::Comma)? {
+            if let Some(str) = self.eat_str()? {
+                Some(AssertMessage::String(str))
+            } else {
+                todo!("Dynamic assert message")
+            }
+        } else {
+            None
+        };
+
+        Ok(Some(ParsedInstruction::Constrain { lhs, rhs, assert_message }))
     }
 
     fn parse_decrement_rc(&mut self) -> ParseResult<Option<ParsedInstruction>> {
@@ -764,6 +775,18 @@ impl<'a> Parser<'a> {
             let token = self.bump()?;
             match token.into_token() {
                 Token::IntType(int_type) => Ok(Some(int_type)),
+                _ => unreachable!(),
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn eat_str(&mut self) -> ParseResult<Option<String>> {
+        if matches!(self.token.token(), Token::Str(..)) {
+            let token = self.bump()?;
+            match token.into_token() {
+                Token::Str(string) => Ok(Some(string)),
                 _ => unreachable!(),
             }
         } else {

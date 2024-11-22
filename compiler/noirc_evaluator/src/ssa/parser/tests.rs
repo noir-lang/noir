@@ -215,6 +215,18 @@ fn test_constrain() {
 }
 
 #[test]
+fn test_constrain_with_static_message() {
+    let src = r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            constrain v0 == Field 1, "Oh no!"
+            return
+        }
+        "#;
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
 fn test_enable_side_effects() {
     let src = "
         acir(inline) fn main f0 {
