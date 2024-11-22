@@ -340,7 +340,8 @@ impl Context {
     }
 
     /// True if this is a `Instruction::IncrementRc` or `Instruction::DecrementRc`
-    /// operating on an array directly from a `Instruction::MakeArray`.
+    /// operating on an array directly from a `Instruction::MakeArray` or an
+    /// intrinsic known to return a fresh array.
     fn is_inc_dec_instruction_on_known_array(
         instruction: &Instruction,
         dfg: &DataFlowGraph,
@@ -348,7 +349,13 @@ impl Context {
         use Instruction::*;
         if let IncrementRc { value } | DecrementRc { value } = instruction {
             if let Value::Instruction { instruction, .. } = &dfg[*value] {
-                return matches!(&dfg[*instruction], MakeArray { .. });
+                return match &dfg[*instruction] {
+                    MakeArray { .. } => true,
+                    Call { func, .. } => {
+                        matches!(&dfg[*func], Value::Intrinsic(_) | Value::ForeignFunction(_))
+                    }
+                    _ => false,
+                };
             }
         }
         false
