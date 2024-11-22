@@ -1,6 +1,6 @@
 use acvm::{
     acir::BlackBoxFunc,
-    blackbox_solver::{BigintSolverWithId, BlackBoxFunctionSolver},
+    blackbox_solver::{BigIntSolverWithId, BlackBoxFunctionSolver},
     AcirField, BlackBoxResolutionError, FieldElement,
 };
 use bn254_blackbox_solver::Bn254BlackBoxSolver; // Currently locked to only bn254!
@@ -47,7 +47,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
 // Similar to `evaluate_black_box` in `brillig_vm`.
 fn call_foreign(
     interner: &mut NodeInterner,
-    bigint_solver: &mut BigintSolverWithId,
+    bigint_solver: &mut BigIntSolverWithId,
     name: &str,
     args: Vec<(Value, Location)>,
     return_type: Type,
@@ -145,7 +145,7 @@ fn apply_range_constraint(arguments: Vec<(Value, Location)>, location: Location)
 /// Returns the ID of the new bigint allocated by the solver.
 fn bigint_from_le_bytes(
     interner: &mut NodeInterner,
-    solver: &mut BigintSolverWithId,
+    solver: &mut BigIntSolverWithId,
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
@@ -166,7 +166,7 @@ fn bigint_from_le_bytes(
 ///
 /// Take the ID of a bigint and returned its content.
 fn bigint_to_le_bytes(
-    solver: &mut BigintSolverWithId,
+    solver: &mut BigIntSolverWithId,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
@@ -187,7 +187,7 @@ fn bigint_to_le_bytes(
 /// Takes two previous allocated IDs, gets the values from the solver,
 /// stores the result of the operation, returns the new ID.
 fn bigint_op(
-    solver: &mut BigintSolverWithId,
+    solver: &mut BigIntSolverWithId,
     func: BlackBoxFunc,
     arguments: Vec<(Value, Location)>,
     return_type: Type,

@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 use std::{collections::hash_map::Entry, rc::Rc};
 
-use acvm::blackbox_solver::BigintSolverWithId;
+use acvm::blackbox_solver::BigIntSolverWithId;
 use acvm::{acir::AcirField, FieldElement};
 use fm::FileId;
 use im::Vector;
@@ -65,7 +65,7 @@ pub struct Interpreter<'local, 'interner> {
     bound_generics: Vec<HashMap<TypeVariable, (Type, Kind)>>,
 
     /// Stateful bigint calculator.
-    bigint_solver: BigintSolverWithId,
+    bigint_solver: BigIntSolverWithId,
 }
 
 #[allow(unused)]
@@ -81,7 +81,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             current_function,
             bound_generics: Vec::new(),
             in_loop: false,
-            bigint_solver: BigintSolverWithId::default(),
+            bigint_solver: BigIntSolverWithId::default(),
         }
     }
 

@@ -100,12 +100,12 @@ impl BigIntSolver {
 
 /// Wrapper over the generic bigint solver to automatically assign bigint IDs.
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
-pub struct BigintSolverWithId {
+pub struct BigIntSolverWithId {
     solver: BigIntSolver,
     last_id: u32,
 }
 
-impl BigintSolverWithId {
+impl BigIntSolverWithId {
     pub fn create_bigint_id(&mut self) -> u32 {
         let output = self.last_id;
         self.last_id += 1;
