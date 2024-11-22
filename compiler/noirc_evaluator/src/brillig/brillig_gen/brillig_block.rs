@@ -402,210 +402,251 @@ impl<'block> BrilligBlock<'block> {
                     let result_ids = dfg.instruction_results(instruction_id);
                     self.convert_ssa_function_call(*func_id, arguments, dfg, result_ids);
                 }
-                Value::Intrinsic(Intrinsic::BlackBox(bb_func)) => {
-                    // Slices are represented as a tuple of (length, slice contents).
-                    // We must check the inputs to determine if there are slices
-                    // and make sure that we pass the correct inputs to the black box function call.
-                    // The loop below only keeps the slice contents, so that
-                    // setting up a black box function with slice inputs matches the expected
-                    // number of arguments specified in the function signature.
-                    let mut arguments_no_slice_len = Vec::new();
-                    for (i, arg) in arguments.iter().enumerate() {
-                        if matches!(dfg.type_of_value(*arg), Type::Numeric(_)) {
-                            if i < arguments.len() - 1 {
-                                if !matches!(dfg.type_of_value(arguments[i + 1]), Type::Slice(_)) {
+                Value::Intrinsic(intrinsic) => {
+                    // This match could be combined with the above but without it rust analyzer
+                    // can't automatically insert any missing cases
+                    match intrinsic {
+                        Intrinsic::ArrayLen => {
+                            let result_variable = self.variables.define_single_addr_variable(
+                                self.function_context,
+                                self.brillig_context,
+                                dfg.instruction_results(instruction_id)[0],
+                                dfg,
+                            );
+                            let param_id = arguments[0];
+                            // Slices are represented as a tuple in the form: (length, slice contents).
+                            // Thus, we can expect the first argument to a field in the case of a slice
+                            // or an array in the case of an array.
+                            if let Type::Numeric(_) = dfg.type_of_value(param_id) {
+                                let len_variable = self.convert_ssa_value(arguments[0], dfg);
+                                let length = len_variable.extract_single_addr();
+                                self.brillig_context
+                                    .mov_instruction(result_variable.address, length.address);
+                            } else {
+                                self.convert_ssa_array_len(
+                                    arguments[0],
+                                    result_variable.address,
+                                    dfg,
+                                );
+                            }
+                        }
+                        Intrinsic::AsSlice => {
+                            let source_variable = self.convert_ssa_value(arguments[0], dfg);
+                            let result_ids = dfg.instruction_results(instruction_id);
+                            let destination_len_variable =
+                                self.variables.define_single_addr_variable(
+                                    self.function_context,
+                                    self.brillig_context,
+                                    result_ids[0],
+                                    dfg,
+                                );
+                            let destination_variable = self.variables.define_variable(
+                                self.function_context,
+                                self.brillig_context,
+                                result_ids[1],
+                                dfg,
+                            );
+                            let destination_vector = destination_variable.extract_vector();
+                            let source_array = source_variable.extract_array();
+                            let element_size = dfg.type_of_value(arguments[0]).element_size();
+
+                            let source_size_register = self
+                                .brillig_context
+                                .make_usize_constant_instruction(source_array.size.into());
+
+                            // we need to explicitly set the destination_len_variable
+                            self.brillig_context.codegen_usize_op(
+                                source_size_register.address,
+                                destination_len_variable.address,
+                                BrilligBinaryOp::UnsignedDiv,
+                                element_size,
+                            );
+
+                            self.brillig_context.codegen_initialize_vector(
+                                destination_vector,
+                                source_size_register,
+                                None,
+                            );
+
+                            // Items
+                            let vector_items_pointer = self
+                                .brillig_context
+                                .codegen_make_vector_items_pointer(destination_vector);
+                            let array_items_pointer =
+                                self.brillig_context.codegen_make_array_items_pointer(source_array);
+
+                            self.brillig_context.codegen_mem_copy(
+                                array_items_pointer,
+                                vector_items_pointer,
+                                source_size_register,
+                            );
+
+                            self.brillig_context.deallocate_single_addr(source_size_register);
+                            self.brillig_context.deallocate_register(vector_items_pointer);
+                            self.brillig_context.deallocate_register(array_items_pointer);
+                        }
+                        Intrinsic::SlicePushBack
+                        | Intrinsic::SlicePopBack
+                        | Intrinsic::SlicePushFront
+                        | Intrinsic::SlicePopFront
+                        | Intrinsic::SliceInsert
+                        | Intrinsic::SliceRemove => {
+                            self.convert_ssa_slice_intrinsic_call(
+                                dfg,
+                                &dfg[dfg.resolve(*func)],
+                                instruction_id,
+                                arguments,
+                            );
+                        }
+                        Intrinsic::ToBits(endianness) => {
+                            let results = dfg.instruction_results(instruction_id);
+
+                            let source = self.convert_ssa_single_addr_value(arguments[0], dfg);
+
+                            let target_array = self
+                                .variables
+                                .define_variable(
+                                    self.function_context,
+                                    self.brillig_context,
+                                    results[0],
+                                    dfg,
+                                )
+                                .extract_array();
+
+                            let two = self
+                                .brillig_context
+                                .make_usize_constant_instruction(2_usize.into());
+
+                            self.brillig_context.codegen_to_radix(
+                                source,
+                                target_array,
+                                two,
+                                matches!(endianness, Endian::Little),
+                                true,
+                            );
+
+                            self.brillig_context.deallocate_single_addr(two);
+                        }
+
+                        Intrinsic::ToRadix(endianness) => {
+                            let results = dfg.instruction_results(instruction_id);
+
+                            let source = self.convert_ssa_single_addr_value(arguments[0], dfg);
+                            let radix = self.convert_ssa_single_addr_value(arguments[1], dfg);
+
+                            let target_array = self
+                                .variables
+                                .define_variable(
+                                    self.function_context,
+                                    self.brillig_context,
+                                    results[0],
+                                    dfg,
+                                )
+                                .extract_array();
+
+                            self.brillig_context.codegen_to_radix(
+                                source,
+                                target_array,
+                                radix,
+                                matches!(endianness, Endian::Little),
+                                false,
+                            );
+                        }
+                        Intrinsic::BlackBox(bb_func) => {
+                            // Slices are represented as a tuple of (length, slice contents).
+                            // We must check the inputs to determine if there are slices
+                            // and make sure that we pass the correct inputs to the black box function call.
+                            // The loop below only keeps the slice contents, so that
+                            // setting up a black box function with slice inputs matches the expected
+                            // number of arguments specified in the function signature.
+                            let mut arguments_no_slice_len = Vec::new();
+                            for (i, arg) in arguments.iter().enumerate() {
+                                if matches!(dfg.type_of_value(*arg), Type::Numeric(_)) {
+                                    if i < arguments.len() - 1 {
+                                        if !matches!(
+                                            dfg.type_of_value(arguments[i + 1]),
+                                            Type::Slice(_)
+                                        ) {
+                                            arguments_no_slice_len.push(*arg);
+                                        }
+                                    } else {
+                                        arguments_no_slice_len.push(*arg);
+                                    }
+                                } else {
                                     arguments_no_slice_len.push(*arg);
                                 }
-                            } else {
-                                arguments_no_slice_len.push(*arg);
                             }
-                        } else {
-                            arguments_no_slice_len.push(*arg);
+
+                            let function_arguments = vecmap(&arguments_no_slice_len, |arg| {
+                                self.convert_ssa_value(*arg, dfg)
+                            });
+                            let function_results = dfg.instruction_results(instruction_id);
+                            let function_results = vecmap(function_results, |result| {
+                                self.allocate_external_call_result(*result, dfg)
+                            });
+                            convert_black_box_call(
+                                self.brillig_context,
+                                bb_func,
+                                &function_arguments,
+                                &function_results,
+                            );
+                        }
+                        // `Intrinsic::AsWitness` is used to provide hints to acir-gen on optimal expression splitting.
+                        // It is then useless in the brillig runtime and so we can ignore it
+                        Intrinsic::AsWitness => (),
+                        Intrinsic::FieldLessThan => {
+                            let lhs = self.convert_ssa_single_addr_value(arguments[0], dfg);
+                            assert!(lhs.bit_size == FieldElement::max_num_bits());
+                            let rhs = self.convert_ssa_single_addr_value(arguments[1], dfg);
+                            assert!(rhs.bit_size == FieldElement::max_num_bits());
+
+                            let results = dfg.instruction_results(instruction_id);
+                            let destination = self
+                                .variables
+                                .define_variable(
+                                    self.function_context,
+                                    self.brillig_context,
+                                    results[0],
+                                    dfg,
+                                )
+                                .extract_single_addr();
+                            assert!(destination.bit_size == 1);
+
+                            self.brillig_context.binary_instruction(
+                                lhs,
+                                rhs,
+                                destination,
+                                BrilligBinaryOp::LessThan,
+                            );
+                        }
+                        Intrinsic::ArrayRefCount | Intrinsic::SliceRefCount => {
+                            let array = self.convert_ssa_value(arguments[0], dfg);
+                            let result = dfg.instruction_results(instruction_id)[0];
+
+                            let destination = self.variables.define_variable(
+                                self.function_context,
+                                self.brillig_context,
+                                result,
+                                dfg,
+                            );
+                            let destination = destination.extract_register();
+                            let array = array.extract_register();
+                            self.brillig_context.load_instruction(destination, array);
+                        }
+                        Intrinsic::FromField
+                        | Intrinsic::AsField
+                        | Intrinsic::IsUnconstrained
+                        | Intrinsic::DerivePedersenGenerators
+                        | Intrinsic::ApplyRangeConstraint
+                        | Intrinsic::StrAsBytes
+                        | Intrinsic::AssertConstant
+                        | Intrinsic::StaticAssert
+                        | Intrinsic::ArrayAsStrUnchecked => {
+                            unreachable!("unsupported function call type {:?}", dfg[*func])
                         }
                     }
-
-                    let function_arguments =
-                        vecmap(&arguments_no_slice_len, |arg| self.convert_ssa_value(*arg, dfg));
-                    let function_results = dfg.instruction_results(instruction_id);
-                    let function_results = vecmap(function_results, |result| {
-                        self.allocate_external_call_result(*result, dfg)
-                    });
-                    convert_black_box_call(
-                        self.brillig_context,
-                        bb_func,
-                        &function_arguments,
-                        &function_results,
-                    );
                 }
-                Value::Intrinsic(Intrinsic::ArrayLen) => {
-                    let result_variable = self.variables.define_single_addr_variable(
-                        self.function_context,
-                        self.brillig_context,
-                        dfg.instruction_results(instruction_id)[0],
-                        dfg,
-                    );
-                    let param_id = arguments[0];
-                    // Slices are represented as a tuple in the form: (length, slice contents).
-                    // Thus, we can expect the first argument to a field in the case of a slice
-                    // or an array in the case of an array.
-                    if let Type::Numeric(_) = dfg.type_of_value(param_id) {
-                        let len_variable = self.convert_ssa_value(arguments[0], dfg);
-                        let length = len_variable.extract_single_addr();
-                        self.brillig_context
-                            .mov_instruction(result_variable.address, length.address);
-                    } else {
-                        self.convert_ssa_array_len(arguments[0], result_variable.address, dfg);
-                    }
-                }
-                Value::Intrinsic(Intrinsic::AsSlice) => {
-                    let source_variable = self.convert_ssa_value(arguments[0], dfg);
-                    let result_ids = dfg.instruction_results(instruction_id);
-                    let destination_len_variable = self.variables.define_single_addr_variable(
-                        self.function_context,
-                        self.brillig_context,
-                        result_ids[0],
-                        dfg,
-                    );
-                    let destination_variable = self.variables.define_variable(
-                        self.function_context,
-                        self.brillig_context,
-                        result_ids[1],
-                        dfg,
-                    );
-                    let destination_vector = destination_variable.extract_vector();
-                    let source_array = source_variable.extract_array();
-                    let element_size = dfg.type_of_value(arguments[0]).element_size();
-
-                    let source_size_register = self
-                        .brillig_context
-                        .make_usize_constant_instruction(source_array.size.into());
-
-                    // we need to explicitly set the destination_len_variable
-                    self.brillig_context.codegen_usize_op(
-                        source_size_register.address,
-                        destination_len_variable.address,
-                        BrilligBinaryOp::UnsignedDiv,
-                        element_size,
-                    );
-
-                    self.brillig_context.codegen_initialize_vector(
-                        destination_vector,
-                        source_size_register,
-                        None,
-                    );
-
-                    // Items
-                    let vector_items_pointer =
-                        self.brillig_context.codegen_make_vector_items_pointer(destination_vector);
-                    let array_items_pointer =
-                        self.brillig_context.codegen_make_array_items_pointer(source_array);
-
-                    self.brillig_context.codegen_mem_copy(
-                        array_items_pointer,
-                        vector_items_pointer,
-                        source_size_register,
-                    );
-
-                    self.brillig_context.deallocate_single_addr(source_size_register);
-                    self.brillig_context.deallocate_register(vector_items_pointer);
-                    self.brillig_context.deallocate_register(array_items_pointer);
-                }
-                Value::Intrinsic(
-                    Intrinsic::SlicePushBack
-                    | Intrinsic::SlicePopBack
-                    | Intrinsic::SlicePushFront
-                    | Intrinsic::SlicePopFront
-                    | Intrinsic::SliceInsert
-                    | Intrinsic::SliceRemove,
-                ) => {
-                    self.convert_ssa_slice_intrinsic_call(
-                        dfg,
-                        &dfg[dfg.resolve(*func)],
-                        instruction_id,
-                        arguments,
-                    );
-                }
-                Value::Intrinsic(Intrinsic::ToRadix(endianness)) => {
-                    let results = dfg.instruction_results(instruction_id);
-
-                    let source = self.convert_ssa_single_addr_value(arguments[0], dfg);
-                    let radix = self.convert_ssa_single_addr_value(arguments[1], dfg);
-
-                    let target_array = self
-                        .variables
-                        .define_variable(
-                            self.function_context,
-                            self.brillig_context,
-                            results[0],
-                            dfg,
-                        )
-                        .extract_array();
-
-                    self.brillig_context.codegen_to_radix(
-                        source,
-                        target_array,
-                        radix,
-                        matches!(endianness, Endian::Little),
-                        false,
-                    );
-                }
-                Value::Intrinsic(Intrinsic::ToBits(endianness)) => {
-                    let results = dfg.instruction_results(instruction_id);
-
-                    let source = self.convert_ssa_single_addr_value(arguments[0], dfg);
-
-                    let target_array = self
-                        .variables
-                        .define_variable(
-                            self.function_context,
-                            self.brillig_context,
-                            results[0],
-                            dfg,
-                        )
-                        .extract_array();
-
-                    let two = self.brillig_context.make_usize_constant_instruction(2_usize.into());
-
-                    self.brillig_context.codegen_to_radix(
-                        source,
-                        target_array,
-                        two,
-                        matches!(endianness, Endian::Little),
-                        true,
-                    );
-
-                    self.brillig_context.deallocate_single_addr(two);
-                }
-
-                // `Intrinsic::AsWitness` is used to provide hints to acir-gen on optimal expression splitting.
-                // It is then useless in the brillig runtime and so we can ignore it
-                Value::Intrinsic(Intrinsic::AsWitness) => (),
-                Value::Intrinsic(Intrinsic::FieldLessThan) => {
-                    let lhs = self.convert_ssa_single_addr_value(arguments[0], dfg);
-                    assert!(lhs.bit_size == FieldElement::max_num_bits());
-                    let rhs = self.convert_ssa_single_addr_value(arguments[1], dfg);
-                    assert!(rhs.bit_size == FieldElement::max_num_bits());
-
-                    let results = dfg.instruction_results(instruction_id);
-                    let destination = self
-                        .variables
-                        .define_variable(
-                            self.function_context,
-                            self.brillig_context,
-                            results[0],
-                            dfg,
-                        )
-                        .extract_single_addr();
-                    assert!(destination.bit_size == 1);
-
-                    self.brillig_context.binary_instruction(
-                        lhs,
-                        rhs,
-                        destination,
-                        BrilligBinaryOp::LessThan,
-                    );
-                }
-                _ => {
+                Value::Instruction { .. } | Value::Param { .. } | Value::NumericConstant { .. } => {
                     unreachable!("unsupported function call type {:?}", dfg[*func])
                 }
             },

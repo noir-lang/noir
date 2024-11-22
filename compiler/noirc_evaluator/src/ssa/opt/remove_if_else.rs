@@ -232,6 +232,8 @@ fn slice_capacity_change(
         | Intrinsic::DerivePedersenGenerators
         | Intrinsic::ToBits(_)
         | Intrinsic::ToRadix(_)
+        | Intrinsic::ArrayRefCount
+        | Intrinsic::SliceRefCount
         | Intrinsic::FieldLessThan => SizeChange::None,
     }
 }
