@@ -108,6 +108,9 @@ impl Intrinsic {
     /// Returns whether the `Intrinsic` has side effects.
     ///
     /// If there are no side effects then the `Intrinsic` can be removed if the result is unused.
+    ///
+    /// An obvious example of a side effect is `println`, but in general function which can fail
+    /// due to some constraints are also considered to have a side effect.
     pub(crate) fn has_side_effects(&self) -> bool {
         match self {
             Intrinsic::AssertConstant
@@ -235,7 +238,7 @@ pub(crate) enum Instruction {
     /// - `code1` will have side effects iff `condition1` evaluates to `true`
     ///
     /// This instruction is only emitted after the cfg flattening pass, and is used to annotate
-    /// instruction regions with an condition that corresponds to their position in the CFG's
+    /// instruction regions with a condition that corresponds to their position in the CFG's
     /// if-branching structure.
     EnableSideEffectsIf { condition: ValueId },
 
@@ -411,6 +414,7 @@ impl Instruction {
                 // Explicitly allows removal of unused ec operations, even if they can fail
                 Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul))
                 | Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::EmbeddedCurveAdd)) => true,
+
                 Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
 
                 // All foreign functions are treated as having side effects.
@@ -426,7 +430,7 @@ impl Instruction {
         }
     }
 
-    /// If true the instruction will depends on enable_side_effects context during acir-gen
+    /// If true the instruction will depend on `enable_side_effects` context during acir-gen
     pub(crate) fn requires_acir_gen_predicate(&self, dfg: &DataFlowGraph) -> bool {
         match self {
             Instruction::Binary(binary)
