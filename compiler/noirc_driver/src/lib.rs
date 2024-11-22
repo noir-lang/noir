@@ -282,7 +282,7 @@ pub fn add_dep(
 ///
 /// This returns a (possibly empty) vector of any warnings found on success.
 /// On error, this returns a non-empty vector of warnings and error messages, with at least one error.
-#[tracing::instrument(level = "trace", skip(context))]
+#[tracing::instrument(level = "trace", skip_all)]
 pub fn check_crate(
     context: &mut Context,
     crate_id: CrateId,

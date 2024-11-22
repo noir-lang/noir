@@ -1547,12 +1547,15 @@ impl Type {
     ) -> Result<(), UnificationError> {
         use Type::*;
 
-        let lhs = match self {
+        let lhs = self.follow_bindings_shallow();
+        let rhs = other.follow_bindings_shallow();
+
+        let lhs = match lhs.as_ref() {
             Type::InfixExpr(..) => Cow::Owned(self.canonicalize()),
             other => Cow::Borrowed(other),
         };
 
-        let rhs = match other {
+        let rhs = match rhs.as_ref() {
             Type::InfixExpr(..) => Cow::Owned(other.canonicalize()),
             other => Cow::Borrowed(other),
         };
@@ -2383,6 +2386,21 @@ impl Type {
             FieldElement | Integer(_, _) | Bool | Constant(_, _) | Unit | Quoted(_) | Error => {
                 self.clone()
             }
+        }
+    }
+
+    /// Follow bindings if this is a type variable or generic to the first non-typevariable
+    /// type. Unlike `follow_bindings`, this won't recursively follow any bindings on any
+    /// fields or arguments of this type.
+    pub fn follow_bindings_shallow(&self) -> Cow<Type> {
+        match self {
+            Type::TypeVariable(var) | Type::NamedGeneric(var, _) => {
+                if let TypeBinding::Bound(typ) = &*var.borrow() {
+                    return Cow::Owned(typ.follow_bindings_shallow().into_owned());
+                }
+                Cow::Borrowed(self)
+            }
+            other => Cow::Borrowed(other),
         }
     }
 

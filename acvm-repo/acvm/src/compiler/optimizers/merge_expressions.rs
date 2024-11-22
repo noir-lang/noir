@@ -3,7 +3,6 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use acir::{
     circuit::{
         brillig::{BrilligInputs, BrilligOutputs},
-        directives::Directive,
         opcodes::BlockId,
         Circuit, Opcode,
     },
@@ -51,31 +50,36 @@ impl MergeExpressionsOptimizer {
         let mut new_circuit = Vec::new();
         let mut new_acir_opcode_positions = Vec::new();
         // For each opcode, try to get a target opcode to merge with
-        for (i, opcode) in circuit.opcodes.iter().enumerate() {
+        for (i, (opcode, opcode_position)) in
+            circuit.opcodes.iter().zip(acir_opcode_positions).enumerate()
+        {
             if !matches!(opcode, Opcode::AssertZero(_)) {
                 new_circuit.push(opcode.clone());
-                new_acir_opcode_positions.push(acir_opcode_positions[i]);
+                new_acir_opcode_positions.push(opcode_position);
                 continue;
             }
             let opcode = modified_gates.get(&i).unwrap_or(opcode).clone();
             let mut to_keep = true;
             let input_witnesses = self.witness_inputs(&opcode);
-            for w in input_witnesses.clone() {
-                let empty_gates = BTreeSet::new();
-                let gates_using_w = used_witness.get(&w).unwrap_or(&empty_gates);
+            for w in input_witnesses {
+                let Some(gates_using_w) = used_witness.get(&w) else {
+                    continue;
+                };
                 // We only consider witness which are used in exactly two arithmetic gates
                 if gates_using_w.len() == 2 {
-                    let gates_using_w: Vec<_> = gates_using_w.iter().collect();
-                    let mut b = *gates_using_w[1];
-                    if b == i {
-                        b = *gates_using_w[0];
+                    let first = *gates_using_w.first().expect("gates_using_w.len == 2");
+                    let second = *gates_using_w.last().expect("gates_using_w.len == 2");
+                    let b = if second == i {
+                        first
                     } else {
                         // sanity check
-                        assert!(i == *gates_using_w[0]);
-                    }
-                    let second_gate = modified_gates.get(&b).unwrap_or(&circuit.opcodes[b]).clone();
+                        assert!(i == first);
+                        second
+                    };
+
+                    let second_gate = modified_gates.get(&b).unwrap_or(&circuit.opcodes[b]);
                     if let (Opcode::AssertZero(expr_define), Opcode::AssertZero(expr_use)) =
-                        (opcode.clone(), second_gate)
+                        (&opcode, second_gate)
                     {
                         // We cannot merge an expression into an earlier opcode, because this
                         // would break the 'execution ordering' of the opcodes
@@ -86,16 +90,15 @@ impl MergeExpressionsOptimizer {
                         // - doing this pass again until there is no change, or
                         // - merging 'b' into 'i' instead
                         if i < b {
-                            if let Some(expr) = Self::merge(&expr_use, &expr_define, w) {
+                            if let Some(expr) = Self::merge(expr_use, expr_define, w) {
                                 modified_gates.insert(b, Opcode::AssertZero(expr));
                                 to_keep = false;
                                 // Update the 'used_witness' map to account for the merge.
-                                for w2 in CircuitSimulator::expr_wit(&expr_define) {
+                                for w2 in CircuitSimulator::expr_wit(expr_define) {
                                     if !circuit_inputs.contains(&w2) {
-                                        let mut v = used_witness[&w2].clone();
+                                        let v = used_witness.entry(w2).or_default();
                                         v.insert(b);
                                         v.remove(&i);
-                                        used_witness.insert(w2, v);
                                     }
                                 }
                                 // We need to stop here and continue with the next opcode
@@ -108,12 +111,9 @@ impl MergeExpressionsOptimizer {
             }
 
             if to_keep {
-                if modified_gates.contains_key(&i) {
-                    new_circuit.push(modified_gates[&i].clone());
-                } else {
-                    new_circuit.push(opcode.clone());
-                }
-                new_acir_opcode_positions.push(acir_opcode_positions[i]);
+                let opcode = modified_gates.get(&i).cloned().unwrap_or(opcode);
+                new_circuit.push(opcode);
+                new_acir_opcode_positions.push(opcode_position);
             }
         }
         (new_circuit, new_acir_opcode_positions)
@@ -161,7 +161,6 @@ impl MergeExpressionsOptimizer {
 
                 witnesses
             }
-            Opcode::Directive(Directive::ToLeRadix { a, .. }) => CircuitSimulator::expr_wit(a),
             Opcode::MemoryOp { block_id: _, op, predicate } => {
                 //index et value, et predicate
                 let mut witnesses = CircuitSimulator::expr_wit(&op.index);
@@ -297,7 +296,6 @@ mod tests {
             public_parameters: PublicInputs::default(),
             return_values: PublicInputs::default(),
             assert_messages: Default::default(),
-            recursive: false,
         };
         check_circuit(circuit);
     }
@@ -350,7 +348,6 @@ mod tests {
             public_parameters: PublicInputs::default(),
             return_values: PublicInputs::default(),
             assert_messages: Default::default(),
-            recursive: false,
         };
         check_circuit(circuit);
     }

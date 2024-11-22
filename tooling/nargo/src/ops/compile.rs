@@ -75,6 +75,7 @@ pub fn compile_program(
     )
 }
 
+#[tracing::instrument(level = "trace", name = "compile_program" skip_all, fields(package = package.name.to_string()))]
 pub fn compile_program_with_debug_instrumenter(
     file_manager: &FileManager,
     parsed_files: &ParsedFiles,
@@ -92,6 +93,7 @@ pub fn compile_program_with_debug_instrumenter(
     noirc_driver::compile_main(&mut context, crate_id, compile_options, cached_program)
 }
 
+#[tracing::instrument(level = "trace", skip_all, fields(package_name = package.name.to_string()))]
 pub fn compile_contract(
     file_manager: &FileManager,
     parsed_files: &ParsedFiles,

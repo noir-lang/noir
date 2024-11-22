@@ -24,12 +24,10 @@ mod big_int;
 mod brillig_directive;
 mod generated_acir;
 
+use crate::brillig::brillig_gen::gen_brillig_for;
 use crate::brillig::{
     brillig_gen::brillig_fn::FunctionContext as BrilligFunctionContext,
-    brillig_ir::{
-        artifact::{BrilligParameter, GeneratedBrillig},
-        BrilligContext,
-    },
+    brillig_ir::artifact::{BrilligParameter, GeneratedBrillig},
     Brillig,
 };
 use crate::errors::{InternalError, InternalWarning, RuntimeError, SsaReport};
@@ -40,7 +38,7 @@ use crate::ssa::{
         dfg::{CallStack, DataFlowGraph},
         function::{Function, FunctionId, RuntimeType},
         instruction::{
-            Binary, BinaryOp, ConstrainError, ErrorType, Instruction, InstructionId, Intrinsic,
+            Binary, BinaryOp, ConstrainError, Instruction, InstructionId, Intrinsic,
             TerminatorInstruction,
         },
         map::Id,
@@ -53,6 +51,7 @@ use crate::ssa::{
 use acir_variable::{AcirContext, AcirType, AcirVar};
 use generated_acir::BrilligStdlibFunc;
 pub(crate) use generated_acir::GeneratedAcir;
+use noirc_frontend::hir_def::types::Type as HirType;
 
 #[derive(Default)]
 struct SharedContext<F> {
@@ -296,7 +295,7 @@ pub(crate) type Artifacts = (
     Vec<GeneratedAcir<FieldElement>>,
     Vec<BrilligBytecode<FieldElement>>,
     Vec<String>,
-    BTreeMap<ErrorSelector, ErrorType>,
+    BTreeMap<ErrorSelector, HirType>,
 );
 
 impl Ssa {
@@ -309,6 +308,7 @@ impl Ssa {
         let mut acirs = Vec::new();
         // TODO: can we parallelize this?
         let mut shared_context = SharedContext::default();
+
         for function in self.functions.values() {
             let context = Context::new(&mut shared_context, expression_width);
             if let Some(mut generated_acir) =
@@ -517,7 +517,7 @@ impl<'a> Context<'a> {
         let outputs: Vec<AcirType> =
             vecmap(main_func.returns(), |result_id| dfg.type_of_value(*result_id).into());
 
-        let code = self.gen_brillig_for(main_func, arguments.clone(), brillig)?;
+        let code = gen_brillig_for(main_func, arguments.clone(), brillig)?;
 
         // We specifically do not attempt execution of the brillig code being generated as this can result in it being
         // replaced with constraints on witnesses to the program outputs.
@@ -688,16 +688,19 @@ impl<'a> Context<'a> {
 
                 let assert_payload = if let Some(error) = assert_message {
                     match error {
-                        ConstrainError::StaticString(string) => {
-                            Some(AssertionPayload::StaticString(string.clone()))
-                        }
-                        ConstrainError::Dynamic(error_selector, values) => {
+                        ConstrainError::StaticString(string) => Some(
+                            self.acir_context.generate_assertion_message_payload(string.clone()),
+                        ),
+                        ConstrainError::Dynamic(error_selector, is_string_type, values) => {
                             if let Some(constant_string) = try_to_extract_string_from_error_payload(
-                                *error_selector,
+                                *is_string_type,
                                 values,
                                 dfg,
                             ) {
-                                Some(AssertionPayload::StaticString(constant_string))
+                                Some(
+                                    self.acir_context
+                                        .generate_assertion_message_payload(constant_string),
+                                )
                             } else {
                                 let acir_vars: Vec<_> = values
                                     .iter()
@@ -707,10 +710,10 @@ impl<'a> Context<'a> {
                                 let expressions_or_memory =
                                     self.acir_context.vars_to_expressions_or_memory(&acir_vars)?;
 
-                                Some(AssertionPayload::Dynamic(
-                                    error_selector.as_u64(),
-                                    expressions_or_memory,
-                                ))
+                                Some(AssertionPayload {
+                                    error_selector: error_selector.as_u64(),
+                                    payload: expressions_or_memory,
+                                })
                             }
                         }
                     }
@@ -874,8 +877,7 @@ impl<'a> Context<'a> {
                                         None,
                                     )?
                                 } else {
-                                    let code =
-                                        self.gen_brillig_for(func, arguments.clone(), brillig)?;
+                                    let code = gen_brillig_for(func, arguments.clone(), brillig)?;
                                     let generated_pointer =
                                         self.shared_context.new_generated_pointer();
                                     let output_values = self.acir_context.brillig_call(
@@ -993,47 +995,6 @@ impl<'a> Context<'a> {
                 }
             })
             .collect()
-    }
-
-    fn gen_brillig_for(
-        &self,
-        func: &Function,
-        arguments: Vec<BrilligParameter>,
-        brillig: &Brillig,
-    ) -> Result<GeneratedBrillig<FieldElement>, InternalError> {
-        // Create the entry point artifact
-        let mut entry_point = BrilligContext::new_entry_point_artifact(
-            arguments,
-            BrilligFunctionContext::return_values(func),
-            func.id(),
-        );
-        entry_point.name = func.name().to_string();
-
-        // Link the entry point with all dependencies
-        while let Some(unresolved_fn_label) = entry_point.first_unresolved_function_call() {
-            let artifact = &brillig.find_by_label(unresolved_fn_label);
-            let artifact = match artifact {
-                Some(artifact) => artifact,
-                None => {
-                    return Err(InternalError::General {
-                        message: format!("Cannot find linked fn {unresolved_fn_label}"),
-                        call_stack: CallStack::new(),
-                    })
-                }
-            };
-            entry_point.link_with(artifact);
-            // Insert the range of opcode locations occupied by a procedure
-            if let Some(procedure_id) = artifact.procedure {
-                let num_opcodes = entry_point.byte_code.len();
-                let previous_num_opcodes = entry_point.byte_code.len() - artifact.byte_code.len();
-                // We subtract one as to keep the range inclusive on both ends
-                entry_point
-                    .procedure_locations
-                    .insert(procedure_id, (previous_num_opcodes, num_opcodes - 1));
-            }
-        }
-        // Generate the final bytecode
-        Ok(entry_point.finish())
     }
 
     /// Handles an ArrayGet or ArraySet instruction.

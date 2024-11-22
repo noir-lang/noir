@@ -3,14 +3,13 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use crate::{
     compiler::optimizers::GeneralOptimizer,
     pwg::{
-        arithmetic::ExpressionSolver, blackbox::solve_range_opcode, directives::solve_directives,
-        BrilligSolver, BrilligSolverStatus,
+        arithmetic::ExpressionSolver, blackbox::solve_range_opcode, BrilligSolver,
+        BrilligSolverStatus,
     },
 };
 use acir::{
     circuit::{
         brillig::{Brillig, BrilligInputs, BrilligOutputs},
-        directives::Directive,
         opcodes::BlackBoxFuncCall,
         Circuit, Opcode,
     },
@@ -212,34 +211,6 @@ impl ConstantBackpropagationOptimizer {
                     }
                 }
 
-                Opcode::Directive(Directive::ToLeRadix { a, b, radix }) => {
-                    if b.iter().all(|output| known_witnesses.contains_key(output)) {
-                        continue;
-                    } else if b.iter().any(|witness| required_witnesses.contains(witness)) {
-                        // If one of the brillig opcode's outputs is a required witness then we can't remove the opcode. In this case we can't replace
-                        // all of the uses of this witness with the calculated constant so we'll be attempting to use an uninitialized witness.
-                        //
-                        // We then do not attempt execution of this opcode and just simplify the inputs.
-                        Opcode::Directive(Directive::ToLeRadix {
-                            a: remap_expression(&known_witnesses, a),
-                            b,
-                            radix,
-                        })
-                    } else {
-                        let directive = Directive::ToLeRadix {
-                            a: remap_expression(&known_witnesses, a),
-                            b,
-                            radix,
-                        };
-                        let result = solve_directives(&mut known_witnesses, &directive);
-
-                        match result {
-                            Ok(()) => continue,
-                            Err(_) => Opcode::Directive(directive),
-                        }
-                    }
-                }
-
                 Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input }) => {
                     if solve_range_opcode(&known_witnesses, &input).is_ok() {
                         continue;
@@ -288,7 +259,6 @@ mod tests {
             public_parameters: PublicInputs::default(),
             return_values: PublicInputs::default(),
             assert_messages: Default::default(),
-            recursive: false,
         }
     }
 

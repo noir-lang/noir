@@ -256,7 +256,7 @@ impl<'block> BrilligBlock<'block> {
                 };
 
                 match assert_message {
-                    Some(ConstrainError::Dynamic(selector, values)) => {
+                    Some(ConstrainError::Dynamic(selector, _, values)) => {
                         let payload_values =
                             vecmap(values, |value| self.convert_ssa_value(*value, dfg));
                         let payload_as_params = vecmap(values, |value| {
@@ -267,7 +267,7 @@ impl<'block> BrilligBlock<'block> {
                             condition,
                             payload_values,
                             payload_as_params,
-                            selector.as_u64(),
+                            *selector,
                         );
                     }
                     Some(ConstrainError::StaticString(message)) => {

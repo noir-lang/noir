@@ -1112,10 +1112,10 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                 let witness = self.var_to_witness(witness_var)?;
                 self.acir_ir.range_constraint(witness, *bit_size)?;
                 if let Some(message) = message {
-                    self.acir_ir.assertion_payloads.insert(
-                        self.acir_ir.last_acir_opcode_location(),
-                        AssertionPayload::StaticString(message.clone()),
-                    );
+                    let payload = self.generate_assertion_message_payload(message.clone());
+                    self.acir_ir
+                        .assertion_payloads
+                        .insert(self.acir_ir.last_acir_opcode_location(), payload);
                 }
             }
             NumericType::NativeField => {
@@ -2071,6 +2071,13 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         let predicate = Some(self.var_to_expression(predicate)?);
         self.acir_ir.push_opcode(Opcode::Call { id, inputs, outputs, predicate });
         Ok(results)
+    }
+
+    pub(crate) fn generate_assertion_message_payload(
+        &mut self,
+        message: String,
+    ) -> AssertionPayload<F> {
+        self.acir_ir.generate_assertion_message_payload(message)
     }
 }
 
