@@ -158,23 +158,6 @@ impl<F: PrimeField> FieldElement<F> {
         let fr = F::from_str(input).ok()?;
         Some(FieldElement(fr))
     }
-
-    fn bits(&self) -> Vec<bool> {
-        fn byte_to_bit(byte: u8) -> Vec<bool> {
-            let mut bits = Vec::with_capacity(8);
-            for index in (0..=7).rev() {
-                bits.push((byte & (1 << index)) >> index == 1);
-            }
-            bits
-        }
-
-        let bytes = self.to_be_bytes();
-        let mut bits = Vec::with_capacity(bytes.len() * 8);
-        for byte in bytes {
-            bits.extend(byte_to_bit(byte));
-        }
-        bits
-    }
 }
 
 impl<F: PrimeField> AcirField for FieldElement<F> {
@@ -224,12 +207,26 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
 
     /// This is the number of bits required to represent this specific field element
     fn num_bits(&self) -> u32 {
-        let bits = self.bits();
-        // Iterate the number of bits and pop off all leading zeroes
-        let iter = bits.iter().skip_while(|x| !(**x));
+        let bytes = self.to_be_bytes();
+
+        // Iterate through the byte decomposition and pop off all leading zeroes
+        let mut iter = bytes.iter().skip_while(|x| (**x) == 0);
+
+        // The first non-zero byte in the decomposition may have some leading zero-bits.
+        let Some(head_byte) = iter.next() else {
+            // If we don't have a non-zero byte then the field element is zero,
+            // which we consider to require a single bit to represent.
+            return 1;
+        };
+        let num_bits_for_head_byte = head_byte.ilog2();
+
+        // Each remaining byte in the byte decomposition requires 8 bits.
+        //
         // Note: count will panic if it goes over usize::MAX.
         // This may not be suitable for devices whose usize < u16
-        iter.count() as u32
+        let tail_length = iter.count() as u32;
+
+        8 * tail_length + num_bits_for_head_byte
     }
 
     fn to_u128(self) -> u128 {
