@@ -632,15 +632,10 @@ impl<'f> PerFunctionContext<'f> {
                                 aliases.insert(*parameter);
 
                                 // Check if we have seen the same argument
-                                if let Some(seen_parameters) = arg_set.get_mut(&argument) {
-                                    // Add the current parameter to the parameter we have seen for this argument.
-                                    // The previous parameters and the current one alias one another.
-                                    seen_parameters.insert(*parameter);
-                                } else {
-                                    let mut new_param_set = HashSet::default();
-                                    new_param_set.insert(*parameter);
-                                    arg_set.insert(argument, new_param_set);
-                                }
+                                let seen_parameters = arg_set.entry(argument).or_default();
+                                // Add the current parameter to the parameter we have seen for this argument.
+                                // The previous parameters and the current one alias one another.
+                                seen_parameters.insert(*parameter);
                             }
                         }
                     }
