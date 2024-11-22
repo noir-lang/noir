@@ -441,3 +441,15 @@ fn test_negative() {
         ";
     assert_ssa_roundtrip(src);
 }
+
+#[test]
+fn test_function_type() {
+    let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut function
+            return
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}

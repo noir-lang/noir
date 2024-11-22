@@ -654,6 +654,10 @@ impl<'a> Parser<'a> {
             return Ok(Type::Reference(Arc::new(typ)));
         }
 
+        if self.eat_keyword(Keyword::Function)? {
+            return Ok(Type::Function);
+        }
+
         self.expected_type()
     }
 
