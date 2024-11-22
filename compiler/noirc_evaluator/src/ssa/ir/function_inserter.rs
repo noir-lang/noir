@@ -25,7 +25,7 @@ pub(crate) struct FunctionInserter<'f> {
     ///
     /// This is optional since caching arrays relies on the inserter inserting strictly
     /// in control-flow order. Otherwise, if arrays later in the program are cached first,
-    /// they may be refered to by instructions earlier in the program.
+    /// they may be referred to by instructions earlier in the program.
     array_cache: Option<ArrayCache>,
 
     /// If this pass is loop unrolling, store the block before the loop to optionally
