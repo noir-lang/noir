@@ -213,11 +213,7 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
         let mut iter = bytes.iter().skip_while(|x| (**x) == 0);
 
         // The first non-zero byte in the decomposition may have some leading zero-bits.
-        let Some(head_byte) = iter.next() else {
-            // If we don't have a non-zero byte then the field element is zero,
-            // which we consider to require a single bit to represent.
-            return 1;
-        };
+        let head_byte = iter.next().copied().unwrap_or(0);
         let num_bits_for_head_byte = head_byte.ilog2();
 
         // Each remaining byte in the byte decomposition requires 8 bits.
@@ -226,7 +222,7 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
         // This may not be suitable for devices whose usize < u16
         let tail_length = iter.count() as u32;
 
-        8 * tail_length + num_bits_for_head_byte
+        8 * tail_length + num_bits_for_head_byte + 1
     }
 
     fn to_u128(self) -> u128 {
@@ -375,8 +371,18 @@ mod tests {
         #[test]
         fn num_bits_agrees_with_ilog2(num in 1u128..) {
             let field = FieldElement::<ark_bn254::Fr>::from(num);
-            prop_assert_eq!(field.num_bits(), num.ilog2());
+            prop_assert_eq!(field.num_bits(), num.ilog2() + 1);
         }
+    }
+
+    #[test]
+    fn test_fits_in_u128() {
+        let field = FieldElement::<ark_bn254::Fr>::from(u128::MAX);
+        assert_eq!(field.num_bits(), 128);
+        assert!(field.fits_in_u128());
+        let big_field = field + FieldElement::one();
+        assert_eq!(big_field.num_bits(), 129);
+        assert!(!big_field.fits_in_u128());
     }
 
     #[test]
