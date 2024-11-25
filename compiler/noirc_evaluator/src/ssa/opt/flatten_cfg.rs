@@ -203,10 +203,12 @@ struct Context<'f> {
     arguments_stack: Vec<Vec<ValueId>>,
 
     /// Stores all allocations local to the current branch.
-    /// Since these branches are local to the current branch (ie. only defined within one branch of
+    ///
+    /// Since these branches are local to the current branch (i.e. only defined within one branch of
     /// an if expression), they should not be merged with their previous value or stored value in
-    /// the other branch since there is no such value. The ValueId here is that which is returned
-    /// by the allocate instruction.
+    /// the other branch since there is no such value.
+    ///
+    /// The `ValueId` here is that which is returned by the allocate instruction.
     local_allocations: HashSet<ValueId>,
 }
 
