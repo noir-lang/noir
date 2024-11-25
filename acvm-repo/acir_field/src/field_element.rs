@@ -9,7 +9,7 @@ use crate::AcirField;
 
 // XXX: Switch out for a trait and proper implementations
 // This implementation is inefficient, can definitely remove hex usage and Iterator instances for trivial functionality
-#[derive(Default, Clone, Copy, Eq, PartialOrd, Ord)]
+#[derive(Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FieldElement<F: PrimeField>(F);
 
 impl<F: PrimeField> std::fmt::Display for FieldElement<F> {
@@ -40,18 +40,6 @@ impl<F: PrimeField> std::fmt::Display for FieldElement<F> {
 impl<F: PrimeField> std::fmt::Debug for FieldElement<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         std::fmt::Display::fmt(self, f)
-    }
-}
-
-impl<F: PrimeField> std::hash::Hash for FieldElement<F> {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        state.write(&self.to_be_bytes());
-    }
-}
-
-impl<F: PrimeField> PartialEq for FieldElement<F> {
-    fn eq(&self, other: &Self) -> bool {
-        self.to_be_bytes() == other.to_be_bytes()
     }
 }
 
@@ -158,23 +146,6 @@ impl<F: PrimeField> FieldElement<F> {
         let fr = F::from_str(input).ok()?;
         Some(FieldElement(fr))
     }
-
-    fn bits(&self) -> Vec<bool> {
-        fn byte_to_bit(byte: u8) -> Vec<bool> {
-            let mut bits = Vec::with_capacity(8);
-            for index in (0..=7).rev() {
-                bits.push((byte & (1 << index)) >> index == 1);
-            }
-            bits
-        }
-
-        let bytes = self.to_be_bytes();
-        let mut bits = Vec::with_capacity(bytes.len() * 8);
-        for byte in bytes {
-            bits.extend(byte_to_bit(byte));
-        }
-        bits
-    }
 }
 
 impl<F: PrimeField> AcirField for FieldElement<F> {
@@ -224,12 +195,26 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
 
     /// This is the number of bits required to represent this specific field element
     fn num_bits(&self) -> u32 {
-        let bits = self.bits();
-        // Iterate the number of bits and pop off all leading zeroes
-        let iter = bits.iter().skip_while(|x| !(**x));
+        let bytes = self.to_be_bytes();
+
+        // Iterate through the byte decomposition and pop off all leading zeroes
+        let mut iter = bytes.iter().skip_while(|x| (**x) == 0);
+
+        // The first non-zero byte in the decomposition may have some leading zero-bits.
+        let Some(head_byte) = iter.next() else {
+            // If we don't have a non-zero byte then the field element is zero,
+            // which we consider to require a single bit to represent.
+            return 1;
+        };
+        let num_bits_for_head_byte = head_byte.ilog2();
+
+        // Each remaining byte in the byte decomposition requires 8 bits.
+        //
         // Note: count will panic if it goes over usize::MAX.
         // This may not be suitable for devices whose usize < u16
-        iter.count() as u32
+        let tail_length = iter.count() as u32;
+
+        8 * tail_length + num_bits_for_head_byte + 1
     }
 
     fn to_u128(self) -> u128 {
@@ -373,6 +358,30 @@ impl<F: PrimeField> SubAssign for FieldElement<F> {
 mod tests {
     use super::{AcirField, FieldElement};
     use proptest::prelude::*;
+
+    #[test]
+    fn requires_one_bit_to_hold_zero() {
+        let field = FieldElement::<ark_bn254::Fr>::zero();
+        assert_eq!(field.num_bits(), 1);
+    }
+
+    proptest! {
+        #[test]
+        fn num_bits_agrees_with_ilog2(num in 1u128..) {
+            let field = FieldElement::<ark_bn254::Fr>::from(num);
+            prop_assert_eq!(field.num_bits(), num.ilog2() + 1);
+        }
+    }
+
+    #[test]
+    fn test_fits_in_u128() {
+        let field = FieldElement::<ark_bn254::Fr>::from(u128::MAX);
+        assert_eq!(field.num_bits(), 128);
+        assert!(field.fits_in_u128());
+        let big_field = field + FieldElement::one();
+        assert_eq!(big_field.num_bits(), 129);
+        assert!(!big_field.fits_in_u128());
+    }
 
     #[test]
     fn serialize_fixed_test_vectors() {

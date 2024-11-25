@@ -452,7 +452,14 @@ impl<'context> Elaborator<'context> {
             }
             ItemKind::Impl(r#impl) => {
                 let module = self.module_id();
-                dc_mod::collect_impl(self.interner, generated_items, r#impl, self.file, module);
+                dc_mod::collect_impl(
+                    self.interner,
+                    generated_items,
+                    r#impl,
+                    self.file,
+                    module,
+                    &mut self.errors,
+                );
             }
 
             ItemKind::ModuleDecl(_)

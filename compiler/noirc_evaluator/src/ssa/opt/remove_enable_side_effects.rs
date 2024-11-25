@@ -145,7 +145,8 @@ impl Context {
             | RangeCheck { .. }
             | IfElse { .. }
             | IncrementRc { .. }
-            | DecrementRc { .. } => false,
+            | DecrementRc { .. }
+            | MakeArray { .. } => false,
 
             EnableSideEffectsIf { .. }
             | ArrayGet { .. }
@@ -179,6 +180,8 @@ impl Context {
                     | Intrinsic::AsWitness
                     | Intrinsic::IsUnconstrained
                     | Intrinsic::DerivePedersenGenerators
+                    | Intrinsic::ArrayRefCount
+                    | Intrinsic::SliceRefCount
                     | Intrinsic::FieldLessThan => false,
                 },
 

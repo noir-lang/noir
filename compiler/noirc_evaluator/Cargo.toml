@@ -20,7 +20,6 @@ fxhash.workspace = true
 iter-extended.workspace = true
 thiserror.workspace = true
 num-bigint = "0.4"
-num-traits.workspace = true
 im.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -34,6 +33,7 @@ cfg-if.workspace = true
 proptest.workspace = true
 similar-asserts.workspace = true
 tracing-test = "0.2.5"
+num-traits.workspace = true
 
 [features]
 bn254 = ["noirc_frontend/bn254"]

@@ -19,7 +19,7 @@ await newABICoder();
 await initACVM();
 
 const base_relative_path = '../../../../..';
-const circuit_main = 'test_programs/execution_success/assert_statement_recursive';
+const circuit_main = 'test_programs/execution_success/assert_statement';
 const circuit_recursion = 'compiler/integration-tests/circuits/recursion';
 
 async function getCircuit(projectPath: string) {
@@ -45,7 +45,7 @@ describe('It compiles noir program code, receiving circuit bytes and abi object.
     const main_program = await getCircuit(`${base_relative_path}/${circuit_main}`);
     const main_inputs: InputMap = TOML.parse(circuit_main_toml) as InputMap;
 
-    const main_backend = new UltraPlonkBackend(main_program.bytecode);
+    const main_backend = new UltraPlonkBackend(main_program.bytecode, {}, { recursive: true });
 
     const { witness: main_witnessUint8Array } = await new Noir(main_program).execute(main_inputs);
 
@@ -73,7 +73,7 @@ describe('It compiles noir program code, receiving circuit bytes and abi object.
 
     const recursion_program = await getCircuit(`${base_relative_path}/${circuit_recursion}`);
 
-    const recursion_backend = new UltraPlonkBackend(recursion_program.bytecode);
+    const recursion_backend = new UltraPlonkBackend(recursion_program.bytecode, {}, { recursive: false });
 
     const { witness: recursion_witnessUint8Array } = await new Noir(recursion_program).execute(recursion_inputs);
 

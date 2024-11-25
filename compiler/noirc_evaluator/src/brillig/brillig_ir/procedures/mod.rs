@@ -1,9 +1,13 @@
+use noirc_errors::debug_info::ProcedureDebugId;
+use serde::{Deserialize, Serialize};
+
 mod array_copy;
 mod array_reverse;
 mod check_max_stack_depth;
 mod mem_copy;
 mod prepare_vector_insert;
 mod prepare_vector_push;
+mod revert_with_string;
 mod vector_copy;
 mod vector_pop_back;
 mod vector_pop_front;
@@ -13,10 +17,9 @@ use array_copy::compile_array_copy_procedure;
 use array_reverse::compile_array_reverse_procedure;
 use check_max_stack_depth::compile_check_max_stack_depth_procedure;
 use mem_copy::compile_mem_copy_procedure;
-use noirc_errors::debug_info::ProcedureDebugId;
 use prepare_vector_insert::compile_prepare_vector_insert_procedure;
 use prepare_vector_push::compile_prepare_vector_push_procedure;
-use serde::{Deserialize, Serialize};
+use revert_with_string::compile_revert_with_string_procedure;
 use vector_copy::compile_vector_copy_procedure;
 use vector_pop_back::compile_vector_pop_back_procedure;
 use vector_pop_front::compile_vector_pop_front_procedure;
@@ -33,7 +36,7 @@ use super::{
 /// Procedures are a set of complex operations that are common in the noir language.
 /// Extracting them to reusable procedures allows us to reduce the size of the generated Brillig.
 /// Procedures receive their arguments on scratch space to avoid stack dumping&restoring.
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, PartialOrd, Ord, Deserialize, Serialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord, Deserialize, Serialize)]
 pub enum ProcedureId {
     ArrayCopy,
     ArrayReverse,
@@ -45,10 +48,11 @@ pub enum ProcedureId {
     PrepareVectorInsert,
     VectorRemove,
     CheckMaxStackDepth,
+    RevertWithString(String),
 }
 
 impl ProcedureId {
-    pub(crate) fn to_debug_id(self) -> ProcedureDebugId {
+    pub(crate) fn to_debug_id(&self) -> ProcedureDebugId {
         ProcedureDebugId(match self {
             ProcedureId::ArrayCopy => 0,
             ProcedureId::ArrayReverse => 1,
@@ -61,6 +65,7 @@ impl ProcedureId {
             ProcedureId::PrepareVectorInsert => 8,
             ProcedureId::VectorRemove => 9,
             ProcedureId::CheckMaxStackDepth => 10,
+            ProcedureId::RevertWithString(_) => 11,
         })
     }
 
@@ -78,6 +83,8 @@ impl ProcedureId {
             8 => ProcedureId::PrepareVectorInsert,
             9 => ProcedureId::VectorRemove,
             10 => ProcedureId::CheckMaxStackDepth,
+            // TODO: what to do here?
+            11 => ProcedureId::RevertWithString("".to_string()),
             _ => panic!("Unsupported procedure debug ID of {inner} was supplied"),
         }
     }
@@ -96,6 +103,7 @@ impl std::fmt::Display for ProcedureId {
             ProcedureId::PrepareVectorInsert => write!(f, "PrepareVectorInsert"),
             ProcedureId::VectorRemove => write!(f, "VectorRemove"),
             ProcedureId::CheckMaxStackDepth => write!(f, "CheckMaxStackDepth"),
+            ProcedureId::RevertWithString(_) => write!(f, "RevertWithString"),
         }
     }
 }
@@ -103,8 +111,8 @@ impl std::fmt::Display for ProcedureId {
 pub(crate) fn compile_procedure<F: AcirField + DebugToString>(
     procedure_id: ProcedureId,
 ) -> BrilligArtifact<F> {
-    let mut brillig_context = BrilligContext::new_for_procedure(false, procedure_id);
-    brillig_context.enter_context(Label::procedure(procedure_id));
+    let mut brillig_context = BrilligContext::new_for_procedure(false, procedure_id.clone());
+    brillig_context.enter_context(Label::procedure(procedure_id.clone()));
 
     match procedure_id {
         ProcedureId::MemCopy => compile_mem_copy_procedure(&mut brillig_context),
@@ -127,9 +135,12 @@ pub(crate) fn compile_procedure<F: AcirField + DebugToString>(
         ProcedureId::CheckMaxStackDepth => {
             compile_check_max_stack_depth_procedure(&mut brillig_context);
         }
+        ProcedureId::RevertWithString(revert_string) => {
+            compile_revert_with_string_procedure(&mut brillig_context, revert_string);
+        }
     };
 
-    brillig_context.stop_instruction();
+    brillig_context.return_instruction();
 
     brillig_context.artifact()
 }

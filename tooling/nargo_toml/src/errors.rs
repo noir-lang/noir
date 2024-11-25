@@ -80,6 +80,8 @@ pub enum ManifestError {
 #[allow(clippy::enum_variant_names)]
 #[derive(Error, Debug, PartialEq, Eq, Clone)]
 pub enum SemverError {
+    #[error("Invalid value for `compiler_version` in package {package_name}. Requirements may only refer to full releases")]
+    InvalidCompilerVersionRequirement { package_name: CrateName, required_compiler_version: String },
     #[error("Incompatible compiler version in package {package_name}. Required compiler version is {required_compiler_version} but the compiler version is {compiler_version_found}.\n Update the compiler_version field in Nargo.toml to >={required_compiler_version} or compile this project with version {required_compiler_version}")]
     IncompatibleVersion {
         package_name: CrateName,

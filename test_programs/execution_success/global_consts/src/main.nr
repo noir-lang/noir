@@ -18,7 +18,7 @@ struct Test {
     v: Field,
 }
 global VALS: [Test; 1] = [Test { v: 100 }];
-global NESTED = [VALS, VALS];
+global NESTED: [[Test; 1]; 2] = [VALS, VALS];
 
 unconstrained fn calculate_global_value() -> Field {
     42
@@ -121,4 +121,4 @@ impl Bar {
 }
 
 // Regression for #1440
-global foo = Foo { a: Bar::get_a() };
+global foo: Foo = Foo { a: Bar::get_a() };

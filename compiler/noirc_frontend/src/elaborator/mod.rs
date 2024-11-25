@@ -164,6 +164,12 @@ pub struct Elaborator<'context> {
     unresolved_globals: BTreeMap<GlobalId, UnresolvedGlobal>,
 
     pub(crate) interpreter_call_stack: im::Vector<Location>,
+
+    /// If greater than 0, field visibility errors won't be reported.
+    /// This is used when elaborating a comptime expression that is a struct constructor
+    /// like `Foo { inner: 5 }`: in that case we already elaborated the code that led to
+    /// that comptime value and any visibility errors were already reported.
+    silence_field_visibility_errors: usize,
 }
 
 #[derive(Default)]
@@ -213,6 +219,7 @@ impl<'context> Elaborator<'context> {
             current_trait: None,
             interpreter_call_stack,
             in_comptime_context: false,
+            silence_field_visibility_errors: 0,
         }
     }
 
@@ -443,7 +450,7 @@ impl<'context> Elaborator<'context> {
             FunctionKind::Builtin | FunctionKind::LowLevel | FunctionKind::Oracle => {
                 (HirFunction::empty(), Type::Error)
             }
-            FunctionKind::Normal | FunctionKind::Recursive => {
+            FunctionKind::Normal => {
                 let (block, body_type) = self.elaborate_block(body);
                 let expr_id = self.intern_expr(block, body_span);
                 self.interner.push_expr_type(expr_id, body_type.clone());
@@ -476,7 +483,7 @@ impl<'context> Elaborator<'context> {
         }
 
         // Check that the body can return without calling the function.
-        if let FunctionKind::Normal | FunctionKind::Recursive = kind {
+        if let FunctionKind::Normal = kind {
             self.run_lint(|elaborator| {
                 lints::unbounded_recursion(
                     elaborator.interner,
@@ -929,9 +936,6 @@ impl<'context> Elaborator<'context> {
         self.run_lint(|elaborator| {
             lints::low_level_function_outside_stdlib(func, modifiers, elaborator.crate_id)
                 .map(Into::into)
-        });
-        self.run_lint(|_| {
-            lints::recursive_non_entrypoint_function(func, modifiers).map(Into::into)
         });
     }
 

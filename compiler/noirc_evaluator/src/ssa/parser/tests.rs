@@ -54,33 +54,36 @@ fn test_return_integer() {
 }
 
 #[test]
-fn test_return_array() {
+fn test_make_array() {
     let src = "
         acir(inline) fn main f0 {
           b0():
-            return [Field 1] of Field
+            v1 = make_array [Field 1] : [Field; 1]
+            return v1
         }
         ";
     assert_ssa_roundtrip(src);
 }
 
 #[test]
-fn test_return_empty_array() {
+fn test_make_empty_array() {
     let src = "
         acir(inline) fn main f0 {
           b0():
-            return [] of Field
+            v0 = make_array [] : [Field; 0]
+            return v0
         }
         ";
     assert_ssa_roundtrip(src);
 }
 
 #[test]
-fn test_return_composite_array() {
+fn test_make_composite_array() {
     let src = "
         acir(inline) fn main f0 {
           b0():
-            return [Field 1, Field 2] of (Field, Field)
+            v2 = make_array [Field 1, Field 2] : [(Field, Field); 1]
+            return v2
         }
         ";
     assert_ssa_roundtrip(src);
@@ -103,8 +106,8 @@ fn test_multiple_blocks_and_jmp() {
         acir(inline) fn main f0 {
           b0():
             jmp b1(Field 1)
-          b1(v1: Field):
-            return v1
+          b1(v0: Field):
+            return v0
         }
         ";
     assert_ssa_roundtrip(src);
@@ -115,10 +118,10 @@ fn test_jmpif() {
     let src = "
         acir(inline) fn main f0 {
           b0(v0: Field):
-            jmpif v0 then: b1, else: b2
-          b1():
-            return
+            jmpif v0 then: b2, else: b1
           b2():
+            return
+          b1():
             return
         }
         ";
@@ -151,7 +154,9 @@ fn test_call_multiple_return_values() {
         }
         acir(inline) fn foo f1 {
           b0():
-            return [Field 1, Field 2, Field 3] of Field, [Field 4] of Field
+            v3 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+            v5 = make_array [Field 4] : [Field; 1]
+            return v3, v5
         }
         ";
     assert_ssa_roundtrip(src);
@@ -203,6 +208,31 @@ fn test_constrain() {
         acir(inline) fn main f0 {
           b0(v0: Field):
             constrain v0 == Field 1
+            return
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn test_constrain_with_static_message() {
+    let src = r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            constrain v0 == Field 1, "Oh no!"
+            return
+        }
+        "#;
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn test_constrain_with_dynamic_message() {
+    let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v7 = make_array [u8 123, u8 120, u8 125, u8 32, u8 123, u8 121, u8 125] : [u8; 7]
+            constrain v0 == Field 1, data v7, u32 2, v0, v1
             return
         }
         ";
@@ -420,6 +450,29 @@ fn test_slice() {
         acir(inline) fn main f0 {
           b0(v0: [Field; 3]):
             v2, v3 = call as_slice(v0) -> (u32, [Field])
+            return
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn test_negative() {
+    let src = "
+        acir(inline) fn main f0 {
+          b0():
+            return Field -1
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn test_function_type() {
+    let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut function
             return
         }
         ";

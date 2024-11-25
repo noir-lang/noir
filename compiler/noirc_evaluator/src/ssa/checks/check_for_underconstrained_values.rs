@@ -461,7 +461,8 @@ impl Context {
                 | Instruction::Load { .. }
                 | Instruction::Not(..)
                 | Instruction::Store { .. }
-                | Instruction::Truncate { .. } => {
+                | Instruction::Truncate { .. }
+                | Instruction::MakeArray { .. } => {
                     self.value_sets.push(instruction_arguments_and_results);
                 }
 
@@ -474,16 +475,18 @@ impl Context {
                             | Intrinsic::IsUnconstrained => {}
                             Intrinsic::ArrayLen
                             | Intrinsic::ArrayAsStrUnchecked
+                            | Intrinsic::ArrayRefCount
                             | Intrinsic::AsField
                             | Intrinsic::AsSlice
                             | Intrinsic::BlackBox(..)
                             | Intrinsic::DerivePedersenGenerators
                             | Intrinsic::FromField
+                            | Intrinsic::SliceInsert
                             | Intrinsic::SlicePushBack
                             | Intrinsic::SlicePushFront
                             | Intrinsic::SlicePopBack
                             | Intrinsic::SlicePopFront
-                            | Intrinsic::SliceInsert
+                            | Intrinsic::SliceRefCount
                             | Intrinsic::SliceRemove
                             | Intrinsic::StaticAssert
                             | Intrinsic::StrAsBytes
@@ -517,8 +520,7 @@ impl Context {
                         Value::ForeignFunction(..) => {
                             panic!("Should not be able to reach foreign function from non-brillig functions, {func_id} in function {}", function.name());
                         }
-                        Value::Array { .. }
-                        | Value::Instruction { .. }
+                        Value::Instruction { .. }
                         | Value::NumericConstant { .. }
                         | Value::Param { .. } => {
                             panic!("At the point we are running disconnect there shouldn't be any other values as arguments")
