@@ -612,6 +612,8 @@ mod tests {
             map::Id,
             types::Type,
         },
+        opt::assert_normalized_ssa_equals,
+        Ssa,
     };
 
     #[test]
@@ -822,89 +824,53 @@ mod tests {
     // is later stored in a successor block
     #[test]
     fn load_aliases_in_predecessor_block() {
-        // fn main {
-        //     b0():
-        //       v0 = allocate
-        //       store Field 0 at v0
-        //       v2 = allocate
-        //       store v0 at v2
-        //       v3 = load v2
-        //       v4 = load v2
-        //       jmp b1()
-        //     b1():
-        //       store Field 1 at v3
-        //       store Field 2 at v4
-        //       v7 = load v3
-        //       v8 = eq v7, Field 2
-        //       return
-        // }
-        let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 0 at v0
+            v2 = allocate -> &mut &mut Field
+            store v0 at v2
+            v3 = load v2 -> &mut Field
+            v4 = load v2 -> &mut Field
+            jmp b1()
+          b1():
+            store Field 1 at v3
+            store Field 2 at v4
+            v7 = load v3 -> Field
+            v8 = eq v7, Field 2
+            return
+        }
+        ";
 
-        let v0 = builder.insert_allocate(Type::field());
+        let mut ssa = Ssa::from_str(src).unwrap();
+        let main = ssa.main_mut();
 
-        let zero = builder.field_constant(0u128);
-        builder.insert_store(v0, zero);
-
-        let v2 = builder.insert_allocate(Type::Reference(Arc::new(Type::field())));
-        builder.insert_store(v2, v0);
-
-        let v3 = builder.insert_load(v2, Type::field());
-        let v4 = builder.insert_load(v2, Type::field());
-        let b1 = builder.insert_block();
-        builder.terminate_with_jmp(b1, vec![]);
-
-        builder.switch_to_block(b1);
-
-        let one = builder.field_constant(1u128);
-        builder.insert_store(v3, one);
-
-        let two = builder.field_constant(2u128);
-        builder.insert_store(v4, two);
-
-        let v8 = builder.insert_load(v3, Type::field());
-        let _ = builder.insert_binary(v8, BinaryOp::Eq, two);
-
-        builder.terminate_with_return(vec![]);
-
-        let ssa = builder.finish();
-        assert_eq!(ssa.main().reachable_blocks().len(), 2);
-
-        // Expected result:
-        // acir fn main f0 {
-        //   b0():
-        //     v9 = allocate
-        //     store Field 0 at v9
-        //     v10 = allocate
-        //     jmp b1()
-        //   b1():
-        //     return
-        // }
-        let ssa = ssa.mem2reg();
-        println!("{}", ssa);
-
-        let main = ssa.main();
-        assert_eq!(main.reachable_blocks().len(), 2);
+        let instructions = main.dfg[main.entry_block()].instructions();
+        assert_eq!(instructions.len(), 6); // The final return is not counted
 
         // All loads should be removed
-        assert_eq!(count_loads(main.entry_block(), &main.dfg), 0);
-        assert_eq!(count_loads(b1, &main.dfg), 0);
-
         // The first store is not removed as it is used as a nested reference in another store.
-        // We would need to track whether the store where `v9` is the store value gets removed to know whether
+        // We would need to track whether the store where `v0` is the store value gets removed to know whether
         // to remove it.
-        assert_eq!(count_stores(main.entry_block(), &main.dfg), 1);
-
         // The first store in b1 is removed since there is another store to the same reference
         // in the same block, and the store is not needed before the later store.
         // The rest of the stores are also removed as no loads are done within any blocks
         // to the stored values.
-        assert_eq!(count_stores(b1, &main.dfg), 0);
+        let expected = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 0 at v0
+            v2 = allocate -> &mut &mut Field
+            jmp b1()
+          b1():
+            return
+        }
+        ";
 
-        let b1_instructions = main.dfg[b1].instructions();
-
-        // We expect the last eq to be optimized out
-        assert_eq!(b1_instructions.len(), 0);
+        let ssa = ssa.mem2reg();
+        assert_normalized_ssa_equals(ssa, expected);
     }
 
     #[test]
