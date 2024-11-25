@@ -425,7 +425,7 @@ impl<'f> PerFunctionContext<'f> {
                 }
 
                 // Check whether the block has a repeat load from the same address (w/ no calls or stores in between the loads).
-                // If we do have a repeat load, we can remove the current load and map its result to the previous loads result.
+                // If we do have a repeat load, we can remove the current load and map its result to the previous load's result.
                 if let Some(last_load) = references.last_loads.get(&address) {
                     let Instruction::Load { address: previous_address } =
                         &self.inserter.function.dfg[*last_load]
@@ -618,7 +618,7 @@ impl<'f> PerFunctionContext<'f> {
                 // then those parameters also alias each other.
                 // We save parameters with repeat arguments to later mark those
                 // parameters as aliasing one another.
-                let mut arg_set: HashMap<ValueId, HashSet<ValueId>> = HashMap::default();
+                let mut arg_set: HashMap<ValueId, BTreeSet<ValueId>> = HashMap::default();
 
                 // Add an alias for each reference parameter
                 for (parameter, argument) in destination_parameters.iter().zip(arguments) {
@@ -646,7 +646,7 @@ impl<'f> PerFunctionContext<'f> {
                         self.set_aliases(
                             references,
                             *param,
-                            AliasSet::known_multiple(aliased_params.iter().copied()),
+                            AliasSet::known_multiple(aliased_params.clone()),
                         );
                     }
                 }

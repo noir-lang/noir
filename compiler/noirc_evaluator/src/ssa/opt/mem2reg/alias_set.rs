@@ -24,8 +24,8 @@ impl AliasSet {
         Self { aliases: Some(aliases) }
     }
 
-    pub(super) fn known_multiple(values: impl IntoIterator<Item = ValueId>) -> AliasSet {
-        Self { aliases: Some(BTreeSet::from_iter(values)) }
+    pub(super) fn known_multiple(values: BTreeSet<ValueId>) -> AliasSet {
+        Self { aliases: Some(values) }
     }
 
     /// In rare cases, such as when creating an empty array of references, the set of aliases for a
