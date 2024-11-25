@@ -874,6 +874,7 @@ mod tests {
         // acir fn main f0 {
         //   b0():
         //     v9 = allocate
+        //     store Field 0 at v9
         //     v10 = allocate
         //     jmp b1()
         //   b1():
@@ -902,8 +903,8 @@ mod tests {
 
         let b1_instructions = main.dfg[b1].instructions();
 
-        // We expect the last eq to be optimized out, only the store from above remains
-        assert_eq!(b1_instructions.len(), 1);
+        // We expect the last eq to be optimized out
+        assert_eq!(b1_instructions.len(), 0);
     }
 
     #[test]

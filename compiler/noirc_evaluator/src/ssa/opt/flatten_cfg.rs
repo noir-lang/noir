@@ -327,7 +327,6 @@ impl<'f> Context<'f> {
         // If this is not a separate variable, clippy gets confused and says the to_vec is
         // unnecessary, when removing it actually causes an aliasing/mutability error.
         let instructions = self.inserter.function.dfg[block].instructions().to_vec();
-        let mut previous_allocate_result = None;
 
         for instruction in instructions.iter() {
             if self.is_no_predicate(no_predicates, instruction) {
@@ -342,10 +341,10 @@ impl<'f> Context<'f> {
                     None,
                     im::Vector::new(),
                 );
-                self.push_instruction(*instruction, &mut previous_allocate_result);
+                self.push_instruction(*instruction);
                 self.insert_current_side_effects_enabled();
             } else {
-                self.push_instruction(*instruction, &mut previous_allocate_result);
+                self.push_instruction(*instruction);
             }
         }
     }
@@ -609,18 +608,9 @@ impl<'f> Context<'f> {
     /// `previous_allocate_result` should only be set to the result of an allocate instruction
     /// if that instruction was the instruction immediately previous to this one - if there are
     /// any instructions in between it should be None.
-    fn push_instruction(
-        &mut self,
-        id: InstructionId,
-        previous_allocate_result: &mut Option<ValueId>,
-    ) {
+    fn push_instruction(&mut self, id: InstructionId) {
         let (instruction, call_stack) = self.inserter.map_instruction(id);
-        let instruction = self.handle_instruction_side_effects(
-            instruction,
-            call_stack.clone(),
-            *previous_allocate_result,
-        );
-        let is_allocate = matches!(instruction, Instruction::Allocate);
+        let instruction = self.handle_instruction_side_effects(instruction, call_stack.clone());
 
         let instruction_is_allocate = matches!(&instruction, Instruction::Allocate);
         let entry = self.inserter.function.entry_block();
@@ -628,11 +618,9 @@ impl<'f> Context<'f> {
 
         // Remember an allocate was created local to this branch so that we do not try to merge store
         // values across branches for it later.
-        if is_allocate {
+        if instruction_is_allocate {
             self.local_allocations.insert(results.first());
         }
-
-        *previous_allocate_result = instruction_is_allocate.then(|| results.first());
     }
 
     /// If we are currently in a branch, we need to modify constrain instructions
@@ -645,7 +633,6 @@ impl<'f> Context<'f> {
         &mut self,
         instruction: Instruction,
         call_stack: CallStack,
-        previous_allocate_result: Option<ValueId>,
     ) -> Instruction {
         if let Some(condition) = self.get_last_condition() {
             match instruction {
@@ -676,9 +663,7 @@ impl<'f> Context<'f> {
                 Instruction::Store { address, value } => {
                     // If this instruction immediately follows an allocate, and stores to that
                     // address there is no previous value to load and we don't need a merge anyway.
-                    if Some(address) == previous_allocate_result
-                        || self.local_allocations.contains(&address)
-                    {
+                    if self.local_allocations.contains(&address) {
                         Instruction::Store { address, value }
                     } else {
                         // Instead of storing `value`, store `if condition { value } else { previous_value }`
