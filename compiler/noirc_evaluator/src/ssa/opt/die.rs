@@ -598,16 +598,7 @@ impl RcTracker {
 }
 #[cfg(test)]
 mod test {
-    use std::sync::Arc;
-
-    use im::vector;
-
-    use crate::ssa::{
-        function_builder::FunctionBuilder,
-        ir::{instruction::Instruction, map::Id, types::Type},
-        opt::assert_normalized_ssa_equals,
-        Ssa,
-    };
+    use crate::ssa::{opt::assert_normalized_ssa_equals, Ssa};
 
     #[test]
     fn dead_instruction_elimination() {
@@ -720,113 +711,53 @@ mod test {
 
     #[test]
     fn keep_inc_rc_on_borrowed_array_store() {
-        // acir(inline) fn main f0 {
-        //     b0():
-        //       v1 = make_array [u32 0, u32 0]
-        //       v2 = allocate
-        //       inc_rc v1
-        //       store v1 at v2
-        //       inc_rc v1
-        //       jmp b1()
-        //     b1():
-        //       v3 = load v2
-        //       v5 = array_set v3, index u32 0, value u32 1
-        //       return v5
-        //   }
-        let main_id = Id::test_new(0);
-
-        // Compiling main
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-        let zero = builder.numeric_constant(0u128, Type::unsigned(32));
-        let array_type = Type::Array(Arc::new(vec![Type::unsigned(32)]), 2);
-        let v1 = builder.insert_make_array(vector![zero, zero], array_type.clone());
-        let v2 = builder.insert_allocate(array_type.clone());
-        builder.increment_array_reference_count(v1);
-        builder.insert_store(v2, v1);
-        builder.increment_array_reference_count(v1);
-
-        let b1 = builder.insert_block();
-        builder.terminate_with_jmp(b1, vec![]);
-        builder.switch_to_block(b1);
-
-        let v3 = builder.insert_load(v2, array_type);
-        let one = builder.numeric_constant(1u128, Type::unsigned(32));
-        let v5 = builder.insert_array_set(v3, zero, one);
-        builder.terminate_with_return(vec![v5]);
-
-        let ssa = builder.finish();
-        let main = ssa.main();
-
-        // The instruction count never includes the terminator instruction
-        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 5);
-        assert_eq!(main.dfg[b1].instructions().len(), 2);
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v1 = make_array [u32 0, u32 0] : [u32; 2]
+            v2 = allocate -> &mut [u32; 2]
+            inc_rc v1
+            store v1 at v2
+            inc_rc v1
+            jmp b1()
+          b1():
+            v3 = load v2 -> [u32; 2]
+            v5 = array_set v3, index u32 0, value u32 1
+            return v5
+        }";
+        let ssa = Ssa::from_str(src).unwrap();
 
         // We expect the output to be unchanged
         let ssa = ssa.dead_instruction_elimination();
-        let main = ssa.main();
-
-        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 5);
-        assert_eq!(main.dfg[b1].instructions().len(), 2);
+        assert_normalized_ssa_equals(ssa, src);
     }
 
     #[test]
     fn keep_inc_rc_on_borrowed_array_set() {
-        // acir(inline) fn main f0 {
-        //     b0(v0: [u32; 2]):
-        //       inc_rc v0
-        //       v3 = array_set v0, index u32 0, value u32 1
-        //       inc_rc v0
-        //       inc_rc v0
-        //       inc_rc v0
-        //       v4 = array_get v3, index u32 1
-        //       return v4
-        //   }
-        let main_id = Id::test_new(0);
-
-        // Compiling main
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-        let array_type = Type::Array(Arc::new(vec![Type::unsigned(32)]), 2);
-        let v0 = builder.add_parameter(array_type.clone());
-        builder.increment_array_reference_count(v0);
-        let zero = builder.numeric_constant(0u128, Type::unsigned(32));
-        let one = builder.numeric_constant(1u128, Type::unsigned(32));
-        let v3 = builder.insert_array_set(v0, zero, one);
-        builder.increment_array_reference_count(v0);
-        builder.increment_array_reference_count(v0);
-        builder.increment_array_reference_count(v0);
-
-        let v4 = builder.insert_array_get(v3, one, Type::unsigned(32));
-
-        builder.terminate_with_return(vec![v4]);
-
-        let ssa = builder.finish();
-        let main = ssa.main();
-
-        // The instruction count never includes the terminator instruction
-        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 6);
-
-        // We expect the output to be unchanged
-        // Expected output:
-        //
-        // acir(inline) fn main f0 {
-        //     b0(v0: [u32; 2]):
-        //       inc_rc v0
-        //       v3 = array_set v0, index u32 0, value u32 1
-        //       inc_rc v0
-        //       v4 = array_get v3, index u32 1
-        //       return v4
-        //   }
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [u32; 2]):
+            inc_rc v0
+            v3 = array_set v0, index u32 0, value u32 1
+            inc_rc v0
+            inc_rc v0
+            inc_rc v0
+            v4 = array_get v3, index u32 1 -> u32
+            return v4
+        }";
+        let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.dead_instruction_elimination();
-        let main = ssa.main();
 
-        let instructions = main.dfg[main.entry_block()].instructions();
-        // We expect only the repeated inc_rc instructions to be collapsed into a single inc_rc.
-        assert_eq!(instructions.len(), 4);
-
-        assert!(matches!(&main.dfg[instructions[0]], Instruction::IncrementRc { .. }));
-        assert!(matches!(&main.dfg[instructions[1]], Instruction::ArraySet { .. }));
-        assert!(matches!(&main.dfg[instructions[2]], Instruction::IncrementRc { .. }));
-        assert!(matches!(&main.dfg[instructions[3]], Instruction::ArrayGet { .. }));
+        let expected = "
+        acir(inline) fn main f0 {
+          b0(v0: [u32; 2]):
+            inc_rc v0
+            v3 = array_set v0, index u32 0, value u32 1
+            inc_rc v0
+            v4 = array_get v3, index u32 1 -> u32
+            return v4
+        }";
+        assert_normalized_ssa_equals(ssa, expected);
     }
 
     #[test]

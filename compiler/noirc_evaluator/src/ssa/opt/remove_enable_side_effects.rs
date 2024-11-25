@@ -197,84 +197,46 @@ impl Context {
 #[cfg(test)]
 mod test {
 
-    use crate::ssa::{
-        function_builder::FunctionBuilder,
-        ir::{
-            instruction::{BinaryOp, Instruction},
-            map::Id,
-            types::Type,
-        },
-    };
+    use crate::ssa::{opt::assert_normalized_ssa_equals, Ssa};
 
     #[test]
     fn remove_chains_of_same_condition() {
-        //  acir(inline) fn main f0 {
-        //    b0(v0: Field):
-        //      enable_side_effects u1 1
-        //      v4 = mul v0, Field 2
-        //      enable_side_effects u1 1
-        //      v5 = mul v0, Field 2
-        //      enable_side_effects u1 1
-        //      v6 = mul v0, Field 2
-        //      enable_side_effects u1 1
-        //      v7 = mul v0, Field 2
-        //      enable_side_effects u1 1
-        //      (no terminator instruction)
-        //  }
-        //
+        let src = "
+         acir(inline) fn main f0 {
+           b0(v0: Field):
+             enable_side_effects u1 1
+             v4 = mul v0, Field 2
+             enable_side_effects u1 1
+             v5 = mul v0, Field 2
+             enable_side_effects u1 1
+             v6 = mul v0, Field 2
+             enable_side_effects u1 1
+             v7 = mul v0, Field 2
+             enable_side_effects u1 1
+             return
+         }";
+
         // After constructing this IR, we run constant folding which should replace the second cast
         // with a reference to the results to the first. This then allows us to optimize away
         // the constrain instruction as both inputs are known to be equal.
         //
         // The first cast instruction is retained and will be removed in the dead instruction elimination pass.
-        let main_id = Id::test_new(0);
-
-        // Compiling main
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-        let v0 = builder.add_parameter(Type::field());
-
-        let two = builder.numeric_constant(2u128, Type::field());
-
-        let one = builder.numeric_constant(1u128, Type::bool());
-
-        builder.insert_enable_side_effects_if(one);
-        builder.insert_binary(v0, BinaryOp::Mul, two);
-        builder.insert_enable_side_effects_if(one);
-        builder.insert_binary(v0, BinaryOp::Mul, two);
-        builder.insert_enable_side_effects_if(one);
-        builder.insert_binary(v0, BinaryOp::Mul, two);
-        builder.insert_enable_side_effects_if(one);
-        builder.insert_binary(v0, BinaryOp::Mul, two);
-        builder.insert_enable_side_effects_if(one);
-
-        let ssa = builder.finish();
-
-        println!("{ssa}");
+        let ssa = Ssa::from_str(src).unwrap();
 
         let main = ssa.main();
         let instructions = main.dfg[main.entry_block()].instructions();
         assert_eq!(instructions.len(), 9);
 
         // Expected output:
-        //
-        // acir(inline) fn main f0 {
-        //     b0(v0: Field):
-        //       v3 = mul v0, Field 2
-        //       v4 = mul v0, Field 2
-        //       v5 = mul v0, Field 2
-        //       v6 = mul v0, Field 2
-        //       (no terminator instruction)
-        //   }
-        let ssa = ssa.remove_enable_side_effects();
-
-        println!("{ssa}");
-
-        let main = ssa.main();
-        let instructions = main.dfg[main.entry_block()].instructions();
-
-        assert_eq!(instructions.len(), 4);
-        for instruction in instructions.iter().take(4) {
-            assert_eq!(&main.dfg[*instruction], &Instruction::binary(BinaryOp::Mul, v0, two));
-        }
+        let expected = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v2 = mul v0, Field 2
+            v3 = mul v0, Field 2
+            v4 = mul v0, Field 2
+            v5 = mul v0, Field 2
+            return
+        }";
+        assert_normalized_ssa_equals(ssa.remove_enable_side_effects(), expected);
     }
 }
