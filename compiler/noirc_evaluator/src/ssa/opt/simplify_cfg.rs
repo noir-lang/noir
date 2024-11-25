@@ -279,6 +279,8 @@ mod test {
             map::Id,
             types::Type,
         },
+        opt::assert_normalized_ssa_equals,
+        Ssa,
     };
     use acvm::acir::AcirField;
 
@@ -395,77 +397,40 @@ mod test {
 
     #[test]
     fn swap_negated_jmpif_branches() {
-        // fn main {
-        //   b0(v0: bool):
-        //     v4 = allocate
-        //     store Field 0 at v4
-        //     v5 = not v0
-        //     jmpif v5 then: b1, else: b2
-        //   b1():
-        //     store Field 1 at v4
-        //     jmp b2()
-        //   b2():
-        //     v6 = load v4
-        //     constrain v6 == Field 1
-        //     return
-        // }
-        let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-        let v0 = builder.add_parameter(Type::bool());
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut Field
+            store Field 0 at v1
+            v3 = not v0
+            jmpif v3 then: b1, else: b2
+          b1():
+            store Field 2 at v1
+            jmp b2()
+          b2():
+            v5 = load v1 -> Field
+            v6 = eq v5, Field 2
+            constrain v5 == Field 2
+            return
+        }";
+        let ssa = Ssa::from_str(src).unwrap();
 
-        let b1 = builder.insert_block();
-        let b2 = builder.insert_block();
-
-        let zero = builder.field_constant(0u128);
-        let one = builder.field_constant(2u128);
-
-        let v4 = builder.insert_allocate(Type::field());
-        builder.insert_store(v4, zero);
-        let v6 = builder.insert_not(v0);
-        builder.terminate_with_jmpif(v6, b1, b2);
-
-        builder.switch_to_block(b1);
-        builder.insert_store(v4, one);
-        builder.terminate_with_jmp(b2, Vec::new());
-
-        builder.switch_to_block(b2);
-        let v6 = builder.insert_load(v4, Type::field());
-        builder.insert_constrain(v6, one, None);
-        builder.terminate_with_return(Vec::new());
-
-        let ssa = builder.finish();
-
-        println!("{ssa}");
-        assert_eq!(ssa.main().reachable_blocks().len(), 3);
-
-        // Expected output:
-        // fn main {
-        //   b0(v0: bool):
-        //     v4 = allocate
-        //     store Field 0 at v4
-        //     v5 = not v0
-        //     jmpif v0 then: b2, else: b1
-        //   b1():
-        //     store Field 1 at v4
-        //     jmp b2()
-        //   b2():
-        //     v6 = load v4
-        //     constrain v6 == Field 1
-        //     return
-        // }
-        let ssa = ssa.simplify_cfg();
-
-        println!("{ssa}");
-
-        let main = ssa.main();
-        assert_eq!(main.reachable_blocks().len(), 3);
-
-        let entry_block = &main.dfg[main.entry_block()];
-
-        // TODO: more rigorous testing
-        assert!(matches!(
-            entry_block.unwrap_terminator(),
-            TerminatorInstruction::JmpIf { condition, then_destination, else_destination, .. } if *condition == v0 && *then_destination == b2 && *else_destination == b1
-        ));
+        let expected = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut Field
+            store Field 0 at v1
+            v3 = not v0
+            jmpif v0 then: b2, else: b1
+          b2():
+            v5 = load v1 -> Field
+            v6 = eq v5, Field 2
+            constrain v5 == Field 2
+            return
+          b1():
+            store Field 2 at v1
+            jmp b2()
+        }";
+        assert_normalized_ssa_equals(ssa.simplify_cfg(), expected);
     }
 }
