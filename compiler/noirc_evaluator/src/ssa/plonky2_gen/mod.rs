@@ -51,6 +51,10 @@ impl P2Value {
     fn get_integer_target(&self) -> Result<Target, Plonky2GenError> {
         match self.target {
             P2Target::IntTarget(target) => Ok(target),
+            // The compiler generates code, that performs integer operations on booleans
+            // since commit 8932dac4847c643341320c2893f7e4297c78c621
+            // That's why we are now forced to support BoolTarget here.
+            P2Target::BoolTarget(target) => Ok(target.target),
             _ => {
                 let message = "get_integer_target called on non-int value".to_owned();
                 Err(Plonky2GenError::ICE { message })
@@ -208,6 +212,14 @@ enum P2Type {
 }
 
 impl P2Type {
+    fn is_1bit_integer_or_boolean(&self) -> bool {
+        if let P2Type::Integer(bits, _) = self {
+            *bits == 1
+        } else {
+            *self == P2Type::Boolean
+        }
+    }
+
     fn from_noir_type(typ: Type) -> Result<P2Type, Plonky2GenError> {
         Ok(match typ {
             Type::Numeric(numeric_type) => match numeric_type {
@@ -414,7 +426,8 @@ impl Builder {
     ) -> Result<P2Value, Plonky2GenError> {
         let (type_a, target_a) = self.get_integer(lhs)?;
         let (type_b, target_b) = self.get_integer(rhs)?;
-        if type_a != type_b && type_a != P2Type::Field && type_b != P2Type::Field {
+        if type_a != type_b && type_a != P2Type::Field && type_b != P2Type::Field &&
+           !(type_a.is_1bit_integer_or_boolean() && type_b.is_1bit_integer_or_boolean()) {
             let message = format!("mismatching arg types: {:?} and {:?}", type_a, type_b);
             return Err(Plonky2GenError::ICE { message });
         }
@@ -756,22 +769,32 @@ impl Builder {
 
             Instruction::Not(argument) => {
                 let typ = self.get_type(argument)?;
-                match typ {
+                let target = match typ {
+                    // The compiler generates code, that performs boolean operations on 1-bit integers
+                    // since commit 8932dac4847c643341320c2893f7e4297c78c621
+                    // That's why we are now forced to support P2Type::Integer here.
+                    P2Type::Integer(bits, _) => {
+                        if bits != 1 {
+                            let feature_name = format!("Not instruction on {:?}", typ);
+                            return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
+                        }
+                        self.get_boolean(argument)?
+                    }
                     P2Type::Boolean => {
-                        let target = self.get_boolean(argument)?;
-                        let target = self.asm_writer.not(target);
-                        let p2value = P2Value::make_boolean(target);
-
-                        let destinations: Vec<_> =
-                            self.dfg.instruction_results(instruction_id).iter().cloned().collect();
-                        assert!(destinations.len() == 1);
-                        self.set(destinations[0], p2value);
+                        self.get_boolean(argument)?
                     }
                     _ => {
                         let feature_name = format!("Not instruction on {:?}", typ);
                         return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
                     }
-                }
+                };
+                let target = self.asm_writer.not(target);
+                let p2value = P2Value::make_boolean(target);
+
+                let destinations: Vec<_> =
+                    self.dfg.instruction_results(instruction_id).iter().cloned().collect();
+                assert!(destinations.len() == 1);
+                self.set(destinations[0], p2value);
             }
 
             Instruction::Constrain(lhs, rhs, _) => {
@@ -1134,6 +1157,10 @@ impl Builder {
 
         let target = match p2value_ref.target {
             P2Target::IntTarget(target) => target,
+            // The compiler generates code, that performs integer operations on booleans
+            // since commit 8932dac4847c643341320c2893f7e4297c78c621
+            // That's why we are now forced to support BoolTarget here.
+            P2Target::BoolTarget(target) => target.target,
             _ => {
                 let message = format!(
                     "argument to get_integer has non-integer target {:?}",
@@ -1158,6 +1185,10 @@ impl Builder {
 
         let target = match p2value_ref.target {
             P2Target::BoolTarget(bool_target) => bool_target,
+            // The compiler generates code, that performs boolean operations on integers
+            // since commit 8932dac4847c643341320c2893f7e4297c78c621
+            // That's why we are now forced to support IntTarget here.
+            P2Target::IntTarget(target) => BoolTarget::new_unsafe(target),
             _ => {
                 return Err(Plonky2GenError::ICE {
                     message: "argument to get_boolean has non-boolean target".to_owned(),
