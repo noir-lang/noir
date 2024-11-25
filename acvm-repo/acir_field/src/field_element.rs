@@ -371,6 +371,12 @@ mod tests {
     use super::{AcirField, FieldElement};
     use proptest::prelude::*;
 
+    #[test]
+    fn requires_one_bit_to_hold_zero() {
+        let field = FieldElement::<ark_bn254::Fr>::zero();
+        assert_eq!(field.num_bits(), 1);
+    }
+    
     proptest! {
         #[test]
         fn num_bits_agrees_with_ilog2(num in 1u128..) {
