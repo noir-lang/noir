@@ -415,13 +415,11 @@ impl<'f> PerFunctionContext<'f> {
                 let address = self.inserter.function.dfg.resolve(*address);
                 let value = self.inserter.function.dfg.resolve(*value);
 
-                // FIXME: This causes errors in the sha256 tests
-                //
                 // If there was another store to this instruction without any (unremoved) loads or
                 // function calls in-between, we can remove the previous store.
-                // if let Some(last_store) = references.last_stores.get(&address) {
-                //     self.instructions_to_remove.insert(*last_store);
-                // }
+                if let Some(last_store) = references.last_stores.get(&address) {
+                    self.instructions_to_remove.insert(*last_store);
+                }
 
                 if self.inserter.function.dfg.value_is_reference(value) {
                     if let Some(expression) = references.expressions.get(&value) {
@@ -876,7 +874,6 @@ mod tests {
         // acir fn main f0 {
         //   b0():
         //     v9 = allocate
-        //     store Field 0 at v9
         //     v10 = allocate
         //     jmp b1()
         //   b1():
@@ -901,9 +898,7 @@ mod tests {
         // in the same block, and the store is not needed before the later store.
         // The rest of the stores are also removed as no loads are done within any blocks
         // to the stored values.
-        //
-        // NOTE: This store is not removed due to the FIXME when handling Instruction::Store.
-        assert_eq!(count_stores(b1, &main.dfg), 1);
+        assert_eq!(count_stores(b1, &main.dfg), 0);
 
         let b1_instructions = main.dfg[b1].instructions();
 

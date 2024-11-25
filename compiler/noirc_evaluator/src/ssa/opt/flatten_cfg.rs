@@ -131,7 +131,7 @@
 //!   v11 = mul v4, Field 12
 //!   v12 = add v10, v11
 //!   store v12 at v5         (new store)
-use fxhash::FxHashMap as HashMap;
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use acvm::{acir::AcirField, acir::BlackBoxFunc, FieldElement};
 use iter_extended::vecmap;
@@ -201,6 +201,13 @@ struct Context<'f> {
     /// When processing a block, we pop this stack to get its arguments
     /// and at the end we push the arguments for his successor
     arguments_stack: Vec<Vec<ValueId>>,
+
+    /// Stores all allocations local to the current branch.
+    /// Since these branches are local to the current branch (ie. only defined within one branch of
+    /// an if expression), they should not be merged with their previous value or stored value in
+    /// the other branch since there is no such value. The ValueId here is that which is returned
+    /// by the allocate instruction.
+    local_allocations: HashSet<ValueId>,
 }
 
 #[derive(Clone)]
@@ -211,6 +218,8 @@ struct ConditionalBranch {
     old_condition: ValueId,
     // The condition of the branch
     condition: ValueId,
+    // The allocations accumulated when processing the branch
+    local_allocations: HashSet<ValueId>,
 }
 
 struct ConditionalContext {
@@ -243,6 +252,7 @@ fn flatten_function_cfg(function: &mut Function, no_predicates: &HashMap<Functio
         slice_sizes: HashMap::default(),
         condition_stack: Vec::new(),
         arguments_stack: Vec::new(),
+        local_allocations: HashSet::default(),
     };
     context.flatten(no_predicates);
 }
@@ -405,10 +415,12 @@ impl<'f> Context<'f> {
         let old_condition = *condition;
         let then_condition = self.inserter.resolve(old_condition);
 
+        let old_allocations = std::mem::take(&mut self.local_allocations);
         let branch = ConditionalBranch {
             old_condition,
             condition: self.link_condition(then_condition),
             last_block: *then_destination,
+            local_allocations: old_allocations,
         };
         let cond_context = ConditionalContext {
             condition: then_condition,
@@ -435,11 +447,14 @@ impl<'f> Context<'f> {
         );
         let else_condition = self.link_condition(else_condition);
 
+        let old_allocations = std::mem::take(&mut self.local_allocations);
         let else_branch = ConditionalBranch {
             old_condition: cond_context.then_branch.old_condition,
             condition: else_condition,
             last_block: *block,
+            local_allocations: old_allocations,
         };
+        cond_context.then_branch.local_allocations.clear();
         cond_context.else_branch = Some(else_branch);
         self.condition_stack.push(cond_context);
 
@@ -461,6 +476,7 @@ impl<'f> Context<'f> {
         }
 
         let mut else_branch = cond_context.else_branch.unwrap();
+        self.local_allocations = std::mem::take(&mut else_branch.local_allocations);
         else_branch.last_block = *block;
         cond_context.else_branch = Some(else_branch);
 
@@ -604,10 +620,18 @@ impl<'f> Context<'f> {
             call_stack.clone(),
             *previous_allocate_result,
         );
+        let is_allocate = matches!(instruction, Instruction::Allocate);
 
         let instruction_is_allocate = matches!(&instruction, Instruction::Allocate);
         let entry = self.inserter.function.entry_block();
         let results = self.inserter.push_instruction_value(instruction, id, entry, call_stack);
+
+        // Remember an allocate was created local to this branch so that we do not try to merge store
+        // values across branches for it later.
+        if is_allocate {
+            self.local_allocations.insert(results.first());
+        }
+
         *previous_allocate_result = instruction_is_allocate.then(|| results.first());
     }
 
@@ -652,7 +676,9 @@ impl<'f> Context<'f> {
                 Instruction::Store { address, value } => {
                     // If this instruction immediately follows an allocate, and stores to that
                     // address there is no previous value to load and we don't need a merge anyway.
-                    if Some(address) == previous_allocate_result {
+                    if Some(address) == previous_allocate_result
+                        || self.local_allocations.contains(&address)
+                    {
                         Instruction::Store { address, value }
                     } else {
                         // Instead of storing `value`, store `if condition { value } else { previous_value }`
