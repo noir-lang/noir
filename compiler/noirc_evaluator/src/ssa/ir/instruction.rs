@@ -113,8 +113,8 @@ impl Intrinsic {
     ///
     /// If there are no side effects then the `Intrinsic` can be removed if the result is unused.
     ///
-    /// An obvious example of a side effect is `println`, but in general function which can fail
-    /// due to some constraints are also considered to have a side effect.
+    /// An obvious example of a side effect is `println`, or pushing to a slice, but functions
+    /// which can fail due to implicit constraints are also considered to have a side effect.
     pub(crate) fn has_side_effects(&self) -> bool {
         match self {
             Intrinsic::AssertConstant
@@ -155,7 +155,8 @@ impl Intrinsic {
         }
     }
 
-    // Intrinsics which only have a side effect due to the chance that they can fail can be deduplicated.
+    /// Intrinsics which only have a side effect due to the chance that
+    /// they can fail a constraint can be deduplicated.
     pub(crate) fn can_be_deduplicated(&self, deduplicate_with_predicate: bool) -> bool {
         match self {
             // These apply a constraint in the form of ACIR opcodes, but they can be deduplicated
@@ -163,7 +164,7 @@ impl Intrinsic {
             // they were in an if-then-else) then `handle_instruction_side_effects` in `flatten_cfg`
             // will have attached the condition variable to their inputs directly, so they don't
             // directly depend on the corresponding `enable_side_effect` instruction any more.
-            // However to conform with the expectations of `Instruction::can_be_deduplicated` and
+            // However, to conform with the expectations of `Instruction::can_be_deduplicated` and
             // `constant_folding` we only use this information if the caller shows interest in it.
             Intrinsic::ToBits(_)
             | Intrinsic::ToRadix(_)
@@ -476,8 +477,6 @@ impl Instruction {
     }
 
     /// If true the instruction will depend on `enable_side_effects` context during acir-gen.
-    ///
-    /// Some side-effecting instructions
     pub(crate) fn requires_acir_gen_predicate(&self, dfg: &DataFlowGraph) -> bool {
         match self {
             Instruction::Binary(binary)
