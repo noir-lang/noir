@@ -324,7 +324,7 @@ impl<'f> PerFunctionContext<'f> {
             self.remove_stores_that_do_not_alias_parameters(&references);
         }
 
-        // Last loads are truly "per block". During unification we are creating a new block from the current one,
+        // Last loads are tracked per block. During unification we are creating a new block from the current one,
         // so we must clear the last loads of the current block before we return the new block.
         references.last_loads.clear();
 
