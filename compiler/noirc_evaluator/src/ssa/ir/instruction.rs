@@ -71,6 +71,8 @@ pub(crate) enum Intrinsic {
     IsUnconstrained,
     DerivePedersenGenerators,
     FieldLessThan,
+    ArrayRefCount,
+    SliceRefCount,
 }
 
 impl std::fmt::Display for Intrinsic {
@@ -100,6 +102,8 @@ impl std::fmt::Display for Intrinsic {
             Intrinsic::IsUnconstrained => write!(f, "is_unconstrained"),
             Intrinsic::DerivePedersenGenerators => write!(f, "derive_pedersen_generators"),
             Intrinsic::FieldLessThan => write!(f, "field_less_than"),
+            Intrinsic::ArrayRefCount => write!(f, "array_refcount"),
+            Intrinsic::SliceRefCount => write!(f, "slice_refcount"),
         }
     }
 }
@@ -116,6 +120,10 @@ impl Intrinsic {
             Intrinsic::AssertConstant
             | Intrinsic::StaticAssert
             | Intrinsic::ApplyRangeConstraint
+            // Array & slice ref counts are treated as having side effects since they operate
+            // on hidden variables on otherwise identical array values.
+            | Intrinsic::ArrayRefCount
+            | Intrinsic::SliceRefCount
             | Intrinsic::AsWitness => true,
 
             // These apply a constraint that the input must fit into a specified number of limbs.
@@ -202,6 +210,8 @@ impl Intrinsic {
             "is_unconstrained" => Some(Intrinsic::IsUnconstrained),
             "derive_pedersen_generators" => Some(Intrinsic::DerivePedersenGenerators),
             "field_less_than" => Some(Intrinsic::FieldLessThan),
+            "array_refcount" => Some(Intrinsic::ArrayRefCount),
+            "slice_refcount" => Some(Intrinsic::SliceRefCount),
 
             other => BlackBoxFunc::lookup(other).map(Intrinsic::BlackBox),
         }

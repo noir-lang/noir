@@ -1,0 +1,7 @@
+[package]
+name = "reference_counts"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.35.0"
+
+[dependencies]
