@@ -95,7 +95,7 @@ impl Span {
     }
 
     pub fn intersects(&self, other: &Span) -> bool {
-        self.end() > other.start() && self.start() < other.end()
+        self.end() >= other.start() && self.start() <= other.end()
     }
 
     pub fn is_smaller(&self, other: &Span) -> bool {
