@@ -183,6 +183,7 @@
         "quantile",
         "quasiquote",
         "rangemap",
+        "refcount",
         "repr",
         "reqwest",
         "rfind",

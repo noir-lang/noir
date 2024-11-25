@@ -50,3 +50,33 @@ by checking this equality once `N`, `A`, `B` are fully resolved.
 
 Note that since this safety check is performed after type checking rather than during, no error is issued if the function
 containing `checked_transmute` is never called.
+
+# `std::mem::array_refcount`
+
+```rust
+fn array_refcount<T, let N: u32>(array: [T; N]) -> u32 {}
+```
+
+Returns the internal reference count of an array value in unconstrained code.
+
+Arrays only have reference count in unconstrained code - using this anywhere
+else will return zero.
+
+This function is mostly intended for debugging compiler optimizations but can also be used
+to find where array copies may be happening in unconstrained code by placing it before array
+mutations.
+
+# `std::mem::slice_refcount`
+
+```rust
+fn slice_refcount<T>(slice: [T]) -> u32 {}
+```
+
+Returns the internal reference count of a slice value in unconstrained code.
+
+Slices only have reference count in unconstrained code - using this anywhere
+else will return zero.
+
+This function is mostly intended for debugging compiler optimizations but can also be used
+to find where slice copies may be happening in unconstrained code by placing it before slice
+mutations.
