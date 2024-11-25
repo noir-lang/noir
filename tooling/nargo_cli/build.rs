@@ -86,7 +86,14 @@ fn read_test_cases(
     let test_case_dirs =
         fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
 
-    test_case_dirs.into_iter().map(|dir| {
+    test_case_dirs.into_iter().filter_map(|dir| {
+        // When switching git branches we might end up with non-empty directories that have a `target`
+        // directory inside them but no `Nargo.toml`.
+        // These "tests" would always fail, but it's okay to ignore them so we do that here.
+        if !dir.path().join("Nargo.toml").exists() {
+            return None;
+        }
+
         let test_name =
             dir.file_name().into_string().expect("Directory can't be converted to string");
         if test_name.contains('-') {
@@ -94,7 +101,7 @@ fn read_test_cases(
                 "Invalid test directory: {test_name}. Cannot include `-`, please convert to `_`"
             );
         }
-        (test_name, dir.path())
+        Some((test_name, dir.path()))
     })
 }
 
