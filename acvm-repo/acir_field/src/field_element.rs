@@ -376,7 +376,7 @@ mod tests {
         let field = FieldElement::<ark_bn254::Fr>::zero();
         assert_eq!(field.num_bits(), 1);
     }
-    
+
     proptest! {
         #[test]
         fn num_bits_agrees_with_ilog2(num in 1u128..) {
