@@ -147,6 +147,34 @@ impl Intrinsic {
         }
     }
 
+    // Intrinsics which only have a side effect due to the chance that they can fail can be deduplicated.
+    pub(crate) fn can_be_deduplicated(&self, deduplicate_with_predicate: bool) -> bool {
+        match self {
+            // These apply a constraint in the form of ACIR opcodes, but they can be deduplicated
+            // if the inputs are the same. If they depend on a side effect variable (e.g. because
+            // they were in an if-then-else) then `handle_instruction_side_effects` in `flatten_cfg`
+            // will have attached the condition variable to their inputs directly, so they don't
+            // directly depend on the corresponding `enable_side_effect` instruction any more.
+            // However to conform with the expectations of `Instruction::can_be_deduplicated` and
+            // `constant_folding` we only use this information if the caller shows interest in it.
+            Intrinsic::ToBits(_)
+            | Intrinsic::ToRadix(_)
+            | Intrinsic::BlackBox(
+                BlackBoxFunc::MultiScalarMul
+                | BlackBoxFunc::EmbeddedCurveAdd
+                | BlackBoxFunc::RecursiveAggregation,
+            ) => deduplicate_with_predicate,
+
+            // As long as the constraints are applied on the same inputs.
+            Intrinsic::AssertConstant
+            | Intrinsic::StaticAssert
+            | Intrinsic::ApplyRangeConstraint
+            | Intrinsic::AsWitness => deduplicate_with_predicate,
+
+            _ => !self.has_side_effects(),
+        }
+    }
+
     /// Lookup an Intrinsic by name and return it if found.
     /// If there is no such intrinsic by that name, None is returned.
     pub(crate) fn lookup(name: &str) -> Option<Intrinsic> {
@@ -324,6 +352,11 @@ impl Instruction {
     /// If `deduplicate_with_predicate` is set, we assume we're deduplicating with the instruction
     /// and its predicate, rather than just the instruction. Setting this means instructions that
     /// rely on predicates can be deduplicated as well.
+    ///
+    /// Some instructions get the predicate attached to their inputs by `handle_instruction_side_effects` in `flatten_cfg`.
+    /// These can be deduplicated because they implicitly depend on the predicate, not only when the caller uses the
+    /// predicate variable as a key to cache results. However, to avoid tight coupling between passes, we make the deduplication
+    /// conditional on whether the caller wants the predicate to be taken into account or not.
     pub(crate) fn can_be_deduplicated(
         &self,
         dfg: &DataFlowGraph,
@@ -341,7 +374,9 @@ impl Instruction {
             | DecrementRc { .. } => false,
 
             Call { func, .. } => match dfg[*func] {
-                Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
+                Value::Intrinsic(intrinsic) => {
+                    intrinsic.can_be_deduplicated(deduplicate_with_predicate)
+                }
                 _ => false,
             },
 
@@ -430,7 +465,9 @@ impl Instruction {
         }
     }
 
-    /// If true the instruction will depend on `enable_side_effects` context during acir-gen
+    /// If true the instruction will depend on `enable_side_effects` context during acir-gen.
+    ///
+    /// Some side-effecting instructions
     pub(crate) fn requires_acir_gen_predicate(&self, dfg: &DataFlowGraph) -> bool {
         match self {
             Instruction::Binary(binary)

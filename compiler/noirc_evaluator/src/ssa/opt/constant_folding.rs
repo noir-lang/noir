@@ -6,7 +6,7 @@
 //!   by the [`DataFlowGraph`] automatically as new instructions are pushed.
 //! - Check whether any input values have been constrained to be equal to a value of a simpler form
 //!   by a [constrain instruction][Instruction::Constrain]. If so, replace the input value with the simpler form.
-//! - Check whether the instruction [can_be_replaced][Instruction::can_be_replaced()]
+//! - Check whether the instruction [can_be_deduplicated][Instruction::can_be_deduplicated()]
 //!   by duplicate instruction earlier in the same block.
 //!
 //! These operations are done in parallel so that they can each benefit from each other
@@ -53,6 +53,9 @@ use fxhash::FxHashMap as HashMap;
 
 impl Ssa {
     /// Performs constant folding on each instruction.
+    ///
+    /// It will not look at constraints to inform simplifications
+    /// based on the stated equivalence of two instructions.
     ///
     /// See [`constant_folding`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
@@ -188,8 +191,11 @@ pub(crate) struct BrilligInfo<'a> {
     brillig_functions: &'a BTreeMap<FunctionId, Function>,
 }
 
-/// HashMap from (Instruction, side_effects_enabled_var) to the results of the instruction.
+/// HashMap from `(Instruction, side_effects_enabled_var)` to the results of the instruction.
 /// Stored as a two-level map to avoid cloning Instructions during the `.get` call.
+///
+/// The `side_effects_enabled_var` is optional because we only use them when `Instruction::requires_acir_gen_predicate`
+/// is true _and_ the constraint information is also taken into account.
 ///
 /// In addition to each result, the original BasicBlockId is stored as well. This allows us
 /// to deduplicate instructions across blocks as long as the new block dominates the original.
@@ -223,6 +229,7 @@ impl<'brillig> Context<'brillig> {
     fn fold_constants_in_block(&mut self, function: &mut Function, block: BasicBlockId) {
         let instructions = function.dfg[block].take_instructions();
 
+        // Default side effect condition variable with an enabled state.
         let mut side_effects_enabled_var =
             function.dfg.make_constant(FieldElement::one(), Type::bool());
 
@@ -403,6 +410,7 @@ impl<'brillig> Context<'brillig> {
 
         // If the instruction doesn't have side-effects and if it won't interact with enable_side_effects during acir_gen,
         // we cache the results so we can reuse them if the same instruction appears again later in the block.
+        // Others have side effects representing failure, which are implicit in the ACIR code and can also be deduplicated.
         if instruction.can_be_deduplicated(dfg, self.use_constraint_info) {
             let use_predicate =
                 self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
@@ -417,6 +425,8 @@ impl<'brillig> Context<'brillig> {
         }
     }
 
+    /// Get the simplification mapping from complex to simpler instructions,
+    /// which all depend on the same side effect condition variable.
     fn get_constraint_map(
         &mut self,
         side_effects_enabled_var: ValueId,
@@ -1339,6 +1349,45 @@ mod test {
             }
             ";
         let ssa = ssa.fold_constants_with_brillig(&brillig);
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn deduplicates_side_effecting_intrinsics() {
+        let src = "
+        // After EnableSideEffectsIf removal:
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field, v2: u1):
+            v4 = call is_unconstrained() -> u1
+            v7 = call to_be_radix(v0, u32 256) -> [u8; 1]    // `a.to_be_radix(256)`;
+            inc_rc v7
+            v8 = call to_be_radix(v0, u32 256) -> [u8; 1]    // duplicate load of `a`
+            inc_rc v8
+            v9 = cast v2 as Field                            // `if c { a.to_be_radix(256) }`
+            v10 = mul v0, v9                                 // attaching `c` to `a`
+            v11 = call to_be_radix(v10, u32 256) -> [u8; 1]  // calling `to_radix(c * a)`
+            inc_rc v11
+            enable_side_effects v2                           // side effect var for `c` shifted down by removal
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let expected = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field, v2: u1):
+            v4 = call is_unconstrained() -> u1
+            v7 = call to_be_radix(v0, u32 256) -> [u8; 1]
+            inc_rc v7
+            inc_rc v7
+            v8 = cast v2 as Field
+            v9 = mul v0, v8
+            v10 = call to_be_radix(v9, u32 256) -> [u8; 1]
+            inc_rc v10
+            enable_side_effects v2
+            return
+        }
+        ";
+        let ssa = ssa.fold_constants_using_constraints();
         assert_normalized_ssa_equals(ssa, expected);
     }
 }
