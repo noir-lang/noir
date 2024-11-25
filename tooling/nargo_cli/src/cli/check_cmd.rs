@@ -152,7 +152,7 @@ pub(crate) fn check_crate_and_report_errors(
     options: &CompileOptions,
 ) -> Result<(), CompileError> {
     let result = check_crate(context, crate_id, options);
-    report_errors(result, &context.file_manager, options.deny_warnings, options.silence_warnings)
+    report_errors(result, &context.file_manager, options.deny_warnings, options.silence_warnings, options.silence_bugs)
 }
 
 #[cfg(test)]

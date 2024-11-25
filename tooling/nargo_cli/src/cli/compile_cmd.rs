@@ -124,6 +124,7 @@ pub(super) fn compile_workspace_full(
         &workspace_file_manager,
         compile_options.deny_warnings,
         compile_options.silence_warnings,
+        compile_options.silence_bugs,
     )?;
 
     Ok(())

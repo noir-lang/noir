@@ -134,6 +134,7 @@ pub(crate) fn compile_bin_package_for_debugging(
         &workspace_file_manager,
         compile_options.deny_warnings,
         compile_options.silence_warnings,
+        compile_options.silence_bugs,
     )
 }
 

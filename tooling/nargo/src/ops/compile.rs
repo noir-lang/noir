@@ -132,6 +132,7 @@ pub fn report_errors<T>(
     file_manager: &FileManager,
     deny_warnings: bool,
     silence_warnings: bool,
+    silence_bugs: bool,
 ) -> Result<T, CompileError> {
     let (t, warnings) = result.map_err(|errors| {
         noirc_errors::reporter::report_all(
@@ -139,6 +140,7 @@ pub fn report_errors<T>(
             &errors,
             deny_warnings,
             silence_warnings,
+            silence_bugs,
         )
     })?;
 
@@ -147,6 +149,7 @@ pub fn report_errors<T>(
         &warnings,
         deny_warnings,
         silence_warnings,
+        silence_bugs,
     );
 
     Ok(t)

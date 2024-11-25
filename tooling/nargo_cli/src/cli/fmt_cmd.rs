@@ -58,6 +58,7 @@ pub(crate) fn run(args: FormatCommand, config: NargoConfig) -> Result<(), CliErr
                     &workspace_file_manager,
                     false,
                     false,
+                    false,
                 );
                 return Ok(());
             }

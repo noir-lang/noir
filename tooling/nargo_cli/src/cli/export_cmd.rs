@@ -98,6 +98,7 @@ fn compile_exported_functions(
                 file_manager,
                 compile_options.deny_warnings,
                 compile_options.silence_warnings,
+                compile_options.silence_bugs,
             )?;
 
             Ok((function_name, program))

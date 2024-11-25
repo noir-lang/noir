@@ -193,6 +193,7 @@ pub fn report_all<'files>(
     diagnostics: &[FileDiagnostic],
     deny_warnings: bool,
     silence_warnings: bool,
+    silence_bugs: bool,
 ) -> ReportedErrors {
     // Report warnings before any errors
     let (warnings_and_bugs, mut errors): (Vec<_>, _) =
@@ -201,7 +202,7 @@ pub fn report_all<'files>(
     let (warnings, mut bugs): (Vec<_>, _) =
         warnings_and_bugs.iter().partition(|item| item.diagnostic.is_warning());
     let mut diagnostics = if silence_warnings { Vec::new() } else { warnings };
-    diagnostics.append(&mut bugs);
+    if !silence_bugs { diagnostics.append(&mut bugs); }
     diagnostics.append(&mut errors);
 
     let error_count =

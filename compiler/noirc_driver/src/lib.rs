@@ -94,6 +94,10 @@ pub struct CompileOptions {
     /// Suppress warnings
     #[arg(long, conflicts_with = "deny_warnings")]
     pub silence_warnings: bool,
+    
+    /// Suppress bugs (will skip related security checks)
+    #[arg(long)]
+    pub silence_bugs: bool,
 
     /// Disables the builtin Aztec macros being used in the compiler
     #[arg(long, hide = true)]
@@ -593,8 +597,8 @@ pub fn compile_no_check(
             ExpressionWidth::default()
         },
         emit_ssa: if options.emit_ssa { Some(context.package_build_path.clone()) } else { None },
-        skip_underconstrained_check: options.skip_underconstrained_check,
-        skip_missing_brillig_constrains_check: options.skip_missing_brillig_constrains_check,
+        skip_underconstrained_check: options.silence_bugs || options.skip_underconstrained_check,
+        skip_missing_brillig_constrains_check: options.silence_bugs ||options.skip_missing_brillig_constrains_check,
         inliner_aggressiveness: options.inliner_aggressiveness,
     };
 

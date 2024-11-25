@@ -252,6 +252,7 @@ fn display_test_report(
                         &[diag.clone()],
                         compile_options.deny_warnings,
                         compile_options.silence_warnings,
+                        compile_options.silence_bugs,
                     );
                 }
             }
@@ -261,6 +262,7 @@ fn display_test_report(
                     &[err.clone()],
                     compile_options.deny_warnings,
                     compile_options.silence_warnings,
+                    compile_options.silence_bugs,
                 );
             }
         }
