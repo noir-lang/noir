@@ -6,7 +6,6 @@ pub mod merkle;
 pub mod schnorr;
 pub mod ecdsa_secp256k1;
 pub mod ecdsa_secp256r1;
-pub mod eddsa;
 pub mod embedded_curve_ops;
 pub mod sha256;
 pub mod sha512;

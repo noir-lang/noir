@@ -2772,6 +2772,13 @@ impl<'a> Context<'a> {
             Intrinsic::FieldLessThan => {
                 unreachable!("FieldLessThan can only be called in unconstrained")
             }
+            Intrinsic::ArrayRefCount | Intrinsic::SliceRefCount => {
+                let zero = self.acir_context.add_constant(FieldElement::zero());
+                Ok(vec![AcirValue::Var(
+                    zero,
+                    AcirType::NumericType(NumericType::Unsigned { bit_size: 32 }),
+                )])
+            }
         }
     }
 

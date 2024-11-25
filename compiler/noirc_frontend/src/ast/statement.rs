@@ -27,6 +27,9 @@ use crate::token::{SecondaryAttribute, Token};
 /// for an identifier that already failed to parse.
 pub const ERROR_IDENT: &str = "$error";
 
+/// This is used to represent an UnresolvedTypeData::Unspecified in a Path
+pub const WILDCARD_TYPE: &str = "_";
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Statement {
     pub kind: StatementKind,
@@ -481,6 +484,10 @@ impl Path {
             return None;
         }
         self.segments.first().cloned().map(|segment| segment.ident)
+    }
+
+    pub(crate) fn is_wildcard(&self) -> bool {
+        self.to_ident().map(|ident| ident.0.contents) == Some(WILDCARD_TYPE.to_string())
     }
 
     pub fn is_empty(&self) -> bool {
