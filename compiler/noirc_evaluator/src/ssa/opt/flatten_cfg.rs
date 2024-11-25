@@ -1463,4 +1463,53 @@ mod test {
             _ => unreachable!("Should have terminator instruction"),
         }
     }
+
+    #[test]
+    #[should_panic]
+    fn correctly_handles_branches_merging_into_one_another() {
+        //! This is a regression test for https://github.com/noir-lang/noir/issues/6620
+
+        let separate_return_block_src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut Field
+            store Field 0 at v1
+            jmpif v0 then: b2, else: b1
+          b2():
+            jmp b3()
+          b1():
+            store Field 2 at v1
+            jmp b3()
+          b3():
+            v5 = load v1 -> Field
+            constrain v5 == Field 2
+            return
+        }
+        ";
+        let separate_ssa = Ssa::from_str(separate_return_block_src).unwrap();
+        let separate_ssa = separate_ssa.flatten_cfg();
+
+        // This program is much the same as the above except that `b3` has been inlined into `b2`.
+        // This means that when we try to find the join-point of one of these branches we end up inside one of those
+        // branches.
+        let merged_return_block_src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut Field
+            store Field 0 at v1
+            jmpif v0 then: b2, else: b1
+          b2():
+            v5 = load v1 -> Field
+            constrain v5 == Field 2
+            return
+          b1():
+            store Field 2 at v1
+            jmp b2()           
+        }
+        ";
+        let merged_ssa = Ssa::from_str(merged_return_block_src).unwrap();
+        let merged_ssa = merged_ssa.flatten_cfg();
+
+        assert_normalized_ssa_equals(merged_ssa, &separate_ssa.to_string());
+    }
 }
