@@ -284,6 +284,9 @@ impl<'f> PerFunctionContext<'f> {
         if let Some(first_predecessor) = predecessors.next() {
             let mut first = self.blocks.get(&first_predecessor).cloned().unwrap_or_default();
             first.last_stores.clear();
+            // Last loads are tracked per block. During unification we are creating a new block from the current one,
+            // so we must clear the last loads of the current block before we return the new block.
+            first.last_loads.clear();
 
             // Note that we have to start folding with the first block as the accumulator.
             // If we started with an empty block, an empty block union'd with any other block
@@ -323,10 +326,6 @@ impl<'f> PerFunctionContext<'f> {
         if self.post_order.as_slice().len() == 1 {
             self.remove_stores_that_do_not_alias_parameters(&references);
         }
-
-        // Last loads are tracked per block. During unification we are creating a new block from the current one,
-        // so we must clear the last loads of the current block before we return the new block.
-        references.last_loads.clear();
 
         self.blocks.insert(block, references);
     }
