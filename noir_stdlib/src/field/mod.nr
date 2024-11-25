@@ -211,6 +211,14 @@ pub comptime fn modulus_be_bytes() -> [u8] {}
 #[builtin(modulus_le_bytes)]
 pub comptime fn modulus_le_bytes() -> [u8] {}
 
+/// An unconstrained only built in to efficiently compare fields.
+#[builtin(field_less_than)]
+unconstrained fn __field_less_than(x: Field, y: Field) -> bool {}
+
+pub(crate) unconstrained fn field_less_than(x: Field, y: Field) -> bool {
+    __field_less_than(x, y)
+}
+
 // Convert a 32 byte array to a field element by modding
 pub fn bytes32_to_field(bytes32: [u8; 32]) -> Field {
     // Convert it to a field element
@@ -228,25 +236,33 @@ pub fn bytes32_to_field(bytes32: [u8; 32]) -> Field {
 }
 
 fn lt_fallback(x: Field, y: Field) -> bool {
-    let x_bytes: [u8; 32] = x.to_le_bytes();
-    let y_bytes: [u8; 32] = y.to_le_bytes();
-    let mut x_is_lt = false;
-    let mut done = false;
-    for i in 0..32 {
-        if (!done) {
-            let x_byte = x_bytes[32 - 1 - i] as u8;
-            let y_byte = y_bytes[32 - 1 - i] as u8;
-            let bytes_match = x_byte == y_byte;
-            if !bytes_match {
-                x_is_lt = x_byte < y_byte;
-                done = true;
+    if is_unconstrained() {
+        unsafe {
+            field_less_than(x, y)
+        }
+    } else {
+        let x_bytes: [u8; 32] = x.to_le_bytes();
+        let y_bytes: [u8; 32] = y.to_le_bytes();
+        let mut x_is_lt = false;
+        let mut done = false;
+        for i in 0..32 {
+            if (!done) {
+                let x_byte = x_bytes[32 - 1 - i] as u8;
+                let y_byte = y_bytes[32 - 1 - i] as u8;
+                let bytes_match = x_byte == y_byte;
+                if !bytes_match {
+                    x_is_lt = x_byte < y_byte;
+                    done = true;
+                }
             }
         }
+        x_is_lt
     }
-    x_is_lt
 }
 
 mod tests {
+    use super::field_less_than;
+
     #[test]
     // docs:start:to_be_bits_example
     fn test_to_be_bits() {
@@ -269,9 +285,9 @@ mod tests {
     // docs:start:to_be_bytes_example
     fn test_to_be_bytes() {
         let field = 2;
-        let bits: [u8; 8] = field.to_be_bytes();
-        assert_eq(bits, [0, 0, 0, 0, 0, 0, 0, 2]);
-        assert_eq(Field::from_be_bytes::<8>(bits), field);
+        let bytes: [u8; 8] = field.to_be_bytes();
+        assert_eq(bytes, [0, 0, 0, 0, 0, 0, 0, 2]);
+        assert_eq(Field::from_be_bytes::<8>(bytes), field);
     }
     // docs:end:to_be_bytes_example
 
@@ -279,9 +295,9 @@ mod tests {
     // docs:start:to_le_bytes_example
     fn test_to_le_bytes() {
         let field = 2;
-        let bits: [u8; 8] = field.to_le_bytes();
-        assert_eq(bits, [2, 0, 0, 0, 0, 0, 0, 0]);
-        assert_eq(Field::from_le_bytes::<8>(bits), field);
+        let bytes: [u8; 8] = field.to_le_bytes();
+        assert_eq(bytes, [2, 0, 0, 0, 0, 0, 0, 0]);
+        assert_eq(Field::from_le_bytes::<8>(bytes), field);
     }
     // docs:end:to_le_bytes_example
 
@@ -289,9 +305,9 @@ mod tests {
     // docs:start:to_be_radix_example
     fn test_to_be_radix() {
         let field = 2;
-        let bits: [u8; 8] = field.to_be_radix(256);
-        assert_eq(bits, [0, 0, 0, 0, 0, 0, 0, 2]);
-        assert_eq(Field::from_be_bytes::<8>(bits), field);
+        let bytes: [u8; 8] = field.to_be_radix(256);
+        assert_eq(bytes, [0, 0, 0, 0, 0, 0, 0, 2]);
+        assert_eq(Field::from_be_bytes::<8>(bytes), field);
     }
     // docs:end:to_be_radix_example
 
@@ -299,9 +315,17 @@ mod tests {
     // docs:start:to_le_radix_example
     fn test_to_le_radix() {
         let field = 2;
-        let bits: [u8; 8] = field.to_le_radix(256);
-        assert_eq(bits, [2, 0, 0, 0, 0, 0, 0, 0]);
-        assert_eq(Field::from_le_bytes::<8>(bits), field);
+        let bytes: [u8; 8] = field.to_le_radix(256);
+        assert_eq(bytes, [2, 0, 0, 0, 0, 0, 0, 0]);
+        assert_eq(Field::from_le_bytes::<8>(bytes), field);
     }
     // docs:end:to_le_radix_example
+
+    #[test]
+    unconstrained fn test_field_less_than() {
+        assert(field_less_than(0, 1));
+        assert(field_less_than(0, 0x100));
+        assert(field_less_than(0x100, 0 - 1));
+        assert(!field_less_than(0 - 1, 0));
+    }
 }

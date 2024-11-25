@@ -1,0 +1,7 @@
+[package]
+name = "cannot_deduce_numeric_generic"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.33.0"
+
+[dependencies]

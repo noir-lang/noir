@@ -330,18 +330,18 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             let mut input = BigUint::from_bytes_be(&input.to_be_bytes());
             let radix = BigUint::from_bytes_be(&radix.to_be_bytes());
 
-            let mut limbs: Vec<MemoryValue<F>> = Vec::with_capacity(output.size);
+            let mut limbs: Vec<MemoryValue<F>> = vec![MemoryValue::default(); output.size];
 
-            for _ in 0..output.size {
+            for i in (0..output.size).rev() {
                 let limb = &input % &radix;
                 if *output_bits {
-                    limbs.push(MemoryValue::new_integer(
+                    limbs[i] = MemoryValue::new_integer(
                         if limb.is_zero() { 0 } else { 1 },
                         IntegerBitSize::U1,
-                    ));
+                    );
                 } else {
                     let limb: u8 = limb.try_into().unwrap();
-                    limbs.push(MemoryValue::new_integer(limb as u128, IntegerBitSize::U8));
+                    limbs[i] = MemoryValue::new_integer(limb as u128, IntegerBitSize::U8);
                 };
                 input /= &radix;
             }

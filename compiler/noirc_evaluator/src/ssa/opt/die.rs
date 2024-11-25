@@ -3,6 +3,7 @@
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use im::Vector;
 use noirc_errors::Location;
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
 use crate::ssa::{
     ir::{
@@ -24,9 +25,8 @@ impl Ssa {
     /// unused results.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn dead_instruction_elimination(mut self) -> Ssa {
-        for function in self.functions.values_mut() {
-            function.dead_instruction_elimination(true);
-        }
+        self.functions.par_iter_mut().for_each(|(_, func)| func.dead_instruction_elimination(true));
+
         self
     }
 }
@@ -172,7 +172,7 @@ impl Context {
     fn is_unused(&self, instruction_id: InstructionId, function: &Function) -> bool {
         let instruction = &function.dfg[instruction_id];
 
-        if instruction.can_eliminate_if_unused(&function.dfg) {
+        if instruction.can_eliminate_if_unused(function) {
             let results = function.dfg.instruction_results(instruction_id);
             results.iter().all(|result| !self.used_values.contains(result))
         } else if let Instruction::Call { func, arguments } = instruction {
@@ -192,29 +192,11 @@ impl Context {
         });
     }
 
-    /// Inspects a value recursively (as it could be an array) and marks all comprised instruction
-    /// results as used.
+    /// Inspects a value and marks all instruction results as used.
     fn mark_used_instruction_results(&mut self, dfg: &DataFlowGraph, value_id: ValueId) {
         let value_id = dfg.resolve(value_id);
-        match &dfg[value_id] {
-            Value::Instruction { .. } => {
-                self.used_values.insert(value_id);
-            }
-            Value::Array { array, .. } => {
-                self.used_values.insert(value_id);
-                for elem in array {
-                    self.mark_used_instruction_results(dfg, *elem);
-                }
-            }
-            Value::Param { .. } => {
-                self.used_values.insert(value_id);
-            }
-            Value::NumericConstant { .. } => {
-                self.used_values.insert(value_id);
-            }
-            _ => {
-                // Does not comprise of any instruction results
-            }
+        if matches!(&dfg[value_id], Value::Instruction { .. } | Value::Param { .. }) {
+            self.used_values.insert(value_id);
         }
     }
 
@@ -622,220 +604,129 @@ mod test {
 
     use crate::ssa::{
         function_builder::FunctionBuilder,
-        ir::{
-            instruction::{BinaryOp, Instruction, Intrinsic},
-            map::Id,
-            types::Type,
-        },
+        ir::{instruction::Instruction, map::Id, types::Type},
+        opt::assert_normalized_ssa_equals,
+        Ssa,
     };
 
     #[test]
     fn dead_instruction_elimination() {
-        // fn main f0 {
-        //   b0(v0: Field):
-        //     v1 = add v0, Field 1
-        //     v2 = add v0, Field 2
-        //     jmp b1(v2)
-        //   b1(v3: Field):
-        //     v4 = allocate 1 field
-        //     v5 = load v4
-        //     v6 = allocate 1 field
-        //     store Field 1 in v6
-        //     v7 = load v6
-        //     v8 = add v7, Field 1
-        //     v9 = add v7, Field 2
-        //     v10 = add v7, Field 3
-        //     v11 = add v10, v10
-        //     call assert_constant(v8)
-        //     return v9
-        // }
-        let main_id = Id::test_new(0);
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: Field):
+                v3 = add v0, Field 1
+                v5 = add v0, Field 2
+                jmp b1(v5)
+              b1(v1: Field):
+                v6 = allocate -> &mut Field
+                v7 = load v6 -> Field
+                v8 = allocate -> &mut Field
+                store Field 1 at v8
+                v9 = load v8 -> Field
+                v10 = add v9, Field 1
+                v11 = add v9, Field 2
+                v13 = add v9, Field 3
+                v14 = add v13, v13
+                call assert_constant(v10)
+                return v11
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
 
-        // Compiling main
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-        let v0 = builder.add_parameter(Type::field());
-        let b1 = builder.insert_block();
-
-        let one = builder.field_constant(1u128);
-        let two = builder.field_constant(2u128);
-        let three = builder.field_constant(3u128);
-
-        let _v1 = builder.insert_binary(v0, BinaryOp::Add, one);
-        let v2 = builder.insert_binary(v0, BinaryOp::Add, two);
-        builder.terminate_with_jmp(b1, vec![v2]);
-
-        builder.switch_to_block(b1);
-        let _v3 = builder.add_block_parameter(b1, Type::field());
-
-        let v4 = builder.insert_allocate(Type::field());
-        let _v5 = builder.insert_load(v4, Type::field());
-
-        let v6 = builder.insert_allocate(Type::field());
-        builder.insert_store(v6, one);
-        let v7 = builder.insert_load(v6, Type::field());
-        let v8 = builder.insert_binary(v7, BinaryOp::Add, one);
-        let v9 = builder.insert_binary(v7, BinaryOp::Add, two);
-        let v10 = builder.insert_binary(v7, BinaryOp::Add, three);
-        let _v11 = builder.insert_binary(v10, BinaryOp::Add, v10);
-
-        let assert_constant_id = builder.import_intrinsic_id(Intrinsic::AssertConstant);
-        builder.insert_call(assert_constant_id, vec![v8], vec![]);
-        builder.terminate_with_return(vec![v9]);
-
-        let ssa = builder.finish();
-        let main = ssa.main();
-
-        // The instruction count never includes the terminator instruction
-        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 2);
-        assert_eq!(main.dfg[b1].instructions().len(), 10);
-
-        // Expected output:
-        //
-        // fn main f0 {
-        //   b0(v0: Field):
-        //     v2 = add v0, Field 2
-        //     jmp b1(v2)
-        //   b1(v3: Field):
-        //     v6 = allocate 1 field
-        //     store Field 1 in v6
-        //     v7 = load v6
-        //     v8 = add v7, Field 1
-        //     v9 = add v7, Field 2
-        //     call assert_constant(v8)
-        //     return v9
-        // }
+        let expected = "
+            acir(inline) fn main f0 {
+              b0(v0: Field):
+                v3 = add v0, Field 2
+                jmp b1(v3)
+              b1(v1: Field):
+                v4 = allocate -> &mut Field
+                store Field 1 at v4
+                v6 = load v4 -> Field
+                v7 = add v6, Field 1
+                v8 = add v6, Field 2
+                call assert_constant(v7)
+                return v8
+            }
+            ";
         let ssa = ssa.dead_instruction_elimination();
-        let main = ssa.main();
-
-        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 1);
-        assert_eq!(main.dfg[b1].instructions().len(), 6);
+        assert_normalized_ssa_equals(ssa, expected);
     }
 
     #[test]
     fn as_witness_die() {
-        // fn main f0 {
-        //   b0(v0: Field):
-        //     v1 = add v0, Field 1
-        //     v2 = add v0, Field 2
-        //     call as_witness(v2)
-        //     return v1
-        // }
-        let main_id = Id::test_new(0);
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: Field):
+                v2 = add v0, Field 1
+                v4 = add v0, Field 2
+                call as_witness(v4)
+                return v2
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
 
-        // Compiling main
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-        let v0 = builder.add_parameter(Type::field());
-
-        let one = builder.field_constant(1u128);
-        let two = builder.field_constant(2u128);
-
-        let v1 = builder.insert_binary(v0, BinaryOp::Add, one);
-        let v2 = builder.insert_binary(v0, BinaryOp::Add, two);
-        let as_witness = builder.import_intrinsic("as_witness").unwrap();
-        builder.insert_call(as_witness, vec![v2], Vec::new());
-        builder.terminate_with_return(vec![v1]);
-
-        let ssa = builder.finish();
-        let main = ssa.main();
-
-        // The instruction count never includes the terminator instruction
-        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 3);
-
-        // Expected output:
-        //
-        // acir(inline) fn main f0 {
-        //    b0(v0: Field):
-        //      v3 = add v0, Field 1
-        //      return v3
-        //  }
+        let expected = "
+            acir(inline) fn main f0 {
+              b0(v0: Field):
+                v2 = add v0, Field 1
+                return v2
+            }
+            ";
         let ssa = ssa.dead_instruction_elimination();
-        let main = ssa.main();
-
-        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 1);
+        assert_normalized_ssa_equals(ssa, expected);
     }
 
     #[test]
     fn remove_useless_paired_rcs_even_when_used() {
-        // acir(inline) fn main f0 {
-        //     b0(v0: [Field; 2]):
-        //       inc_rc v0
-        //       v2 = array_get v0, index u32 0
-        //       dec_rc v0
-        //       return v2
-        //   }
-        let main_id = Id::test_new(0);
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: [Field; 2]):
+                inc_rc v0
+                v2 = array_get v0, index u32 0 -> Field
+                dec_rc v0
+                return v2
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
 
-        // Compiling main
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-        let v0 = builder.add_parameter(Type::Array(Arc::new(vec![Type::field()]), 2));
-        builder.increment_array_reference_count(v0);
-        let zero = builder.numeric_constant(0u128, Type::unsigned(32));
-        let v1 = builder.insert_array_get(v0, zero, Type::field());
-        builder.decrement_array_reference_count(v0);
-        builder.terminate_with_return(vec![v1]);
-
-        let ssa = builder.finish();
-        let main = ssa.main();
-
-        // The instruction count never includes the terminator instruction
-        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 3);
-
-        // Expected output:
-        //
-        // acir(inline) fn main f0 {
-        //     b0(v0: [Field; 2]):
-        //       v2 = array_get v0, index u32 0
-        //       return v2
-        //   }
+        let expected = "
+            acir(inline) fn main f0 {
+              b0(v0: [Field; 2]):
+                v2 = array_get v0, index u32 0 -> Field
+                return v2
+            }
+            ";
         let ssa = ssa.dead_instruction_elimination();
-        let main = ssa.main();
-
-        let instructions = main.dfg[main.entry_block()].instructions();
-        assert_eq!(instructions.len(), 1);
-        assert!(matches!(&main.dfg[instructions[0]], Instruction::ArrayGet { .. }));
+        assert_normalized_ssa_equals(ssa, expected);
     }
 
     #[test]
     fn keep_paired_rcs_with_array_set() {
-        // acir(inline) fn main f0 {
-        //     b0(v0: [Field; 2]):
-        //       inc_rc v0
-        //       v2 = array_set v0, index u32 0, value u32 0
-        //       dec_rc v0
-        //       return v2
-        //   }
-        let main_id = Id::test_new(0);
-
-        // Compiling main
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-        let v0 = builder.add_parameter(Type::Array(Arc::new(vec![Type::field()]), 2));
-        builder.increment_array_reference_count(v0);
-        let zero = builder.numeric_constant(0u128, Type::unsigned(32));
-        let v1 = builder.insert_array_set(v0, zero, zero);
-        builder.decrement_array_reference_count(v0);
-        builder.terminate_with_return(vec![v1]);
-
-        let ssa = builder.finish();
-        let main = ssa.main();
-
-        // The instruction count never includes the terminator instruction
-        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 3);
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: [Field; 2]):
+                inc_rc v0
+                v2 = array_set v0, index u32 0, value u32 0
+                dec_rc v0
+                return v2
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
 
         // We expect the output to be unchanged
         let ssa = ssa.dead_instruction_elimination();
-        let main = ssa.main();
-
-        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 3);
+        assert_normalized_ssa_equals(ssa, src);
     }
 
     #[test]
     fn keep_inc_rc_on_borrowed_array_store() {
         // acir(inline) fn main f0 {
         //     b0():
+        //       v1 = make_array [u32 0, u32 0]
         //       v2 = allocate
-        //       inc_rc [u32 0, u32 0]
-        //       store [u32 0, u32 0] at v2
-        //       inc_rc [u32 0, u32 0]
+        //       inc_rc v1
+        //       store v1 at v2
+        //       inc_rc v1
         //       jmp b1()
         //     b1():
         //       v3 = load v2
@@ -848,11 +739,11 @@ mod test {
         let mut builder = FunctionBuilder::new("main".into(), main_id);
         let zero = builder.numeric_constant(0u128, Type::unsigned(32));
         let array_type = Type::Array(Arc::new(vec![Type::unsigned(32)]), 2);
-        let array = builder.array_constant(vector![zero, zero], array_type.clone());
+        let v1 = builder.insert_make_array(vector![zero, zero], array_type.clone());
         let v2 = builder.insert_allocate(array_type.clone());
-        builder.increment_array_reference_count(array);
-        builder.insert_store(v2, array);
-        builder.increment_array_reference_count(array);
+        builder.increment_array_reference_count(v1);
+        builder.insert_store(v2, v1);
+        builder.increment_array_reference_count(v1);
 
         let b1 = builder.insert_block();
         builder.terminate_with_jmp(b1, vec![]);
@@ -867,14 +758,14 @@ mod test {
         let main = ssa.main();
 
         // The instruction count never includes the terminator instruction
-        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 4);
+        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 5);
         assert_eq!(main.dfg[b1].instructions().len(), 2);
 
         // We expect the output to be unchanged
         let ssa = ssa.dead_instruction_elimination();
         let main = ssa.main();
 
-        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 4);
+        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 5);
         assert_eq!(main.dfg[b1].instructions().len(), 2);
     }
 
@@ -940,47 +831,31 @@ mod test {
 
     #[test]
     fn remove_inc_rcs_that_are_never_mutably_borrowed() {
-        // acir(inline) fn main f0 {
-        //     b0(v0: [Field; 2]):
-        //       inc_rc v0
-        //       inc_rc v0
-        //       inc_rc v0
-        //       v2 = array_get v0, index u32 0
-        //       inc_rc v0
-        //       return v2
-        //   }
-        let main_id = Id::test_new(0);
-
-        // Compiling main
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-        let v0 = builder.add_parameter(Type::Array(Arc::new(vec![Type::field()]), 2));
-        builder.increment_array_reference_count(v0);
-        builder.increment_array_reference_count(v0);
-        builder.increment_array_reference_count(v0);
-
-        let zero = builder.numeric_constant(0u128, Type::unsigned(32));
-        let v2 = builder.insert_array_get(v0, zero, Type::field());
-        builder.increment_array_reference_count(v0);
-        builder.terminate_with_return(vec![v2]);
-
-        let ssa = builder.finish();
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: [Field; 2]):
+                inc_rc v0
+                inc_rc v0
+                inc_rc v0
+                v2 = array_get v0, index u32 0 -> Field
+                inc_rc v0
+                return v2
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
         let main = ssa.main();
 
         // The instruction count never includes the terminator instruction
         assert_eq!(main.dfg[main.entry_block()].instructions().len(), 5);
 
-        // Expected output:
-        //
-        // acir(inline) fn main f0 {
-        //     b0(v0: [Field; 2]):
-        //       v2 = array_get v0, index u32 0
-        //       return v2
-        //   }
+        let expected = "
+            acir(inline) fn main f0 {
+              b0(v0: [Field; 2]):
+                v2 = array_get v0, index u32 0 -> Field
+                return v2
+            }
+            ";
         let ssa = ssa.dead_instruction_elimination();
-        let main = ssa.main();
-
-        let instructions = main.dfg[main.entry_block()].instructions();
-        assert_eq!(instructions.len(), 1);
-        assert!(matches!(&main.dfg[instructions[0]], Instruction::ArrayGet { .. }));
+        assert_normalized_ssa_equals(ssa, expected);
     }
 }

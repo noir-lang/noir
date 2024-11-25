@@ -4,7 +4,8 @@ use std::{
 };
 
 use crate::{
-    ast::ItemVisibility, hir_def::traits::ResolvedTraitBound, StructField, StructType, TypeBindings,
+    ast::ItemVisibility, hir_def::traits::ResolvedTraitBound, usage_tracker::UsageTracker,
+    StructField, StructType, TypeBindings,
 };
 use crate::{
     ast::{
@@ -20,9 +21,8 @@ use crate::{
         },
         def_collector::{dc_crate::CollectedItems, errors::DefCollectorErrorKind},
         def_map::{DefMaps, ModuleData},
-        def_map::{LocalModuleId, ModuleDefId, ModuleId, MAIN_FUNCTION},
+        def_map::{LocalModuleId, ModuleId, MAIN_FUNCTION},
         resolution::errors::ResolverError,
-        resolution::import::PathResolution,
         scope::ScopeForest as GenericScopeForest,
         type_check::{generics::TraitGenerics, TypeCheckError},
         Context,
@@ -38,13 +38,14 @@ use crate::{
         DefinitionKind, DependencyId, ExprId, FuncId, FunctionModifiers, GlobalId, NodeInterner,
         ReferenceId, StructId, TraitId, TraitImplId, TypeAliasId,
     },
-    token::{CustomAttribute, SecondaryAttribute},
+    token::SecondaryAttribute,
     Shared, Type, TypeVariable,
 };
 
 mod comptime;
 mod expressions;
 mod lints;
+mod path_resolution;
 mod patterns;
 mod scope;
 mod statements;
@@ -56,6 +57,7 @@ mod unquote;
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span, Spanned};
+use path_resolution::{PathResolution, PathResolutionItem};
 use types::bind_ordered_generics;
 
 use self::traits::check_trait_impl_method_matches_declaration;
@@ -83,8 +85,8 @@ pub struct Elaborator<'context> {
     pub(crate) errors: Vec<(CompilationError, FileId)>,
 
     pub(crate) interner: &'context mut NodeInterner,
-
     pub(crate) def_maps: &'context mut DefMaps,
+    pub(crate) usage_tracker: &'context mut UsageTracker,
 
     pub(crate) file: FileId,
 
@@ -162,6 +164,12 @@ pub struct Elaborator<'context> {
     unresolved_globals: BTreeMap<GlobalId, UnresolvedGlobal>,
 
     pub(crate) interpreter_call_stack: im::Vector<Location>,
+
+    /// If greater than 0, field visibility errors won't be reported.
+    /// This is used when elaborating a comptime expression that is a struct constructor
+    /// like `Foo { inner: 5 }`: in that case we already elaborated the code that led to
+    /// that comptime value and any visibility errors were already reported.
+    silence_field_visibility_errors: usize,
 }
 
 #[derive(Default)]
@@ -182,6 +190,7 @@ impl<'context> Elaborator<'context> {
     pub fn new(
         interner: &'context mut NodeInterner,
         def_maps: &'context mut DefMaps,
+        usage_tracker: &'context mut UsageTracker,
         crate_id: CrateId,
         debug_comptime_in_file: Option<FileId>,
         interpreter_call_stack: im::Vector<Location>,
@@ -191,6 +200,7 @@ impl<'context> Elaborator<'context> {
             errors: Vec::new(),
             interner,
             def_maps,
+            usage_tracker,
             file: FileId::dummy(),
             in_unsafe_block: false,
             nested_loops: 0,
@@ -209,6 +219,7 @@ impl<'context> Elaborator<'context> {
             current_trait: None,
             interpreter_call_stack,
             in_comptime_context: false,
+            silence_field_visibility_errors: 0,
         }
     }
 
@@ -220,6 +231,7 @@ impl<'context> Elaborator<'context> {
         Self::new(
             &mut context.def_interner,
             &mut context.def_maps,
+            &mut context.usage_tracker,
             crate_id,
             debug_comptime_in_file,
             im::Vector::new(),
@@ -438,7 +450,7 @@ impl<'context> Elaborator<'context> {
             FunctionKind::Builtin | FunctionKind::LowLevel | FunctionKind::Oracle => {
                 (HirFunction::empty(), Type::Error)
             }
-            FunctionKind::Normal | FunctionKind::Recursive => {
+            FunctionKind::Normal => {
                 let (block, body_type) = self.elaborate_block(body);
                 let expr_id = self.intern_expr(block, body_span);
                 self.interner.push_expr_type(expr_id, body_type.clone());
@@ -471,7 +483,7 @@ impl<'context> Elaborator<'context> {
         }
 
         // Check that the body can return without calling the function.
-        if let FunctionKind::Normal | FunctionKind::Recursive = kind {
+        if let FunctionKind::Normal = kind {
             self.run_lint(|elaborator| {
                 lints::unbounded_recursion(
                     elaborator.interner,
@@ -636,7 +648,7 @@ impl<'context> Elaborator<'context> {
             let typ = if unresolved_typ.is_type_expression() {
                 self.resolve_type_inner(
                     unresolved_typ.clone(),
-                    &Kind::Numeric(Box::new(Type::default_int_type())),
+                    &Kind::numeric(Type::default_int_type()),
                 )
             } else {
                 self.resolve_type(unresolved_typ.clone())
@@ -649,7 +661,7 @@ impl<'context> Elaborator<'context> {
                     });
                 self.push_err(unsupported_typ_err);
             }
-            Kind::Numeric(Box::new(typ))
+            Kind::numeric(typ)
         } else {
             Kind::Normal
         }
@@ -667,11 +679,11 @@ impl<'context> Elaborator<'context> {
 
     pub fn resolve_module_by_path(&mut self, path: Path) -> Option<ModuleId> {
         match self.resolve_path(path.clone()) {
-            Ok(PathResolution { module_def_id: ModuleDefId::ModuleId(module_id), error }) => {
-                if error.is_some() {
-                    None
-                } else {
+            Ok(PathResolution { item: PathResolutionItem::Module(module_id), errors }) => {
+                if errors.is_empty() {
                     Some(module_id)
+                } else {
+                    None
                 }
             }
             _ => None,
@@ -680,8 +692,8 @@ impl<'context> Elaborator<'context> {
 
     fn resolve_trait_by_path(&mut self, path: Path) -> Option<TraitId> {
         let error = match self.resolve_path(path.clone()) {
-            Ok(PathResolution { module_def_id: ModuleDefId::TraitId(trait_id), error }) => {
-                if let Some(error) = error {
+            Ok(PathResolution { item: PathResolutionItem::Trait(trait_id), errors }) => {
+                for error in errors {
                     self.push_err(error);
                 }
                 return Some(trait_id);
@@ -834,11 +846,6 @@ impl<'context> Elaborator<'context> {
             None
         };
 
-        let attributes = func.secondary_attributes().iter();
-        let attributes =
-            attributes.filter_map(|secondary_attribute| secondary_attribute.as_custom());
-        let attributes: Vec<CustomAttribute> = attributes.cloned().collect();
-
         let meta = FuncMeta {
             name: name_ident,
             kind: func.kind,
@@ -862,7 +869,6 @@ impl<'context> Elaborator<'context> {
             function_body: FunctionBody::Unresolved(func.kind, body, func.def.span),
             self_type: self.self_type.clone(),
             source_file: self.file,
-            custom_attributes: attributes,
         };
 
         self.interner.push_fn_meta(meta, func_id);
@@ -890,6 +896,10 @@ impl<'context> Elaborator<'context> {
             }
             Type::Alias(alias_type, generics) => {
                 self.mark_type_as_used(&alias_type.borrow().get_type(generics));
+            }
+            Type::CheckedCast { from, to } => {
+                self.mark_type_as_used(from);
+                self.mark_type_as_used(to);
             }
             Type::MutableReference(typ) => {
                 self.mark_type_as_used(typ);
@@ -926,9 +936,6 @@ impl<'context> Elaborator<'context> {
         self.run_lint(|elaborator| {
             lints::low_level_function_outside_stdlib(func, modifiers, elaborator.crate_id)
                 .map(Into::into)
-        });
-        self.run_lint(|_| {
-            lints::recursive_non_entrypoint_function(func, modifiers).map(Into::into)
         });
     }
 
@@ -1495,6 +1502,10 @@ impl<'context> Elaborator<'context> {
                     &alias_type.borrow().get_type(generics),
                     span,
                 );
+            }
+            Type::CheckedCast { from, to } => {
+                self.check_type_is_not_more_private_then_item(name, visibility, from, span);
+                self.check_type_is_not_more_private_then_item(name, visibility, to, span);
             }
             Type::Function(args, return_type, env, _) => {
                 for arg in args {

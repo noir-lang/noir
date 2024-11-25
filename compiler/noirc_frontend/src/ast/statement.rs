@@ -27,6 +27,9 @@ use crate::token::{SecondaryAttribute, Token};
 /// for an identifier that already failed to parse.
 pub const ERROR_IDENT: &str = "$error";
 
+/// This is used to represent an UnresolvedTypeData::Unspecified in a Path
+pub const WILDCARD_TYPE: &str = "_";
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Statement {
     pub kind: StatementKind,
@@ -408,7 +411,7 @@ pub struct AsTraitPath {
 pub struct TypePath {
     pub typ: UnresolvedType,
     pub item: Ident,
-    pub turbofish: GenericTypeArgs,
+    pub turbofish: Option<GenericTypeArgs>,
 }
 
 // Note: Path deliberately doesn't implement Recoverable.
@@ -445,11 +448,6 @@ impl Path {
         self.span
     }
 
-    pub fn first_segment(&self) -> PathSegment {
-        assert!(!self.segments.is_empty());
-        self.segments.first().unwrap().clone()
-    }
-
     pub fn last_segment(&self) -> PathSegment {
         assert!(!self.segments.is_empty());
         self.segments.last().unwrap().clone()
@@ -459,9 +457,8 @@ impl Path {
         self.last_segment().ident
     }
 
-    pub fn first_name(&self) -> &str {
-        assert!(!self.segments.is_empty());
-        &self.segments.first().unwrap().ident.0.contents
+    pub fn first_name(&self) -> Option<&str> {
+        self.segments.first().map(|segment| segment.ident.0.contents.as_str())
     }
 
     pub fn last_name(&self) -> &str {
@@ -487,6 +484,10 @@ impl Path {
             return None;
         }
         self.segments.first().cloned().map(|segment| segment.ident)
+    }
+
+    pub(crate) fn is_wildcard(&self) -> bool {
+        self.to_ident().map(|ident| ident.0.contents) == Some(WILDCARD_TYPE.to_string())
     }
 
     pub fn is_empty(&self) -> bool {

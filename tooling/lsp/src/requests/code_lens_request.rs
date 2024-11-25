@@ -24,9 +24,6 @@ const EXECUTE_CODELENS_TITLE: &str = "Execute";
 const DEBUG_COMMAND: &str = "nargo.debug.dap";
 const DEBUG_CODELENS_TITLE: &str = "Debug";
 
-const PROFILE_COMMAND: &str = "nargo.profile";
-const PROFILE_CODELENS_TITLE: &str = "Profile";
-
 fn with_arrow(title: &str) -> String {
     format!("{ARROW} {title}")
 }
@@ -162,7 +159,6 @@ pub(crate) fn collect_lenses_for_package(
             let internal_command_lenses = [
                 (INFO_CODELENS_TITLE, INFO_COMMAND),
                 (EXECUTE_CODELENS_TITLE, EXECUTE_COMMAND),
-                (PROFILE_CODELENS_TITLE, PROFILE_COMMAND),
                 (DEBUG_CODELENS_TITLE, DEBUG_COMMAND),
             ]
             .map(|(title, command)| {
@@ -214,16 +210,6 @@ pub(crate) fn collect_lenses_for_package(
             let info_lens = CodeLens { range, command: Some(info_command), data: None };
 
             lenses.push(info_lens);
-
-            let profile_command = Command {
-                title: PROFILE_CODELENS_TITLE.to_string(),
-                command: PROFILE_COMMAND.into(),
-                arguments: Some(package_selection_args(workspace, package)),
-            };
-
-            let profile_lens = CodeLens { range, command: Some(profile_command), data: None };
-
-            lenses.push(profile_lens);
         }
     }
 

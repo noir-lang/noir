@@ -6,7 +6,6 @@ use acir::{
         brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
         opcodes::BlockId,
         ErrorSelector, OpcodeLocation, RawAssertionPayload, ResolvedAssertionPayload,
-        STRING_ERROR_SELECTOR,
     },
     native_types::WitnessMap,
     AcirField,
@@ -307,25 +306,10 @@ fn extract_failure_payload_from_memory<F: AcirField>(
                 .expect("Error selector is not u64"),
         );
 
-        match error_selector {
-            STRING_ERROR_SELECTOR => {
-                // If the error selector is 0, it means the error is a string
-                let string = revert_values_iter
-                    .map(|&memory_value| {
-                        let as_u8: u8 = memory_value.try_into().expect("String item is not u8");
-                        as_u8 as char
-                    })
-                    .collect();
-                Some(ResolvedAssertionPayload::String(string))
-            }
-            _ => {
-                // If the error selector is not 0, it means the error is a custom error
-                Some(ResolvedAssertionPayload::Raw(RawAssertionPayload {
-                    selector: error_selector,
-                    data: revert_values_iter.map(|value| value.to_field()).collect(),
-                }))
-            }
-        }
+        Some(ResolvedAssertionPayload::Raw(RawAssertionPayload {
+            selector: error_selector,
+            data: revert_values_iter.map(|value| value.to_field()).collect(),
+        }))
     }
 }
 

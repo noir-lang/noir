@@ -517,7 +517,7 @@ mod bounded_vec_tests {
             let expected = BoundedVec::from_array([5, 1]);
 
             assert_eq(result, expected);
-            assert_eq(result.storage()[2], 0);
+            assert_eq(result.get_unchecked(2), 0);
         }
     }
 
@@ -551,9 +551,9 @@ mod bounded_vec_tests {
 
             assert_eq(bounded_vec.max_len(), 10);
             assert_eq(bounded_vec.len(), 3);
-            assert_eq(bounded_vec.storage()[0], 1);
-            assert_eq(bounded_vec.storage()[1], 2);
-            assert_eq(bounded_vec.storage()[2], 3);
+            assert_eq(bounded_vec.get(0), 1);
+            assert_eq(bounded_vec.get(1), 2);
+            assert_eq(bounded_vec.get(2), 3);
         }
 
         #[test(should_fail_with = "from array out of bounds")]
@@ -572,8 +572,8 @@ mod bounded_vec_tests {
 
             assert_eq(bounded_vec.max_len(), 10);
             assert_eq(bounded_vec.len(), 2);
-            assert_eq(bounded_vec.storage()[0], 1);
-            assert_eq(bounded_vec.storage()[1], 2);
+            assert_eq(bounded_vec.get(0), 1);
+            assert_eq(bounded_vec.get(1), 2);
         }
     }
 

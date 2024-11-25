@@ -2,7 +2,7 @@
 name = "brillig_vm"
 description = "The virtual machine that processes Brillig bytecode, used to introduce non-determinism to the ACVM"
 # x-release-please-start-version
-version = "0.52.0"
+version = "1.0.0-beta.0"
 # x-release-please-end
 authors.workspace = true
 edition.workspace = true

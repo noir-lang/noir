@@ -7,7 +7,10 @@ use super::{
     registers::Stack,
     BrilligBinaryOp, BrilligContext, ReservedRegisters,
 };
-use acvm::acir::{brillig::MemoryAddress, AcirField};
+use acvm::acir::{
+    brillig::{HeapVector, MemoryAddress},
+    AcirField,
+};
 
 pub(crate) const MAX_STACK_SIZE: usize = 16 * MAX_STACK_FRAME_SIZE;
 pub(crate) const MAX_STACK_FRAME_SIZE: usize = 2048;
@@ -196,7 +199,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         let deflattened_items_pointer = if is_vector {
             let vector = BrilligVector { pointer: deflattened_array_pointer };
 
-            self.codegen_initialize_vector(vector, deflattened_size_variable);
+            self.codegen_initialize_vector(vector, deflattened_size_variable, None);
 
             self.codegen_make_vector_items_pointer(vector)
         } else {
@@ -363,7 +366,12 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             }
         }
 
-        self.external_stop_instruction(return_data_offset, return_data_size);
+        let return_data = HeapVector {
+            pointer: self.make_usize_constant_instruction(return_data_offset.into()).address,
+            size: self.make_usize_constant_instruction(return_data_size.into()).address,
+        };
+
+        self.stop_instruction(return_data);
     }
 }
 

@@ -16,7 +16,15 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
         group: &mut ChunkGroup,
         mut ignore_next: bool,
     ) {
-        group.leading_comment(self.skip_comments_and_whitespace_chunk());
+        // First skip any whitespace to avoid writing multiple lines
+        group.text(self.chunk(|formatter| {
+            formatter.skip_whitespace();
+        }));
+
+        // Now write any leading comment respecting multiple newlines after them
+        group.leading_comment(self.chunk(|formatter| {
+            formatter.skip_comments_and_whitespace_writing_multiple_lines_if_found();
+        }));
 
         ignore_next |= self.ignore_next;
 
@@ -102,9 +110,7 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
         let mut group = ChunkGroup::new();
 
         group.text(self.chunk(|formatter| {
-            if !attributes.is_empty() {
-                formatter.format_attributes();
-            }
+            formatter.format_secondary_attributes(attributes);
             formatter.write_keyword(keyword);
             formatter.write_space();
             formatter.format_pattern(pattern);
@@ -691,5 +697,17 @@ mod tests {
 }
 ";
         assert_format_with_max_width(src, expected, "    a_long_variable = foo(1, 2);".len() - 1);
+    }
+
+    #[test]
+    fn long_let_preceded_by_two_newlines() {
+        let src = "fn foo() {
+    let y = 0;
+
+    let x = 123456;
+}
+";
+        let expected = src;
+        assert_format_with_max_width(src, expected, "    let x = 123456;".len());
     }
 }

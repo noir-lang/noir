@@ -46,6 +46,14 @@ impl RuntimeType {
                 | RuntimeType::Brillig(InlineType::NoPredicates)
         )
     }
+
+    pub(crate) fn is_brillig(&self) -> bool {
+        matches!(self, RuntimeType::Brillig(_))
+    }
+
+    pub(crate) fn is_acir(&self) -> bool {
+        matches!(self, RuntimeType::Acir(_))
+    }
 }
 
 /// A function holds a list of instructions.

@@ -318,6 +318,30 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn eat_attribute_start(&mut self) -> Option<bool> {
+        if matches!(self.token.token(), Token::AttributeStart { is_inner: false, .. }) {
+            let token = self.bump();
+            match token.into_token() {
+                Token::AttributeStart { is_tag, .. } => Some(is_tag),
+                _ => unreachable!(),
+            }
+        } else {
+            None
+        }
+    }
+
+    fn eat_inner_attribute_start(&mut self) -> Option<bool> {
+        if matches!(self.token.token(), Token::AttributeStart { is_inner: true, .. }) {
+            let token = self.bump();
+            match token.into_token() {
+                Token::AttributeStart { is_tag, .. } => Some(is_tag),
+                _ => unreachable!(),
+            }
+        } else {
+            None
+        }
+    }
+
     fn eat_comma(&mut self) -> bool {
         self.eat(Token::Comma)
     }

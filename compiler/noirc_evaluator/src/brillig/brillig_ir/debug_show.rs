@@ -117,7 +117,7 @@ impl DebugShow {
     }
 
     /// Emits a `trap` instruction.
-    pub(crate) fn trap_instruction(&self, revert_data: HeapArray) {
+    pub(crate) fn trap_instruction(&self, revert_data: HeapVector) {
         debug_println!(self.enable_debug_trace, "  TRAP {}", revert_data);
     }
 
@@ -211,23 +211,14 @@ impl DebugShow {
         debug_println!(self.enable_debug_trace, "  STORE *{} = {}", destination_pointer, source);
     }
 
-    /// Emits a stop instruction
-    pub(crate) fn stop_instruction(&self) {
-        debug_println!(self.enable_debug_trace, "  STOP");
+    /// Emits a return instruction
+    pub(crate) fn return_instruction(&self) {
+        debug_println!(self.enable_debug_trace, "  RETURN");
     }
 
-    /// Emits a external stop instruction (returns data)
-    pub(crate) fn external_stop_instruction(
-        &self,
-        return_data_offset: usize,
-        return_data_size: usize,
-    ) {
-        debug_println!(
-            self.enable_debug_trace,
-            "  EXT_STOP {}..{}",
-            return_data_offset,
-            return_data_offset + return_data_size
-        );
+    /// Emits a stop instruction
+    pub(crate) fn stop_instruction(&self, return_data: HeapVector) {
+        debug_println!(self.enable_debug_trace, "  STOP {}", return_data);
     }
 
     /// Debug function for enter_context

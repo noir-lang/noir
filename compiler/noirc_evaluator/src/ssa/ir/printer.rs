@@ -4,7 +4,6 @@ use std::{
     fmt::{Formatter, Result},
 };
 
-use acvm::acir::circuit::{ErrorSelector, STRING_ERROR_SELECTOR};
 use acvm::acir::AcirField;
 use iter_extended::vecmap;
 
@@ -70,10 +69,6 @@ fn value(function: &Function, id: ValueId) -> String {
         }
         Value::Function(id) => id.to_string(),
         Value::Intrinsic(intrinsic) => intrinsic.to_string(),
-        Value::Array { array, .. } => {
-            let elements = vecmap(array, |element| value(function, *element));
-            format!("[{}]", elements.join(", "))
-        }
         Value::Param { .. } | Value::Instruction { .. } | Value::ForeignFunction(_) => {
             id.to_string()
         }
@@ -120,7 +115,11 @@ pub(crate) fn display_terminator(
             )
         }
         Some(TerminatorInstruction::Return { return_values, .. }) => {
-            writeln!(f, "    return {}", value_list(function, return_values))
+            if return_values.is_empty() {
+                writeln!(f, "    return")
+            } else {
+                writeln!(f, "    return {}", value_list(function, return_values))
+            }
         }
         None => writeln!(f, "    (no terminator instruction)"),
     }
@@ -140,12 +139,13 @@ pub(crate) fn display_instruction(
         write!(f, "{} = ", value_list(function, results))?;
     }
 
-    display_instruction_inner(function, &function.dfg[instruction], f)
+    display_instruction_inner(function, &function.dfg[instruction], results, f)
 }
 
 fn display_instruction_inner(
     function: &Function,
     instruction: &Instruction,
+    results: &[ValueId],
     f: &mut Formatter,
 ) -> Result {
     let show = |id| value(function, id);
@@ -169,10 +169,15 @@ fn display_instruction_inner(
             }
         }
         Instruction::Call { func, arguments } => {
-            writeln!(f, "call {}({})", show(*func), value_list(function, arguments))
+            let arguments = value_list(function, arguments);
+            writeln!(f, "call {}({}){}", show(*func), arguments, result_types(function, results))
         }
-        Instruction::Allocate => writeln!(f, "allocate"),
-        Instruction::Load { address } => writeln!(f, "load {}", show(*address)),
+        Instruction::Allocate => {
+            writeln!(f, "allocate{}", result_types(function, results))
+        }
+        Instruction::Load { address } => {
+            writeln!(f, "load {}{}", show(*address), result_types(function, results))
+        }
         Instruction::Store { address, value } => {
             writeln!(f, "store {} at {}", show(*value), show(*address))
         }
@@ -180,7 +185,13 @@ fn display_instruction_inner(
             writeln!(f, "enable_side_effects {}", show(*condition))
         }
         Instruction::ArrayGet { array, index } => {
-            writeln!(f, "array_get {}, index {}", show(*array), show(*index))
+            writeln!(
+                f,
+                "array_get {}, index {}{}",
+                show(*array),
+                show(*index),
+                result_types(function, results)
+            )
         }
         Instruction::ArraySet { array, index, value, mutable } => {
             let array = show(*array);
@@ -198,35 +209,50 @@ fn display_instruction_inner(
         Instruction::RangeCheck { value, max_bit_size, .. } => {
             writeln!(f, "range_check {} to {} bits", show(*value), *max_bit_size,)
         }
-        Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
+        Instruction::IfElse { then_condition, then_value, else_value } => {
             let then_condition = show(*then_condition);
             let then_value = show(*then_value);
-            let else_condition = show(*else_condition);
             let else_value = show(*else_value);
-            writeln!(
-                f,
-                "if {then_condition} then {then_value} else if {else_condition} then {else_value}"
-            )
+            writeln!(f, "if {then_condition} then {then_value} else {else_value}")
         }
+        Instruction::MakeArray { elements, typ } => {
+            write!(f, "make_array [")?;
+
+            for (i, element) in elements.iter().enumerate() {
+                if i != 0 {
+                    write!(f, ", ")?;
+                }
+                write!(f, "{}", show(*element))?;
+            }
+
+            writeln!(f, "] : {typ}")
+        }
+    }
+}
+
+fn result_types(function: &Function, results: &[ValueId]) -> String {
+    let types = vecmap(results, |result| function.dfg.type_of_value(*result).to_string());
+    if types.is_empty() {
+        String::new()
+    } else if types.len() == 1 {
+        format!(" -> {}", types[0])
+    } else {
+        format!(" -> ({})", types.join(", "))
     }
 }
 
 /// Tries to extract a constant string from an error payload.
 pub(crate) fn try_to_extract_string_from_error_payload(
-    error_selector: ErrorSelector,
+    is_string_type: bool,
     values: &[ValueId],
     dfg: &DataFlowGraph,
 ) -> Option<String> {
-    ((error_selector == STRING_ERROR_SELECTOR) && (values.len() == 1))
+    (is_string_type && (values.len() == 1))
         .then_some(())
         .and_then(|()| {
-            let Value::Array { array: values, .. } = &dfg[values[0]] else {
-                return None;
-            };
-            let fields: Option<Vec<_>> =
-                values.iter().map(|value_id| dfg.get_numeric_constant(*value_id)).collect();
-
-            fields
+            let (values, _) = &dfg.get_array_constant(values[0])?;
+            let values = values.iter().map(|value_id| dfg.get_numeric_constant(*value_id));
+            values.collect::<Option<Vec<_>>>()
         })
         .map(|fields| {
             fields
@@ -246,13 +272,13 @@ fn display_constrain_error(
 ) -> Result {
     match error {
         ConstrainError::StaticString(assert_message_string) => {
-            writeln!(f, " '{assert_message_string:?}'")
+            writeln!(f, ", {assert_message_string:?}")
         }
-        ConstrainError::Dynamic(selector, values) => {
+        ConstrainError::Dynamic(_, is_string, values) => {
             if let Some(constant_string) =
-                try_to_extract_string_from_error_payload(*selector, values, &function.dfg)
+                try_to_extract_string_from_error_payload(*is_string, values, &function.dfg)
             {
-                writeln!(f, " '{}'", constant_string)
+                writeln!(f, ", {constant_string:?}")
             } else {
                 writeln!(f, ", data {}", value_list(function, values))
             }

@@ -122,12 +122,12 @@ pub mod consts; // Commonly used curve presets
 // Field-dependent constant ZETA = a non-square element of Field
 // Required for Elligator 2 map
 // TODO: Replace with built-in constant.
-global ZETA = 5;
+global ZETA: Field = 5;
 // Field-dependent constants for Tonelli-Shanks algorithm (see sqrt function below)
 // TODO: Possibly make this built-in.
-global C1 = 28;
-global C3 = 40770029410420498293352137776570907027550720424234931066070132305055;
-global C5 = 19103219067921713944291392827692070036145651957329286315305642004821462161904;
+global C1: u32 = 28;
+global C3: Field = 40770029410420498293352137776570907027550720424234931066070132305055;
+global C5: Field = 19103219067921713944291392827692070036145651957329286315305642004821462161904;
 // Higher-order version of scalar multiplication
 // TODO: Make this work so that the submodules' bit_mul may be defined in terms of it.
 //fn bit_mul<T,N>(add: fn(T,T) -> T, e: T, bits: [u1; N], p: T) -> T {

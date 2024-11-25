@@ -86,7 +86,7 @@ impl DominatorTree {
     ///
     /// This function panics if either of the blocks are unreachable.
     ///
-    /// An instruction is considered to dominate itself.
+    /// A block is considered to dominate itself.
     pub(crate) fn dominates(&mut self, block_a_id: BasicBlockId, block_b_id: BasicBlockId) -> bool {
         if let Some(res) = self.cache.get(&(block_a_id, block_b_id)) {
             return *res;
