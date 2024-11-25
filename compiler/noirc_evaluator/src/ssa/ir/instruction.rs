@@ -174,7 +174,6 @@ impl Intrinsic {
                 | BlackBoxFunc::RecursiveAggregation,
             ) => deduplicate_with_predicate,
 
-            // As long as the constraints are applied on the same inputs.
             Intrinsic::AssertConstant
             | Intrinsic::StaticAssert
             | Intrinsic::ApplyRangeConstraint
