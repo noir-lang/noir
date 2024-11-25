@@ -222,6 +222,7 @@ impl DependencyContext {
                                 // These intrinsics won't affect the dependency graph
                             }
                             Intrinsic::ArrayLen
+                            | Intrinsic::ArrayRefCount
                             | Intrinsic::ArrayAsStrUnchecked
                             | Intrinsic::AsField
                             | Intrinsic::AsSlice
@@ -232,6 +233,7 @@ impl DependencyContext {
                             | Intrinsic::SlicePushFront
                             | Intrinsic::SlicePopBack
                             | Intrinsic::SlicePopFront
+                            | Intrinsic::SliceRefCount
                             | Intrinsic::SliceInsert
                             | Intrinsic::SliceRemove
                             | Intrinsic::StaticAssert
@@ -266,8 +268,7 @@ impl DependencyContext {
                         Value::ForeignFunction(..) => {
                             debug!("should not be able to reach foreign function from non-brillig functions, {func_id} in function {}", function.name());
                         }
-                        Value::Array { .. }
-                        | Value::Instruction { .. }
+                        Value::Instruction { .. }
                         | Value::NumericConstant { .. }
                         | Value::Param { .. } => {
                             debug!(
@@ -291,7 +292,8 @@ impl DependencyContext {
                 Instruction::Allocate { .. }
                 | Instruction::DecrementRc { .. }
                 | Instruction::EnableSideEffectsIf { .. }
-                | Instruction::IncrementRc { .. } => {}
+                | Instruction::IncrementRc { .. }
+                | Instruction::MakeArray { .. } => {}
             }
         }
 
