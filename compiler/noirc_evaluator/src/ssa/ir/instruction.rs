@@ -45,8 +45,7 @@ pub(crate) type InstructionId = Id<Instruction>;
 /// - Opcodes which the IR knows the target machine has
 /// special support for. (LowLevel)
 /// - Opcodes which have no function definition in the
-/// source code and must be processed by the IR. An example
-/// of this is println.
+/// source code and must be processed by the IR.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub(crate) enum Intrinsic {
     ArrayLen,
@@ -113,8 +112,8 @@ impl Intrinsic {
     ///
     /// If there are no side effects then the `Intrinsic` can be removed if the result is unused.
     ///
-    /// An obvious example of a side effect is `println`, or pushing to a slice, but functions
-    /// which can fail due to implicit constraints are also considered to have a side effect.
+    /// An obvious example of a side effect is pushing an item to a slice, but functions which
+    /// can fail due to implicit constraints are also considered to have a side effect.
     pub(crate) fn has_side_effects(&self) -> bool {
         match self {
             Intrinsic::AssertConstant
