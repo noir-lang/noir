@@ -312,11 +312,13 @@ impl<'brillig> Context<'brillig> {
                     return;
                 }
                 CacheResult::NeedToHoistToCommonBlock(dominator, _cached) => {
-                    // Just change the block to insert in the common dominator instead.
-                    // This will only move the current instance of the instruction right now.
-                    // When constant folding is run a second time later on, it'll catch
-                    // that the previous instance can be deduplicated to this instance.
-                    block = dominator;
+                    if instruction_can_be_hoisted(&instruction, dfg, self.use_constraint_info) {
+                        // Just change the block to insert in the common dominator instead.
+                        // This will only move the current instance of the instruction right now.
+                        // When constant folding is run a second time later on, it'll catch
+                        // that the previous instance can be deduplicated to this instance.
+                        block = dominator;
+                    }
                 }
             }
         }
@@ -660,6 +662,20 @@ impl<'brillig> Context<'brillig> {
             }
         }
     }
+}
+
+fn instruction_can_be_hoisted(
+    instruction: &Instruction,
+    dfg: &mut DataFlowGraph,
+    deduplicate_with_predicate: bool,
+) -> bool {
+    // These two can never be hoisted as they have a side-effect
+    // (though it's fine to de-duplicate them, just not fine to hoist them)
+    if matches!(instruction, Instruction::Constrain(..) | Instruction::RangeCheck { .. }) {
+        return false;
+    }
+
+    instruction.can_be_deduplicated(dfg, deduplicate_with_predicate)
 }
 
 impl ResultCache {
