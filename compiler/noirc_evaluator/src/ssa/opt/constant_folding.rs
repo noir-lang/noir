@@ -177,7 +177,7 @@ struct Context<'a> {
     /// We partition the maps of constrained values according to the side-effects flag at the point
     /// at which the values are constrained. This prevents constraints which are only sometimes enforced
     /// being used to modify the rest of the program.
-    constraint_simplification_mappings: ConstraitSimplificationCache,
+    constraint_simplification_mappings: ConstraintSimplificationCache,
 
     // Cache of instructions without any side-effects along with their outputs.
     cached_instruction_results: InstructionResultCache,
@@ -191,15 +191,26 @@ pub(crate) struct BrilligInfo<'a> {
     brillig_functions: &'a BTreeMap<FunctionId, Function>,
 }
 
+/// Records a simplified equivalent of an [`Instruction`]s along with the blocks in which the
+/// constraint that advised the simplification has been encountered.
+///
+/// For more information see [`ConstraintSimplificationCache`].
 struct SimplificationCache {
     simplified: ValueId,
     blocks: HashSet<BasicBlockId>,
 }
 
 impl SimplificationCache {
+    /// Create a new simplification record.
+    ///
+    /// Will immediately be followed on by a call to `merge` to add the block.
     fn new(simplified: ValueId) -> Self {
         Self { simplified, blocks: Default::default() }
     }
+
+    /// Called with a newly encountered simplification of the original expression:
+    /// if it's the same simplified value then we record the new block we see it in,
+    /// otherwise we keep the simpler of the new and the existing value.
     fn merge(&mut self, dfg: &DataFlowGraph, other: ValueId, block: BasicBlockId) {
         if self.simplified == other {
             self.blocks.insert(block);
@@ -216,7 +227,13 @@ impl SimplificationCache {
     }
 }
 
-type ConstraitSimplificationCache = HashMap<Predicate, HashMap<ValueId, SimplificationCache>>;
+/// HashMap from Instruction to a simplified expression that it can be replaced with based on
+/// constraints that testify to their equivalence, stored together with the set of blocks at which
+/// this constraint has been observed. Only blocks dominated by one in the cache should have
+/// access to this information, otherwise we create a sort of time paradox where we replace
+/// an instruction with a constant we believe _should_ be true about it, without ever actually
+/// producing and asserting the value.
+type ConstraintSimplificationCache = HashMap<Predicate, HashMap<ValueId, SimplificationCache>>;
 
 /// HashMap from (Instruction, side_effects_enabled_var) to the results of the instruction.
 /// Stored as a two-level map to avoid cloning Instructions during the `.get` call.
