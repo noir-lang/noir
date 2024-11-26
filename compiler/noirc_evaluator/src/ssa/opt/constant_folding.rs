@@ -146,7 +146,7 @@ impl Function {
         use_constraint_info: bool,
         brillig_info: Option<BrilligInfo>,
     ) {
-        let mut context = Context::new(self, use_constraint_info, brillig_info);
+        let mut context = Context::new(use_constraint_info, brillig_info);
         context.block_queue.push_back(self.entry_block());
 
         while let Some(block) = context.block_queue.pop_front() {
@@ -181,8 +181,6 @@ struct Context<'a> {
 
     // Cache of instructions without any side-effects along with their outputs.
     cached_instruction_results: InstructionResultCache,
-
-    dom: DominatorTree,
 }
 
 #[derive(Copy, Clone)]
@@ -225,6 +223,14 @@ impl SimplificationCache {
             }
         }
     }
+
+    fn get(&self, block: BasicBlockId, dom: &mut DominatorTree) -> Option<ValueId> {
+        if self.blocks.iter().any(|b| dom.dominates(*b, block)) {
+            Some(self.simplified)
+        } else {
+            None
+        }
+    }
 }
 
 /// HashMap from Instruction to a simplified expression that it can be replaced with based on
@@ -251,11 +257,7 @@ struct ResultCache {
 }
 
 impl<'brillig> Context<'brillig> {
-    fn new(
-        function: &Function,
-        use_constraint_info: bool,
-        brillig_info: Option<BrilligInfo<'brillig>>,
-    ) -> Self {
+    fn new(use_constraint_info: bool, brillig_info: Option<BrilligInfo<'brillig>>) -> Self {
         Self {
             use_constraint_info,
             brillig_info,
@@ -263,7 +265,6 @@ impl<'brillig> Context<'brillig> {
             block_queue: Default::default(),
             constraint_simplification_mappings: Default::default(),
             cached_instruction_results: Default::default(),
-            dom: DominatorTree::with_function(function),
         }
     }
 
@@ -273,9 +274,12 @@ impl<'brillig> Context<'brillig> {
         let mut side_effects_enabled_var =
             function.dfg.make_constant(FieldElement::one(), Type::bool());
 
+        let mut dom = DominatorTree::with_function(function);
+
         for instruction_id in instructions {
             self.fold_constants_into_instruction(
                 &mut function.dfg,
+                &mut dom,
                 block,
                 instruction_id,
                 &mut side_effects_enabled_var,
@@ -287,17 +291,21 @@ impl<'brillig> Context<'brillig> {
     fn fold_constants_into_instruction(
         &mut self,
         dfg: &mut DataFlowGraph,
+        dom: &mut DominatorTree,
         mut block: BasicBlockId,
         id: InstructionId,
         side_effects_enabled_var: &mut ValueId,
     ) {
         let constraint_simplification_mapping = self.get_constraint_map(*side_effects_enabled_var);
-        let instruction = Self::resolve_instruction(id, dfg, constraint_simplification_mapping);
+
+        let instruction =
+            Self::resolve_instruction(id, block, dfg, dom, constraint_simplification_mapping);
+
         let old_results = dfg.instruction_results(id).to_vec();
 
         // If a copy of this instruction exists earlier in the block, then reuse the previous results.
         if let Some(cache_result) =
-            self.get_cached(dfg, &instruction, *side_effects_enabled_var, block)
+            self.get_cached(dfg, dom, &instruction, *side_effects_enabled_var, block)
         {
             match cache_result {
                 CacheResult::Cached(cached) => {
@@ -354,7 +362,9 @@ impl<'brillig> Context<'brillig> {
     /// Fetches an [`Instruction`] by its [`InstructionId`] and fully resolves its inputs.
     fn resolve_instruction(
         instruction_id: InstructionId,
+        block: BasicBlockId,
         dfg: &DataFlowGraph,
+        dom: &mut DominatorTree,
         constraint_simplification_mapping: &HashMap<ValueId, SimplificationCache>,
     ) -> Instruction {
         let instruction = dfg[instruction_id].clone();
@@ -365,20 +375,29 @@ impl<'brillig> Context<'brillig> {
         // This allows us to reach a stable final `ValueId` for each instruction input as we add more
         // constraints to the cache.
         fn resolve_cache(
+            block: BasicBlockId,
             dfg: &DataFlowGraph,
+            dom: &mut DominatorTree,
             cache: &HashMap<ValueId, SimplificationCache>,
             value_id: ValueId,
         ) -> ValueId {
             let resolved_id = dfg.resolve(value_id);
             match cache.get(&resolved_id) {
-                Some(cached_value) => resolve_cache(dfg, cache, cached_value.simplified),
+                Some(simplification_cache) => {
+                    if let Some(simplified) = simplification_cache.get(block, dom) {
+                        resolve_cache(block, dfg, dom, cache, simplified)
+                    } else {
+                        resolved_id
+                    }
+                }
                 None => resolved_id,
             }
         }
 
         // Resolve any inputs to ensure that we're comparing like-for-like instructions.
-        instruction
-            .map_values(|value_id| resolve_cache(dfg, constraint_simplification_mapping, value_id))
+        instruction.map_values(|value_id| {
+            resolve_cache(block, dfg, dom, constraint_simplification_mapping, value_id)
+        })
     }
 
     /// Pushes a new [`Instruction`] into the [`DataFlowGraph`] which applies any optimizations
@@ -468,8 +487,9 @@ impl<'brillig> Context<'brillig> {
     }
 
     fn get_cached(
-        &mut self,
+        &self,
         dfg: &DataFlowGraph,
+        dom: &mut DominatorTree,
         instruction: &Instruction,
         side_effects_enabled_var: ValueId,
         block: BasicBlockId,
@@ -479,7 +499,7 @@ impl<'brillig> Context<'brillig> {
         let predicate = self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
         let predicate = predicate.then_some(side_effects_enabled_var);
 
-        results_for_instruction.get(&predicate)?.get(block, &mut self.dom)
+        results_for_instruction.get(&predicate)?.get(block, dom)
     }
 
     /// Checks if the given instruction is a call to a brillig function with all constant arguments.
