@@ -194,6 +194,26 @@ fn check_for_negated_jmpif_condition(
     block: BasicBlockId,
     cfg: &mut ControlFlowGraph,
 ) {
+    if matches!(function.runtime(), RuntimeType::Acir(_)) {
+        // Swapping the `then` and `else` branches of a `JmpIf` within an ACIR function
+        // can result in the situation the branches merge together again in the `then` block, e.g.
+        //
+        // acir(inline) fn main f0 {
+        //   b0(v0: u1):
+        //     jmpif v0 then: b2, else: b1
+        //   b2():
+        //     return
+        //   b1():
+        //     jmp b2()
+        // }
+        //
+        // This breaks the `flatten_cfg` pass as it assumes that merges only happen in
+        // the `else` block or a 3rd block.
+        //
+        // See: https://github.com/noir-lang/noir/pull/5891#issuecomment-2500219428
+        return;
+    }
+
     if let Some(TerminatorInstruction::JmpIf {
         condition,
         then_destination,
