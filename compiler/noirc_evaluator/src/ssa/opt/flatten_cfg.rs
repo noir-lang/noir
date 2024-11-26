@@ -1490,8 +1490,8 @@ mod test {
         let separate_ssa = separate_ssa.flatten_cfg();
 
         // This program is much the same as the above except that `b3` has been inlined into `b2`.
-        // `b2` is both the `then` block and the block in which both of the branches merge together again,
-        // this means that we end up inlining the merge block before we've finished inlining the `else` block.
+        // `b2` is both the `then` block and the return block. This means that we don't properly
+        //  switch to handling the `else` block by calling `then_stop` as we do in the above case.
         let merged_return_block_src = "
         acir(inline) fn main f0 {
           b0(v0: u1):
