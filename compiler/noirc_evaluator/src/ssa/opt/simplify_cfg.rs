@@ -196,7 +196,7 @@ fn check_for_negated_jmpif_condition(
 ) {
     if matches!(function.runtime(), RuntimeType::Acir(_)) {
         // Swapping the `then` and `else` branches of a `JmpIf` within an ACIR function
-        // can result in the situation the branches merge together again in the `then` block, e.g.
+        // can result in the situation where the branches merge together again in the `then` block, e.g.
         //
         // acir(inline) fn main f0 {
         //   b0(v0: u1):
