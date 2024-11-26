@@ -69,11 +69,11 @@ jobs:
         working-directory: ./test_programs
         run: |
           chmod +x memory_report.sh
-          ./memory_brillig.sh
+          ./memory_report.sh
           mv memory_report.json ../memory_report.json
 
       - name: Parse memory report
-        id: brillig_bytecode_diff
+        id: memory_report
         uses: noir-lang/noir-gates-diff@b0319af9e4250743f5db73cef98d2d08fc92c5f7
         with:
           report: memory_report.json
