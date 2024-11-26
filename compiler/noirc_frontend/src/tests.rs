@@ -3821,3 +3821,27 @@ fn disallows_test_attribute_on_trait_impl_method() {
         ));
     });
 }
+
+#[test]
+fn disallows_export_attribute_on_impl_method() {
+    test_disallows_attribute_on_impl_method("export", |error| {
+        assert!(matches!(
+            error,
+            CompilationError::DefinitionError(
+                DefCollectorErrorKind::ExportOnAssociatedFunction { .. }
+            )
+        ));
+    });
+}
+
+#[test]
+fn disallows_export_attribute_on_trait_impl_method() {
+    test_disallows_attribute_on_trait_impl_method("export", |error| {
+        assert!(matches!(
+            error,
+            CompilationError::DefinitionError(
+                DefCollectorErrorKind::ExportOnAssociatedFunction { .. }
+            )
+        ));
+    });
+}
