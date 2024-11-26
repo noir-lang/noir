@@ -1466,7 +1466,7 @@ mod test {
 
     #[test]
     #[should_panic]
-    fn correctly_handles_branches_merging_into_one_another() {
+    fn correctly_handles_return_statements_in_then_block() {
         //! This is a regression test for https://github.com/noir-lang/noir/issues/6620
 
         let separate_return_block_src = "
