@@ -1341,4 +1341,26 @@ mod test {
         let ssa = ssa.fold_constants_with_brillig(&brillig);
         assert_normalized_ssa_equals(ssa, expected);
     }
+
+    #[test]
+    fn does_not_use_cached_constrain_in_block_that_is_not_dominated() {
+        let src = "
+            brillig(inline) fn main f0 {
+              b0(v0: Field, v1: Field):
+                v3 = eq v0, Field 0
+                jmpif v3 then: b1, else: b2
+              b1():
+                v5 = eq v1, Field 1
+                constrain v1 == Field 1
+                jmp b2()
+              b2():
+                v6 = eq v1, Field 0
+                constrain v1 == Field 0
+                return
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants_using_constraints();
+        assert_normalized_ssa_equals(ssa, src);
+    }
 }
