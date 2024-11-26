@@ -42,7 +42,7 @@ jobs:
           path: ./dist/*
           retention-days: 3
 
-  compare_brillig_bytecode_size_reports:
+  generate_memory_report:
     needs: [build-nargo]
     runs-on: ubuntu-latest
     permissions:
