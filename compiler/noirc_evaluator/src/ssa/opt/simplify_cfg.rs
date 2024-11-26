@@ -416,9 +416,9 @@ mod test {
     }
 
     #[test]
-    fn swap_negated_jmpif_branches() {
+    fn swap_negated_jmpif_branches_in_brillig() {
         let src = "
-        acir(inline) fn main f0 {
+        brillig(inline) fn main f0 {
           b0(v0: u1):
             v1 = allocate -> &mut Field
             store Field 0 at v1
@@ -436,7 +436,7 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
 
         let expected = "
-        acir(inline) fn main f0 {
+        brillig(inline) fn main f0 {
           b0(v0: u1):
             v1 = allocate -> &mut Field
             store Field 0 at v1
@@ -452,5 +452,21 @@ mod test {
             jmp b2()
         }";
         assert_normalized_ssa_equals(ssa.simplify_cfg(), expected);
+    }
+
+    #[test]
+    fn does_not_swap_negated_jmpif_branches_in_acir() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            v3 = not v0
+            jmpif v3 then: b1, else: b2
+          b1():
+            jmp b2()
+          b2():
+            return
+        }";
+        let ssa = Ssa::from_str(src).unwrap();
+        assert_normalized_ssa_equals(ssa.simplify_cfg(), src);
     }
 }
