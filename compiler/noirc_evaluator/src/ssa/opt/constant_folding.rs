@@ -193,43 +193,39 @@ pub(crate) struct BrilligInfo<'a> {
 /// constraint that advised the simplification has been encountered.
 ///
 /// For more information see [`ConstraintSimplificationCache`].
+#[derive(Default)]
 struct SimplificationCache {
-    simplified: ValueId,
-    blocks: HashSet<BasicBlockId>,
+    simplifications: HashMap<BasicBlockId, ValueId>,
 }
 
 impl SimplificationCache {
-    /// Create a new simplification record.
-    ///
-    /// Will immediately be followed on by a call to `merge` to add the block.
-    fn new(simplified: ValueId) -> Self {
-        Self { simplified, blocks: Default::default() }
-    }
-
-    /// Called with a newly encountered simplification of the original expression:
-    /// if it's the same simplified value then we record the new block we see it in,
-    /// otherwise we keep the simpler of the new and the existing value.
-    fn merge(&mut self, dfg: &DataFlowGraph, other: ValueId, block: BasicBlockId) {
-        if self.simplified == other {
-            self.blocks.insert(block);
-        } else {
-            match simplify(dfg, self.simplified, other) {
-                Some((complex, simple)) if self.simplified == complex => {
-                    self.simplified = simple;
-                    self.blocks.clear();
-                    self.blocks.insert(block);
+    /// Called with a newly encountered simplification.
+    fn add(&mut self, dfg: &DataFlowGraph, simple: ValueId, block: BasicBlockId) {
+        let existing = self.simplifications.entry(block).or_insert(simple);
+        // Keep the simpler expression in this block.
+        if *existing != simple {
+            match simplify(dfg, *existing, simple) {
+                Some((complex, simple)) if *existing == complex => {
+                    *existing = simple;
                 }
                 _ => {}
             }
         }
     }
 
+    /// Try to find a simplification in a visible block.
     fn get(&self, block: BasicBlockId, dom: &mut DominatorTree) -> Option<ValueId> {
-        if self.blocks.iter().any(|b| dom.dominates(*b, block)) {
-            Some(self.simplified)
-        } else {
-            None
+        // See if we have a direct simplification in this block.
+        if let Some(value) = self.simplifications.get(&block) {
+            return Some(*value);
         }
+        // Check if there is a dominating block we can take a simplification from.
+        for (constraining_block, value) in self.simplifications.iter() {
+            if dom.dominates(*constraining_block, block) {
+                return Some(*value);
+            }
+        }
+        None
     }
 }
 
@@ -446,8 +442,8 @@ impl<'brillig> Context<'brillig> {
                 if let Some((complex, simple)) = simplify(dfg, lhs, rhs) {
                     self.get_constraint_map(side_effects_enabled_var)
                         .entry(complex)
-                        .or_insert_with(|| SimplificationCache::new(simple))
-                        .merge(dfg, simple, block);
+                        .or_default()
+                        .add(dfg, simple, block);
                 }
             }
         }
