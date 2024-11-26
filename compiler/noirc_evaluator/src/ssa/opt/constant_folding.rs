@@ -1430,4 +1430,28 @@ mod test {
         let ssa = ssa.fold_constants_using_constraints();
         assert_normalized_ssa_equals(ssa, src);
     }
+
+    #[test]
+    fn does_not_hoist_constrain_to_common_ancestor() {
+        let src = "
+            brillig(inline) fn main f0 {
+              b0(v0: Field, v1: Field):
+                v3 = eq v0, Field 0
+                jmpif v3 then: b1, else: b2
+              b1():
+                constrain v1 == Field 1
+                jmp b2()
+              b2():
+                jmpif v0 then: b3, else: b4
+              b3():
+                constrain v1 == Field 1 // This was incorrectly hoisted to b0 but this condition is not valid when going b0 -> b2 -> b4
+                jmp b4()
+              b4():
+                return
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants_using_constraints();
+        assert_normalized_ssa_equals(ssa, src);
+    }
 }
