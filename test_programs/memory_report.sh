@@ -29,8 +29,14 @@ for test_name in ${tests_to_profile[@]}; do
             echo " ," >> $current_dir"/memory_report.json"
         fi
         heaptrack --output $current_dir/$test_name"_heap" $NARGO compile --force
-        heaptrack --analyze $current_dir/$test_name"_heap.gz" > $current_dir/$test_name"_heap_analysis.txt"
-        rm $current_dir/$test_name"_heap.gz"
+        if test -f $current_dir/$test_name"_heap.gz"; 
+        then 
+            heaptrack --analyze $current_dir/$test_name"_heap.gz" > $current_dir/$test_name"_heap_analysis.txt"
+            rm $current_dir/$test_name"_heap.gz"
+        else 
+            heaptrack --analyze $current_dir/$test_name"_heap.zst" > $current_dir/$test_name"_heap_analysis.txt"
+            rm $current_dir/$test_name"_heap.zst"
+        fi
         consumption="$(grep 'peak heap memory consumption'  $current_dir/$test_name'_heap_analysis.txt')"
         len=${#consumption}-30
         peak=${consumption:30:len}
