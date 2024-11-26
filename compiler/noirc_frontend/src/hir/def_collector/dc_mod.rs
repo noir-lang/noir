@@ -216,6 +216,13 @@ impl<'a> ModCollector<'a> {
                     errors.push((error.into(), self.file_id));
                 }
 
+                if noir_function.def.attributes.has_export() {
+                    let error = DefCollectorErrorKind::ExportOnAssociatedFunction {
+                        span: noir_function.name_ident().span(),
+                    };
+                    errors.push((error.into(), self.file_id));
+                }
+
                 let location = Location::new(noir_function.def.span, self.file_id);
                 context.def_interner.push_function(*func_id, &noir_function.def, module, location);
             }
@@ -1087,6 +1094,12 @@ pub fn collect_impl(
             };
             errors.push((error.into(), file_id));
             continue;
+        }
+        if method.def.attributes.has_export() {
+            let error = DefCollectorErrorKind::ExportOnAssociatedFunction {
+                span: method.name_ident().span(),
+            };
+            errors.push((error.into(), file_id));
         }
 
         let func_id = interner.push_empty_fn();
