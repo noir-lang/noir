@@ -459,8 +459,8 @@ mod test {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: u1):
-            v3 = not v0
-            jmpif v3 then: b1, else: b2
+            v1 = not v0
+            jmpif v1 then: b1, else: b2
           b1():
             jmp b2()
           b2():
