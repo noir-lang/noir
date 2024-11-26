@@ -112,8 +112,8 @@ impl Intrinsic {
     ///
     /// If there are no side effects then the `Intrinsic` can be removed if the result is unused.
     ///
-    /// An obvious example of a side effect is pushing an item to a slice, but functions which
-    /// can fail due to implicit constraints are also considered to have a side effect.
+    /// An example of a side effect is increasing the reference count of an array, but functions
+    /// which can fail due to implicit constraints are also considered to have a side effect.
     pub(crate) fn has_side_effects(&self) -> bool {
         match self {
             Intrinsic::AssertConstant
@@ -172,6 +172,11 @@ impl Intrinsic {
                 | BlackBoxFunc::EmbeddedCurveAdd
                 | BlackBoxFunc::RecursiveAggregation,
             ) => deduplicate_with_predicate,
+
+            // Operations that remove items from a slice don't modify the slice, they just assert it's non-empty.
+            Intrinsic::SlicePopBack | Intrinsic::SlicePopFront | Intrinsic::SliceRemove => {
+                deduplicate_with_predicate
+            }
 
             Intrinsic::AssertConstant
             | Intrinsic::StaticAssert
