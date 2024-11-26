@@ -3752,50 +3752,72 @@ fn allows_struct_with_generic_infix_type_as_main_input_3() {
     assert_no_errors(src);
 }
 
+fn test_disallows_attribute_on_impl_method(
+    attr: &str,
+    check_error: impl FnOnce(&CompilationError),
+) {
+    let src = format!(
+        "
+        pub struct Foo {{ }}
+
+        impl Foo {{
+            #[{attr}]
+            fn foo() {{ }}
+        }}
+
+        fn main() {{ }}
+    "
+    );
+    let errors = get_program_errors(&src);
+    assert_eq!(errors.len(), 1);
+    check_error(&errors[0].0);
+}
+
+fn test_disallows_attribute_on_trait_impl_method(
+    attr: &str,
+    check_error: impl FnOnce(&CompilationError),
+) {
+    let src = format!(
+        "
+        pub trait Trait {{
+            fn foo() {{ }}
+        }}
+
+        pub struct Foo {{ }}
+
+        impl Trait for Foo {{
+            #[{attr}]
+            fn foo() {{ }}
+        }}
+
+        fn main() {{ }}
+    "
+    );
+    let errors = get_program_errors(&src);
+    assert_eq!(errors.len(), 1);
+    check_error(&errors[0].0);
+}
+
 #[test]
 fn disallows_test_attribute_on_impl_method() {
-    let src = r#"
-    pub struct Foo {}
-    impl Foo {
-        #[test]
-        fn foo() {}
-    }
-
-    fn main() {}
-    "#;
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    assert!(matches!(
-        errors[0].0,
-        CompilationError::DefinitionError(DefCollectorErrorKind::TestOnAssociatedFunction {
-            span: _
-        })
-    ));
+    test_disallows_attribute_on_impl_method("test", |error| {
+        assert!(matches!(
+            error,
+            CompilationError::DefinitionError(
+                DefCollectorErrorKind::TestOnAssociatedFunction { .. }
+            )
+        ));
+    });
 }
 
 #[test]
 fn disallows_test_attribute_on_trait_impl_method() {
-    let src = r#"
-    pub trait Trait {
-        fn foo() {}
-    }
-
-    pub struct Foo {}
-    impl Trait for Foo {
-        #[test]
-        fn foo() {}
-    }
-
-    fn main() {}
-    "#;
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    assert!(matches!(
-        errors[0].0,
-        CompilationError::DefinitionError(DefCollectorErrorKind::TestOnAssociatedFunction {
-            span: _
-        })
-    ));
+    test_disallows_attribute_on_trait_impl_method("test", |error| {
+        assert!(matches!(
+            error,
+            CompilationError::DefinitionError(
+                DefCollectorErrorKind::TestOnAssociatedFunction { .. }
+            )
+        ));
+    });
 }
