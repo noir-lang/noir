@@ -944,6 +944,7 @@ pub fn collect_function(
     } else {
         function.name() == MAIN_FUNCTION
     };
+    let has_export = function.def.attributes.has_export();
 
     let name = function.name_ident().clone();
     let func_id = interner.push_empty_fn();
@@ -954,7 +955,7 @@ pub fn collect_function(
         interner.register_function(func_id, &function.def);
     }
 
-    if !is_test && !is_entry_point_function {
+    if !is_test && !is_entry_point_function && !has_export {
         let item = UnusedItem::Function(func_id);
         usage_tracker.add_unused_item(module, name.clone(), item, visibility);
     }
@@ -1257,6 +1258,7 @@ pub(crate) fn collect_global(
     // Add the statement to the scope so its path can be looked up later
     let result = def_map.modules[module_id.0].declare_global(name.clone(), visibility, global_id);
 
+    // Globals marked as ABI don't have to be used.
     if !is_abi {
         let parent_module_id = ModuleId { krate: crate_id, local_id: module_id };
         usage_tracker.add_unused_item(
