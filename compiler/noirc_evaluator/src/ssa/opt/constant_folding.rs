@@ -377,26 +377,8 @@ impl<'brillig> Context<'brillig> {
             // to map from the more complex to the simpler value.
             if let Instruction::Constrain(lhs, rhs, _) = instruction {
                 // These `ValueId`s should be fully resolved now.
-                match (&dfg[lhs], &dfg[rhs]) {
-                    // Ignore trivial constraints
-                    (Value::NumericConstant { .. }, Value::NumericConstant { .. }) => (),
-
-                    // Prefer replacing with constants where possible.
-                    (Value::NumericConstant { .. }, _) => {
-                        self.get_constraint_map(side_effects_enabled_var).insert(rhs, lhs);
-                    }
-                    (_, Value::NumericConstant { .. }) => {
-                        self.get_constraint_map(side_effects_enabled_var).insert(lhs, rhs);
-                    }
-                    // Otherwise prefer block parameters over instruction results.
-                    // This is as block parameters are more likely to be a single witness rather than a full expression.
-                    (Value::Param { .. }, Value::Instruction { .. }) => {
-                        self.get_constraint_map(side_effects_enabled_var).insert(rhs, lhs);
-                    }
-                    (Value::Instruction { .. }, Value::Param { .. }) => {
-                        self.get_constraint_map(side_effects_enabled_var).insert(lhs, rhs);
-                    }
-                    (_, _) => (),
+                if let Some((complex, simple)) = simplify(dfg, lhs, rhs) {
+                    self.get_constraint_map(side_effects_enabled_var).insert(complex, simple);
                 }
             }
         }
@@ -685,6 +667,25 @@ fn value_id_to_calldata(value_id: ValueId, dfg: &DataFlowGraph, calldata: &mut V
     }
 
     panic!("Expected ValueId to be numeric constant or array constant");
+}
+
+/// Check if one expression is simpler than the other.
+/// Returns `Some((complex, simple))` if a simplification was found, otherwise `None`.
+/// Expects the `ValueId`s to be fully resolved.
+fn simplify(dfg: &DataFlowGraph, lhs: ValueId, rhs: ValueId) -> Option<(ValueId, ValueId)> {
+    match (&dfg[lhs], &dfg[rhs]) {
+        // Ignore trivial constraints
+        (Value::NumericConstant { .. }, Value::NumericConstant { .. }) => None,
+
+        // Prefer replacing with constants where possible.
+        (Value::NumericConstant { .. }, _) => Some((rhs, lhs)),
+        (_, Value::NumericConstant { .. }) => Some((lhs, rhs)),
+        // Otherwise prefer block parameters over instruction results.
+        // This is as block parameters are more likely to be a single witness rather than a full expression.
+        (Value::Param { .. }, Value::Instruction { .. }) => Some((rhs, lhs)),
+        (Value::Instruction { .. }, Value::Param { .. }) => Some((lhs, rhs)),
+        (_, _) => None,
+    }
 }
 
 #[cfg(test)]
