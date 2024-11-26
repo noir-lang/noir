@@ -17,7 +17,7 @@ use acir::brillig::{
 use acir::AcirField;
 use acvm_blackbox_solver::BlackBoxFunctionSolver;
 use arithmetic::{evaluate_binary_field_op, evaluate_binary_int_op, BrilligArithmeticError};
-use black_box::{evaluate_black_box, BrilligBigintSolver};
+use black_box::{evaluate_black_box, BrilligBigIntSolver};
 
 // Re-export `brillig`.
 pub use acir::brillig;
@@ -95,7 +95,7 @@ pub struct VM<'a, F, B: BlackBoxFunctionSolver<F>> {
     /// The solver for blackbox functions
     black_box_solver: &'a B,
     // The solver for big integers
-    bigint_solver: BrilligBigintSolver,
+    bigint_solver: BrilligBigIntSolver,
     // Flag that determines whether we want to profile VM.
     profiling_active: bool,
     // Samples for profiling the VM execution.
