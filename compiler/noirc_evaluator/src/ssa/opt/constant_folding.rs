@@ -147,6 +147,7 @@ impl Function {
         brillig_info: Option<BrilligInfo>,
     ) {
         let mut context = Context::new(use_constraint_info, brillig_info);
+        let mut dom = DominatorTree::with_function(self);
         context.block_queue.push_back(self.entry_block());
 
         while let Some(block) = context.block_queue.pop_front() {
@@ -155,7 +156,7 @@ impl Function {
             }
 
             context.visited_blocks.insert(block);
-            context.fold_constants_in_block(self, block);
+            context.fold_constants_in_block(&mut self.dfg, &mut dom, block);
         }
     }
 }
@@ -264,24 +265,26 @@ impl<'brillig> Context<'brillig> {
         }
     }
 
-    fn fold_constants_in_block(&mut self, function: &mut Function, block: BasicBlockId) {
-        let instructions = function.dfg[block].take_instructions();
+    fn fold_constants_in_block(
+        &mut self,
+        dfg: &mut DataFlowGraph,
+        dom: &mut DominatorTree,
+        block: BasicBlockId,
+    ) {
+        let instructions = dfg[block].take_instructions();
 
-        let mut side_effects_enabled_var =
-            function.dfg.make_constant(FieldElement::one(), Type::bool());
-
-        let mut dom = DominatorTree::with_function(function);
+        let mut side_effects_enabled_var = dfg.make_constant(FieldElement::one(), Type::bool());
 
         for instruction_id in instructions {
             self.fold_constants_into_instruction(
-                &mut function.dfg,
-                &mut dom,
+                dfg,
+                dom,
                 block,
                 instruction_id,
                 &mut side_effects_enabled_var,
             );
         }
-        self.block_queue.extend(function.dfg[block].successors());
+        self.block_queue.extend(dfg[block].successors());
     }
 
     fn fold_constants_into_instruction(
