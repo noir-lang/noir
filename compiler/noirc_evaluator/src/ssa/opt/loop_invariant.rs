@@ -7,14 +7,19 @@
 //! - Already marked as loop invariants
 //!
 //! We also check that we are not hoisting instructions with side effects.
-use fxhash::FxHashSet as HashSet;
+use acvm::{acir::AcirField, FieldElement};
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
+        // cfg::ControlFlowGraph,
+        // dom::DominatorTree,
         function::{Function, RuntimeType},
         function_inserter::FunctionInserter,
-        instruction::InstructionId,
+        instruction::{Instruction, InstructionId},
+        // post_order::PostOrder,
+        types::Type,
         value::ValueId,
     },
     Ssa,
@@ -45,18 +50,31 @@ impl Function {
 }
 
 impl Loops {
-    fn hoist_loop_invariants(self, function: &mut Function) {
+    fn hoist_loop_invariants(mut self, function: &mut Function) {
+        // let cfg = ControlFlowGraph::with_function(function);
+        // let post_order = PostOrder::with_function(function);
+        // let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+
         let mut context = LoopInvariantContext::new(function);
 
-        for loop_ in self.yet_to_unroll.iter() {
+        while let Some(loop_) = self.yet_to_unroll.pop() {
             let Ok(pre_header) = loop_.get_pre_header(context.inserter.function, &self.cfg) else {
                 // If the loop does not have a preheader we skip hoisting loop invariants for this loop
                 continue;
             };
-            context.hoist_loop_invariants(loop_, pre_header);
+
+            context.hoist_loop_invariants(&loop_, pre_header);
+
+            context.defined_in_loop.clear();
         }
 
         context.map_dependent_instructions();
+    }
+}
+
+impl Loop {
+    fn get_induction_variable_value(&self, function: &Function) -> ValueId {
+        function.dfg.block_parameters(self.header)[0]
     }
 }
 
@@ -64,6 +82,8 @@ struct LoopInvariantContext<'f> {
     inserter: FunctionInserter<'f>,
     defined_in_loop: HashSet<ValueId>,
     loop_invariants: HashSet<ValueId>,
+    // Maps induction variable -> fixed upper loop bound
+    outer_induction_variables: HashMap<ValueId, FieldElement>,
 }
 
 impl<'f> LoopInvariantContext<'f> {
@@ -72,6 +92,7 @@ impl<'f> LoopInvariantContext<'f> {
             inserter: FunctionInserter::new(function),
             defined_in_loop: HashSet::default(),
             loop_invariants: HashSet::default(),
+            outer_induction_variables: HashMap::default(),
         }
     }
 
@@ -91,10 +112,20 @@ impl<'f> LoopInvariantContext<'f> {
                 self.update_values_defined_in_loop_and_invariants(instruction_id, hoist_invariant);
             }
         }
+
+        let upper_bound = loop_.get_const_upper_bound(self.inserter.function);
+        if let Some(upper_bound) = upper_bound {
+            let induction_variable = loop_.get_induction_variable_value(self.inserter.function);
+            let induction_variable = self.inserter.resolve(induction_variable);
+            self.outer_induction_variables.insert(induction_variable, upper_bound);
+        }
     }
 
     /// Gather the variables declared within the loop
     fn set_values_defined_in_loop(&mut self, loop_: &Loop) {
+        // Check whether the param is an induction variable and the block for which it is a param
+        // Later when we are checking whether a value is a loop invariant we special case
+        // this parameter
         for block in loop_.blocks.iter() {
             let params = self.inserter.function.dfg.block_parameters(*block);
             self.defined_in_loop.extend(params);
@@ -143,7 +174,23 @@ impl<'f> LoopInvariantContext<'f> {
             is_loop_invariant &=
                 !self.defined_in_loop.contains(&value) || self.loop_invariants.contains(&value);
         });
-        is_loop_invariant && instruction.can_be_deduplicated(&self.inserter.function.dfg, false)
+        let can_be_deduplicated =
+            instruction.can_be_deduplicated(&self.inserter.function.dfg, false);
+
+        let can_be_deduplicated = match &instruction {
+            Instruction::ArrayGet { array, index } => {
+                let array_typ = self.inserter.function.dfg.type_of_value(*array);
+                let upper_bound = self.outer_induction_variables.get(index);
+                if let (Type::Array(_, len), Some(upper_bound)) = (array_typ, upper_bound) {
+                    upper_bound.to_u128() as usize <= len
+                } else {
+                    can_be_deduplicated
+                }
+            }
+            _ => can_be_deduplicated,
+        };
+
+        is_loop_invariant && can_be_deduplicated
     }
 
     fn map_dependent_instructions(&mut self) {
@@ -374,5 +421,109 @@ mod test {
         let ssa = ssa.loop_invariant_code_motion();
         // The code should be unchanged
         assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn hoist_array_gets_using_induction_variable_with_const_bound() {
+        // SSA for the following program:
+        //
+        // fn triple_loop(x: u32) {
+        //   let arr = [2; 5];
+        //   for i in 0..4 {
+        //       for j in 0..4 {
+        //           for _ in 0..4 {
+        //               assert_eq(arr[i], x);
+        //               assert_eq(arr[j], x);
+        //           }
+        //       }
+        //   }
+        // }
+        //
+        // `arr[i]` and `arr[j]` are safe to hoist as we know the maximum possible index
+        // to be used for both array accesses.
+        // We want to make sure `arr[i]` is hoisted to the outermost loop body and that
+        // `arr[j]` is hoisted to the second outermost loop body.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            v6 = make_array [u32 2, u32 2, u32 2, u32 2, u32 2] : [u32; 5]
+            inc_rc v6
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v9 = lt v2, u32 4
+            jmpif v9 then: b3, else: b2
+          b3():
+            jmp b4(u32 0)
+          b4(v3: u32):
+            v10 = lt v3, u32 4
+            jmpif v10 then: b6, else: b5
+          b6():
+            jmp b7(u32 0)
+          b7(v4: u32):
+            v13 = lt v4, u32 4
+            jmpif v13 then: b9, else: b8
+          b9():
+            v15 = array_get v6, index v2 -> u32
+            v16 = eq v15, v0
+            constrain v15 == v0
+            v17 = array_get v6, index v3 -> u32
+            v18 = eq v17, v0
+            constrain v17 == v0
+            v19 = add v4, u32 1
+            jmp b7(v19)
+          b8():
+            v14 = add v3, u32 1
+            jmp b4(v14)
+          b5():
+            v12 = add v2, u32 1
+            jmp b1(v12)
+          b2():
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let expected = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            v6 = make_array [u32 2, u32 2, u32 2, u32 2, u32 2] : [u32; 5]
+            inc_rc v6
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v9 = lt v2, u32 4
+            jmpif v9 then: b3, else: b2
+          b3():
+            v10 = array_get v6, index v2 -> u32
+            v11 = eq v10, v0
+            jmp b4(u32 0)
+          b4(v3: u32):
+            v12 = lt v3, u32 4
+            jmpif v12 then: b6, else: b5
+          b6():
+            v15 = array_get v6, index v3 -> u32
+            v16 = eq v15, v0
+            jmp b7(u32 0)
+          b7(v4: u32):
+            v17 = lt v4, u32 4
+            jmpif v17 then: b9, else: b8
+          b9():
+            constrain v10 == v0
+            constrain v15 == v0
+            v19 = add v4, u32 1
+            jmp b7(v19)
+          b8():
+            v18 = add v3, u32 1
+            jmp b4(v18)
+          b5():
+            v14 = add v2, u32 1
+            jmp b1(v14)
+          b2():
+            return
+        }
+        ";
+
+        let ssa = ssa.loop_invariant_code_motion();
+        assert_normalized_ssa_equals(ssa, expected);
     }
 }
