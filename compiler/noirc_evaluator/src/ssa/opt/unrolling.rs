@@ -716,10 +716,7 @@ impl BoilerplateStats {
 ///   ...
 /// ```
 /// We're looking for the terminating jump of the `main` predecessor of `loop_entry`.
-fn get_induction_variable(
-    function: &Function,
-    block: BasicBlockId,
-) -> Result<ValueId, CallStack> {
+fn get_induction_variable(function: &Function, block: BasicBlockId) -> Result<ValueId, CallStack> {
     match function.dfg[block].terminator() {
         Some(TerminatorInstruction::Jmp { arguments, call_stack: location, .. }) => {
             // This assumption will no longer be valid if e.g. mutable variables are represented as

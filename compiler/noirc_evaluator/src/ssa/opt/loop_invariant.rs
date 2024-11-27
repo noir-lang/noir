@@ -50,6 +50,9 @@ impl Loops {
     fn hoist_loop_invariants(mut self, function: &mut Function) {
         let mut context = LoopInvariantContext::new(function);
 
+        // The loops should be sorted by the number of blocks.
+        // We want to access outer nested loops first, which we do by popping
+        // from the top of the list.
         while let Some(loop_) = self.yet_to_unroll.pop() {
             let Ok(pre_header) = loop_.get_pre_header(context.inserter.function, &self.cfg) else {
                 // If the loop does not have a preheader we skip hoisting loop invariants for this loop
@@ -66,6 +69,20 @@ impl Loops {
 }
 
 impl Loop {
+    /// Find the value that controls whether to perform a loop iteration.
+    /// This is going to be the block parameter of the loop header.
+    ///
+    /// Consider the following example of a `for i in 0..4` loop:
+    /// ```text
+    /// brillig(inline) fn main f0 {
+    ///   b0(v0: u32):
+    ///     ...
+    ///     jmp b1(u32 0)
+    ///   b1(v1: u32):                  // Loop header
+    ///     v5 = lt v1, u32 4           // Upper bound
+    ///     jmpif v5 then: b3, else: b2
+    /// ```
+    /// In the example above, `v1` is the induction variable
     fn get_induction_variable_value(&self, function: &Function) -> ValueId {
         function.dfg.block_parameters(self.header)[0]
     }
@@ -106,6 +123,9 @@ impl<'f> LoopInvariantContext<'f> {
             }
         }
 
+        // Keep track of a loop induction variable and respective upper bound.
+        // This will be used by later loops to determine whether they have operations
+        // reliant upon the maximum induction variable.
         let upper_bound = loop_.get_const_upper_bound(self.inserter.function);
         if let Some(upper_bound) = upper_bound {
             let induction_variable = loop_.get_induction_variable_value(self.inserter.function);
@@ -167,6 +187,7 @@ impl<'f> LoopInvariantContext<'f> {
             is_loop_invariant &=
                 !self.defined_in_loop.contains(&value) || self.loop_invariants.contains(&value);
         });
+
         let can_be_deduplicated =
             instruction.can_be_deduplicated(&self.inserter.function.dfg, false);
 
