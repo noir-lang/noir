@@ -60,7 +60,7 @@ pub(crate) fn serialize_to_toml(
     Ok(toml_string)
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 #[serde(untagged)]
 enum TomlTypes {
     // This is most likely going to be a hex string
@@ -126,6 +126,7 @@ impl InputValue {
     ) -> Result<InputValue, InputParserError> {
         let input_value = match (value, param_type) {
             (TomlTypes::String(string), AbiType::String { .. }) => InputValue::String(string),
+
             (
                 TomlTypes::String(string),
                 AbiType::Field
@@ -139,7 +140,7 @@ impl InputValue {
                 TomlTypes::Integer(integer),
                 AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean,
             ) => {
-                let new_value = FieldElement::from(i128::from(integer));
+                let new_value = FieldElement::from(u128::from(integer));
 
                 InputValue::Field(new_value)
             }
@@ -177,5 +178,39 @@ impl InputValue {
         };
 
         Ok(input_value)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use proptest::prelude::*;
+
+    use crate::{
+        arbitrary::arb_abi_and_input_map,
+        input_parser::{arbitrary::arb_signed_integer_type_and_value, toml::TomlTypes, InputValue},
+    };
+
+    use super::{parse_toml, serialize_to_toml};
+
+    proptest! {
+        #[test]
+        fn serializing_and_parsing_returns_original_input((abi, input_map) in arb_abi_and_input_map()) {
+            let toml = serialize_to_toml(&input_map, &abi).expect("should be serializable");
+            let parsed_input_map = parse_toml(&toml, &abi).expect("should be parsable");
+
+            prop_assert_eq!(parsed_input_map, input_map);
+        }
+
+        #[test]
+        fn signed_integer_serialization_roundtrip((typ, value) in arb_signed_integer_type_and_value()) {
+            let string_input = TomlTypes::String(value.to_string());
+            let input_value = InputValue::try_from_toml(string_input.clone(), &typ, "foo").expect("should be parsable");
+            let TomlTypes::String(output_string) = TomlTypes::try_from_input_value(&input_value, &typ).expect("should be serializable") else {
+                panic!("wrong type output");
+            };
+
+            let output_number = i64::from_str_radix(output_string.strip_prefix("0x").unwrap(), 16).unwrap();
+            prop_assert_eq!(output_number, value);
+        }
     }
 }

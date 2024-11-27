@@ -401,3 +401,25 @@ mod test {
         assert!(parse_str_to_field(&noncanonical_field).is_err());
     }
 }
+
+#[cfg(test)]
+mod arbitrary {
+    use proptest::prelude::*;
+
+    use crate::{AbiType, Sign};
+
+    pub(super) fn arb_signed_integer_type_and_value() -> BoxedStrategy<(AbiType, i64)> {
+        (2u32..=64)
+            .prop_flat_map(|width| {
+                let typ = Just(AbiType::Integer { width, sign: Sign::Signed });
+                let value = if width == 64 {
+                    // Avoid overflow
+                    i64::MIN..i64::MAX
+                } else {
+                    -(2i64.pow(width - 1))..(2i64.pow(width - 1) - 1)
+                };
+                (typ, value)
+            })
+            .boxed()
+    }
+}
