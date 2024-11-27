@@ -1,8 +1,10 @@
 use std::default::Default;
-use std::ec::consts::te::baby_jubjub;
-use std::ec::tecurve::affine::Point as TEPoint;
 use std::hash::Hasher;
 use std::hash::poseidon::PoseidonHasher;
+
+use ec::consts::te::baby_jubjub;
+use ec::tecurve::affine::Point as TEPoint;
+
 
 fn main(
     msg: pub Field,
