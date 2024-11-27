@@ -187,15 +187,17 @@ pub(crate) struct BrilligInfo<'a> {
     brillig_functions: &'a BTreeMap<FunctionId, Function>,
 }
 
-/// Records a simplified equivalent of an [`Instruction`]s along with the blocks in which the
-/// constraint that advised the simplification has been encountered.
+/// Records a simplified equivalents of an [`Instruction`] in the blocks
+/// where the constraint that advised the simplification has been encountered.
 ///
 /// For more information see [`ConstraintSimplificationCache`].
 #[derive(Default)]
 struct SimplificationCache {
     /// Simplified expressions where we found them.
-    /// Using a `BTreeMap` for deterministic enumeration.
-    simplifications: BTreeMap<BasicBlockId, ValueId>,
+    ///
+    /// It will always have at least one value because `add` is called
+    /// after the default is constructed.
+    simplifications: HashMap<BasicBlockId, ValueId>,
 }
 
 impl SimplificationCache {
@@ -214,11 +216,8 @@ impl SimplificationCache {
     }
 
     /// Try to find a simplification in a visible block.
-    fn get(&self, block: BasicBlockId, dom: &mut DominatorTree) -> Option<ValueId> {
-        if self.simplifications.is_empty() {
-            return None;
-        }
-        // Check if there is a dominating block we can take a simplification from.
+    fn get(&self, block: BasicBlockId, dom: &DominatorTree) -> Option<ValueId> {
+        // Deterministically walk up the dominator chain until we encounter a block that contains a simplification.
         dom.find_map_dominator(block, |b| self.simplifications.get(&b).cloned())
     }
 }
