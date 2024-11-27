@@ -161,9 +161,6 @@ impl Function {
     }
 }
 
-/// `ValueId` in an `EnableConstraintsIf` instruction.
-type Predicate = ValueId;
-
 struct Context<'a> {
     use_constraint_info: bool,
     brillig_info: Option<BrilligInfo<'a>>,
@@ -204,7 +201,7 @@ struct SimplificationCache {
 impl SimplificationCache {
     /// Called with a newly encountered simplification.
     fn add(&mut self, dfg: &DataFlowGraph, simple: ValueId, block: BasicBlockId) {
-       self.simplifications
+        self.simplifications
             .entry(block)
             .and_modify(|existing| {
                 // `SimplificationCache` may already hold a simplification in this block
@@ -226,20 +223,21 @@ impl SimplificationCache {
     }
 }
 
-/// HashMap from Instruction to a simplified expression that it can be replaced with based on
-/// constraints that testify to their equivalence, stored together with the set of blocks at which
-/// this constraint has been observed. Only blocks dominated by one in the cache should have
-/// access to this information, otherwise we create a sort of time paradox where we replace
-/// an instruction with a constant we believe _should_ be true about it, without ever actually
-/// producing and asserting the value.
-type ConstraintSimplificationCache = HashMap<Predicate, HashMap<ValueId, SimplificationCache>>;
+/// HashMap from (side_effects_enabled_var, Instruction) to a simplified expression that it can
+/// be replaced with based on constraints that testify to their equivalence, stored together
+/// with the set of blocks at which this constraint has been observed.
+///
+/// Only blocks dominated by one in the cache should have access to this information, otherwise
+/// we create a sort of time paradox where we replace an instruction with a constant we believe
+/// it _should_ equal to, without ever actually producing and asserting the value.
+type ConstraintSimplificationCache = HashMap<ValueId, HashMap<ValueId, SimplificationCache>>;
 
 /// HashMap from (Instruction, side_effects_enabled_var) to the results of the instruction.
 /// Stored as a two-level map to avoid cloning Instructions during the `.get` call.
 ///
 /// In addition to each result, the original BasicBlockId is stored as well. This allows us
 /// to deduplicate instructions across blocks as long as the new block dominates the original.
-type InstructionResultCache = HashMap<Instruction, HashMap<Option<Predicate>, ResultCache>>;
+type InstructionResultCache = HashMap<Instruction, HashMap<Option<ValueId>, ResultCache>>;
 
 /// Records the results of all duplicate [`Instruction`]s along with the blocks in which they sit.
 ///
