@@ -645,55 +645,53 @@ impl<'a> NodeFinder<'a> {
 
         let struct_id = get_type_struct_id(typ);
         let is_primitive = typ.is_primitive();
+        let has_self_param = matches!(function_kind, FunctionKind::SelfType(..));
 
         for (name, methods) in methods_by_name {
-            for (func_id, method_type) in methods.iter() {
-                if function_kind == FunctionKind::Any {
-                    if let Some(method_type) = method_type {
-                        if method_type.unify(typ).is_err() {
-                            continue;
-                        }
-                    }
-                }
+            let Some(func_id) =
+                methods.find_matching_method(typ, has_self_param, self.interner).or_else(|| {
+                    // Also try to find a method assuming typ is `&mut typ`:
+                    // we want to suggest methods that take `&mut self` even though a variable might not
+                    // be mutable, so a user can know they need to mark it as mutable.
+                    let typ = Type::MutableReference(Box::new(typ.clone()));
+                    methods.find_matching_method(&typ, has_self_param, self.interner)
+                })
+            else {
+                continue;
+            };
 
-                if let Some(struct_id) = struct_id {
-                    let modifiers = self.interner.function_modifiers(&func_id);
-                    let visibility = modifiers.visibility;
-                    if !struct_member_is_visible(
-                        struct_id,
-                        visibility,
-                        self.module_id,
-                        self.def_maps,
-                    ) {
-                        continue;
-                    }
-                }
-
-                if is_primitive
-                    && !method_call_is_visible(
-                        typ,
-                        func_id,
-                        self.module_id,
-                        self.interner,
-                        self.def_maps,
-                    )
-                {
+            if let Some(struct_id) = struct_id {
+                let modifiers = self.interner.function_modifiers(&func_id);
+                let visibility = modifiers.visibility;
+                if !struct_member_is_visible(struct_id, visibility, self.module_id, self.def_maps) {
                     continue;
                 }
+            }
 
-                if name_matches(name, prefix) {
-                    let completion_items = self.function_completion_items(
-                        name,
-                        func_id,
-                        function_completion_kind,
-                        function_kind,
-                        None, // attribute first type
-                        self_prefix,
-                    );
-                    if !completion_items.is_empty() {
-                        self.completion_items.extend(completion_items);
-                        self.suggested_module_def_ids.insert(ModuleDefId::FunctionId(func_id));
-                    }
+            if is_primitive
+                && !method_call_is_visible(
+                    typ,
+                    func_id,
+                    self.module_id,
+                    self.interner,
+                    self.def_maps,
+                )
+            {
+                continue;
+            }
+
+            if name_matches(name, prefix) {
+                let completion_items = self.function_completion_items(
+                    name,
+                    func_id,
+                    function_completion_kind,
+                    function_kind,
+                    None, // attribute first type
+                    self_prefix,
+                );
+                if !completion_items.is_empty() {
+                    self.completion_items.extend(completion_items);
+                    self.suggested_module_def_ids.insert(ModuleDefId::FunctionId(func_id));
                 }
             }
         }

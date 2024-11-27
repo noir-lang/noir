@@ -189,6 +189,31 @@ fn foo(x: SomeTypeInBar) {}"#;
     }
 
     #[test]
+    async fn test_import_code_action_for_struct_at_beginning_of_name() {
+        let title = "Import foo::bar::SomeTypeInBar";
+
+        let src = r#"mod foo {
+    pub mod bar {
+        pub struct SomeTypeInBar {}
+    }
+}
+
+fn foo(x: >|<SomeTypeInBar) {}"#;
+
+        let expected = r#"use foo::bar::SomeTypeInBar;
+
+mod foo {
+    pub mod bar {
+        pub struct SomeTypeInBar {}
+    }
+}
+
+fn foo(x: SomeTypeInBar) {}"#;
+
+        assert_code_action(title, src, expected).await;
+    }
+
+    #[test]
     async fn test_qualify_code_action_for_module() {
         let title = "Qualify as foo::bar::some_module_in_bar";
 

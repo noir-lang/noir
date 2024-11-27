@@ -101,7 +101,7 @@ If this is a tuple type, returns each element type of the tuple.
 Retrieves the trait implementation that implements the given
 trait constraint for this type. If the trait constraint is not
 found, `None` is returned. Note that since the concrete trait implementation
-for a trait constraint specified from a `where` clause is unknown,
+for a trait constraint specified in a `where` clause is unknown,
 this function will return `None` in these cases. If you only want to know
 whether a type implements a trait, use `implements` instead.
 
