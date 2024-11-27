@@ -13,12 +13,9 @@ use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
-        // cfg::ControlFlowGraph,
-        // dom::DominatorTree,
         function::{Function, RuntimeType},
         function_inserter::FunctionInserter,
         instruction::{Instruction, InstructionId},
-        // post_order::PostOrder,
         types::Type,
         value::ValueId,
     },
@@ -51,10 +48,6 @@ impl Function {
 
 impl Loops {
     fn hoist_loop_invariants(mut self, function: &mut Function) {
-        // let cfg = ControlFlowGraph::with_function(function);
-        // let post_order = PostOrder::with_function(function);
-        // let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
-
         let mut context = LoopInvariantContext::new(function);
 
         while let Some(loop_) = self.yet_to_unroll.pop() {
