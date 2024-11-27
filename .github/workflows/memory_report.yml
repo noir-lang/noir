@@ -74,7 +74,7 @@ jobs:
 
       - name: Parse memory report
         id: memory_report
-        uses: noir-lang/noir-gates-diff@cc6fa113493bb6848dce43473900bd62495fe229
+        uses: noir-lang/noir-gates-diff@0f94f7307a763d8b6494b9ca920881d064bebf6f
         with:
           report: memory_report.json
           header: |
