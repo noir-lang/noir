@@ -119,7 +119,7 @@ impl DominatorTree {
         }
     }
 
-    /// Walk up the dominator tree until we find one that to which `f` returns `Some` value.
+    /// Walk up the dominator tree until we find a block for which `f` returns `Some` value.
     /// Otherwise return `None` when we reach the top.
     ///
     /// Similar to `Iterator::filter_map` but only returns the first hit.
