@@ -95,10 +95,7 @@ impl Span {
     }
 
     /// Returns `true` if any point of `self` intersects a point of `other`.
-    /// If either span is empty, the point where the span is empty is considered
-    /// to be part of the span (so, for example, `1..1` intersects `1..3`).
-    /// If both spans are empty, they are considered to intersect if they are the same
-    /// span (so `1..1` intersects `1..1`).
+    /// Adjacent spans are considered to intersect (so, for example, `0..1` intersects `1..3`).
     pub fn intersects(&self, other: &Span) -> bool {
         self.end() >= other.start() && self.start() <= other.end()
     }
