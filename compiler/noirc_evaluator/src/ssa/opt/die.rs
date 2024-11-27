@@ -884,4 +884,25 @@ mod test {
         let ssa = ssa.dead_instruction_elimination();
         assert_normalized_ssa_equals(ssa, expected);
     }
+
+    #[test]
+    fn does_not_remove_inc_or_dec_rc_of_if_they_are_loaded_from_a_reference() {
+        let src = "
+            brillig(inline) fn borrow_mut f0 {
+              b0(v0: &mut [Field; 3]):
+                v1 = load v0 -> [Field; 3]
+                inc_rc v1 // this one shouldn't be removed
+                v2 = load v0 -> [Field; 3]
+                inc_rc v2 // this one shouldn't be removed
+                v3 = load v0 -> [Field; 3]
+                v6 = array_set v3, index u32 0, value Field 5
+                store v6 at v0
+                dec_rc v6
+                return
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.dead_instruction_elimination();
+        assert_normalized_ssa_equals(ssa, src);
+    }
 }
