@@ -204,16 +204,16 @@ struct SimplificationCache {
 impl SimplificationCache {
     /// Called with a newly encountered simplification.
     fn add(&mut self, dfg: &DataFlowGraph, simple: ValueId, block: BasicBlockId) {
-        let existing = self.simplifications.entry(block).or_insert(simple);
-        // Keep the simpler expression in this block.
-        if *existing != simple {
-            match simplify(dfg, *existing, simple) {
-                Some((complex, simple)) if *existing == complex => {
-                    *existing = simple;
-                }
-                _ => {}
-            }
-        }
+       self.simplifications
+            .entry(block)
+            .and_modify(|existing| {
+                // `SimplificationCache` may already hold a simplification in this block
+                // so we check whether `simple` is a better simplification than the current one.
+                if let Some((_, simpler)) = simplify(dfg, *existing, simple) {
+                    *existing = simpler;
+                };
+            })
+            .or_insert(simple);
     }
 
     /// Try to find a simplification in a visible block.
