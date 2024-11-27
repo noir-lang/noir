@@ -188,23 +188,34 @@ impl<'f> LoopInvariantContext<'f> {
                 !self.defined_in_loop.contains(&value) || self.loop_invariants.contains(&value);
         });
 
-        let can_be_deduplicated =
-            instruction.can_be_deduplicated(&self.inserter.function.dfg, false);
+        let can_be_deduplicated = instruction
+            .can_be_deduplicated(&self.inserter.function.dfg, false)
+            || self.can_be_deduplicated_from_upper_bound(&instruction);
 
-        let can_be_deduplicated = match &instruction {
+        is_loop_invariant && can_be_deduplicated
+    }
+
+    /// Certain instructions can take advantage of that our induction variable has a fixed maximum.
+    ///
+    /// For example, an array access can usually only be safely deduplicated when we have a constant
+    /// index that is below the length of the array.
+    /// Checking an array get where the index is the loop's induction variable on its own
+    /// would determine that the instruction is not safe for hoisting.
+    /// However, if we know that the induction variable's upper bound will always be in bounds of the array
+    /// we can safely hoist the array access.
+    fn can_be_deduplicated_from_upper_bound(&self, instruction: &Instruction) -> bool {
+        match instruction {
             Instruction::ArrayGet { array, index } => {
                 let array_typ = self.inserter.function.dfg.type_of_value(*array);
                 let upper_bound = self.outer_induction_variables.get(index);
                 if let (Type::Array(_, len), Some(upper_bound)) = (array_typ, upper_bound) {
                     upper_bound.to_u128() as usize <= len
                 } else {
-                    can_be_deduplicated
+                    false
                 }
             }
-            _ => can_be_deduplicated,
-        };
-
-        is_loop_invariant && can_be_deduplicated
+            _ => false,
+        }
     }
 
     fn map_dependent_instructions(&mut self) {
