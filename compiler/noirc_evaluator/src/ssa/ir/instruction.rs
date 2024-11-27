@@ -390,16 +390,13 @@ impl Instruction {
             MakeArray { .. } => false,
 
             // These can have different behavior depending on the EnableSideEffectsIf context.
-            // Replacing them with a similar instruction potentially enables replacing an instruction
-            // with one that was disabled. See
-            // https://github.com/noir-lang/noir/pull/4716#issuecomment-2047846328.
             Binary(_)
             | Cast(_, _)
             | Not(_)
             | Truncate { .. }
             | IfElse { .. }
             | ArrayGet { .. }
-            | ArraySet { .. } => true,
+            | ArraySet { .. } => self.requires_acir_gen_predicate(dfg),
         }
     }
 
