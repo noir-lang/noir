@@ -119,6 +119,26 @@ impl DominatorTree {
         }
     }
 
+    /// Walk up the dominator tree until we find one that to which `f` returns `Some` value.
+    /// Otherwise return `None` when we reach the top.
+    ///
+    /// Similar to `Iterator::filter_map` but only returns the first hit.
+    pub(crate) fn find_map_dominator<T>(
+        &self,
+        mut block_id: BasicBlockId,
+        f: impl Fn(BasicBlockId) -> Option<T>,
+    ) -> Option<T> {
+        loop {
+            if let Some(value) = f(block_id) {
+                return Some(value);
+            }
+            block_id = match self.immediate_dominator(block_id) {
+                Some(immediate_dominator) => immediate_dominator,
+                None => return None,
+            }
+        }
+    }
+
     /// Allocate and compute a dominator tree from a pre-computed control flow graph and
     /// post-order counterpart.
     pub(crate) fn with_cfg_and_post_order(cfg: &ControlFlowGraph, post_order: &PostOrder) -> Self {

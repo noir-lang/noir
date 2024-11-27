@@ -218,19 +218,11 @@ impl SimplificationCache {
 
     /// Try to find a simplification in a visible block.
     fn get(&self, block: BasicBlockId, dom: &mut DominatorTree) -> Option<ValueId> {
-        // See if we have a direct simplification in this block.
-        if let Some(value) = self.simplifications.get(&block) {
-            return Some(*value);
+        if self.simplifications.is_empty() {
+            return None;
         }
         // Check if there is a dominating block we can take a simplification from.
-        // Going backwards so that we find a constraint closest to what we have already processed
-        // (assuming block IDs of blocks further down in the SSA are larger).
-        for (constraining_block, value) in self.simplifications.iter().rev() {
-            if dom.dominates(*constraining_block, block) {
-                return Some(*value);
-            }
-        }
-        None
+        dom.find_map_dominator(block, |b| self.simplifications.get(&b).cloned())
     }
 }
 
