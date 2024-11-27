@@ -128,6 +128,9 @@ impl DominatorTree {
         mut block_id: BasicBlockId,
         f: impl Fn(BasicBlockId) -> Option<T>,
     ) -> Option<T> {
+        if !self.is_reachable(block_id) {
+            return None;
+        }
         loop {
             if let Some(value) = f(block_id) {
                 return Some(value);
@@ -467,5 +470,23 @@ mod tests {
         assert!(!dt.dominates(block2_id, block0_id));
         assert!(dt.dominates(block2_id, block1_id));
         assert!(dt.dominates(block2_id, block2_id));
+    }
+
+    #[test]
+    fn test_find_map_dominator() {
+        let (dt, b0, b1, b2, _b3) = unreachable_node_setup();
+
+        assert_eq!(
+            dt.find_map_dominator(b2, |b| if b == b0 { Some("root") } else { None }),
+            Some("root")
+        );
+        assert_eq!(
+            dt.find_map_dominator(b1, |b| if b == b0 { Some("unreachable") } else { None }),
+            None
+        );
+        assert_eq!(
+            dt.find_map_dominator(b1, |b| if b == b1 { Some("not part of tree") } else { None }),
+            None
+        );
     }
 }
