@@ -84,6 +84,8 @@ pub enum DefCollectorErrorKind {
     UnsupportedNumericGenericType(#[from] UnsupportedNumericGenericType),
     #[error("The `#[test]` attribute may only be used on a non-associated function")]
     TestOnAssociatedFunction { span: Span },
+    #[error("The `#[export]` attribute may only be used on a non-associated function")]
+    ExportOnAssociatedFunction { span: Span },
 }
 
 impl DefCollectorErrorKind {
@@ -182,8 +184,8 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
             DefCollectorErrorKind::PathResolutionError(error) => error.into(),
             DefCollectorErrorKind::CannotReexportItemWithLessVisibility{item_name, desired_visibility} => {
                 Diagnostic::simple_warning(
-                    format!("cannot re-export {item_name} because it has less visibility than this use statement"), 
-                    format!("consider marking {item_name} as {desired_visibility}"), 
+                    format!("cannot re-export {item_name} because it has less visibility than this use statement"),
+                    format!("consider marking {item_name} as {desired_visibility}"),
                     item_name.span())
             }
             DefCollectorErrorKind::NonStructTypeInImpl { span } => Diagnostic::simple_error(
@@ -298,7 +300,11 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
                 String::new(),
                 *span,
             ),
-
+            DefCollectorErrorKind::ExportOnAssociatedFunction { span } => Diagnostic::simple_error(
+                "The `#[export]` attribute is disallowed on `impl` methods".into(),
+                String::new(),
+                *span,
+            ),
         }
     }
 }
