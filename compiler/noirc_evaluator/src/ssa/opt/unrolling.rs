@@ -716,7 +716,7 @@ impl BoilerplateStats {
 ///   ...
 /// ```
 /// We're looking for the terminating jump of the `main` predecessor of `loop_entry`.
-pub(super) fn get_induction_variable(
+fn get_induction_variable(
     function: &Function,
     block: BasicBlockId,
 ) -> Result<ValueId, CallStack> {
