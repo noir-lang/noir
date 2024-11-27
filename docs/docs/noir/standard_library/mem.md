@@ -42,7 +42,7 @@ fn checked_transmute<T, U>(value: T) -> U
 Transmutes a value of one type into the same value but with a new type `U`.
 
 This function is safe to use since both types are asserted to be equal later during compilation after the concrete values for generic types become known.
-This function is useful for cases where the compiler may fails a type check that is expected to pass where
+This function is useful for cases where the compiler may fail a type check that is expected to pass where
 a user knows the two types to be equal. For example, when using arithmetic generics there are cases the compiler
 does not see as equal, such as `[Field; N*(A + B)]` and `[Field; N*A + N*B]`, which users may know to be equal.
 In these cases, `checked_transmute` can be used to cast the value to the desired type while also preserving safety
@@ -50,3 +50,33 @@ by checking this equality once `N`, `A`, `B` are fully resolved.
 
 Note that since this safety check is performed after type checking rather than during, no error is issued if the function
 containing `checked_transmute` is never called.
+
+# `std::mem::array_refcount`
+
+```rust
+fn array_refcount<T, let N: u32>(array: [T; N]) -> u32 {}
+```
+
+Returns the internal reference count of an array value in unconstrained code.
+
+Arrays only have reference count in unconstrained code - using this anywhere
+else will return zero.
+
+This function is mostly intended for debugging compiler optimizations but can also be used
+to find where array copies may be happening in unconstrained code by placing it before array
+mutations.
+
+# `std::mem::slice_refcount`
+
+```rust
+fn slice_refcount<T>(slice: [T]) -> u32 {}
+```
+
+Returns the internal reference count of a slice value in unconstrained code.
+
+Slices only have reference count in unconstrained code - using this anywhere
+else will return zero.
+
+This function is mostly intended for debugging compiler optimizations but can also be used
+to find where slice copies may be happening in unconstrained code by placing it before slice
+mutations.

@@ -1300,11 +1300,17 @@ fn lambda$f1(mut env$l1: (Field)) -> Field {
 #[test]
 fn deny_cyclic_globals() {
     let src = r#"
-        global A = B;
-        global B = A;
+        global A: u32 = B;
+        global B: u32 = A;
         fn main() {}
     "#;
-    assert_eq!(get_program_errors(src).len(), 1);
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::ResolverError(ResolverError::DependencyCycle { .. })
+    ));
 }
 
 #[test]
@@ -3210,11 +3216,64 @@ fn as_trait_path_syntax_no_impl() {
 }
 
 #[test]
-fn infer_globals_to_u32_from_type_use() {
+fn dont_infer_globals_to_u32_from_type_use() {
     let src = r#"
         global ARRAY_LEN = 3;
-        global STR_LEN = 2;
+        global STR_LEN: _ = 2;
         global FMT_STR_LEN = 2;
+
+        fn main() {
+            let _a: [u32; ARRAY_LEN] = [1, 2, 3];
+            let _b: str<STR_LEN> = "hi";
+            let _c: fmtstr<FMT_STR_LEN, _> = f"hi";
+        }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 3);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::ResolverError(ResolverError::UnspecifiedGlobalType { .. })
+    ));
+    assert!(matches!(
+        errors[1].0,
+        CompilationError::ResolverError(ResolverError::UnspecifiedGlobalType { .. })
+    ));
+    assert!(matches!(
+        errors[2].0,
+        CompilationError::ResolverError(ResolverError::UnspecifiedGlobalType { .. })
+    ));
+}
+
+#[test]
+fn dont_infer_partial_global_types() {
+    let src = r#"
+        pub global ARRAY: [Field; _] = [0; 3];
+        pub global NESTED_ARRAY: [[Field; _]; 3] = [[]; 3];
+        pub global STR: str<_> = "hi";
+        pub global NESTED_STR: [str<_>] = &["hi"];
+        pub global FMT_STR: fmtstr<_, _> = f"hi {ARRAY}";
+        pub global TUPLE_WITH_MULTIPLE: ([str<_>], [[Field; _]; 3]) = (&["hi"], [[]; 3]);
+
+        fn main() { }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 6);
+    for (error, _file_id) in errors {
+        assert!(matches!(
+            error,
+            CompilationError::ResolverError(ResolverError::UnspecifiedGlobalType { .. })
+        ));
+    }
+}
+
+#[test]
+fn u32_globals_as_sizes_in_types() {
+    let src = r#"
+        global ARRAY_LEN: u32 = 3;
+        global STR_LEN: u32 = 2;
+        global FMT_STR_LEN: u32 = 2;
 
         fn main() {
             let _a: [u32; ARRAY_LEN] = [1, 2, 3];
@@ -3686,57 +3745,103 @@ fn allows_struct_with_generic_infix_type_as_main_input_3() {
             x: [u64; N * 2],
         }
 
-        global N = 9;
+        global N: u32 = 9;
 
         fn main(_x: Foo<N * 2>) {}
     "#;
     assert_no_errors(src);
 }
 
+fn test_disallows_attribute_on_impl_method(
+    attr: &str,
+    check_error: impl FnOnce(&CompilationError),
+) {
+    let src = format!(
+        "
+        pub struct Foo {{ }}
+
+        impl Foo {{
+            #[{attr}]
+            fn foo() {{ }}
+        }}
+
+        fn main() {{ }}
+    "
+    );
+    let errors = get_program_errors(&src);
+    assert_eq!(errors.len(), 1);
+    check_error(&errors[0].0);
+}
+
+fn test_disallows_attribute_on_trait_impl_method(
+    attr: &str,
+    check_error: impl FnOnce(&CompilationError),
+) {
+    let src = format!(
+        "
+        pub trait Trait {{
+            fn foo() {{ }}
+        }}
+
+        pub struct Foo {{ }}
+
+        impl Trait for Foo {{
+            #[{attr}]
+            fn foo() {{ }}
+        }}
+
+        fn main() {{ }}
+    "
+    );
+    let errors = get_program_errors(&src);
+    assert_eq!(errors.len(), 1);
+    check_error(&errors[0].0);
+}
+
 #[test]
 fn disallows_test_attribute_on_impl_method() {
-    let src = r#"
-    pub struct Foo {}
-    impl Foo {
-        #[test]
-        fn foo() {}
-    }
-
-    fn main() {}
-    "#;
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    assert!(matches!(
-        errors[0].0,
-        CompilationError::DefinitionError(DefCollectorErrorKind::TestOnAssociatedFunction {
-            span: _
-        })
-    ));
+    test_disallows_attribute_on_impl_method("test", |error| {
+        assert!(matches!(
+            error,
+            CompilationError::DefinitionError(
+                DefCollectorErrorKind::TestOnAssociatedFunction { .. }
+            )
+        ));
+    });
 }
 
 #[test]
 fn disallows_test_attribute_on_trait_impl_method() {
-    let src = r#"
-    pub trait Trait {
-        fn foo() {}
-    }
+    test_disallows_attribute_on_trait_impl_method("test", |error| {
+        assert!(matches!(
+            error,
+            CompilationError::DefinitionError(
+                DefCollectorErrorKind::TestOnAssociatedFunction { .. }
+            )
+        ));
+    });
+}
 
-    pub struct Foo {}
-    impl Trait for Foo {
-        #[test]
-        fn foo() {}
-    }
+#[test]
+fn disallows_export_attribute_on_impl_method() {
+    test_disallows_attribute_on_impl_method("export", |error| {
+        assert!(matches!(
+            error,
+            CompilationError::DefinitionError(
+                DefCollectorErrorKind::ExportOnAssociatedFunction { .. }
+            )
+        ));
+    });
+}
 
-    fn main() {}
-    "#;
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    assert!(matches!(
-        errors[0].0,
-        CompilationError::DefinitionError(DefCollectorErrorKind::TestOnAssociatedFunction {
-            span: _
-        })
-    ));
+#[test]
+fn disallows_export_attribute_on_trait_impl_method() {
+    test_disallows_attribute_on_trait_impl_method("export", |error| {
+        assert!(matches!(
+            error,
+            CompilationError::DefinitionError(
+                DefCollectorErrorKind::ExportOnAssociatedFunction { .. }
+            )
+        ));
+    });
 }

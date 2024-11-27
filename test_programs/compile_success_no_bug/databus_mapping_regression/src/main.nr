@@ -23,8 +23,8 @@ pub fn array_to_bounded_vec<T, let N: u32>(array: [T; N]) -> BoundedVec<T, N> wh
     BoundedVec { storage: array, len }
 }
 
-global TX_SIZE = 5;
-global APP_CALL_SIZE = 2;
+global TX_SIZE: u32 = 5;
+global APP_CALL_SIZE: u32 = 2;
 
 fn main(
     a: call_data(0) [Field; TX_SIZE],
