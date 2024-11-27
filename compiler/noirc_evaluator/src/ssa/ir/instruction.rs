@@ -327,6 +327,47 @@ impl Instruction {
         matches!(self.result_type(), InstructionResultType::Unknown)
     }
 
+    /// Indicates if the instruction has a side effect, ie. it can fail, or it interacts with memory.
+    ///
+    /// This is similar to `can_be_deduplicated`, but it doesn't depend on whether the caller takes
+    /// constraints into account, because it might not use it to isolate the side effects across branches.
+    pub(crate) fn has_side_effects(&self, dfg: &DataFlowGraph) -> bool {
+        use Instruction::*;
+
+        match self {
+            // These either have side-effects or interact with memory
+            EnableSideEffectsIf { .. }
+            | Allocate
+            | Load { .. }
+            | Store { .. }
+            | IncrementRc { .. }
+            | DecrementRc { .. } => true,
+
+            Call { func, .. } => match dfg[*func] {
+                Value::Intrinsic(intrinsic) => intrinsic.has_side_effects(),
+                _ => true, // Be conservative and assume other functions can have side effects.
+            },
+
+            // These can fail.
+            Constrain(..) | RangeCheck { .. } => true,
+
+            // This should never be side-effectful
+            MakeArray { .. } => false,
+
+            // These can have different behavior depending on the EnableSideEffectsIf context.
+            // Replacing them with a similar instruction potentially enables replacing an instruction
+            // with one that was disabled. See
+            // https://github.com/noir-lang/noir/pull/4716#issuecomment-2047846328.
+            Binary(_)
+            | Cast(_, _)
+            | Not(_)
+            | Truncate { .. }
+            | IfElse { .. }
+            | ArrayGet { .. }
+            | ArraySet { .. } => true,
+        }
+    }
+
     /// Indicates if the instruction can be safely replaced with the results of another instruction with the same inputs.
     /// If `deduplicate_with_predicate` is set, we assume we're deduplicating with the instruction
     /// and its predicate, rather than just the instruction. Setting this means instructions that

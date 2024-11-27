@@ -307,14 +307,12 @@ impl<'brillig> Context<'brillig> {
                     Self::replace_result_ids(dfg, &old_results, cached);
                     return;
                 }
-                CacheResult::NeedToHoistToCommonBlock(dominator, _cached) => {
-                    if instruction_can_be_hoisted(&instruction, dfg, self.use_constraint_info) {
-                        // Just change the block to insert in the common dominator instead.
-                        // This will only move the current instance of the instruction right now.
-                        // When constant folding is run a second time later on, it'll catch
-                        // that the previous instance can be deduplicated to this instance.
-                        block = dominator;
-                    }
+                CacheResult::NeedToHoistToCommonBlock(dominator) => {
+                    // Just change the block to insert in the common dominator instead.
+                    // This will only move the current instance of the instruction right now.
+                    // When constant folding is run a second time later on, it'll catch
+                    // that the previous instance can be deduplicated to this instance.
+                    block = dominator;
                 }
             }
         }
@@ -483,6 +481,7 @@ impl<'brillig> Context<'brillig> {
         }
     }
 
+    /// Get a cached result if it can be used in this context.
     fn get_cached(
         &self,
         dfg: &DataFlowGraph,
@@ -496,7 +495,7 @@ impl<'brillig> Context<'brillig> {
         let predicate = self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
         let predicate = predicate.then_some(side_effects_enabled_var);
 
-        results_for_instruction.get(&predicate)?.get(block, dom)
+        results_for_instruction.get(&predicate)?.get(block, dom, instruction.has_side_effects(dfg))
     }
 
     /// Checks if the given instruction is a call to a brillig function with all constant arguments.
@@ -660,20 +659,6 @@ impl<'brillig> Context<'brillig> {
     }
 }
 
-fn instruction_can_be_hoisted(
-    instruction: &Instruction,
-    dfg: &mut DataFlowGraph,
-    deduplicate_with_predicate: bool,
-) -> bool {
-    // These two can never be hoisted as they have a side-effect
-    // (though it's fine to de-duplicate them, just not fine to hoist them)
-    if matches!(instruction, Instruction::Constrain(..) | Instruction::RangeCheck { .. }) {
-        return false;
-    }
-
-    instruction.can_be_deduplicated(dfg, deduplicate_with_predicate)
-}
-
 impl ResultCache {
     /// Records that an `Instruction` in block `block` produced the result values `results`.
     fn cache(&mut self, block: BasicBlockId, results: Vec<ValueId>) {
@@ -688,14 +673,21 @@ impl ResultCache {
     /// We require that the cached instruction's block dominates `block` in order to avoid
     /// cycles causing issues (e.g. two instructions being replaced with the results of each other
     /// such that neither instruction exists anymore.)
-    fn get(&self, block: BasicBlockId, dom: &mut DominatorTree) -> Option<CacheResult> {
-        self.result.as_ref().map(|(origin_block, results)| {
+    fn get(
+        &self,
+        block: BasicBlockId,
+        dom: &mut DominatorTree,
+        has_side_effects: bool,
+    ) -> Option<CacheResult> {
+        self.result.as_ref().and_then(|(origin_block, results)| {
             if dom.dominates(*origin_block, block) {
-                CacheResult::Cached(results)
-            } else {
+                Some(CacheResult::Cached(results))
+            } else if !has_side_effects {
                 // Insert a copy of this instruction in the common dominator
                 let dominator = dom.common_dominator(*origin_block, block);
-                CacheResult::NeedToHoistToCommonBlock(dominator, results)
+                Some(CacheResult::NeedToHoistToCommonBlock(dominator))
+            } else {
+                None
             }
         })
     }
@@ -703,7 +695,7 @@ impl ResultCache {
 
 enum CacheResult<'a> {
     Cached(&'a [ValueId]),
-    NeedToHoistToCommonBlock(BasicBlockId, &'a [ValueId]),
+    NeedToHoistToCommonBlock(BasicBlockId),
 }
 
 /// Result of trying to evaluate an instruction (any instruction) in this pass.
