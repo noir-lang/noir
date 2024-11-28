@@ -45,7 +45,7 @@ impl<'a> ValueMerger<'a> {
 
     /// Merge two values a and b from separate basic blocks to a single value.
     /// If these two values are numeric, the result will be
-    /// `then_condition * then_value + else_condition * else_value`.
+    /// `then_condition * (then_value - else_value) + else_value`.
     /// Otherwise, if the values being merged are arrays, a new array will be made
     /// recursively from combining each element of both input arrays.
     ///
@@ -84,7 +84,7 @@ impl<'a> ValueMerger<'a> {
     }
 
     /// Merge two numeric values a and b from separate basic blocks to a single value. This
-    /// function would return the result of `if c { a } else { b }` as  `c*a + (!c)*b`.
+    /// function would return the result of `if c { a } else { b }` as  `c * (a-b) + b`.
     pub(crate) fn merge_numeric_values(
         dfg: &mut DataFlowGraph,
         block: BasicBlockId,
@@ -108,6 +108,7 @@ impl<'a> ValueMerger<'a> {
 
         let call_stack = if then_call_stack.is_empty() { else_call_stack } else { then_call_stack };
 
+        // We must cast the bool conditions to the actual numeric type used by each value.
         let then_condition = dfg
             .insert_instruction_and_results(
                 Instruction::Cast(then_condition, Type::field()),
