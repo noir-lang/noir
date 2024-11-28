@@ -104,7 +104,7 @@ pub(crate) fn optimize_into_acir(
         "After `static_assert` and `assert_constant`:",
     )?
     .run_pass(Ssa::loop_invariant_code_motion, "After Loop Invariant Code Motion:")
-    .try_run_pass(Ssa::unroll_loops_iteratively, "After Unrolling:")?
+    .try_run_pass(|ssa| ssa.unroll_loops_iteratively(Some(0)), "After Unrolling:")?
     .run_pass(Ssa::simplify_cfg, "After Simplifying (2nd):")
     .run_pass(Ssa::flatten_cfg, "After Flattening:")
     .run_pass(Ssa::remove_bit_shifts, "After Removing Bit Shifts:")

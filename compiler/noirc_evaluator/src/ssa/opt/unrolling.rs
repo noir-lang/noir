@@ -44,11 +44,21 @@ use fxhash::FxHashMap as HashMap;
 impl Ssa {
     /// Loop unrolling can return errors, since ACIR functions need to be fully unrolled.
     /// This meta-pass will keep trying to unroll loops and simplifying the SSA until no more errors are found.
+    ///
+    /// The `max_bytecode_incr_pct`, when given, is used to limit the growth of the Brillig bytecode size
+    /// after unrolling small loops to some percentage of the original loop. For example a value of 150 would
+    /// mean the new loop can be 150% (ie. 2.5 times) larger than the original loop. It will still contain
+    /// fewer SSA instructions, but that can still result in more Brillig opcodes.
     #[tracing::instrument(level = "trace", skip(self))]
-    pub(crate) fn unroll_loops_iteratively(mut self: Ssa) -> Result<Ssa, RuntimeError> {
+    pub(crate) fn unroll_loops_iteratively(
+        mut self: Ssa,
+        max_bytecode_incr_pct: Option<i32>,
+    ) -> Result<Ssa, RuntimeError> {
         for (_, function) in self.functions.iter_mut() {
             // Take a snapshot of the function to compare byte size increase.
-            let orig_function = function.runtime().is_brillig().then(|| function.clone());
+            let original = max_bytecode_incr_pct
+                .filter(|_| function.runtime().is_brillig())
+                .map(|max_incr_pct| (function.clone(), max_incr_pct));
 
             // Try to unroll loops first:
             let (mut has_unrolled, mut unroll_errors) = function.try_unroll_loops();
@@ -72,10 +82,12 @@ impl Ssa {
             }
 
             if has_unrolled {
-                if let Some(orig_function) = orig_function {
+                if let Some((orig_function, max_incr_pct)) = original {
                     let new_size = brillig_bytecode_size(function);
                     let orig_size = brillig_bytecode_size(&orig_function);
-                    println!("ORIG VS NEW SIZE: {orig_size} vs {new_size}");
+                    if !is_new_size_ok(orig_size, new_size, max_incr_pct) {
+                        *function = orig_function;
+                    }
                 }
             }
         }
@@ -989,14 +1001,25 @@ fn brillig_bytecode_size(function: &Function) -> usize {
     convert_ssa_function(&temp, false).byte_code.len()
 }
 
+/// Decide if the new bytecode size is acceptable, compared to the original.
+///
+/// The maximum increase can be expressed as a negative value if we demand a decrease.
+/// (Values -100 and under mean the new size should be 0).
+fn is_new_size_ok(orig_size: usize, new_size: usize, max_incr_pct: i32) -> bool {
+    let max_size_pct = 100i32.saturating_add(max_incr_pct).max(0) as usize;
+    let max_size = orig_size.saturating_mul(max_size_pct);
+    new_size.saturating_mul(100) <= max_size
+}
+
 #[cfg(test)]
 mod tests {
     use acvm::FieldElement;
+    use test_case::test_case;
 
     use crate::errors::RuntimeError;
     use crate::ssa::{ir::value::ValueId, opt::assert_normalized_ssa_equals, Ssa};
 
-    use super::{BoilerplateStats, Loops};
+    use super::{is_new_size_ok, BoilerplateStats, Loops};
 
     /// Tries to unroll all loops in each SSA function once, calling the `Function` directly,
     /// bypassing the iterative loop done by the SSA which does further optimisations.
@@ -1265,15 +1288,25 @@ mod tests {
 
         let (ssa, errors) = try_unroll_loops(ssa);
         assert_eq!(errors.len(), 0, "Unroll should have no errors");
+        // Check that it's still the original
         assert_normalized_ssa_equals(ssa, parse_ssa().to_string().as_str());
     }
 
     /// Test that we can unroll the loop in the ticket using the SSA iterative method
     #[test]
-    fn test_brillig_unroll_6470_iteratively() {
-        // Few enough iterations so that we can perform the unroll.
-        let ssa = brillig_unroll_test_case_6470(3);
-        let _ssa = ssa.unroll_loops_iteratively().unwrap();
+    fn test_brillig_unroll_iteratively_respects_max_increase() {
+        let ssa = brillig_unroll_test_case();
+        let ssa = ssa.unroll_loops_iteratively(Some(-90)).unwrap();
+        // Check that it's still the original
+        assert_normalized_ssa_equals(ssa, brillig_unroll_test_case().to_string().as_str());
+    }
+
+    #[test]
+    fn test_brillig_unroll_iteratively_with_large_max_increase() {
+        let ssa = brillig_unroll_test_case();
+        let ssa = ssa.unroll_loops_iteratively(Some(50)).unwrap();
+        // Check that it did the unroll
+        assert_eq!(ssa.main().reachable_blocks().len(), 2, "The loop should be unrolled");
     }
 
     /// Test that `break` and `continue` stop unrolling without any panic.
@@ -1428,5 +1461,15 @@ mod tests {
         let mut loops = Loops::find_all(function);
         let loop0 = loops.yet_to_unroll.pop().expect("there should be a loop");
         loop0.boilerplate_stats(function, &loops.cfg).expect("there should be stats")
+    }
+
+    #[test_case(1000, 700, 50, true; "size decreased")]
+    #[test_case(1000, 1500, 50, true; "size increased just by the max")]
+    #[test_case(1000, 1501, 50, false; "size increased over the max")]
+    #[test_case(1000, 700, -50, false; "size decreased but not enough")]
+    #[test_case(1000, 250, -50, true; "size decreased over expectations")]
+    #[test_case(1000, 250, -1250, false; "demanding more than minus 100 is handled")]
+    fn test_is_new_size_ok(old: usize, new: usize, max: i32, ok: bool) {
+        assert_eq!(is_new_size_ok(old, new, max), ok);
     }
 }
