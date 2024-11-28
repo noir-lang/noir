@@ -924,8 +924,8 @@ mod test {
                 v3 = cast v0 as Field
                 v5 = sub Field 5, v2
                 v6 = mul v3, v5
-                v7 = add v2, v6	
-                store v7 at v1	
+                v7 = add v2, v6
+                store v7 at v1
                 v8 = not v0
                 enable_side_effects u1 1
                 return
