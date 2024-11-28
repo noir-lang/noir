@@ -185,11 +185,6 @@ struct Context<'f> {
     /// Maps start of branch -> end of branch
     branch_ends: HashMap<BasicBlockId, BasicBlockId>,
 
-    /// Maps an address to the old and new value of the element at that address
-    /// These only hold stores for one block at a time and is cleared
-    /// between inlining of branches.
-    store_values: HashMap<ValueId, Store>,
-
     /// A stack of each jmpif condition that was taken to reach a particular point in the program.
     /// When two branches are merged back into one, this constitutes a join point, and is analogous
     /// to the rest of the program after an if statement. When such a join point / end block is
@@ -215,13 +210,6 @@ struct Context<'f> {
     ///
     /// The `ValueId` here is that which is returned by the allocate instruction.
     local_allocations: HashSet<ValueId>,
-}
-
-#[derive(Clone)]
-pub(crate) struct Store {
-    old_value: ValueId,
-    new_value: ValueId,
-    call_stack: CallStack,
 }
 
 #[derive(Clone)]
@@ -262,7 +250,6 @@ fn flatten_function_cfg(function: &mut Function, no_predicates: &HashMap<Functio
     let mut context = Context {
         inserter: FunctionInserter::new(function),
         cfg,
-        store_values: HashMap::default(),
         branch_ends,
         slice_sizes: HashMap::default(),
         condition_stack: Vec::new(),
@@ -827,16 +814,6 @@ impl<'f> Context<'f> {
             Instruction::binary(BinaryOp::Add, field, not_condition),
             call_stack,
         )
-    }
-
-    fn undo_stores_in_then_branch(&mut self, store_values: &HashMap<ValueId, Store>) {
-        for (address, store) in store_values {
-            let address = *address;
-            let value = store.old_value;
-            let instruction = Instruction::Store { address, value };
-            // Considering the location of undoing a store to be the same as the original store.
-            self.insert_instruction_with_typevars(instruction, None, store.call_stack.clone());
-        }
     }
 }
 
