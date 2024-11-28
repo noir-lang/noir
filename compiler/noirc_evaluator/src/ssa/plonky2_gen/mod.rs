@@ -1260,7 +1260,12 @@ pub(crate) fn noir_to_plonky2_field(field: FieldElement) -> P2Field {
     // user enters a large integer this will fail.
 
     // TODO(plonky2): Unsigned 64-bit integers in the range 18446744069414584321..18446744073709551615 don't work!
-    // TODO(plonky2): Signed 64-bit integers in the range -4294967295..-1 don't work!
+    // TODO(plonky2): Signed 64-bit integers with large absolute values don't work (TODO: determine the range that doesn't work)!
 
-    P2Field::from_canonical_u64(field.to_u128() as u64)
+    let is_negative = (-field).num_bits() < field.num_bits();
+    if is_negative {
+        P2Field::from_noncanonical_i64(field.to_i128() as i64)
+    } else {
+        P2Field::from_canonical_u64(field.to_u128() as u64)
+    }
 }
