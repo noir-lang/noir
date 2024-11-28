@@ -326,7 +326,8 @@ fn parse_str_to_signed(value: &str, width: u32) -> Result<FieldElement, InputPar
     big_num.map_err(|err_msg| InputParserError::ParseStr(err_msg.to_string())).and_then(|bigint| {
         let modulus: BigInt = FieldElement::modulus().into();
         let bigint = if bigint.sign() == num_bigint::Sign::Minus {
-            BigInt::from(2).pow(width) + bigint
+            // A signed integer like i8 goes from -128 to 127, so we need to add 2^(width - 1) to the (negative) value
+            BigInt::from(2).pow(width - 1) + bigint
         } else {
             bigint
         };
@@ -362,7 +363,7 @@ mod test {
     use acvm::{AcirField, FieldElement};
     use num_bigint::BigUint;
 
-    use super::parse_str_to_field;
+    use super::{parse_str_to_field, parse_str_to_signed};
 
     fn big_uint_from_field(field: FieldElement) -> BigUint {
         BigUint::from_bytes_be(&field.to_be_bytes())
@@ -399,6 +400,18 @@ mod test {
     fn rejects_noncanonical_fields() {
         let noncanonical_field = FieldElement::modulus().to_string();
         assert!(parse_str_to_field(&noncanonical_field).is_err());
+    }
+
+    #[test]
+    fn test_parse_str_to_signed() {
+        let value = parse_str_to_signed("1", 8).unwrap();
+        assert_eq!(value, FieldElement::from(1_u128));
+
+        let value = parse_str_to_signed("-1", 8).unwrap();
+        assert_eq!(value, FieldElement::from(i8::MAX as u128));
+
+        let value = parse_str_to_signed("-1", 16).unwrap();
+        assert_eq!(value, FieldElement::from(i16::MAX as u128));
     }
 }
 

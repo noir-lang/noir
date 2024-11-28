@@ -188,6 +188,7 @@ mod test {
     use crate::{
         arbitrary::arb_abi_and_input_map,
         input_parser::{arbitrary::arb_signed_integer_type_and_value, toml::TomlTypes, InputValue},
+        AbiType,
     };
 
     use super::{parse_toml, serialize_to_toml};
@@ -210,6 +211,19 @@ mod test {
             };
 
             let output_number = i64::from_str_radix(output_string.strip_prefix("0x").unwrap(), 16).unwrap();
+
+            // If the value is negative, like -1, for a width of 8 bits the output should be 127.
+            // So here we do 2^(bit_size - 1) - value to get the expected Field value.
+            let value = if value < 0 {
+                let AbiType::Integer { width, .. } = &typ else {
+                    panic!("Expected integer type");
+                };
+
+                (2_i128.pow(*width - 1) + value as i128) as i64
+            } else {
+                value
+            };
+
             prop_assert_eq!(output_number, value);
         }
     }

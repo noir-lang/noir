@@ -5,3 +5,4 @@
 # It is recommended to check this file in to source control so that
 # everyone who runs the test benefits from these saved cases.
 cc 9d200afb8f5c01e3414d24eebe1436a7eef5377a46a9a9235aaa7f81e0b33656 # shrinks to (typ, value) = (Integer { sign: Signed, width: 8 }, -1)
+cc 7fd29637e5566d819992185c1a95438e9949a555928a911b3918eed2e3f7a1fd # shrinks to (typ, value) = (Integer { sign: Signed, width: 64 }, -1)

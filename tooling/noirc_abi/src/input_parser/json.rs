@@ -1,4 +1,4 @@
-use super::{parse_str_to_field, InputValue};
+use super::{parse_str_to_field, parse_str_to_signed, InputValue};
 use crate::{errors::InputParserError, Abi, AbiType, MAIN_RETURN_NAME};
 use acvm::{AcirField, FieldElement};
 use iter_extended::{try_btree_map, try_vecmap};
@@ -143,6 +143,9 @@ impl InputValue {
     ) -> Result<InputValue, InputParserError> {
         let input_value = match (value, param_type) {
             (JsonTypes::String(string), AbiType::String { .. }) => InputValue::String(string),
+            (JsonTypes::String(string), AbiType::Integer { sign: crate::Sign::Signed, width }) => {
+                InputValue::Field(parse_str_to_signed(&string, *width)?)
+            }
             (
                 JsonTypes::String(string),
                 AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean,
@@ -200,6 +203,7 @@ mod test {
     use crate::{
         arbitrary::arb_abi_and_input_map,
         input_parser::{arbitrary::arb_signed_integer_type_and_value, json::JsonTypes, InputValue},
+        AbiType,
     };
 
     use super::{parse_json, serialize_to_json};
@@ -222,6 +226,19 @@ mod test {
             };
 
             let output_number = i64::from_str_radix(output_string.strip_prefix("0x").unwrap(), 16).unwrap();
+
+            // If the value is negative, like -1, for a width of 8 bits the output should be 127.
+            // So here we do 2^(bit_size - 1) - value to get the expected Field value.
+            let value = if value < 0 {
+                let AbiType::Integer { width, .. } = &typ else {
+                    panic!("Expected integer type");
+                };
+
+                (2_i128.pow(*width - 1) + value as i128) as i64
+            } else {
+                value
+            };
+
             prop_assert_eq!(output_number, value);
         }
     }
