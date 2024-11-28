@@ -1,4 +1,4 @@
-use super::{parse_str_to_field, parse_str_to_signed, InputValue};
+use super::{field_to_signed_hex, parse_str_to_field, parse_str_to_signed, InputValue};
 use crate::{errors::InputParserError, Abi, AbiType, MAIN_RETURN_NAME};
 use acvm::{AcirField, FieldElement};
 use iter_extended::{try_btree_map, try_vecmap};
@@ -86,6 +86,9 @@ impl JsonTypes {
         abi_type: &AbiType,
     ) -> Result<JsonTypes, InputParserError> {
         let json_value = match (value, abi_type) {
+            (InputValue::Field(f), AbiType::Integer { sign: crate::Sign::Signed, width }) => {
+                JsonTypes::String(field_to_signed_hex(*f, *width))
+            }
             (InputValue::Field(f), AbiType::Field | AbiType::Integer { .. }) => {
                 JsonTypes::String(Self::format_field_string(*f))
             }
@@ -203,7 +206,6 @@ mod test {
     use crate::{
         arbitrary::arb_abi_and_input_map,
         input_parser::{arbitrary::arb_signed_integer_type_and_value, json::JsonTypes, InputValue},
-        AbiType,
     };
 
     use super::{parse_json, serialize_to_json};
@@ -225,20 +227,11 @@ mod test {
                 panic!("wrong type output");
             };
 
-            let output_number = i128::from_str_radix(output_string.strip_prefix("0x").unwrap(), 16).unwrap();
-
-            // If the value is negative, like -1, for a width of 8 bits the output should be 255.
-            // So here we do 2^bit_size - value to get the expected Field value.
-            let value = if value < 0 {
-                let AbiType::Integer { width, .. } = &typ else {
-                    panic!("Expected integer type");
-                };
-
-                2_i128.pow(*width) + value as i128
+            let output_number = if let Some(output_string) = output_string.strip_prefix("-0x") {
+                -i64::from_str_radix(output_string, 16).unwrap()
             } else {
-                value as i128
+                i64::from_str_radix(output_string.strip_prefix("0x").unwrap(), 16).unwrap()
             };
-
             prop_assert_eq!(output_number, value);
         }
     }

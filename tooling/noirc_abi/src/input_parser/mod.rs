@@ -317,7 +317,9 @@ fn parse_str_to_field(value: &str) -> Result<FieldElement, InputParserError> {
 }
 
 fn parse_str_to_signed(value: &str, width: u32) -> Result<FieldElement, InputParserError> {
-    let big_num = if let Some(hex) = value.strip_prefix("0x") {
+    let big_num = if let Some(hex) = value.strip_prefix("-0x") {
+        BigInt::from_str_radix(hex, 16).map(|value| -value)
+    } else if let Some(hex) = value.strip_prefix("0x") {
         BigInt::from_str_radix(hex, 16)
     } else {
         BigInt::from_str_radix(value, 10)
@@ -354,6 +356,17 @@ fn field_from_big_int(bigint: BigInt) -> FieldElement {
         }
         num_bigint::Sign::NoSign => FieldElement::zero(),
         num_bigint::Sign::Plus => FieldElement::from_be_bytes_reduce(&bigint.to_bytes_be().1),
+    }
+}
+
+fn field_to_signed_hex(f: FieldElement, bit_size: u32) -> String {
+    let f_u128 = f.to_u128();
+    let max = 2_u128.pow(bit_size - 1) - 1;
+    if f_u128 > max {
+        let f = FieldElement::from(2_u128.pow(bit_size) - f_u128);
+        format!("-0x{}", f.to_hex())
+    } else {
+        format!("0x{}", f.to_hex())
     }
 }
 
