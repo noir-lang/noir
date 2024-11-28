@@ -819,8 +819,6 @@ impl<'f> Context<'f> {
 
 #[cfg(test)]
 mod test {
-    use std::sync::Arc;
-
     use acvm::acir::AcirField;
 
     use crate::ssa::{
@@ -1283,63 +1281,74 @@ mod test {
     fn should_not_merge_incorrectly_to_false() {
         // Regression test for #1792
         // Tests that it does not simplify a true constraint an always-false constraint
-        // acir(inline) fn main f1 {
-        //     b0(v0: [u8; 2]):
-        //       v5 = array_get v0, index u8 0
-        //       v6 = cast v5 as u32
-        //       v8 = truncate v6 to 1 bits, max_bit_size: 32
-        //       v9 = cast v8 as u1
-        //       v10 = allocate
-        //       store u8 0 at v10
-        //       jmpif v9 then: b2, else: b3
-        //     b2():
-        //       v12 = cast v5 as Field
-        //       v13 = add v12, Field 1
-        //       store v13 at v10
-        //       jmp b4()
-        //     b4():
-        //       constrain v9 == u1 1
-        //       return
-        //     b3():
-        //       store u8 0 at v10
-        //       jmp b4()
-        //   }
-        let main_id = Id::test_new(1);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-        builder.insert_block(); // b0
-        let b1 = builder.insert_block();
-        let b2 = builder.insert_block();
-        let b3 = builder.insert_block();
-        let element_type = Arc::new(vec![Type::unsigned(8)]);
-        let array_type = Type::Array(element_type.clone(), 2);
-        let array = builder.add_parameter(array_type);
-        let zero = builder.numeric_constant(0_u128, Type::unsigned(8));
-        let v5 = builder.insert_array_get(array, zero, Type::unsigned(8));
-        let v6 = builder.insert_cast(v5, Type::unsigned(32));
-        let i_two = builder.numeric_constant(2_u128, Type::unsigned(32));
-        let v8 = builder.insert_binary(v6, BinaryOp::Mod, i_two);
-        let v9 = builder.insert_cast(v8, Type::bool());
-        let v10 = builder.insert_allocate(Type::field());
-        builder.insert_store(v10, zero);
-        builder.terminate_with_jmpif(v9, b1, b2);
-        builder.switch_to_block(b1);
-        let one = builder.field_constant(1_u128);
-        let v5b = builder.insert_cast(v5, Type::field());
-        let v13: Id<Value> = builder.insert_binary(v5b, BinaryOp::Add, one);
-        let v14 = builder.insert_cast(v13, Type::unsigned(8));
-        builder.insert_store(v10, v14);
-        builder.terminate_with_jmp(b3, vec![]);
-        builder.switch_to_block(b2);
-        builder.insert_store(v10, zero);
-        builder.terminate_with_jmp(b3, vec![]);
-        builder.switch_to_block(b3);
-        let v_true = builder.numeric_constant(true, Type::bool());
-        let v12 = builder.insert_binary(v9, BinaryOp::Eq, v_true);
-        builder.insert_constrain(v12, v_true, None);
-        builder.terminate_with_return(vec![]);
-        let ssa = builder.finish();
+
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [u8; 2]):
+            v2 = array_get v0, index u8 0 -> u8
+            v3 = cast v2 as u32
+            v4 = truncate v3 to 1 bits, max_bit_size: 32
+            v5 = cast v4 as u1
+            v6 = allocate -> &mut Field
+            store u8 0 at v6
+            jmpif v5 then: b2, else: b1
+          b2():
+            v7 = cast v2 as Field
+            v9 = add v7, Field 1
+            v10 = cast v9 as u8
+            store v10 at v6
+            jmp b3()
+          b3():
+            constrain v5 == u1 1
+            return
+          b1():
+            store u8 0 at v6
+            jmp b3()
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let expected = "
+        acir(inline) fn main f0 {
+          b0(v0: [u8; 2]):
+            v2 = array_get v0, index u8 0 -> u8
+            v3 = cast v2 as u32
+            v4 = truncate v3 to 1 bits, max_bit_size: 32
+            v5 = cast v4 as u1
+            v6 = allocate -> &mut Field
+            store u8 0 at v6
+            enable_side_effects v5
+            v7 = cast v2 as Field
+            v9 = add v7, Field 1
+            v10 = cast v9 as u8
+            v11 = load v6 -> u8
+            v12 = cast v4 as Field
+            v13 = cast v11 as Field
+            v14 = sub v9, v13
+            v15 = mul v12, v14
+            v16 = add v13, v15
+            v17 = cast v16 as u8
+            store v17 at v6
+            v18 = not v5
+            enable_side_effects v18
+            v19 = load v6 -> u8
+            v20 = cast v18 as Field
+            v21 = cast v19 as Field
+            v23 = sub Field 0, v21
+            v24 = mul v20, v23
+            v25 = add v21, v24
+            v26 = cast v25 as u8
+            store v26 at v6
+            enable_side_effects u1 1
+            constrain v5 == u1 1
+            return
+        }
+        ";
+
         let flattened_ssa = ssa.flatten_cfg();
         let main = flattened_ssa.main();
+
         // Now assert that there is not an always-false constraint after flattening:
         let mut constrain_count = 0;
         for instruction in main.dfg[main.entry_block()].instructions() {
@@ -1353,6 +1362,8 @@ mod test {
             }
         }
         assert_eq!(constrain_count, 1);
+
+        assert_normalized_ssa_equals(flattened_ssa, expected);
     }
 
     #[test]
