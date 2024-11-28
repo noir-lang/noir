@@ -326,8 +326,7 @@ fn parse_str_to_signed(value: &str, width: u32) -> Result<FieldElement, InputPar
     big_num.map_err(|err_msg| InputParserError::ParseStr(err_msg.to_string())).and_then(|bigint| {
         let modulus: BigInt = FieldElement::modulus().into();
         let bigint = if bigint.sign() == num_bigint::Sign::Minus {
-            // A signed integer like i8 goes from -128 to 127, so we need to add 2^(width - 1) to the (negative) value
-            BigInt::from(2).pow(width - 1) + bigint
+            BigInt::from(2).pow(width) + bigint
         } else {
             bigint
         };
@@ -408,10 +407,10 @@ mod test {
         assert_eq!(value, FieldElement::from(1_u128));
 
         let value = parse_str_to_signed("-1", 8).unwrap();
-        assert_eq!(value, FieldElement::from(i8::MAX as u128));
+        assert_eq!(value, FieldElement::from(255_u128));
 
         let value = parse_str_to_signed("-1", 16).unwrap();
-        assert_eq!(value, FieldElement::from(i16::MAX as u128));
+        assert_eq!(value, FieldElement::from(65535_u128));
     }
 }
 

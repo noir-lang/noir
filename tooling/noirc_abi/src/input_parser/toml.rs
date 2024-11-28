@@ -210,18 +210,18 @@ mod test {
                 panic!("wrong type output");
             };
 
-            let output_number = i64::from_str_radix(output_string.strip_prefix("0x").unwrap(), 16).unwrap();
+            let output_number = i128::from_str_radix(output_string.strip_prefix("0x").unwrap(), 16).unwrap();
 
-            // If the value is negative, like -1, for a width of 8 bits the output should be 127.
-            // So here we do 2^(bit_size - 1) - value to get the expected Field value.
+            // If the value is negative, like -1, for a width of 8 bits the output should be 255.
+            // So here we do 2^bit_size - value to get the expected Field value.
             let value = if value < 0 {
                 let AbiType::Integer { width, .. } = &typ else {
                     panic!("Expected integer type");
                 };
 
-                (2_i128.pow(*width - 1) + value as i128) as i64
+                2_i128.pow(*width) + value as i128
             } else {
-                value
+                value as i128
             };
 
             prop_assert_eq!(output_number, value);
