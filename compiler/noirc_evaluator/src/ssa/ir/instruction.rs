@@ -14,7 +14,12 @@ use noirc_frontend::hir_def::types::Type as HirType;
 use crate::ssa::{ir::function::RuntimeType, opt::flatten_cfg::value_merger::ValueMerger};
 
 use super::{
-    basic_block::BasicBlockId, dfg::{CallStack, DataFlowGraph}, function::Function, map::Id, types::{NumericType, Type}, value::{Value, ValueId}
+    basic_block::BasicBlockId,
+    dfg::{CallStack, DataFlowGraph},
+    function::Function,
+    map::Id,
+    types::{NumericType, Type},
+    value::{Value, ValueId},
 };
 
 mod binary;
