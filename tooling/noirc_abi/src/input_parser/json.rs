@@ -226,7 +226,6 @@ mod test {
             let JsonTypes::String(output_string) = JsonTypes::try_from_input_value(&input_value, &typ).expect("should be serializable") else {
                 panic!("wrong type output");
             };
-
             let output_number = if let Some(output_string) = output_string.strip_prefix("-0x") {
                 -i64::from_str_radix(output_string, 16).unwrap()
             } else {
