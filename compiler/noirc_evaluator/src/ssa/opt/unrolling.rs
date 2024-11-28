@@ -46,14 +46,6 @@ impl Ssa {
     /// This meta-pass will keep trying to unroll loops and simplifying the SSA until no more errors are found.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn unroll_loops_iteratively(mut self: Ssa) -> Result<Ssa, RuntimeError> {
-        let simplify_func = |function: &mut Function| {
-            // Do a mem2reg after the last unroll to aid simplify_cfg
-            function.mem2reg();
-            function.simplify_function();
-            // Do another mem2reg after simplify_cfg to aid the next unroll
-            function.mem2reg();
-        };
-
         for (_, function) in self.functions.iter_mut() {
             // Take a snapshot of the function to compare byte size increase.
             let orig_function = function.runtime().is_brillig().then(|| function.clone());
@@ -66,7 +58,7 @@ impl Ssa {
                 let prev_unroll_err_count = unroll_errors.len();
 
                 // Simplify the SSA before retrying
-                simplify_func(function);
+                simplify_between_unrolls(function);
 
                 // Unroll again
                 let (new_unrolled, new_errors) = function.try_unroll_loops();
@@ -81,8 +73,9 @@ impl Ssa {
 
             if has_unrolled {
                 if let Some(orig_function) = orig_function {
-                    let _orig_size = brillig_bytecode_size(&orig_function);
-                    let _new_size = brillig_bytecode_size(function);
+                    let new_size = brillig_bytecode_size(function);
+                    let orig_size = brillig_bytecode_size(&orig_function);
+                    println!("ORIG VS NEW SIZE: {orig_size} vs {new_size}");
                 }
             }
         }
@@ -971,9 +964,29 @@ impl<'f> LoopIteration<'f> {
     }
 }
 
+/// Unrolling leaves some duplicate instructions which can potentially be removed.
+fn simplify_between_unrolls(function: &mut Function) {
+    // Do a mem2reg after the last unroll to aid simplify_cfg
+    function.mem2reg();
+    function.simplify_function();
+    // Do another mem2reg after simplify_cfg to aid the next unroll
+    function.mem2reg();
+}
+
 /// Convert the function to Brillig bytecode and return the resulting size.
 fn brillig_bytecode_size(function: &Function) -> usize {
-    convert_ssa_function(function, false).byte_code.len()
+    // We need to do some SSA passes in order for the conversion to be able to go ahead,
+    // otherwise we can hit `unreachable!()` instructions in `convert_ssa_instruction`.
+    // Creating a clone so as not to modify the originals.
+    let mut temp = function.clone();
+
+    // Might as well give it the best chance.
+    simplify_between_unrolls(&mut temp);
+
+    // This is to try to prevent hitting ICE.
+    temp.dead_instruction_elimination(false);
+
+    convert_ssa_function(&temp, false).byte_code.len()
 }
 
 #[cfg(test)]
