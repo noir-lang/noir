@@ -19,8 +19,10 @@
 //! When unrolling ACIR code, we remove reference count instructions because they are
 //! only used by Brillig bytecode.
 use acvm::{acir::AcirField, FieldElement};
+use im::HashSet;
 
 use crate::{
+    brillig::brillig_gen::convert_ssa_function,
     errors::RuntimeError,
     ssa::{
         ir::{
@@ -37,38 +39,54 @@ use crate::{
         ssa_gen::Ssa,
     },
 };
-use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use fxhash::FxHashMap as HashMap;
 
 impl Ssa {
     /// Loop unrolling can return errors, since ACIR functions need to be fully unrolled.
     /// This meta-pass will keep trying to unroll loops and simplifying the SSA until no more errors are found.
-    #[tracing::instrument(level = "trace", skip(ssa))]
-    pub(crate) fn unroll_loops_iteratively(mut ssa: Ssa) -> Result<Ssa, RuntimeError> {
-        for (_, function) in ssa.functions.iter_mut() {
+    #[tracing::instrument(level = "trace", skip(self))]
+    pub(crate) fn unroll_loops_iteratively(mut self: Ssa) -> Result<Ssa, RuntimeError> {
+        let simplify_func = |function: &mut Function| {
+            // Do a mem2reg after the last unroll to aid simplify_cfg
+            function.mem2reg();
+            function.simplify_function();
+            // Do another mem2reg after simplify_cfg to aid the next unroll
+            function.mem2reg();
+        };
+
+        for (_, function) in self.functions.iter_mut() {
+            // Take a snapshot of the function to compare byte size increase.
+            let orig_function = function.runtime().is_brillig().then(|| function.clone());
+
             // Try to unroll loops first:
-            let mut unroll_errors = function.try_unroll_loops();
+            let (mut has_unrolled, mut unroll_errors) = function.try_unroll_loops();
 
             // Keep unrolling until no more errors are found
             while !unroll_errors.is_empty() {
                 let prev_unroll_err_count = unroll_errors.len();
 
                 // Simplify the SSA before retrying
-
-                // Do a mem2reg after the last unroll to aid simplify_cfg
-                function.mem2reg();
-                function.simplify_function();
-                // Do another mem2reg after simplify_cfg to aid the next unroll
-                function.mem2reg();
+                simplify_func(function);
 
                 // Unroll again
-                unroll_errors = function.try_unroll_loops();
+                let (new_unrolled, new_errors) = function.try_unroll_loops();
+                unroll_errors = new_errors;
+                has_unrolled |= new_unrolled;
+
                 // If we didn't manage to unroll any more loops, exit
                 if unroll_errors.len() >= prev_unroll_err_count {
                     return Err(unroll_errors.swap_remove(0));
                 }
             }
+
+            if has_unrolled {
+                if let Some(orig_function) = orig_function {
+                    let _orig_size = brillig_bytecode_size(&orig_function);
+                    let _new_size = brillig_bytecode_size(function);
+                }
+            }
         }
-        Ok(ssa)
+        Ok(self)
     }
 }
 
@@ -77,7 +95,7 @@ impl Function {
     // This can also be true for ACIR, but we have no alternative to unrolling in ACIR.
     // Brillig also generally prefers smaller code rather than faster code,
     // so we only attempt to unroll small loops, which we decide on a case-by-case basis.
-    fn try_unroll_loops(&mut self) -> Vec<RuntimeError> {
+    fn try_unroll_loops(&mut self) -> (bool, Vec<RuntimeError>) {
         Loops::find_all(self).unroll_each(self)
     }
 }
@@ -170,8 +188,10 @@ impl Loops {
 
     /// Unroll all loops within a given function.
     /// Any loops which fail to be unrolled (due to using non-constant indices) will be unmodified.
-    fn unroll_each(mut self, function: &mut Function) -> Vec<RuntimeError> {
+    /// Returns whether any blocks have been modified
+    fn unroll_each(mut self, function: &mut Function) -> (bool, Vec<RuntimeError>) {
         let mut unroll_errors = vec![];
+        let mut has_unrolled = false;
         while let Some(next_loop) = self.yet_to_unroll.pop() {
             if function.runtime().is_brillig() && !next_loop.is_small_loop(function, &self.cfg) {
                 continue;
@@ -181,13 +201,17 @@ impl Loops {
             if next_loop.blocks.iter().any(|block| self.modified_blocks.contains(block)) {
                 let mut new_loops = Self::find_all(function);
                 new_loops.failed_to_unroll = self.failed_to_unroll;
-                return unroll_errors.into_iter().chain(new_loops.unroll_each(function)).collect();
+                let (new_unrolled, new_errors) = new_loops.unroll_each(function);
+                return (has_unrolled || new_unrolled, [unroll_errors, new_errors].concat());
             }
 
             // Don't try to unroll the loop again if it is known to fail
             if !self.failed_to_unroll.contains(&next_loop.header) {
                 match next_loop.unroll(function, &self.cfg) {
-                    Ok(_) => self.modified_blocks.extend(next_loop.blocks),
+                    Ok(_) => {
+                        has_unrolled = true;
+                        self.modified_blocks.extend(next_loop.blocks);
+                    }
                     Err(call_stack) => {
                         self.failed_to_unroll.insert(next_loop.header);
                         unroll_errors.push(RuntimeError::UnknownLoopBound { call_stack });
@@ -195,7 +219,7 @@ impl Loops {
                 }
             }
         }
-        unroll_errors
+        (has_unrolled, unroll_errors)
     }
 }
 
@@ -947,6 +971,11 @@ impl<'f> LoopIteration<'f> {
     }
 }
 
+/// Convert the function to Brillig bytecode and return the resulting size.
+fn brillig_bytecode_size(function: &Function) -> usize {
+    convert_ssa_function(function, false).byte_code.len()
+}
+
 #[cfg(test)]
 mod tests {
     use acvm::FieldElement;
@@ -956,12 +985,14 @@ mod tests {
 
     use super::{BoilerplateStats, Loops};
 
-    /// Tries to unroll all loops in each SSA function.
+    /// Tries to unroll all loops in each SSA function once, calling the `Function` directly,
+    /// bypassing the iterative loop done by the SSA which does further optimisations.
+    ///
     /// If any loop cannot be unrolled, it is left as-is or in a partially unrolled state.
     fn try_unroll_loops(mut ssa: Ssa) -> (Ssa, Vec<RuntimeError>) {
         let mut errors = vec![];
         for function in ssa.functions.values_mut() {
-            errors.extend(function.try_unroll_loops());
+            errors.extend(function.try_unroll_loops().1);
         }
         (ssa, errors)
     }
@@ -1222,6 +1253,14 @@ mod tests {
         let (ssa, errors) = try_unroll_loops(ssa);
         assert_eq!(errors.len(), 0, "Unroll should have no errors");
         assert_normalized_ssa_equals(ssa, parse_ssa().to_string().as_str());
+    }
+
+    /// Test that we can unroll the loop in the ticket using the SSA iterative method
+    #[test]
+    fn test_brillig_unroll_6470_iteratively() {
+        // Few enough iterations so that we can perform the unroll.
+        let ssa = brillig_unroll_test_case_6470(3);
+        let _ssa = ssa.unroll_loops_iteratively().unwrap();
     }
 
     /// Test that `break` and `continue` stop unrolling without any panic.
