@@ -209,14 +209,14 @@ v87 = constant 1
 v119 = is_equal v87,v70
 r26c59 = and v117,v119
 # [8] | ((prev.x - 2 == curr.x) & (prev.y + 1 == curr.y))
-v121 = constant 4891460686036598783
+v121 = constant 18446744069414584319
 v122 = is_equal v121,v69
 r26c71 = and v122,v119
 # [7] ((prev.x + 2 == curr.x) & (prev.y + 1 == curr.y))
 # [8] | ((prev.x - 2 == curr.x) & (prev.y + 1 == curr.y))
 r21c67 = or r26c59,r26c71
 # [9] | ((prev.x + 2 == curr.x) & (prev.y - 1 == curr.y))
-v124 = constant 4891460686036598784
+v124 = constant 18446744069414584320
 v125 = is_equal v124,v70
 r28c3 = and v117,v125
 # [7] ((prev.x + 2 == curr.x) & (prev.y + 1 == curr.y))
@@ -243,7 +243,7 @@ r28c27 = and v127,v129
 # [11] | ((prev.x + 1 == curr.x) & (prev.y + 2 == curr.y))
 r21c79 = or r21c75,r28c27
 # [12] | ((prev.x - 1 == curr.x) & (prev.y + 2 == curr.y))
-v124 = constant 4891460686036598784
+v124 = constant 18446744069414584320
 v131 = is_equal v124,v69
 r28c39 = and v131,v129
 # [7] ((prev.x + 2 == curr.x) & (prev.y + 1 == curr.y))
@@ -254,7 +254,7 @@ r28c39 = and v131,v129
 # [12] | ((prev.x - 1 == curr.x) & (prev.y + 2 == curr.y))
 r30c3 = or r21c79,r28c39
 # [13] | ((prev.x + 1 == curr.x) & (prev.y - 2 == curr.y))
-v121 = constant 4891460686036598783
+v121 = constant 18446744069414584319
 v133 = is_equal v121,v70
 r28c51 = and v127,v133
 # [7] ((prev.x + 2 == curr.x) & (prev.y + 1 == curr.y))
