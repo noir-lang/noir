@@ -131,8 +131,7 @@
 //!   v11 = mul v4, Field 12
 //!   v12 = add v10, v11
 //!   store v12 at v5         (new store)
-use fxhash::FxHashMap as HashMap;
-use std::collections::{BTreeMap, HashSet};
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use acvm::{acir::AcirField, acir::BlackBoxFunc, FieldElement};
 use iter_extended::vecmap;
@@ -214,6 +213,15 @@ struct Context<'f> {
     /// When processing a block, we pop this stack to get its arguments
     /// and at the end we push the arguments for his successor
     arguments_stack: Vec<Vec<ValueId>>,
+
+    /// Stores all allocations local to the current branch.
+    ///
+    /// Since these branches are local to the current branch (i.e. only defined within one branch of
+    /// an if expression), they should not be merged with their previous value or stored value in
+    /// the other branch since there is no such value.
+    ///
+    /// The `ValueId` here is that which is returned by the allocate instruction.
+    local_allocations: HashSet<ValueId>,
 }
 
 #[derive(Clone)]
@@ -231,8 +239,6 @@ struct ConditionalBranch {
     old_condition: ValueId,
     // The condition of the branch
     condition: ValueId,
-    // The store values accumulated when processing the branch
-    store_values: HashMap<ValueId, Store>,
     // The allocations accumulated when processing the branch
     local_allocations: HashSet<ValueId>,
 }
@@ -269,6 +275,7 @@ fn flatten_function_cfg(function: &mut Function, no_predicates: &HashMap<Functio
         slice_sizes: HashMap::default(),
         condition_stack: Vec::new(),
         arguments_stack: Vec::new(),
+        local_allocations: HashSet::default(),
     };
     context.flatten(no_predicates);
 }
@@ -429,7 +436,6 @@ impl<'f> Context<'f> {
         let old_condition = *condition;
         let then_condition = self.inserter.resolve(old_condition);
 
-        let old_stores = std::mem::take(&mut self.store_values);
         let old_allocations = std::mem::take(&mut self.local_allocations);
         let branch = ConditionalBranch {
             old_condition,
@@ -437,6 +443,7 @@ impl<'f> Context<'f> {
             store_values: old_stores,
             local_allocations: old_allocations,
             last_block: *then_destination,
+            local_allocations: old_allocations,
         };
         let cond_context = ConditionalContext {
             condition: then_condition,
@@ -447,6 +454,16 @@ impl<'f> Context<'f> {
         };
         self.condition_stack.push(cond_context);
         self.insert_current_side_effects_enabled();
+
+        // We disallow this case as it results in the `else_destination` block
+        // being inlined before the `then_destination` block due to block deduplication in the work queue.
+        //
+        // The `else_destination` block then gets treated as if it were the `then_destination` block
+        // and has the incorrect condition applied to it.
+        assert_ne!(
+            self.branch_ends[if_entry], *then_destination,
+            "ICE: branches merge inside of `then` branch"
+        );
         vec![self.branch_ends[if_entry], *else_destination, *then_destination]
     }
 
@@ -463,12 +480,6 @@ impl<'f> Context<'f> {
         );
         let else_condition = self.link_condition(else_condition);
 
-        // Make sure the else branch sees the previous values of each store
-        // rather than any values created in the 'then' branch.
-        let old_stores = std::mem::take(&mut cond_context.then_branch.store_values);
-        cond_context.then_branch.store_values = std::mem::take(&mut self.store_values);
-        self.undo_stores_in_then_branch(&cond_context.then_branch.store_values);
-
         let old_allocations = std::mem::take(&mut self.local_allocations);
         let else_branch = ConditionalBranch {
             old_condition: cond_context.then_branch.old_condition,
@@ -476,6 +487,7 @@ impl<'f> Context<'f> {
             store_values: old_stores,
             local_allocations: old_allocations,
             last_block: *block,
+            local_allocations: old_allocations,
         };
         cond_context.then_branch.local_allocations.clear();
         cond_context.else_branch = Some(else_branch);
@@ -499,7 +511,6 @@ impl<'f> Context<'f> {
         }
 
         let mut else_branch = cond_context.else_branch.unwrap();
-        let stores_in_branch = std::mem::replace(&mut self.store_values, else_branch.store_values);
         self.local_allocations = std::mem::take(&mut else_branch.local_allocations);
         else_branch.last_block = *block;
         else_branch.store_values = stores_in_branch;
@@ -728,21 +739,22 @@ impl<'f> Context<'f> {
     /// As a result, the instruction that will be pushed will actually be a new instruction
     /// with a different InstructionId from the original. The results of the given instruction
     /// will also be mapped to the results of the new instruction.
-    fn push_instruction(&mut self, id: InstructionId) -> Vec<ValueId> {
+    ///
+    /// `previous_allocate_result` should only be set to the result of an allocate instruction
+    /// if that instruction was the instruction immediately previous to this one - if there are
+    /// any instructions in between it should be None.
+    fn push_instruction(&mut self, id: InstructionId) {
         let (instruction, call_stack) = self.inserter.map_instruction(id);
         let instruction = self.handle_instruction_side_effects(instruction, call_stack.clone());
-        let is_allocate = matches!(instruction, Instruction::Allocate);
 
         let entry = self.inserter.function.entry_block();
         let results = self.inserter.push_instruction_value(instruction, id, entry, call_stack);
 
         // Remember an allocate was created local to this branch so that we do not try to merge store
         // values across branches for it later.
-        if is_allocate {
+        if instruction_is_allocate {
             self.local_allocations.insert(results.first());
         }
-
-        results.results().into_owned()
     }
 
     /// If we are currently in a branch, we need to modify constrain instructions
@@ -779,8 +791,32 @@ impl<'f> Context<'f> {
                     Instruction::Constrain(lhs, rhs, message)
                 }
                 Instruction::Store { address, value } => {
-                    self.remember_store(address, value, call_stack);
-                    Instruction::Store { address, value }
+                    // If this instruction immediately follows an allocate, and stores to that
+                    // address there is no previous value to load and we don't need a merge anyway.
+                    if self.local_allocations.contains(&address) {
+                        Instruction::Store { address, value }
+                    } else {
+                        // Instead of storing `value`, store `if condition { value } else { previous_value }`
+                        let typ = self.inserter.function.dfg.type_of_value(value);
+                        let load = Instruction::Load { address };
+                        let previous_value = self
+                            .insert_instruction_with_typevars(
+                                load,
+                                Some(vec![typ]),
+                                call_stack.clone(),
+                            )
+                            .first();
+
+                        let instruction = Instruction::IfElse {
+                            then_condition: condition,
+                            then_value: value,
+
+                            else_value: previous_value,
+                        };
+
+                        let updated_value = self.insert_instruction(instruction, call_stack);
+                        Instruction::Store { address, value: updated_value }
+                    }
                 }
                 Instruction::RangeCheck { value, max_bit_size, assert_message } => {
                     // Replace value with `value * predicate` to zero out value when predicate is inactive.
@@ -1571,5 +1607,24 @@ mod test {
             }
             _ => unreachable!("Should have terminator instruction"),
         }
+    }
+
+    #[test]
+    #[should_panic = "ICE: branches merge inside of `then` branch"]
+    fn panics_if_branches_merge_within_then_branch() {
+        //! This is a regression test for https://github.com/noir-lang/noir/issues/6620
+
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b2, else: b1
+          b2():
+            return
+          b1():
+            jmp b2()           
+        }
+        ";
+        let merged_ssa = Ssa::from_str(src).unwrap();
+        let _ = merged_ssa.flatten_cfg();
     }
 }
