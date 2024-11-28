@@ -134,4 +134,8 @@ fn main(x: [u8; 5], z: Field, u: i16, v: i16) {
     // Issue 6609
     assert(u % -13 == 0);
     assert(u % v == 0);
+    assert(u % -11 == 4);
+    assert(-u % -11 == -4);
+    assert(u % -11 == u % (v + 2));
+    assert(-u % -11 == -u % (v + 2));
 }

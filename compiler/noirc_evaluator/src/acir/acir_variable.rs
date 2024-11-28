@@ -578,7 +578,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         let numeric_type = match typ {
             AcirType::NumericType(numeric_type) => numeric_type,
             AcirType::Array(_, _) => {
-                todo!("cannot divide arrays. This should have been caught by the frontend")
+                unreachable!("cannot divide arrays. This should have been caught by the frontend")
             }
         };
         match numeric_type {
@@ -1091,7 +1091,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         let numeric_type = match typ {
             AcirType::NumericType(numeric_type) => numeric_type,
             AcirType::Array(_, _) => {
-                todo!("cannot modulo arrays. This should have been caught by the frontend")
+                unreachable!("cannot modulo arrays. This should have been caught by the frontend")
             }
         };
 
