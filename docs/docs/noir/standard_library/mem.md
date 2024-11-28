@@ -42,7 +42,7 @@ fn checked_transmute<T, U>(value: T) -> U
 Transmutes a value of one type into the same value but with a new type `U`.
 
 This function is safe to use since both types are asserted to be equal later during compilation after the concrete values for generic types become known.
-This function is useful for cases where the compiler may fails a type check that is expected to pass where
+This function is useful for cases where the compiler may fail a type check that is expected to pass where
 a user knows the two types to be equal. For example, when using arithmetic generics there are cases the compiler
 does not see as equal, such as `[Field; N*(A + B)]` and `[Field; N*A + N*B]`, which users may know to be equal.
 In these cases, `checked_transmute` can be used to cast the value to the desired type while also preserving safety

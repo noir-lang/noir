@@ -45,8 +45,7 @@ pub(crate) type InstructionId = Id<Instruction>;
 /// - Opcodes which the IR knows the target machine has
 /// special support for. (LowLevel)
 /// - Opcodes which have no function definition in the
-/// source code and must be processed by the IR. An example
-/// of this is println.
+/// source code and must be processed by the IR.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub(crate) enum Intrinsic {
     ArrayLen,
@@ -114,6 +113,9 @@ impl Intrinsic {
     /// Returns whether the `Intrinsic` has side effects.
     ///
     /// If there are no side effects then the `Intrinsic` can be removed if the result is unused.
+    ///
+    /// An example of a side effect is increasing the reference count of an array, but functions
+    /// which can fail due to implicit constraints are also considered to have a side effect.
     pub(crate) fn has_side_effects(&self) -> bool {
         match self {
             Intrinsic::AssertConstant
@@ -154,6 +156,39 @@ impl Intrinsic {
                     | BlackBoxFunc::MultiScalarMul
                     | BlackBoxFunc::EmbeddedCurveAdd
             ),
+        }
+    }
+
+    /// Intrinsics which only have a side effect due to the chance that
+    /// they can fail a constraint can be deduplicated.
+    pub(crate) fn can_be_deduplicated(&self, deduplicate_with_predicate: bool) -> bool {
+        match self {
+            // These apply a constraint in the form of ACIR opcodes, but they can be deduplicated
+            // if the inputs are the same. If they depend on a side effect variable (e.g. because
+            // they were in an if-then-else) then `handle_instruction_side_effects` in `flatten_cfg`
+            // will have attached the condition variable to their inputs directly, so they don't
+            // directly depend on the corresponding `enable_side_effect` instruction any more.
+            // However, to conform with the expectations of `Instruction::can_be_deduplicated` and
+            // `constant_folding` we only use this information if the caller shows interest in it.
+            Intrinsic::ToBits(_)
+            | Intrinsic::ToRadix(_)
+            | Intrinsic::BlackBox(
+                BlackBoxFunc::MultiScalarMul
+                | BlackBoxFunc::EmbeddedCurveAdd
+                | BlackBoxFunc::RecursiveAggregation,
+            ) => deduplicate_with_predicate,
+
+            // Operations that remove items from a slice don't modify the slice, they just assert it's non-empty.
+            Intrinsic::SlicePopBack | Intrinsic::SlicePopFront | Intrinsic::SliceRemove => {
+                deduplicate_with_predicate
+            }
+
+            Intrinsic::AssertConstant
+            | Intrinsic::StaticAssert
+            | Intrinsic::ApplyRangeConstraint
+            | Intrinsic::AsWitness => deduplicate_with_predicate,
+
+            _ => !self.has_side_effects(),
         }
     }
 
@@ -261,7 +296,7 @@ pub(crate) enum Instruction {
     /// - `code1` will have side effects iff `condition1` evaluates to `true`
     ///
     /// This instruction is only emitted after the cfg flattening pass, and is used to annotate
-    /// instruction regions with an condition that corresponds to their position in the CFG's
+    /// instruction regions with a condition that corresponds to their position in the CFG's
     /// if-branching structure.
     EnableSideEffectsIf { condition: ValueId },
 
@@ -343,10 +378,53 @@ impl Instruction {
         matches!(self.result_type(), InstructionResultType::Unknown)
     }
 
+    /// Indicates if the instruction has a side effect, ie. it can fail, or it interacts with memory.
+    ///
+    /// This is similar to `can_be_deduplicated`, but it doesn't depend on whether the caller takes
+    /// constraints into account, because it might not use it to isolate the side effects across branches.
+    pub(crate) fn has_side_effects(&self, dfg: &DataFlowGraph) -> bool {
+        use Instruction::*;
+
+        match self {
+            // These either have side-effects or interact with memory
+            EnableSideEffectsIf { .. }
+            | Allocate
+            | Load { .. }
+            | Store { .. }
+            | IncrementRc { .. }
+            | DecrementRc { .. } => true,
+
+            Call { func, .. } => match dfg[*func] {
+                Value::Intrinsic(intrinsic) => intrinsic.has_side_effects(),
+                _ => true, // Be conservative and assume other functions can have side effects.
+            },
+
+            // These can fail.
+            Constrain(..) | RangeCheck { .. } => true,
+
+            // This should never be side-effectful
+            MakeArray { .. } => false,
+
+            // These can have different behavior depending on the EnableSideEffectsIf context.
+            Binary(_)
+            | Cast(_, _)
+            | Not(_)
+            | Truncate { .. }
+            | IfElse { .. }
+            | ArrayGet { .. }
+            | ArraySet { .. } => self.requires_acir_gen_predicate(dfg),
+        }
+    }
+
     /// Indicates if the instruction can be safely replaced with the results of another instruction with the same inputs.
     /// If `deduplicate_with_predicate` is set, we assume we're deduplicating with the instruction
     /// and its predicate, rather than just the instruction. Setting this means instructions that
     /// rely on predicates can be deduplicated as well.
+    ///
+    /// Some instructions get the predicate attached to their inputs by `handle_instruction_side_effects` in `flatten_cfg`.
+    /// These can be deduplicated because they implicitly depend on the predicate, not only when the caller uses the
+    /// predicate variable as a key to cache results. However, to avoid tight coupling between passes, we make the deduplication
+    /// conditional on whether the caller wants the predicate to be taken into account or not.
     pub(crate) fn can_be_deduplicated(
         &self,
         dfg: &DataFlowGraph,
@@ -364,7 +442,9 @@ impl Instruction {
             | DecrementRc { .. } => false,
 
             Call { func, .. } => match dfg[*func] {
-                Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
+                Value::Intrinsic(intrinsic) => {
+                    intrinsic.can_be_deduplicated(deduplicate_with_predicate)
+                }
                 _ => false,
             },
 
@@ -437,6 +517,7 @@ impl Instruction {
                 // Explicitly allows removal of unused ec operations, even if they can fail
                 Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul))
                 | Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::EmbeddedCurveAdd)) => true,
+
                 Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
 
                 // All foreign functions are treated as having side effects.
@@ -452,7 +533,7 @@ impl Instruction {
         }
     }
 
-    /// If true the instruction will depends on enable_side_effects context during acir-gen
+    /// If true the instruction will depend on `enable_side_effects` context during acir-gen.
     pub(crate) fn requires_acir_gen_predicate(&self, dfg: &DataFlowGraph) -> bool {
         match self {
             Instruction::Binary(binary)
