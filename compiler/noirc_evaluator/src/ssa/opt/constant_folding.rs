@@ -1049,7 +1049,6 @@ mod test {
         let starting_instruction_count = instructions.len();
         assert_eq!(starting_instruction_count, 4);
 
-
         // fn main f0 {
         //   b0(v0: u64):
         //     v1 = make_array [v0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0]

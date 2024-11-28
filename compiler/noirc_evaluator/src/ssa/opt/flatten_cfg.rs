@@ -859,11 +859,9 @@ mod test {
                 v1 = not v0
                 enable_side_effects u1 1
                 v3 = cast v0 as Field
-                v4 = cast v1 as Field
-                v6 = mul v3, Field 3
-                v8 = mul v4, Field 4
-                v9 = add v6, v8
-                return v9
+                v5 = mul v3, Field -1
+                v7 = add Field 4, v5
+                return v7
             }
             ";
 
@@ -923,16 +921,13 @@ mod test {
               b0(v0: u1, v1: &mut Field):
                 enable_side_effects v0
                 v2 = load v1 -> Field
-                store Field 5 at v1
-                v4 = not v0
-                store v2 at v1
+                v3 = cast v0 as Field
+                v5 = sub Field 5, v2
+                v6 = mul v3, v5
+                v7 = add v2, v6	
+                store v7 at v1	
+                v8 = not v0
                 enable_side_effects u1 1
-                v6 = cast v0 as Field
-                v7 = cast v4 as Field
-                v8 = mul v6, Field 5
-                v9 = mul v7, v2
-                v10 = add v8, v9
-                store v10 at v1
                 return
             }
             ";
@@ -963,19 +958,20 @@ mod test {
               b0(v0: u1, v1: &mut Field):
                 enable_side_effects v0
                 v2 = load v1 -> Field
-                store Field 5 at v1
-                v4 = not v0
-                store v2 at v1
-                enable_side_effects v4
-                v5 = load v1 -> Field
-                store Field 6 at v1
+                v3 = cast v0 as Field
+                v5 = sub Field 5, v2
+                v6 = mul v3, v5
+                v7 = add v2, v6
+                store v7 at v1
+                v8 = not v0
+                enable_side_effects v8
+                v9 = load v1 -> Field
+                v10 = cast v8 as Field
+                v12 = sub Field 6, v9
+                v13 = mul v10, v12
+                v14 = add v9, v13
+                store v14 at v1
                 enable_side_effects u1 1
-                v8 = cast v0 as Field
-                v9 = cast v4 as Field
-                v10 = mul v8, Field 5
-                v11 = mul v9, Field 6
-                v12 = add v10, v11
-                store v12 at v1
                 return
             }
             ";
@@ -1143,7 +1139,7 @@ mod test {
         };
 
         let merged_values = get_all_constants_reachable_from_instruction(&main.dfg, ret);
-        assert_eq!(merged_values, vec![3, 5, 6]);
+        assert_eq!(merged_values, vec![1, 3, 5, 6]);
     }
 
     #[test]
