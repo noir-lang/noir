@@ -544,12 +544,17 @@ impl<'context> Elaborator<'context> {
     }
 
     // this resolves Self::some_static_method, inside an impl block (where we don't have a concrete self_type)
+    // or inside a trait default method.
     //
     // Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
     // E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
     fn resolve_trait_static_method_by_self(&mut self, path: &Path) -> Option<TraitPathResolution> {
-        let trait_impl = self.current_trait_impl?;
-        let trait_id = self.interner.try_get_trait_implementation(trait_impl)?.borrow().trait_id;
+        let trait_id = if let Some(current_trait) = self.current_trait {
+            current_trait
+        } else {
+            let trait_impl = self.current_trait_impl?;
+            self.interner.try_get_trait_implementation(trait_impl)?.borrow().trait_id
+        };
 
         if path.kind == PathKind::Plain && path.segments.len() == 2 {
             let name = &path.segments[0].ident.0.contents;

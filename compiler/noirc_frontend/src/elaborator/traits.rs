@@ -28,6 +28,11 @@ impl<'context> Elaborator<'context> {
             self.recover_generics(|this| {
                 this.current_trait = Some(*trait_id);
 
+                let the_trait = this.interner.get_trait(*trait_id);
+                let self_typevar = the_trait.self_type_typevar.clone();
+                let self_type = Type::TypeVariable(self_typevar.clone());
+                this.self_type = Some(self_type.clone());
+
                 let resolved_generics = this.interner.get_trait(*trait_id).generics.clone();
                 this.add_existing_generics(
                     &unresolved_trait.trait_def.generics,
@@ -48,12 +53,15 @@ impl<'context> Elaborator<'context> {
                         .add_trait_dependency(DependencyId::Trait(bound.trait_id), *trait_id);
                 }
 
+                this.interner.update_trait(*trait_id, |trait_def| {
+                    trait_def.set_trait_bounds(resolved_trait_bounds);
+                    trait_def.set_where_clause(where_clause);
+                });
+
                 let methods = this.resolve_trait_methods(*trait_id, unresolved_trait);
 
                 this.interner.update_trait(*trait_id, |trait_def| {
                     trait_def.set_methods(methods);
-                    trait_def.set_trait_bounds(resolved_trait_bounds);
-                    trait_def.set_where_clause(where_clause);
                 });
             });
 
@@ -94,7 +102,7 @@ impl<'context> Elaborator<'context> {
                 parameters,
                 return_type,
                 where_clause,
-                body: _,
+                body,
                 is_unconstrained,
                 visibility: _,
                 is_comptime: _,
@@ -102,8 +110,9 @@ impl<'context> Elaborator<'context> {
             {
                 self.recover_generics(|this| {
                     let the_trait = this.interner.get_trait(trait_id);
+                    let the_trait_where_clause = the_trait.where_clause.clone();
+                    let the_trait_constraint = the_trait.as_constraint(the_trait.name.span());
                     let self_typevar = the_trait.self_type_typevar.clone();
-                    let self_type = Type::TypeVariable(self_typevar.clone());
                     let name_span = the_trait.name.span();
 
                     this.add_existing_generic(
@@ -115,7 +124,6 @@ impl<'context> Elaborator<'context> {
                             span: name_span,
                         },
                     );
-                    this.self_type = Some(self_type.clone());
 
                     let func_id = unresolved_trait.method_ids[&name.0.contents];
 
@@ -127,6 +135,7 @@ impl<'context> Elaborator<'context> {
                         parameters,
                         return_type,
                         where_clause,
+                        body,
                         func_id,
                     );
 
@@ -135,7 +144,9 @@ impl<'context> Elaborator<'context> {
                         this.interner.set_doc_comments(id, item.doc_comments.clone());
                     }
 
-                    let func_meta = this.interner.function_meta(&func_id);
+                    let func_meta = this.interner.function_meta_mut(&func_id);
+                    func_meta.trait_constraints.push(the_trait_constraint);
+                    func_meta.trait_constraints.extend(the_trait_where_clause);
 
                     let arguments = vecmap(&func_meta.parameters.0, |(_, typ, _)| typ.clone());
                     let return_type = func_meta.return_type().clone();
@@ -189,11 +200,13 @@ impl<'context> Elaborator<'context> {
         parameters: &[(Ident, UnresolvedType)],
         return_type: &FunctionReturnType,
         where_clause: &[UnresolvedTraitConstraint],
+        body: &Option<BlockExpression>,
         func_id: FuncId,
     ) {
-        let old_generic_count = self.generics.len();
-
-        self.scopes.start_function();
+        let body = match body {
+            Some(body) => body.clone(),
+            None => BlockExpression { statements: Vec::new() },
+        };
 
         let kind = FunctionKind::Normal;
         let mut def = FunctionDefinition::normal(
@@ -201,7 +214,7 @@ impl<'context> Elaborator<'context> {
             is_unconstrained,
             generics,
             parameters,
-            &BlockExpression { statements: Vec::new() },
+            body,
             where_clause,
             return_type,
         );
@@ -210,10 +223,6 @@ impl<'context> Elaborator<'context> {
 
         let mut function = NoirFunction { kind, def };
         self.define_function_meta(&mut function, func_id, Some(trait_id));
-        self.elaborate_function(func_id);
-        let _ = self.scopes.end_function();
-        // Don't check the scope tree for unused variables, they can't be used in a declaration anyway.
-        self.generics.truncate(old_generic_count);
     }
 }
 
