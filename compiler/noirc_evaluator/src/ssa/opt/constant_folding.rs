@@ -937,17 +937,17 @@ mod test {
         // the other is not. If one is removed, it is possible e.g. v4 is replaced with v2 which
         // is disabled (only gets from index 0) and thus returns the wrong result.
         let src = "
-             acir(inline) fn main f0 {
-               b0(v0: u1, v1: u64):
-                 enable_side_effects v0
-                 v4 = make_array [Field 0, Field 1] : [Field; 2]
-                 v5 = array_get v4, index v1 -> Field
-                 v6 = not v0
-                 enable_side_effects v6
-                 v7 = array_get v4, index v1 -> Field
-                 return
-             }
-             ";
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u64):
+            enable_side_effects v0
+            v4 = make_array [Field 0, Field 1] : [Field; 2]
+            v5 = array_get v4, index v1 -> Field
+            v6 = not v0
+            enable_side_effects v6
+            v7 = array_get v4, index v1 -> Field
+            return
+        }
+        ";
         let ssa = Ssa::from_str(src).unwrap();
 
         // Expected output is unchanged
@@ -1005,16 +1005,15 @@ mod test {
         assert_normalized_ssa_equals(ssa, expected);
     }
 
-    // This test currently fails. It being fixed will address the issue https://github.com/noir-lang/noir/issues/5756
     #[test]
-    #[should_panic]
     fn constant_array_deduplication() {
         // fn main f0 {
         //   b0(v0: u64):
-        //     v5 = call keccakf1600([v0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0])
-        //     v6 = call keccakf1600([v0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0])
+        //     v1 = make_array [v0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0]
+        //     v2 = make_array [v0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0]
+        //     v5 = call keccakf1600(v1)
+        //     v6 = call keccakf1600(v2)
         // }
-        //
         // Here we're checking a situation where two identical arrays are being initialized twice and being assigned separate `ValueId`s.
         // This would result in otherwise identical instructions not being deduplicated.
         let main_id = Id::test_new(0);
@@ -1032,12 +1031,13 @@ mod test {
         let array1 = builder.insert_make_array(array_contents.clone(), typ.clone());
         let array2 = builder.insert_make_array(array_contents, typ.clone());
 
-        assert_eq!(array1, array2, "arrays were assigned different value ids");
+        assert_ne!(array1, array2, "arrays were not assigned different value ids");
 
         let keccakf1600 =
             builder.import_intrinsic("keccakf1600").expect("keccakf1600 intrinsic should exist");
         let _v10 = builder.insert_call(keccakf1600, vec![array1], vec![typ.clone()]);
         let _v11 = builder.insert_call(keccakf1600, vec![array2], vec![typ.clone()]);
+        builder.terminate_with_return(Vec::new());
 
         let mut ssa = builder.finish();
         ssa.normalize_ids();
@@ -1047,8 +1047,14 @@ mod test {
         let main = ssa.main();
         let instructions = main.dfg[main.entry_block()].instructions();
         let starting_instruction_count = instructions.len();
-        assert_eq!(starting_instruction_count, 2);
+        assert_eq!(starting_instruction_count, 4);
 
+
+        // fn main f0 {
+        //   b0(v0: u64):
+        //     v1 = make_array [v0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0]
+        //     v5 = call keccakf1600(v1)
+        // }
         let ssa = ssa.fold_constants();
 
         println!("{ssa}");
@@ -1056,7 +1062,107 @@ mod test {
         let main = ssa.main();
         let instructions = main.dfg[main.entry_block()].instructions();
         let ending_instruction_count = instructions.len();
-        assert_eq!(ending_instruction_count, 1);
+        assert_eq!(ending_instruction_count, 2);
+    }
+
+    #[test]
+    fn deduplicate_across_blocks() {
+        // fn main f0 {
+        //   b0(v0: u1):
+        //     v1 = not v0
+        //     jmp b1()
+        //   b1():
+        //     v2 = not v0
+        //     return v2
+        // }
+        let main_id = Id::test_new(0);
+
+        // Compiling main
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        let b1 = builder.insert_block();
+
+        let v0 = builder.add_parameter(Type::bool());
+        let _v1 = builder.insert_not(v0);
+        builder.terminate_with_jmp(b1, Vec::new());
+
+        builder.switch_to_block(b1);
+        let v2 = builder.insert_not(v0);
+        builder.terminate_with_return(vec![v2]);
+
+        let ssa = builder.finish();
+        let main = ssa.main();
+        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 1);
+        assert_eq!(main.dfg[b1].instructions().len(), 1);
+
+        // Expected output:
+        //
+        // fn main f0 {
+        //   b0(v0: u1):
+        //     v1 = not v0
+        //     jmp b1()
+        //   b1():
+        //     return v1
+        // }
+        let ssa = ssa.fold_constants_using_constraints();
+        let main = ssa.main();
+        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 1);
+        assert_eq!(main.dfg[b1].instructions().len(), 0);
+    }
+
+    #[test]
+    fn deduplicate_across_non_dominated_blocks() {
+        let src = "
+            brillig(inline) fn main f0 {
+              b0(v0: u32):
+                v2 = lt u32 1000, v0
+                jmpif v2 then: b1, else: b2
+              b1():
+                v4 = add v0, u32 1
+                v5 = lt v0, v4
+                constrain v5 == u1 1
+                jmp b2()
+              b2():
+                v7 = lt u32 1000, v0
+                jmpif v7 then: b3, else: b4
+              b3():
+                v8 = add v0, u32 1
+                v9 = lt v0, v8
+                constrain v9 == u1 1
+                jmp b4()
+              b4():
+                return
+            }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        // v4 has been hoisted, although:
+        // - v5 has not yet been removed since it was encountered earlier in the program
+        // - v8 hasn't been recognized as a duplicate of v6 yet since they still reference v4 and
+        //   v5 respectively
+        let expected = "
+            brillig(inline) fn main f0 {
+              b0(v0: u32):
+                v2 = lt u32 1000, v0
+                v4 = add v0, u32 1
+                jmpif v2 then: b1, else: b2
+              b1():
+                v5 = add v0, u32 1
+                v6 = lt v0, v5
+                constrain v6 == u1 1
+                jmp b2()
+              b2():
+                jmpif v2 then: b3, else: b4
+              b3():
+                v8 = lt v0, v4
+                constrain v8 == u1 1
+                jmp b4()
+              b4():
+                return
+            }
+        ";
+
+        let ssa = ssa.fold_constants_using_constraints();
+        assert_normalized_ssa_equals(ssa, expected);
     }
 
     #[test]
