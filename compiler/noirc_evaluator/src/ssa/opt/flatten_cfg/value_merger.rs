@@ -54,7 +54,6 @@ impl<'a> ValueMerger<'a> {
     pub(crate) fn merge_values(
         &mut self,
         then_condition: ValueId,
-        else_condition: ValueId,
         then_value: ValueId,
         else_value: ValueId,
     ) -> ValueId {
@@ -70,15 +69,14 @@ impl<'a> ValueMerger<'a> {
                 self.dfg,
                 self.block,
                 then_condition,
-                else_condition,
                 then_value,
                 else_value,
             ),
             typ @ Type::Array(_, _) => {
-                self.merge_array_values(typ, then_condition, else_condition, then_value, else_value)
+                self.merge_array_values(typ, then_condition, then_value, else_value)
             }
             typ @ Type::Slice(_) => {
-                self.merge_slice_values(typ, then_condition, else_condition, then_value, else_value)
+                self.merge_slice_values(typ, then_condition, then_value, else_value)
             }
             Type::Reference(_) => panic!("Cannot return references from an if expression"),
             Type::Function => panic!("Cannot return functions from an if expression"),
@@ -91,7 +89,6 @@ impl<'a> ValueMerger<'a> {
         dfg: &mut DataFlowGraph,
         block: BasicBlockId,
         then_condition: ValueId,
-        else_condition: ValueId,
         then_value: ValueId,
         else_value: ValueId,
     ) -> ValueId {
@@ -111,34 +108,40 @@ impl<'a> ValueMerger<'a> {
 
         let call_stack = if then_call_stack.is_empty() { else_call_stack } else { then_call_stack };
 
-        // We must cast the bool conditions to the actual numeric type used by each value.
         let then_condition = dfg
             .insert_instruction_and_results(
-                Instruction::Cast(then_condition, then_type),
-                block,
-                None,
-                call_stack.clone(),
-            )
-            .first();
-        let else_condition = dfg
-            .insert_instruction_and_results(
-                Instruction::Cast(else_condition, else_type),
+                Instruction::Cast(then_condition, Type::field()),
                 block,
                 None,
                 call_stack.clone(),
             )
             .first();
 
-        let mul = Instruction::binary(BinaryOp::Mul, then_condition, then_value);
-        let then_value =
-            dfg.insert_instruction_and_results(mul, block, None, call_stack.clone()).first();
+        let then_field = Instruction::Cast(then_value, Type::field());
+        let then_field_value =
+            dfg.insert_instruction_and_results(then_field, block, None, call_stack.clone()).first();
 
-        let mul = Instruction::binary(BinaryOp::Mul, else_condition, else_value);
-        let else_value =
-            dfg.insert_instruction_and_results(mul, block, None, call_stack.clone()).first();
+        let else_field = Instruction::Cast(else_value, Type::field());
+        let else_field_value =
+            dfg.insert_instruction_and_results(else_field, block, None, call_stack.clone()).first();
 
-        let add = Instruction::binary(BinaryOp::Add, then_value, else_value);
-        dfg.insert_instruction_and_results(add, block, None, call_stack).first()
+        let diff = Instruction::binary(BinaryOp::Sub, then_field_value, else_field_value);
+        let diff_value =
+            dfg.insert_instruction_and_results(diff, block, None, call_stack.clone()).first();
+
+        let conditional_diff = Instruction::binary(BinaryOp::Mul, then_condition, diff_value);
+        let conditional_diff_value = dfg
+            .insert_instruction_and_results(conditional_diff, block, None, call_stack.clone())
+            .first();
+
+        let merged_field =
+            Instruction::binary(BinaryOp::Add, else_field_value, conditional_diff_value);
+        let merged_field_value = dfg
+            .insert_instruction_and_results(merged_field, block, None, call_stack.clone())
+            .first();
+
+        let merged = Instruction::Cast(merged_field_value, then_type);
+        dfg.insert_instruction_and_results(merged, block, None, call_stack).first()
     }
 
     /// Given an if expression that returns an array: `if c { array1 } else { array2 }`,
@@ -148,7 +151,6 @@ impl<'a> ValueMerger<'a> {
         &mut self,
         typ: Type,
         then_condition: ValueId,
-        else_condition: ValueId,
         then_value: ValueId,
         else_value: ValueId,
     ) -> ValueId {
@@ -163,7 +165,6 @@ impl<'a> ValueMerger<'a> {
 
         if let Some(result) = self.try_merge_only_changed_indices(
             then_condition,
-            else_condition,
             then_value,
             else_value,
             actual_length,
@@ -193,12 +194,7 @@ impl<'a> ValueMerger<'a> {
                 let then_element = get_element(then_value, typevars.clone());
                 let else_element = get_element(else_value, typevars);
 
-                merged.push_back(self.merge_values(
-                    then_condition,
-                    else_condition,
-                    then_element,
-                    else_element,
-                ));
+                merged.push_back(self.merge_values(then_condition, then_element, else_element));
             }
         }
 
@@ -211,7 +207,6 @@ impl<'a> ValueMerger<'a> {
         &mut self,
         typ: Type,
         then_condition: ValueId,
-        else_condition: ValueId,
         then_value_id: ValueId,
         else_value_id: ValueId,
     ) -> ValueId {
@@ -269,12 +264,7 @@ impl<'a> ValueMerger<'a> {
                 let else_element =
                     get_element(else_value_id, typevars, else_len * element_types.len());
 
-                merged.push_back(self.merge_values(
-                    then_condition,
-                    else_condition,
-                    then_element,
-                    else_element,
-                ));
+                merged.push_back(self.merge_values(then_condition, then_element, else_element));
             }
         }
 
@@ -323,7 +313,6 @@ impl<'a> ValueMerger<'a> {
     fn try_merge_only_changed_indices(
         &mut self,
         then_condition: ValueId,
-        else_condition: ValueId,
         then_value: ValueId,
         else_value: ValueId,
         array_length: usize,
@@ -407,8 +396,7 @@ impl<'a> ValueMerger<'a> {
             let then_element = get_element(then_value, typevars.clone());
             let else_element = get_element(else_value, typevars);
 
-            let value =
-                self.merge_values(then_condition, else_condition, then_element, else_element);
+            let value = self.merge_values(then_condition, then_element, else_element);
 
             array = self.insert_array_set(array, index, value, Some(condition)).first();
         }

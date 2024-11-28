@@ -152,7 +152,7 @@ impl Function {
         let mut context = Context::new(self, use_constraint_info, brillig_info);
         context.block_queue.push_back(self.entry_block());
 
-        while let Some(block) = context.block_queue.pop() {
+        while let Some(block) = context.block_queue.pop_front() {
             if context.visited_blocks.contains(&block) {
                 continue;
             }
@@ -168,7 +168,21 @@ struct Context<'a> {
     brillig_info: Option<BrilligInfo<'a>>,
     /// Maps pre-folded ValueIds to the new ValueIds obtained by re-inserting the instruction.
     visited_blocks: HashSet<BasicBlockId>,
-    block_queue: Vec<BasicBlockId>,
+    block_queue: VecDeque<BasicBlockId>,
+
+    /// Contains sets of values which are constrained to be equivalent to each other.
+    ///
+    /// The mapping's structure is `side_effects_enabled_var => (constrained_value => simplified_value)`.
+    ///
+    /// We partition the maps of constrained values according to the side-effects flag at the point
+    /// at which the values are constrained. This prevents constraints which are only sometimes enforced
+    /// being used to modify the rest of the program.
+    constraint_simplification_mappings: HashMap<ValueId, HashMap<ValueId, ValueId>>,
+
+    // Cache of instructions without any side-effects along with their outputs.
+    cached_instruction_results: InstructionResultCache,
+
+    dom: DominatorTree,
 }
 
 #[derive(Copy, Clone)]
@@ -224,8 +238,6 @@ impl<'brillig> Context<'brillig> {
                 &mut function.dfg,
                 block,
                 instruction_id,
-                &mut cached_instruction_results,
-                &mut constraint_simplification_mappings,
                 &mut side_effects_enabled_var,
             );
         }
@@ -233,26 +245,34 @@ impl<'brillig> Context<'brillig> {
     }
 
     fn fold_constants_into_instruction(
-        &self,
+        &mut self,
         dfg: &mut DataFlowGraph,
-        block: BasicBlockId,
+        mut block: BasicBlockId,
         id: InstructionId,
-        instruction_result_cache: &mut InstructionResultCache,
-        constraint_simplification_mappings: &mut HashMap<ValueId, HashMap<ValueId, ValueId>>,
         side_effects_enabled_var: &mut ValueId,
     ) {
-        let constraint_simplification_mapping =
-            constraint_simplification_mappings.entry(*side_effects_enabled_var).or_default();
+        let constraint_simplification_mapping = self.get_constraint_map(*side_effects_enabled_var);
         let instruction = Self::resolve_instruction(id, dfg, constraint_simplification_mapping);
         let old_results = dfg.instruction_results(id).to_vec();
 
         // If a copy of this instruction exists earlier in the block, then reuse the previous results.
-        if let Some(cached_results) =
-            Self::get_cached(dfg, instruction_result_cache, &instruction, *side_effects_enabled_var)
+        if let Some(cache_result) =
+            self.get_cached(dfg, &instruction, *side_effects_enabled_var, block)
         {
-            Self::replace_result_ids(dfg, &old_results, cached_results);
-            return;
-        }
+            match cache_result {
+                CacheResult::Cached(cached) => {
+                    Self::replace_result_ids(dfg, &old_results, cached);
+                    return;
+                }
+                CacheResult::NeedToHoistToCommonBlock(dominator, _cached) => {
+                    // Just change the block to insert in the common dominator instead.
+                    // This will only move the current instance of the instruction right now.
+                    // When constant folding is run a second time later on, it'll catch
+                    // that the previous instance can be deduplicated to this instance.
+                    block = dominator;
+                }
+            }
+        };
 
         let new_results =
         // First try to inline a call to a brillig function with all constant arguments.
@@ -280,9 +300,8 @@ impl<'brillig> Context<'brillig> {
             instruction.clone(),
             new_results,
             dfg,
-            instruction_result_cache,
-            constraint_simplification_mapping,
             *side_effects_enabled_var,
+            block,
         );
 
         // If we just inserted an `Instruction::EnableSideEffectsIf`, we need to update `side_effects_enabled_var`
@@ -353,13 +372,12 @@ impl<'brillig> Context<'brillig> {
     }
 
     fn cache_instruction(
-        &self,
+        &mut self,
         instruction: Instruction,
         instruction_results: Vec<ValueId>,
         dfg: &DataFlowGraph,
-        instruction_result_cache: &mut InstructionResultCache,
-        constraint_simplification_mapping: &mut HashMap<ValueId, ValueId>,
         side_effects_enabled_var: ValueId,
+        block: BasicBlockId,
     ) {
         if self.use_constraint_info {
             // If the instruction was a constraint, then create a link between the two `ValueId`s
@@ -372,18 +390,18 @@ impl<'brillig> Context<'brillig> {
 
                     // Prefer replacing with constants where possible.
                     (Value::NumericConstant { .. }, _) => {
-                        constraint_simplification_mapping.insert(rhs, lhs);
+                        self.get_constraint_map(side_effects_enabled_var).insert(rhs, lhs);
                     }
                     (_, Value::NumericConstant { .. }) => {
-                        constraint_simplification_mapping.insert(lhs, rhs);
+                        self.get_constraint_map(side_effects_enabled_var).insert(lhs, rhs);
                     }
                     // Otherwise prefer block parameters over instruction results.
                     // This is as block parameters are more likely to be a single witness rather than a full expression.
                     (Value::Param { .. }, Value::Instruction { .. }) => {
-                        constraint_simplification_mapping.insert(rhs, lhs);
+                        self.get_constraint_map(side_effects_enabled_var).insert(rhs, lhs);
                     }
                     (Value::Instruction { .. }, Value::Param { .. }) => {
-                        constraint_simplification_mapping.insert(lhs, rhs);
+                        self.get_constraint_map(side_effects_enabled_var).insert(lhs, rhs);
                     }
                     (_, _) => (),
                 }
@@ -398,10 +416,12 @@ impl<'brillig> Context<'brillig> {
                 self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
             let predicate = use_predicate.then_some(side_effects_enabled_var);
 
-            instruction_result_cache
+            self.cached_instruction_results
                 .entry(instruction)
                 .or_default()
-                .insert(predicate, instruction_results);
+                .entry(predicate)
+                .or_default()
+                .cache(block, instruction_results);
         }
     }
 
@@ -426,13 +446,13 @@ impl<'brillig> Context<'brillig> {
     }
 
     fn get_cached<'a>(
+        &mut self,
         dfg: &DataFlowGraph,
-        instruction_result_cache: &'a mut InstructionResultCache,
         instruction: &Instruction,
         side_effects_enabled_var: ValueId,
-    ) -> Option<&'a Vec<ValueId>> {
-        let results_for_instruction = instruction_result_cache.get(instruction);
-
+        block: BasicBlockId,
+    ) -> Option<CacheResult> {
+        let results_for_instruction = self.cached_instruction_results.get(instruction)?;
         let predicate = self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
         let predicate = predicate.then_some(side_effects_enabled_var);
 
@@ -606,12 +626,30 @@ impl ResultCache {
         if self.result.is_none() {
             self.result = Some((block, results));
         }
-
-        let predicate =
-            instruction.requires_acir_gen_predicate(dfg).then_some(side_effects_enabled_var);
-
-        results_for_instruction.and_then(|map| map.get(&predicate))
     }
+
+    /// Returns a set of [`ValueId`]s produced from a copy of this [`Instruction`] which sits
+    /// within a block which dominates `block`.
+    ///
+    /// We require that the cached instruction's block dominates `block` in order to avoid
+    /// cycles causing issues (e.g. two instructions being replaced with the results of each other
+    /// such that neither instruction exists anymore.)
+    fn get(&self, block: BasicBlockId, dom: &mut DominatorTree) -> Option<CacheResult> {
+        self.result.as_ref().map(|(origin_block, results)| {
+            if dom.dominates(*origin_block, block) {
+                CacheResult::Cached(results)
+            } else {
+                // Insert a copy of this instruction in the common dominator
+                let dominator = dom.common_dominator(*origin_block, block);
+                CacheResult::NeedToHoistToCommonBlock(dominator, results)
+            }
+        })
+    }
+}
+
+enum CacheResult<'a> {
+    Cached(&'a [ValueId]),
+    NeedToHoistToCommonBlock(BasicBlockId, &'a [ValueId]),
 }
 
 /// Result of trying to evaluate an instruction (any instruction) in this pass.
