@@ -1,13 +1,18 @@
 use std::collections::HashMap;
 
+use acvm::acir::circuit::ErrorSelector;
+
 use crate::ssa::{
     function_builder::FunctionBuilder,
-    ir::{basic_block::BasicBlockId, function::FunctionId, value::ValueId},
+    ir::{
+        basic_block::BasicBlockId, function::FunctionId, instruction::ConstrainError,
+        value::ValueId,
+    },
 };
 
 use super::{
-    Identifier, ParsedBlock, ParsedFunction, ParsedInstruction, ParsedSsa, ParsedTerminator,
-    ParsedValue, RuntimeType, Ssa, SsaError,
+    ast::AssertMessage, Identifier, ParsedBlock, ParsedFunction, ParsedInstruction, ParsedSsa,
+    ParsedTerminator, ParsedValue, RuntimeType, Ssa, SsaError,
 };
 
 impl ParsedSsa {
@@ -31,6 +36,8 @@ struct Translator {
     /// passes already which replaced some of the original IDs. The translator
     /// will recreate the SSA step by step, which can result in a new ID layout.
     variables: HashMap<FunctionId, HashMap<String, ValueId>>,
+
+    error_selector_counter: u64,
 }
 
 impl Translator {
@@ -64,8 +71,13 @@ impl Translator {
             functions.insert(function.internal_name.clone(), function_id);
         }
 
-        let mut translator =
-            Self { builder, functions, variables: HashMap::new(), blocks: HashMap::new() };
+        let mut translator = Self {
+            builder,
+            functions,
+            variables: HashMap::new(),
+            blocks: HashMap::new(),
+            error_selector_counter: 0,
+        };
         translator.translate_function_body(main_function)?;
 
         Ok(translator)
@@ -198,10 +210,25 @@ impl Translator {
                 let value_id = self.builder.insert_cast(lhs, typ);
                 self.define_variable(target, value_id)?;
             }
-            ParsedInstruction::Constrain { lhs, rhs } => {
+            ParsedInstruction::Constrain { lhs, rhs, assert_message } => {
                 let lhs = self.translate_value(lhs)?;
                 let rhs = self.translate_value(rhs)?;
-                self.builder.insert_constrain(lhs, rhs, None);
+                let assert_message = match assert_message {
+                    Some(AssertMessage::Static(string)) => {
+                        Some(ConstrainError::StaticString(string))
+                    }
+                    Some(AssertMessage::Dynamic(values)) => {
+                        let error_selector = ErrorSelector::new(self.error_selector_counter);
+                        self.error_selector_counter += 1;
+
+                        let is_string_type = false;
+                        let values = self.translate_values(values)?;
+
+                        Some(ConstrainError::Dynamic(error_selector, is_string_type, values))
+                    }
+                    None => None,
+                };
+                self.builder.insert_constrain(lhs, rhs, assert_message);
             }
             ParsedInstruction::DecrementRc { value } => {
                 let value = self.translate_value(value)?;

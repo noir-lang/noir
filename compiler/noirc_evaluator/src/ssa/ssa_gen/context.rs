@@ -736,7 +736,6 @@ impl<'a> FunctionContext<'a> {
             // Reference counting in brillig relies on us incrementing reference
             // counts when arrays/slices are constructed or indexed.
             // Thus, if we dereference an lvalue which happens to be array/slice we should increment its reference counter.
-            // self.builder.increment_array_reference_count(reference);
             self.builder.insert_load(reference, element_type).into()
         })
     }
@@ -917,9 +916,10 @@ impl<'a> FunctionContext<'a> {
         let parameters = self.builder.current_function.dfg.block_parameters(entry).to_vec();
 
         for parameter in parameters {
-            // Use `update_array_reference_count` here to avoid reference counts for
-            // immutable arrays that aren't behind references.
-            self.builder.update_array_reference_count(parameter, true, false);
+            // Avoid reference counts for immutable arrays that aren't behind references.
+            if self.builder.current_function.dfg.value_is_reference(parameter) {
+                self.builder.increment_array_reference_count(parameter);
+            }
         }
 
         entry
@@ -936,7 +936,9 @@ impl<'a> FunctionContext<'a> {
         dropped_parameters.retain(|parameter| !terminator_args.contains(parameter));
 
         for parameter in dropped_parameters {
-            self.builder.update_array_reference_count(parameter, false, false);
+            if self.builder.current_function.dfg.value_is_reference(parameter) {
+                self.builder.decrement_array_reference_count(parameter);
+            }
         }
     }
 

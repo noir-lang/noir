@@ -11,15 +11,15 @@ struct Entry {
     value: Field,
 }
 
-global HASHMAP_LEN = 6;
+global HASHMAP_LEN: u32 = 6;
 
-global FIELD_CMP = |a: Field, b: Field| a.lt(b);
+global FIELD_CMP: fn(Field, Field) -> bool = |a: Field, b: Field| a.lt(b);
 
-global K_CMP = FIELD_CMP;
-global V_CMP = FIELD_CMP;
-global KV_CMP = |a: (K, V), b: (K, V)| a.0.lt(b.0);
+global K_CMP: fn(Field, Field) -> bool = FIELD_CMP;
+global V_CMP: fn(Field, Field) -> bool = FIELD_CMP;
+global KV_CMP: fn((K, V), (K, V)) -> bool = |a: (K, V), b: (K, V)| a.0.lt(b.0);
 
-global ALLOCATE_HASHMAP =
+global ALLOCATE_HASHMAP: fn() -> UHashMap<K, V, BuildHasherDefault<Poseidon2Hasher>> =
     || -> UHashMap<K, V, BuildHasherDefault<Poseidon2Hasher>> UHashMap::default();
 
 unconstrained fn main(input: [Entry; HASHMAP_LEN]) {

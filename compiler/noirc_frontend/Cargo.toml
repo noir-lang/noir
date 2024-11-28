@@ -30,8 +30,8 @@ cfg-if.workspace = true
 tracing.workspace = true
 petgraph = "0.6"
 rangemap = "1.4.0"
-strum = "0.24"
-strum_macros = "0.24"
+strum.workspace = true
+strum_macros.workspace = true
 
 
 [dev-dependencies]

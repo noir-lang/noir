@@ -1165,7 +1165,7 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
 
         // Finally format the comment, if any
         group.text(self.chunk(|formatter| {
-            formatter.skip_comments_and_whitespace();
+            formatter.skip_comments_and_whitespace_writing_multiple_lines_if_found();
         }));
 
         group.decrease_indentation();

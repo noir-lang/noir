@@ -368,6 +368,8 @@ pub(super) fn simplify_call(
                 SimplifyResult::None
             }
         }
+        Intrinsic::ArrayRefCount => SimplifyResult::None,
+        Intrinsic::SliceRefCount => SimplifyResult::None,
     }
 }
 
@@ -806,7 +808,8 @@ fn simplify_derive_generators(
                 results.push(is_infinite);
             }
             let len = results.len();
-            let typ = Type::Array(vec![Type::field()].into(), len);
+            let typ =
+                Type::Array(vec![Type::field(), Type::field(), Type::unsigned(1)].into(), len / 3);
             let result = make_array(dfg, results.into(), typ, block, call_stack);
             SimplifyResult::SimplifiedTo(result)
         } else {
@@ -814,5 +817,36 @@ fn simplify_derive_generators(
         }
     } else {
         unreachable!("Unexpected number of arguments to derive_generators");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::ssa::{opt::assert_normalized_ssa_equals, Ssa};
+
+    #[test]
+    fn simplify_derive_generators_has_correct_type() {
+        let src = "
+            brillig(inline) fn main f0 {
+              b0():
+                v0 = make_array [u8 68, u8 69, u8 70, u8 65, u8 85, u8 76, u8 84, u8 95, u8 68, u8 79, u8 77, u8 65, u8 73, u8 78, u8 95, u8 83, u8 69, u8 80, u8 65, u8 82, u8 65, u8 84, u8 79, u8 82] : [u8; 24]
+
+                // This call was previously incorrectly simplified to something that returned `[Field; 3]`
+                v2 = call derive_pedersen_generators(v0, u32 0) -> [(Field, Field, u1); 1]
+
+                return v2
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let expected = "
+            brillig(inline) fn main f0 {
+              b0():
+                v15 = make_array [u8 68, u8 69, u8 70, u8 65, u8 85, u8 76, u8 84, u8 95, u8 68, u8 79, u8 77, u8 65, u8 73, u8 78, u8 95, u8 83, u8 69, u8 80, u8 65, u8 82, u8 65, u8 84, u8 79, u8 82] : [u8; 24]
+                v19 = make_array [Field 3728882899078719075161482178784387565366481897740339799480980287259621149274, Field -9903063709032878667290627648209915537972247634463802596148419711785767431332, u1 0] : [(Field, Field, u1); 1]
+                return v19
+            }
+            ";
+        assert_normalized_ssa_equals(ssa, expected);
     }
 }

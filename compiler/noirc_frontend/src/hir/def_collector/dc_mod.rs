@@ -216,6 +216,13 @@ impl<'a> ModCollector<'a> {
                     errors.push((error.into(), self.file_id));
                 }
 
+                if noir_function.def.attributes.has_export() {
+                    let error = DefCollectorErrorKind::ExportOnAssociatedFunction {
+                        span: noir_function.name_ident().span(),
+                    };
+                    errors.push((error.into(), self.file_id));
+                }
+
                 let location = Location::new(noir_function.def.span, self.file_id);
                 context.def_interner.push_function(*func_id, &noir_function.def, module, location);
             }
@@ -944,6 +951,7 @@ pub fn collect_function(
     } else {
         function.name() == MAIN_FUNCTION
     };
+    let has_export = function.def.attributes.has_export();
 
     let name = function.name_ident().clone();
     let func_id = interner.push_empty_fn();
@@ -954,7 +962,7 @@ pub fn collect_function(
         interner.register_function(func_id, &function.def);
     }
 
-    if !is_test && !is_entry_point_function {
+    if !is_test && !is_entry_point_function && !has_export {
         let item = UnusedItem::Function(func_id);
         usage_tracker.add_unused_item(module, name.clone(), item, visibility);
     }
@@ -1086,6 +1094,12 @@ pub fn collect_impl(
             };
             errors.push((error.into(), file_id));
             continue;
+        }
+        if method.def.attributes.has_export() {
+            let error = DefCollectorErrorKind::ExportOnAssociatedFunction {
+                span: method.name_ident().span(),
+            };
+            errors.push((error.into(), file_id));
         }
 
         let func_id = interner.push_empty_fn();
@@ -1257,6 +1271,7 @@ pub(crate) fn collect_global(
     // Add the statement to the scope so its path can be looked up later
     let result = def_map.modules[module_id.0].declare_global(name.clone(), visibility, global_id);
 
+    // Globals marked as ABI don't have to be used.
     if !is_abi {
         let parent_module_id = ModuleId { krate: crate_id, local_id: module_id };
         usage_tracker.add_unused_item(
