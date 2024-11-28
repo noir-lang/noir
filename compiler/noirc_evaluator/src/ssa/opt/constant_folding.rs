@@ -445,7 +445,7 @@ impl<'brillig> Context<'brillig> {
         }
     }
 
-    fn get_cached<'a>(
+    fn get_cached(
         &mut self,
         dfg: &DataFlowGraph,
         instruction: &Instruction,

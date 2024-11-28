@@ -11,14 +11,10 @@ use fxhash::FxHasher64;
 use iter_extended::vecmap;
 use noirc_frontend::hir_def::types::Type as HirType;
 
-use crate::ssa::opt::flatten_cfg::value_merger::ValueMerger;
+use crate::ssa::{ir::function::RuntimeType, opt::flatten_cfg::value_merger::ValueMerger};
 
 use super::{
-    basic_block::BasicBlockId,
-    dfg::{CallStack, DataFlowGraph},
-    map::Id,
-    types::{NumericType, Type},
-    value::{Value, ValueId},
+    basic_block::BasicBlockId, dfg::{CallStack, DataFlowGraph}, function::Function, map::Id, types::{NumericType, Type}, value::{Value, ValueId}
 };
 
 mod binary;
@@ -414,12 +410,12 @@ impl Instruction {
         }
     }
 
-    pub(crate) fn can_eliminate_if_unused(&self, dfg: &DataFlowGraph) -> bool {
+    pub(crate) fn can_eliminate_if_unused(&self, function: &Function) -> bool {
         use Instruction::*;
         match self {
             Binary(binary) => {
                 if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) {
-                    if let Some(rhs) = dfg.get_numeric_constant(binary.rhs) {
+                    if let Some(rhs) = function.dfg.get_numeric_constant(binary.rhs) {
                         rhs != FieldElement::zero()
                     } else {
                         false
@@ -438,15 +434,26 @@ impl Instruction {
             | ArraySet { .. }
             | MakeArray { .. } => true,
 
+            // Store instructions must be removed by DIE in acir code, any load
+            // instructions should already be unused by that point.
+            //
+            // Note that this check assumes that it is being performed after the flattening
+            // pass and after the last mem2reg pass. This is currently the case for the DIE
+            // pass where this check is done, but does mean that we cannot perform mem2reg
+            // after the DIE pass.
+            Store { .. } => {
+                matches!(function.runtime(), RuntimeType::Acir(_))
+                    && function.reachable_blocks().len() == 1
+            }
+
             Constrain(..)
-            | Store { .. }
             | EnableSideEffectsIf { .. }
             | IncrementRc { .. }
             | DecrementRc { .. }
             | RangeCheck { .. } => false,
 
             // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
-            Call { func, .. } => match dfg[*func] {
+            Call { func, .. } => match function.dfg[*func] {
                 // Explicitly allows removal of unused ec operations, even if they can fail
                 Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul))
                 | Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::EmbeddedCurveAdd)) => true,
