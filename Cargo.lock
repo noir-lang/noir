@@ -2948,6 +2948,7 @@ dependencies = [
  "noir_fuzzer",
  "noirc_abi",
  "noirc_artifacts",
+ "num-traits",
  "proptest",
  "rand 0.8.5",
  "rand_xorshift",

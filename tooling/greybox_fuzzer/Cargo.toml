@@ -19,5 +19,6 @@ noirc_abi.workspace = true
 proptest.workspace = true
 rand.workspace = true
 noir_fuzzer.workspace = true
+num-traits.workspace = true
 
 rand_xorshift="0.3.0"

@@ -11,6 +11,9 @@
 //! [acir]: https://crates.io/crates/acir
 //! [acvm]: https://crates.io/crates/acvm
 
+use std::collections::HashMap;
+use std::hash::Hash;
+
 use acir::brillig::{
     BinaryFieldOp, BinaryIntOp, BitSize, ForeignCallParam, ForeignCallResult, HeapArray,
     HeapValueType, HeapVector, IntegerBitSize, MemoryAddress, Opcode, ValueOrArray,
@@ -67,6 +70,10 @@ pub enum VMStatus<F> {
 // A sample for each opcode that was executed.
 pub type BrilligProfilingSamples = Vec<BrilligProfilingSample>;
 
+pub type Branch = (usize, usize);
+// A map for translating encountered branching logic to features for fuzzing
+pub type BranchToFeatureMap = HashMap<Branch, usize>;
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct BrilligProfilingSample {
     // The call stack when processing a given opcode.
@@ -102,10 +109,14 @@ pub struct VM<'a, F, B: BlackBoxFunctionSolver<F>> {
     profiling_active: bool,
     // Samples for profiling the VM execution.
     profiling_samples: BrilligProfilingSamples,
-    // Fuzzer tracing memory
-    fuzzer_trace: Vec<u32>,
+
     // The vm should trace fuzzing
     fuzzing_active: bool,
+    // Fuzzer tracing memory
+    fuzzer_trace: Vec<u32>,
+
+    // Branch to feature map for fuzzing
+    branch_to_feature_map: BranchToFeatureMap,
 }
 
 impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
@@ -116,8 +127,15 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         foreign_call_results: Vec<ForeignCallResult<F>>,
         black_box_solver: &'a B,
         profiling_active: bool,
-        fuzzing_active: bool,
+        with_branch_to_feature_map: Option<&BranchToFeatureMap>,
     ) -> Self {
+        let (fuzzing_active, fuzzer_trace, branch_to_feature_map) = match with_branch_to_feature_map
+        {
+            Some(branch_to_feature_map) => {
+                (true, vec![0u32; branch_to_feature_map.len()], branch_to_feature_map.clone())
+            }
+            None => (false, Vec::new(), HashMap::new()),
+        };
         Self {
             calldata,
             program_counter: 0,
@@ -131,8 +149,9 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
             bigint_solver: Default::default(),
             profiling_active,
             profiling_samples: Vec::with_capacity(bytecode.len()),
-            fuzzer_trace: if fuzzing_active { vec![0; 65536] } else { Vec::new() },
             fuzzing_active,
+            fuzzer_trace,
+            branch_to_feature_map,
         }
     }
 
@@ -239,19 +258,9 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
 
         self.process_opcode_internal()
     }
-    fn trace_fuzzing_jump(&mut self, destination: usize) {
-        const JUMP_PRIME: usize = 997;
-        const MOD_PRIME: usize = 65321;
+    fn trace_branching(&mut self, destination: usize) {
         if self.fuzzing_active {
-            let index = (self.program_counter + (destination * JUMP_PRIME)) % MOD_PRIME;
-            self.fuzzer_trace[index] += 1;
-        }
-    }
-    fn trace_fuzzing_call(&mut self, destination: usize) {
-        const CALL_PRIME: usize = 3001;
-        const MOD_PRIME: usize = 65321;
-        if self.fuzzing_active {
-            let index = (self.program_counter + (destination * CALL_PRIME)) % MOD_PRIME;
+            let index = self.branch_to_feature_map[&(self.program_counter, destination)];
             self.fuzzer_trace[index] += 1;
         }
     }
@@ -303,19 +312,19 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 // We use 0 to mean false and any other value to mean true
                 let condition_value = self.memory.read(*condition);
                 if condition_value.try_into().expect("condition value is not a boolean") {
-                    self.trace_fuzzing_jump(*destination);
+                    self.trace_branching(*destination);
                     return self.set_program_counter(*destination);
                 }
-                self.trace_fuzzing_jump(self.program_counter + 1);
+                self.trace_branching(self.program_counter + 1);
                 self.increment_program_counter()
             }
             Opcode::JumpIfNot { condition, location: destination } => {
                 let condition_value = self.memory.read(*condition);
                 if condition_value.try_into().expect("condition value is not a boolean") {
-                    self.trace_fuzzing_jump(self.program_counter + 1);
+                    self.trace_branching(self.program_counter + 1);
                     return self.increment_program_counter();
                 }
-                self.trace_fuzzing_jump(*destination);
+                self.trace_branching(*destination);
                 self.set_program_counter(*destination)
             }
             Opcode::CalldataCopy { destination_address, size_address, offset_address } => {
@@ -420,7 +429,6 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
             Opcode::Call { location } => {
                 // Push a return location
                 self.call_stack.push(self.program_counter);
-                self.trace_fuzzing_call(*location);
                 self.set_program_counter(*location)
             }
             Opcode::Const { destination, value, bit_size } => {

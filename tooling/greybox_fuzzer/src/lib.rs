@@ -10,20 +10,21 @@ use acvm::{
     },
     FieldElement,
 };
+use coverage::{analyze_brillig_program_before_fuzzing, BranchToFeatureMap};
 use noir_fuzzer::dictionary::build_dictionary_from_program;
 use noirc_abi::InputMap;
 
+mod coverage;
 mod strategies;
 mod types;
 
-use strategies::{generate_default_input_map, mutate_input_map};
+use strategies::InputMutator;
 use types::{CaseOutcome, CounterExampleOutcome, DiscrepancyOutcome, FuzzOutcome, FuzzTestResult};
 
 use noirc_artifacts::program::ProgramArtifact;
 use rand::prelude::*;
 use rand::{Rng, SeedableRng};
 use rand_xorshift::XorShiftRng;
-
 type SingleTestCaseCoverage = Vec<u8>;
 struct AccumulatedFuzzerCoverage {
     buffer: Vec<u32>,
@@ -65,6 +66,12 @@ pub struct FuzzedExecutor<E, F> {
 
     /// A function which executes the programs with a given set of inputs
     brillig_executor: F,
+
+    /// Location to feature map
+    location_to_feature_map: BranchToFeatureMap,
+
+    /// Mutator
+    mutator: InputMutator,
 }
 
 impl<
@@ -75,6 +82,7 @@ impl<
         F: Fn(
             &Program<FieldElement>,
             WitnessMap<FieldElement>,
+            &BranchToFeatureMap,
         ) -> Result<(WitnessStack<FieldElement>, Option<Vec<u8>>), String>,
     > FuzzedExecutor<E, F>
 {
@@ -85,7 +93,16 @@ impl<
         acir_executor: E,
         brillig_executor: F,
     ) -> Self {
-        Self { acir_program, brillig_program, acir_executor, brillig_executor }
+        let location_to_feature_map = analyze_brillig_program_before_fuzzing(&brillig_program);
+        let mutator = InputMutator::new(&acir_program.abi);
+        Self {
+            acir_program,
+            brillig_program,
+            acir_executor,
+            brillig_executor,
+            location_to_feature_map,
+            mutator,
+        }
     }
 
     /// Fuzzes the provided program.
@@ -98,16 +115,16 @@ impl<
         let mut prng = XorShiftRng::seed_from_u64(seed);
         let dictionary = build_dictionary_from_program(&self.acir_program.bytecode);
         let mut corpus = Corpus::new();
-        corpus.push(generate_default_input_map(&self.acir_program.abi));
+        corpus.push(self.mutator.generate_default_input_map());
 
-        let mut accumulated_coverage = AccumulatedFuzzerCoverage::new(65536);
+        let mut accumulated_coverage =
+            AccumulatedFuzzerCoverage::new(self.location_to_feature_map.len());
 
         let (mut fuzz_res, mut coverage) = self.single_fuzz(&corpus[0]).unwrap();
         accumulated_coverage.merge(&(coverage.unwrap()));
         let mut last_i = 0;
         for i in 0..200000 {
-            let input_map = mutate_input_map(
-                &self.acir_program.abi,
+            let input_map = self.mutator.mutate_input_map(
                 corpus.choose(&mut prng).unwrap(),
                 &dictionary,
                 &mut prng,
@@ -120,9 +137,9 @@ impl<
                 }
             }
             if accumulated_coverage.merge(&coverage.unwrap()) {
-                println!("Input: {:?}", input_map);
+                //println!("Input: {:?}", input_map);
                 corpus.push(input_map);
-                println!("Found new feature!");
+                //println!("Found new feature!");
             }
             last_i = i;
         }
@@ -168,8 +185,11 @@ impl<
         let initial_witness = self.acir_program.abi.encode(&input_map, None).unwrap();
         let initial_witness2 = self.acir_program.abi.encode(&input_map, None).unwrap();
         let result_acir = (self.acir_executor)(&self.acir_program.bytecode, initial_witness);
-        let result_brillig =
-            (self.brillig_executor)(&self.brillig_program.bytecode, initial_witness2);
+        let result_brillig = (self.brillig_executor)(
+            &self.brillig_program.bytecode,
+            initial_witness2,
+            &self.location_to_feature_map,
+        );
 
         // TODO: Add handling for `vm.assume` equivalent
 

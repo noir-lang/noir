@@ -2196,15 +2196,8 @@ fn execute_brillig<F: AcirField, B: BlackBoxFunctionSolver<F>>(
 
     // Instantiate a Brillig VM given the solved input registers and memory, along with the Brillig bytecode.
     let profiling_active = false;
-    let brillig_fuzzing_active = false;
-    let mut vm = VM::new(
-        calldata,
-        code,
-        Vec::new(),
-        blackbox_solver,
-        profiling_active,
-        brillig_fuzzing_active,
-    );
+    let _brillig_fuzzing_active = false;
+    let mut vm = VM::new(calldata, code, Vec::new(), blackbox_solver, profiling_active, None);
 
     // Run the Brillig VM on these inputs, bytecode, etc!
     let vm_status = vm.process_opcodes();

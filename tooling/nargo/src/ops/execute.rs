@@ -1,9 +1,13 @@
+use std::collections::HashMap;
+use std::hash::Hash;
+
 use acvm::acir::brillig;
 use acvm::acir::circuit::brillig::BrilligBytecode;
 use acvm::acir::circuit::{
     OpcodeLocation, Program, ResolvedAssertionPayload, ResolvedOpcodeLocation,
 };
 use acvm::acir::native_types::WitnessStack;
+use acvm::brillig_vm::BranchToFeatureMap;
 use acvm::pwg::{
     ACVMStatus, ErrorLocation, OpcodeNotSolvable, OpcodeResolutionError, ProfilingSamples, ACVM,
 };
@@ -42,6 +46,9 @@ struct ProgramExecutor<'a, F, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecut
 
     // Flag that states whether we want to trace brillig VM execution
     brillig_fuzzing_active: bool,
+
+    // Brillig branch to feature map
+    brillig_branch_to_feature_map: Option<&'a BranchToFeatureMap>,
 }
 
 impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
@@ -53,7 +60,6 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
         blackbox_solver: &'a B,
         foreign_call_executor: &'a mut E,
         profiling_active: bool,
-        brillig_fuzzing_active: bool,
     ) -> Self {
         ProgramExecutor {
             functions,
@@ -64,10 +70,23 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
             call_stack: Vec::default(),
             current_function_index: 0,
             profiling_active,
-            brillig_fuzzing_active,
+            brillig_fuzzing_active: false,
+            brillig_branch_to_feature_map: None,
         }
     }
 
+    fn with_brillig_fuzzing(
+        &mut self,
+        brillig_fuzzing_active: bool,
+        brillig_branch_to_feature_map: Option<&'a BranchToFeatureMap>,
+    ) {
+        self.brillig_fuzzing_active = brillig_fuzzing_active;
+        if brillig_fuzzing_active {
+            self.brillig_branch_to_feature_map = brillig_branch_to_feature_map;
+        } else {
+            self.brillig_branch_to_feature_map = None;
+        }
+    }
     fn finalize(self) -> WitnessStack<F> {
         self.witness_stack
     }
@@ -86,7 +105,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
             &circuit.assert_messages,
         );
         acvm.with_profiler(self.profiling_active);
-        acvm.with_brillig_fuzzing(self.brillig_fuzzing_active);
+        acvm.with_brillig_fuzzing(self.brillig_fuzzing_active, self.brillig_branch_to_feature_map);
 
         loop {
             let solver_status = acvm.solve();
@@ -222,6 +241,7 @@ pub fn execute_program<F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCal
         foreign_call_executor,
         profiling_active,
         brillig_fuzzing_active,
+        None,
     )?;
     assert!(profiling_samples.is_empty(), "Expected no profiling samples");
 
@@ -247,6 +267,7 @@ pub fn execute_program_with_profiling<
         foreign_call_executor,
         profiling_active,
         brillig_fuzzing_active,
+        None,
     ) {
         Ok((witness_stack, profiling_samples, ..)) => Ok((witness_stack, profiling_samples)),
         Err(err) => Err(err),
@@ -261,6 +282,7 @@ pub fn execute_program_with_brillig_fuzzing<
     initial_witness: WitnessMap<F>,
     blackbox_solver: &B,
     foreign_call_executor: &mut E,
+    brillig_branch_to_feature_map: Option<&BranchToFeatureMap>,
 ) -> Result<(WitnessStack<F>, Option<Vec<u8>>), NargoError<F>> {
     let profiling_active = false;
     let brillig_fuzzing_active = true;
@@ -271,6 +293,7 @@ pub fn execute_program_with_brillig_fuzzing<
         foreign_call_executor,
         profiling_active,
         brillig_fuzzing_active,
+        brillig_branch_to_feature_map,
     ) {
         Ok((witness_stack, _profiling_samples, brillig_fuzzing_trace)) => {
             Ok((witness_stack, brillig_fuzzing_trace))
@@ -286,6 +309,7 @@ fn execute_program_inner<F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignC
     foreign_call_executor: &mut E,
     profiling_active: bool,
     brillig_fuzzing_active: bool,
+    brillig_branch_to_feature_map: Option<&BranchToFeatureMap>,
 ) -> Result<(WitnessStack<F>, ProfilingSamples, Option<Vec<u8>>), NargoError<F>> {
     let mut executor = ProgramExecutor::new(
         &program.functions,
@@ -293,8 +317,10 @@ fn execute_program_inner<F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignC
         blackbox_solver,
         foreign_call_executor,
         profiling_active,
-        brillig_fuzzing_active,
     );
+    if (brillig_fuzzing_active) {
+        executor.with_brillig_fuzzing(brillig_fuzzing_active, brillig_branch_to_feature_map);
+    }
     let (main_witness, profiling_samples, brillig_fuzzing_trace) =
         executor.execute_circuit(initial_witness)?;
     executor.witness_stack.push(0, main_witness);

@@ -5,6 +5,7 @@ use acvm::{
         brillig,
         native_types::{WitnessMap, WitnessStack},
     },
+    brillig_vm::BranchToFeatureMap,
     BlackBoxFunctionSolver, FieldElement,
 };
 use noirc_abi::InputMap;
@@ -99,7 +100,8 @@ pub fn run_fuzzing_harness<B: BlackBoxFunctionSolver<FieldElement>>(
                 };
 
                 let brillig_executor = |program: &Program<FieldElement>,
-                                        initial_witness: WitnessMap<FieldElement>|
+                                        initial_witness: WitnessMap<FieldElement>,
+                                        location_to_feature_map: &BranchToFeatureMap|
                  -> Result<
                     (WitnessStack<FieldElement>, Option<Vec<u8>>),
                     String,
@@ -114,6 +116,7 @@ pub fn run_fuzzing_harness<B: BlackBoxFunctionSolver<FieldElement>>(
                             root_path.clone(),
                             package_name.clone(),
                         ),
+                        Some(location_to_feature_map),
                     )
                     .map_err(|err| err.to_string())
                 };

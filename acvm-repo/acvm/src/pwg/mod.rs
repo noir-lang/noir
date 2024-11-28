@@ -16,6 +16,7 @@ use acir::{
     AcirField, BlackBoxFunc,
 };
 use acvm_blackbox_solver::BlackBoxResolutionError;
+use brillig_vm::BranchToFeatureMap;
 
 use self::{
     arithmetic::ExpressionSolver, blackbox::bigint::AcvmBigIntSolver, directives::solve_directives,
@@ -214,6 +215,9 @@ pub struct ACVM<'a, F, B: BlackBoxFunctionSolver<F>> {
     // Whether we need to trace brillig execution for fuzzing
     brillig_fuzzing_active: bool,
 
+    // Brillig branch to feature map
+    brillig_branch_to_feature_map: Option<&'a BranchToFeatureMap>,
+
     brillig_fuzzing_trace: Option<Vec<u8>>,
 }
 
@@ -242,6 +246,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             profiling_active: false,
             profiling_samples: Vec::new(),
             brillig_fuzzing_active: false,
+            brillig_branch_to_feature_map: None,
             brillig_fuzzing_trace: None,
         }
     }
@@ -252,8 +257,17 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
     }
 
     // Enable brillig fuzzing
-    pub fn with_brillig_fuzzing(&mut self, brillig_fuzzing_active: bool) {
+    pub fn with_brillig_fuzzing(
+        &mut self,
+        brillig_fuzzing_active: bool,
+        brillig_branch_to_feature_map: Option<&'a BranchToFeatureMap>,
+    ) {
         self.brillig_fuzzing_active = brillig_fuzzing_active;
+        if brillig_fuzzing_active {
+            self.brillig_branch_to_feature_map = brillig_branch_to_feature_map;
+        } else {
+            self.brillig_branch_to_feature_map = None;
+        }
     }
 
     pub fn get_brillig_fuzzing_trace(&self) -> Option<Vec<u8>> {
@@ -543,7 +557,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
                 self.instruction_pointer,
                 *id,
                 self.profiling_active,
-                self.brillig_fuzzing_active,
+                self.brillig_branch_to_feature_map,
             )?,
         };
 
@@ -641,7 +655,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             self.instruction_pointer,
             *id,
             self.profiling_active,
-            self.brillig_fuzzing_active,
+            self.brillig_branch_to_feature_map,
         );
         match solver {
             Ok(solver) => StepResult::IntoBrillig(solver),
