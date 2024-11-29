@@ -36,8 +36,8 @@ impl Ssa {
             .collect()
     }
 
-    /// Detect brillig calls left unconstrained with later manual asserts
-    /// and return a vector of bug reports if some are found
+    /// Detect brillig calls left unconstrained with manual asserts
+    /// and return a vector of bug reports if any have been found
     pub(crate) fn check_for_missing_brillig_constrains(&mut self) -> Vec<SsaReport> {
         let functions_id = self.functions.values().map(|f| f.id().to_usize()).collect::<Vec<_>>();
         functions_id
@@ -99,6 +99,8 @@ struct DependencyContext {
     tainted: HashMap<InstructionId, BrilligTaintedIds>,
 }
 
+/// Structure keeping track of value ids descending from brilling calls'
+/// arguments and results
 #[derive(Clone, Debug)]
 struct BrilligTaintedIds {
     arguments: HashSet<ValueId>,
@@ -108,8 +110,8 @@ struct BrilligTaintedIds {
 impl BrilligTaintedIds {
     /// Add children of a given parent to the tainted value set
     /// (for arguments one set is enough, for results we keep them
-    /// separate as all the results should be covered along
-    /// with a single argument in the forthcoming check)
+    /// separate as the forthcoming check considers the call covered
+    /// if all the results and one of the arguments were covered
     fn update_children(&mut self, parent: &ValueId, children: &[ValueId]) {
         if self.arguments.contains(parent) {
             self.arguments.extend(children);
@@ -151,6 +153,8 @@ impl DependencyContext {
         }
     }
 
+    /// Go over the given block tracking brillig calls and checking them against
+    /// following constraints
     fn process_instructions(
         &mut self,
         block: BasicBlockId,
@@ -317,7 +321,7 @@ impl DependencyContext {
         warnings
     }
 
-    /// Update sets of value ids that can be traced back to recorded brillig calls
+    /// Update sets of value ids that can be traced back to the brillig calls being tracked
     fn update_children(&mut self, parents: &[ValueId], children: &[ValueId]) {
         for (_, tainted_ids) in self.tainted.iter_mut() {
             for parent in parents {
@@ -326,8 +330,8 @@ impl DependencyContext {
         }
     }
 
-    /// Check if any of the recorded brillig calls has been properly constrained
-    /// by given values, if so stop following it
+    /// Check if any of the recorded brillig calls have been properly constrained
+    /// by given values, if so stop tracking them
     fn clear_constrained(&mut self, constrained_values: &[ValueId]) {
         trace!("attempting to clear brillig calls constrained by values: {:?}", constrained_values);
         let constrained_values: HashSet<_> = HashSet::from_iter(constrained_values.iter().copied());
@@ -717,7 +721,7 @@ mod test {
     #[test]
     #[traced_test]
     /// Test where a call to a brillig function is left unchecked with a later assert,
-    /// by example of the program illustrating issue #5425 (simplified).
+    /// by example of the program illustrating issue #5425 (simplified variant).
     fn test_underconstrained_value_detector_5425() {
         /*
         unconstrained fn maximum_price(options: [u32; 2]) -> u32 {
