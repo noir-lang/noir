@@ -524,12 +524,12 @@ jobs:
         - { repo: noir-lang/mimc, path: ./  }
         - { repo: noir-lang/noir_sort, path: ./  }
         - { repo: noir-lang/noir-edwards, path: ./  }
-        - { repo: noir-lang/noir_bignum, path: ./  }
+        - { repo: noir-lang/noir-bignum, path: ./  }
         - { repo: noir-lang/noir_bigcurve, path: ./  }
         - { repo: noir-lang/noir_base64, path: ./  }
         - { repo: noir-lang/noir_string_search, path: ./  }
         - { repo: noir-lang/sparse_array, path: ./  }
-        - { repo: noir-lang/noir_rsa, path: ./  }
+        - { repo: noir-lang/noir_rsa, path: ./lib  }
         - { repo: AztecProtocol/aztec-nr, path: ./ }
         - { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-contracts }
         # Disabled as aztec-packages requires a setup-step in order to generate a `Nargo.toml`
