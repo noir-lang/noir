@@ -519,12 +519,23 @@ jobs:
       fail-fast: false
       matrix:
         project:
-        # Disabled as these are currently failing with many visibility errors
+        - { repo: noir-lang/ec, path: ./  }
+        - { repo: noir-lang/eddsa, path: ./  }
+        - { repo: noir-lang/mimc, path: ./  }
+        - { repo: noir-lang/noir_sort, path: ./  }
+        - { repo: noir-lang/noir-edwards, path: ./  }
+        - { repo: noir-lang/noir_bignum, path: ./  }
+        - { repo: noir-lang/noir_bigcurve, path: ./  }
+        - { repo: noir-lang/noir_base64, path: ./  }
+        - { repo: noir-lang/noir_string_search, path: ./  }
+        - { repo: noir-lang/sparse_array, path: ./  }
+        - { repo: noir-lang/noir_rsa, path: ./  }
         - { repo: AztecProtocol/aztec-nr, path: ./ }
         - { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-contracts }
         # Disabled as aztec-packages requires a setup-step in order to generate a `Nargo.toml`
         #- { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits }
-        - { repo: noir-lang/noir-edwards, path: ./  }
+       
+
     name: Check external repo - ${{ matrix.project.repo }}
     steps:
       - name: Checkout
