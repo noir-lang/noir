@@ -3,10 +3,9 @@ use acvm::{
     pwg::ForeignCallWaitInfo,
     AcirField,
 };
-use noirc_printable_type::{decode_string_value, ForeignCallError};
 use serde::{Deserialize, Serialize};
 
-use super::{ForeignCall, ForeignCallExecutor};
+use super::{ForeignCall, ForeignCallExecutor, ForeignCallError};
 
 /// This struct represents an oracle mock. It can be used for testing programs that use oracles.
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -74,7 +73,7 @@ impl<F: AcirField> MockForeignCallExecutor<F> {
 
     fn parse_string(param: &ForeignCallParam<F>) -> String {
         let fields: Vec<_> = param.fields().to_vec();
-        decode_string_value(&fields)
+        noirc_abi::decode_string_value(&fields)
     }
 }
 

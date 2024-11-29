@@ -2763,6 +2763,7 @@ dependencies = [
  "rand 0.8.5",
  "rayon",
  "serde",
+ "serde_json",
  "thiserror",
  "tracing",
  "walkdir",
@@ -3192,12 +3193,8 @@ name = "noirc_printable_type"
 version = "1.0.0-beta.0"
 dependencies = [
  "acvm",
- "iter-extended",
- "jsonrpc",
  "regex",
  "serde",
- "serde_json",
- "thiserror",
 ]
 
 [[package]]
