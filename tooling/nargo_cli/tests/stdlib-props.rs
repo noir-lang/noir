@@ -3,7 +3,8 @@ use std::{cell::RefCell, collections::BTreeMap, path::Path};
 use acvm::{acir::native_types::WitnessStack, AcirField, FieldElement};
 use iter_extended::vecmap;
 use nargo::{
-    ops::{execute_program, DefaultForeignCallExecutor},
+    ops::execute_program,
+    foreign_calls::DefaultForeignCallExecutor,
     parse_all,
 };
 use noirc_abi::input_parser::InputValue;
