@@ -318,7 +318,7 @@ fn execute_program_inner<F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignC
         foreign_call_executor,
         profiling_active,
     );
-    if (brillig_fuzzing_active) {
+    if brillig_fuzzing_active {
         executor.with_brillig_fuzzing(brillig_fuzzing_active, brillig_branch_to_feature_map);
     }
     let (main_witness, profiling_samples, brillig_fuzzing_trace) =

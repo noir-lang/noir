@@ -12,7 +12,6 @@
 //! [acvm]: https://crates.io/crates/acvm
 
 use std::collections::HashMap;
-use std::hash::Hash;
 
 use acir::brillig::{
     BinaryFieldOp, BinaryIntOp, BitSize, ForeignCallParam, ForeignCallResult, HeapArray,

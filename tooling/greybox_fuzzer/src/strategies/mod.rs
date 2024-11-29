@@ -1,7 +1,8 @@
 use acvm::FieldElement;
 
 use field::mutate_field_input_value;
-use noirc_abi::{input_parser::InputValue, Abi, AbiType, InputMap, Sign};
+use int::{mutate_int_input_value, IntDictionary};
+use noirc_abi::{input_parser::InputValue, Abi, AbiType, InputMap};
 use rand::Rng;
 use rand_xorshift::XorShiftRng;
 use std::{
@@ -15,8 +16,20 @@ mod uint;
 pub struct InputMutator {
     abi: Abi,
     weight_tree: NodeWeight,
+    full_dictionary: FullDictionary,
+}
+pub struct FullDictionary {
+    original_dictionary: Vec<FieldElement>,
+    int_dictionary: IntDictionary,
 }
 
+impl FullDictionary {
+    pub fn new(original_dictionary: &HashSet<FieldElement>) -> Self {
+        let dictionary_vector: Vec<_> = original_dictionary.iter().copied().collect();
+        let int_dict = IntDictionary::new(&dictionary_vector);
+        Self { original_dictionary: dictionary_vector, int_dictionary: int_dict }
+    }
+}
 #[derive(Clone, Debug)]
 pub struct NodeWeight {
     start: u32,
@@ -43,12 +56,14 @@ impl NodeWeight {
     }
 }
 impl InputMutator {
-    pub fn new(abi: &Abi) -> Self {
+    pub fn new(abi: &Abi, original_dictionary: &HashSet<FieldElement>) -> Self {
         let mut weight_tree = Self::count_all_input_weights(abi);
-        println!("Original: {:?}", weight_tree);
         weight_tree.calculate_offsets(0);
-        println!("With offsets: {:?}", weight_tree);
-        Self { abi: abi.clone(), weight_tree }
+        Self {
+            abi: abi.clone(),
+            weight_tree,
+            full_dictionary: FullDictionary::new(original_dictionary),
+        }
     }
 
     /// Count weights of each element recursively (complex structures return a vector of weights of their most basic elements)
@@ -117,7 +132,6 @@ impl InputMutator {
         &self,
         abi_type: &AbiType,
         previous_input: &InputValue,
-        dictionary: &Vec<FieldElement>,
         prng: &mut XorShiftRng,
         weight_tree_node: &NodeWeight,
         mutation_weight: u32,
@@ -126,12 +140,19 @@ impl InputMutator {
             // Boolean only has 2 values, there is no point in performing complex logic
             AbiType::Boolean => InputValue::Field(FieldElement::from(prng.gen_range(0u32..=1u32))),
             // Mutate fields in a smart way
-            AbiType::Field => mutate_field_input_value(previous_input, dictionary, prng),
+            AbiType::Field => mutate_field_input_value(
+                previous_input,
+                &self.full_dictionary.original_dictionary,
+                prng,
+            ),
             // TODO: IMPLEMENT THESE
-            AbiType::Integer { sign, .. } if sign == &Sign::Unsigned => {
-                InputValue::Field(4i128.into())
-            }
-            AbiType::Integer { .. } => InputValue::Field((2i128 - 4).into()),
+            AbiType::Integer { sign, width } => mutate_int_input_value(
+                previous_input,
+                sign,
+                *width,
+                &self.full_dictionary.int_dictionary,
+                prng,
+            ),
             AbiType::String { length } => {
                 InputValue::String(String::from_utf8(vec![0x41u8; *length as usize]).unwrap())
             }
@@ -151,7 +172,6 @@ impl InputMutator {
                                 self.mutate_input_value(
                                     typ,
                                     &input_vector[idx],
-                                    dictionary,
                                     prng,
                                     weight_node,
                                     mutation_weight,
@@ -181,7 +201,6 @@ impl InputMutator {
                                 self.mutate_input_value(
                                     typ,
                                     &input_struct[name],
-                                    dictionary,
                                     prng,
                                     weight_node,
                                     mutation_weight,
@@ -210,7 +229,6 @@ impl InputMutator {
                             self.mutate_input_value(
                                 typ,
                                 previous_tuple_input,
-                                dictionary,
                                 prng,
                                 weight_node,
                                 mutation_weight,
@@ -228,11 +246,8 @@ impl InputMutator {
     pub fn mutate_input_map(
         &self,
         previous_input_map: &InputMap,
-        dictionary: &HashSet<FieldElement>,
         prng: &mut XorShiftRng,
     ) -> InputMap {
-        let vec_dictionary: Vec<FieldElement> = dictionary.iter().map(|x| *x).collect();
-        let total_params = self.abi.parameters.len();
         let chosen_weight = prng.gen_range(0..self.weight_tree.get_weight());
         let current_level_weight_tree = self.weight_tree.subnodes.as_ref().unwrap();
         self.abi
@@ -248,7 +263,6 @@ impl InputMutator {
                         self.mutate_input_value(
                             &param.typ,
                             &previous_input_map[&param.name],
-                            &vec_dictionary,
                             prng,
                             &current_level_weight_tree[idx],
                             chosen_weight,

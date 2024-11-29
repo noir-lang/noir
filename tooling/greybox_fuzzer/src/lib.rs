@@ -3,6 +3,8 @@
 //!
 //! Code is used under the MIT license.
 
+use std::collections::HashSet;
+
 use acvm::{
     acir::{
         circuit::Program,
@@ -11,7 +13,7 @@ use acvm::{
     FieldElement,
 };
 use coverage::{analyze_brillig_program_before_fuzzing, BranchToFeatureMap};
-use noir_fuzzer::dictionary::build_dictionary_from_program;
+use noir_fuzzer::dictionary::{self, build_dictionary_from_program};
 use noirc_abi::InputMap;
 
 mod coverage;
@@ -94,7 +96,8 @@ impl<
         brillig_executor: F,
     ) -> Self {
         let location_to_feature_map = analyze_brillig_program_before_fuzzing(&brillig_program);
-        let mutator = InputMutator::new(&acir_program.abi);
+        let dictionary = build_dictionary_from_program(&acir_program.bytecode);
+        let mutator = InputMutator::new(&acir_program.abi, &dictionary);
         Self {
             acir_program,
             brillig_program,
@@ -113,7 +116,6 @@ impl<
         println!("Fuzzing seed for this campaign: {}", seed);
 
         let mut prng = XorShiftRng::seed_from_u64(seed);
-        let dictionary = build_dictionary_from_program(&self.acir_program.bytecode);
         let mut corpus = Corpus::new();
         corpus.push(self.mutator.generate_default_input_map());
 
@@ -124,11 +126,8 @@ impl<
         accumulated_coverage.merge(&(coverage.unwrap()));
         let mut last_i = 0;
         for i in 0..200000 {
-            let input_map = self.mutator.mutate_input_map(
-                corpus.choose(&mut prng).unwrap(),
-                &dictionary,
-                &mut prng,
-            );
+            let input_map =
+                self.mutator.mutate_input_map(corpus.choose(&mut prng).unwrap(), &mut prng);
             (fuzz_res, coverage) = self.single_fuzz(&input_map).unwrap();
             match fuzz_res {
                 FuzzOutcome::Case(_) => (),

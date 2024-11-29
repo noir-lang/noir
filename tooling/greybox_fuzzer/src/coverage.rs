@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::hash::Hash;
 
 use acvm::acir::circuit::Opcode;
 use acvm::brillig_vm::brillig::Opcode as BrilligOpcode;
