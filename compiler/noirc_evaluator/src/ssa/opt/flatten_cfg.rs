@@ -329,7 +329,6 @@ impl<'f> Context<'f> {
         // If this is not a separate variable, clippy gets confused and says the to_vec is
         // unnecessary, when removing it actually causes an aliasing/mutability error.
         let instructions = self.inserter.function.dfg[block].instructions().to_vec();
-
         for instruction in instructions.iter() {
             if self.is_no_predicate(no_predicates, instruction) {
                 // disable side effect for no_predicate functions
@@ -637,10 +636,6 @@ impl<'f> Context<'f> {
 
     /// If we are currently in a branch, we need to modify constrain instructions
     /// to multiply them by the branch's condition (see optimization #1 in the module comment).
-    ///
-    /// `previous_allocate_result` should only be set to the result of an allocate instruction
-    /// if that instruction was the instruction immediately previous to this one - if there are
-    /// any instructions in between it should be None.
     fn handle_instruction_side_effects(
         &mut self,
         instruction: Instruction,
@@ -1282,6 +1277,7 @@ mod test {
     fn should_not_merge_incorrectly_to_false() {
         // Regression test for #1792
         // Tests that it does not simplify a true constraint an always-false constraint
+
         let src = "
         acir(inline) fn main f0 {
           b0(v0: [u8; 2]):

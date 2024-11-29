@@ -319,7 +319,7 @@ impl<'brillig> Context<'brillig> {
                     block = dominator;
                 }
             }
-        }
+        };
 
         let new_results =
         // First try to inline a call to a brillig function with all constant arguments.
@@ -498,7 +498,6 @@ impl<'brillig> Context<'brillig> {
         block: BasicBlockId,
     ) -> Option<CacheResult> {
         let results_for_instruction = self.cached_instruction_results.get(instruction)?;
-
         let predicate = self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
         let predicate = predicate.then_some(side_effects_enabled_var);
 
@@ -1004,32 +1003,22 @@ mod test {
     // Regression for #4600
     #[test]
     fn array_get_regression() {
-        // fn main f0 {
-        //   b0(v0: u1, v1: u64):
-        //     enable_side_effects_if v0
-        //     v2 = make_array [Field 0, Field 1]
-        //     v3 = array_get v2, index v1
-        //     v4 = not v0
-        //     enable_side_effects_if v4
-        //     v5 = array_get v2, index v1
-        // }
-        //
         // We want to make sure after constant folding both array_gets remain since they are
         // under different enable_side_effects_if contexts and thus one may be disabled while
         // the other is not. If one is removed, it is possible e.g. v4 is replaced with v2 which
         // is disabled (only gets from index 0) and thus returns the wrong result.
         let src = "
-            acir(inline) fn main f0 {
-              b0(v0: u1, v1: u64):
-                enable_side_effects v0
-                v4 = make_array [Field 0, Field 1] : [Field; 2]
-                v5 = array_get v4, index v1 -> Field
-                v6 = not v0
-                enable_side_effects v6
-                v7 = array_get v4, index v1 -> Field
-                return
-            }
-            ";
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u64):
+            enable_side_effects v0
+            v4 = make_array [Field 0, Field 1] : [Field; 2]
+            v5 = array_get v4, index v1 -> Field
+            v6 = not v0
+            enable_side_effects v6
+            v7 = array_get v4, index v1 -> Field
+            return
+        }
+        ";
         let ssa = Ssa::from_str(src).unwrap();
 
         // Expected output is unchanged
@@ -1096,7 +1085,6 @@ mod test {
         //     v5 = call keccakf1600(v1)
         //     v6 = call keccakf1600(v2)
         // }
-        //
         // Here we're checking a situation where two identical arrays are being initialized twice and being assigned separate `ValueId`s.
         // This would result in otherwise identical instructions not being deduplicated.
         let main_id = Id::test_new(0);
