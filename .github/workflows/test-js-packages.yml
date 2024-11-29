@@ -557,7 +557,7 @@ jobs:
       
       - name: Run nargo test
         working-directory: ./test-repo/${{ matrix.project.path }}
-        run: nargo test
+        run: nargo test --silence-warnings
         env:
           NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS: true
 
