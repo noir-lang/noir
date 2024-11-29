@@ -1,4 +1,4 @@
-use acvm::FieldElement;
+use acvm::AcirField;
 use noirc_abi::decode_printable_value;
 use noirc_errors::debug_info::{
     DebugFnId, DebugFunction, DebugInfo, DebugTypeId, DebugVarId, DebugVariable,
@@ -21,18 +21,18 @@ pub struct StackFrame<'a, F> {
     pub variables: Vec<(&'a str, &'a PrintableValue<F>, &'a PrintableType)>,
 }
 
-impl DebugVars<FieldElement> {
+impl<F: AcirField> DebugVars<F> {
     pub fn insert_debug_info(&mut self, info: &DebugInfo) {
         self.variables.extend(info.variables.clone());
         self.types.extend(info.types.clone());
         self.functions.extend(info.functions.clone());
     }
 
-    pub fn get_variables(&self) -> Vec<StackFrame<FieldElement>> {
+    pub fn get_variables(&self) -> Vec<StackFrame<F>> {
         self.frames.iter().map(|(fn_id, frame)| self.build_stack_frame(fn_id, frame)).collect()
     }
 
-    pub fn current_stack_frame(&self) -> Option<StackFrame<FieldElement>> {
+    pub fn current_stack_frame(&self) -> Option<StackFrame<F>> {
         self.frames.last().map(|(fn_id, frame)| self.build_stack_frame(fn_id, frame))
     }
 
@@ -46,13 +46,13 @@ impl DebugVars<FieldElement> {
     fn build_stack_frame<'a>(
         &'a self,
         fn_id: &DebugFnId,
-        frame: &'a HashMap<DebugVarId, PrintableValue<FieldElement>>,
-    ) -> StackFrame<FieldElement> {
+        frame: &'a HashMap<DebugVarId, PrintableValue<F>>,
+    ) -> StackFrame<F> {
         let debug_fn = &self.functions.get(fn_id).expect("failed to find function metadata");
 
         let params: Vec<&str> =
             debug_fn.arg_names.iter().map(|arg_name| arg_name.as_str()).collect();
-        let vars: Vec<(&str, &PrintableValue<FieldElement>, &PrintableType)> = frame
+        let vars: Vec<(&str, &PrintableValue<F>, &PrintableType)> = frame
             .iter()
             .filter_map(|(var_id, var_value)| {
                 self.lookup_var(*var_id).map(|(name, typ)| (name, var_value, typ))
@@ -66,7 +66,7 @@ impl DebugVars<FieldElement> {
         }
     }
 
-    pub fn assign_var(&mut self, var_id: DebugVarId, values: &[FieldElement]) {
+    pub fn assign_var(&mut self, var_id: DebugVarId, values: &[F]) {
         let type_id = &self.variables.get(&var_id).unwrap().debug_type_id;
         let ptype = self.types.get(type_id).unwrap();
 
@@ -77,9 +77,9 @@ impl DebugVars<FieldElement> {
             .insert(var_id, decode_printable_value(&mut values.iter().copied(), ptype));
     }
 
-    pub fn assign_field(&mut self, var_id: DebugVarId, indexes: Vec<u32>, values: &[FieldElement]) {
+    pub fn assign_field(&mut self, var_id: DebugVarId, indexes: Vec<u32>, values: &[F]) {
         let current_frame = &mut self.frames.last_mut().expect("unexpected empty stack frames").1;
-        let mut cursor: &mut PrintableValue<FieldElement> = current_frame
+        let mut cursor: &mut PrintableValue<F> = current_frame
             .get_mut(&var_id)
             .unwrap_or_else(|| panic!("value unavailable for var_id {var_id:?}"));
         let cursor_type_id = &self
@@ -148,7 +148,7 @@ impl DebugVars<FieldElement> {
         *cursor = decode_printable_value(&mut values.iter().copied(), cursor_type);
     }
 
-    pub fn assign_deref(&mut self, _var_id: DebugVarId, _values: &[FieldElement]) {
+    pub fn assign_deref(&mut self, _var_id: DebugVarId, _values: &[F]) {
         unimplemented![]
     }
 
