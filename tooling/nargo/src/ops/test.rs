@@ -77,13 +77,28 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
                     &mut foreign_call_executor,
                 );
 
-                test_status_program_compile_pass(
+                let status = test_status_program_compile_pass(
                     test_function,
                     compiled_program.abi,
                     compiled_program.debug,
                     circuit_execution,
-                    foreign_call_executor.encountered_unknown_foreign_call,
-                )
+                );
+
+                let ignore_foreign_call_failures =
+                    std::env::var("NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS")
+                        .is_ok_and(|var| &var == "true");
+
+                if let TestStatus::Fail { .. } = status {
+                    if ignore_foreign_call_failures
+                        && foreign_call_executor.encountered_unknown_foreign_call
+                    {
+                        TestStatus::Skipped
+                    } else {
+                        status
+                    }
+                } else {
+                    status
+                }
             } else {
                 #[cfg(target_arch = "wasm32")]
                 {
@@ -160,7 +175,6 @@ fn test_status_program_compile_pass(
     abi: Abi,
     debug: Vec<DebugInfo>,
     circuit_execution: Result<WitnessStack<FieldElement>, NargoError<FieldElement>>,
-    encountered_unknown_foreign_call: bool,
 ) -> TestStatus {
     let circuit_execution_err = match circuit_execution {
         // Circuit execution was successful; ie no errors or unsatisfied constraints
@@ -183,17 +197,10 @@ fn test_status_program_compile_pass(
     let diagnostic = try_to_diagnose_runtime_error(&circuit_execution_err, &abi, &debug);
     let test_should_have_passed = !test_function.should_fail();
     if test_should_have_passed {
-        let ignore_foreign_call_failures =
-            std::env::var("NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS")
-                .is_ok_and(|var| &var == "true");
-        if ignore_foreign_call_failures && encountered_unknown_foreign_call {
-            return TestStatus::Skipped;
-        } else {
-            return TestStatus::Fail {
-                message: circuit_execution_err.to_string(),
-                error_diagnostic: diagnostic,
-            };
-        }
+        return TestStatus::Fail {
+            message: circuit_execution_err.to_string(),
+            error_diagnostic: diagnostic,
+        };
     }
 
     check_expected_failure_message(
