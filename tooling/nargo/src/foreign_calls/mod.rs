@@ -8,9 +8,9 @@ use rand::Rng;
 use rpc::RPCForeignCallExecutor;
 use serde::{Deserialize, Serialize};
 
-mod mocker;
-mod print;
-mod rpc;
+pub(crate) mod mocker;
+pub(crate) mod print;
+pub(crate) mod rpc;
 
 pub trait ForeignCallExecutor<F> {
     fn execute(
