@@ -524,7 +524,7 @@ jobs:
         - { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-contracts }
         # Disabled as aztec-packages requires a setup-step in order to generate a `Nargo.toml`
         #- { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits }
-        - { repo: noir-lang/noir-edwards, path: ./, ref: 3188ea74fe3b059219a2ea87899589c266256d74  }
+        - { repo: noir-lang/noir-edwards, path: ./  }
     name: Check external repo - ${{ matrix.project.repo }}
     steps:
       - name: Checkout
