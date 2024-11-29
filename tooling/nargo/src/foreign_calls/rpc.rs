@@ -198,7 +198,8 @@ mod tests {
 
         let mut executor = RPCForeignCallExecutor::new(&url, 3, None, None);
 
-        let foreign_call: ForeignCallWaitInfo<FieldElement> = ForeignCallWaitInfo { function: "id".to_string(), inputs: Vec::new() };
+        let foreign_call: ForeignCallWaitInfo<FieldElement> =
+            ForeignCallWaitInfo { function: "id".to_string(), inputs: Vec::new() };
 
         let result_1 = executor.execute(&foreign_call).unwrap();
         let result_2 = executor.execute(&foreign_call).unwrap();
@@ -214,7 +215,8 @@ mod tests {
         let mut executor_1 = RPCForeignCallExecutor::new(&url, 4, None, None);
         let mut executor_2 = RPCForeignCallExecutor::new(&url, 5, None, None);
 
-        let foreign_call: ForeignCallWaitInfo<FieldElement> = ForeignCallWaitInfo { function: "id".to_string(), inputs: Vec::new() };
+        let foreign_call: ForeignCallWaitInfo<FieldElement> =
+            ForeignCallWaitInfo { function: "id".to_string(), inputs: Vec::new() };
 
         let result_1 = executor_1.execute(&foreign_call).unwrap();
         let result_2 = executor_2.execute(&foreign_call).unwrap();

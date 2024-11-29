@@ -85,7 +85,6 @@ impl<F: Default> DefaultForeignCallExecutor<F> {
             RPCForeignCallExecutor::new(resolver_url, id, root_path, package_name)
         });
         DefaultForeignCallExecutor {
-          
             printer,
             mocker: MockForeignCallExecutor::default(),
             external: external_resolver,
@@ -122,17 +121,17 @@ impl<F: AcirField + Serialize + for<'a> Deserialize<'a>> ForeignCallExecutor<F>
                 // First check if there's any defined mock responses for this foreign call.
                 match self.mocker.execute(foreign_call) {
                     Err(ForeignCallError::NoHandler(_)) => (),
-                    response_or_error => return response_or_error
+                    response_or_error => return response_or_error,
                 };
 
                 if let Some(external_resolver) = &mut self.external {
                     // If the user has registered an external resolver then we forward any remaining oracle calls there.
                     match external_resolver.execute(foreign_call) {
                         Err(ForeignCallError::NoHandler(_)) => (),
-                        response_or_error => return response_or_error
+                        response_or_error => return response_or_error,
                     };
-                } 
-                
+                }
+
                 // If all executors have no handler for the given foreign call then we cannot
                 // return a correct response to the ACVM. The best we can do is to return an empty response,
                 // this allows us to ignore any foreign calls which exist solely to pass information from inside
@@ -141,7 +140,6 @@ impl<F: AcirField + Serialize + for<'a> Deserialize<'a>> ForeignCallExecutor<F>
                 // We optimistically return an empty response for all oracle calls as the ACVM will error
                 // should a response have been required.
                 Ok(ForeignCallResult::default())
-            
             }
         }
     }
