@@ -554,9 +554,12 @@ jobs:
           # Github actions seems to not expand "**" in globs by default.
           shopt -s globstar
           sed -i '/^compiler_version/d' ./**/Nargo.toml
-      - name: Run nargo check
+      
+      - name: Run nargo test
         working-directory: ./test-repo/${{ matrix.project.path }}
         run: nargo check
+        env:
+          NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS: true
 
   # This is a job which depends on all test jobs and reports the overall status.
   # This allows us to add/remove test jobs without having to update the required workflows.
