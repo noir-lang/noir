@@ -940,32 +940,21 @@ mod test {
     // Regression for #4600
     #[test]
     fn array_get_regression() {
-        // fn main f0 {
-        //   b0(v0: u1, v1: u64):
-        //     enable_side_effects_if v0
-        //     v2 = make_array [Field 0, Field 1]
-        //     v3 = array_get v2, index v1
-        //     v4 = not v0
-        //     enable_side_effects_if v4
-        //     v5 = array_get v2, index v1
-        // }
-        //
         // We want to make sure after constant folding both array_gets remain since they are
         // under different enable_side_effects_if contexts and thus one may be disabled while
         // the other is not. If one is removed, it is possible e.g. v4 is replaced with v2 which
         // is disabled (only gets from index 0) and thus returns the wrong result.
         let src = "
-            acir(inline) fn main f0 {
-              b0(v0: u1, v1: u64):
-                enable_side_effects v0
-                v4 = make_array [Field 0, Field 1] : [Field; 2]
-                v5 = array_get v4, index v1 -> Field
-                v6 = not v0
-                enable_side_effects v6
-                v7 = array_get v4, index v1 -> Field
-                return
-            }
-            ";
+        acir(inline) fn main f0 {
+            b0(v0: u1, v1: u64):
+            enable_side_effects v0
+            v4 = make_array [Field 0, Field 1] : [Field; 2]
+            v5 = array_get v4, index v1 -> Field
+            v6 = not v0
+            enable_side_effects v6
+            v7 = array_get v4, index v1 -> Field
+            return
+        }";
         let ssa = Ssa::from_str(src).unwrap();
 
         // Expected output is unchanged
@@ -1301,5 +1290,90 @@ mod test {
         let main = ssa.main();
         assert_eq!(main.dfg[main.entry_block()].instructions().len(), 1);
         assert_eq!(main.dfg[b1].instructions().len(), 0);
+    }
+
+    #[test]
+    fn does_not_use_cached_constrain_in_block_that_is_not_dominated() {
+        let src = "
+            brillig(inline) fn main f0 {
+              b0(v0: Field, v1: Field):
+                v3 = eq v0, Field 0
+                jmpif v3 then: b1, else: b2
+              b1():
+                v5 = eq v1, Field 1
+                constrain v1 == Field 1
+                jmp b2()
+              b2():
+                v6 = eq v1, Field 0
+                constrain v1 == Field 0
+                return
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants_using_constraints();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn does_not_hoist_constrain_to_common_ancestor() {
+        let src = "
+            brillig(inline) fn main f0 {
+              b0(v0: Field, v1: Field):
+                v3 = eq v0, Field 0
+                jmpif v3 then: b1, else: b2
+              b1():
+                constrain v1 == Field 1
+                jmp b2()
+              b2():
+                jmpif v0 then: b3, else: b4
+              b3():
+                constrain v1 == Field 1 // This was incorrectly hoisted to b0 but this condition is not valid when going b0 -> b2 -> b4
+                jmp b4()
+              b4():
+                return
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants_using_constraints();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn deduplicates_side_effecting_intrinsics() {
+        let src = "
+        // After EnableSideEffectsIf removal:
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field, v2: u1):
+            v4 = call is_unconstrained() -> u1
+            v7 = call to_be_radix(v0, u32 256) -> [u8; 1]    // `a.to_be_radix(256)`;
+            inc_rc v7
+            v8 = call to_be_radix(v0, u32 256) -> [u8; 1]    // duplicate load of `a`
+            inc_rc v8
+            v9 = cast v2 as Field                            // `if c { a.to_be_radix(256) }`
+            v10 = mul v0, v9                                 // attaching `c` to `a`
+            v11 = call to_be_radix(v10, u32 256) -> [u8; 1]  // calling `to_radix(c * a)`
+            inc_rc v11
+            enable_side_effects v2                           // side effect var for `c` shifted down by removal
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let expected = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field, v2: u1):
+            v4 = call is_unconstrained() -> u1
+            v7 = call to_be_radix(v0, u32 256) -> [u8; 1]
+            inc_rc v7
+            inc_rc v7
+            v8 = cast v2 as Field
+            v9 = mul v0, v8
+            v10 = call to_be_radix(v9, u32 256) -> [u8; 1]
+            inc_rc v10
+            enable_side_effects v2
+            return
+        }
+        ";
+        let ssa = ssa.fold_constants_using_constraints();
+        assert_normalized_ssa_equals(ssa, expected);
     }
 }
