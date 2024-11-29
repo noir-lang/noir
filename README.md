@@ -1,4 +1,4 @@
-# Blocksense Projects for the Noir language
+# The Blocksense Noir compiler
 
 An essential component of Blocksense are ZK proofs, the primary technology
 which eliminates bad actors from manipulating truth. In order to make it easier
@@ -13,7 +13,7 @@ to mathematically ensure that all possible scenarios are accounted for. In this
 way it covers more possibilities than hand-made tests would and eliminates
 entire categories of bugs, rather than addressing cases one by one.
 
-## Blocksense Formal Verification in Noir
+## Formal Verification in Noir
 
 Targeting constraint systems introduces some natural limitations to the
 expressivity of Noir. The lack of pointers, random-access to memory, resource
@@ -39,8 +39,8 @@ paradigm for expressing the properties of their algorithms and data structures.
 The development cost for proving even basic properties of the certified
 programs is quite high.
 
-Languages such as [ADA
-Spark](https://learn.adacore.com/courses/intro-to-spark/chapters/01_Overview.html)
+Languages such as [Ada
+SPARK](https://learn.adacore.com/courses/intro-to-spark/chapters/01_Overview.html)
 have demonstrated that you can add practical formal verification capabilities
 to existing procedural programming languages by restricting the language
 features available to the programmer (precisely by eliminating features such as
@@ -49,7 +49,7 @@ pointers and global mutable state that are naturally missing from Noir).
 This is why we chose Verus as the back-end for our prototype when implementing
 formal verification in Noir. Its architecture is well-suited for our needs.
 This reduces the complexity of incorporating it into Noir while supporting
-nearly all the features required. Influenced by tools like Dafny and AdaSpark,
+nearly all the features required. Influenced by languages like Dafny and Ada SPARK,
 Verus integrates the Z3 SMT solver, enabling precise reasoning and verification
 of logical constraints. By connecting the upstream Noir frontend to Verus via
 our compiler backend, we managed to produce a proof-of-concept FV system for
@@ -102,7 +102,7 @@ Noir, that you can try today!
 ### Example usage
 
 > [!CAUTION]
-> The Noir formal-verifications project is a prototype! Expect to find bugs and limitations!
+> The Noir formal-verifications project is in alpha stage! Expect to find bugs and limitations!
 
 1. Create a new project:
 
@@ -122,7 +122,7 @@ Noir, that you can try today!
     #[requires(x < 100 & 0 < y & y < 100)]
     #[ensures(result >= 5 + x)]
     fn main(x: u32, y: u32) -> pub u32 {
-        x + y * 5
+      x + y * 5
     }
     ```
 
@@ -142,7 +142,7 @@ fn main(x: i32, y:i32, arr: [u32; 5]) -> pub u32 {
 }
 
 fn arithmetic_magic(x: i32, y: i32) -> i32 {
-    (x / 2) + (y / 2)
+  (x / 2) + (y / 2)
 }
 ```
 Formally verifying it produces an error.
@@ -157,16 +157,16 @@ fn main(x: i32, y:i32, arr: [u32; 5]) -> pub u32 {
   if (z >= 0) & (z < 5) {
     arr[z]
   } else {
-      0
-    }
+    0
+  }
 }
 
 fn arithmetic_magic(x: i32, y: i32) -> i32 {
-    (x / 2) + (y / 2)
+  (x / 2) + (y / 2)
 }
 ```
 
-## Blocksense PLONKY2 backend for Noir
+## PLONKY2 backend for Noir
 
 The only system which has been adapted for ACIR is barratenberg, also built by
 Aztec Labs. While it is an impressive project, we wanted to experiment with
@@ -286,4 +286,4 @@ language. The formal verification framework aims to allow users to write safer
 and more correct programs. The PLONKY2 backend aims at providing an alternative
 for a ZK proving system that could have advantages over using barrentenberg.
 
-the blocksense.network team
+Built with love by the blocksense.network team.
