@@ -52,11 +52,12 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn unroll_loops_iteratively(
         mut self: Ssa,
-        max_bytecode_incr_pct: Option<i32>,
+        max_bytecode_increase_percent: Option<i32>,
     ) -> Result<Ssa, RuntimeError> {
         for (_, function) in self.functions.iter_mut() {
-            // Take a snapshot of the function to compare byte size increase.
-            let original = max_bytecode_incr_pct
+            // Take a snapshot of the function to compare byte size increase,
+            // but only if the setting indicates we have to, otherwise skip it.
+            let orig_func_and_max_incr = max_bytecode_increase_percent
                 .filter(|_| function.runtime().is_brillig())
                 .map(|max_incr_pct| (function.clone(), max_incr_pct));
 
@@ -82,7 +83,7 @@ impl Ssa {
             }
 
             if has_unrolled {
-                if let Some((orig_function, max_incr_pct)) = original {
+                if let Some((orig_function, max_incr_pct)) = orig_func_and_max_incr_pct {
                     let new_size = brillig_bytecode_size(function);
                     let orig_size = brillig_bytecode_size(&orig_function);
                     if !is_new_size_ok(orig_size, new_size, max_incr_pct) {
