@@ -13,5 +13,6 @@ it('recovers original inputs when abi encoding and decoding', async () => {
   expect(BigInt(decoded_inputs.inputs.foo)).to.be.equal(BigInt(foo));
   expect(BigInt(decoded_inputs.inputs.bar[0])).to.be.equal(BigInt(bar[0]));
   expect(BigInt(decoded_inputs.inputs.bar[1])).to.be.equal(BigInt(bar[1]));
+  expect(BigInt(decoded_inputs.inputs.bar[2])).to.be.equal(BigInt(bar[2]));
   expect(decoded_inputs.return_value).to.be.null;
 });
