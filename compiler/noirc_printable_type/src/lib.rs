@@ -129,7 +129,7 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
         (PrintableValue::Vec { array_elements, is_slice }, PrintableType::Array { typ, .. })
         | (PrintableValue::Vec { array_elements, is_slice }, PrintableType::Slice { typ }) => {
             if *is_slice {
-                output.push('&')
+                output.push('&');
             }
             output.push('[');
             let mut values = array_elements.iter().peekable();

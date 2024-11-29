@@ -4,7 +4,7 @@ use acvm::{acir::brillig::ForeignCallResult, pwg::ForeignCallWaitInfo, AcirField
 use jsonrpc::{arg as build_json_rpc_arg, minreq_http::Builder, Client};
 use serde::{Deserialize, Serialize};
 
-use super::{ForeignCallExecutor, ForeignCallError};
+use super::{ForeignCallError, ForeignCallExecutor};
 
 #[derive(Debug)]
 pub(super) struct RPCForeignCallExecutor {

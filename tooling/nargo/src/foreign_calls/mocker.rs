@@ -5,7 +5,7 @@ use acvm::{
 };
 use serde::{Deserialize, Serialize};
 
-use super::{ForeignCall, ForeignCallExecutor, ForeignCallError};
+use super::{ForeignCall, ForeignCallError, ForeignCallExecutor};
 
 /// This struct represents an oracle mock. It can be used for testing programs that use oracles.
 #[derive(Debug, PartialEq, Eq, Clone)]
