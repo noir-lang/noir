@@ -3,10 +3,12 @@ use acvm::FieldElement;
 use field::mutate_field_input_value;
 use int::{mutate_int_input_value, IntDictionary};
 use noirc_abi::{input_parser::InputValue, Abi, AbiType, InputMap};
+use proptest::num::f32::INFINITE;
 use rand::Rng;
 use rand_xorshift::XorShiftRng;
 use std::{
     collections::{BTreeMap, HashSet},
+    hash::Hash,
     iter::zip,
 };
 
@@ -20,14 +22,105 @@ pub struct InputMutator {
 }
 pub struct FullDictionary {
     original_dictionary: Vec<FieldElement>,
-    int_dictionary: IntDictionary,
+    original_int_dictionary: IntDictionary,
 }
 
 impl FullDictionary {
+    fn collect_dictionary_from_input_value(
+        abi_type: &AbiType,
+        input: &InputValue,
+        full_dictionary: &mut HashSet<FieldElement>,
+    ) {
+        match abi_type {
+            // Boolean only has 2 values, there is no point in getting the value
+            AbiType::Boolean => (),
+            // Mutate fields in a smart way
+            AbiType::Field | AbiType::Integer { .. } => {
+                let initial_field_value = match input {
+                    InputValue::Field(inner_field) => inner_field,
+                    _ => panic!("Shouldn't be used with other input value types"),
+                };
+                full_dictionary.insert(*initial_field_value);
+            }
+            AbiType::String { length } => {
+                let initial_string = match input {
+                    InputValue::String(inner_string) => inner_string,
+                    _ => panic!("Shouldn't be used with other input value types"),
+                };
+                for character in initial_string.as_bytes().iter() {
+                    full_dictionary.insert(FieldElement::from(*character as i128));
+                }
+            }
+            AbiType::Array { length, typ } => {
+                let length = *length as usize;
+                let input_vector = match input {
+                    InputValue::Vec(previous_input_vector) => previous_input_vector,
+                    _ => panic!("Mismatch of AbiType and InputValue should not happen"),
+                };
+                for i in 0..length {
+                    Self::collect_dictionary_from_input_value(
+                        typ,
+                        &input_vector[i],
+                        full_dictionary,
+                    );
+                }
+            }
+
+            AbiType::Struct { fields, .. } => {
+                let input_struct = match input {
+                    InputValue::Struct(previous_input_struct) => previous_input_struct,
+                    _ => panic!("Mismatch of AbiType and InputValue should not happen"),
+                };
+                for (name, typ) in fields.iter() {
+                    Self::collect_dictionary_from_input_value(
+                        typ,
+                        &input_struct[name],
+                        full_dictionary,
+                    );
+                }
+            }
+
+            AbiType::Tuple { fields } => {
+                let input_vector = match input {
+                    InputValue::Vec(previous_input_vector) => previous_input_vector,
+                    _ => panic!("Mismatch of AbiType and InputValue should not happen"),
+                };
+                for (typ, previous_tuple_input) in zip(fields, input_vector) {
+                    Self::collect_dictionary_from_input_value(
+                        typ,
+                        previous_tuple_input,
+                        full_dictionary,
+                    );
+                }
+            }
+        }
+    }
+
+    fn collect_dictionary_from_input(
+        abi: &Abi,
+        input: &InputMap,
+        full_dictionary: &mut HashSet<FieldElement>,
+    ) {
+        for param in abi.parameters.iter() {
+            Self::collect_dictionary_from_input_value(
+                &param.typ,
+                &input[&param.name],
+                full_dictionary,
+            );
+        }
+    }
     pub fn new(original_dictionary: &HashSet<FieldElement>) -> Self {
         let dictionary_vector: Vec<_> = original_dictionary.iter().copied().collect();
         let int_dict = IntDictionary::new(&dictionary_vector);
-        Self { original_dictionary: dictionary_vector, int_dictionary: int_dict }
+        Self { original_dictionary: dictionary_vector, original_int_dictionary: int_dict }
+    }
+    pub fn update(&mut self, abi: &Abi, testcase: &InputMap) {
+        let mut testcase_full_dictionary: HashSet<_> =
+            self.original_dictionary.iter().copied().collect();
+        Self::collect_dictionary_from_input(abi, testcase, &mut testcase_full_dictionary);
+        self.original_dictionary = testcase_full_dictionary.iter().copied().collect();
+        // TODO: update just ints, don't redo the full thing
+        self.original_int_dictionary = IntDictionary::new(&self.original_dictionary);
     }
 }
 #[derive(Clone, Debug)]
@@ -65,7 +158,9 @@ impl InputMutator {
             full_dictionary: FullDictionary::new(original_dictionary),
         }
     }
-
+    pub fn update_dictionary(&mut self, testcase: &InputMap) {
+        self.full_dictionary.update(&self.abi, testcase);
+    }
     /// Count weights of each element recursively (complex structures return a vector of weights of their most basic elements)
     fn count_single_input_weight(abi_type: &AbiType) -> NodeWeight {
         match abi_type {
@@ -150,7 +245,7 @@ impl InputMutator {
                 previous_input,
                 sign,
                 *width,
-                &self.full_dictionary.int_dictionary,
+                &self.full_dictionary.original_int_dictionary,
                 prng,
             ),
             AbiType::String { length } => {
@@ -243,7 +338,7 @@ impl InputMutator {
         }
     }
 
-    pub fn mutate_input_map(
+    pub fn mutate_input_map_single(
         &self,
         previous_input_map: &InputMap,
         prng: &mut XorShiftRng,
@@ -275,6 +370,18 @@ impl InputMutator {
             .collect()
     }
 
+    pub fn mutate_input_map_multiple(
+        &self,
+        previous_input_map: &InputMap,
+        prng: &mut XorShiftRng,
+    ) -> InputMap {
+        const MUTATION_NUM_LOG: u32 = 3;
+        let mut starting_input_value = previous_input_map.clone();
+        for i in 0..(1 << MUTATION_NUM_LOG) {
+            starting_input_value = self.mutate_input_map_single(&previous_input_map, prng);
+        }
+        starting_input_value
+    }
     /// Generate the default input value for a given type
     /// false for boolean, 0 for integers and field elements and recursively defined through the first three for others
     pub fn generate_default_input_value(abi_type: &AbiType) -> InputValue {

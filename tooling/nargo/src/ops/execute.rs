@@ -1,7 +1,3 @@
-use std::collections::HashMap;
-use std::hash::Hash;
-
-use acvm::acir::brillig;
 use acvm::acir::circuit::brillig::BrilligBytecode;
 use acvm::acir::circuit::{
     OpcodeLocation, Program, ResolvedAssertionPayload, ResolvedOpcodeLocation,
@@ -273,7 +269,7 @@ pub fn execute_program_with_profiling<
         Err(err) => Err(err),
     }
 }
-pub fn execute_program_with_brillig_fuzzing<
+pub(crate) fn execute_program_with_brillig_fuzzing<
     F: AcirField,
     B: BlackBoxFunctionSolver<F>,
     E: ForeignCallExecutor<F>,

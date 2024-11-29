@@ -3,7 +3,7 @@
 //!
 //! Code is used under the MIT license.
 
-use std::collections::HashSet;
+use std::{cmp::min, collections::HashSet};
 
 use acvm::{
     acir::{
@@ -24,7 +24,7 @@ use strategies::InputMutator;
 use types::{CaseOutcome, CounterExampleOutcome, DiscrepancyOutcome, FuzzOutcome, FuzzTestResult};
 
 use noirc_artifacts::program::ProgramArtifact;
-use rand::prelude::*;
+use rand::{distributions::WeightedError, prelude::*};
 use rand::{Rng, SeedableRng};
 use rand_xorshift::XorShiftRng;
 type SingleTestCaseCoverage = Vec<u8>;
@@ -50,7 +50,79 @@ impl AccumulatedFuzzerCoverage {
     }
 }
 
-type Corpus = Vec<InputMap>;
+#[derive(Debug)]
+struct Sequence {
+    testcase_index: usize,
+    executions_left: u64,
+}
+impl Sequence {
+    pub fn new() -> Self {
+        Self { testcase_index: 0, executions_left: 0 }
+    }
+    pub fn is_empty(&self) -> bool {
+        self.executions_left == 0
+    }
+    pub fn decrement(&mut self) {
+        self.executions_left -= 1
+    }
+}
+struct Corpus {
+    discovered_testcases: Vec<InputMap>,
+    executions_per_testcase: Vec<u64>,
+    sequence_number: Vec<u32>,
+    total_executions: u64,
+    current_sequence: Sequence,
+}
+
+impl Corpus {
+    const MAX_EXECUTIONS_PER_SEQUENCE_LOG: u32 = 8;
+    pub fn new(starting_testcase: InputMap) -> Self {
+        Self {
+            discovered_testcases: vec![starting_testcase],
+            executions_per_testcase: vec![1],
+            sequence_number: vec![0],
+            total_executions: 1,
+            current_sequence: Sequence::new(),
+        }
+    }
+    pub fn insert(&mut self, new_testcase: InputMap) {
+        self.discovered_testcases.push(new_testcase);
+        self.executions_per_testcase.push(0);
+        self.sequence_number.push(0);
+    }
+    pub fn get_next_testcase(&mut self, prng: &mut XorShiftRng) -> &InputMap {
+        if !self.current_sequence.is_empty() {
+            // Update counts
+            self.current_sequence.decrement();
+            self.executions_per_testcase[self.current_sequence.testcase_index] += 1;
+            self.total_executions += 1;
+            return &self.discovered_testcases[self.current_sequence.testcase_index];
+        } else {
+            // Compute average
+            let average = self.total_executions / self.discovered_testcases.len() as u64;
+            // Omit those that have been fuzzed more than average
+            let weakly_fuzzed_group: Vec<_> = (0..(self.discovered_testcases.len()))
+                .filter(|&index| self.executions_per_testcase[index] <= average)
+                .collect();
+            let chosen_index = weakly_fuzzed_group.choose(prng).unwrap().clone();
+            self.sequence_number[chosen_index] += 1;
+            self.current_sequence = Sequence {
+                testcase_index: chosen_index,
+                executions_left: min(
+                    1u64 << min(
+                        Self::MAX_EXECUTIONS_PER_SEQUENCE_LOG,
+                        self.sequence_number[chosen_index],
+                    ),
+                    average / 2,
+                ),
+            };
+            self.total_executions += 1;
+            self.executions_per_testcase[chosen_index] += 1;
+
+            return &self.discovered_testcases[self.current_sequence.testcase_index];
+        }
+    }
+}
 /// An executor for Noir programs which which provides fuzzing support
 ///
 /// After instantiation, calling `fuzz` will proceed to hammer the program with
@@ -109,25 +181,29 @@ impl<
     }
 
     /// Fuzzes the provided program.
-    pub fn fuzz(&self) -> FuzzTestResult {
+    pub fn fuzz(&mut self) -> FuzzTestResult {
         // Generate a seed for the campaign
 
         let seed = thread_rng().gen::<u64>();
         println!("Fuzzing seed for this campaign: {}", seed);
 
         let mut prng = XorShiftRng::seed_from_u64(seed);
-        let mut corpus = Corpus::new();
-        corpus.push(self.mutator.generate_default_input_map());
+        let first_input = self.mutator.generate_default_input_map();
+        let mut corpus = Corpus::new(first_input.clone());
 
         let mut accumulated_coverage =
             AccumulatedFuzzerCoverage::new(self.location_to_feature_map.len());
 
-        let (mut fuzz_res, mut coverage) = self.single_fuzz(&corpus[0]).unwrap();
+        let (mut fuzz_res, mut coverage) = self.single_fuzz(&first_input).unwrap();
         accumulated_coverage.merge(&(coverage.unwrap()));
-        let mut last_i = 0;
-        for i in 0..200000 {
-            let input_map =
-                self.mutator.mutate_input_map(corpus.choose(&mut prng).unwrap(), &mut prng);
+        let mut current_iteration = 0;
+        loop {
+            if current_iteration % 10000 == 0 {
+                println!("Current iteration {current_iteration}");
+            }
+            let input_map = self
+                .mutator
+                .mutate_input_map_multiple(corpus.get_next_testcase(&mut prng), &mut prng);
             (fuzz_res, coverage) = self.single_fuzz(&input_map).unwrap();
             match fuzz_res {
                 FuzzOutcome::Case(_) => (),
@@ -137,12 +213,13 @@ impl<
             }
             if accumulated_coverage.merge(&coverage.unwrap()) {
                 //println!("Input: {:?}", input_map);
-                corpus.push(input_map);
+                self.mutator.update_dictionary(&input_map);
+                corpus.insert(input_map);
                 //println!("Found new feature!");
             }
-            last_i = i;
+            current_iteration += 1;
         }
-        println!("{last_i}");
+        println!("Total iterations: {current_iteration}");
         match fuzz_res {
             FuzzOutcome::Case(_) => {
                 FuzzTestResult { success: true, reason: None, counterexample: None }

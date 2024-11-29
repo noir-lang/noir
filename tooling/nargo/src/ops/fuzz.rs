@@ -1,10 +1,7 @@
 use std::path::PathBuf;
 
 use acvm::{
-    acir::{
-        brillig,
-        native_types::{WitnessMap, WitnessStack},
-    },
+    acir::native_types::{WitnessMap, WitnessStack},
     brillig_vm::BranchToFeatureMap,
     BlackBoxFunctionSolver, FieldElement,
 };
@@ -120,7 +117,7 @@ pub fn run_fuzzing_harness<B: BlackBoxFunctionSolver<FieldElement>>(
                     )
                     .map_err(|err| err.to_string())
                 };
-                let fuzzer = FuzzedExecutor::new(
+                let mut fuzzer = FuzzedExecutor::new(
                     acir_program.into(),
                     brillig_program.into(),
                     acir_executor,
