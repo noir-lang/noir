@@ -1,84 +1,290 @@
-# blocksense.network
+# Blocksense Projects for the Noir language
 
-## Overview
+An essential component of Blocksense are ZK proofs, the primary technology
+which eliminates bad actors from manipulating truth. In order to make it easier
+for our ZK engineers to develop this component, we built a PLONKY2 backend for
+the Noir programming language. While this backend is not completely stable, it
+already serves as a good proof-of-concept. Since our work is public and
+open-source, anyone can download it, try it out, and submit feedback.
 
-The [blocksense.network](https://blocksense.network) team is working (as of May
-2024) on a PLONKY2 backend to Noir. This backend can be used for proving and
-verifying circuits. We have reached the milestone where a fairly non-trivial
-program can be compiled and proved with the new PLONKY2 backend.
+In addition to the PLONKY2 backend, we have also developed a proof-of-concept
+formal verification system for the Noir language. Formal verification is able
+to mathematically ensure that all possible scenarios are accounted for. In this
+way it covers more possibilities than hand-made tests would and eliminates
+entire categories of bugs, rather than addressing cases one by one.
 
-In order to check this for yourself follow these steps. If you have NixOS, setup is slightly easier:
+## Blocksense Formal Verification in Noir
 
-1. Checkout this repo and the `blocksense` branch
-2. Issue `direnv allow` to get the context set up
-3. Run `cargo test zk_dungeon`
+Targeting constraint systems introduces some natural limitations to the
+expressivity of Noir. The lack of pointers, random-access to memory, resource
+management, multi-threading, global mutable state and other familiar, but
+error-prone programming concepts makes the language much more amenable to
+formal verification.
 
-If you have another Linux, you need to make sure you have the right version of
-Rust:
+Furthermore, the target audience of the language is developers working on
+crypto-economic protocols, based on smart contracts and zero-knowledge
+circuits. These can be considered [high-integrity software
+systems](https://en.wikipedia.org/wiki/High_integrity_software) as the cost of
+discovering a code defect in production could be extremely high.
 
-1. Checkout this repo and the `blocksense` branch
-2. Make sure you have `rustup` installed
-3. Select the `nightly` version of Rust as the default one
-  - `rustup default nightly`
-4. Run `cargo test zk_dungeon`
+Terms such as [certified programming](http://adam.chlipala.net/cpdt/),
+[proof-carrying code](https://en.wikipedia.org/wiki/Proof-carrying_code), and
+[formal verification](https://en.wikipedia.org/wiki/Formal_verification) in
+general still haven't entered the mainstream, but there are two main successful
+schools of thought:
 
-If the test passes then you just confirmed that the PLONKY2 backend for Noir
-works for you too!
+Proof assistants such as Coq and Lean and dependently-typed languages such as
+Idris are quite powerful, but they require the programmer to learn a whole new
+paradigm for expressing the properties of their algorithms and data structures.
+The development cost for proving even basic properties of the certified
+programs is quite high.
 
-## Run manually
+Languages such as [ADA
+Spark](https://learn.adacore.com/courses/intro-to-spark/chapters/01_Overview.html)
+have demonstrated that you can add practical formal verification capabilities
+to existing procedural programming languages by restricting the language
+features available to the programmer (precisely by eliminating features such as
+pointers and global mutable state that are naturally missing from Noir).
+ 
+This is why we chose Verus as the back-end for our prototype when implementing
+formal verification in Noir. Its architecture is well-suited for our needs.
+This reduces the complexity of incorporating it into Noir while supporting
+nearly all the features required. Influenced by tools like Dafny and AdaSpark,
+Verus integrates the Z3 SMT solver, enabling precise reasoning and verification
+of logical constraints. By connecting the upstream Noir frontend to Verus via
+our compiler backend, we managed to produce a proof-of-concept FV system for
+Noir, that you can try today!
 
-To run the PLONKY2 backend manually, call `nargo prove` and construct proofs for
-ZK circuits written in Noir. Once you have a proof, `nargo verify` can be used
-to verify that it is correct.
+### How to install
 
-## More details
+0. Install dependencies, you'll only need two things: the [nix package manager](https://nixos.org/download/) and [direnv](https://direnv.net/docs/installation.html). They're compatible with most OSes and will **not** collide with your system.
 
-To have a look at the ZK program that is the subject of the test look at the
-directory `test_programs/plonky2_prove_success/zk_dungeon` and in particular at
-`src/dungeon.nr`. This program is a solution to the second part of the
-"Discovering Noir" campaign at https://nodeguardians.io/. The task is to verify
-that the prover knows an eight-step path of a knight on a chess board that
-starts from a given location, reaches another location, and avoids being
-attacked by a set of opposing bishops.
+> [!IMPORTANT]
+> After installing `direnv` do not forget to [add the hook](https://direnv.net/docs/hook.html)!
 
-Another proof-of-concept feature is the fact that the sha256 hashing algorithm
-is implemented by the PLONKY2 backend as an intrinsic function, as demonstrated
-by the `test_programs/plonky2_prove_success/sha256` test (as well as the
-`test_programs/plonky2_prove_failure/sha256` test).
+1. Clone [our branch](https://github.com/blocksense-network/noir/tree/formal-verification) with SSH:
 
-The next steps for this project are to add more intrinsics, better debugging
-capabilities and more. Investigating the potential support for recursion is
-particularly interesting.
+    ```bash
+    git clone git@github.com:blocksense-network/noir.git -b formal-verification
+    ```
 
-## Why PLONKY2 backend does not adhere to Noir backend API
+2. Navigate to the folder `noir`.
 
-The purpose of this section is to outline the reason why this new backend does
-not follow the Backend API as anticipated by the Noir team, but instead,
-translates the earlier SSA form of the intermediate representation into PLONKY2
-primitives which are then used to carry out a ZK proof.
+    ```bash
+    cd noir
+    ```
 
-### Backend API
+3. Run direnv command:
 
-Historically (until 23 May 2024), Noir provided the `nargo prove` and `nargo
-verify` commands, which internally called the Barretenberg backend as a proving
-system. At the end of May 2024, the Noir team removed that feature, decoupling
-their compiler from the way the proof is performed.
+    ```bash
+    direnv allow
+    ```
 
-To use PLONKY2 as a proving system, it is natural to keep the `nargo prove` and
-`nargo verify` commands. The way they work now (after they have been removed
-upstream) is to keep the same compiler pipeline as upstream Noir until the final
-SSA form is generated and optimized. After the optimization phases, we fork the
-pipeline and instead of generating ACIR code, we generate PLONKY2 operations.
- * When ACIR is generated, the ZK program can be executed or debugged.
- * When PLONKY2 is generated, a proof can be generated or a proof can be verified.
+    This should result in a lot of things happening. If not, you haven't [added the direnv hook](https://direnv.net/docs/hook.html)!
 
-The main reason for producing an alternative intermediate representation for the
-program, is that PLONKY2 has direct implementation for some of the
-intermediate-level operations, which the ACIR backend translates to combinations
-of several other operations. If we didn't do that, but tried to convert ACIR to
-PLONKY2 instead, we would have to pattern match combinations of instructions to
-single or combinations of PLONKY2 operations. Compared to our approach that
-would be harder and less likely to produce as few operations.
+> [!WARNING]
+> Depending on your `nix` installation, you may get a `Permission denied` error. In that case, it's best to start a superuser shell and continue from there:
+> 
+> ```bash
+> sudo su                      # Start superuser shell
+> eval "$(direnv hook bash)"   # Setup the direnv hook
+> direnv allow
+> ```
+
+4. Test if everything works:
+
+    ```bash
+    cargo test formal
+    ```
+
+    This will also take a little bit of time, until the project fully compiles.
+
+### Example usage
+
+> [!CAUTION]
+> The Noir formal-verifications project is a prototype! Expect to find bugs and limitations!
+
+1. Create a new project:
+
+    ```bash
+    nargo new my_program
+    ```
+
+2. Navigate to the folder:
+
+    ```bash
+    cd my_program
+    ```
+
+3. Update `src/main.nr` with your favorite text editor to:
+
+    ```noir
+    #[requires(x < 100 & 0 < y & y < 100)]
+    #[ensures(result >= 5 + x)]
+    fn main(x: u32, y: u32) -> pub u32 {
+        x + y * 5
+    }
+    ```
+
+4. Finally, verify the program:
+
+    ```bash
+    nargo formal-verify
+    ```
+
+### Leveraging the formal verification
+
+We examine the following code snippet:
+```noir
+fn main(x: i32, y:i32, arr: [u32; 5]) -> pub u32 {
+  let z = arithmetic_magic(x, y);
+  arr[z]
+}
+
+fn arithmetic_magic(x: i32, y: i32) -> i32 {
+    (x / 2) + (y / 2)
+}
+```
+Formally verifying it produces an error.
+
+This is due to us not ensuring that `z` stays in bounds of the `arr` array.
+
+Adding an if statement which checks for the aforementioned scenario resolves the error.  
+The following formally verifies successfully:
+```noir
+fn main(x: i32, y:i32, arr: [u32; 5]) -> pub u32 {
+  let z = arithmetic_magic(x, y);
+  if (z >= 0) & (z < 5) {
+    arr[z]
+  } else {
+      0
+    }
+}
+
+fn arithmetic_magic(x: i32, y: i32) -> i32 {
+    (x / 2) + (y / 2)
+}
+```
+
+## Blocksense PLONKY2 backend for Noir
+
+The only system which has been adapted for ACIR is barratenberg, also built by
+Aztec Labs. While it is an impressive project, we wanted to experiment with
+different proving systems in order to leverage the latest and greatest of ZK
+research. This is why we built our PLONKY2 backend for the Noir programming
+language.
+
+### What is PLONKY2?
+
+PLONKY2 is a zkSNARK built by [Polygon Labs](https://polygon.technology/), with
+efficiency, decomposition and size in mind. A proof can be generated 100x
+faster than other systems, proofs can be split into subproofs and distributed
+across hundreds or thousands of machines, and it provides the ability to shrink
+proofs down to \<50kb in seconds.
+
+A simple programming language to write ZK programs, with fast-to-generate,
+distributed and small in size proofs gives us the best of both worlds. The
+consensus mechanism can be developed and maintained without much difficulty,
+while it's execution can be distributed on the blockchain with vast assuredness
+of the result's correctness, all for a small cost.
+
+### Installing
+
+0. Install dependencies, you'll only need two things: the [nix package manager](https://nixos.org/download/) and [direnv](https://direnv.net/docs/installation.html). They're compatible with most OSes and will **not** collide with your system.
+
+    <Callout type="warning" emoji="⚠️">
+      After installing `direnv` do not forget to [add the hook](https://direnv.net/docs/hook.html)!
+    </Callout>
+
+1. Clone [our repository](https://github.com/blocksense-network/noir/) with SSH:
+
+    ```bash
+    git clone git@github.com:blocksense-network/noir.git
+    ```
+
+2. Navigate to the folder `noir`.
+
+    ```bash
+    cd noir
+    ```
+
+3. Run direnv command:
+
+    ```bash
+    direnv allow
+    ```
+
+    <Callout type="warning" emoji="⚠️">
+      Depending on your `nix` installation, you may get a `Permission denied` error. In that case, it's best to start a superuser shell and continue from there:
+      ```bash
+      sudo su                      # Start superuser shell
+      eval "$(direnv hook bash)"   # Setup the direnv hook
+      direnv allow
+      ```
+    </Callout>
+    This should result in a plethora of things happening in the background and foreground. Sit back, relax, and wait it out. By the end you'll have everything ready to start work.
+
+4. Test if everything works:
+
+    ```bash
+    cargo test zk_dungeon
+    ```
+
+    This will also take a little bit of time, until the project fully compiles.
+
+### Using
+
+<Callout type="error" emoji="🛑">
+  As mentioned, the PLONKY2 Noir backend is still under active development and is **not** stable! Expect to find bugs and limitations!
+</Callout>
+
+We're now ready to create our first proof!
+1. Create a new project:
+    ```bash
+    nargo new my_program
+    ```
+2. Navigate to the folder:
+    ```bash
+    cd my_program
+    ```
+3. Update `src/main.nr` with your favorite text editor to:
+    ```rust
+    fn main(x: pub u64, y: u64) {
+        assert(x % y == 0);
+    }
+    ```
+    This program allows one to prove that they know of a private factor `y` of a public integer `x`.
+4. Run a small check to generate what you need:
+    ```bash
+    nargo check
+    ```
+5. We're almost there, change `Prover.toml` to:
+
+    ```toml
+    x = "4611686014132420609"
+    y = "2147483647"
+    ```
+
+6. Finally, we're ready to start proving:
+    ```bash
+    nargo prove
+    ```
+    Congratulations 🎉, you've made your first proof! Now we can verify it:
+
+    ```bash
+    nargo verify
+    ```
+
+You've now successfully written and proven a Noir program! Feel free to play around, for example, if you change `y` to `3` in `Prover.toml`, you'll get a prove error.
+
+Once you're done, head over to [noir-lang.org](https://noir-lang.org/) and start learning about the language.
+
+## Conclusion
+
+These are our current projects that aim to enhance the Noir programming
+language. The formal verification framework aims to allow users to write safer
+and more correct programs. The PLONKY2 backend aims at providing an alternative
+for a ZK proving system that could have advantages over using barrentenberg.
 
 the blocksense.network team
 
