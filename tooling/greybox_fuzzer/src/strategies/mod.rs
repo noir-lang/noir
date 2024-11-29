@@ -375,9 +375,10 @@ impl InputMutator {
         previous_input_map: &InputMap,
         prng: &mut XorShiftRng,
     ) -> InputMap {
-        const MUTATION_NUM_LOG: u32 = 3;
+        const MUTATION_LOG_MIN: u32 = 1;
+        const MUTATION_LOG_MAX: u32 = 6;
         let mut starting_input_value = previous_input_map.clone();
-        for i in 0..(1 << MUTATION_NUM_LOG) {
+        for _ in 0..(1 << prng.gen_range(MUTATION_LOG_MIN..=MUTATION_LOG_MAX)) {
             starting_input_value = self.mutate_input_map_single(&previous_input_map, prng);
         }
         starting_input_value
