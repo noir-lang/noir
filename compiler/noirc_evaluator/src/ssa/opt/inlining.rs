@@ -1089,7 +1089,6 @@ mod test {
     }
 
     #[test]
-    #[ignore]
     #[should_panic(
         expected = "Attempted to recur more than 1000 times during inlining function 'main': acir(inline) fn main f0 {"
     )]
