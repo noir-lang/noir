@@ -53,9 +53,7 @@ pub(super) fn simplify_call(
     let simplified_result = match intrinsic {
         Intrinsic::ToBits(endian) => {
             // TODO: simplify to a range constraint if `limb_count == 1`
-            if let (Some(constant_args), Some(return_type)) =
-                (constant_args, return_type.clone())
-            {
+            if let (Some(constant_args), Some(return_type)) = (constant_args, return_type.clone()) {
                 let field = constant_args[0];
                 let limb_count = if let Type::Array(_, array_len) = return_type {
                     array_len as u32
@@ -69,9 +67,7 @@ pub(super) fn simplify_call(
         }
         Intrinsic::ToRadix(endian) => {
             // TODO: simplify to a range constraint if `limb_count == 1`
-            if let (Some(constant_args), Some(return_type)) =
-                (constant_args, return_type.clone())
-            {
+            if let (Some(constant_args), Some(return_type)) = (constant_args, return_type.clone()) {
                 let field = constant_args[0];
                 let radix = constant_args[1].to_u128() as u32;
                 let limb_count = if let Type::Array(_, array_len) = return_type {
@@ -374,8 +370,14 @@ pub(super) fn simplify_call(
         Intrinsic::SliceRefCount => SimplifyResult::None,
     };
 
-    if let (Some(expected_types), SimplifyResult::SimplifiedTo(result)) = (return_type, &simplified_result) {
-        assert_eq!(dfg.type_of_value(*result), expected_types, "Simplification should not alter return type");
+    if let (Some(expected_types), SimplifyResult::SimplifiedTo(result)) =
+        (return_type, &simplified_result)
+    {
+        assert_eq!(
+            dfg.type_of_value(*result),
+            expected_types,
+            "Simplification should not alter return type"
+        );
     }
 
     simplified_result
