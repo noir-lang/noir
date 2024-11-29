@@ -15,6 +15,7 @@ members = [
     "tooling/debugger",
     "tooling/fuzzer",
     "tooling/nargo",
+    "tooling/nargo_doc",
     "tooling/nargo_fmt",
     "tooling/nargo_cli",
     "tooling/nargo_toml",
@@ -77,6 +78,7 @@ noirc_printable_type = { path = "compiler/noirc_printable_type" }
 # Noir tooling workspace dependencies
 noir_fuzzer = { path = "tooling/fuzzer" }
 nargo = { path = "tooling/nargo" }
+nargo_doc = { path = "tooling/nargo_doc" }
 nargo_fmt = { path = "tooling/nargo_fmt" }
 nargo_toml = { path = "tooling/nargo_toml" }
 noir_lsp = { path = "tooling/lsp" }

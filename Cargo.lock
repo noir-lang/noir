@@ -2831,6 +2831,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "nargo_doc"
+version = "1.0.0-beta.0"
+dependencies = [
+ "noirc_frontend",
+ "serde",
+ "similar-asserts",
+ "thiserror",
+ "toml 0.7.8",
+]
+
+[[package]]
 name = "nargo_fmt"
 version = "1.0.0-beta.0"
 dependencies = [
