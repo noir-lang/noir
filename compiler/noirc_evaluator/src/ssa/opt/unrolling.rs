@@ -57,7 +57,7 @@ impl Ssa {
         for (_, function) in self.functions.iter_mut() {
             // Take a snapshot of the function to compare byte size increase,
             // but only if the setting indicates we have to, otherwise skip it.
-            let orig_func_and_max_incr = max_bytecode_increase_percent
+            let orig_func_and_max_incr_pct = max_bytecode_increase_percent
                 .filter(|_| function.runtime().is_brillig())
                 .map(|max_incr_pct| (function.clone(), max_incr_pct));
 
@@ -1293,7 +1293,6 @@ mod tests {
         assert_normalized_ssa_equals(ssa, parse_ssa().to_string().as_str());
     }
 
-    /// Test that we can unroll the loop in the ticket using the SSA iterative method
     #[test]
     fn test_brillig_unroll_iteratively_respects_max_increase() {
         let ssa = brillig_unroll_test_case();
