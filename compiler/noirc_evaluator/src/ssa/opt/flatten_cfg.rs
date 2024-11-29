@@ -131,7 +131,8 @@
 //!   v11 = mul v4, Field 12
 //!   v12 = add v10, v11
 //!   store v12 at v5         (new store)
-use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use fxhash::FxHashMap as HashMap;
+use std::collections::{BTreeMap, HashSet};
 
 use acvm::{acir::AcirField, acir::BlackBoxFunc, FieldElement};
 use iter_extended::vecmap;
@@ -185,6 +186,18 @@ struct Context<'f> {
     /// Maps start of branch -> end of branch
     branch_ends: HashMap<BasicBlockId, BasicBlockId>,
 
+    /// Maps an address to the old and new value of the element at that address
+    /// These only hold stores for one block at a time and is cleared
+    /// between inlining of branches.
+    store_values: HashMap<ValueId, Store>,
+
+    /// Stores all allocations local to the current branch.
+    /// Since these branches are local to the current branch (ie. only defined within one branch of
+    /// an if expression), they should not be merged with their previous value or stored value in
+    /// the other branch since there is no such value. The ValueId here is that which is returned
+    /// by the allocate instruction.
+    local_allocations: HashSet<ValueId>,
+
     /// A stack of each jmpif condition that was taken to reach a particular point in the program.
     /// When two branches are merged back into one, this constitutes a join point, and is analogous
     /// to the rest of the program after an if statement. When such a join point / end block is
@@ -201,15 +214,13 @@ struct Context<'f> {
     /// When processing a block, we pop this stack to get its arguments
     /// and at the end we push the arguments for his successor
     arguments_stack: Vec<Vec<ValueId>>,
+}
 
-    /// Stores all allocations local to the current branch.
-    ///
-    /// Since these branches are local to the current branch (i.e. only defined within one branch of
-    /// an if expression), they should not be merged with their previous value or stored value in
-    /// the other branch since there is no such value.
-    ///
-    /// The `ValueId` here is that which is returned by the allocate instruction.
-    local_allocations: HashSet<ValueId>,
+#[derive(Clone)]
+pub(crate) struct Store {
+    old_value: ValueId,
+    new_value: ValueId,
+    call_stack: CallStack,
 }
 
 #[derive(Clone)]
@@ -220,6 +231,8 @@ struct ConditionalBranch {
     old_condition: ValueId,
     // The condition of the branch
     condition: ValueId,
+    // The store values accumulated when processing the branch
+    store_values: HashMap<ValueId, Store>,
     // The allocations accumulated when processing the branch
     local_allocations: HashSet<ValueId>,
 }
@@ -250,11 +263,12 @@ fn flatten_function_cfg(function: &mut Function, no_predicates: &HashMap<Functio
     let mut context = Context {
         inserter: FunctionInserter::new(function),
         cfg,
+        store_values: HashMap::default(),
+        local_allocations: HashSet::new(),
         branch_ends,
         slice_sizes: HashMap::default(),
         condition_stack: Vec::new(),
         arguments_stack: Vec::new(),
-        local_allocations: HashSet::default(),
     };
     context.flatten(no_predicates);
 }
@@ -415,12 +429,14 @@ impl<'f> Context<'f> {
         let old_condition = *condition;
         let then_condition = self.inserter.resolve(old_condition);
 
+        let old_stores = std::mem::take(&mut self.store_values);
         let old_allocations = std::mem::take(&mut self.local_allocations);
         let branch = ConditionalBranch {
             old_condition,
             condition: self.link_condition(then_condition),
-            last_block: *then_destination,
+            store_values: old_stores,
             local_allocations: old_allocations,
+            last_block: *then_destination,
         };
         let cond_context = ConditionalContext {
             condition: then_condition,
@@ -457,12 +473,19 @@ impl<'f> Context<'f> {
         );
         let else_condition = self.link_condition(else_condition);
 
+        // Make sure the else branch sees the previous values of each store
+        // rather than any values created in the 'then' branch.
+        let old_stores = std::mem::take(&mut cond_context.then_branch.store_values);
+        cond_context.then_branch.store_values = std::mem::take(&mut self.store_values);
+        self.undo_stores_in_then_branch(&cond_context.then_branch.store_values);
+
         let old_allocations = std::mem::take(&mut self.local_allocations);
         let else_branch = ConditionalBranch {
             old_condition: cond_context.then_branch.old_condition,
             condition: else_condition,
-            last_block: *block,
+            store_values: old_stores,
             local_allocations: old_allocations,
+            last_block: *block,
         };
         cond_context.then_branch.local_allocations.clear();
         cond_context.else_branch = Some(else_branch);
@@ -486,8 +509,10 @@ impl<'f> Context<'f> {
         }
 
         let mut else_branch = cond_context.else_branch.unwrap();
+        let stores_in_branch = std::mem::replace(&mut self.store_values, else_branch.store_values);
         self.local_allocations = std::mem::take(&mut else_branch.local_allocations);
         else_branch.last_block = *block;
+        else_branch.store_values = stores_in_branch;
         cond_context.else_branch = Some(else_branch);
 
         // We must remember to reset whether side effects are enabled when both branches
@@ -555,6 +580,8 @@ impl<'f> Context<'f> {
                 .first()
         });
 
+        let call_stack = cond_context.call_stack;
+        self.merge_stores(cond_context.then_branch, cond_context.else_branch, call_stack);
         self.arguments_stack.pop();
         self.arguments_stack.pop();
         self.arguments_stack.push(args);
@@ -609,29 +636,116 @@ impl<'f> Context<'f> {
         self.insert_instruction_with_typevars(enable_side_effects, None, call_stack);
     }
 
+    /// Merge any store instructions found in each branch.
+    ///
+    /// This function relies on the 'then' branch being merged before the 'else' branch of a jmpif
+    /// instruction. If this ordering is changed, the ordering that store values are merged within
+    /// this function also needs to be changed to reflect that.
+    fn merge_stores(
+        &mut self,
+        then_branch: ConditionalBranch,
+        else_branch: Option<ConditionalBranch>,
+        call_stack: CallStack,
+    ) {
+        // Address -> (then_value, else_value, value_before_the_if)
+        let mut new_map = BTreeMap::new();
+
+        for (address, store) in then_branch.store_values {
+            new_map.insert(address, (store.new_value, store.old_value, store.old_value));
+        }
+
+        if else_branch.is_some() {
+            for (address, store) in else_branch.clone().unwrap().store_values {
+                if let Some(entry) = new_map.get_mut(&address) {
+                    entry.1 = store.new_value;
+                } else {
+                    new_map.insert(address, (store.old_value, store.new_value, store.old_value));
+                }
+            }
+        }
+
+        let then_condition = then_branch.condition;
+        let block = self.inserter.function.entry_block();
+
+        // Merging must occur in a separate loop as we cannot borrow `self` as mutable while `value_merger` does
+        let mut new_values = HashMap::default();
+        for (address, (then_case, else_case, _)) in &new_map {
+            let instruction = Instruction::IfElse {
+                then_condition,
+                then_value: *then_case,
+                else_value: *else_case,
+            };
+            let dfg = &mut self.inserter.function.dfg;
+            let value = dfg
+                .insert_instruction_and_results(instruction, block, None, call_stack.clone())
+                .first();
+
+            new_values.insert(address, value);
+        }
+
+        // Replace stores with new merged values
+        for (address, (_, _, old_value)) in &new_map {
+            let value = new_values[address];
+            let address = *address;
+            self.insert_instruction_with_typevars(
+                Instruction::Store { address, value },
+                None,
+                call_stack.clone(),
+            );
+
+            if let Some(store) = self.store_values.get_mut(&address) {
+                store.new_value = value;
+            } else {
+                self.store_values.insert(
+                    address,
+                    Store {
+                        old_value: *old_value,
+                        new_value: value,
+                        call_stack: call_stack.clone(),
+                    },
+                );
+            }
+        }
+    }
+
+    fn remember_store(&mut self, address: ValueId, new_value: ValueId, call_stack: CallStack) {
+        if !self.local_allocations.contains(&address) {
+            if let Some(store_value) = self.store_values.get_mut(&address) {
+                store_value.new_value = new_value;
+            } else {
+                let load = Instruction::Load { address };
+
+                let load_type = Some(vec![self.inserter.function.dfg.type_of_value(new_value)]);
+                let old_value = self
+                    .insert_instruction_with_typevars(load.clone(), load_type, call_stack.clone())
+                    .first();
+
+                self.store_values.insert(address, Store { old_value, new_value, call_stack });
+            }
+        }
+    }
+
     /// Push the given instruction to the end of the entry block of the current function.
     ///
     /// Note that each ValueId of the instruction will be mapped via self.inserter.resolve.
     /// As a result, the instruction that will be pushed will actually be a new instruction
     /// with a different InstructionId from the original. The results of the given instruction
     /// will also be mapped to the results of the new instruction.
-    ///
-    /// `previous_allocate_result` should only be set to the result of an allocate instruction
-    /// if that instruction was the instruction immediately previous to this one - if there are
-    /// any instructions in between it should be None.
-    fn push_instruction(&mut self, id: InstructionId) {
+    fn push_instruction(&mut self, id: InstructionId) -> Vec<ValueId> {
         let (instruction, call_stack) = self.inserter.map_instruction(id);
         let instruction = self.handle_instruction_side_effects(instruction, call_stack.clone());
+        let is_allocate = matches!(instruction, Instruction::Allocate);
 
-        let instruction_is_allocate = matches!(&instruction, Instruction::Allocate);
         let entry = self.inserter.function.entry_block();
         let results = self.inserter.push_instruction_value(instruction, id, entry, call_stack);
 
         // Remember an allocate was created local to this branch so that we do not try to merge store
         // values across branches for it later.
-        if instruction_is_allocate {
+        if is_allocate {
             self.local_allocations.insert(results.first());
         }
+
+        results.results().into_owned()
     }
 
     /// If we are currently in a branch, we need to modify constrain instructions
@@ -668,32 +782,8 @@ impl<'f> Context<'f> {
                     Instruction::Constrain(lhs, rhs, message)
                 }
                 Instruction::Store { address, value } => {
-                    // If this instruction immediately follows an allocate, and stores to that
-                    // address there is no previous value to load and we don't need a merge anyway.
-                    if self.local_allocations.contains(&address) {
-                        Instruction::Store { address, value }
-                    } else {
-                        // Instead of storing `value`, store `if condition { value } else { previous_value }`
-                        let typ = self.inserter.function.dfg.type_of_value(value);
-                        let load = Instruction::Load { address };
-                        let previous_value = self
-                            .insert_instruction_with_typevars(
-                                load,
-                                Some(vec![typ]),
-                                call_stack.clone(),
-                            )
-                            .first();
-
-                        let instruction = Instruction::IfElse {
-                            then_condition: condition,
-                            then_value: value,
-
-                            else_value: previous_value,
-                        };
-
-                        let updated_value = self.insert_instruction(instruction, call_stack);
-                        Instruction::Store { address, value: updated_value }
-                    }
+                    self.remember_store(address, value, call_stack);
+                    Instruction::Store { address, value }
                 }
                 Instruction::RangeCheck { value, max_bit_size, assert_message } => {
                     // Replace value with `value * predicate` to zero out value when predicate is inactive.
@@ -815,11 +905,23 @@ impl<'f> Context<'f> {
             call_stack,
         )
     }
+
+    fn undo_stores_in_then_branch(&mut self, store_values: &HashMap<ValueId, Store>) {
+        for (address, store) in store_values {
+            let address = *address;
+            let value = store.old_value;
+            let instruction = Instruction::Store { address, value };
+            // Considering the location of undoing a store to be the same as the original store.
+            self.insert_instruction_with_typevars(instruction, None, store.call_stack.clone());
+        }
+    }
 }
 
 #[cfg(test)]
 mod test {
-    use acvm::acir::AcirField;
+    use std::sync::Arc;
+
+    use acvm::{acir::AcirField, FieldElement};
 
     use crate::ssa::{
         function_builder::FunctionBuilder,
@@ -921,13 +1023,15 @@ mod test {
               b0(v0: u1, v1: &mut Field):
                 enable_side_effects v0
                 v2 = load v1 -> Field
-                v3 = cast v0 as Field
-                v5 = sub Field 5, v2
-                v6 = mul v3, v5
-                v7 = add v2, v6
-                store v7 at v1
-                v8 = not v0
+                store Field 5 at v1
+                v4 = not v0
+                store v2 at v1
                 enable_side_effects u1 1
+                v6 = cast v0 as Field
+                v7 = sub Field 5, v2
+                v8 = mul v6, v7
+                v9 = add v2, v8
+                store v9 at v1
                 return
             }
             ";
@@ -958,20 +1062,17 @@ mod test {
               b0(v0: u1, v1: &mut Field):
                 enable_side_effects v0
                 v2 = load v1 -> Field
-                v3 = cast v0 as Field
-                v5 = sub Field 5, v2
-                v6 = mul v3, v5
-                v7 = add v2, v6
-                store v7 at v1
-                v8 = not v0
-                enable_side_effects v8
-                v9 = load v1 -> Field
-                v10 = cast v8 as Field
-                v12 = sub Field 6, v9
-                v13 = mul v10, v12
-                v14 = add v9, v13
-                store v14 at v1
+                store Field 5 at v1
+                v4 = not v0
+                store v2 at v1
+                enable_side_effects v4
+                v5 = load v1 -> Field
+                store Field 6 at v1
                 enable_side_effects u1 1
+                v8 = cast v0 as Field
+                v10 = mul v8, Field -1
+                v11 = add Field 6, v10
+                store v11 at v1
                 return
             }
             ";
@@ -1014,123 +1115,84 @@ mod test {
         //    b7      b8
         //      ↘   ↙
         //       b9
-        let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            v2 = allocate -> &mut Field
+            store Field 0 at v2
+            v4 = load v2 -> Field
+            // call v1(Field 0, v4)
+            jmp b1()
+          b1():
+            store Field 1 at v2
+            v6 = load v2 -> Field
+            // call v1(Field 1, v6)
+            jmpif v0 then: b2, else: b3
+          b2():
+            store Field 2 at v2
+            v8 = load v2 -> Field
+            // call v1(Field 2, v8)
+            jmp b4()
+          b4():
+            v12 = load v2 -> Field
+            // call v1(Field 4, v12)
+            jmpif v1 then: b5, else: b6
+          b5():
+            store Field 5 at v2
+            v14 = load v2 -> Field
+            // call v1(Field 5, v14)
+            jmp b7()
+          b7():
+            v18 = load v2 -> Field
+            // call v1(Field 7, v18)
+            jmp b9()
+          b9():
+            v22 = load v2 -> Field
+            // call v1(Field 9, v22)
+            v23 = load v2 -> Field
+            return v23
+          b6():
+            store Field 6 at v2
+            v16 = load v2 -> Field
+            // call v1(Field 6, v16)
+            jmp b7()
+          b3():
+            store Field 3 at v2
+            v10 = load v2 -> Field
+            // call v1(Field 3, v10)
+            jmp b8()
+          b8():
+            v20 = load v2 -> Field
+            // call v1(Field 8, v20)
+            jmp b9()
+        }
+        ";
 
-        let b1 = builder.insert_block();
-        let b2 = builder.insert_block();
-        let b3 = builder.insert_block();
-        let b4 = builder.insert_block();
-        let b5 = builder.insert_block();
-        let b6 = builder.insert_block();
-        let b7 = builder.insert_block();
-        let b8 = builder.insert_block();
-        let b9 = builder.insert_block();
-
-        let c1 = builder.add_parameter(Type::bool());
-        let c4 = builder.add_parameter(Type::bool());
-
-        let r1 = builder.insert_allocate(Type::field());
-
-        let store_value = |builder: &mut FunctionBuilder, value: u128| {
-            let value = builder.field_constant(value);
-            builder.insert_store(r1, value);
-        };
-
-        let test_function = Id::test_new(1);
-
-        let call_test_function = |builder: &mut FunctionBuilder, block: u128| {
-            let block = builder.field_constant(block);
-            let load = builder.insert_load(r1, Type::field());
-            builder.insert_call(test_function, vec![block, load], Vec::new());
-        };
-
-        let switch_store_and_test_function =
-            |builder: &mut FunctionBuilder, block, block_number: u128| {
-                builder.switch_to_block(block);
-                store_value(builder, block_number);
-                call_test_function(builder, block_number);
-            };
-
-        let switch_and_test_function =
-            |builder: &mut FunctionBuilder, block, block_number: u128| {
-                builder.switch_to_block(block);
-                call_test_function(builder, block_number);
-            };
-
-        store_value(&mut builder, 0);
-        call_test_function(&mut builder, 0);
-        builder.terminate_with_jmp(b1, vec![]);
-
-        switch_store_and_test_function(&mut builder, b1, 1);
-        builder.terminate_with_jmpif(c1, b2, b3);
-
-        switch_store_and_test_function(&mut builder, b2, 2);
-        builder.terminate_with_jmp(b4, vec![]);
-
-        switch_store_and_test_function(&mut builder, b3, 3);
-        builder.terminate_with_jmp(b8, vec![]);
-
-        switch_and_test_function(&mut builder, b4, 4);
-        builder.terminate_with_jmpif(c4, b5, b6);
-
-        switch_store_and_test_function(&mut builder, b5, 5);
-        builder.terminate_with_jmp(b7, vec![]);
-
-        switch_store_and_test_function(&mut builder, b6, 6);
-        builder.terminate_with_jmp(b7, vec![]);
-
-        switch_and_test_function(&mut builder, b7, 7);
-        builder.terminate_with_jmp(b9, vec![]);
-
-        switch_and_test_function(&mut builder, b8, 8);
-        builder.terminate_with_jmp(b9, vec![]);
-
-        switch_and_test_function(&mut builder, b9, 9);
-        let load = builder.insert_load(r1, Type::field());
-        builder.terminate_with_return(vec![load]);
-
-        let ssa = builder.finish().flatten_cfg().mem2reg();
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_cfg().mem2reg();
 
         // Expected results after mem2reg removes the allocation and each load and store:
-        //
-        // fn main f0 {
-        //   b0(v0: u1, v1: u1):
-        //     call test_function(Field 0, Field 0)
-        //     call test_function(Field 1, Field 1)
-        //     enable_side_effects v0
-        //     call test_function(Field 2, Field 2)
-        //     call test_function(Field 4, Field 2)
-        //     v29 = and v0, v1
-        //     enable_side_effects v29
-        //     call test_function(Field 5, Field 5)
-        //     v32 = not v1
-        //     v33 = and v0, v32
-        //     enable_side_effects v33
-        //     call test_function(Field 6, Field 6)
-        //     enable_side_effects v0
-        //     v36 = mul v1, Field 5
-        //     v37 = mul v32, Field 2
-        //     v38 = add v36, v37
-        //     v39 = mul v1, Field 5
-        //     v40 = mul v32, Field 6
-        //     v41 = add v39, v40
-        //     call test_function(Field 7, v42)
-        //     v43 = not v0
-        //     enable_side_effects v43
-        //     store Field 3 at v2
-        //     call test_function(Field 3, Field 3)
-        //     call test_function(Field 8, Field 3)
-        //     enable_side_effects Field 1
-        //     v47 = mul v0, v41
-        //     v48 = mul v43, Field 1
-        //     v49 = add v47, v48
-        //     v50 = mul v0, v44
-        //     v51 = mul v43, Field 3
-        //     v52 = add v50, v51
-        //     call test_function(Field 9, v53)
-        //     return v54
-        // }
+        let expected = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            v2 = allocate -> &mut Field
+            enable_side_effects v0
+            v3 = mul v0, v1
+            enable_side_effects v3
+            v4 = not v1
+            v5 = mul v0, v4
+            enable_side_effects v0
+            v6 = cast v3 as Field
+            v8 = mul v6, Field -1
+            v10 = add Field 6, v8
+            v11 = not v0
+            enable_side_effects u1 1
+            v13 = cast v0 as Field
+            v15 = sub v10, Field 3
+            v16 = mul v13, v15
+            v17 = add Field 3, v16
+            return v17
+        }";
 
         let main = ssa.main();
         let ret = match main.dfg[main.entry_block()].terminator() {
@@ -1139,7 +1201,12 @@ mod test {
         };
 
         let merged_values = get_all_constants_reachable_from_instruction(&main.dfg, ret);
-        assert_eq!(merged_values, vec![1, 3, 5, 6]);
+        assert_eq!(
+            merged_values,
+            vec![FieldElement::from(3u128), FieldElement::from(6u128), -FieldElement::from(1u128)]
+        );
+
+        assert_normalized_ssa_equals(ssa, expected);
     }
 
     #[test]
@@ -1220,7 +1287,7 @@ mod test {
     fn get_all_constants_reachable_from_instruction(
         dfg: &DataFlowGraph,
         value: ValueId,
-    ) -> Vec<u128> {
+    ) -> Vec<FieldElement> {
         match dfg[value] {
             Value::Instruction { instruction, .. } => {
                 let mut values = vec![];
@@ -1238,7 +1305,7 @@ mod test {
                 values.dedup();
                 values
             }
-            Value::NumericConstant { constant, .. } => vec![constant.to_u128()],
+            Value::NumericConstant { constant, .. } => vec![constant],
             _ => Vec::new(),
         }
     }
@@ -1277,74 +1344,63 @@ mod test {
     fn should_not_merge_incorrectly_to_false() {
         // Regression test for #1792
         // Tests that it does not simplify a true constraint an always-false constraint
-
-        let src = "
-        acir(inline) fn main f0 {
-          b0(v0: [u8; 2]):
-            v2 = array_get v0, index u8 0 -> u8
-            v3 = cast v2 as u32
-            v4 = truncate v3 to 1 bits, max_bit_size: 32
-            v5 = cast v4 as u1
-            v6 = allocate -> &mut Field
-            store u8 0 at v6
-            jmpif v5 then: b2, else: b1
-          b2():
-            v7 = cast v2 as Field
-            v9 = add v7, Field 1
-            v10 = cast v9 as u8
-            store v10 at v6
-            jmp b3()
-          b3():
-            constrain v5 == u1 1
-            return
-          b1():
-            store u8 0 at v6
-            jmp b3()
-        }
-        ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-
-        let expected = "
-        acir(inline) fn main f0 {
-          b0(v0: [u8; 2]):
-            v2 = array_get v0, index u8 0 -> u8
-            v3 = cast v2 as u32
-            v4 = truncate v3 to 1 bits, max_bit_size: 32
-            v5 = cast v4 as u1
-            v6 = allocate -> &mut Field
-            store u8 0 at v6
-            enable_side_effects v5
-            v7 = cast v2 as Field
-            v9 = add v7, Field 1
-            v10 = cast v9 as u8
-            v11 = load v6 -> u8
-            v12 = cast v4 as Field
-            v13 = cast v11 as Field
-            v14 = sub v9, v13
-            v15 = mul v12, v14
-            v16 = add v13, v15
-            v17 = cast v16 as u8
-            store v17 at v6
-            v18 = not v5
-            enable_side_effects v18
-            v19 = load v6 -> u8
-            v20 = cast v18 as Field
-            v21 = cast v19 as Field
-            v23 = sub Field 0, v21
-            v24 = mul v20, v23
-            v25 = add v21, v24
-            v26 = cast v25 as u8
-            store v26 at v6
-            enable_side_effects u1 1
-            constrain v5 == u1 1
-            return
-        }
-        ";
-
+        // acir(inline) fn main f1 {
+        //     b0(v0: [u8; 2]):
+        //       v5 = array_get v0, index u8 0
+        //       v6 = cast v5 as u32
+        //       v8 = truncate v6 to 1 bits, max_bit_size: 32
+        //       v9 = cast v8 as u1
+        //       v10 = allocate
+        //       store u8 0 at v10
+        //       jmpif v9 then: b2, else: b3
+        //     b2():
+        //       v12 = cast v5 as Field
+        //       v13 = add v12, Field 1
+        //       store v13 at v10
+        //       jmp b4()
+        //     b4():
+        //       constrain v9 == u1 1
+        //       return
+        //     b3():
+        //       store u8 0 at v10
+        //       jmp b4()
+        //   }
+        let main_id = Id::test_new(1);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        builder.insert_block(); // b0
+        let b1 = builder.insert_block();
+        let b2 = builder.insert_block();
+        let b3 = builder.insert_block();
+        let element_type = Arc::new(vec![Type::unsigned(8)]);
+        let array_type = Type::Array(element_type.clone(), 2);
+        let array = builder.add_parameter(array_type);
+        let zero = builder.numeric_constant(0_u128, Type::unsigned(8));
+        let v5 = builder.insert_array_get(array, zero, Type::unsigned(8));
+        let v6 = builder.insert_cast(v5, Type::unsigned(32));
+        let i_two = builder.numeric_constant(2_u128, Type::unsigned(32));
+        let v8 = builder.insert_binary(v6, BinaryOp::Mod, i_two);
+        let v9 = builder.insert_cast(v8, Type::bool());
+        let v10 = builder.insert_allocate(Type::field());
+        builder.insert_store(v10, zero);
+        builder.terminate_with_jmpif(v9, b1, b2);
+        builder.switch_to_block(b1);
+        let one = builder.field_constant(1_u128);
+        let v5b = builder.insert_cast(v5, Type::field());
+        let v13: Id<Value> = builder.insert_binary(v5b, BinaryOp::Add, one);
+        let v14 = builder.insert_cast(v13, Type::unsigned(8));
+        builder.insert_store(v10, v14);
+        builder.terminate_with_jmp(b3, vec![]);
+        builder.switch_to_block(b2);
+        builder.insert_store(v10, zero);
+        builder.terminate_with_jmp(b3, vec![]);
+        builder.switch_to_block(b3);
+        let v_true = builder.numeric_constant(true, Type::bool());
+        let v12 = builder.insert_binary(v9, BinaryOp::Eq, v_true);
+        builder.insert_constrain(v12, v_true, None);
+        builder.terminate_with_return(vec![]);
+        let ssa = builder.finish();
         let flattened_ssa = ssa.flatten_cfg();
         let main = flattened_ssa.main();
-
         // Now assert that there is not an always-false constraint after flattening:
         let mut constrain_count = 0;
         for instruction in main.dfg[main.entry_block()].instructions() {
@@ -1358,8 +1414,6 @@ mod test {
             }
         }
         assert_eq!(constrain_count, 1);
-
-        assert_normalized_ssa_equals(flattened_ssa, expected);
     }
 
     #[test]
@@ -1495,7 +1549,7 @@ mod test {
           b2():
             return
           b1():
-            jmp b2()           
+            jmp b2()
         }
         ";
         let merged_ssa = Ssa::from_str(src).unwrap();

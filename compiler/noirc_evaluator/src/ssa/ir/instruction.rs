@@ -11,7 +11,7 @@ use fxhash::FxHasher64;
 use iter_extended::vecmap;
 use noirc_frontend::hir_def::types::Type as HirType;
 
-use crate::ssa::{ir::function::RuntimeType, opt::flatten_cfg::value_merger::ValueMerger};
+use crate::ssa::opt::flatten_cfg::value_merger::ValueMerger;
 
 use super::{
     basic_block::BasicBlockId,
@@ -478,19 +478,8 @@ impl Instruction {
             | ArraySet { .. }
             | MakeArray { .. } => true,
 
-            // Store instructions must be removed by DIE in acir code, any load
-            // instructions should already be unused by that point.
-            //
-            // Note that this check assumes that it is being performed after the flattening
-            // pass and after the last mem2reg pass. This is currently the case for the DIE
-            // pass where this check is done, but does mean that we cannot perform mem2reg
-            // after the DIE pass.
-            Store { .. } => {
-                matches!(function.runtime(), RuntimeType::Acir(_))
-                    && function.reachable_blocks().len() == 1
-            }
-
             Constrain(..)
+            | Store { .. }
             | EnableSideEffectsIf { .. }
             | IncrementRc { .. }
             | DecrementRc { .. }

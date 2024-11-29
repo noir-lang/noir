@@ -172,7 +172,6 @@ impl<'a> FunctionContext<'a> {
     /// Always returns a Value::Mutable wrapping the allocate instruction.
     pub(super) fn new_mutable_variable(&mut self, value_to_store: ValueId) -> Value {
         let element_type = self.builder.current_function.dfg.type_of_value(value_to_store);
-        self.builder.increment_array_reference_count(value_to_store);
         let alloc = self.builder.insert_allocate(element_type);
         self.builder.insert_store(alloc, value_to_store);
         let typ = self.builder.type_of_value(value_to_store);
@@ -736,6 +735,7 @@ impl<'a> FunctionContext<'a> {
             // Reference counting in brillig relies on us incrementing reference
             // counts when arrays/slices are constructed or indexed.
             // Thus, if we dereference an lvalue which happens to be array/slice we should increment its reference counter.
+            self.builder.increment_array_reference_count(reference);
             self.builder.insert_load(reference, element_type).into()
         })
     }
@@ -916,10 +916,7 @@ impl<'a> FunctionContext<'a> {
         let parameters = self.builder.current_function.dfg.block_parameters(entry).to_vec();
 
         for parameter in parameters {
-            // Avoid reference counts for immutable arrays that aren't behind references.
-            if self.builder.current_function.dfg.value_is_reference(parameter) {
-                self.builder.increment_array_reference_count(parameter);
-            }
+            self.builder.increment_array_reference_count(parameter);
         }
 
         entry
@@ -936,9 +933,7 @@ impl<'a> FunctionContext<'a> {
         dropped_parameters.retain(|parameter| !terminator_args.contains(parameter));
 
         for parameter in dropped_parameters {
-            if self.builder.current_function.dfg.value_is_reference(parameter) {
-                self.builder.decrement_array_reference_count(parameter);
-            }
+            self.builder.decrement_array_reference_count(parameter);
         }
     }
 
