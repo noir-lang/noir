@@ -177,10 +177,10 @@ language.
 ### What is PLONKY2?
 
 PLONKY2 is a zkSNARK built by [Polygon Labs](https://polygon.technology/), with
-efficiency, decomposition and size in mind. A proof can be generated 100x
-faster than other systems, proofs can be split into subproofs and distributed
+efficiency, decomposition and size in mind. Recursive proofs can be generated
+faster than other systems. This enables proofs to be split into subproofs and distributed
 across hundreds or thousands of machines, and it provides the ability to shrink
-proofs down to \<50kb in seconds.
+proofs down dramatically in seconds.
 
 A simple programming language to write ZK programs, with fast-to-generate,
 distributed and small in size proofs gives us the best of both worlds. The
