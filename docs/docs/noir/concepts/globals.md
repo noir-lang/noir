@@ -10,12 +10,12 @@ sidebar_position: 8
 ## Globals
 
 
-Noir supports global variables. The global's type must be specified by the user:
+Noir supports global variables. The global's type can be inferred by the compiler entirely:
 
 ```rust
-global N: Field = 5;
+global N = 5; // Same as `global N: Field = 5`
 
-global TUPLE: (Field, Field) = (3, 2);
+global TUPLE = (3, 2);
 
 fn main() {
     assert(N == 5);
@@ -28,7 +28,7 @@ fn main() {
 Globals can be defined as any expression, so long as they don't depend on themselves - otherwise there would be a dependency cycle! For example:
 
 ```rust
-global T: u32 = foo(T); // dependency error
+global T = foo(T); // dependency error
 ```
 
 :::
@@ -47,7 +47,7 @@ fn main(y : [Field; N]) {
 A global from another module can be imported or referenced externally like any other name:
 
 ```rust
-global N: Field = 20;
+global N = 20;
 
 fn main() {
     assert(my_submodule::N != N);
@@ -62,7 +62,7 @@ When a global is used, Noir replaces the name with its definition on each occurr
 This means globals defined using function calls will repeat the call each time they're used:
 
 ```rust
-global RESULT: [Field; 100] = foo();
+global RESULT = foo();
 
 fn foo() -> [Field; 100] { ... }
 ```
@@ -78,5 +78,5 @@ to make the global public or `pub(crate)` to make it public to just its crate:
 
 ```rust
 // This global is now public
-pub global N: u32 = 5;
+pub global N = 5;
 ```

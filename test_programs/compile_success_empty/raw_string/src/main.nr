@@ -1,4 +1,4 @@
-global D: str<13> = r#####"Hello "world""#####;
+global D = r#####"Hello "world""#####;
 
 fn main() {
     let a = "Hello \"world\"";

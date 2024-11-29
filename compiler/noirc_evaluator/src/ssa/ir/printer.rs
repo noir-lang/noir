@@ -272,13 +272,13 @@ fn display_constrain_error(
 ) -> Result {
     match error {
         ConstrainError::StaticString(assert_message_string) => {
-            writeln!(f, ", {assert_message_string:?}")
+            writeln!(f, " '{assert_message_string:?}'")
         }
         ConstrainError::Dynamic(_, is_string, values) => {
             if let Some(constant_string) =
                 try_to_extract_string_from_error_payload(*is_string, values, &function.dfg)
             {
-                writeln!(f, ", {constant_string:?}")
+                writeln!(f, " '{}'", constant_string)
             } else {
                 writeln!(f, ", data {}", value_list(function, values))
             }

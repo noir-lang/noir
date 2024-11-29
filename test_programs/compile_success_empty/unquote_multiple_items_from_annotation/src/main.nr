@@ -8,7 +8,7 @@ fn main() {
 
 comptime fn foo(_: StructDefinition) -> Quoted {
     quote {
-        global ONE: Field = 1;
-        global TWO: u32 = 2;
+        global ONE = 1;
+        global TWO = 2;
     }
 }

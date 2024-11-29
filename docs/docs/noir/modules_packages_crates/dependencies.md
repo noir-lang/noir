@@ -81,10 +81,12 @@ use std::hash::sha256;
 use std::scalar_mul::fixed_base_embedded_curve;
 ```
 
-Lastly, You can import multiple items in the same line by enclosing them in curly braces:
+Lastly, as demonstrated in the
+[elliptic curve example](../standard_library/cryptographic_primitives/ec_primitives.md#examples), you
+can import multiple items in the same line by enclosing them in curly braces:
 
 ```rust
-use std::hash::{keccak256, sha256};
+use std::ec::tecurve::affine::{Curve, Point};
 ```
 
 We don't have a way to consume libraries from inside a [workspace](./workspaces.md) as external dependencies right now.

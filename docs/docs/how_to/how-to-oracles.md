@@ -30,7 +30,7 @@ This guide has 3 major steps:
 
 An oracle is defined in a Noir program by defining two methods:
 
-- An unconstrained method - This tells the compiler that it is executing an [unconstrained function](../noir/concepts//unconstrained.md).
+- An unconstrained method - This tells the compiler that it is executing an [unconstrained functions](../noir/concepts//unconstrained.md).
 - A decorated oracle method - This tells the compiler that this method is an RPC call.
 
 An example of an oracle that returns a `Field` would be:

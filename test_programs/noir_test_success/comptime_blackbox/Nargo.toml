@@ -1,7 +1,0 @@
-[package]
-name = "comptime_blackbox"
-type = "bin"
-authors = [""]
-compiler_version = ">=0.27.0"
-
-[dependencies]

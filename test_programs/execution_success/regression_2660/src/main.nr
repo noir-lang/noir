@@ -1,4 +1,4 @@
-global foo: i32 = -1;
+global foo = -1;
 
 fn main(x: i32) {
     let y = x + foo;

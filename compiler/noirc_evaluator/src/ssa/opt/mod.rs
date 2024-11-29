@@ -12,7 +12,6 @@ mod defunctionalize;
 mod die;
 pub(crate) mod flatten_cfg;
 mod inlining;
-mod loop_invariant;
 mod mem2reg;
 mod normalize_value_ids;
 mod rc;

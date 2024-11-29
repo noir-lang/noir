@@ -1,0 +1,7 @@
+[package]
+name = "eddsa"
+description = "Eddsa verification"
+type = "bin"
+authors = [""]
+
+[dependencies]

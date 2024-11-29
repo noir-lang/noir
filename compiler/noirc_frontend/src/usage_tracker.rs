@@ -35,8 +35,6 @@ pub struct UsageTracker {
 }
 
 impl UsageTracker {
-    /// Register an item as unused, waiting to be marked as used later.
-    /// Things that should not emit warnings should not be added at all.
     pub(crate) fn add_unused_item(
         &mut self,
         module_id: ModuleId,
@@ -75,7 +73,6 @@ impl UsageTracker {
         };
     }
 
-    /// Get all the unused items per module.
     pub fn unused_items(&self) -> &HashMap<ModuleId, HashMap<Ident, UnusedItem>> {
         &self.unused_items
     }

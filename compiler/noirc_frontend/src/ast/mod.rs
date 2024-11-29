@@ -200,14 +200,6 @@ impl GenericTypeArgs {
     pub fn is_empty(&self) -> bool {
         self.ordered_args.is_empty() && self.named_args.is_empty()
     }
-
-    fn contains_unspecified(&self) -> bool {
-        let ordered_args_contains_unspecified =
-            self.ordered_args.iter().any(|ordered_arg| ordered_arg.contains_unspecified());
-        let named_args_contains_unspecified =
-            self.named_args.iter().any(|(_name, named_arg)| named_arg.contains_unspecified());
-        ordered_args_contains_unspecified || named_args_contains_unspecified
-    }
 }
 
 impl From<Vec<GenericTypeArg>> for GenericTypeArgs {
@@ -383,10 +375,6 @@ impl UnresolvedType {
         let typ = UnresolvedTypeData::Named(path, generic_type_args, true);
         UnresolvedType { typ, span }
     }
-
-    pub(crate) fn contains_unspecified(&self) -> bool {
-        self.typ.contains_unspecified()
-    }
 }
 
 impl UnresolvedTypeData {
@@ -406,47 +394,6 @@ impl UnresolvedTypeData {
 
     pub fn with_span(&self, span: Span) -> UnresolvedType {
         UnresolvedType { typ: self.clone(), span }
-    }
-
-    fn contains_unspecified(&self) -> bool {
-        match self {
-            UnresolvedTypeData::Array(typ, length) => {
-                typ.contains_unspecified() || length.contains_unspecified()
-            }
-            UnresolvedTypeData::Slice(typ) => typ.contains_unspecified(),
-            UnresolvedTypeData::Expression(expr) => expr.contains_unspecified(),
-            UnresolvedTypeData::String(length) => length.contains_unspecified(),
-            UnresolvedTypeData::FormatString(typ, length) => {
-                typ.contains_unspecified() || length.contains_unspecified()
-            }
-            UnresolvedTypeData::Parenthesized(typ) => typ.contains_unspecified(),
-            UnresolvedTypeData::Named(path, args, _is_synthesized) => {
-                // '_' is unspecified
-                let path_is_wildcard = path.is_wildcard();
-                let an_arg_is_unresolved = args.contains_unspecified();
-                path_is_wildcard || an_arg_is_unresolved
-            }
-            UnresolvedTypeData::TraitAsType(_path, args) => args.contains_unspecified(),
-            UnresolvedTypeData::MutableReference(typ) => typ.contains_unspecified(),
-            UnresolvedTypeData::Tuple(args) => args.iter().any(|arg| arg.contains_unspecified()),
-            UnresolvedTypeData::Function(args, ret, env, _unconstrained) => {
-                let args_contains_unspecified = args.iter().any(|arg| arg.contains_unspecified());
-                args_contains_unspecified
-                    || ret.contains_unspecified()
-                    || env.contains_unspecified()
-            }
-            UnresolvedTypeData::Unspecified => true,
-
-            UnresolvedTypeData::FieldElement
-            | UnresolvedTypeData::Integer(_, _)
-            | UnresolvedTypeData::Bool
-            | UnresolvedTypeData::Unit
-            | UnresolvedTypeData::Quoted(_)
-            | UnresolvedTypeData::AsTraitPath(_)
-            | UnresolvedTypeData::Resolved(_)
-            | UnresolvedTypeData::Interned(_)
-            | UnresolvedTypeData::Error => false,
-        }
     }
 }
 
@@ -546,19 +493,6 @@ impl UnresolvedTypeExpression {
                 | BinaryOpKind::Divide
                 | BinaryOpKind::Modulo
         )
-    }
-
-    fn contains_unspecified(&self) -> bool {
-        match self {
-            // '_' is unspecified
-            UnresolvedTypeExpression::Variable(path) => path.is_wildcard(),
-            UnresolvedTypeExpression::BinaryOperation(lhs, _op, rhs, _span) => {
-                lhs.contains_unspecified() || rhs.contains_unspecified()
-            }
-            UnresolvedTypeExpression::Constant(_, _) | UnresolvedTypeExpression::AsTraitPath(_) => {
-                false
-            }
-        }
     }
 }
 

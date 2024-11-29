@@ -578,7 +578,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         let numeric_type = match typ {
             AcirType::NumericType(numeric_type) => numeric_type,
             AcirType::Array(_, _) => {
-                unreachable!("cannot divide arrays. This should have been caught by the frontend")
+                todo!("cannot divide arrays. This should have been caught by the frontend")
             }
         };
         match numeric_type {
@@ -1084,22 +1084,11 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         &mut self,
         lhs: AcirVar,
         rhs: AcirVar,
-        typ: AcirType,
         bit_size: u32,
         predicate: AcirVar,
     ) -> Result<AcirVar, RuntimeError> {
-        let numeric_type = match typ {
-            AcirType::NumericType(numeric_type) => numeric_type,
-            AcirType::Array(_, _) => {
-                unreachable!("cannot modulo arrays. This should have been caught by the frontend")
-            }
-        };
-
-        let (_, remainder_var) = match numeric_type {
-            NumericType::Signed { bit_size } => self.signed_division_var(lhs, rhs, bit_size)?,
-            _ => self.euclidean_division_var(lhs, rhs, bit_size, predicate)?,
-        };
-        Ok(remainder_var)
+        let (_, remainder) = self.euclidean_division_var(lhs, rhs, bit_size, predicate)?;
+        Ok(remainder)
     }
 
     /// Constrains the `AcirVar` variable to be of type `NumericType`.

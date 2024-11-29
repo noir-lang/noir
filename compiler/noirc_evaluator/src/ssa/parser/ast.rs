@@ -89,7 +89,6 @@ pub(crate) enum ParsedInstruction {
     Constrain {
         lhs: ParsedValue,
         rhs: ParsedValue,
-        assert_message: Option<AssertMessage>,
     },
     DecrementRc {
         value: ParsedValue,
@@ -128,12 +127,6 @@ pub(crate) enum ParsedInstruction {
         bit_size: u32,
         max_bit_size: u32,
     },
-}
-
-#[derive(Debug)]
-pub(crate) enum AssertMessage {
-    Static(String),
-    Dynamic(Vec<ParsedValue>),
 }
 
 #[derive(Debug)]

@@ -200,11 +200,6 @@ pub enum InterpreterError {
         item: String,
         location: Location,
     },
-    InvalidInComptimeContext {
-        item: String,
-        location: Location,
-        explanation: String,
-    },
     TypeAnnotationsNeededForMethodCall {
         location: Location,
     },
@@ -296,7 +291,6 @@ impl InterpreterError {
             | InterpreterError::UnsupportedTopLevelItemUnquote { location, .. }
             | InterpreterError::ComptimeDependencyCycle { location, .. }
             | InterpreterError::Unimplemented { location, .. }
-            | InterpreterError::InvalidInComptimeContext { location, .. }
             | InterpreterError::NoImpl { location, .. }
             | InterpreterError::ImplMethodTypeMismatch { location, .. }
             | InterpreterError::DebugEvaluateComptime { location, .. }
@@ -545,10 +539,6 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             InterpreterError::Unimplemented { item, location } => {
                 let msg = format!("{item} is currently unimplemented");
                 CustomDiagnostic::simple_error(msg, String::new(), location.span)
-            }
-            InterpreterError::InvalidInComptimeContext { item, location, explanation } => {
-                let msg = format!("{item} is invalid in comptime context");
-                CustomDiagnostic::simple_error(msg, explanation.clone(), location.span)
             }
             InterpreterError::BreakNotInLoop { location } => {
                 let msg = "There is no loop to break out of!".into();

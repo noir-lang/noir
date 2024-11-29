@@ -1,6 +1,0 @@
-[package]
-name = "brillig_uninitialized_arrays"
-type = "bin"
-authors = [""]
-
-[dependencies]
