@@ -78,7 +78,13 @@ pub(super) fn simplify_call(
                     unreachable!("ICE: Intrinsic::ToRadix return type must be array")
                 };
                 constant_to_radix(endian, field, radix, limb_count, |values| {
-                    make_constant_array(dfg, values.into_iter(), Type::unsigned(8), block, call_stack)
+                    make_constant_array(
+                        dfg,
+                        values.into_iter(),
+                        Type::unsigned(8),
+                        block,
+                        call_stack,
+                    )
                 })
             } else {
                 SimplifyResult::None
