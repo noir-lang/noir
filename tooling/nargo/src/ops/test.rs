@@ -36,7 +36,7 @@ pub enum TestStatus {
 
 impl TestStatus {
     pub fn failed(&self) -> bool {
-        !matches!(self, TestStatus::Pass)
+        !matches!(self, TestStatus::Pass | TestStatus::Skipped)
     }
 }
 
