@@ -2780,4 +2780,37 @@ fn main() {
         )
         .await;
     }
+
+    #[test]
+    async fn test_suggests_methods_based_on_type_generics() {
+        let src = r#"
+        struct Foo<T> {
+            t: T,
+        }
+
+        impl Foo<Field> {
+            fn bar_baz(_self: Self) -> Field {
+                5
+            }
+        }
+
+        impl Foo<u32> {
+            fn bar(_self: Self) -> Field {
+                5
+            }
+
+            fn baz(_self: Self) -> Field {
+                6
+            }
+        }
+
+        fn main() -> pub Field {
+            let foo: Foo<Field> = Foo { t: 5 };
+            foo.b>|<
+        }
+        "#;
+        let items = get_completions(src).await;
+        assert_eq!(items.len(), 1);
+        assert!(items[0].label == "bar_baz()");
+    }
 }
