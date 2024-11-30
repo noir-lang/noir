@@ -211,6 +211,19 @@ impl DependencyContext {
         let mut results = Vec::new();
 
         for instruction in function.dfg[block].instructions() {
+            // Optimization: there is no reason to do anything until a Brillig
+            // call is encountered
+            if self.tainted.is_empty() {
+                if let Instruction::Call { func: func_id, .. } = &function.dfg[*instruction] {
+                    if let Value::Function(callee) = &function.dfg[*func_id] {
+                        if let RuntimeType::Brillig(_) = all_functions[&callee].runtime() {
+                        } else {
+                            continue;
+                        }
+                    }
+                }
+            }
+
             arguments.clear();
             results.clear();
 
@@ -327,7 +340,7 @@ impl DependencyContext {
                 // being constrained as valid as the whole arrays being constrained)
                 Instruction::ArrayGet { array, .. } => {
                     for result in &results {
-                        self.array_elements.insert(*result, *array);
+                        self.array_elements.insert(*result, function.dfg.resolve(*array));
                     }
                     // Record all the used arguments as parents of the results
                     self.update_children(&arguments, &results);
