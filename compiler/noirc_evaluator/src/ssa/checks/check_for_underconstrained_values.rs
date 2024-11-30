@@ -113,8 +113,8 @@ struct BrilligTaintedIds {
     results: Vec<HashSet<ValueId>>,
     // Initial result value ids
     root_results: HashSet<ValueId>,
-    // Already constrained value ids
-    constrained: HashSet<ValueId>,
+    // Result indices already found constrained
+    results_constrained: HashSet<usize>,
 }
 
 impl BrilligTaintedIds {
@@ -123,19 +123,23 @@ impl BrilligTaintedIds {
             arguments: HashSet::from_iter(arguments.iter().copied()),
             results: results.iter().map(|result| HashSet::from([*result])).collect(),
             root_results: HashSet::from_iter(results.iter().copied()),
-            constrained: HashSet::new(),
+            results_constrained: HashSet::new(),
         }
     }
 
     /// Add children of a given parent to the tainted value set
     /// (for arguments one set is enough, for results we keep them
     /// separate as the forthcoming check considers the call covered
-    /// if all the results and one of the arguments were covered
+    /// if all the results were properly covered)
     fn update_children(&mut self, parent: &ValueId, children: &[ValueId]) {
         if self.arguments.contains(parent) {
             self.arguments.extend(children);
         }
-        for result in &mut self.results {
+        for (i, result) in &mut self.results.iter_mut().enumerate() {
+            // Skip updating results already found covered
+            if self.results_constrained.contains(&i) {
+                continue;
+            }
             if result.contains(parent) {
                 result.extend(children);
             }
@@ -146,33 +150,36 @@ impl BrilligTaintedIds {
     fn check_constrained(&self) -> bool {
         // If every result has now been constrained,
         // consider the call properly constrained
-        self.results
-            .iter()
-            .map(|values| values.intersection(&self.constrained).next().is_some())
-            .all(|constrained| constrained)
+        self.results.len() == self.results_constrained.len()
     }
 
-    /// Remember partial constraints (involving one result and one argument)
+    /// Remember partial constraints (involving some of the results and an argument)
     /// along the way to take them into final consideration
     fn store_partial_constraints(&mut self, constrained_values: &HashSet<ValueId>) {
+        let mut results_involved: Vec<usize> = vec![];
+
         // For a valid partial constrain, a value descending from
         // one of the results should be constrained
-        let result_constrained = self
-            .results
-            .iter()
-            .map(|values| values.intersection(constrained_values).next().is_some())
-            .any(|constrained| constrained);
+        for (i, result_descendants) in self.results.iter().enumerate() {
+            // Skip checking already covered results
+            if self.results_constrained.contains(&i) {
+                continue;
+            }
+            if result_descendants.intersection(constrained_values).next().is_some() {
+                results_involved.push(i);
+            }
+        }
 
         // Also, one of the argument descendants should be constrained
-        // (skipped if there were no arguments, or if the actual result and not a
+        // (skipped if there were no arguments, or if an actual result and not a
         // descendant has been constrained, e.g. against a constant)
         if (self.arguments.is_empty()
-            || self.root_results.is_superset(constrained_values)
+            || self.root_results.intersection(constrained_values).next().is_some()
             || self.arguments.intersection(constrained_values).next().is_some())
-            && result_constrained
+            && !results_involved.is_empty()
         {
             // Remember the partial constraint
-            self.constrained.extend(constrained_values);
+            self.results_constrained.extend(results_involved);
         }
     }
 }
