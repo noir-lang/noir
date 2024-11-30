@@ -429,6 +429,15 @@ impl<'a> Parser<'a> {
             return Ok(ParsedInstruction::Load { target, value, typ });
         }
 
+        if self.eat_keyword(Keyword::MakeArray)? {
+            self.eat_or_error(Token::LeftBracket)?;
+            let elements = self.parse_comma_separated_values()?;
+            self.eat_or_error(Token::RightBracket)?;
+            self.eat_or_error(Token::Colon)?;
+            let typ = self.parse_type()?;
+            return Ok(ParsedInstruction::MakeArray { target, elements, typ });
+        }
+
         if self.eat_keyword(Keyword::Not)? {
             let value = self.parse_value_or_error()?;
             return Ok(ParsedInstruction::Not { target, value });
@@ -557,10 +566,6 @@ impl<'a> Parser<'a> {
             return Ok(Some(value));
         }
 
-        if let Some(value) = self.parse_array_value()? {
-            return Ok(Some(value));
-        }
-
         if let Some(identifier) = self.eat_identifier()? {
             return Ok(Some(ParsedValue::Variable(identifier)));
         }
@@ -585,23 +590,6 @@ impl<'a> Parser<'a> {
                 IntType::Signed(bit_size) => Type::signed(bit_size),
             };
             Ok(Some(ParsedValue::NumericConstant { constant, typ }))
-        } else {
-            Ok(None)
-        }
-    }
-
-    fn parse_array_value(&mut self) -> ParseResult<Option<ParsedValue>> {
-        if self.eat(Token::LeftBracket)? {
-            let values = self.parse_comma_separated_values()?;
-            self.eat_or_error(Token::RightBracket)?;
-            self.eat_or_error(Token::Keyword(Keyword::Of))?;
-            let types = self.parse_types()?;
-            let types_len = types.len();
-            let values_len = values.len();
-            Ok(Some(ParsedValue::Array {
-                typ: Type::Array(Arc::new(types), values_len / types_len),
-                values,
-            }))
         } else {
             Ok(None)
         }
