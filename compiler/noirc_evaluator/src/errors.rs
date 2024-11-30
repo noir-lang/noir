@@ -120,7 +120,7 @@ pub enum InternalWarning {
 
 #[derive(Debug, PartialEq, Eq, Clone, Error, Serialize, Deserialize)]
 pub enum InternalBug {
-    #[error("Input to brillig function is in a separate subgraph to output")]
+    #[error("Input to Brillig function is in a separate subgraph to output")]
     IndependentSubgraph { call_stack: CallStack },
     #[error("Brillig function call isn't properly covered by a manual constraint")]
     UncheckedBrilligCall { call_stack: CallStack },
