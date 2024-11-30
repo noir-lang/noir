@@ -22,7 +22,7 @@ hex.workspace = true
 lazy_static.workspace = true
 
 ark-bn254.workspace = true
-grumpkin.workspace = true
+ark-grumpkin.workspace = true
 ark-ec.workspace = true
 ark-ff.workspace = true
 num-bigint.workspace = true

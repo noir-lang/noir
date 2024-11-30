@@ -91,7 +91,7 @@ iai = "0.1.1"
 test-binary = "3.0.2"
 test-case.workspace = true
 lazy_static.workspace = true
-light-poseidon = "0.2.0"
+light-poseidon = { git = "https://github.com/Lightprotocol/light-poseidon", rev = "c3bb062" }
 
 
 [[bench]]
