@@ -16,7 +16,7 @@ use tracing::{debug, trace};
 impl Ssa {
     /// This function provides an SSA pass that detects if the final function has any subgraphs independent from inputs and outputs.
     /// If this is the case, then part of the final circuit can be completely replaced by any other passing circuit, since there are no constraints ensuring connections.
-    /// Go through each top-level non-brillig function and detect if it has independent subgraphs
+    /// Go through each top-level non-Brillig function and detect if it has independent subgraphs
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn check_for_underconstrained_values(&mut self) -> Vec<SsaReport> {
         let functions_id = self.functions.values().map(|f| f.id().to_usize()).collect::<Vec<_>>();
@@ -36,7 +36,7 @@ impl Ssa {
             .collect()
     }
 
-    /// Detect brillig calls left unconstrained with manual asserts
+    /// Detect Brillig calls left unconstrained with manual asserts
     /// and return a vector of bug reports if any have been found
     pub(crate) fn check_for_missing_brillig_constrains(&mut self) -> Vec<SsaReport> {
         let functions_id = self.functions.values().map(|f| f.id().to_usize()).collect::<Vec<_>>();
@@ -142,7 +142,7 @@ impl BrilligTaintedIds {
         }
     }
 
-    /// If brillig call is properly constrained by the given ids, return true
+    /// If Brillig call is properly constrained by the given ids, return true
     fn check_constrained(&self) -> bool {
         // If every result has now been constrained,
         // consider the call properly constrained
@@ -179,7 +179,7 @@ impl BrilligTaintedIds {
 
 impl DependencyContext {
     /// Build the dependency context of variable ValueIds, storing
-    /// information on value ids involved in unchecked brillig calls
+    /// information on value ids involved in unchecked Brillig calls
     fn build(&mut self, function: &Function, all_functions: &BTreeMap<FunctionId, Function>) {
         self.block_queue.push(function.entry_block());
         while let Some(block) = self.block_queue.pop() {
@@ -191,7 +191,7 @@ impl DependencyContext {
         }
     }
 
-    /// Go over the given block tracking brillig calls and checking them against
+    /// Go over the given block tracking Brillig calls and checking them against
     /// following constraints
     fn process_instructions(
         &mut self,
@@ -238,7 +238,7 @@ impl DependencyContext {
                     }
                 }
                 // Check the constrain instruction arguments against those
-                // involved in brillig calls, remove covered calls
+                // involved in Brillig calls, remove covered calls
                 Instruction::Constrain(value_id1, value_id2, _) => {
                     self.clear_constrained(&[
                         function.dfg.resolve(*value_id1),
@@ -289,8 +289,8 @@ impl DependencyContext {
                         },
                         Value::Function(callee) => match all_functions[&callee].runtime() {
                             RuntimeType::Brillig(_) => {
-                                // Record arguments/results for each brillig call for the check
-                                trace!("brillig function {} called at {}", callee, instruction);
+                                // Record arguments/results for each Brillig call for the check
+                                trace!("Brillig function {} called at {}", callee, instruction);
                                 self.tainted.insert(
                                     *instruction,
                                     BrilligTaintedIds::new(&arguments, &results),
@@ -302,7 +302,7 @@ impl DependencyContext {
                             }
                         },
                         Value::ForeignFunction(..) => {
-                            debug!("should not be able to reach foreign function from non-brillig functions, {func_id} in function {}", function.name());
+                            debug!("should not be able to reach foreign function from non-Brillig functions, {func_id} in function {}", function.name());
                         }
                         Value::Instruction { .. }
                         | Value::NumericConstant { .. }
@@ -341,10 +341,10 @@ impl DependencyContext {
             }
         }
 
-        trace!("resulting brillig involved values: {:?}", self.tainted);
+        trace!("resulting Brillig involved values: {:?}", self.tainted);
     }
 
-    /// Every brillig call not properly constrained should remain in the tainted set
+    /// Every Brillig call not properly constrained should remain in the tainted set
     /// at this point. For each, emit a corresponding warning.
     fn collect_warnings(&mut self, function: &Function) -> Vec<SsaReport> {
         let warnings: Vec<SsaReport> = self
@@ -361,7 +361,7 @@ impl DependencyContext {
         warnings
     }
 
-    /// Update sets of value ids that can be traced back to the brillig calls being tracked
+    /// Update sets of value ids that can be traced back to the Brillig calls being tracked
     fn update_children(&mut self, parents: &[ValueId], children: &[ValueId]) {
         for (_, tainted_ids) in self.tainted.iter_mut() {
             for parent in parents {
@@ -370,14 +370,14 @@ impl DependencyContext {
         }
     }
 
-    /// Check if any of the recorded brillig calls have been properly constrained
+    /// Check if any of the recorded Brillig calls have been properly constrained
     /// by given values after recording partial constraints, if so stop tracking them
     fn clear_constrained(&mut self, constrained_values: &[ValueId]) {
-        trace!("attempting to clear brillig calls constrained by values: {:?}", constrained_values);
+        trace!("attempting to clear Brillig calls constrained by values: {:?}", constrained_values);
 
         // For now, consider array element constraints to be array constraints
         // TODO: this probably has to be further looked into, to ensure _every_ element
-        // of an array result of a brillig call has been constrained
+        // of an array result of a Brillig call has been constrained
 
         let constrained_arrays =
             constrained_values.iter().filter_map(|value| self.array_elements.get(value));
@@ -405,7 +405,7 @@ struct Context {
 impl Context {
     /// Compute sets of variable ValueIds that are connected with constraints
     ///
-    /// Additionally, store information about brillig calls in the context
+    /// Additionally, store information about Brillig calls in the context
     fn compute_sets_of_connected_value_ids(
         &mut self,
         function: &Function,
@@ -452,7 +452,7 @@ impl Context {
         connected_sets_indices
     }
 
-    /// Find which brillig calls separate this set from others and return bug warnings about them
+    /// Find which Brillig calls separate this set from others and return bug warnings about them
     fn find_disconnecting_brillig_calls_with_results_in_set(
         &self,
         current_set: &HashSet<ValueId>,
@@ -463,7 +463,7 @@ impl Context {
         // Find brillig-generated values in the set
         let intersection = all_brillig_generated_values.intersection(current_set).copied();
 
-        // Go through all brillig outputs in the set
+        // Go through all Brillig outputs in the set
         for brillig_output_in_set in intersection {
             // Get the inputs that correspond to the output
             let inputs: HashSet<ValueId> =
@@ -485,7 +485,7 @@ impl Context {
     }
     /// Go through each instruction in the block and add a set of ValueIds connected through that instruction
     ///
-    /// Additionally, this function adds mappings of brillig return values to call arguments and instruction ids from calls to brillig functions in the block
+    /// Additionally, this function adds mappings of Brillig return values to call arguments and instruction ids from calls to Brillig functions in the block
     fn connect_value_ids_in_block(
         &mut self,
         function: &Function,
@@ -558,7 +558,7 @@ impl Context {
                         },
                         Value::Function(callee) => match all_functions[&callee].runtime() {
                             RuntimeType::Brillig(_) => {
-                                // For calls to brillig functions we memorize the mapping of results to argument ValueId's and InstructionId's
+                                // For calls to Brillig functions we memorize the mapping of results to argument ValueId's and InstructionId's
                                 // The latter are needed to produce the callstack later
                                 for result in
                                     function.dfg.instruction_results(*instruction).iter().filter(
@@ -578,7 +578,7 @@ impl Context {
                             }
                         },
                         Value::ForeignFunction(..) => {
-                            panic!("Should not be able to reach foreign function from non-brillig functions, {func_id} in function {}", function.name());
+                            panic!("Should not be able to reach foreign function from non-Brillig functions, {func_id} in function {}", function.name());
                         }
                         Value::Instruction { .. }
                         | Value::NumericConstant { .. }
@@ -728,7 +728,7 @@ mod test {
 
     #[test]
     #[traced_test]
-    /// Test where the results of a call to a brillig function are not connected to main function inputs or outputs
+    /// Test where the results of a call to a Brillig function are not connected to main function inputs or outputs
     /// This should be detected.
     fn test_simple_function_with_disconnected_part() {
         //  unconstrained fn br(v0: Field, v1: Field){
@@ -774,7 +774,7 @@ mod test {
 
     #[test]
     #[traced_test]
-    /// Test where a call to a brillig function is left unchecked with a later assert,
+    /// Test where a call to a Brillig function is left unchecked with a later assert,
     /// by example of the program illustrating issue #5425 (simplified variant).
     fn test_underconstrained_value_detector_5425() {
         /*
@@ -880,7 +880,7 @@ mod test {
 
         builder.terminate_with_return(vec![]);
 
-        // We're faking the brillig function here, for simplicity's sake
+        // We're faking the Brillig function here, for simplicity's sake
 
         builder.new_brillig_function("maximum_price".into(), br_function_id, InlineType::default());
         let v0 = builder.add_parameter(Type::Array(Arc::new(vec![type_u32.clone()]), 2));
@@ -925,7 +925,7 @@ mod test {
 
         builder.terminate_with_return(vec![]);
 
-        // We're faking the brillig function here, for simplicity's sake
+        // We're faking the Brillig function here, for simplicity's sake
 
         builder.new_brillig_function("factor".into(), br_function_id, InlineType::default());
         builder.add_parameter(type_u32.clone());
@@ -958,7 +958,7 @@ mod test {
         let br_function = builder.import_function(br_function_id);
 
         // The call is constrained properly, involving both results
-        // (but the argument to the brillig is a constant)
+        // (but the argument to the Brillig is a constant)
         let call_results =
             builder.insert_call(br_function, vec![seven], vec![type_u32.clone(), type_u32.clone()]);
         let (v6, v7) = (call_results[0], call_results[1]);
@@ -967,7 +967,7 @@ mod test {
 
         builder.terminate_with_return(vec![]);
 
-        // We're faking the brillig function here, for simplicity's sake
+        // We're faking the Brillig function here, for simplicity's sake
 
         builder.new_brillig_function("factor".into(), br_function_id, InlineType::default());
         builder.add_parameter(Type::field());
@@ -997,7 +997,7 @@ mod test {
         let br_function = builder.import_function(br_function_id);
 
         // The call is constrained properly with a range check, involving
-        // both brillig call argument and result
+        // both Brillig call argument and result
         let call_results = builder.insert_call(br_function, vec![v0], vec![type_u32.clone()]);
         let v1 = call_results[0];
         let v2 = builder.insert_binary(v1, BinaryOp::Add, v0);
@@ -1005,7 +1005,7 @@ mod test {
 
         builder.terminate_with_return(vec![]);
 
-        // We're faking the brillig function here, for simplicity's sake
+        // We're faking the Brillig function here, for simplicity's sake
 
         builder.new_brillig_function("dummy".into(), br_function_id, InlineType::default());
         builder.add_parameter(type_u32.clone());

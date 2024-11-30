@@ -65,10 +65,10 @@ pub struct SsaEvaluatorOptions {
     /// Skip the check for under constrained values
     pub skip_underconstrained_check: bool,
 
-    /// Skip the missing brillig call constrains check
+    /// Skip the missing Brillig call constrains check
     pub skip_missing_brillig_constrains_check: bool,
 
-    /// The higher the value, the more inlined brillig functions will be.
+    /// The higher the value, the more inlined Brillig functions will be.
     pub inliner_aggressiveness: i64,
 
     /// Maximum accepted percentage increase in the Brillig bytecode size after unrolling loops.
