@@ -165,9 +165,9 @@ impl BrilligTaintedIds {
 
         // Also, one of the argument descendants should be constrained
         // (skipped if there were no arguments, or if the actual result and not a
-        // descendant has been constrained)
+        // descendant has been constrained, e.g. against a constant)
         if (self.arguments.is_empty()
-            || self.root_results.intersection(constrained_values).next().is_some()
+            || self.root_results.is_superset(constrained_values)
             || self.arguments.intersection(constrained_values).next().is_some())
             && result_constrained
         {
@@ -322,6 +322,8 @@ impl DependencyContext {
                     for result in &results {
                         self.array_elements.insert(*result, *array);
                     }
+                    // Record all the used arguments as parents of the results
+                    self.update_children(&arguments, &results);
                 }
                 Instruction::ArraySet { .. }
                 | Instruction::Binary(..)
