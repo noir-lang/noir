@@ -103,8 +103,8 @@ struct DependencyContext {
 }
 
 /// Structure keeping track of value ids descending from brilling calls'
-/// arguments and results, also storing information on relevant ids
-/// already constrained
+/// arguments and results, also storing information on results
+/// already properly constrained
 #[derive(Clone, Debug)]
 struct BrilligTaintedIds {
     // Argument descendant value ids
@@ -173,10 +173,10 @@ impl BrilligTaintedIds {
         // Also, one of the argument descendants should be constrained
         // (skipped if there were no arguments, or if an actual result and not a
         // descendant has been constrained, e.g. against a constant)
-        if (self.arguments.is_empty()
-            || self.root_results.intersection(constrained_values).next().is_some()
-            || self.arguments.intersection(constrained_values).next().is_some())
-            && !results_involved.is_empty()
+        if !results_involved.is_empty()
+            && (self.arguments.is_empty()
+                || self.root_results.intersection(constrained_values).next().is_some()
+                || self.arguments.intersection(constrained_values).next().is_some())
         {
             // Remember the partial constraint
             self.results_constrained.extend(results_involved);
