@@ -94,20 +94,39 @@ struct DependencyContext {
     block_queue: Vec<BasicBlockId>,
     // Map keeping track of values stored at memory locations
     memory_slots: HashMap<ValueId, ValueId>,
-    // Map of brillig call ids to sets of the value ids depending
-    // on their arguments and results
+    // Map of values resulting from array get instructions
+    // to the actual array values
+    array_elements: HashMap<ValueId, ValueId>,
+    // Map of brillig call ids to sets of the value ids descending
+    // from their arguments and results
     tainted: HashMap<InstructionId, BrilligTaintedIds>,
 }
 
 /// Structure keeping track of value ids descending from brilling calls'
-/// arguments and results
+/// arguments and results, also storing information on relevant ids
+/// already constrained
 #[derive(Clone, Debug)]
 struct BrilligTaintedIds {
+    // Argument descendant value ids
     arguments: HashSet<ValueId>,
+    // Result descendant value ids
     results: Vec<HashSet<ValueId>>,
+    // Initial result value ids
+    root_results: HashSet<ValueId>,
+    // Already constrained value ids
+    constrained: HashSet<ValueId>,
 }
 
 impl BrilligTaintedIds {
+    fn new(arguments: &[ValueId], results: &[ValueId]) -> Self {
+        BrilligTaintedIds {
+            arguments: HashSet::from_iter(arguments.iter().copied()),
+            results: results.iter().map(|result| HashSet::from([*result])).collect(),
+            root_results: HashSet::from_iter(results.iter().copied()),
+            constrained: HashSet::new(),
+        }
+    }
+
     /// Add children of a given parent to the tainted value set
     /// (for arguments one set is enough, for results we keep them
     /// separate as the forthcoming check considers the call covered
@@ -124,18 +143,37 @@ impl BrilligTaintedIds {
     }
 
     /// If brillig call is properly constrained by the given ids, return true
-    fn check_constrained(&self, constrained_values: &HashSet<ValueId>) -> bool {
-        // Every result should be constrained
-        let results_constrained = self
+    fn check_constrained(&self) -> bool {
+        // If every result has now been constrained,
+        // consider the call properly constrained
+        self.results
+            .iter()
+            .map(|values| values.intersection(&self.constrained).next().is_some())
+            .all(|constrained| constrained)
+    }
+
+    /// Remember partial constraints (involving one result and one argument)
+    /// along the way to take them into final consideration
+    fn store_partial_constraints(&mut self, constrained_values: &HashSet<ValueId>) {
+        // For a valid partial constrain, a value descending from
+        // one of the results should be constrained
+        let result_constrained = self
             .results
             .iter()
             .map(|values| values.intersection(constrained_values).next().is_some())
-            .all(|constrained| constrained);
+            .any(|constrained| constrained);
 
-        // Along with any argument (in case non-constant arguments were present)
-        (self.arguments.is_empty()
+        // Also, one of the argument descendants should be constrained
+        // (skipped if there were no arguments, or if the actual result and not a
+        // descendant has been constrained)
+        if (self.arguments.is_empty()
+            || self.root_results.intersection(constrained_values).next().is_some()
             || self.arguments.intersection(constrained_values).next().is_some())
-            && results_constrained
+            && result_constrained
+        {
+            // Remember the partial constraint
+            self.constrained.extend(constrained_values);
+        }
     }
 }
 
@@ -255,13 +293,7 @@ impl DependencyContext {
                                 trace!("brillig function {} called at {}", callee, instruction);
                                 self.tainted.insert(
                                     *instruction,
-                                    BrilligTaintedIds {
-                                        arguments: HashSet::from_iter(arguments.iter().copied()),
-                                        results: results
-                                            .iter()
-                                            .map(|result| HashSet::from([*result]))
-                                            .collect(),
-                                    },
+                                    BrilligTaintedIds::new(&arguments, &results),
                                 );
                             }
                             RuntimeType::Acir(..) => {
@@ -282,8 +314,16 @@ impl DependencyContext {
                         }
                     }
                 }
-                Instruction::ArrayGet { .. }
-                | Instruction::ArraySet { .. }
+                // For array get operations, we link the resulting values to
+                // the corresponding array value ids
+                // (this is required later because for now we consider array elements
+                // being constrained as valid as the whole arrays being constrained)
+                Instruction::ArrayGet { array, .. } => {
+                    for result in &results {
+                        self.array_elements.insert(*result, *array);
+                    }
+                }
+                Instruction::ArraySet { .. }
                 | Instruction::Binary(..)
                 | Instruction::Cast(..)
                 | Instruction::IfElse { .. }
@@ -331,11 +371,25 @@ impl DependencyContext {
     }
 
     /// Check if any of the recorded brillig calls have been properly constrained
-    /// by given values, if so stop tracking them
+    /// by given values after recording partial constraints, if so stop tracking them
     fn clear_constrained(&mut self, constrained_values: &[ValueId]) {
         trace!("attempting to clear brillig calls constrained by values: {:?}", constrained_values);
-        let constrained_values: HashSet<_> = HashSet::from_iter(constrained_values.iter().copied());
-        self.tainted.retain(|_, tainted_ids| !tainted_ids.check_constrained(&constrained_values));
+
+        // For now, consider array element constraints to be array constraints
+        // TODO: this probably has to be further looked into, to ensure _every_ element
+        // of an array result of a brillig call has been constrained
+
+        let constrained_arrays =
+            constrained_values.iter().filter_map(|value| self.array_elements.get(value));
+
+        let mut constrained_values: HashSet<_> =
+            HashSet::from_iter(constrained_values.iter().copied());
+        constrained_values.extend(constrained_arrays);
+
+        self.tainted.iter_mut().for_each(|(_, tainted_ids)| {
+            tainted_ids.store_partial_constraints(&constrained_values);
+        });
+        self.tainted.retain(|_, tainted_ids| !tainted_ids.check_constrained());
     }
 }
 
