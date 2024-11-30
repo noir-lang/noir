@@ -533,8 +533,11 @@ jobs:
         - { repo: AztecProtocol/aztec-nr, path: ./ }
         - { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-contracts }
         # Disabled as aztec-packages requires a setup-step in order to generate a `Nargo.toml`
-        #- { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits }
-       
+        - { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/parity-lib }
+        - { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/private-kernel-lib }
+        - { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/reset-kernel-lib }
+        - { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/rollup-lib }
+        - { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/types }
 
     name: Check external repo - ${{ matrix.project.repo }}
     steps:
