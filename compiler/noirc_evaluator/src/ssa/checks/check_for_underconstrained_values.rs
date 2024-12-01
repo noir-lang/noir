@@ -39,6 +39,11 @@ impl Ssa {
     /// Detect Brillig calls left unconstrained with manual asserts
     /// and return a vector of bug reports if any have been found
     pub(crate) fn check_for_missing_brillig_constrains(&mut self) -> Vec<SsaReport> {
+        // Skip the check if there are no Brillig calls involved
+        if !self.functions.values().any(|func| func.runtime().is_brillig()) {
+            return vec![];
+        };
+
         let functions_id = self.functions.values().map(|f| f.id().to_usize()).collect::<Vec<_>>();
         functions_id
             .iter()
@@ -216,8 +221,7 @@ impl DependencyContext {
             if self.tainted.is_empty() {
                 if let Instruction::Call { func: func_id, .. } = &function.dfg[*instruction] {
                     if let Value::Function(callee) = &function.dfg[*func_id] {
-                        if let RuntimeType::Brillig(_) = all_functions[&callee].runtime() {
-                        } else {
+                        if !all_functions[&callee].runtime().is_brillig() {
                             continue;
                         }
                     }
