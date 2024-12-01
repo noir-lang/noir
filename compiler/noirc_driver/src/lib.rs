@@ -130,7 +130,7 @@ pub struct CompileOptions {
     /// Warning: This can improve compilation speed but can also lead to correctness errors.
     /// This check should always be run on production code.
     #[arg(long)]
-    pub skip_missing_brillig_constrains_check: bool,
+    pub skip_missing_brillig_constraints_check: bool,
 
     /// Setting to decide on an inlining strategy for Brillig functions.
     /// A more aggressive inliner should generate larger programs but more optimized
@@ -602,7 +602,7 @@ pub fn compile_no_check(
         },
         emit_ssa: if options.emit_ssa { Some(context.package_build_path.clone()) } else { None },
         skip_underconstrained_check: options.skip_underconstrained_check,
-        skip_missing_brillig_constrains_check: options.skip_missing_brillig_constrains_check,
+        skip_missing_brillig_constraints_check: options.skip_missing_brillig_constraints_check,
         inliner_aggressiveness: options.inliner_aggressiveness,
         max_bytecode_increase_percent: options.max_bytecode_increase_percent,
     };
