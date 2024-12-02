@@ -3845,3 +3845,33 @@ fn disallows_export_attribute_on_trait_impl_method() {
         ));
     });
 }
+
+#[test]
+fn allows_multiple_underscore_parameters() {
+    let src = r#"
+        pub fn foo(_: i32, _: i64) {}
+
+        fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn disallows_underscore_on_right_hand_side() {
+    let src = r#"
+        fn main() {
+            let _ = 1;
+            let _x = _;
+        }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ResolverError(ResolverError::VariableNotDeclared { name, .. }) =
+        &errors[0].0
+    else {
+        panic!("Expected a VariableNotDeclared error, got {:?}", errors[0].0);
+    };
+
+    assert_eq!(name, "_");
+}
