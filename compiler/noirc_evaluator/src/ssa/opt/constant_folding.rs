@@ -726,7 +726,7 @@ pub(crate) fn type_to_brillig_parameter(typ: &Type) -> Option<BrilligParameter> 
             for item_typ in item_type.iter() {
                 parameters.push(type_to_brillig_parameter(item_typ)?);
             }
-            Some(BrilligParameter::Array(parameters, *size))
+            Some(BrilligParameter::Array(parameters, *size as usize))
         }
         _ => None,
     }
