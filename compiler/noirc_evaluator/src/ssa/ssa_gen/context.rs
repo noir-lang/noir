@@ -159,7 +159,7 @@ impl<'a> FunctionContext<'a> {
         let parameter_value = Self::map_type(parameter_type, |typ| {
             let value = self.builder.add_parameter(typ);
             if mutable {
-                self.new_mutable_variable(value)
+                self.new_mutable_variable(value, true)
             } else {
                 value.into()
             }
@@ -170,9 +170,17 @@ impl<'a> FunctionContext<'a> {
 
     /// Allocate a single slot of memory and store into it the given initial value of the variable.
     /// Always returns a Value::Mutable wrapping the allocate instruction.
-    pub(super) fn new_mutable_variable(&mut self, value_to_store: ValueId) -> Value {
+    pub(super) fn new_mutable_variable(
+        &mut self,
+        value_to_store: ValueId,
+        increment_array_rc: bool,
+    ) -> Value {
         let element_type = self.builder.current_function.dfg.type_of_value(value_to_store);
-        self.builder.increment_array_reference_count(value_to_store);
+
+        if increment_array_rc {
+            self.builder.increment_array_reference_count(value_to_store);
+        }
+
         let alloc = self.builder.insert_allocate(element_type);
         self.builder.insert_store(alloc, value_to_store);
         let typ = self.builder.type_of_value(value_to_store);

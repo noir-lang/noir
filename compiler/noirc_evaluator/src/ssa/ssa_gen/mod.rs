@@ -195,8 +195,7 @@ impl<'a> FunctionContext<'a> {
     fn codegen_literal(&mut self, literal: &ast::Literal) -> Result<Values, RuntimeError> {
         match literal {
             ast::Literal::Array(array) => {
-                let elements =
-                    try_vecmap(&array.contents, |element| self.codegen_expression(element))?;
+                let elements = self.codegen_array_elements(&array.contents)?;
 
                 let typ = Self::convert_type(&array.typ).flatten();
                 Ok(match array.typ {
@@ -207,8 +206,7 @@ impl<'a> FunctionContext<'a> {
                 })
             }
             ast::Literal::Slice(array) => {
-                let elements =
-                    try_vecmap(&array.contents, |element| self.codegen_expression(element))?;
+                let elements = self.codegen_array_elements(&array.contents)?;
 
                 let typ = Self::convert_type(&array.typ).flatten();
                 Ok(match array.typ {
@@ -245,18 +243,33 @@ impl<'a> FunctionContext<'a> {
         }
     }
 
+    fn codegen_array_elements(
+        &mut self,
+        elements: &[Expression],
+    ) -> Result<Vec<(Values, bool)>, RuntimeError> {
+        try_vecmap(elements, |element| {
+            let value = self.codegen_expression(element)?;
+            Ok((value, element.is_array_or_slice_literal()))
+        })
+    }
+
     fn codegen_string(&mut self, string: &str) -> Values {
         let elements = vecmap(string.as_bytes(), |byte| {
-            self.builder.numeric_constant(*byte as u128, Type::unsigned(8)).into()
+            let char = self.builder.numeric_constant(*byte as u128, Type::unsigned(8));
+            (char.into(), false)
         });
         let typ = Self::convert_non_tuple_type(&ast::Type::String(elements.len() as u32));
         self.codegen_array(elements, typ)
     }
 
     // Codegen an array but make sure that we do not have a nested slice
+    ///
+    /// The bool aspect of each array element indicates whether the element is an array constant
+    /// or not. If it is, we avoid incrementing the reference count because we consider the
+    /// constant to be moved into this larger array constant.
     fn codegen_array_checked(
         &mut self,
-        elements: Vec<Values>,
+        elements: Vec<(Values, bool)>,
         typ: Type,
     ) -> Result<Values, RuntimeError> {
         if typ.is_nested_slice() {
@@ -273,11 +286,15 @@ impl<'a> FunctionContext<'a> {
     /// stored next to the other fields in memory. So an array such as [(1, 2), (3, 4)] is
     /// stored the same as the array [1, 2, 3, 4].
     ///
+    /// The bool aspect of each array element indicates whether the element is an array constant
+    /// or not. If it is, we avoid incrementing the reference count because we consider the
+    /// constant to be moved into this larger array constant.
+    ///
     /// The value returned from this function is always that of the allocate instruction.
-    fn codegen_array(&mut self, elements: Vec<Values>, typ: Type) -> Values {
+    fn codegen_array(&mut self, elements: Vec<(Values, bool)>, typ: Type) -> Values {
         let mut array = im::Vector::new();
 
-        for element in elements {
+        for (element, is_array_constant) in elements {
             element.for_each(|element| {
                 let element = element.eval(self);
 
@@ -286,7 +303,10 @@ impl<'a> FunctionContext<'a> {
                 // pessimistic reference count (since some are likely moved rather than shared)
                 // which is important for Brillig's copy on write optimization. This has no
                 // effect in ACIR code.
-                self.builder.increment_array_reference_count(element);
+                if !is_array_constant {
+                    self.builder.increment_array_reference_count(element);
+                }
+
                 array.push_back(element);
             });
         }
@@ -662,14 +682,22 @@ impl<'a> FunctionContext<'a> {
     fn codegen_let(&mut self, let_expr: &ast::Let) -> Result<Values, RuntimeError> {
         let mut values = self.codegen_expression(&let_expr.expression)?;
 
+        // Don't mutate the reference count if we're assigning an array literal to a Let:
+        // `let mut foo = [1, 2, 3];`
+        // we consider the array to be moved, so we should have an initial rc of just 1.
+        let should_inc_rc = !let_expr.expression.is_array_or_slice_literal();
+
         values = values.map(|value| {
             let value = value.eval(self);
 
             Tree::Leaf(if let_expr.mutable {
-                self.new_mutable_variable(value)
+                self.new_mutable_variable(value, should_inc_rc)
             } else {
-                // `new_mutable_variable` already increments rcs internally
-                self.builder.increment_array_reference_count(value);
+                // `new_mutable_variable` increments rcs internally so we have to
+                // handle it separately for the immutable case
+                if should_inc_rc {
+                    self.builder.increment_array_reference_count(value);
+                }
                 value::Value::Normal(value)
             })
         });
@@ -728,10 +756,14 @@ impl<'a> FunctionContext<'a> {
     fn codegen_assign(&mut self, assign: &ast::Assign) -> Result<Values, RuntimeError> {
         let lhs = self.extract_current_value(&assign.lvalue)?;
         let rhs = self.codegen_expression(&assign.expression)?;
+        let should_inc_rc = !assign.expression.is_array_or_slice_literal();
 
         rhs.clone().for_each(|value| {
             let value = value.eval(self);
-            self.builder.increment_array_reference_count(value);
+
+            if should_inc_rc {
+                self.builder.increment_array_reference_count(value);
+            }
         });
 
         self.assign_new_value(lhs, rhs);
