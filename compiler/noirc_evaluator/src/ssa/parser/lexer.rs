@@ -61,6 +61,7 @@ impl<'a> Lexer<'a> {
             Some('&') => self.single_char_token(Token::Ampersand),
             Some('-') if self.peek_char() == Some('>') => self.double_char_token(Token::Arrow),
             Some('-') => self.single_char_token(Token::Dash),
+            Some('"') => self.eat_string_literal(),
             Some(ch) if ch.is_ascii_alphanumeric() || ch == '_' => self.eat_alpha_numeric(ch),
             Some(char) => Err(LexerError::UnexpectedCharacter {
                 char,
@@ -177,6 +178,41 @@ impl<'a> Lexer<'a> {
         Ok(integer_token.into_span(start, end))
     }
 
+    fn eat_string_literal(&mut self) -> SpannedTokenResult {
+        let start = self.position;
+        let mut string = String::new();
+
+        while let Some(next) = self.next_char() {
+            let char = match next {
+                '"' => break,
+                '\\' => match self.next_char() {
+                    Some('r') => '\r',
+                    Some('n') => '\n',
+                    Some('t') => '\t',
+                    Some('0') => '\0',
+                    Some('"') => '"',
+                    Some('\\') => '\\',
+                    Some(escaped) => {
+                        let span = Span::inclusive(start, self.position);
+                        return Err(LexerError::InvalidEscape { escaped, span });
+                    }
+                    None => {
+                        let span = Span::inclusive(start, self.position);
+                        return Err(LexerError::UnterminatedStringLiteral { span });
+                    }
+                },
+                other => other,
+            };
+
+            string.push(char);
+        }
+
+        let str_literal_token = Token::Str(string);
+
+        let end = self.position;
+        Ok(str_literal_token.into_span(start, end))
+    }
+
     fn eat_while<F: Fn(char) -> bool>(
         &mut self,
         initial_char: Option<char>,
@@ -247,6 +283,12 @@ pub(crate) enum LexerError {
     InvalidIntegerLiteral { span: Span, found: String },
     #[error("Integer literal too large")]
     IntegerLiteralTooLarge { span: Span, limit: String },
+    #[error("Unterminated string literal")]
+    UnterminatedStringLiteral { span: Span },
+    #[error(
+        "'\\{escaped}' is not a valid escape sequence. Use '\\' for a literal backslash character."
+    )]
+    InvalidEscape { escaped: char, span: Span },
 }
 
 impl LexerError {
@@ -254,7 +296,9 @@ impl LexerError {
         match self {
             LexerError::UnexpectedCharacter { span, .. }
             | LexerError::InvalidIntegerLiteral { span, .. }
-            | LexerError::IntegerLiteralTooLarge { span, .. } => *span,
+            | LexerError::IntegerLiteralTooLarge { span, .. }
+            | LexerError::UnterminatedStringLiteral { span }
+            | LexerError::InvalidEscape { span, .. } => *span,
         }
     }
 }

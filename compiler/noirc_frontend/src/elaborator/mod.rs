@@ -164,6 +164,12 @@ pub struct Elaborator<'context> {
     unresolved_globals: BTreeMap<GlobalId, UnresolvedGlobal>,
 
     pub(crate) interpreter_call_stack: im::Vector<Location>,
+
+    /// If greater than 0, field visibility errors won't be reported.
+    /// This is used when elaborating a comptime expression that is a struct constructor
+    /// like `Foo { inner: 5 }`: in that case we already elaborated the code that led to
+    /// that comptime value and any visibility errors were already reported.
+    silence_field_visibility_errors: usize,
 }
 
 #[derive(Default)]
@@ -213,6 +219,7 @@ impl<'context> Elaborator<'context> {
             current_trait: None,
             interpreter_call_stack,
             in_comptime_context: false,
+            silence_field_visibility_errors: 0,
         }
     }
 
@@ -433,6 +440,9 @@ impl<'context> Elaborator<'context> {
         // so we need to reintroduce the same IDs into scope here.
         for parameter in &func_meta.parameter_idents {
             let name = self.interner.definition_name(parameter.id).to_owned();
+            if name == "_" {
+                continue;
+            }
             let warn_if_unused = !(func_meta.trait_impl.is_some() && name == "self");
             self.add_existing_variable_to_scope(name, parameter.clone(), warn_if_unused);
         }

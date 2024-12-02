@@ -1,4 +1,4 @@
-global SIZE = 100;
+global SIZE: u32 = 100;
 
 fn main(input: [[u8; 2]; SIZE]) -> pub [[u8; 32]; SIZE] {
     let mut results: [[u8; 32]; SIZE] = [[0; 32]; SIZE];

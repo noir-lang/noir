@@ -24,12 +24,10 @@ mod big_int;
 mod brillig_directive;
 mod generated_acir;
 
+use crate::brillig::brillig_gen::gen_brillig_for;
 use crate::brillig::{
     brillig_gen::brillig_fn::FunctionContext as BrilligFunctionContext,
-    brillig_ir::{
-        artifact::{BrilligParameter, GeneratedBrillig},
-        BrilligContext,
-    },
+    brillig_ir::artifact::{BrilligParameter, GeneratedBrillig},
     Brillig,
 };
 use crate::errors::{InternalError, InternalWarning, RuntimeError, SsaReport};
@@ -518,7 +516,7 @@ impl<'a> Context<'a> {
         let outputs: Vec<AcirType> =
             vecmap(main_func.returns(), |result_id| dfg.type_of_value(*result_id).into());
 
-        let code = self.gen_brillig_for(main_func, arguments.clone(), brillig)?;
+        let code = gen_brillig_for(main_func, arguments.clone(), brillig)?;
 
         // We specifically do not attempt execution of the brillig code being generated as this can result in it being
         // replaced with constraints on witnesses to the program outputs.
@@ -878,8 +876,7 @@ impl<'a> Context<'a> {
                                         None,
                                     )?
                                 } else {
-                                    let code =
-                                        self.gen_brillig_for(func, arguments.clone(), brillig)?;
+                                    let code = gen_brillig_for(func, arguments.clone(), brillig)?;
                                     let generated_pointer =
                                         self.shared_context.new_generated_pointer();
                                     let output_values = self.acir_context.brillig_call(
@@ -997,47 +994,6 @@ impl<'a> Context<'a> {
                 }
             })
             .collect()
-    }
-
-    fn gen_brillig_for(
-        &self,
-        func: &Function,
-        arguments: Vec<BrilligParameter>,
-        brillig: &Brillig,
-    ) -> Result<GeneratedBrillig<FieldElement>, InternalError> {
-        // Create the entry point artifact
-        let mut entry_point = BrilligContext::new_entry_point_artifact(
-            arguments,
-            BrilligFunctionContext::return_values(func),
-            func.id(),
-        );
-        entry_point.name = func.name().to_string();
-
-        // Link the entry point with all dependencies
-        while let Some(unresolved_fn_label) = entry_point.first_unresolved_function_call() {
-            let artifact = &brillig.find_by_label(unresolved_fn_label.clone());
-            let artifact = match artifact {
-                Some(artifact) => artifact,
-                None => {
-                    return Err(InternalError::General {
-                        message: format!("Cannot find linked fn {unresolved_fn_label}"),
-                        call_stack: CallStack::new(),
-                    })
-                }
-            };
-            entry_point.link_with(artifact);
-            // Insert the range of opcode locations occupied by a procedure
-            if let Some(procedure_id) = &artifact.procedure {
-                let num_opcodes = entry_point.byte_code.len();
-                let previous_num_opcodes = entry_point.byte_code.len() - artifact.byte_code.len();
-                // We subtract one as to keep the range inclusive on both ends
-                entry_point
-                    .procedure_locations
-                    .insert(procedure_id.clone(), (previous_num_opcodes, num_opcodes - 1));
-            }
-        }
-        // Generate the final bytecode
-        Ok(entry_point.finish())
     }
 
     /// Handles an ArrayGet or ArraySet instruction.
@@ -2012,6 +1968,7 @@ impl<'a> Context<'a> {
             BinaryOp::Mod => self.acir_context.modulo_var(
                 lhs,
                 rhs,
+                binary_type.clone(),
                 bit_count,
                 self.current_side_effects_enabled_var,
             ),
@@ -2805,6 +2762,13 @@ impl<'a> Context<'a> {
             }
             Intrinsic::FieldLessThan => {
                 unreachable!("FieldLessThan can only be called in unconstrained")
+            }
+            Intrinsic::ArrayRefCount | Intrinsic::SliceRefCount => {
+                let zero = self.acir_context.add_constant(FieldElement::zero());
+                Ok(vec![AcirValue::Var(
+                    zero,
+                    AcirType::NumericType(NumericType::Unsigned { bit_size: 32 }),
+                )])
             }
         }
     }

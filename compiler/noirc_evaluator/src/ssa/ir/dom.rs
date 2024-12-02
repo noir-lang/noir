@@ -119,6 +119,29 @@ impl DominatorTree {
         }
     }
 
+    /// Walk up the dominator tree until we find a block for which `f` returns `Some` value.
+    /// Otherwise return `None` when we reach the top.
+    ///
+    /// Similar to `Iterator::filter_map` but only returns the first hit.
+    pub(crate) fn find_map_dominator<T>(
+        &self,
+        mut block_id: BasicBlockId,
+        f: impl Fn(BasicBlockId) -> Option<T>,
+    ) -> Option<T> {
+        if !self.is_reachable(block_id) {
+            return None;
+        }
+        loop {
+            if let Some(value) = f(block_id) {
+                return Some(value);
+            }
+            block_id = match self.immediate_dominator(block_id) {
+                Some(immediate_dominator) => immediate_dominator,
+                None => return None,
+            }
+        }
+    }
+
     /// Allocate and compute a dominator tree from a pre-computed control flow graph and
     /// post-order counterpart.
     pub(crate) fn with_cfg_and_post_order(cfg: &ControlFlowGraph, post_order: &PostOrder) -> Self {
@@ -447,5 +470,23 @@ mod tests {
         assert!(!dt.dominates(block2_id, block0_id));
         assert!(dt.dominates(block2_id, block1_id));
         assert!(dt.dominates(block2_id, block2_id));
+    }
+
+    #[test]
+    fn test_find_map_dominator() {
+        let (dt, b0, b1, b2, _b3) = unreachable_node_setup();
+
+        assert_eq!(
+            dt.find_map_dominator(b2, |b| if b == b0 { Some("root") } else { None }),
+            Some("root")
+        );
+        assert_eq!(
+            dt.find_map_dominator(b1, |b| if b == b0 { Some("unreachable") } else { None }),
+            None
+        );
+        assert_eq!(
+            dt.find_map_dominator(b1, |b| if b == b1 { Some("not part of tree") } else { None }),
+            None
+        );
     }
 }

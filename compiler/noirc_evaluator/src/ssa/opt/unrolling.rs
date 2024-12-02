@@ -18,11 +18,11 @@
 //!
 //! When unrolling ACIR code, we remove reference count instructions because they are
 //! only used by Brillig bytecode.
-use std::collections::HashSet;
-
 use acvm::{acir::AcirField, FieldElement};
+use im::HashSet;
 
 use crate::{
+    brillig::brillig_gen::convert_ssa_function,
     errors::RuntimeError,
     ssa::{
         ir::{
@@ -44,33 +44,55 @@ use fxhash::FxHashMap as HashMap;
 impl Ssa {
     /// Loop unrolling can return errors, since ACIR functions need to be fully unrolled.
     /// This meta-pass will keep trying to unroll loops and simplifying the SSA until no more errors are found.
-    #[tracing::instrument(level = "trace", skip(ssa))]
-    pub(crate) fn unroll_loops_iteratively(mut ssa: Ssa) -> Result<Ssa, RuntimeError> {
-        for (_, function) in ssa.functions.iter_mut() {
+    ///
+    /// The `max_bytecode_incr_pct`, when given, is used to limit the growth of the Brillig bytecode size
+    /// after unrolling small loops to some percentage of the original loop. For example a value of 150 would
+    /// mean the new loop can be 150% (ie. 2.5 times) larger than the original loop. It will still contain
+    /// fewer SSA instructions, but that can still result in more Brillig opcodes.
+    #[tracing::instrument(level = "trace", skip(self))]
+    pub(crate) fn unroll_loops_iteratively(
+        mut self: Ssa,
+        max_bytecode_increase_percent: Option<i32>,
+    ) -> Result<Ssa, RuntimeError> {
+        for (_, function) in self.functions.iter_mut() {
+            // Take a snapshot of the function to compare byte size increase,
+            // but only if the setting indicates we have to, otherwise skip it.
+            let orig_func_and_max_incr_pct = max_bytecode_increase_percent
+                .filter(|_| function.runtime().is_brillig())
+                .map(|max_incr_pct| (function.clone(), max_incr_pct));
+
             // Try to unroll loops first:
-            let mut unroll_errors = function.try_unroll_loops();
+            let (mut has_unrolled, mut unroll_errors) = function.try_unroll_loops();
 
             // Keep unrolling until no more errors are found
             while !unroll_errors.is_empty() {
                 let prev_unroll_err_count = unroll_errors.len();
 
                 // Simplify the SSA before retrying
-
-                // Do a mem2reg after the last unroll to aid simplify_cfg
-                function.mem2reg();
-                function.simplify_function();
-                // Do another mem2reg after simplify_cfg to aid the next unroll
-                function.mem2reg();
+                simplify_between_unrolls(function);
 
                 // Unroll again
-                unroll_errors = function.try_unroll_loops();
+                let (new_unrolled, new_errors) = function.try_unroll_loops();
+                unroll_errors = new_errors;
+                has_unrolled |= new_unrolled;
+
                 // If we didn't manage to unroll any more loops, exit
                 if unroll_errors.len() >= prev_unroll_err_count {
                     return Err(unroll_errors.swap_remove(0));
                 }
             }
+
+            if has_unrolled {
+                if let Some((orig_function, max_incr_pct)) = orig_func_and_max_incr_pct {
+                    let new_size = brillig_bytecode_size(function);
+                    let orig_size = brillig_bytecode_size(&orig_function);
+                    if !is_new_size_ok(orig_size, new_size, max_incr_pct) {
+                        *function = orig_function;
+                    }
+                }
+            }
         }
-        Ok(ssa)
+        Ok(self)
     }
 }
 
@@ -79,32 +101,32 @@ impl Function {
     // This can also be true for ACIR, but we have no alternative to unrolling in ACIR.
     // Brillig also generally prefers smaller code rather than faster code,
     // so we only attempt to unroll small loops, which we decide on a case-by-case basis.
-    fn try_unroll_loops(&mut self) -> Vec<RuntimeError> {
+    fn try_unroll_loops(&mut self) -> (bool, Vec<RuntimeError>) {
         Loops::find_all(self).unroll_each(self)
     }
 }
 
-struct Loop {
+pub(super) struct Loop {
     /// The header block of a loop is the block which dominates all the
     /// other blocks in the loop.
-    header: BasicBlockId,
+    pub(super) header: BasicBlockId,
 
     /// The start of the back_edge n -> d is the block n at the end of
     /// the loop that jumps back to the header block d which restarts the loop.
     back_edge_start: BasicBlockId,
 
     /// All the blocks contained within the loop, including `header` and `back_edge_start`.
-    blocks: HashSet<BasicBlockId>,
+    pub(super) blocks: HashSet<BasicBlockId>,
 }
 
-struct Loops {
+pub(super) struct Loops {
     /// The loops that failed to be unrolled so that we do not try to unroll them again.
     /// Each loop is identified by its header block id.
     failed_to_unroll: HashSet<BasicBlockId>,
 
-    yet_to_unroll: Vec<Loop>,
+    pub(super) yet_to_unroll: Vec<Loop>,
     modified_blocks: HashSet<BasicBlockId>,
-    cfg: ControlFlowGraph,
+    pub(super) cfg: ControlFlowGraph,
 }
 
 impl Loops {
@@ -136,7 +158,7 @@ impl Loops {
     /// loop_end    loop_body
     /// ```
     /// `loop_entry` has two predecessors: `main` and `loop_body`, and it dominates `loop_body`.
-    fn find_all(function: &Function) -> Self {
+    pub(super) fn find_all(function: &Function) -> Self {
         let cfg = ControlFlowGraph::with_function(function);
         let post_order = PostOrder::with_function(function);
         let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
@@ -163,17 +185,19 @@ impl Loops {
         loops.sort_by_key(|loop_| loop_.blocks.len());
 
         Self {
-            failed_to_unroll: HashSet::new(),
+            failed_to_unroll: HashSet::default(),
             yet_to_unroll: loops,
-            modified_blocks: HashSet::new(),
+            modified_blocks: HashSet::default(),
             cfg,
         }
     }
 
     /// Unroll all loops within a given function.
     /// Any loops which fail to be unrolled (due to using non-constant indices) will be unmodified.
-    fn unroll_each(mut self, function: &mut Function) -> Vec<RuntimeError> {
+    /// Returns whether any blocks have been modified
+    fn unroll_each(mut self, function: &mut Function) -> (bool, Vec<RuntimeError>) {
         let mut unroll_errors = vec![];
+        let mut has_unrolled = false;
         while let Some(next_loop) = self.yet_to_unroll.pop() {
             if function.runtime().is_brillig() && !next_loop.is_small_loop(function, &self.cfg) {
                 continue;
@@ -183,13 +207,17 @@ impl Loops {
             if next_loop.blocks.iter().any(|block| self.modified_blocks.contains(block)) {
                 let mut new_loops = Self::find_all(function);
                 new_loops.failed_to_unroll = self.failed_to_unroll;
-                return unroll_errors.into_iter().chain(new_loops.unroll_each(function)).collect();
+                let (new_unrolled, new_errors) = new_loops.unroll_each(function);
+                return (has_unrolled || new_unrolled, [unroll_errors, new_errors].concat());
             }
 
             // Don't try to unroll the loop again if it is known to fail
             if !self.failed_to_unroll.contains(&next_loop.header) {
                 match next_loop.unroll(function, &self.cfg) {
-                    Ok(_) => self.modified_blocks.extend(next_loop.blocks),
+                    Ok(_) => {
+                        has_unrolled = true;
+                        self.modified_blocks.extend(next_loop.blocks);
+                    }
                     Err(call_stack) => {
                         self.failed_to_unroll.insert(next_loop.header);
                         unroll_errors.push(RuntimeError::UnknownLoopBound { call_stack });
@@ -197,7 +225,7 @@ impl Loops {
                 }
             }
         }
-        unroll_errors
+        (has_unrolled, unroll_errors)
     }
 }
 
@@ -209,7 +237,7 @@ impl Loop {
         back_edge_start: BasicBlockId,
         cfg: &ControlFlowGraph,
     ) -> Self {
-        let mut blocks = HashSet::new();
+        let mut blocks = HashSet::default();
         blocks.insert(header);
 
         let mut insert = |block, stack: &mut Vec<BasicBlockId>| {
@@ -271,7 +299,7 @@ impl Loop {
     ///     v5 = lt v1, u32 4           // Upper bound
     ///     jmpif v5 then: b3, else: b2
     /// ```
-    fn get_const_upper_bound(&self, function: &Function) -> Option<FieldElement> {
+    pub(super) fn get_const_upper_bound(&self, function: &Function) -> Option<FieldElement> {
         let block = &function.dfg[self.header];
         let instructions = block.instructions();
         assert_eq!(
@@ -393,7 +421,7 @@ impl Loop {
     /// The loop pre-header is the block that comes before the loop begins. Generally a header block
     /// is expected to have 2 predecessors: the pre-header and the final block of the loop which jumps
     /// back to the beginning. Other predecessors can come from `break` or `continue`.
-    fn get_pre_header(
+    pub(super) fn get_pre_header(
         &self,
         function: &Function,
         cfg: &ControlFlowGraph,
@@ -949,21 +977,59 @@ impl<'f> LoopIteration<'f> {
     }
 }
 
+/// Unrolling leaves some duplicate instructions which can potentially be removed.
+fn simplify_between_unrolls(function: &mut Function) {
+    // Do a mem2reg after the last unroll to aid simplify_cfg
+    function.mem2reg();
+    function.simplify_function();
+    // Do another mem2reg after simplify_cfg to aid the next unroll
+    function.mem2reg();
+}
+
+/// Convert the function to Brillig bytecode and return the resulting size.
+fn brillig_bytecode_size(function: &Function) -> usize {
+    // We need to do some SSA passes in order for the conversion to be able to go ahead,
+    // otherwise we can hit `unreachable!()` instructions in `convert_ssa_instruction`.
+    // Creating a clone so as not to modify the originals.
+    let mut temp = function.clone();
+
+    // Might as well give it the best chance.
+    simplify_between_unrolls(&mut temp);
+
+    // This is to try to prevent hitting ICE.
+    temp.dead_instruction_elimination(false);
+
+    convert_ssa_function(&temp, false).byte_code.len()
+}
+
+/// Decide if the new bytecode size is acceptable, compared to the original.
+///
+/// The maximum increase can be expressed as a negative value if we demand a decrease.
+/// (Values -100 and under mean the new size should be 0).
+fn is_new_size_ok(orig_size: usize, new_size: usize, max_incr_pct: i32) -> bool {
+    let max_size_pct = 100i32.saturating_add(max_incr_pct).max(0) as usize;
+    let max_size = orig_size.saturating_mul(max_size_pct);
+    new_size.saturating_mul(100) <= max_size
+}
+
 #[cfg(test)]
 mod tests {
     use acvm::FieldElement;
+    use test_case::test_case;
 
     use crate::errors::RuntimeError;
     use crate::ssa::{ir::value::ValueId, opt::assert_normalized_ssa_equals, Ssa};
 
-    use super::{BoilerplateStats, Loops};
+    use super::{is_new_size_ok, BoilerplateStats, Loops};
 
-    /// Tries to unroll all loops in each SSA function.
+    /// Tries to unroll all loops in each SSA function once, calling the `Function` directly,
+    /// bypassing the iterative loop done by the SSA which does further optimisations.
+    ///
     /// If any loop cannot be unrolled, it is left as-is or in a partially unrolled state.
     fn try_unroll_loops(mut ssa: Ssa) -> (Ssa, Vec<RuntimeError>) {
         let mut errors = vec![];
         for function in ssa.functions.values_mut() {
-            errors.extend(function.try_unroll_loops());
+            errors.extend(function.try_unroll_loops().1);
         }
         (ssa, errors)
     }
@@ -1223,7 +1289,24 @@ mod tests {
 
         let (ssa, errors) = try_unroll_loops(ssa);
         assert_eq!(errors.len(), 0, "Unroll should have no errors");
+        // Check that it's still the original
         assert_normalized_ssa_equals(ssa, parse_ssa().to_string().as_str());
+    }
+
+    #[test]
+    fn test_brillig_unroll_iteratively_respects_max_increase() {
+        let ssa = brillig_unroll_test_case();
+        let ssa = ssa.unroll_loops_iteratively(Some(-90)).unwrap();
+        // Check that it's still the original
+        assert_normalized_ssa_equals(ssa, brillig_unroll_test_case().to_string().as_str());
+    }
+
+    #[test]
+    fn test_brillig_unroll_iteratively_with_large_max_increase() {
+        let ssa = brillig_unroll_test_case();
+        let ssa = ssa.unroll_loops_iteratively(Some(50)).unwrap();
+        // Check that it did the unroll
+        assert_eq!(ssa.main().reachable_blocks().len(), 2, "The loop should be unrolled");
     }
 
     /// Test that `break` and `continue` stop unrolling without any panic.
@@ -1378,5 +1461,15 @@ mod tests {
         let mut loops = Loops::find_all(function);
         let loop0 = loops.yet_to_unroll.pop().expect("there should be a loop");
         loop0.boilerplate_stats(function, &loops.cfg).expect("there should be stats")
+    }
+
+    #[test_case(1000, 700, 50, true; "size decreased")]
+    #[test_case(1000, 1500, 50, true; "size increased just by the max")]
+    #[test_case(1000, 1501, 50, false; "size increased over the max")]
+    #[test_case(1000, 700, -50, false; "size decreased but not enough")]
+    #[test_case(1000, 250, -50, true; "size decreased over expectations")]
+    #[test_case(1000, 250, -1250, false; "demanding more than minus 100 is handled")]
+    fn test_is_new_size_ok(old: usize, new: usize, max: i32, ok: bool) {
+        assert_eq!(is_new_size_ok(old, new, max), ok);
     }
 }

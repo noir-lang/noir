@@ -575,4 +575,34 @@ fn baz() { let  z  = 3  ;
         let expected = src;
         assert_format(src, expected);
     }
+
+    #[test]
+    fn keeps_newlines_between_comments_no_statements() {
+        let src = "fn foo() {
+    // foo
+
+    // bar
+
+    // baz
+}
+";
+        let expected = src;
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn keeps_newlines_between_comments_one_statement() {
+        let src = "fn foo() {
+    let x = 1;
+
+    // foo
+
+    // bar
+
+    // baz
+}
+";
+        let expected = src;
+        assert_format(src, expected);
+    }
 }

@@ -2358,7 +2358,7 @@ impl Methods {
     }
 
     /// Select the 1 matching method with an object type matching `typ`
-    fn find_matching_method(
+    pub fn find_matching_method(
         &self,
         typ: &Type,
         has_self_param: bool,

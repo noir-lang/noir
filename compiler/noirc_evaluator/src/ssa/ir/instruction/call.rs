@@ -45,39 +45,47 @@ pub(super) fn simplify_call(
         _ => return SimplifyResult::None,
     };
 
+    let return_type = ctrl_typevars.and_then(|return_types| return_types.first().cloned());
+
     let constant_args: Option<Vec<_>> =
         arguments.iter().map(|value_id| dfg.get_numeric_constant(*value_id)).collect();
 
-    match intrinsic {
+    let simplified_result = match intrinsic {
         Intrinsic::ToBits(endian) => {
             // TODO: simplify to a range constraint if `limb_count == 1`
-            if let (Some(constant_args), Some(return_type)) =
-                (constant_args, ctrl_typevars.map(|return_types| return_types.first().cloned()))
-            {
+            if let (Some(constant_args), Some(return_type)) = (constant_args, return_type.clone()) {
                 let field = constant_args[0];
-                let limb_count = if let Some(Type::Array(_, array_len)) = return_type {
+                let limb_count = if let Type::Array(_, array_len) = return_type {
                     array_len as u32
                 } else {
                     unreachable!("ICE: Intrinsic::ToRadix return type must be array")
                 };
-                constant_to_radix(endian, field, 2, limb_count, dfg, block, call_stack)
+                constant_to_radix(endian, field, 2, limb_count, |values| {
+                    make_constant_array(dfg, values.into_iter(), Type::bool(), block, call_stack)
+                })
             } else {
                 SimplifyResult::None
             }
         }
         Intrinsic::ToRadix(endian) => {
             // TODO: simplify to a range constraint if `limb_count == 1`
-            if let (Some(constant_args), Some(return_type)) =
-                (constant_args, ctrl_typevars.map(|return_types| return_types.first().cloned()))
-            {
+            if let (Some(constant_args), Some(return_type)) = (constant_args, return_type.clone()) {
                 let field = constant_args[0];
                 let radix = constant_args[1].to_u128() as u32;
-                let limb_count = if let Some(Type::Array(_, array_len)) = return_type {
+                let limb_count = if let Type::Array(_, array_len) = return_type {
                     array_len as u32
                 } else {
                     unreachable!("ICE: Intrinsic::ToRadix return type must be array")
                 };
-                constant_to_radix(endian, field, radix, limb_count, dfg, block, call_stack)
+                constant_to_radix(endian, field, radix, limb_count, |values| {
+                    make_constant_array(
+                        dfg,
+                        values.into_iter(),
+                        Type::unsigned(8),
+                        block,
+                        call_stack,
+                    )
+                })
             } else {
                 SimplifyResult::None
             }
@@ -330,7 +338,7 @@ pub(super) fn simplify_call(
         }
         Intrinsic::FromField => {
             let incoming_type = Type::field();
-            let target_type = ctrl_typevars.unwrap().remove(0);
+            let target_type = return_type.clone().unwrap();
 
             let truncate = Instruction::Truncate {
                 value: arguments[0],
@@ -352,8 +360,8 @@ pub(super) fn simplify_call(
         Intrinsic::AsWitness => SimplifyResult::None,
         Intrinsic::IsUnconstrained => SimplifyResult::None,
         Intrinsic::DerivePedersenGenerators => {
-            if let Some(Type::Array(_, len)) = ctrl_typevars.unwrap().first() {
-                simplify_derive_generators(dfg, arguments, *len as u32, block, call_stack)
+            if let Some(Type::Array(_, len)) = return_type.clone() {
+                simplify_derive_generators(dfg, arguments, len as u32, block, call_stack)
             } else {
                 unreachable!("Derive Pedersen Generators must return an array");
             }
@@ -368,7 +376,21 @@ pub(super) fn simplify_call(
                 SimplifyResult::None
             }
         }
+        Intrinsic::ArrayRefCount => SimplifyResult::None,
+        Intrinsic::SliceRefCount => SimplifyResult::None,
+    };
+
+    if let (Some(expected_types), SimplifyResult::SimplifiedTo(result)) =
+        (return_type, &simplified_result)
+    {
+        assert_eq!(
+            dfg.type_of_value(*result),
+            expected_types,
+            "Simplification should not alter return type"
+        );
     }
+
+    simplified_result
 }
 
 /// Slices have a tuple structure (slice length, slice contents) to enable logic
@@ -649,9 +671,7 @@ fn constant_to_radix(
     field: FieldElement,
     radix: u32,
     limb_count: u32,
-    dfg: &mut DataFlowGraph,
-    block: BasicBlockId,
-    call_stack: &CallStack,
+    mut make_array: impl FnMut(Vec<FieldElement>) -> ValueId,
 ) -> SimplifyResult {
     let bit_size = u32::BITS - (radix - 1).leading_zeros();
     let radix_big = BigUint::from(radix);
@@ -672,13 +692,7 @@ fn constant_to_radix(
         if endian == Endian::Big {
             limbs.reverse();
         }
-        let result_array = make_constant_array(
-            dfg,
-            limbs.into_iter(),
-            Type::unsigned(bit_size),
-            block,
-            call_stack,
-        );
+        let result_array = make_array(limbs);
         SimplifyResult::SimplifiedTo(result_array)
     }
 }
@@ -806,7 +820,8 @@ fn simplify_derive_generators(
                 results.push(is_infinite);
             }
             let len = results.len();
-            let typ = Type::Array(vec![Type::field()].into(), len);
+            let typ =
+                Type::Array(vec![Type::field(), Type::field(), Type::unsigned(1)].into(), len / 3);
             let result = make_array(dfg, results.into(), typ, block, call_stack);
             SimplifyResult::SimplifiedTo(result)
         } else {
@@ -814,5 +829,36 @@ fn simplify_derive_generators(
         }
     } else {
         unreachable!("Unexpected number of arguments to derive_generators");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::ssa::{opt::assert_normalized_ssa_equals, Ssa};
+
+    #[test]
+    fn simplify_derive_generators_has_correct_type() {
+        let src = "
+            brillig(inline) fn main f0 {
+              b0():
+                v0 = make_array [u8 68, u8 69, u8 70, u8 65, u8 85, u8 76, u8 84, u8 95, u8 68, u8 79, u8 77, u8 65, u8 73, u8 78, u8 95, u8 83, u8 69, u8 80, u8 65, u8 82, u8 65, u8 84, u8 79, u8 82] : [u8; 24]
+
+                // This call was previously incorrectly simplified to something that returned `[Field; 3]`
+                v2 = call derive_pedersen_generators(v0, u32 0) -> [(Field, Field, u1); 1]
+
+                return v2
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let expected = "
+            brillig(inline) fn main f0 {
+              b0():
+                v15 = make_array [u8 68, u8 69, u8 70, u8 65, u8 85, u8 76, u8 84, u8 95, u8 68, u8 79, u8 77, u8 65, u8 73, u8 78, u8 95, u8 83, u8 69, u8 80, u8 65, u8 82, u8 65, u8 84, u8 79, u8 82] : [u8; 24]
+                v19 = make_array [Field 3728882899078719075161482178784387565366481897740339799480980287259621149274, Field -9903063709032878667290627648209915537972247634463802596148419711785767431332, u1 0] : [(Field, Field, u1); 1]
+                return v19
+            }
+            ";
+        assert_normalized_ssa_equals(ssa, expected);
     }
 }
