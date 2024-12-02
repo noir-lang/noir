@@ -10,7 +10,7 @@ use noirc_abi::{decode_printable_value as decode_value, decode_string_value};
 use super::{ForeignCall, ForeignCallError, ForeignCallExecutor};
 
 #[derive(Debug, Default)]
-pub(super) struct PrintForeignCallExecutor;
+pub(crate) struct PrintForeignCallExecutor;
 
 impl<F: AcirField> ForeignCallExecutor<F> for PrintForeignCallExecutor {
     fn execute(
