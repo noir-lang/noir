@@ -307,18 +307,11 @@ impl DataFlowGraph {
         instruction_id: InstructionId,
         ctrl_typevars: Option<Vec<Type>>,
     ) {
-        let results = self
-            .instruction_result_types(instruction_id, ctrl_typevars)
-            .into_iter()
-            .enumerate()
-            .map(|(position, typ)| {
-                self.values.insert(Value::Instruction {
-                    typ,
-                    position,
-                    instruction: instruction_id,
-                })
-            })
-            .collect();
+        let result_types = self.instruction_result_types(instruction_id, ctrl_typevars);
+        let results = vecmap(result_types.into_iter().enumerate(), |(position, typ)| {
+            let instruction = instruction_id;
+            self.values.insert(Value::Instruction { typ, position, instruction })
+        });
 
         self.results.insert(instruction_id, results);
     }
