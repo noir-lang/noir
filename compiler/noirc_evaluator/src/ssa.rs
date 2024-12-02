@@ -48,7 +48,7 @@ pub mod ssa_gen;
 pub enum SsaLogging {
     None,
     All,
-    Equals(String),
+    Contains(String),
 }
 
 pub struct SsaEvaluatorOptions {
@@ -467,7 +467,7 @@ impl SsaBuilder {
         let print_ssa_pass = match &self.ssa_logging {
             SsaLogging::None => false,
             SsaLogging::All => true,
-            SsaLogging::Equals(string) => {
+            SsaLogging::Contains(string) => {
                 let string = string.to_lowercase();
                 let string = string.strip_prefix("after ").unwrap_or(&string);
                 let string = string.strip_suffix(':').unwrap_or(string);

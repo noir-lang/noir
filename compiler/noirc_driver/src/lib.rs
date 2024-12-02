@@ -583,7 +583,7 @@ pub fn compile_no_check(
     let return_visibility = program.return_visibility;
     let ssa_evaluator_options = noirc_evaluator::ssa::SsaEvaluatorOptions {
         ssa_logging: match &options.show_ssa_pass_name {
-            Some(string) => SsaLogging::Equals(string.clone()),
+            Some(string) => SsaLogging::Contains(string.clone()),
             None => {
                 if options.show_ssa {
                     SsaLogging::All
