@@ -1968,6 +1968,7 @@ impl<'a> Context<'a> {
             BinaryOp::Mod => self.acir_context.modulo_var(
                 lhs,
                 rhs,
+                binary_type.clone(),
                 bit_count,
                 self.current_side_effects_enabled_var,
             ),
