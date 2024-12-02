@@ -60,8 +60,6 @@ impl Loops {
             };
 
             context.hoist_loop_invariants(&loop_, pre_header);
-
-            context.defined_in_loop.clear();
         }
 
         context.map_dependent_instructions();
@@ -83,7 +81,7 @@ impl Loop {
     ///     jmpif v5 then: b3, else: b2
     /// ```
     /// In the example above, `v1` is the induction variable
-    fn get_induction_variable_value(&self, function: &Function) -> ValueId {
+    fn get_induction_variable(&self, function: &Function) -> ValueId {
         function.dfg.block_parameters(self.header)[0]
     }
 }
@@ -119,7 +117,7 @@ impl<'f> LoopInvariantContext<'f> {
                     self.inserter.push_instruction(instruction_id, *block);
                 }
 
-                self.update_values_defined_in_loop_and_invariants(instruction_id, hoist_invariant);
+                self.extend_values_defined_in_loop_and_invariants(instruction_id, hoist_invariant);
             }
         }
 
@@ -128,7 +126,7 @@ impl<'f> LoopInvariantContext<'f> {
         // reliant upon the maximum induction variable.
         let upper_bound = loop_.get_const_upper_bound(self.inserter.function);
         if let Some(upper_bound) = upper_bound {
-            let induction_variable = loop_.get_induction_variable_value(self.inserter.function);
+            let induction_variable = loop_.get_induction_variable(self.inserter.function);
             let induction_variable = self.inserter.resolve(induction_variable);
             self.outer_induction_variables.insert(induction_variable, upper_bound);
         }
@@ -136,9 +134,12 @@ impl<'f> LoopInvariantContext<'f> {
 
     /// Gather the variables declared within the loop
     fn set_values_defined_in_loop(&mut self, loop_: &Loop) {
-        // Check whether the param is an induction variable and the block for which it is a param
-        // Later when we are checking whether a value is a loop invariant we special case
-        // this parameter
+        // Clear any values that may be defined in previous loops, as the context is per function.
+        self.defined_in_loop.clear();
+        // These are safe to keep per function, but we want to be clear that these values
+        // are used per loop.
+        self.loop_invariants.clear();
+
         for block in loop_.blocks.iter() {
             let params = self.inserter.function.dfg.block_parameters(*block);
             self.defined_in_loop.extend(params);
@@ -151,7 +152,7 @@ impl<'f> LoopInvariantContext<'f> {
 
     /// Update any values defined in the loop and loop invariants after a
     /// analyzing and re-inserting a loop's instruction.
-    fn update_values_defined_in_loop_and_invariants(
+    fn extend_values_defined_in_loop_and_invariants(
         &mut self,
         instruction_id: InstructionId,
         hoist_invariant: bool,
@@ -218,6 +219,14 @@ impl<'f> LoopInvariantContext<'f> {
         }
     }
 
+    /// Loop invariant hoisting only operates over loop instructions.
+    /// The `FunctionInserter` is used for mapping old values to new values after
+    /// re-inserting loop invariant instructions.
+    /// However, there may be instructions which are not within loops that are
+    /// still reliant upon the instruction results altered during the pass.
+    /// This method re-inserts all instructions so that all instructions have
+    /// correct new value IDs based upon the `FunctionInserter` internal map.
+    /// Leaving out this mapping could lead to instructions with values that do not exist.
     fn map_dependent_instructions(&mut self) {
         let blocks = self.inserter.function.reachable_blocks();
         for block in blocks {
