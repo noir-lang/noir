@@ -1090,7 +1090,7 @@ mod test {
 
     #[test]
     #[should_panic(
-        expected = "Attempted to recur more than 1000 times during inlining function 'main': acir(inline) fn main f0 {"
+        expected = "Attempted to recur more than 500 times during inlining function 'main': acir(inline) fn main f0 {"
     )]
     fn unconditional_recursion() {
         // fn main f1 {
