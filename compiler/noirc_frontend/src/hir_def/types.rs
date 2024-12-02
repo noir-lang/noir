@@ -1088,7 +1088,7 @@ impl Type {
     }
 
     pub fn is_function(&self) -> bool {
-        match self.follow_bindings() {
+        match self.follow_bindings_shallow().as_ref() {
             Type::Function(..) => true,
             Type::Alias(alias_type, _) => alias_type.borrow().typ.is_function(),
             _ => false,
