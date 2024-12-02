@@ -1,5 +1,38 @@
 # Changelog
 
+## [1.0.0-beta.0](https://github.com/noir-lang/noir/compare/v0.39.0...v1.0.0-beta.0) (2024-11-22)
+
+
+### ⚠ BREAKING CHANGES
+
+* Require types of globals to be specified ([#6592](https://github.com/noir-lang/noir/issues/6592))
+* remove eddsa from stdlib ([#6591](https://github.com/noir-lang/noir/issues/6591))
+
+### Features
+
+* Add `array_refcount` and `slice_refcount` builtins for debugging ([#6584](https://github.com/noir-lang/noir/issues/6584)) ([45eb756](https://github.com/noir-lang/noir/commit/45eb7568d56b2d254453b85f236d554232aa5df9))
+* Avoid incrementing reference counts in some cases ([#6568](https://github.com/noir-lang/noir/issues/6568)) ([01c4a9f](https://github.com/noir-lang/noir/commit/01c4a9fb62ffe2190c73f0d5b12933d2eb8f6b5d))
+* **ssa:** Loop invariant code motion ([#6563](https://github.com/noir-lang/noir/issues/6563)) ([7216f08](https://github.com/noir-lang/noir/commit/7216f0829dcece948d3243471e6d57380522e997))
+* Trait aliases ([#6431](https://github.com/noir-lang/noir/issues/6431)) ([68c32b4](https://github.com/noir-lang/noir/commit/68c32b4ffd9b069fe4b119327dbf4018c17ab9d4))
+* Try to inline brillig calls with all constant arguments  ([#6548](https://github.com/noir-lang/noir/issues/6548)) ([e4c66b9](https://github.com/noir-lang/noir/commit/e4c66b91d42b20d17837fe5e7c32c9a83b6ab354))
+
+
+### Bug Fixes
+
+* Consider prereleases to be compatible with pre-1.0.0 releases ([#6580](https://github.com/noir-lang/noir/issues/6580)) ([013e200](https://github.com/noir-lang/noir/commit/013e2000f1d7e7346b5cac0427732d545f501444))
+* Correct type when simplifying `derive_pedersen_generators` ([#6579](https://github.com/noir-lang/noir/issues/6579)) ([efa5cc4](https://github.com/noir-lang/noir/commit/efa5cc4bf173b0ce49f47b1954165a2bdb276792))
+* Don't report visibility errors when elaborating comptime value ([#6498](https://github.com/noir-lang/noir/issues/6498)) ([3c361c9](https://github.com/noir-lang/noir/commit/3c361c9f78a5d9de1b1bcb5a839d3bc481f89898))
+* Parse a bit more SSA stuff ([#6599](https://github.com/noir-lang/noir/issues/6599)) ([0a6207d](https://github.com/noir-lang/noir/commit/0a6207dde6c744e2853905014e70d33b29b3e53b))
+* Preserve newlines between comments when formatting statements ([#6601](https://github.com/noir-lang/noir/issues/6601)) ([d94eb08](https://github.com/noir-lang/noir/commit/d94eb085adf2cdd8f0e80d9cfd712c19c8810974))
+* Remove `compiler_version` from new `Nargo.toml` ([#6590](https://github.com/noir-lang/noir/issues/6590)) ([df8f2ee](https://github.com/noir-lang/noir/commit/df8f2eee5c27d3cd4b6128056afdd9bd4a0322fe))
+
+
+### Miscellaneous Chores
+
+* Remove eddsa from stdlib ([#6591](https://github.com/noir-lang/noir/issues/6591)) ([8e046af](https://github.com/noir-lang/noir/commit/8e046afbbe3fba06c1e177f74aacefdd1bf871b6))
+* Require types of globals to be specified ([#6592](https://github.com/noir-lang/noir/issues/6592)) ([8ff4efd](https://github.com/noir-lang/noir/commit/8ff4efda5589d39d31ced31c6575f43133fceebc))
+* Switch to 1.0.0-beta versioning ([#6503](https://github.com/noir-lang/noir/issues/6503)) ([44e7dc1](https://github.com/noir-lang/noir/commit/44e7dc1037b047db866af675cd8caa0fc8aee324))
+
 ## [0.39.0](https://github.com/noir-lang/noir/compare/v0.38.0...v0.39.0) (2024-11-19)
 
 

@@ -8,7 +8,7 @@ use clap::Args;
 
 use crate::cli::fs::inputs::{read_bytecode_from_file, read_inputs_from_file};
 use crate::errors::CliError;
-use nargo::ops::{execute_program, DefaultForeignCallExecutor};
+use nargo::{foreign_calls::DefaultForeignCallExecutor, ops::execute_program};
 
 use super::fs::witness::{create_output_witness_string, save_witness_to_dir};
 

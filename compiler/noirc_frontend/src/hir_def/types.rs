@@ -1087,6 +1087,14 @@ impl Type {
         }
     }
 
+    pub fn is_function(&self) -> bool {
+        match self.follow_bindings_shallow().as_ref() {
+            Type::Function(..) => true,
+            Type::Alias(alias_type, _) => alias_type.borrow().typ.is_function(),
+            _ => false,
+        }
+    }
+
     /// True if this type can be used as a parameter to `main` or a contract function.
     /// This is only false for unsized types like slices or slices that do not make sense
     /// as a program input such as named generics or mutable references.

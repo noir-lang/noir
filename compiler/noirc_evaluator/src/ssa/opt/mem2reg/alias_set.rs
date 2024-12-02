@@ -24,6 +24,10 @@ impl AliasSet {
         Self { aliases: Some(aliases) }
     }
 
+    pub(super) fn known_multiple(values: BTreeSet<ValueId>) -> AliasSet {
+        Self { aliases: Some(values) }
+    }
+
     /// In rare cases, such as when creating an empty array of references, the set of aliases for a
     /// particular value will be known to be zero, which is distinct from being unknown and
     /// possibly referring to any alias.

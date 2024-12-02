@@ -1321,11 +1321,23 @@ impl<'context> Elaborator<'context> {
                 {
                     Some(method_id) => Some(HirMethodReference::FuncId(method_id)),
                     None => {
-                        self.push_err(TypeCheckError::UnresolvedMethodCall {
-                            method_name: method_name.to_string(),
-                            object_type: object_type.clone(),
-                            span,
-                        });
+                        let has_field_with_function_type =
+                            typ.borrow().get_fields_as_written().into_iter().any(|field| {
+                                field.name.0.contents == method_name && field.typ.is_function()
+                            });
+                        if has_field_with_function_type {
+                            self.push_err(TypeCheckError::CannotInvokeStructFieldFunctionType {
+                                method_name: method_name.to_string(),
+                                object_type: object_type.clone(),
+                                span,
+                            });
+                        } else {
+                            self.push_err(TypeCheckError::UnresolvedMethodCall {
+                                method_name: method_name.to_string(),
+                                object_type: object_type.clone(),
+                                span,
+                            });
+                        }
                         None
                     }
                 }
