@@ -22,7 +22,7 @@ use fxhash::FxHashMap as HashMap;
 
 /// An arbitrary limit to the maximum number of recursive call
 /// frames at any point in time.
-const RECURSION_LIMIT: u32 = 1000;
+const RECURSION_LIMIT: u32 = 500;
 
 impl Ssa {
     /// Inline all functions within the IR.
