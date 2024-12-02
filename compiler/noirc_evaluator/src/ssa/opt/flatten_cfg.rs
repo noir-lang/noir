@@ -537,7 +537,11 @@ impl<'f> Context<'f> {
         let args = vecmap(then_args.iter().zip(else_args), |(then_arg, else_arg)| {
             (self.inserter.resolve(*then_arg), self.inserter.resolve(else_arg))
         });
-
+        let else_condition = if let Some(branch) = cond_context.else_branch {
+            branch.condition
+        } else {
+            self.inserter.function.dfg.make_constant(FieldElement::zero(), Type::bool())
+        };
         let block = self.inserter.function.entry_block();
 
         // Cannot include this in the previous vecmap since it requires exclusive access to self
@@ -545,6 +549,7 @@ impl<'f> Context<'f> {
             let instruction = Instruction::IfElse {
                 then_condition: cond_context.then_branch.condition,
                 then_value: then_arg,
+                else_condition,
                 else_value: else_arg,
             };
             let call_stack = cond_context.call_stack.clone();
@@ -684,10 +689,13 @@ impl<'f> Context<'f> {
                             )
                             .first();
 
+                        let else_condition = self
+                            .insert_instruction(Instruction::Not(condition), call_stack.clone());
+
                         let instruction = Instruction::IfElse {
                             then_condition: condition,
                             then_value: value,
-
+                            else_condition,
                             else_value: previous_value,
                         };
 
