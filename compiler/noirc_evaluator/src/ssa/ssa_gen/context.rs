@@ -733,9 +733,6 @@ impl<'a> FunctionContext<'a> {
         let element_types = Self::convert_type(element_type);
         values.map_both(element_types, |value, element_type| {
             let reference = value.eval_reference();
-            // Reference counting in brillig relies on us incrementing reference
-            // counts when arrays/slices are constructed or indexed.
-            // Thus, if we dereference an lvalue which happens to be array/slice we should increment its reference counter.
             self.builder.insert_load(reference, element_type).into()
         })
     }

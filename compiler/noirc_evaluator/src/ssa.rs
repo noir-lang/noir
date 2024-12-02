@@ -74,6 +74,11 @@ pub struct SsaEvaluatorOptions {
 
     /// The higher the value, the more inlined brillig functions will be.
     pub inliner_aggressiveness: i64,
+
+    /// Maximum accepted percentage increase in the Brillig bytecode size after unrolling loops.
+    /// When `None` the size increase check is skipped altogether and any decrease in the SSA
+    /// instruction count is accepted.
+    pub max_bytecode_increase_percent: Option<i32>,
 }
 
 pub(crate) struct ArtifactsAndWarnings(Artifacts, Vec<SsaReport>);
@@ -111,10 +116,13 @@ pub(crate) fn optimize_into_acir(
         "`static_assert` and `assert_constant`",
     )?
     .run_pass(Ssa::loop_invariant_code_motion, "Loop Invariant Code Motion")
-    .try_run_pass(Ssa::unroll_loops_iteratively, "Unrolling:")?
+    .try_run_pass(
+        |ssa| ssa.unroll_loops_iteratively(options.max_bytecode_increase_percent),
+        "Unrolling",
+    )?
     .run_pass(Ssa::simplify_cfg, "Simplifying (2nd)")
-    .run_pass(Ssa::flatten_cfg, "Flattening:")
-    .run_pass(Ssa::remove_bit_shifts, "Removing Bit Shifts")
+    .run_pass(Ssa::flatten_cfg, "Flattening")
+    .run_pass(Ssa::remove_bit_shifts, "After Removing Bit Shifts")
     // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
     .run_pass(Ssa::mem2reg, "Mem2Reg (2nd)")
     // Run the inlining pass again to handle functions with `InlineType::NoPredicates`.
@@ -454,11 +462,10 @@ impl SsaBuilder {
     }
 
     /// The same as `run_pass` but for passes that may fail
-    fn try_run_pass(
-        mut self,
-        pass: fn(Ssa) -> Result<Ssa, RuntimeError>,
-        msg: &str,
-    ) -> Result<Self, RuntimeError> {
+    fn try_run_pass<F>(mut self, pass: F, msg: &str) -> Result<Self, RuntimeError>
+    where
+        F: FnOnce(Ssa) -> Result<Ssa, RuntimeError>,
+    {
         self.ssa = time(msg, self.print_codegen_timings, || pass(self.ssa))?;
         Ok(self.print(msg))
     }
