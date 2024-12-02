@@ -1535,6 +1535,7 @@ r190c23 = mul v418,r189c35
 r188c51 = add r188c47,r190c23
 v419 = add_virtual_target
 connect r188c51,v419
+# [36] if watcher_map[x][y] {
 # [50] assert(is_safe_step(path[i], watcher_map));
 v87 = constant_bool true
 connect v419,v87
