@@ -69,6 +69,9 @@ pub enum PrintableValueDisplay<F> {
 
 #[derive(Debug, Error)]
 pub enum ForeignCallError {
+    #[error("No handler could be found for foreign call `{0}`")]
+    NoHandler(String),
+
     #[error("Foreign call inputs needed for execution are missing")]
     MissingForeignCallInputs,
 
