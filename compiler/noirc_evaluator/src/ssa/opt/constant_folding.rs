@@ -518,7 +518,7 @@ impl<'brillig> Context<'brillig> {
 
         results_for_instruction.get(&predicate)?.get(block, dom, instruction.has_side_effects(dfg))
     }
-    
+
     /// Checks if the given instruction is a call to a brillig function with all constant arguments.
     /// If so, we can try to evaluate that function and replace the results with the evaluation results.
     fn try_inline_brillig_call_with_all_constants(
