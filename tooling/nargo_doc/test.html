@@ -1,43 +1,85 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <meta name="description" content="noirc is a compiler for the Noir programming language" />
-        <title>noirc - Noir</title>
-        <!-- <link rel="icon" type="image/svg+xml" href="TODO" /> -->
-    </head>
-    <body>
-        <nav class="sidebar">
-            <a class="logo-container" href="TODO">
-                <img src="TODO" alt="Noir Logo" />
-
-                <h2>noirc</h2>
-            </a>
-            <div>
-                <h3>Module module</h3>
-                <h4>Functions</h4>
-                <ul><li>f0</li><li>f1</li></ul>
-                <h4>Structs</h4>
-                <ul><li>Thing</li></ul>
-                <h4>Traits</h4>
-                <ul><li>DoThings</li></ul>
-                <h4>Type Aliases</h4>
-                <ul><li>ThingAlias</li></ul>
-                <h4>Globals</h4>
-                <ul><li>thing</li><li>foo</li></ul>
-                <h4>Submodules</h4>
-                <ul><li>submod</li></ul>
-            </div>
-        </nav>
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="noirc is a compiler for the Noir programming language" />
+    <title>my_crate - Noir</title>
+    <!-- <link rel="icon" type="image/svg+xml" href='#todo' /> -->
+</head>
+<body>
+    <nav class="sidebar">
+        <a class="logo-container" href='#todo'>
+            <img src="TODO" />
+            <h2>my_crate</h2>
+        </a>
         <div>
-
+            <h3>my_module</h3>
+            <h4>Functions</h4>
+            <ul><li><a href='#todo'>f0</a></li><li><a href='#todo'>f1</a></li></ul>
+            <h4>Structs</h4>
+            <ul><li><a href='#todo'>Thing</a></li></ul>
+            <h4>Traits</h4>
+            <ul><li><a href='#todo'>DoThings</a></li></ul>
+            <h4>Type Aliases</h4>
+            <ul><li><a href='#todo'>ThingAlias</a></li></ul>
+            <h4>Globals</h4>
+            <ul><li><a href='#todo'>thing</a></li><li><a href='#todo'>foo</a></li></ul>
+            <h4>Submodules</h4>
+            <ul><li><a href='#todo'>submod</a></li></ul>
         </div>
-    </body>
-    <style>
-        * { padding: 0px; margin: 0px; }
-        body { color: #eeedf1; background-color: #321e4c; }
-    </style>
+    </nav>
+    <main> module docs<br/><br/> this is a module for things<br/><br/> ## This is a section<br/><br/> ## This is another section</main>
+</body>
+<style>
+* { padding: 0px; margin: 0px; }
+
+body {
+    color: #eeedf1;
+    background-color: #321e4c;
+    display: flex;
+    font-family: monospace;
+}
+
+main {
+    padding: 1rem;
+}
+
+.logo-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1rem;
+}
+
+.sidebar {
+    background-color: #514167;
+    min-height: 100vh;
+    padding: 0 0.5rem;
+}
+
+.sidebar h4 {
+    padding: 0.5rem 0;
+}
+
+.sidebar li {
+    list-style-type: none;
+    padding: 0.5rem 0;
+}
+
+.sidebar a {
+    color: #eeedf1;
+    text-decoration: none;
+}
+
+.sidebar a:hover {
+    color: #afa8ba;
+}
+
+.sidebar a:active {
+    color: #8f869e;
+}
+</style>
 </html>
 <!--pui-70
 #321e4c

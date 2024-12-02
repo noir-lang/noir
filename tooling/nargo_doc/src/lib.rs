@@ -1,92 +1,10 @@
-use noirc_frontend::ast::Documented;
-use noirc_frontend::ast::LetStatement;
-use noirc_frontend::ast::ModuleDeclaration;
-use noirc_frontend::ast::NoirFunction;
-use noirc_frontend::ast::NoirStruct;
-use noirc_frontend::ast::NoirTrait;
-use noirc_frontend::ast::NoirTypeAlias;
 use noirc_frontend::parser::SortedModule;
-use noirc_frontend::parser::SortedSubModule;
 
-fn short_description(doc_comments: &[String]) -> String {
-    doc_comments
-        .iter()
-        .take_while(|line| !line.is_empty())
-        .fold(String::new(), |acc, line| format!("{acc} {line}"))
-}
+mod metadata;
+use metadata::Metadata;
 
 fn list_items(items: &[Metadata]) -> String {
-    items.iter()
-        .map(|item| format!("<li>{}</li>", item.title))
-        .collect()
-}
-
-pub struct Metadata {
-    pub title: String,
-    pub short_description: String,
-}
-
-impl From<&Documented<NoirFunction>> for Metadata {
-    fn from(value: &Documented<NoirFunction>) -> Self {
-        Self {
-            title: value.item.name().to_string(),
-            short_description: short_description(&value.doc_comments),
-        }
-    }
-}
-
-impl From<&Documented<NoirStruct>> for Metadata {
-    fn from(value: &Documented<NoirStruct>) -> Self {
-        Self {
-            title: value.item.name.to_string(),
-            short_description: short_description(&value.doc_comments),
-        }
-    }
-}
-
-impl From<&Documented<NoirTrait>> for Metadata {
-    fn from(value: &Documented<NoirTrait>) -> Self {
-        Self {
-            title: value.item.name.to_string(),
-            short_description: short_description(&value.doc_comments),
-        }
-    }
-}
-
-impl From<&Documented<NoirTypeAlias>> for Metadata {
-    fn from(value: &Documented<NoirTypeAlias>) -> Self {
-        Self {
-            title: value.item.name.to_string(),
-            short_description: short_description(&value.doc_comments),
-        }
-    }
-}
-
-impl From<&Documented<LetStatement>> for Metadata {
-    fn from(value: &Documented<LetStatement>) -> Self {
-        Self {
-            title: value.item.pattern.name_ident().0.contents.clone(),
-            short_description: short_description(&value.doc_comments),
-        }
-    }
-}
-
-impl From<&Documented<ModuleDeclaration>> for Metadata {
-    fn from(value: &Documented<ModuleDeclaration>) -> Self {
-        Self {
-            title: value.item.ident.to_string(),
-            short_description: short_description(&value.doc_comments),
-        }
-    }
-}
-
-impl From<&Documented<SortedSubModule>> for Metadata {
-    fn from(value: &Documented<SortedSubModule>) -> Self {
-        Self {
-            title: value.item.name.to_string(),
-            short_description: short_description(&value.doc_comments),
-        }
-    }
+    items.iter().map(|item| format!("<li><a href='#todo'>{}</a></li>", item.title)).collect()
 }
 
 pub struct ModuleDevDoc {
@@ -106,7 +24,7 @@ impl ModuleDevDoc {
         Self {
             crate_name,
             name: module_name,
-            docs: short_description(&module.inner_doc_comments),
+            docs: module.inner_doc_comments.join("<br/>"),
             functions: module.functions.iter().map(Metadata::from).collect(),
             structs: module.types.iter().map(Metadata::from).collect(),
             traits: module.traits.iter().map(Metadata::from).collect(),
@@ -120,6 +38,7 @@ impl ModuleDevDoc {
         let crate_name = &self.crate_name;
         let crate_short_description = crate_metadata.short_description;
         let module_name = &self.name;
+        let module_docs = &self.docs;
 
         let functions = list_items(&self.functions);
         let structs = list_items(&self.structs);
@@ -131,43 +50,38 @@ impl ModuleDevDoc {
         format!(
             r#"<!DOCTYPE html>
 <html lang="en" data-theme="dark">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <meta name="description" content="{crate_short_description}" />
-        <title>{crate_name} - Noir</title>
-        <!-- <link rel="icon" type="image/svg+xml" href="TODO" /> -->
-    </head>
-    <body>
-        <nav class="sidebar">
-            <a class="logo-container" href="TODO">
-                {NOIR_LOGO}
-                <h2>{crate_name}</h2>
-            </a>
-            <div>
-                <h3>Module {module_name}</h3>
-                <h4>Functions</h4>
-                <ul>{functions}</ul>
-                <h4>Structs</h4>
-                <ul>{structs}</ul>
-                <h4>Traits</h4>
-                <ul>{traits}</ul>
-                <h4>Type Aliases</h4>
-                <ul>{type_aliases}</ul>
-                <h4>Globals</h4>
-                <ul>{globals}</ul>
-                <h4>Submodules</h4>
-                <ul>{submodules}</ul>
-            </div>
-        </nav>
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="{crate_short_description}" />
+    <title>{crate_name} - Noir</title>
+    <!-- <link rel="icon" type="image/svg+xml" href='#todo' /> -->
+</head>
+<body>
+    <nav class="sidebar">
+        <a class="logo-container" href='#todo'>
+            {NOIR_LOGO}
+            <h2>{crate_name}</h2>
+        </a>
         <div>
-
+            <h3>{module_name}</h3>
+            <h4>Functions</h4>
+            <ul>{functions}</ul>
+            <h4>Structs</h4>
+            <ul>{structs}</ul>
+            <h4>Traits</h4>
+            <ul>{traits}</ul>
+            <h4>Type Aliases</h4>
+            <ul>{type_aliases}</ul>
+            <h4>Globals</h4>
+            <ul>{globals}</ul>
+            <h4>Submodules</h4>
+            <ul>{submodules}</ul>
         </div>
-    </body>
-    <style>
-        * {{ padding: 0px; margin: 0px; }}
-        body {{ color: #eeedf1; background-color: #321e4c; }}
-    </style>
+    </nav>
+    <main>{module_docs}</main>
+</body>
+<style>{STYLES}</style>
 </html>
 <!--pui-70
 #321e4c
@@ -184,10 +98,59 @@ pui-20
 pui-10
 #eeedf1 -->
 "#
-
         )
     }
 }
+
+const STYLES: &'static str = r#"
+* { padding: 0px; margin: 0px; }
+
+body {
+    color: #eeedf1;
+    background-color: #321e4c;
+    display: flex;
+    font-family: monospace;
+}
+
+main {
+    padding: 1rem;
+}
+
+.logo-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1rem;
+}
+
+.sidebar {
+    background-color: #514167;
+    min-height: 100vh;
+    padding: 0 0.5rem;
+}
+
+.sidebar h4 {
+    padding: 0.5rem 0;
+}
+
+.sidebar li {
+    list-style-type: none;
+    padding: 0.5rem 0;
+}
+
+.sidebar a {
+    color: #eeedf1;
+    text-decoration: none;
+}
+
+.sidebar a:hover {
+    color: #afa8ba;
+}
+
+.sidebar a:active {
+    color: #8f869e;
+}
+"#;
 
 pub const SAUCE: &'static str = r#"
 //! module docs
@@ -235,8 +198,7 @@ mod submod {
 comptime mut global foo: Field = 1 + 1;
 "#;
 
-const NOIR_LOGO: &'static str = r#"<img src="TODO" alt="Noir Logo" />
-"#;
+const NOIR_LOGO: &'static str = r#"<img src="TODO" />"#;
 
 #[cfg(test)]
 mod tests {
@@ -255,7 +217,8 @@ mod tests {
             short_description: "noirc is a compiler for the Noir programming language".to_string(),
         };
 
-        let module_dev_doc = ModuleDevDoc::new("noirc".to_string(), "module".to_string(), sorted_module);
+        let module_dev_doc =
+            ModuleDevDoc::new("my_crate".to_string(), "my_module".to_string(), sorted_module);
 
         let html = module_dev_doc.module_html_template(crate_metadata);
 

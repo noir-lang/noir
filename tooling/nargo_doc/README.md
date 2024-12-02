@@ -2,11 +2,6 @@
 
 Generates documentation for noir source code.
 
-## Spec
+> Note: very early WIP
 
-- takes `SortedModule` as input
-- parses doc comments as ghmd
-- generates html from ghmd
-- `$$x$$` is handled by mathjax
-- gen warning on`$x$` that inline latex isn't supported atm
-- gen html
+The [test html](test.html) file has the latest generated from a [test](src/lib.rs)
