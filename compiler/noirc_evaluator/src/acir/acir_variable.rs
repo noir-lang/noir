@@ -1,33 +1,34 @@
-use super::big_int::BigIntContext;
-use super::generated_acir::{BrilligStdlibFunc, GeneratedAcir, PLACEHOLDER_BRILLIG_INDEX};
-use crate::brillig::brillig_gen::brillig_directive;
-use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
-use crate::errors::{InternalBug, InternalError, RuntimeError, SsaReport};
-use crate::ssa::acir_gen::{AcirDynamicArray, AcirValue};
-use crate::ssa::ir::dfg::CallStack;
-use crate::ssa::ir::types::Type as SsaType;
-use crate::ssa::ir::{instruction::Endian, types::NumericType};
-use acvm::acir::circuit::brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs};
-use acvm::acir::circuit::opcodes::{
-    AcirFunctionId, BlockId, BlockType, ConstantOrWitnessEnum, MemOp,
-};
-use acvm::acir::circuit::{AssertionPayload, ExpressionOrMemory, ExpressionWidth, Opcode};
-use acvm::brillig_vm::{MemoryValue, VMStatus, VM};
-use acvm::BlackBoxFunctionSolver;
 use acvm::{
-    acir::AcirField,
     acir::{
         brillig::Opcode as BrilligOpcode,
-        circuit::opcodes::FunctionInput,
+        circuit::{
+            brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
+            opcodes::{
+                AcirFunctionId, BlockId, BlockType, ConstantOrWitnessEnum, FunctionInput, MemOp,
+            },
+            AssertionPayload, ExpressionOrMemory, ExpressionWidth, Opcode,
+        },
         native_types::{Expression, Witness},
-        BlackBoxFunc,
+        AcirField, BlackBoxFunc,
     },
+    brillig_vm::{MemoryValue, VMStatus, VM},
+    BlackBoxFunctionSolver,
 };
 use fxhash::FxHashMap as HashMap;
 use iter_extended::{try_vecmap, vecmap};
 use num_bigint::BigUint;
 use std::cmp::Ordering;
 use std::{borrow::Cow, hash::Hash};
+
+use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
+use crate::errors::{InternalBug, InternalError, RuntimeError, SsaReport};
+use crate::ssa::ir::{
+    dfg::CallStack, instruction::Endian, types::NumericType, types::Type as SsaType,
+};
+
+use super::big_int::BigIntContext;
+use super::generated_acir::{BrilligStdlibFunc, GeneratedAcir, PLACEHOLDER_BRILLIG_INDEX};
+use super::{brillig_directive, AcirDynamicArray, AcirValue};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 /// High level Type descriptor for Variables.

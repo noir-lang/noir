@@ -1,46 +1,57 @@
 //! This file holds the pass to convert from Noir's SSA IR to ACIR.
-mod acir_ir;
 
+use fxhash::FxHashMap as HashMap;
+use im::Vector;
 use std::collections::{BTreeMap, HashSet};
 use std::fmt::Debug;
 
-use self::acir_ir::acir_variable::{AcirContext, AcirType, AcirVar};
-use self::acir_ir::generated_acir::BrilligStdlibFunc;
-use super::function_builder::data_bus::DataBus;
-use super::ir::dfg::CallStack;
-use super::ir::function::FunctionId;
-use super::ir::instruction::{ConstrainError, ErrorType};
-use super::ir::printer::try_to_extract_string_from_error_payload;
-use super::{
+use acvm::acir::{
+    circuit::{
+        brillig::{BrilligBytecode, BrilligFunctionId},
+        opcodes::{AcirFunctionId, BlockType},
+        AssertionPayload, ErrorSelector, ExpressionWidth, OpcodeLocation,
+    },
+    native_types::Witness,
+    BlackBoxFunc,
+};
+use acvm::{acir::circuit::opcodes::BlockId, acir::AcirField, FieldElement};
+use bn254_blackbox_solver::Bn254BlackBoxSolver;
+use iter_extended::{try_vecmap, vecmap};
+use noirc_frontend::monomorphization::ast::InlineType;
+
+mod acir_variable;
+mod big_int;
+mod brillig_directive;
+mod generated_acir;
+
+use crate::brillig::{
+    brillig_gen::brillig_fn::FunctionContext as BrilligFunctionContext,
+    brillig_ir::{
+        artifact::{BrilligParameter, GeneratedBrillig},
+        BrilligContext,
+    },
+    Brillig,
+};
+use crate::errors::{InternalError, InternalWarning, RuntimeError, SsaReport};
+use crate::ssa::{
+    function_builder::data_bus::DataBus,
     ir::{
-        dfg::DataFlowGraph,
-        function::{Function, RuntimeType},
+        dfg::{CallStack, DataFlowGraph},
+        function::{Function, FunctionId, RuntimeType},
         instruction::{
-            Binary, BinaryOp, Instruction, InstructionId, Intrinsic, TerminatorInstruction,
+            Binary, BinaryOp, ConstrainError, ErrorType, Instruction, InstructionId, Intrinsic,
+            TerminatorInstruction,
         },
         map::Id,
+        printer::try_to_extract_string_from_error_payload,
         types::{NumericType, Type},
         value::{Value, ValueId},
     },
     ssa_gen::Ssa,
 };
-use crate::brillig::brillig_ir::artifact::{BrilligParameter, GeneratedBrillig};
-use crate::brillig::brillig_ir::BrilligContext;
-use crate::brillig::{brillig_gen::brillig_fn::FunctionContext as BrilligFunctionContext, Brillig};
-use crate::errors::{InternalError, InternalWarning, RuntimeError, SsaReport};
-pub(crate) use acir_ir::generated_acir::GeneratedAcir;
-use acvm::acir::circuit::opcodes::{AcirFunctionId, BlockType};
-use bn254_blackbox_solver::Bn254BlackBoxSolver;
-use noirc_frontend::monomorphization::ast::InlineType;
-
-use acvm::acir::circuit::brillig::{BrilligBytecode, BrilligFunctionId};
-use acvm::acir::circuit::{AssertionPayload, ErrorSelector, ExpressionWidth, OpcodeLocation};
-use acvm::acir::native_types::Witness;
-use acvm::acir::BlackBoxFunc;
-use acvm::{acir::circuit::opcodes::BlockId, acir::AcirField, FieldElement};
-use fxhash::FxHashMap as HashMap;
-use im::Vector;
-use iter_extended::{try_vecmap, vecmap};
+use acir_variable::{AcirContext, AcirType, AcirVar};
+use generated_acir::BrilligStdlibFunc;
+pub(crate) use generated_acir::GeneratedAcir;
 
 #[derive(Default)]
 struct SharedContext<F> {
@@ -2823,22 +2834,6 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
-    /// Given an array value, return the numerical type of its element.
-    /// Panics if the given value is not an array or has a non-numeric element type.
-    fn array_element_type(dfg: &DataFlowGraph, value: ValueId) -> AcirType {
-        match dfg.type_of_value(value) {
-            Type::Array(elements, _) => {
-                assert_eq!(elements.len(), 1);
-                (&elements[0]).into()
-            }
-            Type::Slice(elements) => {
-                assert_eq!(elements.len(), 1);
-                (&elements[0]).into()
-            }
-            _ => unreachable!("Expected array type"),
-        }
-    }
-
     /// Convert a Vec<AcirVar> into a Vec<AcirValue> using the given result ids.
     /// If the type of a result id is an array, several acir vars are collected into
     /// a single AcirValue::Array of the same length.
@@ -2929,9 +2924,9 @@ mod test {
     use std::collections::BTreeMap;
 
     use crate::{
+        acir::BrilligStdlibFunc,
         brillig::Brillig,
         ssa::{
-            acir_gen::acir_ir::generated_acir::BrilligStdlibFunc,
             function_builder::FunctionBuilder,
             ir::{function::FunctionId, instruction::BinaryOp, map::Id, types::Type},
         },
