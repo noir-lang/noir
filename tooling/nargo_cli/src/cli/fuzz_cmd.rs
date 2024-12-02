@@ -17,6 +17,7 @@ use rayon::prelude::{IntoParallelIterator, ParallelBridge, ParallelIterator};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 use crate::{cli::check_cmd::check_crate_and_report_errors, errors::CliError};
+use noirc_abi::input_parser::json::serialize_to_json;
 
 use super::NargoConfig;
 
@@ -256,7 +257,7 @@ fn display_fuzzing_report(
 
                 writeln!(writer, "FAIL\n{message}\n").expect("Failed to write to stderr");
                 match counterexample {
-                    Some(input_map) => writeln!(writer, "failing input: {:?}", input_map)
+                    Some(input_map) => writeln!(writer, "failing input: {}", input_map)
                         .expect("Failed to write to stderr"),
                     _ => (),
                 }

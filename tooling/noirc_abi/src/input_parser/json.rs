@@ -5,7 +5,7 @@ use iter_extended::{try_btree_map, try_vecmap};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-pub(crate) fn parse_json(
+pub fn parse_json(
     input_string: &str,
     abi: &Abi,
 ) -> Result<BTreeMap<String, InputValue>, InputParserError> {
@@ -39,7 +39,7 @@ pub(crate) fn parse_json(
     Ok(parsed_inputs)
 }
 
-pub(crate) fn serialize_to_json(
+pub fn serialize_to_json(
     input_map: &BTreeMap<String, InputValue>,
     abi: &Abi,
 ) -> Result<String, InputParserError> {

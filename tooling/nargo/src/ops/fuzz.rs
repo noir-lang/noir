@@ -5,7 +5,7 @@ use acvm::{
     brillig_vm::BranchToFeatureMap,
     BlackBoxFunctionSolver, FieldElement,
 };
-use noirc_abi::InputMap;
+use noirc_abi::{input_parser::json::serialize_to_json, InputMap};
 use noirc_driver::{compile_no_check, CompileOptions};
 use noirc_errors::FileDiagnostic;
 use noirc_frontend::hir::{def_map::FuzzingHarness, Context};
@@ -18,7 +18,7 @@ pub enum FuzzingRunStatus {
     Pass,
     Fail {
         message: String,
-        counterexample: Option<InputMap>,
+        counterexample: Option<String>,
         error_diagnostic: Option<FileDiagnostic>,
     },
     CompileError(FileDiagnostic),
@@ -117,6 +117,7 @@ pub fn run_fuzzing_harness<B: BlackBoxFunctionSolver<FieldElement>>(
                     )
                     .map_err(|err| err.to_string())
                 };
+                let abi = acir_program.abi.clone();
                 let mut fuzzer = FuzzedExecutor::new(
                     acir_program.into(),
                     brillig_program.into(),
@@ -130,7 +131,10 @@ pub fn run_fuzzing_harness<B: BlackBoxFunctionSolver<FieldElement>>(
                 } else {
                     FuzzingRunStatus::Fail {
                         message: result.reason.unwrap_or_default(),
-                        counterexample: result.counterexample,
+                        counterexample: Some(
+                            serialize_to_json(&result.counterexample.expect("huh"), &abi)
+                                .expect("Huh"),
+                        ),
                         error_diagnostic: None,
                     }
                 }
