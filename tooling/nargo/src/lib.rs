@@ -9,6 +9,7 @@
 
 pub mod constants;
 pub mod errors;
+pub mod foreign_calls;
 pub mod ops;
 pub mod package;
 pub mod workspace;
