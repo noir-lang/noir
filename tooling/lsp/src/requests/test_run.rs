@@ -101,6 +101,11 @@ fn on_test_run_request_inner(
                     result: "fail".to_string(),
                     message: Some(message),
                 },
+                TestStatus::Skipped => NargoTestRunResult {
+                    id: params.id.clone(),
+                    result: "skipped".to_string(),
+                    message: None,
+                },
                 TestStatus::CompileError(diag) => NargoTestRunResult {
                     id: params.id.clone(),
                     result: "error".to_string(),
