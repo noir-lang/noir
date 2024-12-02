@@ -808,6 +808,44 @@ impl Builder {
                 self.asm_writer.range_check(x, usize::try_from(max_bit_size).unwrap());
             }
 
+            Instruction::MakeArray { elements, typ } => {
+                //assert!(elements.len() > 0, "empty array literal");
+                let element_type = P2Type::from_noir_type(typ.clone())?;
+                let element_type = if let P2Type::Array(array_elem_type, _) = element_type {
+                    *array_elem_type
+                } else {
+                    element_type
+                };
+                let mut targets = Vec::new();
+                for element in &elements {
+                    let p2value: P2Value;
+                    let p2value_ref = match self.get(*element) {
+                        Some(p2value) => p2value,
+                        None => {
+                            let element = self.dfg.resolve(*element);
+                            let element_value = self.dfg[element].clone();
+                            p2value = self.create_p2value(element_value)?;
+                            &p2value
+                        }
+                    };
+                    let actual_element_type = p2value_ref.typ.clone();
+                    if element_type.clone() != actual_element_type {
+                        let feature_name = format!(
+                            "array elements of different types ({:?} and {:?}); elements={:?}; typ={:?}",
+                            element_type, actual_element_type, elements, typ
+                        );
+                        return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
+                    }
+                    targets.push(p2value_ref.target.clone());
+                }
+
+                let result_value = P2Value::make_array(element_type.clone(), targets);
+                let destinations: Vec<_> =
+                    self.dfg.instruction_results(instruction_id).iter().cloned().collect();
+                assert!(destinations.len() == 1);
+                self.set(destinations[0], result_value);
+            }
+
             Instruction::ArrayGet { array, index } => {
                 let index_value = self.dfg[index].clone();
                 let result_value = match index_value {
