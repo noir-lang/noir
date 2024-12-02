@@ -472,6 +472,7 @@ pub enum AbiValue {
 pub enum AbiErrorType {
     FmtString { length: u32, item_types: Vec<AbiType> },
     Custom(AbiType),
+    String { string: String },
 }
 
 pub fn display_abi_error<F: AcirField>(
@@ -498,6 +499,13 @@ pub fn display_abi_error<F: AcirField>(
             let printable_type = (&abi_typ).into();
             let decoded = printable_type_decode_value(&mut fields.iter().copied(), &printable_type);
             PrintableValueDisplay::Plain(decoded, printable_type)
+        }
+        AbiErrorType::String { string } => {
+            let length = string.len() as u32;
+            PrintableValueDisplay::Plain(
+                PrintableValue::String(string),
+                PrintableType::String { length },
+            )
         }
     }
 }

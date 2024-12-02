@@ -309,8 +309,7 @@ pub enum BrilligOpcode<F> {
     },
     /// Stop execution, returning data after the offset
     Stop {
-        return_data_offset: usize,
-        return_data_size: usize,
+        return_data: HeapVector,
     },
 }
 

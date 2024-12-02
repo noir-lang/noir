@@ -27,13 +27,11 @@ use acvm::{
 };
 
 use fm::FileMap;
+use ir::instruction::ErrorType;
 use noirc_errors::debug_info::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables};
 
-use noirc_frontend::{
-    ast::Visibility,
-    hir_def::{function::FunctionSignature, types::Type as HirType},
-    monomorphization::ast::Program,
-};
+use noirc_frontend::ast::Visibility;
+use noirc_frontend::{hir_def::function::FunctionSignature, monomorphization::ast::Program};
 use ssa_gen::Ssa;
 use tracing::{span, Level};
 
@@ -47,7 +45,8 @@ pub(super) mod function_builder;
 pub mod ir;
 mod opt;
 pub mod plonky2_gen;
-mod parser;
+#[cfg(test)]
+pub(crate) mod parser;
 pub mod ssa_gen;
 
 pub struct SsaEvaluatorOptions {
@@ -246,13 +245,13 @@ pub struct SsaProgramArtifact {
     pub main_return_witnesses: Vec<Witness>,
     pub names: Vec<String>,
     pub brillig_names: Vec<String>,
-    pub error_types: BTreeMap<ErrorSelector, HirType>,
+    pub error_types: BTreeMap<ErrorSelector, ErrorType>,
 }
 
 impl SsaProgramArtifact {
     fn new(
         unconstrained_functions: Vec<BrilligBytecode<FieldElement>>,
-        error_types: BTreeMap<ErrorSelector, HirType>,
+        error_types: BTreeMap<ErrorSelector, ErrorType>,
     ) -> Self {
         let program = AcirProgram { functions: Vec::default(), unconstrained_functions };
         Self {
@@ -276,6 +275,9 @@ impl SsaProgramArtifact {
             self.main_return_witnesses = circuit_artifact.return_witnesses;
         }
         self.names.push(circuit_artifact.name);
+        // Acir and brillig both generate new error types, so we need to merge them
+        // With the ones found during ssa generation.
+        self.error_types.extend(circuit_artifact.error_types);
     }
 
     fn add_warnings(&mut self, mut warnings: Vec<SsaReport>) {
@@ -297,7 +299,6 @@ pub fn create_program(
 
     let func_sigs = program.function_signatures.clone();
 
-    let recursive = program.recursive;
     let ArtifactsAndWarnings(
         (generated_acirs, generated_brillig, brillig_function_names, error_types),
         ssa_level_warnings,
@@ -315,6 +316,12 @@ pub fn create_program(
             "The generated ACIRs should match the supplied function signatures"
         );
     }
+
+    let error_types = error_types
+        .into_iter()
+        .map(|(selector, hir_type)| (selector, ErrorType::Dynamic(hir_type)))
+        .collect();
+
     let mut program_artifact = SsaProgramArtifact::new(generated_brillig, error_types);
 
     // Add warnings collected at the Ssa stage
@@ -325,7 +332,6 @@ pub fn create_program(
         let circuit_artifact = convert_generated_acir_into_circuit(
             acir,
             func_sig,
-            recursive,
             // TODO: get rid of these clones
             debug_variables.clone(),
             debug_functions.clone(),
@@ -346,12 +352,12 @@ pub struct SsaCircuitArtifact {
     warnings: Vec<SsaReport>,
     input_witnesses: Vec<Witness>,
     return_witnesses: Vec<Witness>,
+    error_types: BTreeMap<ErrorSelector, ErrorType>,
 }
 
 fn convert_generated_acir_into_circuit(
     mut generated_acir: GeneratedAcir<FieldElement>,
     func_sig: FunctionSignature,
-    recursive: bool,
     debug_variables: DebugVariables,
     debug_functions: DebugFunctions,
     debug_types: DebugTypes,
@@ -384,7 +390,6 @@ fn convert_generated_acir_into_circuit(
         public_parameters,
         return_values,
         assert_messages: assert_messages.into_iter().collect(),
-        recursive,
     };
 
     // This converts each im::Vector in the BTreeMap to a Vec
@@ -424,6 +429,7 @@ fn convert_generated_acir_into_circuit(
         warnings,
         input_witnesses,
         return_witnesses,
+        error_types: generated_acir.error_types,
     }
 }
 

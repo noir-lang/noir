@@ -20,6 +20,7 @@ export type AbiParameter = {
 };
 
 export type AbiErrorType =
+  | { error_kind: 'string'; string: string }
   | {
       error_kind: 'fmtstring';
       length: number;
@@ -39,7 +40,7 @@ export type WitnessMap = Map<number, string>;
 export type Abi = {
   parameters: AbiParameter[];
   return_type: { abi_type: AbiType; visibility: Visibility } | null;
-  error_types: Record<string, AbiErrorType>;
+  error_types: Partial<Record<string, AbiErrorType>>;
 };
 
 export interface VerifierBackend {

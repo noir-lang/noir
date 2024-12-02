@@ -3,6 +3,7 @@
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use im::Vector;
 use noirc_errors::Location;
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
 use crate::ssa::{
     ir::{
@@ -24,9 +25,8 @@ impl Ssa {
     /// unused results.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn dead_instruction_elimination(mut self) -> Ssa {
-        for function in self.functions.values_mut() {
-            function.dead_instruction_elimination(true);
-        }
+        self.functions.par_iter_mut().for_each(|(_, func)| func.dead_instruction_elimination(true));
+
         self
     }
 }

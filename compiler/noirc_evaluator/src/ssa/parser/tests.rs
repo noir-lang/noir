@@ -106,8 +106,8 @@ fn test_multiple_blocks_and_jmp() {
         acir(inline) fn main f0 {
           b0():
             jmp b1(Field 1)
-          b1(v1: Field):
-            return v1
+          b1(v0: Field):
+            return v0
         }
         ";
     assert_ssa_roundtrip(src);
@@ -118,10 +118,10 @@ fn test_jmpif() {
     let src = "
         acir(inline) fn main f0 {
           b0(v0: Field):
-            jmpif v0 then: b1, else: b2
-          b1():
-            return
+            jmpif v0 then: b2, else: b1
           b2():
+            return
+          b1():
             return
         }
         ";
