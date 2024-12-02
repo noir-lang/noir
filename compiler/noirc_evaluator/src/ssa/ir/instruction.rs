@@ -389,9 +389,21 @@ impl Instruction {
             // This should never be side-effectful
             MakeArray { .. } => false,
 
+            // Some binary math can overflow or underflow
+            Binary(binary) => match binary.operator {
+                BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul | BinaryOp::Div => true,
+                BinaryOp::Mod
+                | BinaryOp::Eq
+                | BinaryOp::Lt
+                | BinaryOp::And
+                | BinaryOp::Or
+                | BinaryOp::Xor
+                | BinaryOp::Shl
+                | BinaryOp::Shr => false,
+            },
+
             // These can have different behavior depending on the EnableSideEffectsIf context.
-            Binary(_)
-            | Cast(_, _)
+            Cast(_, _)
             | Not(_)
             | Truncate { .. }
             | IfElse { .. }
