@@ -4,7 +4,7 @@ use noirc_printable_type::{ForeignCallError, PrintableValueDisplay};
 use super::{ForeignCall, ForeignCallExecutor};
 
 #[derive(Debug, Default)]
-pub(super) struct PrintForeignCallExecutor;
+pub(crate) struct PrintForeignCallExecutor;
 
 impl<F: AcirField> ForeignCallExecutor<F> for PrintForeignCallExecutor {
     fn execute(
