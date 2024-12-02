@@ -451,6 +451,16 @@ impl<'brillig> Context<'brillig> {
             }
         }
 
+        // If we have an array get whose value is from an array set on the same array at the same index,
+        // we can simplify that array get to the value of the previous array set.
+        //
+        // For example:
+        // v3 = array_set v0, index v1, value v2
+        // v4 = array_get v3, index v1 -> Field
+        //
+        // We know that `v4` can be simplified to `v2`.
+        // Thus, even if the index is dynamic (meaning the array get would have side effects),
+        // we can simplify the operation when we take into account the predicate.
         if let Instruction::ArraySet { index, value, .. } = &instruction {
             let use_predicate =
                 self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
