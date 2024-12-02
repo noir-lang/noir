@@ -333,7 +333,7 @@ impl Instruction {
     /// rely on predicates can be deduplicated as well.
     pub(crate) fn can_be_deduplicated(
         &self,
-        dfg: &DataFlowGraph,
+        function: &Function,
         deduplicate_with_predicate: bool,
     ) -> bool {
         use Instruction::*;
@@ -347,7 +347,7 @@ impl Instruction {
             | IncrementRc { .. }
             | DecrementRc { .. } => false,
 
-            Call { func, .. } => match dfg[*func] {
+            Call { func, .. } => match function.dfg[*func] {
                 Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
                 _ => false,
             },
@@ -355,8 +355,8 @@ impl Instruction {
             // We can deduplicate these instructions if we know the predicate is also the same.
             Constrain(..) | RangeCheck { .. } => deduplicate_with_predicate,
 
-            // This should never be side-effectful
-            MakeArray { .. } => true,
+            // Arrays can be mutated in unconstrained code so we can't deduplicate there
+            MakeArray { .. } => function.runtime().is_acir(),
 
             // These can have different behavior depending on the EnableSideEffectsIf context.
             // Replacing them with a similar instruction potentially enables replacing an instruction
@@ -369,7 +369,7 @@ impl Instruction {
             | IfElse { .. }
             | ArrayGet { .. }
             | ArraySet { .. } => {
-                deduplicate_with_predicate || !self.requires_acir_gen_predicate(dfg)
+                deduplicate_with_predicate || !self.requires_acir_gen_predicate(&function.dfg)
             }
         }
     }

@@ -143,7 +143,7 @@ impl<'f> LoopInvariantContext<'f> {
             is_loop_invariant &=
                 !self.defined_in_loop.contains(&value) || self.loop_invariants.contains(&value);
         });
-        is_loop_invariant && instruction.can_be_deduplicated(&self.inserter.function.dfg, false)
+        is_loop_invariant && instruction.can_be_deduplicated(self.inserter.function, false)
     }
 
     fn map_dependent_instructions(&mut self) {

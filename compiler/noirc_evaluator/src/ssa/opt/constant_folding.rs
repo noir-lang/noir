@@ -228,7 +228,7 @@ impl<'brillig> Context<'brillig> {
 
         for instruction_id in instructions {
             self.fold_constants_into_instruction(
-                &mut function.dfg,
+                function,
                 block,
                 instruction_id,
                 &mut side_effects_enabled_var,
@@ -239,22 +239,23 @@ impl<'brillig> Context<'brillig> {
 
     fn fold_constants_into_instruction(
         &mut self,
-        dfg: &mut DataFlowGraph,
+        function: &mut Function,
         mut block: BasicBlockId,
         id: InstructionId,
         side_effects_enabled_var: &mut ValueId,
     ) {
         let constraint_simplification_mapping = self.get_constraint_map(*side_effects_enabled_var);
-        let instruction = Self::resolve_instruction(id, dfg, constraint_simplification_mapping);
-        let old_results = dfg.instruction_results(id).to_vec();
+        let instruction =
+            Self::resolve_instruction(id, &function.dfg, constraint_simplification_mapping);
+        let old_results = function.dfg.instruction_results(id).to_vec();
 
         // If a copy of this instruction exists earlier in the block, then reuse the previous results.
         if let Some(cache_result) =
-            self.get_cached(dfg, &instruction, *side_effects_enabled_var, block)
+            self.get_cached(&function.dfg, &instruction, *side_effects_enabled_var, block)
         {
             match cache_result {
                 CacheResult::Cached(cached) => {
-                    Self::replace_result_ids(dfg, &old_results, cached);
+                    Self::replace_result_ids(&mut function.dfg, &old_results, cached);
                     return;
                 }
                 CacheResult::NeedToHoistToCommonBlock(dominator, _cached) => {
@@ -273,7 +274,7 @@ impl<'brillig> Context<'brillig> {
             &instruction,
             &old_results,
             block,
-            dfg,
+            &mut function.dfg,
             self.brillig_info,
         )
         .unwrap_or_else(|| {
@@ -283,16 +284,16 @@ impl<'brillig> Context<'brillig> {
                 instruction.clone(),
                 &old_results,
                 block,
-                dfg,
+                &mut function.dfg,
             )
         });
 
-        Self::replace_result_ids(dfg, &old_results, &new_results);
+        Self::replace_result_ids(&mut function.dfg, &old_results, &new_results);
 
         self.cache_instruction(
             instruction.clone(),
             new_results,
-            dfg,
+            function,
             *side_effects_enabled_var,
             block,
         );
@@ -368,7 +369,7 @@ impl<'brillig> Context<'brillig> {
         &mut self,
         instruction: Instruction,
         instruction_results: Vec<ValueId>,
-        dfg: &DataFlowGraph,
+        function: &Function,
         side_effects_enabled_var: ValueId,
         block: BasicBlockId,
     ) {
@@ -377,7 +378,7 @@ impl<'brillig> Context<'brillig> {
             // to map from the more complex to the simpler value.
             if let Instruction::Constrain(lhs, rhs, _) = instruction {
                 // These `ValueId`s should be fully resolved now.
-                match (&dfg[lhs], &dfg[rhs]) {
+                match (&function.dfg[lhs], &function.dfg[rhs]) {
                     // Ignore trivial constraints
                     (Value::NumericConstant { .. }, Value::NumericConstant { .. }) => (),
 
@@ -403,9 +404,9 @@ impl<'brillig> Context<'brillig> {
 
         // If the instruction doesn't have side-effects and if it won't interact with enable_side_effects during acir_gen,
         // we cache the results so we can reuse them if the same instruction appears again later in the block.
-        if instruction.can_be_deduplicated(dfg, self.use_constraint_info) {
+        if instruction.can_be_deduplicated(function, self.use_constraint_info) {
             let use_predicate =
-                self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
+                self.use_constraint_info && instruction.requires_acir_gen_predicate(&function.dfg);
             let predicate = use_predicate.then_some(side_effects_enabled_var);
 
             self.cached_instruction_results
