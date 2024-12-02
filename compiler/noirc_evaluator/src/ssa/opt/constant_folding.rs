@@ -1458,6 +1458,32 @@ mod test {
     }
 
     #[test]
+    fn does_not_hoist_sub_to_common_ancestor() {
+        let src = "
+            brillig(inline) fn main f0 {
+              b0(v0: u32):
+                v2 = eq v0, u32 0
+                jmpif v2 then: b1, else: b2
+              b1():
+                v3 = sub v0, u32 1
+                jmp b5()
+              b2():
+                jmpif v0 then: b3, else: b4
+              b3():
+                v4 = sub v0, u32 1 // We can't hoist this because v0 is zero here and it will lead to an underflow
+                jmp b5()
+              b4():
+                jmp b5()
+              b5():
+                return
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let mut ssa = ssa.fold_constants_using_constraints();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
     fn deduplicates_side_effecting_intrinsics() {
         let src = "
         // After EnableSideEffectsIf removal:
