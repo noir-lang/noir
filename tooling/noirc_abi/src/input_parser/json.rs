@@ -1,4 +1,4 @@
-use super::{parse_str_to_field, InputValue};
+use super::{field_to_signed_hex, parse_str_to_field, parse_str_to_signed, InputValue};
 use crate::{errors::InputParserError, Abi, AbiType, MAIN_RETURN_NAME};
 use acvm::{AcirField, FieldElement};
 use iter_extended::{try_btree_map, try_vecmap};
@@ -60,7 +60,7 @@ pub(crate) fn serialize_to_json(
     Ok(json_string)
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 #[serde(untagged)]
 pub enum JsonTypes {
     // This is most likely going to be a hex string
@@ -86,6 +86,9 @@ impl JsonTypes {
         abi_type: &AbiType,
     ) -> Result<JsonTypes, InputParserError> {
         let json_value = match (value, abi_type) {
+            (InputValue::Field(f), AbiType::Integer { sign: crate::Sign::Signed, width }) => {
+                JsonTypes::String(field_to_signed_hex(*f, *width))
+            }
             (InputValue::Field(f), AbiType::Field | AbiType::Integer { .. }) => {
                 JsonTypes::String(Self::format_field_string(*f))
             }
@@ -143,6 +146,9 @@ impl InputValue {
     ) -> Result<InputValue, InputParserError> {
         let input_value = match (value, param_type) {
             (JsonTypes::String(string), AbiType::String { .. }) => InputValue::String(string),
+            (JsonTypes::String(string), AbiType::Integer { sign: crate::Sign::Signed, width }) => {
+                InputValue::Field(parse_str_to_signed(&string, *width)?)
+            }
             (
                 JsonTypes::String(string),
                 AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean,
@@ -190,5 +196,42 @@ impl InputValue {
         };
 
         Ok(input_value)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use proptest::prelude::*;
+
+    use crate::{
+        arbitrary::arb_abi_and_input_map,
+        input_parser::{arbitrary::arb_signed_integer_type_and_value, json::JsonTypes, InputValue},
+    };
+
+    use super::{parse_json, serialize_to_json};
+
+    proptest! {
+        #[test]
+        fn serializing_and_parsing_returns_original_input((abi, input_map) in arb_abi_and_input_map()) {
+            let json = serialize_to_json(&input_map, &abi).expect("should be serializable");
+            let parsed_input_map = parse_json(&json, &abi).expect("should be parsable");
+
+            prop_assert_eq!(parsed_input_map, input_map);
+        }
+
+        #[test]
+        fn signed_integer_serialization_roundtrip((typ, value) in arb_signed_integer_type_and_value()) {
+            let string_input = JsonTypes::String(value.to_string());
+            let input_value = InputValue::try_from_json(string_input, &typ, "foo").expect("should be parsable");
+            let JsonTypes::String(output_string) = JsonTypes::try_from_input_value(&input_value, &typ).expect("should be serializable") else {
+                panic!("wrong type output");
+            };
+            let output_number = if let Some(output_string) = output_string.strip_prefix("-0x") {
+                -i64::from_str_radix(output_string, 16).unwrap()
+            } else {
+                i64::from_str_radix(output_string.strip_prefix("0x").unwrap(), 16).unwrap()
+            };
+            prop_assert_eq!(output_number, value);
+        }
     }
 }
