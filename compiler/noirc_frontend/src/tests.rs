@@ -3752,6 +3752,35 @@ fn allows_struct_with_generic_infix_type_as_main_input_3() {
     assert_no_errors(src);
 }
 
+#[test]
+fn errors_with_better_message_when_trying_to_invoke_struct_field_that_is_a_function() {
+    let src = r#"
+        pub struct Foo {
+            wrapped: fn(Field) -> bool,
+        }
+
+        impl Foo {
+            fn call(self) -> bool {
+                self.wrapped(1)
+            }
+        }
+
+        fn main() {}
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::CannotInvokeStructFieldFunctionType {
+        method_name,
+        ..
+    }) = &errors[0].0
+    else {
+        panic!("Expected a 'CannotInvokeStructFieldFunctionType' error, got {:?}", errors[0].0);
+    };
+
+    assert_eq!(method_name, "wrapped");
+}
+
 fn test_disallows_attribute_on_impl_method(
     attr: &str,
     check_error: impl FnOnce(&CompilationError),
