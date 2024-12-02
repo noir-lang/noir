@@ -1084,39 +1084,39 @@ impl Builder {
                 let p2type = P2Type::from_noir_type(typ)?;
                 P2Value::create_simple_constant(&mut self.asm_writer, p2type, constant)
             }
-            Value::Array { array, typ } => {
-                assert!(array.len() > 0, "empty array literal");
-                let element_type = P2Type::from_noir_type(typ)?;
-                let element_type = if let P2Type::Array(array_elem_type, _) = element_type {
-                    *array_elem_type
-                } else {
-                    element_type
-                };
-                let mut targets = Vec::new();
-                for element in array {
-                    let p2value: P2Value;
-                    let p2value_ref = match self.get(element) {
-                        Some(p2value) => p2value,
-                        None => {
-                            let element = self.dfg.resolve(element);
-                            let element_value = self.dfg[element].clone();
-                            p2value = self.create_p2value(element_value)?;
-                            &p2value
-                        }
-                    };
-                    let actual_element_type = p2value_ref.typ.clone();
-                    if element_type.clone() != actual_element_type {
-                        let feature_name = format!(
-                            "array elements of different types ({:?} and {:?}); array={:?}",
-                            element_type, actual_element_type, value
-                        );
-                        return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
-                    }
-                    targets.push(p2value_ref.target.clone());
-                }
-
-                Ok(P2Value::make_array(element_type.clone(), targets))
-            }
+            //Value::Array { array, typ } => {
+            //    assert!(array.len() > 0, "empty array literal");
+            //    let element_type = P2Type::from_noir_type(typ)?;
+            //    let element_type = if let P2Type::Array(array_elem_type, _) = element_type {
+            //        *array_elem_type
+            //    } else {
+            //        element_type
+            //    };
+            //    let mut targets = Vec::new();
+            //    for element in array {
+            //        let p2value: P2Value;
+            //        let p2value_ref = match self.get(element) {
+            //            Some(p2value) => p2value,
+            //            None => {
+            //                let element = self.dfg.resolve(element);
+            //                let element_value = self.dfg[element].clone();
+            //                p2value = self.create_p2value(element_value)?;
+            //                &p2value
+            //            }
+            //        };
+            //        let actual_element_type = p2value_ref.typ.clone();
+            //        if element_type.clone() != actual_element_type {
+            //            let feature_name = format!(
+            //                "array elements of different types ({:?} and {:?}); array={:?}",
+            //                element_type, actual_element_type, value
+            //            );
+            //            return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
+            //        }
+            //        targets.push(p2value_ref.target.clone());
+            //    }
+            //
+            //    Ok(P2Value::make_array(element_type.clone(), targets))
+            //}
             Value::Instruction { instruction, .. } => {
                 let destinations: Vec<_> =
                     self.dfg.instruction_results(instruction).iter().cloned().collect();
