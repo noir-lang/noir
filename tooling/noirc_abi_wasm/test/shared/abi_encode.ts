@@ -5,7 +5,7 @@ export const abi: Abi = {
     { name: 'foo', type: { kind: 'field' }, visibility: 'private' },
     {
       name: 'bar',
-      type: { kind: 'array', length: 2, type: { kind: 'field' } },
+      type: { kind: 'array', length: 3, type: { kind: 'integer', sign: 'signed', width: 32 } },
       visibility: 'private',
     },
   ],

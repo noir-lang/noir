@@ -249,6 +249,11 @@ mod serialization_tests {
                     visibility: AbiVisibility::Private,
                 },
                 AbiParameter {
+                    name: "signed_example".into(),
+                    typ: AbiType::Integer { sign: Sign::Signed, width: 8 },
+                    visibility: AbiVisibility::Private,
+                },
+                AbiParameter {
                     name: "bar".into(),
                     typ: AbiType::Struct {
                         path: "MyStruct".into(),
@@ -272,6 +277,7 @@ mod serialization_tests {
 
         let input_map: BTreeMap<String, InputValue> = BTreeMap::from([
             ("foo".into(), InputValue::Field(FieldElement::one())),
+            ("signed_example".into(), InputValue::Field(FieldElement::from(240u128))),
             (
                 "bar".into(),
                 InputValue::Struct(BTreeMap::from([
