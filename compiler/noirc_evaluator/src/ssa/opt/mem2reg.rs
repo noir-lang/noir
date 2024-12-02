@@ -142,6 +142,10 @@ struct PerFunctionContext<'f> {
     /// instruction that aliased that reference.
     /// If that store has been set for removal, we can also remove this instruction.
     aliased_references: HashMap<ValueId, HashSet<InstructionId>>,
+
+    /// Track whether the last instruction is an inc_rc/dec_rc instruction.
+    /// If it is we should not remove any repeat last loads.
+    inside_rc_reload: bool,
 }
 
 impl<'f> PerFunctionContext<'f> {
@@ -158,6 +162,7 @@ impl<'f> PerFunctionContext<'f> {
             last_loads: HashMap::default(),
             calls_reference_input: HashSet::default(),
             aliased_references: HashMap::default(),
+            inside_rc_reload: false,
         }
     }
 
@@ -435,7 +440,7 @@ impl<'f> PerFunctionContext<'f> {
                     let result = self.inserter.function.dfg.instruction_results(instruction)[0];
                     let previous_result =
                         self.inserter.function.dfg.instruction_results(*last_load)[0];
-                    if *previous_address == address {
+                    if *previous_address == address && !self.inside_rc_reload {
                         self.inserter.map_value(result, previous_result);
                         self.instructions_to_remove.insert(instruction);
                     }
@@ -552,6 +557,18 @@ impl<'f> PerFunctionContext<'f> {
                 }
             }
             _ => (),
+        }
+
+        self.track_rc_reload_state(instruction);
+    }
+
+    fn track_rc_reload_state(&mut self, instruction: InstructionId) {
+        match &self.inserter.function.dfg[instruction] {
+            // We just had an increment or decrement to an array's reference counter
+            Instruction::IncrementRc { .. } | Instruction::DecrementRc { .. } => {
+                self.inside_rc_reload = true;
+            }
+            _ => self.inside_rc_reload = false,
         }
     }
 
