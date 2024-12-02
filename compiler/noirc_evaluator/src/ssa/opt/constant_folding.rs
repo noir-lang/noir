@@ -247,7 +247,7 @@ type InstructionResultCache = HashMap<Instruction, HashMap<Option<ValueId>, Resu
 /// Records the results of all duplicate [`Instruction`]s along with the blocks in which they sit.
 ///
 /// For more information see [`InstructionResultCache`].
-#[derive(Default, Debug, Clone)]
+#[derive(Default)]
 struct ResultCache {
     result: Option<(BasicBlockId, Vec<ValueId>)>,
 }
