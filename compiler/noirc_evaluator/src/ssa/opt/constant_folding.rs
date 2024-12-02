@@ -401,18 +401,19 @@ impl<'brillig> Context<'brillig> {
             }
         }
 
-        if let Instruction::ArraySet { .. } = &instruction {
+        if let Instruction::ArraySet { index, value, .. } = &instruction {
             let use_predicate =
                 self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
             let predicate = use_predicate.then_some(side_effects_enabled_var);
 
+            let array_get = Instruction::ArrayGet { array: instruction_results[0], index: *index };
+
             self.cached_instruction_results
-                .entry(instruction.clone())
+                .entry(array_get)
                 .or_default()
                 .entry(predicate)
                 .or_default()
-                .cache(block, instruction_results);
-            return;
+                .cache(block, vec![*value]);
         }
 
         // If the instruction doesn't have side-effects and if it won't interact with enable_side_effects during acir_gen,
@@ -459,47 +460,11 @@ impl<'brillig> Context<'brillig> {
         let predicate = self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
         let predicate = predicate.then_some(side_effects_enabled_var);
 
-        self.cache_array_get_from_array_set(dfg, instruction, predicate, block);
-
         let results_for_instruction = self.cached_instruction_results.get(instruction)?;
 
         results_for_instruction.get(&predicate)?.get(block, &mut self.dom)
     }
-
-    fn cache_array_get_from_array_set(
-        &mut self,
-        dfg: &DataFlowGraph,
-        instruction: &Instruction,
-        predicate: Option<ValueId>,
-        block: BasicBlockId,
-    ) {
-        let Instruction::ArrayGet { array, index: get_index } = instruction else {
-            return;
-        };
-        let Value::Instruction { instruction: set_instruction, .. } = &dfg[*array] else {
-            return;
-        };
-        let set_instruction = &dfg[*set_instruction];
-
-        let Instruction::ArraySet { index: set_index, value, .. } = set_instruction else {
-            return;
-        };
-
-        let is_set_same_predicate = self
-            .cached_instruction_results
-            .get(set_instruction)
-            .and_then(|result_cache| result_cache.get(&predicate));
-
-        if *set_index == *get_index && is_set_same_predicate.is_some() {
-            self.cached_instruction_results
-                .entry(instruction.clone())
-                .or_default()
-                .entry(predicate)
-                .or_default()
-                .cache(block, vec![*value]);
-        }
-    }
-
+    
     /// Checks if the given instruction is a call to a brillig function with all constant arguments.
     /// If so, we can try to evaluate that function and replace the results with the evaluation results.
     fn try_inline_brillig_call_with_all_constants(
@@ -1419,7 +1384,6 @@ mod test {
           b0(v0: [Field; 3], v1: u32, v2: Field):
             enable_side_effects u1 1
             v4 = array_set v0, index v1, value v2
-            enable_side_effects u1 1
             v6 = array_get v4, index v1 -> Field
             return v6
         }
@@ -1431,7 +1395,6 @@ mod test {
           b0(v0: [Field; 3], v1: u32, v2: Field):
             enable_side_effects u1 1
             v4 = array_set v0, index v1, value v2
-            enable_side_effects u1 1
             return v2
         }
         ";
