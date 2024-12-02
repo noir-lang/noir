@@ -7,7 +7,7 @@ NARGO="nargo"
 
 
 # Tests to be profiled for memory report
-tests_to_profile=("keccak256" "workspace" "regression_4709")
+tests_to_profile=("keccak256" "workspace" "regression_4709" "ram_blowup_regression")
 
 current_dir=$(pwd)
 execution_success_path="$current_dir/execution_success"
