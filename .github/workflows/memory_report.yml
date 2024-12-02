@@ -73,7 +73,7 @@ jobs:
 
       - name: Parse memory report
         id: memory_report
-        uses: noir-lang/noir-bench-report@91003b0bfe46c4e42c1714f9450917d0103c57ca
+        uses: noir-lang/noir-bench-report@d61bc78ece3c8df1e72914b3d5136bad403d5bdf
         with:
           report: memory_report.json
           header: |
