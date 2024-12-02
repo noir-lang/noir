@@ -263,25 +263,39 @@ fn display_test_report(
                     compile_options.silence_warnings,
                 );
             }
+            TestStatus::Skipped => {
+                writer
+                    .set_color(ColorSpec::new().set_fg(Some(Color::Yellow)))
+                    .expect("Failed to set color");
+                writeln!(writer, "skipped").expect("Failed to write to stderr");
+            }
         }
         writer.reset().expect("Failed to reset writer");
     }
 
     write!(writer, "[{}] ", package.name).expect("Failed to write to stderr");
 
-    let count_all = test_report.len();
     let count_failed = test_report.iter().filter(|(_, status)| status.failed()).count();
-    let plural = if count_all == 1 { "" } else { "s" };
+    let count_passed = test_report.iter().filter(|(_, status)| status.pass()).count();
+    let count_skipped = test_report.iter().filter(|(_, status)| status.skipped()).count();
+    let plural_failed = if count_failed == 1 { "" } else { "s" };
+    let plural_passed = if count_passed == 1 { "" } else { "s" };
+    let plural_skipped = if count_skipped == 1 { "" } else { "s" };
+
     if count_failed == 0 {
         writer.set_color(ColorSpec::new().set_fg(Some(Color::Green))).expect("Failed to set color");
-        write!(writer, "{count_all} test{plural} passed").expect("Failed to write to stderr");
+        write!(writer, "{count_passed} test{plural_passed} passed")
+            .expect("Failed to write to stderr");
+        if count_skipped > 0 {
+            writer
+                .set_color(ColorSpec::new().set_fg(Some(Color::Yellow)))
+                .expect("Failed to set color");
+            write!(writer, ", {count_skipped} test{plural_skipped} skipped")
+                .expect("Failed to write to stderr");
+        }
         writer.reset().expect("Failed to reset writer");
         writeln!(writer).expect("Failed to write to stderr");
     } else {
-        let count_passed = count_all - count_failed;
-        let plural_failed = if count_failed == 1 { "" } else { "s" };
-        let plural_passed = if count_passed == 1 { "" } else { "s" };
-
         if count_passed != 0 {
             writer
                 .set_color(ColorSpec::new().set_fg(Some(Color::Green)))
@@ -289,7 +303,13 @@ fn display_test_report(
             write!(writer, "{count_passed} test{plural_passed} passed, ",)
                 .expect("Failed to write to stderr");
         }
-
+        if count_skipped != 0 {
+            writer
+                .set_color(ColorSpec::new().set_fg(Some(Color::Yellow)))
+                .expect("Failed to set color");
+            write!(writer, ", {count_skipped} test{plural_skipped} skipped")
+                .expect("Failed to write to stderr");
+        }
         writer.set_color(ColorSpec::new().set_fg(Some(Color::Red))).expect("Failed to set color");
         writeln!(writer, "{count_failed} test{plural_failed} failed")
             .expect("Failed to write to stderr");

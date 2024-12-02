@@ -11,17 +11,24 @@ use noirc_frontend::hir::{def_map::TestFunction, Context};
 
 use crate::{errors::try_to_diagnose_runtime_error, NargoError};
 
-use super::{execute_program, DefaultForeignCallExecutor};
+use super::{execute_program, DefaultForeignCallExecutor, ForeignCall};
 
 pub enum TestStatus {
     Pass,
     Fail { message: String, error_diagnostic: Option<FileDiagnostic> },
+    Skipped,
     CompileError(FileDiagnostic),
 }
 
 impl TestStatus {
     pub fn failed(&self) -> bool {
-        !matches!(self, TestStatus::Pass)
+        matches!(self, TestStatus::Fail { .. } | TestStatus::CompileError(_))
+    }
+    pub fn pass(&self) -> bool {
+        matches!(self, TestStatus::Pass)
+    }
+    pub fn skipped(&self) -> bool {
+        matches!(self, TestStatus::Skipped)
     }
 }
 
@@ -45,6 +52,17 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
 
     match compile_no_check(context, config, test_function.get_id(), None, false) {
         Ok(compiled_program) => {
+            if config.skip_oracle {
+                let has_oracle = compiled_program
+                    .program
+                    .unconstrained_functions
+                    .iter()
+                    .any(|func| func.has_oracle(ForeignCall::invalid_name));
+                if has_oracle {
+                    return TestStatus::Skipped;
+                }
+            }
+
             if test_function_has_no_arguments {
                 // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
                 // otherwise constraints involving these expressions will not error.

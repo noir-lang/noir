@@ -60,6 +60,10 @@ impl ForeignCall {
             _ => None,
         }
     }
+
+    pub(crate) fn invalid_name(name: &str) -> bool {
+        ForeignCall::lookup(name).is_none()
+    }
 }
 
 /// This struct represents an oracle mock. It can be used for testing programs that use oracles.

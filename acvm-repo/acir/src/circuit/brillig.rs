@@ -28,6 +28,22 @@ pub struct BrilligBytecode<F> {
     pub bytecode: Vec<BrilligOpcode<F>>,
 }
 
+impl<F> BrilligBytecode<F> {
+    /// Returns true if the bytecode contains a foreign call
+    /// whose name matches the given predicate.
+    pub fn has_oracle<Fun>(&self, filter: Fun) -> bool
+    where
+        Fun: Fn(&str) -> bool,
+    {
+        self.bytecode.iter().any(|op| {
+            if let BrilligOpcode::ForeignCall { function, .. } = op {
+                filter(function)
+            } else {
+                false
+            }
+        })
+    }
+}
 /// Id for the function being called.
 #[derive(
     Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash, Copy, Default, PartialOrd, Ord,
