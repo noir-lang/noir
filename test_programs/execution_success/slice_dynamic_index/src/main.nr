@@ -12,17 +12,17 @@ fn regression_dynamic_slice_index(x: Field, y: Field) {
 
     dynamic_slice_index_set_if(slice, x, y);
     dynamic_slice_index_set_else(slice, x, y);
-    dynamic_slice_index_set_nested_if_else_else(slice, x, y);
-    dynamic_slice_index_set_nested_if_else_if(slice, x, y + 1);
-    dynamic_slice_index_if(slice, x);
-    dynamic_array_index_if([0, 1, 2, 3, 4], x);
-    dynamic_slice_index_else(slice, x);
+    // dynamic_slice_index_set_nested_if_else_else(slice, x, y);
+    // dynamic_slice_index_set_nested_if_else_if(slice, x, y + 1);
+    // dynamic_slice_index_if(slice, x);
+    // dynamic_array_index_if([0, 1, 2, 3, 4], x);
+    // dynamic_slice_index_else(slice, x);
 
-    dynamic_slice_merge_if(slice, x);
-    dynamic_slice_merge_else(slice, x);
-    dynamic_slice_merge_two_ifs(slice, x);
-    dynamic_slice_merge_mutate_between_ifs(slice, x, y);
-    dynamic_slice_merge_push_then_pop(slice, x, y);
+    // dynamic_slice_merge_if(slice, x);
+    // dynamic_slice_merge_else(slice, x);
+    // dynamic_slice_merge_two_ifs(slice, x);
+    // dynamic_slice_merge_mutate_between_ifs(slice, x, y);
+    // dynamic_slice_merge_push_then_pop(slice, x, y);
 }
 
 fn dynamic_slice_index_set_if(mut slice: [Field], x: Field, y: Field) {

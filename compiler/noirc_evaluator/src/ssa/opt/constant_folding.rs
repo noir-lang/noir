@@ -198,7 +198,7 @@ type InstructionResultCache = HashMap<Instruction, HashMap<Option<ValueId>, Resu
 /// Records the results of all duplicate [`Instruction`]s along with the blocks in which they sit.
 ///
 /// For more information see [`InstructionResultCache`].
-#[derive(Default)]
+#[derive(Default, Debug, Clone)]
 struct ResultCache {
     result: Option<(BasicBlockId, Vec<ValueId>)>,
 }
@@ -401,6 +401,20 @@ impl<'brillig> Context<'brillig> {
             }
         }
 
+        if let Instruction::ArraySet { .. } = &instruction {
+            let use_predicate =
+                self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
+            let predicate = use_predicate.then_some(side_effects_enabled_var);
+
+            self.cached_instruction_results
+                .entry(instruction.clone())
+                .or_default()
+                .entry(predicate)
+                .or_default()
+                .cache(block, instruction_results);
+            return;
+        }
+
         // If the instruction doesn't have side-effects and if it won't interact with enable_side_effects during acir_gen,
         // we cache the results so we can reuse them if the same instruction appears again later in the block.
         if instruction.can_be_deduplicated(dfg, self.use_constraint_info) {
@@ -442,12 +456,48 @@ impl<'brillig> Context<'brillig> {
         side_effects_enabled_var: ValueId,
         block: BasicBlockId,
     ) -> Option<CacheResult> {
-        let results_for_instruction = self.cached_instruction_results.get(instruction)?;
-
         let predicate = self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
         let predicate = predicate.then_some(side_effects_enabled_var);
 
+        self.cache_array_get_from_array_set(dfg, instruction, predicate, block);
+
+        let results_for_instruction = self.cached_instruction_results.get(instruction)?;
+
         results_for_instruction.get(&predicate)?.get(block, &mut self.dom)
+    }
+
+    fn cache_array_get_from_array_set(
+        &mut self,
+        dfg: &DataFlowGraph,
+        instruction: &Instruction,
+        predicate: Option<ValueId>,
+        block: BasicBlockId,
+    ) {
+        let Instruction::ArrayGet { array, index: get_index } = instruction else {
+            return;
+        };
+        let Value::Instruction { instruction: set_instruction, .. } = &dfg[*array] else {
+            return;
+        };
+        let set_instruction = &dfg[*set_instruction];
+
+        let Instruction::ArraySet { index: set_index, value, .. } = set_instruction else {
+            return;
+        };
+
+        let is_set_same_predicate = self
+            .cached_instruction_results
+            .get(set_instruction)
+            .and_then(|result_cache| result_cache.get(&predicate));
+
+        if *set_index == *get_index && is_set_same_predicate.is_some() {
+            self.cached_instruction_results
+                .entry(instruction.clone())
+                .or_default()
+                .entry(predicate)
+                .or_default()
+                .cache(block, vec![*value]);
+        }
     }
 
     /// Checks if the given instruction is a call to a brillig function with all constant arguments.
@@ -1339,6 +1389,53 @@ mod test {
             }
             ";
         let ssa = ssa.fold_constants_with_brillig(&brillig);
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn array_get_from_array_set_with_different_predicates() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3], v1: u32, v2: Field):
+            enable_side_effects u1 0
+            v4 = array_set v0, index v1, value v2
+            enable_side_effects u1 1
+            v6 = array_get v4, index v1 -> Field
+            return v6
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.fold_constants_using_constraints();
+        // We expect the code to be unchanged
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn array_get_from_array_set_same_predicates() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3], v1: u32, v2: Field):
+            enable_side_effects u1 1
+            v4 = array_set v0, index v1, value v2
+            enable_side_effects u1 1
+            v6 = array_get v4, index v1 -> Field
+            return v6
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let expected = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3], v1: u32, v2: Field):
+            enable_side_effects u1 1
+            v4 = array_set v0, index v1, value v2
+            enable_side_effects u1 1
+            return v2
+        }
+        ";
+        let ssa = ssa.fold_constants_using_constraints();
         assert_normalized_ssa_equals(ssa, expected);
     }
 }
