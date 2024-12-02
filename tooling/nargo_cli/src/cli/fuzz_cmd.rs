@@ -1,6 +1,7 @@
 use std::{io::Write, path::PathBuf};
 
 use acvm::{BlackBoxFunctionSolver, FieldElement};
+use async_lsp::client_monitor;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 use fm::FileManager;
@@ -28,11 +29,19 @@ pub(crate) struct FuzzCommand {
     /// If given, only the fuzzing harnesses with names containing this string will be run
     fuzzing_harness_name: Option<String>,
 
+    /// If given, load/store fuzzer corpus from this folder
+    #[arg(long)]
+    corpus_folder_name: Option<String>,
+
+    /// List all available harnesses that match the name
+    #[clap(long)]
+    list_all: bool,
+
     /// Display output of `println` statements
     #[arg(long)]
     show_output: bool,
 
-    /// Only run tests that match exactly
+    /// Only run harnesses that match exactly
     #[clap(long)]
     exact: bool,
 
@@ -78,36 +87,70 @@ pub(crate) fn run(args: FuzzCommand, config: NargoConfig) -> Result<(), CliError
         None => FunctionNameMatch::Anything,
     };
 
-    // Configure a thread pool with a larger stack size to prevent overflowing stack in large programs.
-    // Default is 2MB.
-    let pool = rayon::ThreadPoolBuilder::new().stack_size(4 * 1024 * 1024).build().unwrap();
-    let fuzzing_reports: Vec<Vec<(String, TestStatus)>> = pool.install(|| {
-        workspace
-            .into_iter()
-            .par_bridge()
-            .map(|package| {
-                run_fuzzers::<Bn254BlackBoxSolver>(
-                    &workspace_file_manager,
-                    &parsed_files,
-                    package,
-                    pattern,
-                    args.show_output,
-                    args.oracle_resolver.as_deref(),
-                    Some(workspace.root_dir.clone()),
-                    Some(package.name.to_string()),
-                    &args.compile_options,
-                )
+    if args.list_all {
+        let pool = rayon::ThreadPoolBuilder::new().stack_size(4 * 1024 * 1024).build().unwrap();
+        let all_harnesses_by_package: Vec<(CrateName, Vec<String>)> = pool
+            .install(|| {
+                workspace.into_iter().par_bridge().map(|package| {
+                    let harnesses = list_harnesses(
+                        &workspace_file_manager,
+                        &parsed_files,
+                        package,
+                        pattern,
+                        &args.compile_options,
+                    );
+                    match harnesses {
+                        Ok(harness_names) => Ok((package.name.clone(), harness_names)),
+                        Err(cli_error) => Err(cli_error),
+                    }
+                })
             })
-            .collect::<Result<_, _>>()
-    })?;
-    let fuzzing_report: Vec<(String, TestStatus)> = fuzzing_reports.into_iter().flatten().collect();
+            .collect::<Result<_, _>>()?;
+        let mut found_harness = false;
+        for (crate_name, discovered_harnesses) in all_harnesses_by_package.iter() {
+            if !discovered_harnesses.is_empty() {
+                println!("Package {crate_name} contains fuzzing harnesses:");
+                for harness in discovered_harnesses.iter() {
+                    println!("\t{harness}");
+                }
+                found_harness = true;
+            }
+        }
+        if !found_harness {
+            println!("No fuzzing harnesses found");
+        }
+        return Ok(());
+    }
+    // // Configure a thread pool with a larger stack size to prevent overflowing stack in large programs.
+    // // Default is 2MB.
+    // let pool = rayon::ThreadPoolBuilder::new().stack_size(4 * 1024 * 1024).build().unwrap();
+    let fuzzing_reports: Vec<Vec<(String, FuzzingRunStatus)>> = workspace
+        .into_iter()
+        .map(|package| {
+            run_fuzzers::<Bn254BlackBoxSolver>(
+                &workspace_file_manager,
+                &parsed_files,
+                package,
+                pattern,
+                args.show_output,
+                args.oracle_resolver.as_deref(),
+                Some(workspace.root_dir.clone()),
+                Some(package.name.to_string()),
+                &args.compile_options,
+            )
+            .unwrap_or_else(|_| Vec::new())
+        })
+        .collect();
+
+    let fuzzing_report: Vec<(String, FuzzingRunStatus)> =
+        fuzzing_reports.into_iter().flatten().collect();
 
     if fuzzing_report.is_empty() {
         match &pattern {
             FunctionNameMatch::Exact(pattern) => {
-                return Err(CliError::Generic(
-                    format!("Found 0 tests matching input '{pattern}'.",),
-                ))
+                return Err(CliError::Generic(format!(
+                    "Found 0 fuzzing_harnesses matching input '{pattern}'.",
+                )))
             }
             FunctionNameMatch::Contains(pattern) => {
                 return Err(CliError::Generic(format!("Found 0 tests containing '{pattern}'.",)))
@@ -124,6 +167,23 @@ pub(crate) fn run(args: FuzzCommand, config: NargoConfig) -> Result<(), CliError
     }
 }
 
+fn list_harnesses(
+    file_manager: &FileManager,
+    parsed_files: &ParsedFiles,
+    package: &Package,
+    fn_name: FunctionNameMatch,
+    compile_options: &CompileOptions,
+) -> Result<Vec<String>, CliError> {
+    let fuzzing_harnesses = get_fuzzing_harnesses_in_package(
+        file_manager,
+        parsed_files,
+        package,
+        fn_name,
+        compile_options,
+    )?;
+    Ok(fuzzing_harnesses)
+}
+
 #[allow(clippy::too_many_arguments)]
 fn run_fuzzers<S: BlackBoxFunctionSolver<FieldElement> + Default>(
     file_manager: &FileManager,
@@ -135,7 +195,7 @@ fn run_fuzzers<S: BlackBoxFunctionSolver<FieldElement> + Default>(
     root_path: Option<PathBuf>,
     package_name: Option<String>,
     compile_options: &CompileOptions,
-) -> Result<Vec<(String, TestStatus)>, CliError> {
+) -> Result<Vec<(String, FuzzingRunStatus)>, CliError> {
     let fuzzing_harnesses = get_fuzzing_harnesses_in_package(
         file_manager,
         parsed_files,
@@ -172,7 +232,7 @@ fn run_fuzzers<S: BlackBoxFunctionSolver<FieldElement> + Default>(
         .collect();
 
     display_fuzzing_report(file_manager, package, compile_options, &fuzzing_report)?;
-    Ok(Vec::new())
+    Ok(fuzzing_report)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -191,6 +251,7 @@ fn run_fuzzing_harness<S: BlackBoxFunctionSolver<FieldElement> + Default>(
     // We then need to construct a separate copy for each test.
 
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
+    println!("Package name {:?}", package_name);
     check_crate(&mut context, crate_id, compile_options)
         .expect("Any errors should have occurred when collecting fuzzing harnesses");
 
