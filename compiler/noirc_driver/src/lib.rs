@@ -70,8 +70,8 @@ pub struct CompileOptions {
     #[arg(long, hide = true)]
     pub show_ssa: bool,
 
-    /// If `show_ssa` is true, setting this will only show SSA passes whose name
-    /// contains the provided string.
+    /// Only show SSA passes whose name contains the provided string.
+    /// This setting takes precedence over `show_ssa` if it's not empty.
     #[arg(long, hide = true)]
     pub show_ssa_pass_name: Option<String>,
 
