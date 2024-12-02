@@ -47,6 +47,17 @@ fn main() {
 
 The bit size determines the maximum and minimum range of value the integer type can store. For example, an `i8` variable can store a value in the range of -128 to 127 (i.e. $\\-2^{7}\\$ to $\\2^{7}-1\\$).
 
+
+```rust
+fn main(x: i16, y: i16) {
+    // modulo
+    let c = x % y;
+    let c = x % -13;
+}
+```
+
+Modulo operation is defined for negative integers thanks to integer division, so that the equality `x = (x/y)*y + (x%y)` holds.
+
 ## 128 bits Unsigned Integers
 
 The built-in structure `U128` allows you to use 128-bit unsigned integers almost like a native integer type. However, there are some differences to keep in mind:
