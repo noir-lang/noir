@@ -464,22 +464,19 @@ impl SsaBuilder {
     }
 
     fn print(mut self, msg: &str) -> Self {
-        match &self.ssa_logging {
-            SsaLogging::None => (),
-            SsaLogging::All => {
-                self.ssa.normalize_ids();
-                println!("After {msg}:\n{}", self.ssa);
-            }
+        let print_ssa_pass = match &self.ssa_logging {
+            SsaLogging::None => false,
+            SsaLogging::All => true,
             SsaLogging::Equals(string) => {
                 let string = string.to_lowercase();
                 let string = string.strip_prefix("after ").unwrap_or(&string);
                 let string = string.strip_suffix(':').unwrap_or(string);
-
-                if msg.to_lowercase().contains(string) {
-                    self.ssa.normalize_ids();
-                    println!("After {msg}:\n{}", self.ssa);
-                }
+                msg.to_lowercase().contains(string)
             }
+        };
+        if print_ssa_pass {
+            self.ssa.normalize_ids();
+            println!("After {msg}:\n{}", self.ssa);
         }
         self
     }
