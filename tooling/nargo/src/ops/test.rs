@@ -288,7 +288,7 @@ impl<F: AcirField + Serialize + for<'a> Deserialize<'a>> ForeignCallExecutor<F>
         &mut self,
         foreign_call: &ForeignCallWaitInfo<F>,
     ) -> Result<ForeignCallResult<F>, ForeignCallError> {
-        // If the circuit has reached a new foreign call opcode then it must have
+        // If the circuit has reached a new foreign call opcode then it can't have failed from any previous unknown foreign calls.
         self.encountered_unknown_foreign_call = false;
 
         let foreign_call_name = foreign_call.function.as_str();
