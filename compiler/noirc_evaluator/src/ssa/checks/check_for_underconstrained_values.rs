@@ -107,7 +107,7 @@ struct DependencyContext {
     tainted: HashMap<InstructionId, BrilligTaintedIds>,
 }
 
-/// Structure keeping track of value ids descending from brilling calls'
+/// Structure keeping track of value ids descending from Brillig calls'
 /// arguments and results, also storing information on results
 /// already properly constrained
 #[derive(Clone, Debug)]
@@ -184,7 +184,9 @@ impl BrilligTaintedIds {
                 || self.arguments.intersection(constrained_values).next().is_some())
         {
             // Remember the partial constraint
-            self.results_constrained.extend(results_involved);
+            self.results_constrained.extend(&results_involved);
+            // We can clear the unneeded sets now
+            results_involved.iter().for_each(|i| self.results[*i].clear());
         }
     }
 }
