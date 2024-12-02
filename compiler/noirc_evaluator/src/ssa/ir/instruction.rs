@@ -391,9 +391,10 @@ impl Instruction {
 
             // Some binary math can overflow or underflow
             Binary(binary) => match binary.operator {
-                BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul | BinaryOp::Div => true,
-                BinaryOp::Mod
-                | BinaryOp::Eq
+                BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul | BinaryOp::Div | BinaryOp::Mod => {
+                    true
+                }
+                BinaryOp::Eq
                 | BinaryOp::Lt
                 | BinaryOp::And
                 | BinaryOp::Or
