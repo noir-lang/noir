@@ -532,7 +532,6 @@ jobs:
         - { repo: noir-lang/noir_rsa, path: ./lib  }
         - { repo: AztecProtocol/aztec-packages, path: ./noir-projects/aztec-nr }
         - { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-contracts }
-        # Disabled as aztec-packages requires a setup-step in order to generate a `Nargo.toml`
         - { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/parity-lib }
         - { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/private-kernel-lib }
         - { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/reset-kernel-lib }
