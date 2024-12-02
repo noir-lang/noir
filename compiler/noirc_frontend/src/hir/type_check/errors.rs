@@ -99,7 +99,7 @@ pub enum TypeCheckError {
     CannotMutateImmutableVariable { name: String, span: Span },
     #[error("No method named '{method_name}' found for type '{object_type}'")]
     UnresolvedMethodCall { method_name: String, object_type: Type, span: Span },
-    #[error("No method named '{method_name}' found for type '{object_type}'")]
+    #[error("Cannot invoke function field '{method_name}' on type '{object_type}' as a method")]
     CannotInvokeStructFieldFunctionType { method_name: String, object_type: Type, span: Span },
     #[error("Integers must have the same signedness LHS is {sign_x:?}, RHS is {sign_y:?}")]
     IntegerSignedness { sign_x: Signedness, sign_y: Signedness, span: Span },
@@ -515,7 +515,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             }
             TypeCheckError::CannotInvokeStructFieldFunctionType { method_name, object_type, span } => {
                 Diagnostic::simple_error(
-                    format!("No method named '{method_name}' found for type '{object_type}'"), 
+                    format!("Cannot invoke function field '{method_name}' on type '{object_type}' as a method"), 
                     format!("to call the function stored in '{method_name}', surround the field access with parentheses: '(', ')'"),
                     *span,
                 )
