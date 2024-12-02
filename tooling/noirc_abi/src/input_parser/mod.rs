@@ -249,6 +249,11 @@ mod serialization_tests {
                     visibility: AbiVisibility::Private,
                 },
                 AbiParameter {
+                    name: "signed_example".into(),
+                    typ: AbiType::Integer { sign: Sign::Signed, width: 8 },
+                    visibility: AbiVisibility::Private,
+                },
+                AbiParameter {
                     name: "bar".into(),
                     typ: AbiType::Struct {
                         path: "MyStruct".into(),
@@ -272,6 +277,7 @@ mod serialization_tests {
 
         let input_map: BTreeMap<String, InputValue> = BTreeMap::from([
             ("foo".into(), InputValue::Field(FieldElement::one())),
+            ("signed_example".into(), InputValue::Field(FieldElement::from(240u128))),
             (
                 "bar".into(),
                 InputValue::Struct(BTreeMap::from([
@@ -317,7 +323,9 @@ fn parse_str_to_field(value: &str) -> Result<FieldElement, InputParserError> {
 }
 
 fn parse_str_to_signed(value: &str, width: u32) -> Result<FieldElement, InputParserError> {
-    let big_num = if let Some(hex) = value.strip_prefix("0x") {
+    let big_num = if let Some(hex) = value.strip_prefix("-0x") {
+        BigInt::from_str_radix(hex, 16).map(|value| -value)
+    } else if let Some(hex) = value.strip_prefix("0x") {
         BigInt::from_str_radix(hex, 16)
     } else {
         BigInt::from_str_radix(value, 10)
@@ -357,12 +365,23 @@ fn field_from_big_int(bigint: BigInt) -> FieldElement {
     }
 }
 
+fn field_to_signed_hex(f: FieldElement, bit_size: u32) -> String {
+    let f_u128 = f.to_u128();
+    let max = 2_u128.pow(bit_size - 1) - 1;
+    if f_u128 > max {
+        let f = FieldElement::from(2_u128.pow(bit_size) - f_u128);
+        format!("-0x{}", f.to_hex())
+    } else {
+        format!("0x{}", f.to_hex())
+    }
+}
+
 #[cfg(test)]
 mod test {
     use acvm::{AcirField, FieldElement};
     use num_bigint::BigUint;
 
-    use super::parse_str_to_field;
+    use super::{parse_str_to_field, parse_str_to_signed};
 
     fn big_uint_from_field(field: FieldElement) -> BigUint {
         BigUint::from_bytes_be(&field.to_be_bytes())
@@ -399,5 +418,39 @@ mod test {
     fn rejects_noncanonical_fields() {
         let noncanonical_field = FieldElement::modulus().to_string();
         assert!(parse_str_to_field(&noncanonical_field).is_err());
+    }
+
+    #[test]
+    fn test_parse_str_to_signed() {
+        let value = parse_str_to_signed("1", 8).unwrap();
+        assert_eq!(value, FieldElement::from(1_u128));
+
+        let value = parse_str_to_signed("-1", 8).unwrap();
+        assert_eq!(value, FieldElement::from(255_u128));
+
+        let value = parse_str_to_signed("-1", 16).unwrap();
+        assert_eq!(value, FieldElement::from(65535_u128));
+    }
+}
+
+#[cfg(test)]
+mod arbitrary {
+    use proptest::prelude::*;
+
+    use crate::{AbiType, Sign};
+
+    pub(super) fn arb_signed_integer_type_and_value() -> BoxedStrategy<(AbiType, i64)> {
+        (2u32..=64)
+            .prop_flat_map(|width| {
+                let typ = Just(AbiType::Integer { width, sign: Sign::Signed });
+                let value = if width == 64 {
+                    // Avoid overflow
+                    i64::MIN..i64::MAX
+                } else {
+                    -(2i64.pow(width - 1))..(2i64.pow(width - 1) - 1)
+                };
+                (typ, value)
+            })
+            .boxed()
     }
 }

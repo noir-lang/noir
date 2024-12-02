@@ -180,6 +180,8 @@ impl Context {
                     | Intrinsic::AsWitness
                     | Intrinsic::IsUnconstrained
                     | Intrinsic::DerivePedersenGenerators
+                    | Intrinsic::ArrayRefCount
+                    | Intrinsic::SliceRefCount
                     | Intrinsic::FieldLessThan => false,
                 },
 

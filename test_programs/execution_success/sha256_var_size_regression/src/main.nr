@@ -1,4 +1,4 @@
-global NUM_HASHES = 2;
+global NUM_HASHES: u32 = 2;
 
 fn main(foo: [u8; 95], toggle: bool, enable: [bool; NUM_HASHES]) {
     let mut result = [[0; 32]; NUM_HASHES];

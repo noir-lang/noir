@@ -331,16 +331,18 @@ impl<'context> Elaborator<'context> {
         let resolver_meta =
             ResolverMeta { num_times_used: 0, ident: ident.clone(), warn_if_unused };
 
-        let scope = self.scopes.get_mut_scope();
-        let old_value = scope.add_key_value(name.clone(), resolver_meta);
+        if name != "_" {
+            let scope = self.scopes.get_mut_scope();
+            let old_value = scope.add_key_value(name.clone(), resolver_meta);
 
-        if !allow_shadowing {
-            if let Some(old_value) = old_value {
-                self.push_err(ResolverError::DuplicateDefinition {
-                    name,
-                    first_span: old_value.ident.location.span,
-                    second_span: location.span,
-                });
+            if !allow_shadowing {
+                if let Some(old_value) = old_value {
+                    self.push_err(ResolverError::DuplicateDefinition {
+                        name,
+                        first_span: old_value.ident.location.span,
+                        second_span: location.span,
+                    });
+                }
             }
         }
 

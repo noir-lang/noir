@@ -1,14 +1,14 @@
 use std::rc::Rc;
 
-use acvm::{AcirField, FieldElement};
+use acvm::{acir::BlackBoxFunc, AcirField, FieldElement};
 use builtin_helpers::{
-    block_expression_to_value, check_argument_count, check_function_not_yet_resolved,
-    check_one_argument, check_three_arguments, check_two_arguments, get_bool, get_expr, get_field,
-    get_format_string, get_function_def, get_module, get_quoted, get_slice, get_struct,
-    get_trait_constraint, get_trait_def, get_trait_impl, get_tuple, get_type, get_typed_expr,
-    get_u32, get_unresolved_type, has_named_attribute, hir_pattern_to_tokens,
-    mutate_func_meta_type, parse, quote_ident, replace_func_meta_parameters,
-    replace_func_meta_return_type,
+    block_expression_to_value, byte_array_type, check_argument_count,
+    check_function_not_yet_resolved, check_one_argument, check_three_arguments,
+    check_two_arguments, get_bool, get_expr, get_field, get_format_string, get_function_def,
+    get_module, get_quoted, get_slice, get_struct, get_trait_constraint, get_trait_def,
+    get_trait_impl, get_tuple, get_type, get_typed_expr, get_u32, get_unresolved_type,
+    has_named_attribute, hir_pattern_to_tokens, mutate_func_meta_type, parse, quote_ident,
+    replace_func_meta_parameters, replace_func_meta_return_type,
 };
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
@@ -42,7 +42,7 @@ use crate::{
 };
 
 use self::builtin_helpers::{eq_item, get_array, get_ctstring, get_str, get_u8, hash_item, lex};
-use super::{foreign, Interpreter};
+use super::Interpreter;
 
 pub(crate) mod builtin_helpers;
 
@@ -57,9 +57,12 @@ impl<'local, 'context> Interpreter<'local, 'context> {
         let interner = &mut self.elaborator.interner;
         let call_stack = &self.elaborator.interpreter_call_stack;
         match name {
-            "apply_range_constraint" => foreign::apply_range_constraint(arguments, location),
+            "apply_range_constraint" => {
+                self.call_foreign("range", arguments, return_type, location)
+            }
             "array_as_str_unchecked" => array_as_str_unchecked(interner, arguments, location),
             "array_len" => array_len(interner, arguments, location),
+            "array_refcount" => Ok(Value::U32(0)),
             "assert_constant" => Ok(Value::Bool(true)),
             "as_slice" => as_slice(interner, arguments, location),
             "ctstring_eq" => ctstring_eq(arguments, location),
@@ -167,6 +170,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "slice_pop_front" => slice_pop_front(interner, arguments, location, call_stack),
             "slice_push_back" => slice_push_back(interner, arguments, location),
             "slice_push_front" => slice_push_front(interner, arguments, location),
+            "slice_refcount" => Ok(Value::U32(0)),
             "slice_remove" => slice_remove(interner, arguments, location, call_stack),
             "str_as_bytes" => str_as_bytes(interner, arguments, location),
             "str_as_ctstring" => str_as_ctstring(interner, arguments, location),
@@ -232,8 +236,11 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "unresolved_type_is_field" => unresolved_type_is_field(interner, arguments, location),
             "unresolved_type_is_unit" => unresolved_type_is_unit(interner, arguments, location),
             "zeroed" => zeroed(return_type, location.span),
+            blackbox if BlackBoxFunc::is_valid_black_box_func_name(blackbox) => {
+                self.call_foreign(blackbox, arguments, return_type, location)
+            }
             _ => {
-                let item = format!("Comptime evaluation for builtin function {name}");
+                let item = format!("Comptime evaluation for builtin function '{name}'");
                 Err(InterpreterError::Unimplemented { item, location })
             }
         }
@@ -322,10 +329,7 @@ fn str_as_bytes(
     let string = get_str(interner, string)?;
 
     let bytes: im::Vector<Value> = string.bytes().map(Value::U8).collect();
-    let byte_array_type = Type::Array(
-        Box::new(Type::Constant(bytes.len().into(), Kind::u32())),
-        Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)),
-    );
+    let byte_array_type = byte_array_type(bytes.len());
     Ok(Value::Array(bytes, byte_array_type))
 }
 
@@ -818,10 +822,8 @@ fn to_le_radix(
             Some(digit) => Value::U8(*digit),
             None => Value::U8(0),
         });
-    Ok(Value::Array(
-        decomposed_integer.into(),
-        Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight),
-    ))
+    let result_type = byte_array_type(decomposed_integer.len());
+    Ok(Value::Array(decomposed_integer.into(), result_type))
 }
 
 fn compute_to_radix_le(field: FieldElement, radix: u32) -> Vec<u8> {

@@ -1970,6 +1970,7 @@ impl<'a> Context<'a> {
             BinaryOp::Mod => self.acir_context.modulo_var(
                 lhs,
                 rhs,
+                binary_type.clone(),
                 bit_count,
                 self.current_side_effects_enabled_var,
             ),
@@ -2758,6 +2759,13 @@ impl<'a> Context<'a> {
             }
             Intrinsic::FieldLessThan => {
                 unreachable!("FieldLessThan can only be called in unconstrained")
+            }
+            Intrinsic::ArrayRefCount | Intrinsic::SliceRefCount => {
+                let zero = self.acir_context.add_constant(FieldElement::zero());
+                Ok(vec![AcirValue::Var(
+                    zero,
+                    AcirType::NumericType(NumericType::Unsigned { bit_size: 32 }),
+                )])
             }
         }
     }
