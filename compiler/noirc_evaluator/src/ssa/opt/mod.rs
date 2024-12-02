@@ -12,6 +12,7 @@ mod defunctionalize;
 mod die;
 pub(crate) mod flatten_cfg;
 mod inlining;
+mod loop_invariant;
 mod mem2reg;
 mod normalize_value_ids;
 mod rc;
@@ -35,13 +36,14 @@ pub(crate) fn assert_normalized_ssa_equals(mut ssa: super::Ssa, expected: &str) 
         panic!("`expected` argument of `assert_ssa_equals` is not valid SSA:\n{:?}", err);
     }
 
-    use crate::{ssa::Ssa, trim_leading_whitespace_from_lines};
+    use crate::{ssa::Ssa, trim_comments_from_lines, trim_leading_whitespace_from_lines};
 
     ssa.normalize_ids();
 
     let ssa = ssa.to_string();
     let ssa = trim_leading_whitespace_from_lines(&ssa);
     let expected = trim_leading_whitespace_from_lines(expected);
+    let expected = trim_comments_from_lines(&expected);
 
     if ssa != expected {
         println!("Expected:\n~~~\n{expected}\n~~~\nGot:\n~~~\n{ssa}\n~~~");

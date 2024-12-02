@@ -1,4 +1,4 @@
-global TX_EFFECTS_HASH_INPUT_FIELDS = 256;
+global TX_EFFECTS_HASH_INPUT_FIELDS: u32 = 256;
 
 // Convert a 32 byte array to a field element by truncating the final byte
 pub fn field_from_bytes_32_trunc(bytes32: [u8; 32]) -> Field {

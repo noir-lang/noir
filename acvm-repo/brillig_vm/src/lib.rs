@@ -6,7 +6,6 @@
 //! The Brillig VM is a specialized VM which allows the [ACVM][acvm] to perform custom non-determinism.
 //!
 //! Brillig bytecode is distinct from regular [ACIR][acir] in that it does not generate constraints.
-//! This is a generalization over the fixed directives that exists within in the ACVM.
 //!
 //! [acir]: https://crates.io/crates/acir
 //! [acvm]: https://crates.io/crates/acvm
@@ -18,7 +17,7 @@ use acir::brillig::{
 use acir::AcirField;
 use acvm_blackbox_solver::BlackBoxFunctionSolver;
 use arithmetic::{evaluate_binary_field_op, evaluate_binary_int_op, BrilligArithmeticError};
-use black_box::{evaluate_black_box, BrilligBigintSolver};
+use black_box::{evaluate_black_box, BrilligBigIntSolver};
 
 // Re-export `brillig`.
 pub use acir::brillig;
@@ -96,7 +95,7 @@ pub struct VM<'a, F, B: BlackBoxFunctionSolver<F>> {
     /// The solver for blackbox functions
     black_box_solver: &'a B,
     // The solver for big integers
-    bigint_solver: BrilligBigintSolver,
+    bigint_solver: BrilligBigIntSolver,
     // Flag that determines whether we want to profile VM.
     profiling_active: bool,
     // Samples for profiling the VM execution.
@@ -357,8 +356,16 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                     self.trap(0, 0)
                 }
             }
-            Opcode::Stop { return_data_offset, return_data_size } => {
-                self.finish(*return_data_offset, *return_data_size)
+            Opcode::Stop { return_data } => {
+                let return_data_size = self.memory.read(return_data.size).to_usize();
+                if return_data_size > 0 {
+                    self.finish(
+                        self.memory.read_ref(return_data.pointer).unwrap_direct(),
+                        return_data_size,
+                    )
+                } else {
+                    self.finish(0, 0)
+                }
             }
             Opcode::Load { destination: destination_address, source_pointer } => {
                 // Convert our source_pointer to an address
@@ -1005,28 +1012,37 @@ mod tests {
     fn cast_opcode() {
         let calldata: Vec<FieldElement> = vec![((2_u128.pow(32)) - 1).into()];
 
+        let value_address = MemoryAddress::direct(1);
+        let one_usize = MemoryAddress::direct(2);
+        let zero_usize = MemoryAddress::direct(3);
+
         let opcodes = &[
             Opcode::Const {
-                destination: MemoryAddress::direct(0),
+                destination: one_usize,
                 bit_size: BitSize::Integer(IntegerBitSize::U32),
                 value: FieldElement::from(1u64),
             },
             Opcode::Const {
-                destination: MemoryAddress::direct(1),
+                destination: zero_usize,
                 bit_size: BitSize::Integer(IntegerBitSize::U32),
                 value: FieldElement::from(0u64),
             },
             Opcode::CalldataCopy {
-                destination_address: MemoryAddress::direct(0),
-                size_address: MemoryAddress::direct(0),
-                offset_address: MemoryAddress::direct(1),
+                destination_address: value_address,
+                size_address: one_usize,
+                offset_address: zero_usize,
             },
             Opcode::Cast {
-                destination: MemoryAddress::direct(1),
-                source: MemoryAddress::direct(0),
+                destination: value_address,
+                source: value_address,
                 bit_size: BitSize::Integer(IntegerBitSize::U8),
             },
-            Opcode::Stop { return_data_offset: 1, return_data_size: 1 },
+            Opcode::Stop {
+                return_data: HeapVector {
+                    pointer: one_usize, // Since value_address is direct(1)
+                    size: one_usize,
+                },
+            },
         ];
         let mut vm = VM::new(calldata, opcodes, vec![], &StubbedBlackBoxSolver, false);
 
@@ -1051,33 +1067,42 @@ mod tests {
     fn not_opcode() {
         let calldata: Vec<FieldElement> = vec![(1_usize).into()];
 
+        let value_address = MemoryAddress::direct(1);
+        let one_usize = MemoryAddress::direct(2);
+        let zero_usize = MemoryAddress::direct(3);
+
         let opcodes = &[
             Opcode::Const {
-                destination: MemoryAddress::direct(0),
+                destination: one_usize,
                 bit_size: BitSize::Integer(IntegerBitSize::U32),
                 value: FieldElement::from(1u64),
             },
             Opcode::Const {
-                destination: MemoryAddress::direct(1),
+                destination: zero_usize,
                 bit_size: BitSize::Integer(IntegerBitSize::U32),
                 value: FieldElement::from(0u64),
             },
             Opcode::CalldataCopy {
-                destination_address: MemoryAddress::direct(0),
-                size_address: MemoryAddress::direct(0),
-                offset_address: MemoryAddress::direct(1),
+                destination_address: value_address,
+                size_address: one_usize,
+                offset_address: zero_usize,
             },
             Opcode::Cast {
-                destination: MemoryAddress::direct(1),
-                source: MemoryAddress::direct(0),
+                destination: value_address,
+                source: value_address,
                 bit_size: BitSize::Integer(IntegerBitSize::U128),
             },
             Opcode::Not {
-                destination: MemoryAddress::direct(1),
-                source: MemoryAddress::direct(1),
+                destination: value_address,
+                source: value_address,
                 bit_size: IntegerBitSize::U128,
             },
-            Opcode::Stop { return_data_offset: 1, return_data_size: 1 },
+            Opcode::Stop {
+                return_data: HeapVector {
+                    pointer: one_usize, // Since value_address is direct(1)
+                    size: one_usize,
+                },
+            },
         ];
         let mut vm = VM::new(calldata, opcodes, vec![], &StubbedBlackBoxSolver, false);
 

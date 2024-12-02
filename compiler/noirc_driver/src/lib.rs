@@ -13,7 +13,7 @@ use noirc_abi::{AbiParameter, AbiType, AbiValue};
 use noirc_errors::{CustomDiagnostic, FileDiagnostic};
 use noirc_evaluator::create_program;
 use noirc_evaluator::errors::RuntimeError;
-use noirc_evaluator::ssa::SsaProgramArtifact;
+use noirc_evaluator::ssa::{SsaLogging, SsaProgramArtifact};
 use noirc_frontend::debug::build_debug_crate_file;
 use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
 use noirc_frontend::hir::Context;
@@ -69,6 +69,11 @@ pub struct CompileOptions {
     /// Emit debug information for the intermediate SSA IR to stdout
     #[arg(long, hide = true)]
     pub show_ssa: bool,
+
+    /// Only show SSA passes whose name contains the provided string.
+    /// This setting takes precedence over `show_ssa` if it's not empty.
+    #[arg(long, hide = true)]
+    pub show_ssa_pass_name: Option<String>,
 
     /// Emit the unoptimized SSA IR to file.
     /// The IR will be dumped into the workspace target directory,
@@ -126,11 +131,19 @@ pub struct CompileOptions {
     #[arg(long)]
     pub skip_underconstrained_check: bool,
 
-    /// Setting to decide on an inlining strategy for brillig functions.
+    /// Setting to decide on an inlining strategy for Brillig functions.
     /// A more aggressive inliner should generate larger programs but more optimized
     /// A less aggressive inliner should generate smaller programs
     #[arg(long, hide = true, allow_hyphen_values = true, default_value_t = i64::MAX)]
     pub inliner_aggressiveness: i64,
+
+    /// Setting the maximum acceptable increase in Brillig bytecode size due to
+    /// unrolling small loops. When left empty, any change is accepted as long
+    /// as it required fewer SSA instructions.
+    /// A higher value results in fewer jumps but a larger program.
+    /// A lower value keeps the original program if it was smaller, even if it has more jumps.
+    #[arg(long, hide = true, allow_hyphen_values = true)]
+    pub max_bytecode_increase_percent: Option<i32>,
 }
 
 pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
@@ -282,7 +295,7 @@ pub fn add_dep(
 ///
 /// This returns a (possibly empty) vector of any warnings found on success.
 /// On error, this returns a non-empty vector of warnings and error messages, with at least one error.
-#[tracing::instrument(level = "trace", skip(context))]
+#[tracing::instrument(level = "trace", skip_all)]
 pub fn check_crate(
     context: &mut Context,
     crate_id: CrateId,
@@ -577,7 +590,16 @@ pub fn compile_no_check(
     }
     let return_visibility = program.return_visibility;
     let ssa_evaluator_options = noirc_evaluator::ssa::SsaEvaluatorOptions {
-        enable_ssa_logging: options.show_ssa,
+        ssa_logging: match &options.show_ssa_pass_name {
+            Some(string) => SsaLogging::Contains(string.clone()),
+            None => {
+                if options.show_ssa {
+                    SsaLogging::All
+                } else {
+                    SsaLogging::None
+                }
+            }
+        },
         enable_brillig_logging: options.show_brillig,
         force_brillig_output: options.force_brillig,
         print_codegen_timings: options.benchmark_codegen,
@@ -589,6 +611,7 @@ pub fn compile_no_check(
         emit_ssa: if options.emit_ssa { Some(context.package_build_path.clone()) } else { None },
         skip_underconstrained_check: options.skip_underconstrained_check,
         inliner_aggressiveness: options.inliner_aggressiveness,
+        max_bytecode_increase_percent: options.max_bytecode_increase_percent,
     };
 
     let SsaProgramArtifact { program, debug, warnings, names, brillig_names, error_types, .. } =
