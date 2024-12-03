@@ -323,7 +323,7 @@ mod tests {
     use acvm::acir::circuit::ExpressionWidth;
     use nargo::ops::compile_program;
     use nargo_toml::PackageSelection;
-    use noirc_driver::CompileOptions;
+    use noirc_driver::{CompileOptions, DEFAULT_EXPRESSION_WIDTH};
     use rayon::prelude::*;
 
     use crate::cli::compile_cmd::{parse_workspace, read_workspace};
@@ -349,7 +349,6 @@ mod tests {
             .flatten()
             .filter(|c| c.path().is_dir())
             .map(|c| c.path())
-            .into_iter()
     }
 
     /// Check that `nargo::ops::transform_program` is idempotent by compiling the
@@ -366,23 +365,26 @@ mod tests {
         assert!(!test_workspaces.is_empty(), "should find some test workspaces");
 
         test_workspaces.par_iter().for_each(|workspace| {
-            let (file_manager, parsed_files) = parse_workspace(&workspace);
+            let (file_manager, parsed_files) = parse_workspace(workspace);
             let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
 
             for package in binary_packages {
                 let (program, _warnings) = compile_program(
                     &file_manager,
                     &parsed_files,
-                    &workspace,
+                    workspace,
                     package,
                     &CompileOptions::default(),
                     None,
                 )
                 .expect("failed to compile");
 
-                let program = nargo::ops::transform_program(program, ExpressionWidth::default());
+                // let width = DEFAULT_EXPRESSION_WIDTH;
+                let width = ExpressionWidth::default();
+
+                let program = nargo::ops::transform_program(program, width);
                 let program_hash_1 = fxhash::hash64(&program);
-                let program = nargo::ops::transform_program(program, ExpressionWidth::default());
+                let program = nargo::ops::transform_program(program, width);
                 let program_hash_2 = fxhash::hash64(&program);
 
                 assert!(
