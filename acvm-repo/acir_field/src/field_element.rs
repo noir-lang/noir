@@ -9,7 +9,7 @@ use crate::AcirField;
 
 // XXX: Switch out for a trait and proper implementations
 // This implementation is inefficient, can definitely remove hex usage and Iterator instances for trivial functionality
-#[derive(Default, Clone, Copy, Eq, PartialOrd, Ord)]
+#[derive(Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FieldElement<F: PrimeField>(F);
 
 impl<F: PrimeField> std::fmt::Display for FieldElement<F> {
@@ -40,18 +40,6 @@ impl<F: PrimeField> std::fmt::Display for FieldElement<F> {
 impl<F: PrimeField> std::fmt::Debug for FieldElement<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         std::fmt::Display::fmt(self, f)
-    }
-}
-
-impl<F: PrimeField> std::hash::Hash for FieldElement<F> {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        state.write(&self.to_be_bytes());
-    }
-}
-
-impl<F: PrimeField> PartialEq for FieldElement<F> {
-    fn eq(&self, other: &Self) -> bool {
-        self.to_be_bytes() == other.to_be_bytes()
     }
 }
 

@@ -161,6 +161,8 @@ proptest-derive = "0.4.0"
 rayon = "1.8.0"
 sha2 = { version = "0.10.6", features = ["compress"] }
 sha3 = "0.10.6"
+strum = "0.24"
+strum_macros = "0.24"
 
 im = { version = "15.1", features = ["serde"] }
 tracing = "0.1.40"
