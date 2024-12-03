@@ -127,8 +127,9 @@ impl Context {
                         .push(instructions_len - instruction_index - 1);
                 }
             } else {
-                use Instruction::*;
-                if matches!(instruction, IncrementRc { .. } | DecrementRc { .. }) {
+                // We can't remove rc instructions if they're loaded from a reference
+                // since we'd have no way of knowing whether the reference is still used.
+                if Self::is_inc_dec_instruction_on_known_array(instruction, &function.dfg) {
                     self.rc_instructions.push((*instruction_id, block_id));
                 } else {
                     instruction.for_each_value(|value| {
@@ -140,7 +141,7 @@ impl Context {
             rc_tracker.track_inc_rcs_to_remove(*instruction_id, function);
         }
 
-        self.instructions_to_remove.extend(rc_tracker.get_non_mutated_arrays());
+        // self.instructions_to_remove.extend(rc_tracker.get_non_mutated_arrays());
         self.instructions_to_remove.extend(rc_tracker.rc_pairs_to_remove);
 
         // If there are some instructions that might trigger an out of bounds error,
@@ -336,6 +337,21 @@ impl Context {
         }
 
         inserted_check
+    }
+
+    /// True if this is a `Instruction::IncrementRc` or `Instruction::DecrementRc`
+    /// operating on an array directly from a `Instruction::MakeArray`.
+    fn is_inc_dec_instruction_on_known_array(
+        instruction: &Instruction,
+        dfg: &DataFlowGraph,
+    ) -> bool {
+        use Instruction::*;
+        if let IncrementRc { value } | DecrementRc { value } = instruction {
+            if let Value::Instruction { instruction, .. } = &dfg[*value] {
+                return matches!(&dfg[*instruction], MakeArray { .. });
+            }
+        }
+        false
     }
 }
 
