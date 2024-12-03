@@ -159,7 +159,7 @@ impl Function {
             }
 
             context.visited_blocks.insert(block);
-            context.fold_constants_in_block(&mut self.dfg, &mut dom, block);
+            context.fold_constants_in_block(self, &mut dom, block);
         }
     }
 }
@@ -266,36 +266,38 @@ impl<'brillig> Context<'brillig> {
 
     fn fold_constants_in_block(
         &mut self,
-        dfg: &mut DataFlowGraph,
+        function: &mut Function,
         dom: &mut DominatorTree,
         block: BasicBlockId,
     ) {
-        let instructions = dfg[block].take_instructions();
+        let instructions = function.dfg[block].take_instructions();
 
         // Default side effect condition variable with an enabled state.
-        let mut side_effects_enabled_var = dfg.make_constant(FieldElement::one(), Type::bool());
+        let mut side_effects_enabled_var =
+            function.dfg.make_constant(FieldElement::one(), Type::bool());
 
         for instruction_id in instructions {
             self.fold_constants_into_instruction(
-                dfg,
+                function,
                 dom,
                 block,
                 instruction_id,
                 &mut side_effects_enabled_var,
             );
         }
-        self.block_queue.extend(dfg[block].successors());
+        self.block_queue.extend(function.dfg[block].successors());
     }
 
     fn fold_constants_into_instruction(
         &mut self,
-        dfg: &mut DataFlowGraph,
+        function: &mut Function,
         dom: &mut DominatorTree,
         mut block: BasicBlockId,
         id: InstructionId,
         side_effects_enabled_var: &mut ValueId,
     ) {
         let constraint_simplification_mapping = self.get_constraint_map(*side_effects_enabled_var);
+        let dfg = &mut function.dfg;
 
         let instruction =
             Self::resolve_instruction(id, block, dfg, dom, constraint_simplification_mapping);
@@ -346,7 +348,7 @@ impl<'brillig> Context<'brillig> {
         self.cache_instruction(
             instruction.clone(),
             new_results,
-            dfg,
+            function,
             *side_effects_enabled_var,
             block,
         );
@@ -433,7 +435,7 @@ impl<'brillig> Context<'brillig> {
         &mut self,
         instruction: Instruction,
         instruction_results: Vec<ValueId>,
-        dfg: &DataFlowGraph,
+        function: &Function,
         side_effects_enabled_var: ValueId,
         block: BasicBlockId,
     ) {
@@ -442,11 +444,11 @@ impl<'brillig> Context<'brillig> {
             // to map from the more complex to the simpler value.
             if let Instruction::Constrain(lhs, rhs, _) = instruction {
                 // These `ValueId`s should be fully resolved now.
-                if let Some((complex, simple)) = simplify(dfg, lhs, rhs) {
+                if let Some((complex, simple)) = simplify(&function.dfg, lhs, rhs) {
                     self.get_constraint_map(side_effects_enabled_var)
                         .entry(complex)
                         .or_default()
-                        .add(dfg, simple, block);
+                        .add(&function.dfg, simple, block);
                 }
             }
         }
@@ -454,9 +456,9 @@ impl<'brillig> Context<'brillig> {
         // If the instruction doesn't have side-effects and if it won't interact with enable_side_effects during acir_gen,
         // we cache the results so we can reuse them if the same instruction appears again later in the block.
         // Others have side effects representing failure, which are implicit in the ACIR code and can also be deduplicated.
-        if instruction.can_be_deduplicated(dfg, self.use_constraint_info) {
+        if instruction.can_be_deduplicated(function, self.use_constraint_info) {
             let use_predicate =
-                self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
+                self.use_constraint_info && instruction.requires_acir_gen_predicate(&function.dfg);
             let predicate = use_predicate.then_some(side_effects_enabled_var);
 
             self.cached_instruction_results
