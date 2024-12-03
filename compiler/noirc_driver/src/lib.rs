@@ -334,6 +334,8 @@ pub fn compute_function_abi(
 ///
 /// On success this returns the compiled program alongside any warnings that were found.
 /// On error this returns the non-empty list of warnings and errors.
+///
+/// See [compile_no_check] for further information about the use of `cached_program`.
 pub fn compile_main(
     context: &mut Context,
     crate_id: CrateId,
@@ -555,6 +557,12 @@ pub const DEFAULT_EXPRESSION_WIDTH: ExpressionWidth = ExpressionWidth::Bounded {
 /// Compile the current crate using `main_function` as the entrypoint.
 ///
 /// This function assumes [`check_crate`] is called beforehand.
+///
+/// The returned program is backend-agnostic and so must go through a transformation pass before usage in proof generation.
+/// These transformations are _not_ covered by the check that decides whether we can use the cached artifact.
+/// That comparison is based on on [CompiledProgram::hash] which is a persisted version of the hash of the input
+/// [`ast::Program`][noirc_frontend::monomorphization::ast::Program], whereas the output [`circuit::Program`][acir::circuit::Program]
+/// contains the final optimized ACIR opcodes, including the transformation done after this compilation.
 #[tracing::instrument(level = "trace", skip_all, fields(function_name = context.function_name(&main_function)))]
 pub fn compile_no_check(
     context: &mut Context,
@@ -571,6 +579,7 @@ pub fn compile_no_check(
 
     let hash = fxhash::hash64(&program);
     let hashes_match = cached_program.as_ref().map_or(false, |program| program.hash == hash);
+
     if options.show_monomorphized {
         println!("{program}");
     }

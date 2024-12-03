@@ -65,6 +65,7 @@ pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliEr
     Ok(())
 }
 
+/// Continuously recompile the workspace on any Noir file change event.
 fn watch_workspace(workspace: &Workspace, compile_options: &CompileOptions) -> notify::Result<()> {
     let (tx, rx) = std::sync::mpsc::channel();
 
@@ -108,6 +109,8 @@ fn watch_workspace(workspace: &Workspace, compile_options: &CompileOptions) -> n
     Ok(())
 }
 
+/// Parse and compile the entire workspace, then report errors.
+/// This is the main entry point used by all other commands that need compilation.
 pub(super) fn compile_workspace_full(
     workspace: &Workspace,
     compile_options: &CompileOptions,
@@ -129,6 +132,8 @@ pub(super) fn compile_workspace_full(
     Ok(())
 }
 
+/// Compile binary and contract packages.
+/// Returns the merged warnings or errors.
 fn compile_workspace(
     file_manager: &FileManager,
     parsed_files: &ParsedFiles,
@@ -144,6 +149,7 @@ fn compile_workspace(
     // Compile all of the packages in parallel.
     let program_warnings_or_errors: CompilationResult<()> =
         compile_programs(file_manager, parsed_files, workspace, &binary_packages, compile_options);
+
     let contract_warnings_or_errors: CompilationResult<()> = compiled_contracts(
         file_manager,
         parsed_files,
@@ -164,6 +170,7 @@ fn compile_workspace(
     }
 }
 
+/// Compile the given binary packages in the workspace.
 fn compile_programs(
     file_manager: &FileManager,
     parsed_files: &ParsedFiles,
@@ -171,6 +178,8 @@ fn compile_programs(
     binary_packages: &[Package],
     compile_options: &CompileOptions,
 ) -> CompilationResult<()> {
+    // Load any existing artifact for a given package, _iff_ it was compiled with the same nargo version.
+    // The loaded circuit includes backend specific transformations, which might be different from the current target.
     let load_cached_program = |package| {
         let program_artifact_path = workspace.package_build_path(package);
         read_program_from_file(program_artifact_path)
@@ -180,6 +189,7 @@ fn compile_programs(
     };
 
     let compile_package = |package| {
+        // Compile the program, or use the cached artifacts if it matches.
         let (program, warnings) = compile_program(
             file_manager,
             parsed_files,
@@ -188,11 +198,14 @@ fn compile_programs(
             compile_options,
             load_cached_program(package),
         )?;
-
+        // Choose the target width for the final, backend specific transformation.
         let target_width =
             get_target_width(package.expression_width, compile_options.expression_width);
+        // Run ACVM optimizations and set the target width.
         let program = nargo::ops::transform_program(program, target_width);
+        // Check solvability.
         nargo::ops::check_program(&program)?;
+        // Overwrite the build artifacts with the final circuit, which includes the backend specific transformations.
         save_program_to_file(&program.into(), &package.name, workspace.target_directory_path());
 
         Ok(((), warnings))
@@ -208,6 +221,7 @@ fn compile_programs(
     collect_errors(program_results).map(|(_, warnings)| ((), warnings))
 }
 
+/// Compile the given contracts in the workspace.
 fn compiled_contracts(
     file_manager: &FileManager,
     parsed_files: &ParsedFiles,
@@ -215,6 +229,7 @@ fn compiled_contracts(
     compile_options: &CompileOptions,
     target_dir: &Path,
 ) -> CompilationResult<()> {
+    // TODO(6669): Should we look for cached artifacts?
     let contract_results: Vec<CompilationResult<()>> = contract_packages
         .par_iter()
         .map(|package| {
@@ -223,6 +238,7 @@ fn compiled_contracts(
             let target_width =
                 get_target_width(package.expression_width, compile_options.expression_width);
             let contract = nargo::ops::transform_contract(contract, target_width);
+            // TODO(6669): Should the circuits in the contracts run through the simulator?
             save_contract(contract, package, target_dir, compile_options.show_artifact_paths);
             Ok(((), warnings))
         })
