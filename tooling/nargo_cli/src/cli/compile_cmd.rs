@@ -385,8 +385,8 @@ mod tests {
                 let program = nargo::ops::transform_program(program, ExpressionWidth::default());
                 let program_hash_2 = fxhash::hash64(&program);
 
-                assert_eq!(
-                    program_hash_1, program_hash_2,
+                assert!(
+                    program_hash_1 == program_hash_2,
                     "optimization not idempotent for test program '{}'",
                     package.name
                 );
