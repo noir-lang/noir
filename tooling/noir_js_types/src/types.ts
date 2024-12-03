@@ -1,5 +1,5 @@
 export type Field = string | number | boolean;
-export type InputValue = Field | InputMap | (Field | InputMap)[];
+export type InputValue = Field | InputMap | InputValue[];
 export type InputMap = { [key: string]: InputValue };
 
 export type Visibility = 'public' | 'private' | 'databus';
