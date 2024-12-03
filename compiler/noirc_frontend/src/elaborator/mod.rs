@@ -440,6 +440,9 @@ impl<'context> Elaborator<'context> {
         // so we need to reintroduce the same IDs into scope here.
         for parameter in &func_meta.parameter_idents {
             let name = self.interner.definition_name(parameter.id).to_owned();
+            if name == "_" {
+                continue;
+            }
             let warn_if_unused = !(func_meta.trait_impl.is_some() && name == "self");
             self.add_existing_variable_to_scope(name, parameter.clone(), warn_if_unused);
         }

@@ -9,9 +9,11 @@ use noirc_driver::{compile_no_check, CompileError, CompileOptions};
 use noirc_errors::{debug_info::DebugInfo, FileDiagnostic};
 use noirc_frontend::hir::{def_map::TestFunction, Context};
 
-use crate::{errors::try_to_diagnose_runtime_error, NargoError};
+use crate::{
+    errors::try_to_diagnose_runtime_error, foreign_calls::DefaultForeignCallExecutor, NargoError,
+};
 
-use super::{execute_program, DefaultForeignCallExecutor};
+use super::execute_program;
 
 pub enum TestStatus {
     Pass,

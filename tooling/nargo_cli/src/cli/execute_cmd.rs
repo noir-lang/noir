@@ -7,7 +7,7 @@ use clap::Args;
 
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::errors::try_to_diagnose_runtime_error;
-use nargo::ops::DefaultForeignCallExecutor;
+use nargo::foreign_calls::DefaultForeignCallExecutor;
 use nargo::package::{CrateName, Package};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::input_parser::{Format, InputValue};
