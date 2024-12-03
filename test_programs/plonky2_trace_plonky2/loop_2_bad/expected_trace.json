@@ -15,15 +15,18 @@
     { "variable_id": 0, "value": { "kind": "Int", "i": 40, "type_id": 1 } },
     { "variable_id": 1, "value": { "kind": "Int", "i": 20, "type_id": 1 } }
   ] } },
-  { "Step": { "path_id": 1, "line": 2 } },
-  { "Value": { "variable_id": 0, "value": { "kind": "Int", "i": 40, "type_id": 1 } } },
-  { "Value": { "variable_id": 1, "value": { "kind": "Int", "i": 20, "type_id": 1 } } },
   { "Step": { "path_id": 1, "line": 3 } },
   { "Asm": [
     "v3 = is_equal v0,v1",
     "v2 = constant_bool false",
     "connect v3,v2"
   ] },
+  { "Value": { "variable_id": 0, "value": { "kind": "Int", "i": 40, "type_id": 1 } } },
+  { "Value": { "variable_id": 1, "value": { "kind": "Int", "i": 20, "type_id": 1 } } },
+  { "Step": { "path_id": 1, "line": 2 } },
+  { "Value": { "variable_id": 0, "value": { "kind": "Int", "i": 40, "type_id": 1 } } },
+  { "Value": { "variable_id": 1, "value": { "kind": "Int", "i": 20, "type_id": 1 } } },
+  { "Step": { "path_id": 1, "line": 3 } },
   { "VariableName": "i" },
   { "Value": { "variable_id": 2, "value": { "kind": "Int", "i": 0, "type_id": 1 } } },
   { "Value": { "variable_id": 0, "value": { "kind": "Int", "i": 40, "type_id": 1 } } },

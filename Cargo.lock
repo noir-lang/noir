@@ -1626,7 +1626,7 @@ dependencies = [
 
 [[package]]
 name = "format_trace"
-version = "0.38.0"
+version = "0.39.0"
 dependencies = [
  "regex",
  "serde",
@@ -3086,7 +3086,7 @@ dependencies = [
 
 [[package]]
 name = "noir_tracer"
-version = "0.38.0"
+version = "0.39.0"
 dependencies = [
  "acvm",
  "fm",
