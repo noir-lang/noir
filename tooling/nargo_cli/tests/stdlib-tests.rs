@@ -152,12 +152,6 @@ fn display_test_report(
                     compile_options.silence_warnings,
                 );
             }
-            TestStatus::Skipped { .. } => {
-                writer
-                    .set_color(ColorSpec::new().set_fg(Some(Color::Yellow)))
-                    .expect("Failed to set color");
-                writeln!(writer, "skipped").expect("Failed to write to stderr");
-            }
         }
         writer.reset().expect("Failed to reset writer");
     }
