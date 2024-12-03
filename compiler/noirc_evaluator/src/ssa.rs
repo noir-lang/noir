@@ -238,7 +238,7 @@ impl SsaProgramArtifact {
     }
 }
 
-/// Compiles the [`Program`] into [`ACIR``][acvm::acir::circuit::Program].
+/// Compiles the [`Program`] into [`ACIR`][acvm::acir::circuit::Program].
 ///
 /// The output ACIR is backend-agnostic and so must go through a transformation pass before usage in proof generation.
 #[tracing::instrument(level = "trace", skip_all)]
