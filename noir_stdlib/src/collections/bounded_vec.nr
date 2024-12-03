@@ -369,10 +369,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     pub fn pop(&mut self) -> T {
         assert(self.len > 0);
         self.len -= 1;
-
-        let elem = self.storage[self.len];
-        self.storage[self.len] = crate::mem::zeroed();
-        elem
+        self.storage[self.len]
     }
 
     /// Returns true if the given predicate returns true for any element
@@ -427,11 +424,17 @@ where
     T: Eq,
 {
     fn eq(self, other: BoundedVec<T, MaxLen>) -> bool {
-        // TODO: https://github.com/noir-lang/noir/issues/4837
-        //
-        // We make the assumption that the user has used the proper interface for working with `BoundedVec`s
-        // rather than directly manipulating the internal fields as this can result in an inconsistent internal state.
-        (self.len == other.len) & (self.storage == other.storage)
+        if self.len != other.len {
+            false
+        } else {
+            let mut result = true;
+            for i in 0 .. MaxLen {
+                if i < self.len {
+                    result &= self.storage[i] == other.storage[i];
+                }
+            }
+            result
+        }
     }
 }
 
