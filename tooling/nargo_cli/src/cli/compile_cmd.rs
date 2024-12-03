@@ -331,8 +331,9 @@ mod tests {
 
     use crate::cli::compile_cmd::{get_target_width, parse_workspace, read_workspace};
 
-    /// Try to find the directory that Cargo sets when it is running; otherwise fallback to assuming the CWD
-    /// is the root of the repository and append the crate path
+    /// Try to find the directory that Cargo sets when it is running;
+    /// otherwise fallback to assuming the CWD is the root of the repository
+    /// and append the crate path.
     fn test_programs_dir() -> PathBuf {
         let root_dir = match std::env::var("CARGO_MANIFEST_DIR") {
             Ok(dir) => PathBuf::from(dir).parent().unwrap().parent().unwrap().to_path_buf(),
@@ -395,54 +396,51 @@ mod tests {
 
         assert!(!test_workspaces.is_empty(), "should find some test workspaces");
 
-        test_workspaces
-            .par_iter()
-            //.filter(|workspace| workspace.members.iter().any(|p| p.name == test_workspace_name))
-            .for_each(|workspace| {
-                let (file_manager, parsed_files) = parse_workspace(workspace);
-                let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
+        test_workspaces.par_iter().for_each(|workspace| {
+            let (file_manager, parsed_files) = parse_workspace(workspace);
+            let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
 
-                for package in binary_packages {
-                    let (program_0, _warnings) = compile_program(
-                        &file_manager,
-                        &parsed_files,
-                        workspace,
-                        package,
-                        &CompileOptions::default(),
-                        None,
-                    )
-                    .expect("failed to compile");
+            for package in binary_packages {
+                let (program_0, _warnings) = compile_program(
+                    &file_manager,
+                    &parsed_files,
+                    workspace,
+                    package,
+                    &CompileOptions::default(),
+                    None,
+                )
+                .expect("failed to compile");
 
-                    let width = get_target_width(package.expression_width, None);
+                let width = get_target_width(package.expression_width, None);
 
-                    let program_1 = nargo::ops::transform_program(program_0, width);
-                    let program_2 = nargo::ops::transform_program(program_1.clone(), width);
+                let program_1 = nargo::ops::transform_program(program_0, width);
+                let program_2 = nargo::ops::transform_program(program_1.clone(), width);
 
-                    if verbose {
-                        // Compare where the most likely difference is.
-                        assert_eq!(
-                            program_1.program, program_2.program,
-                            "optimization not idempotent for test program '{}'",
-                            package.name
-                        );
+                if verbose {
+                    // Compare where the most likely difference is.
+                    assert_eq!(
+                        program_1.program, program_2.program,
+                        "optimization not idempotent for test program '{}'",
+                        package.name
+                    );
 
-                        // Compare the whole content.
-                        similar_asserts::assert_eq!(
-                            serde_json::to_string_pretty(&program_1).unwrap(),
-                            serde_json::to_string_pretty(&program_2).unwrap(),
-                            "optimization not idempotent for test program '{}'",
-                            package.name
-                        );
-                    } else {
-                        // Just compare hashes, which would just state that the program failed.
-                        // Then we can use the filter option to zoom in one one to see why.
-                        assert!(
-                            fxhash::hash64(&program_1) == fxhash::hash64(&program_2),
-                            "optimization not idempotent for test program '{}'",
-                            package.name
-                        );
-                    }
+                    // Compare the whole content.
+                    similar_asserts::assert_eq!(
+                        serde_json::to_string_pretty(&program_1).unwrap(),
+                        serde_json::to_string_pretty(&program_2).unwrap(),
+                        "optimization not idempotent for test program '{}'",
+                        package.name
+                    );
+                } else {
+                    // Just compare hashes, which would just state that the program failed.
+                    // Then we can use the filter option to zoom in one one to see why.
+                    assert!(
+                        fxhash::hash64(&program_1) == fxhash::hash64(&program_2),
+                        "optimization not idempotent for test program '{}'",
+                        package.name
+                    );
                 }
-            });
+            }
+        });
     }
 }
