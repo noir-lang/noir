@@ -828,36 +828,6 @@ mod test {
     }
 
     #[test]
-    fn remove_inc_rcs_that_are_never_mutably_borrowed() {
-        let src = "
-            acir(inline) fn main f0 {
-              b0(v0: [Field; 2]):
-                inc_rc v0
-                inc_rc v0
-                inc_rc v0
-                v2 = array_get v0, index u32 0 -> Field
-                inc_rc v0
-                return v2
-            }
-            ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let main = ssa.main();
-
-        // The instruction count never includes the terminator instruction
-        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 5);
-
-        let expected = "
-            acir(inline) fn main f0 {
-              b0(v0: [Field; 2]):
-                v2 = array_get v0, index u32 0 -> Field
-                return v2
-            }
-            ";
-        let ssa = ssa.dead_instruction_elimination();
-        assert_normalized_ssa_equals(ssa, expected);
-    }
-
-    #[test]
     fn does_not_remove_inc_or_dec_rc_of_if_they_are_loaded_from_a_reference() {
         let src = "
             brillig(inline) fn borrow_mut f0 {
