@@ -320,13 +320,12 @@ pub(crate) fn get_target_width(
 mod tests {
     use std::path::{Path, PathBuf};
 
-    use acvm::acir::circuit::ExpressionWidth;
     use nargo::ops::compile_program;
     use nargo_toml::PackageSelection;
-    use noirc_driver::{CompileOptions, DEFAULT_EXPRESSION_WIDTH};
+    use noirc_driver::CompileOptions;
     use rayon::prelude::*;
 
-    use crate::cli::compile_cmd::{parse_workspace, read_workspace};
+    use crate::cli::compile_cmd::{get_target_width, parse_workspace, read_workspace};
 
     /// Try to find the directory that Cargo sets when it is running; otherwise fallback to assuming the CWD
     /// is the root of the repository and append the crate path
@@ -379,8 +378,7 @@ mod tests {
                 )
                 .expect("failed to compile");
 
-                // let width = DEFAULT_EXPRESSION_WIDTH;
-                let width = ExpressionWidth::default();
+                let width = get_target_width(package.expression_width, None);
 
                 let program = nargo::ops::transform_program(program, width);
                 let program_hash_1 = fxhash::hash64(&program);
