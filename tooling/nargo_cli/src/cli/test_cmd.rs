@@ -269,12 +269,6 @@ fn display_test_report(
                     compile_options.silence_warnings,
                 );
             }
-            TestStatus::Skipped => {
-                writer
-                    .set_color(ColorSpec::new().set_fg(Some(Color::Yellow)))
-                    .expect("Failed to set color");
-                writeln!(writer, "skipped").expect("Failed to write to stderr");
-            }
         }
         writer.reset().expect("Failed to reset writer");
     }
@@ -282,7 +276,7 @@ fn display_test_report(
     write!(writer, "[{}] ", package.name).expect("Failed to write to stderr");
 
     let count_failed = test_report.iter().filter(|(_, status)| status.failed()).count();
-    let count_passed = test_report.iter().filter(|(_, status)| status.pass()).count();
+    let count_passed = test_report.iter().filter(|(_, status)| status.passed()).count();
     let count_skipped = test_report.iter().filter(|(_, status)| status.skipped()).count();
     let plural_failed = if count_failed == 1 { "" } else { "s" };
     let plural_passed = if count_passed == 1 { "" } else { "s" };

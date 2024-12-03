@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use acvm::{
     acir::{
         brillig::ForeignCallResult,
+        circuit::brillig::OracleResult,
         native_types::{WitnessMap, WitnessStack},
     },
     pwg::ForeignCallWaitInfo,
@@ -67,11 +68,20 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
     match compile_no_check(context, config, test_function.get_id(), None, false) {
         Ok(compiled_program) => {
             if config.skip_oracle {
-                let has_oracle = compiled_program
-                    .program
-                    .unconstrained_functions
-                    .iter()
-                    .any(|func| func.has_oracle(ForeignCall::invalid_name));
+                let mut has_oracle = false;
+                for brillig_function in &compiled_program.program.unconstrained_functions {
+                    match brillig_function.get_oracle_status(ForeignCall::check_oracle_status) {
+                        OracleResult::Mocked => {
+                            has_oracle = false;
+                            break;
+                        }
+                        OracleResult::Unhandled => {
+                            has_oracle = true;
+                        }
+                        OracleResult::Handled => (),
+                    }
+                }
+
                 if has_oracle {
                     return TestStatus::Skipped;
                 }

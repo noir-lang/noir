@@ -1,6 +1,10 @@
 use std::path::PathBuf;
 
-use acvm::{acir::brillig::ForeignCallResult, pwg::ForeignCallWaitInfo, AcirField};
+use acvm::{
+    acir::{brillig::ForeignCallResult, circuit::brillig::OracleResult},
+    pwg::ForeignCallWaitInfo,
+    AcirField,
+};
 use mocker::MockForeignCallExecutor;
 use noirc_printable_type::ForeignCallError;
 use print::PrintForeignCallExecutor;
@@ -60,6 +64,20 @@ impl ForeignCall {
             "set_mock_times" => Some(ForeignCall::SetMockTimes),
             "clear_mock" => Some(ForeignCall::ClearMock),
             _ => None,
+        }
+    }
+
+    /// Returns the foreign call status based on its name:
+    /// create_mock => 'mocked'
+    /// valid ForeignCall name => 'handled'
+    /// otherwise => 'unhandled'
+    pub(crate) fn check_oracle_status(name: &str) -> OracleResult {
+        if name == ForeignCall::CreateMock.name() {
+            OracleResult::Mocked
+        } else if ForeignCall::lookup(name).is_some() {
+            OracleResult::Handled
+        } else {
+            OracleResult::Unhandled
         }
     }
 }
