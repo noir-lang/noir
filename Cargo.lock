@@ -2789,6 +2789,7 @@ dependencies = [
  "dirs",
  "file-lock",
  "fm",
+ "fxhash",
  "iai",
  "iter-extended",
  "lazy_static",
