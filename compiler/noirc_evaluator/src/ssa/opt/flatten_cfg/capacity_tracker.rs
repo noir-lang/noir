@@ -21,7 +21,7 @@ impl<'a> SliceCapacityTracker<'a> {
     pub(crate) fn collect_slice_information(
         &self,
         instruction: &Instruction,
-        slice_sizes: &mut HashMap<ValueId, usize>,
+        slice_sizes: &mut HashMap<ValueId, u32>,
         results: &[ValueId],
     ) {
         match instruction {
@@ -106,13 +106,12 @@ impl<'a> SliceCapacityTracker<'a> {
                         Intrinsic::ToBits(_) => {
                             // Compiler sanity check
                             assert!(matches!(self.dfg.type_of_value(result_slice), Type::Slice(_)));
-                            slice_sizes.insert(result_slice, FieldElement::max_num_bits() as usize);
+                            slice_sizes.insert(result_slice, FieldElement::max_num_bits());
                         }
                         Intrinsic::ToRadix(_) => {
                             // Compiler sanity check
                             assert!(matches!(self.dfg.type_of_value(result_slice), Type::Slice(_)));
-                            slice_sizes
-                                .insert(result_slice, FieldElement::max_num_bytes() as usize);
+                            slice_sizes.insert(result_slice, FieldElement::max_num_bytes());
                         }
                         Intrinsic::AsSlice => {
                             let array_size = self
@@ -157,7 +156,7 @@ impl<'a> SliceCapacityTracker<'a> {
     pub(crate) fn compute_slice_capacity(
         &self,
         array_id: ValueId,
-        slice_sizes: &mut HashMap<ValueId, usize>,
+        slice_sizes: &mut HashMap<ValueId, u32>,
     ) {
         if let Some((array, typ)) = self.dfg.get_array_constant(array_id) {
             // Compiler sanity check
@@ -165,7 +164,7 @@ impl<'a> SliceCapacityTracker<'a> {
             if let Type::Slice(_) = typ {
                 let element_size = typ.element_size();
                 let len = array.len() / element_size;
-                slice_sizes.insert(array_id, len);
+                slice_sizes.insert(array_id, len as u32);
             }
         }
     }
