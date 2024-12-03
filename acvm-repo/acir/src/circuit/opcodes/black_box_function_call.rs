@@ -9,13 +9,13 @@ use thiserror::Error;
 // Note: Some functions will not use all of the witness
 // So we need to supply how many bits of the witness is needed
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub enum ConstantOrWitnessEnum<F> {
     Constant(F),
     Witness(Witness),
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub struct FunctionInput<F> {
     input: ConstantOrWitnessEnum<F>,
     num_bits: u32,
@@ -79,7 +79,7 @@ impl<F: std::fmt::Display> std::fmt::Display for FunctionInput<F> {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub enum BlackBoxFuncCall<F> {
     AES128Encrypt {
         inputs: Vec<FunctionInput<F>>,

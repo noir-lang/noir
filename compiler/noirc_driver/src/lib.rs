@@ -340,6 +340,8 @@ pub fn compute_function_abi(
 ///
 /// On success this returns the compiled program alongside any warnings that were found.
 /// On error this returns the non-empty list of warnings and errors.
+///
+/// See [compile_no_check] for further information about the use of `cached_program`.
 pub fn compile_main(
     context: &mut Context,
     crate_id: CrateId,
@@ -561,6 +563,15 @@ pub const DEFAULT_EXPRESSION_WIDTH: ExpressionWidth = ExpressionWidth::Bounded {
 /// Compile the current crate using `main_function` as the entrypoint.
 ///
 /// This function assumes [`check_crate`] is called beforehand.
+///
+/// If the program is not returned from cache, it is backend-agnostic and must go through a transformation
+/// pass before usage in proof generation; if it's returned from cache these transformations might have
+/// already been applied.
+///
+/// The transformations are _not_ covered by the check that decides whether we can use the cached artifact.
+/// That comparison is based on on [CompiledProgram::hash] which is a persisted version of the hash of the input
+/// [`ast::Program`][noirc_frontend::monomorphization::ast::Program], whereas the output [`circuit::Program`][acir::circuit::Program]
+/// contains the final optimized ACIR opcodes, including the transformation done after this compilation.
 #[tracing::instrument(level = "trace", skip_all, fields(function_name = context.function_name(&main_function)))]
 pub fn compile_no_check(
     context: &mut Context,
@@ -575,8 +586,6 @@ pub fn compile_no_check(
         monomorphize(main_function, &mut context.def_interner)?
     };
 
-    let hash = fxhash::hash64(&program);
-    let hashes_match = cached_program.as_ref().map_or(false, |program| program.hash == hash);
     if options.show_monomorphized {
         println!("{program}");
     }
@@ -590,10 +599,16 @@ pub fn compile_no_check(
         || options.show_ssa
         || options.emit_ssa;
 
-    if !force_compile && hashes_match {
-        info!("Program matches existing artifact, returning early");
-        return Ok(cached_program.expect("cache must exist for hashes to match"));
+    // Hash the AST program, which is going to be used to fingerprint the compilation artifact.
+    let hash = fxhash::hash64(&program);
+
+    if let Some(cached_program) = cached_program {
+        if !force_compile && cached_program.hash == hash {
+            info!("Program matches existing artifact, returning early");
+            return Ok(cached_program);
+        }
     }
+
     let return_visibility = program.return_visibility;
     let ssa_evaluator_options = noirc_evaluator::ssa::SsaEvaluatorOptions {
         ssa_logging: match &options.show_ssa_pass_name {

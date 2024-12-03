@@ -7,7 +7,7 @@ pub struct BlockId(pub u32);
 
 /// Operation on a block of memory
 /// We can either write or read at an index in memory
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Debug)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Debug, Hash)]
 pub struct MemOp<F> {
     /// A constant expression that can be 0 (read) or 1 (write)
     pub operation: Expression<F>,
