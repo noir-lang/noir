@@ -204,7 +204,7 @@ pub(crate) fn optimize_into_plonky2(
     let main_function_signature: FunctionSignature = program.function_signatures[0].clone();
     let ssa = SsaBuilder::new(
         program,
-        options.enable_ssa_logging,
+        options.ssa_logging.clone(),
         false,
         options.print_codegen_timings,
         &options.emit_ssa,
