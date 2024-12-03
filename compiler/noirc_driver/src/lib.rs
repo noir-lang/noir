@@ -13,7 +13,7 @@ use noirc_abi::{AbiParameter, AbiType, AbiValue};
 use noirc_errors::{CustomDiagnostic, FileDiagnostic};
 use noirc_evaluator::create_program;
 use noirc_evaluator::errors::RuntimeError;
-use noirc_evaluator::ssa::SsaProgramArtifact;
+use noirc_evaluator::ssa::{SsaLogging, SsaProgramArtifact};
 use noirc_frontend::debug::build_debug_crate_file;
 use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
 use noirc_frontend::hir::Context;
@@ -69,6 +69,11 @@ pub struct CompileOptions {
     /// Emit debug information for the intermediate SSA IR to stdout
     #[arg(long, hide = true)]
     pub show_ssa: bool,
+
+    /// Only show SSA passes whose name contains the provided string.
+    /// This setting takes precedence over `show_ssa` if it's not empty.
+    #[arg(long, hide = true)]
+    pub show_ssa_pass_name: Option<String>,
 
     /// Emit the unoptimized SSA IR to file.
     /// The IR will be dumped into the workspace target directory,
@@ -589,7 +594,16 @@ pub fn compile_no_check(
     }
     let return_visibility = program.return_visibility;
     let ssa_evaluator_options = noirc_evaluator::ssa::SsaEvaluatorOptions {
-        enable_ssa_logging: options.show_ssa,
+        ssa_logging: match &options.show_ssa_pass_name {
+            Some(string) => SsaLogging::Contains(string.clone()),
+            None => {
+                if options.show_ssa {
+                    SsaLogging::All
+                } else {
+                    SsaLogging::None
+                }
+            }
+        },
         enable_brillig_logging: options.show_brillig,
         force_brillig_output: options.force_brillig,
         print_codegen_timings: options.benchmark_codegen,
