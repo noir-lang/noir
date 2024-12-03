@@ -116,7 +116,7 @@ impl P2Value {
     fn make_array(element_type: P2Type, targets: Vec<P2Target>) -> P2Value {
         P2Value {
             target: P2Target::ArrayTarget(targets.clone()),
-            typ: P2Type::Array(Box::new(element_type), targets.len()),
+            typ: P2Type::Array(Box::new(element_type), targets.len().try_into().unwrap()),
         }
     }
 
@@ -206,7 +206,7 @@ const FIELD_BIT_SIZE: u32 = 254;
 enum P2Type {
     Boolean,
     Integer(/* bit size */ u32, /* signed */ bool),
-    Array(Box<P2Type>, usize),
+    Array(Box<P2Type>, u32),
     Struct(Vec<P2Type>),
     Field,
 }
@@ -992,7 +992,7 @@ impl Builder {
                                 }
 
                                 let p2value = P2Value {
-                                    typ: P2Type::Array(Box::new(P2Type::Boolean), result.len()),
+                                    typ: P2Type::Array(Box::new(P2Type::Boolean), result.len().try_into().unwrap()),
                                     target: P2Target::ArrayTarget(result),
                                 };
 
