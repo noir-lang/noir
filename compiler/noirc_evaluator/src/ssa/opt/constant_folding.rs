@@ -453,6 +453,31 @@ impl<'brillig> Context<'brillig> {
             }
         }
 
+        // If we have an array get whose value is from an array set on the same array at the same index,
+        // we can simplify that array get to the value of the previous array set.
+        //
+        // For example:
+        // v3 = array_set v0, index v1, value v2
+        // v4 = array_get v3, index v1 -> Field
+        //
+        // We know that `v4` can be simplified to `v2`.
+        // Thus, even if the index is dynamic (meaning the array get would have side effects),
+        // we can simplify the operation when we take into account the predicate.
+        if let Instruction::ArraySet { index, value, .. } = &instruction {
+            let use_predicate =
+                self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
+            let predicate = use_predicate.then_some(side_effects_enabled_var);
+
+            let array_get = Instruction::ArrayGet { array: instruction_results[0], index: *index };
+
+            self.cached_instruction_results
+                .entry(array_get)
+                .or_default()
+                .entry(predicate)
+                .or_default()
+                .cache(block, vec![*value]);
+        }
+
         // If the instruction doesn't have side-effects and if it won't interact with enable_side_effects during acir_gen,
         // we cache the results so we can reuse them if the same instruction appears again later in the block.
         // Others have side effects representing failure, which are implicit in the ACIR code and can also be deduplicated.
@@ -1518,6 +1543,51 @@ mod test {
             inc_rc v10
             enable_side_effects v2
             return
+        }
+        ";
+        let ssa = ssa.fold_constants_using_constraints();
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn array_get_from_array_set_with_different_predicates() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3], v1: u32, v2: Field):
+            enable_side_effects u1 0
+            v4 = array_set v0, index v1, value v2
+            enable_side_effects u1 1
+            v6 = array_get v4, index v1 -> Field
+            return v6
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.fold_constants_using_constraints();
+        // We expect the code to be unchanged
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn array_get_from_array_set_same_predicates() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3], v1: u32, v2: Field):
+            enable_side_effects u1 1
+            v4 = array_set v0, index v1, value v2
+            v6 = array_get v4, index v1 -> Field
+            return v6
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let expected = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3], v1: u32, v2: Field):
+            enable_side_effects u1 1
+            v4 = array_set v0, index v1, value v2
+            return v2
         }
         ";
         let ssa = ssa.fold_constants_using_constraints();
