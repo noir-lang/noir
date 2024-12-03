@@ -465,7 +465,7 @@ impl<'brillig> Context<'brillig> {
         // we can simplify the operation when we take into account the predicate.
         if let Instruction::ArraySet { index, value, .. } = &instruction {
             let use_predicate =
-                self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
+                self.use_constraint_info && instruction.requires_acir_gen_predicate(&function.dfg);
             let predicate = use_predicate.then_some(side_effects_enabled_var);
 
             let array_get = Instruction::ArrayGet { array: instruction_results[0], index: *index };
