@@ -867,9 +867,11 @@ mod test {
                 v1 = not v0
                 enable_side_effects u1 1
                 v3 = cast v0 as Field
-                v5 = mul v3, Field -1
-                v7 = add Field 4, v5
-                return v7
+                v4 = cast v1 as Field
+                v6 = mul v3, Field 3
+                v8 = mul v4, Field 4
+                v9 = add v6, v8
+                return v9
             }
             ";
 
@@ -929,12 +931,14 @@ mod test {
               b0(v0: u1, v1: &mut Field):
                 enable_side_effects v0
                 v2 = load v1 -> Field
-                v3 = cast v0 as Field
-                v5 = sub Field 5, v2
-                v6 = mul v3, v5
-                v7 = add v2, v6
-                store v7 at v1
-                v8 = not v0
+                v3 = not v0
+                v4 = cast v0 as Field
+                v5 = cast v3 as Field
+                v7 = mul v4, Field 5
+                v8 = mul v5, v2
+                v9 = add v7, v8
+                store v9 at v1
+                v10 = not v0
                 enable_side_effects u1 1
                 return
             }
@@ -966,19 +970,22 @@ mod test {
               b0(v0: u1, v1: &mut Field):
                 enable_side_effects v0
                 v2 = load v1 -> Field
-                v3 = cast v0 as Field
-                v5 = sub Field 5, v2
-                v6 = mul v3, v5
-                v7 = add v2, v6
-                store v7 at v1
-                v8 = not v0
-                enable_side_effects v8
-                v9 = load v1 -> Field
-                v10 = cast v8 as Field
-                v12 = sub Field 6, v9
-                v13 = mul v10, v12
-                v14 = add v9, v13
-                store v14 at v1
+                v3 = not v0
+                v4 = cast v0 as Field
+                v5 = cast v3 as Field
+                v7 = mul v4, Field 5
+                v8 = mul v5, v2
+                v9 = add v7, v8
+                store v9 at v1
+                v10 = not v0
+                enable_side_effects v10
+                v11 = load v1 -> Field
+                v12 = cast v10 as Field
+                v13 = cast v0 as Field
+                v15 = mul v12, Field 6
+                v16 = mul v13, v11
+                v17 = add v15, v16
+                store v17 at v1
                 enable_side_effects u1 1
                 return
             }
@@ -1327,23 +1334,20 @@ mod test {
             v9 = add v7, Field 1
             v10 = cast v9 as u8
             v11 = load v6 -> u8
-            v12 = cast v4 as Field
-            v13 = cast v11 as Field
-            v14 = sub v9, v13
-            v15 = mul v12, v14
-            v16 = add v13, v15
-            v17 = cast v16 as u8
+            v12 = not v5
+            v13 = cast v4 as u8
+            v14 = cast v12 as u8
+            v15 = mul v13, v10
+            v16 = mul v14, v11
+            v17 = add v15, v16
             store v17 at v6
             v18 = not v5
             enable_side_effects v18
             v19 = load v6 -> u8
-            v20 = cast v18 as Field
-            v21 = cast v19 as Field
-            v23 = sub Field 0, v21
-            v24 = mul v20, v23
-            v25 = add v21, v24
-            v26 = cast v25 as u8
-            store v26 at v6
+            v20 = cast v18 as u8
+            v21 = cast v4 as u8
+            v22 = mul v21, v19
+            store v22 at v6
             enable_side_effects u1 1
             constrain v5 == u1 1
             return
