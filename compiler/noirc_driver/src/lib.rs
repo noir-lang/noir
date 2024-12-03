@@ -136,11 +136,19 @@ pub struct CompileOptions {
     #[arg(long)]
     pub skip_underconstrained_check: bool,
 
-    /// Setting to decide on an inlining strategy for brillig functions.
+    /// Setting to decide on an inlining strategy for Brillig functions.
     /// A more aggressive inliner should generate larger programs but more optimized
     /// A less aggressive inliner should generate smaller programs
     #[arg(long, hide = true, allow_hyphen_values = true, default_value_t = i64::MAX)]
     pub inliner_aggressiveness: i64,
+
+    /// Setting the maximum acceptable increase in Brillig bytecode size due to
+    /// unrolling small loops. When left empty, any change is accepted as long
+    /// as it required fewer SSA instructions.
+    /// A higher value results in fewer jumps but a larger program.
+    /// A lower value keeps the original program if it was smaller, even if it has more jumps.
+    #[arg(long, hide = true, allow_hyphen_values = true)]
+    pub max_bytecode_increase_percent: Option<i32>,
 }
 
 pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
@@ -614,6 +622,7 @@ pub fn compile_no_check(
         plonky2_print_file: options.plonky2_print_file.clone(),
         skip_underconstrained_check: options.skip_underconstrained_check,
         inliner_aggressiveness: options.inliner_aggressiveness,
+        max_bytecode_increase_percent: options.max_bytecode_increase_percent,
     };
 
     let SsaProgramArtifact { program, debug, warnings, names, brillig_names, error_types, .. } =
