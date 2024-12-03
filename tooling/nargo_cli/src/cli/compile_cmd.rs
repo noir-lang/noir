@@ -8,7 +8,9 @@ use nargo::ops::{collect_errors, compile_contract, compile_program, report_error
 use nargo::package::{CrateName, Package};
 use nargo::workspace::Workspace;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
-use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
+use nargo_toml::{
+    get_package_manifest, resolve_workspace_from_toml, ManifestError, PackageSelection,
+};
 use noirc_driver::DEFAULT_EXPRESSION_WIDTH;
 use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
 use noirc_driver::{CompilationResult, CompileOptions, CompiledContract};
@@ -44,16 +46,11 @@ pub(crate) struct CompileCommand {
 }
 
 pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliError> {
-    let toml_path = get_package_manifest(&config.program_dir)?;
     let default_selection =
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
     let selection = args.package.map_or(default_selection, PackageSelection::Selected);
 
-    let workspace = resolve_workspace_from_toml(
-        &toml_path,
-        selection,
-        Some(NOIR_ARTIFACT_VERSION_STRING.to_owned()),
-    )?;
+    let workspace = read_workspace(&config.program_dir, selection)?;
 
     if args.watch {
         watch_workspace(&workspace, &args.compile_options)
@@ -63,6 +60,22 @@ pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliEr
     }
 
     Ok(())
+}
+
+/// Read a given program directory into a workspace.
+fn read_workspace(
+    program_dir: &Path,
+    selection: PackageSelection,
+) -> Result<Workspace, ManifestError> {
+    let toml_path = get_package_manifest(program_dir)?;
+
+    let workspace = resolve_workspace_from_toml(
+        &toml_path,
+        selection,
+        Some(NOIR_ARTIFACT_VERSION_STRING.to_owned()),
+    )?;
+
+    Ok(workspace)
 }
 
 /// Continuously recompile the workspace on any Noir file change event.
@@ -109,15 +122,21 @@ fn watch_workspace(workspace: &Workspace, compile_options: &CompileOptions) -> n
     Ok(())
 }
 
+/// Parse all files in the workspace.
+fn parse_workspace(workspace: &Workspace) -> (FileManager, ParsedFiles) {
+    let mut file_manager = workspace.new_file_manager();
+    insert_all_files_for_workspace_into_file_manager(workspace, &mut file_manager);
+    let parsed_files = parse_all(&file_manager);
+    (file_manager, parsed_files)
+}
+
 /// Parse and compile the entire workspace, then report errors.
 /// This is the main entry point used by all other commands that need compilation.
 pub(super) fn compile_workspace_full(
     workspace: &Workspace,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError> {
-    let mut workspace_file_manager = workspace.new_file_manager();
-    insert_all_files_for_workspace_into_file_manager(workspace, &mut workspace_file_manager);
-    let parsed_files = parse_all(&workspace_file_manager);
+    let (workspace_file_manager, parsed_files) = parse_workspace(workspace);
 
     let compiled_workspace =
         compile_workspace(&workspace_file_manager, &parsed_files, workspace, compile_options);
@@ -294,5 +313,83 @@ pub(crate) fn get_target_width(
         manifest_default_width
     } else {
         compile_options_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::{Path, PathBuf};
+
+    use acvm::acir::circuit::ExpressionWidth;
+    use nargo::ops::compile_program;
+    use nargo_toml::PackageSelection;
+    use noirc_driver::CompileOptions;
+
+    use crate::cli::compile_cmd::{parse_workspace, read_workspace};
+
+    /// Try to find the directory that Cargo sets when it is running; otherwise fallback to assuming the CWD
+    /// is the root of the repository and append the crate path
+    fn test_programs_dir() -> PathBuf {
+        let root_dir = match std::env::var("CARGO_MANIFEST_DIR") {
+            Ok(dir) => PathBuf::from(dir).parent().unwrap().parent().unwrap().to_path_buf(),
+            Err(_) => std::env::current_dir().unwrap(),
+        };
+        root_dir.join("test_programs")
+    }
+
+    /// Collect the test programs under a sub-directory.
+    fn read_test_program_dirs(
+        test_programs_dir: &Path,
+        test_sub_dir: &str,
+    ) -> impl Iterator<Item = PathBuf> {
+        let test_case_dir = test_programs_dir.join(test_sub_dir);
+        std::fs::read_dir(test_case_dir)
+            .unwrap()
+            .flatten()
+            .filter(|c| c.path().is_dir())
+            .map(|c| c.path())
+            .into_iter()
+    }
+
+    /// Check that `nargo::ops::transform_program` is idempotent by compiling the
+    /// test programs and running them through the optimizer twice.
+    ///
+    /// This test is here purely because of the convenience of having access to
+    /// the utility functions to process workspaces.
+    #[test]
+    fn test_transform_program_is_idempotent() {
+        let test_workspaces = read_test_program_dirs(&test_programs_dir(), "execution_success")
+            .filter_map(|dir| read_workspace(&dir, PackageSelection::DefaultOrAll).ok())
+            .collect::<Vec<_>>();
+
+        assert!(!test_workspaces.is_empty(), "should find some test workspaces");
+
+        for workspace in test_workspaces {
+            let (file_manager, parsed_files) = parse_workspace(&workspace);
+            let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
+
+            for package in binary_packages {
+                let (program, _warnings) = compile_program(
+                    &file_manager,
+                    &parsed_files,
+                    &workspace,
+                    package,
+                    &CompileOptions::default(),
+                    None,
+                )
+                .expect("failed to compile");
+
+                let program = nargo::ops::transform_program(program, ExpressionWidth::default());
+                let program_hash_1 = fxhash::hash64(&program);
+                let program = nargo::ops::transform_program(program, ExpressionWidth::default());
+                let program_hash_2 = fxhash::hash64(&program);
+
+                assert_eq!(
+                    program_hash_1, program_hash_2,
+                    "optimization not idempotent for test program '{}'",
+                    package.name
+                )
+            }
+        }
     }
 }
