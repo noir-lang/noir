@@ -164,6 +164,12 @@ pub struct Elaborator<'context> {
     unresolved_globals: BTreeMap<GlobalId, UnresolvedGlobal>,
 
     pub(crate) interpreter_call_stack: im::Vector<Location>,
+
+    /// If greater than 0, field visibility errors won't be reported.
+    /// This is used when elaborating a comptime expression that is a struct constructor
+    /// like `Foo { inner: 5 }`: in that case we already elaborated the code that led to
+    /// that comptime value and any visibility errors were already reported.
+    silence_field_visibility_errors: usize,
 }
 
 #[derive(Default)]
@@ -213,6 +219,7 @@ impl<'context> Elaborator<'context> {
             current_trait: None,
             interpreter_call_stack,
             in_comptime_context: false,
+            silence_field_visibility_errors: 0,
         }
     }
 
