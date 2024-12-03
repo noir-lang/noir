@@ -307,13 +307,13 @@ impl DataFlowGraph {
         instruction_id: InstructionId,
         ctrl_typevars: Option<Vec<Type>>,
     ) {
-        self.results.insert(instruction_id, Default::default());
+        let result_types = self.instruction_result_types(instruction_id, ctrl_typevars);
+        let results = vecmap(result_types.into_iter().enumerate(), |(position, typ)| {
+            let instruction = instruction_id;
+            self.values.insert(Value::Instruction { typ, position, instruction })
+        });
 
-        // Get all of the types that this instruction produces
-        // and append them as results.
-        for typ in self.instruction_result_types(instruction_id, ctrl_typevars) {
-            self.append_result(instruction_id, typ);
-        }
+        self.results.insert(instruction_id, results);
     }
 
     /// Return the result types of this instruction.
@@ -368,22 +368,6 @@ impl DataFlowGraph {
     /// Using this method over type_of_value avoids cloning the value's type.
     pub(crate) fn value_is_reference(&self, value: ValueId) -> bool {
         matches!(self.values[value].get_type(), Type::Reference(_))
-    }
-
-    /// Appends a result type to the instruction.
-    pub(crate) fn append_result(&mut self, instruction_id: InstructionId, typ: Type) -> ValueId {
-        let results = self.results.get_mut(&instruction_id).unwrap();
-        let expected_res_position = results.len();
-
-        let value_id = self.values.insert(Value::Instruction {
-            typ,
-            position: expected_res_position,
-            instruction: instruction_id,
-        });
-
-        // Add value to the list of results for this instruction
-        results.push(value_id);
-        value_id
     }
 
     /// Replaces an instruction result with a fresh id.
@@ -463,7 +447,7 @@ impl DataFlowGraph {
 
     /// If this value is an array, return the length of the array as indicated by its type.
     /// Otherwise, return None.
-    pub(crate) fn try_get_array_length(&self, value: ValueId) -> Option<usize> {
+    pub(crate) fn try_get_array_length(&self, value: ValueId) -> Option<u32> {
         match self.type_of_value(value) {
             Type::Array(_, length) => Some(length),
             _ => None,
