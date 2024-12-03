@@ -256,7 +256,7 @@ Creates a new BoundedVec from the given array and length.
 The given length must be less than or equal to the length of the array.
 
 This function will zero out any elements at or past index `len` of `array`.
-This incurs extra runtime cost of O(MaxLen). If you are sure your array is
+This incurs an extra runtime cost of O(MaxLen). If you are sure your array is
 zeroed after that index, you can use `from_parts_unchecked` to remove the extra loop.
 
 Example:
