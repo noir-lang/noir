@@ -251,7 +251,6 @@ fn compiled_contracts(
     compile_options: &CompileOptions,
     target_dir: &Path,
 ) -> CompilationResult<()> {
-    // TODO(6669): Should we look for cached artifacts?
     let contract_results: Vec<CompilationResult<()>> = contract_packages
         .par_iter()
         .map(|package| {
@@ -260,7 +259,6 @@ fn compiled_contracts(
             let target_width =
                 get_target_width(package.expression_width, compile_options.expression_width);
             let contract = nargo::ops::transform_contract(contract, target_width);
-            // TODO(6669): Should the circuits in the contracts run through the simulator?
             save_contract(contract, package, target_dir, compile_options.show_artifact_paths);
             Ok(((), warnings))
         })
