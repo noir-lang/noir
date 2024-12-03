@@ -223,11 +223,21 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *span,
                 )
             }
-            ResolverError::VariableNotDeclared { name, span } => Diagnostic::simple_error(
-                format!("cannot find `{name}` in this scope "),
-                "not found in this scope".to_string(),
-                *span,
-            ),
+            ResolverError::VariableNotDeclared { name, span } =>  {
+                if name == "_" {
+                    Diagnostic::simple_error(
+                        "in expressions, `_` can only be used on the left-hand side of an assignment".to_string(),
+                        "`_` not allowed here".to_string(),
+                        *span,
+                    )
+                } else {
+                    Diagnostic::simple_error(
+                        format!("cannot find `{name}` in this scope"),
+                        "not found in this scope".to_string(),
+                        *span,
+                    )
+                }
+            },
             ResolverError::PathIsNotIdent { span } => Diagnostic::simple_error(
                 "cannot use path as an identifier".to_string(),
                 String::new(),

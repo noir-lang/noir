@@ -571,7 +571,7 @@ impl<'a> Context<'a> {
                 AcirValue::Array(_) => {
                     let block_id = self.block_id(param_id);
                     let len = if matches!(typ, Type::Array(_, _)) {
-                        typ.flattened_size()
+                        typ.flattened_size() as usize
                     } else {
                         return Err(InternalError::Unexpected {
                             expected: "Block params should be an array".to_owned(),
@@ -816,7 +816,9 @@ impl<'a> Context<'a> {
                                 let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
                                 let output_count = result_ids
                                     .iter()
-                                    .map(|result_id| dfg.type_of_value(*result_id).flattened_size())
+                                    .map(|result_id| {
+                                        dfg.type_of_value(*result_id).flattened_size() as usize
+                                    })
                                     .sum();
 
                                 let Some(acir_function_id) =
@@ -948,7 +950,7 @@ impl<'a> Context<'a> {
                 let block_id = self.block_id(&array_id);
                 let array_typ = dfg.type_of_value(array_id);
                 let len = if matches!(array_typ, Type::Array(_, _)) {
-                    array_typ.flattened_size()
+                    array_typ.flattened_size() as usize
                 } else {
                     Self::flattened_value_size(&output)
                 };
@@ -1444,7 +1446,7 @@ impl<'a> Context<'a> {
         // a separate SSA value and restrictions on slice indices should be generated elsewhere in the SSA.
         let array_typ = dfg.type_of_value(array);
         let array_len = if !array_typ.contains_slice_element() {
-            array_typ.flattened_size()
+            array_typ.flattened_size() as usize
         } else {
             self.flattened_slice_size(array, dfg)
         };
@@ -1539,7 +1541,7 @@ impl<'a> Context<'a> {
                     let value = self.convert_value(array, dfg);
                     let array_typ = dfg.type_of_value(array);
                     let len = if !array_typ.contains_slice_element() {
-                        array_typ.flattened_size()
+                        array_typ.flattened_size() as usize
                     } else {
                         self.flattened_slice_size(array, dfg)
                     };
@@ -1810,7 +1812,7 @@ impl<'a> Context<'a> {
 
         return_values
             .iter()
-            .fold(0, |acc, value_id| acc + dfg.type_of_value(*value_id).flattened_size())
+            .fold(0, |acc, value_id| acc + dfg.type_of_value(*value_id).flattened_size() as usize)
     }
 
     /// Converts an SSA terminator's return values into their ACIR representations
@@ -2156,7 +2158,7 @@ impl<'a> Context<'a> {
                 let inputs = vecmap(&arguments_no_slice_len, |arg| self.convert_value(*arg, dfg));
 
                 let output_count = result_ids.iter().fold(0usize, |sum, result_id| {
-                    sum + dfg.try_get_array_length(*result_id).unwrap_or(1)
+                    sum + dfg.try_get_array_length(*result_id).unwrap_or(1) as usize
                 });
 
                 let vars = self.acir_context.black_box_function(black_box, inputs, output_count)?;
@@ -2180,7 +2182,7 @@ impl<'a> Context<'a> {
                         endian,
                         field,
                         radix,
-                        array_length as u32,
+                        array_length,
                         result_type[0].clone().into(),
                     )
                     .map(|array| vec![array])
@@ -2194,12 +2196,7 @@ impl<'a> Context<'a> {
                 };
 
                 self.acir_context
-                    .bit_decompose(
-                        endian,
-                        field,
-                        array_length as u32,
-                        result_type[0].clone().into(),
-                    )
+                    .bit_decompose(endian, field, array_length, result_type[0].clone().into())
                     .map(|array| vec![array])
             }
             Intrinsic::ArrayLen => {
@@ -2220,7 +2217,7 @@ impl<'a> Context<'a> {
                 let acir_value = self.convert_value(slice_contents, dfg);
 
                 let array_len = if !slice_typ.contains_slice_element() {
-                    slice_typ.flattened_size()
+                    slice_typ.flattened_size() as usize
                 } else {
                     self.flattened_slice_size(slice_contents, dfg)
                 };

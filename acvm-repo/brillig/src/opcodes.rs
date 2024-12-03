@@ -56,7 +56,7 @@ impl MemoryAddress {
 }
 
 /// Describes the memory layout for an array/vector element
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, Hash)]
 pub enum HeapValueType {
     // A single field element is enough to represent the value with a given bit size
     Simple(BitSize),
@@ -81,7 +81,7 @@ impl HeapValueType {
 }
 
 /// A fixed-sized array starting from a Brillig memory location.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy, Hash)]
 pub struct HeapArray {
     pub pointer: MemoryAddress,
     pub size: usize,
@@ -94,13 +94,13 @@ impl Default for HeapArray {
 }
 
 /// A memory-sized vector passed starting from a Brillig memory location and with a memory-held size
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy, Hash)]
 pub struct HeapVector {
     pub pointer: MemoryAddress,
     pub size: MemoryAddress,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy, PartialOrd, Ord, Hash)]
 pub enum IntegerBitSize {
     U1,
     U8,
@@ -152,7 +152,7 @@ impl std::fmt::Display for IntegerBitSize {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy, PartialOrd, Ord, Hash)]
 pub enum BitSize {
     Field,
     Integer(IntegerBitSize),
@@ -181,7 +181,7 @@ impl BitSize {
 /// While we are usually agnostic to how memory is passed within Brillig,
 /// this needs to be encoded somehow when dealing with an external system.
 /// For simplicity, the extra type information is given right in the ForeignCall instructions.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy, Hash)]
 pub enum ValueOrArray {
     /// A single value passed to or from an external call
     /// It is an 'immediate' value - used without dereferencing.
@@ -198,7 +198,7 @@ pub enum ValueOrArray {
     HeapVector(HeapVector),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub enum BrilligOpcode<F> {
     /// Takes the fields in addresses `lhs` and `rhs`
     /// Performs the specified binary operation
@@ -314,7 +314,7 @@ pub enum BrilligOpcode<F> {
 }
 
 /// Binary fixed-length field expressions
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub enum BinaryFieldOp {
     Add,
     Sub,
@@ -332,7 +332,7 @@ pub enum BinaryFieldOp {
 }
 
 /// Binary fixed-length integer expressions
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub enum BinaryIntOp {
     Add,
     Sub,

@@ -2789,6 +2789,7 @@ dependencies = [
  "dirs",
  "file-lock",
  "fm",
+ "fxhash",
  "iai",
  "iter-extended",
  "lazy_static",
@@ -3151,6 +3152,7 @@ dependencies = [
  "serde_json",
  "serde_with",
  "similar-asserts",
+ "test-case",
  "thiserror",
  "tracing",
 ]

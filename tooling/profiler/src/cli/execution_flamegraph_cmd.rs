@@ -8,7 +8,7 @@ use crate::flamegraph::{BrilligExecutionSample, FlamegraphGenerator, InfernoFlam
 use crate::fs::{read_inputs_from_file, read_program_from_file};
 use crate::opcode_formatter::format_brillig_opcode;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
-use nargo::ops::DefaultForeignCallExecutor;
+use nargo::foreign_calls::DefaultForeignCallExecutor;
 use noirc_abi::input_parser::Format;
 use noirc_artifacts::debug::DebugArtifact;
 
