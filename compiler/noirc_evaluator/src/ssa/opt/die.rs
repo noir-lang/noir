@@ -141,7 +141,7 @@ impl Context {
             rc_tracker.track_inc_rcs_to_remove(*instruction_id, function);
         }
 
-        // self.instructions_to_remove.extend(rc_tracker.get_non_mutated_arrays());
+        self.instructions_to_remove.extend(rc_tracker.get_non_mutated_arrays(&function.dfg));
         self.instructions_to_remove.extend(rc_tracker.rc_pairs_to_remove);
 
         // If there are some instructions that might trigger an out of bounds error,
@@ -340,7 +340,8 @@ impl Context {
     }
 
     /// True if this is a `Instruction::IncrementRc` or `Instruction::DecrementRc`
-    /// operating on an array directly from a `Instruction::MakeArray`.
+    /// operating on an array directly from a `Instruction::MakeArray` or an
+    /// intrinsic known to return a fresh array.
     fn is_inc_dec_instruction_on_known_array(
         instruction: &Instruction,
         dfg: &DataFlowGraph,
@@ -348,7 +349,13 @@ impl Context {
         use Instruction::*;
         if let IncrementRc { value } | DecrementRc { value } = instruction {
             if let Value::Instruction { instruction, .. } = &dfg[*value] {
-                return matches!(&dfg[*instruction], MakeArray { .. });
+                return match &dfg[*instruction] {
+                    MakeArray { .. } => true,
+                    Call { func, .. } => {
+                        matches!(&dfg[*func], Value::Intrinsic(_) | Value::ForeignFunction(_))
+                    }
+                    _ => false,
+                };
             }
         }
         false
@@ -529,7 +536,7 @@ struct RcTracker {
     // We also separately track all IncrementRc instructions and all arrays which have been mutably borrowed.
     // If an array has not been mutably borrowed we can then safely remove all IncrementRc instructions on that array.
     inc_rcs: HashMap<ValueId, HashSet<InstructionId>>,
-    mut_borrowed_arrays: HashSet<ValueId>,
+    mutated_array_types: HashSet<Type>,
     // The SSA often creates patterns where after simplifications we end up with repeat
     // IncrementRc instructions on the same value. We track whether the previous instruction was an IncrementRc,
     // and if the current instruction is also an IncrementRc on the same value we remove the current instruction.
@@ -583,25 +590,28 @@ impl RcTracker {
                     }
                 }
 
-                self.mut_borrowed_arrays.insert(*array);
+                self.mutated_array_types.insert(typ);
             }
             Instruction::Store { value, .. } => {
-                // We are very conservative and say that any store of an array value means it has the potential
-                // to be mutated. This is done due to the tracking of mutable borrows still being per block.
+                // We are very conservative and say that any store of an array value means that any
+                // array of that type has the potential to be mutated. This is done due to the
+                // tracking of mutable borrows still being per block and that we don't have the
+                // aliasing information from mem2reg.
                 let typ = function.dfg.type_of_value(*value);
                 if matches!(&typ, Type::Array(..) | Type::Slice(..)) {
-                    self.mut_borrowed_arrays.insert(*value);
+                    self.mutated_array_types.insert(typ);
                 }
             }
             _ => {}
         }
     }
 
-    fn get_non_mutated_arrays(&self) -> HashSet<InstructionId> {
+    fn get_non_mutated_arrays(&self, dfg: &DataFlowGraph) -> HashSet<InstructionId> {
         self.inc_rcs
             .keys()
             .filter_map(|value| {
-                if !self.mut_borrowed_arrays.contains(value) {
+                let typ = dfg.type_of_value(*value);
+                if !self.mutated_array_types.contains(&typ) {
                     Some(&self.inc_rcs[value])
                 } else {
                     None
@@ -873,5 +883,26 @@ mod test {
             ";
         let ssa = ssa.dead_instruction_elimination();
         assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn does_not_remove_inc_or_dec_rc_of_if_they_are_loaded_from_a_reference() {
+        let src = "
+            brillig(inline) fn borrow_mut f0 {
+              b0(v0: &mut [Field; 3]):
+                v1 = load v0 -> [Field; 3]
+                inc_rc v1 // this one shouldn't be removed
+                v2 = load v0 -> [Field; 3]
+                inc_rc v2 // this one shouldn't be removed
+                v3 = load v0 -> [Field; 3]
+                v6 = array_set v3, index u32 0, value Field 5
+                store v6 at v0
+                dec_rc v6
+                return
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.dead_instruction_elimination();
+        assert_normalized_ssa_equals(ssa, src);
     }
 }
