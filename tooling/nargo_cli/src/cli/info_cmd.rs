@@ -4,7 +4,7 @@ use clap::Args;
 use iter_extended::vecmap;
 use nargo::{
     constants::PROVER_INPUT_FILE,
-    ops::DefaultForeignCallExecutor,
+    foreign_calls::DefaultForeignCallExecutor,
     package::{CrateName, Package},
 };
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
