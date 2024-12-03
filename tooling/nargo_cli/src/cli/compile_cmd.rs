@@ -169,7 +169,7 @@ fn compile_workspace(
     let program_warnings_or_errors: CompilationResult<()> =
         compile_programs(file_manager, parsed_files, workspace, &binary_packages, compile_options);
 
-    let contract_warnings_or_errors: CompilationResult<()> = compiled_contracts(
+    let contract_warnings_or_errors: CompilationResult<()> = compile_contracts(
         file_manager,
         parsed_files,
         &contract_packages,
@@ -263,7 +263,7 @@ fn compile_programs(
 }
 
 /// Compile the given contracts in the workspace.
-fn compiled_contracts(
+fn compile_contracts(
     file_manager: &FileManager,
     parsed_files: &ParsedFiles,
     contract_packages: &[Package],
@@ -324,6 +324,7 @@ mod tests {
     use nargo::ops::compile_program;
     use nargo_toml::PackageSelection;
     use noirc_driver::CompileOptions;
+    use rayon::prelude::*;
 
     use crate::cli::compile_cmd::{parse_workspace, read_workspace};
 
@@ -364,7 +365,7 @@ mod tests {
 
         assert!(!test_workspaces.is_empty(), "should find some test workspaces");
 
-        for workspace in test_workspaces {
+        test_workspaces.par_iter().for_each(|workspace| {
             let (file_manager, parsed_files) = parse_workspace(&workspace);
             let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
 
@@ -388,8 +389,8 @@ mod tests {
                     program_hash_1, program_hash_2,
                     "optimization not idempotent for test program '{}'",
                     package.name
-                )
+                );
             }
-        }
+        });
     }
 }
