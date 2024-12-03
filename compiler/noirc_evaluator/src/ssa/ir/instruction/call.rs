@@ -60,7 +60,9 @@ pub(super) fn simplify_call(
                 } else {
                     unreachable!("ICE: Intrinsic::ToRadix return type must be array")
                 };
-                constant_to_radix(endian, field, 2, limb_count, dfg, block, call_stack)
+                constant_to_radix(endian, field, 2, limb_count, |values| {
+                    make_constant_array(dfg, values.into_iter(), Type::bool(), block, call_stack)
+                })
             } else {
                 SimplifyResult::None
             }
@@ -75,7 +77,15 @@ pub(super) fn simplify_call(
                 } else {
                     unreachable!("ICE: Intrinsic::ToRadix return type must be array")
                 };
-                constant_to_radix(endian, field, radix, limb_count, dfg, block, call_stack)
+                constant_to_radix(endian, field, radix, limb_count, |values| {
+                    make_constant_array(
+                        dfg,
+                        values.into_iter(),
+                        Type::unsigned(8),
+                        block,
+                        call_stack,
+                    )
+                })
             } else {
                 SimplifyResult::None
             }
@@ -661,9 +671,7 @@ fn constant_to_radix(
     field: FieldElement,
     radix: u32,
     limb_count: u32,
-    dfg: &mut DataFlowGraph,
-    block: BasicBlockId,
-    call_stack: &CallStack,
+    mut make_array: impl FnMut(Vec<FieldElement>) -> ValueId,
 ) -> SimplifyResult {
     let bit_size = u32::BITS - (radix - 1).leading_zeros();
     let radix_big = BigUint::from(radix);
@@ -684,13 +692,7 @@ fn constant_to_radix(
         if endian == Endian::Big {
             limbs.reverse();
         }
-        let result_array = make_constant_array(
-            dfg,
-            limbs.into_iter(),
-            Type::unsigned(bit_size),
-            block,
-            call_stack,
-        );
+        let result_array = make_array(limbs);
         SimplifyResult::SimplifiedTo(result_array)
     }
 }
