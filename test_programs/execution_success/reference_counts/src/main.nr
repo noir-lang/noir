@@ -1,6 +1,6 @@
 fn main() {
     let mut array = [0, 1, 2];
-    assert_refcount(array, 2);
+    assert_refcount(array, 1);
 
     borrow(array, std::mem::array_refcount(array));
     borrow_mut(&mut array, std::mem::array_refcount(array));
