@@ -25,6 +25,7 @@ toml.workspace = true
 [dependencies]
 clap.workspace = true
 fm.workspace = true
+fxhash.workspace = true
 iter-extended.workspace = true
 nargo.workspace = true
 nargo_fmt.workspace = true

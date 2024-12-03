@@ -20,7 +20,7 @@ use crate::{
     errors::try_to_diagnose_runtime_error,
     foreign_calls::{
         mocker::MockForeignCallExecutor, print::PrintForeignCallExecutor,
-        rpc::RPCForeignCallExecutor, DefaultForeignCallExecutor, ForeignCall, ForeignCallExecutor,
+        rpc::RPCForeignCallExecutor, ForeignCall, ForeignCallExecutor,
     },
     NargoError,
 };
@@ -124,7 +124,7 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
                                 program,
                                 initial_witness,
                                 blackbox_solver,
-                                &mut DefaultForeignCallExecutor::<FieldElement>::new(
+                                &mut TestForeignCallExecutor::<FieldElement>::new(
                                     false,
                                     foreign_call_resolver_url,
                                     root_path.clone(),
