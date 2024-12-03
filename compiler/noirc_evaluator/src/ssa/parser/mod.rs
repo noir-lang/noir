@@ -656,7 +656,7 @@ impl<'a> Parser<'a> {
             if self.eat(Token::Semicolon)? {
                 let length = self.eat_int_or_error()?;
                 self.eat_or_error(Token::RightBracket)?;
-                return Ok(Type::Array(Arc::new(element_types), length.to_u128() as usize));
+                return Ok(Type::Array(Arc::new(element_types), length.to_u128() as u32));
             } else {
                 self.eat_or_error(Token::RightBracket)?;
                 return Ok(Type::Slice(Arc::new(element_types)));

@@ -59,7 +59,7 @@ impl FunctionContext {
                 vecmap(item_type.iter(), |item_typ| {
                     FunctionContext::ssa_type_to_parameter(item_typ)
                 }),
-                *size,
+                *size as usize,
             ),
             Type::Slice(_) => {
                 panic!("ICE: Slice parameters cannot be derived from type information")
