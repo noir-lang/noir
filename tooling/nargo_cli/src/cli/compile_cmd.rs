@@ -189,6 +189,12 @@ fn compile_programs(
     };
 
     let compile_package = |package| {
+        let cached_program = load_cached_program(package);
+
+        // Hash over the entire compiled program, including any post-compile transformations.
+        // This is used to detect whether `cached_program` is returned by `compile_program`.
+        let cached_hash = cached_program.as_ref().map(fxhash::hash64);
+
         // Compile the program, or use the cached artifacts if it matches.
         let (program, warnings) = compile_program(
             file_manager,
@@ -196,11 +202,27 @@ fn compile_programs(
             workspace,
             package,
             compile_options,
-            load_cached_program(package),
+            cached_program,
         )?;
+
         // Choose the target width for the final, backend specific transformation.
         let target_width =
             get_target_width(package.expression_width, compile_options.expression_width);
+
+        // If the compiled program is the same as the cached one, we don't apply transformations again, unless the target width has changed.
+        // The transformations might not be idempotent, which would risk creating witnesses that don't work with earlier versions,
+        // based on which we might have generated a verifier already.
+        if cached_hash == Some(fxhash::hash64(&program)) {
+            let width_matches = program
+                .program
+                .functions
+                .iter()
+                .all(|circuit| circuit.expression_width == target_width);
+
+            if width_matches {
+                return Ok(((), warnings));
+            }
+        }
         // Run ACVM optimizations and set the target width.
         let program = nargo::ops::transform_program(program, target_width);
         // Check solvability.
