@@ -3740,49 +3740,154 @@ fn allows_struct_with_generic_infix_type_as_main_input_3() {
 }
 
 #[test]
-fn disallows_test_attribute_on_impl_method() {
+fn errors_with_better_message_when_trying_to_invoke_struct_field_that_is_a_function() {
     let src = r#"
-    pub struct Foo {}
-    impl Foo {
-        #[test]
-        fn foo() {}
-    }
+        pub struct Foo {
+            wrapped: fn(Field) -> bool,
+        }
 
-    fn main() {}
+        impl Foo {
+            fn call(self) -> bool {
+                self.wrapped(1)
+            }
+        }
+
+        fn main() {}
     "#;
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
 
-    assert!(matches!(
-        errors[0].0,
-        CompilationError::DefinitionError(DefCollectorErrorKind::TestOnAssociatedFunction {
-            span: _
-        })
-    ));
+    let CompilationError::TypeError(TypeCheckError::CannotInvokeStructFieldFunctionType {
+        method_name,
+        ..
+    }) = &errors[0].0
+    else {
+        panic!("Expected a 'CannotInvokeStructFieldFunctionType' error, got {:?}", errors[0].0);
+    };
+
+    assert_eq!(method_name, "wrapped");
+}
+
+fn test_disallows_attribute_on_impl_method(
+    attr: &str,
+    check_error: impl FnOnce(&CompilationError),
+) {
+    let src = format!(
+        "
+        pub struct Foo {{ }}
+
+        impl Foo {{
+            #[{attr}]
+            fn foo() {{ }}
+        }}
+
+        fn main() {{ }}
+    "
+    );
+    let errors = get_program_errors(&src);
+    assert_eq!(errors.len(), 1);
+    check_error(&errors[0].0);
+}
+
+fn test_disallows_attribute_on_trait_impl_method(
+    attr: &str,
+    check_error: impl FnOnce(&CompilationError),
+) {
+    let src = format!(
+        "
+        pub trait Trait {{
+            fn foo() {{ }}
+        }}
+
+        pub struct Foo {{ }}
+
+        impl Trait for Foo {{
+            #[{attr}]
+            fn foo() {{ }}
+        }}
+
+        fn main() {{ }}
+    "
+    );
+    let errors = get_program_errors(&src);
+    assert_eq!(errors.len(), 1);
+    check_error(&errors[0].0);
+}
+
+#[test]
+fn disallows_test_attribute_on_impl_method() {
+    test_disallows_attribute_on_impl_method("test", |error| {
+        assert!(matches!(
+            error,
+            CompilationError::DefinitionError(
+                DefCollectorErrorKind::TestOnAssociatedFunction { .. }
+            )
+        ));
+    });
 }
 
 #[test]
 fn disallows_test_attribute_on_trait_impl_method() {
+    test_disallows_attribute_on_trait_impl_method("test", |error| {
+        assert!(matches!(
+            error,
+            CompilationError::DefinitionError(
+                DefCollectorErrorKind::TestOnAssociatedFunction { .. }
+            )
+        ));
+    });
+}
+
+#[test]
+fn disallows_export_attribute_on_impl_method() {
+    test_disallows_attribute_on_impl_method("export", |error| {
+        assert!(matches!(
+            error,
+            CompilationError::DefinitionError(
+                DefCollectorErrorKind::ExportOnAssociatedFunction { .. }
+            )
+        ));
+    });
+}
+
+#[test]
+fn disallows_export_attribute_on_trait_impl_method() {
+    test_disallows_attribute_on_trait_impl_method("export", |error| {
+        assert!(matches!(
+            error,
+            CompilationError::DefinitionError(
+                DefCollectorErrorKind::ExportOnAssociatedFunction { .. }
+            )
+        ));
+    });
+}
+
+#[test]
+fn allows_multiple_underscore_parameters() {
     let src = r#"
-    pub trait Trait {
-        fn foo() {}
-    }
+        pub fn foo(_: i32, _: i64) {}
 
-    pub struct Foo {}
-    impl Trait for Foo {
-        #[test]
-        fn foo() {}
-    }
+        fn main() {}
+    "#;
+    assert_no_errors(src);
+}
 
-    fn main() {}
+#[test]
+fn disallows_underscore_on_right_hand_side() {
+    let src = r#"
+        fn main() {
+            let _ = 1;
+            let _x = _;
+        }
     "#;
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
 
-    assert!(matches!(
-        errors[0].0,
-        CompilationError::DefinitionError(DefCollectorErrorKind::TestOnAssociatedFunction {
-            span: _
-        })
-    ));
+    let CompilationError::ResolverError(ResolverError::VariableNotDeclared { name, .. }) =
+        &errors[0].0
+    else {
+        panic!("Expected a VariableNotDeclared error, got {:?}", errors[0].0);
+    };
+
+    assert_eq!(name, "_");
 }

@@ -1,27 +1,42 @@
 use std::path::PathBuf;
 
 use acvm::{
-    acir::native_types::{WitnessMap, WitnessStack},
-    BlackBoxFunctionSolver, FieldElement,
+    acir::{
+        brillig::ForeignCallResult,
+        native_types::{WitnessMap, WitnessStack},
+    },
+    pwg::ForeignCallWaitInfo,
+    AcirField, BlackBoxFunctionSolver, FieldElement,
 };
 use noirc_abi::Abi;
 use noirc_driver::{compile_no_check, CompileError, CompileOptions};
 use noirc_errors::{debug_info::DebugInfo, FileDiagnostic};
 use noirc_frontend::hir::{def_map::TestFunction, Context};
+use noirc_printable_type::ForeignCallError;
+use rand::Rng;
+use serde::{Deserialize, Serialize};
 
-use crate::{errors::try_to_diagnose_runtime_error, NargoError};
+use crate::{
+    errors::try_to_diagnose_runtime_error,
+    foreign_calls::{
+        mocker::MockForeignCallExecutor, print::PrintForeignCallExecutor,
+        rpc::RPCForeignCallExecutor, ForeignCall, ForeignCallExecutor,
+    },
+    NargoError,
+};
 
-use super::{execute_program, DefaultForeignCallExecutor};
+use super::execute_program;
 
 pub enum TestStatus {
     Pass,
     Fail { message: String, error_diagnostic: Option<FileDiagnostic> },
+    Skipped,
     CompileError(FileDiagnostic),
 }
 
 impl TestStatus {
     pub fn failed(&self) -> bool {
-        !matches!(self, TestStatus::Pass)
+        !matches!(self, TestStatus::Pass | TestStatus::Skipped)
     }
 }
 
@@ -48,23 +63,42 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
             if test_function_has_no_arguments {
                 // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
                 // otherwise constraints involving these expressions will not error.
+                let mut foreign_call_executor = TestForeignCallExecutor::new(
+                    show_output,
+                    foreign_call_resolver_url,
+                    root_path,
+                    package_name,
+                );
+
                 let circuit_execution = execute_program(
                     &compiled_program.program,
                     WitnessMap::new(),
                     blackbox_solver,
-                    &mut DefaultForeignCallExecutor::new(
-                        show_output,
-                        foreign_call_resolver_url,
-                        root_path,
-                        package_name,
-                    ),
+                    &mut foreign_call_executor,
                 );
-                test_status_program_compile_pass(
+
+                let status = test_status_program_compile_pass(
                     test_function,
                     compiled_program.abi,
                     compiled_program.debug,
                     circuit_execution,
-                )
+                );
+
+                let ignore_foreign_call_failures =
+                    std::env::var("NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS")
+                        .is_ok_and(|var| &var == "true");
+
+                if let TestStatus::Fail { .. } = status {
+                    if ignore_foreign_call_failures
+                        && foreign_call_executor.encountered_unknown_foreign_call
+                    {
+                        TestStatus::Skipped
+                    } else {
+                        status
+                    }
+                } else {
+                    status
+                }
             } else {
                 #[cfg(target_arch = "wasm32")]
                 {
@@ -90,7 +124,7 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
                                 program,
                                 initial_witness,
                                 blackbox_solver,
-                                &mut DefaultForeignCallExecutor::<FieldElement>::new(
+                                &mut TestForeignCallExecutor::<FieldElement>::new(
                                     false,
                                     foreign_call_resolver_url,
                                     root_path.clone(),
@@ -213,5 +247,95 @@ fn check_expected_failure_message(
             failed_assertion.unwrap_or_default().trim_matches('\'')
         ),
         error_diagnostic,
+    }
+}
+
+/// A specialized foreign call executor which tracks whether it has encountered any unknown foreign calls
+struct TestForeignCallExecutor<F> {
+    /// The executor for any [`ForeignCall::Print`] calls.
+    printer: Option<PrintForeignCallExecutor>,
+    mocker: MockForeignCallExecutor<F>,
+    external: Option<RPCForeignCallExecutor>,
+
+    encountered_unknown_foreign_call: bool,
+}
+
+impl<F: Default> TestForeignCallExecutor<F> {
+    fn new(
+        show_output: bool,
+        resolver_url: Option<&str>,
+        root_path: Option<PathBuf>,
+        package_name: Option<String>,
+    ) -> Self {
+        let id = rand::thread_rng().gen();
+        let printer = if show_output { Some(PrintForeignCallExecutor) } else { None };
+        let external_resolver = resolver_url.map(|resolver_url| {
+            RPCForeignCallExecutor::new(resolver_url, id, root_path, package_name)
+        });
+        TestForeignCallExecutor {
+            printer,
+            mocker: MockForeignCallExecutor::default(),
+            external: external_resolver,
+            encountered_unknown_foreign_call: false,
+        }
+    }
+}
+
+impl<F: AcirField + Serialize + for<'a> Deserialize<'a>> ForeignCallExecutor<F>
+    for TestForeignCallExecutor<F>
+{
+    fn execute(
+        &mut self,
+        foreign_call: &ForeignCallWaitInfo<F>,
+    ) -> Result<ForeignCallResult<F>, ForeignCallError> {
+        // If the circuit has reached a new foreign call opcode then it can't have failed from any previous unknown foreign calls.
+        self.encountered_unknown_foreign_call = false;
+
+        let foreign_call_name = foreign_call.function.as_str();
+        match ForeignCall::lookup(foreign_call_name) {
+            Some(ForeignCall::Print) => {
+                if let Some(printer) = &mut self.printer {
+                    printer.execute(foreign_call)
+                } else {
+                    Ok(ForeignCallResult::default())
+                }
+            }
+
+            Some(
+                ForeignCall::CreateMock
+                | ForeignCall::SetMockParams
+                | ForeignCall::GetMockLastParams
+                | ForeignCall::SetMockReturns
+                | ForeignCall::SetMockTimes
+                | ForeignCall::ClearMock,
+            ) => self.mocker.execute(foreign_call),
+
+            None => {
+                // First check if there's any defined mock responses for this foreign call.
+                match self.mocker.execute(foreign_call) {
+                    Err(ForeignCallError::NoHandler(_)) => (),
+                    response_or_error => return response_or_error,
+                };
+
+                if let Some(external_resolver) = &mut self.external {
+                    // If the user has registered an external resolver then we forward any remaining oracle calls there.
+                    match external_resolver.execute(foreign_call) {
+                        Err(ForeignCallError::NoHandler(_)) => (),
+                        response_or_error => return response_or_error,
+                    };
+                }
+
+                self.encountered_unknown_foreign_call = true;
+
+                // If all executors have no handler for the given foreign call then we cannot
+                // return a correct response to the ACVM. The best we can do is to return an empty response,
+                // this allows us to ignore any foreign calls which exist solely to pass information from inside
+                // the circuit to the environment (e.g. custom logging) as the execution will still be able to progress.
+                //
+                // We optimistically return an empty response for all oracle calls as the ACVM will error
+                // should a response have been required.
+                Ok(ForeignCallResult::default())
+            }
+        }
     }
 }

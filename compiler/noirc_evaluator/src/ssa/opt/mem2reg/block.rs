@@ -34,6 +34,9 @@ pub(super) struct Block {
 
     /// The last instance of a `Store` instruction to each address in this block
     pub(super) last_stores: im::OrdMap<ValueId, InstructionId>,
+
+    // The last instance of a `Load` instruction to each address in this block
+    pub(super) last_loads: im::OrdMap<ValueId, InstructionId>,
 }
 
 /// An `Expression` here is used to represent a canonical key
@@ -236,5 +239,15 @@ impl Block {
         }
 
         Cow::Owned(AliasSet::unknown())
+    }
+
+    pub(super) fn set_last_load(&mut self, address: ValueId, instruction: InstructionId) {
+        self.last_loads.insert(address, instruction);
+    }
+
+    pub(super) fn keep_last_load_for(&mut self, address: ValueId, function: &Function) {
+        let address = function.dfg.resolve(address);
+        self.last_loads.remove(&address);
+        self.for_each_alias_of(address, |block, alias| block.last_loads.remove(&alias));
     }
 }

@@ -237,12 +237,12 @@ impl<'a> FunctionContext<'a> {
             ast::Type::Field => Type::field(),
             ast::Type::Array(len, element) => {
                 let element_types = Self::convert_type(element).flatten();
-                Type::Array(Arc::new(element_types), *len as usize)
+                Type::Array(Arc::new(element_types), *len)
             }
             ast::Type::Integer(Signedness::Signed, bits) => Type::signed((*bits).into()),
             ast::Type::Integer(Signedness::Unsigned, bits) => Type::unsigned((*bits).into()),
             ast::Type::Bool => Type::unsigned(1),
-            ast::Type::String(len) => Type::str(*len as usize),
+            ast::Type::String(len) => Type::str(*len),
             ast::Type::FmtString(_, _) => {
                 panic!("convert_non_tuple_type called on a fmt string: {typ}")
             }
@@ -733,9 +733,6 @@ impl<'a> FunctionContext<'a> {
         let element_types = Self::convert_type(element_type);
         values.map_both(element_types, |value, element_type| {
             let reference = value.eval_reference();
-            // Reference counting in brillig relies on us incrementing reference
-            // counts when arrays/slices are constructed or indexed.
-            // Thus, if we dereference an lvalue which happens to be array/slice we should increment its reference counter.
             self.builder.insert_load(reference, element_type).into()
         })
     }

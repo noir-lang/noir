@@ -341,7 +341,10 @@ impl<'a> Parser<'a> {
 
     fn parses_mutable_reference_type(&mut self) -> Option<UnresolvedTypeData> {
         if self.eat(Token::Ampersand) {
-            self.eat_keyword_or_error(Keyword::Mut);
+            if !self.eat_keyword(Keyword::Mut) {
+                self.expected_mut_after_ampersand();
+            }
+
             return Some(UnresolvedTypeData::MutableReference(Box::new(
                 self.parse_type_or_error(),
             )));
