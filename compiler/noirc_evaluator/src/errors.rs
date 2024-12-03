@@ -94,7 +94,7 @@ pub enum Plonky2VerifyError {
     VerificationFailed { message: String },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Hash)]
 pub enum SsaReport {
     Warning(InternalWarning),
     Bug(InternalBug),
@@ -138,7 +138,7 @@ impl From<SsaReport> for FileDiagnostic {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Error, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Error, Serialize, Deserialize, Hash)]
 pub enum InternalWarning {
     #[error("Return variable contains a constant value")]
     ReturnConstant { call_stack: CallStack },
@@ -146,7 +146,7 @@ pub enum InternalWarning {
     VerifyProof { call_stack: CallStack },
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Error, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Error, Serialize, Deserialize, Hash)]
 pub enum InternalBug {
     #[error("Input to brillig function is in a separate subgraph to output")]
     IndependentSubgraph { call_stack: CallStack },

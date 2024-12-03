@@ -2854,6 +2854,7 @@ dependencies = [
  "file-lock",
  "fm",
  "hex",
+ "fxhash",
  "iai",
  "iter-extended",
  "lazy_static",

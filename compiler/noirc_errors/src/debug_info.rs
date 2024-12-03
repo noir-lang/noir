@@ -94,7 +94,7 @@ impl ProgramDebugInfo {
 }
 
 #[serde_as]
-#[derive(Default, Debug, Clone, Deserialize, Serialize)]
+#[derive(Default, Debug, Clone, Deserialize, Serialize, Hash)]
 pub struct DebugInfo {
     /// Map opcode index of an ACIR circuit into the source code location
     /// Serde does not support mapping keys being enums for json, so we indicate
