@@ -178,12 +178,12 @@ pub(super) fn simplify_msm(
                 var_points.push(result_is_infinity);
             }
             // Construct the simplified MSM expression
-            let typ = Type::Array(Arc::new(vec![Type::field()]), var_scalars.len());
+            let typ = Type::Array(Arc::new(vec![Type::field()]), var_scalars.len() as u32);
             let scalars = Instruction::MakeArray { elements: var_scalars.into(), typ };
             let scalars = dfg
                 .insert_instruction_and_results(scalars, block, None, call_stack.clone())
                 .first();
-            let typ = Type::Array(Arc::new(vec![Type::field()]), var_points.len());
+            let typ = Type::Array(Arc::new(vec![Type::field()]), var_points.len() as u32);
             let points = Instruction::MakeArray { elements: var_points.into(), typ };
             let points =
                 dfg.insert_instruction_and_results(points, block, None, call_stack.clone()).first();
