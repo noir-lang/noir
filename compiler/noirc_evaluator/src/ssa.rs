@@ -217,7 +217,10 @@ pub(crate) fn optimize_into_plonky2(
         Ssa::evaluate_static_assert_and_assert_constant,
         "After `static_assert` and `assert_constant`:",
     )?
-    .try_run_pass(Ssa::unroll_loops_iteratively, "After Unrolling:")?
+    .try_run_pass(
+        |ssa| ssa.unroll_loops_iteratively(options.max_bytecode_increase_percent),
+        "After Unrolling:",
+    )?
     .run_pass(Ssa::simplify_cfg, "After Simplifying:")
     .run_pass(Ssa::flatten_cfg, "After Flattening:")
     .run_pass(Ssa::remove_bit_shifts, "After Removing Bit Shifts:")
