@@ -318,11 +318,15 @@ pub(crate) fn get_target_width(
 
 #[cfg(test)]
 mod tests {
-    use std::path::{Path, PathBuf};
+    use std::{
+        path::{Path, PathBuf},
+        str::FromStr,
+    };
 
+    use clap::Parser;
     use nargo::ops::compile_program;
     use nargo_toml::PackageSelection;
-    use noirc_driver::CompileOptions;
+    use noirc_driver::{CompileOptions, CrateName};
     use rayon::prelude::*;
 
     use crate::cli::compile_cmd::{get_target_width, parse_workspace, read_workspace};
@@ -350,6 +354,29 @@ mod tests {
             .map(|c| c.path())
     }
 
+    #[derive(Parser, Debug)]
+    #[command(ignore_errors = true)]
+    struct Options {
+        /// Test name to filter for.
+        ///
+        /// For example:
+        /// ```text
+        /// cargo test -p nargo_cli -- test_transform_program_is_idempotent slice_loop
+        /// ```
+        args: Vec<String>,
+    }
+
+    impl Options {
+        fn package_selection(&self) -> PackageSelection {
+            match self.args.as_slice() {
+                [_test_name, test_program] => {
+                    PackageSelection::Selected(CrateName::from_str(test_program).unwrap())
+                }
+                _ => PackageSelection::DefaultOrAll,
+            }
+        }
+    }
+
     /// Check that `nargo::ops::transform_program` is idempotent by compiling the
     /// test programs and running them through the optimizer twice.
     ///
@@ -357,40 +384,65 @@ mod tests {
     /// the utility functions to process workspaces.
     #[test]
     fn test_transform_program_is_idempotent() {
+        let opts = Options::parse();
+
+        let sel = opts.package_selection();
+        let verbose = matches!(sel, PackageSelection::Selected(_));
+
         let test_workspaces = read_test_program_dirs(&test_programs_dir(), "execution_success")
-            .filter_map(|dir| read_workspace(&dir, PackageSelection::DefaultOrAll).ok())
+            .filter_map(|dir| read_workspace(&dir, sel.clone()).ok())
             .collect::<Vec<_>>();
 
         assert!(!test_workspaces.is_empty(), "should find some test workspaces");
 
-        test_workspaces.par_iter().for_each(|workspace| {
-            let (file_manager, parsed_files) = parse_workspace(workspace);
-            let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
+        test_workspaces
+            .par_iter()
+            //.filter(|workspace| workspace.members.iter().any(|p| p.name == test_workspace_name))
+            .for_each(|workspace| {
+                let (file_manager, parsed_files) = parse_workspace(workspace);
+                let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
 
-            for package in binary_packages {
-                let (program, _warnings) = compile_program(
-                    &file_manager,
-                    &parsed_files,
-                    workspace,
-                    package,
-                    &CompileOptions::default(),
-                    None,
-                )
-                .expect("failed to compile");
+                for package in binary_packages {
+                    let (program_0, _warnings) = compile_program(
+                        &file_manager,
+                        &parsed_files,
+                        workspace,
+                        package,
+                        &CompileOptions::default(),
+                        None,
+                    )
+                    .expect("failed to compile");
 
-                let width = get_target_width(package.expression_width, None);
+                    let width = get_target_width(package.expression_width, None);
 
-                let program = nargo::ops::transform_program(program, width);
-                let program_hash_1 = fxhash::hash64(&program);
-                let program = nargo::ops::transform_program(program, width);
-                let program_hash_2 = fxhash::hash64(&program);
+                    let program_1 = nargo::ops::transform_program(program_0, width);
+                    let program_2 = nargo::ops::transform_program(program_1.clone(), width);
 
-                assert!(
-                    program_hash_1 == program_hash_2,
-                    "optimization not idempotent for test program '{}'",
-                    package.name
-                );
-            }
-        });
+                    if verbose {
+                        // Compare where the most likely difference is.
+                        assert_eq!(
+                            program_1.program, program_2.program,
+                            "optimization not idempotent for test program '{}'",
+                            package.name
+                        );
+
+                        // Compare the whole content.
+                        similar_asserts::assert_eq!(
+                            serde_json::to_string_pretty(&program_1).unwrap(),
+                            serde_json::to_string_pretty(&program_2).unwrap(),
+                            "optimization not idempotent for test program '{}'",
+                            package.name
+                        );
+                    } else {
+                        // Just compare hashes, which would just state that the program failed.
+                        // Then we can use the filter option to zoom in one one to see why.
+                        assert!(
+                            fxhash::hash64(&program_1) == fxhash::hash64(&program_2),
+                            "optimization not idempotent for test program '{}'",
+                            package.name
+                        );
+                    }
+                }
+            });
     }
 }
