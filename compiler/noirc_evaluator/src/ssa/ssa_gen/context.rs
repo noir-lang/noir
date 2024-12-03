@@ -920,7 +920,8 @@ impl<'a> FunctionContext<'a> {
         let entry = self.builder.current_function.entry_block();
         let parameters = self.builder.current_function.dfg.block_parameters(entry).to_vec();
 
-        for parameter in parameters {
+        // Performance hack: always consider the first parameter to be a move
+        for parameter in parameters.into_iter().skip(1) {
             // Avoid reference counts for immutable arrays that aren't behind references.
             if self.builder.current_function.dfg.value_is_reference(parameter) {
                 self.builder.increment_array_reference_count(parameter);
@@ -935,8 +936,14 @@ impl<'a> FunctionContext<'a> {
     /// block's parameters. Arrays that are also used in terminator instructions for the scope are
     /// ignored.
     pub(crate) fn end_scope(&mut self, scope: BasicBlockId, terminator_args: &[ValueId]) {
-        let mut dropped_parameters =
-            self.builder.current_function.dfg.block_parameters(scope).to_vec();
+        let mut dropped_parameters = self.builder.current_function.dfg.block_parameters(scope);
+
+        // Skip the first parameter to match the check in `increment_parameter_rcs`
+        if !dropped_parameters.is_empty() {
+            dropped_parameters = &dropped_parameters[1..];
+        }
+
+        let mut dropped_parameters = dropped_parameters.to_vec();
 
         dropped_parameters.retain(|parameter| !terminator_args.contains(parameter));
 

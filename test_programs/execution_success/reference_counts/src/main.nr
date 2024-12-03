@@ -13,7 +13,7 @@ fn borrow(array: [Field; 3], rc_before_call: u32) {
 }
 
 fn borrow_mut(array: &mut [Field; 3], rc_before_call: u32) {
-    assert_refcount(*array, rc_before_call + 1);
+    assert_refcount(*array, rc_before_call + 0);
     array[0] = 5;
     println(array[0]);
 }
