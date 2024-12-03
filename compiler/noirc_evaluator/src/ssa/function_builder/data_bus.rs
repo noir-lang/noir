@@ -160,7 +160,7 @@ impl FunctionBuilder {
         for value in values {
             self.add_to_data_bus(*value, &mut databus);
         }
-        let len = databus.values.len();
+        let len = databus.values.len() as u32;
 
         let array = (len > 0 && matches!(self.current_function.runtime(), RuntimeType::Acir(_)))
             .then(|| {
@@ -223,9 +223,11 @@ impl FunctionBuilder {
         ssa_params: &[ValueId],
         mut flattened_params_databus_visibility: Vec<DatabusVisibility>,
     ) -> Vec<DatabusVisibility> {
-        let ssa_param_sizes: Vec<_> = ssa_params
+        let ssa_param_sizes: Vec<usize> = ssa_params
             .iter()
-            .map(|ssa_param| self.current_function.dfg[*ssa_param].get_type().flattened_size())
+            .map(|ssa_param| {
+                self.current_function.dfg[*ssa_param].get_type().flattened_size() as usize
+            })
             .collect();
 
         let mut is_ssa_params_databus = Vec::with_capacity(ssa_params.len());

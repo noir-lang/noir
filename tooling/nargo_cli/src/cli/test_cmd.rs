@@ -255,6 +255,12 @@ fn display_test_report(
                     );
                 }
             }
+            TestStatus::Skipped { .. } => {
+                writer
+                    .set_color(ColorSpec::new().set_fg(Some(Color::Yellow)))
+                    .expect("Failed to set color");
+                writeln!(writer, "skipped").expect("Failed to write to stderr");
+            }
             TestStatus::CompileError(err) => {
                 noirc_errors::reporter::report_all(
                     file_manager.as_file_map(),
