@@ -426,7 +426,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     ///
     /// This function will zero out any elements at or past index `len` of `array`.
     /// This incurs extra runtime cost of O(MaxLen). If you are sure your array is
-    /// zeroed after that index, you can use `from_parts_unsafe` to remove the extra loop.
+    /// zeroed after that index, you can use `from_parts_unchecked` to remove the extra loop.
     ///
     /// Example:
     ///
@@ -457,18 +457,18 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// Example:
     ///
     /// ```noir
-    /// let vec: BoundedVec<u32, 4> = BoundedVec::from_parts_unsafe([1, 2, 3, 0], 3);
+    /// let vec: BoundedVec<u32, 4> = BoundedVec::from_parts_unchecked([1, 2, 3, 0], 3);
     /// assert_eq(vec.len(), 3);
     ///
     /// // invalid use!
-    /// let vec1: BoundedVec<u32, 4> = BoundedVec::from_parts_unsafe([1, 2, 3, 1], 3);
-    /// let vec2: BoundedVec<u32, 4> = BoundedVec::from_parts_unsafe([1, 2, 3, 2], 3);
+    /// let vec1: BoundedVec<u32, 4> = BoundedVec::from_parts_unchecked([1, 2, 3, 1], 3);
+    /// let vec2: BoundedVec<u32, 4> = BoundedVec::from_parts_unchecked([1, 2, 3, 2], 3);
     ///
     /// // both vecs have length 3 so we'd expect them to be equal, but this
     /// // fails because elements past the length are still checked in eq
     /// assert_eq(vec1, vec2); // fails
     /// ```
-    pub fn from_parts_unsafe(array: [T; MaxLen], len: u32) -> Self {
+    pub fn from_parts_unchecked(array: [T; MaxLen], len: u32) -> Self {
         assert(len <= MaxLen);
         BoundedVec { storage: array, len }
     }
@@ -673,19 +673,19 @@ mod bounded_vec_tests {
         }
 
         #[test]
-        fn from_parts_unsafe() {
-            // docs:start:from-parts-unsafe
-            let vec: BoundedVec<u32, 4> = BoundedVec::from_parts_unsafe([1, 2, 3, 0], 3);
+        fn from_parts_unchecked() {
+            // docs:start:from-parts-unchecked
+            let vec: BoundedVec<u32, 4> = BoundedVec::from_parts_unchecked([1, 2, 3, 0], 3);
             assert_eq(vec.len(), 3);
 
             // invalid use!
-            let vec1: BoundedVec<u32, 4> = BoundedVec::from_parts_unsafe([1, 2, 3, 1], 3);
-            let vec2: BoundedVec<u32, 4> = BoundedVec::from_parts_unsafe([1, 2, 3, 2], 3);
+            let vec1: BoundedVec<u32, 4> = BoundedVec::from_parts_unchecked([1, 2, 3, 1], 3);
+            let vec2: BoundedVec<u32, 4> = BoundedVec::from_parts_unchecked([1, 2, 3, 2], 3);
 
             // both vecs have length 3 so we'd expect them to be equal, but this
             // fails because elements past the length are still checked in eq
             assert(vec1 != vec2);
-            // docs:end:from-parts-unsafe
+            // docs:end:from-parts-unchecked
         }
     }
 }

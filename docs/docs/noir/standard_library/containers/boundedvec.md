@@ -257,16 +257,16 @@ The given length must be less than or equal to the length of the array.
 
 This function will zero out any elements at or past index `len` of `array`.
 This incurs extra runtime cost of O(MaxLen). If you are sure your array is
-zeroed after that index, you can use `from_parts_unsafe` to remove the extra loop.
+zeroed after that index, you can use `from_parts_unchecked` to remove the extra loop.
 
 Example:
 
 #include_code from-parts noir_stdlib/src/collections/bounded_vec.nr rust
 
-### from_parts_unsafe
+### from_parts_unchecked
 
 ```rust
-pub fn from_parts_unsafe(array: [T; MaxLen], len: u32) -> Self
+pub fn from_parts_unchecked(array: [T; MaxLen], len: u32) -> Self
 ```
 
 Creates a new BoundedVec from the given array and length.
@@ -280,7 +280,7 @@ to give incorrect results since it will check even elements past `len`.
 
 Example:
 
-#include_code from-parts-unsafe noir_stdlib/src/collections/bounded_vec.nr rust
+#include_code from-parts-unchecked noir_stdlib/src/collections/bounded_vec.nr rust
 
 ### map
 
