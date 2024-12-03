@@ -209,7 +209,7 @@ impl<'f> LoopInvariantContext<'f> {
                 let array_typ = self.inserter.function.dfg.type_of_value(*array);
                 let upper_bound = self.outer_induction_variables.get(index);
                 if let (Type::Array(_, len), Some(upper_bound)) = (array_typ, upper_bound) {
-                    upper_bound.to_u128() as usize <= len
+                    upper_bound.to_u128() <= len.into()
                 } else {
                     false
                 }
