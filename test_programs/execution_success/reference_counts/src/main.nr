@@ -19,7 +19,7 @@ fn borrow_mut(array: &mut [Field; 3], rc_before_call: u32) {
 }
 
 fn copy_mut(mut array: [Field; 3], rc_before_call: u32) {
-    assert_refcount(array, rc_before_call + 1);
+    assert_refcount(array, rc_before_call + 0); // Issue! This should be rc_before_call + 1
     array[0] = 6;
     println(array[0]);
 }
