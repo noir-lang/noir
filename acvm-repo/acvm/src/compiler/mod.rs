@@ -16,6 +16,9 @@ pub use simulator::CircuitSimulator;
 use transformers::transform_internal;
 pub use transformers::MIN_EXPRESSION_WIDTH;
 
+/// We need multiple passes to stabilize the output.
+const MAX_OPTIMIZER_PASSES: usize = 3;
+
 /// This module moves and decomposes acir opcodes. The transformation map allows consumers of this module to map
 /// metadata they had about the opcodes to the new opcode structure generated after the transformation.
 #[derive(Debug)]
@@ -72,14 +75,32 @@ fn transform_assert_messages<F: Clone>(
 }
 
 /// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] specific optimizations to a [`Circuit`].
+///
+/// Runs multiple passes until the output stabilizes.
 pub fn compile<F: AcirField>(
     acir: Circuit<F>,
     expression_width: ExpressionWidth,
 ) -> (Circuit<F>, AcirTransformationMap) {
-    let (acir, acir_opcode_positions) = optimize_internal(acir);
+    let mut pass = 0;
+    let mut prev_opcodes_hash = fxhash::hash64(&acir.opcodes);
+    let mut prev_acir = acir;
 
-    let (mut acir, acir_opcode_positions) =
-        transform_internal(acir, expression_width, acir_opcode_positions);
+    // For most test programs it would be enough to only loop `transform_internal`,
+    // but some of them don't stabilize unless we also repeat the backend agnostic optimizations.
+    let (mut acir, acir_opcode_positions) = loop {
+        let (acir, acir_opcode_positions) = optimize_internal(prev_acir);
+        let (acir, acir_opcode_positions) =
+            transform_internal(acir, expression_width, acir_opcode_positions);
+
+        let opcodes_hash = fxhash::hash64(&acir.opcodes);
+
+        if pass == MAX_OPTIMIZER_PASSES || prev_opcodes_hash == opcodes_hash {
+            break (acir, acir_opcode_positions);
+        }
+        pass += 1;
+        prev_acir = acir;
+        prev_opcodes_hash = opcodes_hash
+    };
 
     let transformation_map = AcirTransformationMap::new(&acir_opcode_positions);
     acir.assert_messages = transform_assert_messages(acir.assert_messages, &transformation_map);

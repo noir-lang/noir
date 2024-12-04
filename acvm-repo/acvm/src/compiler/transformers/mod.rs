@@ -17,12 +17,12 @@ pub use csat::MIN_EXPRESSION_WIDTH;
 
 use super::{
     optimizers::MergeExpressionsOptimizer, transform_assert_messages, AcirTransformationMap,
+    MAX_OPTIMIZER_PASSES,
 };
 
-/// The `MergeExpressionOptimizer` needs multiple passes to stabilize the output.
-const MAX_OPTIMIZER_PASSES: usize = 3;
-
 /// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] specific optimizations to a [`Circuit`].
+///
+/// TODO: Can this be removed?
 fn _transform<F: AcirField>(
     mut acir: Circuit<F>,
     expression_width: ExpressionWidth,
@@ -58,6 +58,8 @@ pub(super) fn transform_internal<F: AcirField>(
     // Allow multiple passes until we have stable output.
     let mut prev_opcodes_hash = fxhash::hash64(&acir.opcodes);
 
+    // For most test programs it would be enough to loop here, but some of them
+    // don't stabilize unless we also repeat the backend agnostic optimizations.
     for _ in 0..MAX_OPTIMIZER_PASSES {
         let (new_acir, new_acir_opcode_positions) =
             transform_internal_once(acir, expression_width, acir_opcode_positions);
