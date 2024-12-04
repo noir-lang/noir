@@ -418,6 +418,12 @@ mod tests {
 
                 if verbose {
                     // Compare where the most likely difference is.
+                    similar_asserts::assert_eq!(
+                        format!("{}", program_1.program),
+                        format!("{}", program_2.program),
+                        "optimization not idempotent for test program '{}'",
+                        package.name
+                    );
                     assert_eq!(
                         program_1.program, program_2.program,
                         "optimization not idempotent for test program '{}'",
