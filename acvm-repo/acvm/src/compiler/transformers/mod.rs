@@ -48,7 +48,7 @@ fn _transform<F: AcirField>(
 ///
 /// Accepts an injected `acir_opcode_positions` to allow transformations to be applied directly after optimizations.
 ///
-/// Does multiple passes until the output stabilises.
+/// Does multiple passes until the output stabilizes.
 #[tracing::instrument(level = "trace", name = "transform_acir", skip(acir, acir_opcode_positions))]
 pub(super) fn transform_internal<F: AcirField>(
     mut acir: Circuit<F>,
@@ -64,6 +64,13 @@ pub(super) fn transform_internal<F: AcirField>(
 
         acir = new_acir;
         acir_opcode_positions = new_acir_opcode_positions;
+
+        let new_opcodes_hash = fxhash::hash64(&acir.opcodes);
+
+        if new_opcodes_hash == prev_opcodes_hash {
+            break;
+        }
+        prev_opcodes_hash = new_opcodes_hash;
     }
     // After the elimination of intermediate variables the `current_witness_index` is potentially higher than it needs to be,
     // which would cause gaps if we ran the optimization a second time, making it look like new variables were added.
@@ -76,7 +83,7 @@ pub(super) fn transform_internal<F: AcirField>(
 ///
 /// Accepts an injected `acir_opcode_positions` to allow transformations to be applied directly after optimizations.
 ///
-/// Does a single optimisation pass.
+/// Does a single optimization pass.
 #[tracing::instrument(
     level = "trace",
     name = "transform_acir_once",
