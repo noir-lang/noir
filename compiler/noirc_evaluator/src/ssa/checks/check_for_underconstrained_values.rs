@@ -404,7 +404,8 @@ impl DependencyContext {
         trace!("attempting to clear Brillig calls constrained by values: {:?}", constrained_values);
 
         // For now, consider array element constraints to be array constraints
-        // TODO: this probably has to be further looked into, to ensure _every_ element
+        // TODO(https://github.com/noir-lang/noir/issues/6698):
+        // This probably has to be further looked into, to ensure _every_ element
         // of an array result of a Brillig call has been constrained
 
         let constrained_arrays =
