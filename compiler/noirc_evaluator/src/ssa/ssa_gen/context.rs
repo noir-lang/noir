@@ -932,10 +932,10 @@ impl<'a> FunctionContext<'a> {
                 if element.contains_an_array() {
                     // If we haven't already seen this array type, the value may be possibly
                     // aliased, so issue an inc_rc for it.
-                    if !seen_array_types.insert(element.into_contained_array().clone()) {
-                        if self.builder.increment_array_reference_count(parameter) {
-                            incremented.insert(parameter);
-                        }
+                    if !seen_array_types.insert(element.get_contained_array().clone())
+                        && self.builder.increment_array_reference_count(parameter)
+                    {
+                        incremented.insert(parameter);
                     }
                 }
             }

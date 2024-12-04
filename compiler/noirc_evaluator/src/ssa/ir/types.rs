@@ -191,11 +191,11 @@ impl Type {
     }
 
     /// Retrieves the array or slice type within this type, or panics if there is none.
-    pub(crate) fn into_contained_array(&self) -> &Type {
+    pub(crate) fn get_contained_array(&self) -> &Type {
         match self {
             Type::Numeric(_) | Type::Function => panic!("Expected an array type"),
             Type::Array(_, _) | Type::Slice(_) => self,
-            Type::Reference(element) => element.into_contained_array(),
+            Type::Reference(element) => element.get_contained_array(),
         }
     }
 
