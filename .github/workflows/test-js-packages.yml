@@ -570,9 +570,9 @@ jobs:
       
       - name: Run nargo test
         working-directory: ./test-repo/${{ matrix.project.path }}
-        run: nargo test --silence-warnings
+        run: nargo test --silence-warnings --skip-oracle
         env:
-          NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS: true
+          NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS: false
 
   # This is a job which depends on all test jobs and reports the overall status.
   # This allows us to add/remove test jobs without having to update the required workflows.
