@@ -1,7 +1,7 @@
 unconstrained fn main(x: u32) {
     let a1 = [1, 2, 3, 4, 5];
 
-    for i in 0 .. 5 {
+    for i in 0..5 {
         let mut a2 = [1, 2, 3, 4, 5];
         a2[x + i] = 128;
         println(a2);
