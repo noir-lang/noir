@@ -20,7 +20,7 @@ use crate::ssa::ir::value::ValueId;
 
 use super::value::{Tree, Value, Values};
 use super::SSA_WORD_SIZE;
-use fxhash::FxHashMap as HashMap;
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 /// The FunctionContext is the main context object for translating a
 /// function into SSA form during the SSA-gen pass.
@@ -912,42 +912,50 @@ impl<'a> FunctionContext<'a> {
         }
     }
 
-    /// Increments the reference count of all parameters. Returns the entry block of the function.
+    /// Increments the reference count of mutable array parameters.
+    /// Returns each array id that was incremented.
     ///
     /// This is done on parameters rather than call arguments so that we can optimize out
     /// paired inc/dec instructions within brillig functions more easily.
-    pub(crate) fn increment_parameter_rcs(&mut self) -> BasicBlockId {
+    pub(crate) fn increment_parameter_rcs(&mut self) -> HashSet<ValueId> {
         let entry = self.builder.current_function.entry_block();
         let parameters = self.builder.current_function.dfg.block_parameters(entry).to_vec();
 
-        // Performance hack: always consider the first parameter to be a move
-        for parameter in parameters.into_iter().skip(1) {
+        let mut incremented = HashSet::default();
+        let mut seen_array_types = HashSet::default();
+
+        for parameter in parameters {
             // Avoid reference counts for immutable arrays that aren't behind references.
-            if self.builder.current_function.dfg.value_is_reference(parameter) {
-                self.builder.increment_array_reference_count(parameter);
+            let typ = self.builder.current_function.dfg.type_of_value(parameter);
+
+            if let Type::Reference(element) = typ {
+                if element.contains_an_array() {
+                    // If we haven't already seen this array type, the value may be possibly
+                    // aliased, so issue an inc_rc for it.
+                    if !seen_array_types.insert(element.into_contained_array().clone()) {
+                        if self.builder.increment_array_reference_count(parameter) {
+                            incremented.insert(parameter);
+                        }
+                    }
+                }
             }
         }
 
-        entry
+        incremented
     }
 
     /// Ends a local scope of a function.
     /// This will issue DecrementRc instructions for any arrays in the given starting scope
     /// block's parameters. Arrays that are also used in terminator instructions for the scope are
     /// ignored.
-    pub(crate) fn end_scope(&mut self, scope: BasicBlockId, terminator_args: &[ValueId]) {
-        let mut dropped_parameters = self.builder.current_function.dfg.block_parameters(scope);
+    pub(crate) fn end_scope(
+        &mut self,
+        mut incremented_params: HashSet<ValueId>,
+        terminator_args: &[ValueId],
+    ) {
+        incremented_params.retain(|parameter| !terminator_args.contains(parameter));
 
-        // Skip the first parameter to match the check in `increment_parameter_rcs`
-        if !dropped_parameters.is_empty() {
-            dropped_parameters = &dropped_parameters[1..];
-        }
-
-        let mut dropped_parameters = dropped_parameters.to_vec();
-
-        dropped_parameters.retain(|parameter| !terminator_args.contains(parameter));
-
-        for parameter in dropped_parameters {
+        for parameter in incremented_params {
             if self.builder.current_function.dfg.value_is_reference(parameter) {
                 self.builder.decrement_array_reference_count(parameter);
             }

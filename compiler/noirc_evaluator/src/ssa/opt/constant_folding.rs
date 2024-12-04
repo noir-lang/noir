@@ -1179,6 +1179,7 @@ mod test {
         // fn main f0 {
         //   b0(v0: u64):
         //     v1 = make_array [v0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0]
+        //     inc_rc v1
         //     v5 = call keccakf1600(v1)
         // }
         let ssa = ssa.fold_constants();
@@ -1188,7 +1189,7 @@ mod test {
         let main = ssa.main();
         let instructions = main.dfg[main.entry_block()].instructions();
         let ending_instruction_count = instructions.len();
-        assert_eq!(ending_instruction_count, 2);
+        assert_eq!(ending_instruction_count, 3);
     }
 
     #[test]
