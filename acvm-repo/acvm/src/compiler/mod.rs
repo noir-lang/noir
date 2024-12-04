@@ -91,9 +91,8 @@ pub fn compile<F: AcirField>(
     let (mut acir, acir_opcode_positions) = loop {
         let (acir, acir_opcode_positions) = optimize_internal(prev_acir);
 
-        let opcodes_hash = fxhash::hash64(&acir.opcodes);
         // Stop if we have already done at least one transform and an extra optimization changed nothing.
-        if pass > 0 && prev_opcodes_hash == opcodes_hash {
+        if pass > 0 && prev_opcodes_hash == fxhash::hash64(&acir.opcodes) {
             break (acir, acir_opcode_positions);
         }
 
@@ -101,8 +100,9 @@ pub fn compile<F: AcirField>(
             transform_internal(acir, expression_width, acir_opcode_positions);
 
         let opcodes_hash = fxhash::hash64(&acir.opcodes);
+
         // Stop if the output hasn't change in this loop or we went too long.
-        if pass == MAX_OPTIMIZER_PASSES || prev_opcodes_hash == opcodes_hash {
+        if pass == MAX_OPTIMIZER_PASSES - 1 || prev_opcodes_hash == opcodes_hash {
             break (acir, acir_opcode_positions);
         }
 
