@@ -448,7 +448,10 @@ impl Instruction {
             // We can deduplicate these instructions if we know the predicate is also the same.
             Constrain(..) | RangeCheck { .. } => deduplicate_with_predicate,
 
-            // Arrays can be mutated in unconstrained code so we can't deduplicate there
+            // Arrays can be mutated in unconstrained code so code that handles this case must
+            // take care to track whether the array was possibly mutated or not before
+            // deduplicating. Since we don't know if the containing pass checks for this, we
+            // can only assume these are safe to deduplicate in constrained code.
             MakeArray { .. } => function.runtime().is_acir(),
 
             // These can have different behavior depending on the EnableSideEffectsIf context.

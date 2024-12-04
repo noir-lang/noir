@@ -310,6 +310,15 @@ impl<'brillig> Context<'brillig> {
         {
             match cache_result {
                 CacheResult::Cached(cached) => {
+                    // We track whether we may mutate MakeArray instructions before we deduplicate
+                    // them but we still need to issue an extra inc_rc in case they're mutated afterward.
+                    if matches!(instruction, Instruction::MakeArray { .. }) {
+                        let value = *cached.last().unwrap();
+                        let inc_rc = Instruction::IncrementRc { value };
+                        let call_stack = dfg.get_call_stack(id);
+                        dfg.insert_instruction_and_results(inc_rc, block, None, call_stack);
+                    }
+
                     Self::replace_result_ids(dfg, &old_results, cached);
                     return;
                 }
@@ -323,24 +332,17 @@ impl<'brillig> Context<'brillig> {
             }
         };
 
-        let new_results =
         // First try to inline a call to a brillig function with all constant arguments.
-        Self::try_inline_brillig_call_with_all_constants(
+        let new_results = Self::try_inline_brillig_call_with_all_constants(
             &instruction,
             &old_results,
             block,
             dfg,
             self.brillig_info,
         )
+        // Otherwise, try inserting the instruction again to apply any optimizations using the newly resolved inputs.
         .unwrap_or_else(|| {
-            // Otherwise, try inserting the instruction again to apply any optimizations using the newly resolved inputs.
-            Self::push_instruction(
-                id,
-                instruction.clone(),
-                &old_results,
-                block,
-                dfg,
-            )
+            Self::push_instruction(id, instruction.clone(), &old_results, block, dfg)
         });
 
         Self::replace_result_ids(dfg, &old_results, &new_results);
@@ -478,10 +480,17 @@ impl<'brillig> Context<'brillig> {
                 .cache(block, vec![*value]);
         }
 
+        self.remove_possibly_mutated_cached_make_arrays(&instruction, function);
+
         // If the instruction doesn't have side-effects and if it won't interact with enable_side_effects during acir_gen,
         // we cache the results so we can reuse them if the same instruction appears again later in the block.
         // Others have side effects representing failure, which are implicit in the ACIR code and can also be deduplicated.
-        if instruction.can_be_deduplicated(function, self.use_constraint_info) {
+        let can_be_deduplicated =
+            instruction.can_be_deduplicated(function, self.use_constraint_info);
+
+        // We also allow deduplicating MakeArray instructions that we have tracked which haven't
+        // been mutated.
+        if can_be_deduplicated || matches!(instruction, Instruction::MakeArray { .. }) {
             let use_predicate =
                 self.use_constraint_info && instruction.requires_acir_gen_predicate(&function.dfg);
             let predicate = use_predicate.then_some(side_effects_enabled_var);
@@ -687,6 +696,26 @@ impl<'brillig> Context<'brillig> {
             }
             Type::Function => {
                 panic!("Unexpected function type in brillig function result")
+            }
+        }
+    }
+
+    fn remove_possibly_mutated_cached_make_arrays(
+        &mut self,
+        instruction: &Instruction,
+        function: &Function,
+    ) {
+        use Instruction::{ArraySet, Store};
+
+        // Should we consider calls to slice_push_back and similar to be mutating operations as well?
+        if let Store { value: array, .. } | ArraySet { array, .. } = instruction {
+            let instruction = match &function.dfg[*array] {
+                Value::Instruction { instruction, .. } => &function.dfg[*instruction],
+                _ => return,
+            };
+
+            if matches!(instruction, Instruction::MakeArray { .. }) {
+                self.cached_instruction_results.remove(instruction);
             }
         }
     }
