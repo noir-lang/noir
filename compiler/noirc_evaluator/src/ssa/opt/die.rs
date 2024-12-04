@@ -123,6 +123,7 @@ impl Context {
                         .push(instructions_len - instruction_index - 1);
                 }
             } else {
+                use Instruction::*;                
                 // We can't remove rc instructions if they're loaded from a reference
                 // since we'd have no way of knowing whether the reference is still used.
                 if Self::is_inc_dec_instruction_on_known_array(instruction, &function.dfg) {
@@ -521,7 +522,7 @@ mod test {
 
     use crate::ssa::{
         function_builder::FunctionBuilder,
-        ir::{instruction::Instruction, map::Id, types::Type},
+        ir::{map::Id, types::Type},
         opt::assert_normalized_ssa_equals,
         Ssa,
     };
