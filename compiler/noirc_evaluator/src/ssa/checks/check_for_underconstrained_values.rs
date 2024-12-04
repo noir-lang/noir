@@ -316,7 +316,11 @@ impl DependencyContext {
                         Value::Function(callee) => match all_functions[&callee].runtime() {
                             RuntimeType::Brillig(_) => {
                                 // Record arguments/results for each Brillig call for the check
-                                trace!("Brillig function {} called at {}", callee, instruction);
+                                trace!(
+                                    "Brillig function {} called at {}",
+                                    all_functions[&callee],
+                                    instruction
+                                );
                                 self.tainted.insert(
                                     *instruction,
                                     BrilligTaintedIds::new(&arguments, &results),
@@ -713,44 +717,24 @@ impl Context {
 }
 #[cfg(test)]
 mod test {
-    use noirc_frontend::monomorphization::ast::InlineType;
-
-    use crate::ssa::{
-        function_builder::FunctionBuilder,
-        ir::{
-            instruction::BinaryOp,
-            map::Id,
-            types::{NumericType, Type},
-        },
-    };
-    use std::sync::Arc;
+    use crate::ssa::Ssa;
     use tracing_test::traced_test;
 
     #[test]
     #[traced_test]
     /// Test that a connected function raises no warnings
     fn test_simple_connected_function() {
-        // fn main {
-        //   b0(v0: Field, v1: Field):
-        //      v2 = add v0, 1
-        //      v3 = mul v1, 2
-        //      v4 = eq v2, v3
-        //      return v2
-        // }
-        let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-        let v0 = builder.add_parameter(Type::field());
-        let v1 = builder.add_parameter(Type::field());
+        let program = r#"
+        acir(inline) fn main f0 {
+            b0(v0: Field, v1: Field):
+                v2 = add v0, Field 1
+                v3 = mul v1, Field 2
+                v4 = eq v2, v3
+                return v2
+        }
+        "#;
 
-        let one = builder.field_constant(1u128);
-        let two = builder.field_constant(2u128);
-
-        let v2 = builder.insert_binary(v0, BinaryOp::Add, one);
-        let v3 = builder.insert_binary(v1, BinaryOp::Mul, two);
-        let _v4 = builder.insert_binary(v2, BinaryOp::Eq, v3);
-        builder.terminate_with_return(vec![v2]);
-
-        let mut ssa = builder.finish();
+        let mut ssa = Ssa::from_str(program).unwrap();
         let ssa_level_warnings = ssa.check_for_underconstrained_values();
         assert_eq!(ssa_level_warnings.len(), 0);
     }
@@ -760,43 +744,24 @@ mod test {
     /// Test where the results of a call to a Brillig function are not connected to main function inputs or outputs
     /// This should be detected.
     fn test_simple_function_with_disconnected_part() {
-        //  unconstrained fn br(v0: Field, v1: Field){
-        //      v2 = add v0, v1
-        //      return v2
-        //  }
-        //
-        //  fn main {
-        //   b0(v0: Field, v1: Field):
-        //      v2 = add v0, 1
-        //      v3 = mul v1, 2
-        //      v4 = call br(v2, v3)
-        //      v5 = add v4, 2
-        //      return
-        // }
-        let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-        let v0 = builder.add_parameter(Type::field());
-        let v1 = builder.add_parameter(Type::field());
+        let program = r#"
+        acir(inline) fn main f0 {
+            b0(v0: Field, v1: Field):
+                v2 = add v0, Field 1
+                v3 = mul v1, Field 2
+                v4 = call f1(v2, v3) -> Field
+                v5 = add v4, Field 2
+                return
+        }
+        
+        brillig(inline) fn br f1 {
+          b0(v0: Field, v1: Field):
+            v2 = add v0, v1
+            return v2
+        }
+        "#;
 
-        let one = builder.field_constant(1u128);
-        let two = builder.field_constant(2u128);
-
-        let v2 = builder.insert_binary(v0, BinaryOp::Add, one);
-        let v3 = builder.insert_binary(v1, BinaryOp::Mul, two);
-
-        let br_function_id = Id::test_new(1);
-        let br_function = builder.import_function(br_function_id);
-        let v4 = builder.insert_call(br_function, vec![v2, v3], vec![Type::field()])[0];
-        let v5 = builder.insert_binary(v4, BinaryOp::Add, two);
-        builder.insert_constrain(v5, one, None);
-        builder.terminate_with_return(vec![]);
-
-        builder.new_brillig_function("br".into(), br_function_id, InlineType::default());
-        let v0 = builder.add_parameter(Type::field());
-        let v1 = builder.add_parameter(Type::field());
-        let v2 = builder.insert_binary(v0, BinaryOp::Add, v1);
-        builder.terminate_with_return(vec![v2]);
-        let mut ssa = builder.finish();
+        let mut ssa = Ssa::from_str(program).unwrap();
         let ssa_level_warnings = ssa.check_for_underconstrained_values();
         assert_eq!(ssa_level_warnings.len(), 1);
     }
@@ -828,97 +793,46 @@ mod test {
                 == (most_expensive_sandwich + most_expensive_drink)
             );
         }
+        */
 
-        fn main f0 {
-          b0(v0: [u32; 2], v1: [u32; 2], v2: u32):
-            inc_rc v0
-            inc_rc v1
-            v4 = call f1(v0)
-            v6 = allocate
-            store u1 0 at v6
-            v7 = load v6
-            v11 = array_get v0, index u32 0
-            v12 = eq v11, v4
-            v13 = or v7, v12
-            store v13 at v6
-            v14 = load v6
-            v16 = array_get v0, index u32 1
-            v17 = eq v16, v4
-            v18 = or v14, v17
-            store v18 at v6
-            v19 = load v6
-            constrain v19 == u1 1
-            v22 = call f1(v1)
-            v23 = add v4, v22
-            v24 = eq v2, v23
-            constrain v2 == v23
-            dec_rc v0
-            dec_rc v1
+        // The Brillig function is fake, for simplicity's sake
+
+        let program = r#"
+        acir(inline) fn main f0 {
+          b0(v4: [u32; 2], v5: [u32; 2], v6: u32):
+            inc_rc v4
+            inc_rc v5
+            v8 = call f1(v4) -> u32
+            v9 = allocate -> &mut u32
+            store u1 0 at v9
+            v10 = load v9 -> u1
+            v11 = array_get v4, index u32 0 -> u32
+            v12 = eq v11, v8
+            v13 = or v10, v12
+            store v13 at v9
+            v14 = load v9 -> u1
+            v15 = array_get v4, index u32 1 -> u32
+            v16 = eq v15, v8
+            v17 = or v14, v16
+            store v17 at v9
+            v18 = load v9 -> u1
+            constrain v18 == u1 1
+            v19 = call f1(v5) -> u32
+            v20 = add v8, v19
+            constrain v6 == v20
+            dec_rc v4
+            dec_rc v5
             return
         }
-        */
-        let type_u32 = Type::Numeric(NumericType::Unsigned { bit_size: 32 });
-        let type_u1 = Type::Numeric(NumericType::Unsigned { bit_size: 1 });
 
-        let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        brillig(inline) fn maximum_price f1 {
+          b0(v0: [u32; 2]):
+            v2 = array_get v0, index u32 0 -> u32
+            return v2
+        }
+        "#;
 
-        let zero = builder.numeric_constant(0u32, type_u32.clone());
-        let one = builder.numeric_constant(1u32, type_u32.clone());
-
-        let bool_false = builder.numeric_constant(0u32, type_u1.clone());
-        let bool_true = builder.numeric_constant(1u32, type_u1.clone());
-
-        let v0 = builder.add_parameter(Type::Array(Arc::new(vec![type_u32.clone()]), 2));
-        let v1 = builder.add_parameter(Type::Array(Arc::new(vec![type_u32.clone()]), 2));
-        let v2 = builder.add_parameter(type_u32.clone());
-
-        builder.insert_inc_rc(v0);
-        builder.insert_inc_rc(v1);
-
-        let br_function_id = Id::test_new(1);
-        let br_function = builder.import_function(br_function_id);
-
-        let v4 = builder.insert_call(br_function, vec![v0], vec![type_u32.clone()])[0];
-        let v6 = builder.insert_allocate(type_u32.clone());
-
-        builder.insert_store(v6, bool_false);
-        let v7 = builder.insert_load(v6, type_u1.clone());
-        let v11 = builder.insert_array_get(v0, zero, type_u32.clone());
-        let v12 = builder.insert_binary(v11, BinaryOp::Eq, v4);
-        let v13 = builder.insert_binary(v7, BinaryOp::Or, v12);
-
-        builder.insert_store(v6, v13);
-        let v14 = builder.insert_load(v6, type_u1.clone());
-        let v16 = builder.insert_array_get(v0, one, type_u32.clone());
-        let v17 = builder.insert_binary(v16, BinaryOp::Eq, v4);
-        let v18 = builder.insert_binary(v14, BinaryOp::Or, v17);
-
-        builder.insert_store(v6, v18);
-        let v19 = builder.insert_load(v6, type_u1.clone());
-
-        builder.insert_constrain(v19, bool_true, None);
-
-        let v22 = builder.insert_call(br_function, vec![v1], vec![type_u32.clone()])[0];
-        let v23 = builder.insert_binary(v4, BinaryOp::Add, v22);
-
-        builder.insert_constrain(v2, v23, None);
-
-        builder.insert_dec_rc(v0);
-        builder.insert_dec_rc(v1);
-
-        builder.terminate_with_return(vec![]);
-
-        // We're faking the Brillig function here, for simplicity's sake
-
-        builder.new_brillig_function("maximum_price".into(), br_function_id, InlineType::default());
-        let v0 = builder.add_parameter(Type::Array(Arc::new(vec![type_u32.clone()]), 2));
-        let zero = builder.numeric_constant(0u32, type_u32.clone());
-
-        let v1 = builder.insert_array_get(v0, zero, type_u32);
-        builder.terminate_with_return(vec![v1]);
-
-        let mut ssa = builder.finish();
+        let mut ssa = Ssa::from_str(program).unwrap();
         let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
         assert_eq!(ssa_level_warnings.len(), 1);
     }
@@ -928,42 +842,28 @@ mod test {
     /// Test where a call to a brillig function returning multiple result values
     /// is left unchecked with a later assert involving all the results
     fn test_unchecked_multiple_results_brillig() {
-        let type_u32 = Type::Numeric(NumericType::Unsigned { bit_size: 32 });
-
-        let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-
-        let v0 = builder.add_parameter(type_u32.clone());
-
-        let br_function_id = Id::test_new(1);
-        let br_function = builder.import_function(br_function_id);
-
         // First call is constrained properly, involving both results
-        let call_results =
-            builder.insert_call(br_function, vec![v0], vec![type_u32.clone(), type_u32.clone()]);
-        let (v6, v7) = (call_results[0], call_results[1]);
-        let v8 = builder.insert_binary(v6, BinaryOp::Mul, v7);
-        builder.insert_constrain(v8, v0, None);
-
         // Second call is insufficiently constrained, involving only one of the results
-        let call_results =
-            builder.insert_call(br_function, vec![v0], vec![type_u32.clone(), type_u32.clone()]);
-        let (v9, _) = (call_results[0], call_results[1]);
-        let v11 = builder.insert_binary(v9, BinaryOp::Mul, v9);
-        builder.insert_constrain(v11, v0, None);
+        // The Brillig function is fake, for simplicity's sake
+        let program = r#"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v2, v3 = call f1(v0) -> (u32, u32)
+            v4 = mul v2, v3
+            constrain v4 == v0
+            v5, v6 = call f1(v0) -> (u32, u32)
+            v7 = mul v5, v5
+            constrain v7 == v0
+            return
+        }
 
-        builder.terminate_with_return(vec![]);
+        brillig(inline) fn factor f1 {
+          b0(v0: u32):
+            return u32 0, u32 0
+        }
+        "#;
 
-        // We're faking the Brillig function here, for simplicity's sake
-
-        builder.new_brillig_function("factor".into(), br_function_id, InlineType::default());
-        builder.add_parameter(type_u32.clone());
-        let zero = builder.numeric_constant(0u32, type_u32.clone());
-
-        builder.terminate_with_return(vec![zero, zero]);
-
-        let mut ssa = builder.finish();
-
+        let mut ssa = Ssa::from_str(program).unwrap();
         let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
         assert_eq!(ssa_level_warnings.len(), 1);
     }
@@ -974,38 +874,26 @@ mod test {
     /// (should _not_ lead to a false positive failed check
     /// if all the results are constrained)
     fn test_checked_brillig_with_constant_arguments() {
-        let type_u32 = Type::Numeric(NumericType::Unsigned { bit_size: 32 });
-
-        let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-
-        let v0 = builder.add_parameter(type_u32.clone());
-
-        let seven = builder.field_constant(7u128);
-
-        let br_function_id = Id::test_new(1);
-        let br_function = builder.import_function(br_function_id);
-
         // The call is constrained properly, involving both results
         // (but the argument to the Brillig is a constant)
-        let call_results =
-            builder.insert_call(br_function, vec![seven], vec![type_u32.clone(), type_u32.clone()]);
-        let (v6, v7) = (call_results[0], call_results[1]);
-        let v8 = builder.insert_binary(v6, BinaryOp::Mul, v7);
-        builder.insert_constrain(v8, v0, None);
+        // The Brillig function is fake, for simplicity's sake
 
-        builder.terminate_with_return(vec![]);
+        let program = r#"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v3, v4 = call f1(Field 7) -> (u32, u32)
+            v5 = mul v3, v4
+            constrain v5 == v0
+            return
+        }
 
-        // We're faking the Brillig function here, for simplicity's sake
+        brillig(inline) fn factor f1 {
+          b0(v0: Field):
+            return u32 0, u32 0
+        }
+        "#;
 
-        builder.new_brillig_function("factor".into(), br_function_id, InlineType::default());
-        builder.add_parameter(Type::field());
-        let zero = builder.numeric_constant(0u32, type_u32.clone());
-
-        builder.terminate_with_return(vec![zero, zero]);
-
-        let mut ssa = builder.finish();
-
+        let mut ssa = Ssa::from_str(program).unwrap();
         let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
         assert_eq!(ssa_level_warnings.len(), 0);
     }
@@ -1015,34 +903,26 @@ mod test {
     /// Test where a brillig function call is constrained with a range check
     /// (should _not_ lead to a false positive failed check)
     fn test_range_checked_brillig() {
-        let type_u32 = Type::Numeric(NumericType::Unsigned { bit_size: 32 });
-
-        let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-
-        let v0 = builder.add_parameter(type_u32.clone());
-
-        let br_function_id = Id::test_new(1);
-        let br_function = builder.import_function(br_function_id);
-
         // The call is constrained properly with a range check, involving
         // both Brillig call argument and result
-        let call_results = builder.insert_call(br_function, vec![v0], vec![type_u32.clone()]);
-        let v1 = call_results[0];
-        let v2 = builder.insert_binary(v1, BinaryOp::Add, v0);
-        builder.insert_range_check(v2, 32, None);
+        // The Brillig function is fake, for simplicity's sake
 
-        builder.terminate_with_return(vec![]);
+        let program = r#"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v2 = call f1(v0) -> u32
+            v3 = add v2, v0
+            range_check v3 to 32 bits
+            return
+        }
 
-        // We're faking the Brillig function here, for simplicity's sake
+        brillig(inline) fn dummy f1 {
+          b0(v0: u32):
+            return u32 0
+        }
+        "#;
 
-        builder.new_brillig_function("dummy".into(), br_function_id, InlineType::default());
-        builder.add_parameter(type_u32.clone());
-        let zero = builder.numeric_constant(0u32, type_u32.clone());
-        builder.terminate_with_return(vec![zero]);
-
-        let mut ssa = builder.finish();
-
+        let mut ssa = Ssa::from_str(program).unwrap();
         let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
         assert_eq!(ssa_level_warnings.len(), 0);
     }
