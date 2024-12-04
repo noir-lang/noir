@@ -123,7 +123,7 @@ impl Context {
                         .push(instructions_len - instruction_index - 1);
                 }
             } else {
-                use Instruction::*;                
+                use Instruction::*;
                 // We can't remove rc instructions if they're loaded from a reference
                 // since we'd have no way of knowing whether the reference is still used.
                 if Self::is_inc_dec_instruction_on_known_array(instruction, &function.dfg) {
