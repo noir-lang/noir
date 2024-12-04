@@ -163,7 +163,7 @@ impl BrilligTaintedIds {
     fn store_partial_constraints(&mut self, constrained_values: &HashSet<ValueId>) {
         let mut results_involved: Vec<usize> = vec![];
 
-        // For a valid partial constrain, a value descending from
+        // For a valid partial constraint, a value descending from
         // one of the results should be constrained
         for (i, result_descendants) in self.results.iter().enumerate() {
             // Skip checking already covered results
