@@ -76,23 +76,13 @@ pub fn compile<F: AcirField>(
     acir: Circuit<F>,
     expression_width: ExpressionWidth,
 ) -> (Circuit<F>, AcirTransformationMap) {
-    let mut pass = 0;
-    let mut prev_acir = acir;
-    loop {
-        let (acir, acir_opcode_positions) = optimize_internal(prev_acir);
+    let (acir, acir_opcode_positions) = optimize_internal(acir);
 
-        let (mut acir, acir_opcode_positions) =
-            transform_internal(acir, expression_width, acir_opcode_positions);
+    let (mut acir, acir_opcode_positions) =
+        transform_internal(acir, expression_width, acir_opcode_positions);
 
-        let transformation_map = AcirTransformationMap::new(&acir_opcode_positions);
+    let transformation_map = AcirTransformationMap::new(&acir_opcode_positions);
+    acir.assert_messages = transform_assert_messages(acir.assert_messages, &transformation_map);
 
-        acir.assert_messages = transform_assert_messages(acir.assert_messages, &transformation_map);
-
-        if pass == 2 {
-            return (acir, transformation_map);
-        }
-        println!("AFTER PASS {pass}: {acir}");
-        pass += 1;
-        prev_acir = acir;
-    }
+    (acir, transformation_map)
 }

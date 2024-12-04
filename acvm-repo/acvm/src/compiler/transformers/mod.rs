@@ -20,8 +20,7 @@ use super::{
 };
 
 /// The `MergeExpressionOptimizer` needs multiple passes to stabilize the output.
-/// Testing showed two passes to be enough.
-const MAX_OPTIMIZER_PASSES: usize = 2;
+const MAX_OPTIMIZER_PASSES: usize = 3;
 
 /// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] specific optimizations to a [`Circuit`].
 fn _transform<F: AcirField>(
@@ -59,7 +58,7 @@ pub(super) fn transform_internal<F: AcirField>(
     // Allow multiple passes until we have stable output.
     let mut prev_opcodes_hash = fxhash::hash64(&acir.opcodes);
 
-    for _ in 0..1 {
+    for _ in 0..MAX_OPTIMIZER_PASSES {
         let (new_acir, new_acir_opcode_positions) =
             transform_internal_once(acir, expression_width, acir_opcode_positions);
 
