@@ -530,6 +530,7 @@ jobs:
         - { repo: noir-lang/noir_string_search, path: ./  }
         - { repo: noir-lang/sparse_array, path: ./  }
         - { repo: noir-lang/noir_rsa, path: ./lib  }
+        - { repo: noir-lang/noir-lang/noir_json_parser, path: ./  }
         - { repo: AztecProtocol/aztec-packages, path: ./noir-projects/aztec-nr }
         - { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-contracts }
         - { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/parity-lib }
