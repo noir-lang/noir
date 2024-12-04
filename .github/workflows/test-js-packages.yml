@@ -78,7 +78,6 @@ jobs:
             ./tooling/noirc_abi_wasm/web
           retention-days: 10
 
-
   build-noir-wasm:
     runs-on: ubuntu-latest
     timeout-minutes: 30
