@@ -88,6 +88,7 @@ fn on_test_run_request_inner(
                 None,
                 Some(workspace.root_dir.clone()),
                 Some(package.name.to_string()),
+                false,
                 &CompileOptions::default(),
             );
             let result = match test_result {

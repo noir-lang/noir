@@ -56,6 +56,7 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
     foreign_call_resolver_url: Option<&str>,
     root_path: Option<PathBuf>,
     package_name: Option<String>,
+    skip_oracle: bool,
     config: &CompileOptions,
 ) -> TestStatus {
     let test_function_has_no_arguments = context
@@ -67,7 +68,7 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
 
     match compile_no_check(context, config, test_function.get_id(), None, false) {
         Ok(compiled_program) => {
-            if config.skip_oracle {
+            if skip_oracle {
                 let mut has_oracle = false;
                 for brillig_function in &compiled_program.program.unconstrained_functions {
                     match brillig_function.get_oracle_status(ForeignCall::check_oracle_status) {

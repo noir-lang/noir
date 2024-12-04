@@ -144,10 +144,6 @@ pub struct CompileOptions {
     /// A lower value keeps the original program if it was smaller, even if it has more jumps.
     #[arg(long, hide = true, allow_hyphen_values = true)]
     pub max_bytecode_increase_percent: Option<i32>,
-
-    /// Flag to skip tests using oracles.
-    #[arg(long, hide = true)]
-    pub skip_oracle: bool,
 }
 
 pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {

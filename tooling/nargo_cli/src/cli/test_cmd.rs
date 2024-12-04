@@ -49,6 +49,10 @@ pub(crate) struct TestCommand {
     /// JSON RPC url to solve oracle calls
     #[clap(long)]
     oracle_resolver: Option<String>,
+
+    /// Flag to skip tests using oracles.
+    #[arg(long, hide = true)]
+    skip_oracle: bool,
 }
 
 pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError> {
@@ -76,7 +80,6 @@ pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError
         }
         None => FunctionNameMatch::Anything,
     };
-
     // Configure a thread pool with a larger stack size to prevent overflowing stack in large programs.
     // Default is 2MB.
     let pool = rayon::ThreadPoolBuilder::new().stack_size(4 * 1024 * 1024).build().unwrap();
@@ -94,6 +97,7 @@ pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError
                     args.oracle_resolver.as_deref(),
                     Some(workspace.root_dir.clone()),
                     Some(package.name.to_string()),
+                    args.skip_oracle,
                     &args.compile_options,
                 )
             })
@@ -133,6 +137,7 @@ fn run_tests<S: BlackBoxFunctionSolver<FieldElement> + Default>(
     foreign_call_resolver_url: Option<&str>,
     root_path: Option<PathBuf>,
     package_name: Option<String>,
+    skip_oracle: bool,
     compile_options: &CompileOptions,
 ) -> Result<Vec<(String, TestStatus)>, CliError> {
     let test_functions =
@@ -155,6 +160,7 @@ fn run_tests<S: BlackBoxFunctionSolver<FieldElement> + Default>(
                 foreign_call_resolver_url,
                 root_path.clone(),
                 package_name.clone(),
+                skip_oracle,
                 compile_options,
             );
 
@@ -176,6 +182,7 @@ fn run_test<S: BlackBoxFunctionSolver<FieldElement> + Default>(
     foreign_call_resolver_url: Option<&str>,
     root_path: Option<PathBuf>,
     package_name: Option<String>,
+    skip_oracle: bool,
     compile_options: &CompileOptions,
 ) -> TestStatus {
     // This is really hacky but we can't share `Context` or `S` across threads.
@@ -199,6 +206,7 @@ fn run_test<S: BlackBoxFunctionSolver<FieldElement> + Default>(
         foreign_call_resolver_url,
         root_path,
         package_name,
+        skip_oracle,
         compile_options,
     )
 }
