@@ -1626,7 +1626,7 @@ dependencies = [
 
 [[package]]
 name = "format_trace"
-version = "0.39.0"
+version = "1.0.0-beta.0"
 dependencies = [
  "regex",
  "serde",
@@ -2853,8 +2853,8 @@ dependencies = [
  "dirs",
  "file-lock",
  "fm",
- "hex",
  "fxhash",
+ "hex",
  "iai",
  "iter-extended",
  "lazy_static",
@@ -3087,7 +3087,7 @@ dependencies = [
 
 [[package]]
 name = "noir_tracer"
-version = "0.39.0"
+version = "1.0.0-beta.0"
 dependencies = [
  "acvm",
  "fm",
