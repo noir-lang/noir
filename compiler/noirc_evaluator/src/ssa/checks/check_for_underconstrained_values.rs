@@ -11,7 +11,7 @@ use crate::ssa::ssa_gen::Ssa;
 use im::HashMap;
 use rayon::prelude::*;
 use std::collections::{BTreeMap, HashSet};
-use tracing::{debug, trace};
+use tracing::trace;
 
 impl Ssa {
     /// This function provides an SSA pass that detects if the final function has any subgraphs independent from inputs and outputs.
@@ -259,7 +259,7 @@ impl DependencyContext {
                     if let Some(value_id) = self.memory_slots.get(address) {
                         self.update_children(&[function.dfg.resolve(*value_id)], &results);
                     } else {
-                        debug!("load instruction {} has attempted to access previously unused memory location, skipping",
+                        panic!("load instruction {} has attempted to access previously unused memory location, skipping",
                             instruction);
                     }
                 }
@@ -328,12 +328,12 @@ impl DependencyContext {
                             }
                         },
                         Value::ForeignFunction(..) => {
-                            debug!("should not be able to reach foreign function from non-Brillig functions, {func_id} in function {}", function.name());
+                            panic!("should not be able to reach foreign function from non-Brillig functions, {func_id} in function {}", function.name());
                         }
                         Value::Instruction { .. }
                         | Value::NumericConstant { .. }
                         | Value::Param { .. } => {
-                            debug!(
+                            panic!(
                                 "should not be able to call {func_id} in function {}",
                                 function.name()
                             );
