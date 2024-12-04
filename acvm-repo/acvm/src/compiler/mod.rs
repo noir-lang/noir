@@ -14,7 +14,7 @@ pub use optimizers::optimize;
 use optimizers::optimize_internal;
 pub use simulator::CircuitSimulator;
 use transformers::transform_internal;
-pub use transformers::MIN_EXPRESSION_WIDTH;
+pub use transformers::{transform, MIN_EXPRESSION_WIDTH};
 
 /// We need multiple passes to stabilize the output.
 /// The value was determined by running tests.
