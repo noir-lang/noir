@@ -4,6 +4,12 @@ set -e
 # Run relative to repo root
 cd $(dirname "$0")/../
 
+if [[ -z $1 ]]; then
+    echo "Must specify Noir release to test against" >&2
+    exit 1
+fi
+noirup -v $1
+
 CRITICAL_LIBRARIES=$(grep -v "^#\|^$" ./CRITICAL_NOIR_LIBRARIES)
 readarray -t REPOS_TO_CHECK < <(echo "$CRITICAL_LIBRARIES")
 
