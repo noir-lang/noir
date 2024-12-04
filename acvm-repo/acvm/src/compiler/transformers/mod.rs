@@ -15,34 +15,7 @@ mod csat;
 pub(crate) use csat::CSatTransformer;
 pub use csat::MIN_EXPRESSION_WIDTH;
 
-use super::{
-    optimizers::MergeExpressionsOptimizer, transform_assert_messages, AcirTransformationMap,
-    MAX_OPTIMIZER_PASSES,
-};
-
-/// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] specific optimizations to a [`Circuit`].
-///
-/// TODO: Can this be removed?
-fn _transform<F: AcirField>(
-    mut acir: Circuit<F>,
-    expression_width: ExpressionWidth,
-) -> (Circuit<F>, AcirTransformationMap) {
-    // Track original acir opcode positions throughout the transformation passes of the compilation
-    // by applying the modifications done to the circuit opcodes and also to the opcode_positions (delete and insert)
-    let mut acir_opcode_positions =
-        acir.opcodes.iter().enumerate().map(|(i, _)| i).collect::<Vec<_>>();
-
-    let (new_acir, new_acir_opcode_positions) =
-        transform_internal(acir, expression_width, acir_opcode_positions);
-
-    acir = new_acir;
-    acir_opcode_positions = new_acir_opcode_positions;
-
-    let transformation_map = AcirTransformationMap::new(&acir_opcode_positions);
-    acir.assert_messages = transform_assert_messages(acir.assert_messages, &transformation_map);
-
-    (acir, transformation_map)
-}
+use super::{optimizers::MergeExpressionsOptimizer, MAX_OPTIMIZER_PASSES};
 
 /// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] specific optimizations to a [`Circuit`].
 ///
