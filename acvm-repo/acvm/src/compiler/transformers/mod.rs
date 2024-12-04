@@ -19,6 +19,10 @@ use super::{
     optimizers::MergeExpressionsOptimizer, transform_assert_messages, AcirTransformationMap,
 };
 
+/// The `MergeExpressionOptimizer` needs multiple passes to stabilize the output.
+/// Testing showed two passes to be enough.
+const MAX_OPTIMIZER_PASSES: usize = 10;
+
 /// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] specific optimizations to a [`Circuit`].
 pub fn transform<F: AcirField>(
     acir: Circuit<F>,
@@ -153,24 +157,37 @@ pub(super) fn transform_internal<F: AcirField>(
 
     let current_witness_index = next_witness_index - 1;
 
-    let acir = Circuit {
+    let mut acir = Circuit {
         current_witness_index,
         expression_width,
         opcodes: transformed_opcodes,
         // The transformer does not add new public inputs
         ..acir
     };
-    let mut merge_optimizer = MergeExpressionsOptimizer::new();
 
-    let (opcodes, new_acir_opcode_positions) =
-        merge_optimizer.eliminate_intermediate_variable(&acir, new_acir_opcode_positions);
+    // Allow multiple passes until we have stable output.
+    let mut prev_circuit_hash = fxhash::hash64(&acir);
+    for _ in 0..MAX_OPTIMIZER_PASSES {
+        let mut merge_optimizer = MergeExpressionsOptimizer::new();
 
-    // n.b. if we do not update current_witness_index after the eliminate_intermediate_variable pass, the real index could be less.
-    let mut acir = Circuit {
-        opcodes,
-        // The optimizer does not add new public inputs
-        ..acir
-    };
+        let (next_opcodes, next_acir_opcode_positions) =
+            merge_optimizer.eliminate_intermediate_variable(&acir, new_acir_opcode_positions);
+
+        // n.b. if we do not update current_witness_index after the eliminate_intermediate_variable pass, the real index could be less.
+        acir = Circuit {
+            opcodes: next_opcodes,
+            // The optimizer does not add new public inputs
+            ..acir
+        };
+
+        let next_circuit_hash = fxhash::hash64(&acir);
+        new_acir_opcode_positions = next_acir_opcode_positions;
+
+        if next_circuit_hash == prev_circuit_hash {
+            break;
+        }
+        prev_circuit_hash = next_circuit_hash;
+    }
 
     // After the elimination of intermediate variables the `current_witness_index` is potentially higher than it needs to be,
     // which would cause gaps if we ran the optimization a second time, making it look like new variables were added.
