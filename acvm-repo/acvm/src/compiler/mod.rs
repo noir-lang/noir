@@ -14,7 +14,7 @@ pub use optimizers::optimize;
 use optimizers::optimize_internal;
 pub use simulator::CircuitSimulator;
 use transformers::transform_internal;
-pub use transformers::{transform, MIN_EXPRESSION_WIDTH};
+pub use transformers::MIN_EXPRESSION_WIDTH;
 
 /// This module moves and decomposes acir opcodes. The transformation map allows consumers of this module to map
 /// metadata they had about the opcodes to the new opcode structure generated after the transformation.
@@ -28,9 +28,9 @@ impl AcirTransformationMap {
     /// Builds a map from a vector of pointers to the old acir opcodes.
     /// The index of the vector is the new opcode index.
     /// The value of the vector is the old opcode index pointed.
-    fn new(acir_opcode_positions: Vec<usize>) -> Self {
+    fn new(acir_opcode_positions: &[usize]) -> Self {
         let mut old_indices_to_new_indices = HashMap::with_capacity(acir_opcode_positions.len());
-        for (new_index, old_index) in acir_opcode_positions.into_iter().enumerate() {
+        for (new_index, old_index) in acir_opcode_positions.iter().copied().enumerate() {
             old_indices_to_new_indices.entry(old_index).or_insert_with(Vec::new).push(new_index);
         }
         AcirTransformationMap { old_indices_to_new_indices }
@@ -76,14 +76,23 @@ pub fn compile<F: AcirField>(
     acir: Circuit<F>,
     expression_width: ExpressionWidth,
 ) -> (Circuit<F>, AcirTransformationMap) {
-    let (acir, acir_opcode_positions) = optimize_internal(acir);
+    let mut pass = 0;
+    let mut prev_acir = acir;
+    loop {
+        let (acir, acir_opcode_positions) = optimize_internal(prev_acir);
 
-    let (mut acir, acir_opcode_positions) =
-        transform_internal(acir, expression_width, acir_opcode_positions);
+        let (mut acir, acir_opcode_positions) =
+            transform_internal(acir, expression_width, acir_opcode_positions);
 
-    let transformation_map = AcirTransformationMap::new(acir_opcode_positions);
+        let transformation_map = AcirTransformationMap::new(&acir_opcode_positions);
 
-    acir.assert_messages = transform_assert_messages(acir.assert_messages, &transformation_map);
+        acir.assert_messages = transform_assert_messages(acir.assert_messages, &transformation_map);
 
-    (acir, transformation_map)
+        if pass == 2 {
+            return (acir, transformation_map);
+        }
+        println!("AFTER PASS {pass}: {acir}");
+        pass += 1;
+        prev_acir = acir;
+    }
 }

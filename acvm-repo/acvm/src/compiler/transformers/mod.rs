@@ -21,22 +21,25 @@ use super::{
 
 /// The `MergeExpressionOptimizer` needs multiple passes to stabilize the output.
 /// Testing showed two passes to be enough.
-const MAX_OPTIMIZER_PASSES: usize = 10;
+const MAX_OPTIMIZER_PASSES: usize = 2;
 
 /// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] specific optimizations to a [`Circuit`].
-pub fn transform<F: AcirField>(
-    acir: Circuit<F>,
+fn _transform<F: AcirField>(
+    mut acir: Circuit<F>,
     expression_width: ExpressionWidth,
 ) -> (Circuit<F>, AcirTransformationMap) {
     // Track original acir opcode positions throughout the transformation passes of the compilation
     // by applying the modifications done to the circuit opcodes and also to the opcode_positions (delete and insert)
-    let acir_opcode_positions = acir.opcodes.iter().enumerate().map(|(i, _)| i).collect();
+    let mut acir_opcode_positions =
+        acir.opcodes.iter().enumerate().map(|(i, _)| i).collect::<Vec<_>>();
 
-    let (mut acir, acir_opcode_positions) =
+    let (new_acir, new_acir_opcode_positions) =
         transform_internal(acir, expression_width, acir_opcode_positions);
 
-    let transformation_map = AcirTransformationMap::new(acir_opcode_positions);
+    acir = new_acir;
+    acir_opcode_positions = new_acir_opcode_positions;
 
+    let transformation_map = AcirTransformationMap::new(&acir_opcode_positions);
     acir.assert_messages = transform_assert_messages(acir.assert_messages, &transformation_map);
 
     (acir, transformation_map)
@@ -45,9 +48,43 @@ pub fn transform<F: AcirField>(
 /// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] specific optimizations to a [`Circuit`].
 ///
 /// Accepts an injected `acir_opcode_positions` to allow transformations to be applied directly after optimizations.
+///
+/// Does multiple passes until the output stabilises.
 #[tracing::instrument(level = "trace", name = "transform_acir", skip(acir, acir_opcode_positions))]
 pub(super) fn transform_internal<F: AcirField>(
-    acir: Circuit<F>,
+    mut acir: Circuit<F>,
+    expression_width: ExpressionWidth,
+    mut acir_opcode_positions: Vec<usize>,
+) -> (Circuit<F>, Vec<usize>) {
+    // Allow multiple passes until we have stable output.
+    let mut prev_opcodes_hash = fxhash::hash64(&acir.opcodes);
+
+    for _ in 0..1 {
+        let (new_acir, new_acir_opcode_positions) =
+            transform_internal_once(acir, expression_width, acir_opcode_positions);
+
+        acir = new_acir;
+        acir_opcode_positions = new_acir_opcode_positions;
+    }
+    // After the elimination of intermediate variables the `current_witness_index` is potentially higher than it needs to be,
+    // which would cause gaps if we ran the optimization a second time, making it look like new variables were added.
+    acir.current_witness_index = max_witness(&acir).witness_index();
+
+    (acir, acir_opcode_positions)
+}
+
+/// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] specific optimizations to a [`Circuit`].
+///
+/// Accepts an injected `acir_opcode_positions` to allow transformations to be applied directly after optimizations.
+///
+/// Does a single optimisation pass.
+#[tracing::instrument(
+    level = "trace",
+    name = "transform_acir_once",
+    skip(acir, acir_opcode_positions)
+)]
+fn transform_internal_once<F: AcirField>(
+    mut acir: Circuit<F>,
     expression_width: ExpressionWidth,
     acir_opcode_positions: Vec<usize>,
 ) -> (Circuit<F>, Vec<usize>) {
@@ -157,7 +194,7 @@ pub(super) fn transform_internal<F: AcirField>(
 
     let current_witness_index = next_witness_index - 1;
 
-    let mut acir = Circuit {
+    acir = Circuit {
         current_witness_index,
         expression_width,
         opcodes: transformed_opcodes,
@@ -165,33 +202,17 @@ pub(super) fn transform_internal<F: AcirField>(
         ..acir
     };
 
-    // Allow multiple passes until we have stable output.
-    let mut prev_circuit_hash = fxhash::hash64(&acir);
-    for _ in 0..MAX_OPTIMIZER_PASSES {
-        let mut merge_optimizer = MergeExpressionsOptimizer::new();
+    let mut merge_optimizer = MergeExpressionsOptimizer::new();
 
-        let (next_opcodes, next_acir_opcode_positions) =
-            merge_optimizer.eliminate_intermediate_variable(&acir, new_acir_opcode_positions);
+    let (opcodes, new_acir_opcode_positions) =
+        merge_optimizer.eliminate_intermediate_variable(&acir, new_acir_opcode_positions);
 
-        // n.b. if we do not update current_witness_index after the eliminate_intermediate_variable pass, the real index could be less.
-        acir = Circuit {
-            opcodes: next_opcodes,
-            // The optimizer does not add new public inputs
-            ..acir
-        };
-
-        let next_circuit_hash = fxhash::hash64(&acir);
-        new_acir_opcode_positions = next_acir_opcode_positions;
-
-        if next_circuit_hash == prev_circuit_hash {
-            break;
-        }
-        prev_circuit_hash = next_circuit_hash;
-    }
-
-    // After the elimination of intermediate variables the `current_witness_index` is potentially higher than it needs to be,
-    // which would cause gaps if we ran the optimization a second time, making it look like new variables were added.
-    acir.current_witness_index = max_witness(&acir).witness_index();
+    // n.b. if we do not update current_witness_index after the eliminate_intermediate_variable pass, the real index could be less.
+    acir = Circuit {
+        opcodes,
+        // The optimizer does not add new public inputs
+        ..acir
+    };
 
     (acir, new_acir_opcode_positions)
 }
