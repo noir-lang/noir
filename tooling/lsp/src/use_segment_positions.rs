@@ -318,7 +318,7 @@ fn new_use_completion_item_additional_text_edits(
     request: UseCompletionItemAdditionTextEditsRequest,
 ) -> Vec<TextEdit> {
     let line = request.auto_import_line as u32;
-    let character = (request.nesting * 4) as u32;
+    let character = 0;
     let indent = " ".repeat(request.nesting * 4);
     let mut newlines = "\n";
 
@@ -331,6 +331,6 @@ fn new_use_completion_item_additional_text_edits(
 
     vec![TextEdit {
         range: Range { start: Position { line, character }, end: Position { line, character } },
-        new_text: format!("use {};{}{}", request.full_path, newlines, indent),
+        new_text: format!("{}use {};{}", indent, request.full_path, newlines),
     }]
 }
