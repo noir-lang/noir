@@ -90,6 +90,7 @@ fn run_stdlib_tests(force_brillig: bool, inliner_aggressiveness: i64) {
                 None,
                 Some(dummy_package.root_dir.clone()),
                 Some(dummy_package.name.to_string()),
+                false,
                 &CompileOptions { force_brillig, inliner_aggressiveness, ..Default::default() },
             );
             (test_name, status)
