@@ -17,6 +17,7 @@ use transformers::transform_internal;
 pub use transformers::MIN_EXPRESSION_WIDTH;
 
 /// We need multiple passes to stabilize the output.
+/// The value was determined by running tests.
 const MAX_OPTIMIZER_PASSES: usize = 3;
 
 /// This module moves and decomposes acir opcodes. The transformation map allows consumers of this module to map
@@ -89,17 +90,25 @@ pub fn compile<F: AcirField>(
     // but some of them don't stabilize unless we also repeat the backend agnostic optimizations.
     let (mut acir, acir_opcode_positions) = loop {
         let (acir, acir_opcode_positions) = optimize_internal(prev_acir);
+
+        let opcodes_hash = fxhash::hash64(&acir.opcodes);
+        // Stop if we have already done at least one transform and an extra optimization changed nothing.
+        if pass > 0 && prev_opcodes_hash == opcodes_hash {
+            break (acir, acir_opcode_positions);
+        }
+
         let (acir, acir_opcode_positions) =
             transform_internal(acir, expression_width, acir_opcode_positions);
 
         let opcodes_hash = fxhash::hash64(&acir.opcodes);
-
+        // Stop if the output hasn't change in this loop or we went too long.
         if pass == MAX_OPTIMIZER_PASSES || prev_opcodes_hash == opcodes_hash {
             break (acir, acir_opcode_positions);
         }
+
         pass += 1;
         prev_acir = acir;
-        prev_opcodes_hash = opcodes_hash
+        prev_opcodes_hash = opcodes_hash;
     };
 
     let transformation_map = AcirTransformationMap::new(&acir_opcode_positions);
