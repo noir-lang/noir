@@ -8,7 +8,7 @@ pub struct SourcePoint {
     pub line_number: usize,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Hash)]
 pub struct AsmListIndexRange {
     pub start: usize,
     pub end: Option<usize>,
@@ -23,5 +23,16 @@ pub struct DebugTraceList {
 impl DebugTraceList {
     pub fn new() -> DebugTraceList {
         DebugTraceList { list: vec![], source_map: HashMap::new() }
+    }
+}
+
+impl std::hash::Hash for DebugTraceList {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H)
+    {
+        self.list.hash(state);
+        for (sp, li) in &self.source_map {
+            sp.hash(state);
+            li.hash(state);
+        }
     }
 }

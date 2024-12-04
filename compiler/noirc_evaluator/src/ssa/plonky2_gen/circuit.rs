@@ -25,6 +25,15 @@ impl Clone for Plonky2Circuit {
     }
 }
 
+impl std::hash::Hash for Plonky2Circuit {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H)
+    {
+        self.parameters.hash(state);
+        self.parameter_names.hash(state);
+        self.debug_trace_list.hash(state);
+    }
+}
+
 impl Serialize for Plonky2Circuit {
     // see the todo at Clone
     fn serialize<S>(&self, _serializer: S) -> Result<S::Ok, S::Error>

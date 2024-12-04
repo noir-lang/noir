@@ -616,7 +616,7 @@ pub fn compile_no_check(
         || options.emit_ssa;
 
     // Hash the AST program, which is going to be used to fingerprint the compilation artifact.
-    let hash = fxhash::hash64(&program);
+    let hash = fxhash::hash64(&monomorph);
 
     if let Some(cached_program) = cached_program {
         if !force_compile && cached_program.hash == hash {
