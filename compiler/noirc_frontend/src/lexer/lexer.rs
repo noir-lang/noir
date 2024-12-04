@@ -409,6 +409,24 @@ impl<'a> Lexer<'a> {
 
     fn eat_string_literal(&mut self) -> SpannedTokenResult {
         let start = self.position;
+        let string = self.eat_string(start)?;
+        let str_literal_token = Token::Str(string);
+        let end = self.position;
+        Ok(str_literal_token.into_span(start, end))
+    }
+
+    // This differs from `eat_string_literal` in that we want the leading `f` to be captured in the Span
+    fn eat_fmt_string(&mut self) -> SpannedTokenResult {
+        let start = self.position;
+        self.next_char();
+
+        let string = self.eat_string(start)?;
+        let str_literal_token = Token::FmtStr(string);
+        let end = self.position;
+        Ok(str_literal_token.into_span(start, end))
+    }
+
+    fn eat_string(&mut self, start: u32) -> Result<String, LexerErrorKind> {
         let mut string = String::new();
 
         while let Some(next) = self.next_char() {
@@ -436,26 +454,7 @@ impl<'a> Lexer<'a> {
             string.push(char);
         }
 
-        let str_literal_token = Token::Str(string);
-
-        let end = self.position;
-        Ok(str_literal_token.into_span(start, end))
-    }
-
-    // This differs from `eat_string_literal` in that we want the leading `f` to be captured in the Span
-    fn eat_fmt_string(&mut self) -> SpannedTokenResult {
-        let start = self.position;
-
-        self.next_char();
-
-        let str_literal = self.eat_while(None, |ch| ch != '"');
-
-        let str_literal_token = Token::FmtStr(str_literal);
-
-        self.next_char(); // Advance past the closing quote
-
-        let end = self.position;
-        Ok(str_literal_token.into_span(start, end))
+        Ok(string)
     }
 
     fn eat_format_string_or_alpha_numeric(&mut self) -> SpannedTokenResult {
@@ -953,6 +952,60 @@ mod tests {
             Token::Ident("_word".to_string()),
             Token::Assign,
             Token::Str("hello".to_string()),
+        ];
+        let mut lexer = Lexer::new(input);
+
+        for token in expected.into_iter() {
+            let got = lexer.next_token().unwrap();
+            assert_eq!(got, token);
+        }
+    }
+
+    #[test]
+    fn test_eat_string_literal_with_escapes() {
+        let input = "let _word = \"hello\\n\\t\"";
+
+        let expected = vec![
+            Token::Keyword(Keyword::Let),
+            Token::Ident("_word".to_string()),
+            Token::Assign,
+            Token::Str("hello\n\t".to_string()),
+        ];
+        let mut lexer = Lexer::new(input);
+
+        for token in expected.into_iter() {
+            let got = lexer.next_token().unwrap();
+            assert_eq!(got, token);
+        }
+    }
+
+    #[test]
+    fn test_eat_fmt_string_literal() {
+        let input = "let _word = f\"hello\"";
+
+        let expected = vec![
+            Token::Keyword(Keyword::Let),
+            Token::Ident("_word".to_string()),
+            Token::Assign,
+            Token::FmtStr("hello".to_string()),
+        ];
+        let mut lexer = Lexer::new(input);
+
+        for token in expected.into_iter() {
+            let got = lexer.next_token().unwrap();
+            assert_eq!(got, token);
+        }
+    }
+
+    #[test]
+    fn test_eat_fmt_string_literal_with_escapes() {
+        let input = "let _word = f\"hello\\n\\t\"";
+
+        let expected = vec![
+            Token::Keyword(Keyword::Let),
+            Token::Ident("_word".to_string()),
+            Token::Assign,
+            Token::FmtStr("hello\n\t".to_string()),
         ];
         let mut lexer = Lexer::new(input);
 
