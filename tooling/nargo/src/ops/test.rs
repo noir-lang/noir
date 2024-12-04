@@ -75,6 +75,7 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
                     WitnessMap::new(),
                     blackbox_solver,
                     &mut foreign_call_executor,
+                    config.pedantic_solving,
                 );
 
                 let status = test_status_program_compile_pass(
@@ -130,6 +131,7 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
                                     root_path.clone(),
                                     package_name.clone(),
                                 ),
+                                config.pedantic_solving,
                             )
                             .map_err(|err| err.to_string())
                         };

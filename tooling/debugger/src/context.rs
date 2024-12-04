@@ -233,7 +233,7 @@ pub struct ExecutionFrame<'a, B: BlackBoxFunctionSolver<FieldElement>> {
 }
 
 pub(super) struct DebugContext<'a, B: BlackBoxFunctionSolver<FieldElement>> {
-    acvm: ACVM<'a, FieldElement, B>,
+    pub(crate) acvm: ACVM<'a, FieldElement, B>,
     current_circuit_id: u32,
     brillig_solver: Option<BrilligSolver<'a, FieldElement, B>>,
 
@@ -261,6 +261,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
         initial_witness: WitnessMap<FieldElement>,
         foreign_call_executor: Box<dyn DebugForeignCallExecutor + 'a>,
         unconstrained_functions: &'a [BrilligBytecode<FieldElement>],
+        pedantic_solving: bool,
     ) -> Self {
         let source_to_opcodes = build_source_to_opcode_debug_mappings(debug_artifact);
         let current_circuit_id: u32 = 0;
@@ -273,6 +274,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
                 initial_witness,
                 unconstrained_functions,
                 &initial_circuit.assert_messages,
+                pedantic_solving,
             ),
             current_circuit_id,
             brillig_solver: None,
@@ -573,6 +575,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
             callee_witness_map,
             self.unconstrained_functions,
             &callee_circuit.assert_messages,
+            self.acvm.pedantic_solving,
         );
         let caller_acvm = std::mem::replace(&mut self.acvm, callee_acvm);
         self.acvm_stack

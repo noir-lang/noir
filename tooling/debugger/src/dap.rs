@@ -65,6 +65,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>> DapSession<
         debug_artifact: &'a DebugArtifact,
         initial_witness: WitnessMap<FieldElement>,
         unconstrained_functions: &'a [BrilligBytecode<FieldElement>],
+        pedantic_solving: bool,
     ) -> Self {
         let context = DebugContext::new(
             solver,
@@ -73,6 +74,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>> DapSession<
             initial_witness,
             Box::new(DefaultDebugForeignCallExecutor::from_artifact(true, debug_artifact)),
             unconstrained_functions,
+            pedantic_solving,
         );
         Self {
             server,
@@ -607,6 +609,7 @@ pub fn run_session<R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>>(
     solver: &B,
     program: CompiledProgram,
     initial_witness: WitnessMap<FieldElement>,
+    pedantic_solving: bool,
 ) -> Result<(), ServerError> {
     let debug_artifact = DebugArtifact { debug_symbols: program.debug, file_map: program.file_map };
     let mut session = DapSession::new(
@@ -616,6 +619,7 @@ pub fn run_session<R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>>(
         &debug_artifact,
         initial_witness,
         &program.program.unconstrained_functions,
+        pedantic_solving,
     );
 
     session.run_loop()

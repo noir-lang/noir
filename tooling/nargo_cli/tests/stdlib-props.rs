@@ -87,11 +87,13 @@ fn run_snippet_proptest(
         let initial_witness = program.abi.encode(&io.inputs, None).expect("failed to encode");
         let mut foreign_call_executor = foreign_call_executor.borrow_mut();
 
+        let pedandic_solving = true;
         let witness_stack: WitnessStack<FieldElement> = execute_program(
             &program.program,
             initial_witness,
             &blackbox_solver,
             &mut *foreign_call_executor,
+            pedandic_solving,
         )
         .expect("failed to execute");
 

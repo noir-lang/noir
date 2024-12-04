@@ -59,4 +59,8 @@ impl AcvmBigIntSolver {
         self.bigint_solver.bigint_op(lhs, rhs, output, func)?;
         Ok(())
     }
+
+    pub(crate) fn is_valid_modulus(&self, modulus: &[u8]) -> bool {
+        self.bigint_solver.is_valid_modulus(modulus)
+    }
 }

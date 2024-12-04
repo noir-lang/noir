@@ -96,6 +96,11 @@ impl BigIntSolver {
         self.bigint_id_to_modulus.insert(output, modulus);
         Ok(())
     }
+
+    pub fn is_valid_modulus(&self, modulus: &[u8]) -> bool {
+        let modulus = BigUint::from_bytes_le(modulus);
+        self.bigint_id_to_modulus.values().any(|value| modulus == *value)
+    }
 }
 
 /// Wrapper over the generic bigint solver to automatically assign bigint IDs.

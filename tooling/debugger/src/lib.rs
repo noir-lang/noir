@@ -19,8 +19,9 @@ pub fn run_repl_session<B: BlackBoxFunctionSolver<FieldElement>>(
     solver: &B,
     program: CompiledProgram,
     initial_witness: WitnessMap<FieldElement>,
+    pedantic_solving: bool,
 ) -> Result<Option<WitnessStack<FieldElement>>, NargoError<FieldElement>> {
-    repl::run(solver, program, initial_witness)
+    repl::run(solver, program, initial_witness, pedantic_solving)
 }
 
 pub fn run_dap_loop<R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>>(
@@ -28,6 +29,7 @@ pub fn run_dap_loop<R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>>(
     solver: &B,
     program: CompiledProgram,
     initial_witness: WitnessMap<FieldElement>,
+    pedantic_solving: bool,
 ) -> Result<(), ServerError> {
-    dap::run_session(server, solver, program, initial_witness)
+    dap::run_session(server, solver, program, initial_witness, pedantic_solving)
 }

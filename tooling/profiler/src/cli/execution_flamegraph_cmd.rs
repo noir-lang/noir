@@ -25,6 +25,12 @@ pub(crate) struct ExecutionFlamegraphCommand {
     /// The output folder for the flamegraph svg files
     #[clap(long, short)]
     output: PathBuf,
+
+    /// Use pedantic ACVM solving, i.e. double-check some black-box function
+    /// assumptions when solving.
+    /// This is disabled by default.
+    #[clap(long, default_value = "false")]
+    pedantic_solving: bool,
 }
 
 pub(crate) fn run(args: ExecutionFlamegraphCommand) -> eyre::Result<()> {
@@ -33,6 +39,7 @@ pub(crate) fn run(args: ExecutionFlamegraphCommand) -> eyre::Result<()> {
         &args.prover_toml_path,
         &InfernoFlamegraphGenerator { count_name: "samples".to_string() },
         &args.output,
+        args.pedantic_solving,
     )
 }
 
@@ -41,6 +48,7 @@ fn run_with_generator(
     prover_toml_path: &Path,
     flamegraph_generator: &impl FlamegraphGenerator,
     output_path: &Path,
+    pedantic_solving: bool,
 ) -> eyre::Result<()> {
     let program =
         read_program_from_file(artifact_path).context("Error reading program from file")?;
@@ -55,6 +63,7 @@ fn run_with_generator(
         initial_witness,
         &Bn254BlackBoxSolver,
         &mut DefaultForeignCallExecutor::new(true, None, None, None),
+        pedantic_solving,
     )?;
     println!("Executed");
 

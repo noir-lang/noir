@@ -66,6 +66,7 @@ impl<F: AcirField> MemoryOpSolver<F> {
         op: &MemOp<F>,
         initial_witness: &mut WitnessMap<F>,
         predicate: &Option<Expression<F>>,
+        pedantic_solving: bool,
     ) -> Result<(), OpcodeResolutionError<F>> {
         let operation = get_value(&op.operation, initial_witness)?;
 
@@ -83,7 +84,8 @@ impl<F: AcirField> MemoryOpSolver<F> {
         let is_read_operation = operation.is_zero();
 
         // Fetch whether or not the predicate is false (e.g. equal to zero)
-        let skip_operation = is_predicate_false(initial_witness, predicate)?;
+        let opcode_location = ErrorLocation::Unresolved;
+        let skip_operation = is_predicate_false(initial_witness, predicate, pedantic_solving, &opcode_location)?;
 
         if is_read_operation {
             // `value_read = arr[memory_index]`

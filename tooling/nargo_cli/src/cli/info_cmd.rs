@@ -92,6 +92,7 @@ pub(crate) fn run(mut args: InfoCommand, config: NargoConfig) -> Result<(), CliE
             binary_packages,
             &args.prover_name,
             args.compile_options.expression_width,
+            args.compile_options.pedantic_solving,
         )?
     } else {
         binary_packages
@@ -247,6 +248,7 @@ fn profile_brillig_execution(
     binary_packages: Vec<(Package, ProgramArtifact)>,
     prover_name: &str,
     expression_width: Option<ExpressionWidth>,
+    pedantic_solving: bool,
 ) -> Result<Vec<ProgramInfo>, CliError> {
     let mut program_info = Vec::new();
     for (package, program_artifact) in binary_packages.iter() {
@@ -264,6 +266,7 @@ fn profile_brillig_execution(
             initial_witness,
             &Bn254BlackBoxSolver,
             &mut DefaultForeignCallExecutor::new(false, None, None, None),
+            pedantic_solving,
         )?;
 
         let expression_width = get_target_width(package.expression_width, expression_width);
