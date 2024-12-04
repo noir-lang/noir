@@ -69,6 +69,7 @@ pub(super) fn compile_array_copy_procedure<F: AcirField + DebugToString>(
                 BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
                 1_usize.into(),
             );
+            ctx.codegen_usize_op(rc.address, rc.address, BrilligBinaryOp::Sub, 1);
         }
     });
 }
