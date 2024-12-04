@@ -19,12 +19,12 @@ impl Ssa {
     /// Go through each top-level non-Brillig function and detect if it has independent subgraphs
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn check_for_underconstrained_values(&mut self) -> Vec<SsaReport> {
-        let functions_id = self.functions.values().map(|f| f.id().to_usize()).collect::<Vec<_>>();
-        functions_id
-            .iter()
+        self.functions
+            .values()
+            .map(|f| f.id())
             .par_bridge()
             .flat_map(|fid| {
-                let function_to_process = &self.functions[&FunctionId::new(*fid)];
+                let function_to_process = &self.functions[&fid];
                 match function_to_process.runtime() {
                     RuntimeType::Acir { .. } => check_for_underconstrained_values_within_function(
                         function_to_process,
@@ -44,12 +44,12 @@ impl Ssa {
             return vec![];
         };
 
-        let functions_id = self.functions.values().map(|f| f.id().to_usize()).collect::<Vec<_>>();
-        functions_id
-            .iter()
+        self.functions
+            .values()
+            .map(|f| f.id())
             .par_bridge()
             .flat_map(|fid| {
-                let function_to_process = &self.functions[&FunctionId::new(*fid)];
+                let function_to_process = &self.functions[&fid];
                 match function_to_process.runtime() {
                     RuntimeType::Acir { .. } => {
                         let mut context = DependencyContext::default();
