@@ -1,0 +1,235 @@
+name: Reports
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+jobs:
+  build-nargo:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Noir repo
+        uses: actions/checkout@v4
+
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.74.1
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: x86_64-unknown-linux-gnu
+          cache-on-failure: true
+          save-if: ${{ github.event_name != 'merge_group' }}
+
+      - name: Build Nargo
+        run: cargo build --package nargo_cli --release
+
+      - name: Package artifacts
+        run: |
+          mkdir dist
+          cp ./target/release/nargo ./dist/nargo
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nargo
+          path: ./dist/*
+          retention-days: 3
+
+
+  compare_gates_reports:
+    name: Circuit sizes
+    needs: [build-nargo]
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install `bb`
+        run: |
+          ./scripts/install_bb.sh
+          echo "$HOME/.bb/" >> $GITHUB_PATH
+
+      - name: Download nargo binary
+        uses: actions/download-artifact@v4
+        with:
+          name: nargo
+          path: ./nargo
+
+      - name: Set nargo on PATH
+        run: |
+          nargo_binary="${{ github.workspace }}/nargo/nargo"
+          chmod +x $nargo_binary
+          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
+          export PATH="$PATH:$(dirname $nargo_binary)"
+          nargo -V
+
+      - name: Generate gates report
+        working-directory: ./test_programs
+        run: |
+          ./rebuild.sh
+          ./gates_report.sh
+          mv gates_report.json ../gates_report.json
+      
+      - name: Compare gates reports
+        id: gates_diff
+        uses: noir-lang/noir-gates-diff@1931aaaa848a1a009363d6115293f7b7fc72bb87
+        with:
+          report: gates_report.json
+          summaryQuantile: 0.9 # only display the 10% most significant circuit size diffs in the summary (defaults to 20%)
+
+      - name: Add gates diff to sticky comment
+        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          # delete the comment in case changes no longer impact circuit sizes
+          delete: ${{ !steps.gates_diff.outputs.markdown }}
+          message: ${{ steps.gates_diff.outputs.markdown }}
+
+  compare_brillig_bytecode_size_reports:
+    name: Brillig bytecode sizes
+    needs: [build-nargo]
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download nargo binary
+        uses: actions/download-artifact@v4
+        with:
+          name: nargo
+          path: ./nargo
+
+      - name: Set nargo on PATH
+        run: |
+          nargo_binary="${{ github.workspace }}/nargo/nargo"
+          chmod +x $nargo_binary
+          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
+          export PATH="$PATH:$(dirname $nargo_binary)"
+          nargo -V
+
+      - name: Generate Brillig bytecode size report
+        working-directory: ./test_programs
+        run: |
+          ./gates_report_brillig.sh
+          mv gates_report_brillig.json ../gates_report_brillig.json
+
+      - name: Compare Brillig bytecode size reports
+        id: brillig_bytecode_diff
+        uses: noir-lang/noir-gates-diff@d88f7523b013b9edd3f31c5cfddaef87a3fe1b48
+        with:
+          report: gates_report_brillig.json
+          header: |
+            # Changes to Brillig bytecode sizes
+          brillig_report: true
+          summaryQuantile: 0.9 # only display the 10% most significant bytecode size diffs in the summary (defaults to 20%)
+
+      - name: Add bytecode size diff to sticky comment
+        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: brillig
+          # delete the comment in case changes no longer impact brillig bytecode sizes
+          delete: ${{ !steps.brillig_bytecode_diff.outputs.markdown }}
+          message: ${{ steps.brillig_bytecode_diff.outputs.markdown }}
+
+  compare_brillig_execution_reports:
+    name: Brillig execution trace sizes  
+    needs: [build-nargo]
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download nargo binary
+        uses: actions/download-artifact@v4
+        with:
+          name: nargo
+          path: ./nargo
+
+      - name: Set nargo on PATH
+        run: |
+          nargo_binary="${{ github.workspace }}/nargo/nargo"
+          chmod +x $nargo_binary
+          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
+          export PATH="$PATH:$(dirname $nargo_binary)"
+          nargo -V
+
+      - name: Generate Brillig execution report
+        working-directory: ./test_programs
+        run: |
+          ./gates_report_brillig_execution.sh
+          mv gates_report_brillig_execution.json ../gates_report_brillig_execution.json
+
+      - name: Compare Brillig execution reports
+        id: brillig_execution_diff
+        uses: noir-lang/noir-gates-diff@d88f7523b013b9edd3f31c5cfddaef87a3fe1b48
+        with:
+          report: gates_report_brillig_execution.json
+          header: |
+            # Changes to number of Brillig opcodes executed
+          brillig_report: true
+          summaryQuantile: 0.9 # only display the 10% most significant bytecode size diffs in the summary (defaults to 20%)
+
+      - name: Add bytecode size diff to sticky comment
+        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: brillig_execution
+          # delete the comment in case changes no longer impact brillig bytecode sizes
+          delete: ${{ !steps.brillig_execution_diff.outputs.markdown }}
+          message: ${{ steps.brillig_execution_diff.outputs.markdown }}
+
+  generate_memory_report:
+    name: Peak memory usage  
+    needs: [build-nargo]
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download nargo binary
+        uses: actions/download-artifact@v4
+        with:
+          name: nargo
+          path: ./nargo
+
+      - name: Set nargo on PATH
+        run: |
+          nargo_binary="${{ github.workspace }}/nargo/nargo"
+          chmod +x $nargo_binary
+          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
+          export PATH="$PATH:$(dirname $nargo_binary)"
+          nargo -V
+
+      - name: Generate Memory report
+        working-directory: ./test_programs
+        run: |
+          ./memory_report.sh
+          mv memory_report.json ../memory_report.json
+
+      - name: Parse memory report
+        id: memory_report
+        uses: noir-lang/noir-bench-report@ccb0d806a91d3bd86dba0ba3d580a814eed5673c
+        with:
+          report: memory_report.json
+          header: |
+            # Memory Report
+          memory_report: true
+
+      - name: Add memory report to sticky comment
+        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: memory
+          message: ${{ steps.memory_report.outputs.markdown }}

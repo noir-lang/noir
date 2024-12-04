@@ -25,7 +25,7 @@ use self::{brillig::BrilligBytecode, opcodes::BlockId};
 /// Bounded Expressions are useful if you are eventually going to pass the ACIR
 /// into a proving system which supports PLONK, where arithmetic expressions have a
 /// finite fan-in.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default, Hash)]
 pub enum ExpressionWidth {
     #[default]
     Unbounded,
@@ -36,13 +36,13 @@ pub enum ExpressionWidth {
 
 /// A program represented by multiple ACIR circuits. The execution trace of these
 /// circuits is dictated by construction of the [crate::native_types::WitnessStack].
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Hash)]
 pub struct Program<F> {
     pub functions: Vec<Circuit<F>>,
     pub unconstrained_functions: Vec<BrilligBytecode<F>>,
 }
 
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Hash)]
 pub struct Circuit<F> {
     // current_witness_index is the highest witness index in the circuit. The next witness to be added to this circuit
     // will take on this value. (The value is cached here as an optimization.)
@@ -69,13 +69,13 @@ pub struct Circuit<F> {
     pub assert_messages: Vec<(OpcodeLocation, AssertionPayload<F>)>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub enum ExpressionOrMemory<F> {
     Expression(Expression<F>),
     Memory(BlockId),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub struct AssertionPayload<F> {
     pub error_selector: u64,
     pub payload: Vec<ExpressionOrMemory<F>>,
@@ -355,7 +355,7 @@ impl<F: AcirField> std::fmt::Debug for Program<F> {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default, Hash)]
 pub struct PublicInputs(pub BTreeSet<Witness>);
 
 impl PublicInputs {
