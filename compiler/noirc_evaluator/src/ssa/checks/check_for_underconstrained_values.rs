@@ -231,22 +231,6 @@ impl DependencyContext {
         trace!("processing instructions of block {} of function {}", block, function);
 
         for instruction in function.dfg[block].instructions() {
-            // Optimization: there is no reason to do anything until a Brillig
-            // call is encountered
-            if self.tainted.is_empty() {
-                let mut brillig_encountered = false;
-                if let Instruction::Call { func: func_id, .. } = &function.dfg[*instruction] {
-                    if let Value::Function(callee) = &function.dfg[*func_id] {
-                        if all_functions[&callee].runtime().is_brillig() {
-                            brillig_encountered = true;
-                        }
-                    }
-                }
-                if !brillig_encountered {
-                    continue;
-                }
-            }
-
             let mut arguments = Vec::new();
             let mut results = Vec::new();
 
