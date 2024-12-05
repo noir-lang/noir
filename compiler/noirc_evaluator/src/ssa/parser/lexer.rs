@@ -62,6 +62,7 @@ impl<'a> Lexer<'a> {
             Some('-') if self.peek_char() == Some('>') => self.double_char_token(Token::Arrow),
             Some('-') => self.single_char_token(Token::Dash),
             Some('"') => self.eat_string_literal(),
+            Some('b') if self.peek_char() == Some('"') => self.eat_byte_string_literal(),
             Some(ch) if ch.is_ascii_alphanumeric() || ch == '_' => self.eat_alpha_numeric(ch),
             Some(char) => Err(LexerError::UnexpectedCharacter {
                 char,
@@ -180,8 +181,23 @@ impl<'a> Lexer<'a> {
 
     fn eat_string_literal(&mut self) -> SpannedTokenResult {
         let start = self.position;
-        let mut string = String::new();
+        let string = self.eat_string(start)?;
+        let str_literal_token = Token::Str(string);
+        let end = self.position;
+        Ok(str_literal_token.into_span(start, end))
+    }
 
+    fn eat_byte_string_literal(&mut self) -> SpannedTokenResult {
+        let start = self.position;
+        self.next_char(); // skip the b
+        let string = self.eat_string(start)?;
+        let str_literal_token = Token::ByteStr(string);
+        let end = self.position;
+        Ok(str_literal_token.into_span(start, end))
+    }
+
+    fn eat_string(&mut self, start: u32) -> Result<String, LexerError> {
+        let mut string = String::new();
         while let Some(next) = self.next_char() {
             let char = match next {
                 '"' => break,
@@ -206,11 +222,7 @@ impl<'a> Lexer<'a> {
 
             string.push(char);
         }
-
-        let str_literal_token = Token::Str(string);
-
-        let end = self.position;
-        Ok(str_literal_token.into_span(start, end))
+        Ok(string)
     }
 
     fn eat_while<F: Fn(char) -> bool>(
