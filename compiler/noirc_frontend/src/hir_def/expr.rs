@@ -114,7 +114,7 @@ pub enum HirLiteral {
     Bool(bool),
     Integer(FieldElement, bool), //true for negative integer and false for positive
     Str(String),
-    FmtStr(Vec<FmtStringFragment>, Vec<ExprId>),
+    FmtStr(Vec<FmtStringFragment>, Vec<ExprId>, u32 /* length */),
     Unit,
 }
 

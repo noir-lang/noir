@@ -294,11 +294,11 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn eat_fmt_str(&mut self) -> Option<Vec<FmtStringFragment>> {
+    fn eat_fmt_str(&mut self) -> Option<(Vec<FmtStringFragment>, u32)> {
         if matches!(self.token.token(), Token::FmtStr(..)) {
             let token = self.bump();
             match token.into_token() {
-                Token::FmtStr(fragments) => Some(fragments),
+                Token::FmtStr(fragments, length) => Some((fragments, length)),
                 _ => unreachable!(),
             }
         } else {

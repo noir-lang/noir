@@ -25,7 +25,7 @@ pub enum BorrowedToken<'input> {
     Str(&'input str),
     /// the u8 is the number of hashes, i.e. r###..
     RawStr(&'input str, u8),
-    FmtStr(&'input [FmtStringFragment]),
+    FmtStr(&'input [FmtStringFragment], u32 /* length */),
     Keyword(Keyword),
     IntType(IntType),
     AttributeStart {
@@ -136,7 +136,7 @@ pub enum Token {
     Str(String),
     /// the u8 is the number of hashes, i.e. r###..
     RawStr(String, u8),
-    FmtStr(Vec<FmtStringFragment>),
+    FmtStr(Vec<FmtStringFragment>, u32 /* length */),
     Keyword(Keyword),
     IntType(IntType),
     AttributeStart {
@@ -255,7 +255,7 @@ pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
         Token::Int(n) => BorrowedToken::Int(*n),
         Token::Bool(b) => BorrowedToken::Bool(*b),
         Token::Str(ref b) => BorrowedToken::Str(b),
-        Token::FmtStr(ref b) => BorrowedToken::FmtStr(b),
+        Token::FmtStr(ref b, length) => BorrowedToken::FmtStr(b, *length),
         Token::RawStr(ref b, hashes) => BorrowedToken::RawStr(b, *hashes),
         Token::Keyword(k) => BorrowedToken::Keyword(*k),
         Token::AttributeStart { is_inner, is_tag } => {
@@ -322,7 +322,16 @@ impl Display for FmtStringFragment {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             FmtStringFragment::String(string) => {
-                let string = string.replace('{', "{{").replace('}', "}}");
+                // Undo the escapes when displaying the fmt string
+                let string = string
+                    .replace('{', "{{")
+                    .replace('}', "}}")
+                    .replace('\r', "\\r")
+                    .replace('\n', "\\n")
+                    .replace('\t', "\\t")
+                    .replace('\0', "\\0")
+                    .replace('\'', "\\'")
+                    .replace('\"', "\\\"");
                 write!(f, "{}", string)
             }
             FmtStringFragment::Interpolation(string, _span) => {
@@ -395,7 +404,7 @@ impl fmt::Display for Token {
             Token::Int(n) => write!(f, "{}", n),
             Token::Bool(b) => write!(f, "{b}"),
             Token::Str(ref b) => write!(f, "{b:?}"),
-            Token::FmtStr(ref b) => write!(f, "f{b:?}"),
+            Token::FmtStr(ref b, _length) => write!(f, "f{b:?}"),
             Token::RawStr(ref b, hashes) => {
                 let h: String = std::iter::once('#').cycle().take(hashes as usize).collect();
                 write!(f, "r{h}{b:?}{h}")
@@ -535,7 +544,7 @@ impl Token {
             | Token::Bool(_)
             | Token::Str(_)
             | Token::RawStr(..)
-            | Token::FmtStr(_) => TokenKind::Literal,
+            | Token::FmtStr(_, _) => TokenKind::Literal,
             Token::Keyword(_) => TokenKind::Keyword,
             Token::UnquoteMarker(_) => TokenKind::UnquoteMarker,
             Token::Quote(_) => TokenKind::Quote,

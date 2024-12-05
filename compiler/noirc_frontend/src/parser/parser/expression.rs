@@ -592,8 +592,8 @@ impl<'a> Parser<'a> {
             return Some(ExpressionKind::raw_string(string, n));
         }
 
-        if let Some(fragments) = self.eat_fmt_str() {
-            return Some(ExpressionKind::format_string(fragments));
+        if let Some((fragments, length)) = self.eat_fmt_str() {
+            return Some(ExpressionKind::format_string(fragments, length));
         }
 
         if let Some(tokens) = self.eat_quote() {
@@ -865,10 +865,11 @@ mod tests {
     fn parses_fmt_str() {
         let src = "f\"hello\"";
         let expr = parse_expression_no_errors(src);
-        let ExpressionKind::Literal(Literal::FmtStr(fragments)) = expr.kind else {
+        let ExpressionKind::Literal(Literal::FmtStr(fragments, length)) = expr.kind else {
             panic!("Expected format string literal");
         };
         assert_eq!(fragments[0].to_string(), "hello");
+        assert_eq!(length, 5);
     }
 
     #[test]

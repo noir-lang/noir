@@ -238,6 +238,7 @@ impl<'a> FunctionContext<'a> {
                 for fragment in fragments {
                     match fragment {
                         FmtStringFragment::String(value) => {
+                            // Escape curly braces in non-interpolations
                             let value = value.replace('{', "{{").replace('}', "}}");
                             string.push_str(&value);
                         }

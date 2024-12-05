@@ -253,8 +253,9 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
     Some(output)
 }
 
-// Taken from Regex docs directly
-fn replace_all<E>(
+/// Assumes `re` is a regex that matches interpolation sequences like `{...}`.
+/// Replaces all matches by invoking `replacement`, but only if a match isn't preceded by a '{'.
+fn replace_all_interpolations<E>(
     re: &Regex,
     haystack: &str,
     mut replacement: impl FnMut(&Captures) -> Result<String, E>,
@@ -263,6 +264,13 @@ fn replace_all<E>(
     let mut last_match = 0;
     for caps in re.captures_iter(haystack) {
         let m = caps.get(0).unwrap();
+
+        // If we have '{' before the match, it's an escape sequence.
+        let start = m.start();
+        if start > 0 && haystack.as_bytes().get(start - 1).copied() == Some(b'{') {
+            continue;
+        }
+
         new.push_str(&haystack[last_match..m.start()]);
         new.push_str(&replacement(&caps)?);
         last_match = m.end();
@@ -282,10 +290,16 @@ impl<F: AcirField> std::fmt::Display for PrintableValueDisplay<F> {
                 let mut display_iter = values.iter();
                 let re = Regex::new(r"\{([a-zA-Z0-9_]+)\}").map_err(|_| std::fmt::Error)?;
 
-                let formatted_str = replace_all(&re, template, |_: &Captures| {
+                // First replace all `{...}` interpolations with the corresponding values, making sure
+                // to skip ones that are also surrounded by curly braces (like `{{...}}`)
+                let formatted_str = replace_all_interpolations(&re, template, |_: &Captures| {
                     let (value, typ) = display_iter.next().ok_or(std::fmt::Error)?;
                     to_string(value, typ).ok_or(std::fmt::Error)
                 })?;
+
+                // Now that we replaced all interpolations, we need to unescape the double curly braces
+                // that were added to avoid interpolations.
+                let formatted_str = formatted_str.replace("{{", "{").replace("}}", "}");
 
                 write!(fmt, "{formatted_str}")
             }

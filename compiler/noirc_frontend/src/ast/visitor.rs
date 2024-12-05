@@ -172,7 +172,7 @@ pub trait Visitor {
 
     fn visit_literal_raw_str(&mut self, _: &str, _: u8) {}
 
-    fn visit_literal_fmt_str(&mut self, _: &[FmtStringFragment]) {}
+    fn visit_literal_fmt_str(&mut self, _: &[FmtStringFragment], _length: u32) {}
 
     fn visit_literal_unit(&mut self) {}
 
@@ -900,7 +900,7 @@ impl Literal {
             Literal::Integer(value, negative) => visitor.visit_literal_integer(*value, *negative),
             Literal::Str(str) => visitor.visit_literal_str(str),
             Literal::RawStr(str, length) => visitor.visit_literal_raw_str(str, *length),
-            Literal::FmtStr(fragments) => visitor.visit_literal_fmt_str(fragments),
+            Literal::FmtStr(fragments, length) => visitor.visit_literal_fmt_str(fragments, *length),
             Literal::Unit => visitor.visit_literal_unit(),
         }
     }

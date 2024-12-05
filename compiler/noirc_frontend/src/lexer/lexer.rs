@@ -451,6 +451,7 @@ impl<'a> Lexer<'a> {
         self.next_char();
 
         let mut fragments = Vec::new();
+        let mut length = 0;
 
         loop {
             // String fragment until '{' or '"'
@@ -509,6 +510,18 @@ impl<'a> Lexer<'a> {
                     };
 
                     string.push(char);
+                    length += 1;
+
+                    if char == '{' || char == '}' {
+                        // This might look a bit strange, but if there's `{{` or `}}` in the format string
+                        // then it will be `{` and `}` in the string fragment respectively, but on the codegen
+                        // phase it will be translated back to `{{` and `}}` to avoid executing an interpolation,
+                        // thus the actual length of the codegen'd string will be one more than what we get here.
+                        //
+                        // We could just make the fragment include the double curly braces, but then the interpreter
+                        // would need to undo the curly braces, so it's simpler to add them during codegen.
+                        length += 1;
+                    }
                 } else {
                     let span = Span::inclusive(start, self.position);
                     return Err(LexerErrorKind::UnterminatedStringLiteral { span });
@@ -522,6 +535,8 @@ impl<'a> Lexer<'a> {
             if !found_curly {
                 break;
             }
+
+            length += 1; // for the curly brace
 
             // Interpolation fragment until '}' or '"'
             let mut string = String::new();
@@ -560,14 +575,17 @@ impl<'a> Lexer<'a> {
                         other
                     }
                 };
+                length += 1;
                 string.push(char);
             }
+
+            length += 1; // for the closing curly brace
 
             let interpolation_span = Span::from(interpolation_start..self.position);
             fragments.push(FmtStringFragment::Interpolation(string, interpolation_span));
         }
 
-        let token = Token::FmtStr(fragments);
+        let token = Token::FmtStr(fragments, length);
         let end = self.position;
         Ok(token.into_span(start, end))
     }
@@ -1112,7 +1130,7 @@ mod tests {
             Token::Keyword(Keyword::Let),
             Token::Ident("_word".to_string()),
             Token::Assign,
-            Token::FmtStr(vec![FmtStringFragment::String("hello".to_string())]),
+            Token::FmtStr(vec![FmtStringFragment::String("hello".to_string())], 5),
         ];
         let mut lexer = Lexer::new(input);
 
@@ -1130,7 +1148,7 @@ mod tests {
             Token::Keyword(Keyword::Let),
             Token::Ident("_word".to_string()),
             Token::Assign,
-            Token::FmtStr(vec![FmtStringFragment::String("hello\n\t{x}".to_string())]),
+            Token::FmtStr(vec![FmtStringFragment::String("hello\n\t{x}".to_string())], 12),
         ];
         let mut lexer = Lexer::new(input);
 
@@ -1148,14 +1166,17 @@ mod tests {
             Token::Keyword(Keyword::Let),
             Token::Ident("_word".to_string()),
             Token::Assign,
-            Token::FmtStr(vec![
-                FmtStringFragment::String("hello ".to_string()),
-                FmtStringFragment::Interpolation("world".to_string(), Span::from(20..26)),
-                FmtStringFragment::String(" and ".to_string()),
-                FmtStringFragment::Interpolation("_another".to_string(), Span::from(32..41)),
-                FmtStringFragment::String(" ".to_string()),
-                FmtStringFragment::Interpolation("vAr_123".to_string(), Span::from(43..51)),
-            ]),
+            Token::FmtStr(
+                vec![
+                    FmtStringFragment::String("hello ".to_string()),
+                    FmtStringFragment::Interpolation("world".to_string(), Span::from(20..26)),
+                    FmtStringFragment::String(" and ".to_string()),
+                    FmtStringFragment::Interpolation("_another".to_string(), Span::from(32..41)),
+                    FmtStringFragment::String(" ".to_string()),
+                    FmtStringFragment::Interpolation("vAr_123".to_string(), Span::from(43..51)),
+                ],
+                38,
+            ),
         ];
         let mut lexer = Lexer::new(input);
 
@@ -1397,7 +1418,7 @@ mod tests {
                     format!("let s = r#####\"{s}\"#####;"),
                 ],
             ),
-            (Some(Token::FmtStr(vec![])), vec![format!("assert(x == y, f\"{s}\");")]),
+            (Some(Token::FmtStr(vec![], 0)), vec![format!("assert(x == y, f\"{s}\");")]),
             // expected token not found
             // (Some(Token::LineComment("".to_string(), None)), vec![
             (None, vec![format!("//{s}"), format!("// {s}")]),

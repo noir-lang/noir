@@ -623,7 +623,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 self.evaluate_integer(value, is_negative, id)
             }
             HirLiteral::Str(string) => Ok(Value::String(Rc::new(string))),
-            HirLiteral::FmtStr(fragments, captures) => {
+            HirLiteral::FmtStr(fragments, captures, _length) => {
                 self.evaluate_format_string(fragments, captures, id)
             }
             HirLiteral::Array(array) => self.evaluate_array(array, id),

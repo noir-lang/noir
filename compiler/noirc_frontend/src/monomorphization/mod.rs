@@ -418,7 +418,7 @@ impl<'interner> Monomorphizer<'interner> {
         let expr = match self.interner.expression(&expr) {
             HirExpression::Ident(ident, generics) => self.ident(ident, expr, generics)?,
             HirExpression::Literal(HirLiteral::Str(contents)) => Literal(Str(contents)),
-            HirExpression::Literal(HirLiteral::FmtStr(fragments, idents)) => {
+            HirExpression::Literal(HirLiteral::FmtStr(fragments, idents, _length)) => {
                 let fields = try_vecmap(idents, |ident| self.expr(ident))?;
                 Literal(FmtStr(
                     fragments,

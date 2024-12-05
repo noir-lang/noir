@@ -166,7 +166,7 @@ impl<'context> Elaborator<'context> {
                 let len = Type::Constant(str.len().into(), Kind::u32());
                 (Lit(HirLiteral::Str(str)), Type::String(Box::new(len)))
             }
-            Literal::FmtStr(fragments) => self.elaborate_fmt_string(fragments),
+            Literal::FmtStr(fragments, length) => self.elaborate_fmt_string(fragments, length),
             Literal::Array(array_literal) => {
                 self.elaborate_array_literal(array_literal, span, true)
             }
@@ -233,54 +233,50 @@ impl<'context> Elaborator<'context> {
         (HirExpression::Literal(constructor(expr)), typ)
     }
 
-    fn elaborate_fmt_string(&mut self, fragments: Vec<FmtStringFragment>) -> (HirExpression, Type) {
+    fn elaborate_fmt_string(
+        &mut self,
+        fragments: Vec<FmtStringFragment>,
+        length: u32,
+    ) -> (HirExpression, Type) {
         let mut fmt_str_idents = Vec::new();
         let mut capture_types = Vec::new();
-        let mut len = 0;
 
         for fragment in &fragments {
-            match fragment {
-                FmtStringFragment::String(string) => {
-                    len += string.len();
-                }
-                FmtStringFragment::Interpolation(ident_name, string_span) => {
-                    len += ident_name.len() + 2; // + 2 for '{' + '}'
+            if let FmtStringFragment::Interpolation(ident_name, string_span) = fragment {
+                let scope_tree = self.scopes.current_scope_tree();
+                let variable = scope_tree.find(ident_name);
 
-                    let scope_tree = self.scopes.current_scope_tree();
-                    let variable = scope_tree.find(ident_name);
+                let hir_ident = if let Some((old_value, _)) = variable {
+                    old_value.num_times_used += 1;
+                    old_value.ident.clone()
+                } else if let Ok((definition_id, _)) =
+                    self.lookup_global(Path::from_single(ident_name.to_string(), *string_span))
+                {
+                    HirIdent::non_trait_method(
+                        definition_id,
+                        Location::new(*string_span, self.file),
+                    )
+                } else {
+                    self.push_err(ResolverError::VariableNotDeclared {
+                        name: ident_name.to_owned(),
+                        span: *string_span,
+                    });
+                    continue;
+                };
 
-                    let hir_ident = if let Some((old_value, _)) = variable {
-                        old_value.num_times_used += 1;
-                        old_value.ident.clone()
-                    } else if let Ok((definition_id, _)) =
-                        self.lookup_global(Path::from_single(ident_name.to_string(), *string_span))
-                    {
-                        HirIdent::non_trait_method(
-                            definition_id,
-                            Location::new(*string_span, self.file),
-                        )
-                    } else {
-                        self.push_err(ResolverError::VariableNotDeclared {
-                            name: ident_name.to_owned(),
-                            span: *string_span,
-                        });
-                        continue;
-                    };
-
-                    let hir_expr = HirExpression::Ident(hir_ident.clone(), None);
-                    let expr_id = self.interner.push_expr(hir_expr);
-                    self.interner.push_expr_location(expr_id, *string_span, self.file);
-                    let typ = self.type_check_variable(hir_ident, expr_id, None);
-                    self.interner.push_expr_type(expr_id, typ.clone());
-                    capture_types.push(typ);
-                    fmt_str_idents.push(expr_id);
-                }
+                let hir_expr = HirExpression::Ident(hir_ident.clone(), None);
+                let expr_id = self.interner.push_expr(hir_expr);
+                self.interner.push_expr_location(expr_id, *string_span, self.file);
+                let typ = self.type_check_variable(hir_ident, expr_id, None);
+                self.interner.push_expr_type(expr_id, typ.clone());
+                capture_types.push(typ);
+                fmt_str_idents.push(expr_id);
             }
         }
 
-        let len = Type::Constant(len.into(), Kind::u32());
+        let len = Type::Constant(length.into(), Kind::u32());
         let typ = Type::FmtString(Box::new(len), Box::new(Type::Tuple(capture_types)));
-        (HirExpression::Literal(HirLiteral::FmtStr(fragments, fmt_str_idents)), typ)
+        (HirExpression::Literal(HirLiteral::FmtStr(fragments, fmt_str_idents, length)), typ)
     }
 
     fn elaborate_prefix(&mut self, prefix: PrefixExpression, span: Span) -> (ExprId, Type) {
