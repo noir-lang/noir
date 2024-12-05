@@ -490,14 +490,7 @@ impl<'a> Lexer<'a> {
                             let error_position = self.position;
 
                             // Keep consuming chars until we find the closing double quote
-                            // (unless we bumped into a double quote now, in which case we are done)
-                            while let Some(next) = self.next_char() {
-                                if next == '\'' && self.peek_char_is('"') {
-                                    self.next_char();
-                                } else if next == '"' {
-                                    break;
-                                }
-                            }
+                            self.skip_until_string_end();
 
                             let span = Span::inclusive(error_position, error_position);
                             return Err(LexerErrorKind::InvalidFormatString { found: '}', span });
@@ -545,6 +538,16 @@ impl<'a> Lexer<'a> {
             while let Some(next) = self.next_char() {
                 let char = match next {
                     '}' => {
+                        if string.is_empty() {
+                            let error_position = self.position;
+
+                            // Keep consuming chars until we find the closing double quote
+                            self.skip_until_string_end();
+
+                            let span = Span::inclusive(error_position, error_position);
+                            return Err(LexerErrorKind::EmptyFormatStringInterpolation { span });
+                        }
+
                         break;
                     }
                     other => {
@@ -559,13 +562,7 @@ impl<'a> Lexer<'a> {
                             // Keep consuming chars until we find the closing double quote
                             // (unless we bumped into a double quote now, in which case we are done)
                             if other != '"' {
-                                while let Some(next) = self.next_char() {
-                                    if next == '\'' && self.peek_char_is('"') {
-                                        self.next_char();
-                                    } else if next == '"' {
-                                        break;
-                                    }
-                                }
+                                self.skip_until_string_end();
                             }
 
                             let span = Span::inclusive(error_position, error_position);
@@ -588,6 +585,16 @@ impl<'a> Lexer<'a> {
         let token = Token::FmtStr(fragments, length);
         let end = self.position;
         Ok(token.into_span(start, end))
+    }
+
+    fn skip_until_string_end(&mut self) {
+        while let Some(next) = self.next_char() {
+            if next == '\'' && self.peek_char_is('"') {
+                self.next_char();
+            } else if next == '"' {
+                break;
+            }
+        }
     }
 
     fn eat_format_string_or_alpha_numeric(&mut self) -> SpannedTokenResult {
@@ -1223,6 +1230,20 @@ mod tests {
         let input = "f\"hello }\" true";
         let mut lexer = Lexer::new(input);
         assert!(matches!(lexer.next_token(), Err(LexerErrorKind::InvalidFormatString { .. })));
+
+        // Make sure the lexer went past the ending double quote for better recovery
+        let token = lexer.next_token().unwrap().into_token();
+        assert!(matches!(token, Token::Bool(true)));
+    }
+
+    #[test]
+    fn test_eat_fmt_string_literal_empty_interpolation() {
+        let input = "f\"{}\" true";
+        let mut lexer = Lexer::new(input);
+        assert!(matches!(
+            lexer.next_token(),
+            Err(LexerErrorKind::EmptyFormatStringInterpolation { .. })
+        ));
 
         // Make sure the lexer went past the ending double quote for better recovery
         let token = lexer.next_token().unwrap().into_token();
