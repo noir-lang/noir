@@ -22,13 +22,15 @@ fn borrow(array: [Field; 3], rc_before_call: u32) {
 }
 
 fn borrow_mut(array: &mut [Field; 3], rc_before_call: u32) {
+    // Optimization: inc_rc isn't needed since there is only one array (`array`)
+    // of the same type that `array` can be modified through
     assert_refcount(*array, rc_before_call + 0);
     array[0] = 3;
     println(array[0]);
 }
 
 fn copy_mut(mut array: [Field; 3], rc_before_call: u32) {
-    assert_refcount(array, rc_before_call + 0); // Issue! This should be rc_before_call + 1
+    assert_refcount(array, rc_before_call + 1);
     array[0] = 4;
     println(array[0]);
 }
@@ -36,8 +38,8 @@ fn copy_mut(mut array: [Field; 3], rc_before_call: u32) {
 /// Borrow the same array mutably through both parameters, inc_rc is necessary here, although
 /// only one is needed to bring the rc from 1 to 2.
 fn borrow_mut_two(array1: &mut [Field; 3], array2: &mut [Field; 3], rc_before_call: u32) {
-    assert_refcount(*array1, rc_before_call + 0); // Issue! This should be rc_before_call + 1
-    assert_refcount(*array2, rc_before_call + 0); // Issue! This should be rc_before_call + 1
+    assert_refcount(*array1, rc_before_call + 1);
+    assert_refcount(*array2, rc_before_call + 1);
     array1[0] = 5;
     array2[0] = 6;
     println(array1[0]); // array1 & 2 alias, so this should also print 6
