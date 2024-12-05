@@ -1,6 +1,6 @@
 //! This file is for pretty-printing the SSA IR in a human-readable form for debugging.
 use std::{
-    collections::HashSet,
+    collections::{HashSet, VecDeque},
     fmt::{Formatter, Result},
 };
 
@@ -34,14 +34,22 @@ pub(crate) fn display_block_with_successors(
     visited: &mut HashSet<BasicBlockId>,
     f: &mut Formatter,
 ) -> Result {
-    display_block(function, block_id, f)?;
-    visited.insert(block_id);
+    // The block chain to print might be really long so we use a deque instead of recursion
+    // to avoid potentially hitting stack overflow (see https://github.com/noir-lang/noir/issues/6520)
+    let mut blocks_to_print = VecDeque::new();
+    blocks_to_print.push_back(block_id);
 
-    for successor in function.dfg[block_id].successors() {
-        if !visited.contains(&successor) {
-            display_block_with_successors(function, successor, visited, f)?;
+    while let Some(block_id) = blocks_to_print.pop_front() {
+        if !visited.insert(block_id) {
+            continue;
+        };
+        display_block(function, block_id, f)?;
+
+        for successor in function.dfg[block_id].successors() {
+            blocks_to_print.push_back(successor);
         }
     }
+
     Ok(())
 }
 
