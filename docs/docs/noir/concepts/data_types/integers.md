@@ -79,7 +79,7 @@ fn main() {
 You can construct a U128 from its limbs:
 ```rust
 fn main(x: u64, y: u64) {
-    let x = U128::from_u64s_be(x,y);
+    let z = U128::from_u64s_be(x,y);
     assert(z.hi == x as Field);
     assert(z.lo == y as Field);
 }
