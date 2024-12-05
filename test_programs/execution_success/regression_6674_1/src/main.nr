@@ -54,13 +54,6 @@ pub struct PrivateKernelCircuitPublicInputsComposer {
     pub public_call_requests: [Field; 4],
 }
 
-impl PrivateKernelCircuitPublicInputsComposer {
-    pub unconstrained fn sort_ordered_values(&mut self) {
-        self.l2_to_l1_msgs = sort_by(self.l2_to_l1_msgs);
-        self.public_call_requests = sort_by(self.public_call_requests);
-    }
-}
-
 pub unconstrained fn sort_by(array: [Field; 4]) -> [Field; 4] {
     let result = array;
     get_sorting_index(array);
@@ -85,7 +78,8 @@ unconstrained fn main() {
         l2_to_l1_msgs: [0; 4],
         public_call_requests: previous_kernel.public_call_requests.storage,
     };
-    output_composer.sort_ordered_values();
+    output_composer.l2_to_l1_msgs = sort_by(output_composer.l2_to_l1_msgs);
+    output_composer.public_call_requests = sort_by(output_composer.public_call_requests);
 
     assert_eq(previous_kernel.public_call_requests.storage[1], 1, "equality");
 }
