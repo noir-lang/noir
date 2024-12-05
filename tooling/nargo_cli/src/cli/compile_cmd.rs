@@ -413,11 +413,6 @@ mod tests {
 
                 let width = get_target_width(package.expression_width, None);
 
-                // Figure out if there is an upper bound to repeating the entire optimization step after which the results are stable:
-                // for i in 0..2 {
-                //     program_0 = nargo::ops::transform_program(program_0, width);
-                // }
-
                 let program_1 = nargo::ops::transform_program(program_0, width);
                 let program_2 = nargo::ops::transform_program(program_1.clone(), width);
 
