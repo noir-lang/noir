@@ -254,7 +254,7 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
         if self.deleted_gates.contains(&g) {
             return None;
         }
-        Some(self.modified_gates.get(&g).cloned().unwrap_or(circuit.opcodes[g].clone()))
+        self.modified_gates.get(&g).or(circuit.opcodes.get(g)).cloned()
     }
 }
 
