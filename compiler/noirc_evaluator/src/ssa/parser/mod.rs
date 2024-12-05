@@ -467,7 +467,7 @@ impl<'a> Parser<'a> {
                 return Ok(ParsedInstruction::MakeArray { target, elements, typ });
             } else if let Some(string) = self.eat_byte_str()? {
                 let u8 = Type::Numeric(NumericType::Unsigned { bit_size: 8 });
-                let typ = Type::Array(Arc::new(vec![u8.clone()]), string.bytes().count() as u32);
+                let typ = Type::Array(Arc::new(vec![u8.clone()]), string.len() as u32);
                 let elements = string
                     .bytes()
                     .map(|byte| ParsedValue::NumericConstant {
