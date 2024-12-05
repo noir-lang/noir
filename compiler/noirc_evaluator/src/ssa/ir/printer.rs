@@ -25,8 +25,7 @@ pub(crate) fn display_function(function: &Function, f: &mut Formatter) -> Result
     write!(f, "}}")
 }
 
-/// Displays all of a function's blocks by printing the entry block
-/// and its successors, recursively.
+/// Displays all of a function's blocks by printing the entry block and its successors, recursively.
 pub(crate) fn display_function_blocks(function: &Function, f: &mut Formatter) -> Result {
     // The block chain to print might be really long so we use a deque instead of recursion
     // to avoid potentially hitting stack overflow (see https://github.com/noir-lang/noir/issues/6520)
