@@ -270,7 +270,7 @@ impl DependencyContext {
                 Instruction::Load { address } => {
                     // Recall the value stored at address as parent for the results
                     if let Some(value_id) = self.memory_slots.get(address) {
-                        self.update_children(&[function.dfg.resolve(*value_id)], &results);
+                        self.update_children(&[*value_id], &results);
                     } else {
                         panic!("load instruction {} has attempted to access previously unused memory location",
                             instruction);
