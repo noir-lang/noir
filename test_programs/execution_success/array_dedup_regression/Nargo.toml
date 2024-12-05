@@ -1,0 +1,6 @@
+[package]
+name = "array_dedup_regression"
+type = "bin"
+authors = [""]
+
+[dependencies]
