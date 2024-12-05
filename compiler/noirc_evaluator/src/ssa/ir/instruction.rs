@@ -315,7 +315,12 @@ pub(crate) enum Instruction {
     ///     else_value
     /// }
     /// ```
-    IfElse { then_condition: ValueId, then_value: ValueId, else_value: ValueId },
+    IfElse {
+        then_condition: ValueId,
+        then_value: ValueId,
+        else_condition: ValueId,
+        else_value: ValueId,
+    },
 
     /// Creates a new array or slice.
     ///
@@ -424,7 +429,7 @@ impl Instruction {
     /// conditional on whether the caller wants the predicate to be taken into account or not.
     pub(crate) fn can_be_deduplicated(
         &self,
-        dfg: &DataFlowGraph,
+        function: &Function,
         deduplicate_with_predicate: bool,
     ) -> bool {
         use Instruction::*;
@@ -438,7 +443,7 @@ impl Instruction {
             | IncrementRc { .. }
             | DecrementRc { .. } => false,
 
-            Call { func, .. } => match dfg[*func] {
+            Call { func, .. } => match function.dfg[*func] {
                 Value::Intrinsic(intrinsic) => {
                     intrinsic.can_be_deduplicated(deduplicate_with_predicate)
                 }
@@ -448,8 +453,11 @@ impl Instruction {
             // We can deduplicate these instructions if we know the predicate is also the same.
             Constrain(..) | RangeCheck { .. } => deduplicate_with_predicate,
 
-            // This should never be side-effectful
-            MakeArray { .. } => true,
+            // Arrays can be mutated in unconstrained code so code that handles this case must
+            // take care to track whether the array was possibly mutated or not before
+            // deduplicating. Since we don't know if the containing pass checks for this, we
+            // can only assume these are safe to deduplicate in constrained code.
+            MakeArray { .. } => function.runtime().is_acir(),
 
             // These can have different behavior depending on the EnableSideEffectsIf context.
             // Replacing them with a similar instruction potentially enables replacing an instruction
@@ -462,7 +470,7 @@ impl Instruction {
             | IfElse { .. }
             | ArrayGet { .. }
             | ArraySet { .. } => {
-                deduplicate_with_predicate || !self.requires_acir_gen_predicate(dfg)
+                deduplicate_with_predicate || !self.requires_acir_gen_predicate(&function.dfg)
             }
         }
     }
@@ -632,11 +640,14 @@ impl Instruction {
                     assert_message: assert_message.clone(),
                 }
             }
-            Instruction::IfElse { then_condition, then_value, else_value } => Instruction::IfElse {
-                then_condition: f(*then_condition),
-                then_value: f(*then_value),
-                else_value: f(*else_value),
-            },
+            Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
+                Instruction::IfElse {
+                    then_condition: f(*then_condition),
+                    then_value: f(*then_value),
+                    else_condition: f(*else_condition),
+                    else_value: f(*else_value),
+                }
+            }
             Instruction::MakeArray { elements, typ } => Instruction::MakeArray {
                 elements: elements.iter().copied().map(f).collect(),
                 typ: typ.clone(),
@@ -695,9 +706,10 @@ impl Instruction {
             | Instruction::RangeCheck { value, .. } => {
                 f(*value);
             }
-            Instruction::IfElse { then_condition, then_value, else_value } => {
+            Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
                 f(*then_condition);
                 f(*then_value);
+                f(*else_condition);
                 f(*else_value);
             }
             Instruction::MakeArray { elements, typ: _ } => {
@@ -860,7 +872,7 @@ impl Instruction {
                     None
                 }
             }
-            Instruction::IfElse { then_condition, then_value, else_value } => {
+            Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
                 let typ = dfg.type_of_value(*then_value);
 
                 if let Some(constant) = dfg.get_numeric_constant(*then_condition) {
@@ -879,11 +891,13 @@ impl Instruction {
 
                 if matches!(&typ, Type::Numeric(_)) {
                     let then_condition = *then_condition;
+                    let else_condition = *else_condition;
 
                     let result = ValueMerger::merge_numeric_values(
                         dfg,
                         block,
                         then_condition,
+                        else_condition,
                         then_value,
                         else_value,
                     );
