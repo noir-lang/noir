@@ -134,15 +134,23 @@ impl LexerErrorKind {
             LexerErrorKind::UnterminatedStringLiteral { span } =>
                 ("Unterminated string literal".to_string(), "Unterminated string literal".to_string(), *span),
             LexerErrorKind::InvalidFormatString { found, span } => {
-                (
-                    format!("Invalid format string: expected '}}', found {found:?}"),
-                    if found == &'.' {
-                        "Field access isn't supported in format strings".to_string()
-                    } else {
-                        "If you intended to print '{', you can escape it using '{{'".to_string()
-                    },
-                    *span,
-                )
+                if found == &'}' {
+                    (
+                        "Invalid format string: unmatched '}}' found".to_string(),
+                        "If you intended to print '}', you can escape it using '}}'".to_string(),
+                        *span,
+                    )
+                } else {
+                    (
+                        format!("Invalid format string: expected '}}', found {found:?}"),
+                        if found == &'.' {
+                            "Field access isn't supported in format strings".to_string()
+                        } else {
+                            "If you intended to print '{', you can escape it using '{{'".to_string()
+                        },
+                        *span,
+                    )
+                }
             }
             LexerErrorKind::InvalidEscape { escaped, span } =>
                 (format!("'\\{escaped}' is not a valid escape sequence. Use '\\' for a literal backslash character."), "Invalid escape sequence".to_string(), *span),

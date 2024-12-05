@@ -485,6 +485,22 @@ impl<'a> Lexer<'a> {
                             self.next_char();
                             '}'
                         }
+                        '}' => {
+                            let error_position = self.position;
+
+                            // Keep consuming chars until we find the closing double quote
+                            // (unless we bumped into a double quote now, in which case we are done)
+                            while let Some(next) = self.next_char() {
+                                if next == '\'' && self.peek_char_is('"') {
+                                    self.next_char();
+                                } else if next == '"' {
+                                    break;
+                                }
+                            }
+
+                            let span = Span::inclusive(error_position, error_position);
+                            return Err(LexerErrorKind::InvalidFormatString { found: '}', span });
+                        }
                         '{' => {
                             found_curly = true;
                             break;
@@ -1177,6 +1193,17 @@ mod tests {
         assert!(matches!(lexer.next_token(), Err(LexerErrorKind::InvalidFormatString { .. })));
 
         // Make sure the lexer stopped parsing the string literal when it found \" inside the interpolation
+        let token = lexer.next_token().unwrap().into_token();
+        assert!(matches!(token, Token::Bool(true)));
+    }
+
+    #[test]
+    fn test_eat_fmt_string_literal_unmatched_closing_curly() {
+        let input = "f\"hello }\" true";
+        let mut lexer = Lexer::new(input);
+        assert!(matches!(lexer.next_token(), Err(LexerErrorKind::InvalidFormatString { .. })));
+
+        // Make sure the lexer went past the ending double quote for better recovery
         let token = lexer.next_token().unwrap().into_token();
         assert!(matches!(token, Token::Bool(true)));
     }
