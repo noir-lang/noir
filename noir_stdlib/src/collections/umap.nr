@@ -140,7 +140,8 @@ impl<K, V, B> UHashMap<K, V, B> {
 
         let self_len = self._len;
         let entries_len = entries.len();
-        let msg = f"Amount of valid elements should have been {self_len} times, but got {entries_len}.";
+        let msg =
+            f"Amount of valid elements should have been {self_len} times, but got {entries_len}.";
         assert(entries.len() == self._len, msg);
 
         entries
