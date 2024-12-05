@@ -73,8 +73,10 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
                 for brillig_function in &compiled_program.program.unconstrained_functions {
                     match brillig_function.get_oracle_status(ForeignCall::check_oracle_status) {
                         OracleResult::Mocked => {
-                            has_oracle = false;
-                            break;
+                            if !test_function.should_fail() {
+                                has_oracle = false;
+                                break;
+                            }
                         }
                         OracleResult::Unhandled => {
                             has_oracle = true;
