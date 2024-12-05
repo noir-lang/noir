@@ -353,7 +353,7 @@ impl DependencyContext {
                         | Value::NumericConstant { .. }
                         | Value::Param { .. } => {
                             panic!(
-                                "should not be able to call {func_id} in function {}",
+                                "calling non-function value with ID {func_id} in function {}",
                                 function.name()
                             );
                         }
