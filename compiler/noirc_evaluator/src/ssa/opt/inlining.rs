@@ -22,7 +22,7 @@ use fxhash::FxHashMap as HashMap;
 
 /// An arbitrary limit to the maximum number of recursive call
 /// frames at any point in time.
-const RECURSION_LIMIT: u32 = 1000;
+const RECURSION_LIMIT: u32 = 500;
 
 impl Ssa {
     /// Inline all functions within the IR.
@@ -1090,7 +1090,7 @@ mod test {
 
     #[test]
     #[should_panic(
-        expected = "Attempted to recur more than 1000 times during inlining function 'main': acir(inline) fn main f0 {"
+        expected = "Attempted to recur more than 500 times during inlining function 'main': acir(inline) fn main f0 {"
     )]
     fn unconditional_recursion() {
         // fn main f1 {

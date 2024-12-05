@@ -134,7 +134,7 @@ pub struct CompileOptions {
     /// Flag to turn off the compiler check for missing Brillig call constrains.
     /// Warning: This can improve compilation speed but can also lead to correctness errors.
     /// This check should always be run on production code.
-    #[arg(long, default_value = "true")]
+    #[arg(long)]
     pub skip_brillig_constraints_check: bool,
 
     /// Setting to decide on an inlining strategy for Brillig functions.
