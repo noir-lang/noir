@@ -40,6 +40,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             arguments,
             return_type,
             location,
+            self.pedantic_solving,
         )
     }
 }
@@ -52,19 +53,33 @@ fn call_foreign(
     args: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
+    pedantic_solving: bool,
 ) -> IResult<Value> {
     use BlackBoxFunc::*;
 
     match name {
         "aes128_encrypt" => aes128_encrypt(interner, args, location),
-        "bigint_from_le_bytes" => {
-            bigint_from_le_bytes(interner, bigint_solver, args, return_type, location)
-        }
+        "bigint_from_le_bytes" => bigint_from_le_bytes(
+            interner,
+            bigint_solver,
+            args,
+            return_type,
+            location,
+            pedantic_solving,
+        ),
         "bigint_to_le_bytes" => bigint_to_le_bytes(bigint_solver, args, location),
-        "bigint_add" => bigint_op(bigint_solver, BigIntAdd, args, return_type, location),
-        "bigint_sub" => bigint_op(bigint_solver, BigIntSub, args, return_type, location),
-        "bigint_mul" => bigint_op(bigint_solver, BigIntMul, args, return_type, location),
-        "bigint_div" => bigint_op(bigint_solver, BigIntDiv, args, return_type, location),
+        "bigint_add" => {
+            bigint_op(bigint_solver, BigIntAdd, args, return_type, location, pedantic_solving)
+        }
+        "bigint_sub" => {
+            bigint_op(bigint_solver, BigIntSub, args, return_type, location, pedantic_solving)
+        }
+        "bigint_mul" => {
+            bigint_op(bigint_solver, BigIntMul, args, return_type, location, pedantic_solving)
+        }
+        "bigint_div" => {
+            bigint_op(bigint_solver, BigIntDiv, args, return_type, location, pedantic_solving)
+        }
         "blake2s" => blake_hash(interner, args, location, acvm::blackbox_solver::blake2s),
         "blake3" => blake_hash(interner, args, location, acvm::blackbox_solver::blake3),
         "ecdsa_secp256k1" => ecdsa_secp256_verify(
@@ -80,7 +95,7 @@ fn call_foreign(
             acvm::blackbox_solver::ecdsa_secp256r1_verify,
         ),
         "embedded_curve_add" => embedded_curve_add(args, location),
-        "multi_scalar_mul" => multi_scalar_mul(interner, args, location),
+        "multi_scalar_mul" => multi_scalar_mul(interner, args, location, pedantic_solving),
         "poseidon2_permutation" => poseidon2_permutation(interner, args, location),
         "keccakf1600" => keccakf1600(interner, args, location),
         "range" => apply_range_constraint(args, location),
@@ -148,6 +163,7 @@ fn bigint_from_le_bytes(
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
+    pedantic_solving: bool,
 ) -> IResult<Value> {
     let (bytes, modulus) = check_two_arguments(arguments, location)?;
 
@@ -155,7 +171,7 @@ fn bigint_from_le_bytes(
     let (modulus, _) = get_slice_map(interner, modulus, get_u8)?;
 
     let id = solver
-        .bigint_from_bytes(&bytes, &modulus)
+        .bigint_from_bytes(&bytes, &modulus, pedantic_solving)
         .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
 
     Ok(to_bigint(id, return_type))
@@ -191,6 +207,7 @@ fn bigint_op(
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
+    pedantic_solving: bool,
 ) -> IResult<Value> {
     let (lhs, rhs) = check_two_arguments(arguments, location)?;
 
@@ -198,7 +215,7 @@ fn bigint_op(
     let rhs = get_bigint_id(rhs)?;
 
     let id = solver
-        .bigint_op(lhs, rhs, func)
+        .bigint_op(lhs, rhs, func, pedantic_solving)
         .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
 
     Ok(to_bigint(id, return_type))
@@ -293,6 +310,7 @@ fn multi_scalar_mul(
     interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
+    pedantic_solving: bool,
 ) -> IResult<Value> {
     let (points, scalars) = check_two_arguments(arguments, location)?;
 
@@ -308,7 +326,7 @@ fn multi_scalar_mul(
     }
 
     let (x, y, inf) = Bn254BlackBoxSolver
-        .multi_scalar_mul(&points, &scalars_lo, &scalars_hi)
+        .multi_scalar_mul(&points, &scalars_lo, &scalars_hi, pedantic_solving)
         .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
 
     Ok(to_field_array(&[x, y, inf]))
@@ -436,6 +454,7 @@ mod tests {
 
             for blackbox in BlackBoxFunc::iter() {
                 let name = blackbox.name();
+                let pedantic_solving = true;
                 match call_foreign(
                     interpreter.elaborator.interner,
                     &mut interpreter.bigint_solver,
@@ -443,6 +462,7 @@ mod tests {
                     Vec::new(),
                     Type::Unit,
                     no_location,
+                    pedantic_solving,
                 ) {
                     Ok(_) => {
                         // Exists and works with no args (unlikely)

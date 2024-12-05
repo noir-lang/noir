@@ -48,6 +48,8 @@ impl BlackBoxFunctionSolver<FieldElement> for Bn254BlackBoxSolver {
         points: &[FieldElement],
         scalars_lo: &[FieldElement],
         scalars_hi: &[FieldElement],
+        // check in local multi_scalar_mul
+        _pedantic_solving: bool,
     ) -> Result<(FieldElement, FieldElement, FieldElement), BlackBoxResolutionError> {
         multi_scalar_mul(points, scalars_lo, scalars_hi)
     }

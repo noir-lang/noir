@@ -314,6 +314,7 @@ pub fn check_crate(
         context,
         options.debug_comptime_in_file.as_deref(),
         error_on_unused_imports,
+        options.pedantic_solving,
     );
     errors.extend(diagnostics.into_iter().map(|(error, file_id)| {
         let diagnostic = CustomDiagnostic::from(&error);

@@ -24,12 +24,13 @@ impl AcvmBigIntSolver {
         modulus: &[u8],
         output: u32,
         initial_witness: &mut WitnessMap<F>,
+        pedantic_solving: bool,
     ) -> Result<(), OpcodeResolutionError<F>> {
         let bytes = inputs
             .iter()
             .map(|input| input_to_value(initial_witness, *input, false).unwrap().to_u128() as u8)
             .collect::<Vec<u8>>();
-        self.bigint_solver.bigint_from_bytes(&bytes, modulus, output)?;
+        self.bigint_solver.bigint_from_bytes(&bytes, modulus, output, pedantic_solving)?;
         Ok(())
     }
 
@@ -38,7 +39,11 @@ impl AcvmBigIntSolver {
         input: u32,
         outputs: &[Witness],
         initial_witness: &mut WitnessMap<F>,
+        pedantic_solving: bool,
     ) -> Result<(), OpcodeResolutionError<F>> {
+        if pedantic_solving && outputs.len() != 32 {
+            panic!("--pedantic-solving: bigint_to_bytes: outputs.len() != 32: {}", outputs.len());
+        }
         let mut bytes = self.bigint_solver.bigint_to_bytes(input)?;
         while bytes.len() < outputs.len() {
             bytes.push(0);
@@ -55,12 +60,9 @@ impl AcvmBigIntSolver {
         rhs: u32,
         output: u32,
         func: BlackBoxFunc,
+        pedantic_solving: bool,
     ) -> Result<(), OpcodeResolutionError<F>> {
-        self.bigint_solver.bigint_op(lhs, rhs, output, func)?;
+        self.bigint_solver.bigint_op(lhs, rhs, output, func, pedantic_solving)?;
         Ok(())
-    }
-
-    pub(crate) fn is_valid_modulus(&self, modulus: &[u8]) -> bool {
-        self.bigint_solver.is_valid_modulus(modulus)
     }
 }

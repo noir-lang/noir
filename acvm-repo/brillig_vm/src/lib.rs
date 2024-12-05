@@ -100,6 +100,8 @@ pub struct VM<'a, F, B: BlackBoxFunctionSolver<F>> {
     profiling_active: bool,
     // Samples for profiling the VM execution.
     profiling_samples: BrilligProfilingSamples,
+    // Use pedantic ACVM solving
+    pedantic_solving: bool,
 }
 
 impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
@@ -110,6 +112,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         foreign_call_results: Vec<ForeignCallResult<F>>,
         black_box_solver: &'a B,
         profiling_active: bool,
+        pedantic_solving: bool,
     ) -> Self {
         Self {
             calldata,
@@ -124,6 +127,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
             bigint_solver: Default::default(),
             profiling_active,
             profiling_samples: Vec::with_capacity(bytecode.len()),
+            pedantic_solving,
         }
     }
 
@@ -405,6 +409,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                     self.black_box_solver,
                     &mut self.memory,
                     &mut self.bigint_solver,
+                    self.pedantic_solving,
                 ) {
                     Ok(()) => self.increment_program_counter(),
                     Err(e) => self.fail(e.to_string()),

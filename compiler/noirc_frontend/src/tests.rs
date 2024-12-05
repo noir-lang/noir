@@ -114,6 +114,7 @@ pub(crate) fn get_program_with_maybe_parser_errors(
         };
 
         let debug_comptime_in_file = None;
+        let pedantic_solving = true;
         let error_on_unused_imports = true;
 
         // Now we want to populate the CrateDefMap using the DefCollector
@@ -123,6 +124,7 @@ pub(crate) fn get_program_with_maybe_parser_errors(
             program.clone().into_sorted(),
             root_file_id,
             debug_comptime_in_file,
+            pedantic_solving,
             error_on_unused_imports,
         ));
     }

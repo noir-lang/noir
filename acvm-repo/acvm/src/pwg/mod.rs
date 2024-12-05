@@ -145,10 +145,7 @@ pub enum OpcodeResolutionError<F> {
     #[error("{results_size:?} result values were provided for {outputs_size:?} call output witnesses, most likely due to bad ACIR codegen")]
     AcirCallOutputsMismatch { opcode_location: ErrorLocation, results_size: u32, outputs_size: u32 },
     #[error("(--pedantic): Predicates are expected to be 0 or 1, but found: {predicate_value}")]
-    PredicateLargerThanOne {
-        opcode_location: ErrorLocation,
-        predicate_value: F,
-    },
+    PredicateLargerThanOne { opcode_location: ErrorLocation, predicate_value: F },
 }
 
 impl<F> From<BlackBoxResolutionError> for OpcodeResolutionError<F> {
@@ -242,7 +239,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             assertion_payloads,
             profiling_active: false,
             profiling_samples: Vec::new(),
-            pedantic_solving: pedantic_solving,
+            pedantic_solving,
         }
     }
 
@@ -489,10 +486,14 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             unreachable!("Not executing a BrilligCall opcode");
         };
 
-        let opcode_location = ErrorLocation::Resolved(OpcodeLocation::Acir(
-            self.instruction_pointer(),
-        ));
-        if is_predicate_false(&self.witness_map, predicate, self.pedantic_solving, &opcode_location)? {
+        let opcode_location =
+            ErrorLocation::Resolved(OpcodeLocation::Acir(self.instruction_pointer()));
+        if is_predicate_false(
+            &self.witness_map,
+            predicate,
+            self.pedantic_solving,
+            &opcode_location,
+        )? {
             return BrilligSolver::<F, B>::zero_out_brillig_outputs(&mut self.witness_map, outputs)
                 .map(|_| None);
         }
@@ -510,6 +511,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
                 self.instruction_pointer,
                 *id,
                 self.profiling_active,
+                self.pedantic_solving,
             )?,
         };
 
@@ -560,14 +562,14 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             return StepResult::Status(self.solve_opcode());
         };
 
-        let opcode_location = ErrorLocation::Resolved(OpcodeLocation::Acir(
-            self.instruction_pointer(),
-        ));
+        let opcode_location =
+            ErrorLocation::Resolved(OpcodeLocation::Acir(self.instruction_pointer()));
         let witness = &mut self.witness_map;
-        let should_skip = match is_predicate_false(witness, predicate, self.pedantic_solving, &opcode_location) {
-            Ok(result) => result,
-            Err(err) => return StepResult::Status(self.handle_opcode_resolution(Err(err))),
-        };
+        let should_skip =
+            match is_predicate_false(witness, predicate, self.pedantic_solving, &opcode_location) {
+                Ok(result) => result,
+                Err(err) => return StepResult::Status(self.handle_opcode_resolution(Err(err))),
+            };
         if should_skip {
             let resolution = BrilligSolver::<F, B>::zero_out_brillig_outputs(witness, outputs);
             return StepResult::Status(self.handle_opcode_resolution(resolution));
@@ -582,6 +584,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             self.instruction_pointer,
             *id,
             self.profiling_active,
+            self.pedantic_solving,
         );
         match solver {
             Ok(solver) => StepResult::IntoBrillig(solver),
@@ -606,16 +609,18 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             unreachable!("Not executing a Call opcode");
         };
 
-        let opcode_location = ErrorLocation::Resolved(OpcodeLocation::Acir(
-            self.instruction_pointer(),
-        ));
+        let opcode_location =
+            ErrorLocation::Resolved(OpcodeLocation::Acir(self.instruction_pointer()));
         if *id == AcirFunctionId(0) {
-            return Err(OpcodeResolutionError::AcirMainCallAttempted {
-                opcode_location,
-            });
+            return Err(OpcodeResolutionError::AcirMainCallAttempted { opcode_location });
         }
 
-        if is_predicate_false(&self.witness_map, predicate, self.pedantic_solving, &opcode_location)? {
+        if is_predicate_false(
+            &self.witness_map,
+            predicate,
+            self.pedantic_solving,
+            &opcode_location,
+        )? {
             // Zero out the outputs if we have a false predicate
             for output in outputs {
                 insert_value(output, F::zero(), &mut self.witness_map)?;
@@ -767,7 +772,7 @@ pub(crate) fn is_predicate_false<F: AcirField>(
                     } else if predicate_value.is_one() {
                         Ok(false)
                     } else {
-                        let opcode_location = opcode_location.clone();
+                        let opcode_location = *opcode_location;
                         Err(OpcodeResolutionError::PredicateLargerThanOne {
                             opcode_location,
                             predicate_value,
@@ -777,7 +782,7 @@ pub(crate) fn is_predicate_false<F: AcirField>(
             } else {
                 pred_value.map(|pred_value| pred_value.is_zero())
             }
-        },
+        }
         // If the predicate is `None`, then we treat it as an unconditional `true`
         None => Ok(false),
     }

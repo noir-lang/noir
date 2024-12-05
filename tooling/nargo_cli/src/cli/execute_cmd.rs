@@ -106,8 +106,14 @@ fn execute_program_and_decode(
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) =
         read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &program.abi)?;
-    let witness_stack =
-        execute_program(&program, &inputs_map, foreign_call_resolver_url, root_path, package_name, pedantic_solving)?;
+    let witness_stack = execute_program(
+        &program,
+        &inputs_map,
+        foreign_call_resolver_url,
+        root_path,
+        package_name,
+        pedantic_solving,
+    )?;
     // Get the entry point witness for the ABI
     let main_witness =
         &witness_stack.peek().expect("Should have at least one witness on the stack").witness;

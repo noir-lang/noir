@@ -76,14 +76,19 @@ pub(crate) fn solve<F: AcirField>(
         ));
     }
 
-    // TODO: check input value sizes when pedantic_solving
     match bb_func {
         BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, outputs } => {
             solve_aes128_encryption_opcode(initial_witness, inputs, iv, key, outputs)
         }
-        BlackBoxFuncCall::AND { lhs, rhs, output } => and(initial_witness, lhs, rhs, output),
-        BlackBoxFuncCall::XOR { lhs, rhs, output } => xor(initial_witness, lhs, rhs, output),
-        BlackBoxFuncCall::RANGE { input } => solve_range_opcode(initial_witness, input, pedantic_solving),
+        BlackBoxFuncCall::AND { lhs, rhs, output } => {
+            and(initial_witness, lhs, rhs, output, pedantic_solving)
+        }
+        BlackBoxFuncCall::XOR { lhs, rhs, output } => {
+            xor(initial_witness, lhs, rhs, output, pedantic_solving)
+        }
+        BlackBoxFuncCall::RANGE { input } => {
+            solve_range_opcode(initial_witness, input, pedantic_solving)
+        }
         BlackBoxFuncCall::Blake2s { inputs, outputs } => {
             solve_generic_256_hash_opcode(initial_witness, inputs, None, outputs, blake2s)
         }
@@ -149,11 +154,7 @@ pub(crate) fn solve<F: AcirField>(
             *output,
         ),
         BlackBoxFuncCall::MultiScalarMul { points, scalars, outputs } => {
-            if pedantic_solving && points.len() != scalars.len() {
-                // TODO: better error or ICE
-                panic!("MultiScalarMul")
-            }
-            multi_scalar_mul(backend, initial_witness, points, scalars, *outputs)
+            multi_scalar_mul(backend, initial_witness, points, scalars, *outputs, pedantic_solving)
         }
         BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, outputs } => {
             embedded_curve_add(backend, initial_witness, **input1, **input2, *outputs)
@@ -163,31 +164,22 @@ pub(crate) fn solve<F: AcirField>(
         BlackBoxFuncCall::BigIntAdd { lhs, rhs, output }
         | BlackBoxFuncCall::BigIntSub { lhs, rhs, output }
         | BlackBoxFuncCall::BigIntMul { lhs, rhs, output }
-        | BlackBoxFuncCall::BigIntDiv { lhs, rhs, output } => {
-            bigint_solver.bigint_op(*lhs, *rhs, *output, bb_func.get_black_box_func())
-        }
-        BlackBoxFuncCall::BigIntFromLeBytes { inputs, modulus, output } => {
-            if pedantic_solving && (!bigint_solver.is_valid_modulus(modulus) || inputs.len() > 32) {
-                // TODO: better error or ICE
-                panic!("BigIntFromLeBytes")
-            }
-            bigint_solver.bigint_from_bytes(inputs, modulus, *output, initial_witness)
-        }
+        | BlackBoxFuncCall::BigIntDiv { lhs, rhs, output } => bigint_solver.bigint_op(
+            *lhs,
+            *rhs,
+            *output,
+            bb_func.get_black_box_func(),
+            pedantic_solving,
+        ),
+        BlackBoxFuncCall::BigIntFromLeBytes { inputs, modulus, output } => bigint_solver
+            .bigint_from_bytes(inputs, modulus, *output, initial_witness, pedantic_solving),
         BlackBoxFuncCall::BigIntToLeBytes { input, outputs } => {
-            if pedantic_solving && outputs.len() != 32 {
-                // TODO: better error or ICE
-                panic!("BigIntToLeBytes")
-            }
-            bigint_solver.bigint_to_bytes(*input, outputs, initial_witness)
+            bigint_solver.bigint_to_bytes(*input, outputs, initial_witness, pedantic_solving)
         }
         BlackBoxFuncCall::Sha256Compression { inputs, hash_values, outputs } => {
             solve_sha_256_permutation_opcode(initial_witness, inputs, hash_values, outputs)
         }
         BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs, len } => {
-            if pedantic_solving && inputs.len() != outputs.len() {
-                // TODO: better error or ICE
-                panic!("Poseidon2Permutation")
-            }
             solve_poseidon2_permutation_opcode(backend, initial_witness, inputs, outputs, *len)
         }
     }

@@ -21,11 +21,12 @@ impl BlackBoxFunctionSolver<acvm::FieldElement> for WrapperSolver {
         points: &[acvm::FieldElement],
         scalars_lo: &[acvm::FieldElement],
         scalars_hi: &[acvm::FieldElement],
+        pedantic_solving: bool,
     ) -> Result<
         (acvm::FieldElement, acvm::FieldElement, acvm::FieldElement),
         acvm::BlackBoxResolutionError,
     > {
-        self.0.multi_scalar_mul(points, scalars_lo, scalars_hi)
+        self.0.multi_scalar_mul(points, scalars_lo, scalars_hi, pedantic_solving)
     }
 
     fn ec_add(

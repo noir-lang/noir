@@ -45,6 +45,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
     solver: &Solver,
     memory: &mut Memory<F>,
     bigint_solver: &mut BrilligBigIntSolver,
+    pedantic_solving: bool,
 ) -> Result<(), BlackBoxResolutionError> {
     match op {
         BlackBoxOp::AES128Encrypt { inputs, iv, key, outputs } => {
@@ -178,7 +179,8 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                     scalars_hi.push(*scalar);
                 }
             }
-            let (x, y, is_infinite) = solver.multi_scalar_mul(&points, &scalars_lo, &scalars_hi)?;
+            let (x, y, is_infinite) =
+                solver.multi_scalar_mul(&points, &scalars_lo, &scalars_hi, pedantic_solving)?;
             memory.write_slice(
                 memory.read_ref(result.pointer),
                 &[
@@ -226,7 +228,8 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             let lhs = memory.read(*lhs).try_into().unwrap();
             let rhs = memory.read(*rhs).try_into().unwrap();
 
-            let new_id = bigint_solver.bigint_op(lhs, rhs, BlackBoxFunc::BigIntAdd)?;
+            let new_id =
+                bigint_solver.bigint_op(lhs, rhs, BlackBoxFunc::BigIntAdd, pedantic_solving)?;
             memory.write(*output, new_id.into());
             Ok(())
         }
@@ -234,7 +237,8 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             let lhs = memory.read(*lhs).try_into().unwrap();
             let rhs = memory.read(*rhs).try_into().unwrap();
 
-            let new_id = bigint_solver.bigint_op(lhs, rhs, BlackBoxFunc::BigIntSub)?;
+            let new_id =
+                bigint_solver.bigint_op(lhs, rhs, BlackBoxFunc::BigIntSub, pedantic_solving)?;
             memory.write(*output, new_id.into());
             Ok(())
         }
@@ -242,7 +246,8 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             let lhs = memory.read(*lhs).try_into().unwrap();
             let rhs = memory.read(*rhs).try_into().unwrap();
 
-            let new_id = bigint_solver.bigint_op(lhs, rhs, BlackBoxFunc::BigIntMul)?;
+            let new_id =
+                bigint_solver.bigint_op(lhs, rhs, BlackBoxFunc::BigIntMul, pedantic_solving)?;
             memory.write(*output, new_id.into());
             Ok(())
         }
@@ -250,7 +255,8 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             let lhs = memory.read(*lhs).try_into().unwrap();
             let rhs = memory.read(*rhs).try_into().unwrap();
 
-            let new_id = bigint_solver.bigint_op(lhs, rhs, BlackBoxFunc::BigIntDiv)?;
+            let new_id =
+                bigint_solver.bigint_op(lhs, rhs, BlackBoxFunc::BigIntDiv, pedantic_solving)?;
             memory.write(*output, new_id.into());
             Ok(())
         }
@@ -260,7 +266,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             let modulus = read_heap_vector(memory, modulus);
             let modulus: Vec<u8> = modulus.iter().map(|&x| x.try_into().unwrap()).collect();
 
-            let new_id = bigint_solver.bigint_from_bytes(&input, &modulus)?;
+            let new_id = bigint_solver.bigint_from_bytes(&input, &modulus, pedantic_solving)?;
             memory.write(*output, new_id.into());
 
             Ok(())

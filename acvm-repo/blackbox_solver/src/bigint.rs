@@ -50,7 +50,18 @@ impl BigIntSolver {
         inputs: &[u8],
         modulus: &[u8],
         output: u32,
+        pedantic_solving: bool,
     ) -> Result<(), BlackBoxResolutionError> {
+        if pedantic_solving && (!self.is_valid_modulus(modulus) || inputs.len() > modulus.len()) {
+            if !self.is_valid_modulus(modulus) {
+                panic!("--pedantic-solving: bigint_from_bytes: disallowed modulus {:?}", modulus);
+            } else {
+                panic!(
+                    "--pedantic-solving: bigint_from_bytes: inputs.len() > modulus.len() {:?}",
+                    (inputs.len(), modulus.len())
+                );
+            }
+        }
         let bigint = BigUint::from_bytes_le(inputs);
         self.bigint_id_to_value.insert(output, bigint);
         let modulus = BigUint::from_bytes_le(modulus);
@@ -69,6 +80,7 @@ impl BigIntSolver {
         rhs: u32,
         output: u32,
         func: BlackBoxFunc,
+        pedantic_solving: bool,
     ) -> Result<(), BlackBoxResolutionError> {
         let modulus = self.get_modulus(lhs, func)?;
         let lhs = self.get_bigint(lhs, func)?;
@@ -84,8 +96,11 @@ impl BigIntSolver {
             }
             BlackBoxFunc::BigIntMul => lhs * rhs,
             BlackBoxFunc::BigIntDiv => {
+                if pedantic_solving && rhs == BigUint::ZERO {
+                    panic!("--pedantic-solving: BigIntDiv by zero");
+                }
                 lhs * rhs.modpow(&(&modulus - BigUint::from(2_u32)), &modulus)
-            } //TODO ensure that modulus is prime
+            }
             _ => unreachable!("ICE - bigint_op must be called for an operation"),
         };
         if result > modulus {
@@ -97,9 +112,40 @@ impl BigIntSolver {
         Ok(())
     }
 
+    pub fn allowed_bigint_moduli() -> Vec<Vec<u8>> {
+        let bn254_fq: Vec<u8> = vec![
+            0x47, 0xFD, 0x7C, 0xD8, 0x16, 0x8C, 0x20, 0x3C, 0x8d, 0xca, 0x71, 0x68, 0x91, 0x6a,
+            0x81, 0x97, 0x5d, 0x58, 0x81, 0x81, 0xb6, 0x45, 0x50, 0xb8, 0x29, 0xa0, 0x31, 0xe1,
+            0x72, 0x4e, 0x64, 0x30,
+        ];
+        let bn254_fr: Vec<u8> = vec![
+            1, 0, 0, 240, 147, 245, 225, 67, 145, 112, 185, 121, 72, 232, 51, 40, 93, 88, 129, 129,
+            182, 69, 80, 184, 41, 160, 49, 225, 114, 78, 100, 48,
+        ];
+        let secpk1_fr: Vec<u8> = vec![
+            0x41, 0x41, 0x36, 0xD0, 0x8C, 0x5E, 0xD2, 0xBF, 0x3B, 0xA0, 0x48, 0xAF, 0xE6, 0xDC,
+            0xAE, 0xBA, 0xFE, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+            0xFF, 0xFF, 0xFF, 0xFF,
+        ];
+        let secpk1_fq: Vec<u8> = vec![
+            0x2F, 0xFC, 0xFF, 0xFF, 0xFE, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+            0xFF, 0xFF, 0xFF, 0xFF,
+        ];
+        let secpr1_fq: Vec<u8> = vec![
+            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
+            0xFF, 0xFF, 0xFF, 0xFF,
+        ];
+        let secpr1_fr: Vec<u8> = vec![
+            81, 37, 99, 252, 194, 202, 185, 243, 132, 158, 23, 167, 173, 250, 230, 188, 255, 255,
+            255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 255, 255, 255, 255,
+        ];
+        vec![bn254_fq, bn254_fr, secpk1_fr, secpk1_fq, secpr1_fq, secpr1_fr]
+    }
+
     pub fn is_valid_modulus(&self, modulus: &[u8]) -> bool {
-        let modulus = BigUint::from_bytes_le(modulus);
-        self.bigint_id_to_modulus.values().any(|value| modulus == *value)
+        Self::allowed_bigint_moduli().into_iter().any(|allowed_modulus| allowed_modulus == modulus)
     }
 }
 
@@ -121,9 +167,10 @@ impl BigIntSolverWithId {
         &mut self,
         inputs: &[u8],
         modulus: &[u8],
+        pedantic_solving: bool,
     ) -> Result<u32, BlackBoxResolutionError> {
         let id = self.create_bigint_id();
-        self.solver.bigint_from_bytes(inputs, modulus, id)?;
+        self.solver.bigint_from_bytes(inputs, modulus, id, pedantic_solving)?;
         Ok(id)
     }
 
@@ -136,6 +183,7 @@ impl BigIntSolverWithId {
         lhs: u32,
         rhs: u32,
         func: BlackBoxFunc,
+        pedantic_solving: bool,
     ) -> Result<u32, BlackBoxResolutionError> {
         let modulus_lhs = self.solver.get_modulus(lhs, func)?;
         let modulus_rhs = self.solver.get_modulus(rhs, func)?;
@@ -146,7 +194,27 @@ impl BigIntSolverWithId {
             ));
         }
         let id = self.create_bigint_id();
-        self.solver.bigint_op(lhs, rhs, id, func)?;
+        self.solver.bigint_op(lhs, rhs, id, func, pedantic_solving)?;
         Ok(id)
+    }
+}
+
+#[test]
+fn all_allowed_bigint_moduli_are_prime() {
+    use num_prime::nt_funcs::is_prime;
+    use num_prime::Primality;
+
+    for modulus in BigIntSolver::allowed_bigint_moduli() {
+        let modulus = BigUint::from_bytes_le(&modulus);
+        let prime_test_config = None;
+        match is_prime(&modulus, prime_test_config) {
+            Primality::Yes => (),
+            Primality::No => panic!("not all allowed_bigint_moduli are prime"),
+            Primality::Probable(probability) => {
+                if probability < 0.90 {
+                    panic!("not all allowed_bigint_moduli are prime within the allowed probability: {} < 0.90", probability);
+                }
+            }
+        }
     }
 }

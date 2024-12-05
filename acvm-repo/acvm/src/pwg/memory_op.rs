@@ -85,7 +85,8 @@ impl<F: AcirField> MemoryOpSolver<F> {
 
         // Fetch whether or not the predicate is false (e.g. equal to zero)
         let opcode_location = ErrorLocation::Unresolved;
-        let skip_operation = is_predicate_false(initial_witness, predicate, pedantic_solving, &opcode_location)?;
+        let skip_operation =
+            is_predicate_false(initial_witness, predicate, pedantic_solving, &opcode_location)?;
 
         if is_read_operation {
             // `value_read = arr[memory_index]`
@@ -152,7 +153,10 @@ mod tests {
         block_solver.init(&init, &initial_witness).unwrap();
 
         for op in trace {
-            block_solver.solve_memory_op(&op, &mut initial_witness, &None).unwrap();
+            let pedantic_solving = true;
+            block_solver
+                .solve_memory_op(&op, &mut initial_witness, &None, pedantic_solving)
+                .unwrap();
         }
 
         assert_eq!(initial_witness[&Witness(4)], FieldElement::from(2u128));
@@ -177,7 +181,10 @@ mod tests {
         let mut err = None;
         for op in invalid_trace {
             if err.is_none() {
-                err = block_solver.solve_memory_op(&op, &mut initial_witness, &None).err();
+                let pedantic_solving = true;
+                err = block_solver
+                    .solve_memory_op(&op, &mut initial_witness, &None, pedantic_solving)
+                    .err();
             }
         }
 
@@ -210,8 +217,14 @@ mod tests {
         let mut err = None;
         for op in invalid_trace {
             if err.is_none() {
+                let pedantic_solving = true;
                 err = block_solver
-                    .solve_memory_op(&op, &mut initial_witness, &Some(Expression::zero()))
+                    .solve_memory_op(
+                        &op,
+                        &mut initial_witness,
+                        &Some(Expression::zero()),
+                        pedantic_solving,
+                    )
                     .err();
             }
         }
@@ -242,8 +255,14 @@ mod tests {
         let mut err = None;
         for op in invalid_trace {
             if err.is_none() {
+                let pedantic_solving = true;
                 err = block_solver
-                    .solve_memory_op(&op, &mut initial_witness, &Some(Expression::zero()))
+                    .solve_memory_op(
+                        &op,
+                        &mut initial_witness,
+                        &Some(Expression::zero()),
+                        pedantic_solving,
+                    )
                     .err();
             }
         }

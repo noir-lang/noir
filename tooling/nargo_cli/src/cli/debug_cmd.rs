@@ -85,7 +85,14 @@ pub(crate) fn run(args: DebugCommand, config: NargoConfig) -> Result<(), CliErro
 
     let compiled_program = nargo::ops::transform_program(compiled_program, target_width);
 
-    run_async(package, compiled_program, &args.prover_name, &args.witness_name, target_dir, args.compile_options.pedantic_solving)
+    run_async(
+        package,
+        compiled_program,
+        &args.prover_name,
+        &args.witness_name,
+        target_dir,
+        args.compile_options.pedantic_solving,
+    )
 }
 
 pub(crate) fn compile_bin_package_for_debugging(
@@ -235,6 +242,11 @@ pub(crate) fn debug_program(
 ) -> Result<Option<WitnessStack<FieldElement>>, CliError> {
     let initial_witness = compiled_program.abi.encode(inputs_map, None)?;
 
-    noir_debugger::run_repl_session(&Bn254BlackBoxSolver, compiled_program, initial_witness, pedantic_solving)
-        .map_err(CliError::from)
+    noir_debugger::run_repl_session(
+        &Bn254BlackBoxSolver,
+        compiled_program,
+        initial_witness,
+        pedantic_solving,
+    )
+    .map_err(CliError::from)
 }

@@ -13,6 +13,7 @@ pub(super) fn multi_scalar_mul<F: AcirField>(
     points: &[FunctionInput<F>],
     scalars: &[FunctionInput<F>],
     outputs: (Witness, Witness, Witness),
+    pedantic_solving: bool,
 ) -> Result<(), OpcodeResolutionError<F>> {
     let points: Result<Vec<_>, _> =
         points.iter().map(|input| input_to_value(initial_witness, *input, false)).collect();
@@ -31,7 +32,7 @@ pub(super) fn multi_scalar_mul<F: AcirField>(
     }
     // Call the backend's multi-scalar multiplication function
     let (res_x, res_y, is_infinite) =
-        backend.multi_scalar_mul(&points, &scalars_lo, &scalars_hi)?;
+        backend.multi_scalar_mul(&points, &scalars_lo, &scalars_hi, pedantic_solving)?;
 
     // Insert the resulting point into the witness map
     insert_value(&outputs.0, res_x, initial_witness)?;

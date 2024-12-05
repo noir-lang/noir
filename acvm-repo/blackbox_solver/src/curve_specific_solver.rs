@@ -19,6 +19,7 @@ pub trait BlackBoxFunctionSolver<F> {
         points: &[F],
         scalars_lo: &[F],
         scalars_hi: &[F],
+        pedantic_solving: bool,
     ) -> Result<(F, F, F), BlackBoxResolutionError>;
     fn ec_add(
         &self,
@@ -62,6 +63,7 @@ impl<F> BlackBoxFunctionSolver<F> for StubbedBlackBoxSolver {
         _points: &[F],
         _scalars_lo: &[F],
         _scalars_hi: &[F],
+        _pedantic_solving: bool,
     ) -> Result<(F, F, F), BlackBoxResolutionError> {
         Err(Self::fail(BlackBoxFunc::MultiScalarMul))
     }

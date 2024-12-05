@@ -277,5 +277,6 @@ pub(crate) fn run(args: DapCommand, _config: NargoConfig) -> Result<(), CliError
     let input = BufReader::new(std::io::stdin());
     let server = Server::new(input, output);
 
-    loop_uninitialized_dap(server, args.expression_width, args.pedantic_solving).map_err(CliError::DapError)
+    loop_uninitialized_dap(server, args.expression_width, args.pedantic_solving)
+        .map_err(CliError::DapError)
 }
