@@ -227,8 +227,6 @@ impl DependencyContext {
         all_functions: &BTreeMap<FunctionId, Function>,
     ) {
         trace!("processing instructions of block {} of function {}", block, function);
-        let mut arguments = Vec::new();
-        let mut results = Vec::new();
 
         for instruction in function.dfg[block].instructions() {
             // Optimization: there is no reason to do anything until a Brillig
@@ -243,8 +241,8 @@ impl DependencyContext {
                 }
             }
 
-            arguments.clear();
-            results.clear();
+            let mut arguments = Vec::new();
+            let mut results = Vec::new();
 
             // Collect non-constant instruction arguments
             function.dfg[*instruction].for_each_value(|value_id| {
