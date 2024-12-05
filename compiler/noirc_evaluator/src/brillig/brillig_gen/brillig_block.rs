@@ -1823,7 +1823,7 @@ impl<'block> BrilligBlock<'block> {
                     Type::Array(_, nested_size) => {
                         let inner_array = BrilligArray {
                             pointer: self.brillig_context.allocate_register(),
-                            size: *nested_size,
+                            size: *nested_size as usize,
                         };
                         self.allocate_foreign_call_result_array(element_type, inner_array);
 

@@ -315,7 +315,12 @@ pub(crate) enum Instruction {
     ///     else_value
     /// }
     /// ```
-    IfElse { then_condition: ValueId, then_value: ValueId, else_value: ValueId },
+    IfElse {
+        then_condition: ValueId,
+        then_value: ValueId,
+        else_condition: ValueId,
+        else_value: ValueId,
+    },
 
     /// Creates a new array or slice.
     ///
@@ -389,9 +394,22 @@ impl Instruction {
             // This should never be side-effectful
             MakeArray { .. } => false,
 
+            // Some binary math can overflow or underflow
+            Binary(binary) => match binary.operator {
+                BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul | BinaryOp::Div | BinaryOp::Mod => {
+                    true
+                }
+                BinaryOp::Eq
+                | BinaryOp::Lt
+                | BinaryOp::And
+                | BinaryOp::Or
+                | BinaryOp::Xor
+                | BinaryOp::Shl
+                | BinaryOp::Shr => false,
+            },
+
             // These can have different behavior depending on the EnableSideEffectsIf context.
-            Binary(_)
-            | Cast(_, _)
+            Cast(_, _)
             | Not(_)
             | Truncate { .. }
             | IfElse { .. }
@@ -619,11 +637,14 @@ impl Instruction {
                     assert_message: assert_message.clone(),
                 }
             }
-            Instruction::IfElse { then_condition, then_value, else_value } => Instruction::IfElse {
-                then_condition: f(*then_condition),
-                then_value: f(*then_value),
-                else_value: f(*else_value),
-            },
+            Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
+                Instruction::IfElse {
+                    then_condition: f(*then_condition),
+                    then_value: f(*then_value),
+                    else_condition: f(*else_condition),
+                    else_value: f(*else_value),
+                }
+            }
             Instruction::MakeArray { elements, typ } => Instruction::MakeArray {
                 elements: elements.iter().copied().map(f).collect(),
                 typ: typ.clone(),
@@ -682,9 +703,10 @@ impl Instruction {
             | Instruction::RangeCheck { value, .. } => {
                 f(*value);
             }
-            Instruction::IfElse { then_condition, then_value, else_value } => {
+            Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
                 f(*then_condition);
                 f(*then_value);
+                f(*else_condition);
                 f(*else_value);
             }
             Instruction::MakeArray { elements, typ: _ } => {
@@ -847,7 +869,7 @@ impl Instruction {
                     None
                 }
             }
-            Instruction::IfElse { then_condition, then_value, else_value } => {
+            Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
                 let typ = dfg.type_of_value(*then_value);
 
                 if let Some(constant) = dfg.get_numeric_constant(*then_condition) {
@@ -866,11 +888,13 @@ impl Instruction {
 
                 if matches!(&typ, Type::Numeric(_)) {
                     let then_condition = *then_condition;
+                    let else_condition = *else_condition;
 
                     let result = ValueMerger::merge_numeric_values(
                         dfg,
                         block,
                         then_condition,
+                        else_condition,
                         then_value,
                         else_value,
                     );

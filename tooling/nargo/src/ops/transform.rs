@@ -6,6 +6,7 @@ use iter_extended::vecmap;
 use noirc_driver::{CompiledContract, CompiledProgram};
 use noirc_errors::debug_info::DebugInfo;
 
+/// Apply ACVM optimizations on the circuit.
 pub fn transform_program(
     mut compiled_program: CompiledProgram,
     expression_width: ExpressionWidth,
@@ -18,6 +19,7 @@ pub fn transform_program(
     compiled_program
 }
 
+/// Apply the optimizing transformation on each function in the contract.
 pub fn transform_contract(
     contract: CompiledContract,
     expression_width: ExpressionWidth,
@@ -25,7 +27,6 @@ pub fn transform_contract(
     let functions = vecmap(contract.functions, |mut func| {
         func.bytecode =
             transform_program_internal(func.bytecode, &mut func.debug, expression_width);
-
         func
     });
 
