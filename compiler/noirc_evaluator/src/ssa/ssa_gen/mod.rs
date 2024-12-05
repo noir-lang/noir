@@ -2,7 +2,7 @@ pub(crate) mod context;
 mod program;
 mod value;
 
-use noirc_frontend::token::FmtStringFragment;
+use noirc_frontend::token::FmtStrFragment;
 pub(crate) use program::Ssa;
 
 use context::SharedContext;
@@ -237,12 +237,12 @@ impl<'a> FunctionContext<'a> {
                 let mut string = String::new();
                 for fragment in fragments {
                     match fragment {
-                        FmtStringFragment::String(value) => {
+                        FmtStrFragment::String(value) => {
                             // Escape curly braces in non-interpolations
                             let value = value.replace('{', "{{").replace('}', "}}");
                             string.push_str(&value);
                         }
-                        FmtStringFragment::Interpolation(value, _span) => {
+                        FmtStrFragment::Interpolation(value, _span) => {
                             string.push('{');
                             string.push_str(value);
                             string.push('}');

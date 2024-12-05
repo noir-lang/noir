@@ -20,7 +20,7 @@ use crate::monomorphization::{
     perform_impl_bindings, perform_instantiation_bindings, resolve_trait_method,
     undo_instantiation_bindings,
 };
-use crate::token::{FmtStringFragment, Tokens};
+use crate::token::{FmtStrFragment, Tokens};
 use crate::TypeVariable;
 use crate::{
     hir_def::{
@@ -633,7 +633,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     fn evaluate_format_string(
         &mut self,
-        fragments: Vec<FmtStringFragment>,
+        fragments: Vec<FmtStrFragment>,
         captures: Vec<ExprId>,
         id: ExprId,
     ) -> IResult<Value> {
@@ -646,10 +646,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         for fragment in fragments {
             match fragment {
-                FmtStringFragment::String(string) => {
+                FmtStrFragment::String(string) => {
                     result.push_str(&string);
                 }
-                FmtStringFragment::Interpolation(_, span) => {
+                FmtStrFragment::Interpolation(_, span) => {
                     if let Some(value) = values.pop_front() {
                         // When interpolating a quoted value inside a format string, we don't include the
                         // surrounding `quote {` ... `}` as if we are unquoting the quoted value inside the string.

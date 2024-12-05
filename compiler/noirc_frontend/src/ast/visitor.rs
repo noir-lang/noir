@@ -16,7 +16,7 @@ use crate::{
         InternedUnresolvedTypeData, QuotedTypeId,
     },
     parser::{Item, ItemKind, ParsedSubModule},
-    token::{FmtStringFragment, MetaAttribute, SecondaryAttribute, Tokens},
+    token::{FmtStrFragment, MetaAttribute, SecondaryAttribute, Tokens},
     ParsedModule, QuotedType,
 };
 
@@ -172,7 +172,7 @@ pub trait Visitor {
 
     fn visit_literal_raw_str(&mut self, _: &str, _: u8) {}
 
-    fn visit_literal_fmt_str(&mut self, _: &[FmtStringFragment], _length: u32) {}
+    fn visit_literal_fmt_str(&mut self, _: &[FmtStrFragment], _length: u32) {}
 
     fn visit_literal_unit(&mut self) {}
 

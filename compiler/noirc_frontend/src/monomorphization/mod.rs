@@ -12,7 +12,7 @@ use crate::ast::{FunctionKind, IntegerBitSize, Signedness, UnaryOp, Visibility};
 use crate::hir::comptime::InterpreterError;
 use crate::hir::type_check::{NoMatchingImplFoundError, TypeCheckError};
 use crate::node_interner::{ExprId, ImplSearchErrorKind};
-use crate::token::FmtStringFragment;
+use crate::token::FmtStrFragment;
 use crate::{
     debug::DebugInstrumenter,
     hir_def::{
@@ -1847,7 +1847,7 @@ impl<'interner> Monomorphizer<'interner> {
                     _ => unreachable!("ICE: format string fields should be structured in a tuple, but got a {zeroed_tuple}"),
                 };
                 ast::Expression::Literal(ast::Literal::FmtStr(
-                    vec![FmtStringFragment::String("\0".repeat(*length as usize))],
+                    vec![FmtStrFragment::String("\0".repeat(*length as usize))],
                     fields_len,
                     Box::new(zeroed_tuple),
                 ))

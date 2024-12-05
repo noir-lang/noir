@@ -2,7 +2,7 @@ use crate::token::DocStyle;
 
 use super::{
     errors::LexerErrorKind,
-    token::{FmtStringFragment, IntType, Keyword, SpannedToken, Token, Tokens},
+    token::{FmtStrFragment, IntType, Keyword, SpannedToken, Token, Tokens},
 };
 use acvm::{AcirField, FieldElement};
 use noirc_errors::{Position, Span};
@@ -522,7 +522,7 @@ impl<'a> Lexer<'a> {
             }
 
             if !string.is_empty() {
-                fragments.push(FmtStringFragment::String(string));
+                fragments.push(FmtStrFragment::String(string));
             }
 
             if !found_curly {
@@ -579,7 +579,7 @@ impl<'a> Lexer<'a> {
             length += 1; // for the closing curly brace
 
             let interpolation_span = Span::from(interpolation_start..self.position);
-            fragments.push(FmtStringFragment::Interpolation(string, interpolation_span));
+            fragments.push(FmtStrFragment::Interpolation(string, interpolation_span));
         }
 
         let token = Token::FmtStr(fragments, length);
@@ -1137,7 +1137,7 @@ mod tests {
             Token::Keyword(Keyword::Let),
             Token::Ident("_word".to_string()),
             Token::Assign,
-            Token::FmtStr(vec![FmtStringFragment::String("hello".to_string())], 5),
+            Token::FmtStr(vec![FmtStrFragment::String("hello".to_string())], 5),
         ];
         let mut lexer = Lexer::new(input);
 
@@ -1155,7 +1155,7 @@ mod tests {
             Token::Keyword(Keyword::Let),
             Token::Ident("_word".to_string()),
             Token::Assign,
-            Token::FmtStr(vec![FmtStringFragment::String("hello\n\t{x}".to_string())], 12),
+            Token::FmtStr(vec![FmtStrFragment::String("hello\n\t{x}".to_string())], 12),
         ];
         let mut lexer = Lexer::new(input);
 
@@ -1175,12 +1175,12 @@ mod tests {
             Token::Assign,
             Token::FmtStr(
                 vec![
-                    FmtStringFragment::String("hello ".to_string()),
-                    FmtStringFragment::Interpolation("world".to_string(), Span::from(21..26)),
-                    FmtStringFragment::String(" and ".to_string()),
-                    FmtStringFragment::Interpolation("_another".to_string(), Span::from(33..41)),
-                    FmtStringFragment::String(" ".to_string()),
-                    FmtStringFragment::Interpolation("vAr_123".to_string(), Span::from(44..51)),
+                    FmtStrFragment::String("hello ".to_string()),
+                    FmtStrFragment::Interpolation("world".to_string(), Span::from(21..26)),
+                    FmtStrFragment::String(" and ".to_string()),
+                    FmtStrFragment::Interpolation("_another".to_string(), Span::from(33..41)),
+                    FmtStrFragment::String(" ".to_string()),
+                    FmtStrFragment::Interpolation("vAr_123".to_string(), Span::from(44..51)),
                 ],
                 38,
             ),

@@ -10,7 +10,7 @@ use crate::ast::{
 use crate::node_interner::{
     ExprId, InternedExpressionKind, InternedStatementKind, QuotedTypeId, StructId,
 };
-use crate::token::{Attributes, FmtStringFragment, FunctionAttribute, Token, Tokens};
+use crate::token::{Attributes, FmtStrFragment, FunctionAttribute, Token, Tokens};
 use crate::{Kind, Type};
 use acvm::{acir::AcirField, FieldElement};
 use iter_extended::vecmap;
@@ -210,7 +210,7 @@ impl ExpressionKind {
         ExpressionKind::Literal(Literal::RawStr(contents, hashes))
     }
 
-    pub fn format_string(fragments: Vec<FmtStringFragment>, length: u32) -> ExpressionKind {
+    pub fn format_string(fragments: Vec<FmtStrFragment>, length: u32) -> ExpressionKind {
         ExpressionKind::Literal(Literal::FmtStr(fragments, length))
     }
 
@@ -434,7 +434,7 @@ pub enum Literal {
     Integer(FieldElement, /*sign*/ bool), // false for positive integer and true for negative
     Str(String),
     RawStr(String, u8),
-    FmtStr(Vec<FmtStringFragment>, u32 /* length */),
+    FmtStr(Vec<FmtStrFragment>, u32 /* length */),
     Unit,
 }
 

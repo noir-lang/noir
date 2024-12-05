@@ -28,7 +28,7 @@ use crate::{
         traits::{ResolvedTraitBound, TraitConstraint},
     },
     node_interner::{DefinitionKind, ExprId, FuncId, InternedStatementKind, TraitMethodId},
-    token::{FmtStringFragment, Tokens},
+    token::{FmtStrFragment, Tokens},
     Kind, QuotedType, Shared, StructType, Type,
 };
 
@@ -235,14 +235,14 @@ impl<'context> Elaborator<'context> {
 
     fn elaborate_fmt_string(
         &mut self,
-        fragments: Vec<FmtStringFragment>,
+        fragments: Vec<FmtStrFragment>,
         length: u32,
     ) -> (HirExpression, Type) {
         let mut fmt_str_idents = Vec::new();
         let mut capture_types = Vec::new();
 
         for fragment in &fragments {
-            if let FmtStringFragment::Interpolation(ident_name, string_span) = fragment {
+            if let FmtStrFragment::Interpolation(ident_name, string_span) = fragment {
                 let scope_tree = self.scopes.current_scope_tree();
                 let variable = scope_tree.find(ident_name);
 

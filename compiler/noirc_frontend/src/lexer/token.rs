@@ -25,7 +25,7 @@ pub enum BorrowedToken<'input> {
     Str(&'input str),
     /// the u8 is the number of hashes, i.e. r###..
     RawStr(&'input str, u8),
-    FmtStr(&'input [FmtStringFragment], u32 /* length */),
+    FmtStr(&'input [FmtStrFragment], u32 /* length */),
     Keyword(Keyword),
     IntType(IntType),
     AttributeStart {
@@ -136,7 +136,7 @@ pub enum Token {
     Str(String),
     /// the u8 is the number of hashes, i.e. r###..
     RawStr(String, u8),
-    FmtStr(Vec<FmtStringFragment>, u32 /* length */),
+    FmtStr(Vec<FmtStrFragment>, u32 /* length */),
     Keyword(Keyword),
     IntType(IntType),
     AttributeStart {
@@ -313,15 +313,15 @@ pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug, PartialOrd, Ord)]
-pub enum FmtStringFragment {
+pub enum FmtStrFragment {
     String(String),
     Interpolation(String, Span),
 }
 
-impl Display for FmtStringFragment {
+impl Display for FmtStrFragment {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            FmtStringFragment::String(string) => {
+            FmtStrFragment::String(string) => {
                 // Undo the escapes when displaying the fmt string
                 let string = string
                     .replace('{', "{{")
@@ -334,7 +334,7 @@ impl Display for FmtStringFragment {
                     .replace('\"', "\\\"");
                 write!(f, "{}", string)
             }
-            FmtStringFragment::Interpolation(string, _span) => {
+            FmtStrFragment::Interpolation(string, _span) => {
                 write!(f, "{{{}}}", string)
             }
         }
