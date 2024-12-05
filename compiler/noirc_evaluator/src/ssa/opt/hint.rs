@@ -6,13 +6,13 @@ mod tests {
         errors::RuntimeError,
         ssa::{
             opt::assert_normalized_ssa_equals, optimize_all, Ssa, SsaBuilder, SsaEvaluatorOptions,
+            SsaLogging,
         },
     };
 
     fn run_all_passes(ssa: Ssa) -> Result<Ssa, RuntimeError> {
-        let builder = SsaBuilder { ssa, print_ssa_passes: false, print_codegen_timings: false };
         let options = &SsaEvaluatorOptions {
-            enable_ssa_logging: false,
+            ssa_logging: SsaLogging::None,
             enable_brillig_logging: false,
             force_brillig_output: false,
             print_codegen_timings: false,
@@ -22,6 +22,13 @@ mod tests {
             inliner_aggressiveness: 0,
             max_bytecode_increase_percent: None,
         };
+
+        let builder = SsaBuilder {
+            ssa,
+            ssa_logging: options.ssa_logging.clone(),
+            print_codegen_timings: false,
+        };
+
         optimize_all(builder, options)
     }
 
