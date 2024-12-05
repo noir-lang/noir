@@ -926,4 +926,59 @@ mod test {
         let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
         assert_eq!(ssa_level_warnings.len(), 0);
     }
+
+    #[test]
+    #[traced_test]
+    /// Test where a brillig nested type result is insufficiently constrained
+    /// (with a field constraint missing)
+    fn test_nested_type_result_brillig() {
+        /*
+        struct Animal {
+            legs: Field,
+            eyes: u8,
+            tag: Tag,
+        }
+
+        struct Tag {
+            no: Field,
+        }
+
+        unconstrained fn foo(bar: Field) -> Animal {
+            Animal {
+                legs: 4,
+                eyes: 2,
+                tag: Tag { no: bar }
+            }
+        }
+
+        fn main(x: Field) -> pub Animal {
+            let dog = foo(x);
+            assert(dog.legs == 4);
+            assert(dog.tag.no == x);
+
+            dog
+        }
+        */
+
+        let program = r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v2, v3, v4 = call f1(v0) -> (Field, u8, Field)
+            v6 = eq v2, Field 4
+            constrain v2 == Field 4
+            v10 = eq v4, v0
+            constrain v4 == v0
+            return v2, v3, v4
+        }
+
+        brillig(inline) fn foo f1 {
+          b0(v0: Field):
+            return Field 4, u8 2, v0
+        }
+        "#;
+
+        let mut ssa = Ssa::from_str(program).unwrap();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        assert_eq!(ssa_level_warnings.len(), 1);
+    }
 }
