@@ -11,6 +11,7 @@
 use crate::ast::{FunctionKind, IntegerBitSize, Signedness, UnaryOp, Visibility};
 use crate::hir::comptime::InterpreterError;
 use crate::hir::type_check::{NoMatchingImplFoundError, TypeCheckError};
+use crate::hir_def::iterative_unification::Unifier;
 use crate::node_interner::{ExprId, ImplSearchErrorKind};
 use crate::{
     debug::DebugInstrumenter,
@@ -951,6 +952,61 @@ impl<'interner> Monomorphizer<'interner> {
         Ok(ident)
     }
 
+    /// Iterative version of convert_type, for a subset of types
+    /// It defaults to the recursive version for the other types
+    /// Because a program can potentially have extremely long chains of type variables that are bind to other types variables,
+    /// recursively handling these types can lead to stack overflows, thus we do it iteratively.
+    fn convert_type_iter(
+        typ: &HirType,
+        location: Location,
+    ) -> Result<ast::Type, MonomorphizationError> {
+        let mut queue = Vec::new();
+        queue.push(typ.clone());
+        let mut result = Err(MonomorphizationError::InternalError {
+            message: "ICE - Could not convert type variable",
+            location,
+        });
+        while let Some(typ) = queue.pop() {
+            match typ {
+                HirType::TypeVariable(ref binding) => {
+                    match &*binding.borrow() {
+                        TypeBinding::Bound(ref binding) => {
+                            queue.push(binding.clone());
+                        }
+                        TypeBinding::Unbound(_, ref type_var_kind) => {
+                            // Default any remaining unbound type variables.
+                            // This should only happen if the variable in question is unused
+                            // and within a larger generic type.
+                            let default = match type_var_kind.default_type() {
+                                Some(typ) => typ,
+                                None => {
+                                    return Err(MonomorphizationError::NoDefaultType { location })
+                                }
+                            };
+                            queue.push(default.clone());
+                            binding.bind(default.clone());
+                        }
+                    }
+                }
+                HirType::NamedGeneric(binding, _) => {
+                    if let TypeBinding::Bound(ref binding) = &*binding.borrow() {
+                        queue.push(binding.clone());
+                    } else {
+                        // Default any remaining unbound type variables.
+                        // This should only happen if the variable in question is unused
+                        // and within a larger generic type.
+                        binding.bind(HirType::default_int_or_field_type());
+                        result = Ok(ast::Type::Field);
+                    }
+                }
+                _ => {
+                    result = Monomorphizer::convert_type(&typ, location);
+                }
+            }
+        }
+        result
+    }
+
     /// Convert a non-tuple/struct type to a monomorphized type
     fn convert_type(typ: &HirType, location: Location) -> Result<ast::Type, MonomorphizationError> {
         let typ = typ.follow_bindings_shallow();
@@ -1014,43 +1070,14 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::TraitAsType(..) => {
                 unreachable!("All TraitAsType should be replaced before calling convert_type");
             }
-            HirType::NamedGeneric(binding, _) => {
-                if let TypeBinding::Bound(ref binding) = &*binding.borrow() {
-                    return Self::convert_type(binding, location);
-                }
-
-                // Default any remaining unbound type variables.
-                // This should only happen if the variable in question is unused
-                // and within a larger generic type.
-                binding.bind(HirType::default_int_or_field_type());
-                ast::Type::Field
-            }
+            HirType::NamedGeneric(_, _) => Self::convert_type_iter(&typ, location)?,
 
             HirType::CheckedCast { from, to } => {
                 Self::check_checked_cast(from, to, location)?;
                 Self::convert_type(to, location)?
             }
 
-            HirType::TypeVariable(ref binding) => {
-                let type_var_kind = match &*binding.borrow() {
-                    TypeBinding::Bound(ref binding) => {
-                        return Self::convert_type(binding, location);
-                    }
-                    TypeBinding::Unbound(_, ref type_var_kind) => type_var_kind.clone(),
-                };
-
-                // Default any remaining unbound type variables.
-                // This should only happen if the variable in question is unused
-                // and within a larger generic type.
-                let default = match type_var_kind.default_type() {
-                    Some(typ) => typ,
-                    None => return Err(MonomorphizationError::NoDefaultType { location }),
-                };
-
-                let monomorphized_default = Self::convert_type(&default, location)?;
-                binding.bind(default);
-                monomorphized_default
-            }
+            HirType::TypeVariable(_) => Self::convert_type_iter(&typ, location)?,
 
             HirType::Struct(def, args) => {
                 // Not all generic arguments may be used in a struct's fields so we have to check
@@ -1058,7 +1085,6 @@ impl<'interner> Monomorphizer<'interner> {
                 for arg in args {
                     Self::check_type(arg, location)?;
                 }
-
                 let fields = def.borrow().get_fields(args);
                 let fields = try_vecmap(fields, |(_, field)| Self::convert_type(&field, location))?;
                 ast::Type::Tuple(fields)
@@ -1070,7 +1096,6 @@ impl<'interner> Monomorphizer<'interner> {
                 for arg in args {
                     Self::check_type(arg, location)?;
                 }
-
                 Self::convert_type(&def.borrow().get_type(args), location)?
             }
 
@@ -1118,6 +1143,45 @@ impl<'interner> Monomorphizer<'interner> {
         })
     }
 
+    /// Iterative version of check_type dedicated for TypeVariable
+    fn check_type_iter(typ: &HirType, location: Location) -> Result<(), MonomorphizationError> {
+        let mut queue = Vec::new();
+
+        queue.push(typ.clone());
+        let mut result = Err(MonomorphizationError::InternalError {
+            message: "Unexpected Type::Error found during monomorphization",
+            location,
+        });
+        while let Some(typ) = queue.pop() {
+            match typ {
+                HirType::TypeVariable(ref binding) => {
+                    match &*binding.borrow() {
+                        TypeBinding::Bound(binding) => {
+                            queue.push(binding.clone());
+                        }
+                        TypeBinding::Unbound(_, ref type_var_kind) => {
+                            // Default any remaining unbound type variables.
+                            // This should only happen if the variable in question is unused
+                            // and within a larger generic type.
+                            let default = match type_var_kind.default_type() {
+                                Some(typ) => typ,
+                                None => {
+                                    return Err(MonomorphizationError::NoDefaultType { location })
+                                }
+                            };
+                            queue.push(default);
+                        }
+                    }
+                }
+                _ => {
+                    // Fall back to the recursive version.
+                    result = Self::check_type(&typ, location);
+                }
+            }
+        }
+        result
+    }
+
     // Similar to `convert_type` but returns an error if any type variable can't be defaulted.
     fn check_type(typ: &HirType, location: Location) -> Result<(), MonomorphizationError> {
         let typ = typ.follow_bindings_shallow();
@@ -1154,24 +1218,7 @@ impl<'interner> Monomorphizer<'interner> {
                 Ok(())
             }
 
-            HirType::TypeVariable(ref binding) => {
-                let type_var_kind = match &*binding.borrow() {
-                    TypeBinding::Bound(binding) => {
-                        return Self::check_type(binding, location);
-                    }
-                    TypeBinding::Unbound(_, ref type_var_kind) => type_var_kind.clone(),
-                };
-
-                // Default any remaining unbound type variables.
-                // This should only happen if the variable in question is unused
-                // and within a larger generic type.
-                let default = match type_var_kind.default_type() {
-                    Some(typ) => typ,
-                    None => return Err(MonomorphizationError::NoDefaultType { location }),
-                };
-
-                Self::check_type(&default, location)
-            }
+            HirType::TypeVariable(_) => Self::check_type_iter(&typ, location),
 
             HirType::Struct(_def, args) => {
                 for arg in args {
@@ -2071,8 +2118,7 @@ pub fn perform_impl_bindings(
         // with the same internal id, binding.
         trait_method_type.replace_named_generics_with_type_variables();
         impl_method_type.replace_named_generics_with_type_variables();
-
-        trait_method_type.try_unify(&impl_method_type, &mut bindings).map_err(|_| {
+        Unifier::try_unify(&trait_method_type, &impl_method_type, &mut bindings).map_err(|_| {
             InterpreterError::ImplMethodTypeMismatch {
                 expected: trait_method_type.follow_bindings(),
                 actual: impl_method_type.follow_bindings(),

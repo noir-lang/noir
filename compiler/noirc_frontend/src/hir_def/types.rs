@@ -13,6 +13,7 @@ use acvm::{AcirField, FieldElement};
 use crate::{
     ast::{IntegerBitSize, ItemVisibility},
     hir::type_check::{generics::TraitGenerics, TypeCheckError},
+    hir_def::iterative_unification::Unifier,
     node_interner::{ExprId, NodeInterner, TraitId, TypeAliasId},
 };
 use iter_extended::vecmap;
@@ -229,7 +230,7 @@ impl Kind {
             // Kind::Numeric unifies along its Type argument
             (Kind::Numeric(lhs), Kind::Numeric(rhs)) => {
                 let mut bindings = TypeBindings::new();
-                let unifies = lhs.try_unify(rhs, &mut bindings).is_ok();
+                let unifies = Unifier::try_unify(lhs, rhs, &mut bindings).is_ok();
                 if unifies {
                     Type::apply_type_bindings(bindings);
                 }
@@ -1325,7 +1326,7 @@ impl Type {
     }
 
     /// Unifies self and other kinds or fails with a Kind error
-    fn infix_kind(&self, other: &Self) -> Kind {
+    pub(crate) fn infix_kind(&self, other: &Self) -> Kind {
         let self_kind = self.kind();
         let other_kind = other.kind();
         if self_kind.unifies(&other_kind) {
@@ -1411,7 +1412,7 @@ impl Type {
     /// Try to bind a PolymorphicInt variable to self, succeeding if self is an integer, field,
     /// other PolymorphicInt type, or type variable. If successful, the binding is placed in the
     /// given TypeBindings map rather than linked immediately.
-    fn try_bind_to_polymorphic_int(
+    pub(crate) fn try_bind_to_polymorphic_int(
         &self,
         var: &TypeVariable,
         bindings: &mut TypeBindings,
@@ -1489,7 +1490,7 @@ impl Type {
     ///
     /// If successful, the binding is placed in the
     /// given TypeBindings map rather than linked immediately.
-    fn try_bind_to(
+    pub(crate) fn try_bind_to(
         &self,
         var: &TypeVariable,
         bindings: &mut TypeBindings,
@@ -1539,245 +1540,11 @@ impl Type {
     /// will correctly handle generic types.
     pub fn unify(&self, expected: &Type) -> Result<(), UnificationError> {
         let mut bindings = TypeBindings::new();
-
-        self.try_unify(expected, &mut bindings).map(|()| {
+        let mut unifier = Unifier::new();
+        unifier.unify(self, expected, &mut bindings).map(|()| {
             // Commit any type bindings on success
             Self::apply_type_bindings(bindings);
         })
-    }
-
-    /// `try_unify` is a bit of a misnomer since although errors are not committed,
-    /// any unified bindings are on success.
-    pub fn try_unify(
-        &self,
-        other: &Type,
-        bindings: &mut TypeBindings,
-    ) -> Result<(), UnificationError> {
-        use Type::*;
-
-        let lhs = self.follow_bindings_shallow();
-        let rhs = other.follow_bindings_shallow();
-
-        let lhs = match lhs.as_ref() {
-            Type::InfixExpr(..) => Cow::Owned(self.canonicalize()),
-            other => Cow::Borrowed(other),
-        };
-
-        let rhs = match rhs.as_ref() {
-            Type::InfixExpr(..) => Cow::Owned(other.canonicalize()),
-            other => Cow::Borrowed(other),
-        };
-
-        match (lhs.as_ref(), rhs.as_ref()) {
-            (Error, _) | (_, Error) => Ok(()),
-
-            (Alias(alias, args), other) | (other, Alias(alias, args)) => {
-                let alias = alias.borrow().get_type(args);
-                alias.try_unify(other, bindings)
-            }
-
-            (TypeVariable(var), other) | (other, TypeVariable(var)) => match &*var.borrow() {
-                TypeBinding::Bound(typ) => {
-                    if typ.is_numeric_value() {
-                        other.try_unify_to_type_variable(var, bindings, |bindings| {
-                            let only_integer = matches!(typ, Type::Integer(..));
-                            other.try_bind_to_polymorphic_int(var, bindings, only_integer)
-                        })
-                    } else {
-                        other.try_unify_to_type_variable(var, bindings, |bindings| {
-                            other.try_bind_to(var, bindings, typ.kind())
-                        })
-                    }
-                }
-                TypeBinding::Unbound(_id, Kind::IntegerOrField) => other
-                    .try_unify_to_type_variable(var, bindings, |bindings| {
-                        let only_integer = false;
-                        other.try_bind_to_polymorphic_int(var, bindings, only_integer)
-                    }),
-                TypeBinding::Unbound(_id, Kind::Integer) => {
-                    other.try_unify_to_type_variable(var, bindings, |bindings| {
-                        let only_integer = true;
-                        other.try_bind_to_polymorphic_int(var, bindings, only_integer)
-                    })
-                }
-                TypeBinding::Unbound(_id, type_var_kind) => {
-                    other.try_unify_to_type_variable(var, bindings, |bindings| {
-                        other.try_bind_to(var, bindings, type_var_kind.clone())
-                    })
-                }
-            },
-
-            (Array(len_a, elem_a), Array(len_b, elem_b)) => {
-                len_a.try_unify(len_b, bindings)?;
-                elem_a.try_unify(elem_b, bindings)
-            }
-
-            (Slice(elem_a), Slice(elem_b)) => elem_a.try_unify(elem_b, bindings),
-
-            (String(len_a), String(len_b)) => len_a.try_unify(len_b, bindings),
-
-            (FmtString(len_a, elements_a), FmtString(len_b, elements_b)) => {
-                len_a.try_unify(len_b, bindings)?;
-                elements_a.try_unify(elements_b, bindings)
-            }
-
-            (Tuple(elements_a), Tuple(elements_b)) => {
-                if elements_a.len() != elements_b.len() {
-                    Err(UnificationError)
-                } else {
-                    for (a, b) in elements_a.iter().zip(elements_b) {
-                        a.try_unify(b, bindings)?;
-                    }
-                    Ok(())
-                }
-            }
-
-            // No recursive try_unify call for struct fields. Don't want
-            // to mutate shared type variables within struct definitions.
-            // This isn't possible currently but will be once noir gets generic types
-            (Struct(id_a, args_a), Struct(id_b, args_b)) => {
-                if id_a == id_b && args_a.len() == args_b.len() {
-                    for (a, b) in args_a.iter().zip(args_b) {
-                        a.try_unify(b, bindings)?;
-                    }
-                    Ok(())
-                } else {
-                    Err(UnificationError)
-                }
-            }
-
-            (CheckedCast { to, .. }, other) | (other, CheckedCast { to, .. }) => {
-                to.try_unify(other, bindings)
-            }
-
-            (NamedGeneric(binding, _), other) | (other, NamedGeneric(binding, _))
-                if !binding.borrow().is_unbound() =>
-            {
-                if let TypeBinding::Bound(link) = &*binding.borrow() {
-                    link.try_unify(other, bindings)
-                } else {
-                    unreachable!("If guard ensures binding is bound")
-                }
-            }
-
-            (NamedGeneric(binding_a, name_a), NamedGeneric(binding_b, name_b)) => {
-                // Bound NamedGenerics are caught by the check above
-                assert!(binding_a.borrow().is_unbound());
-                assert!(binding_b.borrow().is_unbound());
-
-                if name_a == name_b {
-                    binding_a.kind().unify(&binding_b.kind())
-                } else {
-                    Err(UnificationError)
-                }
-            }
-
-            (
-                Function(params_a, ret_a, env_a, unconstrained_a),
-                Function(params_b, ret_b, env_b, unconstrained_b),
-            ) => {
-                if unconstrained_a == unconstrained_b && params_a.len() == params_b.len() {
-                    for (a, b) in params_a.iter().zip(params_b.iter()) {
-                        a.try_unify(b, bindings)?;
-                    }
-
-                    env_a.try_unify(env_b, bindings)?;
-                    ret_b.try_unify(ret_a, bindings)
-                } else {
-                    Err(UnificationError)
-                }
-            }
-
-            (MutableReference(elem_a), MutableReference(elem_b)) => {
-                elem_a.try_unify(elem_b, bindings)
-            }
-
-            (InfixExpr(lhs_a, op_a, rhs_a), InfixExpr(lhs_b, op_b, rhs_b)) => {
-                if op_a == op_b {
-                    // We need to preserve the original bindings since if syntactic equality
-                    // fails we fall back to other equality strategies.
-                    let mut new_bindings = bindings.clone();
-                    let lhs_result = lhs_a.try_unify(lhs_b, &mut new_bindings);
-                    let rhs_result = rhs_a.try_unify(rhs_b, &mut new_bindings);
-
-                    if lhs_result.is_ok() && rhs_result.is_ok() {
-                        *bindings = new_bindings;
-                        Ok(())
-                    } else {
-                        lhs.try_unify_by_moving_constant_terms(&rhs, bindings)
-                    }
-                } else {
-                    Err(UnificationError)
-                }
-            }
-
-            (Constant(value, kind), other) | (other, Constant(value, kind)) => {
-                let dummy_span = Span::default();
-                if let Ok(other_value) = other.evaluate_to_field_element(kind, dummy_span) {
-                    if *value == other_value && kind.unifies(&other.kind()) {
-                        Ok(())
-                    } else {
-                        Err(UnificationError)
-                    }
-                } else if let InfixExpr(lhs, op, rhs) = other {
-                    if let Some(inverse) = op.approx_inverse() {
-                        // Handle cases like `4 = a + b` by trying to solve to `a = 4 - b`
-                        let new_type = InfixExpr(
-                            Box::new(Constant(*value, kind.clone())),
-                            inverse,
-                            rhs.clone(),
-                        );
-                        new_type.try_unify(lhs, bindings)?;
-                        Ok(())
-                    } else {
-                        Err(UnificationError)
-                    }
-                } else {
-                    Err(UnificationError)
-                }
-            }
-
-            (other_a, other_b) => {
-                if other_a == other_b {
-                    Ok(())
-                } else {
-                    Err(UnificationError)
-                }
-            }
-        }
-    }
-
-    /// Try to unify a type variable to `self`.
-    /// This is a helper function factored out from try_unify.
-    fn try_unify_to_type_variable(
-        &self,
-        type_variable: &TypeVariable,
-        bindings: &mut TypeBindings,
-
-        // Bind the type variable to a type. This is factored out since depending on the
-        // Kind, there are different methods to check whether the variable can
-        // bind to the given type or not.
-        bind_variable: impl FnOnce(&mut TypeBindings) -> Result<(), UnificationError>,
-    ) -> Result<(), UnificationError> {
-        match &*type_variable.borrow() {
-            // If it is already bound, unify against what it is bound to
-            TypeBinding::Bound(link) => link.try_unify(self, bindings),
-            TypeBinding::Unbound(id, _) => {
-                // We may have already "bound" this type variable in this call to
-                // try_unify, so check those bindings as well.
-                match bindings.get(id) {
-                    Some((_, kind, binding)) => {
-                        if !kind.unifies(&binding.kind()) {
-                            return Err(UnificationError);
-                        }
-                        binding.clone().try_unify(self, bindings)
-                    }
-
-                    // Otherwise, bind it
-                    None => bind_variable(bindings),
-                }
-            }
-        }
     }
 
     /// Similar to `unify` but if the check fails this will attempt to coerce the
@@ -1796,7 +1563,7 @@ impl Type {
     ) {
         let mut bindings = TypeBindings::new();
 
-        if let Ok(()) = self.try_unify(expected, &mut bindings) {
+        if let Ok(()) = Unifier::try_unify(self, expected, &mut bindings) {
             Type::apply_type_bindings(bindings);
             return;
         }
@@ -1861,7 +1628,7 @@ impl Type {
                 // Still have to ensure the element types match.
                 // Don't need to issue an error here if not, it will be done in unify_with_coercions
                 let mut bindings = TypeBindings::new();
-                if element1.try_unify(element2, &mut bindings).is_ok() {
+                if Unifier::try_unify(element1, element2, &mut bindings).is_ok() {
                     convert_array_expression_to_slice(expression, this, target, as_slice, interner);
                     Self::apply_type_bindings(bindings);
                     return true;
@@ -2645,7 +2412,7 @@ impl BinaryTypeOperator {
     }
 
     /// Return the operator that will "undo" this operation if applied to the rhs
-    fn approx_inverse(self) -> Option<BinaryTypeOperator> {
+    pub(crate) fn approx_inverse(self) -> Option<BinaryTypeOperator> {
         match self {
             BinaryTypeOperator::Addition => Some(BinaryTypeOperator::Subtraction),
             BinaryTypeOperator::Subtraction => Some(BinaryTypeOperator::Addition),

@@ -3,7 +3,8 @@ use std::collections::BTreeMap;
 use acvm::{AcirField, FieldElement};
 use noirc_errors::Span;
 
-use crate::{BinaryTypeOperator, Type, TypeBindings, UnificationError};
+use super::{TypeBindings, UnificationError, Unifier};
+use crate::{BinaryTypeOperator, Type};
 
 impl Type {
     /// Try to canonicalize the representation of this type.
@@ -326,7 +327,7 @@ impl Type {
 
     /// Try to unify equations like `(..) + 3 = (..) + 1`
     /// by transforming them to `(..) + 2 =  (..)`
-    pub(super) fn try_unify_by_moving_constant_terms(
+    pub fn try_unify_by_moving_constant_terms(
         &self,
         other: &Type,
         bindings: &mut TypeBindings,
@@ -340,7 +341,7 @@ impl Type {
                     let new_other = Type::InfixExpr(Box::new(other.clone()), inverse, rhs_a);
 
                     let mut tmp_bindings = bindings.clone();
-                    if lhs_a.try_unify(&new_other, &mut tmp_bindings).is_ok() {
+                    if Unifier::try_unify(lhs_a, &new_other, &mut tmp_bindings).is_ok() {
                         *bindings = tmp_bindings;
                         return Ok(());
                     }
@@ -357,7 +358,7 @@ impl Type {
                     let new_self = Type::InfixExpr(Box::new(self.clone()), inverse, rhs_b);
 
                     let mut tmp_bindings = bindings.clone();
-                    if new_self.try_unify(lhs_b, &mut tmp_bindings).is_ok() {
+                    if Unifier::try_unify(&new_self, lhs_b, &mut tmp_bindings).is_ok() {
                         *bindings = tmp_bindings;
                         return Ok(());
                     }
