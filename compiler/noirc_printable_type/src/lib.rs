@@ -254,7 +254,13 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
 }
 
 /// Assumes `re` is a regex that matches interpolation sequences like `{...}`.
-/// Replaces all matches by invoking `replacement`, but only if a match isn't preceded by a '{'.
+/// Replaces all matches by invoking `replacement`, but only if a match isn't preceded by an odd
+/// number of '{'.
+/// For example, if we have `{{x}}` then there's one `{` before the interpolation, and we can
+/// see it's actually not an interpolation.
+/// However, if we have `{{{x}}}` there are two `{` before the interpolation, so the third
+/// `{` actually starts an interpolation.
+/// With four (`{{{{x}}}}`) it's again even and it's not an interpolation, etc.
 fn replace_all_interpolations<E>(
     re: &Regex,
     haystack: &str,
@@ -265,9 +271,20 @@ fn replace_all_interpolations<E>(
     for caps in re.captures_iter(haystack) {
         let m = caps.get(0).unwrap();
 
-        // If we have '{' before the match, it's an escape sequence.
-        let start = m.start();
-        if start > 0 && haystack.as_bytes().get(start - 1).copied() == Some(b'{') {
+        // Count how many '{' we have right before this interpolation. If the number if
+        // even (or zero) it's an interpolation, otherwise it's not.
+        let mut curly_braces_count = 0;
+        let mut index = m.start();
+        while index > 0 {
+            if haystack.as_bytes().get(index - 1).unwrap() == &b'{' {
+                curly_braces_count += 1;
+            } else {
+                break;
+            }
+            index -= 1;
+        }
+
+        if curly_braces_count % 2 == 1 {
             continue;
         }
 
