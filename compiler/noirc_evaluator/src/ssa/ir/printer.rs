@@ -21,23 +21,20 @@ use super::{
 /// Helper function for Function's Display impl to pretty-print the function with the given formatter.
 pub(crate) fn display_function(function: &Function, f: &mut Formatter) -> Result {
     writeln!(f, "{} fn {} {} {{", function.runtime(), function.name(), function.id())?;
-    display_block_with_successors(function, function.entry_block(), &mut HashSet::new(), f)?;
+    display_function_blocks(function, f)?;
     write!(f, "}}")
 }
 
-/// Displays a block followed by all of its successors recursively.
-/// This uses a HashSet to keep track of the visited blocks. Otherwise
-/// there would be infinite recursion for any loops in the IR.
-pub(crate) fn display_block_with_successors(
-    function: &Function,
-    block_id: BasicBlockId,
-    visited: &mut HashSet<BasicBlockId>,
-    f: &mut Formatter,
-) -> Result {
+/// Displays all of a function's blocks by printing the entry block
+/// and its successors, recursively.
+pub(crate) fn display_function_blocks(function: &Function, f: &mut Formatter) -> Result {
     // The block chain to print might be really long so we use a deque instead of recursion
     // to avoid potentially hitting stack overflow (see https://github.com/noir-lang/noir/issues/6520)
     let mut blocks_to_print = VecDeque::new();
-    blocks_to_print.push_back(block_id);
+    blocks_to_print.push_back(function.entry_block());
+
+    // Keep track of the visited blocks. Otherwise there would be infinite recursion for any loops in the IR.
+    let mut visited = HashSet::new();
 
     while let Some(block_id) = blocks_to_print.pop_front() {
         if !visited.insert(block_id) {
