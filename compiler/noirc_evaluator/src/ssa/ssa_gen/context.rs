@@ -159,6 +159,7 @@ impl<'a> FunctionContext<'a> {
         let parameter_value = Self::map_type(parameter_type, |typ| {
             let value = self.builder.add_parameter(typ);
             if mutable {
+                // This will wrap any `mut var: T` in a reference and increase the rc of an array if needed
                 self.new_mutable_variable(value, true)
             } else {
                 value.into()
@@ -912,7 +913,9 @@ impl<'a> FunctionContext<'a> {
         }
     }
 
-    /// Increments the reference count of mutable array parameters.
+    /// Increments the reference count of mutable reference array parameters.
+    /// Any mutable-value (`mut a: [T; N]` versus `a: &mut [T; N]`) are already incremented
+    /// by `FunctionBuilder::add_parameter_to_scope`.
     /// Returns each array id that was incremented.
     ///
     /// This is done on parameters rather than call arguments so that we can optimize out
