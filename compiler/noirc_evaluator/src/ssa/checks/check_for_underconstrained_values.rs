@@ -171,6 +171,8 @@ impl BrilligTaintedIds {
 
     /// Remember partial constraints (involving some of the results and an argument)
     /// along the way to take them into final consideration
+    /// Generally, a valid partial constraint should link up a result descendant
+    /// and an argument descendant, although there are also edge cases mentioned below.
     fn store_partial_constraints(&mut self, constrained_values: &HashSet<ValueId>) {
         let mut results_involved: Vec<usize> = vec![];
 
@@ -190,7 +192,7 @@ impl BrilligTaintedIds {
             }
         }
 
-        // Also, one of the argument descendants should be constrained
+        // Along with it, one of the argument descendants should be constrained
         // (skipped if there were no arguments, or if an actual result and not a
         // descendant has been constrained, e.g. against a constant)
         if !results_involved.is_empty()
