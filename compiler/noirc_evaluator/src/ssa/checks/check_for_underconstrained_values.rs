@@ -114,21 +114,28 @@ struct DependencyContext {
 struct BrilligTaintedIds {
     // Argument descendant value ids
     arguments: HashSet<ValueId>,
-    // Result descendant value ids
-    results: Vec<HashSet<ValueId>>,
+    // Results status
+    results: Vec<ResultStatus>,
     // Initial result value ids
     root_results: HashSet<ValueId>,
-    // Result indices already found constrained
-    results_constrained: HashSet<usize>,
+}
+
+#[derive(Clone, Debug)]
+enum ResultStatus {
+    // Keep track of descendants until found constrained
+    Unconstrained { descendants: HashSet<ValueId> },
+    Constrained,
 }
 
 impl BrilligTaintedIds {
     fn new(arguments: &[ValueId], results: &[ValueId]) -> Self {
         BrilligTaintedIds {
             arguments: HashSet::from_iter(arguments.iter().copied()),
-            results: results.iter().map(|result| HashSet::from([*result])).collect(),
+            results: results
+                .iter()
+                .map(|result| ResultStatus::Unconstrained { descendants: HashSet::from([*result]) })
+                .collect(),
             root_results: HashSet::from_iter(results.iter().copied()),
-            results_constrained: HashSet::new(),
         }
     }
 
@@ -140,13 +147,17 @@ impl BrilligTaintedIds {
         if self.arguments.contains(parent) {
             self.arguments.extend(children);
         }
-        for (i, result) in &mut self.results.iter_mut().enumerate() {
-            // Skip updating results already found covered
-            if self.results_constrained.contains(&i) {
-                continue;
-            }
-            if result.contains(parent) {
-                result.extend(children);
+        for result_status in &mut self.results.iter_mut() {
+            match result_status {
+                // Skip updating results already found covered
+                ResultStatus::Constrained => {
+                    continue;
+                }
+                ResultStatus::Unconstrained { descendants } => {
+                    if descendants.contains(parent) {
+                        descendants.extend(children);
+                    }
+                }
             }
         }
     }
@@ -155,7 +166,7 @@ impl BrilligTaintedIds {
     fn check_constrained(&self) -> bool {
         // If every result has now been constrained,
         // consider the call properly constrained
-        self.results.len() == self.results_constrained.len()
+        self.results.iter().all(|result| matches!(result, ResultStatus::Constrained))
     }
 
     /// Remember partial constraints (involving some of the results and an argument)
@@ -165,13 +176,17 @@ impl BrilligTaintedIds {
 
         // For a valid partial constraint, a value descending from
         // one of the results should be constrained
-        for (i, result_descendants) in self.results.iter().enumerate() {
-            // Skip checking already covered results
-            if self.results_constrained.contains(&i) {
-                continue;
-            }
-            if result_descendants.intersection(constrained_values).next().is_some() {
-                results_involved.push(i);
+        for (i, result_status) in self.results.iter().enumerate() {
+            match result_status {
+                // Skip checking already covered results
+                ResultStatus::Constrained => {
+                    continue;
+                }
+                ResultStatus::Unconstrained { descendants } => {
+                    if descendants.intersection(constrained_values).next().is_some() {
+                        results_involved.push(i);
+                    }
+                }
             }
         }
 
@@ -183,10 +198,8 @@ impl BrilligTaintedIds {
                 || self.root_results.intersection(constrained_values).next().is_some()
                 || self.arguments.intersection(constrained_values).next().is_some())
         {
-            // Remember the partial constraint
-            self.results_constrained.extend(&results_involved);
-            // We can clear the unneeded sets now
-            results_involved.iter().for_each(|i| self.results[*i].clear());
+            // Remember the partial constraint, clearing the sets
+            results_involved.iter().for_each(|i| self.results[*i] = ResultStatus::Constrained);
         }
     }
 }
