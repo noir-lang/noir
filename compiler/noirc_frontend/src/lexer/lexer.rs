@@ -540,7 +540,7 @@ impl<'a> Lexer<'a> {
 
             // Interpolation fragment until '}' or '"'
             let mut string = String::new();
-            let interpolation_start = self.position;
+            let interpolation_start = self.position + 1; // + 1 because we are at '{'
             let mut first_char = true;
             while let Some(next) = self.next_char() {
                 let char = match next {
@@ -1169,11 +1169,11 @@ mod tests {
             Token::FmtStr(
                 vec![
                     FmtStringFragment::String("hello ".to_string()),
-                    FmtStringFragment::Interpolation("world".to_string(), Span::from(20..26)),
+                    FmtStringFragment::Interpolation("world".to_string(), Span::from(21..26)),
                     FmtStringFragment::String(" and ".to_string()),
-                    FmtStringFragment::Interpolation("_another".to_string(), Span::from(32..41)),
+                    FmtStringFragment::Interpolation("_another".to_string(), Span::from(33..41)),
                     FmtStringFragment::String(" ".to_string()),
-                    FmtStringFragment::Interpolation("vAr_123".to_string(), Span::from(43..51)),
+                    FmtStringFragment::Interpolation("vAr_123".to_string(), Span::from(44..51)),
                 ],
                 38,
             ),
