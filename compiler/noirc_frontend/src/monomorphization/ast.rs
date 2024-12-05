@@ -7,11 +7,11 @@ use noirc_errors::{
     Location,
 };
 
-use crate::hir_def::function::FunctionSignature;
 use crate::{
     ast::{BinaryOpKind, IntegerBitSize, Signedness, Visibility},
     token::{Attributes, FunctionAttribute},
 };
+use crate::{hir_def::function::FunctionSignature, token::FmtStringFragment};
 use serde::{Deserialize, Serialize};
 
 use super::HirType;
@@ -106,7 +106,7 @@ pub enum Literal {
     Bool(bool),
     Unit,
     Str(String),
-    FmtStr(String, u64, Box<Expression>),
+    FmtStr(Vec<FmtStringFragment>, u64, Box<Expression>),
 }
 
 #[derive(Debug, Clone, Hash)]

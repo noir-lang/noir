@@ -3177,7 +3177,6 @@ dependencies = [
  "proptest",
  "proptest-derive 0.5.0",
  "rangemap",
- "regex",
  "rustc-hash",
  "serde",
  "serde_json",

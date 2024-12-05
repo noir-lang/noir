@@ -30,6 +30,8 @@ pub enum LexerErrorKind {
     UnterminatedBlockComment { span: Span },
     #[error("Unterminated string literal")]
     UnterminatedStringLiteral { span: Span },
+    #[error("Invalid format string: expected '}}', found {found:?}")]
+    InvalidFormatString { found: char, span: Span },
     #[error(
         "'\\{escaped}' is not a valid escape sequence. Use '\\' for a literal backslash character."
     )]
@@ -68,6 +70,7 @@ impl LexerErrorKind {
             LexerErrorKind::LogicalAnd { span } => *span,
             LexerErrorKind::UnterminatedBlockComment { span } => *span,
             LexerErrorKind::UnterminatedStringLiteral { span } => *span,
+            LexerErrorKind::InvalidFormatString { span, .. } => *span,
             LexerErrorKind::InvalidEscape { span, .. } => *span,
             LexerErrorKind::InvalidQuoteDelimiter { delimiter } => delimiter.to_span(),
             LexerErrorKind::NonAsciiComment { span, .. } => *span,
@@ -130,6 +133,17 @@ impl LexerErrorKind {
             LexerErrorKind::UnterminatedBlockComment { span } => ("Unterminated block comment".to_string(), "Unterminated block comment".to_string(), *span),
             LexerErrorKind::UnterminatedStringLiteral { span } =>
                 ("Unterminated string literal".to_string(), "Unterminated string literal".to_string(), *span),
+            LexerErrorKind::InvalidFormatString { found, span } => {
+                (
+                    format!("Invalid format string: expected '}}', found {found:?}"),
+                    if found == &'.' {
+                        "Field access isn't supported in format strings".to_string()
+                    } else {
+                        "If you intended to print '{', you can escape it using '{{'".to_string()
+                    },
+                    *span,
+                )
+            }
             LexerErrorKind::InvalidEscape { escaped, span } =>
                 (format!("'\\{escaped}' is not a valid escape sequence. Use '\\' for a literal backslash character."), "Invalid escape sequence".to_string(), *span),
             LexerErrorKind::InvalidQuoteDelimiter { delimiter } => {

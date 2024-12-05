@@ -20,7 +20,7 @@ use crate::monomorphization::{
     perform_impl_bindings, perform_instantiation_bindings, resolve_trait_method,
     undo_instantiation_bindings,
 };
-use crate::token::Tokens;
+use crate::token::{FmtStringFragment, Tokens};
 use crate::TypeVariable;
 use crate::{
     hir_def::{
@@ -623,8 +623,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 self.evaluate_integer(value, is_negative, id)
             }
             HirLiteral::Str(string) => Ok(Value::String(Rc::new(string))),
-            HirLiteral::FmtStr(string, captures) => {
-                self.evaluate_format_string(string, captures, id)
+            HirLiteral::FmtStr(fragments, captures) => {
+                self.evaluate_format_string(fragments, captures, id)
             }
             HirLiteral::Array(array) => self.evaluate_array(array, id),
             HirLiteral::Slice(array) => self.evaluate_slice(array, id),
@@ -633,7 +633,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     fn evaluate_format_string(
         &mut self,
-        string: String,
+        fragments: Vec<FmtStringFragment>,
         captures: Vec<ExprId>,
         id: ExprId,
     ) -> IResult<Value> {
@@ -644,13 +644,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let mut values: VecDeque<_> =
             captures.into_iter().map(|capture| self.evaluate(capture)).collect::<Result<_, _>>()?;
 
-        for character in string.chars() {
-            match character {
-                '\\' => escaped = true,
-                '{' if !escaped => consuming = true,
-                '}' if !escaped && consuming => {
-                    consuming = false;
-
+        for fragment in fragments {
+            match fragment {
+                FmtStringFragment::String(string) => {
+                    result.push_str(&string);
+                }
+                FmtStringFragment::Interpolation(_, span) => {
                     if let Some(value) = values.pop_front() {
                         // When interpolating a quoted value inside a format string, we don't include the
                         // surrounding `quote {` ... `}` as if we are unquoting the quoted value inside the string.
@@ -665,13 +664,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                         } else {
                             result.push_str(&value.display(self.elaborator.interner).to_string());
                         }
+                    } else {
+                        // TODO: should we panic here?
                     }
                 }
-                other if !consuming => {
-                    escaped = false;
-                    result.push(other);
-                }
-                _ => (),
             }
         }
 
