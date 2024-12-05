@@ -30,6 +30,7 @@ pub(crate) enum Token {
     Ident(String),
     Int(FieldElement),
     Str(String),
+    ByteStr(String),
     Keyword(Keyword),
     IntType(IntType),
     /// =
@@ -79,6 +80,7 @@ impl Display for Token {
             Token::Ident(ident) => write!(f, "{}", ident),
             Token::Int(int) => write!(f, "{}", int),
             Token::Str(string) => write!(f, "{string:?}"),
+            Token::ByteStr(string) => write!(f, "{string:?}"),
             Token::Keyword(keyword) => write!(f, "{}", keyword),
             Token::IntType(int_type) => write!(f, "{}", int_type),
             Token::Assign => write!(f, "="),
