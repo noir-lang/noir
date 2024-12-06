@@ -6,6 +6,7 @@ cd $(dirname "$0")/../
 
 if [[ -z $1 ]]; then
     echo "Must specify Noir release to test against" >&2
+    echo "usage: ./check-critical-libraries.sh <release-version>" >&2
     exit 1
 fi
 noirup -v $1
