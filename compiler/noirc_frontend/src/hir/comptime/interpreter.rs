@@ -665,7 +665,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                             result.push_str(&value.display(self.elaborator.interner).to_string());
                         }
                     } else {
-                        // TODO: should we panic here?
+                        // If we can't find a value for this fragment it means it already errored
+                        // when trying to type-check it, and we don't want to error again or panic here.
                     }
                 }
             }
