@@ -843,27 +843,27 @@ mod tests {
 
     #[test]
     fn simplify_derive_generators_has_correct_type() {
-        let src = "
+        let src = r#"
             brillig(inline) fn main f0 {
               b0():
-                v0 = make_array [u8 68, u8 69, u8 70, u8 65, u8 85, u8 76, u8 84, u8 95, u8 68, u8 79, u8 77, u8 65, u8 73, u8 78, u8 95, u8 83, u8 69, u8 80, u8 65, u8 82, u8 65, u8 84, u8 79, u8 82] : [u8; 24]
+                v0 = make_array b"DEFAULT_DOMAIN_SEPARATOR"
 
                 // This call was previously incorrectly simplified to something that returned `[Field; 3]`
                 v2 = call derive_pedersen_generators(v0, u32 0) -> [(Field, Field, u1); 1]
 
                 return v2
             }
-            ";
+            "#;
         let ssa = Ssa::from_str(src).unwrap();
 
-        let expected = "
+        let expected = r#"
             brillig(inline) fn main f0 {
               b0():
-                v15 = make_array [u8 68, u8 69, u8 70, u8 65, u8 85, u8 76, u8 84, u8 95, u8 68, u8 79, u8 77, u8 65, u8 73, u8 78, u8 95, u8 83, u8 69, u8 80, u8 65, u8 82, u8 65, u8 84, u8 79, u8 82] : [u8; 24]
+                v15 = make_array b"DEFAULT_DOMAIN_SEPARATOR"
                 v19 = make_array [Field 3728882899078719075161482178784387565366481897740339799480980287259621149274, Field -9903063709032878667290627648209915537972247634463802596148419711785767431332, u1 0] : [(Field, Field, u1); 1]
                 return v19
             }
-            ";
+            "#;
         assert_normalized_ssa_equals(ssa, expected);
     }
 }
