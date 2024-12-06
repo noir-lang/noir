@@ -7,7 +7,7 @@ use crate::hir::type_check::generics::TraitGenerics;
 use crate::node_interner::{
     DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, TraitMethodId,
 };
-use crate::token::Tokens;
+use crate::token::{FmtStrFragment, Tokens};
 use crate::Shared;
 
 use super::stmt::HirPattern;
@@ -114,7 +114,7 @@ pub enum HirLiteral {
     Bool(bool),
     Integer(FieldElement, bool), //true for negative integer and false for positive
     Str(String),
-    FmtStr(String, Vec<ExprId>),
+    FmtStr(Vec<FmtStrFragment>, Vec<ExprId>, u32 /* length */),
     Unit,
 }
 

@@ -2,7 +2,7 @@ use crate::token::DocStyle;
 
 use super::{
     errors::LexerErrorKind,
-    token::{IntType, Keyword, SpannedToken, Token, Tokens},
+    token::{FmtStrFragment, IntType, Keyword, SpannedToken, Token, Tokens},
 };
 use acvm::{AcirField, FieldElement};
 use noirc_errors::{Position, Span};
@@ -411,51 +411,190 @@ impl<'a> Lexer<'a> {
         let start = self.position;
         let mut string = String::new();
 
-        while let Some(next) = self.next_char() {
-            let char = match next {
-                '"' => break,
-                '\\' => match self.next_char() {
-                    Some('r') => '\r',
-                    Some('n') => '\n',
-                    Some('t') => '\t',
-                    Some('0') => '\0',
-                    Some('"') => '"',
-                    Some('\\') => '\\',
-                    Some(escaped) => {
-                        let span = Span::inclusive(start, self.position);
-                        return Err(LexerErrorKind::InvalidEscape { escaped, span });
-                    }
-                    None => {
-                        let span = Span::inclusive(start, self.position);
-                        return Err(LexerErrorKind::UnterminatedStringLiteral { span });
-                    }
-                },
-                other => other,
-            };
+        loop {
+            if let Some(next) = self.next_char() {
+                let char = match next {
+                    '"' => break,
+                    '\\' => match self.next_char() {
+                        Some('r') => '\r',
+                        Some('n') => '\n',
+                        Some('t') => '\t',
+                        Some('0') => '\0',
+                        Some('"') => '"',
+                        Some('\\') => '\\',
+                        Some(escaped) => {
+                            let span = Span::inclusive(start, self.position);
+                            return Err(LexerErrorKind::InvalidEscape { escaped, span });
+                        }
+                        None => {
+                            let span = Span::inclusive(start, self.position);
+                            return Err(LexerErrorKind::UnterminatedStringLiteral { span });
+                        }
+                    },
+                    other => other,
+                };
 
-            string.push(char);
+                string.push(char);
+            } else {
+                let span = Span::inclusive(start, self.position);
+                return Err(LexerErrorKind::UnterminatedStringLiteral { span });
+            }
         }
 
         let str_literal_token = Token::Str(string);
-
         let end = self.position;
         Ok(str_literal_token.into_span(start, end))
     }
 
-    // This differs from `eat_string_literal` in that we want the leading `f` to be captured in the Span
     fn eat_fmt_string(&mut self) -> SpannedTokenResult {
         let start = self.position;
-
         self.next_char();
 
-        let str_literal = self.eat_while(None, |ch| ch != '"');
+        let mut fragments = Vec::new();
+        let mut length = 0;
 
-        let str_literal_token = Token::FmtStr(str_literal);
+        loop {
+            // String fragment until '{' or '"'
+            let mut string = String::new();
+            let mut found_curly = false;
 
-        self.next_char(); // Advance past the closing quote
+            loop {
+                if let Some(next) = self.next_char() {
+                    let char = match next {
+                        '"' => break,
+                        '\\' => match self.next_char() {
+                            Some('r') => '\r',
+                            Some('n') => '\n',
+                            Some('t') => '\t',
+                            Some('0') => '\0',
+                            Some('"') => '"',
+                            Some('\\') => '\\',
+                            Some(escaped) => {
+                                let span = Span::inclusive(start, self.position);
+                                return Err(LexerErrorKind::InvalidEscape { escaped, span });
+                            }
+                            None => {
+                                let span = Span::inclusive(start, self.position);
+                                return Err(LexerErrorKind::UnterminatedStringLiteral { span });
+                            }
+                        },
+                        '{' if self.peek_char_is('{') => {
+                            self.next_char();
+                            '{'
+                        }
+                        '}' if self.peek_char_is('}') => {
+                            self.next_char();
+                            '}'
+                        }
+                        '}' => {
+                            let error_position = self.position;
 
+                            // Keep consuming chars until we find the closing double quote
+                            self.skip_until_string_end();
+
+                            let span = Span::inclusive(error_position, error_position);
+                            return Err(LexerErrorKind::InvalidFormatString { found: '}', span });
+                        }
+                        '{' => {
+                            found_curly = true;
+                            break;
+                        }
+                        other => other,
+                    };
+
+                    string.push(char);
+                    length += 1;
+
+                    if char == '{' || char == '}' {
+                        // This might look a bit strange, but if there's `{{` or `}}` in the format string
+                        // then it will be `{` and `}` in the string fragment respectively, but on the codegen
+                        // phase it will be translated back to `{{` and `}}` to avoid executing an interpolation,
+                        // thus the actual length of the codegen'd string will be one more than what we get here.
+                        //
+                        // We could just make the fragment include the double curly braces, but then the interpreter
+                        // would need to undo the curly braces, so it's simpler to add them during codegen.
+                        length += 1;
+                    }
+                } else {
+                    let span = Span::inclusive(start, self.position);
+                    return Err(LexerErrorKind::UnterminatedStringLiteral { span });
+                }
+            }
+
+            if !string.is_empty() {
+                fragments.push(FmtStrFragment::String(string));
+            }
+
+            if !found_curly {
+                break;
+            }
+
+            length += 1; // for the curly brace
+
+            // Interpolation fragment until '}' or '"'
+            let mut string = String::new();
+            let interpolation_start = self.position + 1; // + 1 because we are at '{'
+            let mut first_char = true;
+            while let Some(next) = self.next_char() {
+                let char = match next {
+                    '}' => {
+                        if string.is_empty() {
+                            let error_position = self.position;
+
+                            // Keep consuming chars until we find the closing double quote
+                            self.skip_until_string_end();
+
+                            let span = Span::inclusive(error_position, error_position);
+                            return Err(LexerErrorKind::EmptyFormatStringInterpolation { span });
+                        }
+
+                        break;
+                    }
+                    other => {
+                        let is_valid_char = if first_char {
+                            other.is_ascii_alphabetic() || other == '_'
+                        } else {
+                            other.is_ascii_alphanumeric() || other == '_'
+                        };
+                        if !is_valid_char {
+                            let error_position = self.position;
+
+                            // Keep consuming chars until we find the closing double quote
+                            // (unless we bumped into a double quote now, in which case we are done)
+                            if other != '"' {
+                                self.skip_until_string_end();
+                            }
+
+                            let span = Span::inclusive(error_position, error_position);
+                            return Err(LexerErrorKind::InvalidFormatString { found: other, span });
+                        }
+                        first_char = false;
+                        other
+                    }
+                };
+                length += 1;
+                string.push(char);
+            }
+
+            length += 1; // for the closing curly brace
+
+            let interpolation_span = Span::from(interpolation_start..self.position);
+            fragments.push(FmtStrFragment::Interpolation(string, interpolation_span));
+        }
+
+        let token = Token::FmtStr(fragments, length);
         let end = self.position;
-        Ok(str_literal_token.into_span(start, end))
+        Ok(token.into_span(start, end))
+    }
+
+    fn skip_until_string_end(&mut self) {
+        while let Some(next) = self.next_char() {
+            if next == '\'' && self.peek_char_is('"') {
+                self.next_char();
+            } else if next == '"' {
+                break;
+            }
+        }
     }
 
     fn eat_format_string_or_alpha_numeric(&mut self) -> SpannedTokenResult {
@@ -963,6 +1102,155 @@ mod tests {
     }
 
     #[test]
+    fn test_eat_string_literal_with_escapes() {
+        let input = "let _word = \"hello\\n\\t\"";
+
+        let expected = vec![
+            Token::Keyword(Keyword::Let),
+            Token::Ident("_word".to_string()),
+            Token::Assign,
+            Token::Str("hello\n\t".to_string()),
+        ];
+        let mut lexer = Lexer::new(input);
+
+        for token in expected.into_iter() {
+            let got = lexer.next_token().unwrap();
+            assert_eq!(got, token);
+        }
+    }
+
+    #[test]
+    fn test_eat_string_literal_missing_double_quote() {
+        let input = "\"hello";
+        let mut lexer = Lexer::new(input);
+        assert!(matches!(
+            lexer.next_token(),
+            Err(LexerErrorKind::UnterminatedStringLiteral { .. })
+        ));
+    }
+
+    #[test]
+    fn test_eat_fmt_string_literal_without_interpolations() {
+        let input = "let _word = f\"hello\"";
+
+        let expected = vec![
+            Token::Keyword(Keyword::Let),
+            Token::Ident("_word".to_string()),
+            Token::Assign,
+            Token::FmtStr(vec![FmtStrFragment::String("hello".to_string())], 5),
+        ];
+        let mut lexer = Lexer::new(input);
+
+        for token in expected.into_iter() {
+            let got = lexer.next_token().unwrap();
+            assert_eq!(got, token);
+        }
+    }
+
+    #[test]
+    fn test_eat_fmt_string_literal_with_escapes_without_interpolations() {
+        let input = "let _word = f\"hello\\n\\t{{x}}\"";
+
+        let expected = vec![
+            Token::Keyword(Keyword::Let),
+            Token::Ident("_word".to_string()),
+            Token::Assign,
+            Token::FmtStr(vec![FmtStrFragment::String("hello\n\t{x}".to_string())], 12),
+        ];
+        let mut lexer = Lexer::new(input);
+
+        for token in expected.into_iter() {
+            let got = lexer.next_token().unwrap();
+            assert_eq!(got, token);
+        }
+    }
+
+    #[test]
+    fn test_eat_fmt_string_literal_with_interpolations() {
+        let input = "let _word = f\"hello {world} and {_another} {vAr_123}\"";
+
+        let expected = vec![
+            Token::Keyword(Keyword::Let),
+            Token::Ident("_word".to_string()),
+            Token::Assign,
+            Token::FmtStr(
+                vec![
+                    FmtStrFragment::String("hello ".to_string()),
+                    FmtStrFragment::Interpolation("world".to_string(), Span::from(21..26)),
+                    FmtStrFragment::String(" and ".to_string()),
+                    FmtStrFragment::Interpolation("_another".to_string(), Span::from(33..41)),
+                    FmtStrFragment::String(" ".to_string()),
+                    FmtStrFragment::Interpolation("vAr_123".to_string(), Span::from(44..51)),
+                ],
+                38,
+            ),
+        ];
+        let mut lexer = Lexer::new(input);
+
+        for token in expected.into_iter() {
+            let got = lexer.next_token().unwrap().into_token();
+            assert_eq!(got, token);
+        }
+    }
+
+    #[test]
+    fn test_eat_fmt_string_literal_missing_double_quote() {
+        let input = "f\"hello";
+        let mut lexer = Lexer::new(input);
+        assert!(matches!(
+            lexer.next_token(),
+            Err(LexerErrorKind::UnterminatedStringLiteral { .. })
+        ));
+    }
+
+    #[test]
+    fn test_eat_fmt_string_literal_invalid_char_in_interpolation() {
+        let input = "f\"hello {foo.bar}\" true";
+        let mut lexer = Lexer::new(input);
+        assert!(matches!(lexer.next_token(), Err(LexerErrorKind::InvalidFormatString { .. })));
+
+        // Make sure the lexer went past the ending double quote for better recovery
+        let token = lexer.next_token().unwrap().into_token();
+        assert!(matches!(token, Token::Bool(true)));
+    }
+
+    #[test]
+    fn test_eat_fmt_string_literal_double_quote_inside_interpolation() {
+        let input = "f\"hello {world\" true";
+        let mut lexer = Lexer::new(input);
+        assert!(matches!(lexer.next_token(), Err(LexerErrorKind::InvalidFormatString { .. })));
+
+        // Make sure the lexer stopped parsing the string literal when it found \" inside the interpolation
+        let token = lexer.next_token().unwrap().into_token();
+        assert!(matches!(token, Token::Bool(true)));
+    }
+
+    #[test]
+    fn test_eat_fmt_string_literal_unmatched_closing_curly() {
+        let input = "f\"hello }\" true";
+        let mut lexer = Lexer::new(input);
+        assert!(matches!(lexer.next_token(), Err(LexerErrorKind::InvalidFormatString { .. })));
+
+        // Make sure the lexer went past the ending double quote for better recovery
+        let token = lexer.next_token().unwrap().into_token();
+        assert!(matches!(token, Token::Bool(true)));
+    }
+
+    #[test]
+    fn test_eat_fmt_string_literal_empty_interpolation() {
+        let input = "f\"{}\" true";
+        let mut lexer = Lexer::new(input);
+        assert!(matches!(
+            lexer.next_token(),
+            Err(LexerErrorKind::EmptyFormatStringInterpolation { .. })
+        ));
+
+        // Make sure the lexer went past the ending double quote for better recovery
+        let token = lexer.next_token().unwrap().into_token();
+        assert!(matches!(token, Token::Bool(true)));
+    }
+
+    #[test]
     fn test_eat_integer_literals() {
         let test_cases: Vec<(&str, Token)> = vec![
             ("0x05", Token::Int(5_i128.into())),
@@ -1151,7 +1439,7 @@ mod tests {
                     format!("let s = r#####\"{s}\"#####;"),
                 ],
             ),
-            (Some(Token::FmtStr("".to_string())), vec![format!("assert(x == y, f\"{s}\");")]),
+            (Some(Token::FmtStr(vec![], 0)), vec![format!("assert(x == y, f\"{s}\");")]),
             // expected token not found
             // (Some(Token::LineComment("".to_string(), None)), vec![
             (None, vec![format!("//{s}"), format!("// {s}")]),
@@ -1196,11 +1484,16 @@ mod tests {
                             Err(LexerErrorKind::InvalidIntegerLiteral { .. })
                             | Err(LexerErrorKind::UnexpectedCharacter { .. })
                             | Err(LexerErrorKind::NonAsciiComment { .. })
-                            | Err(LexerErrorKind::UnterminatedBlockComment { .. }) => {
+                            | Err(LexerErrorKind::UnterminatedBlockComment { .. })
+                            | Err(LexerErrorKind::UnterminatedStringLiteral { .. })
+                            | Err(LexerErrorKind::InvalidFormatString { .. }) => {
                                 expected_token_found = true;
                             }
                             Err(err) => {
-                                panic!("Unexpected lexer error found: {:?}", err)
+                                panic!(
+                                    "Unexpected lexer error found {:?} for input string {:?}",
+                                    err, blns_program_str
+                                )
                             }
                         }
                     }

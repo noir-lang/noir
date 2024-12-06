@@ -30,7 +30,7 @@ num-bigint.workspace = true
 [dev-dependencies]
 ark-std.workspace = true
 criterion = "0.5.0"
-pprof = { version = "0.12", features = [
+pprof = { version = "0.14", features = [
     "flamegraph",
     "frame-pointer",
     "criterion",
