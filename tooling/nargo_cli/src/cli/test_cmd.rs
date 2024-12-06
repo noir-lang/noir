@@ -1,4 +1,10 @@
-use std::{io::Write, path::PathBuf};
+use std::{
+    collections::HashMap,
+    io::Write,
+    path::PathBuf,
+    sync::{mpsc, Mutex},
+    thread,
+};
 
 use acvm::{BlackBoxFunctionSolver, FieldElement};
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
@@ -13,7 +19,6 @@ use nargo::{
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{check_crate, CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::hir::{FunctionNameMatch, ParsedFiles};
-use rayon::prelude::{IntoParallelIterator, ParallelBridge, ParallelIterator};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 use crate::{cli::check_cmd::check_crate_and_report_errors, errors::CliError};
@@ -51,6 +56,12 @@ pub(crate) struct TestCommand {
     oracle_resolver: Option<String>,
 }
 
+struct Test<'a> {
+    name: String,
+    package_name: String,
+    runner: Box<dyn FnOnce() -> TestStatus + Send + 'a>,
+}
+
 pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError> {
     let toml_path = get_package_manifest(&config.program_dir)?;
     let default_selection =
@@ -77,29 +88,65 @@ pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError
         None => FunctionNameMatch::Anything,
     };
 
-    // Configure a thread pool with a larger stack size to prevent overflowing stack in large programs.
-    // Default is 2MB.
-    let pool = rayon::ThreadPoolBuilder::new().stack_size(4 * 1024 * 1024).build().unwrap();
-    let test_reports: Vec<Vec<(String, TestStatus)>> = pool.install(|| {
-        workspace
-            .into_iter()
-            .par_bridge()
-            .map(|package| {
-                run_tests::<Bn254BlackBoxSolver>(
-                    &workspace_file_manager,
-                    &parsed_files,
-                    package,
-                    pattern,
-                    args.show_output,
-                    args.oracle_resolver.as_deref(),
-                    Some(workspace.root_dir.clone()),
-                    Some(package.name.to_string()),
-                    &args.compile_options,
-                )
-            })
-            .collect::<Result<_, _>>()
-    })?;
-    let test_report: Vec<(String, TestStatus)> = test_reports.into_iter().flatten().collect();
+    let mut tests = Vec::new();
+    for package in workspace.into_iter() {
+        let package_tests = collect_package_tests::<Bn254BlackBoxSolver>(
+            &workspace_file_manager,
+            &parsed_files,
+            package,
+            pattern,
+            args.show_output,
+            args.oracle_resolver.as_deref(),
+            Some(workspace.root_dir.clone()),
+            package.name.to_string(),
+            &args.compile_options,
+        )?;
+        tests.extend(package_tests);
+    }
+
+    let num_tests = tests.len();
+
+    let num_threads = std::thread::available_parallelism().ok().map(Into::into).unwrap_or(1);
+
+    let (sender, receiver) = mpsc::channel();
+    let iter = Mutex::new(tests.into_iter());
+
+    thread::scope(|scope| {
+        // Start worker threads
+        for _ in 0..num_threads {
+            // Specify a larger-than-default stack size to prevent overflowing stack in large programs.
+            // (the default is 2MB)
+            thread::Builder::new()
+                .stack_size(4 * 1024 * 1024)
+                .spawn_scoped(scope, || loop {
+                    // Get next test to process from the iterator.
+                    let Some(test) = iter.lock().unwrap().next() else {
+                        break;
+                    };
+                    let test_status = (test.runner)();
+
+                    // It's fine to ignore the result of sending. If the
+                    // receiver has hung up, everything will wind down soon
+                    // anyway.
+                    let _ = sender.send((test.name, test.package_name, test_status));
+                })
+                .unwrap();
+        }
+    });
+
+    let mut test_reports_per_package = HashMap::<String, Vec<(String, TestStatus)>>::new();
+
+    // Print results of tests that already dinished
+    for (test_name, package_name, test_status) in receiver.iter().take(num_tests) {
+        test_reports_per_package.entry(package_name).or_default().push((test_name, test_status));
+    }
+
+    for (package_name, test_report) in &test_reports_per_package {
+        display_test_report(package_name, test_report)?;
+    }
+
+    let test_report: Vec<(String, TestStatus)> =
+        test_reports_per_package.into_values().flatten().collect();
 
     if test_report.is_empty() {
         match &pattern {
@@ -124,17 +171,17 @@ pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError
 }
 
 #[allow(clippy::too_many_arguments)]
-fn run_tests<S: BlackBoxFunctionSolver<FieldElement> + Default>(
-    file_manager: &FileManager,
-    parsed_files: &ParsedFiles,
-    package: &Package,
+fn collect_package_tests<'a, S: BlackBoxFunctionSolver<FieldElement> + Default>(
+    file_manager: &'a FileManager,
+    parsed_files: &'a ParsedFiles,
+    package: &'a Package,
     fn_name: FunctionNameMatch,
     show_output: bool,
-    foreign_call_resolver_url: Option<&str>,
+    foreign_call_resolver_url: Option<&'a str>,
     root_path: Option<PathBuf>,
-    package_name: Option<String>,
-    compile_options: &CompileOptions,
-) -> Result<Vec<(String, TestStatus)>, CliError> {
+    package_name: String,
+    compile_options: &'a CompileOptions,
+) -> Result<Vec<Test<'a>>, CliError> {
     let test_functions =
         get_tests_in_package(file_manager, parsed_files, package, fn_name, compile_options)?;
 
@@ -143,27 +190,38 @@ fn run_tests<S: BlackBoxFunctionSolver<FieldElement> + Default>(
     let plural = if count_all == 1 { "" } else { "s" };
     println!("[{}] Running {count_all} test function{plural}", package.name);
 
-    let test_report: Vec<(String, TestStatus)> = test_functions
-        .into_par_iter()
+    let tests: Vec<Test> = test_functions
+        .into_iter()
         .map(|test_name| {
-            let status = run_test::<S>(
-                file_manager,
-                parsed_files,
-                package,
-                &test_name,
-                show_output,
-                foreign_call_resolver_url,
-                root_path.clone(),
-                package_name.clone(),
-                compile_options,
-            );
-
-            (test_name, status)
+            let test_name_copy = test_name.clone();
+            let root_path = root_path.clone();
+            let package_name_clone = package_name.clone();
+            let runner = Box::new(move || {
+                let test_status = run_test::<S>(
+                    file_manager,
+                    parsed_files,
+                    package,
+                    &test_name,
+                    show_output,
+                    foreign_call_resolver_url,
+                    root_path,
+                    package_name_clone.clone(),
+                    compile_options,
+                );
+                display_test_status(
+                    &test_name,
+                    &package_name_clone,
+                    &test_status,
+                    file_manager,
+                    compile_options,
+                );
+                test_status
+            });
+            Test { name: test_name_copy, package_name: package.name.to_string(), runner }
         })
         .collect();
 
-    display_test_report(file_manager, package, compile_options, &test_report)?;
-    Ok(test_report)
+    Ok(tests)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -175,7 +233,7 @@ fn run_test<S: BlackBoxFunctionSolver<FieldElement> + Default>(
     show_output: bool,
     foreign_call_resolver_url: Option<&str>,
     root_path: Option<PathBuf>,
-    package_name: Option<String>,
+    package_name: String,
     compile_options: &CompileOptions,
 ) -> TestStatus {
     // This is really hacky but we can't share `Context` or `S` across threads.
@@ -198,7 +256,7 @@ fn run_test<S: BlackBoxFunctionSolver<FieldElement> + Default>(
         show_output,
         foreign_call_resolver_url,
         root_path,
-        package_name,
+        Some(package_name),
         compile_options,
     )
 }
@@ -220,60 +278,67 @@ fn get_tests_in_package(
         .collect())
 }
 
-fn display_test_report(
+fn display_test_status(
+    test_name: &String,
+    package_name: &String,
+    test_status: &TestStatus,
     file_manager: &FileManager,
-    package: &Package,
     compile_options: &CompileOptions,
-    test_report: &[(String, TestStatus)],
-) -> Result<(), CliError> {
+) {
     let writer = StandardStream::stderr(ColorChoice::Always);
     let mut writer = writer.lock();
 
-    for (test_name, test_status) in test_report {
-        write!(writer, "[{}] Testing {test_name}... ", package.name)
-            .expect("Failed to write to stderr");
-        writer.flush().expect("Failed to flush writer");
+    write!(writer, "[{}] Testing {test_name}... ", package_name)
+        .expect("Failed to write to stderr");
+    writer.flush().expect("Failed to flush writer");
 
-        match &test_status {
-            TestStatus::Pass { .. } => {
-                writer
-                    .set_color(ColorSpec::new().set_fg(Some(Color::Green)))
-                    .expect("Failed to set color");
-                writeln!(writer, "ok").expect("Failed to write to stderr");
-            }
-            TestStatus::Fail { message, error_diagnostic } => {
-                writer
-                    .set_color(ColorSpec::new().set_fg(Some(Color::Red)))
-                    .expect("Failed to set color");
-                writeln!(writer, "FAIL\n{message}\n").expect("Failed to write to stderr");
-                if let Some(diag) = error_diagnostic {
-                    noirc_errors::reporter::report_all(
-                        file_manager.as_file_map(),
-                        &[diag.clone()],
-                        compile_options.deny_warnings,
-                        compile_options.silence_warnings,
-                    );
-                }
-            }
-            TestStatus::Skipped { .. } => {
-                writer
-                    .set_color(ColorSpec::new().set_fg(Some(Color::Yellow)))
-                    .expect("Failed to set color");
-                writeln!(writer, "skipped").expect("Failed to write to stderr");
-            }
-            TestStatus::CompileError(err) => {
+    match &test_status {
+        TestStatus::Pass { .. } => {
+            writer
+                .set_color(ColorSpec::new().set_fg(Some(Color::Green)))
+                .expect("Failed to set color");
+            writeln!(writer, "ok").expect("Failed to write to stderr");
+        }
+        TestStatus::Fail { message, error_diagnostic } => {
+            writer
+                .set_color(ColorSpec::new().set_fg(Some(Color::Red)))
+                .expect("Failed to set color");
+            writeln!(writer, "FAIL\n{message}\n").expect("Failed to write to stderr");
+            if let Some(diag) = error_diagnostic {
                 noirc_errors::reporter::report_all(
                     file_manager.as_file_map(),
-                    &[err.clone()],
+                    &[diag.clone()],
                     compile_options.deny_warnings,
                     compile_options.silence_warnings,
                 );
             }
         }
-        writer.reset().expect("Failed to reset writer");
+        TestStatus::Skipped { .. } => {
+            writer
+                .set_color(ColorSpec::new().set_fg(Some(Color::Yellow)))
+                .expect("Failed to set color");
+            writeln!(writer, "skipped").expect("Failed to write to stderr");
+        }
+        TestStatus::CompileError(err) => {
+            noirc_errors::reporter::report_all(
+                file_manager.as_file_map(),
+                &[err.clone()],
+                compile_options.deny_warnings,
+                compile_options.silence_warnings,
+            );
+        }
     }
+    writer.reset().expect("Failed to reset writer");
+}
 
-    write!(writer, "[{}] ", package.name).expect("Failed to write to stderr");
+fn display_test_report(
+    package_name: &String,
+    test_report: &[(String, TestStatus)],
+) -> Result<(), CliError> {
+    let writer = StandardStream::stderr(ColorChoice::Always);
+    let mut writer = writer.lock();
+
+    write!(writer, "[{}] ", package_name).expect("Failed to write to stderr");
 
     let count_all = test_report.len();
     let count_failed = test_report.iter().filter(|(_, status)| status.failed()).count();
