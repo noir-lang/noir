@@ -1337,12 +1337,15 @@ mod tests {
           b2():
             v7 = eq v0, u32 2
             jmpif v7 then: b7, else: b3
-          b7():
-            v18 = add v0, u32 1
-            jmp b1(v18)
           b3():
             v9 = eq v0, u32 5
             jmpif v9 then: b5, else: b4
+          b4():
+            v10 = load v1 -> Field
+            v12 = add v10, Field 1
+            store v12 at v1
+            v14 = add v0, u32 1
+            jmp b1(v14)
           b5():
             jmp b6()
           b6():
@@ -1350,12 +1353,9 @@ mod tests {
             v17 = eq v15, Field 4
             constrain v15 == Field 4
             return
-          b4():
-            v10 = load v1 -> Field
-            v12 = add v10, Field 1
-            store v12 at v1
-            v14 = add v0, u32 1
-            jmp b1(v14)
+          b7():
+            v18 = add v0, u32 1
+            jmp b1(v18)
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();

@@ -521,8 +521,27 @@ jobs:
         working-directory: ./examples/codegen_verifier
         run: ./test.sh
 
+  critical-library-list:
+    name: Load critical library list
+    runs-on: ubuntu-latest
+    outputs:
+      libraries: ${{ steps.get_critical_libraries.outputs.libraries }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+   
+      - name: Build list of libraries
+        id: get_critical_libraries
+        run: |         
+          LIBRARIES=$(grep -Po "^https://github.com/\K.+"  ./CRITICAL_NOIR_LIBRARIES | jq -R -s -c 'split("\n") | map(select(. != "")) | map({ repo: ., path: "./"})')
+          echo "libraries=$LIBRARIES"
+          echo "libraries=$LIBRARIES" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ github.token }}
+
   external-repo-checks:
-    needs: [build-nargo]
+    needs: [build-nargo, critical-library-list]
     runs-on: ubuntu-latest
     # Only run when 'run-external-checks' label is present
     if: contains(github.event.pull_request.labels.*.name, 'run-external-checks')
@@ -530,25 +549,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        project:
-        - { repo: noir-lang/ec, path: ./  }
-        - { repo: noir-lang/eddsa, path: ./  }
-        - { repo: noir-lang/mimc, path: ./  }
-        - { repo: noir-lang/noir_sort, path: ./  }
-        - { repo: noir-lang/noir-edwards, path: ./  }
-        - { repo: noir-lang/noir-bignum, path: ./  }
-        - { repo: noir-lang/noir_bigcurve, path: ./  }
-        - { repo: noir-lang/noir_base64, path: ./  }
-        - { repo: noir-lang/noir_string_search, path: ./  }
-        - { repo: noir-lang/sparse_array, path: ./  }
-        - { repo: noir-lang/noir_rsa, path: ./lib  }
-        - { repo: AztecProtocol/aztec-packages, path: ./noir-projects/aztec-nr }
-        - { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-contracts }
-        - { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/parity-lib }
-        - { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/private-kernel-lib }
-        - { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/reset-kernel-lib }
-        - { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/rollup-lib }
-        - { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/types }
+        project: ${{ fromJson( needs.critical-library-list.outputs.libraries )}}
+        include:
+          - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/aztec-nr }
+          - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-contracts }
+          - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/parity-lib }
+          - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/private-kernel-lib }
+          - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/reset-kernel-lib }
+          - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/rollup-lib }
+          - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/types }
 
     name: Check external repo - ${{ matrix.project.repo }}
     steps:
