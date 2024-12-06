@@ -178,7 +178,8 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                     scalars_hi.push(*scalar);
                 }
             }
-            let (x, y, is_infinite) = solver.multi_scalar_mul(&points, &scalars_lo, &scalars_hi)?;
+            let (x, y, is_infinite) =
+                solver.multi_scalar_mul(&points, &scalars_lo, &scalars_hi)?;
             memory.write_slice(
                 memory.read_ref(result.pointer),
                 &[
@@ -226,7 +227,8 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             let lhs = memory.read(*lhs).try_into().unwrap();
             let rhs = memory.read(*rhs).try_into().unwrap();
 
-            let new_id = bigint_solver.bigint_op(lhs, rhs, BlackBoxFunc::BigIntAdd)?;
+            let new_id =
+                bigint_solver.bigint_op(lhs, rhs, BlackBoxFunc::BigIntAdd)?;
             memory.write(*output, new_id.into());
             Ok(())
         }
@@ -234,7 +236,8 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             let lhs = memory.read(*lhs).try_into().unwrap();
             let rhs = memory.read(*rhs).try_into().unwrap();
 
-            let new_id = bigint_solver.bigint_op(lhs, rhs, BlackBoxFunc::BigIntSub)?;
+            let new_id =
+                bigint_solver.bigint_op(lhs, rhs, BlackBoxFunc::BigIntSub)?;
             memory.write(*output, new_id.into());
             Ok(())
         }
@@ -242,7 +245,8 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             let lhs = memory.read(*lhs).try_into().unwrap();
             let rhs = memory.read(*rhs).try_into().unwrap();
 
-            let new_id = bigint_solver.bigint_op(lhs, rhs, BlackBoxFunc::BigIntMul)?;
+            let new_id =
+                bigint_solver.bigint_op(lhs, rhs, BlackBoxFunc::BigIntMul)?;
             memory.write(*output, new_id.into());
             Ok(())
         }
@@ -250,7 +254,8 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             let lhs = memory.read(*lhs).try_into().unwrap();
             let rhs = memory.read(*rhs).try_into().unwrap();
 
-            let new_id = bigint_solver.bigint_op(lhs, rhs, BlackBoxFunc::BigIntDiv)?;
+            let new_id =
+                bigint_solver.bigint_op(lhs, rhs, BlackBoxFunc::BigIntDiv)?;
             memory.write(*output, new_id.into());
             Ok(())
         }

@@ -7,6 +7,7 @@ use crate::BlackBoxResolutionError;
 ///
 /// Returns an [`BlackBoxResolutionError`] if the backend does not support the given [`acir::BlackBoxFunc`].
 pub trait BlackBoxFunctionSolver<F> {
+    fn pedantic_solving(&self) -> bool;
     fn schnorr_verify(
         &self,
         public_key_x: &F,
@@ -36,7 +37,7 @@ pub trait BlackBoxFunctionSolver<F> {
     ) -> Result<Vec<F>, BlackBoxResolutionError>;
 }
 
-pub struct StubbedBlackBoxSolver;
+pub struct StubbedBlackBoxSolver(pub /* pedantic_solving: */ bool);
 
 impl StubbedBlackBoxSolver {
     fn fail(black_box_function: BlackBoxFunc) -> BlackBoxResolutionError {
@@ -48,6 +49,10 @@ impl StubbedBlackBoxSolver {
 }
 
 impl<F> BlackBoxFunctionSolver<F> for StubbedBlackBoxSolver {
+    fn pedantic_solving(&self) -> bool {
+        self.0
+    }
+
     fn schnorr_verify(
         &self,
         _public_key_x: &F,

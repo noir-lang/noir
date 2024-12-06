@@ -111,6 +111,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         black_box_solver: &'a B,
         profiling_active: bool,
     ) -> Self {
+        let bigint_solver = BrilligBigIntSolver::with_pedantic_solving(black_box_solver.pedantic_solving());
         Self {
             calldata,
             program_counter: 0,
@@ -121,7 +122,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
             memory: Memory::default(),
             call_stack: Vec::new(),
             black_box_solver,
-            bigint_solver: Default::default(),
+            bigint_solver,
             profiling_active,
             profiling_samples: Vec::with_capacity(bytecode.len()),
         }

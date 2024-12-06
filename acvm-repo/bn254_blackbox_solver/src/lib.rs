@@ -22,9 +22,13 @@ pub use poseidon2::{
 type FieldElement = acir::acir_field::GenericFieldElement<ark_bn254::Fr>;
 
 #[derive(Default)]
-pub struct Bn254BlackBoxSolver;
+pub struct Bn254BlackBoxSolver(pub /* pedantic_solving: */ bool);
 
 impl BlackBoxFunctionSolver<FieldElement> for Bn254BlackBoxSolver {
+    fn pedantic_solving(&self) -> bool {
+        self.0
+    }
+
     fn schnorr_verify(
         &self,
         public_key_x: &FieldElement,

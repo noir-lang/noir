@@ -233,7 +233,7 @@ pub struct ExecutionFrame<'a, B: BlackBoxFunctionSolver<FieldElement>> {
 }
 
 pub(super) struct DebugContext<'a, B: BlackBoxFunctionSolver<FieldElement>> {
-    acvm: ACVM<'a, FieldElement, B>,
+    pub(crate) acvm: ACVM<'a, FieldElement, B>,
     current_circuit_id: u32,
     brillig_solver: Option<BrilligSolver<'a, FieldElement, B>>,
 

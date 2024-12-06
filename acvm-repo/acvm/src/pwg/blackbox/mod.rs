@@ -79,9 +79,15 @@ pub(crate) fn solve<F: AcirField>(
         BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, outputs } => {
             solve_aes128_encryption_opcode(initial_witness, inputs, iv, key, outputs)
         }
-        BlackBoxFuncCall::AND { lhs, rhs, output } => and(initial_witness, lhs, rhs, output),
-        BlackBoxFuncCall::XOR { lhs, rhs, output } => xor(initial_witness, lhs, rhs, output),
-        BlackBoxFuncCall::RANGE { input } => solve_range_opcode(initial_witness, input),
+        BlackBoxFuncCall::AND { lhs, rhs, output } => {
+            and(initial_witness, lhs, rhs, output, backend.pedantic_solving())
+        }
+        BlackBoxFuncCall::XOR { lhs, rhs, output } => {
+            xor(initial_witness, lhs, rhs, output, backend.pedantic_solving())
+        }
+        BlackBoxFuncCall::RANGE { input } => {
+            solve_range_opcode(initial_witness, input, backend.pedantic_solving())
+        }
         BlackBoxFuncCall::Blake2s { inputs, outputs } => {
             solve_generic_256_hash_opcode(initial_witness, inputs, None, outputs, blake2s)
         }
@@ -157,12 +163,14 @@ pub(crate) fn solve<F: AcirField>(
         BlackBoxFuncCall::BigIntAdd { lhs, rhs, output }
         | BlackBoxFuncCall::BigIntSub { lhs, rhs, output }
         | BlackBoxFuncCall::BigIntMul { lhs, rhs, output }
-        | BlackBoxFuncCall::BigIntDiv { lhs, rhs, output } => {
-            bigint_solver.bigint_op(*lhs, *rhs, *output, bb_func.get_black_box_func())
-        }
-        BlackBoxFuncCall::BigIntFromLeBytes { inputs, modulus, output } => {
-            bigint_solver.bigint_from_bytes(inputs, modulus, *output, initial_witness)
-        }
+        | BlackBoxFuncCall::BigIntDiv { lhs, rhs, output } => bigint_solver.bigint_op(
+            *lhs,
+            *rhs,
+            *output,
+            bb_func.get_black_box_func(),
+        ),
+        BlackBoxFuncCall::BigIntFromLeBytes { inputs, modulus, output } => bigint_solver
+            .bigint_from_bytes(inputs, modulus, *output, initial_witness),
         BlackBoxFuncCall::BigIntToLeBytes { input, outputs } => {
             bigint_solver.bigint_to_bytes(*input, outputs, initial_witness)
         }
