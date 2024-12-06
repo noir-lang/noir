@@ -5,7 +5,7 @@ use std::path::PathBuf;
 fn resolve_folder_name(base: &url::Url, tag: &str) -> String {
     let mut folder = PathBuf::from("");
     for part in [base.domain().unwrap(), base.path(), tag] {
-        folder.push(part.trim_start_matches("/"));
+        folder.push(part.trim_start_matches('/'));
     }
     folder.to_string_lossy().into_owned()
 }
