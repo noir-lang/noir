@@ -9,10 +9,13 @@ fn resolve_folder_name(base: &url::Url, tag: &str) -> String {
     folder_name
 }
 
+/// Path to the `nargo` directory under `$HOME`.
 fn nargo_crates() -> PathBuf {
     dirs::home_dir().unwrap().join("nargo")
 }
 
+/// Target directory to download dependencies into, e.g.
+/// `$HOME/nargo/github.com/noir-lang/noir-bignum/v0.1.2`
 fn git_dep_location(base: &url::Url, tag: &str) -> PathBuf {
     let folder_name = resolve_folder_name(base, tag);
 
@@ -52,4 +55,19 @@ pub(crate) fn clone_git_repo(url: &str, tag: &str) -> Result<PathBuf, String> {
         .expect("git clone command failed to start");
 
     Ok(loc)
+}
+
+#[cfg(test)]
+mod tests {
+    use url::Url;
+
+    use super::resolve_folder_name;
+
+    #[test]
+    fn test_resolve_folder_name() {
+        let url = "https://github.com/noir-lang/noir-bignum/";
+        let tag = "v0.4.2";
+        let dir = resolve_folder_name(&Url::parse(url).unwrap(), tag);
+        assert_eq!(dir, "github.com/noir-lang/noir-bignum/v0.4.2");
+    }
 }
