@@ -78,10 +78,14 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
                             assert!(i == first);
                             second
                         };
-                        // Merge source opcode into target opcode
+                        // Merge the opcode with smaller index into the other one
                         // by updating modified_gates/deleted_gates/used_witness
-                        let mut merge_opcodes = |target, source| -> bool {
-                            assert!(source < target);
+                        // returns false if it could not merge them
+                        let mut merge_opcodes = |op1, op2| -> bool {
+                            if op1 == op2 {
+                                return false;
+                            }
+                            let (source, target) = if op1 < op2 { (op1, op2) } else { (op2, op1) };
                             let source_opcode = self.get_opcode(source, circuit);
                             let target_opcode = self.get_opcode(target, circuit);
                             if let (
@@ -99,10 +103,10 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
                                     witness_list.extend(CircuitSimulator::expr_wit(&expr_define));
                                     for w2 in witness_list {
                                         if !circuit_inputs.contains(&w2) {
-                                            let mut v = used_witness[&w2].clone();
-                                            v.insert(b);
-                                            v.remove(&i);
-                                            used_witness.insert(w2, v);
+                                            used_witness.entry(w2).and_modify(|v| {
+                                                v.insert(target);
+                                                v.remove(&source);
+                                            });
                                         }
                                     }
                                     return true;
@@ -110,19 +114,11 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
                             }
                             false
                         };
-                        if i < b {
-                            if merge_opcodes(b, i) {
-                                // We need to stop here and continue with the next opcode
-                                // because the merge invalidates the current opcode.
-                                break;
-                            }
-                        } else if i != b {
-                            // Merge b into i
-                            if merge_opcodes(i, b) {
-                                // We need to stop here and continue with the next opcode
-                                // because the merge invalidates the current opcode.
-                                break;
-                            }
+
+                        if merge_opcodes(b, i) {
+                            // We need to stop here and continue with the next opcode
+                            // because the merge invalidates the current opcode.
+                            break;
                         }
                     }
                 }
