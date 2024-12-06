@@ -70,9 +70,12 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
         Ok(compiled_program) => {
             if skip_oracle {
                 let mut has_oracle = false;
+                let mut unhandled = 0;
+                let mut mocked = 0;
                 for brillig_function in &compiled_program.program.unconstrained_functions {
                     match brillig_function.get_oracle_status(ForeignCall::check_oracle_status) {
                         OracleResult::Mocked => {
+                            mocked += 1;
                             if !test_function.should_fail() {
                                 has_oracle = false;
                                 break;
@@ -80,11 +83,14 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
                         }
                         OracleResult::Unhandled => {
                             has_oracle = true;
+                            unhandled += 1;
                         }
                         OracleResult::Handled => (),
                     }
                 }
-
+                if mocked < unhandled {
+                    return TestStatus::Skipped;
+                }
                 if has_oracle {
                     return TestStatus::Skipped;
                 }
