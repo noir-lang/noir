@@ -11,6 +11,7 @@ mod constant_folding;
 mod defunctionalize;
 mod die;
 pub(crate) mod flatten_cfg;
+mod hint;
 mod inlining;
 mod loop_invariant;
 mod mem2reg;
