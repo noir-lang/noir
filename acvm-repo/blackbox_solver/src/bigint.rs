@@ -209,7 +209,7 @@ fn all_allowed_bigint_moduli_are_prime() {
         let prime_test_config = None;
         match is_prime(&modulus, prime_test_config) {
             Primality::Yes => (),
-            Primality::No => panic!("not all allowed_bigint_moduli are prime"),
+            Primality::No => panic!("not all allowed_bigint_moduli are prime: {modulus}"),
             Primality::Probable(probability) => {
                 if probability < 0.90 {
                     panic!("not all allowed_bigint_moduli are prime within the allowed probability: {} < 0.90", probability);
