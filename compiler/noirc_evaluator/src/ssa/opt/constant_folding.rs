@@ -1521,18 +1521,18 @@ mod test {
               b0(v0: u32):
                 v2 = eq v0, u32 0
                 jmpif v2 then: b4, else: b1
+              b1():
+                jmpif v0 then: b3, else: b2
+              b2():
+                jmp b5()
+              b3():
+                v4 = sub v0, u32 1 // We can't hoist this because v0 is zero here and it will lead to an underflow
+                jmp b5()
               b4():
                 v5 = sub v0, u32 1
                 jmp b5()
               b5():
                 return
-              b1():
-                jmpif v0 then: b3, else: b2
-              b3():
-                v4 = sub v0, u32 1 // We can't hoist this because v0 is zero here and it will lead to an underflow
-                jmp b5()
-              b2():
-                jmp b5()
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();

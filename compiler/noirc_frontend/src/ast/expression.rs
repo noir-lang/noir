@@ -10,7 +10,7 @@ use crate::ast::{
 use crate::node_interner::{
     ExprId, InternedExpressionKind, InternedStatementKind, QuotedTypeId, StructId,
 };
-use crate::token::{Attributes, FunctionAttribute, Token, Tokens};
+use crate::token::{Attributes, FmtStrFragment, FunctionAttribute, Token, Tokens};
 use crate::{Kind, Type};
 use acvm::{acir::AcirField, FieldElement};
 use iter_extended::vecmap;
@@ -210,8 +210,8 @@ impl ExpressionKind {
         ExpressionKind::Literal(Literal::RawStr(contents, hashes))
     }
 
-    pub fn format_string(contents: String) -> ExpressionKind {
-        ExpressionKind::Literal(Literal::FmtStr(contents))
+    pub fn format_string(fragments: Vec<FmtStrFragment>, length: u32) -> ExpressionKind {
+        ExpressionKind::Literal(Literal::FmtStr(fragments, length))
     }
 
     pub fn constructor(
@@ -434,7 +434,7 @@ pub enum Literal {
     Integer(FieldElement, /*sign*/ bool), // false for positive integer and true for negative
     Str(String),
     RawStr(String, u8),
-    FmtStr(String),
+    FmtStr(Vec<FmtStrFragment>, u32 /* length */),
     Unit,
 }
 
@@ -669,7 +669,13 @@ impl Display for Literal {
                     std::iter::once('#').cycle().take(*num_hashes as usize).collect();
                 write!(f, "r{hashes}\"{string}\"{hashes}")
             }
-            Literal::FmtStr(string) => write!(f, "f\"{string}\""),
+            Literal::FmtStr(fragments, _length) => {
+                write!(f, "f\"")?;
+                for fragment in fragments {
+                    fragment.fmt(f)?;
+                }
+                write!(f, "\"")
+            }
             Literal::Unit => write!(f, "()"),
         }
     }

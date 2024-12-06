@@ -442,14 +442,14 @@ mod test {
             store Field 0 at v1
             v3 = not v0
             jmpif v0 then: b2, else: b1
+          b1():
+            store Field 2 at v1
+            jmp b2()
           b2():
             v5 = load v1 -> Field
             v6 = eq v5, Field 2
             constrain v5 == Field 2
             return
-          b1():
-            store Field 2 at v1
-            jmp b2()
         }";
         assert_normalized_ssa_equals(ssa.simplify_cfg(), expected);
     }
