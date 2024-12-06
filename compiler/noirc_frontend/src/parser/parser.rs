@@ -5,7 +5,7 @@ use noirc_errors::Span;
 use crate::{
     ast::{Ident, ItemVisibility},
     lexer::{Lexer, SpannedTokenResult},
-    token::{IntType, Keyword, SpannedToken, Token, TokenKind, Tokens},
+    token::{FmtStrFragment, IntType, Keyword, SpannedToken, Token, TokenKind, Tokens},
 };
 
 use super::{labels::ParsingRuleLabel, ParsedModule, ParserError, ParserErrorReason};
@@ -294,11 +294,11 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn eat_fmt_str(&mut self) -> Option<String> {
+    fn eat_fmt_str(&mut self) -> Option<(Vec<FmtStrFragment>, u32)> {
         if matches!(self.token.token(), Token::FmtStr(..)) {
             let token = self.bump();
             match token.into_token() {
-                Token::FmtStr(string) => Some(string),
+                Token::FmtStr(fragments, length) => Some((fragments, length)),
                 _ => unreachable!(),
             }
         } else {

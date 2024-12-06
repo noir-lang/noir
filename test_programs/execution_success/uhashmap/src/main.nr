@@ -104,7 +104,8 @@ unconstrained fn test_insert_and_methods(input: [Entry; HASHMAP_LEN]) {
     assert(hashmap.len() == HASHMAP_LEN, "hashmap.len() does not match input length.");
 
     for entry in input {
-        assert(hashmap.contains_key(entry.key), f"Not found inserted key {entry.key}.");
+        let entry_key = entry.key;
+        assert(hashmap.contains_key(entry.key), f"Not found inserted key {entry_key}.");
     }
 
     hashmap.clear();

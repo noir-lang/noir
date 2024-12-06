@@ -104,11 +104,12 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
                 formatter.write_left_paren();
                 formatter.write_right_paren();
             })),
-            Literal::Bool(_) | Literal::Str(_) | Literal::FmtStr(_) | Literal::RawStr(..) => group
-                .text(self.chunk(|formatter| {
+            Literal::Bool(_) | Literal::Str(_) | Literal::FmtStr(_, _) | Literal::RawStr(..) => {
+                group.text(self.chunk(|formatter| {
                     formatter.write_current_token_as_in_source();
                     formatter.bump();
-                })),
+                }));
+            }
             Literal::Integer(..) => group.text(self.chunk(|formatter| {
                 if formatter.is_at(Token::Minus) {
                     formatter.write_token(Token::Minus);

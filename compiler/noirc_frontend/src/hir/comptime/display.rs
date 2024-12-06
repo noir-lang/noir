@@ -661,7 +661,7 @@ fn remove_interned_in_literal(interner: &NodeInterner, literal: Literal) -> Lite
         | Literal::Integer(_, _)
         | Literal::Str(_)
         | Literal::RawStr(_, _)
-        | Literal::FmtStr(_)
+        | Literal::FmtStr(_, _)
         | Literal::Unit => literal,
     }
 }
