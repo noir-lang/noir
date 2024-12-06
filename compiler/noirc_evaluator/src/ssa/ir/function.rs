@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, VecDeque};
+use std::collections::BTreeSet;
 
 use iter_extended::vecmap;
 use noirc_frontend::monomorphization::ast::InlineType;
@@ -169,12 +169,11 @@ impl Function {
     /// want to iterate only reachable blocks.
     pub(crate) fn reachable_blocks(&self) -> BTreeSet<BasicBlockId> {
         let mut blocks = BTreeSet::new();
-        let mut deque = VecDeque::new();
-        deque.push_back(self.entry_block);
+        let mut stack = vec![self.entry_block];
 
-        while let Some(block) = deque.pop_front() {
+        while let Some(block) = stack.pop() {
             if blocks.insert(block) {
-                deque.extend(self.dfg[block].successors());
+                stack.extend(self.dfg[block].successors());
             }
         }
         blocks
