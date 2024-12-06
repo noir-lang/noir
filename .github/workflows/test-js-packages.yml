@@ -513,7 +513,7 @@ jobs:
     name: Load critical library list
     runs-on: ubuntu-latest
     outputs:
-      libraries: ${{ steps.get_critical_libraries.outputs.critical-libraries }}
+      libraries: ${{ steps.get_critical_libraries.outputs.libraries }}
 
     steps:
       - name: Checkout
