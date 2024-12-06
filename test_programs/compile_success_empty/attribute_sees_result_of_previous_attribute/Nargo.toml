@@ -1,0 +1,7 @@
+[package]
+name = "attribute_sees_results_of_previous_attribute"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.34.0"
+
+[dependencies]

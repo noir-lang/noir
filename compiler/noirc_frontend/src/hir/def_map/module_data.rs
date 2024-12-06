@@ -14,6 +14,11 @@ pub struct ModuleData {
     pub parent: Option<LocalModuleId>,
     pub children: HashMap<Ident, LocalModuleId>,
 
+    /// Each child in the order they were declared in the parent module.
+    /// E.g. for a module containing `mod foo; mod bar; mod baz` this would
+    /// be `vec![foo, bar, baz]`.
+    pub child_declaration_order: Vec<LocalModuleId>,
+
     /// Contains all definitions visible to the current module. This includes
     /// all definitions in self.definitions as well as all imported definitions.
     scope: ItemScope,
@@ -47,6 +52,7 @@ impl ModuleData {
         ModuleData {
             parent,
             children: HashMap::new(),
+            child_declaration_order: Vec::new(),
             scope: ItemScope::default(),
             definitions: ItemScope::default(),
             location,
@@ -72,6 +78,10 @@ impl ModuleData {
         trait_id: Option<TraitId>,
     ) -> Result<(), (Ident, Ident)> {
         self.scope.add_definition(name.clone(), visibility, item_id, trait_id)?;
+
+        if let ModuleDefId::ModuleId(child) = item_id {
+            self.child_declaration_order.push(child.local_id);
+        }
 
         // definitions is a subset of self.scope so it is expected if self.scope.define_func_def
         // returns without error, so will self.definitions.define_func_def.
