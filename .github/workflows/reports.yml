@@ -261,7 +261,7 @@ jobs:
       - name: Generate Compilation report
         working-directory: ./test_programs
         run: |
-          ./compilation.sh
+          ./compilation_report.sh
           mv compilation_report.json ../compilation_report.json
 
       - name: Parse compilation report
