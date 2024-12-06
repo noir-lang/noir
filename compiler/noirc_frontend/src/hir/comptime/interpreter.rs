@@ -665,8 +665,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                             result.push_str(&value.display(self.elaborator.interner).to_string());
                         }
                     } else {
-                        // If we can't find a value for this fragment it means it already errored
-                        // when trying to type-check it, and we don't want to error again or panic here.
+                        // If we can't find a value for this fragment it means the interpolated value was not
+                        // found or it errored. In this case we error here as well.
+                        let location = self.elaborator.interner.expr_location(&id);
+                        return Err(InterpreterError::CannotInterpretFormatStringWithErrors {
+                            location,
+                        });
                     }
                 }
             }
