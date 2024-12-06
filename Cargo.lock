@@ -48,6 +48,7 @@ dependencies = [
  "ark-bn254",
  "bn254_blackbox_solver",
  "brillig_vm",
+ "fxhash",
  "indexmap 1.9.3",
  "num-bigint",
  "proptest",

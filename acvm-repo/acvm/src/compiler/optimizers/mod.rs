@@ -23,7 +23,7 @@ use super::{transform_assert_messages, AcirTransformationMap};
 pub fn optimize<F: AcirField>(acir: Circuit<F>) -> (Circuit<F>, AcirTransformationMap) {
     let (mut acir, new_opcode_positions) = optimize_internal(acir);
 
-    let transformation_map = AcirTransformationMap::new(new_opcode_positions);
+    let transformation_map = AcirTransformationMap::new(&new_opcode_positions);
 
     acir.assert_messages = transform_assert_messages(acir.assert_messages, &transformation_map);
 
