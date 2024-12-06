@@ -16,13 +16,16 @@ impl<'a> Parser<'a> {
     pub(crate) fn parse_global(
         &mut self,
         attributes: Vec<(Attribute, Span)>,
-        comptime: bool,
+        _comptime: bool,
         mutable: bool,
     ) -> LetStatement {
         // Only comptime globals are allowed to be mutable, but we always parse the `mut`
         // and throw the error in name resolution.
 
         let attributes = self.validate_secondary_attributes(attributes);
+
+        // TODO cleanup unused comptime
+        let comptime = true;
 
         let Some(ident) = self.eat_ident() else {
             self.eat_semicolons();
@@ -37,6 +40,9 @@ impl<'a> Parser<'a> {
                 comptime,
             };
         };
+
+        // TODO cleanup
+        dbg!("parse_global", &ident);
 
         let pattern = ident_to_pattern(ident, mutable);
 

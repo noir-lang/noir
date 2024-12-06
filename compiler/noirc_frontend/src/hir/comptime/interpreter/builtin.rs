@@ -1349,6 +1349,9 @@ fn zeroed(return_type: Type, span: Span) -> IResult<Value> {
         | Type::Error
         | Type::TraitAsType(..)
         | Type::NamedGeneric(_, _) => Ok(Value::Zeroed(return_type)),
+        // TODO: cleanup
+        // // TODO: resolved later?
+        // | Type::Global(_, _, _) => Ok(Value::Zeroed(return_type)),
     }
 }
 

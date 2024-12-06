@@ -1,6 +1,6 @@
 use std::{borrow::Cow, rc::Rc, vec};
 
-use acvm::{AcirField, FieldElement};
+use acvm::FieldElement;
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::{Location, Span};
@@ -294,6 +294,10 @@ impl Value {
             | Value::ModuleDefinition(_) => {
                 let typ = self.get_type().into_owned();
                 let value = self.display(interner).to_string();
+
+                // TODO
+                dbg!("into_expression", &typ, &value, &location);
+
                 return Err(InterpreterError::CannotInlineMacro { typ, value, location });
             }
         };
@@ -409,6 +413,9 @@ impl Value {
             Value::Pointer(element, true) => {
                 return element.unwrap_or_clone().into_hir_expression(interner, location);
             }
+            Value::Closure(hir_lambda, _args, _typ, _opt_func_id, _module_id) => {
+                HirExpression::Lambda(hir_lambda)
+            }
             Value::TypedExpr(TypedExpr::StmtId(..))
             | Value::Expr(..)
             | Value::Pointer(..)
@@ -420,10 +427,13 @@ impl Value {
             | Value::Zeroed(_)
             | Value::Type(_)
             | Value::UnresolvedType(_)
-            | Value::Closure(..)
             | Value::ModuleDefinition(_) => {
                 let typ = self.get_type().into_owned();
                 let value = self.display(interner).to_string();
+
+                // TODO
+                dbg!("into_hir_expression", &typ, &value, &location);
+
                 return Err(InterpreterError::CannotInlineMacro { value, typ, location });
             }
         };
@@ -502,19 +512,35 @@ impl Value {
         Ok(vec![token])
     }
 
-    /// Converts any unsigned `Value` into a `u128`.
-    /// Returns `None` for negative integers.
-    pub(crate) fn to_u128(&self) -> Option<u128> {
+    /// Returns false for non-integral `Value`s.
+    pub(crate) fn is_integral(&self) -> bool {
+        matches!(
+            self,
+            Self::Field(_)
+                | Self::I8(_)
+                | Self::I16(_)
+                | Self::I32(_)
+                | Self::I64(_)
+                | Self::U8(_)
+                | Self::U16(_)
+                | Self::U32(_)
+                | Self::U64(_)
+        )
+    }
+
+    /// Converts any unsigned `Value` into a `FieldElement`.
+    /// Returns `None` for negative integers and non-integral `Value`s.
+    pub(crate) fn to_field_element(&self) -> Option<FieldElement> {
         match self {
-            Self::Field(value) => Some(value.to_u128()),
-            Self::I8(value) => (*value >= 0).then_some(*value as u128),
-            Self::I16(value) => (*value >= 0).then_some(*value as u128),
-            Self::I32(value) => (*value >= 0).then_some(*value as u128),
-            Self::I64(value) => (*value >= 0).then_some(*value as u128),
-            Self::U8(value) => Some(*value as u128),
-            Self::U16(value) => Some(*value as u128),
-            Self::U32(value) => Some(*value as u128),
-            Self::U64(value) => Some(*value as u128),
+            Self::Field(value) => Some(*value),
+            Self::I8(value) => (*value >= 0).then_some((*value as u128).into()),
+            Self::I16(value) => (*value >= 0).then_some((*value as u128).into()),
+            Self::I32(value) => (*value >= 0).then_some((*value as u128).into()),
+            Self::I64(value) => (*value >= 0).then_some((*value as u128).into()),
+            Self::U8(value) => Some((*value as u128).into()),
+            Self::U16(value) => Some((*value as u128).into()),
+            Self::U32(value) => Some((*value as u128).into()),
+            Self::U64(value) => Some((*value as u128).into()),
             _ => None,
         }
     }
@@ -532,6 +558,10 @@ impl Value {
             _ => {
                 let typ = self.get_type().into_owned();
                 let value = self.display(interner).to_string();
+
+                // TODO
+                dbg!("into_top_level_items", &typ, &value, &location);
+
                 Err(InterpreterError::CannotInlineMacro { value, typ, location })
             }
         }
