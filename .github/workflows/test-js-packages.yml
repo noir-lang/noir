@@ -516,7 +516,10 @@ jobs:
       libraries: ${{ steps.get_critical_libraries.outputs.critical-libraries }}
 
     steps:
-      - name: Checkout sources
+      - name: Checkout
+        uses: actions/checkout@v4
+   
+      - name: Build list of libraries
         id: get_critical_libraries
         run: |         
           LIBRARIES=$(grep -v "^#\|^$" ./CRITICAL_NOIR_LIBRARIES | jq -R -s -c 'split("\n") | map(select(. != "")) | map({ repo: ., path: "./"})')
@@ -526,7 +529,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
 
   external-repo-checks:
-    needs: [build-nargo]
+    needs: [build-nargo, critical-library-list]
     runs-on: ubuntu-latest
     # Only run when 'run-external-checks' label is present
     if: contains(github.event.pull_request.labels.*.name, 'run-external-checks')
