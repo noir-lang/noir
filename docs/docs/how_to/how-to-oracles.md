@@ -180,6 +180,8 @@ nargo test --oracle-resolver http://localhost:5555
 
 This tells `nargo` to use your RPC Server URL whenever it finds an oracle decorator.
 
+You can also skip the tests using oracles by using the flag `--skip-oracle` in the `nargo test` command.
+
 ## Step 4 - Usage with NoirJS
 
 In a JS environment, an RPC server is not strictly necessary, as you may want to resolve your oracles without needing any JSON call at all. NoirJS simply expects that you pass a callback function when you generate proofs, and that callback function can be anything.
