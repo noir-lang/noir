@@ -1,8 +1,5 @@
 //! This file is for pretty-printing the SSA IR in a human-readable form for debugging.
-use std::{
-    collections::{HashSet, VecDeque},
-    fmt::{Formatter, Result},
-};
+use std::fmt::{Formatter, Result};
 
 use acvm::acir::AcirField;
 use im::Vector;
@@ -21,32 +18,10 @@ use super::{
 /// Helper function for Function's Display impl to pretty-print the function with the given formatter.
 pub(crate) fn display_function(function: &Function, f: &mut Formatter) -> Result {
     writeln!(f, "{} fn {} {} {{", function.runtime(), function.name(), function.id())?;
-    display_function_blocks(function, f)?;
-    write!(f, "}}")
-}
-
-/// Displays all of a function's blocks by printing the entry block and its successors, recursively.
-pub(crate) fn display_function_blocks(function: &Function, f: &mut Formatter) -> Result {
-    // The block chain to print might be really long so we use a deque instead of recursion
-    // to avoid potentially hitting stack overflow (see https://github.com/noir-lang/noir/issues/6520)
-    let mut blocks_to_print = VecDeque::new();
-    blocks_to_print.push_back(function.entry_block());
-
-    // Keep track of the visited blocks. Otherwise there would be infinite recursion for any loops in the IR.
-    let mut visited = HashSet::new();
-
-    while let Some(block_id) = blocks_to_print.pop_front() {
-        if !visited.insert(block_id) {
-            continue;
-        };
+    for block_id in function.reachable_blocks() {
         display_block(function, block_id, f)?;
-
-        for successor in function.dfg[block_id].successors() {
-            blocks_to_print.push_back(successor);
-        }
     }
-
-    Ok(())
+    write!(f, "}}")
 }
 
 /// Display a single block. This will not display the block's successors.
