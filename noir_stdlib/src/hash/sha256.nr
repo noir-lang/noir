@@ -4,27 +4,27 @@ use crate::runtime::is_unconstrained;
 // 32 bytes.
 
 // A message block is up to 64 bytes taken from the input.
-global BLOCK_SIZE = 64;
+global BLOCK_SIZE: u32 = 64;
 
 // The first index in the block where the 8 byte message size will be written.
-global MSG_SIZE_PTR = 56;
+global MSG_SIZE_PTR: u32 = 56;
 
 // Size of the message block when packed as 4-byte integer array.
-global INT_BLOCK_SIZE = 16;
+global INT_BLOCK_SIZE: u32 = 16;
 
 // A `u32` integer consists of 4 bytes.
-global INT_SIZE = 4;
+global INT_SIZE: u32 = 4;
 
 // Index of the integer in the `INT_BLOCK` where the length is written.
-global INT_SIZE_PTR = MSG_SIZE_PTR / INT_SIZE;
+global INT_SIZE_PTR: u32 = MSG_SIZE_PTR / INT_SIZE;
 
 // Magic numbers for bit shifting.
 // Works with actual bit shifting as well as the compiler turns them into * and /
 // but circuit execution appears to be 10% faster this way.
-global TWO_POW_8 = 256;
-global TWO_POW_16 = TWO_POW_8 * 256;
-global TWO_POW_24 = TWO_POW_16 * 256;
-global TWO_POW_32 = TWO_POW_24 as u64 * 256;
+global TWO_POW_8: u32 = 256;
+global TWO_POW_16: u32 = TWO_POW_8 * 256;
+global TWO_POW_24: u32 = TWO_POW_16 * 256;
+global TWO_POW_32: u64 = TWO_POW_24 as u64 * 256;
 
 // Index of a byte in a 64 byte block; ie. 0..=63
 type BLOCK_BYTE_PTR = u32;
@@ -508,9 +508,9 @@ fn hash_final_block(msg_block: MSG_BLOCK, mut state: STATE) -> HASH {
 
     // Return final hash as byte array
     for j in 0..8 {
-        let h_bytes: [u8; 4] = (state[7 - j] as Field).to_le_bytes();
+        let h_bytes: [u8; 4] = (state[j] as Field).to_be_bytes();
         for k in 0..4 {
-            out_h[31 - 4 * j - k] = h_bytes[k];
+            out_h[4 * j + k] = h_bytes[k];
         }
     }
 
@@ -519,10 +519,10 @@ fn hash_final_block(msg_block: MSG_BLOCK, mut state: STATE) -> HASH {
 
 mod tests {
     use super::{
-        attach_len_to_msg_block, build_msg_block, byte_into_item, get_item_byte, lshift8, make_item,
+        attach_len_to_msg_block, build_msg_block, byte_into_item, get_item_byte, make_item,
         set_item_byte_then_zeros, set_item_zeros,
     };
-    use super::{INT_BLOCK, INT_BLOCK_SIZE, MSG_BLOCK};
+    use super::INT_BLOCK;
     use super::sha256_var;
 
     #[test]

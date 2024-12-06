@@ -8,4 +8,3 @@ old_hash_path = [
 new_root = "0x25e2a8ee5b85e5b546ae27832b9b53f5fae5b371e3e7f8cddda839f41669fc68"
 leaf = "0x23fe6c8f2426b793f0f156f57efbecbea52e951af761634a85e80cc1a9fb5003"
 index = "0"
-mimc_input = [12, 45, 78, 41]

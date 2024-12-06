@@ -145,6 +145,8 @@ impl Context<'_> {
     }
 
     /// Insert ssa instructions which computes lhs >> rhs by doing lhs/2^rhs
+    /// For negative signed integers, we do the division on the 1-complement representation of lhs,
+    /// before converting back the result to the 2-complement representation.
     pub(crate) fn insert_shift_right(
         &mut self,
         lhs: ValueId,
@@ -153,16 +155,27 @@ impl Context<'_> {
     ) -> ValueId {
         let lhs_typ = self.function.dfg.type_of_value(lhs);
         let base = self.field_constant(FieldElement::from(2_u128));
-        // we can safely cast to unsigned because overflow_checks prevent bit-shift with a negative value
-        let rhs_unsigned = self.insert_cast(rhs, Type::unsigned(bit_size));
-        let pow = self.pow(base, rhs_unsigned);
-        // We need at least one more bit for the case where rhs == bit_size
-        let div_type = Type::unsigned(bit_size + 1);
-        let casted_lhs = self.insert_cast(lhs, div_type.clone());
-        let casted_pow = self.insert_cast(pow, div_type);
-        let div_result = self.insert_binary(casted_lhs, BinaryOp::Div, casted_pow);
-        // We have to cast back to the original type
-        self.insert_cast(div_result, lhs_typ)
+        let pow = self.pow(base, rhs);
+        if lhs_typ.is_unsigned() {
+            // unsigned right bit shift is just a normal division
+            self.insert_binary(lhs, BinaryOp::Div, pow)
+        } else {
+            // Get the sign of the operand; positive signed operand will just do a division as well
+            let zero = self.numeric_constant(FieldElement::zero(), Type::signed(bit_size));
+            let lhs_sign = self.insert_binary(lhs, BinaryOp::Lt, zero);
+            let lhs_sign_as_field = self.insert_cast(lhs_sign, Type::field());
+            let lhs_as_field = self.insert_cast(lhs, Type::field());
+            // For negative numbers, convert to 1-complement using wrapping addition of a + 1
+            let one_complement = self.insert_binary(lhs_sign_as_field, BinaryOp::Add, lhs_as_field);
+            let one_complement = self.insert_truncate(one_complement, bit_size, bit_size + 1);
+            let one_complement = self.insert_cast(one_complement, Type::signed(bit_size));
+            // Performs the division on the 1-complement (or the operand if positive)
+            let shifted_complement = self.insert_binary(one_complement, BinaryOp::Div, pow);
+            // Convert back to 2-complement representation if operand is negative
+            let lhs_sign_as_int = self.insert_cast(lhs_sign, lhs_typ);
+            let shifted = self.insert_binary(shifted_complement, BinaryOp::Sub, lhs_sign_as_int);
+            self.insert_truncate(shifted, bit_size, bit_size + 1)
+        }
     }
 
     /// Computes lhs^rhs via square&multiply, using the bits decomposition of rhs
@@ -178,7 +191,7 @@ impl Context<'_> {
         let typ = self.function.dfg.type_of_value(rhs);
         if let Type::Numeric(NumericType::Unsigned { bit_size }) = typ {
             let to_bits = self.function.dfg.import_intrinsic(Intrinsic::ToBits(Endian::Little));
-            let result_types = vec![Type::Array(Arc::new(vec![Type::bool()]), bit_size as usize)];
+            let result_types = vec![Type::Array(Arc::new(vec![Type::bool()]), bit_size)];
             let rhs_bits = self.insert_call(to_bits, vec![rhs], result_types);
 
             let rhs_bits = rhs_bits[0];

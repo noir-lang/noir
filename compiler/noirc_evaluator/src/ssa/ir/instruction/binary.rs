@@ -281,15 +281,7 @@ impl Binary {
                         let zero = dfg.make_constant(FieldElement::zero(), operand_type);
                         return SimplifyResult::SimplifiedTo(zero);
                     }
-
-                    // `two_pow_rhs` is limited to be at most `2 ^ {operand_bitsize - 1}` so it fits in `operand_type`.
-                    let two_pow_rhs = FieldElement::from(2u128).pow(&rhs_const);
-                    let two_pow_rhs = dfg.make_constant(two_pow_rhs, operand_type);
-                    return SimplifyResult::SimplifiedToInstruction(Instruction::binary(
-                        BinaryOp::Div,
-                        self.lhs,
-                        two_pow_rhs,
-                    ));
+                    return SimplifyResult::None;
                 }
             }
         };

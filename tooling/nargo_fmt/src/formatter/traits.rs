@@ -1,15 +1,13 @@
 use noirc_frontend::{
     ast::{NoirTrait, Param, Pattern, TraitItem, Visibility},
-    token::{Keyword, Token},
+    token::{Attributes, Keyword, Token},
 };
 
 use super::{function::FunctionToFormat, Formatter};
 
 impl<'a> Formatter<'a> {
     pub(super) fn format_trait(&mut self, noir_trait: NoirTrait) {
-        if !noir_trait.attributes.is_empty() {
-            self.format_attributes();
-        }
+        self.format_secondary_attributes(noir_trait.attributes);
         self.write_indentation();
         self.format_item_visibility(noir_trait.visibility);
         self.write_keyword(Keyword::Trait);
@@ -17,9 +15,18 @@ impl<'a> Formatter<'a> {
         self.write_identifier(noir_trait.name);
         self.format_generics(noir_trait.generics);
 
+        if noir_trait.is_alias {
+            self.write_space();
+            self.write_token(Token::Assign);
+        }
+
         if !noir_trait.bounds.is_empty() {
             self.skip_comments_and_whitespace();
-            self.write_token(Token::Colon);
+
+            if !noir_trait.is_alias {
+                self.write_token(Token::Colon);
+            }
+
             self.write_space();
 
             for (index, trait_bound) in noir_trait.bounds.into_iter().enumerate() {
@@ -34,6 +41,12 @@ impl<'a> Formatter<'a> {
 
         if !noir_trait.where_clause.is_empty() {
             self.format_where_clause(noir_trait.where_clause, true);
+        }
+
+        // aliases have ';' in lieu of '{ items }'
+        if noir_trait.is_alias {
+            self.write_semicolon();
+            return;
         }
 
         self.write_space();
@@ -91,6 +104,7 @@ impl<'a> Formatter<'a> {
                     .collect();
 
                 let func = FunctionToFormat {
+                    attributes: Attributes::empty(),
                     visibility,
                     name,
                     generics,

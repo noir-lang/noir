@@ -40,7 +40,7 @@ resolver = "2"
 
 [workspace.package]
 # x-release-please-start-version
-version = "0.36.0"
+version = "1.0.0-beta.0"
 # x-release-please-end
 authors = ["The Noir Team <team@noir-lang.org>"]
 edition = "2021"
@@ -57,13 +57,13 @@ unused_qualifications = "warn"
 [workspace.dependencies]
 
 # ACVM workspace dependencies
-acir_field = { version = "0.52.0", path = "acvm-repo/acir_field", default-features = false }
-acir = { version = "0.52.0", path = "acvm-repo/acir", default-features = false }
-acvm = { version = "0.52.0", path = "acvm-repo/acvm" }
-brillig = { version = "0.52.0", path = "acvm-repo/brillig", default-features = false }
-brillig_vm = { version = "0.52.0", path = "acvm-repo/brillig_vm", default-features = false }
-acvm_blackbox_solver = { version = "0.52.0", path = "acvm-repo/blackbox_solver", default-features = false }
-bn254_blackbox_solver = { version = "0.52.0", path = "acvm-repo/bn254_blackbox_solver", default-features = false }
+acir_field = { version = "1.0.0-beta.0", path = "acvm-repo/acir_field", default-features = false }
+acir = { version = "1.0.0-beta.0", path = "acvm-repo/acir", default-features = false }
+acvm = { version = "1.0.0-beta.0", path = "acvm-repo/acvm" }
+brillig = { version = "1.0.0-beta.0", path = "acvm-repo/brillig", default-features = false }
+brillig_vm = { version = "1.0.0-beta.0", path = "acvm-repo/brillig_vm", default-features = false }
+acvm_blackbox_solver = { version = "1.0.0-beta.0", path = "acvm-repo/blackbox_solver", default-features = false }
+bn254_blackbox_solver = { version = "1.0.0-beta.0", path = "acvm-repo/bn254_blackbox_solver", default-features = false }
 
 # Noir compiler workspace dependencies
 fm = { path = "compiler/fm" }
@@ -126,7 +126,7 @@ codespan-reporting = "0.11.1"
 criterion = "0.5.0"
 # Note that using the "frame-pointer" feature breaks framegraphs on linux
 # https://github.com/tikv/pprof-rs/pull/172
-pprof = { version = "0.13", features = ["flamegraph", "criterion"] }
+pprof = { version = "0.14", features = ["flamegraph", "criterion"] }
 
 cfg-if = "1.0.0"
 dirs = "4"
@@ -142,6 +142,7 @@ build-data = "0.1.3"
 bincode = "1.3.3"
 hex = "0.4.2"
 const_format = "0.2.30"
+lazy_static = "1.4"
 num-bigint = "0.4"
 num-traits = "0.2"
 similar-asserts = "1.5.0"
@@ -156,6 +157,8 @@ proptest-derive = "0.4.0"
 rayon = "1.8.0"
 sha2 = { version = "0.10.6", features = ["compress"] }
 sha3 = "0.10.6"
+strum = "0.24"
+strum_macros = "0.24"
 
 im = { version = "15.1", features = ["serde"] }
 tracing = "0.1.40"

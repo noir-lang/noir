@@ -2,10 +2,7 @@ use std::{cell::RefCell, collections::BTreeMap, path::Path};
 
 use acvm::{acir::native_types::WitnessStack, AcirField, FieldElement};
 use iter_extended::vecmap;
-use nargo::{
-    ops::{execute_program, DefaultForeignCallExecutor},
-    parse_all,
-};
+use nargo::{foreign_calls::DefaultForeignCallExecutor, ops::execute_program, parse_all};
 use noirc_abi::input_parser::InputValue;
 use noirc_driver::{
     compile_main, file_manager_with_stdlib, prepare_crate, CompilationResult, CompileOptions,
@@ -64,6 +61,7 @@ fn prepare_and_compile_snippet(
 ) -> CompilationResult<CompiledProgram> {
     let (mut context, root_crate_id) = prepare_snippet(source);
     let options = CompileOptions { force_brillig, ..Default::default() };
+    // TODO: Run nargo::ops::transform_program?
     compile_main(&mut context, root_crate_id, &options, None)
 }
 

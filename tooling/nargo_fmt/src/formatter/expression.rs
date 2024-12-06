@@ -310,6 +310,24 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
     }
 
     pub(super) fn format_quote(&mut self) -> ChunkGroup {
+        // A quote's prefix isn't captured in the token, so let's figure it out which one
+        // is it by looking at the source code.
+        let mut quote_source_code =
+            &self.source[self.token_span.start() as usize..self.token_span.end() as usize];
+
+        // Remove "quote" and any whitespace following it
+        quote_source_code = quote_source_code.strip_prefix("quote").unwrap();
+        quote_source_code = quote_source_code.trim_start();
+
+        // The first char is the delimiter
+        let delimiter_start = quote_source_code.chars().next().unwrap();
+        let delimiter_end = match delimiter_start {
+            '(' => ')',
+            '{' => '}',
+            '[' => ']',
+            _ => panic!("Unexpected delimiter: {}", delimiter_start),
+        };
+
         // We use the current token rather than the Tokens we got from `Token::Quote` because
         // the current token has whitespace and comments in it, while the one we got from
         // the parser doesn't.
@@ -319,11 +337,13 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
 
         let mut group = ChunkGroup::new();
         group.verbatim(self.chunk(|formatter| {
-            formatter.write("quote {");
+            formatter.write("quote");
+            formatter.write_space();
+            formatter.write(&delimiter_start.to_string());
             for token in tokens.0 {
                 formatter.write_source_span(token.to_span());
             }
-            formatter.write("}");
+            formatter.write(&delimiter_end.to_string());
         }));
         group
     }
@@ -362,9 +382,9 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
             formatter.format_type(type_path.typ);
             formatter.write_token(Token::DoubleColon);
             formatter.write_identifier(type_path.item);
-            if !type_path.turbofish.is_empty() {
+            if let Some(turbofish) = type_path.turbofish {
                 formatter.write_token(Token::DoubleColon);
-                formatter.format_generic_type_args(type_path.turbofish);
+                formatter.format_generic_type_args(turbofish);
             }
         }));
         group
@@ -1113,11 +1133,15 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
                 if count > 0 {
                     // If newlines follow, we first add a line, then add the comment chunk
                     group.lines(count > 1);
-                    group.leading_comment(self.skip_comments_and_whitespace_chunk());
+                    group.leading_comment(self.chunk(|formatter| {
+                        formatter.skip_comments_and_whitespace_writing_multiple_lines_if_found();
+                    }));
                     ignore_next = self.ignore_next;
                 } else {
                     // Otherwise, add the comment first as it's a trailing comment
-                    group.trailing_comment(self.skip_comments_and_whitespace_chunk());
+                    group.trailing_comment(self.chunk(|formatter| {
+                        formatter.skip_comments_and_whitespace_writing_multiple_lines_if_found();
+                    }));
                     ignore_next = self.ignore_next;
                     group.line();
                 }
@@ -1126,8 +1150,22 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
             self.format_statement(statement, group, ignore_next);
         }
 
+        // See how many newlines follow the last statement
+        let count = self.following_newlines_count();
+
         group.text(self.chunk(|formatter| {
-            formatter.skip_comments_and_whitespace();
+            formatter.skip_whitespace();
+        }));
+
+        // After skipping whitespace we check if there's a comment. If so, we respect
+        // how many lines were before that comment.
+        if count > 0 && matches!(self.token, Token::LineComment(..) | Token::BlockComment(..)) {
+            group.lines(count > 1);
+        }
+
+        // Finally format the comment, if any
+        group.text(self.chunk(|formatter| {
+            formatter.skip_comments_and_whitespace_writing_multiple_lines_if_found();
         }));
 
         group.decrease_indentation();
@@ -2042,6 +2080,13 @@ global y = 1;
 }
 ";
         let expected = src;
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_quote_with_bracket_delimiter() {
+        let src = "global x = quote [ 1  2  3 $four $(five) ];";
+        let expected = "global x = quote [ 1  2  3 $four $(five) ];\n";
         assert_format(src, expected);
     }
 

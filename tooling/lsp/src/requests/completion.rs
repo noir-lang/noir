@@ -26,20 +26,21 @@ use noirc_frontend::{
     graph::{CrateId, Dependency},
     hir::{
         def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId},
-        resolution::visibility::{method_call_is_visible, struct_member_is_visible},
+        resolution::visibility::{
+            item_in_module_is_visible, method_call_is_visible, struct_member_is_visible,
+        },
     },
     hir_def::traits::Trait,
     node_interner::{NodeInterner, ReferenceId, StructId},
     parser::{Item, ItemKind, ParsedSubModule},
-    token::{CustomAttribute, Token, Tokens},
+    token::{MetaAttribute, Token, Tokens},
     Kind, ParsedModule, StructType, Type, TypeBinding,
 };
 use sort_text::underscore_sort_text;
 
 use crate::{
     requests::to_lsp_location, trait_impl_method_stub_generator::TraitImplMethodStubGenerator,
-    use_segment_positions::UseSegmentPositions, utils, visibility::item_in_module_is_visible,
-    LspState,
+    use_segment_positions::UseSegmentPositions, utils, LspState,
 };
 
 use super::process_request;
@@ -583,6 +584,14 @@ impl<'a> NodeFinder<'a> {
                     self_prefix,
                 );
             }
+            Type::CheckedCast { to, .. } => {
+                return self.complete_type_fields_and_methods(
+                    to,
+                    prefix,
+                    function_completion_kind,
+                    self_prefix,
+                );
+            }
             Type::Tuple(types) => {
                 self.complete_tuple_fields(types, self_prefix);
             }
@@ -636,55 +645,53 @@ impl<'a> NodeFinder<'a> {
 
         let struct_id = get_type_struct_id(typ);
         let is_primitive = typ.is_primitive();
+        let has_self_param = matches!(function_kind, FunctionKind::SelfType(..));
 
         for (name, methods) in methods_by_name {
-            for (func_id, method_type) in methods.iter() {
-                if function_kind == FunctionKind::Any {
-                    if let Some(method_type) = method_type {
-                        if method_type.unify(typ).is_err() {
-                            continue;
-                        }
-                    }
-                }
+            let Some(func_id) =
+                methods.find_matching_method(typ, has_self_param, self.interner).or_else(|| {
+                    // Also try to find a method assuming typ is `&mut typ`:
+                    // we want to suggest methods that take `&mut self` even though a variable might not
+                    // be mutable, so a user can know they need to mark it as mutable.
+                    let typ = Type::MutableReference(Box::new(typ.clone()));
+                    methods.find_matching_method(&typ, has_self_param, self.interner)
+                })
+            else {
+                continue;
+            };
 
-                if let Some(struct_id) = struct_id {
-                    let modifiers = self.interner.function_modifiers(&func_id);
-                    let visibility = modifiers.visibility;
-                    if !struct_member_is_visible(
-                        struct_id,
-                        visibility,
-                        self.module_id,
-                        self.def_maps,
-                    ) {
-                        continue;
-                    }
-                }
-
-                if is_primitive
-                    && !method_call_is_visible(
-                        typ,
-                        func_id,
-                        self.module_id,
-                        self.interner,
-                        self.def_maps,
-                    )
-                {
+            if let Some(struct_id) = struct_id {
+                let modifiers = self.interner.function_modifiers(&func_id);
+                let visibility = modifiers.visibility;
+                if !struct_member_is_visible(struct_id, visibility, self.module_id, self.def_maps) {
                     continue;
                 }
+            }
 
-                if name_matches(name, prefix) {
-                    let completion_items = self.function_completion_items(
-                        name,
-                        func_id,
-                        function_completion_kind,
-                        function_kind,
-                        None, // attribute first type
-                        self_prefix,
-                    );
-                    if !completion_items.is_empty() {
-                        self.completion_items.extend(completion_items);
-                        self.suggested_module_def_ids.insert(ModuleDefId::FunctionId(func_id));
-                    }
+            if is_primitive
+                && !method_call_is_visible(
+                    typ,
+                    func_id,
+                    self.module_id,
+                    self.interner,
+                    self.def_maps,
+                )
+            {
+                continue;
+            }
+
+            if name_matches(name, prefix) {
+                let completion_items = self.function_completion_items(
+                    name,
+                    func_id,
+                    function_completion_kind,
+                    function_kind,
+                    None, // attribute first type
+                    self_prefix,
+                );
+                if !completion_items.is_empty() {
+                    self.completion_items.extend(completion_items);
+                    self.suggested_module_def_ids.insert(ModuleDefId::FunctionId(func_id));
                 }
             }
         }
@@ -799,10 +806,10 @@ impl<'a> NodeFinder<'a> {
                 let per_ns = module_data.find_name(ident);
                 if let Some((module_def_id, visibility, _)) = per_ns.types {
                     if item_in_module_is_visible(
-                        module_id,
-                        self.module_id,
-                        visibility,
                         self.def_maps,
+                        self.module_id,
+                        module_id,
+                        visibility,
                     ) {
                         let completion_items = self.module_def_id_completion_items(
                             module_def_id,
@@ -820,10 +827,10 @@ impl<'a> NodeFinder<'a> {
 
                 if let Some((module_def_id, visibility, _)) = per_ns.values {
                     if item_in_module_is_visible(
-                        module_id,
-                        self.module_id,
-                        visibility,
                         self.def_maps,
+                        self.module_id,
+                        module_id,
+                        visibility,
                     ) {
                         let completion_items = self.module_def_id_completion_items(
                             module_def_id,
@@ -890,24 +897,6 @@ impl<'a> NodeFinder<'a> {
         }
 
         None
-    }
-
-    fn suggest_attributes(&mut self, prefix: &str, target: AttributeTarget) {
-        self.suggest_builtin_attributes(prefix, target);
-
-        let function_completion_kind = FunctionCompletionKind::NameAndParameters;
-        let requested_items = RequestedItems::OnlyAttributeFunctions(target);
-
-        self.complete_in_module(
-            self.module_id,
-            prefix,
-            PathKind::Plain,
-            true,
-            function_completion_kind,
-            requested_items,
-        );
-
-        self.complete_auto_imports(prefix, requested_items, function_completion_kind);
     }
 
     fn suggest_no_arguments_attributes(&mut self, prefix: &str, attributes: &[&str]) {
@@ -1666,12 +1655,14 @@ impl<'a> Visitor for NodeFinder<'a> {
         false
     }
 
-    fn visit_custom_attribute(&mut self, attribute: &CustomAttribute, target: AttributeTarget) {
-        if self.byte_index != attribute.contents_span.end() as usize {
-            return;
+    fn visit_meta_attribute(&mut self, attribute: &MetaAttribute, target: AttributeTarget) -> bool {
+        if self.byte_index == attribute.name.span.end() as usize {
+            self.suggest_builtin_attributes(&attribute.name.to_string(), target);
         }
 
-        self.suggest_attributes(&attribute.contents, target);
+        self.find_in_path(&attribute.name, RequestedItems::OnlyAttributeFunctions(target));
+
+        true
     }
 
     fn visit_quote(&mut self, tokens: &Tokens) {

@@ -11,6 +11,7 @@ use crate::graph::{CrateGraph, CrateId};
 use crate::hir_def::function::FuncMeta;
 use crate::node_interner::{FuncId, NodeInterner, StructId};
 use crate::parser::ParserError;
+use crate::usage_tracker::UsageTracker;
 use crate::{Generics, Kind, ParsedModule, ResolvedGeneric, TypeVariable};
 use def_collector::dc_crate::CompilationError;
 use def_map::{Contract, CrateDefMap};
@@ -33,6 +34,7 @@ pub struct Context<'file_manager, 'parsed_files> {
     pub def_interner: NodeInterner,
     pub crate_graph: CrateGraph,
     pub def_maps: BTreeMap<CrateId, CrateDefMap>,
+    pub usage_tracker: UsageTracker,
     // In the WASM context, we take ownership of the file manager,
     // which is why this needs to be a Cow. In all use-cases, the file manager
     // is read-only however, once it has been passed to the Context.
@@ -64,6 +66,7 @@ impl Context<'_, '_> {
         Context {
             def_interner: NodeInterner::default(),
             def_maps: BTreeMap::new(),
+            usage_tracker: UsageTracker::default(),
             visited_files: BTreeMap::new(),
             crate_graph: CrateGraph::default(),
             file_manager: Cow::Owned(file_manager),
@@ -80,6 +83,7 @@ impl Context<'_, '_> {
         Context {
             def_interner: NodeInterner::default(),
             def_maps: BTreeMap::new(),
+            usage_tracker: UsageTracker::default(),
             visited_files: BTreeMap::new(),
             crate_graph: CrateGraph::default(),
             file_manager: Cow::Borrowed(file_manager),

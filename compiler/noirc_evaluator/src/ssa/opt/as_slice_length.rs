@@ -33,7 +33,7 @@ impl Function {
     }
 }
 
-fn known_slice_lengths(func: &Function) -> HashMap<InstructionId, usize> {
+fn known_slice_lengths(func: &Function) -> HashMap<InstructionId, u32> {
     let mut known_slice_lengths = HashMap::default();
     for block_id in func.reachable_blocks() {
         let block = &func.dfg[block_id];
@@ -61,7 +61,7 @@ fn known_slice_lengths(func: &Function) -> HashMap<InstructionId, usize> {
 
 fn replace_known_slice_lengths(
     func: &mut Function,
-    known_slice_lengths: HashMap<InstructionId, usize>,
+    known_slice_lengths: HashMap<InstructionId, u32>,
 ) {
     known_slice_lengths.into_iter().for_each(|(instruction_id, known_length)| {
         let call_returns = func.dfg.instruction_results(instruction_id);
@@ -74,4 +74,35 @@ fn replace_known_slice_lengths(
         let known_length = func.dfg.make_constant(known_length.into(), Type::length_type());
         func.dfg.set_value_from_id(original_slice_length, known_length);
     });
+}
+
+#[cfg(test)]
+mod test {
+    use crate::ssa::opt::assert_normalized_ssa_equals;
+
+    use super::Ssa;
+
+    #[test]
+    fn as_slice_length_optimization() {
+        // In this code we expect `return v2` to be replaced with `return u32 3` because
+        // that's the length of the v0 array.
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: [Field; 3]):
+                v2, v3 = call as_slice(v0) -> (u32, [Field])
+                return v2
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let expected = "
+            acir(inline) fn main f0 {
+              b0(v0: [Field; 3]):
+                v2, v3 = call as_slice(v0) -> (u32, [Field])
+                return u32 3
+            }
+            ";
+        let ssa = ssa.as_slice_optimization();
+        assert_normalized_ssa_equals(ssa, expected);
+    }
 }

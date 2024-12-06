@@ -1,9 +1,8 @@
 use acir::brillig::{BlackBoxOp, HeapArray, HeapVector, IntegerBitSize};
 use acir::{AcirField, BlackBoxFunc};
-use acvm_blackbox_solver::BigIntSolver;
 use acvm_blackbox_solver::{
     aes128_encrypt, blake2s, blake3, ecdsa_secp256k1_verify, ecdsa_secp256r1_verify, keccakf1600,
-    sha256_compression, BlackBoxFunctionSolver, BlackBoxResolutionError,
+    sha256_compression, BigIntSolverWithId, BlackBoxFunctionSolver, BlackBoxResolutionError,
 };
 use num_bigint::BigUint;
 use num_traits::Zero;
@@ -39,11 +38,13 @@ fn to_value_vec<F: AcirField>(input: &[u8]) -> Vec<MemoryValue<F>> {
     input.iter().map(|&x| x.into()).collect()
 }
 
+pub(crate) type BrilligBigIntSolver = BigIntSolverWithId;
+
 pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>>(
     op: &BlackBoxOp,
     solver: &Solver,
     memory: &mut Memory<F>,
-    bigint_solver: &mut BrilligBigintSolver,
+    bigint_solver: &mut BrilligBigIntSolver,
 ) -> Result<(), BlackBoxResolutionError> {
     match op {
         BlackBoxOp::AES128Encrypt { inputs, iv, key, outputs } => {
@@ -56,7 +57,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             })?;
             let key: [u8; 16] =
                 to_u8_vec(read_heap_array(memory, key)).try_into().map_err(|_| {
-                    BlackBoxResolutionError::Failed(bb_func, "Invalid ley length".to_string())
+                    BlackBoxResolutionError::Failed(bb_func, "Invalid key length".to_string())
                 })?;
             let ciphertext = aes128_encrypt(&inputs, iv, key)?;
 
@@ -330,18 +331,18 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             let mut input = BigUint::from_bytes_be(&input.to_be_bytes());
             let radix = BigUint::from_bytes_be(&radix.to_be_bytes());
 
-            let mut limbs: Vec<MemoryValue<F>> = Vec::with_capacity(output.size);
+            let mut limbs: Vec<MemoryValue<F>> = vec![MemoryValue::default(); output.size];
 
-            for _ in 0..output.size {
+            for i in (0..output.size).rev() {
                 let limb = &input % &radix;
                 if *output_bits {
-                    limbs.push(MemoryValue::new_integer(
+                    limbs[i] = MemoryValue::new_integer(
                         if limb.is_zero() { 0 } else { 1 },
                         IntegerBitSize::U1,
-                    ));
+                    );
                 } else {
                     let limb: u8 = limb.try_into().unwrap();
-                    limbs.push(MemoryValue::new_integer(limb as u128, IntegerBitSize::U8));
+                    limbs[i] = MemoryValue::new_integer(limb as u128, IntegerBitSize::U8);
                 };
                 input /= &radix;
             }
@@ -350,54 +351,6 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
 
             Ok(())
         }
-    }
-}
-
-/// Wrapper over the generic bigint solver to automatically assign bigint ids in brillig
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
-pub(crate) struct BrilligBigintSolver {
-    bigint_solver: BigIntSolver,
-    last_id: u32,
-}
-
-impl BrilligBigintSolver {
-    pub(crate) fn create_bigint_id(&mut self) -> u32 {
-        let output = self.last_id;
-        self.last_id += 1;
-        output
-    }
-
-    pub(crate) fn bigint_from_bytes(
-        &mut self,
-        inputs: &[u8],
-        modulus: &[u8],
-    ) -> Result<u32, BlackBoxResolutionError> {
-        let id = self.create_bigint_id();
-        self.bigint_solver.bigint_from_bytes(inputs, modulus, id)?;
-        Ok(id)
-    }
-
-    pub(crate) fn bigint_to_bytes(&self, input: u32) -> Result<Vec<u8>, BlackBoxResolutionError> {
-        self.bigint_solver.bigint_to_bytes(input)
-    }
-
-    pub(crate) fn bigint_op(
-        &mut self,
-        lhs: u32,
-        rhs: u32,
-        func: BlackBoxFunc,
-    ) -> Result<u32, BlackBoxResolutionError> {
-        let modulus_lhs = self.bigint_solver.get_modulus(lhs, func)?;
-        let modulus_rhs = self.bigint_solver.get_modulus(rhs, func)?;
-        if modulus_lhs != modulus_rhs {
-            return Err(BlackBoxResolutionError::Failed(
-                func,
-                "moduli should be identical in BigInt operation".to_string(),
-            ));
-        }
-        let id = self.create_bigint_id();
-        self.bigint_solver.bigint_op(lhs, rhs, id, func)?;
-        Ok(id)
     }
 }
 

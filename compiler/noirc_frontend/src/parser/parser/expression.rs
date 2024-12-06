@@ -4,7 +4,7 @@ use noirc_errors::Span;
 use crate::{
     ast::{
         ArrayLiteral, BlockExpression, CallExpression, CastExpression, ConstructorExpression,
-        Expression, ExpressionKind, GenericTypeArgs, Ident, IfExpression, IndexExpression, Literal,
+        Expression, ExpressionKind, Ident, IfExpression, IndexExpression, Literal,
         MemberAccessExpression, MethodCallExpression, Statement, TypePath, UnaryOp, UnresolvedType,
     },
     parser::{labels::ParsingRuleLabel, parser::parse_many::separated_by_comma, ParserErrorReason},
@@ -428,8 +428,8 @@ impl<'a> Parser<'a> {
         Some(if self.eat_colon() {
             let expression = self.parse_expression_or_error();
             (ident, expression)
-        } else if self.at(Token::Assign) {
-            // If we find '=' instead of ':', assume the user meant ':`, error and continue
+        } else if self.at(Token::DoubleColon) || self.at(Token::Assign) {
+            // If we find '='  or '::' instead of ':', assume the user meant ':`, error and continue
             self.expected_token(Token::Colon);
             self.bump();
             let expression = self.parse_expression_or_error();
@@ -548,15 +548,13 @@ impl<'a> Parser<'a> {
             Ident::new(String::new(), self.span_at_previous_token_end())
         };
 
-        let turbofish = if self.eat_double_colon() {
+        let turbofish = self.eat_double_colon().then(|| {
             let generics = self.parse_generic_type_args();
             if generics.is_empty() {
                 self.expected_token(Token::Less);
             }
             generics
-        } else {
-            GenericTypeArgs::default()
-        };
+        });
 
         Some(ExpressionKind::TypePath(TypePath { typ, item, turbofish }))
     }
@@ -1372,6 +1370,34 @@ mod tests {
     }
 
     #[test]
+    fn parses_constructor_recovers_if_double_colon_instead_of_colon() {
+        let src = "
+        Foo { x: 1, y:: z }
+                     ^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str(&src);
+        let expr = parser.parse_expression_or_error();
+
+        let error = get_single_error(&parser.errors, span);
+        assert_eq!(error.to_string(), "Expected a ':' but found '::'");
+
+        let ExpressionKind::Constructor(mut constructor) = expr.kind else {
+            panic!("Expected constructor");
+        };
+        assert_eq!(constructor.typ.to_string(), "Foo");
+        assert_eq!(constructor.fields.len(), 2);
+
+        let (name, expr) = constructor.fields.remove(0);
+        assert_eq!(name.to_string(), "x");
+        assert_eq!(expr.to_string(), "1");
+
+        let (name, expr) = constructor.fields.remove(0);
+        assert_eq!(name.to_string(), "y");
+        assert_eq!(expr.to_string(), "z");
+    }
+
+    #[test]
     fn parses_parses_if_true() {
         let src = "if true { 1 }";
         let expr = parse_expression_no_errors(src);
@@ -1587,7 +1613,7 @@ mod tests {
         };
         assert_eq!(type_path.typ.to_string(), "Field");
         assert_eq!(type_path.item.to_string(), "foo");
-        assert!(type_path.turbofish.is_empty());
+        assert!(type_path.turbofish.is_none());
     }
 
     #[test]
@@ -1599,7 +1625,7 @@ mod tests {
         };
         assert_eq!(type_path.typ.to_string(), "Field");
         assert_eq!(type_path.item.to_string(), "foo");
-        assert!(!type_path.turbofish.is_empty());
+        assert!(type_path.turbofish.is_some());
     }
 
     #[test]

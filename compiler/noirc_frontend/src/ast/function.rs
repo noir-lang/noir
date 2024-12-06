@@ -29,14 +29,13 @@ pub enum FunctionKind {
     Builtin,
     Normal,
     Oracle,
-    Recursive,
 }
 
 impl FunctionKind {
     pub fn can_ignore_return_type(self) -> bool {
         match self {
             FunctionKind::LowLevel | FunctionKind::Builtin | FunctionKind::Oracle => true,
-            FunctionKind::Normal | FunctionKind::Recursive => false,
+            FunctionKind::Normal => false,
         }
     }
 }
@@ -78,7 +77,7 @@ impl NoirFunction {
         &self.def.attributes
     }
     pub fn function_attribute(&self) -> Option<&FunctionAttribute> {
-        self.def.attributes.function.as_ref()
+        self.def.attributes.function()
     }
     pub fn secondary_attributes(&self) -> &[SecondaryAttribute] {
         self.def.attributes.secondary.as_ref()
@@ -109,12 +108,11 @@ impl NoirFunction {
 impl From<FunctionDefinition> for NoirFunction {
     fn from(fd: FunctionDefinition) -> Self {
         // The function type is determined by the existence of a function attribute
-        let kind = match fd.attributes.function {
+        let kind = match fd.attributes.function() {
             Some(FunctionAttribute::Builtin(_)) => FunctionKind::Builtin,
             Some(FunctionAttribute::Foreign(_)) => FunctionKind::LowLevel,
             Some(FunctionAttribute::Test { .. }) => FunctionKind::Normal,
             Some(FunctionAttribute::Oracle(_)) => FunctionKind::Oracle,
-            Some(FunctionAttribute::Recursive) => FunctionKind::Recursive,
             Some(FunctionAttribute::Fold) => FunctionKind::Normal,
             Some(FunctionAttribute::NoPredicates) => FunctionKind::Normal,
             Some(FunctionAttribute::InlineAlways) => FunctionKind::Normal,

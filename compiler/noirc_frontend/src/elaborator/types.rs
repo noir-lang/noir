@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::BTreeMap, rc::Rc};
+use std::{borrow::Cow, rc::Rc};
 
 use acvm::acir::AcirField;
 use iter_extended::vecmap;
@@ -9,12 +9,11 @@ use crate::{
     ast::{
         AsTraitPath, BinaryOpKind, GenericTypeArgs, Ident, IntegerBitSize, Path, PathKind,
         Signedness, UnaryOp, UnresolvedGeneric, UnresolvedGenerics, UnresolvedType,
-        UnresolvedTypeData, UnresolvedTypeExpression,
+        UnresolvedTypeData, UnresolvedTypeExpression, WILDCARD_TYPE,
     },
     hir::{
         comptime::{Interpreter, Value},
         def_collector::dc_crate::CompilationError,
-        def_map::ModuleDefId,
         resolution::{errors::ResolverError, import::PathResolutionError},
         type_check::{
             generics::{Generic, TraitGenerics},
@@ -26,7 +25,7 @@ use crate::{
             HirBinaryOp, HirCallExpression, HirExpression, HirLiteral, HirMemberAccess,
             HirMethodReference, HirPrefixExpression, TraitMethod,
         },
-        function::{FuncMeta, Parameters},
+        function::FuncMeta,
         stmt::HirStatement,
         traits::{NamedType, ResolvedTraitBound, Trait, TraitConstraint},
     },
@@ -35,18 +34,17 @@ use crate::{
         TraitImplKind, TraitMethodId,
     },
     token::SecondaryAttribute,
-    Generics, Kind, ResolvedGeneric, Type, TypeBinding, TypeBindings, TypeVariable,
-    UnificationError,
+    Generics, Kind, ResolvedGeneric, Type, TypeBinding, TypeBindings, UnificationError,
 };
 
-use super::{lints, Elaborator};
+use super::{lints, path_resolution::PathResolutionItem, Elaborator};
 
 pub const SELF_TYPE_NAME: &str = "Self";
-pub const WILDCARD_TYPE: &str = "_";
 
 pub(super) struct TraitPathResolution {
     pub(super) method: TraitMethod,
-    pub(super) error: Option<PathResolutionError>,
+    pub(super) item: Option<PathResolutionItem>,
+    pub(super) errors: Vec<PathResolutionError>,
 }
 
 impl<'context> Elaborator<'context> {
@@ -192,7 +190,7 @@ impl<'context> Elaborator<'context> {
 
     // Resolve Self::Foo to an associated type on the current trait or trait impl
     fn lookup_associated_type_on_self(&self, path: &Path) -> Option<Type> {
-        if path.segments.len() == 2 && path.first_name() == SELF_TYPE_NAME {
+        if path.segments.len() == 2 && path.first_name() == Some(SELF_TYPE_NAME) {
             if let Some(trait_id) = self.current_trait {
                 let the_trait = self.interner.get_trait(trait_id);
                 if let Some(typ) = the_trait.get_associated_type(path.last_name()) {
@@ -404,7 +402,7 @@ impl<'context> Elaborator<'context> {
 
         // If we cannot find a local generic of the same name, try to look up a global
         match self.resolve_path_or_error(path.clone()) {
-            Ok(ModuleDefId::GlobalId(id)) => {
+            Ok(PathResolutionItem::Global(id)) => {
                 if let Some(current_item) = self.current_item {
                     self.interner.add_global_dependency(current_item, id);
                 }
@@ -414,7 +412,7 @@ impl<'context> Elaborator<'context> {
                 let kind = self
                     .interner
                     .get_global_let_statement(id)
-                    .map(|let_statement| Kind::Numeric(Box::new(let_statement.r#type)))
+                    .map(|let_statement| Kind::numeric(let_statement.r#type))
                     .unwrap_or(Kind::u32());
 
                 // TODO(https://github.com/noir-lang/noir/issues/6238):
@@ -462,14 +460,26 @@ impl<'context> Elaborator<'context> {
                             });
                             return Type::Error;
                         }
-                        if let Some(result) = op.function(lhs, rhs, &lhs_kind) {
-                            Type::Constant(result, lhs_kind)
-                        } else {
-                            self.push_err(ResolverError::OverflowInType { lhs, op, rhs, span });
-                            Type::Error
+                        match op.function(lhs, rhs, &lhs_kind, span) {
+                            Ok(result) => Type::Constant(result, lhs_kind),
+                            Err(err) => {
+                                let err = Box::new(err);
+                                self.push_err(ResolverError::BinaryOpError {
+                                    lhs,
+                                    op,
+                                    rhs,
+                                    err,
+                                    span,
+                                });
+                                Type::Error
+                            }
                         }
                     }
-                    (lhs, rhs) => Type::InfixExpr(Box::new(lhs), op, Box::new(rhs)).canonicalize(),
+                    (lhs, rhs) => {
+                        let infix = Type::InfixExpr(Box::new(lhs), op, Box::new(rhs));
+                        Type::CheckedCast { from: Box::new(infix.clone()), to: Box::new(infix) }
+                            .canonicalize()
+                    }
                 }
             }
             UnresolvedTypeExpression::AsTraitPath(path) => {
@@ -551,7 +561,8 @@ impl<'context> Elaborator<'context> {
                 let constraint = the_trait.as_constraint(path.span);
                 return Some(TraitPathResolution {
                     method: TraitMethod { method_id: method, constraint, assumed: true },
-                    error: None,
+                    item: None,
+                    errors: Vec::new(),
                 });
             }
         }
@@ -564,15 +575,15 @@ impl<'context> Elaborator<'context> {
     // E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
     fn resolve_trait_static_method(&mut self, path: &Path) -> Option<TraitPathResolution> {
         let path_resolution = self.resolve_path(path.clone()).ok()?;
-        let ModuleDefId::FunctionId(func_id) = path_resolution.module_def_id else { return None };
-
+        let func_id = path_resolution.item.function_id()?;
         let meta = self.interner.function_meta(&func_id);
         let the_trait = self.interner.get_trait(meta.trait_id?);
         let method = the_trait.find_method(path.last_name())?;
         let constraint = the_trait.as_constraint(path.span);
         Some(TraitPathResolution {
             method: TraitMethod { method_id: method, constraint, assumed: false },
-            error: path_resolution.error,
+            item: Some(path_resolution.item),
+            errors: path_resolution.errors,
         })
     }
 
@@ -600,7 +611,8 @@ impl<'context> Elaborator<'context> {
                 if let Some(method) = the_trait.find_method(path.last_name()) {
                     return Some(TraitPathResolution {
                         method: TraitMethod { method_id: method, constraint, assumed: true },
-                        error: None,
+                        item: None,
+                        errors: Vec::new(),
                     });
                 }
             }
@@ -1309,11 +1321,23 @@ impl<'context> Elaborator<'context> {
                 {
                     Some(method_id) => Some(HirMethodReference::FuncId(method_id)),
                     None => {
-                        self.push_err(TypeCheckError::UnresolvedMethodCall {
-                            method_name: method_name.to_string(),
-                            object_type: object_type.clone(),
-                            span,
-                        });
+                        let has_field_with_function_type =
+                            typ.borrow().get_fields_as_written().into_iter().any(|field| {
+                                field.name.0.contents == method_name && field.typ.is_function()
+                            });
+                        if has_field_with_function_type {
+                            self.push_err(TypeCheckError::CannotInvokeStructFieldFunctionType {
+                                method_name: method_name.to_string(),
+                                object_type: object_type.clone(),
+                                span,
+                            });
+                        } else {
+                            self.push_err(TypeCheckError::UnresolvedMethodCall {
+                                method_name: method_name.to_string(),
+                                object_type: object_type.clone(),
+                                span,
+                            });
+                        }
                         None
                     }
                 }
@@ -1711,105 +1735,6 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    pub fn find_numeric_generics(
-        parameters: &Parameters,
-        return_type: &Type,
-    ) -> Vec<(String, TypeVariable)> {
-        let mut found = BTreeMap::new();
-        for (_, parameter, _) in &parameters.0 {
-            Self::find_numeric_generics_in_type(parameter, &mut found);
-        }
-        Self::find_numeric_generics_in_type(return_type, &mut found);
-        found.into_iter().collect()
-    }
-
-    fn find_numeric_generics_in_type(typ: &Type, found: &mut BTreeMap<String, TypeVariable>) {
-        match typ {
-            Type::FieldElement
-            | Type::Integer(_, _)
-            | Type::Bool
-            | Type::Unit
-            | Type::Error
-            | Type::TypeVariable(_)
-            | Type::Constant(..)
-            | Type::NamedGeneric(_, _)
-            | Type::Quoted(_)
-            | Type::Forall(_, _) => (),
-
-            Type::TraitAsType(_, _, args) => {
-                for arg in &args.ordered {
-                    Self::find_numeric_generics_in_type(arg, found);
-                }
-                for arg in &args.named {
-                    Self::find_numeric_generics_in_type(&arg.typ, found);
-                }
-            }
-
-            Type::Array(length, element_type) => {
-                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
-                    found.insert(name.to_string(), type_variable.clone());
-                }
-                Self::find_numeric_generics_in_type(element_type, found);
-            }
-
-            Type::Slice(element_type) => {
-                Self::find_numeric_generics_in_type(element_type, found);
-            }
-
-            Type::Tuple(fields) => {
-                for field in fields {
-                    Self::find_numeric_generics_in_type(field, found);
-                }
-            }
-
-            Type::Function(parameters, return_type, _env, _unconstrained) => {
-                for parameter in parameters {
-                    Self::find_numeric_generics_in_type(parameter, found);
-                }
-                Self::find_numeric_generics_in_type(return_type, found);
-            }
-
-            Type::Struct(struct_type, generics) => {
-                for (i, generic) in generics.iter().enumerate() {
-                    if let Type::NamedGeneric(type_variable, name) = generic {
-                        if struct_type.borrow().generics[i].is_numeric() {
-                            found.insert(name.to_string(), type_variable.clone());
-                        }
-                    } else {
-                        Self::find_numeric_generics_in_type(generic, found);
-                    }
-                }
-            }
-            Type::Alias(alias, generics) => {
-                for (i, generic) in generics.iter().enumerate() {
-                    if let Type::NamedGeneric(type_variable, name) = generic {
-                        if alias.borrow().generics[i].is_numeric() {
-                            found.insert(name.to_string(), type_variable.clone());
-                        }
-                    } else {
-                        Self::find_numeric_generics_in_type(generic, found);
-                    }
-                }
-            }
-            Type::MutableReference(element) => Self::find_numeric_generics_in_type(element, found),
-            Type::String(length) => {
-                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
-                    found.insert(name.to_string(), type_variable.clone());
-                }
-            }
-            Type::FmtString(length, fields) => {
-                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
-                    found.insert(name.to_string(), type_variable.clone());
-                }
-                Self::find_numeric_generics_in_type(fields, found);
-            }
-            Type::InfixExpr(lhs, _op, rhs) => {
-                Self::find_numeric_generics_in_type(lhs, found);
-                Self::find_numeric_generics_in_type(rhs, found);
-            }
-        }
-    }
-
     /// Push a type variable into the current FunctionContext to be defaulted if needed
     /// at the end of the earlier of either the current function or the current comptime scope.
     fn push_type_variable(&mut self, typ: Type) {
@@ -1824,19 +1749,6 @@ impl<'context> Elaborator<'context> {
         let context = self.function_context.last_mut();
         let context = context.expect("The function_context stack should always be non-empty");
         context.trait_constraints.push((constraint, expr_id));
-    }
-
-    pub fn check_unsupported_turbofish_usage(&mut self, path: &Path, exclude_last_segment: bool) {
-        for (index, segment) in path.segments.iter().enumerate() {
-            if exclude_last_segment && index == path.segments.len() - 1 {
-                continue;
-            }
-
-            if segment.generics.is_some() {
-                let span = segment.turbofish_span();
-                self.push_err(TypeCheckError::UnsupportedTurbofishUsage { span });
-            }
-        }
     }
 
     pub fn bind_generics_from_trait_constraint(

@@ -76,7 +76,16 @@ impl<'context> Elaborator<'context> {
     ) -> (HirStatement, Type) {
         let expr_span = let_stmt.expression.span;
         let (expression, expr_type) = self.elaborate_expression(let_stmt.expression);
+        let type_contains_unspecified = let_stmt.r#type.contains_unspecified();
         let annotated_type = self.resolve_inferred_type(let_stmt.r#type);
+
+        // Require the top-level of a global's type to be fully-specified
+        if type_contains_unspecified && global_id.is_some() {
+            let span = expr_span;
+            let expected_type = annotated_type.clone();
+            let error = ResolverError::UnspecifiedGlobalType { span, expected_type };
+            self.push_err(error);
+        }
 
         let definition = match global_id {
             None => DefinitionKind::Local(Some(expression)),
@@ -293,7 +302,8 @@ impl<'context> Elaborator<'context> {
                 let mut mutable = true;
                 let span = ident.span();
                 let path = Path::from_single(ident.0.contents, span);
-                let (ident, scope_index) = self.get_ident_from_path(path);
+                let ((ident, scope_index), _) = self.get_ident_from_path(path);
+
                 self.resolve_local_variable(ident.clone(), scope_index);
 
                 let typ = if ident.id == DefinitionId::dummy_id() {
@@ -508,6 +518,10 @@ impl<'context> Elaborator<'context> {
         visibility: ItemVisibility,
         span: Span,
     ) {
+        if self.silence_field_visibility_errors > 0 {
+            return;
+        }
+
         if !struct_member_is_visible(struct_type.id, visibility, self.module_id(), self.def_maps) {
             self.push_err(ResolverError::PathResolutionError(PathResolutionError::Private(
                 Ident::new(field_name.to_string(), span),

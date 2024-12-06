@@ -74,8 +74,9 @@ pub(crate) struct DataFlowGraph {
     blocks: DenseMap<BasicBlock>,
 
     /// Debugging information about which `ValueId`s have had their underlying `Value` substituted
-    /// for that of another. This information is purely used for printing the SSA, and has no
-    /// material effect on the SSA itself.
+    /// for that of another. In theory this information is purely used for printing the SSA,
+    /// and has no material effect on the SSA itself, however in practice the IDs can get out of
+    /// sync and may need this resolution before they can be compared.
     #[serde(skip)]
     replaced_value_ids: HashMap<ValueId, ValueId>,
 
@@ -265,12 +266,6 @@ impl DataFlowGraph {
         id
     }
 
-    /// Create a new constant array value from the given elements
-    pub(crate) fn make_array(&mut self, array: im::Vector<ValueId>, typ: Type) -> ValueId {
-        assert!(matches!(typ, Type::Array(..) | Type::Slice(_)));
-        self.make_value(Value::Array { array, typ })
-    }
-
     /// Gets or creates a ValueId for the given FunctionId.
     pub(crate) fn import_function(&mut self, function: FunctionId) -> ValueId {
         if let Some(existing) = self.functions.get(&function) {
@@ -312,13 +307,13 @@ impl DataFlowGraph {
         instruction_id: InstructionId,
         ctrl_typevars: Option<Vec<Type>>,
     ) {
-        self.results.insert(instruction_id, Default::default());
+        let result_types = self.instruction_result_types(instruction_id, ctrl_typevars);
+        let results = vecmap(result_types.into_iter().enumerate(), |(position, typ)| {
+            let instruction = instruction_id;
+            self.values.insert(Value::Instruction { typ, position, instruction })
+        });
 
-        // Get all of the types that this instruction produces
-        // and append them as results.
-        for typ in self.instruction_result_types(instruction_id, ctrl_typevars) {
-            self.append_result(instruction_id, typ);
-        }
+        self.results.insert(instruction_id, results);
     }
 
     /// Return the result types of this instruction.
@@ -373,22 +368,6 @@ impl DataFlowGraph {
     /// Using this method over type_of_value avoids cloning the value's type.
     pub(crate) fn value_is_reference(&self, value: ValueId) -> bool {
         matches!(self.values[value].get_type(), Type::Reference(_))
-    }
-
-    /// Appends a result type to the instruction.
-    pub(crate) fn append_result(&mut self, instruction_id: InstructionId, typ: Type) -> ValueId {
-        let results = self.results.get_mut(&instruction_id).unwrap();
-        let expected_res_position = results.len();
-
-        let value_id = self.values.insert(Value::Instruction {
-            typ,
-            position: expected_res_position,
-            instruction: instruction_id,
-        });
-
-        // Add value to the list of results for this instruction
-        results.push(value_id);
-        value_id
     }
 
     /// Replaces an instruction result with a fresh id.
@@ -457,15 +436,18 @@ impl DataFlowGraph {
     /// Otherwise, this returns None.
     pub(crate) fn get_array_constant(&self, value: ValueId) -> Option<(im::Vector<ValueId>, Type)> {
         match &self.values[self.resolve(value)] {
+            Value::Instruction { instruction, .. } => match &self.instructions[*instruction] {
+                Instruction::MakeArray { elements, typ } => Some((elements.clone(), typ.clone())),
+                _ => None,
+            },
             // Arrays are shared, so cloning them is cheap
-            Value::Array { array, typ } => Some((array.clone(), typ.clone())),
             _ => None,
         }
     }
 
     /// If this value is an array, return the length of the array as indicated by its type.
     /// Otherwise, return None.
-    pub(crate) fn try_get_array_length(&self, value: ValueId) -> Option<usize> {
+    pub(crate) fn try_get_array_length(&self, value: ValueId) -> Option<u32> {
         match self.type_of_value(value) {
             Type::Array(_, length) => Some(length),
             _ => None,
@@ -521,8 +503,13 @@ impl DataFlowGraph {
     /// True if the given ValueId refers to a (recursively) constant value
     pub(crate) fn is_constant(&self, argument: ValueId) -> bool {
         match &self[self.resolve(argument)] {
-            Value::Instruction { .. } | Value::Param { .. } => false,
-            Value::Array { array, .. } => array.iter().all(|element| self.is_constant(*element)),
+            Value::Param { .. } => false,
+            Value::Instruction { instruction, .. } => match &self[*instruction] {
+                Instruction::MakeArray { elements, .. } => {
+                    elements.iter().all(|element| self.is_constant(*element))
+                }
+                _ => false,
+            },
             _ => true,
         }
     }
@@ -574,6 +561,7 @@ impl std::ops::IndexMut<BasicBlockId> for DataFlowGraph {
 // The result of calling DataFlowGraph::insert_instruction can
 // be a list of results or a single ValueId if the instruction was simplified
 // to an existing value.
+#[derive(Debug)]
 pub(crate) enum InsertInstructionResult<'dfg> {
     /// Results is the standard case containing the instruction id and the results of that instruction.
     Results(InstructionId, &'dfg [ValueId]),

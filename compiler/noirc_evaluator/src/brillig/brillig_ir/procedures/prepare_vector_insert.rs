@@ -2,7 +2,7 @@ use std::vec;
 
 use acvm::{acir::brillig::MemoryAddress, AcirField};
 
-use super::ProcedureId;
+use super::{prepare_vector_push::reallocate_vector_for_insertion, ProcedureId};
 use crate::brillig::brillig_ir::{
     brillig_variable::{BrilligVector, SingleAddrVariable},
     debug_show::DebugToString,
@@ -58,9 +58,19 @@ pub(super) fn compile_prepare_vector_insert_procedure<F: AcirField + DebugToStri
     let target_vector = BrilligVector { pointer: new_vector_pointer_return };
     let index = SingleAddrVariable::new_usize(index_arg);
 
-    // First we need to allocate the target vector incrementing the size by items.len()
-    let source_size = brillig_context.codegen_make_vector_length(source_vector);
+    let source_rc = SingleAddrVariable::new_usize(brillig_context.allocate_register());
+    let source_size = SingleAddrVariable::new_usize(brillig_context.allocate_register());
+    let source_capacity = SingleAddrVariable::new_usize(brillig_context.allocate_register());
+    let source_items_pointer = SingleAddrVariable::new_usize(brillig_context.allocate_register());
+    brillig_context.codegen_read_vector_metadata(
+        source_vector,
+        source_rc,
+        source_size,
+        source_capacity,
+        source_items_pointer,
+    );
 
+    // Target size is source size + item_count
     let target_size = SingleAddrVariable::new_usize(brillig_context.allocate_register());
     brillig_context.memory_op_instruction(
         source_size.address,
@@ -69,24 +79,40 @@ pub(super) fn compile_prepare_vector_insert_procedure<F: AcirField + DebugToStri
         BrilligBinaryOp::Add,
     );
 
-    brillig_context.codegen_initialize_vector(target_vector, target_size);
+    // Reallocate the target vector if necessary
+    reallocate_vector_for_insertion(
+        brillig_context,
+        source_vector,
+        source_rc,
+        source_capacity,
+        target_vector,
+        target_size,
+    );
 
-    // Copy the elements to the left of the index
-    let source_vector_items_pointer =
-        brillig_context.codegen_make_vector_items_pointer(source_vector);
     let target_vector_items_pointer =
         brillig_context.codegen_make_vector_items_pointer(target_vector);
 
-    brillig_context.codegen_mem_copy(
-        source_vector_items_pointer,
-        target_vector_items_pointer,
-        index,
+    let was_reused = SingleAddrVariable::new(brillig_context.allocate_register(), 1);
+    brillig_context.memory_op_instruction(
+        source_vector.pointer,
+        target_vector.pointer,
+        was_reused.address,
+        BrilligBinaryOp::Equals,
     );
+
+    brillig_context.codegen_if_not(was_reused.address, |brillig_context| {
+        // Copy the elements to the left of the index
+        brillig_context.codegen_mem_copy(
+            source_items_pointer.address,
+            target_vector_items_pointer,
+            index,
+        );
+    });
 
     // Compute the source pointer just at the index
     let source_pointer_at_index = brillig_context.allocate_register();
     brillig_context.memory_op_instruction(
-        source_vector_items_pointer,
+        source_items_pointer.address,
         index_arg,
         source_pointer_at_index,
         BrilligBinaryOp::Add,
@@ -108,27 +134,30 @@ pub(super) fn compile_prepare_vector_insert_procedure<F: AcirField + DebugToStri
         BrilligBinaryOp::Add,
     );
 
-    // Compute the number of elements to the right of the index
-    let item_count = brillig_context.allocate_register();
+    // Compute the number of elements to the right of the insertion index
+    let element_count_to_the_right = brillig_context.allocate_register();
     brillig_context.memory_op_instruction(
         source_size.address,
         index.address,
-        item_count,
+        element_count_to_the_right,
         BrilligBinaryOp::Sub,
     );
 
     // Copy the elements to the right of the index
-    brillig_context.codegen_mem_copy(
+    brillig_context.codegen_mem_copy_from_the_end(
         source_pointer_at_index,
         target_pointer_after_index,
-        SingleAddrVariable::new_usize(item_count),
+        SingleAddrVariable::new_usize(element_count_to_the_right),
     );
 
+    brillig_context.deallocate_single_addr(source_rc);
+    brillig_context.deallocate_single_addr(source_size);
+    brillig_context.deallocate_single_addr(source_capacity);
+    brillig_context.deallocate_single_addr(source_items_pointer);
+    brillig_context.deallocate_single_addr(target_size);
+    brillig_context.deallocate_register(target_vector_items_pointer);
+    brillig_context.deallocate_single_addr(was_reused);
     brillig_context.deallocate_register(source_pointer_at_index);
     brillig_context.deallocate_register(target_pointer_after_index);
-    brillig_context.deallocate_register(item_count);
-    brillig_context.deallocate_single_addr(source_size);
-    brillig_context.deallocate_single_addr(target_size);
-    brillig_context.deallocate_register(source_vector_items_pointer);
-    brillig_context.deallocate_register(target_vector_items_pointer);
+    brillig_context.deallocate_register(element_count_to_the_right);
 }

@@ -2,9 +2,9 @@
 title: Hash methods
 description:
   Learn about the cryptographic primitives ready to use for any Noir project, including sha256,
-  blake2s, pedersen, mimc_bn254 and mimc
+  blake2s and pedersen
 keywords:
-  [cryptographic primitives, Noir project, sha256, blake2s, pedersen, mimc_bn254, mimc, hash]
+  [cryptographic primitives, Noir project, sha256, blake2s, pedersen, hash]
 sidebar_position: 0
 ---
 
@@ -130,32 +130,6 @@ Poseidon2::hash(input, 3);
 example:
 
 #include_code poseidon2 test_programs/execution_success/poseidon2/src/main.nr rust
-
-## mimc_bn254 and mimc
-
-`mimc_bn254` is `mimc`, but with hardcoded parameters for the BN254 curve. You can use it by
-providing an array of Fields, and it returns a Field with the hash. You can use the `mimc` method if
-you're willing to input your own constants:
-
-```rust
-fn mimc<N>(x: Field, k: Field, constants: [Field; N], exp : Field) -> Field
-```
-
-otherwise, use the `mimc_bn254` method:
-
-```rust
-fn mimc_bn254<let N: u32>(array: [Field; N]) -> Field
-```
-
-example:
-
-```rust
-
-fn main() {
-    let x = [163, 117, 178, 149]; // some random bytes
-    let hash = std::hash::mimc::mimc_bn254(x);
-}
-```
 
 ## hash_to_field
 

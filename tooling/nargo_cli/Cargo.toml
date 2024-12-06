@@ -25,6 +25,7 @@ toml.workspace = true
 [dependencies]
 clap.workspace = true
 fm.workspace = true
+fxhash.workspace = true
 iter-extended.workspace = true
 nargo.workspace = true
 nargo_fmt.workspace = true
@@ -66,6 +67,7 @@ termion = "3.0.0"
 # Logs
 tracing-subscriber.workspace = true
 tracing-appender = "0.2.3"
+clap_complete = "4.5.36"
 
 [target.'cfg(not(unix))'.dependencies]
 tokio-util = { version = "0.7.8", features = ["compat"] }
@@ -77,6 +79,7 @@ dirs.workspace = true
 assert_cmd = "2.0.8"
 assert_fs = "1.0.10"
 predicates = "2.1.5"
+file-lock = "2.1.11"
 fm.workspace = true
 criterion.workspace = true
 pprof.workspace = true
@@ -87,6 +90,7 @@ sha3.workspace = true
 iai = "0.1.1"
 test-binary = "3.0.2"
 test-case.workspace = true
+lazy_static.workspace = true
 light-poseidon = "0.2.0"
 
 

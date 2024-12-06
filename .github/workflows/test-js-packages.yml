@@ -13,6 +13,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  yarn-lock:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Errors if installation would result in modifications to yarn.lock
+      - name: Install
+        run: yarn --immutable
+        shell: bash
+
   build-nargo:
     runs-on: ubuntu-22.04
     timeout-minutes: 30
@@ -77,7 +90,6 @@ jobs:
             ./tooling/noirc_abi_wasm/nodejs
             ./tooling/noirc_abi_wasm/web
           retention-days: 10
-
 
   build-noir-wasm:
     runs-on: ubuntu-latest
@@ -478,6 +490,9 @@ jobs:
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1.2.0
+        with:
+          version: nightly-8660e5b941fe7f4d67e246cfd3dafea330fb53b1
+          
 
       - name: Install `bb`
         run: |
@@ -516,12 +531,25 @@ jobs:
       fail-fast: false
       matrix:
         project:
-        # Disabled as these are currently failing with many visibility errors
-        - { repo: AztecProtocol/aztec-nr, path: ./ }
+        - { repo: noir-lang/ec, path: ./  }
+        - { repo: noir-lang/eddsa, path: ./  }
+        - { repo: noir-lang/mimc, path: ./  }
+        - { repo: noir-lang/noir_sort, path: ./  }
+        - { repo: noir-lang/noir-edwards, path: ./  }
+        - { repo: noir-lang/noir-bignum, path: ./  }
+        - { repo: noir-lang/noir_bigcurve, path: ./  }
+        - { repo: noir-lang/noir_base64, path: ./  }
+        - { repo: noir-lang/noir_string_search, path: ./  }
+        - { repo: noir-lang/sparse_array, path: ./  }
+        - { repo: noir-lang/noir_rsa, path: ./lib  }
+        - { repo: AztecProtocol/aztec-packages, path: ./noir-projects/aztec-nr }
         - { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-contracts }
-        # Disabled as aztec-packages requires a setup-step in order to generate a `Nargo.toml`
-        #- { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits }
-        - { repo: noir-lang/noir-edwards, path: ./, ref: 3188ea74fe3b059219a2ea87899589c266256d74  }
+        - { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/parity-lib }
+        - { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/private-kernel-lib }
+        - { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/reset-kernel-lib }
+        - { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/rollup-lib }
+        - { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/types }
+
     name: Check external repo - ${{ matrix.project.repo }}
     steps:
       - name: Checkout
@@ -551,9 +579,12 @@ jobs:
           # Github actions seems to not expand "**" in globs by default.
           shopt -s globstar
           sed -i '/^compiler_version/d' ./**/Nargo.toml
-      - name: Run nargo check
+      
+      - name: Run nargo test
         working-directory: ./test-repo/${{ matrix.project.path }}
-        run: nargo check
+        run: nargo test --silence-warnings
+        env:
+          NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS: true
 
   # This is a job which depends on all test jobs and reports the overall status.
   # This allows us to add/remove test jobs without having to update the required workflows.
@@ -563,6 +594,7 @@ jobs:
     # We want this job to always run (even if the dependant jobs fail) as we want this job to fail rather than skipping.
     if: ${{ always() }}
     needs:
+      - yarn-lock
       - test-acvm_js-node
       - test-acvm_js-browser
       - test-noirc-abi

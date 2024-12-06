@@ -18,8 +18,7 @@ impl<'a> Formatter<'a> {
                 self.write_keyword(Keyword::Bool);
             }
             UnresolvedTypeData::Integer(..) | UnresolvedTypeData::FieldElement => {
-                self.write_current_token();
-                self.bump();
+                self.write_current_token_and_bump();
             }
             UnresolvedTypeData::Array(type_expr, typ) => {
                 self.write_left_bracket();
@@ -145,8 +144,7 @@ impl<'a> Formatter<'a> {
                 }
             }
             UnresolvedTypeData::Quoted(..) => {
-                self.write_current_token();
-                self.bump();
+                self.write_current_token_and_bump();
             }
             UnresolvedTypeData::AsTraitPath(as_trait_path) => {
                 self.format_as_trait_path(*as_trait_path);

@@ -1,7 +1,12 @@
 use acvm::{
-    acir::brillig::{HeapArray, MemoryAddress},
+    acir::{
+        brillig::{HeapVector, MemoryAddress},
+        circuit::ErrorSelector,
+    },
     AcirField,
 };
+
+use crate::ssa::ir::instruction::ErrorType;
 
 use super::{
     artifact::BrilligParameter,
@@ -12,6 +17,41 @@ use super::{
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
+    pub(crate) fn codegen_generic_iteration<T>(
+        &mut self,
+        make_iterator: impl FnOnce(&mut BrilligContext<F, Registers>) -> T,
+        update_iterator: impl FnOnce(&mut BrilligContext<F, Registers>, &T),
+        make_finish_condition: impl FnOnce(&mut BrilligContext<F, Registers>, &T) -> SingleAddrVariable,
+        on_iteration: impl FnOnce(&mut BrilligContext<F, Registers>, &T),
+        clean_iterator: impl FnOnce(&mut BrilligContext<F, Registers>, T),
+    ) {
+        let iterator = make_iterator(self);
+
+        let (loop_section, loop_label) = self.reserve_next_section_label();
+        self.enter_section(loop_section);
+
+        // Loop body
+        let should_end = make_finish_condition(self, &iterator);
+
+        let (exit_loop_section, exit_loop_label) = self.reserve_next_section_label();
+
+        self.jump_if_instruction(should_end.address, exit_loop_label);
+
+        // Call the on iteration function
+        on_iteration(self, &iterator);
+
+        // Update iterator
+        update_iterator(self, &iterator);
+        self.jump_instruction(loop_label);
+
+        // Exit the loop
+        self.enter_section(exit_loop_section);
+
+        // Deallocate our temporary registers
+        self.deallocate_single_addr(should_end);
+        clean_iterator(self, iterator);
+    }
+
     /// This codegen will issue a loop for (let iterator_register = loop_start; i < loop_bound; i += step)
     /// The body of the loop should be issued by the caller in the on_iteration closure.
     pub(crate) fn codegen_for_loop(
@@ -103,7 +143,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
         self.enter_section(then_section);
         f(self, true);
-        self.jump_instruction(end_label);
+        self.jump_instruction(end_label.clone());
 
         self.enter_section(otherwise_section);
         f(self, false);
@@ -152,24 +192,24 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         condition: SingleAddrVariable,
         revert_data_items: Vec<BrilligVariable>,
         revert_data_types: Vec<BrilligParameter>,
-        error_selector: u64,
+        error_selector: ErrorSelector,
     ) {
         assert!(condition.bit_size == 1);
 
         self.codegen_if_not(condition.address, |ctx| {
-            let revert_data = HeapArray {
-                pointer: ctx.allocate_register(),
-                // + 1 due to the revert data id being the first item returned
-                size: Self::flattened_tuple_size(&revert_data_types) + 1,
-            };
-            ctx.codegen_allocate_immediate_mem(revert_data.pointer, revert_data.size);
+            // + 1 due to the revert data id being the first item returned
+            let revert_data_size = Self::flattened_tuple_size(&revert_data_types) + 1;
+            let revert_data_size_var = ctx.make_usize_constant_instruction(revert_data_size.into());
+            let revert_data =
+                HeapVector { pointer: ctx.allocate_register(), size: revert_data_size_var.address };
+            ctx.codegen_allocate_immediate_mem(revert_data.pointer, revert_data_size);
 
             let current_revert_data_pointer = ctx.allocate_register();
             ctx.mov_instruction(current_revert_data_pointer, revert_data.pointer);
             ctx.indirect_const_instruction(
                 current_revert_data_pointer,
                 64,
-                (error_selector as u128).into(),
+                (error_selector.as_u64() as u128).into(),
             );
 
             ctx.codegen_usize_op_in_place(current_revert_data_pointer, BrilligBinaryOp::Add, 1);
@@ -208,6 +248,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                 );
             }
             ctx.trap_instruction(revert_data);
+            ctx.deallocate_single_addr(revert_data_size_var);
             ctx.deallocate_register(revert_data.pointer);
             ctx.deallocate_register(current_revert_data_pointer);
         });
@@ -223,11 +264,36 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         assert!(condition.bit_size == 1);
 
         self.codegen_if_not(condition.address, |ctx| {
-            ctx.trap_instruction(HeapArray::default());
             if let Some(assert_message) = assert_message {
-                ctx.obj.add_assert_message_to_last_opcode(assert_message);
-            }
+                ctx.revert_with_string(assert_message);
+            } else {
+                let revert_data = HeapVector {
+                    pointer: ReservedRegisters::free_memory_pointer(),
+                    size: ctx.make_usize_constant_instruction(0_usize.into()).address,
+                };
+                ctx.trap_instruction(revert_data);
+                ctx.deallocate_register(revert_data.size);
+            };
         });
+    }
+
+    pub(super) fn revert_with_string(&mut self, revert_string: String) {
+        if self.can_call_procedures {
+            self.call_revert_with_string_procedure(revert_string);
+        } else {
+            let error_type = ErrorType::String(revert_string);
+            let error_selector = error_type.selector();
+            self.obj.error_types.insert(error_selector, error_type);
+            self.indirect_const_instruction(
+                ReservedRegisters::free_memory_pointer(),
+                64,
+                (error_selector.as_u64() as u128).into(),
+            );
+            self.trap_instruction(HeapVector {
+                pointer: ReservedRegisters::free_memory_pointer(),
+                size: ReservedRegisters::usize_one(),
+            });
+        }
     }
 
     /// Computes the size of a parameter if it was flattened

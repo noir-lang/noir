@@ -25,8 +25,6 @@ use crate::hir::def_map::{LocalModuleId, ModuleDefId, ModuleId};
 use crate::hir::type_check::generics::TraitGenerics;
 use crate::hir_def::traits::NamedType;
 use crate::hir_def::traits::ResolvedTraitBound;
-use crate::usage_tracker::UnusedItem;
-use crate::usage_tracker::UsageTracker;
 use crate::QuotedType;
 
 use crate::ast::{BinaryOpKind, FunctionDefinition, ItemVisibility};
@@ -270,8 +268,6 @@ pub struct NodeInterner {
     /// This is stored in the NodeInterner so that the Elaborator from each crate can
     /// share the same global values.
     pub(crate) comptime_scopes: Vec<HashMap<DefinitionId, comptime::Value>>,
-
-    pub(crate) usage_tracker: UsageTracker,
 
     /// Captures the documentation comments for each module, struct, trait, function, etc.
     pub(crate) doc_comments: HashMap<ReferenceId, Vec<String>>,
@@ -680,7 +676,6 @@ impl Default for NodeInterner {
             auto_import_names: HashMap::default(),
             comptime_scopes: vec![HashMap::default()],
             trait_impl_associated_types: HashMap::default(),
-            usage_tracker: UsageTracker::default(),
             doc_comments: HashMap::default(),
         }
     }
@@ -2320,12 +2315,6 @@ impl NodeInterner {
     pub fn doc_comments(&self, id: ReferenceId) -> Option<&Vec<String>> {
         self.doc_comments.get(&id)
     }
-
-    pub fn unused_items(
-        &self,
-    ) -> &std::collections::HashMap<ModuleId, std::collections::HashMap<Ident, UnusedItem>> {
-        self.usage_tracker.unused_items()
-    }
 }
 
 impl Methods {
@@ -2362,7 +2351,7 @@ impl Methods {
     }
 
     /// Select the 1 matching method with an object type matching `typ`
-    fn find_matching_method(
+    pub fn find_matching_method(
         &self,
         typ: &Type,
         has_self_param: bool,
@@ -2450,6 +2439,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         | Type::Error
         | Type::Struct(_, _)
         | Type::InfixExpr(..)
+        | Type::CheckedCast { .. }
         | Type::TraitAsType(..) => None,
     }
 }

@@ -145,7 +145,8 @@ impl Context {
             | RangeCheck { .. }
             | IfElse { .. }
             | IncrementRc { .. }
-            | DecrementRc { .. } => false,
+            | DecrementRc { .. }
+            | MakeArray { .. } => false,
 
             EnableSideEffectsIf { .. }
             | ArrayGet { .. }
@@ -178,7 +179,10 @@ impl Context {
                     | Intrinsic::AsSlice
                     | Intrinsic::AsWitness
                     | Intrinsic::IsUnconstrained
-                    | Intrinsic::DerivePedersenGenerators => false,
+                    | Intrinsic::DerivePedersenGenerators
+                    | Intrinsic::ArrayRefCount
+                    | Intrinsic::SliceRefCount
+                    | Intrinsic::FieldLessThan => false,
                 },
 
                 // We must assume that functions contain a side effect as we cannot inspect more deeply.
