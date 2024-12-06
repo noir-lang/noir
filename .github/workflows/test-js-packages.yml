@@ -522,7 +522,7 @@ jobs:
       - name: Build list of libraries
         id: get_critical_libraries
         run: |         
-          LIBRARIES=$(grep Po "^https://github.com/\K.+"  ./CRITICAL_NOIR_LIBRARIES | jq -R -s -c 'split("\n") | map({ repo: ., path: "./"})')
+          LIBRARIES=$(grep -Po "^https://github.com/\K.+"  ./CRITICAL_NOIR_LIBRARIES | jq -R -s -c 'split("\n") | map({ repo: ., path: "./"})')
           echo "libraries=$LIBRARIES"
           echo "libraries=$LIBRARIES" >> $GITHUB_OUTPUT
         env:
