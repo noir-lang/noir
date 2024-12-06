@@ -75,7 +75,7 @@ pub(crate) enum Type {
     Reference(Arc<Type>),
 
     /// An immutable array value with the given element type and length
-    Array(Arc<CompositeType>, usize),
+    Array(Arc<CompositeType>, u32),
 
     /// An immutable slice value with a given element type
     Slice(Arc<CompositeType>),
@@ -111,7 +111,7 @@ impl Type {
     }
 
     /// Creates the str<N> type, of the given length N
-    pub(crate) fn str(length: usize) -> Type {
+    pub(crate) fn str(length: u32) -> Type {
         Type::Array(Arc::new(vec![Type::char()]), length)
     }
 
@@ -161,7 +161,7 @@ impl Type {
     }
 
     /// Returns the flattened size of a Type
-    pub(crate) fn flattened_size(&self) -> usize {
+    pub(crate) fn flattened_size(&self) -> u32 {
         match self {
             Type::Array(elements, len) => {
                 elements.iter().fold(0, |sum, elem| sum + (elem.flattened_size() * len))
@@ -187,6 +187,15 @@ impl Type {
             Type::Numeric(_) | Type::Function => false,
             Type::Array(_, _) | Type::Slice(_) => true,
             Type::Reference(element) => element.contains_an_array(),
+        }
+    }
+
+    /// Retrieves the array or slice type within this type, or panics if there is none.
+    pub(crate) fn get_contained_array(&self) -> &Type {
+        match self {
+            Type::Numeric(_) | Type::Function => panic!("Expected an array type"),
+            Type::Array(_, _) | Type::Slice(_) => self,
+            Type::Reference(element) => element.get_contained_array(),
         }
     }
 

@@ -49,6 +49,7 @@ pub const MAIN_RETURN_NAME: &str = "return";
 /// depends on the types of programs that users want to do. I don't envision string manipulation
 /// in programs, however it is possible to support, with many complications like encoding character set
 /// support.
+#[derive(Hash)]
 pub enum AbiType {
     Field,
     Array {
@@ -77,7 +78,7 @@ pub enum AbiType {
     },
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
 #[cfg_attr(test, derive(arbitrary::Arbitrary))]
 #[serde(rename_all = "lowercase")]
 /// Represents whether the parameter is public or known only to the prover.
@@ -89,7 +90,7 @@ pub enum AbiVisibility {
     DataBus,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
 #[cfg_attr(test, derive(arbitrary::Arbitrary))]
 #[serde(rename_all = "lowercase")]
 pub enum Sign {
@@ -146,7 +147,7 @@ impl From<&AbiType> for PrintableType {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Hash)]
 #[cfg_attr(test, derive(arbitrary::Arbitrary))]
 /// An argument or return value of the circuit's `main` function.
 pub struct AbiParameter {
@@ -163,7 +164,7 @@ impl AbiParameter {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Hash)]
 #[cfg_attr(test, derive(arbitrary::Arbitrary))]
 pub struct AbiReturnType {
     #[cfg_attr(test, proptest(strategy = "arbitrary::arb_abi_type()"))]
@@ -171,7 +172,7 @@ pub struct AbiReturnType {
     pub visibility: AbiVisibility,
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, Hash)]
 #[cfg_attr(test, derive(arbitrary::Arbitrary))]
 pub struct Abi {
     /// An ordered list of the arguments to the program's `main` function, specifying their types and visibility.
@@ -459,11 +460,12 @@ pub enum AbiValue {
     },
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
 #[serde(tag = "error_kind", rename_all = "lowercase")]
 pub enum AbiErrorType {
     FmtString { length: u32, item_types: Vec<AbiType> },
     Custom(AbiType),
+    String { string: String },
 }
 
 pub fn display_abi_error<F: AcirField>(
@@ -490,6 +492,13 @@ pub fn display_abi_error<F: AcirField>(
             let printable_type = (&abi_typ).into();
             let decoded = printable_type_decode_value(&mut fields.iter().copied(), &printable_type);
             PrintableValueDisplay::Plain(decoded, printable_type)
+        }
+        AbiErrorType::String { string } => {
+            let length = string.len() as u32;
+            PrintableValueDisplay::Plain(
+                PrintableValue::String(string),
+                PrintableType::String { length },
+            )
         }
     }
 }

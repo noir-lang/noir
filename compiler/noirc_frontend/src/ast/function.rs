@@ -29,14 +29,13 @@ pub enum FunctionKind {
     Builtin,
     Normal,
     Oracle,
-    Recursive,
 }
 
 impl FunctionKind {
     pub fn can_ignore_return_type(self) -> bool {
         match self {
             FunctionKind::LowLevel | FunctionKind::Builtin | FunctionKind::Oracle => true,
-            FunctionKind::Normal | FunctionKind::Recursive => false,
+            FunctionKind::Normal => false,
         }
     }
 }
@@ -114,7 +113,6 @@ impl From<FunctionDefinition> for NoirFunction {
             Some(FunctionAttribute::Foreign(_)) => FunctionKind::LowLevel,
             Some(FunctionAttribute::Test { .. }) => FunctionKind::Normal,
             Some(FunctionAttribute::Oracle(_)) => FunctionKind::Oracle,
-            Some(FunctionAttribute::Recursive) => FunctionKind::Recursive,
             Some(FunctionAttribute::Fold) => FunctionKind::Normal,
             Some(FunctionAttribute::NoPredicates) => FunctionKind::Normal,
             Some(FunctionAttribute::InlineAlways) => FunctionKind::Normal,

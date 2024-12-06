@@ -48,7 +48,7 @@ impl Function {
 
 #[derive(Default)]
 struct Context {
-    slice_sizes: HashMap<ValueId, usize>,
+    slice_sizes: HashMap<ValueId, u32>,
 
     // Maps array_set result -> element that was overwritten by that instruction.
     // Used to undo array_sets while merging values
@@ -68,8 +68,8 @@ impl Context {
             match &function.dfg[instruction] {
                 Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
                     let then_condition = *then_condition;
-                    let then_value = *then_value;
                     let else_condition = *else_condition;
+                    let then_value = *then_value;
                     let else_value = *else_value;
 
                     let typ = function.dfg.type_of_value(then_value);
@@ -148,13 +148,13 @@ impl Context {
         }
     }
 
-    fn get_or_find_capacity(&mut self, dfg: &DataFlowGraph, value: ValueId) -> usize {
+    fn get_or_find_capacity(&mut self, dfg: &DataFlowGraph, value: ValueId) -> u32 {
         match self.slice_sizes.entry(value) {
             Entry::Occupied(entry) => return *entry.get(),
             Entry::Vacant(entry) => {
                 if let Some((array, typ)) = dfg.get_array_constant(value) {
                     let length = array.len() / typ.element_types().len();
-                    return *entry.insert(length);
+                    return *entry.insert(length as u32);
                 }
 
                 if let Type::Array(_, length) = dfg.type_of_value(value) {
@@ -170,7 +170,7 @@ impl Context {
 
 enum SizeChange {
     None,
-    SetTo(ValueId, usize),
+    SetTo(ValueId, u32),
 
     // These two variants store the old and new slice ids
     // not their lengths which should be old_len = new_len +/- 1
@@ -238,6 +238,8 @@ fn slice_capacity_change(
         | Intrinsic::DerivePedersenGenerators
         | Intrinsic::ToBits(_)
         | Intrinsic::ToRadix(_)
+        | Intrinsic::ArrayRefCount
+        | Intrinsic::SliceRefCount
         | Intrinsic::FieldLessThan => SizeChange::None,
     }
 }

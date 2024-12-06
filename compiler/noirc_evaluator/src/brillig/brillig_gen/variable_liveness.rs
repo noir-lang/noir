@@ -45,32 +45,19 @@ fn find_back_edges(
 }
 
 /// Collects the underlying variables inside a value id. It might be more than one, for example in constant arrays that are constructed with multiple vars.
-pub(crate) fn collect_variables_of_value(value_id: ValueId, dfg: &DataFlowGraph) -> Vec<ValueId> {
+pub(crate) fn collect_variables_of_value(
+    value_id: ValueId,
+    dfg: &DataFlowGraph,
+) -> Option<ValueId> {
     let value_id = dfg.resolve(value_id);
     let value = &dfg[value_id];
 
     match value {
-        Value::Instruction { .. } | Value::Param { .. } => {
-            vec![value_id]
-        }
-        // Literal arrays are constants, but might use variable values to initialize.
-        Value::Array { array, .. } => {
-            let mut value_ids = vec![value_id];
-
-            array.iter().for_each(|item_id| {
-                let underlying_ids = collect_variables_of_value(*item_id, dfg);
-                value_ids.extend(underlying_ids);
-            });
-
-            value_ids
-        }
-        Value::NumericConstant { .. } => {
-            vec![value_id]
+        Value::Instruction { .. } | Value::Param { .. } | Value::NumericConstant { .. } => {
+            Some(value_id)
         }
         // Functions are not variables in a defunctionalized SSA. Only constant function values should appear.
-        Value::ForeignFunction(_) | Value::Function(_) | Value::Intrinsic(..) => {
-            vec![]
-        }
+        Value::ForeignFunction(_) | Value::Function(_) | Value::Intrinsic(..) => None,
     }
 }
 

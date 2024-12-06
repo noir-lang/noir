@@ -25,6 +25,7 @@ toml.workspace = true
 [dependencies]
 clap.workspace = true
 fm.workspace = true
+fxhash.workspace = true
 iter-extended.workspace = true
 nargo.workspace = true
 nargo_fmt.workspace = true
@@ -78,6 +79,7 @@ dirs.workspace = true
 assert_cmd = "2.0.8"
 assert_fs = "1.0.10"
 predicates = "2.1.5"
+file-lock = "2.1.11"
 fm.workspace = true
 criterion.workspace = true
 pprof.workspace = true

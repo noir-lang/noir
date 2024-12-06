@@ -1300,11 +1300,17 @@ fn lambda$f1(mut env$l1: (Field)) -> Field {
 #[test]
 fn deny_cyclic_globals() {
     let src = r#"
-        global A = B;
-        global B = A;
+        global A: u32 = B;
+        global B: u32 = A;
         fn main() {}
     "#;
-    assert_eq!(get_program_errors(src).len(), 1);
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::ResolverError(ResolverError::DependencyCycle { .. })
+    ));
 }
 
 #[test]
@@ -2002,9 +2008,9 @@ fn numeric_generic_u16_array_size() {
 fn numeric_generic_field_larger_than_u32() {
     let src = r#"
         global A: Field = 4294967297;
-        
+
         fn foo<let A: Field>() { }
-        
+
         fn main() {
             let _ = foo::<A>();
         }
@@ -2034,14 +2040,14 @@ fn numeric_generic_field_arithmetic_larger_than_u32() {
                 F
             }
         }
-        
+
         // 2^32 - 1
         global A: Field = 4294967295;
-        
+
         fn foo<let A: Field>() -> Foo<A + A> {
             Foo {}
         }
-        
+
         fn main() {
             let _ = foo::<A>().size();
         }
@@ -3210,11 +3216,64 @@ fn as_trait_path_syntax_no_impl() {
 }
 
 #[test]
-fn infer_globals_to_u32_from_type_use() {
+fn dont_infer_globals_to_u32_from_type_use() {
     let src = r#"
         global ARRAY_LEN = 3;
-        global STR_LEN = 2;
+        global STR_LEN: _ = 2;
         global FMT_STR_LEN = 2;
+
+        fn main() {
+            let _a: [u32; ARRAY_LEN] = [1, 2, 3];
+            let _b: str<STR_LEN> = "hi";
+            let _c: fmtstr<FMT_STR_LEN, _> = f"hi";
+        }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 3);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::ResolverError(ResolverError::UnspecifiedGlobalType { .. })
+    ));
+    assert!(matches!(
+        errors[1].0,
+        CompilationError::ResolverError(ResolverError::UnspecifiedGlobalType { .. })
+    ));
+    assert!(matches!(
+        errors[2].0,
+        CompilationError::ResolverError(ResolverError::UnspecifiedGlobalType { .. })
+    ));
+}
+
+#[test]
+fn dont_infer_partial_global_types() {
+    let src = r#"
+        pub global ARRAY: [Field; _] = [0; 3];
+        pub global NESTED_ARRAY: [[Field; _]; 3] = [[]; 3];
+        pub global STR: str<_> = "hi";
+        pub global NESTED_STR: [str<_>] = &["hi"];
+        pub global FMT_STR: fmtstr<_, _> = f"hi {ARRAY}";
+        pub global TUPLE_WITH_MULTIPLE: ([str<_>], [[Field; _]; 3]) = (&["hi"], [[]; 3]);
+
+        fn main() { }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 6);
+    for (error, _file_id) in errors {
+        assert!(matches!(
+            error,
+            CompilationError::ResolverError(ResolverError::UnspecifiedGlobalType { .. })
+        ));
+    }
+}
+
+#[test]
+fn u32_globals_as_sizes_in_types() {
+    let src = r#"
+        global ARRAY_LEN: u32 = 3;
+        global STR_LEN: u32 = 2;
+        global FMT_STR_LEN: u32 = 2;
 
         fn main() {
             let _a: [u32; ARRAY_LEN] = [1, 2, 3];
@@ -3469,7 +3528,7 @@ fn unconditional_recursion_fail() {
         fn main() -> pub u64 {
             foo(1, main())
         }
-        fn foo(a: u64, b: u64) -> u64 { 
+        fn foo(a: u64, b: u64) -> u64 {
             a + b
         }
         "#,
@@ -3686,9 +3745,162 @@ fn allows_struct_with_generic_infix_type_as_main_input_3() {
             x: [u64; N * 2],
         }
 
-        global N = 9;
+        global N: u32 = 9;
 
         fn main(_x: Foo<N * 2>) {}
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn errors_with_better_message_when_trying_to_invoke_struct_field_that_is_a_function() {
+    let src = r#"
+        pub struct Foo {
+            wrapped: fn(Field) -> bool,
+        }
+
+        impl Foo {
+            fn call(self) -> bool {
+                self.wrapped(1)
+            }
+        }
+
+        fn main() {}
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::CannotInvokeStructFieldFunctionType {
+        method_name,
+        ..
+    }) = &errors[0].0
+    else {
+        panic!("Expected a 'CannotInvokeStructFieldFunctionType' error, got {:?}", errors[0].0);
+    };
+
+    assert_eq!(method_name, "wrapped");
+}
+
+fn test_disallows_attribute_on_impl_method(
+    attr: &str,
+    check_error: impl FnOnce(&CompilationError),
+) {
+    let src = format!(
+        "
+        pub struct Foo {{ }}
+
+        impl Foo {{
+            #[{attr}]
+            fn foo() {{ }}
+        }}
+
+        fn main() {{ }}
+    "
+    );
+    let errors = get_program_errors(&src);
+    assert_eq!(errors.len(), 1);
+    check_error(&errors[0].0);
+}
+
+fn test_disallows_attribute_on_trait_impl_method(
+    attr: &str,
+    check_error: impl FnOnce(&CompilationError),
+) {
+    let src = format!(
+        "
+        pub trait Trait {{
+            fn foo() {{ }}
+        }}
+
+        pub struct Foo {{ }}
+
+        impl Trait for Foo {{
+            #[{attr}]
+            fn foo() {{ }}
+        }}
+
+        fn main() {{ }}
+    "
+    );
+    let errors = get_program_errors(&src);
+    assert_eq!(errors.len(), 1);
+    check_error(&errors[0].0);
+}
+
+#[test]
+fn disallows_test_attribute_on_impl_method() {
+    test_disallows_attribute_on_impl_method("test", |error| {
+        assert!(matches!(
+            error,
+            CompilationError::DefinitionError(
+                DefCollectorErrorKind::TestOnAssociatedFunction { .. }
+            )
+        ));
+    });
+}
+
+#[test]
+fn disallows_test_attribute_on_trait_impl_method() {
+    test_disallows_attribute_on_trait_impl_method("test", |error| {
+        assert!(matches!(
+            error,
+            CompilationError::DefinitionError(
+                DefCollectorErrorKind::TestOnAssociatedFunction { .. }
+            )
+        ));
+    });
+}
+
+#[test]
+fn disallows_export_attribute_on_impl_method() {
+    test_disallows_attribute_on_impl_method("export", |error| {
+        assert!(matches!(
+            error,
+            CompilationError::DefinitionError(
+                DefCollectorErrorKind::ExportOnAssociatedFunction { .. }
+            )
+        ));
+    });
+}
+
+#[test]
+fn disallows_export_attribute_on_trait_impl_method() {
+    test_disallows_attribute_on_trait_impl_method("export", |error| {
+        assert!(matches!(
+            error,
+            CompilationError::DefinitionError(
+                DefCollectorErrorKind::ExportOnAssociatedFunction { .. }
+            )
+        ));
+    });
+}
+
+#[test]
+fn allows_multiple_underscore_parameters() {
+    let src = r#"
+        pub fn foo(_: i32, _: i64) {}
+
+        fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn disallows_underscore_on_right_hand_side() {
+    let src = r#"
+        fn main() {
+            let _ = 1;
+            let _x = _;
+        }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ResolverError(ResolverError::VariableNotDeclared { name, .. }) =
+        &errors[0].0
+    else {
+        panic!("Expected a VariableNotDeclared error, got {:?}", errors[0].0);
+    };
+
+    assert_eq!(name, "_");
 }

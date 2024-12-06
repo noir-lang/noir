@@ -19,6 +19,8 @@ pub enum ParserErrorReason {
     UnexpectedComma,
     #[error("Expected a `{token}` separating these two {items}")]
     ExpectedTokenSeparatingTwoItems { token: Token, items: &'static str },
+    #[error("Expected `mut` after `&`, found `{found}`")]
+    ExpectedMutAfterAmpersand { found: Token },
     #[error("Invalid left-hand side of assignment")]
     InvalidLeftHandSideOfAssignment,
     #[error("Expected trait, found {found}")]
@@ -95,6 +97,8 @@ pub enum ParserErrorReason {
     AssociatedTypesNotAllowedInPaths,
     #[error("Associated types are not allowed on a method call")]
     AssociatedTypesNotAllowedInMethodCalls,
+    #[error("Empty trait alias")]
+    EmptyTraitAlias,
     #[error(
         "Wrong number of arguments for attribute `{}`. Expected {}, found {}",
         name,
@@ -263,6 +267,11 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                     error.span,
                 ),
                 ParserErrorReason::Lexer(error) => error.into(),
+                ParserErrorReason::ExpectedMutAfterAmpersand { found } => Diagnostic::simple_error(
+                    format!("Expected `mut` after `&`, found `{found}`"),
+                    "Noir doesn't have immutable references, only mutable references".to_string(),
+                    error.span,
+                ),
                 other => Diagnostic::simple_error(format!("{other}"), String::new(), error.span),
             },
             None => {

@@ -38,7 +38,6 @@ fn sample_program(num_opcodes: usize) -> Program<FieldElement> {
             public_parameters: PublicInputs(BTreeSet::from([Witness(5)])),
             return_values: PublicInputs(BTreeSet::from([Witness(6)])),
             assert_messages: Vec::new(),
-            recursive: false,
         }],
         unconstrained_functions: Vec::new(),
     }

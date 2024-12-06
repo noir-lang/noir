@@ -50,8 +50,7 @@ impl<'a> Formatter<'a> {
             | FunctionAttribute::Builtin(_)
             | FunctionAttribute::Oracle(_) => self.format_one_arg_attribute(),
             FunctionAttribute::Test(test_scope) => self.format_test_attribute(test_scope),
-            FunctionAttribute::Recursive
-            | FunctionAttribute::Fold
+            FunctionAttribute::Fold
             | FunctionAttribute::NoPredicates
             | FunctionAttribute::InlineAlways => self.format_no_args_attribute(),
         }

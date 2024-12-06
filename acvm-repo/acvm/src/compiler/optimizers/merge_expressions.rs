@@ -3,7 +3,6 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use acir::{
     circuit::{
         brillig::{BrilligInputs, BrilligOutputs},
-        directives::Directive,
         opcodes::BlockId,
         Circuit, Opcode,
     },
@@ -51,31 +50,36 @@ impl MergeExpressionsOptimizer {
         let mut new_circuit = Vec::new();
         let mut new_acir_opcode_positions = Vec::new();
         // For each opcode, try to get a target opcode to merge with
-        for (i, opcode) in circuit.opcodes.iter().enumerate() {
+        for (i, (opcode, opcode_position)) in
+            circuit.opcodes.iter().zip(acir_opcode_positions).enumerate()
+        {
             if !matches!(opcode, Opcode::AssertZero(_)) {
                 new_circuit.push(opcode.clone());
-                new_acir_opcode_positions.push(acir_opcode_positions[i]);
+                new_acir_opcode_positions.push(opcode_position);
                 continue;
             }
             let opcode = modified_gates.get(&i).unwrap_or(opcode).clone();
             let mut to_keep = true;
             let input_witnesses = self.witness_inputs(&opcode);
-            for w in input_witnesses.clone() {
-                let empty_gates = BTreeSet::new();
-                let gates_using_w = used_witness.get(&w).unwrap_or(&empty_gates);
+            for w in input_witnesses {
+                let Some(gates_using_w) = used_witness.get(&w) else {
+                    continue;
+                };
                 // We only consider witness which are used in exactly two arithmetic gates
                 if gates_using_w.len() == 2 {
-                    let gates_using_w: Vec<_> = gates_using_w.iter().collect();
-                    let mut b = *gates_using_w[1];
-                    if b == i {
-                        b = *gates_using_w[0];
+                    let first = *gates_using_w.first().expect("gates_using_w.len == 2");
+                    let second = *gates_using_w.last().expect("gates_using_w.len == 2");
+                    let b = if second == i {
+                        first
                     } else {
                         // sanity check
-                        assert!(i == *gates_using_w[0]);
-                    }
-                    let second_gate = modified_gates.get(&b).unwrap_or(&circuit.opcodes[b]).clone();
+                        assert!(i == first);
+                        second
+                    };
+
+                    let second_gate = modified_gates.get(&b).unwrap_or(&circuit.opcodes[b]);
                     if let (Opcode::AssertZero(expr_define), Opcode::AssertZero(expr_use)) =
-                        (opcode.clone(), second_gate)
+                        (&opcode, second_gate)
                     {
                         // We cannot merge an expression into an earlier opcode, because this
                         // would break the 'execution ordering' of the opcodes
@@ -86,16 +90,15 @@ impl MergeExpressionsOptimizer {
                         // - doing this pass again until there is no change, or
                         // - merging 'b' into 'i' instead
                         if i < b {
-                            if let Some(expr) = Self::merge(&expr_use, &expr_define, w) {
+                            if let Some(expr) = Self::merge(expr_use, expr_define, w) {
                                 modified_gates.insert(b, Opcode::AssertZero(expr));
                                 to_keep = false;
                                 // Update the 'used_witness' map to account for the merge.
-                                for w2 in CircuitSimulator::expr_wit(&expr_define) {
+                                for w2 in CircuitSimulator::expr_wit(expr_define) {
                                     if !circuit_inputs.contains(&w2) {
-                                        let mut v = used_witness[&w2].clone();
+                                        let v = used_witness.entry(w2).or_default();
                                         v.insert(b);
                                         v.remove(&i);
-                                        used_witness.insert(w2, v);
                                     }
                                 }
                                 // We need to stop here and continue with the next opcode
@@ -108,12 +111,9 @@ impl MergeExpressionsOptimizer {
             }
 
             if to_keep {
-                if modified_gates.contains_key(&i) {
-                    new_circuit.push(modified_gates[&i].clone());
-                } else {
-                    new_circuit.push(opcode.clone());
-                }
-                new_acir_opcode_positions.push(acir_opcode_positions[i]);
+                let opcode = modified_gates.get(&i).cloned().unwrap_or(opcode);
+                new_circuit.push(opcode);
+                new_acir_opcode_positions.push(opcode_position);
             }
         }
         (new_circuit, new_acir_opcode_positions)
@@ -153,15 +153,17 @@ impl MergeExpressionsOptimizer {
 
     // Returns the input witnesses used by the opcode
     fn witness_inputs<F: AcirField>(&self, opcode: &Opcode<F>) -> BTreeSet<Witness> {
-        let mut witnesses = BTreeSet::new();
         match opcode {
             Opcode::AssertZero(expr) => CircuitSimulator::expr_wit(expr),
-            Opcode::BlackBoxFuncCall(bb_func) => bb_func.get_input_witnesses(),
-            Opcode::Directive(Directive::ToLeRadix { a, .. }) => CircuitSimulator::expr_wit(a),
+            Opcode::BlackBoxFuncCall(bb_func) => {
+                let mut witnesses = bb_func.get_input_witnesses();
+                witnesses.extend(bb_func.get_outputs_vec());
+
+                witnesses
+            }
             Opcode::MemoryOp { block_id: _, op, predicate } => {
                 //index et value, et predicate
-                let mut witnesses = BTreeSet::new();
-                witnesses.extend(CircuitSimulator::expr_wit(&op.index));
+                let mut witnesses = CircuitSimulator::expr_wit(&op.index);
                 witnesses.extend(CircuitSimulator::expr_wit(&op.value));
                 if let Some(p) = predicate {
                     witnesses.extend(CircuitSimulator::expr_wit(p));
@@ -173,6 +175,7 @@ impl MergeExpressionsOptimizer {
                 init.iter().cloned().collect()
             }
             Opcode::BrilligCall { inputs, outputs, .. } => {
+                let mut witnesses = BTreeSet::new();
                 for i in inputs {
                     witnesses.extend(self.brillig_input_wit(i));
                 }
@@ -182,12 +185,9 @@ impl MergeExpressionsOptimizer {
                 witnesses
             }
             Opcode::Call { id: _, inputs, outputs, predicate } => {
-                for i in inputs {
-                    witnesses.insert(*i);
-                }
-                for i in outputs {
-                    witnesses.insert(*i);
-                }
+                let mut witnesses: BTreeSet<Witness> = BTreeSet::from_iter(inputs.iter().copied());
+                witnesses.extend(outputs);
+
                 if let Some(p) = predicate {
                     witnesses.extend(CircuitSimulator::expr_wit(p));
                 }
@@ -235,7 +235,7 @@ mod tests {
         acir_field::AcirField,
         circuit::{
             brillig::{BrilligFunctionId, BrilligOutputs},
-            opcodes::FunctionInput,
+            opcodes::{BlackBoxFuncCall, FunctionInput},
             Circuit, ExpressionWidth, Opcode, PublicInputs,
         },
         native_types::{Expression, Witness},
@@ -243,7 +243,7 @@ mod tests {
     };
     use std::collections::BTreeSet;
 
-    fn check_circuit(circuit: Circuit<FieldElement>) {
+    fn check_circuit(circuit: Circuit<FieldElement>) -> Circuit<FieldElement> {
         assert!(CircuitSimulator::default().check_circuit(&circuit));
         let mut merge_optimizer = MergeExpressionsOptimizer::new();
         let acir_opcode_positions = vec![0; 20];
@@ -253,6 +253,7 @@ mod tests {
         optimized_circuit.opcodes = opcodes;
         // check that the circuit is still valid after optimization
         assert!(CircuitSimulator::default().check_circuit(&optimized_circuit));
+        optimized_circuit
     }
 
     #[test]
@@ -295,7 +296,6 @@ mod tests {
             public_parameters: PublicInputs::default(),
             return_values: PublicInputs::default(),
             assert_messages: Default::default(),
-            recursive: false,
         };
         check_circuit(circuit);
     }
@@ -348,8 +348,53 @@ mod tests {
             public_parameters: PublicInputs::default(),
             return_values: PublicInputs::default(),
             assert_messages: Default::default(),
-            recursive: false,
         };
         check_circuit(circuit);
+    }
+
+    #[test]
+    fn takes_blackbox_opcode_outputs_into_account() {
+        // Regression test for https://github.com/noir-lang/noir/issues/6527
+        // Previously we would not track the usage of witness 4 in the output of the blackbox function.
+        // We would then merge the final two opcodes losing the check that the brillig call must match
+        // with `_0 ^ _1`.
+
+        let circuit: Circuit<FieldElement> = Circuit {
+            current_witness_index: 7,
+            opcodes: vec![
+                Opcode::BrilligCall {
+                    id: BrilligFunctionId(0),
+                    inputs: Vec::new(),
+                    outputs: vec![BrilligOutputs::Simple(Witness(3))],
+                    predicate: None,
+                },
+                Opcode::BlackBoxFuncCall(BlackBoxFuncCall::AND {
+                    lhs: FunctionInput::witness(Witness(0), 8),
+                    rhs: FunctionInput::witness(Witness(1), 8),
+                    output: Witness(4),
+                }),
+                Opcode::AssertZero(Expression {
+                    linear_combinations: vec![
+                        (FieldElement::one(), Witness(3)),
+                        (-FieldElement::one(), Witness(4)),
+                    ],
+                    ..Default::default()
+                }),
+                Opcode::AssertZero(Expression {
+                    linear_combinations: vec![
+                        (-FieldElement::one(), Witness(2)),
+                        (FieldElement::one(), Witness(4)),
+                    ],
+                    ..Default::default()
+                }),
+            ],
+            expression_width: ExpressionWidth::Bounded { width: 4 },
+            private_parameters: BTreeSet::from([Witness(0), Witness(1)]),
+            return_values: PublicInputs(BTreeSet::from([Witness(2)])),
+            ..Default::default()
+        };
+
+        let new_circuit = check_circuit(circuit.clone());
+        assert_eq!(circuit, new_circuit);
     }
 }

@@ -676,9 +676,7 @@ impl Attributes {
     /// This is useful for finding out if we should compile a contract method
     /// as an entry point or not.
     pub fn has_contract_library_method(&self) -> bool {
-        self.secondary
-            .iter()
-            .any(|attribute| attribute == &SecondaryAttribute::ContractLibraryMethod)
+        self.has_secondary_attr(&SecondaryAttribute::ContractLibraryMethod)
     }
 
     pub fn is_test_function(&self) -> bool {
@@ -718,11 +716,21 @@ impl Attributes {
     }
 
     pub fn has_varargs(&self) -> bool {
-        self.secondary.iter().any(|attr| matches!(attr, SecondaryAttribute::Varargs))
+        self.has_secondary_attr(&SecondaryAttribute::Varargs)
     }
 
     pub fn has_use_callers_scope(&self) -> bool {
-        self.secondary.iter().any(|attr| matches!(attr, SecondaryAttribute::UseCallersScope))
+        self.has_secondary_attr(&SecondaryAttribute::UseCallersScope)
+    }
+
+    /// True if the function is marked with an `#[export]` attribute.
+    pub fn has_export(&self) -> bool {
+        self.has_secondary_attr(&SecondaryAttribute::Export)
+    }
+
+    /// Check if secondary attributes contain a specific instance.
+    pub fn has_secondary_attr(&self, attr: &SecondaryAttribute) -> bool {
+        self.secondary.contains(attr)
     }
 }
 
@@ -752,7 +760,6 @@ pub enum FunctionAttribute {
     Builtin(String),
     Oracle(String),
     Test(TestScope),
-    Recursive,
     Fold,
     NoPredicates,
     InlineAlways,
@@ -816,7 +823,6 @@ impl FunctionAttribute {
             FunctionAttribute::Builtin(_) => "builtin",
             FunctionAttribute::Oracle(_) => "oracle",
             FunctionAttribute::Test(_) => "test",
-            FunctionAttribute::Recursive => "recursive",
             FunctionAttribute::Fold => "fold",
             FunctionAttribute::NoPredicates => "no_predicates",
             FunctionAttribute::InlineAlways => "inline_always",
@@ -831,7 +837,6 @@ impl fmt::Display for FunctionAttribute {
             FunctionAttribute::Foreign(ref k) => write!(f, "#[foreign({k})]"),
             FunctionAttribute::Builtin(ref k) => write!(f, "#[builtin({k})]"),
             FunctionAttribute::Oracle(ref k) => write!(f, "#[oracle({k})]"),
-            FunctionAttribute::Recursive => write!(f, "#[recursive]"),
             FunctionAttribute::Fold => write!(f, "#[fold]"),
             FunctionAttribute::NoPredicates => write!(f, "#[no_predicates]"),
             FunctionAttribute::InlineAlways => write!(f, "#[inline_always]"),

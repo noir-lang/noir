@@ -1587,6 +1587,54 @@ fn main() {
     }
 
     #[test]
+    async fn test_auto_import_inserts_after_last_use_in_nested_module() {
+        let src = r#"mod foo {
+    pub mod bar {
+        pub fn hello_world() {}
+    }
+}
+
+mod baz {
+    fn qux() {}
+}
+
+mod other {
+    use baz::qux;
+
+    fn main() {
+        hel>|<
+    }
+}"#;
+
+        let expected = r#"mod foo {
+    pub mod bar {
+        pub fn hello_world() {}
+    }
+}
+
+mod baz {
+    fn qux() {}
+}
+
+mod other {
+    use baz::qux;
+    use super::foo::bar::hello_world;
+
+    fn main() {
+        hel
+    }
+}"#;
+        let mut items = get_completions(src).await;
+        assert_eq!(items.len(), 1);
+
+        let item = items.remove(0);
+
+        let changed =
+            apply_text_edits(&src.replace(">|<", ""), &item.additional_text_edits.unwrap());
+        assert_eq!(changed, expected);
+    }
+
+    #[test]
     async fn test_does_not_auto_import_test_functions() {
         let src = r#"
             mod foo {
@@ -2779,5 +2827,38 @@ fn main() {
             )],
         )
         .await;
+    }
+
+    #[test]
+    async fn test_suggests_methods_based_on_type_generics() {
+        let src = r#"
+        struct Foo<T> {
+            t: T,
+        }
+
+        impl Foo<Field> {
+            fn bar_baz(_self: Self) -> Field {
+                5
+            }
+        }
+
+        impl Foo<u32> {
+            fn bar(_self: Self) -> Field {
+                5
+            }
+
+            fn baz(_self: Self) -> Field {
+                6
+            }
+        }
+
+        fn main() -> pub Field {
+            let foo: Foo<Field> = Foo { t: 5 };
+            foo.b>|<
+        }
+        "#;
+        let items = get_completions(src).await;
+        assert_eq!(items.len(), 1);
+        assert!(items[0].label == "bar_baz()");
     }
 }

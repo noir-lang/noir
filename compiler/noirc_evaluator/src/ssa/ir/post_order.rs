@@ -22,7 +22,7 @@ impl PostOrder {
 }
 
 impl PostOrder {
-    /// Allocate and compute a function's block post-order. Pos
+    /// Allocate and compute a function's block post-order.
     pub(crate) fn with_function(func: &Function) -> Self {
         PostOrder(Self::compute_post_order(func))
     }

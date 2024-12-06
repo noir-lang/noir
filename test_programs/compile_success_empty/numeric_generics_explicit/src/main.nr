@@ -1,5 +1,5 @@
 // Regression that a global of the same name does not trigger a duplicate definition error
-global N = 1000;
+global N: u32 = 1000;
 
 fn main() {
     let a = id([1, 2]);

@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, sync::Arc};
 
-use crate::ssa::ir::{types::Type, value::ValueId};
+use crate::ssa::ir::{function::RuntimeType, types::Type, value::ValueId};
 use acvm::FieldElement;
 use fxhash::FxHashMap as HashMap;
 use noirc_frontend::ast;
@@ -100,7 +100,8 @@ impl DataBus {
     ) -> DataBus {
         let mut call_data_args = Vec::new();
         for call_data_item in call_data {
-            let array_id = call_data_item.databus.expect("Call data should have an array id");
+            // databus can be None if `main` is a brillig function
+            let Some(array_id) = call_data_item.databus else { continue };
             let call_data_id =
                 call_data_item.call_data_id.expect("Call data should have a user id");
             call_data_args.push(CallData { array_id, call_data_id, index_map: call_data_item.map });
@@ -159,15 +160,13 @@ impl FunctionBuilder {
         for value in values {
             self.add_to_data_bus(*value, &mut databus);
         }
-        let len = databus.values.len();
+        let len = databus.values.len() as u32;
 
-        let array = if len > 0 {
-            let array = self
-                .array_constant(databus.values, Type::Array(Arc::new(vec![Type::field()]), len));
-            Some(array)
-        } else {
-            None
-        };
+        let array = (len > 0 && matches!(self.current_function.runtime(), RuntimeType::Acir(_)))
+            .then(|| {
+                let array_type = Type::Array(Arc::new(vec![Type::field()]), len);
+                self.insert_make_array(databus.values, array_type)
+            });
 
         DataBusBuilder {
             index: 0,
@@ -224,9 +223,11 @@ impl FunctionBuilder {
         ssa_params: &[ValueId],
         mut flattened_params_databus_visibility: Vec<DatabusVisibility>,
     ) -> Vec<DatabusVisibility> {
-        let ssa_param_sizes: Vec<_> = ssa_params
+        let ssa_param_sizes: Vec<usize> = ssa_params
             .iter()
-            .map(|ssa_param| self.current_function.dfg[*ssa_param].get_type().flattened_size())
+            .map(|ssa_param| {
+                self.current_function.dfg[*ssa_param].get_type().flattened_size() as usize
+            })
             .collect();
 
         let mut is_ssa_params_databus = Vec::with_capacity(ssa_params.len());

@@ -82,7 +82,14 @@ fn read_test_cases(
     let test_case_dirs =
         fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
 
-    test_case_dirs.into_iter().map(|dir| {
+    test_case_dirs.into_iter().filter_map(|dir| {
+        // When switching git branches we might end up with non-empty directories that have a `target`
+        // directory inside them but no `Nargo.toml`.
+        // These "tests" would always fail, but it's okay to ignore them so we do that here.
+        if !dir.path().join("Nargo.toml").exists() {
+            return None;
+        }
+
         let test_name =
             dir.file_name().into_string().expect("Directory can't be converted to string");
         if test_name.contains('-') {
@@ -90,7 +97,7 @@ fn read_test_cases(
                 "Invalid test directory: {test_name}. Cannot include `-`, please convert to `_`"
             );
         }
-        (test_name, dir.path())
+        Some((test_name, dir.path()))
     })
 }
 
@@ -163,12 +170,19 @@ fn generate_test_cases(
             if *brillig && inliner.value() < matrix_config.min_inliner {
                 continue;
             }
-            test_cases.push(format!("#[test_case::test_case({brillig}, {})]", inliner.label()));
+            test_cases.push(format!(
+                "#[test_case::test_case(ForceBrillig({brillig}), Inliner({}))]",
+                inliner.label()
+            ));
         }
     }
     let test_cases = test_cases.join("\n");
 
-    // Use a common mutex for all test cases.
+    // We need to isolate test cases in the same group, otherwise they overwrite each other's artifacts.
+    // On CI we use `cargo nextest`, which runs tests in different processes; for this we use a file lock.
+    // Locally we might be using `cargo test`, which run tests in the same process; in this case the file lock
+    // wouldn't work, becuase the process itself has the lock, and it looks like it can have N instances without
+    // any problems; for this reason we also use a `Mutex`.
     let mutex_name = format! {"TEST_MUTEX_{}", test_name.to_uppercase()};
     write!(
         test_file,
@@ -179,21 +193,35 @@ lazy_static::lazy_static! {{
 }}
 
 {test_cases}
-fn test_{test_name}(force_brillig: bool, inliner_aggressiveness: i64) {{
-    // Ignore poisoning errors if some of the matrix cases failed.
-    let _guard = {mutex_name}.lock().unwrap_or_else(|e| e.into_inner()); 
-
+fn test_{test_name}(force_brillig: ForceBrillig, inliner_aggressiveness: Inliner) {{
     let test_program_dir = PathBuf::from("{test_dir}");
+
+    // Ignore poisoning errors if some of the matrix cases failed.
+    let mutex_guard = {mutex_name}.lock().unwrap_or_else(|e| e.into_inner());
+
+    let file_guard = file_lock::FileLock::lock(
+        test_program_dir.join("Nargo.toml"),
+        true,
+        file_lock::FileOptions::new().read(true).write(true).append(true)
+    ).expect("failed to lock Nargo.toml");
 
     let mut nargo = Command::cargo_bin("nargo").unwrap();
     nargo.arg("--program-dir").arg(test_program_dir);
     nargo.arg("{test_command}").arg("--force");
-    nargo.arg("--inliner-aggressiveness").arg(inliner_aggressiveness.to_string());
-    if force_brillig {{
+    nargo.arg("--inliner-aggressiveness").arg(inliner_aggressiveness.0.to_string());
+
+    if force_brillig.0 {{
         nargo.arg("--force-brillig");
+
+        // Set the maximum increase so that part of the optimization is exercised (it might fail).
+        nargo.arg("--max-bytecode-increase-percent");
+        nargo.arg("50");
     }}
 
     {test_content}
+
+    drop(file_guard);
+    drop(mutex_guard);
 }}
 "#
     )
@@ -363,7 +391,7 @@ fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Pa
             "info",
             &format!(
                 r#"
-                nargo.arg("--json");                
+                nargo.arg("--json");
                 {assert_zero_opcodes}
             "#,
             ),

@@ -15,10 +15,9 @@ jobs:
     steps:
       - name: Run release-please
         id: release
-        uses: google-github-actions/release-please-action@v3
+        uses: googleapis/release-please-action@v4
         with:
           token: ${{ secrets.NOIR_RELEASES_TOKEN }}
-          command: manifest
 
   update-acvm-workspace-package-versions:
     name: Update acvm workspace package versions

@@ -1,12 +1,11 @@
 //! This file is for pretty-printing the SSA IR in a human-readable form for debugging.
-use std::{
-    collections::HashSet,
-    fmt::{Formatter, Result},
-};
+use std::fmt::{Formatter, Result};
 
-use acvm::acir::circuit::{ErrorSelector, STRING_ERROR_SELECTOR};
 use acvm::acir::AcirField;
+use im::Vector;
 use iter_extended::vecmap;
+
+use crate::ssa::ir::types::{NumericType, Type};
 
 use super::{
     basic_block::BasicBlockId,
@@ -19,28 +18,10 @@ use super::{
 /// Helper function for Function's Display impl to pretty-print the function with the given formatter.
 pub(crate) fn display_function(function: &Function, f: &mut Formatter) -> Result {
     writeln!(f, "{} fn {} {} {{", function.runtime(), function.name(), function.id())?;
-    display_block_with_successors(function, function.entry_block(), &mut HashSet::new(), f)?;
-    write!(f, "}}")
-}
-
-/// Displays a block followed by all of its successors recursively.
-/// This uses a HashSet to keep track of the visited blocks. Otherwise
-/// there would be infinite recursion for any loops in the IR.
-pub(crate) fn display_block_with_successors(
-    function: &Function,
-    block_id: BasicBlockId,
-    visited: &mut HashSet<BasicBlockId>,
-    f: &mut Formatter,
-) -> Result {
-    display_block(function, block_id, f)?;
-    visited.insert(block_id);
-
-    for successor in function.dfg[block_id].successors() {
-        if !visited.contains(&successor) {
-            display_block_with_successors(function, successor, visited, f)?;
-        }
+    for block_id in function.reachable_blocks() {
+        display_block(function, block_id, f)?;
     }
-    Ok(())
+    write!(f, "}}")
 }
 
 /// Display a single block. This will not display the block's successors.
@@ -70,17 +51,6 @@ fn value(function: &Function, id: ValueId) -> String {
         }
         Value::Function(id) => id.to_string(),
         Value::Intrinsic(intrinsic) => intrinsic.to_string(),
-        Value::Array { array, typ } => {
-            let elements = vecmap(array, |element| value(function, *element));
-            let element_types = &typ.clone().element_types();
-            let element_types_str =
-                element_types.iter().map(|typ| typ.to_string()).collect::<Vec<String>>().join(", ");
-            if element_types.len() == 1 {
-                format!("[{}] of {}", elements.join(", "), element_types_str)
-            } else {
-                format!("[{}] of ({})", elements.join(", "), element_types_str)
-            }
-        }
         Value::Param { .. } | Value::Instruction { .. } | Value::ForeignFunction(_) => {
             id.to_string()
         }
@@ -228,10 +198,63 @@ fn display_instruction_inner(
             let else_value = show(*else_value);
             writeln!(
                 f,
-                "if {then_condition} then {then_value} else if {else_condition} then {else_value}"
+                "if {then_condition} then {then_value} else (if {else_condition}) {else_value}"
             )
         }
+        Instruction::MakeArray { elements, typ } => {
+            // If the array is a byte array, we check if all the bytes are printable ascii characters
+            // and, if so, we print the array as a string literal (easier to understand).
+            // It could happen that the byte array is a random byte sequence that happens to be printable
+            // (it didn't come from a string literal) but this still reduces the noise in the output
+            // and actually represents the same value.
+            let (element_types, is_slice) = match typ {
+                Type::Array(types, _) => (types, false),
+                Type::Slice(types) => (types, true),
+                _ => panic!("Expected array or slice type for MakeArray"),
+            };
+            if element_types.len() == 1
+                && element_types[0] == Type::Numeric(NumericType::Unsigned { bit_size: 8 })
+            {
+                if let Some(string) = try_byte_array_to_string(elements, function) {
+                    if is_slice {
+                        return writeln!(f, "make_array &b{:?}", string);
+                    } else {
+                        return writeln!(f, "make_array b{:?}", string);
+                    }
+                }
+            }
+
+            write!(f, "make_array [")?;
+
+            for (i, element) in elements.iter().enumerate() {
+                if i != 0 {
+                    write!(f, ", ")?;
+                }
+                write!(f, "{}", show(*element))?;
+            }
+
+            writeln!(f, "] : {typ}")
+        }
     }
+}
+
+fn try_byte_array_to_string(elements: &Vector<ValueId>, function: &Function) -> Option<String> {
+    let mut string = String::new();
+    for element in elements {
+        let element = function.dfg.get_numeric_constant(*element)?;
+        let element = element.try_to_u32()?;
+        if element > 0xFF {
+            return None;
+        }
+        let byte = element as u8;
+        if byte.is_ascii_alphanumeric() || byte.is_ascii_punctuation() || byte.is_ascii_whitespace()
+        {
+            string.push(byte as char);
+        } else {
+            return None;
+        }
+    }
+    Some(string)
 }
 
 fn result_types(function: &Function, results: &[ValueId]) -> String {
@@ -247,20 +270,16 @@ fn result_types(function: &Function, results: &[ValueId]) -> String {
 
 /// Tries to extract a constant string from an error payload.
 pub(crate) fn try_to_extract_string_from_error_payload(
-    error_selector: ErrorSelector,
+    is_string_type: bool,
     values: &[ValueId],
     dfg: &DataFlowGraph,
 ) -> Option<String> {
-    ((error_selector == STRING_ERROR_SELECTOR) && (values.len() == 1))
+    (is_string_type && (values.len() == 1))
         .then_some(())
         .and_then(|()| {
-            let Value::Array { array: values, .. } = &dfg[values[0]] else {
-                return None;
-            };
-            let fields: Option<Vec<_>> =
-                values.iter().map(|value_id| dfg.get_numeric_constant(*value_id)).collect();
-
-            fields
+            let (values, _) = &dfg.get_array_constant(values[0])?;
+            let values = values.iter().map(|value_id| dfg.get_numeric_constant(*value_id));
+            values.collect::<Option<Vec<_>>>()
         })
         .map(|fields| {
             fields
@@ -280,13 +299,13 @@ fn display_constrain_error(
 ) -> Result {
     match error {
         ConstrainError::StaticString(assert_message_string) => {
-            writeln!(f, " '{assert_message_string:?}'")
+            writeln!(f, ", {assert_message_string:?}")
         }
-        ConstrainError::Dynamic(selector, values) => {
+        ConstrainError::Dynamic(_, is_string, values) => {
             if let Some(constant_string) =
-                try_to_extract_string_from_error_payload(*selector, values, &function.dfg)
+                try_to_extract_string_from_error_payload(*is_string, values, &function.dfg)
             {
-                writeln!(f, " '{}'", constant_string)
+                writeln!(f, ", {constant_string:?}")
             } else {
                 writeln!(f, ", data {}", value_list(function, values))
             }

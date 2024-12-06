@@ -89,6 +89,7 @@ pub(crate) enum ParsedInstruction {
     Constrain {
         lhs: ParsedValue,
         rhs: ParsedValue,
+        assert_message: Option<AssertMessage>,
     },
     DecrementRc {
         value: ParsedValue,
@@ -102,6 +103,11 @@ pub(crate) enum ParsedInstruction {
     Load {
         target: Identifier,
         value: ParsedValue,
+        typ: Type,
+    },
+    MakeArray {
+        target: Identifier,
+        elements: Vec<ParsedValue>,
         typ: Type,
     },
     Not {
@@ -125,15 +131,20 @@ pub(crate) enum ParsedInstruction {
 }
 
 #[derive(Debug)]
+pub(crate) enum AssertMessage {
+    Static(String),
+    Dynamic(Vec<ParsedValue>),
+}
+
+#[derive(Debug)]
 pub(crate) enum ParsedTerminator {
     Jmp { destination: Identifier, arguments: Vec<ParsedValue> },
     Jmpif { condition: ParsedValue, then_block: Identifier, else_block: Identifier },
     Return(Vec<ParsedValue>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) enum ParsedValue {
     NumericConstant { constant: FieldElement, typ: Type },
-    Array { values: Vec<ParsedValue>, typ: Type },
     Variable(Identifier),
 }
