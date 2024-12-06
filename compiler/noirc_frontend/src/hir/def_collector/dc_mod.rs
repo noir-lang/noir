@@ -518,7 +518,7 @@ impl<'a> ModCollector<'a> {
                                             *is_unconstrained,
                                             generics,
                                             parameters,
-                                            body,
+                                            body.clone(),
                                             where_clause,
                                             return_type,
                                         ));
