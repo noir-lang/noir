@@ -204,10 +204,9 @@ fn loop_uninitialized_dap<R: Read, W: Write>(
 
                         noir_debugger::run_dap_loop(
                             server,
-                            &Bn254BlackBoxSolver,
+                            &Bn254BlackBoxSolver(pedantic_solving),
                             compiled_program,
                             initial_witness,
-                            pedantic_solving,
                         )?;
                         break;
                     }

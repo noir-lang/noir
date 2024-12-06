@@ -65,20 +65,19 @@ fn call_foreign(
             args,
             return_type,
             location,
-            pedantic_solving,
         ),
         "bigint_to_le_bytes" => bigint_to_le_bytes(bigint_solver, args, location),
         "bigint_add" => {
-            bigint_op(bigint_solver, BigIntAdd, args, return_type, location, pedantic_solving)
+            bigint_op(bigint_solver, BigIntAdd, args, return_type, location)
         }
         "bigint_sub" => {
-            bigint_op(bigint_solver, BigIntSub, args, return_type, location, pedantic_solving)
+            bigint_op(bigint_solver, BigIntSub, args, return_type, location)
         }
         "bigint_mul" => {
-            bigint_op(bigint_solver, BigIntMul, args, return_type, location, pedantic_solving)
+            bigint_op(bigint_solver, BigIntMul, args, return_type, location)
         }
         "bigint_div" => {
-            bigint_op(bigint_solver, BigIntDiv, args, return_type, location, pedantic_solving)
+            bigint_op(bigint_solver, BigIntDiv, args, return_type, location)
         }
         "blake2s" => blake_hash(interner, args, location, acvm::blackbox_solver::blake2s),
         "blake3" => blake_hash(interner, args, location, acvm::blackbox_solver::blake3),
@@ -94,9 +93,9 @@ fn call_foreign(
             location,
             acvm::blackbox_solver::ecdsa_secp256r1_verify,
         ),
-        "embedded_curve_add" => embedded_curve_add(args, location),
+        "embedded_curve_add" => embedded_curve_add(args, location, pedantic_solving),
         "multi_scalar_mul" => multi_scalar_mul(interner, args, location, pedantic_solving),
-        "poseidon2_permutation" => poseidon2_permutation(interner, args, location),
+        "poseidon2_permutation" => poseidon2_permutation(interner, args, location, pedantic_solving),
         "keccakf1600" => keccakf1600(interner, args, location),
         "range" => apply_range_constraint(args, location),
         "sha256_compression" => sha256_compression(interner, args, location),
@@ -163,7 +162,6 @@ fn bigint_from_le_bytes(
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
-    pedantic_solving: bool,
 ) -> IResult<Value> {
     let (bytes, modulus) = check_two_arguments(arguments, location)?;
 
@@ -171,7 +169,7 @@ fn bigint_from_le_bytes(
     let (modulus, _) = get_slice_map(interner, modulus, get_u8)?;
 
     let id = solver
-        .bigint_from_bytes(&bytes, &modulus, pedantic_solving)
+        .bigint_from_bytes(&bytes, &modulus)
         .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
 
     Ok(to_bigint(id, return_type))
@@ -207,7 +205,6 @@ fn bigint_op(
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
-    pedantic_solving: bool,
 ) -> IResult<Value> {
     let (lhs, rhs) = check_two_arguments(arguments, location)?;
 
@@ -215,7 +212,7 @@ fn bigint_op(
     let rhs = get_bigint_id(rhs)?;
 
     let id = solver
-        .bigint_op(lhs, rhs, func, pedantic_solving)
+        .bigint_op(lhs, rhs, func)
         .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
 
     Ok(to_bigint(id, return_type))
@@ -287,13 +284,13 @@ fn ecdsa_secp256_verify(
 ///     point2: EmbeddedCurvePoint,
 /// ) -> [Field; 3]
 /// ```
-fn embedded_curve_add(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+fn embedded_curve_add(arguments: Vec<(Value, Location)>, location: Location, pedantic_solving: bool) -> IResult<Value> {
     let (point1, point2) = check_two_arguments(arguments, location)?;
 
     let (p1x, p1y, p1inf) = get_embedded_curve_point(point1)?;
     let (p2x, p2y, p2inf) = get_embedded_curve_point(point2)?;
 
-    let (x, y, inf) = Bn254BlackBoxSolver
+    let (x, y, inf) = Bn254BlackBoxSolver(pedantic_solving)
         .ec_add(&p1x, &p1y, &p1inf.into(), &p2x, &p2y, &p2inf.into())
         .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
 
@@ -325,8 +322,8 @@ fn multi_scalar_mul(
         scalars_hi.push(hi);
     }
 
-    let (x, y, inf) = Bn254BlackBoxSolver
-        .multi_scalar_mul(&points, &scalars_lo, &scalars_hi, pedantic_solving)
+    let (x, y, inf) = Bn254BlackBoxSolver(pedantic_solving)
+        .multi_scalar_mul(&points, &scalars_lo, &scalars_hi)
         .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
 
     Ok(to_field_array(&[x, y, inf]))
@@ -337,13 +334,14 @@ fn poseidon2_permutation(
     interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
+    pedantic_solving: bool,
 ) -> IResult<Value> {
     let (input, state_length) = check_two_arguments(arguments, location)?;
 
     let (input, typ) = get_array_map(interner, input, get_field)?;
     let state_length = get_u32(state_length)?;
 
-    let fields = Bn254BlackBoxSolver
+    let fields = Bn254BlackBoxSolver(pedantic_solving)
         .poseidon2_permutation(&input, state_length)
         .map_err(|error| InterpreterError::BlackBoxError(error, location))?;
 

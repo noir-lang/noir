@@ -10,14 +10,28 @@ use crate::BlackBoxResolutionError;
 /// - When it encounters a bigint operation opcode, it performs the operation on the stored values
 /// and store the result using the provided ID.
 /// - When it gets a to_bytes opcode, it simply looks up the value and resolves the output witness accordingly.
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
-
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BigIntSolver {
     bigint_id_to_value: HashMap<u32, BigUint>,
     bigint_id_to_modulus: HashMap<u32, BigUint>,
+
+    // Use pedantic ACVM solving 
+    pedantic_solving: bool,
 }
 
 impl BigIntSolver {
+    pub fn with_pedantic_solving(pedantic_solving: bool) -> BigIntSolver {
+        BigIntSolver {
+            bigint_id_to_value: Default::default(),
+            bigint_id_to_modulus: Default::default(),
+            pedantic_solving,
+        }
+    }
+
+    pub fn pedantic_solving(&self) -> bool {
+        self.pedantic_solving
+    }
+
     pub fn get_bigint(
         &self,
         id: u32,
@@ -50,9 +64,8 @@ impl BigIntSolver {
         inputs: &[u8],
         modulus: &[u8],
         output: u32,
-        pedantic_solving: bool,
     ) -> Result<(), BlackBoxResolutionError> {
-        if pedantic_solving && (!self.is_valid_modulus(modulus) || inputs.len() > modulus.len()) {
+        if self.pedantic_solving && (!self.is_valid_modulus(modulus) || inputs.len() > modulus.len()) {
             if !self.is_valid_modulus(modulus) {
                 panic!("--pedantic-solving: bigint_from_bytes: disallowed modulus {:?}", modulus);
             } else {
@@ -80,7 +93,6 @@ impl BigIntSolver {
         rhs: u32,
         output: u32,
         func: BlackBoxFunc,
-        pedantic_solving: bool,
     ) -> Result<(), BlackBoxResolutionError> {
         let modulus = self.get_modulus(lhs, func)?;
         let lhs = self.get_bigint(lhs, func)?;
@@ -96,8 +108,11 @@ impl BigIntSolver {
             }
             BlackBoxFunc::BigIntMul => lhs * rhs,
             BlackBoxFunc::BigIntDiv => {
-                if pedantic_solving && rhs == BigUint::ZERO {
-                    panic!("--pedantic-solving: BigIntDiv by zero");
+                if self.pedantic_solving && rhs == BigUint::ZERO {
+                    return Err(BlackBoxResolutionError::Failed(
+                        func,
+                        "Attempted to divide BigInt by zero".to_string(),
+                    ));
                 }
                 lhs * rhs.modpow(&(&modulus - BigUint::from(2_u32)), &modulus)
             }
@@ -150,13 +165,21 @@ impl BigIntSolver {
 }
 
 /// Wrapper over the generic bigint solver to automatically assign bigint IDs.
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BigIntSolverWithId {
     solver: BigIntSolver,
     last_id: u32,
 }
 
 impl BigIntSolverWithId {
+    pub fn with_pedantic_solving(pedantic_solving: bool) -> BigIntSolverWithId {
+        let solver = BigIntSolver::with_pedantic_solving(pedantic_solving);
+        BigIntSolverWithId {
+            solver,
+            last_id: Default::default(),
+        }
+    }
+
     pub fn create_bigint_id(&mut self) -> u32 {
         let output = self.last_id;
         self.last_id += 1;
@@ -167,10 +190,9 @@ impl BigIntSolverWithId {
         &mut self,
         inputs: &[u8],
         modulus: &[u8],
-        pedantic_solving: bool,
     ) -> Result<u32, BlackBoxResolutionError> {
         let id = self.create_bigint_id();
-        self.solver.bigint_from_bytes(inputs, modulus, id, pedantic_solving)?;
+        self.solver.bigint_from_bytes(inputs, modulus, id)?;
         Ok(id)
     }
 
@@ -183,7 +205,6 @@ impl BigIntSolverWithId {
         lhs: u32,
         rhs: u32,
         func: BlackBoxFunc,
-        pedantic_solving: bool,
     ) -> Result<u32, BlackBoxResolutionError> {
         let modulus_lhs = self.solver.get_modulus(lhs, func)?;
         let modulus_rhs = self.solver.get_modulus(rhs, func)?;
@@ -194,7 +215,7 @@ impl BigIntSolverWithId {
             ));
         }
         let id = self.create_bigint_id();
-        self.solver.bigint_op(lhs, rhs, id, func, pedantic_solving)?;
+        self.solver.bigint_op(lhs, rhs, id, func)?;
         Ok(id)
     }
 }

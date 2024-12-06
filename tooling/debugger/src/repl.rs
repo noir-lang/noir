@@ -41,7 +41,6 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
         debug_artifact: &'a DebugArtifact,
         initial_witness: WitnessMap<FieldElement>,
         unconstrained_functions: &'a [BrilligBytecode<FieldElement>],
-        pedantic_solving: bool,
     ) -> Self {
         let foreign_call_executor =
             Box::new(DefaultDebugForeignCallExecutor::from_artifact(true, debug_artifact));
@@ -52,7 +51,6 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
             initial_witness.clone(),
             foreign_call_executor,
             unconstrained_functions,
-            pedantic_solving,
         );
         let last_result = if context.get_current_debug_location().is_none() {
             // handle circuit with no opcodes
@@ -324,7 +322,6 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
             self.initial_witness.clone(),
             foreign_call_executor,
             self.unconstrained_functions,
-            self.context.acvm.pedantic_solving,
         );
         for debug_location in breakpoints {
             self.context.add_breakpoint(debug_location);
@@ -426,7 +423,6 @@ pub fn run<B: BlackBoxFunctionSolver<FieldElement>>(
     blackbox_solver: &B,
     program: CompiledProgram,
     initial_witness: WitnessMap<FieldElement>,
-    pedantic_solving: bool,
 ) -> Result<Option<WitnessStack<FieldElement>>, NargoError<FieldElement>> {
     let circuits = &program.program.functions;
     let debug_artifact =
@@ -438,7 +434,6 @@ pub fn run<B: BlackBoxFunctionSolver<FieldElement>>(
         debug_artifact,
         initial_witness,
         unconstrained_functions,
-        pedantic_solving,
     ));
     let ref_context = &context;
 

@@ -134,9 +134,6 @@ pub(crate) struct AcirContext<F: AcirField, B: BlackBoxFunctionSolver<F>> {
     expression_width: ExpressionWidth,
 
     pub(crate) warnings: Vec<SsaReport>,
-
-    // Use pedantic ACVM solving
-    pedantic_solving: bool,
 }
 
 impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
@@ -1897,7 +1894,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         outputs_types: &[AcirType],
     ) -> Option<Vec<AcirValue>> {
         let mut memory =
-            (execute_brillig(code, &self.blackbox_solver, inputs, self.pedantic_solving)?)
+            (execute_brillig(code, &self.blackbox_solver, inputs)?)
                 .into_iter();
 
         let outputs_var = vecmap(outputs_types.iter(), |output| match output {
@@ -2195,7 +2192,6 @@ fn execute_brillig<F: AcirField, B: BlackBoxFunctionSolver<F>>(
     code: &[BrilligOpcode<F>],
     blackbox_solver: &B,
     inputs: &[BrilligInputs<F>],
-    pedantic_solving: bool,
 ) -> Option<Vec<MemoryValue<F>>> {
     // Set input values
     let mut calldata: Vec<F> = Vec::new();
@@ -2222,7 +2218,7 @@ fn execute_brillig<F: AcirField, B: BlackBoxFunctionSolver<F>>(
     // Instantiate a Brillig VM given the solved input registers and memory, along with the Brillig bytecode.
     let profiling_active = false;
     let mut vm =
-        VM::new(calldata, code, Vec::new(), blackbox_solver, profiling_active, pedantic_solving);
+        VM::new(calldata, code, Vec::new(), blackbox_solver, profiling_active);
 
     // Run the Brillig VM on these inputs, bytecode, etc!
     let vm_status = vm.process_opcodes();

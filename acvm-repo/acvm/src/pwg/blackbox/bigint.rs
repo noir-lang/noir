@@ -12,25 +12,30 @@ use crate::pwg::OpcodeResolutionError;
 /// - When it encounters a bigint operation opcode, it performs the operation on the stored values
 /// and store the result using the provided ID.
 /// - When it gets a to_bytes opcode, it simply looks up the value and resolves the output witness accordingly.
-#[derive(Default)]
 pub(crate) struct AcvmBigIntSolver {
     bigint_solver: BigIntSolver,
 }
 
 impl AcvmBigIntSolver {
+    pub(crate) fn with_pedantic_solving(pedantic_solving: bool) -> AcvmBigIntSolver {
+        let bigint_solver = BigIntSolver::with_pedantic_solving(pedantic_solving);
+        AcvmBigIntSolver {
+            bigint_solver,
+        }
+    }
+
     pub(crate) fn bigint_from_bytes<F: AcirField>(
         &mut self,
         inputs: &[FunctionInput<F>],
         modulus: &[u8],
         output: u32,
         initial_witness: &mut WitnessMap<F>,
-        pedantic_solving: bool,
     ) -> Result<(), OpcodeResolutionError<F>> {
         let bytes = inputs
             .iter()
             .map(|input| input_to_value(initial_witness, *input, false).unwrap().to_u128() as u8)
             .collect::<Vec<u8>>();
-        self.bigint_solver.bigint_from_bytes(&bytes, modulus, output, pedantic_solving)?;
+        self.bigint_solver.bigint_from_bytes(&bytes, modulus, output)?;
         Ok(())
     }
 
@@ -39,9 +44,8 @@ impl AcvmBigIntSolver {
         input: u32,
         outputs: &[Witness],
         initial_witness: &mut WitnessMap<F>,
-        pedantic_solving: bool,
     ) -> Result<(), OpcodeResolutionError<F>> {
-        if pedantic_solving && outputs.len() != 32 {
+        if self.bigint_solver.pedantic_solving() && outputs.len() != 32 {
             panic!("--pedantic-solving: bigint_to_bytes: outputs.len() != 32: {}", outputs.len());
         }
         let mut bytes = self.bigint_solver.bigint_to_bytes(input)?;
@@ -60,9 +64,8 @@ impl AcvmBigIntSolver {
         rhs: u32,
         output: u32,
         func: BlackBoxFunc,
-        pedantic_solving: bool,
     ) -> Result<(), OpcodeResolutionError<F>> {
-        self.bigint_solver.bigint_op(lhs, rhs, output, func, pedantic_solving)?;
+        self.bigint_solver.bigint_op(lhs, rhs, output, func)?;
         Ok(())
     }
 }

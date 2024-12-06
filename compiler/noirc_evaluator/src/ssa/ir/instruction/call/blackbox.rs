@@ -99,9 +99,8 @@ pub(super) fn simplify_msm(
                 }
             }
 
-            let pedantic_solving = true;
             let Ok((result_x, result_y, result_is_infinity)) =
-                solver.multi_scalar_mul(&points, &scalars_lo, &scalars_hi, pedantic_solving)
+                solver.multi_scalar_mul(&points, &scalars_lo, &scalars_hi)
             else {
                 return SimplifyResult::None;
             };

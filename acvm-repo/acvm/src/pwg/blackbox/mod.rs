@@ -65,7 +65,6 @@ pub(crate) fn solve<F: AcirField>(
     initial_witness: &mut WitnessMap<F>,
     bb_func: &BlackBoxFuncCall<F>,
     bigint_solver: &mut AcvmBigIntSolver,
-    pedantic_solving: bool,
 ) -> Result<(), OpcodeResolutionError<F>> {
     let inputs = bb_func.get_inputs_vec();
     if !contains_all_inputs(initial_witness, &inputs) {
@@ -81,13 +80,13 @@ pub(crate) fn solve<F: AcirField>(
             solve_aes128_encryption_opcode(initial_witness, inputs, iv, key, outputs)
         }
         BlackBoxFuncCall::AND { lhs, rhs, output } => {
-            and(initial_witness, lhs, rhs, output, pedantic_solving)
+            and(initial_witness, lhs, rhs, output, backend.pedantic_solving())
         }
         BlackBoxFuncCall::XOR { lhs, rhs, output } => {
-            xor(initial_witness, lhs, rhs, output, pedantic_solving)
+            xor(initial_witness, lhs, rhs, output, backend.pedantic_solving())
         }
         BlackBoxFuncCall::RANGE { input } => {
-            solve_range_opcode(initial_witness, input, pedantic_solving)
+            solve_range_opcode(initial_witness, input, backend.pedantic_solving())
         }
         BlackBoxFuncCall::Blake2s { inputs, outputs } => {
             solve_generic_256_hash_opcode(initial_witness, inputs, None, outputs, blake2s)
@@ -154,7 +153,7 @@ pub(crate) fn solve<F: AcirField>(
             *output,
         ),
         BlackBoxFuncCall::MultiScalarMul { points, scalars, outputs } => {
-            multi_scalar_mul(backend, initial_witness, points, scalars, *outputs, pedantic_solving)
+            multi_scalar_mul(backend, initial_witness, points, scalars, *outputs)
         }
         BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, outputs } => {
             embedded_curve_add(backend, initial_witness, **input1, **input2, *outputs)
@@ -169,12 +168,11 @@ pub(crate) fn solve<F: AcirField>(
             *rhs,
             *output,
             bb_func.get_black_box_func(),
-            pedantic_solving,
         ),
         BlackBoxFuncCall::BigIntFromLeBytes { inputs, modulus, output } => bigint_solver
-            .bigint_from_bytes(inputs, modulus, *output, initial_witness, pedantic_solving),
+            .bigint_from_bytes(inputs, modulus, *output, initial_witness),
         BlackBoxFuncCall::BigIntToLeBytes { input, outputs } => {
-            bigint_solver.bigint_to_bytes(*input, outputs, initial_witness, pedantic_solving)
+            bigint_solver.bigint_to_bytes(*input, outputs, initial_witness)
         }
         BlackBoxFuncCall::Sha256Compression { inputs, hash_values, outputs } => {
             solve_sha_256_permutation_opcode(initial_witness, inputs, hash_values, outputs)

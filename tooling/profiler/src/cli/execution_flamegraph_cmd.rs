@@ -61,9 +61,8 @@ fn run_with_generator(
     let (_, mut profiling_samples) = nargo::ops::execute_program_with_profiling(
         &program.bytecode,
         initial_witness,
-        &Bn254BlackBoxSolver,
+        &Bn254BlackBoxSolver(pedantic_solving),
         &mut DefaultForeignCallExecutor::new(true, None, None, None),
-        pedantic_solving,
     )?;
     println!("Executed");
 

@@ -67,7 +67,6 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         acir_index: usize,
         brillig_function_id: BrilligFunctionId,
         profiling_active: bool,
-        pedantic_solving: bool,
     ) -> Result<Self, OpcodeResolutionError<F>> {
         let vm = Self::setup_brillig_vm(
             initial_witness,
@@ -76,7 +75,6 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
             brillig_bytecode,
             bb_solver,
             profiling_active,
-            pedantic_solving,
         )?;
         Ok(Self { vm, acir_index, function_id: brillig_function_id })
     }
@@ -88,7 +86,6 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         brillig_bytecode: &'b [BrilligOpcode<F>],
         bb_solver: &'b B,
         profiling_active: bool,
-        pedantic_solving: bool,
     ) -> Result<VM<'b, F, B>, OpcodeResolutionError<F>> {
         // Set input values
         let mut calldata: Vec<F> = Vec::new();
@@ -142,7 +139,6 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
             vec![],
             bb_solver,
             profiling_active,
-            pedantic_solving,
         );
         Ok(vm)
     }

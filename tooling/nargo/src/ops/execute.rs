@@ -37,10 +37,6 @@ struct ProgramExecutor<'a, F, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecut
     // Flag that states whether we want to profile the VM. Profiling can add extra
     // execution costs so we want to make sure we only trigger it explicitly.
     profiling_active: bool,
-
-    // Flag to use pedantic ACVM solving, i.e. double-checking some black box
-    // function assumptions during solving.
-    pedantic_solving: bool,
 }
 
 impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
@@ -52,7 +48,6 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
         blackbox_solver: &'a B,
         foreign_call_executor: &'a mut E,
         profiling_active: bool,
-        pedantic_solving: bool,
     ) -> Self {
         ProgramExecutor {
             functions,
@@ -63,7 +58,6 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
             call_stack: Vec::default(),
             current_function_index: 0,
             profiling_active,
-            pedantic_solving,
         }
     }
 
@@ -83,7 +77,6 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
             initial_witness,
             self.unconstrained_functions,
             &circuit.assert_messages,
-            self.pedantic_solving,
         );
         acvm.with_profiler(self.profiling_active);
 
@@ -210,7 +203,6 @@ pub fn execute_program<F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCal
     initial_witness: WitnessMap<F>,
     blackbox_solver: &B,
     foreign_call_executor: &mut E,
-    pedantic_solving: bool,
 ) -> Result<WitnessStack<F>, NargoError<F>> {
     let profiling_active = false;
     let (witness_stack, profiling_samples) = execute_program_inner(
@@ -219,7 +211,6 @@ pub fn execute_program<F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCal
         blackbox_solver,
         foreign_call_executor,
         profiling_active,
-        pedantic_solving,
     )?;
     assert!(profiling_samples.is_empty(), "Expected no profiling samples");
 
@@ -235,7 +226,6 @@ pub fn execute_program_with_profiling<
     initial_witness: WitnessMap<F>,
     blackbox_solver: &B,
     foreign_call_executor: &mut E,
-    pedantic_solving: bool,
 ) -> Result<(WitnessStack<F>, ProfilingSamples), NargoError<F>> {
     let profiling_active = true;
     execute_program_inner(
@@ -244,7 +234,6 @@ pub fn execute_program_with_profiling<
         blackbox_solver,
         foreign_call_executor,
         profiling_active,
-        pedantic_solving,
     )
 }
 
@@ -255,7 +244,6 @@ fn execute_program_inner<F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignC
     blackbox_solver: &B,
     foreign_call_executor: &mut E,
     profiling_active: bool,
-    pedantic_solving: bool,
 ) -> Result<(WitnessStack<F>, ProfilingSamples), NargoError<F>> {
     let mut executor = ProgramExecutor::new(
         &program.functions,
@@ -263,7 +251,6 @@ fn execute_program_inner<F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignC
         blackbox_solver,
         foreign_call_executor,
         profiling_active,
-        pedantic_solving,
     );
     let (main_witness, profiling_samples) = executor.execute_circuit(initial_witness)?;
     executor.witness_stack.push(0, main_witness);

@@ -243,10 +243,9 @@ pub(crate) fn debug_program(
     let initial_witness = compiled_program.abi.encode(inputs_map, None)?;
 
     noir_debugger::run_repl_session(
-        &Bn254BlackBoxSolver,
+        &Bn254BlackBoxSolver(pedantic_solving),
         compiled_program,
         initial_witness,
-        pedantic_solving,
     )
     .map_err(CliError::from)
 }

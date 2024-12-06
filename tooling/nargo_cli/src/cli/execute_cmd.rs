@@ -135,14 +135,13 @@ pub(crate) fn execute_program(
     let solved_witness_stack_err = nargo::ops::execute_program(
         &compiled_program.program,
         initial_witness,
-        &Bn254BlackBoxSolver,
+        &Bn254BlackBoxSolver(pedantic_solving),
         &mut DefaultForeignCallExecutor::new(
             true,
             foreign_call_resolver_url,
             root_path,
             package_name,
         ),
-        pedantic_solving,
     );
     match solved_witness_stack_err {
         Ok(solved_witness_stack) => Ok(solved_witness_stack),

@@ -79,13 +79,14 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         current_function: Option<FuncId>,
         pedantic_solving: bool,
     ) -> Self {
+        let bigint_solver = BigIntSolverWithId::with_pedantic_solving(pedantic_solving);
         Self {
             elaborator,
             crate_id,
             current_function,
             bound_generics: Vec::new(),
             in_loop: false,
-            bigint_solver: BigIntSolverWithId::default(),
+            bigint_solver,
             pedantic_solving,
         }
     }

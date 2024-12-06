@@ -264,9 +264,8 @@ fn profile_brillig_execution(
         let (_, profiling_samples) = nargo::ops::execute_program_with_profiling(
             &program_artifact.bytecode,
             initial_witness,
-            &Bn254BlackBoxSolver,
+            &Bn254BlackBoxSolver(pedantic_solving),
             &mut DefaultForeignCallExecutor::new(false, None, None, None),
-            pedantic_solving,
         )?;
 
         let expression_width = get_target_width(package.expression_width, expression_width);
