@@ -90,9 +90,7 @@ pub(super) fn simplify_msm(
                     dfg.get_numeric_constant(points[3 * i + 1]),
                     dfg.get_numeric_constant(points[3 * i + 2]),
                 ) {
-                    (Some(lo), Some(hi), _, _, _)
-                        if lo == FieldElement::zero() && hi == FieldElement::zero() =>
-                    {
+                    (Some(lo), Some(hi), _, _, _) if lo.is_zero() && hi.is_zero() => {
                         is_constant = true;
                         constant_scalars_lo.push(lo);
                         constant_scalars_hi.push(hi);
@@ -100,7 +98,7 @@ pub(super) fn simplify_msm(
                         constant_points.push(FieldElement::zero());
                         constant_points.push(FieldElement::one());
                     }
-                    (_, _, _, _, Some(infinity)) if infinity == FieldElement::one() => {
+                    (_, _, _, _, Some(infinity)) if infinity.is_one() => {
                         is_constant = true;
                         constant_scalars_lo.push(FieldElement::zero());
                         constant_scalars_hi.push(FieldElement::zero());
@@ -165,9 +163,9 @@ pub(super) fn simplify_msm(
                 return SimplifyResult::None;
             }
             // Add the constant part back to the non-constant part, if it is not null
-            if result_is_infinity != FieldElement::one() {
-                let one = dfg.make_constant(FieldElement::one(), Type::field());
-                let zero = dfg.make_constant(FieldElement::zero(), Type::field());
+            let one = dfg.make_constant(FieldElement::one(), Type::field());
+            let zero = dfg.make_constant(FieldElement::zero(), Type::field());
+            if result_is_infinity.is_zero() {
                 var_scalars.push(one);
                 var_scalars.push(zero);
                 let result_x = dfg.make_constant(result_x, Type::field());
