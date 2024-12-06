@@ -87,6 +87,7 @@ jobs:
           name: nextest-archive
       - name: Run tests
         run: |
+          RUST_MIN_STACK=8388608 \
           cargo nextest run --archive-file nextest-archive.tar.zst \
             --partition count:${{ matrix.partition }}/4 \
             --no-fail-fast
