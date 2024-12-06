@@ -3195,7 +3195,6 @@ dependencies = [
  "acvm",
  "iter-extended",
  "jsonrpc",
- "regex",
  "serde",
  "serde_json",
  "thiserror",
