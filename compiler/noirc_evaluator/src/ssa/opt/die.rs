@@ -18,8 +18,6 @@ use crate::ssa::{
     ssa_gen::{Ssa, SSA_WORD_SIZE},
 };
 
-use super::rc::{pop_rc_for, RcInstruction};
-
 impl Ssa {
     /// Performs Dead Instruction Elimination (DIE) to remove any instructions with
     /// unused results.
@@ -108,8 +106,6 @@ impl Context {
 
         let instructions_len = block.instructions().len();
 
-        let mut rc_tracker = RcTracker::default();
-
         // Indexes of instructions that might be out of bounds.
         // We'll remove those, but before that we'll insert bounds checks for them.
         let mut possible_index_out_of_bounds_indexes = Vec::new();
@@ -127,8 +123,9 @@ impl Context {
                         .push(instructions_len - instruction_index - 1);
                 }
             } else {
-                use Instruction::*;
-                if matches!(instruction, IncrementRc { .. } | DecrementRc { .. }) {
+                // We can't remove rc instructions if they're loaded from a reference
+                // since we'd have no way of knowing whether the reference is still used.
+                if Self::is_inc_dec_instruction_on_known_array(instruction, &function.dfg) {
                     self.rc_instructions.push((*instruction_id, block_id));
                 } else {
                     instruction.for_each_value(|value| {
@@ -136,12 +133,7 @@ impl Context {
                     });
                 }
             }
-
-            rc_tracker.track_inc_rcs_to_remove(*instruction_id, function);
         }
-
-        self.instructions_to_remove.extend(rc_tracker.get_non_mutated_arrays());
-        self.instructions_to_remove.extend(rc_tracker.rc_pairs_to_remove);
 
         // If there are some instructions that might trigger an out of bounds error,
         // first add constrain checks. Then run the DIE pass again, which will remove those
@@ -201,19 +193,28 @@ impl Context {
     }
 
     fn remove_rc_instructions(self, dfg: &mut DataFlowGraph) {
-        for (rc, block) in self.rc_instructions {
-            let value = match &dfg[rc] {
-                Instruction::IncrementRc { value } => *value,
-                Instruction::DecrementRc { value } => *value,
-                other => {
-                    unreachable!("Expected IncrementRc or DecrementRc instruction, found {other:?}")
-                }
-            };
+        let unused_rc_values_by_block: HashMap<BasicBlockId, HashSet<InstructionId>> =
+            self.rc_instructions.into_iter().fold(HashMap::default(), |mut acc, (rc, block)| {
+                let value = match &dfg[rc] {
+                    Instruction::IncrementRc { value } => *value,
+                    Instruction::DecrementRc { value } => *value,
+                    other => {
+                        unreachable!(
+                            "Expected IncrementRc or DecrementRc instruction, found {other:?}"
+                        )
+                    }
+                };
 
-            // This could be more efficient if we have to remove multiple instructions in a single block
-            if !self.used_values.contains(&value) {
-                dfg[block].instructions_mut().retain(|instruction| *instruction != rc);
-            }
+                if !self.used_values.contains(&value) {
+                    acc.entry(block).or_default().insert(rc);
+                }
+                acc
+            });
+
+        for (block, instructions_to_remove) in unused_rc_values_by_block {
+            dfg[block]
+                .instructions_mut()
+                .retain(|instruction| !instructions_to_remove.contains(instruction));
         }
     }
 
@@ -336,6 +337,28 @@ impl Context {
         }
 
         inserted_check
+    }
+
+    /// True if this is a `Instruction::IncrementRc` or `Instruction::DecrementRc`
+    /// operating on an array directly from a `Instruction::MakeArray` or an
+    /// intrinsic known to return a fresh array.
+    fn is_inc_dec_instruction_on_known_array(
+        instruction: &Instruction,
+        dfg: &DataFlowGraph,
+    ) -> bool {
+        use Instruction::*;
+        if let IncrementRc { value } | DecrementRc { value } = instruction {
+            if let Value::Instruction { instruction, .. } = &dfg[*value] {
+                return match &dfg[*instruction] {
+                    MakeArray { .. } => true,
+                    Call { func, .. } => {
+                        matches!(&dfg[*func], Value::Intrinsic(_) | Value::ForeignFunction(_))
+                    }
+                    _ => false,
+                };
+            }
+        }
+        false
     }
 }
 
@@ -499,103 +522,6 @@ fn apply_side_effects(
     (lhs, rhs)
 }
 
-#[derive(Default)]
-struct RcTracker {
-    // We can track IncrementRc instructions per block to determine whether they are useless.
-    // IncrementRc and DecrementRc instructions are normally side effectual instructions, but we remove
-    // them if their value is not used anywhere in the function. However, even when their value is used, their existence
-    // is pointless logic if there is no array set between the increment and the decrement of the reference counter.
-    // We track per block whether an IncrementRc instruction has a paired DecrementRc instruction
-    // with the same value but no array set in between.
-    // If we see an inc/dec RC pair within a block we can safely remove both instructions.
-    rcs_with_possible_pairs: HashMap<Type, Vec<RcInstruction>>,
-    rc_pairs_to_remove: HashSet<InstructionId>,
-    // We also separately track all IncrementRc instructions and all arrays which have been mutably borrowed.
-    // If an array has not been mutably borrowed we can then safely remove all IncrementRc instructions on that array.
-    inc_rcs: HashMap<ValueId, HashSet<InstructionId>>,
-    mut_borrowed_arrays: HashSet<ValueId>,
-    // The SSA often creates patterns where after simplifications we end up with repeat
-    // IncrementRc instructions on the same value. We track whether the previous instruction was an IncrementRc,
-    // and if the current instruction is also an IncrementRc on the same value we remove the current instruction.
-    // `None` if the previous instruction was anything other than an IncrementRc
-    previous_inc_rc: Option<ValueId>,
-}
-
-impl RcTracker {
-    fn track_inc_rcs_to_remove(&mut self, instruction_id: InstructionId, function: &Function) {
-        let instruction = &function.dfg[instruction_id];
-
-        if let Instruction::IncrementRc { value } = instruction {
-            if let Some(previous_value) = self.previous_inc_rc {
-                if previous_value == *value {
-                    self.rc_pairs_to_remove.insert(instruction_id);
-                }
-            }
-            self.previous_inc_rc = Some(*value);
-        } else {
-            self.previous_inc_rc = None;
-        }
-
-        // DIE loops over a block in reverse order, so we insert an RC instruction for possible removal
-        // when we see a DecrementRc and check whether it was possibly mutated when we see an IncrementRc.
-        match instruction {
-            Instruction::IncrementRc { value } => {
-                if let Some(inc_rc) =
-                    pop_rc_for(*value, function, &mut self.rcs_with_possible_pairs)
-                {
-                    if !inc_rc.possibly_mutated {
-                        self.rc_pairs_to_remove.insert(inc_rc.id);
-                        self.rc_pairs_to_remove.insert(instruction_id);
-                    }
-                }
-
-                self.inc_rcs.entry(*value).or_default().insert(instruction_id);
-            }
-            Instruction::DecrementRc { value } => {
-                let typ = function.dfg.type_of_value(*value);
-
-                // We assume arrays aren't mutated until we find an array_set
-                let dec_rc =
-                    RcInstruction { id: instruction_id, array: *value, possibly_mutated: false };
-                self.rcs_with_possible_pairs.entry(typ).or_default().push(dec_rc);
-            }
-            Instruction::ArraySet { array, .. } => {
-                let typ = function.dfg.type_of_value(*array);
-                if let Some(dec_rcs) = self.rcs_with_possible_pairs.get_mut(&typ) {
-                    for dec_rc in dec_rcs {
-                        dec_rc.possibly_mutated = true;
-                    }
-                }
-
-                self.mut_borrowed_arrays.insert(*array);
-            }
-            Instruction::Store { value, .. } => {
-                // We are very conservative and say that any store of an array value means it has the potential
-                // to be mutated. This is done due to the tracking of mutable borrows still being per block.
-                let typ = function.dfg.type_of_value(*value);
-                if matches!(&typ, Type::Array(..) | Type::Slice(..)) {
-                    self.mut_borrowed_arrays.insert(*value);
-                }
-            }
-            _ => {}
-        }
-    }
-
-    fn get_non_mutated_arrays(&self) -> HashSet<InstructionId> {
-        self.inc_rcs
-            .keys()
-            .filter_map(|value| {
-                if !self.mut_borrowed_arrays.contains(value) {
-                    Some(&self.inc_rcs[value])
-                } else {
-                    None
-                }
-            })
-            .flatten()
-            .copied()
-            .collect()
-    }
-}
 #[cfg(test)]
 mod test {
     use std::sync::Arc;
@@ -604,7 +530,7 @@ mod test {
 
     use crate::ssa::{
         function_builder::FunctionBuilder,
-        ir::{instruction::Instruction, map::Id, types::Type},
+        ir::{map::Id, types::Type},
         opt::assert_normalized_ssa_equals,
         Ssa,
     };
@@ -669,30 +595,6 @@ mod test {
             acir(inline) fn main f0 {
               b0(v0: Field):
                 v2 = add v0, Field 1
-                return v2
-            }
-            ";
-        let ssa = ssa.dead_instruction_elimination();
-        assert_normalized_ssa_equals(ssa, expected);
-    }
-
-    #[test]
-    fn remove_useless_paired_rcs_even_when_used() {
-        let src = "
-            acir(inline) fn main f0 {
-              b0(v0: [Field; 2]):
-                inc_rc v0
-                v2 = array_get v0, index u32 0 -> Field
-                dec_rc v0
-                return v2
-            }
-            ";
-        let ssa = Ssa::from_str(src).unwrap();
-
-        let expected = "
-            acir(inline) fn main f0 {
-              b0(v0: [Field; 2]):
-                v2 = array_get v0, index u32 0 -> Field
                 return v2
             }
             ";
@@ -770,92 +672,23 @@ mod test {
     }
 
     #[test]
-    fn keep_inc_rc_on_borrowed_array_set() {
-        // acir(inline) fn main f0 {
-        //     b0(v0: [u32; 2]):
-        //       inc_rc v0
-        //       v3 = array_set v0, index u32 0, value u32 1
-        //       inc_rc v0
-        //       inc_rc v0
-        //       inc_rc v0
-        //       v4 = array_get v3, index u32 1
-        //       return v4
-        //   }
-        let main_id = Id::test_new(0);
-
-        // Compiling main
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-        let array_type = Type::Array(Arc::new(vec![Type::unsigned(32)]), 2);
-        let v0 = builder.add_parameter(array_type.clone());
-        builder.increment_array_reference_count(v0);
-        let zero = builder.numeric_constant(0u128, Type::unsigned(32));
-        let one = builder.numeric_constant(1u128, Type::unsigned(32));
-        let v3 = builder.insert_array_set(v0, zero, one);
-        builder.increment_array_reference_count(v0);
-        builder.increment_array_reference_count(v0);
-        builder.increment_array_reference_count(v0);
-
-        let v4 = builder.insert_array_get(v3, one, Type::unsigned(32));
-
-        builder.terminate_with_return(vec![v4]);
-
-        let ssa = builder.finish();
-        let main = ssa.main();
-
-        // The instruction count never includes the terminator instruction
-        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 6);
-
-        // We expect the output to be unchanged
-        // Expected output:
-        //
-        // acir(inline) fn main f0 {
-        //     b0(v0: [u32; 2]):
-        //       inc_rc v0
-        //       v3 = array_set v0, index u32 0, value u32 1
-        //       inc_rc v0
-        //       v4 = array_get v3, index u32 1
-        //       return v4
-        //   }
-        let ssa = ssa.dead_instruction_elimination();
-        let main = ssa.main();
-
-        let instructions = main.dfg[main.entry_block()].instructions();
-        // We expect only the repeated inc_rc instructions to be collapsed into a single inc_rc.
-        assert_eq!(instructions.len(), 4);
-
-        assert!(matches!(&main.dfg[instructions[0]], Instruction::IncrementRc { .. }));
-        assert!(matches!(&main.dfg[instructions[1]], Instruction::ArraySet { .. }));
-        assert!(matches!(&main.dfg[instructions[2]], Instruction::IncrementRc { .. }));
-        assert!(matches!(&main.dfg[instructions[3]], Instruction::ArrayGet { .. }));
-    }
-
-    #[test]
-    fn remove_inc_rcs_that_are_never_mutably_borrowed() {
+    fn does_not_remove_inc_or_dec_rc_of_if_they_are_loaded_from_a_reference() {
         let src = "
-            acir(inline) fn main f0 {
-              b0(v0: [Field; 2]):
-                inc_rc v0
-                inc_rc v0
-                inc_rc v0
-                v2 = array_get v0, index u32 0 -> Field
-                inc_rc v0
-                return v2
+            brillig(inline) fn borrow_mut f0 {
+              b0(v0: &mut [Field; 3]):
+                v1 = load v0 -> [Field; 3]
+                inc_rc v1 // this one shouldn't be removed
+                v2 = load v0 -> [Field; 3]
+                inc_rc v2 // this one shouldn't be removed
+                v3 = load v0 -> [Field; 3]
+                v6 = array_set v3, index u32 0, value Field 5
+                store v6 at v0
+                dec_rc v6
+                return
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
-        let main = ssa.main();
-
-        // The instruction count never includes the terminator instruction
-        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 5);
-
-        let expected = "
-            acir(inline) fn main f0 {
-              b0(v0: [Field; 2]):
-                v2 = array_get v0, index u32 0 -> Field
-                return v2
-            }
-            ";
         let ssa = ssa.dead_instruction_elimination();
-        assert_normalized_ssa_equals(ssa, expected);
+        assert_normalized_ssa_equals(ssa, src);
     }
 }

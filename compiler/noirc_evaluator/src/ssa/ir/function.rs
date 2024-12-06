@@ -197,6 +197,12 @@ impl Function {
     }
 }
 
+impl Clone for Function {
+    fn clone(&self) -> Self {
+        Function::clone_with_id(self.id(), self)
+    }
+}
+
 impl std::fmt::Display for RuntimeType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

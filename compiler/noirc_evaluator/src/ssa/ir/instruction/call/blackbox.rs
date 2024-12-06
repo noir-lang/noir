@@ -156,39 +156,6 @@ pub(super) fn simplify_poseidon2_permutation(
     }
 }
 
-pub(super) fn simplify_schnorr_verify(
-    dfg: &mut DataFlowGraph,
-    solver: impl BlackBoxFunctionSolver<FieldElement>,
-    arguments: &[ValueId],
-) -> SimplifyResult {
-    match (
-        dfg.get_numeric_constant(arguments[0]),
-        dfg.get_numeric_constant(arguments[1]),
-        dfg.get_array_constant(arguments[2]),
-        dfg.get_array_constant(arguments[3]),
-    ) {
-        (Some(public_key_x), Some(public_key_y), Some((signature, _)), Some((message, _)))
-            if array_is_constant(dfg, &signature) && array_is_constant(dfg, &message) =>
-        {
-            let signature = to_u8_vec(dfg, signature);
-            let signature: [u8; 64] =
-                signature.try_into().expect("Compiler should produce correctly sized signature");
-
-            let message = to_u8_vec(dfg, message);
-
-            let Ok(valid_signature) =
-                solver.schnorr_verify(&public_key_x, &public_key_y, &signature, &message)
-            else {
-                return SimplifyResult::None;
-            };
-
-            let valid_signature = dfg.make_constant(valid_signature.into(), Type::bool());
-            SimplifyResult::SimplifiedTo(valid_signature)
-        }
-        _ => SimplifyResult::None,
-    }
-}
-
 pub(super) fn simplify_hash(
     dfg: &mut DataFlowGraph,
     arguments: &[ValueId],

@@ -56,11 +56,13 @@ pub(super) fn simplify_call(
             if let (Some(constant_args), Some(return_type)) = (constant_args, return_type.clone()) {
                 let field = constant_args[0];
                 let limb_count = if let Type::Array(_, array_len) = return_type {
-                    array_len as u32
+                    array_len
                 } else {
                     unreachable!("ICE: Intrinsic::ToRadix return type must be array")
                 };
-                constant_to_radix(endian, field, 2, limb_count, dfg, block, call_stack)
+                constant_to_radix(endian, field, 2, limb_count, |values| {
+                    make_constant_array(dfg, values.into_iter(), Type::bool(), block, call_stack)
+                })
             } else {
                 SimplifyResult::None
             }
@@ -71,11 +73,19 @@ pub(super) fn simplify_call(
                 let field = constant_args[0];
                 let radix = constant_args[1].to_u128() as u32;
                 let limb_count = if let Type::Array(_, array_len) = return_type {
-                    array_len as u32
+                    array_len
                 } else {
                     unreachable!("ICE: Intrinsic::ToRadix return type must be array")
                 };
-                constant_to_radix(endian, field, radix, limb_count, dfg, block, call_stack)
+                constant_to_radix(endian, field, radix, limb_count, |values| {
+                    make_constant_array(
+                        dfg,
+                        values.into_iter(),
+                        Type::unsigned(8),
+                        block,
+                        call_stack,
+                    )
+                })
             } else {
                 SimplifyResult::None
             }
@@ -351,7 +361,7 @@ pub(super) fn simplify_call(
         Intrinsic::IsUnconstrained => SimplifyResult::None,
         Intrinsic::DerivePedersenGenerators => {
             if let Some(Type::Array(_, len)) = return_type.clone() {
-                simplify_derive_generators(dfg, arguments, len as u32, block, call_stack)
+                simplify_derive_generators(dfg, arguments, len, block, call_stack)
             } else {
                 unreachable!("Derive Pedersen Generators must return an array");
             }
@@ -432,8 +442,8 @@ fn simplify_slice_push_back(
     for elem in &arguments[2..] {
         slice.push_back(*elem);
     }
-    let slice_size = slice.len();
-    let element_size = element_type.element_size();
+    let slice_size = slice.len() as u32;
+    let element_size = element_type.element_size() as u32;
     let new_slice = make_array(dfg, slice, element_type, block, &call_stack);
 
     let set_last_slice_value_instr = Instruction::ArraySet {
@@ -455,8 +465,12 @@ fn simplify_slice_push_back(
     let mut value_merger =
         ValueMerger::new(dfg, block, &mut slice_sizes, unknown, None, call_stack);
 
-    let new_slice =
-        value_merger.merge_values(len_not_equals_capacity, set_last_slice_value, new_slice);
+    let new_slice = value_merger.merge_values(
+        len_not_equals_capacity,
+        len_equals_capacity,
+        set_last_slice_value,
+        new_slice,
+    );
 
     SimplifyResult::SimplifiedToMultiple(vec![new_slice_length, new_slice])
 }
@@ -586,7 +600,6 @@ fn simplify_black_box_func(
         BlackBoxFunc::EmbeddedCurveAdd => {
             blackbox::simplify_ec_add(dfg, solver, arguments, block, call_stack)
         }
-        BlackBoxFunc::SchnorrVerify => blackbox::simplify_schnorr_verify(dfg, solver, arguments),
 
         BlackBoxFunc::BigIntAdd
         | BlackBoxFunc::BigIntSub
@@ -622,7 +635,7 @@ fn make_constant_array(
     let result_constants: im::Vector<_> =
         results.map(|element| dfg.make_constant(element, typ.clone())).collect();
 
-    let typ = Type::Array(Arc::new(vec![typ]), result_constants.len());
+    let typ = Type::Array(Arc::new(vec![typ]), result_constants.len() as u32);
     make_array(dfg, result_constants, typ, block, call_stack)
 }
 
@@ -661,9 +674,7 @@ fn constant_to_radix(
     field: FieldElement,
     radix: u32,
     limb_count: u32,
-    dfg: &mut DataFlowGraph,
-    block: BasicBlockId,
-    call_stack: &CallStack,
+    mut make_array: impl FnMut(Vec<FieldElement>) -> ValueId,
 ) -> SimplifyResult {
     let bit_size = u32::BITS - (radix - 1).leading_zeros();
     let radix_big = BigUint::from(radix);
@@ -684,13 +695,7 @@ fn constant_to_radix(
         if endian == Endian::Big {
             limbs.reverse();
         }
-        let result_array = make_constant_array(
-            dfg,
-            limbs.into_iter(),
-            Type::unsigned(bit_size),
-            block,
-            call_stack,
-        );
+        let result_array = make_array(limbs);
         SimplifyResult::SimplifiedTo(result_array)
     }
 }
@@ -817,7 +822,7 @@ fn simplify_derive_generators(
                 results.push(dfg.make_constant(y, Type::field()));
                 results.push(is_infinite);
             }
-            let len = results.len();
+            let len = results.len() as u32;
             let typ =
                 Type::Array(vec![Type::field(), Type::field(), Type::unsigned(1)].into(), len / 3);
             let result = make_array(dfg, results.into(), typ, block, call_stack);
@@ -836,27 +841,27 @@ mod tests {
 
     #[test]
     fn simplify_derive_generators_has_correct_type() {
-        let src = "
+        let src = r#"
             brillig(inline) fn main f0 {
               b0():
-                v0 = make_array [u8 68, u8 69, u8 70, u8 65, u8 85, u8 76, u8 84, u8 95, u8 68, u8 79, u8 77, u8 65, u8 73, u8 78, u8 95, u8 83, u8 69, u8 80, u8 65, u8 82, u8 65, u8 84, u8 79, u8 82] : [u8; 24]
+                v0 = make_array b"DEFAULT_DOMAIN_SEPARATOR"
 
                 // This call was previously incorrectly simplified to something that returned `[Field; 3]`
                 v2 = call derive_pedersen_generators(v0, u32 0) -> [(Field, Field, u1); 1]
 
                 return v2
             }
-            ";
+            "#;
         let ssa = Ssa::from_str(src).unwrap();
 
-        let expected = "
+        let expected = r#"
             brillig(inline) fn main f0 {
               b0():
-                v15 = make_array [u8 68, u8 69, u8 70, u8 65, u8 85, u8 76, u8 84, u8 95, u8 68, u8 79, u8 77, u8 65, u8 73, u8 78, u8 95, u8 83, u8 69, u8 80, u8 65, u8 82, u8 65, u8 84, u8 79, u8 82] : [u8; 24]
+                v15 = make_array b"DEFAULT_DOMAIN_SEPARATOR"
                 v19 = make_array [Field 3728882899078719075161482178784387565366481897740339799480980287259621149274, Field -9903063709032878667290627648209915537972247634463802596148419711785767431332, u1 0] : [(Field, Field, u1); 1]
                 return v19
             }
-            ";
+            "#;
         assert_normalized_ssa_equals(ssa, expected);
     }
 }

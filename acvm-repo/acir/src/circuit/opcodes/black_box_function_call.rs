@@ -9,13 +9,13 @@ use thiserror::Error;
 // Note: Some functions will not use all of the witness
 // So we need to supply how many bits of the witness is needed
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub enum ConstantOrWitnessEnum<F> {
     Constant(F),
     Witness(Witness),
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub struct FunctionInput<F> {
     input: ConstantOrWitnessEnum<F>,
     num_bits: u32,
@@ -79,7 +79,7 @@ impl<F: std::fmt::Display> std::fmt::Display for FunctionInput<F> {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub enum BlackBoxFuncCall<F> {
     AES128Encrypt {
         inputs: Vec<FunctionInput<F>>,
@@ -107,17 +107,6 @@ pub enum BlackBoxFuncCall<F> {
     Blake3 {
         inputs: Vec<FunctionInput<F>>,
         outputs: Box<[Witness; 32]>,
-    },
-    SchnorrVerify {
-        public_key_x: FunctionInput<F>,
-        public_key_y: FunctionInput<F>,
-        #[serde(
-            serialize_with = "serialize_big_array",
-            deserialize_with = "deserialize_big_array_into_box"
-        )]
-        signature: Box<[FunctionInput<F>; 64]>,
-        message: Vec<FunctionInput<F>>,
-        output: Witness,
     },
     EcdsaSecp256k1 {
         public_key_x: Box<[FunctionInput<F>; 32]>,
@@ -234,7 +223,6 @@ impl<F: Copy> BlackBoxFuncCall<F> {
             BlackBoxFuncCall::RANGE { .. } => BlackBoxFunc::RANGE,
             BlackBoxFuncCall::Blake2s { .. } => BlackBoxFunc::Blake2s,
             BlackBoxFuncCall::Blake3 { .. } => BlackBoxFunc::Blake3,
-            BlackBoxFuncCall::SchnorrVerify { .. } => BlackBoxFunc::SchnorrVerify,
             BlackBoxFuncCall::EcdsaSecp256k1 { .. } => BlackBoxFunc::EcdsaSecp256k1,
             BlackBoxFuncCall::EcdsaSecp256r1 { .. } => BlackBoxFunc::EcdsaSecp256r1,
             BlackBoxFuncCall::MultiScalarMul { .. } => BlackBoxFunc::MultiScalarMul,
@@ -288,21 +276,6 @@ impl<F: Copy> BlackBoxFuncCall<F> {
                 vec![input1[0], input1[1], input2[0], input2[1]]
             }
             BlackBoxFuncCall::RANGE { input } => vec![*input],
-            BlackBoxFuncCall::SchnorrVerify {
-                public_key_x,
-                public_key_y,
-                signature,
-                message,
-                ..
-            } => {
-                let mut inputs: Vec<FunctionInput<F>> =
-                    Vec::with_capacity(2 + signature.len() + message.len());
-                inputs.push(*public_key_x);
-                inputs.push(*public_key_y);
-                inputs.extend(signature.iter().copied());
-                inputs.extend(message.iter().copied());
-                inputs
-            }
             BlackBoxFuncCall::EcdsaSecp256k1 {
                 public_key_x,
                 public_key_y,
@@ -372,7 +345,6 @@ impl<F: Copy> BlackBoxFuncCall<F> {
 
             BlackBoxFuncCall::AND { output, .. }
             | BlackBoxFuncCall::XOR { output, .. }
-            | BlackBoxFuncCall::SchnorrVerify { output, .. }
             | BlackBoxFuncCall::EcdsaSecp256k1 { output, .. }
             | BlackBoxFuncCall::EcdsaSecp256r1 { output, .. } => vec![*output],
             BlackBoxFuncCall::MultiScalarMul { outputs, .. }
@@ -525,34 +497,10 @@ mod tests {
 
         Opcode::BlackBoxFuncCall(BlackBoxFuncCall::Keccakf1600 { inputs, outputs })
     }
-    fn schnorr_verify_opcode<F: AcirField>() -> Opcode<F> {
-        let public_key_x = FunctionInput::witness(Witness(1), FieldElement::max_num_bits());
-        let public_key_y = FunctionInput::witness(Witness(2), FieldElement::max_num_bits());
-        let signature: Box<[FunctionInput<F>; 64]> =
-            Box::new(std::array::from_fn(|i| FunctionInput::witness(Witness(i as u32 + 3), 8)));
-        let message: Vec<FunctionInput<F>> = vec![FunctionInput::witness(Witness(67), 8)];
-        let output = Witness(68);
-
-        Opcode::BlackBoxFuncCall(BlackBoxFuncCall::SchnorrVerify {
-            public_key_x,
-            public_key_y,
-            signature,
-            message,
-            output,
-        })
-    }
 
     #[test]
     fn keccakf1600_serialization_roundtrip() {
         let opcode = keccakf1600_opcode::<FieldElement>();
-        let buf = bincode::serialize(&opcode).unwrap();
-        let recovered_opcode = bincode::deserialize(&buf).unwrap();
-        assert_eq!(opcode, recovered_opcode);
-    }
-
-    #[test]
-    fn schnorr_serialization_roundtrip() {
-        let opcode = schnorr_verify_opcode::<FieldElement>();
         let buf = bincode::serialize(&opcode).unwrap();
         let recovered_opcode = bincode::deserialize(&buf).unwrap();
         assert_eq!(opcode, recovered_opcode);
