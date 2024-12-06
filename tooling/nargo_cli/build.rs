@@ -71,13 +71,9 @@ const IGNORED_BRILLIG_TESTS: [&str; 11] = [
 ];
 
 /// Tests which aren't expected to work with the default inliner cases.
-const INLINER_MIN_OVERRIDES: [(&str, i64); 2] = [
+const INLINER_MIN_OVERRIDES: [(&str, i64); 1] = [
     // 0 works if PoseidonHasher::write is tagged as `inline_always`, otherwise 22.
     ("eddsa", 0),
-    // (#6583): The RcTracker in the DIE SSA pass is removing inc_rcs that are still needed.
-    // This triggers differently depending on the optimization level (although all are wrong),
-    // so we arbitrarily only run with the inlined versions.
-    ("reference_counts", 0),
 ];
 
 /// Some tests are expected to have warnings
