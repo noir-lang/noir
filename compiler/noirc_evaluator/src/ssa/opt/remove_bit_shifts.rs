@@ -191,7 +191,7 @@ impl Context<'_> {
         let typ = self.function.dfg.type_of_value(rhs);
         if let Type::Numeric(NumericType::Unsigned { bit_size }) = typ {
             let to_bits = self.function.dfg.import_intrinsic(Intrinsic::ToBits(Endian::Little));
-            let result_types = vec![Type::Array(Arc::new(vec![Type::bool()]), bit_size as usize)];
+            let result_types = vec![Type::Array(Arc::new(vec![Type::bool()]), bit_size)];
             let rhs_bits = self.insert_call(to_bits, vec![rhs], result_types);
 
             let rhs_bits = rhs_bits[0];

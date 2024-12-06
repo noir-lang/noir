@@ -1,7 +1,7 @@
 use std::hash::poseidon2::Poseidon2;
 
 global NUM_HASHES: u32 = 2;
-global HASH_LENGTH = 10;
+global HASH_LENGTH: u32 = 10;
 
 #[no_predicates]
 pub fn poseidon_hash<let N: u32>(inputs: [Field; N]) -> Field {

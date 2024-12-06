@@ -48,6 +48,12 @@ pub enum Expression {
     Continue,
 }
 
+impl Expression {
+    pub fn is_array_or_slice_literal(&self) -> bool {
+        matches!(self, Expression::Literal(Literal::Array(_) | Literal::Slice(_)))
+    }
+}
+
 /// A definition is either a local (variable), function, or is a built-in
 /// function that will be generated or referenced by the compiler later.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

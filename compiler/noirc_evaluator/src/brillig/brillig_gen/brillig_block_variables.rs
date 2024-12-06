@@ -142,7 +142,7 @@ pub(crate) fn allocate_value<F, Registers: RegisterAllocator>(
         }
         Type::Array(item_typ, elem_count) => BrilligVariable::BrilligArray(BrilligArray {
             pointer: brillig_context.allocate_register(),
-            size: compute_array_length(&item_typ, elem_count),
+            size: compute_array_length(&item_typ, elem_count as usize),
         }),
         Type::Slice(_) => BrilligVariable::BrilligVector(BrilligVector {
             pointer: brillig_context.allocate_register(),

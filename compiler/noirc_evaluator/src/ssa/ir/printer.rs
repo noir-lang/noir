@@ -5,7 +5,10 @@ use std::{
 };
 
 use acvm::acir::AcirField;
+use im::Vector;
 use iter_extended::vecmap;
+
+use crate::ssa::ir::types::{NumericType, Type};
 
 use super::{
     basic_block::BasicBlockId,
@@ -209,13 +212,39 @@ fn display_instruction_inner(
         Instruction::RangeCheck { value, max_bit_size, .. } => {
             writeln!(f, "range_check {} to {} bits", show(*value), *max_bit_size,)
         }
-        Instruction::IfElse { then_condition, then_value, else_value } => {
+        Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
             let then_condition = show(*then_condition);
             let then_value = show(*then_value);
+            let else_condition = show(*else_condition);
             let else_value = show(*else_value);
-            writeln!(f, "if {then_condition} then {then_value} else {else_value}")
+            writeln!(
+                f,
+                "if {then_condition} then {then_value} else (if {else_condition}) {else_value}"
+            )
         }
         Instruction::MakeArray { elements, typ } => {
+            // If the array is a byte array, we check if all the bytes are printable ascii characters
+            // and, if so, we print the array as a string literal (easier to understand).
+            // It could happen that the byte array is a random byte sequence that happens to be printable
+            // (it didn't come from a string literal) but this still reduces the noise in the output
+            // and actually represents the same value.
+            let (element_types, is_slice) = match typ {
+                Type::Array(types, _) => (types, false),
+                Type::Slice(types) => (types, true),
+                _ => panic!("Expected array or slice type for MakeArray"),
+            };
+            if element_types.len() == 1
+                && element_types[0] == Type::Numeric(NumericType::Unsigned { bit_size: 8 })
+            {
+                if let Some(string) = try_byte_array_to_string(elements, function) {
+                    if is_slice {
+                        return writeln!(f, "make_array &b{:?}", string);
+                    } else {
+                        return writeln!(f, "make_array b{:?}", string);
+                    }
+                }
+            }
+
             write!(f, "make_array [")?;
 
             for (i, element) in elements.iter().enumerate() {
@@ -228,6 +257,25 @@ fn display_instruction_inner(
             writeln!(f, "] : {typ}")
         }
     }
+}
+
+fn try_byte_array_to_string(elements: &Vector<ValueId>, function: &Function) -> Option<String> {
+    let mut string = String::new();
+    for element in elements {
+        let element = function.dfg.get_numeric_constant(*element)?;
+        let element = element.try_to_u32()?;
+        if element > 0xFF {
+            return None;
+        }
+        let byte = element as u8;
+        if byte.is_ascii_alphanumeric() || byte.is_ascii_punctuation() || byte.is_ascii_whitespace()
+        {
+            string.push(byte as char);
+        } else {
+            return None;
+        }
+    }
+    Some(string)
 }
 
 fn result_types(function: &Function, results: &[ValueId]) -> String {

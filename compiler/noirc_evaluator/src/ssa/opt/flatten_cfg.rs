@@ -131,7 +131,7 @@
 //!   v11 = mul v4, Field 12
 //!   v12 = add v10, v11
 //!   store v12 at v5         (new store)
-use fxhash::FxHashMap as HashMap;
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use acvm::{acir::AcirField, acir::BlackBoxFunc, FieldElement};
 use iter_extended::vecmap;
@@ -201,6 +201,15 @@ struct Context<'f> {
     /// When processing a block, we pop this stack to get its arguments
     /// and at the end we push the arguments for his successor
     arguments_stack: Vec<Vec<ValueId>>,
+
+    /// Stores all allocations local to the current branch.
+    ///
+    /// Since these branches are local to the current branch (i.e. only defined within one branch of
+    /// an if expression), they should not be merged with their previous value or stored value in
+    /// the other branch since there is no such value.
+    ///
+    /// The `ValueId` here is that which is returned by the allocate instruction.
+    local_allocations: HashSet<ValueId>,
 }
 
 #[derive(Clone)]
@@ -211,6 +220,8 @@ struct ConditionalBranch {
     old_condition: ValueId,
     // The condition of the branch
     condition: ValueId,
+    // The allocations accumulated when processing the branch
+    local_allocations: HashSet<ValueId>,
 }
 
 struct ConditionalContext {
@@ -243,6 +254,7 @@ fn flatten_function_cfg(function: &mut Function, no_predicates: &HashMap<Functio
         slice_sizes: HashMap::default(),
         condition_stack: Vec::new(),
         arguments_stack: Vec::new(),
+        local_allocations: HashSet::default(),
     };
     context.flatten(no_predicates);
 }
@@ -317,8 +329,6 @@ impl<'f> Context<'f> {
         // If this is not a separate variable, clippy gets confused and says the to_vec is
         // unnecessary, when removing it actually causes an aliasing/mutability error.
         let instructions = self.inserter.function.dfg[block].instructions().to_vec();
-        let mut previous_allocate_result = None;
-
         for instruction in instructions.iter() {
             if self.is_no_predicate(no_predicates, instruction) {
                 // disable side effect for no_predicate functions
@@ -332,10 +342,10 @@ impl<'f> Context<'f> {
                     None,
                     im::Vector::new(),
                 );
-                self.push_instruction(*instruction, &mut previous_allocate_result);
+                self.push_instruction(*instruction);
                 self.insert_current_side_effects_enabled();
             } else {
-                self.push_instruction(*instruction, &mut previous_allocate_result);
+                self.push_instruction(*instruction);
             }
         }
     }
@@ -405,10 +415,12 @@ impl<'f> Context<'f> {
         let old_condition = *condition;
         let then_condition = self.inserter.resolve(old_condition);
 
+        let old_allocations = std::mem::take(&mut self.local_allocations);
         let branch = ConditionalBranch {
             old_condition,
             condition: self.link_condition(then_condition),
             last_block: *then_destination,
+            local_allocations: old_allocations,
         };
         let cond_context = ConditionalContext {
             condition: then_condition,
@@ -419,6 +431,16 @@ impl<'f> Context<'f> {
         };
         self.condition_stack.push(cond_context);
         self.insert_current_side_effects_enabled();
+
+        // We disallow this case as it results in the `else_destination` block
+        // being inlined before the `then_destination` block due to block deduplication in the work queue.
+        //
+        // The `else_destination` block then gets treated as if it were the `then_destination` block
+        // and has the incorrect condition applied to it.
+        assert_ne!(
+            self.branch_ends[if_entry], *then_destination,
+            "ICE: branches merge inside of `then` branch"
+        );
         vec![self.branch_ends[if_entry], *else_destination, *then_destination]
     }
 
@@ -435,11 +457,14 @@ impl<'f> Context<'f> {
         );
         let else_condition = self.link_condition(else_condition);
 
+        let old_allocations = std::mem::take(&mut self.local_allocations);
         let else_branch = ConditionalBranch {
             old_condition: cond_context.then_branch.old_condition,
             condition: else_condition,
             last_block: *block,
+            local_allocations: old_allocations,
         };
+        cond_context.then_branch.local_allocations.clear();
         cond_context.else_branch = Some(else_branch);
         self.condition_stack.push(cond_context);
 
@@ -461,6 +486,7 @@ impl<'f> Context<'f> {
         }
 
         let mut else_branch = cond_context.else_branch.unwrap();
+        self.local_allocations = std::mem::take(&mut else_branch.local_allocations);
         else_branch.last_block = *block;
         cond_context.else_branch = Some(else_branch);
 
@@ -511,7 +537,11 @@ impl<'f> Context<'f> {
         let args = vecmap(then_args.iter().zip(else_args), |(then_arg, else_arg)| {
             (self.inserter.resolve(*then_arg), self.inserter.resolve(else_arg))
         });
-
+        let else_condition = if let Some(branch) = cond_context.else_branch {
+            branch.condition
+        } else {
+            self.inserter.function.dfg.make_constant(FieldElement::zero(), Type::bool())
+        };
         let block = self.inserter.function.entry_block();
 
         // Cannot include this in the previous vecmap since it requires exclusive access to self
@@ -519,6 +549,7 @@ impl<'f> Context<'f> {
             let instruction = Instruction::IfElse {
                 then_condition: cond_context.then_branch.condition,
                 then_value: then_arg,
+                else_condition,
                 else_value: else_arg,
             };
             let call_stack = cond_context.call_stack.clone();
@@ -593,35 +624,27 @@ impl<'f> Context<'f> {
     /// `previous_allocate_result` should only be set to the result of an allocate instruction
     /// if that instruction was the instruction immediately previous to this one - if there are
     /// any instructions in between it should be None.
-    fn push_instruction(
-        &mut self,
-        id: InstructionId,
-        previous_allocate_result: &mut Option<ValueId>,
-    ) {
+    fn push_instruction(&mut self, id: InstructionId) {
         let (instruction, call_stack) = self.inserter.map_instruction(id);
-        let instruction = self.handle_instruction_side_effects(
-            instruction,
-            call_stack.clone(),
-            *previous_allocate_result,
-        );
+        let instruction = self.handle_instruction_side_effects(instruction, call_stack.clone());
 
         let instruction_is_allocate = matches!(&instruction, Instruction::Allocate);
         let entry = self.inserter.function.entry_block();
         let results = self.inserter.push_instruction_value(instruction, id, entry, call_stack);
-        *previous_allocate_result = instruction_is_allocate.then(|| results.first());
+
+        // Remember an allocate was created local to this branch so that we do not try to merge store
+        // values across branches for it later.
+        if instruction_is_allocate {
+            self.local_allocations.insert(results.first());
+        }
     }
 
     /// If we are currently in a branch, we need to modify constrain instructions
     /// to multiply them by the branch's condition (see optimization #1 in the module comment).
-    ///
-    /// `previous_allocate_result` should only be set to the result of an allocate instruction
-    /// if that instruction was the instruction immediately previous to this one - if there are
-    /// any instructions in between it should be None.
     fn handle_instruction_side_effects(
         &mut self,
         instruction: Instruction,
         call_stack: CallStack,
-        previous_allocate_result: Option<ValueId>,
     ) -> Instruction {
         if let Some(condition) = self.get_last_condition() {
             match instruction {
@@ -652,7 +675,7 @@ impl<'f> Context<'f> {
                 Instruction::Store { address, value } => {
                     // If this instruction immediately follows an allocate, and stores to that
                     // address there is no previous value to load and we don't need a merge anyway.
-                    if Some(address) == previous_allocate_result {
+                    if self.local_allocations.contains(&address) {
                         Instruction::Store { address, value }
                     } else {
                         // Instead of storing `value`, store `if condition { value } else { previous_value }`
@@ -666,10 +689,13 @@ impl<'f> Context<'f> {
                             )
                             .first();
 
+                        let else_condition = self
+                            .insert_instruction(Instruction::Not(condition), call_stack.clone());
+
                         let instruction = Instruction::IfElse {
                             then_condition: condition,
                             then_value: value,
-
+                            else_condition,
                             else_value: previous_value,
                         };
 
@@ -841,9 +867,11 @@ mod test {
                 v1 = not v0
                 enable_side_effects u1 1
                 v3 = cast v0 as Field
-                v5 = mul v3, Field -1
-                v7 = add Field 4, v5
-                return v7
+                v4 = cast v1 as Field
+                v6 = mul v3, Field 3
+                v8 = mul v4, Field 4
+                v9 = add v6, v8
+                return v9
             }
             ";
 
@@ -903,12 +931,14 @@ mod test {
               b0(v0: u1, v1: &mut Field):
                 enable_side_effects v0
                 v2 = load v1 -> Field
-                v3 = cast v0 as Field
-                v5 = sub Field 5, v2
-                v6 = mul v3, v5
-                v7 = add v2, v6
-                store v7 at v1
-                v8 = not v0
+                v3 = not v0
+                v4 = cast v0 as Field
+                v5 = cast v3 as Field
+                v7 = mul v4, Field 5
+                v8 = mul v5, v2
+                v9 = add v7, v8
+                store v9 at v1
+                v10 = not v0
                 enable_side_effects u1 1
                 return
             }
@@ -940,19 +970,22 @@ mod test {
               b0(v0: u1, v1: &mut Field):
                 enable_side_effects v0
                 v2 = load v1 -> Field
-                v3 = cast v0 as Field
-                v5 = sub Field 5, v2
-                v6 = mul v3, v5
-                v7 = add v2, v6
-                store v7 at v1
-                v8 = not v0
-                enable_side_effects v8
-                v9 = load v1 -> Field
-                v10 = cast v8 as Field
-                v12 = sub Field 6, v9
-                v13 = mul v10, v12
-                v14 = add v9, v13
-                store v14 at v1
+                v3 = not v0
+                v4 = cast v0 as Field
+                v5 = cast v3 as Field
+                v7 = mul v4, Field 5
+                v8 = mul v5, v2
+                v9 = add v7, v8
+                store v9 at v1
+                v10 = not v0
+                enable_side_effects v10
+                v11 = load v1 -> Field
+                v12 = cast v10 as Field
+                v13 = cast v0 as Field
+                v15 = mul v12, Field 6
+                v16 = mul v13, v11
+                v17 = add v15, v16
+                store v17 at v1
                 enable_side_effects u1 1
                 return
             }
@@ -996,123 +1029,101 @@ mod test {
         //    b7      b8
         //      ↘   ↙
         //       b9
-        let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
 
-        let b1 = builder.insert_block();
-        let b2 = builder.insert_block();
-        let b3 = builder.insert_block();
-        let b4 = builder.insert_block();
-        let b5 = builder.insert_block();
-        let b6 = builder.insert_block();
-        let b7 = builder.insert_block();
-        let b8 = builder.insert_block();
-        let b9 = builder.insert_block();
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            v2 = allocate -> &mut Field
+            store Field 0 at v2
+            v4 = load v2 -> Field
+            // call v1(Field 0, v4)
+            jmp b1()
+          b1():
+            store Field 1 at v2
+            v6 = load v2 -> Field
+            // call v1(Field 1, v6)
+            jmpif v0 then: b2, else: b3
+          b2():
+            store Field 2 at v2
+            v8 = load v2 -> Field
+            // call v1(Field 2, v8)
+            jmp b4()
+          b4():
+            v12 = load v2 -> Field
+            // call v1(Field 4, v12)
+            jmpif v1 then: b5, else: b6
+          b5():
+            store Field 5 at v2
+            v14 = load v2 -> Field
+            // call v1(Field 5, v14)
+            jmp b7()
+          b7():
+            v18 = load v2 -> Field
+            // call v1(Field 7, v18)
+            jmp b9()
+          b9():
+            v22 = load v2 -> Field
+            // call v1(Field 9, v22)
+            v23 = load v2 -> Field
+            return v23
+          b6():
+            store Field 6 at v2
+            v16 = load v2 -> Field
+            // call v1(Field 6, v16)
+            jmp b7()
+          b3():
+            store Field 3 at v2
+            v10 = load v2 -> Field
+            // call v1(Field 3, v10)
+            jmp b8()
+          b8():
+            v20 = load v2 -> Field
+            // call v1(Field 8, v20)
+            jmp b9()
+        }";
 
-        let c1 = builder.add_parameter(Type::bool());
-        let c4 = builder.add_parameter(Type::bool());
+        let ssa = Ssa::from_str(src).unwrap();
 
-        let r1 = builder.insert_allocate(Type::field());
+        let ssa = ssa.flatten_cfg().mem2reg();
 
-        let store_value = |builder: &mut FunctionBuilder, value: u128| {
-            let value = builder.field_constant(value);
-            builder.insert_store(r1, value);
-        };
-
-        let test_function = Id::test_new(1);
-
-        let call_test_function = |builder: &mut FunctionBuilder, block: u128| {
-            let block = builder.field_constant(block);
-            let load = builder.insert_load(r1, Type::field());
-            builder.insert_call(test_function, vec![block, load], Vec::new());
-        };
-
-        let switch_store_and_test_function =
-            |builder: &mut FunctionBuilder, block, block_number: u128| {
-                builder.switch_to_block(block);
-                store_value(builder, block_number);
-                call_test_function(builder, block_number);
-            };
-
-        let switch_and_test_function =
-            |builder: &mut FunctionBuilder, block, block_number: u128| {
-                builder.switch_to_block(block);
-                call_test_function(builder, block_number);
-            };
-
-        store_value(&mut builder, 0);
-        call_test_function(&mut builder, 0);
-        builder.terminate_with_jmp(b1, vec![]);
-
-        switch_store_and_test_function(&mut builder, b1, 1);
-        builder.terminate_with_jmpif(c1, b2, b3);
-
-        switch_store_and_test_function(&mut builder, b2, 2);
-        builder.terminate_with_jmp(b4, vec![]);
-
-        switch_store_and_test_function(&mut builder, b3, 3);
-        builder.terminate_with_jmp(b8, vec![]);
-
-        switch_and_test_function(&mut builder, b4, 4);
-        builder.terminate_with_jmpif(c4, b5, b6);
-
-        switch_store_and_test_function(&mut builder, b5, 5);
-        builder.terminate_with_jmp(b7, vec![]);
-
-        switch_store_and_test_function(&mut builder, b6, 6);
-        builder.terminate_with_jmp(b7, vec![]);
-
-        switch_and_test_function(&mut builder, b7, 7);
-        builder.terminate_with_jmp(b9, vec![]);
-
-        switch_and_test_function(&mut builder, b8, 8);
-        builder.terminate_with_jmp(b9, vec![]);
-
-        switch_and_test_function(&mut builder, b9, 9);
-        let load = builder.insert_load(r1, Type::field());
-        builder.terminate_with_return(vec![load]);
-
-        let ssa = builder.finish().flatten_cfg().mem2reg();
-
-        // Expected results after mem2reg removes the allocation and each load and store:
-        //
-        // fn main f0 {
-        //   b0(v0: u1, v1: u1):
-        //     call test_function(Field 0, Field 0)
-        //     call test_function(Field 1, Field 1)
-        //     enable_side_effects v0
-        //     call test_function(Field 2, Field 2)
-        //     call test_function(Field 4, Field 2)
-        //     v29 = and v0, v1
-        //     enable_side_effects v29
-        //     call test_function(Field 5, Field 5)
-        //     v32 = not v1
-        //     v33 = and v0, v32
-        //     enable_side_effects v33
-        //     call test_function(Field 6, Field 6)
-        //     enable_side_effects v0
-        //     v36 = mul v1, Field 5
-        //     v37 = mul v32, Field 2
-        //     v38 = add v36, v37
-        //     v39 = mul v1, Field 5
-        //     v40 = mul v32, Field 6
-        //     v41 = add v39, v40
-        //     call test_function(Field 7, v42)
-        //     v43 = not v0
-        //     enable_side_effects v43
-        //     store Field 3 at v2
-        //     call test_function(Field 3, Field 3)
-        //     call test_function(Field 8, Field 3)
-        //     enable_side_effects Field 1
-        //     v47 = mul v0, v41
-        //     v48 = mul v43, Field 1
-        //     v49 = add v47, v48
-        //     v50 = mul v0, v44
-        //     v51 = mul v43, Field 3
-        //     v52 = add v50, v51
-        //     call test_function(Field 9, v53)
-        //     return v54
-        // }
+        let expected = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            v2 = allocate -> &mut Field
+            enable_side_effects v0
+            v3 = not v0
+            v4 = cast v0 as Field
+            v5 = cast v3 as Field
+            v7 = mul v4, Field 2
+            v8 = add v7, v5
+            v9 = mul v0, v1
+            enable_side_effects v9
+            v10 = not v9
+            v11 = cast v9 as Field
+            v12 = cast v10 as Field
+            v14 = mul v11, Field 5
+            v15 = mul v12, v8
+            v16 = add v14, v15
+            v17 = not v1
+            v18 = mul v0, v17
+            enable_side_effects v18
+            v19 = not v18
+            v20 = cast v18 as Field
+            v21 = cast v19 as Field
+            v23 = mul v20, Field 6
+            v24 = mul v21, v16
+            v25 = add v23, v24
+            enable_side_effects v0
+            v26 = not v0
+            enable_side_effects v26
+            v27 = cast v26 as Field
+            v28 = cast v0 as Field
+            v30 = mul v27, Field 3
+            v31 = mul v28, v25
+            v32 = add v30, v31
+            enable_side_effects u1 1
+            return v32
+        }";
 
         let main = ssa.main();
         let ret = match main.dfg[main.entry_block()].terminator() {
@@ -1121,7 +1132,9 @@ mod test {
         };
 
         let merged_values = get_all_constants_reachable_from_instruction(&main.dfg, ret);
-        assert_eq!(merged_values, vec![1, 3, 5, 6]);
+        assert_eq!(merged_values, vec![2, 3, 5, 6]);
+
+        assert_normalized_ssa_equals(ssa, expected);
     }
 
     #[test]
@@ -1259,6 +1272,7 @@ mod test {
     fn should_not_merge_incorrectly_to_false() {
         // Regression test for #1792
         // Tests that it does not simplify a true constraint an always-false constraint
+
         let src = "
         acir(inline) fn main f0 {
           b0(v0: [u8; 2]):
@@ -1300,23 +1314,20 @@ mod test {
             v9 = add v7, Field 1
             v10 = cast v9 as u8
             v11 = load v6 -> u8
-            v12 = cast v4 as Field
-            v13 = cast v11 as Field
-            v14 = sub v9, v13
-            v15 = mul v12, v14
-            v16 = add v13, v15
-            v17 = cast v16 as u8
+            v12 = not v5
+            v13 = cast v4 as u8
+            v14 = cast v12 as u8
+            v15 = mul v13, v10
+            v16 = mul v14, v11
+            v17 = add v15, v16
             store v17 at v6
             v18 = not v5
             enable_side_effects v18
             v19 = load v6 -> u8
-            v20 = cast v18 as Field
-            v21 = cast v19 as Field
-            v23 = sub Field 0, v21
-            v24 = mul v20, v23
-            v25 = add v21, v24
-            v26 = cast v25 as u8
-            store v26 at v6
+            v20 = cast v18 as u8
+            v21 = cast v4 as u8
+            v22 = mul v21, v19
+            store v22 at v6
             enable_side_effects u1 1
             constrain v5 == u1 1
             return
@@ -1462,5 +1473,24 @@ mod test {
             }
             _ => unreachable!("Should have terminator instruction"),
         }
+    }
+
+    #[test]
+    #[should_panic = "ICE: branches merge inside of `then` branch"]
+    fn panics_if_branches_merge_within_then_branch() {
+        //! This is a regression test for https://github.com/noir-lang/noir/issues/6620
+
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b2, else: b1
+          b2():
+            return
+          b1():
+            jmp b2()           
+        }
+        ";
+        let merged_ssa = Ssa::from_str(src).unwrap();
+        let _ = merged_ssa.flatten_cfg();
     }
 }

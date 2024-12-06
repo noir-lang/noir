@@ -329,8 +329,6 @@ impl<'context> Elaborator<'context> {
                 push_arg(Value::TraitDefinition(trait_id));
             } else {
                 let (expr_id, expr_type) = interpreter.elaborator.elaborate_expression(arg);
-                push_arg(interpreter.evaluate(expr_id)?);
-
                 if let Err(UnificationError) = expr_type.unify(param_type) {
                     return Err(InterpreterError::TypeMismatch {
                         expected: param_type.clone(),
@@ -338,6 +336,7 @@ impl<'context> Elaborator<'context> {
                         location: arg_location,
                     });
                 }
+                push_arg(interpreter.evaluate(expr_id)?);
             };
         }
 

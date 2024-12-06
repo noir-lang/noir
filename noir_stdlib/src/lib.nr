@@ -10,7 +10,6 @@ pub mod embedded_curve_ops;
 pub mod sha256;
 pub mod sha512;
 pub mod field;
-pub mod ec;
 pub mod collections;
 pub mod compat;
 pub mod convert;
