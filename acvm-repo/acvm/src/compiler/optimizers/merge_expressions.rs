@@ -35,7 +35,7 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
         circuit: &Circuit<F>,
         acir_opcode_positions: Vec<usize>,
     ) -> (Vec<Opcode<F>>, Vec<usize>) {
-        // Initialisation
+        // Initialization
         self.modified_gates.clear();
         self.deleted_gates.clear();
         self.resolved_blocks.clear();
