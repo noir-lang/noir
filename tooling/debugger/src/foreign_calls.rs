@@ -3,10 +3,9 @@ use acvm::{
     pwg::ForeignCallWaitInfo,
     AcirField, FieldElement,
 };
-use nargo::foreign_calls::{DefaultForeignCallExecutor, ForeignCallExecutor};
+use nargo::foreign_calls::{DefaultForeignCallExecutor, ForeignCallError, ForeignCallExecutor};
 use noirc_artifacts::debug::{DebugArtifact, DebugVars, StackFrame};
 use noirc_errors::debug_info::{DebugFnId, DebugVarId};
-use noirc_printable_type::ForeignCallError;
 
 pub(crate) enum DebugForeignCall {
     VarAssign,

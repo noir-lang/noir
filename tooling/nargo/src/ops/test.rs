@@ -12,7 +12,6 @@ use noirc_abi::Abi;
 use noirc_driver::{compile_no_check, CompileError, CompileOptions};
 use noirc_errors::{debug_info::DebugInfo, FileDiagnostic};
 use noirc_frontend::hir::{def_map::TestFunction, Context};
-use noirc_printable_type::ForeignCallError;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 
@@ -21,6 +20,7 @@ use crate::{
     foreign_calls::{
         mocker::MockForeignCallExecutor, print::PrintForeignCallExecutor,
         rpc::RPCForeignCallExecutor, ForeignCall, ForeignCallExecutor,
+        ForeignCallError,
     },
     NargoError,
 };
@@ -63,7 +63,7 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
             if test_function_has_no_arguments {
                 // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
                 // otherwise constraints involving these expressions will not error.
-                let mut foreign_call_executor = TestForeignCallExecutor::new(
+                let mut foreign_call_executor = TestForeignCallExecutor::<FieldElement>::new(
                     show_output,
                     foreign_call_resolver_url,
                     root_path,

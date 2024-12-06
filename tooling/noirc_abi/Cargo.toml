@@ -15,10 +15,10 @@ workspace = true
 acvm.workspace = true
 iter-extended.workspace = true
 noirc_printable_type.workspace = true
-toml.workspace = true
 serde_json = "1.0"
 serde.workspace = true
 thiserror.workspace = true
+toml.workspace = true
 num-bigint = "0.4"
 num-traits = "0.2"
 
