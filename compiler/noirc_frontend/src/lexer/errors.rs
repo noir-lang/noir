@@ -30,6 +30,10 @@ pub enum LexerErrorKind {
     UnterminatedBlockComment { span: Span },
     #[error("Unterminated string literal")]
     UnterminatedStringLiteral { span: Span },
+    #[error("Invalid format string: expected '}}', found {found:?}")]
+    InvalidFormatString { found: char, span: Span },
+    #[error("Invalid format string: expected letter or underscore, found '}}'")]
+    EmptyFormatStringInterpolation { span: Span },
     #[error(
         "'\\{escaped}' is not a valid escape sequence. Use '\\' for a literal backslash character."
     )]
@@ -68,6 +72,8 @@ impl LexerErrorKind {
             LexerErrorKind::LogicalAnd { span } => *span,
             LexerErrorKind::UnterminatedBlockComment { span } => *span,
             LexerErrorKind::UnterminatedStringLiteral { span } => *span,
+            LexerErrorKind::InvalidFormatString { span, .. } => *span,
+            LexerErrorKind::EmptyFormatStringInterpolation { span, .. } => *span,
             LexerErrorKind::InvalidEscape { span, .. } => *span,
             LexerErrorKind::InvalidQuoteDelimiter { delimiter } => delimiter.to_span(),
             LexerErrorKind::NonAsciiComment { span, .. } => *span,
@@ -130,6 +136,32 @@ impl LexerErrorKind {
             LexerErrorKind::UnterminatedBlockComment { span } => ("Unterminated block comment".to_string(), "Unterminated block comment".to_string(), *span),
             LexerErrorKind::UnterminatedStringLiteral { span } =>
                 ("Unterminated string literal".to_string(), "Unterminated string literal".to_string(), *span),
+            LexerErrorKind::InvalidFormatString { found, span } => {
+                if found == &'}' {
+                    (
+                        "Invalid format string: unmatched '}}' found".to_string(),
+                        "If you intended to print '}', you can escape it using '}}'".to_string(),
+                        *span,
+                    )
+                } else {
+                    (
+                        format!("Invalid format string: expected '}}', found {found:?}"),
+                        if found == &'.' {
+                            "Field access isn't supported in format strings".to_string()
+                        } else {
+                            "If you intended to print '{', you can escape it using '{{'".to_string()
+                        },
+                        *span,
+                    )
+                }
+            }
+            LexerErrorKind::EmptyFormatStringInterpolation { span } => {
+                (
+                    "Invalid format string: expected letter or underscore, found '}}'".to_string(),
+                    "If you intended to print '{' or '}', you can escape them using '{{' and '}}' respectively".to_string(),
+                    *span,
+                )
+            }
             LexerErrorKind::InvalidEscape { escaped, span } =>
                 (format!("'\\{escaped}' is not a valid escape sequence. Use '\\' for a literal backslash character."), "Invalid escape sequence".to_string(), *span),
             LexerErrorKind::InvalidQuoteDelimiter { delimiter } => {

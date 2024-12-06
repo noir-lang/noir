@@ -1121,11 +1121,6 @@ mod tests {
           b1(v0: Field):
             v4 = eq v0, Field 0
             jmpif v4 then: b3, else: b2
-          b3():
-            v11 = load v3 -> &mut Field
-            store Field 2 at v11
-            v13 = add v0, Field 1
-            jmp b1(v13)
           b2():
             v5 = load v1 -> Field
             v7 = eq v5, Field 2
@@ -1135,6 +1130,11 @@ mod tests {
             v10 = eq v9, Field 2
             constrain v9 == Field 2
             return
+          b3():
+            v11 = load v3 -> &mut Field
+            store Field 2 at v11
+            v13 = add v0, Field 1
+            jmp b1(v13)
         }
         ";
 
@@ -1157,11 +1157,6 @@ mod tests {
           b1(v0: Field):
             v4 = eq v0, Field 0
             jmpif v4 then: b3, else: b2
-          b3():
-            v13 = load v3 -> &mut Field
-            store Field 2 at v13
-            v15 = add v0, Field 1
-            jmp b1(v15)
           b2():
             v5 = load v1 -> Field
             v7 = eq v5, Field 2
@@ -1173,6 +1168,11 @@ mod tests {
             v12 = eq v11, Field 2
             constrain v11 == Field 2
             return
+          b3():
+            v13 = load v3 -> &mut Field
+            store Field 2 at v13
+            v15 = add v0, Field 1
+            jmp b1(v15)
         }
         acir(inline) fn foo f1 {
           b0(v0: &mut Field):
@@ -1195,6 +1195,10 @@ mod tests {
         acir(inline) fn main f0 {
           b0(v0: u1):
             jmpif v0 then: b2, else: b1
+          b1():
+            v4 = allocate -> &mut Field
+            store Field 1 at v4
+            jmp b3(v4, v4, v4)
           b2():
             v6 = allocate -> &mut Field
             store Field 0 at v6
@@ -1212,10 +1216,6 @@ mod tests {
             constrain v11 == Field 1
             constrain v13 == Field 3
             return
-          b1():
-            v4 = allocate -> &mut Field
-            store Field 1 at v4
-            jmp b3(v4, v4, v4)
         }
         ";
 
