@@ -142,7 +142,7 @@ Represents a binary operator. One of `+`, `-`, `*`, `/`, `%`, `==`, `!=`, `<`, `
 
 #### is_shift_left
 
-#include_code is_shift_right noir_stdlib/src/meta/op.nr rust
+#include_code is_shift_left noir_stdlib/src/meta/op.nr rust
 
 `true` if this operator is `<<`
 
