@@ -1,27 +1,12 @@
 #!/usr/bin/env bash
 set -e
 
-# These tests are incompatible with gas reporting
-# excluded_dirs=(
-#   "workspace" 
-#   "workspace_default_member" 
-#   "double_verify_nested_proof" 
-#   "overlapping_dep_and_mod" 
-#   "comptime_println"
-#   #  Takes a very long time to execute as large loops do not get simplified.
-#   "regression_4709"
-#   #  bit sizes for bigint operation doesn't match up.
-#   "bigint"
-#   #  Expected to fail as test asserts on which runtime it is in.
-#   "is_unconstrained"
-# )
-
 current_dir=$(pwd)
 base_path="$current_dir/execution_success"
 test_dirs=$(ls $base_path)
 
-# Tests to be profiled for memory report
-tests_to_profile=("keccak256" "workspace" "regression_4709" "ram_blowup_regression")
+# Tests to be profiled for compilation report
+tests_to_profile=("sha256_regression" "regression_4709" "ram_blowup_regression")
 echo "{\"compilation_reports\": [ " > $current_dir/compilation_report.json
 
 ITER="1"
