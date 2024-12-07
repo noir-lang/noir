@@ -77,8 +77,6 @@ pub enum ResolverError {
     MutableReferenceToImmutableVariable { variable: String, span: Span },
     #[error("Mutable references to array indices are unsupported")]
     MutableReferenceToArrayElement { span: Span },
-    #[error("Numeric constants should be printed without formatting braces")]
-    NumericConstantInFormatString { name: String, span: Span },
     #[error("Closure environment must be a tuple or unit type")]
     InvalidClosureEnvironment { typ: Type, span: Span },
     #[error("Nested slices, i.e. slices within an array or slice, are not supported")]
@@ -378,11 +376,6 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             ResolverError::MutableReferenceToArrayElement { span } => {
                 Diagnostic::simple_error("Mutable references to array elements are currently unsupported".into(), "Try storing the element in a fresh variable first".into(), *span)
             },
-            ResolverError::NumericConstantInFormatString { name, span } => Diagnostic::simple_error(
-                format!("cannot find `{name}` in this scope "),
-                "Numeric constants should be printed without formatting braces".to_string(),
-                *span,
-            ),
             ResolverError::InvalidClosureEnvironment { span, typ } => Diagnostic::simple_error(
                 format!("{typ} is not a valid closure environment type"),
                 "Closure environment must be a tuple or unit type".to_string(), *span),
