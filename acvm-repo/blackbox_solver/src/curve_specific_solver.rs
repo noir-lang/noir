@@ -7,13 +7,6 @@ use crate::BlackBoxResolutionError;
 ///
 /// Returns an [`BlackBoxResolutionError`] if the backend does not support the given [`acir::BlackBoxFunc`].
 pub trait BlackBoxFunctionSolver<F> {
-    fn schnorr_verify(
-        &self,
-        public_key_x: &F,
-        public_key_y: &F,
-        signature: &[u8; 64],
-        message: &[u8],
-    ) -> Result<bool, BlackBoxResolutionError>;
     fn multi_scalar_mul(
         &self,
         points: &[F],
@@ -48,15 +41,6 @@ impl StubbedBlackBoxSolver {
 }
 
 impl<F> BlackBoxFunctionSolver<F> for StubbedBlackBoxSolver {
-    fn schnorr_verify(
-        &self,
-        _public_key_x: &F,
-        _public_key_y: &F,
-        _signature: &[u8; 64],
-        _message: &[u8],
-    ) -> Result<bool, BlackBoxResolutionError> {
-        Err(Self::fail(BlackBoxFunc::SchnorrVerify))
-    }
     fn multi_scalar_mul(
         &self,
         _points: &[F],

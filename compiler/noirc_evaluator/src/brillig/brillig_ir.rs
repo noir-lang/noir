@@ -253,15 +253,6 @@ pub(crate) mod tests {
     pub(crate) struct DummyBlackBoxSolver;
 
     impl BlackBoxFunctionSolver<FieldElement> for DummyBlackBoxSolver {
-        fn schnorr_verify(
-            &self,
-            _public_key_x: &FieldElement,
-            _public_key_y: &FieldElement,
-            _signature: &[u8; 64],
-            _message: &[u8],
-        ) -> Result<bool, BlackBoxResolutionError> {
-            Ok(true)
-        }
         fn multi_scalar_mul(
             &self,
             _points: &[FieldElement],
