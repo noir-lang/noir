@@ -271,6 +271,7 @@ jobs:
           report: compilation_report.json
           header: |
             # Compilation Report
+          memory_report: false
 
       - name: Add memory report to sticky comment
         if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
