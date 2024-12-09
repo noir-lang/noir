@@ -47,25 +47,11 @@ impl Ssa {
             (f.id(), f)
         });
 
-        let entry_point_to_generated_index = btree_map(
-            functions
-                .iter()
-                .filter(|(_, func)| {
-                    let runtime = func.runtime();
-                    match func.runtime() {
-                        RuntimeType::Acir(_) => runtime.is_entry_point() || func.id() == main_id,
-                        RuntimeType::Brillig(_) => false,
-                    }
-                })
-                .enumerate(),
-            |(i, (id, _))| (*id, i as u32),
-        );
-
         Self {
             functions,
             main_id,
             next_id: AtomicCounter::starting_after(max_id),
-            entry_point_to_generated_index,
+            entry_point_to_generated_index: BTreeMap::new(),
             error_selector_to_type: error_types,
         }
     }
@@ -97,6 +83,33 @@ impl Ssa {
         let function = Function::clone_with_id(new_id, &self.functions[&existing_function_id]);
         self.functions.insert(new_id, function);
         new_id
+    }
+    pub(crate) fn generate_entry_point_index(mut self) -> Self {
+        self.entry_point_to_generated_index = btree_map(
+            self.functions
+                .iter()
+                .filter(|(_, func)| {
+                    let runtime = func.runtime();
+                    match func.runtime() {
+                        RuntimeType::Acir(_) => {
+                            runtime.is_entry_point() || func.id() == self.main_id
+                        }
+                        RuntimeType::Brillig(_) => false,
+                    }
+                })
+                .enumerate(),
+            |(i, (id, _))| (*id, i as u32),
+        );
+        self
+    }
+
+    pub(crate) fn get_entry_point_index(&self, func_id: FunctionId) -> Option<u32> {
+        // ensure the map has been initialized
+        assert!(
+            !self.entry_point_to_generated_index.is_empty(),
+            "Trying to read uninitialized entry point index"
+        );
+        self.entry_point_to_generated_index.get(&func_id).copied()
     }
 }
 
