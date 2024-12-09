@@ -8,4 +8,6 @@ if ! [ -f $BBUP_PATH ]; then
     curl -L https://raw.githubusercontent.com/AztecProtocol/aztec-packages/master/barretenberg/cpp/installation/install | bash
 fi
 
+sudo apt install libc++-dev -y
+
 $BBUP_PATH -v $VERSION
