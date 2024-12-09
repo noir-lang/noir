@@ -138,32 +138,4 @@ fn main(x: [u8; 5], z: Field, u: i16, v: i16) {
     assert(-u % -11 == -4);
     assert(u % -11 == u % (v + 2));
     assert(-u % -11 == -u % (v + 2));
-
-    // Issue 6734
-    unsafe {
-        sub_array_extended_into_empty();
-    }
-}
-
-pub fn sub_array_extended<let SRC_LEN: u32, let DST_LEN: u32>(
-    src: [Field; SRC_LEN],
-    offset: u32,
-) -> [Field; DST_LEN] {
-    let available_elements_to_copy = SRC_LEN - offset;
-    let elements_to_copy = if DST_LEN > available_elements_to_copy {
-        available_elements_to_copy
-    } else {
-        DST_LEN
-    };
-
-    let mut dst: [Field; DST_LEN] = std::mem::zeroed();
-    for i in 0..elements_to_copy {
-        dst[i] = src[i + offset];
-    }
-
-    dst
-}
-
-unconstrained fn sub_array_extended_into_empty() {
-    assert_eq(sub_array_extended([], 0), []);
 }
