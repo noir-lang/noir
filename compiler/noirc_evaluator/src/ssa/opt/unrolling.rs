@@ -1126,7 +1126,6 @@ mod tests {
 
         let (lower, upper) = loops.yet_to_unroll[0]
             .get_const_bounds(function, &loops.cfg)
-            .expect("should find bounds")
             .expect("bounds are numeric const");
 
         assert_eq!(lower, FieldElement::from(0u32));
