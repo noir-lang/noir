@@ -25,7 +25,6 @@ use black_box::{evaluate_black_box, BrilligBigintSolver};
 // Re-export `brillig`.
 pub use acir::brillig;
 pub use memory::{Memory, MemoryValue, MEMORY_ADDRESSING_BIT_SIZE};
-use num_traits::Zero;
 
 mod arithmetic;
 mod black_box;
@@ -264,14 +263,11 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         }
     }
 
-    pub fn get_fuzzing_trace(&self) -> Vec<u8> {
+    pub fn get_fuzzing_trace(&self) -> Vec<u32> {
         if !self.fuzzing_active {
             Vec::new()
         } else {
-            self.fuzzer_trace
-                .iter()
-                .map(|x| if x.is_zero() { 0 } else { (x.ilog2() + 1) as u8 })
-                .collect()
+            self.fuzzer_trace.clone()
         }
     }
     fn process_opcode_internal(&mut self) -> VMStatus<F> {

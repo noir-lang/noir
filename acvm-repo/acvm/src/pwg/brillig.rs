@@ -162,7 +162,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         self.vm.get_call_stack()
     }
 
-    pub fn get_fuzzing_trace(&self) -> Vec<u8> {
+    pub fn get_fuzzing_trace(&self) -> Vec<u32> {
         self.vm.get_fuzzing_trace()
     }
 

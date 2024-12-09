@@ -218,7 +218,7 @@ pub struct ACVM<'a, F, B: BlackBoxFunctionSolver<F>> {
     // Brillig branch to feature map
     brillig_branch_to_feature_map: Option<&'a BranchToFeatureMap>,
 
-    brillig_fuzzing_trace: Option<Vec<u8>>,
+    brillig_fuzzing_trace: Option<Vec<u32>>,
 }
 
 impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
@@ -270,7 +270,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         }
     }
 
-    pub fn get_brillig_fuzzing_trace(&self) -> Option<Vec<u8>> {
+    pub fn get_brillig_fuzzing_trace(&self) -> Option<Vec<u32>> {
         self.brillig_fuzzing_trace.clone()
     }
 

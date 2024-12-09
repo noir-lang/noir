@@ -3,7 +3,7 @@
 //!
 //! Code is used under the MIT license.
 
-use std::{cmp::min, collections::HashSet};
+use std::cmp::min;
 
 use acvm::{
     acir::{
@@ -12,8 +12,11 @@ use acvm::{
     },
     FieldElement,
 };
-use coverage::{analyze_brillig_program_before_fuzzing, BranchToFeatureMap};
-use noir_fuzzer::dictionary::{self, build_dictionary_from_program};
+use coverage::{
+    analyze_brillig_program_before_fuzzing, AccumulatedFuzzerCoverage, BranchToFeatureMap,
+    PotentialBoolWitnessList, SingleTestCaseCoverage,
+};
+use noir_fuzzer::dictionary::build_dictionary_from_program;
 use noirc_abi::InputMap;
 
 mod coverage;
@@ -24,31 +27,9 @@ use strategies::InputMutator;
 use types::{CaseOutcome, CounterExampleOutcome, DiscrepancyOutcome, FuzzOutcome, FuzzTestResult};
 
 use noirc_artifacts::program::ProgramArtifact;
-use rand::{distributions::WeightedError, prelude::*};
+use rand::prelude::*;
 use rand::{Rng, SeedableRng};
 use rand_xorshift::XorShiftRng;
-type SingleTestCaseCoverage = Vec<u8>;
-struct AccumulatedFuzzerCoverage {
-    buffer: Vec<u32>,
-}
-impl AccumulatedFuzzerCoverage {
-    pub fn new(size: usize) -> AccumulatedFuzzerCoverage {
-        Self { buffer: vec![0; size] }
-    }
-
-    pub fn merge(&mut self, new_coverage: &SingleTestCaseCoverage) -> bool {
-        assert!(new_coverage.len() == self.buffer.len());
-        let mut new_coverage_detected = false;
-        for (idx, value) in new_coverage.iter().enumerate() {
-            if *value != 0u8 {
-                let prev_value = self.buffer[idx];
-                self.buffer[idx] |= 1u32 << value;
-                new_coverage_detected = new_coverage_detected | (self.buffer[idx] != prev_value);
-            }
-        }
-        new_coverage_detected
-    }
-}
 
 #[derive(Debug)]
 struct Sequence {
@@ -157,7 +138,7 @@ impl<
             &Program<FieldElement>,
             WitnessMap<FieldElement>,
             &BranchToFeatureMap,
-        ) -> Result<(WitnessStack<FieldElement>, Option<Vec<u8>>), String>,
+        ) -> Result<(WitnessStack<FieldElement>, Option<Vec<u32>>), String>,
     > FuzzedExecutor<E, F>
 {
     /// Instantiates a fuzzed executor given an executor
@@ -194,7 +175,48 @@ impl<
         let mut accumulated_coverage =
             AccumulatedFuzzerCoverage::new(self.location_to_feature_map.len());
 
-        let (mut fuzz_res, mut coverage) = self.single_fuzz(&first_input).unwrap();
+        let (mut fuzz_res, mut coverage) =
+            self.single_fuzz(&first_input, &mut accumulated_coverage).unwrap();
+
+        match fuzz_res {
+            FuzzOutcome::Case(_) => {}
+            FuzzOutcome::Discrepancy(DiscrepancyOutcome {
+                exit_reason: status,
+                acir_failed,
+                counterexample,
+            }) => {
+                let reason = match acir_failed {
+                    true => format!(
+                        "ACIR failed while brillig executed with no issues: {}",
+                        status.to_string()
+                    ),
+                    false => format!(
+                        "brillig failed while ACIR executed with no issues: {}",
+                        status.to_string()
+                    ),
+                };
+                let reason = if reason.is_empty() { None } else { Some(reason) };
+
+                return FuzzTestResult {
+                    success: false,
+                    reason,
+                    counterexample: Some(counterexample),
+                };
+            }
+            FuzzOutcome::CounterExample(CounterExampleOutcome {
+                exit_reason: status,
+                counterexample,
+            }) => {
+                let reason = status.to_string();
+                let reason = if reason.is_empty() { None } else { Some(reason) };
+
+                return FuzzTestResult {
+                    success: false,
+                    reason,
+                    counterexample: Some(counterexample),
+                };
+            }
+        }
         accumulated_coverage.merge(&(coverage.unwrap()));
         let mut current_iteration = 0;
         loop {
@@ -204,7 +226,7 @@ impl<
             let input_map = self
                 .mutator
                 .mutate_input_map_multiple(corpus.get_next_testcase(&mut prng), &mut prng);
-            (fuzz_res, coverage) = self.single_fuzz(&input_map).unwrap();
+            (fuzz_res, coverage) = self.single_fuzz(&input_map, &mut accumulated_coverage).unwrap();
             match fuzz_res {
                 FuzzOutcome::Case(_) => (),
                 _ => {
@@ -212,10 +234,10 @@ impl<
                 }
             }
             if accumulated_coverage.merge(&coverage.unwrap()) {
-                //println!("Input: {:?}", input_map);
+                println!("Input: {:?}", input_map);
                 self.mutator.update_dictionary(&input_map);
                 corpus.insert(input_map);
-                //println!("Found new feature!");
+                println!("Found new feature!");
             }
             current_iteration += 1;
         }
@@ -257,7 +279,11 @@ impl<
 
     /// Granular and single-step function that runs only one fuzz and returns either a `CaseOutcome`
     /// or a `CounterExampleOutcome`
-    pub fn single_fuzz(&self, input_map: &InputMap) -> Result<(FuzzOutcome, Option<Vec<u8>>), ()> {
+    pub fn single_fuzz(
+        &self,
+        input_map: &InputMap,
+        accumulated_coverage: &mut AccumulatedFuzzerCoverage,
+    ) -> Result<(FuzzOutcome, Option<SingleTestCaseCoverage>), ()> {
         let initial_witness = self.acir_program.abi.encode(&input_map, None).unwrap();
         let initial_witness2 = self.acir_program.abi.encode(&input_map, None).unwrap();
         let result_acir = (self.acir_executor)(&self.acir_program.bytecode, initial_witness);
@@ -270,8 +296,25 @@ impl<
         // TODO: Add handling for `vm.assume` equivalent
 
         match (result_acir, result_brillig) {
-            (Ok(_), Ok((_map, coverage))) => {
-                Ok((FuzzOutcome::Case(CaseOutcome { case: input_map.clone() }), coverage))
+            (Ok(witnesses), Ok((_map, brillig_coverage))) => {
+                // Update the potential list
+                if accumulated_coverage.potential_bool_witness_list.is_none() {
+                    // If it's the first time, we need to assign
+                    accumulated_coverage.potential_bool_witness_list =
+                        Some(PotentialBoolWitnessList::from(&witnesses));
+                } else {
+                    accumulated_coverage
+                        .potential_bool_witness_list
+                        .as_mut()
+                        .unwrap()
+                        .update(&witnesses);
+                }
+                let new_coverage = SingleTestCaseCoverage::new(
+                    &witnesses,
+                    brillig_coverage.unwrap(),
+                    &accumulated_coverage.potential_bool_witness_list.as_mut().unwrap(),
+                );
+                Ok((FuzzOutcome::Case(CaseOutcome { case: input_map.clone() }), Some(new_coverage)))
             }
             (Err(err), Ok(_)) => Ok((
                 FuzzOutcome::Discrepancy(DiscrepancyOutcome {

@@ -100,7 +100,7 @@ pub fn run_fuzzing_harness<B: BlackBoxFunctionSolver<FieldElement>>(
                                         initial_witness: WitnessMap<FieldElement>,
                                         location_to_feature_map: &BranchToFeatureMap|
                  -> Result<
-                    (WitnessStack<FieldElement>, Option<Vec<u8>>),
+                    (WitnessStack<FieldElement>, Option<Vec<u32>>),
                     String,
                 > {
                     execute_program_with_brillig_fuzzing(

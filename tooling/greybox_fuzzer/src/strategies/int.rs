@@ -353,7 +353,7 @@ pub fn mutate_int_input_value(
     } else {
         match sign {
             Sign::Signed => {
-                let mut initial_i128 = field_to_i128(initial_field_value, width);
+                let initial_i128 = field_to_i128(initial_field_value, width);
                 let mut selector = prng.gen_range(0..SIGNED_TOTAL_WEIGHT);
                 if selector < SUBSTITUTE_BY_FIXED_WEIGHT {
                     return match prng.gen_range(0..3) {
@@ -465,7 +465,7 @@ pub fn mutate_int_input_value(
                 });
             }
             Sign::Unsigned => {
-                let mut initial_i128 = initial_field_value.to_i128();
+                let initial_i128 = initial_field_value.to_i128();
                 let mut selector = prng.gen_range(0..UNSIGNED_SIGNED_TOTAL_WEIGHT);
                 if selector < SUBSTITUTE_BY_FIXED_WEIGHT {
                     return InputValue::Field(FieldElement::from(

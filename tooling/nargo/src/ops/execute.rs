@@ -91,7 +91,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
     fn execute_circuit(
         &mut self,
         initial_witness: WitnessMap<F>,
-    ) -> Result<(WitnessMap<F>, ProfilingSamples, Option<Vec<u8>>), NargoError<F>> {
+    ) -> Result<(WitnessMap<F>, ProfilingSamples, Option<Vec<u32>>), NargoError<F>> {
         let circuit = &self.functions[self.current_function_index];
         let mut acvm = ACVM::new(
             self.blackbox_solver,
@@ -279,7 +279,7 @@ pub(crate) fn execute_program_with_brillig_fuzzing<
     blackbox_solver: &B,
     foreign_call_executor: &mut E,
     brillig_branch_to_feature_map: Option<&BranchToFeatureMap>,
-) -> Result<(WitnessStack<F>, Option<Vec<u8>>), NargoError<F>> {
+) -> Result<(WitnessStack<F>, Option<Vec<u32>>), NargoError<F>> {
     let profiling_active = false;
     let brillig_fuzzing_active = true;
     match execute_program_inner(
@@ -306,7 +306,7 @@ fn execute_program_inner<F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignC
     profiling_active: bool,
     brillig_fuzzing_active: bool,
     brillig_branch_to_feature_map: Option<&BranchToFeatureMap>,
-) -> Result<(WitnessStack<F>, ProfilingSamples, Option<Vec<u8>>), NargoError<F>> {
+) -> Result<(WitnessStack<F>, ProfilingSamples, Option<Vec<u32>>), NargoError<F>> {
     let mut executor = ProgramExecutor::new(
         &program.functions,
         &program.unconstrained_functions,

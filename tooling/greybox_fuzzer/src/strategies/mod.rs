@@ -3,18 +3,17 @@ use acvm::FieldElement;
 use field::mutate_field_input_value;
 use int::{mutate_int_input_value, IntDictionary};
 use noirc_abi::{input_parser::InputValue, Abi, AbiType, InputMap};
-use proptest::num::f32::INFINITE;
 use rand::Rng;
 use rand_xorshift::XorShiftRng;
 use std::{
     collections::{BTreeMap, HashSet},
-    hash::Hash,
     iter::zip,
 };
+use string::mutate_string_input_value;
 
 mod field;
 mod int;
-mod uint;
+mod string;
 pub struct InputMutator {
     abi: Abi,
     weight_tree: NodeWeight,
@@ -42,7 +41,7 @@ impl FullDictionary {
                 };
                 full_dictionary.insert(*initial_field_value);
             }
-            AbiType::String { length } => {
+            AbiType::String { length: _ } => {
                 let initial_string = match input {
                     InputValue::String(inner_string) => inner_string,
                     _ => panic!("Shouldn't be used with other input value types"),
@@ -248,8 +247,12 @@ impl InputMutator {
                 &self.full_dictionary.original_int_dictionary,
                 prng,
             ),
-            AbiType::String { length } => {
-                InputValue::String(String::from_utf8(vec![0x41u8; *length as usize]).unwrap())
+            AbiType::String { length: _ } => {
+                return mutate_string_input_value(
+                    previous_input,
+                    prng,
+                    &self.full_dictionary.original_int_dictionary,
+                );
             }
             AbiType::Array { length, typ } => {
                 let length = *length as usize;
@@ -397,7 +400,7 @@ impl InputMutator {
             AbiType::Array { length, typ } => {
                 let length = *length as usize;
                 InputValue::Vec(
-                    (0..=length).map(|_x| Self::generate_default_input_value(typ)).collect(),
+                    (0..length).map(|_x| Self::generate_default_input_value(typ)).collect(),
                 )
             }
 
