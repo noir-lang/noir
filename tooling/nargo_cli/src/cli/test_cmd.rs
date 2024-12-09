@@ -358,6 +358,20 @@ fn display_test_report(
     let writer = StandardStream::stderr(ColorChoice::Always);
     let mut writer = writer.lock();
 
+    let failed_tests: Vec<_> = test_report
+        .iter()
+        .filter_map(|(name, status)| if status.failed() { Some(name) } else { None })
+        .collect();
+
+    if !failed_tests.is_empty() {
+        writeln!(writer).expect("Failed to write to stderr");
+        writeln!(writer, "[{}] Failures:", package_name).expect("Failed to write to stderr");
+        for failed_test in failed_tests {
+            writeln!(writer, "     {}", failed_test).expect("Failed to write to stderr");
+        }
+        writeln!(writer).expect("Failed to write to stderr");
+    }
+
     write!(writer, "[{}] ", package_name).expect("Failed to write to stderr");
 
     let count_all = test_report.len();
