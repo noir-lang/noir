@@ -302,6 +302,11 @@ impl Loop {
     pub(super) fn get_const_upper_bound(&self, function: &Function) -> Option<FieldElement> {
         let block = &function.dfg[self.header];
         let instructions = block.instructions();
+        if instructions.is_empty() {
+            // If the loop condition is constant time, the loop header will be
+            // simplified to a simple jump.
+            return None;
+        }
         assert_eq!(
             instructions.len(),
             1,
