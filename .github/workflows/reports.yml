@@ -198,6 +198,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Download nargo binary
+        uses: actions/download-artifact@v4
+        with:
+          name: nargo
+          path: ./nargo
+
       - name: Set nargo on PATH
         run: |
           nargo_binary="${{ github.workspace }}/nargo/nargo"
