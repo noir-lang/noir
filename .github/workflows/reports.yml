@@ -264,27 +264,29 @@ jobs:
           ./compilation_report.sh
           mv compilation_report.json ../compilation_report.json
 
-      # - name: Upload compilation report
-      #   uses: actions/upload-artifact@v4
+      - name: Upload compilation report
+        uses: actions/upload-artifact@v4
+        with:
+          name: compilation_report
+          path: ../compilation_report.json
+          retention-days: 3
+          overwrite: true
+          
+      # - name: Parse compilation report
+      #   id: compilation_report
+      #   uses: noir-lang/noir-bench-report@0d7464a8c39170523932d7846b6e6b458a294aea
       #   with:
-      #     name: compilation_report
-      #     path: ../compilation_report.json
-      #     retention-days: 3
-      - name: Parse compilation report
-        id: compilation_report
-        uses: noir-lang/noir-bench-report@0d7464a8c39170523932d7846b6e6b458a294aea
-        with:
-          report: compilation_report.json
-          header: |
-            # Compilation Report
-          memory_report: false
+      #     report: compilation_report.json
+      #     header: |
+      #       # Compilation Report
+      #     memory_report: false
 
-      - name: Add memory report to sticky comment
-        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          header: compilation
-          message: ${{ steps.compilation_report.outputs.markdown }}
+      # - name: Add memory report to sticky comment
+      #   if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
+      #   uses: marocchino/sticky-pull-request-comment@v2
+      #   with:
+      #     header: compilation
+      #     message: ${{ steps.compilation_report.outputs.markdown }}
 
   # upload_compilation_report:
   #   name: Upload compilation report 
