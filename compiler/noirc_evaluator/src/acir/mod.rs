@@ -2891,7 +2891,9 @@ mod test {
         brillig::Brillig,
         ssa::{
             function_builder::FunctionBuilder,
-            ir::{function::FunctionId, instruction::BinaryOp, map::Id, types::Type, dfg::CallStack},
+            ir::{
+                dfg::CallStack, function::FunctionId, instruction::BinaryOp, map::Id, types::Type,
+            },
         },
     };
 
