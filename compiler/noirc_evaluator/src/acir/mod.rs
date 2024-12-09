@@ -2977,7 +2977,7 @@ mod test {
 
         build_basic_foo_with_return(&mut builder, foo_id, false, inline_type);
 
-        let ssa = builder.finish();
+        let ssa = builder.finish().generate_entry_point_index();
 
         let (acir_functions, _, _, _) = ssa
             .into_acir(&Brillig::default(), ExpressionWidth::default())
@@ -3085,6 +3085,7 @@ mod test {
         let ssa = builder.finish();
 
         let (acir_functions, _, _, _) = ssa
+            .generate_entry_point_index()
             .into_acir(&Brillig::default(), ExpressionWidth::default())
             .expect("Should compile manually written SSA into ACIR");
         // The expected result should look very similar to the above test expect that the input witnesses of the `Call`
@@ -3182,7 +3183,7 @@ mod test {
 
         build_basic_foo_with_return(&mut builder, foo_id, false, inline_type);
 
-        let ssa = builder.finish();
+        let ssa = builder.finish().generate_entry_point_index();
 
         let (acir_functions, _, _, _) = ssa
             .into_acir(&Brillig::default(), ExpressionWidth::default())
@@ -3309,6 +3310,7 @@ mod test {
         let brillig = ssa.to_brillig(false);
 
         let (acir_functions, brillig_functions, _, _) = ssa
+            .generate_entry_point_index()
             .into_acir(&brillig, ExpressionWidth::default())
             .expect("Should compile manually written SSA into ACIR");
 
@@ -3373,6 +3375,7 @@ mod test {
         // The Brillig bytecode we insert for the stdlib is hardcoded so we do not need to provide any
         // Brillig artifacts to the ACIR gen pass.
         let (acir_functions, brillig_functions, _, _) = ssa
+            .generate_entry_point_index()
             .into_acir(&Brillig::default(), ExpressionWidth::default())
             .expect("Should compile manually written SSA into ACIR");
 
@@ -3447,6 +3450,7 @@ mod test {
         println!("{}", ssa);
 
         let (acir_functions, brillig_functions, _, _) = ssa
+            .generate_entry_point_index()
             .into_acir(&brillig, ExpressionWidth::default())
             .expect("Should compile manually written SSA into ACIR");
 
@@ -3535,6 +3539,7 @@ mod test {
         println!("{}", ssa);
 
         let (acir_functions, brillig_functions, _, _) = ssa
+            .generate_entry_point_index()
             .into_acir(&brillig, ExpressionWidth::default())
             .expect("Should compile manually written SSA into ACIR");
 
