@@ -205,7 +205,7 @@ jobs:
       - name: Run browser tests
         run: yarn workspace @noir-lang/acvm_js test:browser
 
-  test-noirc-abi:
+  test-noirc-abi-node:
     needs: [build-noirc-abi]
     name: noirc_abi
     runs-on: ubuntu-24.04
@@ -226,6 +226,25 @@ jobs:
 
       - name: Run node tests
         run: yarn workspace @noir-lang/noirc_abi test
+
+  test-noirc-abi-browser:
+    needs: [build-noirc-abi]
+    name: noirc_abi
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Download wasm package artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: noirc_abi_wasm
+          path: ./tooling/noirc_abi_wasm
+
+      - name: Install Yarn dependencies
+        uses: ./.github/actions/setup
 
       - name: Install Playwright
         uses: ./.github/actions/install-playwright
@@ -606,7 +625,8 @@ jobs:
       - yarn-lock
       - test-acvm_js-node
       - test-acvm_js-browser
-      - test-noirc-abi
+      - test-noirc-abi-node
+      - test-noirc-abi-browser
       - test-noir-js
       - test-noir-wasm
       - test-noir-codegen
