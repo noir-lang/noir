@@ -303,7 +303,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: compilation_report
-          path: ./
+          # path: ./
 
       - name: Parse compilation report
         id: compilation_report
