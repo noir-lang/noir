@@ -299,6 +299,7 @@ impl DependencyContext {
                             | Intrinsic::BlackBox(..)
                             | Intrinsic::DerivePedersenGenerators
                             | Intrinsic::FromField
+                            | Intrinsic::Hint(..)
                             | Intrinsic::SlicePushBack
                             | Intrinsic::SlicePushFront
                             | Intrinsic::SlicePopBack
