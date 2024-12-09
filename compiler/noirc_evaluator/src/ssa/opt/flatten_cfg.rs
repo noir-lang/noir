@@ -340,7 +340,7 @@ impl<'f> Context<'f> {
                 self.insert_instruction_with_typevars(
                     Instruction::EnableSideEffectsIf { condition: one },
                     None,
-                    im::Vector::new(),
+                    CallStack::new(),
                 );
                 self.push_instruction(*instruction);
                 self.insert_current_side_effects_enabled();
