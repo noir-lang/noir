@@ -316,7 +316,7 @@ pub fn check_crate(
         })
         .filter(|diagnostic| {
             // We filter out any warnings if they're going to be ignored later on to free up memory.
-            !options.silence_warnings || diagnostic.diagnostic.kind == DiagnosticKind::Warning
+            !options.silence_warnings || diagnostic.diagnostic.kind != DiagnosticKind::Warning
         })
         .collect();
 
