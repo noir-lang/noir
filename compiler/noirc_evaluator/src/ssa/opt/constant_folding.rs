@@ -125,11 +125,13 @@ impl Ssa {
         }
 
         // The ones that remain are never called: let's remove them.
-        for func_id in brillig_functions.keys() {
+        for (func_id, func) in &brillig_functions {
             // We never want to remove the main function (it could be `unconstrained` or it
             // could have been turned into brillig if `--force-brillig` was given).
             // We also don't want to remove entry points.
-            if self.main_id == *func_id || self.entry_point_to_generated_index.contains_key(func_id)
+            let runtime = func.runtime();
+            if self.main_id == *func_id
+                || (runtime.is_entry_point() && matches!(runtime, RuntimeType::Acir(_)))
             {
                 continue;
             }
