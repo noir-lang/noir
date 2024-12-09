@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     io::Write,
     path::PathBuf,
     sync::{mpsc, Mutex},
@@ -58,7 +57,6 @@ pub(crate) struct TestCommand {
 
 struct Test<'a> {
     name: String,
-    package_name: String,
     runner: Box<dyn FnOnce() -> TestStatus + Send + 'a>,
 }
 
@@ -88,9 +86,13 @@ pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError
         None => FunctionNameMatch::Anything,
     };
 
-    let mut tests = Vec::new();
+    let num_threads = std::thread::available_parallelism().ok().map(Into::into).unwrap_or(1);
+    let mut test_reports = Vec::new();
+
     for package in workspace.into_iter() {
-        let package_tests = collect_package_tests::<Bn254BlackBoxSolver>(
+        let package_name = package.name.to_string();
+
+        let tests = collect_package_tests::<Bn254BlackBoxSolver>(
             &workspace_file_manager,
             &parsed_files,
             package,
@@ -98,57 +100,51 @@ pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError
             args.show_output,
             args.oracle_resolver.as_deref(),
             Some(workspace.root_dir.clone()),
-            package.name.to_string(),
+            package_name.clone(),
             &args.compile_options,
         )?;
-        tests.extend(package_tests);
-    }
 
-    let num_tests = tests.len();
+        let num_tests = tests.len();
 
-    let num_threads = std::thread::available_parallelism().ok().map(Into::into).unwrap_or(1);
+        let (sender, receiver) = mpsc::channel();
+        let iter = Mutex::new(tests.into_iter());
 
-    let (sender, receiver) = mpsc::channel();
-    let iter = Mutex::new(tests.into_iter());
+        thread::scope(|scope| {
+            // Start worker threads
+            for _ in 0..num_threads {
+                // Specify a larger-than-default stack size to prevent overflowing stack in large programs.
+                // (the default is 2MB)
+                thread::Builder::new()
+                    .stack_size(4 * 1024 * 1024)
+                    .spawn_scoped(scope, || loop {
+                        // Get next test to process from the iterator.
+                        let Some(test) = iter.lock().unwrap().next() else {
+                            break;
+                        };
+                        let test_status = (test.runner)();
 
-    thread::scope(|scope| {
-        // Start worker threads
-        for _ in 0..num_threads {
-            // Specify a larger-than-default stack size to prevent overflowing stack in large programs.
-            // (the default is 2MB)
-            thread::Builder::new()
-                .stack_size(4 * 1024 * 1024)
-                .spawn_scoped(scope, || loop {
-                    // Get next test to process from the iterator.
-                    let Some(test) = iter.lock().unwrap().next() else {
-                        break;
-                    };
-                    let test_status = (test.runner)();
+                        // It's fine to ignore the result of sending. If the
+                        // receiver has hung up, everything will wind down soon
+                        // anyway.
+                        let _ = sender.send((test.name, test_status));
+                    })
+                    .unwrap();
+            }
+        });
 
-                    // It's fine to ignore the result of sending. If the
-                    // receiver has hung up, everything will wind down soon
-                    // anyway.
-                    let _ = sender.send((test.name, test.package_name, test_status));
-                })
-                .unwrap();
+        let mut test_report = Vec::new();
+
+        // Print results of tests that already finished
+        for (test_name, test_status) in receiver.iter().take(num_tests) {
+            test_report.push((test_name, test_status));
         }
-    });
 
-    let mut test_reports_per_package = HashMap::<String, Vec<(String, TestStatus)>>::new();
+        display_test_report(&package_name, &test_report)?;
 
-    // Print results of tests that already dinished
-    for (test_name, package_name, test_status) in receiver.iter().take(num_tests) {
-        test_reports_per_package.entry(package_name).or_default().push((test_name, test_status));
+        test_reports.extend(test_report);
     }
 
-    for (package_name, test_report) in &test_reports_per_package {
-        display_test_report(package_name, test_report)?;
-    }
-
-    let test_report: Vec<(String, TestStatus)> =
-        test_reports_per_package.into_values().flatten().collect();
-
-    if test_report.is_empty() {
+    if test_reports.is_empty() {
         match &pattern {
             FunctionNameMatch::Exact(pattern) => {
                 return Err(CliError::Generic(
@@ -163,7 +159,7 @@ pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError
         };
     }
 
-    if test_report.iter().any(|(_, status)| status.failed()) {
+    if test_reports.iter().any(|(_, status)| status.failed()) {
         Err(CliError::Generic(String::new()))
     } else {
         Ok(())
@@ -217,7 +213,7 @@ fn collect_package_tests<'a, S: BlackBoxFunctionSolver<FieldElement> + Default>(
                 );
                 test_status
             });
-            Test { name: test_name_copy, package_name: package.name.to_string(), runner }
+            Test { name: test_name_copy, runner }
         })
         .collect();
 
