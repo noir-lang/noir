@@ -469,7 +469,7 @@ fn resolve_package_from_toml(
     result
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum PackageSelection {
     Selected(CrateName),
     DefaultOrAll,
