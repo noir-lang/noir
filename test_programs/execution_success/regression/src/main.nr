@@ -139,7 +139,7 @@ fn main(x: [u8; 5], z: Field, u: i16, v: i16) {
     assert(u % -11 == u % (v + 2));
     assert(-u % -11 == -u % (v + 2));
 
-    // Issue 6736
+    // Issue 6734
     unsafe { sub_array_extended_into_empty(); }
 }
 
