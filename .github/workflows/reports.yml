@@ -266,9 +266,10 @@ jobs:
 
       - name: Upload compilation report
         uses: actions/upload-artifact@v4
+        working-directory: ./
         with:
           name: compilation_report
-          path: ../compilation_report.json
+          path: ./compilation_report.json
           retention-days: 3
           overwrite: true
 
@@ -288,34 +289,34 @@ jobs:
       #     header: compilation
       #     message: ${{ steps.compilation_report.outputs.markdown }}
 
-  upload_compilation_report:
-    name: Upload compilation report 
-    # needs: [generate_compilation_report, external_repo_compilation_report]
-    needs: [generate_compilation_report]
-    runs-on: ubuntu-latest
-    permissions:
-      pull-requests: write
+  # upload_compilation_report:
+  #   name: Upload compilation report 
+  #   # needs: [generate_compilation_report, external_repo_compilation_report]
+  #   needs: [generate_compilation_report]
+  #   runs-on: ubuntu-latest
+  #   permissions:
+  #     pull-requests: write
 
-    name: Download compilation report
-    steps:
-      - name: Download compilation report
-        uses: actions/download-artifact@v4
-        with:
-          name: compilation_report
-          path: ./compilation_report.json
+  #   name: Download compilation report
+  #   steps:
+  #     - name: Download compilation report
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: compilation_report
+  #         path: ./compilation_report.json
 
-      - name: Parse compilation report
-        id: compilation_report
-        uses: noir-lang/noir-bench-report@0d7464a8c39170523932d7846b6e6b458a294aea
-        with:
-          report: compilation_report.json
-          header: |
-            # Compilation Report
-          memory_report: false
+  #     - name: Parse compilation report
+  #       id: compilation_report
+  #       uses: noir-lang/noir-bench-report@0d7464a8c39170523932d7846b6e6b458a294aea
+  #       with:
+  #         report: compilation_report.json
+  #         header: |
+  #           # Compilation Report
+  #         memory_report: false
 
-      - name: Add memory report to sticky comment
-        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          header: compilation
-          message: ${{ steps.compilation_report.outputs.markdown }}
+  #     - name: Add memory report to sticky comment
+  #       if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
+  #       uses: marocchino/sticky-pull-request-comment@v2
+  #       with:
+  #         header: compilation
+  #         message: ${{ steps.compilation_report.outputs.markdown }}
