@@ -1893,9 +1893,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         inputs: &[BrilligInputs<F>],
         outputs_types: &[AcirType],
     ) -> Option<Vec<AcirValue>> {
-        let mut memory =
-            (execute_brillig(code, &self.blackbox_solver, inputs)?)
-                .into_iter();
+        let mut memory = (execute_brillig(code, &self.blackbox_solver, inputs)?).into_iter();
 
         let outputs_var = vecmap(outputs_types.iter(), |output| match output {
             AcirType::NumericType(_) => {
@@ -2217,8 +2215,7 @@ fn execute_brillig<F: AcirField, B: BlackBoxFunctionSolver<F>>(
 
     // Instantiate a Brillig VM given the solved input registers and memory, along with the Brillig bytecode.
     let profiling_active = false;
-    let mut vm =
-        VM::new(calldata, code, Vec::new(), blackbox_solver, profiling_active);
+    let mut vm = VM::new(calldata, code, Vec::new(), blackbox_solver, profiling_active);
 
     // Run the Brillig VM on these inputs, bytecode, etc!
     let vm_status = vm.process_opcodes();

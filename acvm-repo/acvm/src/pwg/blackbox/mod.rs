@@ -145,14 +145,12 @@ pub(crate) fn solve<F: AcirField>(
         BlackBoxFuncCall::BigIntAdd { lhs, rhs, output }
         | BlackBoxFuncCall::BigIntSub { lhs, rhs, output }
         | BlackBoxFuncCall::BigIntMul { lhs, rhs, output }
-        | BlackBoxFuncCall::BigIntDiv { lhs, rhs, output } => bigint_solver.bigint_op(
-            *lhs,
-            *rhs,
-            *output,
-            bb_func.get_black_box_func(),
-        ),
-        BlackBoxFuncCall::BigIntFromLeBytes { inputs, modulus, output } => bigint_solver
-            .bigint_from_bytes(inputs, modulus, *output, initial_witness),
+        | BlackBoxFuncCall::BigIntDiv { lhs, rhs, output } => {
+            bigint_solver.bigint_op(*lhs, *rhs, *output, bb_func.get_black_box_func())
+        }
+        BlackBoxFuncCall::BigIntFromLeBytes { inputs, modulus, output } => {
+            bigint_solver.bigint_from_bytes(inputs, modulus, *output, initial_witness)
+        }
         BlackBoxFuncCall::BigIntToLeBytes { input, outputs } => {
             bigint_solver.bigint_to_bytes(*input, outputs, initial_witness)
         }

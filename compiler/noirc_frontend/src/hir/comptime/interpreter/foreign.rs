@@ -59,26 +59,14 @@ fn call_foreign(
 
     match name {
         "aes128_encrypt" => aes128_encrypt(interner, args, location),
-        "bigint_from_le_bytes" => bigint_from_le_bytes(
-            interner,
-            bigint_solver,
-            args,
-            return_type,
-            location,
-        ),
+        "bigint_from_le_bytes" => {
+            bigint_from_le_bytes(interner, bigint_solver, args, return_type, location)
+        }
         "bigint_to_le_bytes" => bigint_to_le_bytes(bigint_solver, args, location),
-        "bigint_add" => {
-            bigint_op(bigint_solver, BigIntAdd, args, return_type, location)
-        }
-        "bigint_sub" => {
-            bigint_op(bigint_solver, BigIntSub, args, return_type, location)
-        }
-        "bigint_mul" => {
-            bigint_op(bigint_solver, BigIntMul, args, return_type, location)
-        }
-        "bigint_div" => {
-            bigint_op(bigint_solver, BigIntDiv, args, return_type, location)
-        }
+        "bigint_add" => bigint_op(bigint_solver, BigIntAdd, args, return_type, location),
+        "bigint_sub" => bigint_op(bigint_solver, BigIntSub, args, return_type, location),
+        "bigint_mul" => bigint_op(bigint_solver, BigIntMul, args, return_type, location),
+        "bigint_div" => bigint_op(bigint_solver, BigIntDiv, args, return_type, location),
         "blake2s" => blake_hash(interner, args, location, acvm::blackbox_solver::blake2s),
         "blake3" => blake_hash(interner, args, location, acvm::blackbox_solver::blake3),
         "ecdsa_secp256k1" => ecdsa_secp256_verify(
@@ -95,7 +83,9 @@ fn call_foreign(
         ),
         "embedded_curve_add" => embedded_curve_add(args, location, pedantic_solving),
         "multi_scalar_mul" => multi_scalar_mul(interner, args, location, pedantic_solving),
-        "poseidon2_permutation" => poseidon2_permutation(interner, args, location, pedantic_solving),
+        "poseidon2_permutation" => {
+            poseidon2_permutation(interner, args, location, pedantic_solving)
+        }
         "keccakf1600" => keccakf1600(interner, args, location),
         "range" => apply_range_constraint(args, location),
         "sha256_compression" => sha256_compression(interner, args, location),
@@ -284,7 +274,11 @@ fn ecdsa_secp256_verify(
 ///     point2: EmbeddedCurvePoint,
 /// ) -> [Field; 3]
 /// ```
-fn embedded_curve_add(arguments: Vec<(Value, Location)>, location: Location, pedantic_solving: bool) -> IResult<Value> {
+fn embedded_curve_add(
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+    pedantic_solving: bool,
+) -> IResult<Value> {
     let (point1, point2) = check_two_arguments(arguments, location)?;
 
     let (p1x, p1y, p1inf) = get_embedded_curve_point(point1)?;

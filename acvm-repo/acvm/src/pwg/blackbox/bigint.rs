@@ -19,9 +19,7 @@ pub(crate) struct AcvmBigIntSolver {
 impl AcvmBigIntSolver {
     pub(crate) fn with_pedantic_solving(pedantic_solving: bool) -> AcvmBigIntSolver {
         let bigint_solver = BigIntSolver::with_pedantic_solving(pedantic_solving);
-        AcvmBigIntSolver {
-            bigint_solver,
-        }
+        AcvmBigIntSolver { bigint_solver }
     }
 
     pub(crate) fn bigint_from_bytes<F: AcirField>(

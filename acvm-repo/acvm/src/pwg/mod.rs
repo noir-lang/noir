@@ -377,7 +377,12 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             }
             Opcode::MemoryOp { block_id, op, predicate } => {
                 let solver = self.block_solvers.entry(*block_id).or_default();
-                solver.solve_memory_op(op, &mut self.witness_map, predicate, self.backend.pedantic_solving())
+                solver.solve_memory_op(
+                    op,
+                    &mut self.witness_map,
+                    predicate,
+                    self.backend.pedantic_solving(),
+                )
             }
             Opcode::BrilligCall { .. } => match self.solve_brillig_call_opcode() {
                 Ok(Some(foreign_call)) => return self.wait_for_foreign_call(foreign_call),
@@ -559,11 +564,15 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         let opcode_location =
             ErrorLocation::Resolved(OpcodeLocation::Acir(self.instruction_pointer()));
         let witness = &mut self.witness_map;
-        let should_skip =
-            match is_predicate_false(witness, predicate, self.backend.pedantic_solving(), &opcode_location) {
-                Ok(result) => result,
-                Err(err) => return StepResult::Status(self.handle_opcode_resolution(Err(err))),
-            };
+        let should_skip = match is_predicate_false(
+            witness,
+            predicate,
+            self.backend.pedantic_solving(),
+            &opcode_location,
+        ) {
+            Ok(result) => result,
+            Err(err) => return StepResult::Status(self.handle_opcode_resolution(Err(err))),
+        };
         if should_skip {
             let resolution = BrilligSolver::<F, B>::zero_out_brillig_outputs(witness, outputs);
             return StepResult::Status(self.handle_opcode_resolution(resolution));

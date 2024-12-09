@@ -28,6 +28,7 @@ use zkhash::poseidon2::poseidon2_params::Poseidon2Params;
 
 #[test]
 fn bls12_381_circuit() {
+    let solver = StubbedBlackBoxSolver::default();
     type Bls12FieldElement = GenericFieldElement<ark_bls12_381::Fr>;
 
     let addition = Opcode::AssertZero(Expression {
@@ -47,14 +48,12 @@ fn bls12_381_circuit() {
     ])
     .into();
 
-    let pedantic_solving = true;
     let mut acvm = ACVM::new(
-        &StubbedBlackBoxSolver,
+        &solver,
         &opcodes,
         witness_assignments,
         &[],
         &[],
-        pedantic_solving,
     );
     // use the partial witness generation solver with our acir program
     let solver_status = acvm.solve();
@@ -68,6 +67,7 @@ fn bls12_381_circuit() {
 
 #[test]
 fn inversion_brillig_oracle_equivalence() {
+    let solver = StubbedBlackBoxSolver::default();
     // Opcodes below describe the following:
     // fn main(x : Field, y : pub Field) {
     //     let z = x + y;
@@ -177,14 +177,12 @@ fn inversion_brillig_oracle_equivalence() {
     ])
     .into();
     let unconstrained_functions = vec![brillig_bytecode];
-    let pedantic_solving = true;
     let mut acvm = ACVM::new(
-        &StubbedBlackBoxSolver,
+        &solver,
         &opcodes,
         witness_assignments,
         &unconstrained_functions,
         &[],
-        pedantic_solving,
     );
     // use the partial witness generation solver with our acir program
     let solver_status = acvm.solve();
@@ -214,6 +212,7 @@ fn inversion_brillig_oracle_equivalence() {
 
 #[test]
 fn double_inversion_brillig_oracle() {
+    let solver = StubbedBlackBoxSolver::default();
     // Opcodes below describe the following:
     // fn main(x : Field, y : pub Field) {
     //     let z = x + y;
@@ -345,14 +344,12 @@ fn double_inversion_brillig_oracle() {
     ])
     .into();
     let unconstrained_functions = vec![brillig_bytecode];
-    let pedantic_solving = true;
     let mut acvm = ACVM::new(
-        &StubbedBlackBoxSolver,
+        &solver,
         &opcodes,
         witness_assignments,
         &unconstrained_functions,
         &[],
-        pedantic_solving,
     );
 
     // use the partial witness generation solver with our acir program
@@ -400,6 +397,7 @@ fn double_inversion_brillig_oracle() {
 
 #[test]
 fn oracle_dependent_execution() {
+    let solver = StubbedBlackBoxSolver::default();
     // This test ensures that we properly track the list of opcodes which still need to be resolved
     // across any brillig foreign calls we may have to perform.
     //
@@ -504,14 +502,12 @@ fn oracle_dependent_execution() {
     let witness_assignments =
         BTreeMap::from([(w_x, FieldElement::from(2u128)), (w_y, FieldElement::from(2u128))]).into();
     let unconstrained_functions = vec![brillig_bytecode];
-    let pedantic_solving = true;
     let mut acvm = ACVM::new(
-        &StubbedBlackBoxSolver,
+        &solver,
         &opcodes,
         witness_assignments,
         &unconstrained_functions,
         &[],
-        pedantic_solving,
     );
 
     // use the partial witness generation solver with our acir program
@@ -558,6 +554,7 @@ fn oracle_dependent_execution() {
 
 #[test]
 fn brillig_oracle_predicate() {
+    let solver = StubbedBlackBoxSolver::default();
     let fe_0 = FieldElement::zero();
     let fe_1 = FieldElement::one();
     let w_x = Witness(1);
@@ -628,14 +625,12 @@ fn brillig_oracle_predicate() {
     ])
     .into();
     let unconstrained_functions = vec![brillig_bytecode];
-    let pedantic_solving = true;
     let mut acvm = ACVM::new(
-        &StubbedBlackBoxSolver,
+        &solver,
         &opcodes,
         witness_assignments,
         &unconstrained_functions,
         &[],
-        pedantic_solving,
     );
     let solver_status = acvm.solve();
     assert_eq!(solver_status, ACVMStatus::Solved, "should be fully solved");
@@ -646,6 +641,7 @@ fn brillig_oracle_predicate() {
 
 #[test]
 fn unsatisfied_opcode_resolved() {
+    let solver = StubbedBlackBoxSolver::default();
     let a = Witness(0);
     let b = Witness(1);
     let c = Witness(2);
@@ -671,14 +667,12 @@ fn unsatisfied_opcode_resolved() {
 
     let opcodes = vec![Opcode::AssertZero(opcode_a)];
     let unconstrained_functions = vec![];
-    let pedantic_solving = true;
     let mut acvm = ACVM::new(
-        &StubbedBlackBoxSolver,
+        &solver,
         &opcodes,
         values,
         &unconstrained_functions,
         &[],
-        pedantic_solving,
     );
     let solver_status = acvm.solve();
     assert_eq!(
@@ -781,6 +775,7 @@ fn unsatisfied_opcode_resolved_brillig() {
     values.insert(w_y, FieldElement::from(1_i128));
     values.insert(w_result, FieldElement::from(0_i128));
 
+    let pedantic_solving = true;
     let opcodes = vec![
         Opcode::BrilligCall {
             id: BrilligFunctionId(0),
@@ -802,14 +797,12 @@ fn unsatisfied_opcode_resolved_brillig() {
         Opcode::AssertZero(opcode_a),
     ];
     let unconstrained_functions = vec![brillig_bytecode];
-    let pedantic_solving = true;
     let mut acvm = ACVM::new(
-        &StubbedBlackBoxSolver,
+        &solver,
         &opcodes,
         values,
         &unconstrained_functions,
         &[],
-        pedantic_solving,
     );
     let solver_status = acvm.solve();
     assert_eq!(
@@ -857,16 +850,15 @@ fn memory_operations() {
         q_c: FieldElement::one(),
     });
 
+    let pedantic_solving = true;
     let opcodes = vec![init, read_op, expression];
     let unconstrained_functions = vec![];
-    let pedantic_solving = true;
     let mut acvm = ACVM::new(
-        &StubbedBlackBoxSolver,
+        &StubbedBlackBoxSolver(pedantic_solving),
         &opcodes,
         initial_witness,
         &unconstrained_functions,
         &[],
-        pedantic_solving,
     );
     let solver_status = acvm.solve();
     assert_eq!(solver_status, ACVMStatus::Solved);
@@ -941,12 +933,11 @@ where
     let opcodes = vec![op];
     let unconstrained_functions = vec![];
     let mut acvm = ACVM::new(
-        &Bn254BlackBoxSolver,
+        &Bn254BlackBoxSolver(pedantic_solving),
         &opcodes,
         initial_witness,
         &unconstrained_functions,
         &[],
-        pedantic_solving,
     );
     let solver_status = acvm.solve();
     assert_eq!(solver_status, ACVMStatus::Solved);
@@ -1076,6 +1067,7 @@ fn bigint_solve_binary_op_opt(
         outputs: output_witnesses.clone(),
     });
 
+    let pedantic_solving = true;
     let mut opcodes = vec![bigint_from_lhs_op, bigint_from_rhs_op];
     if let Some(middle_op) = middle_op {
         opcodes.push(Opcode::BlackBoxFuncCall(middle_op));
@@ -1084,12 +1076,11 @@ fn bigint_solve_binary_op_opt(
 
     let unconstrained_functions = vec![];
     let mut acvm = ACVM::new(
-        &StubbedBlackBoxSolver,
+        &StubbedBlackBoxSolver(pedantic_solving),
         &opcodes,
         initial_witness,
         &unconstrained_functions,
         &[],
-        pedantic_solving,
     );
     let solver_status = acvm.solve();
     assert_eq!(solver_status, ACVMStatus::Solved);
@@ -1113,6 +1104,7 @@ fn solve_blackbox_func_call(
     lhs: (FieldElement, bool), // if false, use a Witness
     rhs: (FieldElement, bool), // if false, use a Witness
 ) -> Result<FieldElement, OpcodeResolutionError<FieldElement>> {
+    let solver = StubbedBlackBoxSolver::default();
     let (lhs, lhs_constant) = lhs;
     let (rhs, rhs_constant) = rhs;
 
@@ -1129,17 +1121,16 @@ fn solve_blackbox_func_call(
         rhs_opt = Some(rhs);
     }
 
+    let pedantic_solving = true;
     let op = Opcode::BlackBoxFuncCall(blackbox_func_call(lhs_opt, rhs_opt)?);
     let opcodes = vec![op];
     let unconstrained_functions = vec![];
-    let pedantic_solving = true;
     let mut acvm = ACVM::new(
-        &StubbedBlackBoxSolver,
+        &solver,
         &opcodes,
         initial_witness,
         &unconstrained_functions,
         &[],
-        pedantic_solving,
     );
     let solver_status = acvm.solve();
     assert_eq!(solver_status, ACVMStatus::Solved);

@@ -32,6 +32,14 @@ pub trait BlackBoxFunctionSolver<F> {
 
 pub struct StubbedBlackBoxSolver(pub /* pedantic_solving: */ bool);
 
+// pedantic_solving enabled by default
+impl Default for StubbedBlackBoxSolver {
+    fn default() -> StubbedBlackBoxSolver {
+        let pedantic_solving = true;
+        StubbedBlackBoxSolver(pedantic_solving)
+    }
+}
+
 impl StubbedBlackBoxSolver {
     fn fail(black_box_function: BlackBoxFunc) -> BlackBoxResolutionError {
         BlackBoxResolutionError::Failed(

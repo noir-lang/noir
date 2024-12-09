@@ -15,7 +15,7 @@ pub struct BigIntSolver {
     bigint_id_to_value: HashMap<u32, BigUint>,
     bigint_id_to_modulus: HashMap<u32, BigUint>,
 
-    // Use pedantic ACVM solving 
+    // Use pedantic ACVM solving
     pedantic_solving: bool,
 }
 
@@ -65,7 +65,9 @@ impl BigIntSolver {
         modulus: &[u8],
         output: u32,
     ) -> Result<(), BlackBoxResolutionError> {
-        if self.pedantic_solving && (!self.is_valid_modulus(modulus) || inputs.len() > modulus.len()) {
+        if self.pedantic_solving
+            && (!self.is_valid_modulus(modulus) || inputs.len() > modulus.len())
+        {
             if !self.is_valid_modulus(modulus) {
                 panic!("--pedantic-solving: bigint_from_bytes: disallowed modulus {:?}", modulus);
             } else {
@@ -174,10 +176,7 @@ pub struct BigIntSolverWithId {
 impl BigIntSolverWithId {
     pub fn with_pedantic_solving(pedantic_solving: bool) -> BigIntSolverWithId {
         let solver = BigIntSolver::with_pedantic_solving(pedantic_solving);
-        BigIntSolverWithId {
-            solver,
-            last_id: Default::default(),
-        }
+        BigIntSolverWithId { solver, last_id: Default::default() }
     }
 
     pub fn create_bigint_id(&mut self) -> u32 {
