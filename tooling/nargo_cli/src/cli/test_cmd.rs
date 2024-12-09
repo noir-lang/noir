@@ -58,6 +58,10 @@ pub(crate) struct TestCommand {
     /// JSON RPC url to solve oracle calls
     #[clap(long)]
     oracle_resolver: Option<String>,
+
+    /// Number of threads used for running tests in parallel
+    #[clap(long)]
+    test_threads: Option<usize>,
 }
 
 struct Test<'a> {
@@ -91,7 +95,9 @@ pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError
         None => FunctionNameMatch::Anything,
     };
 
-    let num_threads = std::thread::available_parallelism().ok().map(Into::into).unwrap_or(1);
+    let num_threads = args
+        .test_threads
+        .unwrap_or_else(|| std::thread::available_parallelism().ok().map(Into::into).unwrap_or(1));
     let mut test_reports = Vec::new();
 
     for package in workspace.into_iter() {
