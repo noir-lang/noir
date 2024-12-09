@@ -460,7 +460,7 @@ mod tests {
             (PrintableValue::String("TWO".to_string()), PrintableType::String { length: 3 }),
             (PrintableValue::String("THREE".to_string()), PrintableType::String { length: 5 }),
         ];
-        let expected = "hello ONE {{no}} TWO {{not_again}} THREE world";
+        let expected = "hello ONE {no} TWO {not_again} THREE world";
         let display =
             PrintableValueDisplay::<FieldElement>::FmtString(template.to_string(), values);
         assert_eq!(display.to_string(), expected);
