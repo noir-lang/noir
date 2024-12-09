@@ -137,7 +137,7 @@ pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError
 
 fn run_package_tests(
     package: &Package,
-    workspace_file_manager: &FileManager,
+    file_manager: &FileManager,
     parsed_files: &HashMap<FileId, (ParsedModule, Vec<ParserError>)>,
     pattern: FunctionNameMatch<'_>,
     args: &TestCommand,
@@ -146,7 +146,7 @@ fn run_package_tests(
 ) -> Result<Vec<(String, TestStatus)>, CliError> {
     let package_name = package.name.to_string();
     let tests = collect_package_tests::<Bn254BlackBoxSolver>(
-        workspace_file_manager,
+        file_manager,
         parsed_files,
         package,
         pattern,
@@ -157,6 +157,7 @@ fn run_package_tests(
         &args.compile_options,
     )?;
     let num_tests = tests.len();
+    let mut test_report = Vec::new();
 
     let (sender, receiver) = mpsc::channel();
     let iter = Mutex::new(tests.into_iter());
@@ -174,19 +175,24 @@ fn run_package_tests(
                     };
                     let test_status = (test.runner)();
 
-                    // It's fine to ignore the result of sending. If the
-                    // receiver has hung up, everything will wind down soon
-                    // anyway.
+                    // It's fine to ignore the result of sending.
+                    // If the receiver has hung up, everything will wind down soon anyway.
                     let _ = sender.send((test.name, test_status));
                 })
                 .unwrap();
         }
-    });
 
-    let mut test_report = Vec::new();
-    for (test_name, test_status) in receiver.iter().take(num_tests) {
-        test_report.push((test_name, test_status));
-    }
+        for (test_name, test_status) in receiver.iter().take(num_tests) {
+            display_test_status(
+                &test_name,
+                &package_name,
+                &test_status,
+                file_manager,
+                &args.compile_options,
+            );
+            test_report.push((test_name, test_status));
+        }
+    });
 
     display_test_report(&package_name, &test_report)?;
 
@@ -220,7 +226,7 @@ fn collect_package_tests<'a, S: BlackBoxFunctionSolver<FieldElement> + Default>(
             let root_path = root_path.clone();
             let package_name_clone = package_name.clone();
             let runner = Box::new(move || {
-                let test_status = run_test::<S>(
+                run_test::<S>(
                     file_manager,
                     parsed_files,
                     package,
@@ -230,15 +236,7 @@ fn collect_package_tests<'a, S: BlackBoxFunctionSolver<FieldElement> + Default>(
                     root_path,
                     package_name_clone.clone(),
                     compile_options,
-                );
-                display_test_status(
-                    &test_name,
-                    &package_name_clone,
-                    &test_status,
-                    file_manager,
-                    compile_options,
-                );
-                test_status
+                )
             });
             Test { name: test_name_copy, runner }
         })
