@@ -266,7 +266,7 @@ jobs:
 
       - name: Parse compilation report
         id: compilation_report
-        uses: noir-lang/noir-bench-report@2311985216a1dc0296b22984e8e95c370274783c
+        uses: noir-lang/noir-bench-report@0c6d2dc43c9861d75c95af230928d2d5423773c1
         with:
           report: compilation_report.json
           header: |
