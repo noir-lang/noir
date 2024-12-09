@@ -821,14 +821,12 @@ impl<'a> Context<'a> {
                                     })
                                     .sum();
 
-                                let Some(acir_function_id) =
-                                    ssa.entry_point_to_generated_index.get(id)
-                                else {
+                                let Some(acir_function_id) = ssa.get_entry_point_index(id) else {
                                     unreachable!("Expected an associated final index for call to acir function {id} with args {arguments:?}");
                                 };
 
                                 let output_vars = self.acir_context.call_acir_function(
-                                    AcirFunctionId(*acir_function_id),
+                                    AcirFunctionId(acir_function_id),
                                     inputs,
                                     output_count,
                                     self.current_side_effects_enabled_var,

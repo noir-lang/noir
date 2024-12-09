@@ -25,7 +25,7 @@ pub(crate) struct Ssa {
     /// This mapping is necessary to use the correct function pointer for an ACIR call,
     /// as the final program artifact will be a list of only entry point functions.
     #[serde(skip)]
-    pub(crate) entry_point_to_generated_index: BTreeMap<FunctionId, u32>,
+    entry_point_to_generated_index: BTreeMap<FunctionId, u32>,
     // We can skip serializing this field as the error selector types end up as part of the
     // ABI not the actual SSA IR.
     #[serde(skip)]
@@ -103,13 +103,13 @@ impl Ssa {
         self
     }
 
-    pub(crate) fn get_entry_point_index(&self, func_id: FunctionId) -> Option<u32> {
-        // ensure the map has been initialized
+    pub(crate) fn get_entry_point_index(&self, func_id: &FunctionId) -> Option<u32> {
+        // Ensure the map has been initialized
         assert!(
             !self.entry_point_to_generated_index.is_empty(),
             "Trying to read uninitialized entry point index"
         );
-        self.entry_point_to_generated_index.get(&func_id).copied()
+        self.entry_point_to_generated_index.get(func_id).copied()
     }
 }
 
