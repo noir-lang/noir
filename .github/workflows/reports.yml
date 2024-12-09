@@ -298,11 +298,12 @@ jobs:
 
     name: Download compilation report
     steps:
+
       - name: Download compilation report
         uses: actions/download-artifact@v4
         with:
           name: compilation_report
-          path: compilation_report.json
+          path: ./
 
       - name: Parse compilation report
         id: compilation_report
