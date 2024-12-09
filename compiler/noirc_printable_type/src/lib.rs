@@ -278,6 +278,20 @@ fn write_template_replacing_interpolations(
     let mut last_index = 0; // How far we've written from the template
     let mut char_indices = template.char_indices().peekable();
     while let Some((char_index, char)) = char_indices.next() {
+        // If we see a '}' it must be "}}" because the ones for interpolation are handled
+        // when we see '{'
+        if char == '}' {
+            // Write what we've seen so far in the template, including this '}'
+            write!(fmt, "{}", &template[last_index..=char_index])?;
+
+            // Skip the second '}'
+            let (_, closing_curly) = char_indices.next().unwrap();
+            assert_eq!(closing_curly, '}');
+
+            last_index = char_indices.peek().map(|(index, _)| *index).unwrap_or(template.len());
+            continue;
+        }
+
         // Keep going forward until we find a '{'
         if char != '{' {
             continue;
@@ -290,7 +304,11 @@ fn write_template_replacing_interpolations(
         // If it's '{{', write '{' and keep going
         if char_indices.peek().map(|(_, char)| char) == Some(&'{') {
             write!(fmt, "{{")?;
-            (last_index, _) = char_indices.next().unwrap();
+
+            // Skip the second '{'
+            char_indices.next().unwrap();
+
+            last_index = char_indices.peek().map(|(index, _)| *index).unwrap_or(template.len());
             continue;
         }
 
@@ -428,9 +446,10 @@ mod tests {
     #[test]
     fn printable_value_display_to_string_with_curly_escapes() {
         let template = "hello {{world}} {{{{double_escape}}}}";
+        let expected = "hello {world} {{double_escape}}";
         let display =
             PrintableValueDisplay::<FieldElement>::FmtString(template.to_string(), vec![]);
-        assert_eq!(display.to_string(), template);
+        assert_eq!(display.to_string(), expected);
     }
 
     #[test]
@@ -441,7 +460,7 @@ mod tests {
             (PrintableValue::String("TWO".to_string()), PrintableType::String { length: 3 }),
             (PrintableValue::String("THREE".to_string()), PrintableType::String { length: 5 }),
         ];
-        let expected = "hello ONE {{no}} TWO {{not_again}} THREE world";
+        let expected = "hello ONE {no} TWO {not_again} THREE world";
         let display =
             PrintableValueDisplay::<FieldElement>::FmtString(template.to_string(), values);
         assert_eq!(display.to_string(), expected);
