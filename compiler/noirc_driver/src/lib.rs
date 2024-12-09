@@ -10,7 +10,7 @@ use clap::Args;
 use fm::{FileId, FileManager};
 use iter_extended::vecmap;
 use noirc_abi::{AbiParameter, AbiType, AbiValue};
-use noirc_errors::{CustomDiagnostic, FileDiagnostic};
+use noirc_errors::{CustomDiagnostic, DiagnosticKind, FileDiagnostic};
 use noirc_evaluator::create_program;
 use noirc_evaluator::errors::RuntimeError;
 use noirc_evaluator::ssa::{SsaLogging, SsaProgramArtifact};
@@ -301,7 +301,6 @@ pub fn check_crate(
     crate_id: CrateId,
     options: &CompileOptions,
 ) -> CompilationResult<()> {
-    let mut errors = vec![];
     let error_on_unused_imports = true;
     let diagnostics = CrateDefMap::collect_defs(
         crate_id,
@@ -309,15 +308,22 @@ pub fn check_crate(
         options.debug_comptime_in_file.as_deref(),
         error_on_unused_imports,
     );
-    errors.extend(diagnostics.into_iter().map(|(error, file_id)| {
-        let diagnostic = CustomDiagnostic::from(&error);
-        diagnostic.in_file(file_id)
-    }));
+    let warnings_and_errors: Vec<FileDiagnostic> = diagnostics
+        .into_iter()
+        .map(|(error, file_id)| {
+            let diagnostic = CustomDiagnostic::from(&error);
+            diagnostic.in_file(file_id)
+        })
+        .filter(|diagnostic| {
+            // We filter out any warnings if they're going to be ignored later on to free up memory.
+            !options.silence_warnings || diagnostic.diagnostic.kind != DiagnosticKind::Warning
+        })
+        .collect();
 
-    if has_errors(&errors, options.deny_warnings) {
-        Err(errors)
+    if has_errors(&warnings_and_errors, options.deny_warnings) {
+        Err(warnings_and_errors)
     } else {
-        Ok(((), errors))
+        Ok(((), warnings_and_errors))
     }
 }
 

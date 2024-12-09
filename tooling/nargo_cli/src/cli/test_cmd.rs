@@ -304,3 +304,31 @@ fn display_test_report(
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use std::io::Write;
+    use std::{thread, time::Duration};
+    use termcolor::{ColorChoice, StandardStream};
+
+    #[test]
+    fn test_stderr_lock() {
+        for i in 0..4 {
+            thread::spawn(move || {
+                let mut writer = StandardStream::stderr(ColorChoice::Always);
+                //let mut writer = writer.lock();
+
+                let mut show = |msg| {
+                    thread::sleep(Duration::from_millis(10));
+                    //println!("{i} {msg}");
+                    writeln!(writer, "{i} {msg}").unwrap();
+                };
+
+                show("a");
+                show("b");
+                show("c");
+            });
+        }
+        thread::sleep(Duration::from_millis(100));
+    }
+}
