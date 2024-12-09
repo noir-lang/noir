@@ -141,17 +141,6 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             memory.write(*result_address, result.into());
             Ok(())
         }
-        BlackBoxOp::SchnorrVerify { public_key_x, public_key_y, message, signature, result } => {
-            let public_key_x = *memory.read(*public_key_x).extract_field().unwrap();
-            let public_key_y = *memory.read(*public_key_y).extract_field().unwrap();
-            let message: Vec<u8> = to_u8_vec(read_heap_vector(memory, message));
-            let signature: [u8; 64] =
-                to_u8_vec(read_heap_vector(memory, signature)).try_into().unwrap();
-            let verified =
-                solver.schnorr_verify(&public_key_x, &public_key_y, &signature, &message)?;
-            memory.write(*result, verified.into());
-            Ok(())
-        }
         BlackBoxOp::MultiScalarMul { points, scalars, outputs: result } => {
             let points: Vec<F> = read_heap_vector(memory, points)
                 .iter()
@@ -362,7 +351,6 @@ fn black_box_function_from_op(op: &BlackBoxOp) -> BlackBoxFunc {
         BlackBoxOp::Keccakf1600 { .. } => BlackBoxFunc::Keccakf1600,
         BlackBoxOp::EcdsaSecp256k1 { .. } => BlackBoxFunc::EcdsaSecp256k1,
         BlackBoxOp::EcdsaSecp256r1 { .. } => BlackBoxFunc::EcdsaSecp256r1,
-        BlackBoxOp::SchnorrVerify { .. } => BlackBoxFunc::SchnorrVerify,
         BlackBoxOp::MultiScalarMul { .. } => BlackBoxFunc::MultiScalarMul,
         BlackBoxOp::EmbeddedCurveAdd { .. } => BlackBoxFunc::EmbeddedCurveAdd,
         BlackBoxOp::BigIntAdd { .. } => BlackBoxFunc::BigIntAdd,

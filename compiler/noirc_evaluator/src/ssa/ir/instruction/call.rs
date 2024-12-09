@@ -601,7 +601,6 @@ fn simplify_black_box_func(
         BlackBoxFunc::EmbeddedCurveAdd => {
             blackbox::simplify_ec_add(dfg, solver, arguments, block, call_stack)
         }
-        BlackBoxFunc::SchnorrVerify => blackbox::simplify_schnorr_verify(dfg, solver, arguments),
 
         BlackBoxFunc::BigIntAdd
         | BlackBoxFunc::BigIntSub

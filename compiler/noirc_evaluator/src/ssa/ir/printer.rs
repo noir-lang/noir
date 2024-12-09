@@ -1,8 +1,5 @@
 //! This file is for pretty-printing the SSA IR in a human-readable form for debugging.
-use std::{
-    collections::HashSet,
-    fmt::{Formatter, Result},
-};
+use std::fmt::{Formatter, Result};
 
 use acvm::acir::AcirField;
 use im::Vector;
@@ -21,28 +18,10 @@ use super::{
 /// Helper function for Function's Display impl to pretty-print the function with the given formatter.
 pub(crate) fn display_function(function: &Function, f: &mut Formatter) -> Result {
     writeln!(f, "{} fn {} {} {{", function.runtime(), function.name(), function.id())?;
-    display_block_with_successors(function, function.entry_block(), &mut HashSet::new(), f)?;
-    write!(f, "}}")
-}
-
-/// Displays a block followed by all of its successors recursively.
-/// This uses a HashSet to keep track of the visited blocks. Otherwise
-/// there would be infinite recursion for any loops in the IR.
-pub(crate) fn display_block_with_successors(
-    function: &Function,
-    block_id: BasicBlockId,
-    visited: &mut HashSet<BasicBlockId>,
-    f: &mut Formatter,
-) -> Result {
-    display_block(function, block_id, f)?;
-    visited.insert(block_id);
-
-    for successor in function.dfg[block_id].successors() {
-        if !visited.contains(&successor) {
-            display_block_with_successors(function, successor, visited, f)?;
-        }
+    for block_id in function.reachable_blocks() {
+        display_block(function, block_id, f)?;
     }
-    Ok(())
+    write!(f, "}}")
 }
 
 /// Display a single block. This will not display the block's successors.

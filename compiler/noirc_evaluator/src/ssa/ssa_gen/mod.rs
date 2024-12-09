@@ -2,6 +2,7 @@ pub(crate) mod context;
 mod program;
 mod value;
 
+use noirc_frontend::token::FmtStrFragment;
 pub(crate) use program::Ssa;
 
 use context::SharedContext;
@@ -230,10 +231,26 @@ impl<'a> FunctionContext<'a> {
                 Ok(self.builder.numeric_constant(*value as u128, Type::bool()).into())
             }
             ast::Literal::Str(string) => Ok(self.codegen_string(string)),
-            ast::Literal::FmtStr(string, number_of_fields, fields) => {
+            ast::Literal::FmtStr(fragments, number_of_fields, fields) => {
+                let mut string = String::new();
+                for fragment in fragments {
+                    match fragment {
+                        FmtStrFragment::String(value) => {
+                            // Escape curly braces in non-interpolations
+                            let value = value.replace('{', "{{").replace('}', "}}");
+                            string.push_str(&value);
+                        }
+                        FmtStrFragment::Interpolation(value, _span) => {
+                            string.push('{');
+                            string.push_str(value);
+                            string.push('}');
+                        }
+                    }
+                }
+
                 // A caller needs multiple pieces of information to make use of a format string
                 // The message string, the number of fields to be formatted, and the fields themselves
-                let string = self.codegen_string(string);
+                let string = self.codegen_string(&string);
                 let field_count = self.builder.length_constant(*number_of_fields as u128);
                 let fields = self.codegen_expression(fields)?;
 
