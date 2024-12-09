@@ -220,7 +220,7 @@ jobs:
 
       - name: Parse memory report
         id: memory_report
-        uses: noir-lang/noir-bench-report@ccb0d806a91d3bd86dba0ba3d580a814eed5673c
+        uses: noir-lang/noir-bench-report@0d7464a8c39170523932d7846b6e6b458a294aea
         with:
           report: memory_report.json
           header: |
@@ -266,11 +266,12 @@ jobs:
 
       - name: Parse compilation report
         id: compilation_report
-        uses: noir-lang/noir-bench-report@ff50b92cceef9eec2e45274f65831b31f8fd0e1f
+        uses: noir-lang/noir-bench-report@0d7464a8c39170523932d7846b6e6b458a294aea
         with:
           report: compilation_report.json
           header: |
             # Compilation Report
+          memory_report: false
 
       - name: Add memory report to sticky comment
         if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
