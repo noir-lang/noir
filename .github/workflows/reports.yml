@@ -263,6 +263,7 @@ jobs:
         run: |
           ./compilation_report.sh
           mv compilation_report.json ../compilation_report.json
+          echo $PWD
 
       - name: Upload compilation report
         uses: actions/upload-artifact@v4
