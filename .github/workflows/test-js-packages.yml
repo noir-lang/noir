@@ -207,7 +207,7 @@ jobs:
 
   test-noirc-abi-node:
     needs: [build-noirc-abi]
-    name: noirc_abi
+    name: noirc_abi (Node)
     runs-on: ubuntu-24.04
     timeout-minutes: 30
 
@@ -229,7 +229,7 @@ jobs:
 
   test-noirc-abi-browser:
     needs: [build-noirc-abi]
-    name: noirc_abi
+    name: noirc_abi (Browser)
     runs-on: ubuntu-24.04
     timeout-minutes: 30
 
