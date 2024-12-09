@@ -12,6 +12,7 @@ use crate::ast::{FunctionKind, IntegerBitSize, Signedness, UnaryOp, Visibility};
 use crate::hir::comptime::InterpreterError;
 use crate::hir::type_check::{NoMatchingImplFoundError, TypeCheckError};
 use crate::node_interner::{ExprId, ImplSearchErrorKind};
+use crate::token::FmtStrFragment;
 use crate::{
     debug::DebugInstrumenter,
     hir_def::{
@@ -417,10 +418,10 @@ impl<'interner> Monomorphizer<'interner> {
         let expr = match self.interner.expression(&expr) {
             HirExpression::Ident(ident, generics) => self.ident(ident, expr, generics)?,
             HirExpression::Literal(HirLiteral::Str(contents)) => Literal(Str(contents)),
-            HirExpression::Literal(HirLiteral::FmtStr(contents, idents)) => {
+            HirExpression::Literal(HirLiteral::FmtStr(fragments, idents, _length)) => {
                 let fields = try_vecmap(idents, |ident| self.expr(ident))?;
                 Literal(FmtStr(
-                    contents,
+                    fragments,
                     fields.len() as u64,
                     Box::new(ast::Expression::Tuple(fields)),
                 ))
@@ -1846,7 +1847,7 @@ impl<'interner> Monomorphizer<'interner> {
                     _ => unreachable!("ICE: format string fields should be structured in a tuple, but got a {zeroed_tuple}"),
                 };
                 ast::Expression::Literal(ast::Literal::FmtStr(
-                    "\0".repeat(*length as usize),
+                    vec![FmtStrFragment::String("\0".repeat(*length as usize))],
                     fields_len,
                     Box::new(zeroed_tuple),
                 ))

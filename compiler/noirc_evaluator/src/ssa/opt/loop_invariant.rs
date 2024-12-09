@@ -251,13 +251,13 @@ mod test {
           b1(v2: u32):
               v5 = lt v2, u32 4
               jmpif v5 then: b3, else: b2
+          b2():
+              return
           b3():
               v6 = mul v0, v1
               constrain v6 == u32 6
               v8 = add v2, u32 1
               jmp b1(v8)
-          b2():
-              return
         }
         ";
 
@@ -276,12 +276,12 @@ mod test {
           b1(v2: u32):
             v6 = lt v2, u32 4
             jmpif v6 then: b3, else: b2
+          b2():
+            return
           b3():
             constrain v3 == u32 6
             v9 = add v2, u32 1
             jmp b1(v9)
-          b2():
-            return
         }
         ";
 
@@ -300,21 +300,21 @@ mod test {
           b1(v2: u32):
             v6 = lt v2, u32 4
             jmpif v6 then: b3, else: b2
+          b2():
+            return
           b3():
             jmp b4(u32 0)
           b4(v3: u32):
             v7 = lt v3, u32 4
             jmpif v7 then: b6, else: b5
+          b5():
+            v9 = add v2, u32 1
+            jmp b1(v9)
           b6():
             v10 = mul v0, v1
             constrain v10 == u32 6
             v12 = add v3, u32 1
             jmp b4(v12)
-          b5():
-            v9 = add v2, u32 1
-            jmp b1(v9)
-          b2():
-            return
         }
         ";
 
@@ -333,20 +333,20 @@ mod test {
           b1(v2: u32):
             v7 = lt v2, u32 4
             jmpif v7 then: b3, else: b2
+          b2():
+            return
           b3():
             jmp b4(u32 0)
           b4(v3: u32):
             v8 = lt v3, u32 4
             jmpif v8 then: b6, else: b5
+          b5():
+            v10 = add v2, u32 1
+            jmp b1(v10)
           b6():
             constrain v4 == u32 6
             v12 = add v3, u32 1
             jmp b4(v12)
-          b5():
-            v10 = add v2, u32 1
-            jmp b1(v10)
-          b2():
-            return
         }
         ";
 
@@ -374,6 +374,8 @@ mod test {
           b1(v2: u32):
             v5 = lt v2, u32 4
             jmpif v5 then: b3, else: b2
+          b2():
+            return
           b3():
             v6 = mul v0, v1
             v7 = mul v6, v0
@@ -381,8 +383,6 @@ mod test {
             constrain v7 == u32 12
             v9 = add v2, u32 1
             jmp b1(v9)
-          b2():
-            return
         }
         ";
 
@@ -402,12 +402,12 @@ mod test {
           b1(v2: u32):
             v9 = lt v2, u32 4
             jmpif v9 then: b3, else: b2
+          b2():
+            return
           b3():
             constrain v4 == u32 12
             v11 = add v2, u32 1
             jmp b1(v11)
-          b2():
-            return
         }
         ";
 
@@ -431,17 +431,17 @@ mod test {
           b1(v2: u32):
             v7 = lt v2, u32 4
             jmpif v7 then: b3, else: b2
+          b2():
+            v8 = load v5 -> [u32; 5]
+            v10 = array_get v8, index u32 2 -> u32
+            constrain v10 == u32 3
+            return
           b3():
             v12 = load v5 -> [u32; 5]
             v13 = array_set v12, index v0, value v1
             store v13 at v5
             v15 = add v2, u32 1
             jmp b1(v15)
-          b2():
-            v8 = load v5 -> [u32; 5]
-            v10 = array_get v8, index u32 2 -> u32
-            constrain v10 == u32 3
-            return
         }
         ";
 
@@ -485,16 +485,24 @@ mod test {
           b1(v2: u32):
             v9 = lt v2, u32 4
             jmpif v9 then: b3, else: b2
+          b2():
+            return
           b3():
             jmp b4(u32 0)
           b4(v3: u32):
             v10 = lt v3, u32 4
             jmpif v10 then: b6, else: b5
+          b5():
+            v12 = add v2, u32 1
+            jmp b1(v12)
           b6():
             jmp b7(u32 0)
           b7(v4: u32):
             v13 = lt v4, u32 4
             jmpif v13 then: b9, else: b8
+          b8():
+            v14 = add v3, u32 1
+            jmp b4(v14)
           b9():
             v15 = array_get v6, index v2 -> u32
             v16 = eq v15, v0
@@ -504,14 +512,6 @@ mod test {
             constrain v17 == v0
             v19 = add v4, u32 1
             jmp b7(v19)
-          b8():
-            v14 = add v3, u32 1
-            jmp b4(v14)
-          b5():
-            v12 = add v2, u32 1
-            jmp b1(v12)
-          b2():
-            return
         }
         ";
 
@@ -526,6 +526,8 @@ mod test {
           b1(v2: u32):
             v9 = lt v2, u32 4
             jmpif v9 then: b3, else: b2
+          b2():
+            return
           b3():
             v10 = array_get v6, index v2 -> u32
             v11 = eq v10, v0
@@ -533,6 +535,9 @@ mod test {
           b4(v3: u32):
             v12 = lt v3, u32 4
             jmpif v12 then: b6, else: b5
+          b5():
+            v14 = add v2, u32 1
+            jmp b1(v14)
           b6():
             v15 = array_get v6, index v3 -> u32
             v16 = eq v15, v0
@@ -540,19 +545,14 @@ mod test {
           b7(v4: u32):
             v17 = lt v4, u32 4
             jmpif v17 then: b9, else: b8
+          b8():
+            v18 = add v3, u32 1
+            jmp b4(v18)
           b9():
             constrain v10 == v0
             constrain v15 == v0
             v19 = add v4, u32 1
             jmp b7(v19)
-          b8():
-            v18 = add v3, u32 1
-            jmp b4(v18)
-          b5():
-            v14 = add v2, u32 1
-            jmp b1(v14)
-          b2():
-            return
         }
         ";
 
