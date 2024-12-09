@@ -157,6 +157,10 @@ fn run_package_tests(
         &args.compile_options,
     )?;
     let num_tests = tests.len();
+
+    let plural = if num_tests == 1 { "" } else { "s" };
+    println!("[{}] Running {num_tests} test function{plural}", package.name);
+
     let mut test_report = Vec::new();
 
     let (sender, receiver) = mpsc::channel();
@@ -213,11 +217,6 @@ fn collect_package_tests<'a, S: BlackBoxFunctionSolver<FieldElement> + Default>(
 ) -> Result<Vec<Test<'a>>, CliError> {
     let test_functions =
         get_tests_in_package(file_manager, parsed_files, package, fn_name, compile_options)?;
-
-    let count_all = test_functions.len();
-
-    let plural = if count_all == 1 { "" } else { "s" };
-    println!("[{}] Running {count_all} test function{plural}", package.name);
 
     let tests: Vec<Test> = test_functions
         .into_iter()
