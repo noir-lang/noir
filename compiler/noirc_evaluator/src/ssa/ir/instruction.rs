@@ -64,6 +64,7 @@ pub(crate) enum Intrinsic {
     ToBits(Endian),
     ToRadix(Endian),
     BlackBox(BlackBoxFunc),
+    Hint(Hint),
     FromField,
     AsField,
     AsWitness,
@@ -95,6 +96,7 @@ impl std::fmt::Display for Intrinsic {
             Intrinsic::ToRadix(Endian::Big) => write!(f, "to_be_radix"),
             Intrinsic::ToRadix(Endian::Little) => write!(f, "to_le_radix"),
             Intrinsic::BlackBox(function) => write!(f, "{function}"),
+            Intrinsic::Hint(Hint::BlackBox) => write!(f, "black_box"),
             Intrinsic::FromField => write!(f, "from_field"),
             Intrinsic::AsField => write!(f, "as_field"),
             Intrinsic::AsWitness => write!(f, "as_witness"),
@@ -143,6 +145,9 @@ impl Intrinsic {
             | Intrinsic::IsUnconstrained
             | Intrinsic::DerivePedersenGenerators
             | Intrinsic::FieldLessThan => false,
+
+            // Treat the black_box hint as-if it could potentially have side effects.
+            Intrinsic::Hint(Hint::BlackBox) => true,
 
             // Some black box functions have side-effects
             Intrinsic::BlackBox(func) => matches!(
@@ -214,6 +219,7 @@ impl Intrinsic {
             "is_unconstrained" => Some(Intrinsic::IsUnconstrained),
             "derive_pedersen_generators" => Some(Intrinsic::DerivePedersenGenerators),
             "field_less_than" => Some(Intrinsic::FieldLessThan),
+            "black_box" => Some(Intrinsic::Hint(Hint::BlackBox)),
             "array_refcount" => Some(Intrinsic::ArrayRefCount),
             "slice_refcount" => Some(Intrinsic::SliceRefCount),
 
@@ -227,6 +233,16 @@ impl Intrinsic {
 pub(crate) enum Endian {
     Big,
     Little,
+}
+
+/// Compiler hints.
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) enum Hint {
+    /// Hint to the compiler to treat the call as having potential side effects,
+    /// so that the value passed to it can survive SSA passes without being
+    /// simplified out completely. This facilitates testing and reproducing
+    /// runtime behavior with constants.
+    BlackBox,
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]

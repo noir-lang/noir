@@ -4,6 +4,7 @@ use acvm::{acir::AcirField, FieldElement};
 use fxhash::FxHashMap as HashMap;
 
 use crate::ssa::ir::function::RuntimeType;
+use crate::ssa::ir::instruction::Hint;
 use crate::ssa::ir::value::ValueId;
 use crate::ssa::{
     ir::{
@@ -231,6 +232,7 @@ fn slice_capacity_change(
         | Intrinsic::ArrayAsStrUnchecked
         | Intrinsic::StrAsBytes
         | Intrinsic::BlackBox(_)
+        | Intrinsic::Hint(Hint::BlackBox)
         | Intrinsic::FromField
         | Intrinsic::AsField
         | Intrinsic::AsWitness
