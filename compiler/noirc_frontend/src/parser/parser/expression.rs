@@ -577,7 +577,7 @@ impl<'a> Parser<'a> {
     /// BlockExpression = Block
     fn parse_literal(&mut self) -> Option<ExpressionKind> {
         if let Some(bool) = self.eat_bool() {
-            return Some(ExpressionKind::Literal(Literal::Bool(bool)));
+            return Some(ExpressionKind::boolean(bool));
         }
 
         if let Some(int) = self.eat_int() {
@@ -585,15 +585,15 @@ impl<'a> Parser<'a> {
         }
 
         if let Some(string) = self.eat_str() {
-            return Some(ExpressionKind::Literal(Literal::Str(string)));
+            return Some(ExpressionKind::string(string));
         }
 
         if let Some((string, n)) = self.eat_raw_str() {
-            return Some(ExpressionKind::Literal(Literal::RawStr(string, n)));
+            return Some(ExpressionKind::raw_string(string, n));
         }
 
-        if let Some(string) = self.eat_fmt_str() {
-            return Some(ExpressionKind::Literal(Literal::FmtStr(string)));
+        if let Some((fragments, length)) = self.eat_fmt_str() {
+            return Some(ExpressionKind::format_string(fragments, length));
         }
 
         if let Some(tokens) = self.eat_quote() {
@@ -865,10 +865,11 @@ mod tests {
     fn parses_fmt_str() {
         let src = "f\"hello\"";
         let expr = parse_expression_no_errors(src);
-        let ExpressionKind::Literal(Literal::FmtStr(string)) = expr.kind else {
+        let ExpressionKind::Literal(Literal::FmtStr(fragments, length)) = expr.kind else {
             panic!("Expected format string literal");
         };
-        assert_eq!(string, "hello");
+        assert_eq!(fragments[0].to_string(), "hello");
+        assert_eq!(length, 5);
     }
 
     #[test]
