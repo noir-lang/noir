@@ -524,8 +524,8 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             },
             TypeCheckError::TypeAnnotationsNeededForIndex { span } => {
                 Diagnostic::simple_error(
-                    format!("Type annotations required before indexing this array or slice"), 
-                    format!("Type annotations needed before this point, can't decide if this is an array or slice"),
+                    "Type annotations required before indexing this array or slice".into(), 
+                    "Type annotations needed before this point, can't decide if this is an array or slice".into(),
                     *span,
                 )
             },
