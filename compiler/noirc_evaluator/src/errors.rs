@@ -93,10 +93,10 @@ impl From<SsaReport> for FileDiagnostic {
                 let message = bug.to_string();
                 let (secondary_message, call_stack) = match bug {
                     InternalBug::IndependentSubgraph { call_stack } => {
-                        ("There is no path from the output of this brillig call to either return values or inputs of the circuit, which creates an independent subgraph. This is quite likely a soundness vulnerability".to_string(), call_stack)
+                        ("There is no path from the output of this Brillig call to either return values or inputs of the circuit, which creates an independent subgraph. This is quite likely a soundness vulnerability".to_string(), call_stack)
                     }
                     InternalBug::UncheckedBrilligCall { call_stack } => {
-                        ("There is no constraint between this brillig call's inputs and its return values. This should be done to prevent potential soundness vulnerabilities".to_string(), call_stack)
+                        ("This Brillig call's inputs and its return values haven't been sufficiently constrained. This should be done to prevent potential soundness vulnerabilities".to_string(), call_stack)
                     }
                     InternalBug::AssertFailed { call_stack } => ("As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution".to_string(), call_stack)
                 };
