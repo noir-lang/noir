@@ -264,14 +264,14 @@ jobs:
           ./compilation_report.sh
           mv compilation_report.json ../compilation_report.json
 
-      # - name: Upload compilation report
-      #   uses: actions/upload-artifact@v4
-      #   working-directory: ./
-      #   with:
-      #     name: compilation_report
-      #     path: ./compilation_report.json
-      #     retention-days: 3
-      #     overwrite: true
+      - name: Upload compilation report
+        uses: actions/upload-artifact@v4
+        working-directory: ./
+        with:
+          name: in_progress_compilation_report
+          path: ./compilation_report.json
+          retention-days: 3
+          overwrite: true
 
       # - name: Parse compilation report
       #   id: compilation_report
