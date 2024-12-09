@@ -2882,7 +2882,6 @@ mod test {
         },
         FieldElement,
     };
-    use im::vector;
     use noirc_errors::Location;
     use noirc_frontend::monomorphization::ast::InlineType;
     use std::collections::BTreeMap;
