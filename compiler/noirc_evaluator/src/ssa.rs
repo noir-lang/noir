@@ -449,7 +449,7 @@ impl SsaBuilder {
     }
 
     fn finish(self) -> Ssa {
-        self.ssa
+        self.ssa.generate_entry_point_index()
     }
 
     /// Runs the given SSA pass and prints the SSA afterward if `print_ssa_passes` is true.
