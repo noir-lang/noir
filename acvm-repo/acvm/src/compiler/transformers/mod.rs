@@ -377,19 +377,6 @@ where
                 self.fold_function_inputs(inputs.as_slice());
                 self.fold_many(outputs.iter());
             }
-            BlackBoxFuncCall::SchnorrVerify {
-                public_key_x,
-                public_key_y,
-                signature,
-                message,
-                output,
-            } => {
-                self.fold_function_input(public_key_x);
-                self.fold_function_input(public_key_y);
-                self.fold_function_inputs(signature.as_slice());
-                self.fold_function_inputs(message.as_slice());
-                self.fold(*output);
-            }
             BlackBoxFuncCall::EcdsaSecp256k1 {
                 public_key_x,
                 public_key_y,
