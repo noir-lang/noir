@@ -25,16 +25,19 @@ comptime fn derive_do_nothing(s: StructDefinition) -> Quoted {
 
 // Test stdlib derive fns & multiple traits
 // - We can derive Ord and Hash even though std::cmp::Ordering and std::hash::Hasher aren't imported
+// - We need to define MyOtherOtherStruct first since MyOtherStruct references it as a field and
+//   attributes are run in reading order. If it were defined afterward, the derived Eq impl for MyOtherStruct
+//   would error that MyOtherOtherStruct doesn't (yet) implement Eq.
+#[derive(Eq, Default, Hash, Ord)]
+struct MyOtherOtherStruct<T> {
+    x: T,
+}
+
 #[derive(Eq, Default, Hash, Ord)]
 struct MyOtherStruct<A, B> {
     field1: A,
     field2: B,
     field3: MyOtherOtherStruct<B>,
-}
-
-#[derive(Eq, Default, Hash, Ord)]
-struct MyOtherOtherStruct<T> {
-    x: T,
 }
 
 #[derive(Eq, Default, Hash, Ord)]
