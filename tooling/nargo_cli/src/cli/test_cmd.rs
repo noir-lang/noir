@@ -11,7 +11,7 @@ use nargo::{
     parse_all, prepare_package,
 };
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::{check_crate, CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
+use noirc_driver::{check_crate, compile_no_check, CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::hir::{FunctionNameMatch, ParsedFiles};
 use rayon::prelude::{IntoParallelIterator, ParallelBridge, ParallelIterator};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
@@ -191,15 +191,25 @@ fn run_test<S: BlackBoxFunctionSolver<FieldElement> + Default>(
 
     let blackbox_solver = S::default();
 
+    let compiled_program = match compile_no_check(
+        &mut context,
+        compile_options,
+        test_function.get_id(),
+        None,
+        false,
+    ) {
+        Ok(compiled_program) => compiled_program,
+        Err(err) => return TestStatus::CompileError(err.into()),
+    };
+
     nargo::ops::run_test(
         &blackbox_solver,
-        &mut context,
+        compiled_program,
         test_function,
         show_output,
         foreign_call_resolver_url,
         root_path,
         package_name,
-        compile_options,
     )
 }
 

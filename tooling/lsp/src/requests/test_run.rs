@@ -4,7 +4,8 @@ use crate::insert_all_files_for_workspace_into_file_manager;
 use async_lsp::{ErrorCode, ResponseError};
 use nargo::ops::{run_test, TestStatus};
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::{check_crate, CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
+use noirc_driver::{check_crate, compile_no_check, CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
+use noirc_errors::FileDiagnostic;
 use noirc_frontend::hir::FunctionNameMatch;
 
 use crate::{
@@ -80,15 +81,31 @@ fn on_test_run_request_inner(
                 )
             })?;
 
+            let compiled_program = match compile_no_check(
+                &mut context,
+                &CompileOptions::default(),
+                test_function.get_id(),
+                None,
+                false,
+            ) {
+                Ok(compiled_program) => compiled_program,
+                Err(err) => {
+                    return Ok(NargoTestRunResult {
+                        id: params.id.clone(),
+                        result: "error".to_string(),
+                        message: Some(FileDiagnostic::from(err).diagnostic.message),
+                    })
+                }
+            };
+
             let test_result = run_test(
                 &state.solver,
-                &mut context,
+                compiled_program,
                 &test_function,
                 true,
                 None,
                 Some(workspace.root_dir.clone()),
                 Some(package.name.to_string()),
-                &CompileOptions::default(),
             );
             let result = match test_result {
                 TestStatus::Pass => NargoTestRunResult {
@@ -106,11 +123,7 @@ fn on_test_run_request_inner(
                     result: "skipped".to_string(),
                     message: None,
                 },
-                TestStatus::CompileError(diag) => NargoTestRunResult {
-                    id: params.id.clone(),
-                    result: "error".to_string(),
-                    message: Some(diag.diagnostic.message),
-                },
+                TestStatus::CompileError(_) => unreachable!("Test has successfully compiled"),
             };
             Ok(result)
         }
