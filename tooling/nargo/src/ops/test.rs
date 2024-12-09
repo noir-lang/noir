@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use acvm::{
     acir::{
         brillig::ForeignCallResult,
+        circuit::brillig::OracleResult,
         native_types::{WitnessMap, WitnessStack},
     },
     pwg::ForeignCallWaitInfo,
@@ -36,7 +37,13 @@ pub enum TestStatus {
 
 impl TestStatus {
     pub fn failed(&self) -> bool {
-        !matches!(self, TestStatus::Pass | TestStatus::Skipped)
+        matches!(self, TestStatus::Fail { .. } | TestStatus::CompileError(_))
+    }
+    pub fn passed(&self) -> bool {
+        matches!(self, TestStatus::Pass)
+    }
+    pub fn skipped(&self) -> bool {
+        matches!(self, TestStatus::Skipped)
     }
 }
 
@@ -49,6 +56,7 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
     foreign_call_resolver_url: Option<&str>,
     root_path: Option<PathBuf>,
     package_name: Option<String>,
+    skip_oracle: bool,
     config: &CompileOptions,
 ) -> TestStatus {
     let test_function_has_no_arguments = context
@@ -60,6 +68,34 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
 
     match compile_no_check(context, config, test_function.get_id(), None, false) {
         Ok(compiled_program) => {
+            if skip_oracle {
+                let mut has_oracle = false;
+                let mut unhandled = 0;
+                let mut mocked = 0;
+                for brillig_function in &compiled_program.program.unconstrained_functions {
+                    match brillig_function.get_oracle_status(ForeignCall::check_oracle_status) {
+                        OracleResult::Mocked => {
+                            mocked += 1;
+                            if !test_function.should_fail() {
+                                has_oracle = false;
+                                break;
+                            }
+                        }
+                        OracleResult::Unhandled => {
+                            has_oracle = true;
+                            unhandled += 1;
+                        }
+                        OracleResult::Handled => (),
+                    }
+                }
+                if mocked < unhandled {
+                    return TestStatus::Skipped;
+                }
+                if has_oracle {
+                    return TestStatus::Skipped;
+                }
+            }
+
             if test_function_has_no_arguments {
                 // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
                 // otherwise constraints involving these expressions will not error.
