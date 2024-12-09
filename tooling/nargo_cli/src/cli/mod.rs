@@ -1,6 +1,6 @@
 use clap::{Args, Parser, Subcommand};
 use const_format::formatcp;
-use nargo_toml::find_package_root;
+use nargo_toml::find_file_root;
 use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
 use std::path::PathBuf;
 
@@ -92,7 +92,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         | NargoCommand::Debug(..)
         | NargoCommand::Test(..)
         | NargoCommand::Info(..) => {
-            config.program_dir = find_package_root(&config.program_dir)?;
+            config.program_dir = find_file_root(&config.program_dir)?;
         }
         NargoCommand::New(..)
         | NargoCommand::Init(..)

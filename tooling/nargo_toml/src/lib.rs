@@ -46,7 +46,24 @@ pub fn find_file_manifest(current_path: &Path) -> Option<PathBuf> {
     None
 }
 
-/// Returns the [PathBuf] of the directory containing the `Nargo.toml` by searching from `current_path` to the root of its [Path].
+/// Returns the [PathBuf] of the directory containing the `Nargo.toml` by searching from `current_path` to the root of its [Path],
+/// returning at the innermost directory found, i.e. the one corresponding to the package that contains the `current_path`.
+///
+/// Returns a [ManifestError] if no parent directories of `current_path` contain a manifest file.
+pub fn find_file_root(current_path: &Path) -> Result<PathBuf, ManifestError> {
+    match find_file_manifest(current_path) {
+        Some(manifest_path) => {
+            let package_root = manifest_path
+                .parent()
+                .expect("infallible: manifest file path can't be root directory");
+            Ok(package_root.to_path_buf())
+        }
+        None => Err(ManifestError::MissingFile(current_path.to_path_buf())),
+    }
+}
+
+/// Returns the [PathBuf] of the directory containing the `Nargo.toml` by searching from `current_path` to the root of its [Path],
+/// returning at the topmost directory found, i.e. the one corresponding to the entire workspace.
 ///
 /// Returns a [ManifestError] if no parent directories of `current_path` contain a manifest file.
 pub fn find_package_root(current_path: &Path) -> Result<PathBuf, ManifestError> {
@@ -60,6 +77,11 @@ pub fn find_package_root(current_path: &Path) -> Result<PathBuf, ManifestError> 
 }
 
 // TODO(#2323): We are probably going to need a "filepath utils" crate soon
+/// Get the root of path, for example:
+/// * `C:\foo\bar` -> `C:\foo`
+/// * `//shared/foo/bar` -> `//shared/foo`
+/// * `/foo` -> `/foo`
+/// otherwise empty path.
 fn path_root(path: &Path) -> PathBuf {
     let mut components = path.components();
 
@@ -101,6 +123,7 @@ pub fn find_package_manifest(
         })
     }
 }
+
 /// Returns the [PathBuf] of the `Nargo.toml` file in the `current_path` directory.
 ///
 /// Returns a [ManifestError] if `current_path` does not contain a manifest file.
