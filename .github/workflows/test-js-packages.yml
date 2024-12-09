@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   yarn-lock:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     
     steps:
@@ -60,7 +60,7 @@ jobs:
           retention-days: 3
 
   build-noirc-abi:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
 
     steps:
@@ -92,7 +92,7 @@ jobs:
           retention-days: 10
 
   build-noir-wasm:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
 
     steps:
@@ -127,7 +127,7 @@ jobs:
           retention-days: 3
 
   build-acvm-js:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
 
     steps:
@@ -161,7 +161,7 @@ jobs:
   test-acvm_js-node:
     needs: [build-acvm-js]
     name: ACVM JS (Node.js)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
 
     steps:
@@ -183,7 +183,7 @@ jobs:
   test-acvm_js-browser:
     needs: [build-acvm-js]
     name: ACVM JS (Browser)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
 
     steps:
@@ -205,10 +205,10 @@ jobs:
       - name: Run browser tests
         run: yarn workspace @noir-lang/acvm_js test:browser
 
-  test-noirc-abi:
+  test-noirc-abi-node:
     needs: [build-noirc-abi]
-    name: noirc_abi
-    runs-on: ubuntu-latest
+    name: noirc_abi (Node)
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
 
     steps:
@@ -227,6 +227,25 @@ jobs:
       - name: Run node tests
         run: yarn workspace @noir-lang/noirc_abi test
 
+  test-noirc-abi-browser:
+    needs: [build-noirc-abi]
+    name: noirc_abi (Browser)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Download wasm package artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: noirc_abi_wasm
+          path: ./tooling/noirc_abi_wasm
+
+      - name: Install Yarn dependencies
+        uses: ./.github/actions/setup
+
       - name: Install Playwright
         uses: ./.github/actions/install-playwright
 
@@ -236,7 +255,7 @@ jobs:
   test-noir-js:
     needs: [build-nargo, build-acvm-js, build-noirc-abi]
     name: Noir JS
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
 
     steps:
@@ -283,7 +302,7 @@ jobs:
   test-noir-wasm:
     needs: [build-noir-wasm, build-nargo]
     name: noir_wasm
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
 
     steps:
@@ -327,7 +346,7 @@ jobs:
   test-noir-codegen:
     needs: [build-acvm-js, build-noirc-abi, build-nargo]
     name: noir_codegen
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
 
     steps:
@@ -374,7 +393,7 @@ jobs:
 
   test-integration-node:
     name: Integration Tests (Node)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [build-acvm-js, build-noir-wasm, build-nargo, build-noirc-abi]
     timeout-minutes: 30
 
@@ -435,7 +454,7 @@ jobs:
 
   test-integration-browser:
     name: Integration Tests (Browser)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [build-acvm-js, build-noir-wasm, build-noirc-abi]
     timeout-minutes: 30
 
@@ -480,7 +499,7 @@ jobs:
 
   test-examples:
     name: Example scripts
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [build-nargo]
     timeout-minutes: 30
 
@@ -523,7 +542,7 @@ jobs:
 
   critical-library-list:
     name: Load critical library list
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       libraries: ${{ steps.get_critical_libraries.outputs.libraries }}
 
@@ -542,7 +561,7 @@ jobs:
 
   external-repo-checks:
     needs: [build-nargo, critical-library-list]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Only run when 'run-external-checks' label is present
     if: contains(github.event.pull_request.labels.*.name, 'run-external-checks')
     timeout-minutes: 30
@@ -599,14 +618,15 @@ jobs:
   # This allows us to add/remove test jobs without having to update the required workflows.
   tests-end:
     name: End
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # We want this job to always run (even if the dependant jobs fail) as we want this job to fail rather than skipping.
     if: ${{ always() }}
     needs:
       - yarn-lock
       - test-acvm_js-node
       - test-acvm_js-browser
-      - test-noirc-abi
+      - test-noirc-abi-node
+      - test-noirc-abi-browser
       - test-noir-js
       - test-noir-wasm
       - test-noir-codegen

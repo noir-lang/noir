@@ -19,8 +19,5 @@ runs:
     - name: Install playwright deps
       shell: bash
       # if: steps.playwright-cache.outputs.cache-hit != 'true'
-      run: |
-        # Workaround: https://github.com/microsoft/playwright/issues/30503#issuecomment-2074783821
-        sudo rm /etc/apt/sources.list.d/microsoft-prod.list
-        ./.github/scripts/playwright-install.sh
+      run: ./.github/scripts/playwright-install.sh
 
