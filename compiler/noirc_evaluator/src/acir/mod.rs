@@ -2892,7 +2892,7 @@ mod test {
         brillig::Brillig,
         ssa::{
             function_builder::FunctionBuilder,
-            ir::{function::FunctionId, instruction::BinaryOp, map::Id, types::Type},
+            ir::{function::FunctionId, instruction::BinaryOp, map::Id, types::Type, dfg::CallStack},
         },
     };
 
@@ -2914,7 +2914,9 @@ mod test {
             builder.new_function("foo".into(), foo_id, inline_type);
         }
         // Set a call stack for testing whether `brillig_locations` in the `GeneratedAcir` was accurately set.
-        builder.set_call_stack(vector![Location::dummy(), Location::dummy()]);
+        let mut stack = CallStack::unit(Location::dummy());
+        stack.push_back(Location::dummy());
+        builder.set_call_stack(stack);
 
         let foo_v0 = builder.add_parameter(Type::field());
         let foo_v1 = builder.add_parameter(Type::field());
