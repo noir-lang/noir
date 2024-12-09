@@ -97,7 +97,7 @@ pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError
 
     let num_threads = args
         .test_threads
-        .unwrap_or_else(|| std::thread::available_parallelism().ok().map(Into::into).unwrap_or(1));
+        .unwrap_or_else(|| rayon::max_num_threads());
     let mut test_reports = Vec::new();
 
     for package in workspace.into_iter() {
