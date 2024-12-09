@@ -271,33 +271,13 @@ jobs:
           path: ../compilation_report.json
           retention-days: 3
 
-  critical-library-list:
-    name: Load critical library list
-    runs-on: ubuntu-latest
-    outputs:
-      libraries: ${{ steps.get_critical_libraries.outputs.libraries }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-   
-      - name: Build list of libraries
-        id: get_critical_libraries
-        run: |         
-          LIBRARIES=$(grep -Po "^https://github.com/\K.+"  ./CRITICAL_NOIR_LIBRARIES | jq -R -s -c 'split("\n") | map(select(. != "")) | map({ repo: ., path: "./"})')
-          echo "libraries=$LIBRARIES"
-          echo "libraries=$LIBRARIES" >> $GITHUB_OUTPUT
-        env:
-          GH_TOKEN: ${{ github.token }}
-          
   external_repo_compilation_report:
-    needs: [build-nargo, critical-library-list, generate_compilation_report]
+    needs: [build-nargo, generate_compilation_report]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        project: ${{ fromJson( needs.critical-library-list.outputs.libraries )}}
         include:
           - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/aztec-nr }
           - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-contracts }
