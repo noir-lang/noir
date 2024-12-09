@@ -38,7 +38,6 @@ jobs:
           path: ./dist/*
           retention-days: 3
 
-
   compare_gates_reports:
     name: Circuit sizes
     needs: [build-nargo]
@@ -265,14 +264,14 @@ jobs:
           mv compilation_report.json ../compilation_report.json
           echo $PWD
 
-      - name: Upload compilation report
-        uses: actions/upload-artifact@v4
-        working-directory: ./
-        with:
-          name: in_progress_compilation_report
-          path: ./compilation_report.json
-          retention-days: 3
-          overwrite: true
+      # - name: Upload compilation report
+      #   uses: actions/upload-artifact@v4
+      #   working-directory: ./
+      #   with:
+      #     name: in_progress_compilation_report
+      #     path: ./compilation_report.json
+      #     retention-days: 3
+      #     overwrite: true
 
       # - name: Parse compilation report
       #   id: compilation_report
