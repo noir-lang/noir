@@ -129,7 +129,10 @@ impl Ssa {
             // We never want to remove the main function (it could be `unconstrained` or it
             // could have been turned into brillig if `--force-brillig` was given).
             // We also don't want to remove entry points.
-            if self.main_id == *func_id || func.runtime().is_entry_point() {
+            let runtime = func.runtime();
+            if self.main_id == *func_id
+                || (runtime.is_entry_point() && matches!(runtime, RuntimeType::Acir(_)))
+            {
                 continue;
             }
 
