@@ -143,8 +143,8 @@ impl BrilligTaintedIds {
     /// (for arguments one set is enough, for results we keep them
     /// separate as the forthcoming check considers the call covered
     /// if all the results were properly covered)
-    fn update_children(&mut self, parent: &ValueId, children: &[ValueId]) {
-        if self.arguments.contains(parent) {
+    fn update_children(&mut self, parents: &HashSet<ValueId>, children: &[ValueId]) {
+        if self.arguments.intersection(parents).next().is_some() {
             self.arguments.extend(children);
         }
         for result_status in &mut self.results.iter_mut() {
@@ -154,7 +154,7 @@ impl BrilligTaintedIds {
                     continue;
                 }
                 ResultStatus::Unconstrained { descendants } => {
-                    if descendants.contains(parent) {
+                    if descendants.intersection(parents).next().is_some() {
                         descendants.extend(children);
                     }
                 }
@@ -396,10 +396,9 @@ impl DependencyContext {
 
     /// Update sets of value ids that can be traced back to the Brillig calls being tracked
     fn update_children(&mut self, parents: &[ValueId], children: &[ValueId]) {
+        let parents: HashSet<_> = HashSet::from_iter(parents.iter().copied());
         for (_, tainted_ids) in self.tainted.iter_mut() {
-            for parent in parents {
-                tainted_ids.update_children(parent, children);
-            }
+            tainted_ids.update_children(&parents, children);
         }
     }
 
