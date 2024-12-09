@@ -194,10 +194,11 @@ impl BrilligTaintedIds {
 
         // Along with it, one of the argument descendants should be constrained
         // (skipped if there were no arguments, or if an actual result and not a
-        // descendant has been constrained, e.g. against a constant)
+        // descendant has been constrained _alone_, e.g. against a constant)
         if !results_involved.is_empty()
             && (self.arguments.is_empty()
-                || self.root_results.intersection(constrained_values).next().is_some()
+                || (constrained_values.len() == 1
+                    && self.root_results.intersection(constrained_values).next().is_some())
                 || self.arguments.intersection(constrained_values).next().is_some())
         {
             // Remember the partial constraint, clearing the sets
@@ -267,14 +268,14 @@ impl DependencyContext {
                 // Check the constrain instruction arguments against those
                 // involved in Brillig calls, remove covered calls
                 Instruction::Constrain(value_id1, value_id2, _) => {
-                    self.clear_constrained(&[
-                        function.dfg.resolve(*value_id1),
-                        function.dfg.resolve(*value_id2),
-                    ]);
+                    self.clear_constrained(
+                        &[function.dfg.resolve(*value_id1), function.dfg.resolve(*value_id2)],
+                        function,
+                    );
                 }
                 // Consider range check to also be constraining
                 Instruction::RangeCheck { value, .. } => {
-                    self.clear_constrained(&[function.dfg.resolve(*value)]);
+                    self.clear_constrained(&[function.dfg.resolve(*value)], function);
                 }
                 Instruction::Call { func: func_id, .. } => {
                     // For functions, we remove the first element of arguments,
@@ -285,7 +286,7 @@ impl DependencyContext {
                         Value::Intrinsic(intrinsic) => match intrinsic {
                             Intrinsic::ApplyRangeConstraint | Intrinsic::AssertConstant => {
                                 // Consider these intrinsic arguments constrained
-                                self.clear_constrained(&arguments);
+                                self.clear_constrained(&arguments, function);
                             }
                             Intrinsic::AsWitness | Intrinsic::IsUnconstrained => {
                                 // These intrinsics won't affect the dependency graph
@@ -404,20 +405,26 @@ impl DependencyContext {
 
     /// Check if any of the recorded Brillig calls have been properly constrained
     /// by given values after recording partial constraints, if so stop tracking them
-    fn clear_constrained(&mut self, constrained_values: &[ValueId]) {
+    fn clear_constrained(&mut self, constrained_values: &[ValueId], function: &Function) {
         trace!("attempting to clear Brillig calls constrained by values: {:?}", constrained_values);
+
+        // Remove numeric constants
+        let constrained_values =
+            constrained_values.iter().filter(|v| function.dfg.get_numeric_constant(**v).is_none());
 
         // For now, consider array element constraints to be array constraints
         // TODO(https://github.com/noir-lang/noir/issues/6698):
         // This probably has to be further looked into, to ensure _every_ element
         // of an array result of a Brillig call has been constrained
-
-        let constrained_arrays =
-            constrained_values.iter().filter_map(|value| self.array_elements.get(value));
-
-        let mut constrained_values: HashSet<_> =
-            HashSet::from_iter(constrained_values.iter().copied());
-        constrained_values.extend(constrained_arrays);
+        let constrained_values: HashSet<_> = constrained_values
+            .map(|v| {
+                if let Some(parent_array) = self.array_elements.get(v) {
+                    *parent_array
+                } else {
+                    *v
+                }
+            })
+            .collect();
 
         self.tainted.iter_mut().for_each(|(_, tainted_ids)| {
             tainted_ids.store_partial_constraints(&constrained_values);
@@ -839,7 +846,7 @@ mod test {
 
     #[test]
     #[traced_test]
-    /// Test where a call to a brillig function returning multiple result values
+    /// Test where a call to a Brillig function returning multiple result values
     /// is left unchecked with a later assert involving all the results
     fn test_unchecked_multiple_results_brillig() {
         // First call is constrained properly, involving both results
@@ -870,7 +877,7 @@ mod test {
 
     #[test]
     #[traced_test]
-    /// Test where a brillig function is called with a constant argument
+    /// Test where a Brillig function is called with a constant argument
     /// (should _not_ lead to a false positive failed check
     /// if all the results are constrained)
     fn test_checked_brillig_with_constant_arguments() {
@@ -900,7 +907,7 @@ mod test {
 
     #[test]
     #[traced_test]
-    /// Test where a brillig function call is constrained with a range check
+    /// Test where a Brillig function call is constrained with a range check
     /// (should _not_ lead to a false positive failed check)
     fn test_range_checked_brillig() {
         // The call is constrained properly with a range check, involving
@@ -929,7 +936,7 @@ mod test {
 
     #[test]
     #[traced_test]
-    /// Test where a brillig nested type result is insufficiently constrained
+    /// Test where a Brillig nested type result is insufficiently constrained
     /// (with a field constraint missing)
     fn test_nested_type_result_brillig() {
         /*
@@ -980,5 +987,34 @@ mod test {
         let mut ssa = Ssa::from_str(program).unwrap();
         let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
         assert_eq!(ssa_level_warnings.len(), 1);
+    }
+
+    #[test]
+    #[traced_test]
+    /// Test where Brillig calls' root result values are constrained against
+    /// each other (covers a false negative edge case)
+    /// (https://github.com/noir-lang/noir/pull/6658#pullrequestreview-2482170066)
+    fn test_root_result_intersection_false_negative() {
+        let program = r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v3 = call f1(v0, v1) -> Field
+            v5 = call f1(v0, v1) -> Field
+            v6 = eq v3, v5
+            constrain v3 == v5
+            v8 = add v3, v5
+            return v8
+        }
+
+        brillig(inline) fn foo f1 {
+          b0(v0: Field, v1: Field):
+            v2 = add v0, v1
+            return v2
+        }
+        "#;
+
+        let mut ssa = Ssa::from_str(program).unwrap();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        assert_eq!(ssa_level_warnings.len(), 2);
     }
 }
