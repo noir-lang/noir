@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     io::Write,
     path::PathBuf,
     sync::{mpsc, Mutex},
@@ -8,7 +9,7 @@ use std::{
 use acvm::{BlackBoxFunctionSolver, FieldElement};
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
-use fm::FileManager;
+use fm::{FileId, FileManager};
 use nargo::{
     insert_all_files_for_workspace_into_file_manager,
     ops::TestStatus,
@@ -17,7 +18,11 @@ use nargo::{
 };
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{check_crate, CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
-use noirc_frontend::hir::{FunctionNameMatch, ParsedFiles};
+use noirc_frontend::{
+    hir::{FunctionNameMatch, ParsedFiles},
+    parser::ParserError,
+    ParsedModule,
+};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 use crate::{cli::check_cmd::check_crate_and_report_errors, errors::CliError};
@@ -64,7 +69,7 @@ pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError
     let toml_path = get_package_manifest(&config.program_dir)?;
     let default_selection =
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
-    let selection = args.package.map_or(default_selection, PackageSelection::Selected);
+    let selection = args.package.clone().map_or(default_selection, PackageSelection::Selected);
     let workspace = resolve_workspace_from_toml(
         &toml_path,
         selection,
@@ -90,57 +95,15 @@ pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError
     let mut test_reports = Vec::new();
 
     for package in workspace.into_iter() {
-        let package_name = package.name.to_string();
-
-        let tests = collect_package_tests::<Bn254BlackBoxSolver>(
+        let test_report = run_package_tests(
+            package,
             &workspace_file_manager,
             &parsed_files,
-            package,
             pattern,
-            args.show_output,
-            args.oracle_resolver.as_deref(),
-            Some(workspace.root_dir.clone()),
-            package_name.clone(),
-            &args.compile_options,
+            &args,
+            &workspace,
+            num_threads,
         )?;
-
-        let num_tests = tests.len();
-
-        let (sender, receiver) = mpsc::channel();
-        let iter = Mutex::new(tests.into_iter());
-
-        thread::scope(|scope| {
-            // Start worker threads
-            for _ in 0..num_threads {
-                // Specify a larger-than-default stack size to prevent overflowing stack in large programs.
-                // (the default is 2MB)
-                thread::Builder::new()
-                    .stack_size(4 * 1024 * 1024)
-                    .spawn_scoped(scope, || loop {
-                        // Get next test to process from the iterator.
-                        let Some(test) = iter.lock().unwrap().next() else {
-                            break;
-                        };
-                        let test_status = (test.runner)();
-
-                        // It's fine to ignore the result of sending. If the
-                        // receiver has hung up, everything will wind down soon
-                        // anyway.
-                        let _ = sender.send((test.name, test_status));
-                    })
-                    .unwrap();
-            }
-        });
-
-        let mut test_report = Vec::new();
-
-        // Print results of tests that already finished
-        for (test_name, test_status) in receiver.iter().take(num_tests) {
-            test_report.push((test_name, test_status));
-        }
-
-        display_test_report(&package_name, &test_report)?;
-
         test_reports.extend(test_report);
     }
 
@@ -164,6 +127,64 @@ pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError
     } else {
         Ok(())
     }
+}
+
+fn run_package_tests(
+    package: &Package,
+    workspace_file_manager: &FileManager,
+    parsed_files: &HashMap<FileId, (ParsedModule, Vec<ParserError>)>,
+    pattern: FunctionNameMatch<'_>,
+    args: &TestCommand,
+    workspace: &nargo::workspace::Workspace,
+    num_threads: usize,
+) -> Result<Vec<(String, TestStatus)>, CliError> {
+    let package_name = package.name.to_string();
+    let tests = collect_package_tests::<Bn254BlackBoxSolver>(
+        workspace_file_manager,
+        parsed_files,
+        package,
+        pattern,
+        args.show_output,
+        args.oracle_resolver.as_deref(),
+        Some(workspace.root_dir.clone()),
+        package_name.clone(),
+        &args.compile_options,
+    )?;
+    let num_tests = tests.len();
+
+    let (sender, receiver) = mpsc::channel();
+    let iter = Mutex::new(tests.into_iter());
+    thread::scope(|scope| {
+        // Start worker threads
+        for _ in 0..num_threads {
+            // Specify a larger-than-default stack size to prevent overflowing stack in large programs.
+            // (the default is 2MB)
+            thread::Builder::new()
+                .stack_size(4 * 1024 * 1024)
+                .spawn_scoped(scope, || loop {
+                    // Get next test to process from the iterator.
+                    let Some(test) = iter.lock().unwrap().next() else {
+                        break;
+                    };
+                    let test_status = (test.runner)();
+
+                    // It's fine to ignore the result of sending. If the
+                    // receiver has hung up, everything will wind down soon
+                    // anyway.
+                    let _ = sender.send((test.name, test_status));
+                })
+                .unwrap();
+        }
+    });
+
+    let mut test_report = Vec::new();
+    for (test_name, test_status) in receiver.iter().take(num_tests) {
+        test_report.push((test_name, test_status));
+    }
+
+    display_test_report(&package_name, &test_report)?;
+
+    Ok(test_report)
 }
 
 #[allow(clippy::too_many_arguments)]
