@@ -140,10 +140,11 @@ fn main(x: [u8; 5], z: Field, u: i16, v: i16) {
     assert(-u % -11 == -u % (v + 2));
 
     // Issue 6734
-    unsafe { sub_array_extended_into_empty(); }
+    unsafe {
+        sub_array_extended_into_empty();
+    }
 }
 
-    
 pub fn sub_array_extended<let SRC_LEN: u32, let DST_LEN: u32>(
     src: [Field; SRC_LEN],
     offset: u32,
