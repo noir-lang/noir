@@ -9,9 +9,9 @@ use acvm::{
     AcirField, BlackBoxFunctionSolver, FieldElement,
 };
 use noirc_abi::Abi;
-use noirc_driver::{compile_no_check, CompileError, CompileOptions};
+use noirc_driver::CompiledProgram;
 use noirc_errors::{debug_info::DebugInfo, FileDiagnostic};
-use noirc_frontend::hir::{def_map::TestFunction, Context};
+use noirc_frontend::hir::def_map::TestFunction;
 use noirc_printable_type::ForeignCallError;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -40,137 +40,137 @@ impl TestStatus {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
     blackbox_solver: &B,
-    context: &mut Context,
+    compiled_program: CompiledProgram,
     test_function: &TestFunction,
     show_output: bool,
     foreign_call_resolver_url: Option<&str>,
     root_path: Option<PathBuf>,
     package_name: Option<String>,
-    config: &CompileOptions,
 ) -> TestStatus {
-    let test_function_has_no_arguments = context
-        .def_interner
-        .function_meta(&test_function.get_id())
-        .function_signature()
-        .0
-        .is_empty();
-
-    match compile_no_check(context, config, test_function.get_id(), None, false) {
-        Ok(compiled_program) => {
-            if test_function_has_no_arguments {
-                // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
-                // otherwise constraints involving these expressions will not error.
-                let mut foreign_call_executor = TestForeignCallExecutor::new(
-                    show_output,
-                    foreign_call_resolver_url,
-                    root_path,
-                    package_name,
-                );
-
-                let circuit_execution = execute_program(
-                    &compiled_program.program,
-                    WitnessMap::new(),
-                    blackbox_solver,
-                    &mut foreign_call_executor,
-                );
-
-                let status = test_status_program_compile_pass(
-                    test_function,
-                    compiled_program.abi,
-                    compiled_program.debug,
-                    circuit_execution,
-                );
-
-                let ignore_foreign_call_failures =
-                    std::env::var("NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS")
-                        .is_ok_and(|var| &var == "true");
-
-                if let TestStatus::Fail { .. } = status {
-                    if ignore_foreign_call_failures
-                        && foreign_call_executor.encountered_unknown_foreign_call
-                    {
-                        TestStatus::Skipped
-                    } else {
-                        status
-                    }
-                } else {
-                    status
-                }
-            } else {
-                #[cfg(target_arch = "wasm32")]
-                {
-                    // We currently don't support fuzz testing on wasm32 as the u128 strategies do not exist on this platform.
-                    TestStatus::Fail {
-                        message: "Fuzz tests are not supported on wasm32".to_string(),
-                        error_diagnostic: None,
-                    }
-                }
-
-                #[cfg(not(target_arch = "wasm32"))]
-                {
-                    use acvm::acir::circuit::Program;
-                    use noir_fuzzer::FuzzedExecutor;
-                    use proptest::test_runner::TestRunner;
-                    let runner = TestRunner::default();
-
-                    let executor =
-                        |program: &Program<FieldElement>,
-                         initial_witness: WitnessMap<FieldElement>|
-                         -> Result<WitnessStack<FieldElement>, String> {
-                            execute_program(
-                                program,
-                                initial_witness,
-                                blackbox_solver,
-                                &mut TestForeignCallExecutor::<FieldElement>::new(
-                                    false,
-                                    foreign_call_resolver_url,
-                                    root_path.clone(),
-                                    package_name.clone(),
-                                ),
-                            )
-                            .map_err(|err| err.to_string())
-                        };
-                    let fuzzer = FuzzedExecutor::new(compiled_program.into(), executor, runner);
-
-                    let result = fuzzer.fuzz();
-                    if result.success {
-                        TestStatus::Pass
-                    } else {
-                        TestStatus::Fail {
-                            message: result.reason.unwrap_or_default(),
-                            error_diagnostic: None,
-                        }
-                    }
-                }
-            }
-        }
-        Err(err) => test_status_program_compile_fail(err, test_function),
+    let test_function_has_no_arguments = compiled_program.abi.parameters.is_empty();
+    if test_function_has_no_arguments {
+        run_regular_test(
+            blackbox_solver,
+            test_function,
+            compiled_program,
+            show_output,
+            foreign_call_resolver_url,
+            root_path,
+            package_name,
+        )
+    } else {
+        run_fuzz_test(
+            blackbox_solver,
+            compiled_program,
+            foreign_call_resolver_url,
+            root_path,
+            package_name,
+        )
     }
 }
 
-/// Test function failed to compile
-///
-/// Note: This could be because the compiler was able to deduce
-/// that a constraint was never satisfiable.
-/// An example of this is the program `assert(false)`
-/// In that case, we check if the test function should fail, and if so, we return `TestStatus::Pass`.
-fn test_status_program_compile_fail(err: CompileError, test_function: &TestFunction) -> TestStatus {
-    // The test has failed compilation, but it should never fail. Report error.
-    if !test_function.should_fail() {
-        return TestStatus::CompileError(err.into());
+fn run_regular_test<B: BlackBoxFunctionSolver<FieldElement>>(
+    blackbox_solver: &B,
+    test_function: &TestFunction,
+    compiled_program: CompiledProgram,
+    show_output: bool,
+    foreign_call_resolver_url: Option<&str>,
+    root_path: Option<PathBuf>,
+    package_name: Option<String>,
+) -> TestStatus {
+    let mut foreign_call_executor = TestForeignCallExecutor::new(
+        show_output,
+        foreign_call_resolver_url,
+        root_path,
+        package_name,
+    );
+
+    let circuit_execution = execute_program(
+        &compiled_program.program,
+        WitnessMap::new(),
+        blackbox_solver,
+        &mut foreign_call_executor,
+    );
+
+    let status = check_test_status(
+        test_function,
+        compiled_program.abi,
+        compiled_program.debug,
+        circuit_execution,
+    );
+
+    let ignore_foreign_call_failures =
+        std::env::var("NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS")
+            .is_ok_and(|var| &var == "true");
+
+    if let TestStatus::Fail { .. } = status {
+        if ignore_foreign_call_failures && foreign_call_executor.encountered_unknown_foreign_call {
+            TestStatus::Skipped
+        } else {
+            status
+        }
+    } else {
+        status
+    }
+}
+
+fn run_fuzz_test<B: BlackBoxFunctionSolver<FieldElement>>(
+    blackbox_solver: &B,
+    compiled_program: CompiledProgram,
+    foreign_call_resolver_url: Option<&str>,
+    root_path: Option<PathBuf>,
+    package_name: Option<String>,
+) -> TestStatus {
+    #[cfg(target_arch = "wasm32")]
+    {
+        // We currently don't support fuzz testing on wasm32 as the u128 strategies do not exist on this platform.
+        TestStatus::Fail {
+            message: "Fuzz tests are not supported on wasm32".to_string(),
+            error_diagnostic: None,
+        }
     }
 
-    check_expected_failure_message(test_function, None, Some(err.into()))
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        use acvm::acir::circuit::Program;
+        use noir_fuzzer::FuzzedExecutor;
+        use proptest::test_runner::TestRunner;
+        let runner = TestRunner::default();
+
+        let executor = |program: &Program<FieldElement>,
+                        initial_witness: WitnessMap<FieldElement>|
+         -> Result<WitnessStack<FieldElement>, String> {
+            execute_program(
+                program,
+                initial_witness,
+                blackbox_solver,
+                &mut TestForeignCallExecutor::new(
+                    false,
+                    foreign_call_resolver_url,
+                    root_path.clone(),
+                    package_name.clone(),
+                ),
+            )
+            .map_err(|err| err.to_string())
+        };
+        let fuzzer = FuzzedExecutor::new(compiled_program.into(), executor, runner);
+
+        let result = fuzzer.fuzz();
+        if result.success {
+            TestStatus::Pass
+        } else {
+            TestStatus::Fail { message: result.reason.unwrap_or_default(), error_diagnostic: None }
+        }
+    }
 }
 
 /// The test function compiled successfully.
 ///
 /// We now check whether execution passed/failed and whether it should have
 /// passed/failed to determine the test status.
-fn test_status_program_compile_pass(
+fn check_test_status(
     test_function: &TestFunction,
     abi: Abi,
     debug: Vec<DebugInfo>,

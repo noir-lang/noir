@@ -2,7 +2,7 @@
 #![allow(clippy::items_after_test_module)]
 use clap::Parser;
 use fm::FileManager;
-use noirc_driver::{check_crate, file_manager_with_stdlib, CompileOptions};
+use noirc_driver::{check_crate, compile_no_check, file_manager_with_stdlib, CompileOptions};
 use noirc_frontend::hir::FunctionNameMatch;
 use std::io::Write;
 use std::{collections::BTreeMap, path::PathBuf};
@@ -82,15 +82,25 @@ fn run_stdlib_tests(force_brillig: bool, inliner_aggressiveness: i64) {
     let test_report: Vec<(String, TestStatus)> = test_functions
         .into_iter()
         .map(|(test_name, test_function)| {
+            let compiled_program = match compile_no_check(
+                &mut context,
+                &CompileOptions { force_brillig, inliner_aggressiveness, ..Default::default() },
+                test_function.get_id(),
+                None,
+                false,
+            ) {
+                Ok(compiled_program) => compiled_program,
+                Err(err) => return (test_name, TestStatus::CompileError(err.into())),
+            };
+
             let status = run_test(
                 &bn254_blackbox_solver::Bn254BlackBoxSolver,
-                &mut context,
+                compiled_program,
                 &test_function,
                 true,
                 None,
                 Some(dummy_package.root_dir.clone()),
                 Some(dummy_package.name.to_string()),
-                &CompileOptions { force_brillig, inliner_aggressiveness, ..Default::default() },
             );
             (test_name, status)
         })
