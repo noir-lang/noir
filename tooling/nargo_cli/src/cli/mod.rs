@@ -1,8 +1,8 @@
 use clap::{Args, Parser, Subcommand};
 use const_format::formatcp;
-use nargo_toml::PackageSelection;
+use nargo_toml::{ManifestError, PackageSelection};
 use noirc_driver::{CrateName, NOIR_ARTIFACT_VERSION_STRING};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use color_eyre::eyre;
 
@@ -79,9 +79,19 @@ impl PackageOptions {
 
     /// Whether we need to look for the package manifest at the workspace level.
     /// If a package is specified, it might not be the current package.
-    fn is_workspace_rooted(&self) -> bool {
-        self.workspace || self.package.is_some()
+    fn scope(&self) -> CommandScope {
+        if self.workspace || self.package.is_some() {
+            CommandScope::Workspace
+        } else {
+            CommandScope::CurrentPackage
+        }
     }
+}
+
+enum CommandScope {
+    Workspace,
+    CurrentPackage,
+    Any,
 }
 
 #[non_exhaustive]
@@ -115,8 +125,8 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
     }
 
     // Search through parent directories to find package root if necessary.
-    if let Some(workspace) = manifest_scope(&command) {
-        config.program_dir = nargo_toml::find_root(&config.program_dir, workspace)?;
+    if let Some(program_dir) = command_dir(&command, &config.program_dir)? {
+        config.program_dir = program_dir;
     }
 
     match command {
@@ -148,26 +158,36 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
 /// Some commands have package options, which we use here to decide whether to
 /// alter `--program-dir` to point at a manifest, depending on whether we want
 /// to work on a specific package or the entire workspace.
-///
-/// Returns:
-/// * `None` if the command does not need a manifest to be found
-/// * `Some(true)` if the command runs on the workspace level
-/// * `Some(false)` if the command runs on the current package
-fn manifest_scope(cmd: &NargoCommand) -> Option<bool> {
+fn command_scope(cmd: &NargoCommand) -> CommandScope {
     match &cmd {
-        NargoCommand::Check(cmd) => Some(cmd.package_options.is_workspace_rooted()),
-        NargoCommand::Compile(cmd) => Some(cmd.package_options.is_workspace_rooted()),
-        NargoCommand::Execute(cmd) => Some(cmd.package_options.is_workspace_rooted()),
-        NargoCommand::Export(cmd) => Some(cmd.package_options.is_workspace_rooted()),
-        NargoCommand::Test(cmd) => Some(cmd.package_options.is_workspace_rooted()),
-        NargoCommand::Info(cmd) => Some(cmd.package_options.is_workspace_rooted()),
-        NargoCommand::Fmt(cmd) => Some(cmd.package_options.is_workspace_rooted()),
-        NargoCommand::Debug(cmd) => Some(cmd.package.is_some()),
+        NargoCommand::Check(cmd) => cmd.package_options.scope(),
+        NargoCommand::Compile(cmd) => cmd.package_options.scope(),
+        NargoCommand::Execute(cmd) => cmd.package_options.scope(),
+        NargoCommand::Export(cmd) => cmd.package_options.scope(),
+        NargoCommand::Test(cmd) => cmd.package_options.scope(),
+        NargoCommand::Info(cmd) => cmd.package_options.scope(),
+        NargoCommand::Fmt(cmd) => cmd.package_options.scope(),
+        NargoCommand::Debug(cmd) => {
+            if cmd.package.is_some() {
+                CommandScope::Workspace
+            } else {
+                CommandScope::CurrentPackage
+            }
+        }
         NargoCommand::New(..)
         | NargoCommand::Init(..)
         | NargoCommand::Lsp(..)
         | NargoCommand::Dap(..)
-        | NargoCommand::GenerateCompletionScript(..) => None,
+        | NargoCommand::GenerateCompletionScript(..) => CommandScope::Any,
+    }
+}
+
+/// A manifest directory we need to change into, if the command needs it.
+fn command_dir(cmd: &NargoCommand, program_dir: &Path) -> Result<Option<PathBuf>, ManifestError> {
+    match command_scope(cmd) {
+        CommandScope::Workspace => Ok(Some(nargo_toml::find_root(program_dir, false)?)),
+        CommandScope::CurrentPackage => Ok(Some(nargo_toml::find_root(program_dir, false)?)),
+        CommandScope::Any => Ok(None),
     }
 }
 
