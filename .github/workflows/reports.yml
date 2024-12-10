@@ -389,7 +389,7 @@ jobs:
           # Iterate over each report and merge the 'compilation_reports' array
           for report in ./reports/*; do
             echo $report
-            REPORT_NAME=echo $(ls $report)  
+            REPORT_NAME=$(echo $(ls $report)) 
             # Extract the 'compilation_reports' array from each report and merge it
             combined_reports=$(jq '[.compilation_reports[]] + '"$combined_reports" <<< "$(cat "$report/$REPORT_NAME")")
           done
