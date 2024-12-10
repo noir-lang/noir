@@ -21,8 +21,17 @@ sidebar_position: 0
 
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
+import ThemedImage from '@theme/ThemedImage';
+import useBaseUrl from '@docusaurus/useBaseUrl';
 
-<img src={require("@site/static/img/logo.png").default} style={{display: "block", width: "50%", margin: "2rem auto"}} alt="Noir Logo"  />
+<ThemedImage
+  sources={{
+    light: useBaseUrl("/img/logoDark.png"),
+    dark: useBaseUrl("/img/logo.png"),
+  }}
+  style={{display: "block", width: "50%", margin: "2rem auto"}} 
+  alt="Noir Logo" 
+/>
 
 Noir is an open-source Domain-Specific Language for safe and seamless construction of privacy-preserving Zero-Knowledge programs, requiring no previous knowledge on the underlying mathematics or cryptography.
 
