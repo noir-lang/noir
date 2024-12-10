@@ -42,3 +42,5 @@ current directory where `nargo` was invoked.
 Libraries can be defined in a workspace. Inside a workspace, these are consumed as `{ path = "../to_lib" }` dependencies in Nargo.toml.
 
 Inside a workspace, these are consumed as `{ path = "../to_lib" }` dependencies in Nargo.toml.
+
+Please note that nesting regular packages is not supported: certain commands work on the workspace level and will use the topmost Nargo.toml file they can find on the path; unless this is a workspace configuration with `members`, the command might run on some unintended package.
