@@ -55,7 +55,8 @@ pub(crate) struct NargoConfig {
 /// Options for commands that work on either workspace or package scope.
 #[derive(Args, Clone, Debug, Default)]
 pub(crate) struct PackageOptions {
-    /// The name of the package to run the command on
+    /// The name of the package to run the command on.
+    /// By default run on the first one found moving up along the ancestors of the current directory.
     #[clap(long, conflicts_with = "workspace")]
     package: Option<CrateName>,
 
