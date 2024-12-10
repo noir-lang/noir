@@ -369,7 +369,7 @@ jobs:
         with:
           name: in_progress_compilation_report
 
-      - name: Aggregate compilation reports using jq
+      - name: Merge compilation reports using jq
         run: |
           echo "Merging reports"   
 
@@ -389,7 +389,7 @@ jobs:
           echo "$final_report"
 
           echo "$final_report" > compilation_report.json
-          
+
           cat compilation_report
 
       - name: Parse compilation report
