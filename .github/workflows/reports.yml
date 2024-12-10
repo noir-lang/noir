@@ -344,6 +344,8 @@ jobs:
   upload_compilation_report:
     name: Upload compilation report 
     needs: [generate_compilation_report, external_repo_compilation_report]
+    # We want this job to run even if one variation of the matrix in `external_repo_compilation_report` fails
+    if: always() 
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
