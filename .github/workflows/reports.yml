@@ -261,6 +261,7 @@ jobs:
         working-directory: ./test_programs
         run: |
           ./compilation_report.sh
+          cat compilation_report.json
           mv compilation_report.json ../compilation_report.json
 
       - name: Upload compilation report script
@@ -286,8 +287,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/aztec-nr }
-        # project: [{ repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-contracts }]
         include:
           - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/aztec-nr }
           - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-contracts }
@@ -337,6 +336,7 @@ jobs:
         run: |
           chmod +x ./compilation_report.sh
           ./compilation_report.sh 1
+          cat compilation_report.json
 
       - name: Move compilation report
         run: mv ./test-repo/${{ matrix.project.path }}/compilation_report.json ./compilation_report.json
