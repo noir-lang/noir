@@ -263,6 +263,14 @@ jobs:
           ./compilation_report.sh
           mv compilation_report.json ../compilation_report.json
 
+      - name: Upload compilation report script
+        uses: actions/upload-artifact@v4
+        with:
+          name: compilation_report_script
+          path: compilation_report.sh
+          retention-days: 3
+          overwrite: true
+
       - name: Upload compilation report
         uses: actions/upload-artifact@v4
         with:
@@ -312,6 +320,12 @@ jobs:
           export PATH="$PATH:$(dirname $nargo_binary)"
           nargo -V
 
+      - name: Download compilation report script
+        uses: actions/download-artifact@v4
+        with:
+          name: compilation_report_script
+          path: ./test-repo/${{ matrix.project.path }}
+
       - name: Download compilation report
         uses: actions/download-artifact@v4
         with:
@@ -322,7 +336,9 @@ jobs:
         working-directory: ./test-repo/${{ matrix.project.path }}
         run: |
           ./compilation_report.sh 1
+          echo $PWD
           cd ~
+          echo $PWD
           mv ./test-repo/${{ matrix.project.path }}/compilation_report.json ./compilation_report.json
 
       - name: Upload compilation report
