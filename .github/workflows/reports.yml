@@ -271,7 +271,7 @@ jobs:
           retention-days: 3
           overwrite: true
 
- external_repo_compilation_report:
+  external_repo_compilation_report:
     needs: [generate_compilation_report]
     runs-on: ubuntu-latest
     timeout-minutes: 30
