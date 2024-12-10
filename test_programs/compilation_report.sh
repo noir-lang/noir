@@ -15,7 +15,7 @@ if [ "$#" -eq 0 ]; then
 
 else 
   # Delete last two lines so that we can re-use the previous report 
-  sed -i '$d' $current_dir/compilation_report.json | sed -i '$d' c$current_dir/compilation_report.json
+  sed -i '$d' $current_dir/compilation_report.json | sed -i '$d' $current_dir/compilation_report.json
 
   echo "}, " >> $current_dir/compilation_report.json
 
