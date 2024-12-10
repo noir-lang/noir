@@ -161,8 +161,8 @@ fn manifest_scope(cmd: &NargoCommand) -> Option<bool> {
         NargoCommand::Export(cmd) => Some(cmd.package_options.is_workspace_rooted()),
         NargoCommand::Test(cmd) => Some(cmd.package_options.is_workspace_rooted()),
         NargoCommand::Info(cmd) => Some(cmd.package_options.is_workspace_rooted()),
+        NargoCommand::Fmt(cmd) => Some(cmd.package_options.is_workspace_rooted()),
         NargoCommand::Debug(cmd) => Some(cmd.package.is_some()),
-        NargoCommand::Fmt(..) => Some(true),
         NargoCommand::New(..)
         | NargoCommand::Init(..)
         | NargoCommand::Lsp(..)
