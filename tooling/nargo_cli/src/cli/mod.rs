@@ -184,11 +184,12 @@ fn command_scope(cmd: &NargoCommand) -> CommandScope {
 
 /// A manifest directory we need to change into, if the command needs it.
 fn command_dir(cmd: &NargoCommand, program_dir: &Path) -> Result<Option<PathBuf>, ManifestError> {
-    match command_scope(cmd) {
-        CommandScope::Workspace => Ok(Some(nargo_toml::find_root(program_dir, true)?)),
-        CommandScope::CurrentPackage => Ok(Some(nargo_toml::find_root(program_dir, false)?)),
-        CommandScope::Any => Ok(None),
-    }
+    let workspace = match command_scope(cmd) {
+        CommandScope::Workspace => true,
+        CommandScope::CurrentPackage => false,
+        CommandScope::Any => return Ok(None),
+    };
+    Ok(Some(nargo_toml::find_root(program_dir, workspace)?))
 }
 
 #[cfg(test)]
