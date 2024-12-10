@@ -316,11 +316,6 @@ jobs:
             test_programs/compilation_report.sh
           sparse-checkout-cone-mode: false
 
-      - name: Move compilation report
-        run: |
-          ls ./
-          ls ./test_programs
-
       - name: Generate compilation report
         working-directory: ./test-repo/${{ matrix.project.path }}
         run: |
