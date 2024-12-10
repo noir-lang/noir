@@ -372,7 +372,7 @@ jobs:
       - name: Download compilation report
         uses: actions/download-artifact@v4
         with:
-          name: compilation_report_*
+          pattern: compilation_report_*
           path: ./reports
 
       - name: Merge compilation reports using jq
