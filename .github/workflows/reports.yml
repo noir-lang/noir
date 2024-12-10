@@ -299,26 +299,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Test run
-          run: echo $PWD
+      # - name: Test run
+      #     run: echo $PWD
 
       # - name: Download compilation report
       #   uses: actions/download-artifact@v4
       #   with:
       #     name: in_progress_compilation_report
 
-      # - name: Parse compilation report
-      #   id: compilation_report
-      #   uses: noir-lang/noir-bench-report@0d7464a8c39170523932d7846b6e6b458a294aea
-      #   with:
-      #     report: compilation_report.json
-      #     header: |
-      #       # Compilation Report
-      #     memory_report: false
+      - name: Parse compilation report
+        id: compilation_report
+        uses: noir-lang/noir-bench-report@0d7464a8c39170523932d7846b6e6b458a294aea
+        with:
+          report: compilation_report.json
+          header: |
+            # Compilation Report
+          memory_report: false
 
-      # - name: Add memory report to sticky comment
-      #   if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
-      #   uses: marocchino/sticky-pull-request-comment@v2
-      #   with:
-      #     header: compilation
-      #     message: ${{ steps.compilation_report.outputs.markdown }}
+      - name: Add memory report to sticky comment
+        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: compilation
+          message: ${{ steps.compilation_report.outputs.markdown }}
