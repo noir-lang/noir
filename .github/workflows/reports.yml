@@ -280,7 +280,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/aztec-nr }
+        # project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/aztec-nr }
         project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-contracts }
         # include:
           # - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/aztec-nr }
