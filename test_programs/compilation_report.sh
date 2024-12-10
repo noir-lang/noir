@@ -15,9 +15,9 @@ if [ "$#" -eq 0 ]; then
 
 else 
   # Delete last two lines so that we can re-use the previous report 
-  sed -i '$d' $current_dir/compilation_report.json | sed -i '$d' $current_dir/compilation_report.json
+  sed -i '$d' compilation_report.json | sed -i '$d' compilation_report.json
 
-  echo "}, " >> $current_dir/compilation_report.json
+  echo "}, " >> compilation_report.json
 
   # The additional report is expected to be in the current directory
   base_path="$current_dir"
@@ -39,25 +39,29 @@ for dir in ${tests_to_profile[@]}; do
     cd $base_path/$dir
 
     echo $base_path/$dir
-    echo $(ls ./)
 
     cat Nargo.toml
 
-    NAME_LINE=$(grep -oE 'name\s*=\s*"([^"]+)"' Nargo.toml || true)
-    echo $NAME_LINE
+    # NAME_LINE=$({ grep -oE 'name\s*=\s*"([^"]+)"' Nargo.toml || true })
+    # echo $NAME_LINE
 
-    PACKAGE_NAME=$(grep -oE 'name\s*=\s*"([^"]+)"' $base_path/$dir/Nargo.toml | sed 's/name\s*=\s*"//;s/"//' || true)
-    echo $PACKAGE_NAME
+    # PACKAGE_NAME=$(grep -oE 'name\s*=\s*"([^"]+)"' $base_path/$dir/Nargo.toml | sed 's/name\s*=\s*"//;s/"//' || true)
+    # echo $PACKAGE_NAME
 
-    head -n 1 Nargo.toml | grep -q "[workspace]"
-    if [ $? -eq 0 ] && [ "$#" -ne 0 ]; then
-        echo "here"
-        PACKAGE_NAME=$(basename $current_dir)
-    else 
-        echo "no here"
-        PACKAGE_NAME=$dir
+    # head -n 1 Nargo.toml | grep -q "[workspace]"
+    # if [ $? -eq 0 ] && [ "$#" -ne 0 ]; then
+    #     echo "here"
+    #     PACKAGE_NAME=$(basename $current_dir)
+    # else 
+    #     echo "no here"
+    #     PACKAGE_NAME=$dir
+    # fi
+
+    PACKAGE_NAME=$dir
+    if [ "$#" -ne 0 ]; then
+      PACKAGE_NAME=$(basename $current_dir)
     fi
-
+    
     echo $PACKAGE_NAME
 
     COMPILE_TIME=$((time nargo compile --force) 2>&1 | grep real | grep -oE '[0-9]+m[0-9]+.[0-9]+s')
