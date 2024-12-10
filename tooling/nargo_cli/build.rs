@@ -248,6 +248,7 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
             &test_dir,
             "execute",
             r#"
+                nargo.arg("--check-return");
                 nargo.assert().success();
             "#,
             &MatrixConfig {
