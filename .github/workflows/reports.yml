@@ -262,7 +262,6 @@ jobs:
         run: |
           ./compilation_report.sh
           mv compilation_report.json ../compilation_report.json
-          echo $PWD
 
       - name: Upload compilation report
         uses: actions/upload-artifact@v4
@@ -272,35 +271,78 @@ jobs:
           retention-days: 3
           overwrite: true
 
-      # - name: Parse compilation report
-      #   id: compilation_report
-      #   uses: noir-lang/noir-bench-report@0d7464a8c39170523932d7846b6e6b458a294aea
-      #   with:
-      #     report: compilation_report.json
-      #     header: |
-      #       # Compilation Report
-      #     memory_report: false
+ external_repo_compilation_report:
+    needs: [build-nargo, generate_compilation_report]
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/aztec-nr }
+          - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-contracts }
+          - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/parity-lib }
+          # - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/private-kernel-lib }
+          # - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/reset-kernel-lib }
+          # - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/rollup-lib }
+          # - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/types }
 
-      # - name: Add memory report to sticky comment
-      #   if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
-      #   uses: marocchino/sticky-pull-request-comment@v2
-      #   with:
-      #     header: compilation
-      #     message: ${{ steps.compilation_report.outputs.markdown }}
+    name: External repo compilation report - ${{ matrix.project.repo }}  
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ matrix.project.repo }}
+          path: test-repo
+          ref: ${{ matrix.project.ref }}
+
+      - name: Download nargo binary
+        uses: actions/download-artifact@v4
+        with:
+          name: nargo
+          path: ./nargo
+
+      - name: Set nargo on PATH
+        run: |
+          nargo_binary="${{ github.workspace }}/nargo/nargo"
+          chmod +x $nargo_binary
+          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
+          export PATH="$PATH:$(dirname $nargo_binary)"
+          nargo -V
+
+      - name: Download compilation report
+        uses: actions/download-artifact@v4
+        with:
+          name: in_progress_compilation_report
+          path: ./test-repo/${{ matrix.project.path }}
+
+      - name: Generate compilation report
+        working-directory: ./test-repo/${{ matrix.project.path }}
+        run: |
+          ./compilation_report.sh 1
+          cd ~
+          mv ./test-repo/${{ matrix.project.path }}/compilation_report.json ./compilation_report.json
+
+      - name: Upload compilation report
+        uses: actions/upload-artifact@v4
+        with:
+          name: in_progress_compilation_report
+          path: compilation_report.json
+          retention-days: 3
+          overwrite: true
 
   upload_compilation_report:
     name: Upload compilation report 
-    # needs: [generate_compilation_report, external_repo_compilation_report]
-    needs: [generate_compilation_report]
+    needs: [generate_compilation_report, external_repo_compilation_report]
+    # needs: [generate_compilation_report]
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
 
     steps:
       - uses: actions/checkout@v4
-
-      # - name: Test run
-      #     run: echo $PWD
 
       - name: Download compilation report
         uses: actions/download-artifact@v4
