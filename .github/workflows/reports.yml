@@ -303,10 +303,10 @@ jobs:
         - name: Test run
           run: echo $PWD
 
-      - name: Download compilation report
-        uses: actions/download-artifact@v4
-        with:
-          name: in_progress_compilation_report
+      # - name: Download compilation report
+      #   uses: actions/download-artifact@v4
+      #   with:
+      #     name: in_progress_compilation_report
           # path: ./
 
       # - name: Parse compilation report
