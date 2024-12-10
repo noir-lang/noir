@@ -333,12 +333,14 @@ jobs:
           path: ./test-repo/${{ matrix.project.path }}
 
       - name: Generate compilation report
-        # working-directory: ./test-repo/${{ matrix.project.path }}
+        working-directory: ./test-repo/${{ matrix.project.path }}
         run: |
-          chmod +x ./test-repo/${{ matrix.project.path }}/compilation_report.sh
-          ./test-repo/${{ matrix.project.path }}/compilation_report.sh 1
+          chmod +x ./compilation_report.sh
+          ./compilation_report.sh 1
           echo $PWD
-          mv ./test-repo/${{ matrix.project.path }}/compilation_report.json ./compilation_report.json
+
+      - name: Move compilation report
+        run: mv ./test-repo/${{ matrix.project.path }}/compilation_report.json ./compilation_report.json
 
       - name: Upload compilation report
         uses: actions/upload-artifact@v4
