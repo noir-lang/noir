@@ -272,7 +272,7 @@ jobs:
           overwrite: true
 
  external_repo_compilation_report:
-    needs: [build-nargo, generate_compilation_report]
+    needs: [generate_compilation_report]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -292,7 +292,8 @@ jobs:
     name: External repo compilation report - ${{ matrix.project.repo }}  
     steps:
         - name: Test run
-          run: echo $PWD
+          run: |
+            echo $PWD
 #       # - name: Checkout
 #       #   uses: actions/checkout@v4
 #       #   with:
