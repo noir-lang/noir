@@ -345,16 +345,16 @@ jobs:
           PROJECT_PATH=${{ matrix.project.path }}
           PACKAGE_NAME=$(basename $PROJECT_PATH)
           mv ./test-repo/${{ matrix.project.path }}/compilation_report.json ./compilation_report_$PACKAGE_NAME.json
-          REPORT_CONTENTS=$(cat ./compilation_report_$PACKAGE_NAME.json)
-          echo "compilation_reports=${{ steps.report.outputs.compilation_reports }},$REPORT_CONTENTS" >> $GITHUB_OUTPUT
+          # REPORT_CONTENTS=$(cat ./compilation_report_$PACKAGE_NAME.json)
+          # echo "compilation_reports=${{ steps.report.outputs.compilation_reports }},$REPORT_CONTENTS" >> $GITHUB_OUTPUT
 
-      # - name: Upload compilation report
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: in_progress_compilation_report
-      #     path: compilation_report.json
-      #     retention-days: 3
-      #     overwrite: true
+      - name: Upload compilation report
+        uses: actions/upload-artifact@v4
+        with:
+          name: compilation_report_${{ matrix.project.path }}
+          path: compilation_report_${{ matrix.project.path }}.json
+          retention-days: 3
+          overwrite: true
     
     outputs:
       compilation_reports: ${{ steps.report.outputs.compilation_reports }}
@@ -372,11 +372,17 @@ jobs:
       - name: Download compilation report
         uses: actions/download-artifact@v4
         with:
-          name: in_progress_compilation_report
+          name: compilation_report_*
+          path: ./reports
 
       - name: Merge compilation reports using jq
         run: |
-          echo "Merging reports"   
+          echo "Merging reports" 
+
+          echo $(ls ./reports)  
+
+          ARTIFACTS=${{ needs.external_repo_compilation_report.outputs.artifact_names }};
+          echo $ARTIFACTS
 
           REPORTS=${{ needs.external_repo_compilation_report.outputs.compilation_reports }}
           echo $REPORTS
