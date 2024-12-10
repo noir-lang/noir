@@ -72,7 +72,10 @@ pub struct SsaEvaluatorOptions {
     /// Skip the check for under constrained values
     pub skip_underconstrained_check: bool,
 
-    /// The higher the value, the more inlined brillig functions will be.
+    /// Skip the missing Brillig call constraints check
+    pub skip_brillig_constraints_check: bool,
+
+    /// The higher the value, the more inlined Brillig functions will be.
     pub inliner_aggressiveness: i64,
 
     /// Maximum accepted percentage increase in the Brillig bytecode size after unrolling loops.
@@ -104,12 +107,22 @@ pub(crate) fn optimize_into_acir(
 
     let mut ssa = optimize_all(builder, options)?;
 
-    let ssa_level_warnings = if options.skip_underconstrained_check {
-        vec![]
-    } else {
-        time("After Check for Underconstrained Values", options.print_codegen_timings, || {
-            ssa.check_for_underconstrained_values()
-        })
+    let mut ssa_level_warnings = vec![];
+
+    if !options.skip_underconstrained_check {
+        ssa_level_warnings.extend(time(
+            "After Check for Underconstrained Values",
+            options.print_codegen_timings,
+            || ssa.check_for_underconstrained_values(),
+        ));
+    }
+
+    if !options.skip_brillig_constraints_check {
+        ssa_level_warnings.extend(time(
+            "After Check for Missing Brillig Call Constraints",
+            options.print_codegen_timings,
+            || ssa.check_for_missing_brillig_constraints(),
+        ));
     };
 
     drop(ssa_gen_span_guard);
