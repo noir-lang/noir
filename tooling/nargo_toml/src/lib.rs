@@ -627,8 +627,8 @@ mod tests {
             fn is_dir(item: &str) -> bool {
                 !item.contains('.')
             }
-            let mut curr_dir = root.to_path_buf();
-            let mut curr_indent = 0;
+            let mut current_dir = root.to_path_buf();
+            let mut current_indent = 0;
             let mut last_item: Option<String> = None;
 
             for line in layout.lines() {
@@ -638,28 +638,28 @@ mod tests {
                     let indent = prefix.len() / INDENT_SIZE;
 
                     if last_item.is_none() {
-                        curr_indent = indent;
+                        current_indent = indent;
                     }
 
                     assert!(
-                        indent <= curr_indent + 1,
-                        "cannot increase indent by more than {INDENT_SIZE}; item = {item}, curr_dir={}", curr_dir.display()
+                        indent <= current_indent + 1,
+                        "cannot increase indent by more than {INDENT_SIZE}; item = {item}, current_dir={}", current_dir.display()
                     );
 
                     // Go into the last created directory
-                    if indent > curr_indent && last_item.is_some() {
+                    if indent > current_indent && last_item.is_some() {
                         let last_item = last_item.unwrap();
                         assert!(is_dir(&last_item), "last item was not a dir: {last_item}");
-                        curr_dir.push(last_item);
-                        curr_indent += 1;
+                        current_dir.push(last_item);
+                        current_indent += 1;
                     }
                     // Go back into an ancestor directory
-                    while indent < curr_indent {
-                        curr_dir.pop();
-                        curr_indent -= 1;
+                    while indent < current_indent {
+                        current_dir.pop();
+                        current_indent -= 1;
                     }
                     // Create a file or a directory
-                    let item_path = curr_dir.join(&item);
+                    let item_path = current_dir.join(&item);
                     if is_dir(&item) {
                         std::fs::create_dir(&item_path).unwrap_or_else(|e| {
                             panic!("failed to create dir {}: {e}", item_path.display())
