@@ -214,7 +214,8 @@ impl<'a> TestRunner<'a> {
                     remaining_test_count -= buffered_tests.len();
 
                     for (test_name, test_status) in buffered_tests {
-                        self.display_test_status(&test_name, package_name, &test_status);
+                        self.display_test_status(&test_name, package_name, &test_status)
+                            .expect("Could not display test status");
                         test_report.push((test_name, test_status));
                     }
                 }
@@ -229,7 +230,8 @@ impl<'a> TestRunner<'a> {
                             continue;
                         }
 
-                        self.display_test_status(&test_name, &test_package_name, &test_status);
+                        self.display_test_status(&test_name, &test_package_name, &test_status)
+                            .expect("Could not display test status");
                         test_report.push((test_name, test_status));
                         remaining_test_count -= 1;
                         if remaining_test_count == 0 {
@@ -238,7 +240,8 @@ impl<'a> TestRunner<'a> {
                     }
                 }
 
-                let _ = display_test_report(package_name, &test_report);
+                display_test_report(package_name, &test_report)
+                    .expect("Could not display test report");
                 test_reports.extend(test_report);
             }
         });
@@ -285,6 +288,7 @@ impl<'a> TestRunner<'a> {
                 package_tests.insert(package.name.to_string(), tests);
             }
         });
+
         package_tests
     }
 
@@ -372,26 +376,21 @@ impl<'a> TestRunner<'a> {
         test_name: &'a String,
         package_name: &'a String,
         test_status: &'a TestStatus,
-    ) {
+    ) -> std::io::Result<()> {
         let writer = StandardStream::stderr(ColorChoice::Always);
         let mut writer = writer.lock();
 
-        write!(writer, "[{}] Testing {test_name}... ", package_name)
-            .expect("Failed to write to stderr");
-        writer.flush().expect("Failed to flush writer");
+        write!(writer, "[{}] Testing {test_name}... ", package_name)?;
+        writer.flush()?;
 
         match &test_status {
             TestStatus::Pass { .. } => {
-                writer
-                    .set_color(ColorSpec::new().set_fg(Some(Color::Green)))
-                    .expect("Failed to set color");
-                writeln!(writer, "ok").expect("Failed to write to stderr");
+                writer.set_color(ColorSpec::new().set_fg(Some(Color::Green)))?;
+                writeln!(writer, "ok")?;
             }
             TestStatus::Fail { message, error_diagnostic } => {
-                writer
-                    .set_color(ColorSpec::new().set_fg(Some(Color::Red)))
-                    .expect("Failed to set color");
-                writeln!(writer, "FAIL\n{message}\n").expect("Failed to write to stderr");
+                writer.set_color(ColorSpec::new().set_fg(Some(Color::Red)))?;
+                writeln!(writer, "FAIL\n{message}\n")?;
                 if let Some(diag) = error_diagnostic {
                     noirc_errors::reporter::report_all(
                         self.file_manager.as_file_map(),
@@ -402,10 +401,8 @@ impl<'a> TestRunner<'a> {
                 }
             }
             TestStatus::Skipped { .. } => {
-                writer
-                    .set_color(ColorSpec::new().set_fg(Some(Color::Yellow)))
-                    .expect("Failed to set color");
-                writeln!(writer, "skipped").expect("Failed to write to stderr");
+                writer.set_color(ColorSpec::new().set_fg(Some(Color::Yellow)))?;
+                writeln!(writer, "skipped")?;
             }
             TestStatus::CompileError(err) => {
                 noirc_errors::reporter::report_all(
@@ -416,14 +413,14 @@ impl<'a> TestRunner<'a> {
                 );
             }
         }
-        writer.reset().expect("Failed to reset writer");
+        writer.reset()
     }
 }
 
 fn display_test_report(
     package_name: &String,
     test_report: &[(String, TestStatus)],
-) -> Result<(), CliError> {
+) -> std::io::Result<()> {
     let writer = StandardStream::stderr(ColorChoice::Always);
     let mut writer = writer.lock();
 
@@ -433,41 +430,37 @@ fn display_test_report(
         .collect();
 
     if !failed_tests.is_empty() {
-        writeln!(writer).expect("Failed to write to stderr");
-        writeln!(writer, "[{}] Failures:", package_name).expect("Failed to write to stderr");
+        writeln!(writer)?;
+        writeln!(writer, "[{}] Failures:", package_name)?;
         for failed_test in failed_tests {
-            writeln!(writer, "     {}", failed_test).expect("Failed to write to stderr");
+            writeln!(writer, "     {}", failed_test)?;
         }
-        writeln!(writer).expect("Failed to write to stderr");
+        writeln!(writer)?;
     }
 
-    write!(writer, "[{}] ", package_name).expect("Failed to write to stderr");
+    write!(writer, "[{}] ", package_name)?;
 
     let count_all = test_report.len();
     let count_failed = test_report.iter().filter(|(_, status)| status.failed()).count();
     let plural = if count_all == 1 { "" } else { "s" };
     if count_failed == 0 {
-        writer.set_color(ColorSpec::new().set_fg(Some(Color::Green))).expect("Failed to set color");
-        write!(writer, "{count_all} test{plural} passed").expect("Failed to write to stderr");
-        writer.reset().expect("Failed to reset writer");
-        writeln!(writer).expect("Failed to write to stderr");
+        writer.set_color(ColorSpec::new().set_fg(Some(Color::Green)))?;
+        write!(writer, "{count_all} test{plural} passed")?;
+        writer.reset()?;
+        writeln!(writer)?;
     } else {
         let count_passed = count_all - count_failed;
         let plural_failed = if count_failed == 1 { "" } else { "s" };
         let plural_passed = if count_passed == 1 { "" } else { "s" };
 
         if count_passed != 0 {
-            writer
-                .set_color(ColorSpec::new().set_fg(Some(Color::Green)))
-                .expect("Failed to set color");
-            write!(writer, "{count_passed} test{plural_passed} passed, ",)
-                .expect("Failed to write to stderr");
+            writer.set_color(ColorSpec::new().set_fg(Some(Color::Green)))?;
+            write!(writer, "{count_passed} test{plural_passed} passed, ")?;
         }
 
-        writer.set_color(ColorSpec::new().set_fg(Some(Color::Red))).expect("Failed to set color");
-        writeln!(writer, "{count_failed} test{plural_failed} failed")
-            .expect("Failed to write to stderr");
-        writer.reset().expect("Failed to reset writer");
+        writer.set_color(ColorSpec::new().set_fg(Some(Color::Red)))?;
+        writeln!(writer, "{count_failed} test{plural_failed} failed")?;
+        writer.reset()?;
     }
 
     Ok(())
