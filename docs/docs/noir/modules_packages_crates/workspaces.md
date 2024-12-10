@@ -33,7 +33,9 @@ members = ["crates/a", "crates/b"]
 default-member = "crates/a"
 ```
 
-`members` indicates which packages are included in the workspace. As such, all member packages of a workspace will be processed when the `--workspace` flag is used with various commands or if a `default-member` is not specified.
+`members` indicates which packages are included in the workspace. As such, all member packages of a workspace will be processed when the `--workspace` flag is used with various commands or if a `default-member` is not specified. The `--package` option can be used to limit
+the scope of some commands to a specific member of the workspace; otherwise these commands run on the package nearest on the path to the
+current directory where `nargo` was invoked.
 
 `default-member` indicates which package various commands process by default.
 
