@@ -42,7 +42,7 @@ for dir in ${tests_to_profile[@]}; do
       continue
     fi
 
-    echo $base_path/$dir
+    cd $base_path/$dir
 
     PACKAGE_NAME=$dir
     if [ "$#" -ne 0 ]; then
