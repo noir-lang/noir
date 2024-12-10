@@ -31,6 +31,7 @@ use crate::brillig::{
     Brillig,
 };
 use crate::errors::{InternalError, InternalWarning, RuntimeError, SsaReport};
+use crate::ssa::ir::instruction::Hint;
 use crate::ssa::{
     function_builder::data_bus::DataBus,
     ir::{
@@ -821,14 +822,12 @@ impl<'a> Context<'a> {
                                     })
                                     .sum();
 
-                                let Some(acir_function_id) =
-                                    ssa.entry_point_to_generated_index.get(id)
-                                else {
+                                let Some(acir_function_id) = ssa.get_entry_point_index(id) else {
                                     unreachable!("Expected an associated final index for call to acir function {id} with args {arguments:?}");
                                 };
 
                                 let output_vars = self.acir_context.call_acir_function(
-                                    AcirFunctionId(*acir_function_id),
+                                    AcirFunctionId(acir_function_id),
                                     inputs,
                                     output_count,
                                     self.current_side_effects_enabled_var,
@@ -2133,6 +2132,15 @@ impl<'a> Context<'a> {
         result_ids: &[ValueId],
     ) -> Result<Vec<AcirValue>, RuntimeError> {
         match intrinsic {
+            Intrinsic::Hint(Hint::BlackBox) => {
+                // Identity function; at the ACIR level this is a no-op, it only affects the SSA.
+                assert_eq!(
+                    arguments.len(),
+                    result_ids.len(),
+                    "ICE: BlackBox input and output lengths should match."
+                );
+                Ok(arguments.iter().map(|v| self.convert_value(*v, dfg)).collect())
+            }
             Intrinsic::BlackBox(black_box) => {
                 // Slices are represented as a tuple of (length, slice contents).
                 // We must check the inputs to determine if there are slices
@@ -2979,7 +2987,7 @@ mod test {
 
         build_basic_foo_with_return(&mut builder, foo_id, false, inline_type);
 
-        let ssa = builder.finish();
+        let ssa = builder.finish().generate_entry_point_index();
 
         let (acir_functions, _, _, _) = ssa
             .into_acir(&Brillig::default(), ExpressionWidth::default())
@@ -3087,6 +3095,7 @@ mod test {
         let ssa = builder.finish();
 
         let (acir_functions, _, _, _) = ssa
+            .generate_entry_point_index()
             .into_acir(&Brillig::default(), ExpressionWidth::default())
             .expect("Should compile manually written SSA into ACIR");
         // The expected result should look very similar to the above test expect that the input witnesses of the `Call`
@@ -3184,7 +3193,7 @@ mod test {
 
         build_basic_foo_with_return(&mut builder, foo_id, false, inline_type);
 
-        let ssa = builder.finish();
+        let ssa = builder.finish().generate_entry_point_index();
 
         let (acir_functions, _, _, _) = ssa
             .into_acir(&Brillig::default(), ExpressionWidth::default())
@@ -3311,6 +3320,7 @@ mod test {
         let brillig = ssa.to_brillig(false);
 
         let (acir_functions, brillig_functions, _, _) = ssa
+            .generate_entry_point_index()
             .into_acir(&brillig, ExpressionWidth::default())
             .expect("Should compile manually written SSA into ACIR");
 
@@ -3375,6 +3385,7 @@ mod test {
         // The Brillig bytecode we insert for the stdlib is hardcoded so we do not need to provide any
         // Brillig artifacts to the ACIR gen pass.
         let (acir_functions, brillig_functions, _, _) = ssa
+            .generate_entry_point_index()
             .into_acir(&Brillig::default(), ExpressionWidth::default())
             .expect("Should compile manually written SSA into ACIR");
 
@@ -3449,6 +3460,7 @@ mod test {
         println!("{}", ssa);
 
         let (acir_functions, brillig_functions, _, _) = ssa
+            .generate_entry_point_index()
             .into_acir(&brillig, ExpressionWidth::default())
             .expect("Should compile manually written SSA into ACIR");
 
@@ -3537,6 +3549,7 @@ mod test {
         println!("{}", ssa);
 
         let (acir_functions, brillig_functions, _, _) = ssa
+            .generate_entry_point_index()
             .into_acir(&brillig, ExpressionWidth::default())
             .expect("Should compile manually written SSA into ACIR");
 

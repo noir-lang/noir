@@ -307,22 +307,12 @@ impl<'context> Elaborator<'context> {
 
         // We have to run any comptime attributes on functions before the function is elaborated
         // since the generated items are checked beforehand as well.
-        let generated_items = self.run_attributes(
+        self.run_attributes(
             &items.traits,
             &items.types,
             &items.functions,
             &items.module_attributes,
         );
-
-        // After everything is collected, we can elaborate our generated items.
-        // It may be better to inline these within `items` entirely since elaborating them
-        // all here means any globals will not see these. Inlining them completely within `items`
-        // means we must be more careful about missing any additional items that need to be already
-        // elaborated. E.g. if a new struct is created, we've already passed the code path to
-        // elaborate them.
-        if !generated_items.is_empty() {
-            self.elaborate_items(generated_items);
-        }
 
         for functions in items.functions {
             self.elaborate_functions(functions);

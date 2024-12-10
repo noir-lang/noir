@@ -21,7 +21,7 @@ use crate::ssa::{
     opt::flatten_cfg::value_merger::ValueMerger,
 };
 
-use super::{Binary, BinaryOp, Endian, Instruction, SimplifyResult};
+use super::{Binary, BinaryOp, Endian, Hint, Instruction, SimplifyResult};
 
 mod blackbox;
 
@@ -326,6 +326,7 @@ pub(super) fn simplify_call(
                 SimplifyResult::None
             }
         }
+        Intrinsic::Hint(Hint::BlackBox) => SimplifyResult::None,
         Intrinsic::BlackBox(bb_func) => {
             simplify_black_box_func(bb_func, arguments, dfg, block, call_stack)
         }
@@ -600,7 +601,6 @@ fn simplify_black_box_func(
         BlackBoxFunc::EmbeddedCurveAdd => {
             blackbox::simplify_ec_add(dfg, solver, arguments, block, call_stack)
         }
-        BlackBoxFunc::SchnorrVerify => blackbox::simplify_schnorr_verify(dfg, solver, arguments),
 
         BlackBoxFunc::BigIntAdd
         | BlackBoxFunc::BigIntSub
