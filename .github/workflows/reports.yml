@@ -274,8 +274,8 @@ jobs:
  external_repo_compilation_report:
     needs: [build-nargo, generate_compilation_report]
     runs-on: ubuntu-latest
-    permissions:
-      pull-requests: write
+    # permissions:
+      # pull-requests: write
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -291,18 +291,18 @@ jobs:
 
     name: External repo compilation report - ${{ matrix.project.repo }}  
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ matrix.project.repo }}
-          path: test-repo
-          ref: ${{ matrix.project.ref }}
-
-      # - name: Download nargo binary
-      #   uses: actions/download-artifact@v4
+      # - name: Checkout
+      #   uses: actions/checkout@v4
       #   with:
-      #     name: nargo
-      #     path: ./nargo
+      #     repository: ${{ matrix.project.repo }}
+      #     path: test-repo
+      #     ref: ${{ matrix.project.ref }}
+
+      - name: Download nargo binary
+        uses: actions/download-artifact@v4
+        with:
+          name: nargo
+          path: ./nargo
 
       # - name: Set nargo on PATH
       #   run: |
