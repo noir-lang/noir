@@ -264,14 +264,6 @@ jobs:
           cat compilation_report.json
           mv compilation_report.json ../compilation_report.json
 
-      - name: Upload compilation report script
-        uses: actions/upload-artifact@v4
-        with:
-          name: script_for_compilation_report
-          path: ./test_programs/compilation_report.sh
-          retention-days: 3
-          overwrite: true
-
       - name: Upload compilation report
         uses: actions/upload-artifact@v4
         with:
@@ -289,9 +281,11 @@ jobs:
       matrix:
         include:
           - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-contracts }
+          - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/parity-root }
           - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/private-kernel-inner }
-          # - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/rollup-base-private }
-          # - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/rollup-base-public }
+          - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/private-kernel-reset }
+          - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/rollup-base-private }
+          - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/rollup-base-public }
 
     name: External repo compilation report - ${{ matrix.project.repo }}  
     steps:
@@ -316,17 +310,10 @@ jobs:
           export PATH="$PATH:$(dirname $nargo_binary)"
           nargo -V
 
-      - name: Download compilation report script
-        uses: actions/download-artifact@v4
+      - uses: actions/checkout@v4
         with:
-          name: script_for_compilation_report
-          path: ./test-repo/${{ matrix.project.path }}
-
-      # - name: Download compilation report
-      #   uses: actions/download-artifact@v4
-      #   with:
-      #     name: in_progress_compilation_report
-      #     path: ./test-repo/${{ matrix.project.path }}
+          sparse-checkout: |
+            ./test_programs/compilation_report.sh
 
       - name: Generate compilation report
         working-directory: ./test-repo/${{ matrix.project.path }}
@@ -341,9 +328,7 @@ jobs:
         run: |
           PACKAGE_NAME=${{ matrix.project.path }}
           PACKAGE_NAME=$(basename $PACKAGE_NAME)
-          echo $PACKAGE_NAME
           mv ./test-repo/${{ matrix.project.path }}/compilation_report.json ./compilation_report_$PACKAGE_NAME.json
-          # REPORT_CONTENTS=$(cat ./compilation_report_$PACKAGE_NAME.json)
           echo "compilation_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
 
       - name: Upload compilation report
@@ -382,26 +367,20 @@ jobs:
         run: |
           echo "Merging reports" 
 
-          echo $(ls ./reports)  
-
           combined_reports="[]"
 
-          # Iterate over each report and merge the 'compilation_reports' array
+          # Iterate over each report and merge them
           for report in ./reports/*; do
-            echo $report
+            # The report is saved under ./compilation_report_{ matrix_report }/compilation_report_{ matrix_report }.json
             REPORT_NAME=$(echo $(ls $report)) 
             # Extract the 'compilation_reports' array from each report and merge it
             combined_reports=$(jq '[.compilation_reports[]] + '"$combined_reports" <<< "$(cat "$report/$REPORT_NAME")")
           done
 
-          echo $combined_reports
-
           combined_reports=$(jq '[.compilation_reports[]] + '"$combined_reports" <<< "$(cat ./compilation_report.json)")
 
           # Wrap the merged compilation reports into a new object as to keep the 'compilation_reports' key
           final_report="{\"compilation_reports\": $combined_reports}"
-
-          echo "$final_report"
 
           echo "$final_report" > compilation_report.json
 
