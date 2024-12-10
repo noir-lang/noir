@@ -288,16 +288,18 @@ jobs:
       #     header: compilation
       #     message: ${{ steps.compilation_report.outputs.markdown }}
 
-  # upload_compilation_report:
-  #   name: Upload compilation report 
-  #   # needs: [generate_compilation_report, external_repo_compilation_report]
-  #   needs: generate_compilation_report
-  #   runs-on: ubuntu-latest
-  #   permissions:
-  #     pull-requests: write
+  upload_compilation_report:
+    name: Upload compilation report 
+    # needs: [generate_compilation_report, external_repo_compilation_report]
+    needs: generate_compilation_report
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
 
-  #   name: Download compilation report
-  #   steps:
+    name: Download compilation report
+    steps:
+        - name: Test run
+          run: echo $PWD
 
   #     - name: Download compilation report
   #       uses: actions/download-artifact@v4
