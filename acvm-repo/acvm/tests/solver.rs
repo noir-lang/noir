@@ -687,6 +687,7 @@ fn unsatisfied_opcode_resolved() {
 
 #[test]
 fn unsatisfied_opcode_resolved_brillig() {
+    let solver = StubbedBlackBoxSolver::default();
     let a = Witness(0);
     let b = Witness(1);
     let c = Witness(2);
@@ -775,7 +776,6 @@ fn unsatisfied_opcode_resolved_brillig() {
     values.insert(w_y, FieldElement::from(1_i128));
     values.insert(w_result, FieldElement::from(0_i128));
 
-    let pedantic_solving = true;
     let opcodes = vec![
         Opcode::BrilligCall {
             id: BrilligFunctionId(0),
@@ -818,6 +818,8 @@ fn unsatisfied_opcode_resolved_brillig() {
 
 #[test]
 fn memory_operations() {
+    let solver = StubbedBlackBoxSolver::default();
+
     let initial_witness = WitnessMap::from(BTreeMap::from_iter([
         (Witness(1), FieldElement::from(1u128)),
         (Witness(2), FieldElement::from(2u128)),
@@ -850,11 +852,10 @@ fn memory_operations() {
         q_c: FieldElement::one(),
     });
 
-    let pedantic_solving = true;
     let opcodes = vec![init, read_op, expression];
     let unconstrained_functions = vec![];
     let mut acvm = ACVM::new(
-        &StubbedBlackBoxSolver(pedantic_solving),
+        &solver,
         &opcodes,
         initial_witness,
         &unconstrained_functions,
@@ -921,6 +922,7 @@ where
         (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
     ) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>>,
 {
+    let solver = Bn254BlackBoxSolver(pedantic_solving);
     let initial_witness_vec: Vec<_> =
         inputs.iter().enumerate().map(|(i, (x, _))| (Witness(i as u32), *x)).collect();
     let outputs: Vec<_> = (0..num_outputs)
@@ -933,7 +935,7 @@ where
     let opcodes = vec![op];
     let unconstrained_functions = vec![];
     let mut acvm = ACVM::new(
-        &Bn254BlackBoxSolver(pedantic_solving),
+        &solver,
         &opcodes,
         initial_witness,
         &unconstrained_functions,
@@ -1033,6 +1035,7 @@ fn bigint_solve_binary_op_opt(
     rhs: Vec<ConstantOrWitness>,
     pedantic_solving: bool,
 ) -> Result<Vec<FieldElement>, OpcodeResolutionError<FieldElement>> {
+    let solver = StubbedBlackBoxSolver(pedantic_solving);
     let initial_witness_vec: Vec<_> = lhs
         .iter()
         .chain(rhs.iter())
@@ -1067,7 +1070,6 @@ fn bigint_solve_binary_op_opt(
         outputs: output_witnesses.clone(),
     });
 
-    let pedantic_solving = true;
     let mut opcodes = vec![bigint_from_lhs_op, bigint_from_rhs_op];
     if let Some(middle_op) = middle_op {
         opcodes.push(Opcode::BlackBoxFuncCall(middle_op));
@@ -1076,7 +1078,7 @@ fn bigint_solve_binary_op_opt(
 
     let unconstrained_functions = vec![];
     let mut acvm = ACVM::new(
-        &StubbedBlackBoxSolver(pedantic_solving),
+        &solver,
         &opcodes,
         initial_witness,
         &unconstrained_functions,
@@ -1121,7 +1123,6 @@ fn solve_blackbox_func_call(
         rhs_opt = Some(rhs);
     }
 
-    let pedantic_solving = true;
     let op = Opcode::BlackBoxFuncCall(blackbox_func_call(lhs_opt, rhs_opt)?);
     let opcodes = vec![op];
     let unconstrained_functions = vec![];
@@ -1970,7 +1971,7 @@ proptest! {
     }
 
     #[test]
-    #[should_panic(expected = "--pedantic-solving: BigIntDiv by zero")]
+    #[should_panic(expected = "Attempted to divide BigInt by zero")]
     fn bigint_div_by_zero_with_pedantic((xs, modulus) in bigint_with_modulus()) {
         let zero = bigint_zeroed(&xs);
         let expected_results = drop_use_constant(&zero);
