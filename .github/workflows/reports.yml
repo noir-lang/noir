@@ -291,9 +291,9 @@ jobs:
 
     name: External repo compilation report - ${{ matrix.project.repo }}  
     steps:
-        - name: Test run
-          run: |
-            echo $PWD
+      - name: Test run
+        run: |
+          echo $PWD
 #       # - name: Checkout
 #       #   uses: actions/checkout@v4
 #       #   with:
