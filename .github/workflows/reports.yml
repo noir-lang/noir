@@ -342,8 +342,9 @@ jobs:
         id: report
         shell: bash
         run: |
-          PROJECT_PATH=${{ matrix.project.path }}
-          PACKAGE_NAME=$(basename $PROJECT_PATH)
+          PROJECT_REF=${{ matrix.project.ref }}
+          PACKAGE_NAME=$(basename $PROJECT_REF)
+          echo $PACKAGE_NAME
           mv ./test-repo/${{ matrix.project.path }}/compilation_report.json ./compilation_report_$PACKAGE_NAME.json
           # REPORT_CONTENTS=$(cat ./compilation_report_$PACKAGE_NAME.json)
           # echo "compilation_reports=${{ steps.report.outputs.compilation_reports }},$REPORT_CONTENTS" >> $GITHUB_OUTPUT
@@ -351,8 +352,8 @@ jobs:
       - name: Upload compilation report
         uses: actions/upload-artifact@v4
         with:
-          name: compilation_report_${{ matrix.project.path }}
-          path: compilation_report_${{ matrix.project.path }}.json
+          name: compilation_report_${{ matrix.project.ref }}
+          path: compilation_report_${{ matrix.project.ref }}.json
           retention-days: 3
           overwrite: true
     
