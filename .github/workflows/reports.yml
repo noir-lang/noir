@@ -297,16 +297,15 @@ jobs:
       pull-requests: write
 
     steps:
-        - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-        - name: Test run
+      - name: Test run
           run: echo $PWD
 
       - name: Download compilation report
         uses: actions/download-artifact@v4
         with:
           name: in_progress_compilation_report
-          path: ./
 
       # - name: Parse compilation report
       #   id: compilation_report
