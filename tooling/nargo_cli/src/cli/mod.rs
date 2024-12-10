@@ -115,7 +115,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
     }
 
     // Search through parent directories to find package root if necessary.
-    if let Some(workspace) = is_workspace_rooted(&command) {
+    if let Some(workspace) = manifest_scope(&command) {
         config.program_dir = nargo_toml::find_root(&config.program_dir, workspace)?;
     }
 
@@ -148,7 +148,12 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
 /// Some commands have package options, which we use here to decide whether to
 /// alter `--program-dir` to point at a manifest, depending on whether we want
 /// to work on a specific package or the entire workspace.
-fn is_workspace_rooted(cmd: &NargoCommand) -> Option<bool> {
+///
+/// Returns:
+/// * `None` if the command does not need a manifest to be found
+/// * `Some(true)` if the command runs on the workspace level
+/// * `Some(false)` if the command runs on the current package
+fn manifest_scope(cmd: &NargoCommand) -> Option<bool> {
     match &cmd {
         NargoCommand::Check(cmd) => Some(cmd.package_options.is_workspace_rooted()),
         NargoCommand::Compile(cmd) => Some(cmd.package_options.is_workspace_rooted()),
