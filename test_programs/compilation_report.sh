@@ -44,7 +44,7 @@ for dir in ${tests_to_profile[@]}; do
     echo $FILES
 
     # PACKAGE_NAME=$(grep -oP 'name\s*=\s*"\K[^"]+' Nargo.toml)
-    PACKAGE_NAME=$(grep -oE 'name\s*=\s*"([^"]+)"' your_file.toml | sed 's/name\s*=\s*"//;s/"//')
+    PACKAGE_NAME=$(grep -oE 'name\s*=\s*"([^"]+)"' Nargo.toml | sed 's/name\s*=\s*"//;s/"//')
     echo $PACKAGE_NAME
 
     COMPILE_TIME=$((time nargo compile --force) 2>&1 | grep real | grep -oE '[0-9]+m[0-9]+.[0-9]+s')
