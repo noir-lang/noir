@@ -324,7 +324,7 @@ jobs:
       - name: Generate compilation report
         working-directory: ./test-repo/${{ matrix.project.path }}
         run: |
-            mv /home/runner/test_programs/compilation_report.sh ./compilation_report.sh
+          mv /home/runner/test_programs/compilation_report.sh ./compilation_report.sh
           chmod +x ./compilation_report.sh
           ./compilation_report.sh 1
 
