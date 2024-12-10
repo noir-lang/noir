@@ -296,7 +296,6 @@ jobs:
     permissions:
       pull-requests: write
 
-    name: Download compilation report
     steps:
         - uses: actions/checkout@v4
 
