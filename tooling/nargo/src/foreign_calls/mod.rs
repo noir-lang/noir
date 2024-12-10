@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use acvm::{acir::brillig::ForeignCallResult, pwg::ForeignCallWaitInfo, AcirField};
 use mocker::MockForeignCallExecutor;
 use noirc_printable_type::ForeignCallError;
-use print::PrintForeignCallExecutor;
+use print::{PrintForeignCallExecutor, PrintOutput};
 use rand::Rng;
 use rpc::RPCForeignCallExecutor;
 use serde::{Deserialize, Serialize};
@@ -65,22 +65,22 @@ impl ForeignCall {
 }
 
 #[derive(Debug, Default)]
-pub struct DefaultForeignCallExecutor<F> {
+pub struct DefaultForeignCallExecutor<'a, F> {
     /// The executor for any [`ForeignCall::Print`] calls.
-    printer: Option<PrintForeignCallExecutor>,
+    printer: PrintForeignCallExecutor<'a>,
     mocker: MockForeignCallExecutor<F>,
     external: Option<RPCForeignCallExecutor>,
 }
 
-impl<F: Default> DefaultForeignCallExecutor<F> {
+impl<'a, F: Default> DefaultForeignCallExecutor<'a, F> {
     pub fn new(
-        show_output: bool,
+        output: PrintOutput<'a>,
         resolver_url: Option<&str>,
         root_path: Option<PathBuf>,
         package_name: Option<String>,
     ) -> Self {
         let id = rand::thread_rng().gen();
-        let printer = if show_output { Some(PrintForeignCallExecutor) } else { None };
+        let printer = PrintForeignCallExecutor { output };
         let external_resolver = resolver_url.map(|resolver_url| {
             RPCForeignCallExecutor::new(resolver_url, id, root_path, package_name)
         });
@@ -92,8 +92,8 @@ impl<F: Default> DefaultForeignCallExecutor<F> {
     }
 }
 
-impl<F: AcirField + Serialize + for<'a> Deserialize<'a>> ForeignCallExecutor<F>
-    for DefaultForeignCallExecutor<F>
+impl<'a, F: AcirField + Serialize + for<'b> Deserialize<'b>> ForeignCallExecutor<F>
+    for DefaultForeignCallExecutor<'a, F>
 {
     fn execute(
         &mut self,
@@ -101,13 +101,7 @@ impl<F: AcirField + Serialize + for<'a> Deserialize<'a>> ForeignCallExecutor<F>
     ) -> Result<ForeignCallResult<F>, ForeignCallError> {
         let foreign_call_name = foreign_call.function.as_str();
         match ForeignCall::lookup(foreign_call_name) {
-            Some(ForeignCall::Print) => {
-                if let Some(printer) = &mut self.printer {
-                    printer.execute(foreign_call)
-                } else {
-                    Ok(ForeignCallResult::default())
-                }
-            }
+            Some(ForeignCall::Print) => self.printer.execute(foreign_call),
             Some(
                 ForeignCall::CreateMock
                 | ForeignCall::SetMockParams
