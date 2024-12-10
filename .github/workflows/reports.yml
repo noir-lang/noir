@@ -320,11 +320,11 @@ jobs:
         run: |
           ls ./
           ls ./test_programs
-          mv ./test_programs/compilation_report.sh ./test-repo/${{ matrix.project.path }}/
 
       - name: Generate compilation report
         working-directory: ./test-repo/${{ matrix.project.path }}
         run: |
+            mv /home/runner/test_programs/compilation_report.sh ./compilation_report.sh
           chmod +x ./compilation_report.sh
           ./compilation_report.sh 1
 
