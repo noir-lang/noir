@@ -686,11 +686,9 @@ impl Instruction {
             Instruction::Constrain(lhs, rhs, assert_message) => {
                 *lhs = f(*lhs);
                 *rhs = f(*rhs);
-                if let Some(error) = assert_message.as_mut() {
-                    if let ConstrainError::Dynamic(_, _, payload_values) = error {
-                        for value in payload_values {
-                            *value = f(*value);
-                        }
+                if let Some(ConstrainError::Dynamic(_, _, payload_values)) = assert_message {
+                    for value in payload_values {
+                        *value = f(*value);
                     }
                 }
             }
