@@ -678,13 +678,13 @@ mod tests {
         // Join a string path to the tmp dir
         let path = |p: &str| tmp.path().join(p);
         // Check that an expected root is found
-        let assert_ok = |curr: &str, ws: bool, exp: &str| {
-            let root = find_root(&path(curr), ws).expect("should find a root");
+        let assert_ok = |current_dir: &str, ws: bool, exp: &str| {
+            let root = find_root(&path(current_dir), ws).expect("should find a root");
             assert_eq!(root, path(exp));
         };
         // Check that a root is not found
-        let assert_err = |curr: &str| {
-            find_root(&path(curr), true).expect_err("shouldn't find a root");
+        let assert_err = |current_dir: &str| {
+            find_root(&path(current_dir), true).expect_err("shouldn't find a root");
         };
 
         let layout = r"
