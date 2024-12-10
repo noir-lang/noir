@@ -341,8 +341,9 @@ jobs:
       - name: Move compilation report
         id: report
         run: |
-          mv ./test-repo/${{ matrix.project.path }}/compilation_report.json ./compilation_report_${{ matrix.project.path }}.json
-          echo "compilation_reports=./compilation_report_${{ matrix.project.path }}.json" >> $GITHUB_OUTPUT
+          PACKAGE_NAME=basename ${{ matrix.project.path }}
+          mv ./test-repo/${{ matrix.project.path }}/compilation_report.json ./compilation_report_$PACKAGE_NAME.json
+          echo "compilation_reports=./compilation_report_$PACKAGE_NAME.json" >> $GITHUB_OUTPUT
 
       # - name: Upload compilation report
       #   uses: actions/upload-artifact@v4
