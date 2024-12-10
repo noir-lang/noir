@@ -280,10 +280,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/aztec-nr }
-          - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-contracts }
-          - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/parity-lib }
+        project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/aztec-nr }
+        project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-contracts }
+        # include:
+          # - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/aztec-nr }
+          # - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-contracts }
+          # - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/parity-lib }
           # - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/private-kernel-lib }
           # - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/reset-kernel-lib }
           # - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/rollup-lib }
