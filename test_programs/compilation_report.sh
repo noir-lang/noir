@@ -15,7 +15,7 @@ if [ "$#" -eq 0 ]; then
 
 else 
   # Delete last two lines so that we can re-use the previous report 
-  sed -i '$d' compilation_report.json | sed -i '$d' compilation_report.json
+  sed -i '${/^$/d;}' compilation_report.json | sed -i '$d' compilation_report.json | sed -i '$d' compilation_report.json
 
   echo "}, " >> compilation_report.json
 
@@ -61,7 +61,7 @@ for dir in ${tests_to_profile[@]}; do
     if [ "$#" -ne 0 ]; then
       PACKAGE_NAME=$(basename $current_dir)
     fi
-    
+
     echo $PACKAGE_NAME
 
     COMPILE_TIME=$((time nargo compile --force) 2>&1 | grep real | grep -oE '[0-9]+m[0-9]+.[0-9]+s')
