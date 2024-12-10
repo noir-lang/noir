@@ -31,10 +31,22 @@ pub async fn execute_circuit(
     initial_witness: JsWitnessMap,
     foreign_call_handler: ForeignCallHandler,
 ) -> Result<JsWitnessMap, Error> {
+    let pedantic_solving = false;
+    execute_program_pedantic(program, initial_witness, foreign_call_handler, pedantic_solving).await
+}
+
+/// `execute_circuit` with pedantic ACVM solving
+#[wasm_bindgen(js_name = executeCircuitPedantic, skip_jsdoc)]
+pub async fn execute_circuit_pedantic(
+    program: Vec<u8>,
+    initial_witness: JsWitnessMap,
+    foreign_call_handler: ForeignCallHandler,
+    pedantic_solving: bool,
+) -> Result<JsWitnessMap, Error> {
     console_error_panic_hook::set_once();
 
     let mut witness_stack =
-        execute_program_with_native_type_return(program, initial_witness, &foreign_call_handler)
+        execute_program_with_native_type_return(program, initial_witness, &foreign_call_handler, pedantic_solving)
             .await?;
     let witness_map =
         witness_stack.pop().expect("Should have at least one witness on the stack").witness;
@@ -54,6 +66,18 @@ pub async fn execute_circuit_with_return_witness(
     initial_witness: JsWitnessMap,
     foreign_call_handler: ForeignCallHandler,
 ) -> Result<JsSolvedAndReturnWitness, Error> {
+    let pedantic_solving = false;
+    execute_circuit_with_return_witness_pedantic(program, initial_witness, foreign_call_handler, pedantic_solving).await
+}
+
+/// `executeCircuitWithReturnWitness` with pedantic ACVM execution
+#[wasm_bindgen(js_name = executeCircuitWithReturnWitnessPedantic, skip_jsdoc)]
+pub async fn execute_circuit_with_return_witness_pedantic(
+    program: Vec<u8>,
+    initial_witness: JsWitnessMap,
+    foreign_call_handler: ForeignCallHandler,
+    pedantic_solving: bool,
+) -> Result<JsSolvedAndReturnWitness, Error> {
     console_error_panic_hook::set_once();
 
     let program: Program<FieldElement> = Program::deserialize_program(&program)
@@ -63,6 +87,7 @@ pub async fn execute_circuit_with_return_witness(
         &program,
         initial_witness,
         &foreign_call_handler,
+        pedantic_solving,
     )
     .await?;
     let solved_witness =
@@ -88,10 +113,22 @@ pub async fn execute_program(
     initial_witness: JsWitnessMap,
     foreign_call_handler: ForeignCallHandler,
 ) -> Result<JsWitnessStack, Error> {
+    let pedantic_solving = false;
+    execute_program_pedantic(program, initial_witness, foreign_call_handler, pedantic_solving).await
+}
+
+/// `execute_program` with pedantic ACVM solving
+#[wasm_bindgen(js_name = executeProgramPedantic, skip_jsdoc)]
+pub async fn execute_program_pedantic(
+    program: Vec<u8>,
+    initial_witness: JsWitnessMap,
+    foreign_call_handler: ForeignCallHandler,
+    pedantic_solving: bool,
+) -> Result<JsWitnessStack, Error> {
     console_error_panic_hook::set_once();
 
     let witness_stack =
-        execute_program_with_native_type_return(program, initial_witness, &foreign_call_handler)
+        execute_program_with_native_type_return(program, initial_witness, &foreign_call_handler, pedantic_solving)
             .await?;
 
     Ok(witness_stack.into())
@@ -101,6 +138,7 @@ async fn execute_program_with_native_type_return(
     program: Vec<u8>,
     initial_witness: JsWitnessMap,
     foreign_call_executor: &ForeignCallHandler,
+    pedantic_solving: bool,
 ) -> Result<WitnessStack<FieldElement>, Error> {
     let program: Program<FieldElement> = Program::deserialize_program(&program)
     .map_err(|_| JsExecutionError::new(
@@ -109,7 +147,7 @@ async fn execute_program_with_native_type_return(
         None,
     None))?;
 
-    execute_program_with_native_program_and_return(&program, initial_witness, foreign_call_executor)
+    execute_program_with_native_program_and_return(&program, initial_witness, foreign_call_executor, pedantic_solving)
         .await
 }
 
@@ -117,8 +155,9 @@ async fn execute_program_with_native_program_and_return(
     program: &Program<FieldElement>,
     initial_witness: JsWitnessMap,
     foreign_call_executor: &ForeignCallHandler,
+    pedantic_solving: bool,
 ) -> Result<WitnessStack<FieldElement>, Error> {
-    let blackbox_solver = Bn254BlackBoxSolver;
+    let blackbox_solver = Bn254BlackBoxSolver(pedantic_solving);
     let executor = ProgramExecutor::new(
         &program.functions,
         &program.unconstrained_functions,
