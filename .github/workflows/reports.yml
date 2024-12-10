@@ -338,15 +338,12 @@ jobs:
           chmod +x compilation_report.sh
           ./compilation_report.sh 1
           echo $PWD
-          cd ~
-          echo $PWD
-          mv ./test-repo/${{ matrix.project.path }}/compilation_report.json ./compilation_report.json
-
+          
       - name: Upload compilation report
         uses: actions/upload-artifact@v4
         with:
           name: in_progress_compilation_report
-          path: compilation_report.json
+          path: ./test-repo/${{ matrix.project.path }}/compilation_report.json
           retention-days: 3
           overwrite: true
 
