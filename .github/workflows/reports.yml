@@ -328,7 +328,7 @@ jobs:
         working-directory: ./test-repo/${{ matrix.project.path }}
         run: |
           ls .
-          mv /home/runner/test_programs/compilation_report.sh ./compilation_report.sh
+          mv ../test_programs/compilation_report.sh ./compilation_report.sh
           # mv ./test_programs/compilation_report.sh ./compilation_report.sh
           chmod +x ./compilation_report.sh
           ./compilation_report.sh 1
