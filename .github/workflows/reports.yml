@@ -372,7 +372,7 @@ jobs:
       - name: Aggregate compilation reports using jq
         run: |
           echo "Merging reports"   
-                 
+
           combined_reports="[]"
 
           # Iterate over each report and merge the 'compilation_reports' array
@@ -386,7 +386,11 @@ jobs:
           # Wrap the merged compilation reports into a new object as to keep the 'compilation_reports' key
           final_report="{\"compilation_reports\": $combined_reports}"
 
+          echo "$final_report"
+
           echo "$final_report" > compilation_report.json
+          
+          cat compilation_report
 
       - name: Parse compilation report
         id: compilation_report
