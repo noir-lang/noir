@@ -313,12 +313,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           sparse-checkout: |
-            ./test_programs/compilation_report.sh
+            test_programs/compilation_report.sh
           sparse-checkout-cone-mode: false
 
       - name: Move compilation report
         run: |
-          echo $(ls ./)
+          ls ./
           mv ./compilation_report.sh ./test-repo/${{ matrix.project.path }}/compilation_report.sh
 
       - name: Generate compilation report
