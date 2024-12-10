@@ -330,7 +330,9 @@ jobs:
           ls .
           echo " "
           ls /home/runner/work/noir/noir
-          mv /home/runner/work/noir/noir/test_programs/compilation_report.sh ./compilation_report.sh
+          ls /home/runner/work/noir/noir/scripts/
+          ls /home/runner/work/noir/noir/scripts/test_programs
+          mv /home/runner/work/noir/noir/scripts/test_programs/compilation_report.sh ./compilation_report.sh
           # mv ./test_programs/compilation_report.sh ./compilation_report.sh
           chmod +x ./compilation_report.sh
           ./compilation_report.sh 1
