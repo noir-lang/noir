@@ -312,7 +312,7 @@ jobs:
 
       - uses: actions/checkout@v4
         with:
-          path: test-repo
+          path: test-repo/${{ matrix.project.path }}
           sparse-checkout: |
             test_programs/compilation_report.sh
           sparse-checkout-cone-mode: false
@@ -322,7 +322,7 @@ jobs:
         run: |
           ls .
           # mv /home/runner/test_programs/compilation_report.sh ./compilation_report.sh
-          mv ../test_programs/compilation_report.sh ./compilation_report.sh
+          mv ./test_programs/compilation_report.sh ./compilation_report.sh
           chmod +x ./compilation_report.sh
           ./compilation_report.sh 1
 
