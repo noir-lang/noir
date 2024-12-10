@@ -343,7 +343,8 @@ jobs:
         run: |
           PACKAGE_NAME=$(basename ${{ matrix.project.path }})
           mv ./test-repo/${{ matrix.project.path }}/compilation_report.json ./compilation_report_$PACKAGE_NAME.json
-          echo "compilation_reports=./compilation_report_$PACKAGE_NAME.json" >> $GITHUB_OUTPUT
+          REPORT_CONTENTS=$(cat ./compilation_report_$PACKAGE_NAME.json)
+          echo "compilation_report=$REPORT_CONTENTS" >> $GITHUB_OUTPUT
 
       # - name: Upload compilation report
       #   uses: actions/upload-artifact@v4
@@ -354,7 +355,7 @@ jobs:
       #     overwrite: true
     
     outputs:
-      compilation_reports: ${{ steps.report.outputs.compilation_reports }}
+      compilation_reports: ${{ steps.report.outputs.compilation_report }}
 
   upload_compilation_report:
     name: Upload compilation report 
@@ -374,6 +375,9 @@ jobs:
       - name: Merge compilation reports using jq
         run: |
           echo "Merging reports"   
+
+          REPORTS=${{ needs.external_repo_compilation_report.outputs.compilation_reports }}
+          echo $REPORTS
 
           combined_reports="[]"
 
