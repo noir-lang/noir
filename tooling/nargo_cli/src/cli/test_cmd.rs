@@ -67,6 +67,7 @@ pub(crate) struct TestCommand {
 
 struct Test<'a> {
     name: String,
+    package_name: String,
     runner: Box<dyn FnOnce() -> TestStatus + Send + 'a>,
 }
 
@@ -101,7 +102,7 @@ pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError
     let num_threads = args.test_threads.unwrap_or_else(rayon::current_num_threads);
 
     // First compile all packages and collect their tests
-    let mut package_tests = collect_packages_tests(
+    let package_test_results = collect_packages_tests(
         &workspace,
         num_threads,
         &file_manager,
@@ -110,16 +111,25 @@ pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError
         &args,
     );
 
-    // Now for each package, sequentially, run tests in parallel
-    let mut test_reports = Vec::new();
-    for package in workspace.into_iter() {
-        let tests = package_tests
-            .remove(&package.name.to_string())
-            .expect("Expected package to have tests")?;
+    // Now gather all tests and how many are per packages
+    let mut tests = Vec::new();
+    let mut test_count_per_package = HashMap::new();
 
-        let test_report = run_package_tests(package, tests, &file_manager, &args, num_threads)?;
-        test_reports.extend(test_report);
+    for (package_name, package_tests) in package_test_results {
+        let package_tests = package_tests?;
+        test_count_per_package.insert(package_name, package_tests.len());
+        tests.extend(package_tests);
     }
+
+    // If there were no compile errors we'll run them all. Here we show how many there are per package.
+    for (package_name, test_count) in &test_count_per_package {
+        let plural = if *test_count == 1 { "" } else { "s" };
+        println!("[{package_name}] Running {test_count} test function{plural}");
+    }
+
+    // Now run all tests in parallel, but show output for each package sequentially
+    let test_reports =
+        run_all_tests(tests, num_threads, &test_count_per_package, &file_manager, &args);
 
     if test_reports.is_empty() {
         match &pattern {
@@ -143,6 +153,98 @@ pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError
     }
 }
 
+fn run_all_tests(
+    tests: Vec<Test<'_>>,
+    num_threads: usize,
+    test_count_per_package: &HashMap<String, usize>,
+    file_manager: &FileManager,
+    args: &TestCommand,
+) -> Vec<(String, TestStatus)> {
+    // Here we'll gather all test reports from all packages
+    let mut test_reports = Vec::new();
+
+    let (sender, receiver) = mpsc::channel();
+    let iter = &Mutex::new(tests.into_iter());
+    thread::scope(|scope| {
+        // Start worker threads
+        for _ in 0..num_threads {
+            // Clone sender so it's dropped once the thread finishes
+            let thread_sender = sender.clone();
+            thread::Builder::new()
+                // Specify a larger-than-default stack size to prevent overflowing stack in large programs.
+                // (the default is 2MB)
+                .stack_size(STACK_SIZE)
+                .spawn_scoped(scope, move || loop {
+                    // Get next test to process from the iterator.
+                    let Some(test) = iter.lock().unwrap().next() else {
+                        break;
+                    };
+                    let test_status = (test.runner)();
+
+                    // It's fine to ignore the result of sending.
+                    // If the receiver has hung up, everything will wind down soon anyway.
+                    let _ = thread_sender.send((test.name, test.package_name, test_status));
+                })
+                .unwrap();
+        }
+
+        // Also drop main sender so the channel closes
+        drop(sender);
+
+        // We'll go package by package, but we might get test results from packages ahead of us.
+        // We'll buffer those here and show them all at once when we get to those packages.
+        let mut buffer: HashMap<String, Vec<(String, TestStatus)>> = HashMap::new();
+        for (package_name, test_count) in test_count_per_package {
+            let mut test_report = Vec::new();
+
+            // How many tests are left to receive for this package
+            let mut remaining_test_count = *test_count;
+
+            if let Some(buffered_tests) = buffer.remove(package_name) {
+                remaining_test_count -= buffered_tests.len();
+
+                for (test_name, test_status) in buffered_tests {
+                    display_test_status(
+                        &test_name,
+                        package_name,
+                        &test_status,
+                        file_manager,
+                        &args.compile_options,
+                    );
+                    test_report.push((test_name, test_status));
+                }
+            }
+
+            if remaining_test_count > 0 {
+                while let Ok((test_name, test_package_name, test_status)) = receiver.recv() {
+                    if &test_package_name != package_name {
+                        buffer.entry(test_package_name).or_default().push((test_name, test_status));
+                        continue;
+                    }
+
+                    display_test_status(
+                        &test_name,
+                        &test_package_name,
+                        &test_status,
+                        file_manager,
+                        &args.compile_options,
+                    );
+                    test_report.push((test_name, test_status));
+                    remaining_test_count -= 1;
+                    if remaining_test_count == 0 {
+                        break;
+                    }
+                }
+            }
+
+            let _ = display_test_report(package_name, &test_report);
+            test_reports.extend(test_report);
+        }
+    });
+
+    test_reports
+}
+
 /// Compiles all packages in parallel and gathers their tests
 fn collect_packages_tests<'a>(
     workspace: &'a Workspace,
@@ -155,17 +257,18 @@ fn collect_packages_tests<'a>(
     let mut package_tests = HashMap::new();
 
     let (sender, receiver) = mpsc::channel();
-    let packages_count = workspace.into_iter().count();
-    let packages_iter = Mutex::new(workspace.into_iter());
+    let packages_iter = &Mutex::new(workspace.into_iter());
 
     thread::scope(|scope| {
         // Start worker threads
         for _ in 0..num_threads {
-            // Specify a larger-than-default stack size to prevent overflowing stack in large programs.
-            // (the default is 2MB)
+            // Clone sender so it's dropped once the thread finishes
+            let thread_sender = sender.clone();
             thread::Builder::new()
+                // Specify a larger-than-default stack size to prevent overflowing stack in large programs.
+                // (the default is 2MB)
                 .stack_size(STACK_SIZE)
-                .spawn_scoped(scope, || loop {
+                .spawn_scoped(scope, move || loop {
                     // Get next test to process from the iterator.
                     let Some(package) = packages_iter.lock().unwrap().next() else {
                         break;
@@ -181,12 +284,15 @@ fn collect_packages_tests<'a>(
                         package.name.to_string(),
                         &args.compile_options,
                     );
-                    let _ = sender.send((package, tests));
+                    let _ = thread_sender.send((package, tests));
                 })
                 .unwrap();
         }
 
-        for (package, tests) in receiver.iter().take(packages_count) {
+        // Also drop main sender so the channel closes
+        drop(sender);
+
+        for (package, tests) in receiver.iter() {
             package_tests.insert(package.name.to_string(), tests);
         }
     });
@@ -215,6 +321,7 @@ fn collect_package_tests<'a, S: BlackBoxFunctionSolver<FieldElement> + Default>(
             let test_name_copy = test_name.clone();
             let root_path = root_path.clone();
             let package_name_clone = package_name.clone();
+            let package_name_clone2 = package_name.clone();
             let runner = Box::new(move || {
                 run_test::<S>(
                     file_manager,
@@ -228,7 +335,7 @@ fn collect_package_tests<'a, S: BlackBoxFunctionSolver<FieldElement> + Default>(
                     compile_options,
                 )
             });
-            Test { name: test_name_copy, runner }
+            Test { name: test_name_copy, package_name: package_name_clone2, runner }
         })
         .collect();
 
@@ -250,67 +357,6 @@ fn get_tests_in_package(
         .into_iter()
         .map(|(test_name, _)| test_name)
         .collect())
-}
-
-/// Run a single package's tests, in parallel
-fn run_package_tests(
-    package: &Package,
-    tests: Vec<Test>,
-    file_manager: &FileManager,
-    args: &TestCommand,
-    num_threads: usize,
-) -> Result<Vec<(String, TestStatus)>, CliError> {
-    let package_name = package.name.to_string();
-    let num_tests = tests.len();
-
-    let plural = if num_tests == 1 { "" } else { "s" };
-    println!("[{}] Running {num_tests} test function{plural}", package.name);
-
-    let mut test_report = Vec::new();
-
-    // Avoid spawning threads if there are no tests to run
-    if num_tests == 0 {
-        return Ok(test_report);
-    }
-
-    let (sender, receiver) = mpsc::channel();
-    let iter = Mutex::new(tests.into_iter());
-    thread::scope(|scope| {
-        // Start worker threads
-        for _ in 0..num_threads {
-            // Specify a larger-than-default stack size to prevent overflowing stack in large programs.
-            // (the default is 2MB)
-            thread::Builder::new()
-                .stack_size(STACK_SIZE)
-                .spawn_scoped(scope, || loop {
-                    // Get next test to process from the iterator.
-                    let Some(test) = iter.lock().unwrap().next() else {
-                        break;
-                    };
-                    let test_status = (test.runner)();
-
-                    // It's fine to ignore the result of sending.
-                    // If the receiver has hung up, everything will wind down soon anyway.
-                    let _ = sender.send((test.name, test_status));
-                })
-                .unwrap();
-        }
-
-        for (test_name, test_status) in receiver.iter().take(num_tests) {
-            display_test_status(
-                &test_name,
-                &package_name,
-                &test_status,
-                file_manager,
-                &args.compile_options,
-            );
-            test_report.push((test_name, test_status));
-        }
-    });
-
-    display_test_report(&package_name, &test_report)?;
-
-    Ok(test_report)
 }
 
 #[allow(clippy::too_many_arguments)]
