@@ -342,8 +342,8 @@ jobs:
         id: report
         shell: bash
         run: |
-          PROJECT_REF=${{ matrix.project.ref }}
-          PACKAGE_NAME=$(basename $PROJECT_REF)
+          PACKAGE_NAME=${{ matrix.project.ref }}
+          # PACKAGE_NAME=$(basename $PROJECT_REF)
           echo $PACKAGE_NAME
           mv ./test-repo/${{ matrix.project.path }}/compilation_report.json ./compilation_report_$PACKAGE_NAME.json
           # REPORT_CONTENTS=$(cat ./compilation_report_$PACKAGE_NAME.json)
