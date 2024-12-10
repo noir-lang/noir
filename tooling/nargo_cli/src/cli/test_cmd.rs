@@ -210,6 +210,7 @@ impl<'a> TestRunner<'a> {
                 // How many tests are left to receive for this package
                 let mut remaining_test_count = *test_count;
 
+                // Check if we have buffered test results for this package
                 if let Some(buffered_tests) = buffer.remove(package_name) {
                     remaining_test_count -= buffered_tests.len();
 
@@ -222,6 +223,7 @@ impl<'a> TestRunner<'a> {
 
                 if remaining_test_count > 0 {
                     while let Ok((test_name, test_package_name, test_status)) = receiver.recv() {
+                        // This is a test result from a different package: buffer it.
                         if &test_package_name != package_name {
                             buffer
                                 .entry(test_package_name)
@@ -249,12 +251,12 @@ impl<'a> TestRunner<'a> {
         test_reports
     }
 
-    /// Compiles all packages in parallel and gathers their tests
+    /// Compiles all packages in parallel and returns their tests
     fn collect_packages_tests(&'a self) -> HashMap<String, Result<Vec<Test<'a>>, CliError>> {
         let mut package_tests = HashMap::new();
 
         let (sender, receiver) = mpsc::channel();
-        let packages_iter = &Mutex::new(self.workspace.into_iter());
+        let iter = &Mutex::new(self.workspace.into_iter());
 
         thread::scope(|scope| {
             // Start worker threads
@@ -266,8 +268,8 @@ impl<'a> TestRunner<'a> {
                     // (the default is 2MB)
                     .stack_size(STACK_SIZE)
                     .spawn_scoped(scope, move || loop {
-                        // Get next test to process from the iterator.
-                        let Some(package) = packages_iter.lock().unwrap().next() else {
+                        // Get next package to process from the iterator.
+                        let Some(package) = iter.lock().unwrap().next() else {
                             break;
                         };
                         let tests = self.collect_package_tests::<Bn254BlackBoxSolver>(
@@ -292,7 +294,7 @@ impl<'a> TestRunner<'a> {
         package_tests
     }
 
-    /// Compiles a single package and gathers all of its tests
+    /// Compiles a single package and returns all of its tests
     fn collect_package_tests<S: BlackBoxFunctionSolver<FieldElement> + Default>(
         &'a self,
         package: &'a Package,
@@ -325,6 +327,7 @@ impl<'a> TestRunner<'a> {
         Ok(tests)
     }
 
+    /// Compiles a single package and returns all of its test names
     fn get_tests_in_package(&'a self, package: &'a Package) -> Result<Vec<String>, CliError> {
         let (mut context, crate_id) =
             prepare_package(self.file_manager, self.parsed_files, package);
@@ -337,6 +340,7 @@ impl<'a> TestRunner<'a> {
             .collect())
     }
 
+    /// Runs a single test and returns its status
     fn run_test<S: BlackBoxFunctionSolver<FieldElement> + Default>(
         &'a self,
         package: &Package,
@@ -371,6 +375,7 @@ impl<'a> TestRunner<'a> {
         )
     }
 
+    /// Display the status of a single test
     fn display_test_status(
         &'a self,
         test_name: &'a String,
@@ -417,6 +422,7 @@ impl<'a> TestRunner<'a> {
     }
 }
 
+/// Display a report for all tests in a package
 fn display_test_report(
     package_name: &String,
     test_report: &[(String, TestStatus)],
