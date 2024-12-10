@@ -12,7 +12,7 @@ use clap::Args;
 use fm::FileManager;
 use nargo::{
     insert_all_files_for_workspace_into_file_manager, ops::TestStatus, package::Package, parse_all,
-    prepare_package, workspace::Workspace,
+    prepare_package, workspace::Workspace, PrintOutput,
 };
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml};
 use noirc_driver::{check_crate, CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
@@ -56,7 +56,7 @@ pub(crate) struct TestCommand {
 struct Test<'a> {
     name: String,
     package_name: String,
-    runner: Box<dyn FnOnce() -> TestStatus + Send + 'a>,
+    runner: Box<dyn FnOnce() -> (TestStatus, String) + Send + 'a>,
 }
 
 const STACK_SIZE: usize = 4 * 1024 * 1024;
@@ -193,7 +193,7 @@ impl<'a> TestRunner<'a> {
 
             // We'll go package by package, but we might get test results from packages ahead of us.
             // We'll buffer those here and show them all at once when we get to those packages.
-            let mut buffer: HashMap<String, Vec<(String, TestStatus)>> = HashMap::new();
+            let mut buffer: HashMap<String, Vec<(String, TestStatus, String)>> = HashMap::new();
             for (package_name, test_count) in test_count_per_package {
                 let mut test_report = Vec::new();
 
@@ -204,26 +204,34 @@ impl<'a> TestRunner<'a> {
                 if let Some(buffered_tests) = buffer.remove(package_name) {
                     remaining_test_count -= buffered_tests.len();
 
-                    for (test_name, test_status) in buffered_tests {
-                        self.display_test_status(&test_name, package_name, &test_status)
+                    for (test_name, test_status, output) in buffered_tests {
+                        self.display_test_status(&test_name, package_name, &test_status, output)
                             .expect("Could not display test status");
                         test_report.push((test_name, test_status));
                     }
                 }
 
                 if remaining_test_count > 0 {
-                    while let Ok((test_name, test_package_name, test_status)) = receiver.recv() {
+                    while let Ok((test_name, test_package_name, (test_status, output))) =
+                        receiver.recv()
+                    {
                         // This is a test result from a different package: buffer it.
                         if &test_package_name != package_name {
-                            buffer
-                                .entry(test_package_name)
-                                .or_default()
-                                .push((test_name, test_status));
+                            buffer.entry(test_package_name).or_default().push((
+                                test_name,
+                                test_status,
+                                output,
+                            ));
                             continue;
                         }
 
-                        self.display_test_status(&test_name, &test_package_name, &test_status)
-                            .expect("Could not display test status");
+                        self.display_test_status(
+                            &test_name,
+                            &test_package_name,
+                            &test_status,
+                            output,
+                        )
+                        .expect("Could not display test status");
                         test_report.push((test_name, test_status));
                         remaining_test_count -= 1;
                         if remaining_test_count == 0 {
@@ -330,7 +338,8 @@ impl<'a> TestRunner<'a> {
             .collect())
     }
 
-    /// Runs a single test and returns its status
+    /// Runs a single test and returns its status together with whatever was printed to stdout
+    /// during the test.
     fn run_test<S: BlackBoxFunctionSolver<FieldElement> + Default>(
         &'a self,
         package: &Package,
@@ -338,7 +347,7 @@ impl<'a> TestRunner<'a> {
         foreign_call_resolver_url: Option<&str>,
         root_path: Option<PathBuf>,
         package_name: String,
-    ) -> TestStatus {
+    ) -> (TestStatus, String) {
         // This is really hacky but we can't share `Context` or `S` across threads.
         // We then need to construct a separate copy for each test.
 
@@ -352,17 +361,19 @@ impl<'a> TestRunner<'a> {
         let (_, test_function) = test_functions.first().expect("Test function should exist");
 
         let blackbox_solver = S::default();
+        let mut output_string = String::new();
 
-        nargo::ops::run_test(
+        let test_status = nargo::ops::run_test(
             &blackbox_solver,
             &mut context,
             test_function,
-            self.args.show_output,
+            PrintOutput::String(&mut output_string),
             foreign_call_resolver_url,
             root_path,
             Some(package_name),
             &self.args.compile_options,
-        )
+        );
+        (test_status, output_string)
     }
 
     /// Display the status of a single test
@@ -371,6 +382,7 @@ impl<'a> TestRunner<'a> {
         test_name: &'a String,
         package_name: &'a String,
         test_status: &'a TestStatus,
+        output: String,
     ) -> std::io::Result<()> {
         let writer = StandardStream::stderr(ColorChoice::Always);
         let mut writer = writer.lock();
@@ -408,7 +420,13 @@ impl<'a> TestRunner<'a> {
                 );
             }
         }
-        writer.reset()
+        writer.reset()?;
+
+        if self.args.show_output {
+            write!(writer, "{output}")
+        } else {
+            Ok(())
+        }
     }
 }
 
