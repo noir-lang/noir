@@ -7,17 +7,18 @@ base_path="$current_dir/execution_success"
 # Tests to be profiled for compilation report
 tests_to_profile=("sha256_regression" "regression_4709" "ram_blowup_regression")
 
+echo "{\"compilation_reports\": [ " > $current_dir/compilation_report.json
+
 # If there is an argument that means we want to re-use an already existing compilation report
 # rather than generating a new one.
 # When reusing a report, the script can only profile one additional test at the moment.
 if [ "$#" -eq 0 ]; then
-  echo "{\"compilation_reports\": [ " > $current_dir/compilation_report.json
-
+  # echo "{\"compilation_reports\": [ " > $current_dir/compilation_report.json
 else 
   # Delete last two lines so that we can re-use the previous report 
-  sed -i '${/^$/d;}' compilation_report.json | sed -i '$d' compilation_report.json | sed -i '$d' compilation_report.json
+  # sed -i '${/^$/d;}' compilation_report.json | sed -i '$d' compilation_report.json | sed -i '$d' compilation_report.json
 
-  echo "}, " >> compilation_report.json
+  # echo "}, " >> compilation_report.json
 
   # The additional report is expected to be in the current directory
   base_path="$current_dir"
@@ -36,26 +37,7 @@ for dir in ${tests_to_profile[@]}; do
       continue
     fi
 
-    cd $base_path/$dir
-
     echo $base_path/$dir
-
-    cat Nargo.toml
-
-    # NAME_LINE=$({ grep -oE 'name\s*=\s*"([^"]+)"' Nargo.toml || true })
-    # echo $NAME_LINE
-
-    # PACKAGE_NAME=$(grep -oE 'name\s*=\s*"([^"]+)"' $base_path/$dir/Nargo.toml | sed 's/name\s*=\s*"//;s/"//' || true)
-    # echo $PACKAGE_NAME
-
-    # head -n 1 Nargo.toml | grep -q "[workspace]"
-    # if [ $? -eq 0 ] && [ "$#" -ne 0 ]; then
-    #     echo "here"
-    #     PACKAGE_NAME=$(basename $current_dir)
-    # else 
-    #     echo "no here"
-    #     PACKAGE_NAME=$dir
-    # fi
 
     PACKAGE_NAME=$dir
     if [ "$#" -ne 0 ]; then
@@ -66,6 +48,7 @@ for dir in ${tests_to_profile[@]}; do
 
     COMPILE_TIME=$((time nargo compile --force) 2>&1 | grep real | grep -oE '[0-9]+m[0-9]+.[0-9]+s')
     echo -e " {\n    \"artifact_name\":\"$PACKAGE_NAME\",\n    \"time\":\"$COMPILE_TIME\"" >> $current_dir/compilation_report.json
+    
     if (($ITER == $NUM_ARTIFACTS)); then
         echo "}" >> $current_dir/compilation_report.json
     else 

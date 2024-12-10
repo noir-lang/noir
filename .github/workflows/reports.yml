@@ -290,7 +290,7 @@ jobs:
         include:
           - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/aztec-nr }
           - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-contracts }
-          # - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/parity-lib }
+          - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/parity-lib }
           # - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/private-kernel-lib }
           # - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/reset-kernel-lib }
           # - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/rollup-lib }
@@ -325,11 +325,11 @@ jobs:
           name: compilation_report_script
           path: ./test-repo/${{ matrix.project.path }}
 
-      - name: Download compilation report
-        uses: actions/download-artifact@v4
-        with:
-          name: in_progress_compilation_report
-          path: ./test-repo/${{ matrix.project.path }}
+      # - name: Download compilation report
+      #   uses: actions/download-artifact@v4
+      #   with:
+      #     name: in_progress_compilation_report
+      #     path: ./test-repo/${{ matrix.project.path }}
 
       - name: Generate compilation report
         working-directory: ./test-repo/${{ matrix.project.path }}
@@ -339,15 +339,20 @@ jobs:
           cat compilation_report.json
 
       - name: Move compilation report
-        run: mv ./test-repo/${{ matrix.project.path }}/compilation_report.json ./compilation_report.json
+        run: |
+          mv ./test-repo/${{ matrix.project.path }}/compilation_report.json ./compilation_report.json
+          echo "compilation_report_${{ matrix.project.repo }}=./compilation_report.json" >> $GITHUB_OUTPUT
 
-      - name: Upload compilation report
-        uses: actions/upload-artifact@v4
-        with:
-          name: in_progress_compilation_report
-          path: compilation_report.json
-          retention-days: 3
-          overwrite: true
+      # - name: Upload compilation report
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: in_progress_compilation_report
+      #     path: compilation_report.json
+      #     retention-days: 3
+      #     overwrite: true
+    
+    outputs:
+      compilation_reports: ${{ steps.set_report_output.outputs.compilation_reports }}
 
   upload_compilation_report:
     name: Upload compilation report 
@@ -363,6 +368,25 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: in_progress_compilation_report
+
+      - name: Aggregate compilation reports using jq
+        run: |
+          echo "Merging reports"   
+                 
+          combined_reports="[]"
+
+          # Iterate over each report and merge the 'compilation_reports' array
+          for report in ${{ needs.external_repo_compilation_report.outputs.compilation_reports }}; do
+            # Extract the 'compilation_reports' array from each report and merge it
+            combined_reports=$(jq '[.compilation_reports[]] + '"$combined_reports" <<< "$(cat "$report")")
+          done
+
+          combined_reports=$(jq '[.compilation_reports[]] + '"$combined_reports" <<< "$(cat ./compilation_report.json)")
+
+          # Wrap the merged compilation reports into a new object as to keep the 'compilation_reports' key
+          final_report="{\"compilation_reports\": $combined_reports}"
+
+          echo "$final_report" > compilation_report.json
 
       - name: Parse compilation report
         id: compilation_report
