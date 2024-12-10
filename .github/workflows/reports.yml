@@ -339,6 +339,7 @@ jobs:
           cat compilation_report.json
 
       - name: Move compilation report
+        id: report
         run: |
           mv ./test-repo/${{ matrix.project.path }}/compilation_report.json ./compilation_report.json
           echo "compilation_report_${{ matrix.project.repo }}=./compilation_report.json" >> $GITHUB_OUTPUT
@@ -352,7 +353,7 @@ jobs:
       #     overwrite: true
     
     outputs:
-      compilation_reports: ${{ steps.set_report_output.outputs.compilation_reports }}
+      compilation_reports: ${{ steps.report.outputs.compilation_reports }}
 
   upload_compilation_report:
     name: Upload compilation report 
@@ -380,6 +381,8 @@ jobs:
             # Extract the 'compilation_reports' array from each report and merge it
             combined_reports=$(jq '[.compilation_reports[]] + '"$combined_reports" <<< "$(cat "$report")")
           done
+
+          echo $combined_reports
 
           combined_reports=$(jq '[.compilation_reports[]] + '"$combined_reports" <<< "$(cat ./compilation_report.json)")
 
