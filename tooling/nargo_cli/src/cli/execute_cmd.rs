@@ -67,6 +67,7 @@ pub(crate) fn run(args: ExecuteCommand, config: NargoConfig) -> Result<(), CliEr
         let program_artifact_path = workspace.package_build_path(package);
         let program: CompiledProgram =
             read_program_from_file(program_artifact_path.clone())?.into();
+        let abi = program.abi.clone();
 
         let results = execute_program_and_decode(
             program,
@@ -91,6 +92,14 @@ pub(crate) fn run(args: ExecuteCommand, config: NargoConfig) -> Result<(), CliEr
         if let Some(expected) = results.expected_return {
             if args.check_return && results.actual_return.as_ref() != Some(&expected) {
                 return Err(CliError::UnexpectedReturn { expected, actual: results.actual_return });
+            }
+        }
+        // Abi::decode returns None if the WitnessMap is empty in places corresponding to the return,
+        // positing that the caller should decide whether a result should be present.
+        // Arguably at the end of circuit execution it should be.
+        if let Some(ref expected) = abi.return_type {
+            if results.actual_return.is_none() {
+                return Err(CliError::MissingReturn { expected: expected.clone() });
             }
         }
     }
