@@ -333,17 +333,18 @@ jobs:
           path: ./test-repo/${{ matrix.project.path }}
 
       - name: Generate compilation report
-        working-directory: ./test-repo/${{ matrix.project.path }}
+        # working-directory: ./test-repo/${{ matrix.project.path }}
         run: |
-          chmod +x compilation_report.sh
-          ./compilation_report.sh 1
+          chmod +x ./test-repo/${{ matrix.project.path }}/compilation_report.sh/compilation_report.sh
+          ./test-repo/${{ matrix.project.path }}/compilation_report.sh 1
           echo $PWD
-          
+          mv ./test-repo/${{ matrix.project.path }}/compilation_report.json ./compilation_report.json
+
       - name: Upload compilation report
         uses: actions/upload-artifact@v4
         with:
           name: in_progress_compilation_report
-          path: ./test-repo/${{ matrix.project.path }}/compilation_report.json
+          path: compilation_report.json
           retention-days: 3
           overwrite: true
 
