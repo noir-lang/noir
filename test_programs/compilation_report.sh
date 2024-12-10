@@ -38,7 +38,9 @@ for dir in ${tests_to_profile[@]}; do
 
     cd $base_path/$dir
 
-    PACKAGE_NAME=$(grep -oE 'name\s*=\s*"([^"]+)"' Nargo.toml | sed 's/name\s*=\s*"//;s/"//')
+    echo $base_path/$dir
+
+    PACKAGE_NAME=$(grep -oE 'name\s*=\s*"([^"]+)"' ./Nargo.toml | sed 's/name\s*=\s*"//;s/"//')
     
     echo $PACKAGE_NAME
 
