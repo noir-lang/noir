@@ -341,7 +341,8 @@ jobs:
       - name: Move compilation report
         id: report
         run: |
-          PACKAGE_NAME=$(basename ${{ matrix.project.path }})
+          PATH=${{ matrix.project.path }}
+          PACKAGE_NAME=$(basename $PATH)
           mv ./test-repo/${{ matrix.project.path }}/compilation_report.json ./compilation_report_$PACKAGE_NAME.json
           REPORT_CONTENTS=$(cat ./compilation_report_$PACKAGE_NAME.json)
           echo "compilation_reports=$REPORT_CONTENTS" >> $GITHUB_OUTPUT
