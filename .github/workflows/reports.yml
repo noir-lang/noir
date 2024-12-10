@@ -294,26 +294,27 @@ jobs:
       - name: Test run
         run: |
           echo $PWD
-#       # - name: Checkout
-#       #   uses: actions/checkout@v4
-#       #   with:
-#       #     repository: ${{ matrix.project.repo }}
-#       #     path: test-repo
-#       #     ref: ${{ matrix.project.ref }}
 
-#       - name: Download nargo binary
-#         uses: actions/download-artifact@v4
-#         with:
-#           name: nargo
-#           path: ./nargo
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ matrix.project.repo }}
+          path: test-repo
+          ref: ${{ matrix.project.ref }}
 
-      # - name: Set nargo on PATH
-      #   run: |
-      #     nargo_binary="${{ github.workspace }}/nargo/nargo"
-      #     chmod +x $nargo_binary
-      #     echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
-      #     export PATH="$PATH:$(dirname $nargo_binary)"
-      #     nargo -V
+      - name: Download nargo binary
+        uses: actions/download-artifact@v4
+        with:
+          name: nargo
+          path: ./nargo
+
+      - name: Set nargo on PATH
+        run: |
+          nargo_binary="${{ github.workspace }}/nargo/nargo"
+          chmod +x $nargo_binary
+          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
+          export PATH="$PATH:$(dirname $nargo_binary)"
+          nargo -V
 
       # - name: Download compilation report
       #   uses: actions/download-artifact@v4
