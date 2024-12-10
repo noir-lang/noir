@@ -335,6 +335,7 @@ jobs:
       - name: Generate compilation report
         working-directory: ./test-repo/${{ matrix.project.path }}
         run: |
+          chmod +x compilation_report.sh
           ./compilation_report.sh 1
           echo $PWD
           cd ~
