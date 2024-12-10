@@ -288,13 +288,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/aztec-nr }
           - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-contracts }
-          # - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/parity-lib }
-          # - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/private-kernel-lib }
-          # - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/reset-kernel-lib }
-          # - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/rollup-lib }
-          # - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/types }
+          - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/private-kernel-inner }
+          # - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/rollup-base-private }
+          # - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/rollup-base-public }
 
     name: External repo compilation report - ${{ matrix.project.repo }}  
     steps:
@@ -393,7 +390,7 @@ jobs:
           for report in ./reports/*; do
             echo $report
             # Extract the 'compilation_reports' array from each report and merge it
-            combined_reports=$(jq '[.compilation_reports[]] + '"$combined_reports" <<< "$(cat "./reports/$report")")
+            combined_reports=$(jq '[.compilation_reports[]] + '"$combined_reports" <<< "$(cat "$report")")
           done
 
           echo $combined_reports
