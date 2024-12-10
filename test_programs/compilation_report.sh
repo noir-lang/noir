@@ -5,7 +5,6 @@ current_dir=$(pwd)
 base_path="$current_dir/execution_success"
 
 # Tests to be profiled for compilation report
-# tests_to_profile=("sha256_regression" "regression_4709" "ram_blowup_regression")
 tests_to_profile=("sha256_regression" "regression_4709" "ram_blowup_regression")
 
 # If there is an argument that means we want to re-use an already existing compilation report
@@ -16,7 +15,7 @@ if [ "$#" -eq 0 ]; then
 
 else 
   # Delete last two lines so that we can re-use the previous report 
-  sed -i '$d' compilation_report.json | sed -i '$d' compilation_report.json
+  sed -i '$d' $current_dir/compilation_report.json | sed -i '$d' c$current_dir/compilation_report.json
 
   echo "}, " >> $current_dir/compilation_report.json
 
@@ -40,6 +39,8 @@ for dir in ${tests_to_profile[@]}; do
     cd $base_path/$dir
 
     PACKAGE_NAME=$(grep -oP 'name\s*=\s*"\K[^"]+' Nargo.toml)
+
+    echo $PACKAGE_NAME
 
     COMPILE_TIME=$((time nargo compile --force) 2>&1 | grep real | grep -oE '[0-9]+m[0-9]+.[0-9]+s')
     echo -e " {\n    \"artifact_name\":\"$PACKAGE_NAME\",\n    \"time\":\"$COMPILE_TIME\"" >> $current_dir/compilation_report.json
