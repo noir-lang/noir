@@ -58,8 +58,14 @@ pub(crate) fn with_interpreter<T>(
 
     let main = context.get_main_function(&krate).expect("Expected 'main' function");
 
-    let mut elaborator =
-        Elaborator::elaborate_and_return_self(&mut context, krate, collector.items, None);
+    let pedantic_solving = true;
+    let mut elaborator = Elaborator::elaborate_and_return_self(
+        &mut context,
+        krate,
+        collector.items,
+        None,
+        pedantic_solving,
+    );
 
     let errors = elaborator.errors.clone();
 

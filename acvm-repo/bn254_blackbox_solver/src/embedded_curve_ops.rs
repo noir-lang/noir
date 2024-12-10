@@ -1,5 +1,6 @@
 // TODO(https://github.com/noir-lang/noir/issues/4932): rename this file to something more generic
 use ark_ec::AffineRepr;
+use ark_ff::MontConfig;
 use num_bigint::BigUint;
 
 use crate::FieldElement;
@@ -13,6 +14,7 @@ pub fn multi_scalar_mul(
     points: &[FieldElement],
     scalars_lo: &[FieldElement],
     scalars_hi: &[FieldElement],
+    pedantic_solving: bool,
 ) -> Result<(FieldElement, FieldElement, FieldElement), BlackBoxResolutionError> {
     if points.len() != 3 * scalars_lo.len() || scalars_lo.len() != scalars_hi.len() {
         return Err(BlackBoxResolutionError::Failed(
@@ -48,12 +50,12 @@ pub fn multi_scalar_mul(
         let grumpkin_integer = BigUint::from_bytes_be(&bytes);
 
         // Check if this is smaller than the grumpkin modulus
-        // if grumpkin_integer >= grumpkin::FrConfig::MODULUS.into() {
-        //     return Err(BlackBoxResolutionError::Failed(
-        //         BlackBoxFunc::MultiScalarMul,
-        //         format!("{} is not a valid grumpkin scalar", grumpkin_integer.to_str_radix(16)),
-        //     ));
-        // }
+        if pedantic_solving && grumpkin_integer >= grumpkin::FrConfig::MODULUS.into() {
+            return Err(BlackBoxResolutionError::Failed(
+                BlackBoxFunc::MultiScalarMul,
+                format!("{} is not a valid grumpkin scalar", grumpkin_integer.to_str_radix(16)),
+            ));
+        }
 
         let iteration_output_point =
             grumpkin::SWAffine::from(point.mul_bigint(grumpkin_integer.to_u64_digits()));
@@ -75,11 +77,24 @@ pub fn multi_scalar_mul(
 pub fn embedded_curve_add(
     input1: [FieldElement; 3],
     input2: [FieldElement; 3],
+    pedantic_solving: bool,
 ) -> Result<(FieldElement, FieldElement, FieldElement), BlackBoxResolutionError> {
     let point1 = create_point(input1[0], input1[1], input1[2] == FieldElement::one())
         .map_err(|e| BlackBoxResolutionError::Failed(BlackBoxFunc::EmbeddedCurveAdd, e))?;
     let point2 = create_point(input2[0], input2[1], input2[2] == FieldElement::one())
         .map_err(|e| BlackBoxResolutionError::Failed(BlackBoxFunc::EmbeddedCurveAdd, e))?;
+
+    if pedantic_solving {
+        for point in [point1, point2] {
+            if point.to_flags().is_infinity() {
+                return Err(BlackBoxResolutionError::Failed(
+                    BlackBoxFunc::EmbeddedCurveAdd,
+                    format!("Infinite point input: {}", point),
+                ));
+            }
+        }
+    }
+
     let res = grumpkin::SWAffine::from(point1 + point2);
     if let Some((res_x, res_y)) = res.xy() {
         Ok((
@@ -103,7 +118,11 @@ fn create_point(
     is_infinite: bool,
 ) -> Result<grumpkin::SWAffine, String> {
     if is_infinite {
+        // TODO: only error when pedantic?
+
         return Ok(grumpkin::SWAffine::zero());
+        // panic!("infinite input to EC operation")
+        // return Err(format!("Attempt to use infinite point in EC operation ({}, {})", x.to_hex(), y.to_hex()));
     }
     let point = grumpkin::SWAffine::new_unchecked(x.into_repr(), y.into_repr());
     if !point.is_on_curve() {
@@ -117,6 +136,7 @@ fn create_point(
 
 #[cfg(test)]
 mod tests {
+    use ark_ff::BigInteger;
     use super::*;
 
     fn get_generator() -> [FieldElement; 3] {
@@ -131,7 +151,8 @@ mod tests {
         // We check that multiplying 1 by generator results in the generator
         let generator = get_generator();
 
-        let res = multi_scalar_mul(&generator, &[FieldElement::one()], &[FieldElement::zero()])?;
+        let pedantic_solving = true;
+        let res = multi_scalar_mul(&generator, &[FieldElement::one()], &[FieldElement::zero()], pedantic_solving)?;
 
         assert_eq!(generator[0], res.0);
         assert_eq!(generator[1], res.1);
@@ -144,7 +165,8 @@ mod tests {
         let scalars_lo = [FieldElement::one()];
         let scalars_hi = [FieldElement::from(2u128)];
 
-        let res = multi_scalar_mul(&points, &scalars_lo, &scalars_hi)?;
+        let pedantic_solving = true;
+        let res = multi_scalar_mul(&points, &scalars_lo, &scalars_hi, pedantic_solving)?;
         let x = "0702ab9c7038eeecc179b4f209991bcb68c7cb05bf4c532d804ccac36199c9a9";
         let y = "23f10e9e43a3ae8d75d24154e796aae12ae7af546716e8f81a2564f1b5814130";
 
@@ -165,30 +187,32 @@ mod tests {
             "Limb 0000000000000000000000000000000100000000000000000000000000000000 is not less than 2^128".into(),
         ));
 
-        let res = multi_scalar_mul(&points, &[FieldElement::one()], &[invalid_limb]);
+        let pedantic_solving = true;
+        let res = multi_scalar_mul(&points, &[FieldElement::one()], &[invalid_limb], pedantic_solving);
         assert_eq!(res, expected_error);
 
-        let res = multi_scalar_mul(&points, &[invalid_limb], &[FieldElement::one()]);
+        let res = multi_scalar_mul(&points, &[invalid_limb], &[FieldElement::one()], pedantic_solving);
         assert_eq!(res, expected_error);
     }
 
-    // #[test]
-    // fn rejects_grumpkin_modulus() {
-    //     let x = grumpkin::FrConfig::MODULUS.to_bytes_be();
+    #[test]
+    fn rejects_grumpkin_modulus_when_pedantic() {
+        let x = grumpkin::FrConfig::MODULUS.to_bytes_be();
 
-    //     let low = FieldElement::from_be_bytes_reduce(&x[16..32]);
-    //     let high = FieldElement::from_be_bytes_reduce(&x[0..16]);
+        let low = FieldElement::from_be_bytes_reduce(&x[16..32]);
+        let high = FieldElement::from_be_bytes_reduce(&x[0..16]);
 
-    //     let res = multi_scalar_mul(&get_generator(), &[low], &[high]);
+        let pedantic_solving = true;
+        let res = multi_scalar_mul(&get_generator(), &[low], &[high], pedantic_solving);
 
-    //     assert_eq!(
-    //         res,
-    //         Err(BlackBoxResolutionError::Failed(
-    //             BlackBoxFunc::MultiScalarMul,
-    //             "30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47 is not a valid grumpkin scalar".into(),
-    //         ))
-    //     );
-    // }
+        assert_eq!(
+            res,
+            Err(BlackBoxResolutionError::Failed(
+                BlackBoxFunc::MultiScalarMul,
+                "30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47 is not a valid grumpkin scalar".into(),
+            ))
+        );
+    }
 
     #[test]
     fn rejects_invalid_point() {
@@ -197,10 +221,12 @@ mod tests {
         let valid_scalar_low = FieldElement::zero();
         let valid_scalar_high = FieldElement::zero();
 
+        let pedantic_solving = true;
         let res = multi_scalar_mul(
             &[invalid_point_x, invalid_point_y, FieldElement::zero()],
             &[valid_scalar_low],
             &[valid_scalar_high],
+            pedantic_solving,
         );
 
         assert_eq!(
@@ -218,7 +244,8 @@ mod tests {
         let scalars_lo = [FieldElement::from(2u128)];
         let scalars_hi = [];
 
-        let res = multi_scalar_mul(&points, &scalars_lo, &scalars_hi);
+        let pedantic_solving = true;
+        let res = multi_scalar_mul(&points, &scalars_lo, &scalars_hi, pedantic_solving);
 
         assert_eq!(
             res,
@@ -234,9 +261,11 @@ mod tests {
         let x = FieldElement::from(1u128);
         let y = FieldElement::from(2u128);
 
+        let pedantic_solving = true;
         let res = embedded_curve_add(
             [x, y, FieldElement::from(0u128)],
             [x, y, FieldElement::from(0u128)],
+            pedantic_solving,
         );
 
         assert_eq!(
@@ -249,15 +278,38 @@ mod tests {
     }
 
     #[test]
+    fn rejects_addition_of_infinite_points_when_pedantic() {
+        let x = FieldElement::from(1u128);
+        let y = FieldElement::from(1u128);
+
+        let pedantic_solving = true;
+        let res = embedded_curve_add(
+            [x, y, FieldElement::from(1u128)],
+            [x, y, FieldElement::from(1u128)],
+            pedantic_solving,
+        );
+
+        assert_eq!(
+            res,
+            Err(BlackBoxResolutionError::Failed(
+                BlackBoxFunc::EmbeddedCurveAdd,
+                "Infinite point input: infinity".into(),
+            ))
+        );
+    }
+
+    #[test]
     fn output_of_msm_matches_add() -> Result<(), BlackBoxResolutionError> {
         let points = get_generator();
         let scalars_lo = [FieldElement::from(2u128)];
         let scalars_hi = [FieldElement::zero()];
 
-        let msm_res = multi_scalar_mul(&points, &scalars_lo, &scalars_hi)?;
+        let pedantic_solving = true;
+        let msm_res = multi_scalar_mul(&points, &scalars_lo, &scalars_hi, pedantic_solving)?;
         let add_res = embedded_curve_add(
             [points[0], points[1], FieldElement::from(0u128)],
             [points[0], points[1], FieldElement::from(0u128)],
+            pedantic_solving,
         )?;
 
         assert_eq!(msm_res.0, add_res.0);

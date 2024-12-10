@@ -76,9 +76,15 @@ pub(crate) fn solve<F: AcirField>(
         BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, outputs } => {
             solve_aes128_encryption_opcode(initial_witness, inputs, iv, key, outputs)
         }
-        BlackBoxFuncCall::AND { lhs, rhs, output } => and(initial_witness, lhs, rhs, output),
-        BlackBoxFuncCall::XOR { lhs, rhs, output } => xor(initial_witness, lhs, rhs, output),
-        BlackBoxFuncCall::RANGE { input } => solve_range_opcode(initial_witness, input),
+        BlackBoxFuncCall::AND { lhs, rhs, output } => {
+            and(initial_witness, lhs, rhs, output, backend.pedantic_solving())
+        }
+        BlackBoxFuncCall::XOR { lhs, rhs, output } => {
+            xor(initial_witness, lhs, rhs, output, backend.pedantic_solving())
+        }
+        BlackBoxFuncCall::RANGE { input } => {
+            solve_range_opcode(initial_witness, input, backend.pedantic_solving())
+        }
         BlackBoxFuncCall::Blake2s { inputs, outputs } => {
             solve_generic_256_hash_opcode(initial_witness, inputs, None, outputs, blake2s)
         }
