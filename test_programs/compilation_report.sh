@@ -39,7 +39,7 @@ for dir in ${tests_to_profile[@]}; do
 
     cd $base_path/$dir
 
-    PACKAGE_NAME=grep -oP 'name\s*=\s*"\K[^"]+' Nargo.toml
+    PACKAGE_NAME=$(grep -oP 'name\s*=\s*"\K[^"]+' Nargo.toml)
 
     COMPILE_TIME=$((time nargo compile --force) 2>&1 | grep real | grep -oE '[0-9]+m[0-9]+.[0-9]+s')
     echo -e " {\n    \"artifact_name\":\"$PACKAGE_NAME\",\n    \"time\":\"$COMPILE_TIME\"" >> $current_dir/compilation_report.json
