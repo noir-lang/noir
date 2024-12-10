@@ -9,7 +9,7 @@ use noirc_frontend::{hir::def_map::parse_file, parser::ParserError};
 
 use crate::errors::CliError;
 
-use super::NargoConfig;
+use super::{NargoConfig, PackageOptions};
 
 /// Format the Noir files in a workspace
 #[derive(Debug, Clone, Args)]
@@ -17,15 +17,22 @@ pub(crate) struct FormatCommand {
     /// Run noirfmt in check mode
     #[arg(long)]
     check: bool,
+
+    #[clap(flatten)]
+    pub(super) package_options: PackageOptions,
 }
 
 pub(crate) fn run(args: FormatCommand, config: NargoConfig) -> Result<(), CliError> {
     let check_mode = args.check;
 
     let toml_path = get_package_manifest(&config.program_dir)?;
+    let selection = match args.package_options.package_selection() {
+        PackageSelection::DefaultOrAll => PackageSelection::All,
+        other => other,
+    };
     let workspace = resolve_workspace_from_toml(
         &toml_path,
-        PackageSelection::All,
+        selection,
         Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
     )?;
 

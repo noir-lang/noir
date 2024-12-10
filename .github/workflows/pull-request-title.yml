@@ -15,7 +15,7 @@ permissions:
 jobs:
   conventional-title:
     name: Validate PR title is Conventional Commit
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Check title
         if: github.event_name == 'pull_request_target'
@@ -30,7 +30,7 @@ jobs:
 
   force-push-comment:
     name: Warn external contributors about force-pushing
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     if: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name != 'noir-lang/noir' }} 
     permissions:
       pull-requests: write
