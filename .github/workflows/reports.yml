@@ -319,8 +319,7 @@ jobs:
       - name: Move compilation report
         run: |
           echo $(ls ./)
-          echo $(ls ./test_programs)
-          mv ./test_programs/compilation_report.sh ./test-repo/${{ matrix.project.path }}/compilation_report.sh
+          mv ./compilation_report.sh ./test-repo/${{ matrix.project.path }}/compilation_report.sh
 
       - name: Generate compilation report
         working-directory: ./test-repo/${{ matrix.project.path }}
