@@ -273,7 +273,7 @@ jobs:
           overwrite: true
 
   external_repo_compilation_report:
-    needs: [generate_compilation_report]
+    needs: [build-nargo]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -343,7 +343,7 @@ jobs:
 
   upload_compilation_report:
     name: Upload compilation report 
-    needs: [external_repo_compilation_report]
+    needs: [generate_compilation_report, external_repo_compilation_report]
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
