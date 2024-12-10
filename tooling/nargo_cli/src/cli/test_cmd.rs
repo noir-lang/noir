@@ -98,7 +98,7 @@ pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError
         None => FunctionNameMatch::Anything,
     };
 
-    let num_threads = args.test_threads.unwrap_or_else(rayon::max_num_threads);
+    let num_threads = args.test_threads.unwrap_or_else(rayon::current_num_threads);
 
     // First compile all packages and collect their tests
     let mut package_tests = collect_packages_tests(
