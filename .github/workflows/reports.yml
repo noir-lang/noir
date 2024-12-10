@@ -335,7 +335,7 @@ jobs:
       - name: Generate compilation report
         # working-directory: ./test-repo/${{ matrix.project.path }}
         run: |
-          chmod +x ./test-repo/${{ matrix.project.path }}/compilation_report.sh/compilation_report.sh
+          chmod +x ./test-repo/${{ matrix.project.path }}/compilation_report.sh
           ./test-repo/${{ matrix.project.path }}/compilation_report.sh 1
           echo $PWD
           mv ./test-repo/${{ matrix.project.path }}/compilation_report.json ./compilation_report.json
