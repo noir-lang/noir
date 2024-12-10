@@ -3,7 +3,6 @@ set -e
 
 current_dir=$(pwd)
 base_path="$current_dir/execution_success"
-test_dirs=$(ls $base_path)
 
 # Tests to be profiled for compilation report
 # tests_to_profile=("sha256_regression" "regression_4709" "ram_blowup_regression")
