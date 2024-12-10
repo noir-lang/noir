@@ -1,7 +1,7 @@
 use clap::{Args, Parser, Subcommand};
 use const_format::formatcp;
-use nargo_toml::find_file_root;
-use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
+use nargo_toml::PackageSelection;
+use noirc_driver::{CrateName, NOIR_ARTIFACT_VERSION_STRING};
 use std::path::PathBuf;
 
 use color_eyre::eyre;
@@ -52,6 +52,37 @@ pub(crate) struct NargoConfig {
     program_dir: PathBuf,
 }
 
+/// Options for commands that work on either workspace or package scope.
+#[derive(Args, Clone, Debug, Default)]
+pub(crate) struct PackageOptions {
+    /// The name of the package to run the command on
+    #[clap(long, conflicts_with = "workspace")]
+    package: Option<CrateName>,
+
+    /// Run on all packages in the workspace
+    #[clap(long, conflicts_with = "package")]
+    workspace: bool,
+}
+
+impl PackageOptions {
+    /// Decide which package to run the command on:
+    /// * `package` if non-empty
+    /// * all packages if `workspace` is `true`
+    /// * otherwise the default package
+    pub(crate) fn package_selection(&self) -> PackageSelection {
+        let default_selection =
+            if self.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
+
+        self.package.clone().map_or(default_selection, PackageSelection::Selected)
+    }
+
+    /// Whether we need to look for the package manifest at the workspace level.
+    /// If a package is specified, it might not be the current package.
+    fn is_workspace_rooted(&self) -> bool {
+        self.workspace || self.package.is_some()
+    }
+}
+
 #[non_exhaustive]
 #[derive(Subcommand, Clone, Debug)]
 enum NargoCommand {
@@ -83,22 +114,8 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
     }
 
     // Search through parent directories to find package root if necessary.
-    match &command {
-        NargoCommand::Check(..)
-        | NargoCommand::Fmt(..)
-        | NargoCommand::Compile(..)
-        | NargoCommand::Execute(..)
-        | NargoCommand::Export(..)
-        | NargoCommand::Debug(..)
-        | NargoCommand::Test(..)
-        | NargoCommand::Info(..) => {
-            config.program_dir = find_file_root(&config.program_dir)?;
-        }
-        NargoCommand::New(..)
-        | NargoCommand::Init(..)
-        | NargoCommand::Lsp(..)
-        | NargoCommand::Dap(..)
-        | NargoCommand::GenerateCompletionScript(..) => (),
+    if let Some(workspace) = is_workspace_rooted(&command) {
+        config.program_dir = nargo_toml::find_root(&config.program_dir, workspace)?;
     }
 
     match command {
@@ -125,6 +142,27 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
     let markdown: String = clap_markdown::help_markdown::<NargoCli>();
     println!("{markdown}");
     Ok(())
+}
+
+/// Some commands have package options, which we use here to decide whether to
+/// alter `--program-dir` to point at a manifest, depending on whether we want
+/// to work on a specific package or the entire workspace.
+fn is_workspace_rooted(cmd: &NargoCommand) -> Option<bool> {
+    match &cmd {
+        NargoCommand::Check(cmd) => Some(cmd.package_options.is_workspace_rooted()),
+        NargoCommand::Compile(cmd) => Some(cmd.package_options.is_workspace_rooted()),
+        NargoCommand::Execute(cmd) => Some(cmd.package_options.is_workspace_rooted()),
+        NargoCommand::Export(cmd) => Some(cmd.package_options.is_workspace_rooted()),
+        NargoCommand::Test(cmd) => Some(cmd.package_options.is_workspace_rooted()),
+        NargoCommand::Info(cmd) => Some(cmd.package_options.is_workspace_rooted()),
+        NargoCommand::Debug(cmd) => Some(cmd.package.is_some()),
+        NargoCommand::Fmt(..) => Some(true),
+        NargoCommand::New(..)
+        | NargoCommand::Init(..)
+        | NargoCommand::Lsp(..)
+        | NargoCommand::Dap(..)
+        | NargoCommand::GenerateCompletionScript(..) => None,
+    }
 }
 
 #[cfg(test)]
