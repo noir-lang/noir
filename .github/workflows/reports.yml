@@ -337,7 +337,6 @@ jobs:
         run: |
           chmod +x ./compilation_report.sh
           ./compilation_report.sh 1
-          echo $PWD
 
       - name: Move compilation report
         run: mv ./test-repo/${{ matrix.project.path }}/compilation_report.json ./compilation_report.json
