@@ -320,7 +320,6 @@ jobs:
         run: |
           chmod +x ./compilation_report.sh
           ./compilation_report.sh 1
-          cat compilation_report.json
 
       - name: Move compilation report
         id: report
@@ -338,9 +337,6 @@ jobs:
           path: compilation_report_${{ steps.report.outputs.compilation_report_name }}.json
           retention-days: 3
           overwrite: true
-    
-    outputs:
-      compilation_reports: ${{ steps.report.outputs.compilation_reports }}
 
   upload_compilation_report:
     name: Upload compilation report 
