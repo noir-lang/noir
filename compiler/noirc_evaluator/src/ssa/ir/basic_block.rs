@@ -2,6 +2,7 @@ use super::{
     dfg::CallStack,
     instruction::{InstructionId, TerminatorInstruction},
     map::Id,
+    types::Type,
     value::ValueId,
 };
 use serde::{Deserialize, Serialize};
@@ -14,8 +15,11 @@ use serde::{Deserialize, Serialize};
 /// block, then all instructions are executed. ie single-entry single-exit.
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
 pub(crate) struct BasicBlock {
-    /// Parameters to the basic block.
+    /// Each parameter of this block
     parameters: Vec<ValueId>,
+
+    /// Types of each parameter to this block
+    parameter_types: Vec<Type>,
 
     /// Instructions in the basic block.
     instructions: Vec<InstructionId>,
@@ -33,13 +37,18 @@ pub(crate) type BasicBlockId = Id<BasicBlock>;
 impl BasicBlock {
     /// Create a new BasicBlock with the given parameters.
     /// Parameters can also be added later via BasicBlock::add_parameter
-    pub(crate) fn new() -> Self {
-        Self { parameters: Vec::new(), instructions: Vec::new(), terminator: None }
+    pub(crate) fn new(parameter_types: Vec<Type>) -> Self {
+        Self { parameter_types, parameters: Vec::new(), instructions: Vec::new(), terminator: None }
     }
 
     /// Returns the parameters of this block
     pub(crate) fn parameters(&self) -> &[ValueId] {
         &self.parameters
+    }
+
+    /// Retrieve the type of the given parameter
+    pub(crate) fn type_of_parameter(&self, parameter_index: usize) -> &Type {
+        &self.parameter_types[parameter_index]
     }
 
     /// Removes all the parameters of this block
@@ -50,8 +59,9 @@ impl BasicBlock {
     /// Adds a parameter to this BasicBlock.
     /// Expects that the ValueId given should refer to a Value::Param
     /// instance with its position equal to self.parameters.len().
-    pub(crate) fn add_parameter(&mut self, parameter: ValueId) {
+    pub(crate) fn add_parameter(&mut self, parameter: ValueId, typ: Type) {
         self.parameters.push(parameter);
+        self.parameter_types.push(typ);
     }
 
     /// Replace this block's current parameters with that of the given Vec.
@@ -152,5 +162,9 @@ impl BasicBlock {
             Some(TerminatorInstruction::Return { .. }) => vec![].into_iter(),
             None => vec![].into_iter(),
         }
+    }
+
+    pub(crate) fn parameter_types(&self) -> &[Type] {
+        &self.parameter_types
     }
 }

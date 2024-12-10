@@ -455,7 +455,7 @@ impl Loop {
         // We insert into a fresh block first and move instructions into the unroll_into block later
         // only once we verify the jmpif instruction has a constant condition. If it does not, we can
         // just discard this fresh block and leave the loop unmodified.
-        let fresh_block = function.dfg.make_block();
+        let fresh_block = function.dfg.make_block(Vec::new());
 
         let mut context = LoopIteration::new(function, self, fresh_block, self.header);
         let source_block = &context.dfg()[context.source_block];
@@ -586,7 +586,7 @@ impl Loop {
         for block in &self.blocks {
             for instruction in function.dfg[*block].instructions() {
                 match &function.dfg[*instruction] {
-                    Instruction::Load { address } if refs.contains(address) => {
+                    Instruction::Load { address, .. } if refs.contains(address) => {
                         loads += 1;
                     }
                     Instruction::Store { address, .. } if refs.contains(address) => {

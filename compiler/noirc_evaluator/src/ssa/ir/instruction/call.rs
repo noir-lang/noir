@@ -35,9 +35,9 @@ mod blackbox;
 pub(super) fn simplify_call(
     func: ValueId,
     arguments: &[ValueId],
+    return_types: &[Type],
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
-    ctrl_typevars: Option<Vec<Type>>,
     call_stack: &CallStack,
 ) -> SimplifyResult {
     let intrinsic = match &dfg[func] {
@@ -45,7 +45,7 @@ pub(super) fn simplify_call(
         _ => return SimplifyResult::None,
     };
 
-    let return_type = ctrl_typevars.and_then(|return_types| return_types.first().cloned());
+    let return_type = return_types.get(0);
 
     let constant_args: Option<Vec<_>> =
         arguments.iter().map(|value_id| dfg.get_numeric_constant(*value_id)).collect();
@@ -346,14 +346,8 @@ pub(super) fn simplify_call(
                 bit_size: target_type.bit_size(),
                 max_bit_size: incoming_type.bit_size(),
             };
-            let truncated_value = dfg
-                .insert_instruction_and_results(
-                    truncate,
-                    block,
-                    Some(vec![incoming_type]),
-                    call_stack.clone(),
-                )
-                .first();
+            let truncated_value =
+                dfg.insert_instruction_and_results(truncate, block, call_stack.clone()).first();
 
             let instruction = Instruction::Cast(truncated_value, target_type);
             SimplifyResult::SimplifiedToInstruction(instruction)
@@ -410,7 +404,7 @@ fn update_slice_length(
     let one = dfg.make_constant(FieldElement::one(), Type::length_type());
     let instruction = Instruction::Binary(Binary { lhs: slice_len, operator, rhs: one });
     let call_stack = dfg.get_value_call_stack(slice_len);
-    dfg.insert_instruction_and_results(instruction, block, None, call_stack).first()
+    dfg.insert_instruction_and_results(instruction, block, call_stack).first()
 }
 
 fn simplify_slice_push_back(
@@ -426,16 +420,11 @@ fn simplify_slice_push_back(
     let len_equals_capacity_instr =
         Instruction::Binary(Binary { lhs: arguments[0], operator: BinaryOp::Eq, rhs: capacity });
     let len_equals_capacity = dfg
-        .insert_instruction_and_results(len_equals_capacity_instr, block, None, call_stack.clone())
+        .insert_instruction_and_results(len_equals_capacity_instr, block, call_stack.clone())
         .first();
     let len_not_equals_capacity_instr = Instruction::Not(len_equals_capacity);
     let len_not_equals_capacity = dfg
-        .insert_instruction_and_results(
-            len_not_equals_capacity_instr,
-            block,
-            None,
-            call_stack.clone(),
-        )
+        .insert_instruction_and_results(len_not_equals_capacity_instr, block, call_stack.clone())
         .first();
 
     let new_slice_length = update_slice_length(arguments[0], dfg, BinaryOp::Add, block);
@@ -455,7 +444,7 @@ fn simplify_slice_push_back(
     };
 
     let set_last_slice_value = dfg
-        .insert_instruction_and_results(set_last_slice_value_instr, block, None, call_stack.clone())
+        .insert_instruction_and_results(set_last_slice_value_instr, block, call_stack.clone())
         .first();
 
     let mut slice_sizes = HashMap::default();
@@ -490,29 +479,24 @@ fn simplify_slice_pop_back(
         }
     };
 
-    let element_count = element_type.element_size();
+    let element_count = element_types.len();
     let mut results = VecDeque::with_capacity(element_count + 1);
 
     let new_slice_length = update_slice_length(arguments[0], dfg, BinaryOp::Sub, block);
 
     let element_size = dfg.make_constant((element_count as u128).into(), Type::length_type());
     let flattened_len_instr = Instruction::binary(BinaryOp::Mul, arguments[0], element_size);
-    let mut flattened_len = dfg
-        .insert_instruction_and_results(flattened_len_instr, block, None, call_stack.clone())
-        .first();
+    let mut flattened_len =
+        dfg.insert_instruction_and_results(flattened_len_instr, block, call_stack.clone()).first();
     flattened_len = update_slice_length(flattened_len, dfg, BinaryOp::Sub, block);
 
     // We must pop multiple elements in the case of a slice of tuples
-    for _ in 0..element_count {
+    for result_type in element_types {
         let get_last_elem_instr =
-            Instruction::ArrayGet { array: arguments[1], index: flattened_len };
+            Instruction::ArrayGet { array: arguments[1], index: flattened_len, result_type };
+
         let get_last_elem = dfg
-            .insert_instruction_and_results(
-                get_last_elem_instr,
-                block,
-                Some(element_types.to_vec()),
-                call_stack.clone(),
-            )
+            .insert_instruction_and_results(get_last_elem_instr, block, call_stack.clone())
             .first();
         results.push_front(get_last_elem);
 
@@ -649,7 +633,7 @@ fn make_array(
 ) -> ValueId {
     let instruction = Instruction::MakeArray { elements, typ };
     let call_stack = call_stack.clone();
-    dfg.insert_instruction_and_results(instruction, block, None, call_stack).first()
+    dfg.insert_instruction_and_results(instruction, block, call_stack).first()
 }
 
 fn make_constant_slice(

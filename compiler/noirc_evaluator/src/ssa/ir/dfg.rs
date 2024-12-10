@@ -103,8 +103,8 @@ impl DataFlowGraph {
     /// Creates a new basic block with no parameters.
     /// After being created, the block is unreachable in the current function
     /// until another block is made to jump to it.
-    pub(crate) fn make_block(&mut self) -> BasicBlockId {
-        self.blocks.insert(BasicBlock::new())
+    pub(crate) fn make_block(&mut self, parameter_types: Vec<Type>) -> BasicBlockId {
+        self.blocks.insert(BasicBlock::new(parameter_types))
     }
 
     /// Create a new block with the same parameter count and parameter
@@ -115,12 +115,11 @@ impl DataFlowGraph {
         &mut self,
         block: BasicBlockId,
     ) -> BasicBlockId {
-        let new_block = self.make_block();
         let parameters = self.blocks[block].parameters();
+        let new_block = self.make_block(self.blocks[block].parameter_types().to_vec());
 
-        let parameters = vecmap(parameters.iter().enumerate(), |(position, param)| {
-            let typ = self.values[*param].get_type().clone();
-            self.values.insert(Value::Param { block: new_block, position, typ })
+        let parameters = vecmap(parameters.iter().enumerate(), |(position, _)| {
+            self.values.insert(Value::Param { block: new_block, position })
         });
 
         self.blocks[new_block].set_parameters(parameters);
@@ -154,13 +153,9 @@ impl DataFlowGraph {
     /// Populates the instruction's results with the given ctrl_typevars if the instruction
     /// is a Load, Call, or Intrinsic. Otherwise the instruction's results will be known
     /// by the instruction itself and None can safely be passed for this parameter.
-    pub(crate) fn make_instruction(
-        &mut self,
-        instruction_data: Instruction,
-        ctrl_typevars: Option<Vec<Type>>,
-    ) -> InstructionId {
+    pub(crate) fn make_instruction(&mut self, instruction_data: Instruction) -> InstructionId {
         let id = self.instructions.insert(instruction_data);
-        self.make_instruction_results(id, ctrl_typevars);
+        self.make_instruction_results(id);
         id
     }
 
@@ -169,10 +164,9 @@ impl DataFlowGraph {
         &mut self,
         instruction: Instruction,
         block: BasicBlockId,
-        ctrl_typevars: Option<Vec<Type>>,
         call_stack: CallStack,
     ) -> InsertInstructionResult {
-        match instruction.simplify(self, block, ctrl_typevars.clone(), &call_stack) {
+        match instruction.simplify(self, block, &call_stack) {
             SimplifyResult::SimplifiedTo(simplification) => {
                 InsertInstructionResult::SimplifiedTo(simplification)
             }
@@ -198,7 +192,7 @@ impl DataFlowGraph {
                 let mut last_id = None;
 
                 for instruction in instructions {
-                    let id = self.make_instruction(instruction, ctrl_typevars.clone());
+                    let id = self.make_instruction(instruction);
                     self.blocks[block].insert_instruction(id);
                     self.locations.insert(id, call_stack.clone());
                     last_id = Some(id);
@@ -233,10 +227,11 @@ impl DataFlowGraph {
     pub(crate) fn set_type_of_value(&mut self, value_id: ValueId, target_type: Type) {
         let value = &mut self.values[value_id];
         match value {
-            Value::Instruction { typ, .. }
-            | Value::Param { typ, .. }
-            | Value::NumericConstant { typ, .. } => {
+            Value::Instruction { typ, .. } | Value::NumericConstant { typ, .. } => {
                 *typ = target_type;
+            }
+            Value::Param { block, position } => {
+                // todo
             }
             _ => {
                 unreachable!("ICE: Cannot set type of {:?}", value);
@@ -302,15 +297,11 @@ impl DataFlowGraph {
     /// make_instruction automatically.
     ///
     /// Returns the results of the instruction
-    pub(crate) fn make_instruction_results(
-        &mut self,
-        instruction_id: InstructionId,
-        ctrl_typevars: Option<Vec<Type>>,
-    ) {
-        let result_types = self.instruction_result_types(instruction_id, ctrl_typevars);
-        let results = vecmap(result_types.into_iter().enumerate(), |(position, typ)| {
+    pub(crate) fn make_instruction_results(&mut self, instruction_id: InstructionId) {
+        let result_types = self.instruction_result_types(instruction_id);
+        let results = vecmap(result_types.into_iter().enumerate(), |(position, _typ)| {
             let instruction = instruction_id;
-            self.values.insert(Value::Instruction { typ, position, instruction })
+            self.values.insert(Value::Instruction { position, instruction })
         });
 
         self.results.insert(instruction_id, results);
@@ -324,25 +315,32 @@ impl DataFlowGraph {
     /// the type of an instruction that does not require them. Compared to passing an empty Vec,
     /// Option has the benefit of panicking if it is accidentally used for a Call instruction,
     /// rather than silently returning the empty Vec and continuing.
-    fn instruction_result_types(
-        &self,
-        instruction_id: InstructionId,
-        ctrl_typevars: Option<Vec<Type>>,
-    ) -> Vec<Type> {
+    fn instruction_result_types(&self, instruction_id: InstructionId) -> Vec<Type> {
         let instruction = &self.instructions[instruction_id];
         match instruction.result_type() {
             InstructionResultType::Known(typ) => vec![typ],
             InstructionResultType::Operand(value) => vec![self.type_of_value(value)],
             InstructionResultType::None => vec![],
-            InstructionResultType::Unknown => {
-                ctrl_typevars.expect("Control typevars required but not given")
-            }
         }
     }
 
     /// Returns the type of a given value
     pub(crate) fn type_of_value(&self, value: ValueId) -> Type {
-        self.values[value].get_type().clone()
+        match &self.values[value] {
+            Value::Instruction { instruction, position } => {
+                match self[*instruction].result_type() {
+                    // How expensive is this recursive call? Maybe we should store types
+                    InstructionResultType::Operand(value) => self.type_of_value(value),
+                    InstructionResultType::Known(typ) => typ,
+                    InstructionResultType::None => unreachable!("Instruction has no results"),
+                }
+            }
+            Value::Param { block, position } => self[*block].type_of_parameter(*position),
+            Value::NumericConstant { typ, .. } => Type::Numeric(*typ),
+            Value::Function(_) => Type::Function,
+            Value::Intrinsic(_) => Type::Function,
+            Value::ForeignFunction(_) => Type::Function,
+        }
     }
 
     /// Returns the maximum possible number of bits that `value` can potentially be.
@@ -409,8 +407,8 @@ impl DataFlowGraph {
     pub(crate) fn add_block_parameter(&mut self, block_id: BasicBlockId, typ: Type) -> ValueId {
         let block = &mut self.blocks[block_id];
         let position = block.parameters().len();
-        let parameter = self.values.insert(Value::Param { block: block_id, position, typ });
-        block.add_parameter(parameter);
+        let parameter = self.values.insert(Value::Param { block: block_id, position });
+        block.add_parameter(parameter, typ);
         parameter
     }
 

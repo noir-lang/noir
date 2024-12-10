@@ -163,13 +163,11 @@ impl FunctionBuilder {
     pub(crate) fn insert_instruction(
         &mut self,
         instruction: Instruction,
-        ctrl_typevars: Option<Vec<Type>>,
     ) -> InsertInstructionResult {
         let block = self.current_block();
         self.current_function.dfg.insert_instruction_and_results(
             instruction,
             block,
-            ctrl_typevars,
             self.call_stack.clone(),
         )
     }
@@ -191,7 +189,7 @@ impl FunctionBuilder {
     /// which is always a Reference to the allocated data.
     pub(crate) fn insert_allocate(&mut self, element_type: Type) -> ValueId {
         let reference_type = Type::Reference(Arc::new(element_type));
-        self.insert_instruction(Instruction::Allocate, Some(vec![reference_type])).first()
+        self.insert_instruction(Instruction::Allocate { element_type }).first()
     }
 
     pub(crate) fn set_location(&mut self, location: Location) -> &mut FunctionBuilder {
@@ -212,15 +210,15 @@ impl FunctionBuilder {
     /// which should point to a previous Allocate instruction. Note that this is limited to loading
     /// a single value. Loading multiple values (such as a tuple) will require multiple loads.
     /// Returns the element that was loaded.
-    pub(crate) fn insert_load(&mut self, address: ValueId, type_to_load: Type) -> ValueId {
-        self.insert_instruction(Instruction::Load { address }, Some(vec![type_to_load])).first()
+    pub(crate) fn insert_load(&mut self, address: ValueId, result_type: Type) -> ValueId {
+        self.insert_instruction(Instruction::Load { address, result_type }).first()
     }
 
     /// Insert a Store instruction at the end of the current block, storing the given element
     /// at the given address. Expects that the address points somewhere
     /// within a previous Allocate instruction.
     pub(crate) fn insert_store(&mut self, address: ValueId, value: ValueId) {
-        self.insert_instruction(Instruction::Store { address, value }, None);
+        self.insert_instruction(Instruction::Store { address, value });
     }
 
     /// Insert a binary instruction at the end of the current block.
@@ -240,19 +238,19 @@ impl FunctionBuilder {
             );
         }
         let instruction = Instruction::Binary(Binary { lhs, rhs, operator });
-        self.insert_instruction(instruction, None).first()
+        self.insert_instruction(instruction).first()
     }
 
     /// Insert a not instruction at the end of the current block.
     /// Returns the result of the instruction.
     pub(crate) fn insert_not(&mut self, rhs: ValueId) -> ValueId {
-        self.insert_instruction(Instruction::Not(rhs), None).first()
+        self.insert_instruction(Instruction::Not(rhs)).first()
     }
 
     /// Insert a cast instruction at the end of the current block.
     /// Returns the result of the cast instruction.
     pub(crate) fn insert_cast(&mut self, value: ValueId, typ: Type) -> ValueId {
-        self.insert_instruction(Instruction::Cast(value, typ), None).first()
+        self.insert_instruction(Instruction::Cast(value, typ)).first()
     }
 
     /// Insert a truncate instruction at the end of the current block.
@@ -263,8 +261,7 @@ impl FunctionBuilder {
         bit_size: u32,
         max_bit_size: u32,
     ) -> ValueId {
-        self.insert_instruction(Instruction::Truncate { value, bit_size, max_bit_size }, None)
-            .first()
+        self.insert_instruction(Instruction::Truncate { value, bit_size, max_bit_size }).first()
     }
 
     /// Insert a constrain instruction at the end of the current block.
@@ -274,7 +271,7 @@ impl FunctionBuilder {
         rhs: ValueId,
         assert_message: Option<ConstrainError>,
     ) {
-        self.insert_instruction(Instruction::Constrain(lhs, rhs, assert_message), None);
+        self.insert_instruction(Instruction::Constrain(lhs, rhs, assert_message));
     }
 
     /// Insert a [`Instruction::RangeCheck`] instruction at the end of the current block.
@@ -284,10 +281,7 @@ impl FunctionBuilder {
         max_bit_size: u32,
         assert_message: Option<String>,
     ) {
-        self.insert_instruction(
-            Instruction::RangeCheck { value, max_bit_size, assert_message },
-            None,
-        );
+        self.insert_instruction(Instruction::RangeCheck { value, max_bit_size, assert_message });
     }
 
     /// Insert a call instruction at the end of the current block and return
@@ -298,7 +292,8 @@ impl FunctionBuilder {
         arguments: Vec<ValueId>,
         result_types: Vec<Type>,
     ) -> Cow<[ValueId]> {
-        self.insert_instruction(Instruction::Call { func, arguments }, Some(result_types)).results()
+        let call = Instruction::Call { func, arguments, result_types: Arc::new(result_types) };
+        self.insert_instruction(call).results()
     }
 
     /// Insert an instruction to extract an element from an array
@@ -308,8 +303,8 @@ impl FunctionBuilder {
         index: ValueId,
         element_type: Type,
     ) -> ValueId {
-        let element_type = Some(vec![element_type]);
-        self.insert_instruction(Instruction::ArrayGet { array, index }, element_type).first()
+        let get = Instruction::ArrayGet { array, index, result_type: element_type };
+        self.insert_instruction(get).first()
     }
 
     /// Insert an instruction to create a new array with the given index replaced with a new value
@@ -319,7 +314,7 @@ impl FunctionBuilder {
         index: ValueId,
         value: ValueId,
     ) -> ValueId {
-        self.insert_instruction(Instruction::ArraySet { array, index, value, mutable: false }, None)
+        self.insert_instruction(Instruction::ArraySet { array, index, value, mutable: false })
             .first()
     }
 
@@ -329,26 +324,26 @@ impl FunctionBuilder {
         index: ValueId,
         value: ValueId,
     ) -> ValueId {
-        self.insert_instruction(Instruction::ArraySet { array, index, value, mutable: true }, None)
+        self.insert_instruction(Instruction::ArraySet { array, index, value, mutable: true })
             .first()
     }
 
     /// Insert an instruction to increment an array's reference count. This only has an effect
     /// in unconstrained code where arrays are reference counted and copy on write.
     pub(crate) fn insert_inc_rc(&mut self, value: ValueId) {
-        self.insert_instruction(Instruction::IncrementRc { value }, None);
+        self.insert_instruction(Instruction::IncrementRc { value });
     }
 
     /// Insert an instruction to decrement an array's reference count. This only has an effect
     /// in unconstrained code where arrays are reference counted and copy on write.
     pub(crate) fn insert_dec_rc(&mut self, value: ValueId) {
-        self.insert_instruction(Instruction::DecrementRc { value }, None);
+        self.insert_instruction(Instruction::DecrementRc { value });
     }
 
     /// Insert an enable_side_effects_if instruction. These are normally only automatically
     /// inserted during the flattening pass when branching is removed.
     pub(crate) fn insert_enable_side_effects_if(&mut self, condition: ValueId) {
-        self.insert_instruction(Instruction::EnableSideEffectsIf { condition }, None);
+        self.insert_instruction(Instruction::EnableSideEffectsIf { condition });
     }
 
     /// Insert a `make_array` instruction to create a new array or slice.
@@ -359,7 +354,7 @@ impl FunctionBuilder {
         typ: Type,
     ) -> ValueId {
         assert!(matches!(typ, Type::Array(..) | Type::Slice(_)));
-        self.insert_instruction(Instruction::MakeArray { elements, typ }, None).first()
+        self.insert_instruction(Instruction::MakeArray { elements, typ }).first()
     }
 
     /// Terminates the current block with the given terminator instruction

@@ -175,12 +175,7 @@ impl<'block> BrilligBlock<'block> {
         // the block parameters need to be defined/allocated before the given block. Variable liveness provides when the block parameters are defined.
         // For the entry block, the defined block params will be the params of the function + any extra params of blocks it's the immediate dominator of.
         for param_id in self.function_context.liveness.defined_block_params(&self.block_id) {
-            let value = &dfg[param_id];
-            let param_type = match value {
-                Value::Param { typ, .. } => typ,
-                _ => unreachable!("ICE: Only Param type values should appear in block parameters"),
-            };
-            match param_type {
+            match dfg.type_of_value(param_id) {
                 // Simple parameters and arrays are passed as already filled registers
                 // In the case of arrays, the values should already be in memory and the register should
                 // Be a valid pointer to the array.
@@ -281,7 +276,7 @@ impl<'block> BrilligBlock<'block> {
                     self.brillig_context.deallocate_single_addr(condition);
                 }
             }
-            Instruction::Allocate => {
+            Instruction::Allocate { .. } => {
                 let result_value = dfg.instruction_results(instruction_id)[0];
                 let pointer = self.variables.define_single_addr_variable(
                     self.function_context,
@@ -298,7 +293,7 @@ impl<'block> BrilligBlock<'block> {
                 self.brillig_context
                     .store_instruction(address_var.address, source_variable.extract_register());
             }
-            Instruction::Load { address } => {
+            Instruction::Load { address, result_type: _ } => {
                 let target_variable = self.variables.define_variable(
                     self.function_context,
                     self.brillig_context,
@@ -321,7 +316,7 @@ impl<'block> BrilligBlock<'block> {
                 );
                 self.brillig_context.not_instruction(condition_register, result_register);
             }
-            Instruction::Call { func, arguments } => match &dfg[*func] {
+            Instruction::Call { func, arguments, result_types: _ } => match &dfg[*func] {
                 Value::ForeignFunction(func_name) => {
                     let result_ids = dfg.instruction_results(instruction_id);
 
@@ -378,7 +373,8 @@ impl<'block> BrilligBlock<'block> {
                                 // Update the dynamic slice length maintained in SSA
                                 if let ValueOrArray::MemoryAddress(len_index) = output_values[i - 1]
                                 {
-                                    let element_size = dfg[result_ids[i]].get_type().element_size();
+                                    let element_size =
+                                        dfg.type_of_value(result_ids[i]).element_size();
                                     self.brillig_context
                                         .mov_instruction(len_index, heap_vector.size);
                                     self.brillig_context.codegen_usize_op_in_place(
@@ -680,7 +676,7 @@ impl<'block> BrilligBlock<'block> {
                 let source_variable = self.convert_ssa_single_addr_value(*value, dfg);
                 self.convert_cast(destination_variable, source_variable);
             }
-            Instruction::ArrayGet { array, index } => {
+            Instruction::ArrayGet { array, index, result_type: _ } => {
                 let result_ids = dfg.instruction_results(instruction_id);
                 let destination_variable = self.variables.define_variable(
                     self.function_context,
@@ -1285,8 +1281,8 @@ impl<'block> BrilligBlock<'block> {
         result_variable: SingleAddrVariable,
     ) {
         let binary_type = type_of_binary_operation(
-            dfg[binary.lhs].get_type(),
-            dfg[binary.rhs].get_type(),
+            &dfg.type_of_value(binary.lhs),
+            &dfg.type_of_value(binary.rhs),
             binary.operator,
         );
 
@@ -1794,7 +1790,7 @@ impl<'block> BrilligBlock<'block> {
         result: ValueId,
         dfg: &DataFlowGraph,
     ) -> BrilligVariable {
-        let typ = dfg[result].get_type();
+        let typ = dfg.type_of_value(result);
         match typ {
             Type::Numeric(_) => self.variables.define_variable(
                 self.function_context,
@@ -1811,7 +1807,7 @@ impl<'block> BrilligBlock<'block> {
                     dfg,
                 );
                 let array = variable.extract_array();
-                self.allocate_foreign_call_result_array(typ, array);
+                self.allocate_foreign_call_result_array(&typ, array);
 
                 variable
             }

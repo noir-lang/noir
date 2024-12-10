@@ -196,7 +196,7 @@ impl Context {
                     self.value_sets.push(instruction_arguments_and_results);
                 }
 
-                Instruction::Call { func: func_id, arguments: argument_ids } => {
+                Instruction::Call { func: func_id, arguments: argument_ids, result_types: _ } => {
                     match &function.dfg[*func_id] {
                         Value::Intrinsic(intrinsic) => match intrinsic {
                             Intrinsic::ApplyRangeConstraint

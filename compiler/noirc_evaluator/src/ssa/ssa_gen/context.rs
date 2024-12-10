@@ -491,7 +491,7 @@ impl<'a> FunctionContext<'a> {
                     same_sign,
                     Some(message.into()),
                 );
-                self.builder.set_location(location).insert_instruction(overflow_check, None);
+                self.builder.set_location(location).insert_instruction(overflow_check);
             }
             BinaryOpKind::Multiply => {
                 // Overflow check for the multiplication:

@@ -1,6 +1,9 @@
 use noirc_errors::Location;
 use serde::{Deserialize, Serialize};
-use std::hash::{Hash, Hasher};
+use std::{
+    hash::{Hash, Hasher},
+    sync::Arc,
+};
 
 use acvm::{
     acir::AcirField,
@@ -268,15 +271,15 @@ pub(crate) enum Instruction {
     RangeCheck { value: ValueId, max_bit_size: u32, assert_message: Option<String> },
 
     /// Performs a function call with a list of its arguments.
-    Call { func: ValueId, arguments: Vec<ValueId> },
+    Call { func: ValueId, arguments: Vec<ValueId>, result_types: Arc<Vec<Type>> },
 
     /// Allocates a region of memory. Note that this is not concerned with
     /// the type of memory, the type of element is determined when loading this memory.
     /// This is used for representing mutable variables and references.
-    Allocate,
+    Allocate { element_type: Type },
 
     /// Loads a value from memory.
-    Load { address: ValueId },
+    Load { address: ValueId, result_type: Type },
 
     /// Writes a value to memory.
     Store { address: ValueId, value: ValueId },
@@ -301,7 +304,7 @@ pub(crate) enum Instruction {
     EnableSideEffectsIf { condition: ValueId },
 
     /// Retrieve a value from an array at the given index
-    ArrayGet { array: ValueId, index: ValueId },
+    ArrayGet { array: ValueId, index: ValueId, result_type: Type },
 
     /// Creates a new array with the new value at the given index. All other elements are identical
     /// to those in the given array. This will not modify the original array unless `mutable` is
@@ -352,11 +355,21 @@ impl Instruction {
     }
 
     /// Returns the type that this instruction will return.
-    pub(crate) fn result_type(&self) -> InstructionResultType {
+    pub(crate) fn result_type(&self, position: usize) -> InstructionResultType {
         match self {
             Instruction::Binary(binary) => binary.result_type(),
-            Instruction::Cast(_, typ) | Instruction::MakeArray { typ, .. } => {
+            Instruction::Cast(_, typ)
+            | Instruction::MakeArray { typ, .. }
+            | Instruction::Load { result_type: typ, .. }
+            | Instruction::ArrayGet { result_type: typ, .. } => {
                 InstructionResultType::Known(typ.clone())
+            }
+            Instruction::Call { result_types, .. } => {
+                InstructionResultType::Known(result_types[position].clone())
+            }
+            Instruction::Allocate { element_type } => {
+                let typ = Type::Reference(Arc::new(element_type.clone()));
+                InstructionResultType::Known(typ)
             }
             Instruction::Not(value)
             | Instruction::Truncate { value, .. }
@@ -370,17 +383,7 @@ impl Instruction {
             | Instruction::DecrementRc { .. }
             | Instruction::RangeCheck { .. }
             | Instruction::EnableSideEffectsIf { .. } => InstructionResultType::None,
-            Instruction::Allocate { .. }
-            | Instruction::Load { .. }
-            | Instruction::ArrayGet { .. }
-            | Instruction::Call { .. } => InstructionResultType::Unknown,
         }
-    }
-
-    /// True if this instruction requires specifying the control type variables when
-    /// inserting this instruction into a DataFlowGraph.
-    pub(crate) fn requires_ctrl_typevars(&self) -> bool {
-        matches!(self.result_type(), InstructionResultType::Unknown)
     }
 
     /// Indicates if the instruction has a side effect, ie. it can fail, or it interacts with memory.
@@ -393,7 +396,7 @@ impl Instruction {
         match self {
             // These either have side-effects or interact with memory
             EnableSideEffectsIf { .. }
-            | Allocate
+            | Allocate { .. }
             | Load { .. }
             | Store { .. }
             | IncrementRc { .. }
@@ -453,7 +456,7 @@ impl Instruction {
         match self {
             // These either have side-effects or interact with memory
             EnableSideEffectsIf { .. }
-            | Allocate
+            | Allocate { .. }
             | Load { .. }
             | Store { .. }
             | IncrementRc { .. }
@@ -508,7 +511,7 @@ impl Instruction {
             Cast(_, _)
             | Not(_)
             | Truncate { .. }
-            | Allocate
+            | Allocate { .. }
             | Load { .. }
             | ArrayGet { .. }
             | IfElse { .. }
@@ -563,7 +566,7 @@ impl Instruction {
                 true
             }
 
-            Instruction::ArrayGet { array, index } => {
+            Instruction::ArrayGet { array, index, result_type: _ } => {
                 // `ArrayGet`s which read from "known good" indices from an array should not need a predicate.
                 !dfg.is_safe_index(*index, *array)
             }
@@ -583,7 +586,7 @@ impl Instruction {
             | Instruction::Truncate { .. }
             | Instruction::Constrain(_, _, _)
             | Instruction::RangeCheck { .. }
-            | Instruction::Allocate
+            | Instruction::Allocate { .. }
             | Instruction::Load { .. }
             | Instruction::Store { .. }
             | Instruction::IfElse { .. }
@@ -626,21 +629,28 @@ impl Instruction {
                 });
                 Instruction::Constrain(lhs, rhs, assert_message)
             }
-            Instruction::Call { func, arguments } => Instruction::Call {
+            Instruction::Call { func, arguments, result_types } => Instruction::Call {
                 func: f(*func),
                 arguments: vecmap(arguments.iter().copied(), f),
+                result_types: result_types.clone(),
             },
-            Instruction::Allocate => Instruction::Allocate,
-            Instruction::Load { address } => Instruction::Load { address: f(*address) },
+            Instruction::Allocate { element_type } => {
+                Instruction::Allocate { element_type: element_type.clone() }
+            }
+            Instruction::Load { address, result_type } => {
+                Instruction::Load { address: f(*address), result_type: result_type.clone() }
+            }
             Instruction::Store { address, value } => {
                 Instruction::Store { address: f(*address), value: f(*value) }
             }
             Instruction::EnableSideEffectsIf { condition } => {
                 Instruction::EnableSideEffectsIf { condition: f(*condition) }
             }
-            Instruction::ArrayGet { array, index } => {
-                Instruction::ArrayGet { array: f(*array), index: f(*index) }
-            }
+            Instruction::ArrayGet { array, index, result_type } => Instruction::ArrayGet {
+                array: f(*array),
+                index: f(*index),
+                result_type: result_type.clone(),
+            },
             Instruction::ArraySet { array, index, value, mutable } => Instruction::ArraySet {
                 array: f(*array),
                 index: f(*index),
@@ -678,7 +688,7 @@ impl Instruction {
                 f(binary.lhs);
                 f(binary.rhs);
             }
-            Instruction::Call { func, arguments } => {
+            Instruction::Call { func, arguments, result_types: _ } => {
                 f(*func);
                 for argument in arguments {
                     f(*argument);
@@ -687,7 +697,7 @@ impl Instruction {
             Instruction::Cast(value, _)
             | Instruction::Not(value)
             | Instruction::Truncate { value, .. }
-            | Instruction::Load { address: value } => {
+            | Instruction::Load { address: value, result_type: _ } => {
                 f(*value);
             }
             Instruction::Constrain(lhs, rhs, assert_error) => {
@@ -705,7 +715,7 @@ impl Instruction {
                 f(*value);
             }
             Instruction::Allocate { .. } => (),
-            Instruction::ArrayGet { array, index } => {
+            Instruction::ArrayGet { array, index, result_type: _ } => {
                 f(*array);
                 f(*index);
             }
@@ -745,7 +755,6 @@ impl Instruction {
         &self,
         dfg: &mut DataFlowGraph,
         block: BasicBlockId,
-        ctrl_typevars: Option<Vec<Type>>,
         call_stack: &CallStack,
     ) -> SimplifyResult {
         use SimplifyResult::*;
@@ -781,7 +790,7 @@ impl Instruction {
                     SimplifiedToInstructionMultiple(constraints)
                 }
             }
-            Instruction::ArrayGet { array, index } => {
+            Instruction::ArrayGet { array, index, result_type: _ } => {
                 if let Some(index) = dfg.get_numeric_constant(*index) {
                     try_optimize_array_get_from_previous_set(dfg, *array, index)
                 } else {
@@ -802,7 +811,6 @@ impl Instruction {
                         let new_array = dfg.insert_instruction_and_results(
                             instruction,
                             block,
-                            Option::None,
                             call_stack.clone(),
                         );
                         return SimplifiedTo(new_array.first());
@@ -862,8 +870,8 @@ impl Instruction {
                     None
                 }
             }
-            Instruction::Call { func, arguments } => {
-                simplify_call(*func, arguments, dfg, block, ctrl_typevars, call_stack)
+            Instruction::Call { func, arguments, result_types: _ } => {
+                simplify_call(*func, arguments, dfg, block, call_stack)
             }
             Instruction::EnableSideEffectsIf { condition } => {
                 if let Some(last) = dfg[block].instructions().last().copied() {
@@ -1021,7 +1029,7 @@ fn try_optimize_array_set_from_previous_get(
 ) -> SimplifyResult {
     let array_from_get = match &dfg[target_value] {
         Value::Instruction { instruction, .. } => match &dfg[*instruction] {
-            Instruction::ArrayGet { array, index } => {
+            Instruction::ArrayGet { array, index, result_type: _ } => {
                 if *array == array_id && *index == target_index {
                     // If array and index match from the value, we can immediately simplify
                     return SimplifyResult::SimplifiedTo(array_id);
@@ -1122,9 +1130,8 @@ pub(crate) enum InstructionResultType {
     /// The result type of this instruction is known to be this type - independent of its operands.
     Known(Type),
 
-    /// The result type of this function is unknown and separate from its operand types.
-    /// This occurs for function calls and load operations.
-    Unknown,
+    /// Function calls are a special case, they may return multiple values
+    Multiple(Arc<Vec<Type>>),
 
     /// This instruction does not return any results.
     None,

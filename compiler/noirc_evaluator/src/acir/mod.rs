@@ -757,7 +757,7 @@ impl<'a> Context<'a> {
             Instruction::ArrayGet { .. } | Instruction::ArraySet { .. } => {
                 self.handle_array_operation(instruction_id, dfg)?;
             }
-            Instruction::Allocate => {
+            Instruction::Allocate { .. } => {
                 return Err(RuntimeError::UnknownReference {
                     call_stack: self.acir_context.get_call_stack().clone(),
                 });
@@ -805,7 +805,7 @@ impl<'a> Context<'a> {
         let mut warnings = Vec::new();
 
         match instruction {
-            Instruction::Call { func, arguments } => {
+            Instruction::Call { func, arguments, result_types: _ } => {
                 let function_value = &dfg[*func];
                 match function_value {
                     Value::Function(id) => {
@@ -1009,7 +1009,7 @@ impl<'a> Context<'a> {
 
         // Pass the instruction between array methods rather than the internal fields themselves
         let (array, index, store_value) = match dfg[instruction] {
-            Instruction::ArrayGet { array, index } => (array, index, None),
+            Instruction::ArrayGet { array, index, result_type: _ } => (array, index, None),
             Instruction::ArraySet { array, index, value, mutable } => {
                 mutable_array_set = mutable;
                 (array, index, Some(value))
@@ -1872,7 +1872,8 @@ impl<'a> Context<'a> {
 
         let acir_value = match value {
             Value::NumericConstant { constant, typ } => {
-                AcirValue::Var(self.acir_context.add_constant(*constant), typ.into())
+                let typ = AcirType::from(Type::Numeric(*typ));
+                AcirValue::Var(self.acir_context.add_constant(*constant), typ)
             }
             Value::Intrinsic(..) => todo!(),
             Value::Function(function_id) => {

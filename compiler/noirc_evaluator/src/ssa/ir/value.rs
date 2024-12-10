@@ -7,7 +7,7 @@ use super::{
     function::FunctionId,
     instruction::{InstructionId, Intrinsic},
     map::Id,
-    types::Type,
+    types::{NumericType, Type},
 };
 
 pub(crate) type ValueId = Id<Value>;
@@ -25,16 +25,16 @@ pub(crate) enum Value {
     /// Example, if you add two numbers together, then the resulting
     /// value would have position `0`, the typ would be the type
     /// of the operands, and the instruction would map to an add instruction.
-    Instruction { instruction: InstructionId, position: usize, typ: Type },
+    Instruction { instruction: InstructionId, position: usize },
 
     /// This Value originates from a block parameter. Since function parameters
     /// are also represented as block parameters, this includes function parameters as well.
     ///
     /// position -- the index of this Value in the block parameters list
-    Param { block: BasicBlockId, position: usize, typ: Type },
+    Param { block: BasicBlockId, position: usize },
 
     /// This Value originates from a numeric constant
-    NumericConstant { constant: FieldElement, typ: Type },
+    NumericConstant { constant: FieldElement, typ: NumericType },
 
     /// This Value refers to a function in the IR.
     /// Functions always have the type Type::Function.
@@ -51,18 +51,4 @@ pub(crate) enum Value {
     /// ForeignFunction's always have the type Type::Function and have similar semantics to Function,
     /// other than generating different backend operations and being only accessible through Brillig.
     ForeignFunction(String),
-}
-
-impl Value {
-    /// Retrieves the type of this Value
-    pub(crate) fn get_type(&self) -> &Type {
-        match self {
-            Value::Instruction { typ, .. } => typ,
-            Value::Param { typ, .. } => typ,
-            Value::NumericConstant { typ, .. } => typ,
-            Value::Function { .. } => &Type::Function,
-            Value::Intrinsic { .. } => &Type::Function,
-            Value::ForeignFunction { .. } => &Type::Function,
-        }
-    }
 }
