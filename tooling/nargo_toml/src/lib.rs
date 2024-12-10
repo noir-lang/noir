@@ -527,7 +527,10 @@ pub fn resolve_workspace_from_toml(
 
 #[cfg(test)]
 mod tests {
-    use std::{path::PathBuf, str::FromStr};
+    use std::{
+        path::{Path, PathBuf},
+        str::FromStr,
+    };
 
     use test_case::test_matrix;
 
@@ -603,6 +606,8 @@ mod tests {
         assert!(Config::try_from(src).is_ok());
     }
 
+    /// Test that `find_root` handles all kinds of prefixes.
+    /// (It dispatches based on `workspace` to methods which handle paths differently).
     #[test_matrix(
         [true, false],
         ["C:\\foo\\bar", "//shared/foo/bar", "/foo/bar", "bar/baz", ""]
@@ -611,5 +616,110 @@ mod tests {
         let path = PathBuf::from_str(path).unwrap();
         let error = find_root(&path, workspace).expect_err("non-existing paths");
         assert!(matches!(error, ManifestError::MissingFile(_)));
+    }
+
+    /// Test to demonstrate how `find_root` works.
+    #[test]
+    fn test_find_root_example() {
+        const INDENT_SIZE: usize = 4;
+        /// Create directories and files according to a YAML-like layout below
+        fn setup(layout: &str, root: &Path) {
+            fn is_dir(item: &str) -> bool {
+                !item.contains('.')
+            }
+            let mut curr_dir = root.to_path_buf();
+            let mut curr_indent = 0;
+            let mut last_item: Option<String> = None;
+
+            for line in layout.lines() {
+                if let Some((prefix, item)) = line.split_once('-') {
+                    let item = item.replace(std::path::MAIN_SEPARATOR, "_").trim().to_string();
+
+                    let indent = prefix.len() / INDENT_SIZE;
+
+                    if last_item.is_none() {
+                        curr_indent = indent;
+                    }
+
+                    assert!(
+                        indent <= curr_indent + 1,
+                        "cannot increase indent by more than {INDENT_SIZE}; item = {item}, curr_dir={}", curr_dir.display()
+                    );
+
+                    // Go into the last created directory
+                    if indent > curr_indent && last_item.is_some() {
+                        let last_item = last_item.unwrap();
+                        assert!(is_dir(&last_item), "last item was not a dir: {last_item}");
+                        curr_dir.push(last_item);
+                        curr_indent += 1;
+                    }
+                    // Go back into an ancestor directory
+                    while indent < curr_indent {
+                        curr_dir.pop();
+                        curr_indent -= 1;
+                    }
+                    // Create a file or a directory
+                    let item_path = curr_dir.join(&item);
+                    if is_dir(&item) {
+                        std::fs::create_dir(&item_path).unwrap_or_else(|e| {
+                            panic!("failed to create dir {}: {e}", item_path.display())
+                        });
+                    } else {
+                        std::fs::write(&item_path, "").expect("failed to create file");
+                    }
+
+                    last_item = Some(item);
+                }
+            }
+        }
+
+        // Temporary directory to hold the project.
+        let tmp = tempfile::tempdir().unwrap();
+        // Join a string path to the tmp dir
+        let path = |p: &str| tmp.path().join(p);
+        // Check that an expected root is found
+        let assert_ok = |curr: &str, ws: bool, exp: &str| {
+            let root = find_root(&path(curr), ws).expect("should find a root");
+            assert_eq!(root, path(exp));
+        };
+        // Check that a root is not found
+        let assert_err = |curr: &str| {
+            find_root(&path(curr), true).expect_err("shouldn't find a root");
+        };
+
+        let layout = r"
+            - project
+                - docs
+                - workspace
+                    - packages
+                        - foo
+                            - Nargo.toml
+                            - Prover.toml
+                            - src
+                                - main.nr
+                        - bar
+                            - Nargo.toml
+                            - src
+                                - lib.nr
+                    - Nargo.toml
+                - examples
+                    - baz
+                        - Nargo.toml
+                        - src
+                            - main.nr
+            ";
+
+        // Set up the file system.
+        setup(layout, tmp.path());
+
+        assert_err("dummy");
+        assert_err("project/docs");
+        assert_err("project/examples");
+        assert_ok("project/workspace", true, "project/workspace");
+        assert_ok("project/workspace", false, "project/workspace");
+        assert_ok("project/workspace/packages/foo", true, "project/workspace");
+        assert_ok("project/workspace/packages/bar", false, "project/workspace/packages/bar");
+        assert_ok("project/examples/baz/src", true, "project/examples/baz");
+        assert_ok("project/examples/baz/src", false, "project/examples/baz");
     }
 }
