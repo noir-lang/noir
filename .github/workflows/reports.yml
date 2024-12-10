@@ -280,22 +280,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-contracts }
-          - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/parity-root }
-          - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/private-kernel-inner }
-          - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/private-kernel-reset }
-          - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/rollup-base-private }
-          - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/rollup-base-public }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-contracts }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/parity-root }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-inner }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-reset }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-base-private }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-base-public }
 
-    name: External repo compilation report - ${{ matrix.project.repo }}  
+    name: External repo compilation report - ${{ matrix.project.repo }}/${{ matrix.project.path }}
     steps:
-      # - name: Checkout
-      #   uses: actions/checkout@v4
-      #   with:
-      #     repository: ${{ matrix.project.repo }}
-      #     path: test-repo
-      #     ref: ${{ matrix.project.ref }}
-
       - name: Download nargo binary
         uses: actions/download-artifact@v4
         with:
@@ -327,13 +320,7 @@ jobs:
       - name: Generate compilation report
         working-directory: ./test-repo/${{ matrix.project.path }}
         run: |
-          ls .
-          echo " "
-          ls /home/runner/work/noir/noir
-          ls /home/runner/work/noir/noir/scripts/
-          ls /home/runner/work/noir/noir/scripts/test_programs
           mv /home/runner/work/noir/noir/scripts/test_programs/compilation_report.sh ./compilation_report.sh
-          # mv ./test_programs/compilation_report.sh ./compilation_report.sh
           chmod +x ./compilation_report.sh
           ./compilation_report.sh 1
 
