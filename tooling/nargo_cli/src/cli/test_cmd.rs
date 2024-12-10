@@ -9,7 +9,7 @@ use std::{
 use acvm::{BlackBoxFunctionSolver, FieldElement};
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
-use fm::{FileId, FileManager};
+use fm::FileManager;
 use nargo::{
     insert_all_files_for_workspace_into_file_manager,
     ops::TestStatus,
@@ -19,11 +19,7 @@ use nargo::{
 };
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{check_crate, CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
-use noirc_frontend::{
-    hir::{FunctionNameMatch, ParsedFiles},
-    parser::ParserError,
-    ParsedModule,
-};
+use noirc_frontend::hir::{FunctionNameMatch, ParsedFiles};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 use crate::{cli::check_cmd::check_crate_and_report_errors, errors::CliError};
@@ -101,352 +97,327 @@ pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError
 
     let num_threads = args.test_threads.unwrap_or_else(rayon::current_num_threads);
 
-    // First compile all packages and collect their tests
-    let package_test_results = collect_packages_tests(
-        &workspace,
-        num_threads,
-        &file_manager,
-        &parsed_files,
+    let runner = TestRunner {
+        file_manager: &file_manager,
+        parsed_files: &parsed_files,
+        workspace,
+        args: &args,
         pattern,
-        &args,
-    );
-
-    // Now gather all tests and how many are per packages
-    let mut tests = Vec::new();
-    let mut test_count_per_package = HashMap::new();
-
-    for (package_name, package_tests) in package_test_results {
-        let package_tests = package_tests?;
-        test_count_per_package.insert(package_name, package_tests.len());
-        tests.extend(package_tests);
-    }
-
-    // If there were no compile errors we'll run them all. Here we show how many there are per package.
-    for (package_name, test_count) in &test_count_per_package {
-        let plural = if *test_count == 1 { "" } else { "s" };
-        println!("[{package_name}] Running {test_count} test function{plural}");
-    }
-
-    // Now run all tests in parallel, but show output for each package sequentially
-    let test_reports =
-        run_all_tests(tests, num_threads, &test_count_per_package, &file_manager, &args);
-
-    if test_reports.is_empty() {
-        match &pattern {
-            FunctionNameMatch::Exact(pattern) => {
-                return Err(CliError::Generic(
-                    format!("Found 0 tests matching input '{pattern}'.",),
-                ))
-            }
-            FunctionNameMatch::Contains(pattern) => {
-                return Err(CliError::Generic(format!("Found 0 tests containing '{pattern}'.",)))
-            }
-            // If we are running all tests in a crate, having none is not an error
-            FunctionNameMatch::Anything => {}
-        };
-    }
-
-    if test_reports.iter().any(|(_, status)| status.failed()) {
-        Err(CliError::Generic(String::new()))
-    } else {
-        Ok(())
-    }
+        num_threads,
+    };
+    runner.run()
 }
 
-fn run_all_tests(
-    tests: Vec<Test<'_>>,
-    num_threads: usize,
-    test_count_per_package: &HashMap<String, usize>,
-    file_manager: &FileManager,
-    args: &TestCommand,
-) -> Vec<(String, TestStatus)> {
-    // Here we'll gather all test reports from all packages
-    let mut test_reports = Vec::new();
-
-    let (sender, receiver) = mpsc::channel();
-    let iter = &Mutex::new(tests.into_iter());
-    thread::scope(|scope| {
-        // Start worker threads
-        for _ in 0..num_threads {
-            // Clone sender so it's dropped once the thread finishes
-            let thread_sender = sender.clone();
-            thread::Builder::new()
-                // Specify a larger-than-default stack size to prevent overflowing stack in large programs.
-                // (the default is 2MB)
-                .stack_size(STACK_SIZE)
-                .spawn_scoped(scope, move || loop {
-                    // Get next test to process from the iterator.
-                    let Some(test) = iter.lock().unwrap().next() else {
-                        break;
-                    };
-                    let test_status = (test.runner)();
-
-                    // It's fine to ignore the result of sending.
-                    // If the receiver has hung up, everything will wind down soon anyway.
-                    let _ = thread_sender.send((test.name, test.package_name, test_status));
-                })
-                .unwrap();
-        }
-
-        // Also drop main sender so the channel closes
-        drop(sender);
-
-        // We'll go package by package, but we might get test results from packages ahead of us.
-        // We'll buffer those here and show them all at once when we get to those packages.
-        let mut buffer: HashMap<String, Vec<(String, TestStatus)>> = HashMap::new();
-        for (package_name, test_count) in test_count_per_package {
-            let mut test_report = Vec::new();
-
-            // How many tests are left to receive for this package
-            let mut remaining_test_count = *test_count;
-
-            if let Some(buffered_tests) = buffer.remove(package_name) {
-                remaining_test_count -= buffered_tests.len();
-
-                for (test_name, test_status) in buffered_tests {
-                    display_test_status(
-                        &test_name,
-                        package_name,
-                        &test_status,
-                        file_manager,
-                        &args.compile_options,
-                    );
-                    test_report.push((test_name, test_status));
-                }
-            }
-
-            if remaining_test_count > 0 {
-                while let Ok((test_name, test_package_name, test_status)) = receiver.recv() {
-                    if &test_package_name != package_name {
-                        buffer.entry(test_package_name).or_default().push((test_name, test_status));
-                        continue;
-                    }
-
-                    display_test_status(
-                        &test_name,
-                        &test_package_name,
-                        &test_status,
-                        file_manager,
-                        &args.compile_options,
-                    );
-                    test_report.push((test_name, test_status));
-                    remaining_test_count -= 1;
-                    if remaining_test_count == 0 {
-                        break;
-                    }
-                }
-            }
-
-            let _ = display_test_report(package_name, &test_report);
-            test_reports.extend(test_report);
-        }
-    });
-
-    test_reports
-}
-
-/// Compiles all packages in parallel and gathers their tests
-fn collect_packages_tests<'a>(
-    workspace: &'a Workspace,
-    num_threads: usize,
-    file_manager: &'a FileManager,
-    parsed_files: &'a HashMap<FileId, (ParsedModule, Vec<ParserError>)>,
-    pattern: FunctionNameMatch<'_>,
-    args: &'a TestCommand,
-) -> HashMap<String, Result<Vec<Test<'a>>, CliError>> {
-    let mut package_tests = HashMap::new();
-
-    let (sender, receiver) = mpsc::channel();
-    let packages_iter = &Mutex::new(workspace.into_iter());
-
-    thread::scope(|scope| {
-        // Start worker threads
-        for _ in 0..num_threads {
-            // Clone sender so it's dropped once the thread finishes
-            let thread_sender = sender.clone();
-            thread::Builder::new()
-                // Specify a larger-than-default stack size to prevent overflowing stack in large programs.
-                // (the default is 2MB)
-                .stack_size(STACK_SIZE)
-                .spawn_scoped(scope, move || loop {
-                    // Get next test to process from the iterator.
-                    let Some(package) = packages_iter.lock().unwrap().next() else {
-                        break;
-                    };
-                    let tests = collect_package_tests::<Bn254BlackBoxSolver>(
-                        file_manager,
-                        parsed_files,
-                        package,
-                        pattern,
-                        args.show_output,
-                        args.oracle_resolver.as_deref(),
-                        Some(workspace.root_dir.clone()),
-                        package.name.to_string(),
-                        &args.compile_options,
-                    );
-                    let _ = thread_sender.send((package, tests));
-                })
-                .unwrap();
-        }
-
-        // Also drop main sender so the channel closes
-        drop(sender);
-
-        for (package, tests) in receiver.iter() {
-            package_tests.insert(package.name.to_string(), tests);
-        }
-    });
-    package_tests
-}
-
-/// Compiles a single package and gathers all of its tests
-#[allow(clippy::too_many_arguments)]
-fn collect_package_tests<'a, S: BlackBoxFunctionSolver<FieldElement> + Default>(
+struct TestRunner<'a> {
     file_manager: &'a FileManager,
     parsed_files: &'a ParsedFiles,
-    package: &'a Package,
-    fn_name: FunctionNameMatch,
-    show_output: bool,
-    foreign_call_resolver_url: Option<&'a str>,
-    root_path: Option<PathBuf>,
-    package_name: String,
-    compile_options: &'a CompileOptions,
-) -> Result<Vec<Test<'a>>, CliError> {
-    let test_functions =
-        get_tests_in_package(file_manager, parsed_files, package, fn_name, compile_options)?;
-
-    let tests: Vec<Test> = test_functions
-        .into_iter()
-        .map(|test_name| {
-            let test_name_copy = test_name.clone();
-            let root_path = root_path.clone();
-            let package_name_clone = package_name.clone();
-            let package_name_clone2 = package_name.clone();
-            let runner = Box::new(move || {
-                run_test::<S>(
-                    file_manager,
-                    parsed_files,
-                    package,
-                    &test_name,
-                    show_output,
-                    foreign_call_resolver_url,
-                    root_path,
-                    package_name_clone.clone(),
-                    compile_options,
-                )
-            });
-            Test { name: test_name_copy, package_name: package_name_clone2, runner }
-        })
-        .collect();
-
-    Ok(tests)
+    workspace: Workspace,
+    args: &'a TestCommand,
+    pattern: FunctionNameMatch<'a>,
+    num_threads: usize,
 }
 
-fn get_tests_in_package(
-    file_manager: &FileManager,
-    parsed_files: &ParsedFiles,
-    package: &Package,
-    fn_name: FunctionNameMatch,
-    options: &CompileOptions,
-) -> Result<Vec<String>, CliError> {
-    let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
-    check_crate_and_report_errors(&mut context, crate_id, options)?;
+impl<'a> TestRunner<'a> {
+    fn run(&self) -> Result<(), CliError> {
+        // First compile all packages and collect their tests
+        let package_test_results = self.collect_packages_tests();
 
-    Ok(context
-        .get_all_test_functions_in_crate_matching(&crate_id, fn_name)
-        .into_iter()
-        .map(|(test_name, _)| test_name)
-        .collect())
-}
+        // Now gather all tests and how many are per packages
+        let mut tests = Vec::new();
+        let mut test_count_per_package = HashMap::new();
 
-#[allow(clippy::too_many_arguments)]
-fn run_test<S: BlackBoxFunctionSolver<FieldElement> + Default>(
-    file_manager: &FileManager,
-    parsed_files: &ParsedFiles,
-    package: &Package,
-    fn_name: &str,
-    show_output: bool,
-    foreign_call_resolver_url: Option<&str>,
-    root_path: Option<PathBuf>,
-    package_name: String,
-    compile_options: &CompileOptions,
-) -> TestStatus {
-    // This is really hacky but we can't share `Context` or `S` across threads.
-    // We then need to construct a separate copy for each test.
-
-    let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
-    check_crate(&mut context, crate_id, compile_options)
-        .expect("Any errors should have occurred when collecting test functions");
-
-    let test_functions = context
-        .get_all_test_functions_in_crate_matching(&crate_id, FunctionNameMatch::Exact(fn_name));
-    let (_, test_function) = test_functions.first().expect("Test function should exist");
-
-    let blackbox_solver = S::default();
-
-    nargo::ops::run_test(
-        &blackbox_solver,
-        &mut context,
-        test_function,
-        show_output,
-        foreign_call_resolver_url,
-        root_path,
-        Some(package_name),
-        compile_options,
-    )
-}
-
-fn display_test_status(
-    test_name: &String,
-    package_name: &String,
-    test_status: &TestStatus,
-    file_manager: &FileManager,
-    compile_options: &CompileOptions,
-) {
-    let writer = StandardStream::stderr(ColorChoice::Always);
-    let mut writer = writer.lock();
-
-    write!(writer, "[{}] Testing {test_name}... ", package_name)
-        .expect("Failed to write to stderr");
-    writer.flush().expect("Failed to flush writer");
-
-    match &test_status {
-        TestStatus::Pass { .. } => {
-            writer
-                .set_color(ColorSpec::new().set_fg(Some(Color::Green)))
-                .expect("Failed to set color");
-            writeln!(writer, "ok").expect("Failed to write to stderr");
+        for (package_name, package_tests) in package_test_results {
+            let package_tests = package_tests?;
+            test_count_per_package.insert(package_name, package_tests.len());
+            tests.extend(package_tests);
         }
-        TestStatus::Fail { message, error_diagnostic } => {
-            writer
-                .set_color(ColorSpec::new().set_fg(Some(Color::Red)))
-                .expect("Failed to set color");
-            writeln!(writer, "FAIL\n{message}\n").expect("Failed to write to stderr");
-            if let Some(diag) = error_diagnostic {
+
+        // If there were no compile errors we'll run them all. Here we show how many there are per package.
+        for (package_name, test_count) in &test_count_per_package {
+            let plural = if *test_count == 1 { "" } else { "s" };
+            println!("[{package_name}] Running {test_count} test function{plural}");
+        }
+
+        // Now run all tests in parallel, but show output for each package sequentially
+        let test_reports = self.run_all_tests(tests, &test_count_per_package);
+
+        if test_reports.is_empty() {
+            match &self.pattern {
+                FunctionNameMatch::Exact(pattern) => {
+                    return Err(CliError::Generic(format!(
+                        "Found 0 tests matching input '{pattern}'.",
+                    )))
+                }
+                FunctionNameMatch::Contains(pattern) => {
+                    return Err(CliError::Generic(
+                        format!("Found 0 tests containing '{pattern}'.",),
+                    ))
+                }
+                // If we are running all tests in a crate, having none is not an error
+                FunctionNameMatch::Anything => {}
+            };
+        }
+
+        if test_reports.iter().any(|(_, status)| status.failed()) {
+            Err(CliError::Generic(String::new()))
+        } else {
+            Ok(())
+        }
+    }
+
+    fn run_all_tests(
+        &self,
+        tests: Vec<Test<'a>>,
+        test_count_per_package: &HashMap<String, usize>,
+    ) -> Vec<(String, TestStatus)> {
+        // Here we'll gather all test reports from all packages
+        let mut test_reports = Vec::new();
+
+        let (sender, receiver) = mpsc::channel();
+        let iter = &Mutex::new(tests.into_iter());
+        thread::scope(|scope| {
+            // Start worker threads
+            for _ in 0..self.num_threads {
+                // Clone sender so it's dropped once the thread finishes
+                let thread_sender = sender.clone();
+                thread::Builder::new()
+                    // Specify a larger-than-default stack size to prevent overflowing stack in large programs.
+                    // (the default is 2MB)
+                    .stack_size(STACK_SIZE)
+                    .spawn_scoped(scope, move || loop {
+                        // Get next test to process from the iterator.
+                        let Some(test) = iter.lock().unwrap().next() else {
+                            break;
+                        };
+                        let test_status = (test.runner)();
+
+                        // It's fine to ignore the result of sending.
+                        // If the receiver has hung up, everything will wind down soon anyway.
+                        let _ = thread_sender.send((test.name, test.package_name, test_status));
+                    })
+                    .unwrap();
+            }
+
+            // Also drop main sender so the channel closes
+            drop(sender);
+
+            // We'll go package by package, but we might get test results from packages ahead of us.
+            // We'll buffer those here and show them all at once when we get to those packages.
+            let mut buffer: HashMap<String, Vec<(String, TestStatus)>> = HashMap::new();
+            for (package_name, test_count) in test_count_per_package {
+                let mut test_report = Vec::new();
+
+                // How many tests are left to receive for this package
+                let mut remaining_test_count = *test_count;
+
+                if let Some(buffered_tests) = buffer.remove(package_name) {
+                    remaining_test_count -= buffered_tests.len();
+
+                    for (test_name, test_status) in buffered_tests {
+                        self.display_test_status(&test_name, package_name, &test_status);
+                        test_report.push((test_name, test_status));
+                    }
+                }
+
+                if remaining_test_count > 0 {
+                    while let Ok((test_name, test_package_name, test_status)) = receiver.recv() {
+                        if &test_package_name != package_name {
+                            buffer
+                                .entry(test_package_name)
+                                .or_default()
+                                .push((test_name, test_status));
+                            continue;
+                        }
+
+                        self.display_test_status(&test_name, &test_package_name, &test_status);
+                        test_report.push((test_name, test_status));
+                        remaining_test_count -= 1;
+                        if remaining_test_count == 0 {
+                            break;
+                        }
+                    }
+                }
+
+                let _ = display_test_report(package_name, &test_report);
+                test_reports.extend(test_report);
+            }
+        });
+
+        test_reports
+    }
+
+    /// Compiles all packages in parallel and gathers their tests
+    fn collect_packages_tests(&'a self) -> HashMap<String, Result<Vec<Test<'a>>, CliError>> {
+        let mut package_tests = HashMap::new();
+
+        let (sender, receiver) = mpsc::channel();
+        let packages_iter = &Mutex::new(self.workspace.into_iter());
+
+        thread::scope(|scope| {
+            // Start worker threads
+            for _ in 0..self.num_threads {
+                // Clone sender so it's dropped once the thread finishes
+                let thread_sender = sender.clone();
+                thread::Builder::new()
+                    // Specify a larger-than-default stack size to prevent overflowing stack in large programs.
+                    // (the default is 2MB)
+                    .stack_size(STACK_SIZE)
+                    .spawn_scoped(scope, move || loop {
+                        // Get next test to process from the iterator.
+                        let Some(package) = packages_iter.lock().unwrap().next() else {
+                            break;
+                        };
+                        let tests = self.collect_package_tests::<Bn254BlackBoxSolver>(
+                            package,
+                            self.args.oracle_resolver.as_deref(),
+                            Some(self.workspace.root_dir.clone()),
+                            package.name.to_string(),
+                        );
+                        let _ = thread_sender.send((package, tests));
+                    })
+                    .unwrap();
+            }
+
+            // Also drop main sender so the channel closes
+            drop(sender);
+
+            for (package, tests) in receiver.iter() {
+                package_tests.insert(package.name.to_string(), tests);
+            }
+        });
+        package_tests
+    }
+
+    /// Compiles a single package and gathers all of its tests
+    fn collect_package_tests<S: BlackBoxFunctionSolver<FieldElement> + Default>(
+        &'a self,
+        package: &'a Package,
+        foreign_call_resolver_url: Option<&'a str>,
+        root_path: Option<PathBuf>,
+        package_name: String,
+    ) -> Result<Vec<Test<'a>>, CliError> {
+        let test_functions = self.get_tests_in_package(package)?;
+
+        let tests: Vec<Test> = test_functions
+            .into_iter()
+            .map(|test_name| {
+                let test_name_copy = test_name.clone();
+                let root_path = root_path.clone();
+                let package_name_clone = package_name.clone();
+                let package_name_clone2 = package_name.clone();
+                let runner = Box::new(move || {
+                    self.run_test::<S>(
+                        package,
+                        &test_name,
+                        foreign_call_resolver_url,
+                        root_path,
+                        package_name_clone.clone(),
+                    )
+                });
+                Test { name: test_name_copy, package_name: package_name_clone2, runner }
+            })
+            .collect();
+
+        Ok(tests)
+    }
+
+    fn get_tests_in_package(&'a self, package: &'a Package) -> Result<Vec<String>, CliError> {
+        let (mut context, crate_id) =
+            prepare_package(self.file_manager, self.parsed_files, package);
+        check_crate_and_report_errors(&mut context, crate_id, &self.args.compile_options)?;
+
+        Ok(context
+            .get_all_test_functions_in_crate_matching(&crate_id, self.pattern)
+            .into_iter()
+            .map(|(test_name, _)| test_name)
+            .collect())
+    }
+
+    fn run_test<S: BlackBoxFunctionSolver<FieldElement> + Default>(
+        &'a self,
+        package: &Package,
+        fn_name: &str,
+        foreign_call_resolver_url: Option<&str>,
+        root_path: Option<PathBuf>,
+        package_name: String,
+    ) -> TestStatus {
+        // This is really hacky but we can't share `Context` or `S` across threads.
+        // We then need to construct a separate copy for each test.
+
+        let (mut context, crate_id) =
+            prepare_package(self.file_manager, self.parsed_files, package);
+        check_crate(&mut context, crate_id, &self.args.compile_options)
+            .expect("Any errors should have occurred when collecting test functions");
+
+        let test_functions = context
+            .get_all_test_functions_in_crate_matching(&crate_id, FunctionNameMatch::Exact(fn_name));
+        let (_, test_function) = test_functions.first().expect("Test function should exist");
+
+        let blackbox_solver = S::default();
+
+        nargo::ops::run_test(
+            &blackbox_solver,
+            &mut context,
+            test_function,
+            self.args.show_output,
+            foreign_call_resolver_url,
+            root_path,
+            Some(package_name),
+            &self.args.compile_options,
+        )
+    }
+
+    fn display_test_status(
+        &'a self,
+        test_name: &'a String,
+        package_name: &'a String,
+        test_status: &'a TestStatus,
+    ) {
+        let writer = StandardStream::stderr(ColorChoice::Always);
+        let mut writer = writer.lock();
+
+        write!(writer, "[{}] Testing {test_name}... ", package_name)
+            .expect("Failed to write to stderr");
+        writer.flush().expect("Failed to flush writer");
+
+        match &test_status {
+            TestStatus::Pass { .. } => {
+                writer
+                    .set_color(ColorSpec::new().set_fg(Some(Color::Green)))
+                    .expect("Failed to set color");
+                writeln!(writer, "ok").expect("Failed to write to stderr");
+            }
+            TestStatus::Fail { message, error_diagnostic } => {
+                writer
+                    .set_color(ColorSpec::new().set_fg(Some(Color::Red)))
+                    .expect("Failed to set color");
+                writeln!(writer, "FAIL\n{message}\n").expect("Failed to write to stderr");
+                if let Some(diag) = error_diagnostic {
+                    noirc_errors::reporter::report_all(
+                        self.file_manager.as_file_map(),
+                        &[diag.clone()],
+                        self.args.compile_options.deny_warnings,
+                        self.args.compile_options.silence_warnings,
+                    );
+                }
+            }
+            TestStatus::Skipped { .. } => {
+                writer
+                    .set_color(ColorSpec::new().set_fg(Some(Color::Yellow)))
+                    .expect("Failed to set color");
+                writeln!(writer, "skipped").expect("Failed to write to stderr");
+            }
+            TestStatus::CompileError(err) => {
                 noirc_errors::reporter::report_all(
-                    file_manager.as_file_map(),
-                    &[diag.clone()],
-                    compile_options.deny_warnings,
-                    compile_options.silence_warnings,
+                    self.file_manager.as_file_map(),
+                    &[err.clone()],
+                    self.args.compile_options.deny_warnings,
+                    self.args.compile_options.silence_warnings,
                 );
             }
         }
-        TestStatus::Skipped { .. } => {
-            writer
-                .set_color(ColorSpec::new().set_fg(Some(Color::Yellow)))
-                .expect("Failed to set color");
-            writeln!(writer, "skipped").expect("Failed to write to stderr");
-        }
-        TestStatus::CompileError(err) => {
-            noirc_errors::reporter::report_all(
-                file_manager.as_file_map(),
-                &[err.clone()],
-                compile_options.deny_warnings,
-                compile_options.silence_warnings,
-            );
-        }
+        writer.reset().expect("Failed to reset writer");
     }
-    writer.reset().expect("Failed to reset writer");
 }
 
 fn display_test_report(
