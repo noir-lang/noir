@@ -38,6 +38,8 @@ for dir in ${tests_to_profile[@]}; do
 
     cd $base_path/$dir
 
+    echo "$base_path/$dir"
+
     PACKAGE_NAME=$(grep -oP 'name\s*=\s*"\K[^"]+' Nargo.toml)
 
     echo $PACKAGE_NAME
