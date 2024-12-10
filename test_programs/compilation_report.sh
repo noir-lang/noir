@@ -15,7 +15,7 @@ if [ "$#" -eq 0 ]; then
 
 else 
   # Delete last two lines so that we can re-use the previous report 
-  sed -i '$d' compilation_report.json | sed -i '$d' compilation_report.json
+  sed -i '$d' $current_dir/compilation_report.json | sed -i '$d' $current_dir/compilation_report.json
 
   echo "}, " >> $current_dir/compilation_report.json
 
@@ -43,16 +43,25 @@ for dir in ${tests_to_profile[@]}; do
 
     cat Nargo.toml
 
-    NAME_LINE=$(grep -oE 'name\s*=\s*"([^"]+)"' Nargo.toml)
+    NAME_LINE=$(grep -oE 'name\s*=\s*"([^"]+)"' Nargo.toml || true)
     echo $NAME_LINE
 
-    PACKAGE_NAME=$(grep -oE 'name\s*=\s*"([^"]+)"' $base_path/$dir/Nargo.toml | sed 's/name\s*=\s*"//;s/"//')
-    
+    PACKAGE_NAME=$(grep -oE 'name\s*=\s*"([^"]+)"' $base_path/$dir/Nargo.toml | sed 's/name\s*=\s*"//;s/"//' || true)
+    echo $PACKAGE_NAME
+
+    head -n 1 Nargo.toml | grep -q "[workspace]"
+    if [ $? -eq 0 ] && [ "$#" -ne 0 ]; then
+        echo "here"
+        PACKAGE_NAME=$(basename $current_dir)
+    else 
+        echo "no here"
+        PACKAGE_NAME=$dir
+    fi
+
     echo $PACKAGE_NAME
 
     COMPILE_TIME=$((time nargo compile --force) 2>&1 | grep real | grep -oE '[0-9]+m[0-9]+.[0-9]+s')
     echo -e " {\n    \"artifact_name\":\"$PACKAGE_NAME\",\n    \"time\":\"$COMPILE_TIME\"" >> $current_dir/compilation_report.json
-
     if (($ITER == $NUM_ARTIFACTS)); then
         echo "}" >> $current_dir/compilation_report.json
     else 
@@ -63,4 +72,3 @@ for dir in ${tests_to_profile[@]}; do
 done
 
 echo "]}" >> $current_dir/compilation_report.json
-
