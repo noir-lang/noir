@@ -12,15 +12,20 @@ echo "{\"compilation_reports\": [ " > $current_dir/compilation_report.json
 # If there is an argument that means we want to re-use an already existing compilation report
 # rather than generating a new one.
 # When reusing a report, the script can only profile one additional test at the moment.
-if [ "$#" -eq 0 ]; then
-  # echo "{\"compilation_reports\": [ " > $current_dir/compilation_report.json
-else 
-  # Delete last two lines so that we can re-use the previous report 
-  # sed -i '${/^$/d;}' compilation_report.json | sed -i '$d' compilation_report.json | sed -i '$d' compilation_report.json
+# if [ "$#" -eq 0 ]; then
+#   echo "{\"compilation_reports\": [ " > $current_dir/compilation_report.json
+# else 
+#   # Delete last two lines so that we can re-use the previous report 
+#   sed -i '${/^$/d;}' compilation_report.json | sed -i '$d' compilation_report.json | sed -i '$d' compilation_report.json
 
-  # echo "}, " >> compilation_report.json
+#   echo "}, " >> compilation_report.json
 
-  # The additional report is expected to be in the current directory
+#   # The additional report is expected to be in the current directory
+#   base_path="$current_dir"
+#   tests_to_profile=(".")
+# fi
+
+if [ "$#" -ne 0 ]; then
   base_path="$current_dir"
   tests_to_profile=(".")
 fi
