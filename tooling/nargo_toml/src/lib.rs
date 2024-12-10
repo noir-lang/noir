@@ -47,6 +47,35 @@ pub fn find_file_manifest(current_path: &Path) -> Option<PathBuf> {
 }
 
 /// Returns the [PathBuf] of the directory containing the `Nargo.toml` by searching from `current_path` to the root of its [Path].
+/// When `workspace` is `true` it returns the topmost directory, when `false` the innermost one.
+///
+/// Returns a [ManifestError] if no parent directories of `current_path` contain a manifest file.
+pub fn find_root(current_path: &Path, workspace: bool) -> Result<PathBuf, ManifestError> {
+    if workspace {
+        find_package_root(current_path)
+    } else {
+        find_file_root(current_path)
+    }
+}
+
+/// Returns the [PathBuf] of the directory containing the `Nargo.toml` by searching from `current_path` to the root of its [Path],
+/// returning at the innermost directory found, i.e. the one corresponding to the package that contains the `current_path`.
+///
+/// Returns a [ManifestError] if no parent directories of `current_path` contain a manifest file.
+pub fn find_file_root(current_path: &Path) -> Result<PathBuf, ManifestError> {
+    match find_file_manifest(current_path) {
+        Some(manifest_path) => {
+            let package_root = manifest_path
+                .parent()
+                .expect("infallible: manifest file path can't be root directory");
+            Ok(package_root.to_path_buf())
+        }
+        None => Err(ManifestError::MissingFile(current_path.to_path_buf())),
+    }
+}
+
+/// Returns the [PathBuf] of the directory containing the `Nargo.toml` by searching from `current_path` to the root of its [Path],
+/// returning at the topmost directory found, i.e. the one corresponding to the entire workspace.
 ///
 /// Returns a [ManifestError] if no parent directories of `current_path` contain a manifest file.
 pub fn find_package_root(current_path: &Path) -> Result<PathBuf, ManifestError> {
@@ -60,6 +89,11 @@ pub fn find_package_root(current_path: &Path) -> Result<PathBuf, ManifestError> 
 }
 
 // TODO(#2323): We are probably going to need a "filepath utils" crate soon
+/// Get the root of path, for example:
+/// * `C:\foo\bar` -> `C:\foo`
+/// * `//shared/foo/bar` -> `//shared/foo`
+/// * `/foo` -> `/foo`
+/// otherwise empty path.
 fn path_root(path: &Path) -> PathBuf {
     let mut components = path.components();
 
@@ -101,6 +135,7 @@ pub fn find_package_manifest(
         })
     }
 }
+
 /// Returns the [PathBuf] of the `Nargo.toml` file in the `current_path` directory.
 ///
 /// Returns a [ManifestError] if `current_path` does not contain a manifest file.
@@ -490,9 +525,17 @@ pub fn resolve_workspace_from_toml(
     Ok(workspace)
 }
 
-#[test]
-fn parse_standard_toml() {
-    let src = r#"
+#[cfg(test)]
+mod tests {
+    use std::{path::PathBuf, str::FromStr};
+
+    use test_case::test_matrix;
+
+    use crate::{find_root, Config, ManifestError};
+
+    #[test]
+    fn parse_standard_toml() {
+        let src = r#"
 
         [package]
         name = "test"
@@ -505,49 +548,49 @@ fn parse_standard_toml() {
         hello = {path = "./noir_driver"}
     "#;
 
-    assert!(Config::try_from(String::from(src)).is_ok());
-    assert!(Config::try_from(src).is_ok());
-}
+        assert!(Config::try_from(String::from(src)).is_ok());
+        assert!(Config::try_from(src).is_ok());
+    }
 
-#[test]
-fn parse_package_toml_no_deps() {
-    let src = r#"
+    #[test]
+    fn parse_package_toml_no_deps() {
+        let src = r#"
         [package]
         name = "test"
         authors = ["kev", "foo"]
         compiler_version = "*"
     "#;
 
-    assert!(Config::try_from(String::from(src)).is_ok());
-    assert!(Config::try_from(src).is_ok());
-}
+        assert!(Config::try_from(String::from(src)).is_ok());
+        assert!(Config::try_from(src).is_ok());
+    }
 
-#[test]
-fn parse_workspace_toml() {
-    let src = r#"
+    #[test]
+    fn parse_workspace_toml() {
+        let src = r#"
         [workspace]
         members = ["a", "b"]
     "#;
 
-    assert!(Config::try_from(String::from(src)).is_ok());
-    assert!(Config::try_from(src).is_ok());
-}
+        assert!(Config::try_from(String::from(src)).is_ok());
+        assert!(Config::try_from(src).is_ok());
+    }
 
-#[test]
-fn parse_workspace_default_member_toml() {
-    let src = r#"
+    #[test]
+    fn parse_workspace_default_member_toml() {
+        let src = r#"
         [workspace]
         members = ["a", "b"]
         default-member = "a"
     "#;
 
-    assert!(Config::try_from(String::from(src)).is_ok());
-    assert!(Config::try_from(src).is_ok());
-}
+        assert!(Config::try_from(String::from(src)).is_ok());
+        assert!(Config::try_from(src).is_ok());
+    }
 
-#[test]
-fn parse_package_expression_width_toml() {
-    let src = r#"
+    #[test]
+    fn parse_package_expression_width_toml() {
+        let src = r#"
     [package]
     name = "test"
     version = "0.1.0"
@@ -556,6 +599,17 @@ fn parse_package_expression_width_toml() {
     expression_width = "3"
     "#;
 
-    assert!(Config::try_from(String::from(src)).is_ok());
-    assert!(Config::try_from(src).is_ok());
+        assert!(Config::try_from(String::from(src)).is_ok());
+        assert!(Config::try_from(src).is_ok());
+    }
+
+    #[test_matrix(
+        [true, false],
+        ["C:\\foo\\bar", "//shared/foo/bar", "/foo/bar", "bar/baz", ""]
+    )]
+    fn test_find_root_does_not_panic(workspace: bool, path: &str) {
+        let path = PathBuf::from_str(path).unwrap();
+        let error = find_root(&path, workspace).expect_err("non-existing paths");
+        assert!(matches!(error, ManifestError::MissingFile(_)));
+    }
 }

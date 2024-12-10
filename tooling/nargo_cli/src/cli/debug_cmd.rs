@@ -38,7 +38,7 @@ pub(crate) struct DebugCommand {
 
     /// The name of the package to execute
     #[clap(long)]
-    package: Option<CrateName>,
+    pub(super) package: Option<CrateName>,
 
     #[clap(flatten)]
     compile_options: CompileOptions,

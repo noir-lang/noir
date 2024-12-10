@@ -5,7 +5,7 @@ use std::time::Duration;
 use acvm::acir::circuit::ExpressionWidth;
 use fm::FileManager;
 use nargo::ops::{collect_errors, compile_contract, compile_program, report_errors};
-use nargo::package::{CrateName, Package};
+use nargo::package::Package;
 use nargo::workspace::Workspace;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::{
@@ -23,19 +23,14 @@ use notify_debouncer_full::new_debouncer;
 use crate::errors::CliError;
 
 use super::fs::program::{read_program_from_file, save_contract_to_file, save_program_to_file};
-use super::NargoConfig;
+use super::{NargoConfig, PackageOptions};
 use rayon::prelude::*;
 
 /// Compile the program and its secret execution trace into ACIR format
 #[derive(Debug, Clone, Args)]
 pub(crate) struct CompileCommand {
-    /// The name of the package to compile
-    #[clap(long, conflicts_with = "workspace")]
-    package: Option<CrateName>,
-
-    /// Compile all packages in the workspace.
-    #[clap(long, conflicts_with = "package")]
-    workspace: bool,
+    #[clap(flatten)]
+    pub(super) package_options: PackageOptions,
 
     #[clap(flatten)]
     compile_options: CompileOptions,
@@ -46,10 +41,7 @@ pub(crate) struct CompileCommand {
 }
 
 pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliError> {
-    let default_selection =
-        if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
-    let selection = args.package.map_or(default_selection, PackageSelection::Selected);
-
+    let selection = args.package_options.package_selection();
     let workspace = read_workspace(&config.program_dir, selection)?;
 
     if args.watch {

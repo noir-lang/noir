@@ -5,12 +5,10 @@ use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 use fm::FileManager;
 use nargo::{
-    insert_all_files_for_workspace_into_file_manager,
-    ops::TestStatus,
-    package::{CrateName, Package},
-    parse_all, prepare_package,
+    insert_all_files_for_workspace_into_file_manager, ops::TestStatus, package::Package, parse_all,
+    prepare_package,
 };
-use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
+use nargo_toml::{get_package_manifest, resolve_workspace_from_toml};
 use noirc_driver::{check_crate, CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::hir::{FunctionNameMatch, ParsedFiles};
 use rayon::prelude::{IntoParallelIterator, ParallelBridge, ParallelIterator};
@@ -18,7 +16,7 @@ use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 use crate::{cli::check_cmd::check_crate_and_report_errors, errors::CliError};
 
-use super::NargoConfig;
+use super::{NargoConfig, PackageOptions};
 
 /// Run the tests for this program
 #[derive(Debug, Clone, Args)]
@@ -35,13 +33,8 @@ pub(crate) struct TestCommand {
     #[clap(long)]
     exact: bool,
 
-    /// The name of the package to test
-    #[clap(long, conflicts_with = "workspace")]
-    package: Option<CrateName>,
-
-    /// Test all packages in the workspace
-    #[clap(long, conflicts_with = "package")]
-    workspace: bool,
+    #[clap(flatten)]
+    pub(super) package_options: PackageOptions,
 
     #[clap(flatten)]
     compile_options: CompileOptions,
@@ -53,9 +46,7 @@ pub(crate) struct TestCommand {
 
 pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError> {
     let toml_path = get_package_manifest(&config.program_dir)?;
-    let default_selection =
-        if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
-    let selection = args.package.map_or(default_selection, PackageSelection::Selected);
+    let selection = args.package_options.package_selection();
     let workspace = resolve_workspace_from_toml(
         &toml_path,
         selection,
