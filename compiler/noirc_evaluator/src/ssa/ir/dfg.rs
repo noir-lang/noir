@@ -97,7 +97,7 @@ pub(crate) struct DataFlowGraph {
     pub(crate) data_bus: DataBus,
 }
 
-pub(crate) type CallStack = im::Vector<Location>;
+pub(crate) type CallStack = super::list::List<Location>;
 
 impl DataFlowGraph {
     /// Creates a new basic block with no parameters.
@@ -525,7 +525,7 @@ impl DataFlowGraph {
     pub(crate) fn get_value_call_stack(&self, value: ValueId) -> CallStack {
         match &self.values[self.resolve(value)] {
             Value::Instruction { instruction, .. } => self.get_call_stack(*instruction),
-            _ => im::Vector::new(),
+            _ => CallStack::new(),
         }
     }
 

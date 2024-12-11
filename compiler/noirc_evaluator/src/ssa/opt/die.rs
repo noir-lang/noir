@@ -1,14 +1,12 @@
 //! Dead Instruction Elimination (DIE) pass: Removes any instruction without side-effects for
 //! which the results are unused.
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
-use im::Vector;
-use noirc_errors::Location;
 use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
 use crate::ssa::{
     ir::{
         basic_block::{BasicBlock, BasicBlockId},
-        dfg::DataFlowGraph,
+        dfg::{CallStack, DataFlowGraph},
         function::Function,
         instruction::{BinaryOp, Instruction, InstructionId, Intrinsic},
         post_order::PostOrder,
@@ -481,7 +479,7 @@ fn apply_side_effects(
     rhs: ValueId,
     function: &mut Function,
     block_id: BasicBlockId,
-    call_stack: Vector<Location>,
+    call_stack: CallStack,
 ) -> (ValueId, ValueId) {
     // See if there's an active "enable side effects" condition
     let Some(condition) = side_effects_condition else {

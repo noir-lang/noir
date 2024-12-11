@@ -336,7 +336,7 @@ impl<'f> Context<'f> {
                 let one = self.inserter.function.dfg.make_constant(FieldElement::one(), bool_type);
                 self.insert_instruction(
                     Instruction::EnableSideEffectsIf { condition: one },
-                    im::Vector::new(),
+                    CallStack::new(),
                 );
                 self.push_instruction(*instruction);
                 self.insert_current_side_effects_enabled();
