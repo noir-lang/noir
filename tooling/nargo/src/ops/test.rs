@@ -67,7 +67,6 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
                 // otherwise constraints involving these expressions will not error.
                 let mut foreign_call_executor = TestForeignCallExecutor::new(
                     output,
-                    // show_output,
                     foreign_call_resolver_url,
                     root_path,
                     package_name,
