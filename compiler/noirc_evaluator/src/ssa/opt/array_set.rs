@@ -209,6 +209,8 @@ mod tests {
               b1(v0: u32):
                 v8 = lt v0, u32 5
                 jmpif v8 then: b3, else: b2
+              b2():
+                return
               b3():
                 v9 = eq v0, u32 5
                 jmpif v9 then: b4, else: b5
@@ -224,8 +226,6 @@ mod tests {
                 store v15 at v4
                 v17 = add v0, u32 1
                 jmp b1(v17)
-              b2():
-                return
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();

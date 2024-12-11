@@ -1209,8 +1209,6 @@ fn resolve_fmt_strings() {
             let string = f"this is i: {i}";
             println(string);
 
-            println(f"I want to print {0}");
-
             let new_val = 10;
             println(f"random_string{new_val}{new_val}");
         }
@@ -1220,7 +1218,7 @@ fn resolve_fmt_strings() {
     "#;
 
     let errors = get_program_errors(src);
-    assert!(errors.len() == 5, "Expected 5 errors, got: {:?}", errors);
+    assert!(errors.len() == 3, "Expected 5 errors, got: {:?}", errors);
 
     for (err, _file_id) in errors {
         match &err {
@@ -1229,21 +1227,13 @@ fn resolve_fmt_strings() {
             }) => {
                 assert_eq!(name, "i");
             }
-            CompilationError::ResolverError(ResolverError::NumericConstantInFormatString {
-                name,
-                ..
-            }) => {
-                assert_eq!(name, "0");
-            }
             CompilationError::TypeError(TypeCheckError::UnusedResultError {
                 expr_type: _,
                 expr_span,
             }) => {
                 let a = src.get(expr_span.start() as usize..expr_span.end() as usize).unwrap();
                 assert!(
-                    a == "println(string)"
-                        || a == "println(f\"I want to print {0}\")"
-                        || a == "println(f\"random_string{new_val}{new_val}\")"
+                    a == "println(string)" || a == "println(f\"random_string{new_val}{new_val}\")"
                 );
             }
             _ => unimplemented!(),

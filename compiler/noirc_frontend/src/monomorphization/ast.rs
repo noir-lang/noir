@@ -7,11 +7,11 @@ use noirc_errors::{
     Location,
 };
 
-use crate::hir_def::function::FunctionSignature;
 use crate::{
     ast::{BinaryOpKind, IntegerBitSize, Signedness, Visibility},
     token::{Attributes, FunctionAttribute},
 };
+use crate::{hir_def::function::FunctionSignature, token::FmtStrFragment};
 use serde::{Deserialize, Serialize};
 
 use super::HirType;
@@ -46,6 +46,12 @@ pub enum Expression {
     Semi(Box<Expression>),
     Break,
     Continue,
+}
+
+impl Expression {
+    pub fn is_array_or_slice_literal(&self) -> bool {
+        matches!(self, Expression::Literal(Literal::Array(_) | Literal::Slice(_)))
+    }
 }
 
 /// A definition is either a local (variable), function, or is a built-in
@@ -106,7 +112,7 @@ pub enum Literal {
     Bool(bool),
     Unit,
     Str(String),
-    FmtStr(String, u64, Box<Expression>),
+    FmtStr(Vec<FmtStrFragment>, u64, Box<Expression>),
 }
 
 #[derive(Debug, Clone, Hash)]

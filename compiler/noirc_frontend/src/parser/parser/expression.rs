@@ -428,8 +428,8 @@ impl<'a> Parser<'a> {
         Some(if self.eat_colon() {
             let expression = self.parse_expression_or_error();
             (ident, expression)
-        } else if self.at(Token::Assign) {
-            // If we find '=' instead of ':', assume the user meant ':`, error and continue
+        } else if self.at(Token::DoubleColon) || self.at(Token::Assign) {
+            // If we find '='  or '::' instead of ':', assume the user meant ':`, error and continue
             self.expected_token(Token::Colon);
             self.bump();
             let expression = self.parse_expression_or_error();
@@ -577,7 +577,7 @@ impl<'a> Parser<'a> {
     /// BlockExpression = Block
     fn parse_literal(&mut self) -> Option<ExpressionKind> {
         if let Some(bool) = self.eat_bool() {
-            return Some(ExpressionKind::Literal(Literal::Bool(bool)));
+            return Some(ExpressionKind::boolean(bool));
         }
 
         if let Some(int) = self.eat_int() {
@@ -585,15 +585,15 @@ impl<'a> Parser<'a> {
         }
 
         if let Some(string) = self.eat_str() {
-            return Some(ExpressionKind::Literal(Literal::Str(string)));
+            return Some(ExpressionKind::string(string));
         }
 
         if let Some((string, n)) = self.eat_raw_str() {
-            return Some(ExpressionKind::Literal(Literal::RawStr(string, n)));
+            return Some(ExpressionKind::raw_string(string, n));
         }
 
-        if let Some(string) = self.eat_fmt_str() {
-            return Some(ExpressionKind::Literal(Literal::FmtStr(string)));
+        if let Some((fragments, length)) = self.eat_fmt_str() {
+            return Some(ExpressionKind::format_string(fragments, length));
         }
 
         if let Some(tokens) = self.eat_quote() {
@@ -865,10 +865,11 @@ mod tests {
     fn parses_fmt_str() {
         let src = "f\"hello\"";
         let expr = parse_expression_no_errors(src);
-        let ExpressionKind::Literal(Literal::FmtStr(string)) = expr.kind else {
+        let ExpressionKind::Literal(Literal::FmtStr(fragments, length)) = expr.kind else {
             panic!("Expected format string literal");
         };
-        assert_eq!(string, "hello");
+        assert_eq!(fragments[0].to_string(), "hello");
+        assert_eq!(length, 5);
     }
 
     #[test]
@@ -1367,6 +1368,34 @@ mod tests {
         let (name, expr) = constructor.fields.remove(0);
         assert_eq!(name.to_string(), "y");
         assert_eq!(expr.to_string(), "y");
+    }
+
+    #[test]
+    fn parses_constructor_recovers_if_double_colon_instead_of_colon() {
+        let src = "
+        Foo { x: 1, y:: z }
+                     ^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str(&src);
+        let expr = parser.parse_expression_or_error();
+
+        let error = get_single_error(&parser.errors, span);
+        assert_eq!(error.to_string(), "Expected a ':' but found '::'");
+
+        let ExpressionKind::Constructor(mut constructor) = expr.kind else {
+            panic!("Expected constructor");
+        };
+        assert_eq!(constructor.typ.to_string(), "Foo");
+        assert_eq!(constructor.fields.len(), 2);
+
+        let (name, expr) = constructor.fields.remove(0);
+        assert_eq!(name.to_string(), "x");
+        assert_eq!(expr.to_string(), "1");
+
+        let (name, expr) = constructor.fields.remove(0);
+        assert_eq!(name.to_string(), "y");
+        assert_eq!(expr.to_string(), "z");
     }
 
     #[test]

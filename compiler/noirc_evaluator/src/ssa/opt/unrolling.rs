@@ -279,10 +279,10 @@ impl Loop {
         &self,
         function: &Function,
         cfg: &ControlFlowGraph,
-    ) -> Result<Option<FieldElement>, CallStack> {
-        let pre_header = self.get_pre_header(function, cfg)?;
-        let jump_value = get_induction_variable(function, pre_header)?;
-        Ok(function.dfg.get_numeric_constant(jump_value))
+    ) -> Option<FieldElement> {
+        let pre_header = self.get_pre_header(function, cfg).ok()?;
+        let jump_value = get_induction_variable(function, pre_header).ok()?;
+        function.dfg.get_numeric_constant(jump_value)
     }
 
     /// Find the upper bound of the loop in the loop header and return it
@@ -302,6 +302,11 @@ impl Loop {
     pub(super) fn get_const_upper_bound(&self, function: &Function) -> Option<FieldElement> {
         let block = &function.dfg[self.header];
         let instructions = block.instructions();
+        if instructions.is_empty() {
+            // If the loop condition is constant time, the loop header will be
+            // simplified to a simple jump.
+            return None;
+        }
         assert_eq!(
             instructions.len(),
             1,
@@ -327,14 +332,10 @@ impl Loop {
         &self,
         function: &Function,
         cfg: &ControlFlowGraph,
-    ) -> Result<Option<(FieldElement, FieldElement)>, CallStack> {
-        let Some(lower) = self.get_const_lower_bound(function, cfg)? else {
-            return Ok(None);
-        };
-        let Some(upper) = self.get_const_upper_bound(function) else {
-            return Ok(None);
-        };
-        Ok(Some((lower, upper)))
+    ) -> Option<(FieldElement, FieldElement)> {
+        let lower = self.get_const_lower_bound(function, cfg)?;
+        let upper = self.get_const_upper_bound(function)?;
+        Some((lower, upper))
     }
 
     /// Unroll a single loop in the function.
@@ -547,9 +548,9 @@ impl Loop {
         &self,
         function: &Function,
         cfg: &ControlFlowGraph,
-    ) -> Result<HashSet<ValueId>, CallStack> {
+    ) -> Option<HashSet<ValueId>> {
         // We need to traverse blocks from the pre-header up to the block entry point.
-        let pre_header = self.get_pre_header(function, cfg)?;
+        let pre_header = self.get_pre_header(function, cfg).ok()?;
         let function_entry = function.entry_block();
 
         // The algorithm in `find_blocks_in_loop` expects to collect the blocks between the header and the back-edge of the loop,
@@ -557,22 +558,19 @@ impl Loop {
         let blocks = Self::find_blocks_in_loop(function_entry, pre_header, cfg).blocks;
 
         // Collect allocations in all blocks above the header.
-        let allocations = blocks.iter().flat_map(|b| {
-            function.dfg[*b]
-                .instructions()
-                .iter()
+        let allocations = blocks.iter().flat_map(|block| {
+            let instructions = function.dfg[*block].instructions().iter();
+            instructions
                 .filter(|i| matches!(&function.dfg[**i], Instruction::Allocate))
-                .map(|i| {
-                    // Get the value into which the allocation was stored.
-                    function.dfg.instruction_results(*i)[0]
-                })
+                // Get the value into which the allocation was stored.
+                .map(|i| function.dfg.instruction_results(*i)[0])
         });
 
         // Collect reference parameters of the function itself.
         let params =
             function.parameters().iter().filter(|p| function.dfg.value_is_reference(**p)).copied();
 
-        Ok(params.chain(allocations).collect())
+        Some(params.chain(allocations).collect())
     }
 
     /// Count the number of load and store instructions of specific variables in the loop.
@@ -603,13 +601,11 @@ impl Loop {
 
     /// Count the number of instructions in the loop, including the terminating jumps.
     fn count_all_instructions(&self, function: &Function) -> usize {
-        self.blocks
-            .iter()
-            .map(|block| {
-                let block = &function.dfg[*block];
-                block.instructions().len() + block.terminator().map(|_| 1).unwrap_or_default()
-            })
-            .sum()
+        let iter = self.blocks.iter().map(|block| {
+            let block = &function.dfg[*block];
+            block.instructions().len() + block.terminator().is_some() as usize
+        });
+        iter.sum()
     }
 
     /// Count the number of increments to the induction variable.
@@ -640,18 +636,11 @@ impl Loop {
         function: &Function,
         cfg: &ControlFlowGraph,
     ) -> Option<BoilerplateStats> {
-        let Ok(Some((lower, upper))) = self.get_const_bounds(function, cfg) else {
-            return None;
-        };
-        let Some(lower) = lower.try_to_u64() else {
-            return None;
-        };
-        let Some(upper) = upper.try_to_u64() else {
-            return None;
-        };
-        let Ok(refs) = self.find_pre_header_reference_values(function, cfg) else {
-            return None;
-        };
+        let (lower, upper) = self.get_const_bounds(function, cfg)?;
+        let lower = lower.try_to_u64()?;
+        let upper = upper.try_to_u64()?;
+        let refs = self.find_pre_header_reference_values(function, cfg)?;
+
         let (loads, stores) = self.count_loads_and_stores(function, &refs);
         let increments = self.count_induction_increments(function);
         let all_instructions = self.count_all_instructions(function);
@@ -1142,7 +1131,6 @@ mod tests {
 
         let (lower, upper) = loops.yet_to_unroll[0]
             .get_const_bounds(function, &loops.cfg)
-            .expect("should find bounds")
             .expect("bounds are numeric const");
 
         assert_eq!(lower, FieldElement::from(0u32));
@@ -1337,12 +1325,15 @@ mod tests {
           b2():
             v7 = eq v0, u32 2
             jmpif v7 then: b7, else: b3
-          b7():
-            v18 = add v0, u32 1
-            jmp b1(v18)
           b3():
             v9 = eq v0, u32 5
             jmpif v9 then: b5, else: b4
+          b4():
+            v10 = load v1 -> Field
+            v12 = add v10, Field 1
+            store v12 at v1
+            v14 = add v0, u32 1
+            jmp b1(v14)
           b5():
             jmp b6()
           b6():
@@ -1350,12 +1341,9 @@ mod tests {
             v17 = eq v15, Field 4
             constrain v15 == Field 4
             return
-          b4():
-            v10 = load v1 -> Field
-            v12 = add v10, Field 1
-            store v12 at v1
-            v14 = add v0, u32 1
-            jmp b1(v14)
+          b7():
+            v18 = add v0, u32 1
+            jmp b1(v18)
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();

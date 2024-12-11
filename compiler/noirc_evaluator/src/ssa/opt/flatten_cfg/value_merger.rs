@@ -5,7 +5,7 @@ use crate::ssa::ir::{
     basic_block::BasicBlockId,
     dfg::{CallStack, DataFlowGraph, InsertInstructionResult},
     instruction::{BinaryOp, Instruction},
-    types::Type,
+    types::{NumericType, Type},
     value::{Value, ValueId},
 };
 
@@ -54,6 +54,7 @@ impl<'a> ValueMerger<'a> {
     pub(crate) fn merge_values(
         &mut self,
         then_condition: ValueId,
+        else_condition: ValueId,
         then_value: ValueId,
         else_value: ValueId,
     ) -> ValueId {
@@ -69,14 +70,15 @@ impl<'a> ValueMerger<'a> {
                 self.dfg,
                 self.block,
                 then_condition,
+                else_condition,
                 then_value,
                 else_value,
             ),
             typ @ Type::Array(_, _) => {
-                self.merge_array_values(typ, then_condition, then_value, else_value)
+                self.merge_array_values(typ, then_condition, else_condition, then_value, else_value)
             }
             typ @ Type::Slice(_) => {
-                self.merge_slice_values(typ, then_condition, then_value, else_value)
+                self.merge_slice_values(typ, then_condition, else_condition, then_value, else_value)
             }
             Type::Reference(_) => panic!("Cannot return references from an if expression"),
             Type::Function => panic!("Cannot return functions from an if expression"),
@@ -84,16 +86,17 @@ impl<'a> ValueMerger<'a> {
     }
 
     /// Merge two numeric values a and b from separate basic blocks to a single value. This
-    /// function would return the result of `if c { a } else { b }` as  `c * (a-b) + b`.
+    /// function would return the result of `if c { a } else { b }` as  `c*a + (!c)*b`.
     pub(crate) fn merge_numeric_values(
         dfg: &mut DataFlowGraph,
         block: BasicBlockId,
         then_condition: ValueId,
+        else_condition: ValueId,
         then_value: ValueId,
         else_value: ValueId,
     ) -> ValueId {
-        let then_type = dfg.type_of_value(then_value);
-        let else_type = dfg.type_of_value(else_value);
+        let then_type = dfg.type_of_value(then_value).unwrap_numeric();
+        let else_type = dfg.type_of_value(else_value).unwrap_numeric();
         assert_eq!(
             then_type, else_type,
             "Expected values merged to be of the same type but found {then_type} and {else_type}"
@@ -109,40 +112,24 @@ impl<'a> ValueMerger<'a> {
         let call_stack = if then_call_stack.is_empty() { else_call_stack } else { then_call_stack };
 
         // We must cast the bool conditions to the actual numeric type used by each value.
-        let then_condition = dfg
-            .insert_instruction_and_results(
-                Instruction::Cast(then_condition, Type::field()),
-                block,
-                None,
-                call_stack.clone(),
-            )
-            .first();
+        let cast = Instruction::Cast(then_condition, then_type);
+        let then_condition =
+            dfg.insert_instruction_and_results(cast, block, None, call_stack.clone()).first();
 
-        let then_field = Instruction::Cast(then_value, Type::field());
-        let then_field_value =
-            dfg.insert_instruction_and_results(then_field, block, None, call_stack.clone()).first();
+        let cast = Instruction::Cast(else_condition, else_type);
+        let else_condition =
+            dfg.insert_instruction_and_results(cast, block, None, call_stack.clone()).first();
 
-        let else_field = Instruction::Cast(else_value, Type::field());
-        let else_field_value =
-            dfg.insert_instruction_and_results(else_field, block, None, call_stack.clone()).first();
+        let mul = Instruction::binary(BinaryOp::Mul, then_condition, then_value);
+        let then_value =
+            dfg.insert_instruction_and_results(mul, block, None, call_stack.clone()).first();
 
-        let diff = Instruction::binary(BinaryOp::Sub, then_field_value, else_field_value);
-        let diff_value =
-            dfg.insert_instruction_and_results(diff, block, None, call_stack.clone()).first();
+        let mul = Instruction::binary(BinaryOp::Mul, else_condition, else_value);
+        let else_value =
+            dfg.insert_instruction_and_results(mul, block, None, call_stack.clone()).first();
 
-        let conditional_diff = Instruction::binary(BinaryOp::Mul, then_condition, diff_value);
-        let conditional_diff_value = dfg
-            .insert_instruction_and_results(conditional_diff, block, None, call_stack.clone())
-            .first();
-
-        let merged_field =
-            Instruction::binary(BinaryOp::Add, else_field_value, conditional_diff_value);
-        let merged_field_value = dfg
-            .insert_instruction_and_results(merged_field, block, None, call_stack.clone())
-            .first();
-
-        let merged = Instruction::Cast(merged_field_value, then_type);
-        dfg.insert_instruction_and_results(merged, block, None, call_stack).first()
+        let add = Instruction::binary(BinaryOp::Add, then_value, else_value);
+        dfg.insert_instruction_and_results(add, block, None, call_stack).first()
     }
 
     /// Given an if expression that returns an array: `if c { array1 } else { array2 }`,
@@ -152,6 +139,7 @@ impl<'a> ValueMerger<'a> {
         &mut self,
         typ: Type,
         then_condition: ValueId,
+        else_condition: ValueId,
         then_value: ValueId,
         else_value: ValueId,
     ) -> ValueId {
@@ -166,6 +154,7 @@ impl<'a> ValueMerger<'a> {
 
         if let Some(result) = self.try_merge_only_changed_indices(
             then_condition,
+            else_condition,
             then_value,
             else_value,
             actual_length,
@@ -177,7 +166,7 @@ impl<'a> ValueMerger<'a> {
             for (element_index, element_type) in element_types.iter().enumerate() {
                 let index =
                     ((i * element_types.len() as u32 + element_index as u32) as u128).into();
-                let index = self.dfg.make_constant(index, Type::field());
+                let index = self.dfg.make_constant(index, NumericType::NativeField);
 
                 let typevars = Some(vec![element_type.clone()]);
 
@@ -196,7 +185,12 @@ impl<'a> ValueMerger<'a> {
                 let then_element = get_element(then_value, typevars.clone());
                 let else_element = get_element(else_value, typevars);
 
-                merged.push_back(self.merge_values(then_condition, then_element, else_element));
+                merged.push_back(self.merge_values(
+                    then_condition,
+                    else_condition,
+                    then_element,
+                    else_element,
+                ));
             }
         }
 
@@ -209,6 +203,7 @@ impl<'a> ValueMerger<'a> {
         &mut self,
         typ: Type,
         then_condition: ValueId,
+        else_condition: ValueId,
         then_value_id: ValueId,
         else_value_id: ValueId,
     ) -> ValueId {
@@ -239,7 +234,7 @@ impl<'a> ValueMerger<'a> {
             for (element_index, element_type) in element_types.iter().enumerate() {
                 let index_u32 = i * element_types.len() as u32 + element_index as u32;
                 let index_value = (index_u32 as u128).into();
-                let index = self.dfg.make_constant(index_value, Type::field());
+                let index = self.dfg.make_constant(index_value, NumericType::NativeField);
 
                 let typevars = Some(vec![element_type.clone()]);
 
@@ -269,7 +264,12 @@ impl<'a> ValueMerger<'a> {
                 let else_element =
                     get_element(else_value_id, typevars, else_len * element_types.len() as u32);
 
-                merged.push_back(self.merge_values(then_condition, then_element, else_element));
+                merged.push_back(self.merge_values(
+                    then_condition,
+                    else_condition,
+                    then_element,
+                    else_element,
+                ));
             }
         }
 
@@ -286,7 +286,7 @@ impl<'a> ValueMerger<'a> {
         match typ {
             Type::Numeric(numeric_type) => {
                 let zero = FieldElement::zero();
-                self.dfg.make_constant(zero, Type::Numeric(*numeric_type))
+                self.dfg.make_constant(zero, *numeric_type)
             }
             Type::Array(element_types, len) => {
                 let mut array = im::Vector::new();
@@ -318,6 +318,7 @@ impl<'a> ValueMerger<'a> {
     fn try_merge_only_changed_indices(
         &mut self,
         then_condition: ValueId,
+        else_condition: ValueId,
         then_value: ValueId,
         else_value: ValueId,
         array_length: u32,
@@ -401,7 +402,8 @@ impl<'a> ValueMerger<'a> {
             let then_element = get_element(then_value, typevars.clone());
             let else_element = get_element(else_value, typevars);
 
-            let value = self.merge_values(then_condition, then_element, else_element);
+            let value =
+                self.merge_values(then_condition, else_condition, then_element, else_element);
 
             array = self.insert_array_set(array, index, value, Some(condition)).first();
         }

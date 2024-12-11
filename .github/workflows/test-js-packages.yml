@@ -13,6 +13,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  yarn-lock:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Errors if installation would result in modifications to yarn.lock
+      - name: Install
+        run: yarn --immutable
+        shell: bash
+
   build-nargo:
     runs-on: ubuntu-22.04
     timeout-minutes: 30
@@ -47,7 +60,7 @@ jobs:
           retention-days: 3
 
   build-noirc-abi:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
 
     steps:
@@ -78,9 +91,8 @@ jobs:
             ./tooling/noirc_abi_wasm/web
           retention-days: 10
 
-
   build-noir-wasm:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
 
     steps:
@@ -115,7 +127,7 @@ jobs:
           retention-days: 3
 
   build-acvm-js:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
 
     steps:
@@ -149,7 +161,7 @@ jobs:
   test-acvm_js-node:
     needs: [build-acvm-js]
     name: ACVM JS (Node.js)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
 
     steps:
@@ -171,7 +183,7 @@ jobs:
   test-acvm_js-browser:
     needs: [build-acvm-js]
     name: ACVM JS (Browser)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
 
     steps:
@@ -196,7 +208,7 @@ jobs:
   test-noirc-abi:
     needs: [build-noirc-abi]
     name: noirc_abi
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
 
     steps:
@@ -224,7 +236,7 @@ jobs:
   test-noir-js:
     needs: [build-nargo, build-acvm-js, build-noirc-abi]
     name: Noir JS
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
 
     steps:
@@ -271,7 +283,7 @@ jobs:
   test-noir-wasm:
     needs: [build-noir-wasm, build-nargo]
     name: noir_wasm
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
 
     steps:
@@ -315,7 +327,7 @@ jobs:
   test-noir-codegen:
     needs: [build-acvm-js, build-noirc-abi, build-nargo]
     name: noir_codegen
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
 
     steps:
@@ -362,7 +374,7 @@ jobs:
 
   test-integration-node:
     name: Integration Tests (Node)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: [build-acvm-js, build-noir-wasm, build-nargo, build-noirc-abi]
     timeout-minutes: 30
 
@@ -423,7 +435,7 @@ jobs:
 
   test-integration-browser:
     name: Integration Tests (Browser)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: [build-acvm-js, build-noir-wasm, build-noirc-abi]
     timeout-minutes: 30
 
@@ -468,7 +480,7 @@ jobs:
 
   test-examples:
     name: Example scripts
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: [build-nargo]
     timeout-minutes: 30
 
@@ -509,34 +521,43 @@ jobs:
         working-directory: ./examples/codegen_verifier
         run: ./test.sh
 
+  critical-library-list:
+    name: Load critical library list
+    runs-on: ubuntu-22.04
+    outputs:
+      libraries: ${{ steps.get_critical_libraries.outputs.libraries }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+   
+      - name: Build list of libraries
+        id: get_critical_libraries
+        run: |         
+          LIBRARIES=$(grep -Po "^https://github.com/\K.+"  ./CRITICAL_NOIR_LIBRARIES | jq -R -s -c 'split("\n") | map(select(. != "")) | map({ repo: ., path: "./"})')
+          echo "libraries=$LIBRARIES"
+          echo "libraries=$LIBRARIES" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ github.token }}
+
   external-repo-checks:
-    needs: [build-nargo]
-    runs-on: ubuntu-latest
+    needs: [build-nargo, critical-library-list]
+    runs-on: ubuntu-22.04
     # Only run when 'run-external-checks' label is present
     if: contains(github.event.pull_request.labels.*.name, 'run-external-checks')
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        project:
-        - { repo: noir-lang/ec, path: ./  }
-        - { repo: noir-lang/eddsa, path: ./  }
-        - { repo: noir-lang/mimc, path: ./  }
-        - { repo: noir-lang/noir_sort, path: ./  }
-        - { repo: noir-lang/noir-edwards, path: ./  }
-        - { repo: noir-lang/noir-bignum, path: ./  }
-        - { repo: noir-lang/noir_bigcurve, path: ./  }
-        - { repo: noir-lang/noir_base64, path: ./  }
-        - { repo: noir-lang/noir_string_search, path: ./  }
-        - { repo: noir-lang/sparse_array, path: ./  }
-        - { repo: noir-lang/noir_rsa, path: ./lib  }
-        - { repo: AztecProtocol/aztec-packages, path: ./noir-projects/aztec-nr }
-        - { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-contracts }
-        - { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/parity-lib }
-        - { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/private-kernel-lib }
-        - { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/reset-kernel-lib }
-        - { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/rollup-lib }
-        - { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/types }
+        project: ${{ fromJson( needs.critical-library-list.outputs.libraries )}}
+        include:
+          - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/aztec-nr }
+          - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-contracts }
+          - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/parity-lib }
+          - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/private-kernel-lib }
+          - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/reset-kernel-lib }
+          - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/rollup-lib }
+          - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/types }
 
     name: Check external repo - ${{ matrix.project.repo }}
     steps:
@@ -578,10 +599,11 @@ jobs:
   # This allows us to add/remove test jobs without having to update the required workflows.
   tests-end:
     name: End
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     # We want this job to always run (even if the dependant jobs fail) as we want this job to fail rather than skipping.
     if: ${{ always() }}
     needs:
+      - yarn-lock
       - test-acvm_js-node
       - test-acvm_js-browser
       - test-noirc-abi
