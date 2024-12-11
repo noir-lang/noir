@@ -4,6 +4,9 @@ set -eu
 echo "Merging reports"
 
 REPORT_NAME=$1
+NAME_PLURAL=""$REPORT_NAME"s"
+
+echo $NAME_PLURAL
 
 combined_reports="[]"
 
@@ -14,13 +17,13 @@ for report in ./reports/*; do
   FILE_PATH=$(echo $(ls $report)) 
   echo $FILE_PATH
   # Extract the 'memory_reports' array from each report and merge it
-  combined_reports=$(jq '[."'"$REPORT_NAME"'"[]] + '"$combined_reports" <<< "$(cat "$report/$FILE_PATH")")
+  combined_reports=$(jq '[."'"$NAME_PLURAL"'"[]] + '"$combined_reports" <<< "$(cat "$report/$FILE_PATH")")
 done
 
-combined_reports=$(jq '[."'$REPORT_NAME'"[]] + '"$combined_reports" <<< "$(cat ./$REPORT_NAME.json)")
+combined_reports=$(jq '[."'$NAME_PLURAL'"[]] + '"$combined_reports" <<< "$(cat ./$REPORT_NAME.json)")
 
 # Wrap the merged memory reports into a new object as to keep the 'memory_reports' key
-final_report="{\"$REPORT_NAME\": $combined_reports}"
+final_report="{\"$NAME_PLURAL\": $combined_reports}"
 
 echo "$final_report" > $REPORT_NAME.json
 
