@@ -136,9 +136,10 @@ impl<'a> TestRunner<'a> {
         }
 
         // Now run all tests in parallel, but show output for each package sequentially
-        let test_reports = self.run_all_tests(tests, &test_count_per_package);
+        let tests_count = tests.len();
+        let all_passed = self.run_all_tests(tests, &test_count_per_package);
 
-        if test_reports.is_empty() {
+        if tests_count == 0 {
             match &self.pattern {
                 FunctionNameMatch::Exact(pattern) => {
                     return Err(CliError::Generic(format!(
@@ -155,20 +156,20 @@ impl<'a> TestRunner<'a> {
             };
         }
 
-        if test_reports.iter().any(|test_result| test_result.status.failed()) {
-            Err(CliError::Generic(String::new()))
-        } else {
+        if all_passed {
             Ok(())
+        } else {
+            Err(CliError::Generic(String::new()))
         }
     }
 
+    /// Runs all tests. Returns `true` if all tests passed, `false` otherwise.
     fn run_all_tests(
         &self,
         tests: Vec<Test<'a>>,
         test_count_per_package: &BTreeMap<String, usize>,
-    ) -> Vec<TestResult> {
-        // Here we'll gather all test reports from all packages
-        let mut test_reports = Vec::new();
+    ) -> bool {
+        let mut all_passed = true;
 
         let (sender, receiver) = mpsc::channel();
         let iter = &Mutex::new(tests.into_iter());
@@ -231,6 +232,10 @@ impl<'a> TestRunner<'a> {
 
                 if remaining_test_count > 0 {
                     while let Ok(test_result) = receiver.recv() {
+                        if test_result.status.failed() {
+                            all_passed = false;
+                        }
+
                         // This is a test result from a different package: buffer it.
                         if &test_result.package_name != package_name {
                             buffer
@@ -252,11 +257,10 @@ impl<'a> TestRunner<'a> {
 
                 display_test_report(package_name, &test_report)
                     .expect("Could not display test report");
-                test_reports.extend(test_report);
             }
         });
 
-        test_reports
+        all_passed
     }
 
     /// Compiles all packages in parallel and returns their tests
