@@ -602,7 +602,7 @@ impl Instruction {
                 rhs: f(binary.rhs),
                 operator: binary.operator,
             }),
-            Instruction::Cast(value, typ) => Instruction::Cast(f(*value), typ.clone()),
+            Instruction::Cast(value, typ) => Instruction::Cast(f(*value), *typ),
             Instruction::Not(value) => Instruction::Not(f(*value)),
             Instruction::Truncate { value, bit_size, max_bit_size } => Instruction::Truncate {
                 value: f(*value),
@@ -759,7 +759,7 @@ impl Instruction {
                     Value::NumericConstant { constant, typ } if typ.is_unsigned() => {
                         // As we're casting to a `u128`, we need to clear out any upper bits that the NOT fills.
                         let value = !constant.to_u128() % (1 << typ.bit_size());
-                        SimplifiedTo(dfg.make_constant(value.into(), typ.clone()))
+                        SimplifiedTo(dfg.make_constant(value.into(), *typ))
                     }
                     Value::Instruction { instruction, .. } => {
                         // !!v => v

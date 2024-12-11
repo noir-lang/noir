@@ -527,7 +527,10 @@ mod test {
 
     use crate::ssa::{
         function_builder::FunctionBuilder,
-        ir::{map::Id, types::Type},
+        ir::{
+            map::Id,
+            types::{NumericType, Type},
+        },
         opt::assert_normalized_ssa_equals,
         Ssa,
     };
@@ -636,7 +639,7 @@ mod test {
 
         // Compiling main
         let mut builder = FunctionBuilder::new("main".into(), main_id);
-        let zero = builder.numeric_constant(0u128, Type::unsigned(32));
+        let zero = builder.numeric_constant(0u128, NumericType::unsigned(32));
         let array_type = Type::Array(Arc::new(vec![Type::unsigned(32)]), 2);
         let v1 = builder.insert_make_array(vector![zero, zero], array_type.clone());
         let v2 = builder.insert_allocate(array_type.clone());
@@ -649,7 +652,7 @@ mod test {
         builder.switch_to_block(b1);
 
         let v3 = builder.insert_load(v2, array_type);
-        let one = builder.numeric_constant(1u128, Type::unsigned(32));
+        let one = builder.numeric_constant(1u128, NumericType::unsigned(32));
         let v5 = builder.insert_array_set(v3, zero, one);
         builder.terminate_with_return(vec![v5]);
 

@@ -204,7 +204,7 @@ mod test {
         ir::{
             instruction::{BinaryOp, Instruction},
             map::Id,
-            types::Type,
+            types::{NumericType, Type},
         },
     };
 
@@ -235,9 +235,9 @@ mod test {
         let mut builder = FunctionBuilder::new("main".into(), main_id);
         let v0 = builder.add_parameter(Type::field());
 
-        let two = builder.numeric_constant(2u128, Type::field());
+        let two = builder.field_constant(2u128);
 
-        let one = builder.numeric_constant(1u128, Type::bool());
+        let one = builder.numeric_constant(1u128, NumericType::bool());
 
         builder.insert_enable_side_effects_if(one);
         builder.insert_binary(v0, BinaryOp::Mul, two);
