@@ -20,5 +20,8 @@ proptest.workspace = true
 rand.workspace = true
 noir_fuzzer.workspace = true
 num-traits.workspace = true
+fm.workspace=true
 
 rand_xorshift="0.3.0"
+walkdir = "2.5.0"
+sha256="1.5.0"

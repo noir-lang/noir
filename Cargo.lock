@@ -427,6 +427,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-trait"
+version = "0.1.83"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "721cae7de5c34fbb2acd27e21e6d2cf7b886dce0c27388d46c4e6c47ea4318dd"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.87",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2945,6 +2956,7 @@ name = "noir_greybox_fuzzer"
 version = "0.38.0"
 dependencies = [
  "acvm",
+ "fm",
  "noir_fuzzer",
  "noirc_abi",
  "noirc_artifacts",
@@ -2952,6 +2964,8 @@ dependencies = [
  "proptest",
  "rand 0.8.5",
  "rand_xorshift",
+ "sha256",
+ "walkdir",
 ]
 
 [[package]]
@@ -4375,6 +4389,19 @@ dependencies = [
  "cfg-if 1.0.0",
  "cpufeatures",
  "digest",
+]
+
+[[package]]
+name = "sha256"
+version = "1.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "18278f6a914fa3070aa316493f7d2ddfb9ac86ebc06fa3b83bffda487e9065b0"
+dependencies = [
+ "async-trait",
+ "bytes",
+ "hex",
+ "sha2",
+ "tokio",
 ]
 
 [[package]]

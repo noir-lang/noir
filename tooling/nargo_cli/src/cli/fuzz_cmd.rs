@@ -1,13 +1,12 @@
 use std::{io::Write, path::PathBuf};
 
 use acvm::{BlackBoxFunctionSolver, FieldElement};
-use async_lsp::client_monitor;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 use fm::FileManager;
 use nargo::{
     insert_all_files_for_workspace_into_file_manager,
-    ops::{FuzzingRunStatus, TestStatus},
+    ops::FuzzingRunStatus,
     package::{CrateName, Package},
     parse_all, prepare_package,
 };
@@ -18,7 +17,6 @@ use rayon::prelude::{IntoParallelIterator, ParallelBridge, ParallelIterator};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 use crate::{cli::check_cmd::check_crate_and_report_errors, errors::CliError};
-use noirc_abi::input_parser::json::serialize_to_json;
 
 use super::NargoConfig;
 

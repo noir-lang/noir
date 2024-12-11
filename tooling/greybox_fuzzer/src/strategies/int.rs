@@ -310,7 +310,7 @@ fn shift<T: Shl<u32, Output = T> + Shr<u32, Output = T> + PrimInt + HasBits + As
     } else {
         converted << (exponent >> 1)
     };
-    i128_to_field(converted.as_(), width)
+    i128_to_field(after_update.as_(), width)
 }
 
 fn field_to_i128(input: FieldElement, width: u32) -> i128 {
