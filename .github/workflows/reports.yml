@@ -359,26 +359,8 @@ jobs:
 
       - name: Merge compilation reports using jq
         run: |
-          echo "Merging reports" 
-
-          combined_reports="[]"
-
-          # Iterate over each report and merge them
-          for report in ./reports/*; do
-            # The report is saved under ./compilation_report_{ matrix_report }/compilation_report_{ matrix_report }.json
-            REPORT_NAME=$(echo $(ls $report)) 
-            # Extract the 'compilation_reports' array from each report and merge it
-            combined_reports=$(jq '[.compilation_reports[]] + '"$combined_reports" <<< "$(cat "$report/$REPORT_NAME")")
-          done
-
-          combined_reports=$(jq '[.compilation_reports[]] + '"$combined_reports" <<< "$(cat ./compilation_report.json)")
-
-          # Wrap the merged compilation reports into a new object as to keep the 'compilation_reports' key
-          final_report="{\"compilation_reports\": $combined_reports}"
-
-          echo "$final_report" > compilation_report.json
-
-          cat compilation_report.json
+          mv ./.github/scripts/merge-bench-reports.sh merge-bench-reports.sh
+          ./merge-bench-reports.sh compilation_report
 
       - name: Parse compilation report
         id: compilation_report
