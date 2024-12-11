@@ -1,8 +1,8 @@
 use clap::{Args, Parser, Subcommand};
 use const_format::formatcp;
-use nargo_toml::find_package_root;
-use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
-use std::path::PathBuf;
+use nargo_toml::{ManifestError, PackageSelection};
+use noirc_driver::{CrateName, NOIR_ARTIFACT_VERSION_STRING};
+use std::path::{Path, PathBuf};
 
 use color_eyre::eyre;
 
@@ -52,6 +52,48 @@ pub(crate) struct NargoConfig {
     program_dir: PathBuf,
 }
 
+/// Options for commands that work on either workspace or package scope.
+#[derive(Args, Clone, Debug, Default)]
+pub(crate) struct PackageOptions {
+    /// The name of the package to run the command on.
+    /// By default run on the first one found moving up along the ancestors of the current directory.
+    #[clap(long, conflicts_with = "workspace")]
+    package: Option<CrateName>,
+
+    /// Run on all packages in the workspace
+    #[clap(long, conflicts_with = "package")]
+    workspace: bool,
+}
+
+impl PackageOptions {
+    /// Decide which package to run the command on:
+    /// * `package` if non-empty
+    /// * all packages if `workspace` is `true`
+    /// * otherwise the default package
+    pub(crate) fn package_selection(&self) -> PackageSelection {
+        let default_selection =
+            if self.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
+
+        self.package.clone().map_or(default_selection, PackageSelection::Selected)
+    }
+
+    /// Whether we need to look for the package manifest at the workspace level.
+    /// If a package is specified, it might not be the current package.
+    fn scope(&self) -> CommandScope {
+        if self.workspace || self.package.is_some() {
+            CommandScope::Workspace
+        } else {
+            CommandScope::CurrentPackage
+        }
+    }
+}
+
+enum CommandScope {
+    Workspace,
+    CurrentPackage,
+    Any,
+}
+
 #[non_exhaustive]
 #[derive(Subcommand, Clone, Debug)]
 enum NargoCommand {
@@ -83,22 +125,8 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
     }
 
     // Search through parent directories to find package root if necessary.
-    match &command {
-        NargoCommand::Check(..)
-        | NargoCommand::Fmt(..)
-        | NargoCommand::Compile(..)
-        | NargoCommand::Execute(..)
-        | NargoCommand::Export(..)
-        | NargoCommand::Debug(..)
-        | NargoCommand::Test(..)
-        | NargoCommand::Info(..) => {
-            config.program_dir = find_package_root(&config.program_dir)?;
-        }
-        NargoCommand::New(..)
-        | NargoCommand::Init(..)
-        | NargoCommand::Lsp(..)
-        | NargoCommand::Dap(..)
-        | NargoCommand::GenerateCompletionScript(..) => (),
+    if let Some(program_dir) = command_dir(&command, &config.program_dir)? {
+        config.program_dir = program_dir;
     }
 
     match command {
@@ -125,6 +153,43 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
     let markdown: String = clap_markdown::help_markdown::<NargoCli>();
     println!("{markdown}");
     Ok(())
+}
+
+/// Some commands have package options, which we use here to decide whether to
+/// alter `--program-dir` to point at a manifest, depending on whether we want
+/// to work on a specific package or the entire workspace.
+fn command_scope(cmd: &NargoCommand) -> CommandScope {
+    match &cmd {
+        NargoCommand::Check(cmd) => cmd.package_options.scope(),
+        NargoCommand::Compile(cmd) => cmd.package_options.scope(),
+        NargoCommand::Execute(cmd) => cmd.package_options.scope(),
+        NargoCommand::Export(cmd) => cmd.package_options.scope(),
+        NargoCommand::Test(cmd) => cmd.package_options.scope(),
+        NargoCommand::Info(cmd) => cmd.package_options.scope(),
+        NargoCommand::Fmt(cmd) => cmd.package_options.scope(),
+        NargoCommand::Debug(cmd) => {
+            if cmd.package.is_some() {
+                CommandScope::Workspace
+            } else {
+                CommandScope::CurrentPackage
+            }
+        }
+        NargoCommand::New(..)
+        | NargoCommand::Init(..)
+        | NargoCommand::Lsp(..)
+        | NargoCommand::Dap(..)
+        | NargoCommand::GenerateCompletionScript(..) => CommandScope::Any,
+    }
+}
+
+/// A manifest directory we need to change into, if the command needs it.
+fn command_dir(cmd: &NargoCommand, program_dir: &Path) -> Result<Option<PathBuf>, ManifestError> {
+    let workspace = match command_scope(cmd) {
+        CommandScope::Workspace => true,
+        CommandScope::CurrentPackage => false,
+        CommandScope::Any => return Ok(None),
+    };
+    Ok(Some(nargo_toml::find_root(program_dir, workspace)?))
 }
 
 #[cfg(test)]

@@ -82,6 +82,11 @@ pub fn compile<F: AcirField>(
     acir: Circuit<F>,
     expression_width: ExpressionWidth,
 ) -> (Circuit<F>, AcirTransformationMap) {
+    if MAX_OPTIMIZER_PASSES == 0 {
+        let acir_opcode_positions = (0..acir.opcodes.len()).collect::<Vec<_>>();
+        let transformation_map = AcirTransformationMap::new(&acir_opcode_positions);
+        return (acir, transformation_map);
+    }
     let mut pass = 0;
     let mut prev_opcodes_hash = fxhash::hash64(&acir.opcodes);
     let mut prev_acir = acir;
