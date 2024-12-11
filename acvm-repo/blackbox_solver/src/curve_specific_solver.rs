@@ -30,7 +30,8 @@ pub trait BlackBoxFunctionSolver<F> {
     ) -> Result<Vec<F>, BlackBoxResolutionError>;
 }
 
-pub struct StubbedBlackBoxSolver(pub /* pedantic_solving: */ bool);
+// pedantic_solving: bool
+pub struct StubbedBlackBoxSolver(pub bool);
 
 // pedantic_solving enabled by default
 impl Default for StubbedBlackBoxSolver {

@@ -139,8 +139,8 @@ fn create_point(
 
 #[cfg(test)]
 mod tests {
-    use ark_ff::BigInteger;
     use super::*;
+    use ark_ff::BigInteger;
 
     fn get_generator() -> [FieldElement; 3] {
         let generator = grumpkin::SWAffine::generator();
@@ -155,7 +155,12 @@ mod tests {
         let generator = get_generator();
 
         let pedantic_solving = true;
-        let res = multi_scalar_mul(&generator, &[FieldElement::one()], &[FieldElement::zero()], pedantic_solving)?;
+        let res = multi_scalar_mul(
+            &generator,
+            &[FieldElement::one()],
+            &[FieldElement::zero()],
+            pedantic_solving,
+        )?;
 
         assert_eq!(generator[0], res.0);
         assert_eq!(generator[1], res.1);
@@ -191,10 +196,12 @@ mod tests {
         ));
 
         let pedantic_solving = true;
-        let res = multi_scalar_mul(&points, &[FieldElement::one()], &[invalid_limb], pedantic_solving);
+        let res =
+            multi_scalar_mul(&points, &[FieldElement::one()], &[invalid_limb], pedantic_solving);
         assert_eq!(res, expected_error);
 
-        let res = multi_scalar_mul(&points, &[invalid_limb], &[FieldElement::one()], pedantic_solving);
+        let res =
+            multi_scalar_mul(&points, &[invalid_limb], &[FieldElement::one()], pedantic_solving);
         assert_eq!(res, expected_error);
     }
 

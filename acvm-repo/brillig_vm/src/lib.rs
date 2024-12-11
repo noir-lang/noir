@@ -1926,7 +1926,8 @@ mod tests {
         ];
 
         let solver = StubbedBlackBoxSolver::default();
-        let mut vm = brillig_execute_and_get_vm(input_string.clone(), &string_double_program, &solver);
+        let mut vm =
+            brillig_execute_and_get_vm(input_string.clone(), &string_double_program, &solver);
 
         // Check that VM is waiting
         assert_eq!(

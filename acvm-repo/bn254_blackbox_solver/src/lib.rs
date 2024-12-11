@@ -20,6 +20,7 @@ pub use poseidon2::{
 type FieldElement = acir::acir_field::GenericFieldElement<ark_bn254::Fr>;
 
 #[derive(Default)]
+// pedantic_solving: bool
 pub struct Bn254BlackBoxSolver(pub bool);
 
 impl BlackBoxFunctionSolver<FieldElement> for Bn254BlackBoxSolver {

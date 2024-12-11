@@ -32,7 +32,7 @@ pub async fn execute_circuit(
     foreign_call_handler: ForeignCallHandler,
 ) -> Result<JsWitnessMap, Error> {
     let pedantic_solving = false;
-    execute_program_pedantic(program, initial_witness, foreign_call_handler, pedantic_solving).await
+    execute_circuit_pedantic(program, initial_witness, foreign_call_handler, pedantic_solving).await
 }
 
 /// `execute_circuit` with pedantic ACVM solving
@@ -45,9 +45,13 @@ pub async fn execute_circuit_pedantic(
 ) -> Result<JsWitnessMap, Error> {
     console_error_panic_hook::set_once();
 
-    let mut witness_stack =
-        execute_program_with_native_type_return(program, initial_witness, &foreign_call_handler, pedantic_solving)
-            .await?;
+    let mut witness_stack = execute_program_with_native_type_return(
+        program,
+        initial_witness,
+        &foreign_call_handler,
+        pedantic_solving,
+    )
+    .await?;
     let witness_map =
         witness_stack.pop().expect("Should have at least one witness on the stack").witness;
     Ok(witness_map.into())
@@ -67,7 +71,13 @@ pub async fn execute_circuit_with_return_witness(
     foreign_call_handler: ForeignCallHandler,
 ) -> Result<JsSolvedAndReturnWitness, Error> {
     let pedantic_solving = false;
-    execute_circuit_with_return_witness_pedantic(program, initial_witness, foreign_call_handler, pedantic_solving).await
+    execute_circuit_with_return_witness_pedantic(
+        program,
+        initial_witness,
+        foreign_call_handler,
+        pedantic_solving,
+    )
+    .await
 }
 
 /// `executeCircuitWithReturnWitness` with pedantic ACVM execution
@@ -127,9 +137,13 @@ pub async fn execute_program_pedantic(
 ) -> Result<JsWitnessStack, Error> {
     console_error_panic_hook::set_once();
 
-    let witness_stack =
-        execute_program_with_native_type_return(program, initial_witness, &foreign_call_handler, pedantic_solving)
-            .await?;
+    let witness_stack = execute_program_with_native_type_return(
+        program,
+        initial_witness,
+        &foreign_call_handler,
+        pedantic_solving,
+    )
+    .await?;
 
     Ok(witness_stack.into())
 }
@@ -147,8 +161,13 @@ async fn execute_program_with_native_type_return(
         None,
     None))?;
 
-    execute_program_with_native_program_and_return(&program, initial_witness, foreign_call_executor, pedantic_solving)
-        .await
+    execute_program_with_native_program_and_return(
+        &program,
+        initial_witness,
+        foreign_call_executor,
+        pedantic_solving,
+    )
+    .await
 }
 
 async fn execute_program_with_native_program_and_return(
