@@ -200,7 +200,7 @@ impl<'a> TestRunner<'a> {
                             time_to_run,
                         };
 
-                        if !thread_sender.send(test_result).is_ok() {
+                        if thread_sender.send(test_result).is_err() {
                             break;
                         }
                     })
@@ -290,7 +290,7 @@ impl<'a> TestRunner<'a> {
                             Some(self.workspace.root_dir.clone()),
                             package.name.to_string(),
                         );
-                        if !thread_sender.send((package, tests)).is_ok() {
+                        if thread_sender.send((package, tests)).is_err() {
                             break;
                         }
                     })
