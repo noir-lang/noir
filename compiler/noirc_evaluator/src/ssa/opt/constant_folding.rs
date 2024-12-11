@@ -372,7 +372,7 @@ impl<'brillig> Context<'brillig> {
         dom: &mut DominatorTree,
         constraint_simplification_mapping: &HashMap<ValueId, SimplificationCache>,
     ) -> Instruction {
-        let instruction = dfg[instruction_id].clone();
+        let mut instruction = dfg[instruction_id].clone();
 
         // Alternate between resolving `value_id` in the `dfg` and checking to see if the resolved value
         // has been constrained to be equal to some simpler value in the current block.
@@ -400,9 +400,10 @@ impl<'brillig> Context<'brillig> {
         }
 
         // Resolve any inputs to ensure that we're comparing like-for-like instructions.
-        instruction.map_values(|value_id| {
+        instruction.map_values_mut(|value_id| {
             resolve_cache(block, dfg, dom, constraint_simplification_mapping, value_id)
-        })
+        });
+        instruction
     }
 
     /// Pushes a new [`Instruction`] into the [`DataFlowGraph`] which applies any optimizations

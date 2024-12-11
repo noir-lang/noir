@@ -73,25 +73,24 @@ impl<'f> FunctionInserter<'f> {
 
     /// Get an instruction and make sure all the values in it are freshly resolved.
     pub(crate) fn map_instruction(&mut self, id: InstructionId) -> (Instruction, CallStack) {
-        (
-            self.function.dfg[id].clone().map_values(|id| self.resolve(id)),
-            self.function.dfg.get_call_stack(id),
-        )
+        let mut instruction = self.function.dfg[id].clone();
+        instruction.map_values_mut(|id| self.resolve(id));
+        (instruction, self.function.dfg.get_call_stack(id))
     }
 
     /// Maps a terminator in place, replacing any ValueId in the terminator with the
     /// resolved version of that value id from this FunctionInserter's internal value mapping.
     pub(crate) fn map_terminator_in_place(&mut self, block: BasicBlockId) {
         let mut terminator = self.function.dfg[block].take_terminator();
-        terminator.mutate_values(|value| self.resolve(value));
+        terminator.map_values_mut(|value| self.resolve(value));
         self.function.dfg[block].set_terminator(terminator);
     }
 
     /// Maps the data bus in place, replacing any ValueId in the data bus with the
     /// resolved version of that value id from this FunctionInserter's internal value mapping.
     pub(crate) fn map_data_bus_in_place(&mut self) {
-        let data_bus = self.function.dfg.data_bus.clone();
-        let data_bus = data_bus.map_values(|value| self.resolve(value));
+        let mut data_bus = self.function.dfg.data_bus.clone();
+        data_bus.map_values_mut(|value| self.resolve(value));
         self.function.dfg.data_bus = data_bus;
     }
 
