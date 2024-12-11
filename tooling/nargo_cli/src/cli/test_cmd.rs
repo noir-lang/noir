@@ -50,8 +50,8 @@ pub(crate) struct TestCommand {
     oracle_resolver: Option<String>,
 
     /// Number of threads used for running tests in parallel
-    #[clap(long)]
-    test_threads: Option<usize>,
+    #[clap(long, default_value_t = rayon::current_num_threads())]
+    test_threads: usize,
 }
 
 struct Test<'a> {
@@ -94,15 +94,13 @@ pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError
         None => FunctionNameMatch::Anything,
     };
 
-    let num_threads = args.test_threads.unwrap_or_else(rayon::current_num_threads);
-
     let runner = TestRunner {
         file_manager: &file_manager,
         parsed_files: &parsed_files,
         workspace,
         args: &args,
         pattern,
-        num_threads,
+        num_threads: args.test_threads,
     };
     runner.run()
 }
