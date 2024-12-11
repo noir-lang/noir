@@ -26,13 +26,19 @@ impl<T> List<T> {
         Self::default()
     }
 
+    /// This is actually a push_front since we just create a new head for the
+    /// list. This is done so that the tail of the list can still be shared.
+    /// In the case of call stacks, the last node will be main, while the top
+    /// of the call stack will be the head of this list.
     pub fn push_back(&mut self, value: T) {
         self.len += 1;
         self.head = Arc::new(Node::Cons(value, self.head.clone()));
     }
 
-    pub fn iter(&self) -> Iter<T> {
-        Iter { head: &self.head, len: self.len }
+    /// It is more efficient to iterate from the head of the list towards the tail.
+    /// For callstacks this means from the top of the call stack towards main.
+    fn iter_rev(&self) -> IterRev<T> {
+        IterRev { head: &self.head, len: self.len }
     }
 
     pub fn clear(&mut self) {
@@ -41,11 +47,11 @@ impl<T> List<T> {
 
     pub fn append(&mut self, other: Self)
     where
-        T: Copy,
+        T: Copy + std::fmt::Debug,
     {
-        let other = other.collect::<Vec<_>>();
+        let other = other.into_iter().collect::<Vec<_>>();
 
-        for item in other.into_iter().rev() {
+        for item in other {
             self.push_back(item);
         }
     }
@@ -58,7 +64,7 @@ impl<T> List<T> {
         self.len == 0
     }
 
-    pub fn pop_back(&mut self) -> Option<T>
+    fn pop_front(&mut self) -> Option<T>
     where
         T: Copy,
     {
@@ -79,7 +85,7 @@ impl<T> List<T> {
     {
         if self.len > len {
             for _ in 0..self.len - len {
-                self.pop_back();
+                self.pop_front();
             }
         }
     }
@@ -98,33 +104,37 @@ impl<T> List<T> {
     }
 }
 
-impl<T> Iterator for List<T>
+pub struct IterRev<'a, T> {
+    head: &'a Node<T>,
+    len: usize,
+}
+
+impl<T> IntoIterator for List<T>
 where
-    T: Copy,
+    T: Copy + std::fmt::Debug,
 {
     type Item = T;
 
-    fn next(&mut self) -> Option<Self::Item> {
-        self.pop_back()
-    }
-}
+    type IntoIter = std::iter::Rev<std::vec::IntoIter<T>>;
 
-pub struct Iter<'a, T> {
-    head: &'a Node<T>,
-    len: usize,
+    fn into_iter(self) -> Self::IntoIter {
+        let items: Vec<_> = self.iter_rev().copied().collect();
+        items.into_iter().rev()
+    }
 }
 
 impl<'a, T> IntoIterator for &'a List<T> {
     type Item = &'a T;
 
-    type IntoIter = Iter<'a, T>;
+    type IntoIter = std::iter::Rev<<Vec<&'a T> as IntoIterator>::IntoIter>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.iter()
+        let items: Vec<_> = self.iter_rev().collect();
+        items.into_iter().rev()
     }
 }
 
-impl<'a, T> Iterator for Iter<'a, T> {
+impl<'a, T> Iterator for IterRev<'a, T> {
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -142,7 +152,7 @@ impl<'a, T> Iterator for Iter<'a, T> {
     }
 }
 
-impl<'a, T> ExactSizeIterator for Iter<'a, T> {}
+impl<'a, T> ExactSizeIterator for IterRev<'a, T> {}
 
 impl<T> std::fmt::Debug for List<T>
 where
@@ -150,7 +160,7 @@ where
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "[")?;
-        for (i, item) in self.iter().enumerate() {
+        for (i, item) in self.iter_rev().enumerate() {
             if i != 0 {
                 write!(f, ", ")?;
             }
@@ -166,7 +176,7 @@ where
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "[")?;
-        for (i, item) in self.iter().enumerate() {
+        for (i, item) in self.iter_rev().enumerate() {
             if i != 0 {
                 write!(f, ", ")?;
             }
