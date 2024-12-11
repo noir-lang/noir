@@ -232,16 +232,6 @@ fn format_global(id: GlobalId, args: &ProcessRequestCallbackArgs) -> String {
 }
 
 fn get_global_value(interner: &NodeInterner, expr: ExprId) -> Option<String> {
-    let span = interner.expr_span(&expr);
-
-    // TODO: I think this can be safely dropped because globals will always
-    // be in the interner now
-    //
-    // // Globals as array lengths are extremely common, so we try that first.
-    // if let Ok(result) = try_eval_array_length_id(interner, expr, span) {
-    //     return Some(result.to_string());
-    // }
-
     match interner.expression(&expr) {
         HirExpression::Literal(literal) => match literal {
             HirLiteral::Array(hir_array_literal) => {
