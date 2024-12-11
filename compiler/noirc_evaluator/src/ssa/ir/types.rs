@@ -227,15 +227,6 @@ impl Type {
         }
     }
 
-    /// Retrieves the array or slice type within this type, or panics if there is none.
-    pub(crate) fn get_contained_array(&self) -> &Type {
-        match self {
-            Type::Numeric(_) | Type::Function => panic!("Expected an array type"),
-            Type::Array(_, _) | Type::Slice(_) => self,
-            Type::Reference(element) => element.get_contained_array(),
-        }
-    }
-
     pub(crate) fn element_types(self) -> Arc<Vec<Type>> {
         match self {
             Type::Array(element_types, _) | Type::Slice(element_types) => element_types,

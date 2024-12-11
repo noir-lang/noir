@@ -189,7 +189,8 @@ impl<'f> LoopInvariantContext<'f> {
                 !self.defined_in_loop.contains(&value) || self.loop_invariants.contains(&value);
         });
 
-        let can_be_deduplicated = instruction.can_be_deduplicated(self.inserter.function, false)
+        let can_be_deduplicated = instruction
+            .can_be_deduplicated(&self.inserter.function.dfg, false)
             || self.can_be_deduplicated_from_upper_bound(&instruction);
 
         is_loop_invariant && can_be_deduplicated

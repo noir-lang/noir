@@ -444,7 +444,7 @@ impl Instruction {
     /// conditional on whether the caller wants the predicate to be taken into account or not.
     pub(crate) fn can_be_deduplicated(
         &self,
-        function: &Function,
+        dfg: &DataFlowGraph,
         deduplicate_with_predicate: bool,
     ) -> bool {
         use Instruction::*;
@@ -458,7 +458,7 @@ impl Instruction {
             | IncrementRc { .. }
             | DecrementRc { .. } => false,
 
-            Call { func, .. } => match function.dfg[*func] {
+            Call { func, .. } => match dfg[*func] {
                 Value::Intrinsic(intrinsic) => {
                     intrinsic.can_be_deduplicated(deduplicate_with_predicate)
                 }
@@ -468,11 +468,8 @@ impl Instruction {
             // We can deduplicate these instructions if we know the predicate is also the same.
             Constrain(..) | RangeCheck { .. } => deduplicate_with_predicate,
 
-            // Arrays can be mutated in unconstrained code so code that handles this case must
-            // take care to track whether the array was possibly mutated or not before
-            // deduplicating. Since we don't know if the containing pass checks for this, we
-            // can only assume these are safe to deduplicate in constrained code.
-            MakeArray { .. } => function.runtime().is_acir(),
+            // This should never be side-effectful
+            MakeArray { .. } => true,
 
             // These can have different behavior depending on the EnableSideEffectsIf context.
             // Replacing them with a similar instruction potentially enables replacing an instruction
@@ -485,7 +482,7 @@ impl Instruction {
             | IfElse { .. }
             | ArrayGet { .. }
             | ArraySet { .. } => {
-                deduplicate_with_predicate || !self.requires_acir_gen_predicate(&function.dfg)
+                deduplicate_with_predicate || !self.requires_acir_gen_predicate(dfg)
             }
         }
     }

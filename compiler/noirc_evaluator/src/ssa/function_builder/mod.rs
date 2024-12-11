@@ -442,38 +442,29 @@ impl FunctionBuilder {
     /// Insert instructions to increment the reference count of any array(s) stored
     /// within the given value. If the given value is not an array and does not contain
     /// any arrays, this does nothing.
-    ///
-    /// Returns whether a reference count instruction was issued.
-    pub(crate) fn increment_array_reference_count(&mut self, value: ValueId) -> bool {
-        self.update_array_reference_count(value, true)
+    pub(crate) fn increment_array_reference_count(&mut self, value: ValueId) {
+        self.update_array_reference_count(value, true);
     }
 
     /// Insert instructions to decrement the reference count of any array(s) stored
     /// within the given value. If the given value is not an array and does not contain
     /// any arrays, this does nothing.
-    ///
-    /// Returns whether a reference count instruction was issued.
-    pub(crate) fn decrement_array_reference_count(&mut self, value: ValueId) -> bool {
-        self.update_array_reference_count(value, false)
+    pub(crate) fn decrement_array_reference_count(&mut self, value: ValueId) {
+        self.update_array_reference_count(value, false);
     }
 
     /// Increment or decrement the given value's reference count if it is an array.
     /// If it is not an array, this does nothing. Note that inc_rc and dec_rc instructions
     /// are ignored outside of unconstrained code.
-    ///
-    /// Returns whether a reference count instruction was issued.
-    fn update_array_reference_count(&mut self, value: ValueId, increment: bool) -> bool {
+    fn update_array_reference_count(&mut self, value: ValueId, increment: bool) {
         match self.type_of_value(value) {
-            Type::Numeric(_) => false,
-            Type::Function => false,
+            Type::Numeric(_) => (),
+            Type::Function => (),
             Type::Reference(element) => {
                 if element.contains_an_array() {
                     let reference = value;
                     let value = self.insert_load(reference, element.as_ref().clone());
                     self.update_array_reference_count(value, increment);
-                    true
-                } else {
-                    false
                 }
             }
             Type::Array(..) | Type::Slice(..) => {
@@ -484,7 +475,6 @@ impl FunctionBuilder {
                 } else {
                     self.insert_dec_rc(value);
                 }
-                true
             }
         }
     }
