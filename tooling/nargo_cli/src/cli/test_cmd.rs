@@ -128,12 +128,6 @@ impl<'a> TestRunner<'a> {
             tests.extend(package_tests);
         }
 
-        // If there were no compile errors we'll run them all. Here we show how many there are per package.
-        for (package_name, test_count) in &test_count_per_package {
-            let plural = if *test_count == 1 { "" } else { "s" };
-            println!("[{package_name}] Running {test_count} test function{plural}");
-        }
-
         // Now run all tests in parallel, but show output for each package sequentially
         let tests_count = tests.len();
         let all_passed = self.run_all_tests(tests, &test_count_per_package);
@@ -213,6 +207,9 @@ impl<'a> TestRunner<'a> {
             // We'll buffer those here and show them all at once when we get to those packages.
             let mut buffer: HashMap<String, Vec<TestResult>> = HashMap::new();
             for (package_name, test_count) in test_count_per_package {
+                let plural = if *test_count == 1 { "" } else { "s" };
+                println!("[{package_name}] Running {test_count} test function{plural}");
+
                 let mut test_report = Vec::new();
 
                 // How many tests are left to receive for this package
