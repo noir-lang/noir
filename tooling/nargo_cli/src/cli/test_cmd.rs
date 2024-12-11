@@ -199,9 +199,9 @@ impl<'a> TestRunner<'a> {
                             time_to_run,
                         };
 
-                        // It's fine to ignore the result of sending.
-                        // If the receiver has hung up, everything will wind down soon anyway.
-                        let _ = thread_sender.send(test_result);
+                        if !thread_sender.send(test_result).is_ok() {
+                            break;
+                        }
                     })
                     .unwrap();
             }
@@ -286,7 +286,9 @@ impl<'a> TestRunner<'a> {
                             Some(self.workspace.root_dir.clone()),
                             package.name.to_string(),
                         );
-                        let _ = thread_sender.send((package, tests));
+                        if !thread_sender.send((package, tests)).is_ok() {
+                            break;
+                        }
                     })
                     .unwrap();
             }
