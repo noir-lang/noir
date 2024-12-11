@@ -1287,19 +1287,9 @@ fn lambda$f1(mut env$l1: (Field)) -> Field {
     check_rewrite(src, expected_rewrite);
 }
 
-// // TODO: make issue to re-enable this: failing on master in the following form:
-// //
-// // ❯ ~/.nargo/bin/nargo compile
-// //
-// // thread '<unknown>' has overflowed its stack
-// // fatal runtime error: stack overflow
-// // [1]    257937 IOT instruction (core dumped)  ~/.nargo/bin/nargo compile
-// //
-// // ❯ cat src/main.nr
-// // comptime global A: u32 = B;
-// // comptime global B: u32 = A;
-// //
-// // fn main() { }
+// TODO(https://github.com/noir-lang/noir/issues/6780): currently failing
+// with a stack overflow
+//
 // #[test]
 // fn deny_cyclic_globals() {
 //     let src = r#"
