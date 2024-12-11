@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{BTreeMap, HashMap},
     io::Write,
     path::PathBuf,
     sync::{mpsc, Mutex},
@@ -121,7 +121,7 @@ impl<'a> TestRunner<'a> {
 
         // Now gather all tests and how many are per packages
         let mut tests = Vec::new();
-        let mut test_count_per_package = HashMap::new();
+        let mut test_count_per_package = BTreeMap::new();
 
         for (package_name, package_tests) in packages_tests {
             let package_tests = package_tests?;
@@ -165,7 +165,7 @@ impl<'a> TestRunner<'a> {
     fn run_all_tests(
         &self,
         tests: Vec<Test<'a>>,
-        test_count_per_package: &HashMap<String, usize>,
+        test_count_per_package: &BTreeMap<String, usize>,
     ) -> Vec<TestResult> {
         // Here we'll gather all test reports from all packages
         let mut test_reports = Vec::new();
@@ -260,8 +260,8 @@ impl<'a> TestRunner<'a> {
     }
 
     /// Compiles all packages in parallel and returns their tests
-    fn collect_packages_tests(&'a self) -> HashMap<String, Result<Vec<Test<'a>>, CliError>> {
-        let mut package_tests = HashMap::new();
+    fn collect_packages_tests(&'a self) -> BTreeMap<String, Result<Vec<Test<'a>>, CliError>> {
+        let mut package_tests = BTreeMap::new();
 
         let (sender, receiver) = mpsc::channel();
         let iter = &Mutex::new(self.workspace.into_iter());
