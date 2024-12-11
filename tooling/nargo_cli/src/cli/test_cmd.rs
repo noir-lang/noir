@@ -187,13 +187,13 @@ impl<'a> TestRunner<'a> {
                             Ok((status, output)) => (status, output),
                             Err(err) => (
                                 TestStatus::Fail {
-                                    message: 
-                                    // It seems `panic!("...")` makes the error be `&str`, so we handle this common case
-                                    if let Some(message) = err.downcast_ref::<&str>() {
-                                        message.to_string()
-                                    } else {
-                                        "An unexpected error happened".to_string()
-                                    },
+                                    message:
+                                        // It seems `panic!("...")` makes the error be `&str`, so we handle this common case
+                                        if let Some(message) = err.downcast_ref::<&str>() {
+                                            message.to_string()
+                                        } else {
+                                            "An unexpected error happened".to_string()
+                                        },
                                     error_diagnostic: None,
                                 },
                                 String::new(),
