@@ -1,6 +1,7 @@
 use std::{
     collections::{BTreeMap, HashMap},
     io::Write,
+    panic::{catch_unwind, UnwindSafe},
     path::PathBuf,
     sync::{mpsc, Mutex},
     thread,
@@ -57,7 +58,7 @@ pub(crate) struct TestCommand {
 struct Test<'a> {
     name: String,
     package_name: String,
-    runner: Box<dyn FnOnce() -> (TestStatus, String) + Send + 'a>,
+    runner: Box<dyn FnOnce() -> (TestStatus, String) + Send + UnwindSafe + 'a>,
 }
 
 struct TestResult {
@@ -182,7 +183,16 @@ impl<'a> TestRunner<'a> {
                         };
 
                         let time_before_test = std::time::Instant::now();
-                        let (status, output) = (test.runner)();
+                        let (status, output) = match catch_unwind(test.runner) {
+                            Ok((status, output)) => (status, output),
+                            Err(_) => (
+                                TestStatus::Fail {
+                                    message: "An unexpected error happened".to_string(),
+                                    error_diagnostic: None,
+                                },
+                                String::new(),
+                            ),
+                        };
                         let time_to_run = time_before_test.elapsed();
 
                         let test_result = TestResult {
