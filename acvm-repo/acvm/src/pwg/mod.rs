@@ -144,8 +144,8 @@ pub enum OpcodeResolutionError<F> {
     AcirMainCallAttempted { opcode_location: ErrorLocation },
     #[error("{results_size:?} result values were provided for {outputs_size:?} call output witnesses, most likely due to bad ACIR codegen")]
     AcirCallOutputsMismatch { opcode_location: ErrorLocation, results_size: u32, outputs_size: u32 },
-    #[error("(--pedantic): Predicates are expected to be 0 or 1, but found: {predicate_value}")]
-    PredicateLargerThanOne { opcode_location: ErrorLocation, predicate_value: F },
+    #[error("(--pedantic): Predicates are expected to be 0 or 1, but found: {pred_value}")]
+    PredicateLargerThanOne { opcode_location: ErrorLocation, pred_value: F },
 }
 
 impl<F> From<BlackBoxResolutionError> for OpcodeResolutionError<F> {
@@ -768,16 +768,17 @@ pub(crate) fn is_predicate_false<F: AcirField>(
             let pred_value = get_value(pred, witness)?;
             let predicate_is_false = pred_value.is_zero();
             if pedantic_solving {
-               // We expect that the predicate should resolve to either 0 or 1.
-                if !predicate_is_false && !predicate.is_one() {
-                     let opcode_location = *opcode_location;
-                        return Err(OpcodeResolutionError::PredicateLargerThanOne {
-                            opcode_location,
-                            predicate_value,
-                        })
+                // We expect that the predicate should resolve to either 0 or 1.
+                if !predicate_is_false && !pred_value.is_one() {
+                    let opcode_location = *opcode_location;
+                    return Err(OpcodeResolutionError::PredicateLargerThanOne {
+                        opcode_location,
+                        pred_value,
+                    });
                 }
             }
             Ok(predicate_is_false)
+        }
         // If the predicate is `None`, then we treat it as an unconditional `true`
         None => Ok(false),
     }

@@ -134,6 +134,9 @@ mod tests {
 
     use super::MemoryOpSolver;
 
+    // use pedantic_solving for tests
+    const PEDANTIC_SOLVING: bool = true;
+
     #[test]
     fn test_solver() {
         let mut initial_witness = WitnessMap::from(BTreeMap::from_iter([
@@ -153,9 +156,8 @@ mod tests {
         block_solver.init(&init, &initial_witness).unwrap();
 
         for op in trace {
-            let pedantic_solving = true;
             block_solver
-                .solve_memory_op(&op, &mut initial_witness, &None, pedantic_solving)
+                .solve_memory_op(&op, &mut initial_witness, &None, PEDANTIC_SOLVING)
                 .unwrap();
         }
 
@@ -181,9 +183,8 @@ mod tests {
         let mut err = None;
         for op in invalid_trace {
             if err.is_none() {
-                let pedantic_solving = true;
                 err = block_solver
-                    .solve_memory_op(&op, &mut initial_witness, &None, pedantic_solving)
+                    .solve_memory_op(&op, &mut initial_witness, &None, PEDANTIC_SOLVING)
                     .err();
             }
         }
@@ -217,13 +218,12 @@ mod tests {
         let mut err = None;
         for op in invalid_trace {
             if err.is_none() {
-                let pedantic_solving = true;
                 err = block_solver
                     .solve_memory_op(
                         &op,
                         &mut initial_witness,
                         &Some(Expression::zero()),
-                        pedantic_solving,
+                        PEDANTIC_SOLVING,
                     )
                     .err();
             }
@@ -255,13 +255,12 @@ mod tests {
         let mut err = None;
         for op in invalid_trace {
             if err.is_none() {
-                let pedantic_solving = true;
                 err = block_solver
                     .solve_memory_op(
                         &op,
                         &mut initial_witness,
                         &Some(Expression::zero()),
-                        pedantic_solving,
+                        PEDANTIC_SOLVING,
                     )
                     .err();
             }
