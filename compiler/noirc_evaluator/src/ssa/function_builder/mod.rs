@@ -21,6 +21,7 @@ use super::{
         dfg::{CallStack, InsertInstructionResult},
         function::RuntimeType,
         instruction::{ConstrainError, InstructionId, Intrinsic},
+        types::NumericType,
     },
     ssa_gen::Ssa,
 };
@@ -122,19 +123,19 @@ impl FunctionBuilder {
     pub(crate) fn numeric_constant(
         &mut self,
         value: impl Into<FieldElement>,
-        typ: Type,
+        typ: NumericType,
     ) -> ValueId {
         self.current_function.dfg.make_constant(value.into(), typ)
     }
 
     /// Insert a numeric constant into the current function of type Field
     pub(crate) fn field_constant(&mut self, value: impl Into<FieldElement>) -> ValueId {
-        self.numeric_constant(value.into(), Type::field())
+        self.numeric_constant(value.into(), NumericType::NativeField)
     }
 
     /// Insert a numeric constant into the current function of type Type::length_type()
     pub(crate) fn length_constant(&mut self, value: impl Into<FieldElement>) -> ValueId {
-        self.numeric_constant(value.into(), Type::length_type())
+        self.numeric_constant(value.into(), NumericType::length_type())
     }
 
     /// Returns the type of the given value.
@@ -251,7 +252,7 @@ impl FunctionBuilder {
 
     /// Insert a cast instruction at the end of the current block.
     /// Returns the result of the cast instruction.
-    pub(crate) fn insert_cast(&mut self, value: ValueId, typ: Type) -> ValueId {
+    pub(crate) fn insert_cast(&mut self, value: ValueId, typ: NumericType) -> ValueId {
         self.insert_instruction(Instruction::Cast(value, typ), None).first()
     }
 

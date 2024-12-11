@@ -18,7 +18,7 @@ use crate::ssa::{
         dfg::DataFlowGraph,
         function::{Function, RuntimeType},
         instruction::{BinaryOp, Hint, Instruction, Intrinsic},
-        types::Type,
+        types::NumericType,
         value::Value,
     },
     ssa_gen::Ssa,
@@ -70,7 +70,8 @@ impl Context {
     ) {
         let instructions = function.dfg[block].take_instructions();
 
-        let mut active_condition = function.dfg.make_constant(FieldElement::one(), Type::bool());
+        let one = FieldElement::one();
+        let mut active_condition = function.dfg.make_constant(one, NumericType::bool());
         let mut last_side_effects_enabled_instruction = None;
 
         let mut new_instructions = Vec::with_capacity(instructions.len());

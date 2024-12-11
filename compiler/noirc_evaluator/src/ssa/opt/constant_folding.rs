@@ -43,7 +43,7 @@ use crate::{
             dom::DominatorTree,
             function::{Function, FunctionId, RuntimeType},
             instruction::{Instruction, InstructionId},
-            types::Type,
+            types::{NumericType, Type},
             value::{Value, ValueId},
         },
         ssa_gen::Ssa,
@@ -276,7 +276,7 @@ impl<'brillig> Context<'brillig> {
 
         // Default side effect condition variable with an enabled state.
         let mut side_effects_enabled_var =
-            function.dfg.make_constant(FieldElement::one(), Type::bool());
+            function.dfg.make_constant(FieldElement::one(), NumericType::bool());
 
         for instruction_id in instructions {
             self.fold_constants_into_instruction(
@@ -657,7 +657,7 @@ impl<'brillig> Context<'brillig> {
         dfg: &mut DataFlowGraph,
     ) -> ValueId {
         match typ {
-            Type::Numeric(_) => {
+            Type::Numeric(typ) => {
                 let memory = memory_values[*memory_index];
                 *memory_index += 1;
 

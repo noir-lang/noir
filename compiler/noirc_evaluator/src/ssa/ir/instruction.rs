@@ -252,8 +252,8 @@ pub(crate) enum Instruction {
     /// Binary Operations like +, -, *, /, ==, !=
     Binary(Binary),
 
-    /// Converts `Value` into Typ
-    Cast(ValueId, Type),
+    /// Converts `Value` into the given NumericType
+    Cast(ValueId, NumericType),
 
     /// Computes a bit wise not
     Not(ValueId),
@@ -355,9 +355,8 @@ impl Instruction {
     pub(crate) fn result_type(&self) -> InstructionResultType {
         match self {
             Instruction::Binary(binary) => binary.result_type(),
-            Instruction::Cast(_, typ) | Instruction::MakeArray { typ, .. } => {
-                InstructionResultType::Known(typ.clone())
-            }
+            Instruction::Cast(_, typ) => InstructionResultType::Known(Type::Numeric(*typ)),
+            Instruction::MakeArray { typ, .. } => InstructionResultType::Known(typ.clone()),
             Instruction::Not(value)
             | Instruction::Truncate { value, .. }
             | Instruction::ArraySet { array: value, .. }
@@ -751,7 +750,7 @@ impl Instruction {
         use SimplifyResult::*;
         match self {
             Instruction::Binary(binary) => binary.simplify(dfg),
-            Instruction::Cast(value, typ) => simplify_cast(*value, typ, dfg),
+            Instruction::Cast(value, typ) => simplify_cast(*value, *typ, dfg),
             Instruction::Not(value) => {
                 match &dfg[dfg.resolve(*value)] {
                     // Limit optimizing ! on constants to only booleans. If we tried it on fields,

@@ -12,10 +12,10 @@ use crate::ssa::{
         function::Function,
         instruction::{BinaryOp, Instruction, InstructionId, Intrinsic},
         post_order::PostOrder,
-        types::Type,
+        types::NumericType,
         value::{Value, ValueId},
     },
-    ssa_gen::{Ssa, SSA_WORD_SIZE},
+    ssa_gen::Ssa,
 };
 
 impl Ssa {
@@ -285,25 +285,25 @@ impl Context {
 
             let (lhs, rhs) = if function.dfg.get_numeric_constant(*index).is_some() {
                 // If we are here it means the index is known but out of bounds. That's always an error!
-                let false_const = function.dfg.make_constant(false.into(), Type::bool());
-                let true_const = function.dfg.make_constant(true.into(), Type::bool());
+                let false_const = function.dfg.make_constant(false.into(), NumericType::bool());
+                let true_const = function.dfg.make_constant(true.into(), NumericType::bool());
                 (false_const, true_const)
             } else {
                 // `index` will be relative to the flattened array length, so we need to take that into account
                 let array_length = function.dfg.type_of_value(*array).flattened_size();
 
                 // If we are here it means the index is dynamic, so let's add a check that it's less than length
+                let length_type = NumericType::length_type();
                 let index = function.dfg.insert_instruction_and_results(
-                    Instruction::Cast(*index, Type::unsigned(SSA_WORD_SIZE)),
+                    Instruction::Cast(*index, length_type),
                     block_id,
                     None,
                     call_stack.clone(),
                 );
                 let index = index.first();
 
-                let array_typ = Type::unsigned(SSA_WORD_SIZE);
                 let array_length =
-                    function.dfg.make_constant((array_length as u128).into(), array_typ);
+                    function.dfg.make_constant((array_length as u128).into(), length_type);
                 let is_index_out_of_bounds = function.dfg.insert_instruction_and_results(
                     Instruction::binary(BinaryOp::Lt, index, array_length),
                     block_id,
@@ -311,7 +311,7 @@ impl Context {
                     call_stack.clone(),
                 );
                 let is_index_out_of_bounds = is_index_out_of_bounds.first();
-                let true_const = function.dfg.make_constant(true.into(), Type::bool());
+                let true_const = function.dfg.make_constant(true.into(), NumericType::bool());
                 (is_index_out_of_bounds, true_const)
             };
 
@@ -495,12 +495,9 @@ fn apply_side_effects(
 
     // Condition needs to be cast to argument type in order to multiply them together.
     // In our case, lhs is always a boolean.
-    let casted_condition = dfg.insert_instruction_and_results(
-        Instruction::Cast(condition, Type::bool()),
-        block_id,
-        None,
-        call_stack.clone(),
-    );
+    let cast = Instruction::Cast(condition, NumericType::bool());
+    let casted_condition =
+        dfg.insert_instruction_and_results(cast, block_id, None, call_stack.clone());
     let casted_condition = casted_condition.first();
 
     let lhs = dfg.insert_instruction_and_results(
