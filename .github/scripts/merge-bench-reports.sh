@@ -10,9 +10,9 @@ combined_reports="[]"
 # Iterate over each report and merge them
 for report in ./reports/*; do
   # The report is saved under ./memory_report_{ matrix_report }/memory_report_{ matrix_report }.json
-  REPORT_NAME=$(echo $(ls $report)) 
+  FILE_PATH=$(echo $(ls $report)) 
   # Extract the 'memory_reports' array from each report and merge it
-  combined_reports=$(jq '[."'$REPORT_NAME'"[]] + '"$combined_reports" <<< "$(cat "$report/$REPORT_NAME")")
+  combined_reports=$(jq '[."'$REPORT_NAME'"[]] + '"$combined_reports" <<< "$(cat "$report/$FILE_PATH")")
 done
 
 combined_reports=$(jq '[."'$REPORT_NAME'"[]] + '"$combined_reports" <<< "$(cat ./$REPORT_NAME.json)")
