@@ -451,7 +451,9 @@ impl<'a> TestRunner<'a> {
 
         if self.args.show_output && !test_result.output.is_empty() {
             writeln!(writer, "--- {} stdout ---", test_result.name)?;
-            write!(writer, "{}", test_result.output)
+            write!(writer, "{}", test_result.output)?;
+            let name_len = test_result.name.len();
+            writeln!(writer, "{}", "-".repeat(name_len + "---  stdout ---".len()))
         } else {
             Ok(())
         }
