@@ -13,6 +13,7 @@ use noirc_driver::{compile_no_check, CompileError, CompileOptions};
 use noirc_errors::{debug_info::DebugInfo, FileDiagnostic};
 use noirc_frontend::hir::{def_map::TestFunction, Context};
 use noirc_printable_type::ForeignCallError;
+use proptest::test_runner::Config;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 
@@ -114,7 +115,9 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
                     use acvm::acir::circuit::Program;
                     use noir_fuzzer::FuzzedExecutor;
                     use proptest::test_runner::TestRunner;
-                    let runner = TestRunner::default();
+
+                    let runner =
+                        TestRunner::new(Config { failure_persistence: None, ..Config::default() });
 
                     let executor =
                         |program: &Program<FieldElement>,
