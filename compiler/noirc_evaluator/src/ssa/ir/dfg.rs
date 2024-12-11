@@ -9,7 +9,7 @@ use super::{
         Instruction, InstructionId, InstructionResultType, Intrinsic, TerminatorInstruction,
     },
     map::DenseMap,
-    types::{Type, NumericType},
+    types::{NumericType, Type},
     value::{Value, ValueId},
 };
 
@@ -118,8 +118,9 @@ impl DataFlowGraph {
         let parameters = self.blocks[block].parameters();
         let new_block = self.make_block();
 
-        let parameters = vecmap(parameters.iter().enumerate(), |(position, _)| {
-            self.values.insert(Value::Param { block: new_block, position })
+        let parameters = vecmap(parameters.iter().enumerate(), |(position, param)| {
+            let typ = self.values[*param].get_type().into_owned();
+            self.values.insert(Value::Param { block: new_block, position, typ })
         });
 
         let new_block_value = &mut self.blocks[new_block];

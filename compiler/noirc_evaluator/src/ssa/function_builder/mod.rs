@@ -20,7 +20,8 @@ use super::{
         basic_block::BasicBlock,
         dfg::{CallStack, InsertInstructionResult},
         function::RuntimeType,
-        instruction::{ConstrainError, InstructionId, Intrinsic}, types::NumericType,
+        instruction::{ConstrainError, InstructionId, Intrinsic},
+        types::NumericType,
     },
     ssa_gen::Ssa,
 };
@@ -249,8 +250,8 @@ impl FunctionBuilder {
 
     /// Insert a cast instruction at the end of the current block.
     /// Returns the result of the cast instruction.
-    pub(crate) fn insert_cast(&mut self, value: ValueId, typ: Type) -> ValueId {
-        self.insert_instruction(Instruction::Cast(value, typ)).first()
+    pub(crate) fn insert_cast(&mut self, value: ValueId, typ: NumericType) -> ValueId {
+        self.insert_instruction(Instruction::Cast(value, typ), None).first()
     }
 
     /// Insert a truncate instruction at the end of the current block.
@@ -521,7 +522,7 @@ mod tests {
     use crate::ssa::ir::{
         instruction::{Endian, Intrinsic},
         map::Id,
-        types::Type,
+        types::{NumericType, Type},
     };
 
     use super::FunctionBuilder;
@@ -533,12 +534,12 @@ mod tests {
         // let bits: [u1; 8] = x.to_le_bits();
         let func_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("func".into(), func_id);
-        let one = builder.numeric_constant(FieldElement::one(), Type::bool());
-        let zero = builder.numeric_constant(FieldElement::zero(), Type::bool());
+        let one = builder.numeric_constant(FieldElement::one(), NumericType::bool());
+        let zero = builder.numeric_constant(FieldElement::zero(), NumericType::bool());
 
         let to_bits_id = builder.import_intrinsic_id(Intrinsic::ToBits(Endian::Little));
-        let input = builder.numeric_constant(FieldElement::from(7_u128), Type::field());
-        let length = builder.numeric_constant(FieldElement::from(8_u128), Type::field());
+        let input = builder.field_constant(FieldElement::from(7_u128));
+        let length = builder.field_constant(FieldElement::from(8_u128));
         let result_types = vec![Type::Array(Arc::new(vec![Type::bool()]), 8)];
         let call_results =
             builder.insert_call(to_bits_id, vec![input, length], result_types).into_owned();

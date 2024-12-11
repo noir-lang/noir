@@ -177,7 +177,7 @@ impl IdMaps {
             }
 
             Value::NumericConstant { constant, typ } => {
-                new_function.dfg.make_constant(*constant, typ.clone())
+                new_function.dfg.make_constant(*constant, *typ)
             }
             Value::Intrinsic(intrinsic) => new_function.dfg.import_intrinsic(*intrinsic),
             Value::ForeignFunction(name) => new_function.dfg.import_foreign_function(name),

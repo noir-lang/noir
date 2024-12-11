@@ -221,16 +221,14 @@ impl<'block> BrilligBlock<'block> {
                     dfg.get_numeric_constant_with_type(*rhs),
                 ) {
                     // If the constraint is of the form `x == u1 1` then we can simply constrain `x` directly
-                    (
-                        Some((constant, NumericType::Unsigned { bit_size: 1 })),
-                        None,
-                    ) if constant == FieldElement::one() => {
+                    (Some((constant, NumericType::Unsigned { bit_size: 1 })), None)
+                        if constant == FieldElement::one() =>
+                    {
                         (self.convert_ssa_single_addr_value(*rhs, dfg), false)
                     }
-                    (
-                        None,
-                        Some((constant, NumericType::Unsigned { bit_size: 1 })),
-                    ) if constant == FieldElement::one() => {
+                    (None, Some((constant, NumericType::Unsigned { bit_size: 1 })))
+                        if constant == FieldElement::one() =>
+                    {
                         (self.convert_ssa_single_addr_value(*lhs, dfg), false)
                     }
 
@@ -1281,8 +1279,8 @@ impl<'block> BrilligBlock<'block> {
         result_variable: SingleAddrVariable,
     ) {
         let binary_type = type_of_binary_operation(
-            &dfg.type_of_value(binary.lhs),
-            &dfg.type_of_value(binary.rhs),
+            dfg[binary.lhs].get_type().as_ref(),
+            dfg[binary.rhs].get_type().as_ref(),
             binary.operator,
         );
 
@@ -1790,8 +1788,8 @@ impl<'block> BrilligBlock<'block> {
         result: ValueId,
         dfg: &DataFlowGraph,
     ) -> BrilligVariable {
-        let typ = dfg.type_of_value(result);
-        match typ {
+        let typ = dfg[result].get_type();
+        match typ.as_ref() {
             Type::Numeric(_) => self.variables.define_variable(
                 self.function_context,
                 self.brillig_context,
@@ -1807,7 +1805,7 @@ impl<'block> BrilligBlock<'block> {
                     dfg,
                 );
                 let array = variable.extract_array();
-                self.allocate_foreign_call_result_array(&typ, array);
+                self.allocate_foreign_call_result_array(typ.as_ref(), array);
 
                 variable
             }

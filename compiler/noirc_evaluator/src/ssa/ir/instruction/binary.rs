@@ -197,7 +197,7 @@ impl Binary {
                 if operand_type.is_unsigned() {
                     if rhs_is_zero {
                         // Unsigned values cannot be less than zero.
-                        let zero = dfg.make_constant(FieldElement::zero(), operand_type);
+                        let zero = dfg.make_constant(FieldElement::zero(), NumericType::bool());
                         return SimplifyResult::SimplifiedTo(zero);
                     } else if rhs_is_one {
                         let zero = dfg.make_constant(FieldElement::zero(), operand_type);
@@ -309,8 +309,8 @@ fn eval_constant_binary_op(
         NumericType::Unsigned { bit_size } => {
             let function = operator.get_u128_function();
 
-            let lhs = truncate(lhs.try_into_u128()?, *bit_size);
-            let rhs = truncate(rhs.try_into_u128()?, *bit_size);
+            let lhs = truncate(lhs.try_into_u128()?, bit_size);
+            let rhs = truncate(rhs.try_into_u128()?, bit_size);
 
             // The divisor is being truncated into the type of the operand, which can potentially
             // lead to the rhs being zero.
@@ -322,7 +322,7 @@ fn eval_constant_binary_op(
             }
             let result = function(lhs, rhs)?;
             // Check for overflow
-            if result >= 1 << *bit_size {
+            if result >= 1 << bit_size {
                 return None;
             }
             result.into()
@@ -330,8 +330,8 @@ fn eval_constant_binary_op(
         NumericType::Signed { bit_size } => {
             let function = operator.get_i128_function();
 
-            let lhs = try_convert_field_element_to_signed_integer(lhs, *bit_size)?;
-            let rhs = try_convert_field_element_to_signed_integer(rhs, *bit_size)?;
+            let lhs = try_convert_field_element_to_signed_integer(lhs, bit_size)?;
+            let rhs = try_convert_field_element_to_signed_integer(rhs, bit_size)?;
             // The divisor is being truncated into the type of the operand, which can potentially
             // lead to the rhs being zero.
             // If the rhs of a division is zero, attempting to evaluate the division will cause a compiler panic.
@@ -343,11 +343,11 @@ fn eval_constant_binary_op(
 
             let result = function(lhs, rhs)?;
             // Check for overflow
-            let two_pow_bit_size_minus_one = 1i128 << (*bit_size - 1);
+            let two_pow_bit_size_minus_one = 1i128 << (bit_size - 1);
             if result >= two_pow_bit_size_minus_one || result < -two_pow_bit_size_minus_one {
                 return None;
             }
-            convert_signed_integer_to_field_element(result, *bit_size)
+            convert_signed_integer_to_field_element(result, bit_size)
         }
     };
 
