@@ -106,7 +106,8 @@ mod tests {
         };
         assert_eq!("foo", name.to_string());
         assert!(matches!(let_statement.r#type.typ, UnresolvedTypeData::Unspecified));
-        assert!(!let_statement.comptime);
+        assert!(let_statement.comptime);
+        assert!(!let_statement.explicit_comptime);
         assert_eq!(visibility, ItemVisibility::Private);
     }
 

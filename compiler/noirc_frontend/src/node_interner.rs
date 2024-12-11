@@ -85,9 +85,7 @@ pub struct NodeInterner {
 
     /// This graph tracks dependencies between different global definitions.
     /// This is used to ensure the absence of dependency cycles for globals and types.
-    // TODO make private again
-    // dependency_graph: DiGraph<DependencyId, ()>,
-    pub(crate) dependency_graph: DiGraph<DependencyId, ()>,
+    dependency_graph: DiGraph<DependencyId, ()>,
 
     /// To keep track of where each DependencyId is in `dependency_graph`, we need
     /// this separate graph to map between the ids and indices.
@@ -852,8 +850,6 @@ impl NodeInterner {
         let location = Location::new(ident.span(), file);
         let name = ident.to_string();
 
-        // TODO: cleanup unused parameter
-        // let comptime = true;
         let definition_id =
             self.push_definition(name, mutable, comptime, DefinitionKind::Global(id), location);
 
@@ -890,8 +886,6 @@ impl NodeInterner {
         let statement = self.push_stmt(HirStatement::Error);
         let span = name.span();
 
-        // TODO: cleanup unused parameter
-        // let comptime = true;
         let id = self
             .push_global(name, local_id, crate_id, statement, file, attributes, mutable, comptime);
         self.push_stmt_location(statement, span, file);

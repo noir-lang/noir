@@ -2005,10 +2005,6 @@ fn numeric_generic_u16_array_size() {
     ));
 }
 
-// TODO close issue
-// TODO(https://github.com/noir-lang/noir/issues/6238):
-// The EvaluatedGlobalIsntU32 warning is a stopgap
-// (originally from https://github.com/noir-lang/noir/issues/6125)
 #[test]
 fn numeric_generic_field_larger_than_u32() {
     let src = r#"
@@ -2024,10 +2020,6 @@ fn numeric_generic_field_larger_than_u32() {
     assert_eq!(errors.len(), 0);
 }
 
-// TODO: close issue
-// TODO(https://github.com/noir-lang/noir/issues/6238):
-// The EvaluatedGlobalIsntU32 warning is a stopgap
-// (originally from https://github.com/noir-lang/noir/issues/6126)
 #[test]
 fn numeric_generic_field_arithmetic_larger_than_u32() {
     let src = r#"
@@ -2049,16 +2041,7 @@ fn numeric_generic_field_arithmetic_larger_than_u32() {
         }
     "#;
     let errors = get_program_errors(src);
-
-    // TODO cleanup
-    dbg!(&errors);
-
-    // TODO debug remaining error
     assert_eq!(errors.len(), 0);
-    // assert!(matches!(
-    //     errors[0].0,
-    //     CompilationError::ResolverError(ResolverError::UnusedVariable { .. }),
-    // ));
 }
 
 #[test]
@@ -2190,20 +2173,6 @@ fn numeric_generics_type_kind_mismatch() {
         errors[0].0,
         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
     ));
-
-    // TODO close issue
-    // // TODO(https://github.com/noir-lang/noir/issues/6238):
-    // // The EvaluatedGlobalIsntU32 warning is a stopgap
-    // assert!(matches!(
-    //     errors[0].0,
-    //     CompilationError::TypeError(TypeCheckError::EvaluatedGlobalIsntU32 { .. }),
-    // ));
-
-    // // TODO(https://github.com/noir-lang/noir/issues/6238): see above
-    // assert!(matches!(
-    //     errors[2].0,
-    //     CompilationError::TypeError(TypeCheckError::EvaluatedGlobalIsntU32 { .. }),
-    // ));
 }
 
 #[test]
@@ -3247,7 +3216,8 @@ fn dont_infer_partial_global_types() {
         pub global NESTED_ARRAY: [[Field; _]; 3] = [[]; 3];
         pub global STR: str<_> = "hi";
         pub global NESTED_STR: [str<_>] = &["hi"];
-        pub global FMT_STR: fmtstr<_, _> = f"hi {ARRAY}";
+        pub global FORMATTED_VALUE: str<5> = "there";
+        pub global FMT_STR: fmtstr<_, _> = f"hi {FORMATTED_VALUE}";
         pub global TUPLE_WITH_MULTIPLE: ([str<_>], [[Field; _]; 3]) = (&["hi"], [[]; 3]);
 
         fn main() { }

@@ -66,11 +66,6 @@ pub enum TypeCheckError {
         from_value: FieldElement,
         span: Span,
     },
-
-    // TODO close issue
-    // TODO(https://github.com/noir-lang/noir/issues/6238): implement handling for larger types
-    // #[error("Expected type {expected_kind} when evaluating globals, but found {expr_kind} (this warning may become an error in the future)")]
-    // EvaluatedGlobalIsntU32 { expected_kind: String, expr_kind: String, expr_span: Span },
     #[error("Expected {expected:?} found {found:?}")]
     ArityMisMatch { expected: usize, found: usize, span: Span },
     #[error("Return type in a function cannot be public")]

@@ -74,41 +74,11 @@ impl<'context> Elaborator<'context> {
         let_stmt: LetStatement,
         global_id: Option<GlobalId>,
     ) -> (HirStatement, Type) {
-        // TODO cleanup
-        // let let_stmt_2 = let_stmt.clone();
-
-        // TODO remove
-        // if self.debug_counter > 1 {
-        if self.debug_counter > 3200 {
-            panic!("looping! {:?} ..... {:?}", global_id, let_stmt);
-        } else {
-            self.debug_counter += 1;
-        }
-
-        if global_id.is_some() {
-            // TODO cleanup
-            dbg!("elaborate_let", &global_id, self.current_item);
-        }
-
-        // // TODO cleanup
-        // if global_id.is_some() {
-        // }
-
         let expr_span = let_stmt.expression.span;
         let (expression, expr_type) = self.elaborate_expression(let_stmt.expression);
 
-        if global_id.is_some() {
-            // TODO cleanup
-            dbg!("elaborate_let: elaborate_expression", &expression, &expr_type);
-        }
-
         let type_contains_unspecified = let_stmt.r#type.contains_unspecified();
         let annotated_type = self.resolve_inferred_type(let_stmt.r#type);
-
-        if global_id.is_some() {
-            // TODO cleanup
-            dbg!("elaborate_let: type:", &annotated_type);
-        }
 
         // Require the top-level of a global's type to be fully-specified
         if type_contains_unspecified && global_id.is_some() {

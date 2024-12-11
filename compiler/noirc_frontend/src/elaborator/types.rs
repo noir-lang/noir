@@ -403,10 +403,6 @@ impl<'context> Elaborator<'context> {
             Ok(PathResolutionItem::Global(id)) => {
                 if let Some(current_item) = self.current_item {
                     self.interner.add_global_dependency(current_item, id);
-
-                    // TODO: why doesn't this work?
-                    let errors = self.interner.check_for_dependency_cycles();
-                    assert_eq!(errors.len(), 0);
                 }
 
                 let reference_location = Location::new(path.span(), self.file);
@@ -423,19 +419,6 @@ impl<'context> Elaborator<'context> {
                     })
                     .unwrap_or(Kind::u32());
 
-                // TODO: close issue after test passes
-                // // TODO(https://github.com/noir-lang/noir/issues/6238):
-                // // support non-u32 generics here
-                // if !kind.unifies(&Kind::u32()) {
-                //     let error = TypeCheckError::EvaluatedGlobalIsntU32 {
-                //         expected_kind: Kind::u32().to_string(),
-                //         expr_kind: kind.to_string(),
-                //         expr_span: path.span(),
-                //     };
-                //     self.push_err(error);
-                //     return None;
-                // }
-
                 let Some(stmt) = self.interner.get_global_let_statement(id) else {
                     if let Some(global) = self.unresolved_globals.remove(&id) {
                         self.elaborate_global(global);
@@ -451,31 +434,28 @@ impl<'context> Elaborator<'context> {
                 let span = self.interner.expr_span(&rhs);
 
                 let Some(global_value) = &self.interner.get_global(id).value else {
-                    // TODO: new error (i.e. comptime didn't evaluate)
-                    let path = path.clone();
-                    self.push_err(ResolverError::NoSuchNumericTypeVariable { path });
+                    self.push_err(ResolverError::UnevaluatedGlobalType { span });
                     return None;
                 };
 
-                // TODO error instead of panic
                 let Some(global_value) = global_value.to_field_element() else {
+                    let global_value = global_value.clone();
                     if global_value.is_integral() {
-                        panic!("negative global as type is unsupported")
+                        self.push_err(ResolverError::NegativeGlobalType { span, global_value });
                     } else {
-                        panic!("non-integral global unsupported in a type position")
+                        self.push_err(ResolverError::NonIntegralGlobalType { span, global_value });
                     }
+                    return None;
                 };
 
                 let global_value = match kind.ensure_value_fits(global_value, span) {
                     Ok(global_value) => global_value,
                     Err(_err) => {
-                        // TODO: error instead of panic
-                        // self.push_err(err);
-                        panic!(
-                            "evaluated global exceeds the size of its kind: {:?} ; {:?}",
-                            &global_value, &kind
-                        );
-
+                        self.push_err(ResolverError::GlobalLargerThanKind {
+                            span,
+                            global_value,
+                            kind,
+                        });
                         return None;
                     }
                 };

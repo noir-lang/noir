@@ -294,10 +294,6 @@ impl Value {
             | Value::ModuleDefinition(_) => {
                 let typ = self.get_type().into_owned();
                 let value = self.display(interner).to_string();
-
-                // TODO
-                dbg!("into_expression", &typ, &value, &location);
-
                 return Err(InterpreterError::CannotInlineMacro { typ, value, location });
             }
         };
@@ -430,10 +426,6 @@ impl Value {
             | Value::ModuleDefinition(_) => {
                 let typ = self.get_type().into_owned();
                 let value = self.display(interner).to_string();
-
-                // TODO
-                dbg!("into_hir_expression", &typ, &value, &location);
-
                 return Err(InterpreterError::CannotInlineMacro { value, typ, location });
             }
         };
@@ -558,10 +550,6 @@ impl Value {
             _ => {
                 let typ = self.get_type().into_owned();
                 let value = self.display(interner).to_string();
-
-                // TODO
-                dbg!("into_top_level_items", &typ, &value, &location);
-
                 Err(InterpreterError::CannotInlineMacro { value, typ, location })
             }
         }

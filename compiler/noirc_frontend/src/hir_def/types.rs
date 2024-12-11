@@ -259,7 +259,6 @@ impl Kind {
         match self {
             Kind::IntegerOrField => Some(Type::default_int_or_field_type()),
             Kind::Integer => Some(Type::default_int_type()),
-            // TODO: default Numerics to their type?
             Kind::Numeric(typ) => Some(*typ.clone()),
             Kind::Any | Kind::Normal => None,
         }

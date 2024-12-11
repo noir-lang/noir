@@ -170,9 +170,6 @@ pub struct Elaborator<'context> {
     /// like `Foo { inner: 5 }`: in that case we already elaborated the code that led to
     /// that comptime value and any visibility errors were already reported.
     silence_field_visibility_errors: usize,
-
-    // TODO remove
-    pub(crate) debug_counter: usize,
 }
 
 #[derive(Default)]
@@ -223,9 +220,6 @@ impl<'context> Elaborator<'context> {
             interpreter_call_stack,
             in_comptime_context: false,
             silence_field_visibility_errors: 0,
-
-            // TODO remove
-            debug_counter: 0,
         }
     }
 
@@ -918,9 +912,6 @@ impl<'context> Elaborator<'context> {
             | Type::TraitAsType(..)
             | Type::TypeVariable(..)
             | Type::NamedGeneric(..)
-            // TODO cleanup
-            // TODO always marked as used?
-            // | Type::Global(..)
             | Type::Function(..)
             | Type::Forall(..)
             | Type::Error => (),
@@ -1535,9 +1526,6 @@ impl<'context> Elaborator<'context> {
             | Type::TraitAsType(..)
             | Type::Constant(..)
             | Type::NamedGeneric(..)
-            // TODO cleanup
-            // TODO no items unless comptime, right?
-            // | Type::Global(..)
             | Type::Error => (),
         }
     }
@@ -1652,9 +1640,6 @@ impl<'context> Elaborator<'context> {
             None
         };
 
-        // TODO cleanup
-        dbg!("elaborate_global", &name);
-
         if !self.in_contract()
             && let_stmt.attributes.iter().any(|attr| matches!(attr, SecondaryAttribute::Abi(_)))
         {
@@ -1662,32 +1647,19 @@ impl<'context> Elaborator<'context> {
             self.push_err(ResolverError::AbiAttributeOutsideContract { span });
         }
 
-        let comptime = let_stmt.comptime;
-
-        if !comptime && matches!(let_stmt.pattern, Pattern::Mutable(..)) {
+        let explicit_comptime = let_stmt.explicit_comptime;
+        if !explicit_comptime && matches!(let_stmt.pattern, Pattern::Mutable(..)) {
             let span = let_stmt.pattern.span();
             self.push_err(ResolverError::MutableGlobal { span });
         }
 
-        // TODO: throw error if !comptime and evaluates function?
-
-        // TODO cleanup
-        // let (let_statement, _typ) = if comptime {
-        //     self.elaborate_in_comptime_context(|this| this.elaborate_let(let_stmt, Some(global_id)))
-        // } else {
-        //     self.elaborate_let(let_stmt, Some(global_id))
-        // };
         let (let_statement, _typ) = self
             .elaborate_in_comptime_context(|this| this.elaborate_let(let_stmt, Some(global_id)));
 
         let statement_id = self.interner.get_global(global_id).let_statement;
         self.interner.replace_statement(statement_id, let_statement);
 
-        // TODO cleanup
-        // if comptime {
-        if true {
-            self.elaborate_comptime_global(global_id);
-        }
+        self.elaborate_comptime_global(global_id);
 
         if let Some(name) = name {
             self.interner.register_global(global_id, name, global.visibility, self.module_id());
