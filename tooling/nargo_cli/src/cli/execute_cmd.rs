@@ -43,10 +43,6 @@ pub(crate) struct ExecuteCommand {
     /// JSON RPC url to solve oracle calls
     #[clap(long)]
     oracle_resolver: Option<String>,
-
-    /// If a `return` value is present in `Prover.toml`, check that it matches the execution result.
-    #[clap(long, hide = true)]
-    check_return: bool,
 }
 
 pub(crate) fn run(args: ExecuteCommand, config: NargoConfig) -> Result<(), CliError> {
@@ -88,15 +84,13 @@ pub(crate) fn run(args: ExecuteCommand, config: NargoConfig) -> Result<(), CliEr
         let witness_path = save_witness_to_dir(results.witness_stack, witness_name, target_dir)?;
         println!("[{}] Witness saved to {}", package.name, witness_path.display());
 
-        // This check is after everything has been successfully saved, mainly to support integration testing.
+        // Sanity checks on the return value after the witness has been saved, so it can be inspected if necessary.
         if let Some(expected) = results.expected_return {
-            if args.check_return && results.actual_return.as_ref() != Some(&expected) {
+            if results.actual_return.as_ref() != Some(&expected) {
                 return Err(CliError::UnexpectedReturn { expected, actual: results.actual_return });
             }
         }
-        // Abi::decode returns None if the WitnessMap is empty in places corresponding to the return,
-        // positing that the caller should decide whether a result should be present.
-        // Arguably at the end of circuit execution it should be.
+        // We can expect that if the circuit returns something, it should be non-empty after execution.
         if let Some(ref expected) = abi.return_type {
             if results.actual_return.is_none() {
                 return Err(CliError::MissingReturn { expected: expected.clone() });
