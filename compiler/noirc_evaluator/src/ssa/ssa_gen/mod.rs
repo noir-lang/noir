@@ -705,7 +705,7 @@ impl<'a> FunctionContext<'a> {
         // we consider the array to be moved, so we should have an initial rc of just 1.
         //
         // TODO: this exception breaks #6763
-        let should_inc_rc = true;// !let_expr.expression.is_array_or_slice_literal();
+        let should_inc_rc = true; // !let_expr.expression.is_array_or_slice_literal();
 
         values = values.map(|value| {
             let value = value.eval(self);
