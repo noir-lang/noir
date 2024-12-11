@@ -65,12 +65,11 @@ impl BigIntSolver {
         modulus: &[u8],
         output: u32,
     ) -> Result<(), BlackBoxResolutionError> {
-        if self.pedantic_solving
-            && (!self.is_valid_modulus(modulus) || inputs.len() > modulus.len())
-        {
+        if self.pedantic_solving {
             if !self.is_valid_modulus(modulus) {
                 panic!("--pedantic-solving: bigint_from_bytes: disallowed modulus {:?}", modulus);
-            } else {
+            }
+            if inputs.len() > modulus.len() {
                 panic!(
                     "--pedantic-solving: bigint_from_bytes: inputs.len() > modulus.len() {:?}",
                     (inputs.len(), modulus.len())
