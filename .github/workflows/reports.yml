@@ -489,7 +489,7 @@ jobs:
 
       - name: Merge memory reports using jq
         run: |
-          ./.github/scripts/merge-bench-reports.sh
+          ./.github/scripts/merge-bench-reports.sh memory_report
 
       - name: Parse memory report
         id: memory_report
