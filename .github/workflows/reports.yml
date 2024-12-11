@@ -38,7 +38,6 @@ jobs:
           path: ./dist/*
           retention-days: 3
 
-
   compare_gates_reports:
     name: Circuit sizes
     needs: [build-nargo]
@@ -262,7 +261,132 @@ jobs:
         working-directory: ./test_programs
         run: |
           ./compilation_report.sh
+          cat compilation_report.json
           mv compilation_report.json ../compilation_report.json
+
+      - name: Upload compilation report
+        uses: actions/upload-artifact@v4
+        with:
+          name: in_progress_compilation_report
+          path: compilation_report.json
+          retention-days: 3
+          overwrite: true
+
+  external_repo_compilation_report:
+    needs: [build-nargo]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-contracts }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/parity-root }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-inner }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-reset }
+          # TODO: Bring these back once they no longer time out
+          #- project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-base-private }
+          #- project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-base-public }
+
+    name: External repo compilation report - ${{ matrix.project.repo }}/${{ matrix.project.path }}
+    steps:
+      - name: Download nargo binary
+        uses: actions/download-artifact@v4
+        with:
+          name: nargo
+          path: ./nargo
+
+      - name: Set nargo on PATH
+        run: |
+          nargo_binary="${{ github.workspace }}/nargo/nargo"
+          chmod +x $nargo_binary
+          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
+          export PATH="$PATH:$(dirname $nargo_binary)"
+          nargo -V
+
+      - uses: actions/checkout@v4
+        with:
+          path: scripts
+          sparse-checkout: |
+            test_programs/compilation_report.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ matrix.project.repo }}
+          path: test-repo
+          ref: ${{ matrix.project.ref }}
+
+      - name: Generate compilation report
+        working-directory: ./test-repo/${{ matrix.project.path }}
+        run: |
+          mv /home/runner/work/noir/noir/scripts/test_programs/compilation_report.sh ./compilation_report.sh
+          chmod +x ./compilation_report.sh
+          ./compilation_report.sh 1
+
+      - name: Move compilation report
+        id: report
+        shell: bash
+        run: |
+          PACKAGE_NAME=${{ matrix.project.path }}
+          PACKAGE_NAME=$(basename $PACKAGE_NAME)
+          mv ./test-repo/${{ matrix.project.path }}/compilation_report.json ./compilation_report_$PACKAGE_NAME.json
+          echo "compilation_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
+
+      - name: Upload compilation report
+        uses: actions/upload-artifact@v4
+        with:
+          name: compilation_report_${{ steps.report.outputs.compilation_report_name }}
+          path: compilation_report_${{ steps.report.outputs.compilation_report_name }}.json
+          retention-days: 3
+          overwrite: true
+
+  upload_compilation_report:
+    name: Upload compilation report 
+    needs: [generate_compilation_report, external_repo_compilation_report]
+    # We want this job to run even if one variation of the matrix in `external_repo_compilation_report` fails
+    if: always() 
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download initial compilation report
+        uses: actions/download-artifact@v4
+        with:
+          name: in_progress_compilation_report
+
+      - name: Download matrix compilation reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: compilation_report_*
+          path: ./reports
+
+      - name: Merge compilation reports using jq
+        run: |
+          echo "Merging reports" 
+
+          combined_reports="[]"
+
+          # Iterate over each report and merge them
+          for report in ./reports/*; do
+            # The report is saved under ./compilation_report_{ matrix_report }/compilation_report_{ matrix_report }.json
+            REPORT_NAME=$(echo $(ls $report)) 
+            # Extract the 'compilation_reports' array from each report and merge it
+            combined_reports=$(jq '[.compilation_reports[]] + '"$combined_reports" <<< "$(cat "$report/$REPORT_NAME")")
+          done
+
+          combined_reports=$(jq '[.compilation_reports[]] + '"$combined_reports" <<< "$(cat ./compilation_report.json)")
+
+          # Wrap the merged compilation reports into a new object as to keep the 'compilation_reports' key
+          final_report="{\"compilation_reports\": $combined_reports}"
+
+          echo "$final_report" > compilation_report.json
+
+          cat compilation_report.json
 
       - name: Parse compilation report
         id: compilation_report
