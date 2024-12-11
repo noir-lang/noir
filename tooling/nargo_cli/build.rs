@@ -381,7 +381,7 @@ fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Pa
             panic!("JSON was not well-formatted {:?}\n\n{:?}", e, std::str::from_utf8(&output.stdout))
         }});
         let num_opcodes = &json["programs"][0]["functions"][0]["opcodes"];
-        assert_eq!(num_opcodes.as_u64().expect("number of opcodes should fit in a u64"), 0);
+        assert_eq!(num_opcodes.as_u64().expect("number of opcodes should fit in a u64"), 0, "expected the number of opcodes to be 0");
         "#;
 
         generate_test_cases(

@@ -26,6 +26,9 @@ pub fn multi_scalar_mul(
     let mut output_point = grumpkin::SWAffine::zero();
 
     for i in (0..points.len()).step_by(3) {
+        if pedantic_solving && points[i + 2] > FieldElement::one() {
+            panic!("--pedantic-solving: is_infinity expected to be a bool, but found to be > 1")
+        }
         let point =
             create_point(points[i], points[i + 1], points[i + 2] == FieldElement::from(1_u128))
                 .map_err(|e| BlackBoxResolutionError::Failed(BlackBoxFunc::MultiScalarMul, e))?;
@@ -79,6 +82,10 @@ pub fn embedded_curve_add(
     input2: [FieldElement; 3],
     pedantic_solving: bool,
 ) -> Result<(FieldElement, FieldElement, FieldElement), BlackBoxResolutionError> {
+    if pedantic_solving && input1[2] > FieldElement::one() && input2[2] > FieldElement::one() {
+        panic!("--pedantic-solving: is_infinity expected to be a bool, but found to be > 1")
+    }
+
     let point1 = create_point(input1[0], input1[1], input1[2] == FieldElement::one())
         .map_err(|e| BlackBoxResolutionError::Failed(BlackBoxFunc::EmbeddedCurveAdd, e))?;
     let point2 = create_point(input2[0], input2[1], input2[2] == FieldElement::one())
@@ -86,10 +93,10 @@ pub fn embedded_curve_add(
 
     if pedantic_solving {
         for point in [point1, point2] {
-            if point.to_flags().is_infinity() {
+            if point == grumpkin::SWAffine::zero() {
                 return Err(BlackBoxResolutionError::Failed(
                     BlackBoxFunc::EmbeddedCurveAdd,
-                    format!("Infinite point input: {}", point),
+                    format!("Infinite input: embedded_curve_add({}, {})", point1, point2),
                 ));
             }
         }
@@ -118,11 +125,7 @@ fn create_point(
     is_infinite: bool,
 ) -> Result<grumpkin::SWAffine, String> {
     if is_infinite {
-        // TODO: only error when pedantic?
-
         return Ok(grumpkin::SWAffine::zero());
-        // panic!("infinite input to EC operation")
-        // return Err(format!("Attempt to use infinite point in EC operation ({}, {})", x.to_hex(), y.to_hex()));
     }
     let point = grumpkin::SWAffine::new_unchecked(x.into_repr(), y.into_repr());
     if !point.is_on_curve() {
