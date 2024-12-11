@@ -36,8 +36,7 @@ pub async fn execute_circuit(
 }
 
 /// `execute_circuit` with pedantic ACVM solving
-#[wasm_bindgen(js_name = executeCircuitPedantic, skip_jsdoc)]
-pub async fn execute_circuit_pedantic(
+async fn execute_circuit_pedantic(
     program: Vec<u8>,
     initial_witness: JsWitnessMap,
     foreign_call_handler: ForeignCallHandler,
@@ -81,8 +80,7 @@ pub async fn execute_circuit_with_return_witness(
 }
 
 /// `executeCircuitWithReturnWitness` with pedantic ACVM execution
-#[wasm_bindgen(js_name = executeCircuitWithReturnWitnessPedantic, skip_jsdoc)]
-pub async fn execute_circuit_with_return_witness_pedantic(
+async fn execute_circuit_with_return_witness_pedantic(
     program: Vec<u8>,
     initial_witness: JsWitnessMap,
     foreign_call_handler: ForeignCallHandler,
@@ -128,8 +126,7 @@ pub async fn execute_program(
 }
 
 /// `execute_program` with pedantic ACVM solving
-#[wasm_bindgen(js_name = executeProgramPedantic, skip_jsdoc)]
-pub async fn execute_program_pedantic(
+async fn execute_program_pedantic(
     program: Vec<u8>,
     initial_witness: JsWitnessMap,
     foreign_call_handler: ForeignCallHandler,
