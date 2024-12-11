@@ -2883,6 +2883,7 @@ dependencies = [
  "noirc_frontend",
  "semver",
  "serde",
+ "tempfile",
  "test-case",
  "thiserror",
  "toml 0.7.8",
