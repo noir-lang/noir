@@ -14,7 +14,6 @@ Here is a list of the current black box functions:
 
 - [AES128](./cryptographic_primitives/ciphers.mdx#aes128)
 - [SHA256](./cryptographic_primitives/hashes.mdx#sha256)
-- [Schnorr signature verification](./cryptographic_primitives/schnorr.mdx)
 - [Blake2s](./cryptographic_primitives/hashes.mdx#blake2s)
 - [Blake3](./cryptographic_primitives/hashes.mdx#blake3)
 - [Pedersen Hash](./cryptographic_primitives/hashes.mdx#pedersen_hash)

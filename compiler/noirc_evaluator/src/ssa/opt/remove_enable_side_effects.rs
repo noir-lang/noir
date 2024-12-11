@@ -17,7 +17,7 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         dfg::DataFlowGraph,
         function::{Function, RuntimeType},
-        instruction::{BinaryOp, Instruction, Intrinsic},
+        instruction::{BinaryOp, Hint, Instruction, Intrinsic},
         types::Type,
         value::Value,
     },
@@ -174,6 +174,7 @@ impl Context {
                     | Intrinsic::ToBits(_)
                     | Intrinsic::ToRadix(_)
                     | Intrinsic::BlackBox(_)
+                    | Intrinsic::Hint(Hint::BlackBox)
                     | Intrinsic::FromField
                     | Intrinsic::AsField
                     | Intrinsic::AsSlice

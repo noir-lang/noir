@@ -206,6 +206,8 @@ pub enum TypeCheckError {
     UnspecifiedType { span: Span },
     #[error("Binding `{typ}` here to the `_` inside would create a cyclic type")]
     CyclicType { typ: Type, span: Span },
+    #[error("Type annotations required before indexing this array or slice")]
+    TypeAnnotationsNeededForIndex { span: Span },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -517,6 +519,13 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 Diagnostic::simple_error(
                     format!("Cannot invoke function field '{method_name}' on type '{object_type}' as a method"), 
                     format!("to call the function stored in '{method_name}', surround the field access with parentheses: '(', ')'"),
+                    *span,
+                )
+            },
+            TypeCheckError::TypeAnnotationsNeededForIndex { span } => {
+                Diagnostic::simple_error(
+                    "Type annotations required before indexing this array or slice".into(), 
+                    "Type annotations needed before this point, can't decide if this is an array or slice".into(),
                     *span,
                 )
             },
