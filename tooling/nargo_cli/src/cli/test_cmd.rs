@@ -445,7 +445,8 @@ impl<'a> TestRunner<'a> {
             }
         }
 
-        if self.args.show_output {
+        if self.args.show_output && !test_result.output.is_empty() {
+            writeln!(writer, "--- {} stdout ---", test_result.name)?;
             write!(writer, "{}", test_result.output)
         } else {
             Ok(())
