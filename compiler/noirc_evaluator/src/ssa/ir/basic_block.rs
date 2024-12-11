@@ -35,10 +35,10 @@ pub(crate) struct BasicBlock {
 pub(crate) type BasicBlockId = Id<BasicBlock>;
 
 impl BasicBlock {
-    /// Create a new BasicBlock with the given parameters.
-    /// Parameters can also be added later via BasicBlock::add_parameter
-    pub(crate) fn new(parameter_types: Vec<Type>) -> Self {
-        Self { parameter_types, parameters: Vec::new(), instructions: Vec::new(), terminator: None }
+    /// Create a new BasicBlock with no parameters.
+    /// Parameters can be added later via BasicBlock::add_parameter
+    pub(crate) fn new() -> Self {
+        Self { parameter_types: Vec::new(), parameters: Vec::new(), instructions: Vec::new(), terminator: None }
     }
 
     /// Returns the parameters of this block
@@ -166,5 +166,9 @@ impl BasicBlock {
 
     pub(crate) fn parameter_types(&self) -> &[Type] {
         &self.parameter_types
+    }
+
+    pub(crate) fn parameter_types_mut(&mut self) -> &mut Vec<Type> {
+        &mut self.parameter_types
     }
 }

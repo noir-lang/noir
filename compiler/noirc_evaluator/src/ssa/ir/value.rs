@@ -7,7 +7,7 @@ use super::{
     function::FunctionId,
     instruction::{InstructionId, Intrinsic},
     map::Id,
-    types::{NumericType, Type},
+    types::NumericType,
 };
 
 pub(crate) type ValueId = Id<Value>;

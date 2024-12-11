@@ -222,14 +222,14 @@ impl<'block> BrilligBlock<'block> {
                 ) {
                     // If the constraint is of the form `x == u1 1` then we can simply constrain `x` directly
                     (
-                        Some((constant, Type::Numeric(NumericType::Unsigned { bit_size: 1 }))),
+                        Some((constant, NumericType::Unsigned { bit_size: 1 })),
                         None,
                     ) if constant == FieldElement::one() => {
                         (self.convert_ssa_single_addr_value(*rhs, dfg), false)
                     }
                     (
                         None,
-                        Some((constant, Type::Numeric(NumericType::Unsigned { bit_size: 1 }))),
+                        Some((constant, NumericType::Unsigned { bit_size: 1 })),
                     ) if constant == FieldElement::one() => {
                         (self.convert_ssa_single_addr_value(*lhs, dfg), false)
                     }

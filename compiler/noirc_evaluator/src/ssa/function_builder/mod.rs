@@ -20,7 +20,7 @@ use super::{
         basic_block::BasicBlock,
         dfg::{CallStack, InsertInstructionResult},
         function::RuntimeType,
-        instruction::{ConstrainError, InstructionId, Intrinsic},
+        instruction::{ConstrainError, InstructionId, Intrinsic}, types::NumericType,
     },
     ssa_gen::Ssa,
 };
@@ -122,19 +122,19 @@ impl FunctionBuilder {
     pub(crate) fn numeric_constant(
         &mut self,
         value: impl Into<FieldElement>,
-        typ: Type,
+        typ: NumericType,
     ) -> ValueId {
         self.current_function.dfg.make_constant(value.into(), typ)
     }
 
     /// Insert a numeric constant into the current function of type Field
     pub(crate) fn field_constant(&mut self, value: impl Into<FieldElement>) -> ValueId {
-        self.numeric_constant(value.into(), Type::field())
+        self.numeric_constant(value.into(), NumericType::NativeField)
     }
 
     /// Insert a numeric constant into the current function of type Type::length_type()
     pub(crate) fn length_constant(&mut self, value: impl Into<FieldElement>) -> ValueId {
-        self.numeric_constant(value.into(), Type::length_type())
+        self.numeric_constant(value.into(), NumericType::length_type())
     }
 
     /// Returns the type of the given value.

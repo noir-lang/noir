@@ -120,10 +120,6 @@ impl<'f> FunctionInserter<'f> {
         let results = self.function.dfg.instruction_results(id);
         let results = vecmap(results, |id| self.function.dfg.resolve(*id));
 
-        let ctrl_typevars = instruction
-            .requires_ctrl_typevars()
-            .then(|| vecmap(&results, |result| self.function.dfg.type_of_value(*result)));
-
         // Large arrays can lead to OOM panics if duplicated from being unrolled in loops.
         // To prevent this, try to reuse the same ID for identical arrays instead of inserting
         // another MakeArray instruction. Note that this assumes the function inserter is inserting
@@ -151,7 +147,6 @@ impl<'f> FunctionInserter<'f> {
         let new_results = self.function.dfg.insert_instruction_and_results(
             instruction,
             block,
-            ctrl_typevars,
             call_stack,
         );
 

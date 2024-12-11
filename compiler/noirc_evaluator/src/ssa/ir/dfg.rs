@@ -9,7 +9,7 @@ use super::{
         Instruction, InstructionId, InstructionResultType, Intrinsic, TerminatorInstruction,
     },
     map::DenseMap,
-    types::Type,
+    types::{Type, NumericType},
     value::{Value, ValueId},
 };
 
@@ -50,7 +50,7 @@ pub(crate) struct DataFlowGraph {
     /// Each constant is unique, attempting to insert the same constant
     /// twice will return the same ValueId.
     #[serde(skip)]
-    constants: HashMap<(FieldElement, Type), ValueId>,
+    constants: HashMap<(FieldElement, NumericType), ValueId>,
 
     /// Contains each function that has been imported into the current function.
     /// A unique `ValueId` for each function's [`Value::Function`] is stored so any given FunctionId
@@ -103,8 +103,8 @@ impl DataFlowGraph {
     /// Creates a new basic block with no parameters.
     /// After being created, the block is unreachable in the current function
     /// until another block is made to jump to it.
-    pub(crate) fn make_block(&mut self, parameter_types: Vec<Type>) -> BasicBlockId {
-        self.blocks.insert(BasicBlock::new(parameter_types))
+    pub(crate) fn make_block(&mut self) -> BasicBlockId {
+        self.blocks.insert(BasicBlock::new())
     }
 
     /// Create a new block with the same parameter count and parameter
@@ -116,13 +116,15 @@ impl DataFlowGraph {
         block: BasicBlockId,
     ) -> BasicBlockId {
         let parameters = self.blocks[block].parameters();
-        let new_block = self.make_block(self.blocks[block].parameter_types().to_vec());
+        let new_block = self.make_block();
 
         let parameters = vecmap(parameters.iter().enumerate(), |(position, _)| {
             self.values.insert(Value::Param { block: new_block, position })
         });
 
-        self.blocks[new_block].set_parameters(parameters);
+        let new_block_value = &mut self.blocks[new_block];
+        new_block_value.set_parameters(parameters);
+        new_block_value.parameter_types_mut().extend_from_slice(self.blocks[block].parameter_types());
         new_block
     }
 
@@ -225,17 +227,39 @@ impl DataFlowGraph {
 
     /// Set the type of value_id to the target_type.
     pub(crate) fn set_type_of_value(&mut self, value_id: ValueId, target_type: Type) {
-        let value = &mut self.values[value_id];
-        match value {
-            Value::Instruction { typ, .. } | Value::NumericConstant { typ, .. } => {
-                *typ = target_type;
+        match &self.values[value_id] {
+            Value::Instruction { instruction, position } => {
+                let position = *position;
+                match &mut self[*instruction] {
+                    Instruction::Call { result_types, .. } => {
+                        result_types[position] = target_type;
+                    },
+                    Instruction::Load { result_type, .. }
+                    | Instruction::Cast(_, result_type)
+                    | Instruction::ArrayGet { result_type, .. } => {
+                        *result_type = target_type;
+                    },
+
+                    instruction @ (Instruction::Binary(_)
+                    | Instruction::Not(_)
+                    | Instruction::Truncate { .. }
+                    | Instruction::Allocate { .. }
+                    | Instruction::Store { .. }
+                    | Instruction::ArraySet { .. }
+                    | Instruction::IfElse { .. }
+                    | Instruction::MakeArray { .. }) => panic!("Can't set the type of {instruction:?}"),
+
+                    Instruction::EnableSideEffectsIf { .. }
+                    | Instruction::Constrain(..)
+                    | Instruction::RangeCheck { .. }
+                    | Instruction::IncrementRc { .. }
+                    | Instruction::DecrementRc { .. } => unreachable!("These instructions have no results"),
+                }
             }
             Value::Param { block, position } => {
-                // todo
+                self[*block].parameter_types_mut()[*position] = target_type;
             }
-            _ => {
-                unreachable!("ICE: Cannot set type of {:?}", value);
-            }
+            value => unreachable!("ICE: Cannot set type of {:?}", value),
         }
     }
 
@@ -252,11 +276,11 @@ impl DataFlowGraph {
 
     /// Creates a new constant value, or returns the Id to an existing one if
     /// one already exists.
-    pub(crate) fn make_constant(&mut self, constant: FieldElement, typ: Type) -> ValueId {
-        if let Some(id) = self.constants.get(&(constant, typ.clone())) {
+    pub(crate) fn make_constant(&mut self, constant: FieldElement, typ: NumericType) -> ValueId {
+        if let Some(id) = self.constants.get(&(constant, typ)) {
             return *id;
         }
-        let id = self.values.insert(Value::NumericConstant { constant, typ: typ.clone() });
+        let id = self.values.insert(Value::NumericConstant { constant, typ });
         self.constants.insert((constant, typ), id);
         id
     }
@@ -298,8 +322,8 @@ impl DataFlowGraph {
     ///
     /// Returns the results of the instruction
     pub(crate) fn make_instruction_results(&mut self, instruction_id: InstructionId) {
-        let result_types = self.instruction_result_types(instruction_id);
-        let results = vecmap(result_types.into_iter().enumerate(), |(position, _typ)| {
+        let result_count = self.instruction_result_count(instruction_id);
+        let results = vecmap(0 .. result_count, |position| {
             let instruction = instruction_id;
             self.values.insert(Value::Instruction { position, instruction })
         });
@@ -315,12 +339,13 @@ impl DataFlowGraph {
     /// the type of an instruction that does not require them. Compared to passing an empty Vec,
     /// Option has the benefit of panicking if it is accidentally used for a Call instruction,
     /// rather than silently returning the empty Vec and continuing.
-    fn instruction_result_types(&self, instruction_id: InstructionId) -> Vec<Type> {
+    fn instruction_result_count(&self, instruction_id: InstructionId) -> usize {
         let instruction = &self.instructions[instruction_id];
         match instruction.result_type() {
-            InstructionResultType::Known(typ) => vec![typ],
-            InstructionResultType::Operand(value) => vec![self.type_of_value(value)],
-            InstructionResultType::None => vec![],
+            InstructionResultType::Known(_) => 1,
+            InstructionResultType::Operand(_) => 1,
+            InstructionResultType::None => 0,
+            InstructionResultType::Multiple(types) => types.len()
         }
     }
 
@@ -333,9 +358,10 @@ impl DataFlowGraph {
                     InstructionResultType::Operand(value) => self.type_of_value(value),
                     InstructionResultType::Known(typ) => typ,
                     InstructionResultType::None => unreachable!("Instruction has no results"),
+                    InstructionResultType::Multiple(types) => types[*position].clone()
                 }
             }
-            Value::Param { block, position } => self[*block].type_of_parameter(*position),
+            Value::Param { block, position } => self[*block].type_of_parameter(*position).clone(),
             Value::NumericConstant { typ, .. } => Type::Numeric(*typ),
             Value::Function(_) => Type::Function,
             Value::Intrinsic(_) => Type::Function,
@@ -365,7 +391,7 @@ impl DataFlowGraph {
     /// True if the type of this value is Type::Reference.
     /// Using this method over type_of_value avoids cloning the value's type.
     pub(crate) fn value_is_reference(&self, value: ValueId) -> bool {
-        matches!(self.values[value].get_type(), Type::Reference(_))
+        matches!(self.type_of_value(value), Type::Reference(_))
     }
 
     /// Replaces an instruction result with a fresh id.
@@ -374,7 +400,6 @@ impl DataFlowGraph {
         instruction_id: InstructionId,
         prev_value_id: ValueId,
     ) -> ValueId {
-        let typ = self.type_of_value(prev_value_id);
         let results = self.results.get_mut(&instruction_id).unwrap();
         let res_position = results
             .iter()
@@ -382,7 +407,6 @@ impl DataFlowGraph {
             .expect("Result id not found while replacing");
 
         let value_id = self.values.insert(Value::Instruction {
-            typ,
             position: res_position,
             instruction: instruction_id,
         });
@@ -423,9 +447,9 @@ impl DataFlowGraph {
     pub(crate) fn get_numeric_constant_with_type(
         &self,
         value: ValueId,
-    ) -> Option<(FieldElement, Type)> {
+    ) -> Option<(FieldElement, NumericType)> {
         match &self.values[self.resolve(value)] {
-            Value::NumericConstant { constant, typ } => Some((*constant, typ.clone())),
+            Value::NumericConstant { constant, typ } => Some((*constant, *typ)),
             _ => None,
         }
     }
@@ -632,8 +656,8 @@ mod tests {
     #[test]
     fn make_instruction() {
         let mut dfg = DataFlowGraph::default();
-        let ins = Instruction::Allocate;
-        let ins_id = dfg.make_instruction(ins, Some(vec![Type::field()]));
+        let ins = Instruction::Allocate { element_type: Type::field() };
+        let ins_id = dfg.make_instruction(ins);
 
         let results = dfg.instruction_results(ins_id);
         assert_eq!(results.len(), 1);

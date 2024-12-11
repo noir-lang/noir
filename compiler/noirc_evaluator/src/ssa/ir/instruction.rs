@@ -355,7 +355,7 @@ impl Instruction {
     }
 
     /// Returns the type that this instruction will return.
-    pub(crate) fn result_type(&self, position: usize) -> InstructionResultType {
+    pub(crate) fn result_type(&self) -> InstructionResultType {
         match self {
             Instruction::Binary(binary) => binary.result_type(),
             Instruction::Cast(_, typ)
@@ -365,7 +365,7 @@ impl Instruction {
                 InstructionResultType::Known(typ.clone())
             }
             Instruction::Call { result_types, .. } => {
-                InstructionResultType::Known(result_types[position].clone())
+                InstructionResultType::Multiple(result_types.clone())
             }
             Instruction::Allocate { element_type } => {
                 let typ = Type::Reference(Arc::new(element_type.clone()));
@@ -870,8 +870,8 @@ impl Instruction {
                     None
                 }
             }
-            Instruction::Call { func, arguments, result_types: _ } => {
-                simplify_call(*func, arguments, dfg, block, call_stack)
+            Instruction::Call { func, arguments, result_types } => {
+                simplify_call(*func, arguments, result_types, dfg, block, call_stack)
             }
             Instruction::EnableSideEffectsIf { condition } => {
                 if let Some(last) = dfg[block].instructions().last().copied() {

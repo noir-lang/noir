@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, sync::Arc};
 
-use crate::ssa::ir::{function::RuntimeType, types::Type, value::ValueId};
+use crate::ssa::ir::{function::RuntimeType, types::{Type, NumericType}, value::ValueId};
 use acvm::FieldElement;
 use fxhash::FxHashMap as HashMap;
 use noirc_frontend::ast;
@@ -127,10 +127,12 @@ impl FunctionBuilder {
                 for _i in 0..len {
                     for subitem_typ in typ.iter() {
                         // load each element of the array, and add it to the databus
+                        let length_type = NumericType::length_type();
+                        let index_field = FieldElement::from(index as i128);
                         let index_var = self
                             .current_function
                             .dfg
-                            .make_constant(FieldElement::from(index as i128), Type::length_type());
+                            .make_constant(index_field, length_type);
                         let element = self.insert_array_get(value, index_var, subitem_typ.clone());
                         index += match subitem_typ {
                             Type::Array(_, _) | Type::Slice(_) => subitem_typ.element_size(),

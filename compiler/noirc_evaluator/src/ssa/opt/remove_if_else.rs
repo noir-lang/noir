@@ -96,16 +96,11 @@ impl Context {
                     let _typ = function.dfg.type_of_value(value);
                     let results = function.dfg.instruction_results(instruction);
                     let result = results[0];
-                    // let result = match typ {
-                    //     Type::Array(..) => results[0],
-                    //     Type::Slice(..) => results[1],
-                    //     other => unreachable!("IfElse instructions should only have arrays or slices at this point. Found {other:?}"),
-                    // };
 
                     function.dfg.set_value_from_id(result, value);
                     self.array_set_conditionals.insert(result, current_conditional);
                 }
-                Instruction::Call { func, arguments } => {
+                Instruction::Call { func, arguments, result_types: _ } => {
                     if let Value::Intrinsic(intrinsic) = function.dfg[*func] {
                         let results = function.dfg.instruction_results(instruction);
 
