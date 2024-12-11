@@ -117,13 +117,13 @@ struct TestRunner<'a> {
 impl<'a> TestRunner<'a> {
     fn run(&self) -> Result<(), CliError> {
         // First compile all packages and collect their tests
-        let package_test_results = self.collect_packages_tests();
+        let packages_tests = self.collect_packages_tests();
 
         // Now gather all tests and how many are per packages
         let mut tests = Vec::new();
         let mut test_count_per_package = HashMap::new();
 
-        for (package_name, package_tests) in package_test_results {
+        for (package_name, package_tests) in packages_tests {
             let package_tests = package_tests?;
             test_count_per_package.insert(package_name, package_tests.len());
             tests.extend(package_tests);
