@@ -465,9 +465,7 @@ fn display_test_report(package_name: &String, test_report: &[TestResult]) -> std
 
     let failed_tests: Vec<_> = test_report
         .iter()
-        .filter_map(
-            |test_result| if test_result.status.failed() { Some(&test_result.name) } else { None },
-        )
+        .filter_map(|test_result| test_result.status.failed().then_some(&test_result.name))
         .collect();
 
     if !failed_tests.is_empty() {
