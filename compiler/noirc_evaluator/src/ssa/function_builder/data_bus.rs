@@ -1,6 +1,10 @@
 use std::{collections::BTreeMap, sync::Arc};
 
-use crate::ssa::ir::{function::RuntimeType, types::Type, value::ValueId};
+use crate::ssa::ir::{
+    function::RuntimeType,
+    types::{NumericType, Type},
+    value::ValueId,
+};
 use acvm::FieldElement;
 use fxhash::FxHashMap as HashMap;
 use noirc_frontend::ast;
@@ -115,7 +119,7 @@ impl FunctionBuilder {
     /// Insert a value into a data bus builder
     fn add_to_data_bus(&mut self, value: ValueId, databus: &mut DataBusBuilder) {
         assert!(databus.databus.is_none(), "initializing finalized call data");
-        let typ = self.current_function.dfg[value].get_type().clone();
+        let typ = self.current_function.dfg[value].get_type().into_owned();
         match typ {
             Type::Numeric(_) => {
                 databus.values.push_back(value);
@@ -128,10 +132,10 @@ impl FunctionBuilder {
                 for _i in 0..len {
                     for subitem_typ in typ.iter() {
                         // load each element of the array, and add it to the databus
-                        let index_var = self
-                            .current_function
-                            .dfg
-                            .make_constant(FieldElement::from(index as i128), Type::length_type());
+                        let length_type = NumericType::length_type();
+                        let index_var = FieldElement::from(index as i128);
+                        let index_var =
+                            self.current_function.dfg.make_constant(index_var, length_type);
                         let element = self.insert_array_get(value, index_var, subitem_typ.clone());
                         index += match subitem_typ {
                             Type::Array(_, _) | Type::Slice(_) => subitem_typ.element_size(),
