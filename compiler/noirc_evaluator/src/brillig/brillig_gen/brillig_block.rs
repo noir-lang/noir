@@ -8,7 +8,7 @@ use crate::brillig::brillig_ir::{
     BrilligBinaryOp, BrilligContext, ReservedRegisters, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
 };
 use crate::ssa::ir::dfg::CallStack;
-use crate::ssa::ir::instruction::ConstrainError;
+use crate::ssa::ir::instruction::{ConstrainError, Hint};
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
     dfg::DataFlowGraph,
@@ -552,6 +552,10 @@ impl<'block> BrilligBlock<'block> {
                                 false,
                             );
                         }
+                        Intrinsic::Hint(Hint::BlackBox) => {
+                            let result_ids = dfg.instruction_results(instruction_id);
+                            self.convert_ssa_identity_call(arguments, dfg, result_ids);
+                        }
                         Intrinsic::BlackBox(bb_func) => {
                             // Slices are represented as a tuple of (length, slice contents).
                             // We must check the inputs to determine if there are slices
@@ -872,6 +876,30 @@ impl<'block> BrilligBlock<'block> {
             )
         });
         self.brillig_context.codegen_call(func_id, &argument_variables, &return_variables);
+    }
+
+    /// Copy the input arguments to the results.
+    fn convert_ssa_identity_call(
+        &mut self,
+        arguments: &[ValueId],
+        dfg: &DataFlowGraph,
+        result_ids: &[ValueId],
+    ) {
+        let argument_variables =
+            vecmap(arguments, |argument_id| self.convert_ssa_value(*argument_id, dfg));
+
+        let return_variables = vecmap(result_ids, |result_id| {
+            self.variables.define_variable(
+                self.function_context,
+                self.brillig_context,
+                *result_id,
+                dfg,
+            )
+        });
+
+        for (src, dst) in argument_variables.into_iter().zip(return_variables) {
+            self.brillig_context.mov_instruction(dst.extract_register(), src.extract_register());
+        }
     }
 
     fn validate_array_index(

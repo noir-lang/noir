@@ -1,5 +1,5 @@
 [package]
-name = "schnorr"
+name = "hint_black_box"
 type = "bin"
 authors = [""]
 
