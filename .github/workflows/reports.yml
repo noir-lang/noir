@@ -516,7 +516,7 @@ jobs:
           report: memory_report.json
           header: |
             # Memory Report
-          memory_report: false
+          memory_report: true
 
       - name: Add memory report to sticky comment
         if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
