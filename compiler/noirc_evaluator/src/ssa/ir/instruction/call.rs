@@ -53,10 +53,10 @@ pub(super) fn simplify_call(
     let simplified_result = match intrinsic {
         Intrinsic::ToBits(endian) => {
             // TODO: simplify to a range constraint if `limb_count == 1`
-            if let (Some(constant_args), Some(return_type)) = (constant_args, return_type.clone()) {
+            if let (Some(constant_args), Some(return_type)) = (constant_args, return_type) {
                 let field = constant_args[0];
                 let limb_count = if let Type::Array(_, array_len) = return_type {
-                    array_len
+                    *array_len
                 } else {
                     unreachable!("ICE: Intrinsic::ToRadix return type must be array")
                 };
@@ -75,11 +75,11 @@ pub(super) fn simplify_call(
         }
         Intrinsic::ToRadix(endian) => {
             // TODO: simplify to a range constraint if `limb_count == 1`
-            if let (Some(constant_args), Some(return_type)) = (constant_args, return_type.clone()) {
+            if let (Some(constant_args), Some(return_type)) = (constant_args, return_type) {
                 let field = constant_args[0];
                 let radix = constant_args[1].to_u128() as u32;
                 let limb_count = if let Type::Array(_, array_len) = return_type {
-                    array_len
+                    *array_len
                 } else {
                     unreachable!("ICE: Intrinsic::ToRadix return type must be array")
                 };
@@ -334,7 +334,7 @@ pub(super) fn simplify_call(
         }
         Intrinsic::Hint(Hint::BlackBox) => SimplifyResult::None,
         Intrinsic::BlackBox(bb_func) => {
-            simplify_black_box_func(bb_func, arguments, dfg, block, call_stack)
+            simplify_black_box_func(bb_func, arguments, return_types, dfg, block, call_stack)
         }
         Intrinsic::AsField => {
             let instruction = Instruction::Cast(arguments[0], NumericType::NativeField);
@@ -342,7 +342,7 @@ pub(super) fn simplify_call(
         }
         Intrinsic::FromField => {
             let incoming_type = Type::field();
-            let target_type = return_type.clone().unwrap();
+            let target_type = return_type.unwrap();
 
             let truncate = Instruction::Truncate {
                 value: arguments[0],
@@ -358,8 +358,8 @@ pub(super) fn simplify_call(
         Intrinsic::AsWitness => SimplifyResult::None,
         Intrinsic::IsUnconstrained => SimplifyResult::None,
         Intrinsic::DerivePedersenGenerators => {
-            if let Some(Type::Array(_, len)) = return_type.clone() {
-                simplify_derive_generators(dfg, arguments, len, block, call_stack)
+            if let Some(Type::Array(_, len)) = return_type {
+                simplify_derive_generators(dfg, arguments, *len, block, call_stack)
             } else {
                 unreachable!("Derive Pedersen Generators must return an array");
             }
@@ -383,7 +383,7 @@ pub(super) fn simplify_call(
     {
         assert_eq!(
             dfg.type_of_value(*result),
-            expected_types,
+            *expected_types,
             "Simplification should not alter return type"
         );
     }
@@ -495,7 +495,8 @@ fn simplify_slice_pop_back(
     flattened_len = update_slice_length(flattened_len, dfg, BinaryOp::Sub, block);
 
     // We must pop multiple elements in the case of a slice of tuples
-    for result_type in element_types {
+    for result_type in element_types.iter() {
+        let result_type = result_type.clone();
         let get_last_elem_instr =
             Instruction::ArrayGet { array: arguments[1], index: flattened_len, result_type };
 
@@ -518,6 +519,7 @@ fn simplify_slice_pop_back(
 fn simplify_black_box_func(
     bb_func: BlackBoxFunc,
     arguments: &[ValueId],
+    result_types: &[Type],
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
     call_stack: &CallStack,
@@ -584,7 +586,7 @@ fn simplify_black_box_func(
         ),
 
         BlackBoxFunc::MultiScalarMul => {
-            blackbox::simplify_msm(dfg, solver, arguments, block, call_stack)
+            blackbox::simplify_msm(dfg, solver, arguments, result_types, block, call_stack)
         }
         BlackBoxFunc::EmbeddedCurveAdd => {
             blackbox::simplify_ec_add(dfg, solver, arguments, block, call_stack)

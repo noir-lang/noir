@@ -39,7 +39,7 @@ fn known_slice_lengths(func: &Function) -> HashMap<InstructionId, u32> {
         let block = &func.dfg[block_id];
         for instruction_id in block.instructions() {
             let (target_func, arguments) = match &func.dfg[*instruction_id] {
-                Instruction::Call { func, arguments } => (func, arguments),
+                Instruction::Call { func, arguments, .. } => (func, arguments),
                 _ => continue,
             };
 

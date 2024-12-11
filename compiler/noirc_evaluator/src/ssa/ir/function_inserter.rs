@@ -144,11 +144,8 @@ impl<'f> FunctionInserter<'f> {
             None
         };
 
-        let new_results = self.function.dfg.insert_instruction_and_results(
-            instruction,
-            block,
-            call_stack,
-        );
+        let new_results =
+            self.function.dfg.insert_instruction_and_results(instruction, block, call_stack);
 
         // Cache an array in the fresh_array_cache if array caching is enabled.
         // The fresh cache isn't used for deduplication until an external pass confirms we

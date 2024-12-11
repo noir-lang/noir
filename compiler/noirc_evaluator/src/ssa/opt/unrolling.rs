@@ -455,7 +455,7 @@ impl Loop {
         // We insert into a fresh block first and move instructions into the unroll_into block later
         // only once we verify the jmpif instruction has a constant condition. If it does not, we can
         // just discard this fresh block and leave the loop unmodified.
-        let fresh_block = function.dfg.make_block(Vec::new());
+        let fresh_block = function.dfg.make_block();
 
         let mut context = LoopIteration::new(function, self, fresh_block, self.header);
         let source_block = &context.dfg()[context.source_block];
@@ -561,7 +561,7 @@ impl Loop {
         let allocations = blocks.iter().flat_map(|block| {
             let instructions = function.dfg[*block].instructions().iter();
             instructions
-                .filter(|i| matches!(&function.dfg[**i], Instruction::Allocate))
+                .filter(|i| matches!(&function.dfg[**i], Instruction::Allocate { .. }))
                 // Get the value into which the allocation was stored.
                 .map(|i| function.dfg.instruction_results(*i)[0])
         });

@@ -600,28 +600,30 @@ impl<'function> PerFunctionContext<'function> {
         let block = &self.source_function.dfg[block_id];
         for id in block.instructions() {
             match &self.source_function.dfg[*id] {
-                Instruction::Call { func, arguments } => match self.get_function(*func) {
-                    Some(func_id) => {
-                        if self.should_inline_call(ssa, func_id) {
-                            self.inline_function(ssa, *id, func_id, arguments);
+                Instruction::Call { func, arguments, result_types: _ } => {
+                    match self.get_function(*func) {
+                        Some(func_id) => {
+                            if self.should_inline_call(ssa, func_id) {
+                                self.inline_function(ssa, *id, func_id, arguments);
 
-                            // This is only relevant during handling functions with `InlineType::NoPredicates` as these
-                            // can pollute the function they're being inlined into with `Instruction::EnabledSideEffects`,
-                            // resulting in predicates not being applied properly.
-                            //
-                            // Note that this doesn't cover the case in which there exists an `Instruction::EnabledSideEffects`
-                            // within the function being inlined whilst the source function has not encountered one yet.
-                            // In practice this isn't an issue as the last `Instruction::EnabledSideEffects` in the
-                            // function being inlined will be to turn off predicates rather than to create one.
-                            if let Some(condition) = side_effects_enabled {
-                                self.context.builder.insert_enable_side_effects_if(condition);
+                                // This is only relevant during handling functions with `InlineType::NoPredicates` as these
+                                // can pollute the function they're being inlined into with `Instruction::EnabledSideEffects`,
+                                // resulting in predicates not being applied properly.
+                                //
+                                // Note that this doesn't cover the case in which there exists an `Instruction::EnabledSideEffects`
+                                // within the function being inlined whilst the source function has not encountered one yet.
+                                // In practice this isn't an issue as the last `Instruction::EnabledSideEffects` in the
+                                // function being inlined will be to turn off predicates rather than to create one.
+                                if let Some(condition) = side_effects_enabled {
+                                    self.context.builder.insert_enable_side_effects_if(condition);
+                                }
+                            } else {
+                                self.push_instruction(*id);
                             }
-                        } else {
-                            self.push_instruction(*id);
                         }
+                        None => self.push_instruction(*id),
                     }
-                    None => self.push_instruction(*id),
-                },
+                }
                 Instruction::EnableSideEffectsIf { condition } => {
                     side_effects_enabled = Some(self.translate_value(*condition));
                     self.push_instruction(*id);
@@ -683,13 +685,9 @@ impl<'function> PerFunctionContext<'function> {
         let results = self.source_function.dfg.instruction_results(id);
         let results = vecmap(results, |id| self.source_function.dfg.resolve(*id));
 
-        let ctrl_typevars = instruction
-            .requires_ctrl_typevars()
-            .then(|| vecmap(&results, |result| self.source_function.dfg.type_of_value(*result)));
-
         self.context.builder.set_call_stack(call_stack);
 
-        let new_results = self.context.builder.insert_instruction(instruction, ctrl_typevars);
+        let new_results = self.context.builder.insert_instruction(instruction);
         Self::insert_new_instruction_results(&mut self.values, &results, new_results);
     }
 

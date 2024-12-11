@@ -154,14 +154,6 @@ impl Type {
         Type::Numeric(NumericType::length_type())
     }
 
-    /// Unwrap the inner NumericType or panic
-    pub(crate) fn unwrap_numeric(&self) -> NumericType {
-        match self {
-            Type::Numeric(numeric) => *numeric,
-            other => panic!("Expected NumericType, found {other:?}"),
-        }
-    }
-
     /// Returns the inner NumericType if this is one, or panics otherwise
     pub(crate) fn unwrap_numeric(&self) -> NumericType {
         match self {

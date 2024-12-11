@@ -119,7 +119,7 @@ impl FunctionBuilder {
     /// Insert a value into a data bus builder
     fn add_to_data_bus(&mut self, value: ValueId, databus: &mut DataBusBuilder) {
         assert!(databus.databus.is_none(), "initializing finalized call data");
-        let typ = self.current_function.dfg[value].get_type().into_owned();
+        let typ = self.current_function.dfg.type_of_value(value);
         match typ {
             Type::Numeric(_) => {
                 databus.values.push_back(value);

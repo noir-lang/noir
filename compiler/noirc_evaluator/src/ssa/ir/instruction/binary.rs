@@ -93,7 +93,7 @@ impl Binary {
         if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
             return match eval_constant_binary_op(lhs, rhs, self.operator, operand_type) {
                 Some((result, result_type)) => {
-                    let value = dfg.make_constant(result, result_type.unwrap_numeric());
+                    let value = dfg.make_constant(result, result_type);
                     SimplifyResult::SimplifiedTo(value)
                 }
                 None => SimplifyResult::None,

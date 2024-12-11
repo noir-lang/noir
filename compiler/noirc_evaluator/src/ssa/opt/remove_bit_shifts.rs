@@ -237,13 +237,13 @@ impl Context<'_> {
         rhs: ValueId,
     ) -> ValueId {
         let instruction = Instruction::Binary(Binary { lhs, rhs, operator });
-        self.insert_instruction(instruction, None).first()
+        self.insert_instruction(instruction).first()
     }
 
     /// Insert a not instruction at the end of the current block.
     /// Returns the result of the instruction.
     pub(crate) fn insert_not(&mut self, rhs: ValueId) -> ValueId {
-        self.insert_instruction(Instruction::Not(rhs), None).first()
+        self.insert_instruction(Instruction::Not(rhs)).first()
     }
 
     /// Insert a truncate instruction at the end of the current block.
@@ -254,14 +254,13 @@ impl Context<'_> {
         bit_size: u32,
         max_bit_size: u32,
     ) -> ValueId {
-        self.insert_instruction(Instruction::Truncate { value, bit_size, max_bit_size }, None)
-            .first()
+        self.insert_instruction(Instruction::Truncate { value, bit_size, max_bit_size }).first()
     }
 
     /// Insert a cast instruction at the end of the current block.
     /// Returns the result of the cast instruction.
     pub(crate) fn insert_cast(&mut self, value: ValueId, typ: NumericType) -> ValueId {
-        self.insert_instruction(Instruction::Cast(value, typ), None).first()
+        self.insert_instruction(Instruction::Cast(value, typ)).first()
     }
 
     /// Insert a call instruction at the end of the current block and return
@@ -272,7 +271,8 @@ impl Context<'_> {
         arguments: Vec<ValueId>,
         result_types: Vec<Type>,
     ) -> Cow<[ValueId]> {
-        self.insert_instruction(Instruction::Call { func, arguments }, Some(result_types)).results()
+        let call = Instruction::Call { func, arguments, result_types };
+        self.insert_instruction(call).results()
     }
 
     /// Insert an instruction to extract an element from an array
@@ -280,21 +280,18 @@ impl Context<'_> {
         &mut self,
         array: ValueId,
         index: ValueId,
-        element_type: Type,
+        result_type: Type,
     ) -> ValueId {
-        let element_type = Some(vec![element_type]);
-        self.insert_instruction(Instruction::ArrayGet { array, index }, element_type).first()
+        self.insert_instruction(Instruction::ArrayGet { array, index, result_type }).first()
     }
 
     pub(crate) fn insert_instruction(
         &mut self,
         instruction: Instruction,
-        ctrl_typevars: Option<Vec<Type>>,
     ) -> InsertInstructionResult {
         let result = self.function.dfg.insert_instruction_and_results(
             instruction,
             self.block,
-            ctrl_typevars,
             self.call_stack.clone(),
         );
 

@@ -114,22 +114,20 @@ impl<'a> ValueMerger<'a> {
         // We must cast the bool conditions to the actual numeric type used by each value.
         let cast = Instruction::Cast(then_condition, then_type);
         let then_condition =
-            dfg.insert_instruction_and_results(cast, block, None, call_stack.clone()).first();
+            dfg.insert_instruction_and_results(cast, block, call_stack.clone()).first();
 
         let cast = Instruction::Cast(else_condition, else_type);
         let else_condition =
-            dfg.insert_instruction_and_results(cast, block, None, call_stack.clone()).first();
+            dfg.insert_instruction_and_results(cast, block, call_stack.clone()).first();
 
         let mul = Instruction::binary(BinaryOp::Mul, then_condition, then_value);
-        let then_value =
-            dfg.insert_instruction_and_results(mul, block, None, call_stack.clone()).first();
+        let then_value = dfg.insert_instruction_and_results(mul, block, call_stack.clone()).first();
 
         let mul = Instruction::binary(BinaryOp::Mul, else_condition, else_value);
-        let else_value =
-            dfg.insert_instruction_and_results(mul, block, None, call_stack.clone()).first();
+        let else_value = dfg.insert_instruction_and_results(mul, block, call_stack.clone()).first();
 
         let add = Instruction::binary(BinaryOp::Add, then_value, else_value);
-        dfg.insert_instruction_and_results(add, block, None, call_stack).first()
+        dfg.insert_instruction_and_results(add, block, call_stack).first()
     }
 
     /// Given an if expression that returns an array: `if c { array1 } else { array2 }`,
@@ -168,22 +166,16 @@ impl<'a> ValueMerger<'a> {
                     ((i * element_types.len() as u32 + element_index as u32) as u128).into();
                 let index = self.dfg.make_constant(index, NumericType::NativeField);
 
-                let typevars = Some(vec![element_type.clone()]);
-
-                let mut get_element = |array, typevars| {
-                    let get = Instruction::ArrayGet { array, index };
+                let mut get_element = |array| {
+                    let result_type = element_type.clone();
+                    let get = Instruction::ArrayGet { array, index, result_type };
                     self.dfg
-                        .insert_instruction_and_results(
-                            get,
-                            self.block,
-                            typevars,
-                            self.call_stack.clone(),
-                        )
+                        .insert_instruction_and_results(get, self.block, self.call_stack.clone())
                         .first()
                 };
 
-                let then_element = get_element(then_value, typevars.clone());
-                let else_element = get_element(else_value, typevars);
+                let then_element = get_element(then_value);
+                let else_element = get_element(else_value);
 
                 merged.push_back(self.merge_values(
                     then_condition,
@@ -196,7 +188,7 @@ impl<'a> ValueMerger<'a> {
 
         let instruction = Instruction::MakeArray { elements: merged, typ };
         let call_stack = self.call_stack.clone();
-        self.dfg.insert_instruction_and_results(instruction, self.block, None, call_stack).first()
+        self.dfg.insert_instruction_and_results(instruction, self.block, call_stack).first()
     }
 
     fn merge_slice_values(
@@ -236,33 +228,27 @@ impl<'a> ValueMerger<'a> {
                 let index_value = (index_u32 as u128).into();
                 let index = self.dfg.make_constant(index_value, NumericType::NativeField);
 
-                let typevars = Some(vec![element_type.clone()]);
-
-                let mut get_element = |array, typevars, len| {
+                let mut get_element = |array, len| {
                     // The smaller slice is filled with placeholder data. Codegen for slice accesses must
                     // include checks against the dynamic slice length so that this placeholder data is not incorrectly accessed.
                     if len <= index_u32 {
                         self.make_slice_dummy_data(element_type)
                     } else {
-                        let get = Instruction::ArrayGet { array, index };
+                        let result_type = element_type.clone();
+                        let get = Instruction::ArrayGet { array, index, result_type };
                         self.dfg
                             .insert_instruction_and_results(
                                 get,
                                 self.block,
-                                typevars,
                                 self.call_stack.clone(),
                             )
                             .first()
                     }
                 };
 
-                let then_element = get_element(
-                    then_value_id,
-                    typevars.clone(),
-                    then_len * element_types.len() as u32,
-                );
-                let else_element =
-                    get_element(else_value_id, typevars, else_len * element_types.len() as u32);
+                let element_count = element_types.len() as u32;
+                let then_element = get_element(then_value_id, then_len * element_count);
+                let else_element = get_element(else_value_id, else_len * element_count);
 
                 merged.push_back(self.merge_values(
                     then_condition,
@@ -275,7 +261,7 @@ impl<'a> ValueMerger<'a> {
 
         let instruction = Instruction::MakeArray { elements: merged, typ };
         let call_stack = self.call_stack.clone();
-        self.dfg.insert_instruction_and_results(instruction, self.block, None, call_stack).first()
+        self.dfg.insert_instruction_and_results(instruction, self.block, call_stack).first()
     }
 
     /// Construct a dummy value to be attached to the smaller of two slices being merged.
@@ -297,9 +283,7 @@ impl<'a> ValueMerger<'a> {
                 }
                 let instruction = Instruction::MakeArray { elements: array, typ: typ.clone() };
                 let call_stack = self.call_stack.clone();
-                self.dfg
-                    .insert_instruction_and_results(instruction, self.block, None, call_stack)
-                    .first()
+                self.dfg.insert_instruction_and_results(instruction, self.block, call_stack).first()
             }
             Type::Slice(_) => {
                 // TODO(#3188): Need to update flattening to use true user facing length of slices
@@ -382,25 +366,18 @@ impl<'a> ValueMerger<'a> {
         let mut array = then_value;
 
         for (index, element_type, condition) in changed_indices {
-            let typevars = Some(vec![element_type.clone()]);
-
             let instruction = Instruction::EnableSideEffectsIf { condition };
             self.insert_instruction(instruction);
 
-            let mut get_element = |array, typevars| {
-                let get = Instruction::ArrayGet { array, index };
+            let mut get_element = |array, result_type| {
+                let get = Instruction::ArrayGet { array, index, result_type };
                 self.dfg
-                    .insert_instruction_and_results(
-                        get,
-                        self.block,
-                        typevars,
-                        self.call_stack.clone(),
-                    )
+                    .insert_instruction_and_results(get, self.block, self.call_stack.clone())
                     .first()
             };
 
-            let then_element = get_element(then_value, typevars.clone());
-            let else_element = get_element(else_value, typevars);
+            let then_element = get_element(then_value, element_type.clone());
+            let else_element = get_element(else_value, element_type);
 
             let value =
                 self.merge_values(then_condition, else_condition, then_element, else_element);
@@ -414,12 +391,7 @@ impl<'a> ValueMerger<'a> {
     }
 
     fn insert_instruction(&mut self, instruction: Instruction) -> InsertInstructionResult {
-        self.dfg.insert_instruction_and_results(
-            instruction,
-            self.block,
-            None,
-            self.call_stack.clone(),
-        )
+        self.dfg.insert_instruction_and_results(instruction, self.block, self.call_stack.clone())
     }
 
     fn insert_array_set(
@@ -433,7 +405,6 @@ impl<'a> ValueMerger<'a> {
         let result = self.dfg.insert_instruction_and_results(
             instruction,
             self.block,
-            None,
             self.call_stack.clone(),
         );
 

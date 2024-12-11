@@ -38,7 +38,12 @@ impl BasicBlock {
     /// Create a new BasicBlock with no parameters.
     /// Parameters can be added later via BasicBlock::add_parameter
     pub(crate) fn new() -> Self {
-        Self { parameter_types: Vec::new(), parameters: Vec::new(), instructions: Vec::new(), terminator: None }
+        Self {
+            parameter_types: Vec::new(),
+            parameters: Vec::new(),
+            instructions: Vec::new(),
+            terminator: None,
+        }
     }
 
     /// Returns the parameters of this block

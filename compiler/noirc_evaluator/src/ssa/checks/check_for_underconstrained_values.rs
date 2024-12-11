@@ -256,7 +256,7 @@ impl DependencyContext {
                 Instruction::Store { address, value } => {
                     self.memory_slots.insert(*address, function.dfg.resolve(*value));
                 }
-                Instruction::Load { address } => {
+                Instruction::Load { address, result_type: _ } => {
                     // Recall the value stored at address as parent for the results
                     if let Some(value_id) = self.memory_slots.get(address) {
                         self.update_children(&[*value_id], &results);

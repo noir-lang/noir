@@ -112,7 +112,7 @@ impl Ssa {
             for block_id in function.reachable_blocks() {
                 for instruction_id in function.dfg[block_id].instructions() {
                     let instruction = &function.dfg[*instruction_id];
-                    let Instruction::Call { func: func_id, arguments: _ } = instruction else {
+                    let Instruction::Call { func: func_id, .. } = instruction else {
                         continue;
                     };
 
@@ -318,7 +318,7 @@ impl<'brillig> Context<'brillig> {
                         let value = *cached.last().unwrap();
                         let inc_rc = Instruction::IncrementRc { value };
                         let call_stack = dfg.get_call_stack(id);
-                        dfg.insert_instruction_and_results(inc_rc, block, None, call_stack);
+                        dfg.insert_instruction_and_results(inc_rc, block, call_stack);
                     }
 
                     Self::replace_result_ids(dfg, &old_results, cached);
@@ -416,19 +416,13 @@ impl<'brillig> Context<'brillig> {
         block: BasicBlockId,
         dfg: &mut DataFlowGraph,
     ) -> Vec<ValueId> {
-        let ctrl_typevars = instruction
-            .requires_ctrl_typevars()
-            .then(|| vecmap(old_results, |result| dfg.type_of_value(*result)));
-
         let call_stack = dfg.get_call_stack(id);
-        let new_results =
-            match dfg.insert_instruction_and_results(instruction, block, ctrl_typevars, call_stack)
-            {
-                InsertInstructionResult::SimplifiedTo(new_result) => vec![new_result],
-                InsertInstructionResult::SimplifiedToMultiple(new_results) => new_results,
-                InsertInstructionResult::Results(_, new_results) => new_results.to_vec(),
-                InsertInstructionResult::InstructionRemoved => vec![],
-            };
+        let new_results = match dfg.insert_instruction_and_results(instruction, block, call_stack) {
+            InsertInstructionResult::SimplifiedTo(new_result) => vec![new_result],
+            InsertInstructionResult::SimplifiedToMultiple(new_results) => new_results,
+            InsertInstructionResult::Results(_, new_results) => new_results.to_vec(),
+            InsertInstructionResult::InstructionRemoved => vec![],
+        };
         // Optimizations while inserting the instruction should not change the number of results.
         assert_eq!(old_results.len(), new_results.len());
 
@@ -472,7 +466,11 @@ impl<'brillig> Context<'brillig> {
                 self.use_constraint_info && instruction.requires_acir_gen_predicate(&function.dfg);
             let predicate = use_predicate.then_some(side_effects_enabled_var);
 
-            let array_get = Instruction::ArrayGet { array: instruction_results[0], index: *index };
+            let array_get = Instruction::ArrayGet {
+                array: instruction_results[0],
+                index: *index,
+                result_type: function.dfg.type_of_value(*value),
+            };
 
             self.cached_instruction_results
                 .entry(array_get)
@@ -586,7 +584,7 @@ impl<'brillig> Context<'brillig> {
         brillig_functions: &BTreeMap<FunctionId, Function>,
         dfg: &mut DataFlowGraph,
     ) -> EvaluationResult {
-        let Instruction::Call { func: func_id, arguments } = instruction else {
+        let Instruction::Call { func: func_id, arguments, .. } = instruction else {
             return EvaluationResult::NotABrilligCall;
         };
 
@@ -686,7 +684,7 @@ impl<'brillig> Context<'brillig> {
                     elements: new_array_values,
                     typ: Type::Array(types, length),
                 };
-                let instruction_id = dfg.make_instruction(instruction, None);
+                let instruction_id = dfg.make_instruction(instruction);
                 dfg[block_id].instructions_mut().push(instruction_id);
                 *dfg.instruction_results(instruction_id).first().unwrap()
             }

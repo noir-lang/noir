@@ -1,6 +1,6 @@
 pub(crate) mod data_bus;
 
-use std::{borrow::Cow, collections::BTreeMap, sync::Arc};
+use std::{borrow::Cow, collections::BTreeMap};
 
 use acvm::{acir::circuit::ErrorSelector, FieldElement};
 use noirc_errors::Location;
@@ -189,7 +189,6 @@ impl FunctionBuilder {
     /// given amount of field elements. Returns the result of the allocate instruction,
     /// which is always a Reference to the allocated data.
     pub(crate) fn insert_allocate(&mut self, element_type: Type) -> ValueId {
-        let reference_type = Type::Reference(Arc::new(element_type));
         self.insert_instruction(Instruction::Allocate { element_type }).first()
     }
 
@@ -251,7 +250,7 @@ impl FunctionBuilder {
     /// Insert a cast instruction at the end of the current block.
     /// Returns the result of the cast instruction.
     pub(crate) fn insert_cast(&mut self, value: ValueId, typ: NumericType) -> ValueId {
-        self.insert_instruction(Instruction::Cast(value, typ), None).first()
+        self.insert_instruction(Instruction::Cast(value, typ)).first()
     }
 
     /// Insert a truncate instruction at the end of the current block.
@@ -293,7 +292,7 @@ impl FunctionBuilder {
         arguments: Vec<ValueId>,
         result_types: Vec<Type>,
     ) -> Cow<[ValueId]> {
-        let call = Instruction::Call { func, arguments, result_types: Arc::new(result_types) };
+        let call = Instruction::Call { func, arguments, result_types };
         self.insert_instruction(call).results()
     }
 

@@ -58,7 +58,7 @@ pub(super) fn simplify_ec_add(
             let elements = im::vector![result_x, result_y, result_is_infinity];
             let instruction = Instruction::MakeArray { elements, typ };
             let result_array =
-                dfg.insert_instruction_and_results(instruction, block, None, call_stack.clone());
+                dfg.insert_instruction_and_results(instruction, block, call_stack.clone());
 
             SimplifyResult::SimplifiedTo(result_array.first())
         }
@@ -70,6 +70,7 @@ pub(super) fn simplify_msm(
     dfg: &mut DataFlowGraph,
     solver: impl BlackBoxFunctionSolver<FieldElement>,
     arguments: &[ValueId],
+    result_types: &[Type],
     block: BasicBlockId,
     call_stack: &CallStack,
 ) -> SimplifyResult {
@@ -152,12 +153,8 @@ pub(super) fn simplify_msm(
                 let elements = im::vector![result_x, result_y, result_is_infinity];
                 let typ = Type::Array(Arc::new(vec![Type::field()]), 3);
                 let instruction = Instruction::MakeArray { elements, typ };
-                let result_array = dfg.insert_instruction_and_results(
-                    instruction,
-                    block,
-                    None,
-                    call_stack.clone(),
-                );
+                let result_array =
+                    dfg.insert_instruction_and_results(instruction, block, call_stack.clone());
 
                 return SimplifyResult::SimplifiedTo(result_array.first());
             }
@@ -181,17 +178,18 @@ pub(super) fn simplify_msm(
             // Construct the simplified MSM expression
             let typ = Type::Array(Arc::new(vec![Type::field()]), var_scalars.len() as u32);
             let scalars = Instruction::MakeArray { elements: var_scalars.into(), typ };
-            let scalars = dfg
-                .insert_instruction_and_results(scalars, block, None, call_stack.clone())
-                .first();
+            let scalars =
+                dfg.insert_instruction_and_results(scalars, block, call_stack.clone()).first();
             let typ = Type::Array(Arc::new(vec![Type::field()]), var_points.len() as u32);
             let points = Instruction::MakeArray { elements: var_points.into(), typ };
             let points =
-                dfg.insert_instruction_and_results(points, block, None, call_stack.clone()).first();
+                dfg.insert_instruction_and_results(points, block, call_stack.clone()).first();
             let msm = dfg.import_intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul));
+
             SimplifyResult::SimplifiedToInstruction(Instruction::Call {
                 func: msm,
                 arguments: vec![points, scalars],
+                result_types: result_types.to_vec(),
             })
         }
         _ => SimplifyResult::None,

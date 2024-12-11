@@ -271,7 +271,7 @@ pub(crate) enum Instruction {
     RangeCheck { value: ValueId, max_bit_size: u32, assert_message: Option<String> },
 
     /// Performs a function call with a list of its arguments.
-    Call { func: ValueId, arguments: Vec<ValueId>, result_types: Arc<Vec<Type>> },
+    Call { func: ValueId, arguments: Vec<ValueId>, result_types: Vec<Type> },
 
     /// Allocates a region of memory. Note that this is not concerned with
     /// the type of memory, the type of element is determined when loading this memory.
@@ -1131,7 +1131,7 @@ pub(crate) enum InstructionResultType {
     Known(Type),
 
     /// Function calls are a special case, they may return multiple values
-    Multiple(Arc<Vec<Type>>),
+    Multiple(Vec<Type>),
 
     /// This instruction does not return any results.
     None,

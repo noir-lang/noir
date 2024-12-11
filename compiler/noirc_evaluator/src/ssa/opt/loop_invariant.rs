@@ -205,7 +205,7 @@ impl<'f> LoopInvariantContext<'f> {
     /// we can safely hoist the array access.
     fn can_be_deduplicated_from_upper_bound(&self, instruction: &Instruction) -> bool {
         match instruction {
-            Instruction::ArrayGet { array, index } => {
+            Instruction::ArrayGet { array, index, result_type: _ } => {
                 let array_typ = self.inserter.function.dfg.type_of_value(*array);
                 let upper_bound = self.outer_induction_variables.get(index);
                 if let (Type::Array(_, len), Some(upper_bound)) = (array_typ, upper_bound) {

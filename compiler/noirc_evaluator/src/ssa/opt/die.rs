@@ -167,7 +167,7 @@ impl Context {
         if instruction.can_eliminate_if_unused(function) {
             let results = function.dfg.instruction_results(instruction_id);
             results.iter().all(|result| !self.used_values.contains(result))
-        } else if let Instruction::Call { func, arguments } = instruction {
+        } else if let Instruction::Call { func, arguments, .. } = instruction {
             // TODO: make this more general for instructions which don't have results but have side effects "sometimes" like `Intrinsic::AsWitness`
             let as_witness_id = function.dfg.get_intrinsic(Intrinsic::AsWitness);
             as_witness_id == Some(func) && !self.used_values.contains(&arguments[0])
@@ -276,7 +276,7 @@ impl Context {
 
             // This is an instruction that might be out of bounds: let's add a constrain.
             let (array, index) = match instruction {
-                Instruction::ArrayGet { array, index }
+                Instruction::ArrayGet { array, index, .. }
                 | Instruction::ArraySet { array, index, .. } => (array, index),
                 _ => panic!("Expected an ArrayGet or ArraySet instruction here"),
             };
@@ -297,7 +297,6 @@ impl Context {
                 let index = function.dfg.insert_instruction_and_results(
                     Instruction::Cast(*index, length_type),
                     block_id,
-                    None,
                     call_stack.clone(),
                 );
                 let index = index.first();
@@ -307,7 +306,6 @@ impl Context {
                 let is_index_out_of_bounds = function.dfg.insert_instruction_and_results(
                     Instruction::binary(BinaryOp::Lt, index, array_length),
                     block_id,
-                    None,
                     call_stack.clone(),
                 );
                 let is_index_out_of_bounds = is_index_out_of_bounds.first();
@@ -328,7 +326,6 @@ impl Context {
             function.dfg.insert_instruction_and_results(
                 Instruction::Constrain(lhs, rhs, message),
                 block_id,
-                None,
                 call_stack,
             );
             inserted_check = true;
@@ -368,7 +365,7 @@ fn instruction_might_result_in_out_of_bounds(
 ) -> bool {
     use Instruction::*;
     match instruction {
-        ArrayGet { array, index } | ArraySet { array, index, .. } => {
+        ArrayGet { array, index, .. } | ArraySet { array, index, .. } => {
             if function.dfg.try_get_array_length(*array).is_some() {
                 if let Some(known_index) = function.dfg.get_numeric_constant(*index) {
                     // `index` will be relative to the flattened array length, so we need to take that into account
@@ -496,14 +493,12 @@ fn apply_side_effects(
     // Condition needs to be cast to argument type in order to multiply them together.
     // In our case, lhs is always a boolean.
     let cast = Instruction::Cast(condition, NumericType::bool());
-    let casted_condition =
-        dfg.insert_instruction_and_results(cast, block_id, None, call_stack.clone());
+    let casted_condition = dfg.insert_instruction_and_results(cast, block_id, call_stack.clone());
     let casted_condition = casted_condition.first();
 
     let lhs = dfg.insert_instruction_and_results(
         Instruction::binary(BinaryOp::Mul, lhs, casted_condition),
         block_id,
-        None,
         call_stack.clone(),
     );
     let lhs = lhs.first();
@@ -511,7 +506,6 @@ fn apply_side_effects(
     let rhs = dfg.insert_instruction_and_results(
         Instruction::binary(BinaryOp::Mul, rhs, casted_condition),
         block_id,
-        None,
         call_stack,
     );
     let rhs = rhs.first();

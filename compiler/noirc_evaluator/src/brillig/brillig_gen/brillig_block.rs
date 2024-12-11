@@ -1279,8 +1279,8 @@ impl<'block> BrilligBlock<'block> {
         result_variable: SingleAddrVariable,
     ) {
         let binary_type = type_of_binary_operation(
-            dfg[binary.lhs].get_type().as_ref(),
-            dfg[binary.rhs].get_type().as_ref(),
+            &dfg.type_of_value(binary.lhs),
+            &dfg.type_of_value(binary.rhs),
             binary.operator,
         );
 
@@ -1788,8 +1788,7 @@ impl<'block> BrilligBlock<'block> {
         result: ValueId,
         dfg: &DataFlowGraph,
     ) -> BrilligVariable {
-        let typ = dfg[result].get_type();
-        match typ.as_ref() {
+        match dfg.type_of_value(result) {
             Type::Numeric(_) => self.variables.define_variable(
                 self.function_context,
                 self.brillig_context,
@@ -1797,7 +1796,7 @@ impl<'block> BrilligBlock<'block> {
                 dfg,
             ),
 
-            Type::Array(..) => {
+            typ @ Type::Array(..) => {
                 let variable = self.variables.define_variable(
                     self.function_context,
                     self.brillig_context,
@@ -1805,7 +1804,7 @@ impl<'block> BrilligBlock<'block> {
                     dfg,
                 );
                 let array = variable.extract_array();
-                self.allocate_foreign_call_result_array(typ.as_ref(), array);
+                self.allocate_foreign_call_result_array(&typ, array);
 
                 variable
             }
@@ -1825,9 +1824,7 @@ impl<'block> BrilligBlock<'block> {
 
                 variable
             }
-            _ => {
-                unreachable!("ICE: unsupported return type for black box call {typ:?}")
-            }
+            typ => unreachable!("ICE: unsupported return type for black box call {typ:?}"),
         }
     }
 

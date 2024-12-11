@@ -53,7 +53,7 @@ impl<'a> SliceCapacityTracker<'a> {
                     slice_sizes.insert(results[0], *capacity);
                 }
             }
-            Instruction::Call { func, arguments } => {
+            Instruction::Call { func, arguments, result_types: _ } => {
                 let func = &self.dfg[*func];
                 if let Value::Intrinsic(intrinsic) = func {
                     let (argument_index, result_index) = match intrinsic {
@@ -136,9 +136,8 @@ impl<'a> SliceCapacityTracker<'a> {
                     slice_sizes.insert(*address, *value_capacity);
                 }
             }
-            Instruction::Load { address } => {
-                let load_typ = self.dfg.type_of_value(*address);
-                if load_typ.contains_slice_element() {
+            Instruction::Load { address, result_type } => {
+                if result_type.contains_slice_element() {
                     let result = results[0];
 
                     let address_capacity = slice_sizes.get(address).unwrap_or_else(|| {

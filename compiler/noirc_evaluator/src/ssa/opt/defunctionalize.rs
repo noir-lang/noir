@@ -87,9 +87,7 @@ impl DefunctionalizationContext {
                 let mut replacement_instruction = None;
                 // Operate on call instructions
                 let (target_func_id, arguments) = match &instruction {
-                    Instruction::Call { func: target_func_id, arguments } => {
-                        (*target_func_id, arguments)
-                    }
+                    Instruction::Call { func, arguments, .. } => (*func, arguments),
                     _ => continue,
                 };
 
@@ -98,9 +96,11 @@ impl DefunctionalizationContext {
                     Value::Param { .. } | Value::Instruction { .. } => {
                         let mut arguments = arguments.clone();
                         let results = func.dfg.instruction_results(instruction_id);
+                        let returns = vecmap(results, |result| func.dfg.type_of_value(*result));
+
                         let signature = Signature {
                             params: vecmap(&arguments, |param| func.dfg.type_of_value(*param)),
-                            returns: vecmap(results, |result| func.dfg.type_of_value(*result)),
+                            returns: returns.clone(),
                         };
 
                         // Find the correct apply function
@@ -114,7 +114,8 @@ impl DefunctionalizationContext {
                         let func = apply_function_value_id;
                         call_target_values.insert(func);
 
-                        replacement_instruction = Some(Instruction::Call { func, arguments });
+                        replacement_instruction =
+                            Some(Instruction::Call { func, arguments, result_types: returns });
                     }
                     Value::Function(..) => {
                         call_target_values.insert(target_func_id);
@@ -130,7 +131,7 @@ impl DefunctionalizationContext {
         // Change the type of all the values that are not call targets to NativeField
         let value_ids = vecmap(func.dfg.values_iter(), |(id, _)| id);
         for value_id in value_ids {
-            if let Type::Function = func.dfg[value_id].get_type().as_ref() {
+            if let Type::Function = func.dfg.type_of_value(value_id) {
                 match &func.dfg[value_id] {
                     // If the value is a static function, transform it to the function id
                     Value::Function(id) => {
@@ -229,12 +230,11 @@ fn find_dynamic_dispatches(func: &Function) -> BTreeSet<Signature> {
         for instruction_id in block.instructions() {
             let instruction = &func.dfg[*instruction_id];
             match instruction {
-                Instruction::Call { func: target, arguments } => {
+                Instruction::Call { func: target, arguments, result_types } => {
                     if let Value::Param { .. } | Value::Instruction { .. } = &func.dfg[*target] {
-                        let results = func.dfg.instruction_results(*instruction_id);
                         dispatches.insert(Signature {
                             params: vecmap(arguments, |param| func.dfg.type_of_value(*param)),
-                            returns: vecmap(results, |result| func.dfg.type_of_value(*result)),
+                            returns: result_types.clone(),
                         });
                     }
                 }

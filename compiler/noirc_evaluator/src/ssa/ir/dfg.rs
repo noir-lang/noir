@@ -115,17 +115,17 @@ impl DataFlowGraph {
         &mut self,
         block: BasicBlockId,
     ) -> BasicBlockId {
-        let parameters = self.blocks[block].parameters();
         let new_block = self.make_block();
+        let parameter_count = self.blocks[block].parameters().len();
+        let mut parameter_types = self.blocks[block].parameter_types().to_vec();
 
-        let parameters = vecmap(parameters.iter().enumerate(), |(position, param)| {
-            let typ = self.values[*param].get_type().into_owned();
-            self.values.insert(Value::Param { block: new_block, position, typ })
+        let parameters = vecmap(0..parameter_count, |position| {
+            self.values.insert(Value::Param { block: new_block, position })
         });
 
         let new_block_value = &mut self.blocks[new_block];
         new_block_value.set_parameters(parameters);
-        new_block_value.parameter_types_mut().extend_from_slice(self.blocks[block].parameter_types());
+        new_block_value.parameter_types_mut().append(&mut parameter_types);
         new_block
     }
 
@@ -231,15 +231,18 @@ impl DataFlowGraph {
         match &self.values[value_id] {
             Value::Instruction { instruction, position } => {
                 let position = *position;
-                match &mut self[*instruction] {
+                match &mut self.instructions[*instruction] {
                     Instruction::Call { result_types, .. } => {
                         result_types[position] = target_type;
-                    },
+                    }
                     Instruction::Load { result_type, .. }
-                    | Instruction::Cast(_, result_type)
                     | Instruction::ArrayGet { result_type, .. } => {
                         *result_type = target_type;
-                    },
+                    }
+
+                    Instruction::Cast(_, result_type) => {
+                        *result_type = target_type.unwrap_numeric();
+                    }
 
                     instruction @ (Instruction::Binary(_)
                     | Instruction::Not(_)
@@ -248,17 +251,21 @@ impl DataFlowGraph {
                     | Instruction::Store { .. }
                     | Instruction::ArraySet { .. }
                     | Instruction::IfElse { .. }
-                    | Instruction::MakeArray { .. }) => panic!("Can't set the type of {instruction:?}"),
+                    | Instruction::MakeArray { .. }) => {
+                        panic!("Can't set the type of {instruction:?}")
+                    }
 
                     Instruction::EnableSideEffectsIf { .. }
                     | Instruction::Constrain(..)
                     | Instruction::RangeCheck { .. }
                     | Instruction::IncrementRc { .. }
-                    | Instruction::DecrementRc { .. } => unreachable!("These instructions have no results"),
+                    | Instruction::DecrementRc { .. } => {
+                        unreachable!("These instructions have no results")
+                    }
                 }
             }
             Value::Param { block, position } => {
-                self[*block].parameter_types_mut()[*position] = target_type;
+                self.blocks[*block].parameter_types_mut()[*position] = target_type;
             }
             value => unreachable!("ICE: Cannot set type of {:?}", value),
         }
@@ -324,7 +331,7 @@ impl DataFlowGraph {
     /// Returns the results of the instruction
     pub(crate) fn make_instruction_results(&mut self, instruction_id: InstructionId) {
         let result_count = self.instruction_result_count(instruction_id);
-        let results = vecmap(0 .. result_count, |position| {
+        let results = vecmap(0..result_count, |position| {
             let instruction = instruction_id;
             self.values.insert(Value::Instruction { position, instruction })
         });
@@ -346,7 +353,7 @@ impl DataFlowGraph {
             InstructionResultType::Known(_) => 1,
             InstructionResultType::Operand(_) => 1,
             InstructionResultType::None => 0,
-            InstructionResultType::Multiple(types) => types.len()
+            InstructionResultType::Multiple(types) => types.len(),
         }
     }
 
@@ -359,7 +366,7 @@ impl DataFlowGraph {
                     InstructionResultType::Operand(value) => self.type_of_value(value),
                     InstructionResultType::Known(typ) => typ,
                     InstructionResultType::None => unreachable!("Instruction has no results"),
-                    InstructionResultType::Multiple(types) => types[*position].clone()
+                    InstructionResultType::Multiple(types) => types[*position].clone(),
                 }
             }
             Value::Param { block, position } => self[*block].type_of_parameter(*position).clone(),
@@ -407,10 +414,9 @@ impl DataFlowGraph {
             .position(|&id| id == prev_value_id)
             .expect("Result id not found while replacing");
 
-        let value_id = self.values.insert(Value::Instruction {
-            position: res_position,
-            instruction: instruction_id,
-        });
+        let value_id = self
+            .values
+            .insert(Value::Instruction { position: res_position, instruction: instruction_id });
 
         // Replace the value in list of results for this instruction
         results[res_position] = value_id;

@@ -150,14 +150,14 @@ fn display_instruction_inner(
                 writeln!(f)
             }
         }
-        Instruction::Call { func, arguments } => {
+        Instruction::Call { func, arguments, result_types: _ } => {
             let arguments = value_list(function, arguments);
             writeln!(f, "call {}({}){}", show(*func), arguments, result_types(function, results))
         }
-        Instruction::Allocate => {
+        Instruction::Allocate { element_type: _ } => {
             writeln!(f, "allocate{}", result_types(function, results))
         }
-        Instruction::Load { address } => {
+        Instruction::Load { address, result_type: _ } => {
             writeln!(f, "load {}{}", show(*address), result_types(function, results))
         }
         Instruction::Store { address, value } => {
@@ -166,7 +166,7 @@ fn display_instruction_inner(
         Instruction::EnableSideEffectsIf { condition } => {
             writeln!(f, "enable_side_effects {}", show(*condition))
         }
-        Instruction::ArrayGet { array, index } => {
+        Instruction::ArrayGet { array, index, result_type: _ } => {
             writeln!(
                 f,
                 "array_get {}, index {}{}",

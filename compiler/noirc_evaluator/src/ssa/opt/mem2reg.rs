@@ -407,7 +407,7 @@ impl<'f> PerFunctionContext<'f> {
         }
 
         match &self.inserter.function.dfg[instruction] {
-            Instruction::Load { address } => {
+            Instruction::Load { address, result_type: _ } => {
                 let address = self.inserter.function.dfg.resolve(*address);
 
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
@@ -427,7 +427,7 @@ impl<'f> PerFunctionContext<'f> {
                 // Check whether the block has a repeat load from the same address (w/ no calls or stores in between the loads).
                 // If we do have a repeat load, we can remove the current load and map its result to the previous load's result.
                 if let Some(last_load) = references.last_loads.get(&address) {
-                    let Instruction::Load { address: previous_address } =
+                    let Instruction::Load { address: previous_address, result_type: _ } =
                         &self.inserter.function.dfg[*last_load]
                     else {
                         panic!("Expected a Load instruction here");
@@ -474,7 +474,7 @@ impl<'f> PerFunctionContext<'f> {
                 references.keep_last_load_for(address, self.inserter.function);
                 references.last_stores.insert(address, instruction);
             }
-            Instruction::Allocate => {
+            Instruction::Allocate { element_type: _ } => {
                 // Register the new reference
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
                 references.expressions.insert(result, Expression::Other(result));

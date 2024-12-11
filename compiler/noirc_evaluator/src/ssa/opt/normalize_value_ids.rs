@@ -11,7 +11,6 @@ use crate::ssa::{
     ssa_gen::Ssa,
 };
 use fxhash::FxHashMap as HashMap;
-use iter_extended::vecmap;
 
 impl Ssa {
     /// This is a debugging pass which re-inserts each instruction
@@ -89,14 +88,9 @@ impl Context {
                 let call_stack = old_function.dfg.get_call_stack(old_instruction_id);
                 let old_results = old_function.dfg.instruction_results(old_instruction_id);
 
-                let ctrl_typevars = instruction
-                    .requires_ctrl_typevars()
-                    .then(|| vecmap(old_results, |result| old_function.dfg.type_of_value(*result)));
-
                 let new_results = new_function.dfg.insert_instruction_and_results(
                     instruction,
                     new_block_id,
-                    ctrl_typevars,
                     call_stack,
                 );
 
