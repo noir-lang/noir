@@ -19,6 +19,7 @@ mod tests {
             expression_width: ExpressionWidth::default(),
             emit_ssa: None,
             skip_underconstrained_check: true,
+            skip_brillig_constraints_check: true,
             inliner_aggressiveness: 0,
             max_bytecode_increase_percent: None,
         };

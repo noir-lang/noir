@@ -41,7 +41,9 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
         self.resolved_blocks.clear();
 
         // Keep track, for each witness, of the gates that use it
-        let circuit_inputs = circuit.circuit_arguments();
+        let circuit_io: BTreeSet<Witness> =
+            circuit.circuit_arguments().union(&circuit.public_inputs().0).cloned().collect();
+
         let mut used_witness: BTreeMap<Witness, BTreeSet<usize>> = BTreeMap::new();
         for (i, opcode) in circuit.opcodes.iter().enumerate() {
             let witnesses = self.witness_inputs(opcode);
@@ -49,8 +51,8 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
                 self.resolved_blocks.insert(*block_id, witnesses.clone());
             }
             for w in witnesses {
-                // We do not simplify circuit inputs
-                if !circuit_inputs.contains(&w) {
+                // We do not simplify circuit inputs and outputs
+                if !circuit_io.contains(&w) {
                     used_witness.entry(w).or_default().insert(i);
                 }
             }
@@ -102,7 +104,7 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
                                     let mut witness_list = CircuitSimulator::expr_wit(&expr_use);
                                     witness_list.extend(CircuitSimulator::expr_wit(&expr_define));
                                     for w2 in witness_list {
-                                        if !circuit_inputs.contains(&w2) {
+                                        if !circuit_io.contains(&w2) {
                                             used_witness.entry(w2).and_modify(|v| {
                                                 v.insert(target);
                                                 v.remove(&source);
@@ -324,6 +326,50 @@ mod tests {
             assert_messages: Default::default(),
         };
         check_circuit(circuit);
+    }
+
+    #[test]
+    fn does_not_eliminate_witnesses_returned_from_circuit() {
+        let opcodes = vec![
+            Opcode::AssertZero(Expression {
+                mul_terms: vec![(FieldElement::from(-1i128), Witness(0), Witness(0))],
+                linear_combinations: vec![(FieldElement::from(1i128), Witness(1))],
+                q_c: FieldElement::zero(),
+            }),
+            Opcode::AssertZero(Expression {
+                mul_terms: Vec::new(),
+                linear_combinations: vec![
+                    (FieldElement::from(-1i128), Witness(1)),
+                    (FieldElement::from(1i128), Witness(2)),
+                ],
+                q_c: FieldElement::zero(),
+            }),
+        ];
+        // Witness(1) could be eliminated because it's only used by 2 opcodes.
+
+        let mut private_parameters = BTreeSet::new();
+        private_parameters.insert(Witness(0));
+
+        let mut return_values = BTreeSet::new();
+        return_values.insert(Witness(1));
+        return_values.insert(Witness(2));
+
+        let circuit = Circuit {
+            current_witness_index: 2,
+            expression_width: ExpressionWidth::Bounded { width: 4 },
+            opcodes,
+            private_parameters,
+            public_parameters: PublicInputs::default(),
+            return_values: PublicInputs(return_values),
+            assert_messages: Default::default(),
+        };
+
+        let mut merge_optimizer = MergeExpressionsOptimizer::new();
+        let acir_opcode_positions = vec![0; 20];
+        let (opcodes, _) =
+            merge_optimizer.eliminate_intermediate_variable(&circuit, acir_opcode_positions);
+
+        assert_eq!(opcodes.len(), 2);
     }
 
     #[test]
