@@ -1,5 +1,5 @@
 use super::fs::{inputs::read_inputs_from_file, load_hex_data};
-use super::NargoConfig;
+use super::{NargoConfig, PackageOptions};
 use crate::cli::compile_cmd::get_target_width;
 use crate::errors::BackendError;
 use crate::errors::CliError;
@@ -10,12 +10,11 @@ use nargo::ops::{compile_program, report_errors};
 use nargo::package::Package;
 use nargo::workspace::Workspace;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
-use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
+use nargo_toml::{get_package_manifest, resolve_workspace_from_toml};
 use noirc_abi::input_parser::Format;
 use noirc_driver::{
     file_manager_with_stdlib, CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING,
 };
-use noirc_frontend::graph::CrateName;
 
 /// Given a proof and a program, verify whether the proof is valid
 #[derive(Debug, Clone, Args)]
@@ -25,13 +24,8 @@ pub(crate) struct VerifyCommand {
     #[clap(long, short, default_value = VERIFIER_INPUT_FILE)]
     verifier_name: String,
 
-    /// The name of the package verify
-    #[clap(long, conflicts_with = "workspace")]
-    package: Option<CrateName>,
-
-    /// Verify all packages in the workspace
-    #[clap(long, conflicts_with = "package")]
-    workspace: bool,
+    #[clap(flatten)]
+    pub(super) package_options: PackageOptions,
 
     #[clap(flatten)]
     compile_options: CompileOptions,
@@ -39,9 +33,7 @@ pub(crate) struct VerifyCommand {
 
 pub(crate) fn run(args: VerifyCommand, config: NargoConfig) -> Result<(), CliError> {
     let toml_path = get_package_manifest(&config.program_dir)?;
-    let default_selection =
-        if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
-    let selection = args.package.map_or(default_selection, PackageSelection::Selected);
+    let selection = args.package_options.package_selection();
     let workspace = resolve_workspace_from_toml(
         &toml_path,
         selection,

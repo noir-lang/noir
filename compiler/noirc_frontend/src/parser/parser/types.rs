@@ -15,7 +15,7 @@ impl<'a> Parser<'a> {
             typ
         } else {
             self.expected_label(ParsingRuleLabel::Type);
-            self.unspecified_type_at_previous_token_end()
+            UnresolvedTypeData::Error.with_span(self.span_at_previous_token_end())
         }
     }
 
@@ -658,6 +658,14 @@ mod tests {
             panic!("Expected a function type")
         };
         assert!(unconstrained);
+    }
+
+    #[test]
+    fn parses_function_type_with_colon_in_parameter() {
+        let src = "fn(value: T) -> Field";
+        let mut parser = Parser::for_str(src);
+        let _ = parser.parse_type_or_error();
+        assert!(!parser.errors.is_empty());
     }
 
     #[test]

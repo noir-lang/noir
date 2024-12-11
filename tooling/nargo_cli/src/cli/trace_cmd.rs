@@ -5,7 +5,7 @@ use nargo::constants::PROVER_INPUT_FILE;
 use nargo::ops::{compile_program, report_errors};
 use nargo::package::Package;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
-use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
+use nargo_toml::{get_package_manifest, resolve_workspace_from_toml};
 use noir_tracer::tracer_glue::store_trace;
 use noirc_abi::input_parser::Format;
 use noirc_abi::InputMap;
@@ -22,7 +22,7 @@ use crate::errors::CliError;
 
 use runtime_tracing::Tracer;
 
-use super::NargoConfig;
+use super::{NargoConfig, PackageOptions};
 
 /// Compile the program and its secret execution trace into ACIR format
 #[derive(Debug, Clone, Args)]
@@ -31,12 +31,11 @@ pub(crate) struct TraceCommand {
     #[clap(long, short, default_value = PROVER_INPUT_FILE)]
     prover_name: String,
 
-    /// The name of the package to execute
-    #[clap(long)]
-    package: Option<CrateName>,
-
     #[clap(flatten)]
     compile_options: CompileOptions,
+
+    #[clap(flatten)]
+    pub(super) package_options: PackageOptions,
 
     /// Directory where to store trace.json
     #[clap(long, short)]
@@ -52,7 +51,7 @@ fn generate_plonky2_debug_trace_list(
     config: NargoConfig,
 ) -> Result<DebugTraceList, CliError> {
     let toml_path = get_package_manifest(&config.program_dir)?;
-    let selection = args.package.map_or(PackageSelection::DefaultOrAll, PackageSelection::Selected);
+    let selection = args.package_options.package_selection();
     let workspace = resolve_workspace_from_toml(
         &toml_path,
         selection,
@@ -121,7 +120,7 @@ pub(crate) fn run(args: TraceCommand, config: NargoConfig) -> Result<(), CliErro
     let skip_instrumentation = false;
 
     let toml_path = get_package_manifest(&config.program_dir)?;
-    let selection = args.package.map_or(PackageSelection::DefaultOrAll, PackageSelection::Selected);
+    let selection = args.package_options.package_selection();
     let workspace = resolve_workspace_from_toml(
         &toml_path,
         selection,

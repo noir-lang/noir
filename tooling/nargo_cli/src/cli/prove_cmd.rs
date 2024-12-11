@@ -5,18 +5,17 @@ use nargo::ops::{compile_program, report_errors};
 use nargo::package::Package;
 use nargo::workspace::Workspace;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
-use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
+use nargo_toml::{get_package_manifest, resolve_workspace_from_toml};
 use noirc_abi::input_parser::Format;
 use noirc_driver::{
     file_manager_with_stdlib, CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING,
 };
-use noirc_frontend::graph::CrateName;
 
 use super::fs::{
     inputs::{read_inputs_from_file, write_inputs_to_file},
     proof::save_proof_to_dir,
 };
-use super::NargoConfig;
+use super::{NargoConfig, PackageOptions};
 use crate::{
     cli::execute_cmd::execute_program,
     errors::{BackendError, CliError},
@@ -38,13 +37,8 @@ pub(crate) struct ProveCommand {
     #[arg(long)]
     verify: bool,
 
-    /// The name of the package to prove
-    #[clap(long, conflicts_with = "workspace")]
-    package: Option<CrateName>,
-
-    /// Prove all packages in the workspace
-    #[clap(long, conflicts_with = "package")]
-    workspace: bool,
+    #[clap(flatten)]
+    pub(super) package_options: PackageOptions,
 
     #[clap(flatten)]
     compile_options: CompileOptions,
@@ -56,9 +50,8 @@ pub(crate) struct ProveCommand {
 
 pub(crate) fn run(args: ProveCommand, config: NargoConfig) -> Result<(), CliError> {
     let toml_path = get_package_manifest(&config.program_dir)?;
-    let default_selection =
-        if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
-    let selection = args.package.map_or(default_selection, PackageSelection::Selected);
+    // let default_selection = args.package_options.package_selection();
+    let selection = args.package_options.package_selection();
     let workspace = resolve_workspace_from_toml(
         &toml_path,
         selection,
