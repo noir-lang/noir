@@ -765,25 +765,19 @@ pub(crate) fn is_predicate_false<F: AcirField>(
 ) -> Result<bool, OpcodeResolutionError<F>> {
     match predicate {
         Some(pred) => {
-            let pred_value = get_value(pred, witness);
+            let pred_value = get_value(pred, witness)?;
+            let predicate_is_false = pred_value.is_zero();
             if pedantic_solving {
-                pred_value.and_then(|predicate_value| {
-                    if predicate_value.is_zero() {
-                        Ok(true)
-                    } else if predicate_value.is_one() {
-                        Ok(false)
-                    } else {
-                        let opcode_location = *opcode_location;
-                        Err(OpcodeResolutionError::PredicateLargerThanOne {
+               // We expect that the predicate should resolve to either 0 or 1.
+                if !predicate_is_false && !predicate.is_one() {
+                     let opcode_location = *opcode_location;
+                        return Err(OpcodeResolutionError::PredicateLargerThanOne {
                             opcode_location,
                             predicate_value,
                         })
-                    }
-                })
-            } else {
-                pred_value.map(|pred_value| pred_value.is_zero())
+                }
             }
-        }
+            Ok(predicate_is_false)
         // If the predicate is `None`, then we treat it as an unconditional `true`
         None => Ok(false),
     }
