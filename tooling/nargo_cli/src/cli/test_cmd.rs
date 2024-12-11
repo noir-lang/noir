@@ -117,14 +117,13 @@ struct TestRunner<'a> {
 impl<'a> TestRunner<'a> {
     fn run(&self) -> Result<(), CliError> {
         // First compile all packages and collect their tests
-        let packages_tests = self.collect_packages_tests();
+        let packages_tests = self.collect_packages_tests()?;
 
         // Now gather all tests and how many are per packages
         let mut tests = Vec::new();
         let mut test_count_per_package = BTreeMap::new();
 
         for (package_name, package_tests) in packages_tests {
-            let package_tests = package_tests?;
             test_count_per_package.insert(package_name, package_tests.len());
             tests.extend(package_tests);
         }
@@ -264,8 +263,9 @@ impl<'a> TestRunner<'a> {
     }
 
     /// Compiles all packages in parallel and returns their tests
-    fn collect_packages_tests(&'a self) -> BTreeMap<String, Result<Vec<Test<'a>>, CliError>> {
+    fn collect_packages_tests(&'a self) -> Result<BTreeMap<String, Vec<Test<'a>>>, CliError> {
         let mut package_tests = BTreeMap::new();
+        let mut error = None;
 
         let (sender, receiver) = mpsc::channel();
         let iter = &Mutex::new(self.workspace.into_iter());
@@ -301,11 +301,22 @@ impl<'a> TestRunner<'a> {
             drop(sender);
 
             for (package, tests) in receiver.iter() {
-                package_tests.insert(package.name.to_string(), tests);
+                match tests {
+                    Ok(tests) => {
+                        package_tests.insert(package.name.to_string(), tests);
+                    }
+                    Err(err) => {
+                        error = Some(err);
+                    }
+                }
             }
         });
 
-        package_tests
+        if let Some(error) = error {
+            Err(error)
+        } else {
+            Ok(package_tests)
+        }
     }
 
     /// Compiles a single package and returns all of its tests
