@@ -196,7 +196,7 @@ impl FunctionBuilder {
     }
 
     pub(crate) fn set_location(&mut self, location: Location) -> &mut FunctionBuilder {
-        self.call_stack = im::Vector::unit(location);
+        self.call_stack = CallStack::unit(location);
         self
     }
 
