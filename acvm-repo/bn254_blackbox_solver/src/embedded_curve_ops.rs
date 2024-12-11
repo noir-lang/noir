@@ -303,7 +303,7 @@ mod tests {
             res,
             Err(BlackBoxResolutionError::Failed(
                 BlackBoxFunc::EmbeddedCurveAdd,
-                "Infinite point input: infinity".into(),
+                "Infinite input: embedded_curve_add(infinity, infinity)".into(),
             ))
         );
     }
