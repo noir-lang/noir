@@ -185,9 +185,15 @@ impl<'a> TestRunner<'a> {
                         let time_before_test = std::time::Instant::now();
                         let (status, output) = match catch_unwind(test.runner) {
                             Ok((status, output)) => (status, output),
-                            Err(_) => (
+                            Err(err) => (
                                 TestStatus::Fail {
-                                    message: "An unexpected error happened".to_string(),
+                                    message: 
+                                    // It seems `panic!("...")` makes the error be `&str`, so we handle this common case
+                                    if let Some(message) = err.downcast_ref::<&str>() {
+                                        message.to_string()
+                                    } else {
+                                        "An unexpected error happened".to_string()
+                                    },
                                     error_diagnostic: None,
                                 },
                                 String::new(),
