@@ -8,7 +8,7 @@ on:
 
 jobs:
   build-nargo:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout Noir repo
@@ -41,7 +41,7 @@ jobs:
   compare_gates_reports:
     name: Circuit sizes
     needs: [build-nargo]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
 
@@ -92,7 +92,7 @@ jobs:
   compare_brillig_bytecode_size_reports:
     name: Brillig bytecode sizes
     needs: [build-nargo]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
 
@@ -141,7 +141,7 @@ jobs:
   compare_brillig_execution_reports:
     name: Brillig execution trace sizes  
     needs: [build-nargo]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
 
@@ -190,7 +190,7 @@ jobs:
   generate_memory_report:
     name: Peak memory usage  
     needs: [build-nargo]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
 
@@ -228,7 +228,7 @@ jobs:
   generate_compilation_report:
     name: Compilation time
     needs: [build-nargo]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
 
