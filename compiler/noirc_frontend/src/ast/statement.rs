@@ -154,6 +154,7 @@ impl StatementKind {
             r#type,
             expression,
             comptime: false,
+            explicit_comptime: false,
             attributes,
         })
     }
@@ -562,6 +563,8 @@ pub struct LetStatement {
 
     // True if this should only be run during compile-time
     pub comptime: bool,
+    // True if this is comptime because of an explicit annotation
+    pub explicit_comptime: bool,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]

@@ -16,15 +16,13 @@ impl<'a> Parser<'a> {
     pub(crate) fn parse_global(
         &mut self,
         attributes: Vec<(Attribute, Span)>,
-        _comptime: bool,
+        explicit_comptime: bool,
         mutable: bool,
     ) -> LetStatement {
         // Only comptime globals are allowed to be mutable, but we always parse the `mut`
         // and throw the error in name resolution.
 
         let attributes = self.validate_secondary_attributes(attributes);
-
-        // TODO cleanup unused comptime
         let comptime = true;
 
         let Some(ident) = self.eat_ident() else {
@@ -38,11 +36,9 @@ impl<'a> Parser<'a> {
                 expression: Expression { kind: ExpressionKind::Error, span: Span::default() },
                 attributes,
                 comptime,
+                explicit_comptime,
             };
         };
-
-        // TODO cleanup
-        dbg!("parse_global", &ident);
 
         let pattern = ident_to_pattern(ident, mutable);
 
@@ -59,7 +55,7 @@ impl<'a> Parser<'a> {
             self.expected_token(Token::Semicolon);
         }
 
-        LetStatement { pattern, r#type: typ, expression, attributes, comptime }
+        LetStatement { pattern, r#type: typ, expression, attributes, comptime, explicit_comptime }
     }
 }
 

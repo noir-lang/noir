@@ -29,7 +29,7 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
             formatter.format_item_visibility(visibility);
         }));
 
-        if let_statement.comptime {
+        if let_statement.explicit_comptime {
             group.text(self.chunk(|formatter| {
                 formatter.write_keyword(Keyword::Comptime);
                 formatter.write_space();
