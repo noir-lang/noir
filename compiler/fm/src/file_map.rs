@@ -80,6 +80,19 @@ impl FileMap {
     pub fn all_file_ids(&self) -> impl Iterator<Item = &FileId> {
         self.name_to_id.values()
     }
+
+    pub fn get_name(&self, file_id: FileId) -> Result<PathString, Error> {
+        let name = self.files.get(file_id.as_usize())?.name().clone();
+
+        // See if we can make the file name a bit shorter/easier to read if it starts with the current directory
+        if let Some(current_dir) = &self.current_dir {
+            if let Ok(name_without_prefix) = name.0.strip_prefix(current_dir) {
+                return Ok(PathString::from_path(name_without_prefix.to_path_buf()));
+            }
+        }
+
+        Ok(name)
+    }
 }
 impl Default for FileMap {
     fn default() -> Self {
@@ -97,16 +110,7 @@ impl<'a> Files<'a> for FileMap {
     type Source = &'a str;
 
     fn name(&self, file_id: Self::FileId) -> Result<Self::Name, Error> {
-        let name = self.files.get(file_id.as_usize())?.name().clone();
-
-        // See if we can make the file name a bit shorter/easier to read if it starts with the current directory
-        if let Some(current_dir) = &self.current_dir {
-            if let Ok(name_without_prefix) = name.0.strip_prefix(current_dir) {
-                return Ok(PathString::from_path(name_without_prefix.to_path_buf()));
-            }
-        }
-
-        Ok(name)
+        self.get_name(file_id)
     }
 
     fn source(&'a self, file_id: Self::FileId) -> Result<Self::Source, Error> {

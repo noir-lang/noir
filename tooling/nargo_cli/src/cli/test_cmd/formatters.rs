@@ -2,7 +2,8 @@ use std::{io::Write, panic::RefUnwindSafe, time::Duration};
 
 use fm::FileManager;
 use nargo::ops::TestStatus;
-use serde_json::json;
+use noirc_errors::{reporter::stack_trace, FileDiagnostic};
+use serde_json::{json, Map};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, StandardStreamLock, WriteColor};
 
 use super::TestResult;
@@ -332,34 +333,61 @@ impl Formatter for JsonFormatter {
         test_result: &TestResult,
         _current_test_count: usize,
         _total_test_count: usize,
-        _file_manager: &FileManager,
-        _show_output: bool,
+        file_manager: &FileManager,
+        show_output: bool,
         _deny_warnings: bool,
-        _silence_warnings: bool,
+        silence_warnings: bool,
     ) -> std::io::Result<()> {
-        let name = &test_result.name;
-        let exec_time = test_result.time_to_run.as_secs_f64();
-        let json = match &test_result.status {
+        let mut json = Map::new();
+        json.insert("type".to_string(), json!("test"));
+        json.insert("name".to_string(), json!(&test_result.name));
+        json.insert("exec_time".to_string(), json!(test_result.time_to_run.as_secs_f64()));
+
+        let mut stdout = String::new();
+        if show_output && !test_result.output.is_empty() {
+            stdout.push_str(test_result.output.trim());
+        }
+
+        match &test_result.status {
             TestStatus::Pass => {
-                json!({"type": "test", "event": "ok", "name": name, "exec_time": exec_time})
+                json.insert("event".to_string(), json!("ok"));
             }
             TestStatus::Fail { message, error_diagnostic } => {
-                let mut stdout = String::new();
-                if !test_result.output.is_empty() {
-                    stdout.push_str(&test_result.output.trim_end());
+                json.insert("event".to_string(), json!("failed"));
+
+                if !stdout.is_empty() {
                     stdout.push('\n');
                 }
-                stdout.push_str(message);
-                let stdout = stdout.trim();
-                json!({"type": "test", "event": "failed", "name": name, "exec_time": exec_time, "stdout": stdout})
+                stdout.push_str(message.trim());
+
+                if let Some(diagnostic) = error_diagnostic {
+                    if !(diagnostic.diagnostic.is_warning() && silence_warnings) {
+                        stdout.push('\n');
+                        stdout.push_str(&diagnostic_to_string(diagnostic, file_manager));
+                    }
+                }
             }
             TestStatus::Skipped => {
-                json!({"type": "test", "event": "skipped", "name": name, "exec_time": exec_time})
+                json.insert("event".to_string(), json!("skipped"));
             }
-            TestStatus::CompileError(file_diagnostic) => {
-                json!({"type": "test", "event": "failed", "name": name, "exec_time": exec_time})
+            TestStatus::CompileError(diagnostic) => {
+                json.insert("event".to_string(), json!("failed"));
+
+                if !(diagnostic.diagnostic.is_warning() && silence_warnings) {
+                    if !stdout.is_empty() {
+                        stdout.push('\n');
+                    }
+                    stdout.push_str(&diagnostic_to_string(diagnostic, file_manager));
+                }
             }
-        };
+        }
+
+        if !stdout.is_empty() {
+            json.insert("stdout".to_string(), json!(stdout));
+        }
+
+        let json = json!(json);
+
         println!("{json}");
         Ok(())
     }
@@ -394,4 +422,29 @@ fn package_start(package_name: &str, test_count: usize) -> std::io::Result<()> {
     let plural = if test_count == 1 { "" } else { "s" };
     println!("[{package_name}] Running {test_count} test function{plural}");
     Ok(())
+}
+
+fn diagnostic_to_string(file_diagnostic: &FileDiagnostic, file_manager: &FileManager) -> String {
+    let file_map = file_manager.as_file_map();
+
+    let custom_diagnostic = &file_diagnostic.diagnostic;
+    let mut message = String::new();
+    message.push_str(custom_diagnostic.message.trim());
+
+    for note in &custom_diagnostic.notes {
+        message.push('\n');
+        message.push_str(note.trim());
+    }
+
+    if let Ok(name) = file_map.get_name(file_diagnostic.file_id) {
+        message.push('\n');
+        message.push_str(&format!("at {name}"));
+    }
+
+    if !custom_diagnostic.call_stack.is_empty() {
+        message.push('\n');
+        message.push_str(&stack_trace(file_map, &custom_diagnostic.call_stack));
+    }
+
+    message
 }
