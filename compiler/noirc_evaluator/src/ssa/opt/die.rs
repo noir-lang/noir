@@ -139,6 +139,7 @@ impl Context {
             rc_tracker.track_inc_rcs_to_remove(*instruction_id, function);
         }
 
+        self.instructions_to_remove.extend(rc_tracker.get_non_mutated_arrays(&function.dfg));
         self.instructions_to_remove.extend(rc_tracker.rc_pairs_to_remove);
 
         // If there are some instructions that might trigger an out of bounds error,
@@ -539,7 +540,7 @@ struct RcTracker {
     // We also separately track all IncrementRc instructions and all arrays which have been mutably borrowed.
     // If an array has not been mutably borrowed we can then safely remove all IncrementRc instructions on that array.
     inc_rcs: HashMap<ValueId, HashSet<InstructionId>>,
-    mut_borrowed_arrays: HashSet<ValueId>,
+    mutated_array_types: HashSet<Type>,
     // The SSA often creates patterns where after simplifications we end up with repeat
     // IncrementRc instructions on the same value. We track whether the previous instruction was an IncrementRc,
     // and if the current instruction is also an IncrementRc on the same value we remove the current instruction.
@@ -593,25 +594,33 @@ impl RcTracker {
                     }
                 }
 
-                self.mut_borrowed_arrays.insert(*array);
+                self.mutated_array_types.insert(typ);
             }
             Instruction::Store { value, .. } => {
-                // We are very conservative and say that any store of an array value means it has the potential
-                // to be mutated. This is done due to the tracking of mutable borrows still being per block.
+                // We are very conservative and say that any store of an array type means it has the potential to be mutated.
                 let typ = function.dfg.type_of_value(*value);
                 if matches!(&typ, Type::Array(..) | Type::Slice(..)) {
-                    self.mut_borrowed_arrays.insert(*value);
+                    self.mutated_array_types.insert(typ);
+                }
+            }
+            Instruction::Call { arguments, .. } => {
+                for arg in arguments {
+                    let typ = function.dfg.type_of_value(*arg);
+                    if matches!(&typ, Type::Array(..) | Type::Slice(..)) {
+                        self.mutated_array_types.insert(typ);
+                    }
                 }
             }
             _ => {}
         }
     }
 
-    fn get_non_mutated_arrays(&self) -> HashSet<InstructionId> {
+    fn get_non_mutated_arrays(&self, dfg: &DataFlowGraph) -> HashSet<InstructionId> {
         self.inc_rcs
             .keys()
             .filter_map(|value| {
-                if !self.mut_borrowed_arrays.contains(value) {
+                let typ = dfg.type_of_value(*value);
+                if !self.mutated_array_types.contains(&typ) {
                     Some(&self.inc_rcs[value])
                 } else {
                     None
