@@ -559,7 +559,7 @@ jobs:
           - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/rollup-lib }
           - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/types }
 
-    name: Check external repo - ${{ matrix.project.repo }}
+    name: Check external repo - ${{ matrix.project.repo }}/${{ matrix.project.path }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
