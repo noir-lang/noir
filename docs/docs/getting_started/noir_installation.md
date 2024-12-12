@@ -93,7 +93,7 @@ step 2: Follow the [Noirup instructions](#installing-noirup).
 
 ## Setting up shell completions
 
-Once `nargo` is installed, you can [set up shell completions for it](setting_up_shell_completions).
+Once `nargo` is installed, you can [set up shell completions for it](setting_up_shell_completions.md).
 
 ## Uninstalling Nargo
 
