@@ -703,7 +703,9 @@ impl<'a> FunctionContext<'a> {
         // Don't mutate the reference count if we're assigning an array literal to a Let:
         // `let mut foo = [1, 2, 3];`
         // we consider the array to be moved, so we should have an initial rc of just 1.
-        let should_inc_rc = !let_expr.expression.is_array_or_slice_literal();
+        //
+        // TODO: this exception breaks #6763
+        let should_inc_rc = true; // !let_expr.expression.is_array_or_slice_literal();
 
         values = values.map(|value| {
             let value = value.eval(self);

@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use acir::circuit::OpcodeLocation;
 use clap::Args;
 use color_eyre::eyre::{self, Context};
+use nargo::PrintOutput;
 
 use crate::flamegraph::{BrilligExecutionSample, FlamegraphGenerator, InfernoFlamegraphGenerator};
 use crate::fs::{read_inputs_from_file, read_program_from_file};
@@ -54,7 +55,7 @@ fn run_with_generator(
         &program.bytecode,
         initial_witness,
         &Bn254BlackBoxSolver,
-        &mut DefaultForeignCallExecutor::new(true, None, None, None),
+        &mut DefaultForeignCallExecutor::new(PrintOutput::Stdout, None, None, None),
     )?;
     println!("Executed");
 
