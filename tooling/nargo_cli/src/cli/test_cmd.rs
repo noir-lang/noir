@@ -12,7 +12,7 @@ use acvm::{BlackBoxFunctionSolver, FieldElement};
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 use fm::FileManager;
-use formatters::{Formatter, PrettyFormatter, TerseFormatter};
+use formatters::{Formatter, JsonFormatter, PrettyFormatter, TerseFormatter};
 use nargo::{
     insert_all_files_for_workspace_into_file_manager, ops::TestStatus, package::Package, parse_all,
     prepare_package, workspace::Workspace, PrintOutput,
@@ -71,6 +71,8 @@ enum Format {
     Pretty,
     /// Display one character per test
     Terse,
+    /// Output a JSON Lines document
+    Json,
 }
 
 impl Format {
@@ -78,6 +80,7 @@ impl Format {
         match self {
             Format::Pretty => Box::new(PrettyFormatter),
             Format::Terse => Box::new(TerseFormatter),
+            Format::Json => Box::new(JsonFormatter),
         }
     }
 }
@@ -87,6 +90,7 @@ impl Display for Format {
         match self {
             Format::Pretty => write!(f, "pretty"),
             Format::Terse => write!(f, "terse"),
+            Format::Json => write!(f, "json"),
         }
     }
 }

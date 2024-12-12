@@ -2,6 +2,7 @@ use std::{io::Write, panic::RefUnwindSafe, time::Duration};
 
 use fm::FileManager;
 use nargo::ops::TestStatus;
+use serde_json::json;
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, StandardStreamLock, WriteColor};
 
 use super::TestResult;
@@ -313,6 +314,78 @@ impl Formatter for TerseFormatter {
             writer.reset()?;
         }
 
+        Ok(())
+    }
+}
+
+pub(super) struct JsonFormatter;
+
+impl Formatter for JsonFormatter {
+    fn package_start(&self, package_name: &str, test_count: usize) -> std::io::Result<()> {
+        let json = json!({"type": "suite", "event": "started", "name": package_name, "test_count": test_count});
+        println!("{json}");
+        Ok(())
+    }
+
+    fn test_end(
+        &self,
+        test_result: &TestResult,
+        _current_test_count: usize,
+        _total_test_count: usize,
+        _file_manager: &FileManager,
+        _show_output: bool,
+        _deny_warnings: bool,
+        _silence_warnings: bool,
+    ) -> std::io::Result<()> {
+        let name = &test_result.name;
+        let exec_time = test_result.time_to_run.as_secs_f64();
+        let json = match &test_result.status {
+            TestStatus::Pass => {
+                json!({"type": "test", "event": "ok", "name": name, "exec_time": exec_time})
+            }
+            TestStatus::Fail { message, error_diagnostic } => {
+                let mut stdout = String::new();
+                if !test_result.output.is_empty() {
+                    stdout.push_str(&test_result.output.trim_end());
+                    stdout.push('\n');
+                }
+                stdout.push_str(message);
+                let stdout = stdout.trim();
+                json!({"type": "test", "event": "failed", "name": name, "exec_time": exec_time, "stdout": stdout})
+            }
+            TestStatus::Skipped => {
+                json!({"type": "test", "event": "skipped", "name": name, "exec_time": exec_time})
+            }
+            TestStatus::CompileError(file_diagnostic) => {
+                json!({"type": "test", "event": "failed", "name": name, "exec_time": exec_time})
+            }
+        };
+        println!("{json}");
+        Ok(())
+    }
+
+    fn package_end(
+        &self,
+        _package_name: &str,
+        test_results: &[TestResult],
+        _file_manager: &FileManager,
+        _show_output: bool,
+        _deny_warnings: bool,
+        _silence_warnings: bool,
+    ) -> std::io::Result<()> {
+        let mut passed = 0;
+        let mut failed = 0;
+        let mut skipped = 0;
+        for test_result in test_results {
+            match &test_result.status {
+                TestStatus::Pass => passed += 1,
+                TestStatus::Fail { .. } | TestStatus::CompileError(..) => failed += 1,
+                TestStatus::Skipped => skipped += 1,
+            }
+        }
+        let event = if failed == 0 { "ok" } else { "failed" };
+        let json = json!({"type": "suite", "event": event, "passed": passed, "failed": failed, "skipped": skipped});
+        println!("{json}");
         Ok(())
     }
 }
