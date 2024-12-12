@@ -387,8 +387,8 @@ impl Formatter for JsonFormatter {
         }
 
         let json = json!(json);
-
         println!("{json}");
+
         Ok(())
     }
 
