@@ -27,6 +27,7 @@ use crate::{
 
 use super::execute_program;
 
+#[derive(Debug)]
 pub enum TestStatus {
     Pass,
     Fail { message: String, error_diagnostic: Option<FileDiagnostic> },
@@ -83,9 +84,9 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
 
                 let status = test_status_program_compile_pass(
                     test_function,
-                    compiled_program.abi,
-                    compiled_program.debug,
-                    circuit_execution,
+                    &compiled_program.abi,
+                    &compiled_program.debug,
+                    &circuit_execution,
                 );
 
                 let ignore_foreign_call_failures =
@@ -120,11 +121,14 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
                     use proptest::test_runner::TestRunner;
                     let runner = TestRunner::default();
 
+                    let abi = compiled_program.abi.clone();
+                    let debug = compiled_program.debug.clone();
+
                     let executor =
                         |program: &Program<FieldElement>,
                          initial_witness: WitnessMap<FieldElement>|
                          -> Result<WitnessStack<FieldElement>, String> {
-                            execute_program(
+                            let circuit_execution = execute_program(
                                 program,
                                 initial_witness,
                                 blackbox_solver,
@@ -134,9 +138,23 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
                                     root_path.clone(),
                                     package_name.clone(),
                                 ),
-                            )
-                            .map_err(|err| err.to_string())
+                            );
+
+                            let status = test_status_program_compile_pass(
+                                test_function,
+                                &abi,
+                                &debug,
+                                &circuit_execution,
+                            );
+
+                            if let TestStatus::Fail { message, error_diagnostic: _ } = status {
+                                Err(message)
+                            } else {
+                                // The fuzzer doesn't care about the actual result.
+                                Ok(WitnessStack::default())
+                            }
                         };
+
                     let fuzzer = FuzzedExecutor::new(compiled_program.into(), executor, runner);
 
                     let result = fuzzer.fuzz();
@@ -176,9 +194,9 @@ fn test_status_program_compile_fail(err: CompileError, test_function: &TestFunct
 /// passed/failed to determine the test status.
 fn test_status_program_compile_pass(
     test_function: &TestFunction,
-    abi: Abi,
-    debug: Vec<DebugInfo>,
-    circuit_execution: Result<WitnessStack<FieldElement>, NargoError<FieldElement>>,
+    abi: &Abi,
+    debug: &[DebugInfo],
+    circuit_execution: &Result<WitnessStack<FieldElement>, NargoError<FieldElement>>,
 ) -> TestStatus {
     let circuit_execution_err = match circuit_execution {
         // Circuit execution was successful; ie no errors or unsatisfied constraints
