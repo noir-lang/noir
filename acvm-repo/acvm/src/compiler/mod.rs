@@ -79,42 +79,47 @@ fn transform_assert_messages<F: Clone>(
 ///
 /// Runs multiple passes until the output stabilizes.
 pub fn compile<F: AcirField>(
-    acir: Circuit<F>,
+    mut acir: Circuit<F>,
     expression_width: ExpressionWidth,
 ) -> (Circuit<F>, AcirTransformationMap) {
-    if MAX_OPTIMIZER_PASSES == 0 {
-        let acir_opcode_positions = (0..acir.opcodes.len()).collect::<Vec<_>>();
-        let transformation_map = AcirTransformationMap::new(&acir_opcode_positions);
-        return (acir, transformation_map);
+    let mut acir_opcode_positions = (0..acir.opcodes.len()).collect::<Vec<_>>();
+
+    if MAX_OPTIMIZER_PASSES > 0 {
+        let mut pass = 0;
+        let mut prev_opcodes_hash = fxhash::hash64(&acir.opcodes);
+        let mut prev_acir = acir;
+        let mut prev_acir_opcode_positions = acir_opcode_positions;
+
+        // For most test programs it would be enough to only loop `transform_internal`,
+        // but some of them don't stabilize unless we also repeat the backend agnostic optimizations.
+        let (new_acir, new_acir_opcode_positions) = loop {
+            let (acir, acir_opcode_positions) =
+                optimize_internal(prev_acir, prev_acir_opcode_positions);
+
+            // Stop if we have already done at least one transform and an extra optimization changed nothing.
+            if pass > 0 && prev_opcodes_hash == fxhash::hash64(&acir.opcodes) {
+                break (acir, acir_opcode_positions);
+            }
+
+            let (acir, acir_opcode_positions) =
+                transform_internal(acir, expression_width, acir_opcode_positions);
+
+            let opcodes_hash = fxhash::hash64(&acir.opcodes);
+
+            // Stop if the output hasn't change in this loop or we went too long.
+            if pass == MAX_OPTIMIZER_PASSES - 1 || prev_opcodes_hash == opcodes_hash {
+                break (acir, acir_opcode_positions);
+            }
+
+            pass += 1;
+            prev_acir = acir;
+            prev_opcodes_hash = opcodes_hash;
+            prev_acir_opcode_positions = acir_opcode_positions;
+        };
+
+        acir = new_acir;
+        acir_opcode_positions = new_acir_opcode_positions;
     }
-    let mut pass = 0;
-    let mut prev_opcodes_hash = fxhash::hash64(&acir.opcodes);
-    let mut prev_acir = acir;
-
-    // For most test programs it would be enough to only loop `transform_internal`,
-    // but some of them don't stabilize unless we also repeat the backend agnostic optimizations.
-    let (mut acir, acir_opcode_positions) = loop {
-        let (acir, acir_opcode_positions) = optimize_internal(prev_acir);
-
-        // Stop if we have already done at least one transform and an extra optimization changed nothing.
-        if pass > 0 && prev_opcodes_hash == fxhash::hash64(&acir.opcodes) {
-            break (acir, acir_opcode_positions);
-        }
-
-        let (acir, acir_opcode_positions) =
-            transform_internal(acir, expression_width, acir_opcode_positions);
-
-        let opcodes_hash = fxhash::hash64(&acir.opcodes);
-
-        // Stop if the output hasn't change in this loop or we went too long.
-        if pass == MAX_OPTIMIZER_PASSES - 1 || prev_opcodes_hash == opcodes_hash {
-            break (acir, acir_opcode_positions);
-        }
-
-        pass += 1;
-        prev_acir = acir;
-        prev_opcodes_hash = opcodes_hash;
-    };
 
     let transformation_map = AcirTransformationMap::new(&acir_opcode_positions);
     acir.assert_messages = transform_assert_messages(acir.assert_messages, &transformation_map);
