@@ -226,16 +226,14 @@ impl<'block> BrilligBlock<'block> {
                     dfg.get_numeric_constant_with_type(*rhs),
                 ) {
                     // If the constraint is of the form `x == u1 1` then we can simply constrain `x` directly
-                    (
-                        Some((constant, Type::Numeric(NumericType::Unsigned { bit_size: 1 }))),
-                        None,
-                    ) if constant == FieldElement::one() => {
+                    (Some((constant, NumericType::Unsigned { bit_size: 1 })), None)
+                        if constant == FieldElement::one() =>
+                    {
                         (self.convert_ssa_single_addr_value(*rhs, dfg), false)
                     }
-                    (
-                        None,
-                        Some((constant, Type::Numeric(NumericType::Unsigned { bit_size: 1 }))),
-                    ) if constant == FieldElement::one() => {
+                    (None, Some((constant, NumericType::Unsigned { bit_size: 1 })))
+                        if constant == FieldElement::one() =>
+                    {
                         (self.convert_ssa_single_addr_value(*lhs, dfg), false)
                     }
 
@@ -1285,8 +1283,8 @@ impl<'block> BrilligBlock<'block> {
         result_variable: SingleAddrVariable,
     ) {
         let binary_type = type_of_binary_operation(
-            dfg[binary.lhs].get_type(),
-            dfg[binary.rhs].get_type(),
+            dfg[binary.lhs].get_type().as_ref(),
+            dfg[binary.rhs].get_type().as_ref(),
             binary.operator,
         );
 
@@ -1795,7 +1793,7 @@ impl<'block> BrilligBlock<'block> {
         dfg: &DataFlowGraph,
     ) -> BrilligVariable {
         let typ = dfg[result].get_type();
-        match typ {
+        match typ.as_ref() {
             Type::Numeric(_) => self.variables.define_variable(
                 self.function_context,
                 self.brillig_context,
@@ -1811,7 +1809,7 @@ impl<'block> BrilligBlock<'block> {
                     dfg,
                 );
                 let array = variable.extract_array();
-                self.allocate_foreign_call_result_array(typ, array);
+                self.allocate_foreign_call_result_array(typ.as_ref(), array);
 
                 variable
             }

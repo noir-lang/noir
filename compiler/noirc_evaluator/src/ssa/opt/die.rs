@@ -1,21 +1,19 @@
 //! Dead Instruction Elimination (DIE) pass: Removes any instruction without side-effects for
 //! which the results are unused.
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
-use im::Vector;
-use noirc_errors::Location;
 use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
 use crate::ssa::{
     ir::{
         basic_block::{BasicBlock, BasicBlockId},
-        dfg::DataFlowGraph,
+        dfg::{CallStack, DataFlowGraph},
         function::Function,
         instruction::{BinaryOp, Instruction, InstructionId, Intrinsic},
         post_order::PostOrder,
-        types::Type,
+        types::NumericType,
         value::{Value, ValueId},
     },
-    ssa_gen::{Ssa, SSA_WORD_SIZE},
+    ssa_gen::Ssa,
 };
 
 impl Ssa {
@@ -285,25 +283,25 @@ impl Context {
 
             let (lhs, rhs) = if function.dfg.get_numeric_constant(*index).is_some() {
                 // If we are here it means the index is known but out of bounds. That's always an error!
-                let false_const = function.dfg.make_constant(false.into(), Type::bool());
-                let true_const = function.dfg.make_constant(true.into(), Type::bool());
+                let false_const = function.dfg.make_constant(false.into(), NumericType::bool());
+                let true_const = function.dfg.make_constant(true.into(), NumericType::bool());
                 (false_const, true_const)
             } else {
                 // `index` will be relative to the flattened array length, so we need to take that into account
                 let array_length = function.dfg.type_of_value(*array).flattened_size();
 
                 // If we are here it means the index is dynamic, so let's add a check that it's less than length
+                let length_type = NumericType::length_type();
                 let index = function.dfg.insert_instruction_and_results(
-                    Instruction::Cast(*index, Type::unsigned(SSA_WORD_SIZE)),
+                    Instruction::Cast(*index, length_type),
                     block_id,
                     None,
                     call_stack.clone(),
                 );
                 let index = index.first();
 
-                let array_typ = Type::unsigned(SSA_WORD_SIZE);
                 let array_length =
-                    function.dfg.make_constant((array_length as u128).into(), array_typ);
+                    function.dfg.make_constant((array_length as u128).into(), length_type);
                 let is_index_out_of_bounds = function.dfg.insert_instruction_and_results(
                     Instruction::binary(BinaryOp::Lt, index, array_length),
                     block_id,
@@ -311,7 +309,7 @@ impl Context {
                     call_stack.clone(),
                 );
                 let is_index_out_of_bounds = is_index_out_of_bounds.first();
-                let true_const = function.dfg.make_constant(true.into(), Type::bool());
+                let true_const = function.dfg.make_constant(true.into(), NumericType::bool());
                 (is_index_out_of_bounds, true_const)
             };
 
@@ -484,7 +482,7 @@ fn apply_side_effects(
     rhs: ValueId,
     function: &mut Function,
     block_id: BasicBlockId,
-    call_stack: Vector<Location>,
+    call_stack: CallStack,
 ) -> (ValueId, ValueId) {
     // See if there's an active "enable side effects" condition
     let Some(condition) = side_effects_condition else {
@@ -495,12 +493,9 @@ fn apply_side_effects(
 
     // Condition needs to be cast to argument type in order to multiply them together.
     // In our case, lhs is always a boolean.
-    let casted_condition = dfg.insert_instruction_and_results(
-        Instruction::Cast(condition, Type::bool()),
-        block_id,
-        None,
-        call_stack.clone(),
-    );
+    let cast = Instruction::Cast(condition, NumericType::bool());
+    let casted_condition =
+        dfg.insert_instruction_and_results(cast, block_id, None, call_stack.clone());
     let casted_condition = casted_condition.first();
 
     let lhs = dfg.insert_instruction_and_results(
@@ -530,7 +525,10 @@ mod test {
 
     use crate::ssa::{
         function_builder::FunctionBuilder,
-        ir::{map::Id, types::Type},
+        ir::{
+            map::Id,
+            types::{NumericType, Type},
+        },
         opt::assert_normalized_ssa_equals,
         Ssa,
     };
@@ -639,7 +637,7 @@ mod test {
 
         // Compiling main
         let mut builder = FunctionBuilder::new("main".into(), main_id);
-        let zero = builder.numeric_constant(0u128, Type::unsigned(32));
+        let zero = builder.numeric_constant(0u128, NumericType::unsigned(32));
         let array_type = Type::Array(Arc::new(vec![Type::unsigned(32)]), 2);
         let v1 = builder.insert_make_array(vector![zero, zero], array_type.clone());
         let v2 = builder.insert_allocate(array_type.clone());
@@ -652,7 +650,7 @@ mod test {
         builder.switch_to_block(b1);
 
         let v3 = builder.insert_load(v2, array_type);
-        let one = builder.numeric_constant(1u128, Type::unsigned(32));
+        let one = builder.numeric_constant(1u128, NumericType::unsigned(32));
         let v5 = builder.insert_array_set(v3, zero, one);
         builder.terminate_with_return(vec![v5]);
 

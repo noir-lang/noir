@@ -37,6 +37,7 @@ codespan-reporting.workspace = true
 [dev-dependencies]
 proptest.workspace = true
 similar-asserts.workspace = true
+tracing-test = "0.2.5"
 num-traits.workspace = true
 test-case.workspace = true
 

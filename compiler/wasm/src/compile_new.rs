@@ -107,7 +107,7 @@ impl CompilerContext {
 
         let root_crate_id = *self.context.root_crate_id();
         let compiled_program =
-            compile_main(&mut self.context, root_crate_id, &compile_options, None, false)
+            compile_main(&mut self.context, root_crate_id, &compile_options, None, false, false)
                 .map_err(|errs| {
                     CompileError::with_file_diagnostics(
                         "Failed to compile program",

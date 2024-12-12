@@ -56,7 +56,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
         unconstrained_functions: &'a [BrilligBytecode<FieldElement>],
     ) -> Self {
         let foreign_call_executor =
-            Box::new(DefaultDebugForeignCallExecutor::from_artifact(true, debug_artifact));
+            Box::new(DefaultDebugForeignCallExecutor::from_artifact(nargo::PrintOutput::Stdout, debug_artifact));
         let debug_context = DebugContext::new(
             blackbox_solver,
             circuits,

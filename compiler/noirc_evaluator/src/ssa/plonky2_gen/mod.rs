@@ -220,6 +220,20 @@ impl P2Type {
         }
     }
 
+    fn from_noir_numeric_type(typ: NumericType) -> Result<P2Type, Plonky2GenError> {
+        Ok(match typ {
+            NumericType::NativeField => P2Type::Field,
+                NumericType::Unsigned { bit_size } => {
+                    if bit_size == 1 {
+                        P2Type::Boolean
+                    } else {
+                        P2Type::Integer(bit_size, false)
+                    }
+                }
+                NumericType::Signed { bit_size } => P2Type::Integer(bit_size, true),
+        })
+    }
+
     fn from_noir_type(typ: Type) -> Result<P2Type, Plonky2GenError> {
         Ok(match typ {
             Type::Numeric(numeric_type) => match numeric_type {
@@ -1066,19 +1080,9 @@ impl Builder {
                 let p2value = self.get(value_id).unwrap();
                 let target = p2value.get_target()?;
                 let bit_size = match typ {
-                    Type::Numeric(numeric_type) => match numeric_type {
-                        NumericType::Unsigned { bit_size } => bit_size,
-                        NumericType::Signed { bit_size } => bit_size,
-                        NumericType::NativeField => 64,
-                        _ => {
-                            let feature_name = format!("cast to {numeric_type}");
-                            return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
-                        }
-                    },
-                    _ => {
-                        let feature_name = format!("cast to {typ}");
-                        return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
-                    }
+                    NumericType::Signed { bit_size } => bit_size,
+                    NumericType::Unsigned { bit_size } => bit_size,
+                    NumericType::NativeField => 64,
                 };
                 let new_target = self.asm_writer.add_virtual_target();
                 self.asm_writer.connect(target, new_target);
@@ -1118,7 +1122,7 @@ impl Builder {
                 Ok(P2Value::create_empty(&mut self.asm_writer, p2type))
             }
             Value::NumericConstant { constant, typ } => {
-                let p2type = P2Type::from_noir_type(typ)?;
+                let p2type = P2Type::from_noir_numeric_type(typ)?;
                 P2Value::create_simple_constant(&mut self.asm_writer, p2type, constant)
             }
             Value::Instruction { instruction, .. } => {

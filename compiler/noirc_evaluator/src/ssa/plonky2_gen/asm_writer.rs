@@ -645,7 +645,7 @@ impl AsmWriter {
 
     pub fn comment_update_call_stack(&mut self, call_stack: CallStack) {
         if call_stack != self.last_call_stack {
-            if let Some(last_loc) = call_stack.last() {
+            if let Some(last_loc) = call_stack.clone().into_iter().last() {
                 let span_begin =
                     self.file_map.location(last_loc.file, last_loc.span.start() as usize).unwrap();
                 let span_end =
