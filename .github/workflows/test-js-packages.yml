@@ -591,7 +591,11 @@ jobs:
       
       - name: Run nargo test
         working-directory: ./test-repo/${{ matrix.project.path }}
-        run: nargo test --silence-warnings
+        run: |
+            if [[ ${{ matrix.project.repo }} == "noir-lang/noir_bigcurve" ]]; then
+                export RAYON_MAX_THREADS=1
+            fi
+            nargo test --silence-warnings
         env:
           NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS: true
 
