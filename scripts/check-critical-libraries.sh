@@ -31,7 +31,7 @@ for REPO in ${REPOS_TO_CHECK[@]}; do
     TAG=$(getLatestReleaseTagForRepo $REPO)
     git clone $REPO -c advice.detachedHead=false --depth 1 --branch $TAG $TMP_DIR
     
-    nargo test --program-dir $TMP_DIR
+    nargo test -q --program-dir $TMP_DIR
 
     rm -rf $TMP_DIR
 done
