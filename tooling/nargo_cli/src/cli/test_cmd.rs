@@ -1,6 +1,6 @@
 use std::{
     collections::{BTreeMap, HashMap},
-    io::Write,
+    fmt::Display,
     panic::{catch_unwind, UnwindSafe},
     path::PathBuf,
     sync::{mpsc, Mutex},
@@ -12,6 +12,7 @@ use acvm::{BlackBoxFunctionSolver, FieldElement};
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 use fm::FileManager;
+use formatters::{Formatter, PrettyFormatter, TerseFormatter};
 use nargo::{
     insert_all_files_for_workspace_into_file_manager, ops::TestStatus, package::Package, parse_all,
     prepare_package, workspace::Workspace, PrintOutput,
@@ -19,11 +20,12 @@ use nargo::{
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml};
 use noirc_driver::{check_crate, CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::hir::{FunctionNameMatch, ParsedFiles};
-use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, StandardStreamLock, WriteColor};
 
 use crate::{cli::check_cmd::check_crate_and_report_errors, errors::CliError};
 
 use super::{NargoConfig, PackageOptions};
+
+mod formatters;
 
 /// Run the tests for this program
 #[derive(Debug, Clone, Args)]
@@ -53,6 +55,40 @@ pub(crate) struct TestCommand {
     /// Number of threads used for running tests in parallel
     #[clap(long, default_value_t = rayon::current_num_threads())]
     test_threads: usize,
+
+    /// Configure formatting of output
+    #[clap(long)]
+    format: Option<Format>,
+
+    /// Display one character per test instead of one line
+    #[clap(short = 'q', long = "quiet")]
+    quiet: bool,
+}
+
+#[derive(Debug, Copy, Clone, clap::ValueEnum)]
+enum Format {
+    /// Print verbose output
+    Pretty,
+    /// Display one character per test
+    Terse,
+}
+
+impl Format {
+    fn formatter(&self) -> Box<dyn Formatter> {
+        match self {
+            Format::Pretty => Box::new(PrettyFormatter),
+            Format::Terse => Box::new(TerseFormatter),
+        }
+    }
+}
+
+impl Display for Format {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Format::Pretty => write!(f, "pretty"),
+            Format::Terse => write!(f, "terse"),
+        }
+    }
 }
 
 struct Test<'a> {
@@ -95,6 +131,14 @@ pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError
         None => FunctionNameMatch::Anything,
     };
 
+    let formatter: Box<dyn Formatter> = if let Some(format) = args.format {
+        format.formatter()
+    } else if args.quiet {
+        Box::new(TerseFormatter)
+    } else {
+        Box::new(PrettyFormatter)
+    };
+
     let runner = TestRunner {
         file_manager: &file_manager,
         parsed_files: &parsed_files,
@@ -102,6 +146,7 @@ pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError
         args: &args,
         pattern,
         num_threads: args.test_threads,
+        formatter,
     };
     runner.run()
 }
@@ -113,6 +158,7 @@ struct TestRunner<'a> {
     args: &'a TestCommand,
     pattern: FunctionNameMatch<'a>,
     num_threads: usize,
+    formatter: Box<dyn Formatter>,
 }
 
 impl<'a> TestRunner<'a> {
@@ -222,27 +268,31 @@ impl<'a> TestRunner<'a> {
             // We'll go package by package, but we might get test results from packages ahead of us.
             // We'll buffer those here and show them all at once when we get to those packages.
             let mut buffer: HashMap<String, Vec<TestResult>> = HashMap::new();
-            for (package_name, test_count) in test_count_per_package {
-                let plural = if *test_count == 1 { "" } else { "s" };
-                println!("[{package_name}] Running {test_count} test function{plural}");
-
+            for (package_name, total_test_count) in test_count_per_package {
                 let mut test_report = Vec::new();
 
-                // How many tests are left to receive for this package
-                let mut remaining_test_count = *test_count;
+                let mut current_test_count = 0;
+                let total_test_count = *total_test_count;
+
+                self.formatter
+                    .package_start(package_name, total_test_count)
+                    .expect("Could not display package start");
 
                 // Check if we have buffered test results for this package
                 if let Some(buffered_tests) = buffer.remove(package_name) {
-                    remaining_test_count -= buffered_tests.len();
-
                     for test_result in buffered_tests {
-                        self.display_test_result(&test_result)
-                            .expect("Could not display test status");
+                        self.display_test_result(
+                            &test_result,
+                            current_test_count + 1,
+                            total_test_count,
+                        )
+                        .expect("Could not display test status");
                         test_report.push(test_result);
+                        current_test_count += 1;
                     }
                 }
 
-                if remaining_test_count > 0 {
+                if current_test_count < total_test_count {
                     while let Ok(test_result) = receiver.recv() {
                         if test_result.status.failed() {
                             all_passed = false;
@@ -257,17 +307,29 @@ impl<'a> TestRunner<'a> {
                             continue;
                         }
 
-                        self.display_test_result(&test_result)
-                            .expect("Could not display test status");
+                        self.display_test_result(
+                            &test_result,
+                            current_test_count + 1,
+                            total_test_count,
+                        )
+                        .expect("Could not display test status");
                         test_report.push(test_result);
-                        remaining_test_count -= 1;
-                        if remaining_test_count == 0 {
+                        current_test_count += 1;
+                        if current_test_count == total_test_count {
                             break;
                         }
                     }
                 }
 
-                display_test_report(package_name, &test_report)
+                self.formatter
+                    .package_end(
+                        package_name,
+                        &test_report,
+                        self.file_manager,
+                        self.args.show_output,
+                        self.args.compile_options.deny_warnings,
+                        self.args.compile_options.silence_warnings,
+                    )
                     .expect("Could not display test report");
             }
         });
@@ -417,116 +479,20 @@ impl<'a> TestRunner<'a> {
     }
 
     /// Display the status of a single test
-    fn display_test_result(&'a self, test_result: &'a TestResult) -> std::io::Result<()> {
-        let writer = StandardStream::stderr(ColorChoice::Always);
-        let mut writer = writer.lock();
-
-        let is_slow = test_result.time_to_run >= Duration::from_secs(30);
-        let show_time = |writer: &mut StandardStreamLock<'_>| {
-            if is_slow {
-                write!(writer, " <{:.3}s>", test_result.time_to_run.as_secs_f64())
-            } else {
-                Ok(())
-            }
-        };
-
-        write!(writer, "[{}] Testing {}... ", &test_result.package_name, &test_result.name)?;
-        writer.flush()?;
-
-        match &test_result.status {
-            TestStatus::Pass { .. } => {
-                writer.set_color(ColorSpec::new().set_fg(Some(Color::Green)))?;
-                write!(writer, "ok")?;
-                writer.reset()?;
-                show_time(&mut writer)?;
-                writeln!(writer)?;
-            }
-            TestStatus::Fail { message, error_diagnostic } => {
-                writer.set_color(ColorSpec::new().set_fg(Some(Color::Red)))?;
-                write!(writer, "FAIL\n{message}\n")?;
-                writer.reset()?;
-                show_time(&mut writer)?;
-                writeln!(writer)?;
-                if let Some(diag) = error_diagnostic {
-                    noirc_errors::reporter::report_all(
-                        self.file_manager.as_file_map(),
-                        &[diag.clone()],
-                        self.args.compile_options.deny_warnings,
-                        self.args.compile_options.silence_warnings,
-                    );
-                }
-            }
-            TestStatus::Skipped { .. } => {
-                writer.set_color(ColorSpec::new().set_fg(Some(Color::Yellow)))?;
-                write!(writer, "skipped")?;
-                writer.reset()?;
-                show_time(&mut writer)?;
-                writeln!(writer)?;
-            }
-            TestStatus::CompileError(err) => {
-                noirc_errors::reporter::report_all(
-                    self.file_manager.as_file_map(),
-                    &[err.clone()],
-                    self.args.compile_options.deny_warnings,
-                    self.args.compile_options.silence_warnings,
-                );
-            }
-        }
-
-        if self.args.show_output && !test_result.output.is_empty() {
-            writeln!(writer, "--- {} stdout ---", test_result.name)?;
-            write!(writer, "{}", test_result.output)?;
-            let name_len = test_result.name.len();
-            writeln!(writer, "{}", "-".repeat(name_len + "---  stdout ---".len()))
-        } else {
-            Ok(())
-        }
+    fn display_test_result(
+        &'a self,
+        test_result: &'a TestResult,
+        current_test_count: usize,
+        total_test_count: usize,
+    ) -> std::io::Result<()> {
+        self.formatter.test_end(
+            test_result,
+            current_test_count,
+            total_test_count,
+            self.file_manager,
+            self.args.show_output,
+            self.args.compile_options.deny_warnings,
+            self.args.compile_options.silence_warnings,
+        )
     }
-}
-
-/// Display a report for all tests in a package
-fn display_test_report(package_name: &String, test_report: &[TestResult]) -> std::io::Result<()> {
-    let writer = StandardStream::stderr(ColorChoice::Always);
-    let mut writer = writer.lock();
-
-    let failed_tests: Vec<_> = test_report
-        .iter()
-        .filter_map(|test_result| test_result.status.failed().then_some(&test_result.name))
-        .collect();
-
-    if !failed_tests.is_empty() {
-        writeln!(writer)?;
-        writeln!(writer, "[{}] Failures:", package_name)?;
-        for failed_test in failed_tests {
-            writeln!(writer, "     {}", failed_test)?;
-        }
-        writeln!(writer)?;
-    }
-
-    write!(writer, "[{}] ", package_name)?;
-
-    let count_all = test_report.len();
-    let count_failed = test_report.iter().filter(|test_result| test_result.status.failed()).count();
-    let plural = if count_all == 1 { "" } else { "s" };
-    if count_failed == 0 {
-        writer.set_color(ColorSpec::new().set_fg(Some(Color::Green)))?;
-        write!(writer, "{count_all} test{plural} passed")?;
-        writer.reset()?;
-        writeln!(writer)?;
-    } else {
-        let count_passed = count_all - count_failed;
-        let plural_failed = if count_failed == 1 { "" } else { "s" };
-        let plural_passed = if count_passed == 1 { "" } else { "s" };
-
-        if count_passed != 0 {
-            writer.set_color(ColorSpec::new().set_fg(Some(Color::Green)))?;
-            write!(writer, "{count_passed} test{plural_passed} passed, ")?;
-        }
-
-        writer.set_color(ColorSpec::new().set_fg(Some(Color::Red)))?;
-        writeln!(writer, "{count_failed} test{plural_failed} failed")?;
-        writer.reset()?;
-    }
-
-    Ok(())
 }
