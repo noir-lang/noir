@@ -9,7 +9,6 @@
 //! We also check that we are not hoisting instructions with side effects.
 use acvm::{acir::AcirField, FieldElement};
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
-use iter_extended::vecmap;
 
 use crate::ssa::{
     ir::{
@@ -115,21 +114,15 @@ impl<'f> LoopInvariantContext<'f> {
                 if hoist_invariant {
                     self.inserter.push_instruction(instruction_id, pre_header);
 
-                    // We track whether we may mutate MakeArray instructions before we deduplicate
-                    // them but we still need to issue an extra inc_rc in case they're mutated afterward.
+                    // If we are hoisting a MakeArray instruction,
+                    // we need to issue an extra inc_rc in case they are mutated afterward.
                     if matches!(
                         self.inserter.function.dfg[instruction_id],
                         Instruction::MakeArray { .. }
                     ) {
-                        let results =
-                            self.inserter.function.dfg.instruction_results(instruction_id).to_vec();
-                        let results = vecmap(results, |value| self.inserter.resolve(value));
-                        assert_eq!(
-                            results.len(),
-                            1,
-                            "ICE: We expect only a single result from an `Instruction::MakeArray`"
-                        );
-                        let inc_rc = Instruction::IncrementRc { value: results[0] };
+                        let result =
+                            self.inserter.function.dfg.instruction_results(instruction_id)[0];
+                        let inc_rc = Instruction::IncrementRc { value: result };
                         let call_stack = self.inserter.function.dfg.get_call_stack(instruction_id);
                         self.inserter
                             .function
