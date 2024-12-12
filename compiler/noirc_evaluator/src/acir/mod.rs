@@ -2933,7 +2933,8 @@ mod test {
         // Set a call stack for testing whether `brillig_locations` in the `GeneratedAcir` was accurately set.
         let mut stack = CallStack::unit(Location::dummy());
         stack.push_back(Location::dummy());
-        builder.set_call_stack(stack);
+        let call_stack = builder.current_function.dfg.get_or_insert_locations(stack);
+        builder.set_call_stack(call_stack);
 
         let foo_v0 = builder.add_parameter(Type::field());
         let foo_v1 = builder.add_parameter(Type::field());
