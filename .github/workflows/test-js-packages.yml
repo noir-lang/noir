@@ -534,7 +534,7 @@ jobs:
       - name: Build list of libraries
         id: get_critical_libraries
         run: |         
-          LIBRARIES=$(grep -Po "^https://github.com/\K.+"  ./CRITICAL_NOIR_LIBRARIES | jq -R -s -c 'split("\n") | map(select(. != "")) | map({ repo: ., path: "./"})')
+          LIBRARIES=$(grep -Po "^https://github.com/\K.+"  ./CRITICAL_NOIR_LIBRARIES | jq -R -s -c 'split("\n") | map(select(. != "")) | map({ repo: ., path: ""})')
           echo "libraries=$LIBRARIES"
           echo "libraries=$LIBRARIES" >> $GITHUB_OUTPUT
         env:
@@ -551,15 +551,15 @@ jobs:
       matrix:
         project: ${{ fromJson( needs.critical-library-list.outputs.libraries )}}
         include:
-          - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/aztec-nr }
-          - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-contracts }
-          - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/parity-lib }
-          - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/private-kernel-lib }
-          - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/reset-kernel-lib }
-          - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/rollup-lib }
-          - project: { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits/crates/types }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/aztec-nr }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-contracts }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/parity-lib }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-lib }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/reset-kernel-lib }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-lib }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/types }
 
-    name: Check external repo - ${{ matrix.project.repo }}
+    name: Check external repo - ${{ matrix.project.repo }}/${{ matrix.project.path }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -591,7 +591,7 @@ jobs:
       
       - name: Run nargo test
         working-directory: ./test-repo/${{ matrix.project.path }}
-        run: nargo test --silence-warnings
+        run: nargo test -q --silence-warnings
         env:
           NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS: true
 
