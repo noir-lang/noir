@@ -12,7 +12,7 @@ use acvm::{BlackBoxFunctionSolver, FieldElement};
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 use fm::FileManager;
-use formatters::{Formatter, PrettyFormatter, TerseFormatter};
+use formatters::{Formatter, TerseFormatter, VerboseFormatter};
 use nargo::{
     insert_all_files_for_workspace_into_file_manager, ops::TestStatus, package::Package, parse_all,
     prepare_package, workspace::Workspace, PrintOutput,
@@ -68,7 +68,7 @@ pub(crate) struct TestCommand {
 #[derive(Debug, Copy, Clone, clap::ValueEnum)]
 enum Format {
     /// Print verbose output
-    Pretty,
+    Verbose,
     /// Display one character per test
     Terse,
 }
@@ -76,7 +76,7 @@ enum Format {
 impl Format {
     fn formatter(&self) -> Box<dyn Formatter> {
         match self {
-            Format::Pretty => Box::new(PrettyFormatter),
+            Format::Verbose => Box::new(VerboseFormatter),
             Format::Terse => Box::new(TerseFormatter),
         }
     }
@@ -85,7 +85,7 @@ impl Format {
 impl Display for Format {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Format::Pretty => write!(f, "pretty"),
+            Format::Verbose => write!(f, "pretty"),
             Format::Terse => write!(f, "terse"),
         }
     }
@@ -136,7 +136,7 @@ pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError
     } else if args.quiet {
         Box::new(TerseFormatter)
     } else {
-        Box::new(PrettyFormatter)
+        Box::new(VerboseFormatter)
     };
 
     let runner = TestRunner {
