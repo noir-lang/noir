@@ -1289,23 +1289,23 @@ fn lambda$f1(mut env$l1: (Field)) -> Field {
 
 // TODO(https://github.com/noir-lang/noir/issues/6780): currently failing
 // with a stack overflow
-//
-// #[test]
-// fn deny_cyclic_globals() {
-//     let src = r#"
-//         global A: u32 = B;
-//         global B: u32 = A;
-//
-//         fn main() {}
-//     "#;
-//
-//     let errors = get_program_errors(src);
-//     assert_eq!(errors.len(), 1);
-//     assert!(matches!(
-//         errors[0].0,
-//         CompilationError::ResolverError(ResolverError::DependencyCycle { .. })
-//     ));
-// }
+#[test]
+#[ignore]
+fn deny_cyclic_globals() {
+    let src = r#"
+        global A: u32 = B;
+        global B: u32 = A;
+
+        fn main() {}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::ResolverError(ResolverError::DependencyCycle { .. })
+    ));
+}
 
 #[test]
 fn deny_cyclic_type_aliases() {
