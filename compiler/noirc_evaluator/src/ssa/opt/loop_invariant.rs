@@ -13,7 +13,7 @@ use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
-        function::{Function, RuntimeType},
+        function::Function,
         function_inserter::FunctionInserter,
         instruction::{Instruction, InstructionId},
         types::Type,
