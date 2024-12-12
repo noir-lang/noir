@@ -506,17 +506,10 @@ impl Value {
 
     /// Returns false for non-integral `Value`s.
     pub(crate) fn is_integral(&self) -> bool {
+        use Value::*;
         matches!(
             self,
-            Self::Field(_)
-                | Self::I8(_)
-                | Self::I16(_)
-                | Self::I32(_)
-                | Self::I64(_)
-                | Self::U8(_)
-                | Self::U16(_)
-                | Self::U32(_)
-                | Self::U64(_)
+            Field(_) | I8(_) | I16(_) | I32(_) | I64(_) | U8(_) | U16(_) | U32(_) | U64(_)
         )
     }
 

@@ -420,8 +420,7 @@ impl<'context> Elaborator<'context> {
                     .unwrap_or(Kind::u32());
 
                 let Some(stmt) = self.interner.get_global_let_statement(id) else {
-                    if let Some(global) = self.unresolved_globals.remove(&id) {
-                        self.elaborate_global(global);
+                    if self.elaborate_unresolved_global(&id) {
                         return self.lookup_generic_or_global_type(path);
                     } else {
                         let path = path.clone();
@@ -448,16 +447,9 @@ impl<'context> Elaborator<'context> {
                     return None;
                 };
 
-                let global_value = match kind.ensure_value_fits(global_value, span) {
-                    Ok(global_value) => global_value,
-                    Err(_err) => {
-                        self.push_err(ResolverError::GlobalLargerThanKind {
-                            span,
-                            global_value,
-                            kind,
-                        });
-                        return None;
-                    }
+                let Ok(global_value) = kind.ensure_value_fits(global_value, span) else {
+                    self.push_err(ResolverError::GlobalLargerThanKind { span, global_value, kind });
+                    return None;
                 };
 
                 Some(Type::Constant(global_value, kind))
