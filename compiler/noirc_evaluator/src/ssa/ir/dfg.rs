@@ -42,7 +42,7 @@ impl CallStackId {
         self.0 == 0
     }
 
-    // Retrieves a CallStack from a CallStackId
+    /// Construct a CallStack from a CallStackId
     fn get_call_stack(&self, locations: &[LocationNode]) -> CallStack {
         let mut call_stack = List::new();
         let mut current_location = *self;
@@ -53,8 +53,8 @@ impl CallStackId {
         call_stack
     }
 
-    // Adds a location to the call stack
-    fn add_location(&self, location: Location, locations: &mut Vec<LocationNode>) -> CallStackId {
+    /// Adds a location to the call stack
+    fn add_child(&self, location: Location, locations: &mut Vec<LocationNode>) -> CallStackId {
         if let Some(result) = locations[self.index()]
             .children
             .iter()
@@ -68,11 +68,11 @@ impl CallStackId {
         new_location
     }
 
-    // Returns a new CallStackId which extends the current one with the provided call_stack.
+    /// Returns a new CallStackId which extends the current one with the provided call_stack.
     fn extend(&self, call_stack: &CallStack, locations: &mut Vec<LocationNode>) -> CallStackId {
         let mut result = *self;
         for location in call_stack {
-            result = result.add_location(*location, locations);
+            result = result.add_child(*location, locations);
         }
         result
     }
@@ -83,12 +83,6 @@ struct LocationNode {
     parent: Option<CallStackId>,
     children: Vec<CallStackId>,
     value: Location,
-}
-
-impl LocationNode {
-    fn new() -> Self {
-        Self { parent: None, children: vec![], value: Location::dummy() }
-    }
 }
 
 /// The DataFlowGraph contains most of the actual data in a function including
@@ -559,7 +553,7 @@ impl DataFlowGraph {
     }
 
     pub(crate) fn get_instruction_call_stack(&self, instruction: InstructionId) -> CallStack {
-        let call_stack = self.locations.get(&instruction).cloned().unwrap_or_default();
+        let call_stack = self.get_instruction_call_stack_id(instruction);
         self.get_call_stack(call_stack)
     }
 
@@ -573,7 +567,7 @@ impl DataFlowGraph {
         location: Location,
     ) {
         let call_stack = self.locations.entry(instruction).or_default();
-        call_stack.add_location(location, &mut self.location_array);
+        call_stack.add_child(location, &mut self.location_array);
     }
 
     pub(crate) fn add_location_to_root(&mut self, location: Location) -> CallStackId {
@@ -585,15 +579,15 @@ impl DataFlowGraph {
             });
             CallStackId::root()
         } else {
-            CallStackId::root().add_location(location, &mut self.location_array)
+            CallStackId::root().add_child(location, &mut self.location_array)
         }
     }
 
-    // Get (or create) a CallStackId corresponding to the given locations
+    /// Get (or create) a CallStackId corresponding to the given locations
     pub(crate) fn get_or_insert_locations(&mut self, locations: CallStack) -> CallStackId {
         let mut result = CallStackId::root();
         for location in locations {
-            result = result.add_location(location, &mut self.location_array);
+            result = result.add_child(location, &mut self.location_array);
         }
         result
     }
