@@ -1,4 +1,3 @@
-use noirc_errors::Location;
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 
@@ -252,8 +251,8 @@ pub(crate) enum Instruction {
     /// Binary Operations like +, -, *, /, ==, !=
     Binary(Binary),
 
-    /// Converts `Value` into Typ
-    Cast(ValueId, Type),
+    /// Converts `Value` into the given NumericType
+    Cast(ValueId, NumericType),
 
     /// Computes a bit wise not
     Not(ValueId),
@@ -355,9 +354,8 @@ impl Instruction {
     pub(crate) fn result_type(&self) -> InstructionResultType {
         match self {
             Instruction::Binary(binary) => binary.result_type(),
-            Instruction::Cast(_, typ) | Instruction::MakeArray { typ, .. } => {
-                InstructionResultType::Known(typ.clone())
-            }
+            Instruction::Cast(_, typ) => InstructionResultType::Known(Type::Numeric(*typ)),
+            Instruction::MakeArray { typ, .. } => InstructionResultType::Known(typ.clone()),
             Instruction::Not(value)
             | Instruction::Truncate { value, .. }
             | Instruction::ArraySet { array: value, .. }
@@ -603,7 +601,7 @@ impl Instruction {
                 rhs: f(binary.rhs),
                 operator: binary.operator,
             }),
-            Instruction::Cast(value, typ) => Instruction::Cast(f(*value), typ.clone()),
+            Instruction::Cast(value, typ) => Instruction::Cast(f(*value), *typ),
             Instruction::Not(value) => Instruction::Not(f(*value)),
             Instruction::Truncate { value, bit_size, max_bit_size } => Instruction::Truncate {
                 value: f(*value),
@@ -751,7 +749,7 @@ impl Instruction {
         use SimplifyResult::*;
         match self {
             Instruction::Binary(binary) => binary.simplify(dfg),
-            Instruction::Cast(value, typ) => simplify_cast(*value, typ, dfg),
+            Instruction::Cast(value, typ) => simplify_cast(*value, *typ, dfg),
             Instruction::Not(value) => {
                 match &dfg[dfg.resolve(*value)] {
                     // Limit optimizing ! on constants to only booleans. If we tried it on fields,
@@ -760,7 +758,7 @@ impl Instruction {
                     Value::NumericConstant { constant, typ } if typ.is_unsigned() => {
                         // As we're casting to a `u128`, we need to clear out any upper bits that the NOT fills.
                         let value = !constant.to_u128() % (1 << typ.bit_size());
-                        SimplifiedTo(dfg.make_constant(value.into(), typ.clone()))
+                        SimplifiedTo(dfg.make_constant(value.into(), *typ))
                     }
                     Value::Instruction { instruction, .. } => {
                         // !!v => v
@@ -1249,7 +1247,7 @@ impl TerminatorInstruction {
         }
     }
 
-    pub(crate) fn call_stack(&self) -> im::Vector<Location> {
+    pub(crate) fn call_stack(&self) -> CallStack {
         match self {
             TerminatorInstruction::JmpIf { call_stack, .. }
             | TerminatorInstruction::Jmp { call_stack, .. }

@@ -9,7 +9,7 @@ use acvm::{
     AcirField, BlackBoxFunctionSolver, FieldElement,
 };
 use noirc_abi::Abi;
-use noirc_driver::{compile_no_check, CompileError, CompileOptions};
+use noirc_driver::{compile_no_check, CompileError, CompileOptions, DEFAULT_EXPRESSION_WIDTH};
 use noirc_errors::{debug_info::DebugInfo, FileDiagnostic};
 use noirc_frontend::hir::{def_map::TestFunction, Context};
 use noirc_printable_type::ForeignCallError;
@@ -19,14 +19,17 @@ use serde::{Deserialize, Serialize};
 use crate::{
     errors::try_to_diagnose_runtime_error,
     foreign_calls::{
-        mocker::MockForeignCallExecutor, print::PrintForeignCallExecutor,
-        rpc::RPCForeignCallExecutor, ForeignCall, ForeignCallExecutor,
+        mocker::MockForeignCallExecutor,
+        print::{PrintForeignCallExecutor, PrintOutput},
+        rpc::RPCForeignCallExecutor,
+        ForeignCall, ForeignCallExecutor,
     },
     NargoError,
 };
 
 use super::execute_program;
 
+#[derive(Debug)]
 pub enum TestStatus {
     Pass,
     Fail { message: String, error_diagnostic: Option<FileDiagnostic> },
@@ -45,7 +48,7 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
     blackbox_solver: &B,
     context: &mut Context,
     test_function: &TestFunction,
-    show_output: bool,
+    output: PrintOutput<'_>,
     foreign_call_resolver_url: Option<&str>,
     root_path: Option<PathBuf>,
     package_name: Option<String>,
@@ -60,11 +63,15 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
 
     match compile_no_check(context, config, test_function.get_id(), None, false) {
         Ok(compiled_program) => {
+            // Do the same optimizations as `compile_cmd`.
+            let target_width = config.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH);
+            let compiled_program = crate::ops::transform_program(compiled_program, target_width);
+
             if test_function_has_no_arguments {
                 // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
                 // otherwise constraints involving these expressions will not error.
                 let mut foreign_call_executor = TestForeignCallExecutor::new(
-                    show_output,
+                    output,
                     foreign_call_resolver_url,
                     root_path,
                     package_name,
@@ -79,9 +86,9 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
 
                 let status = test_status_program_compile_pass(
                     test_function,
-                    compiled_program.abi,
-                    compiled_program.debug,
-                    circuit_execution,
+                    &compiled_program.abi,
+                    &compiled_program.debug,
+                    &circuit_execution,
                 );
 
                 let ignore_foreign_call_failures =
@@ -113,26 +120,46 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
                 {
                     use acvm::acir::circuit::Program;
                     use noir_fuzzer::FuzzedExecutor;
+                    use proptest::test_runner::Config;
                     use proptest::test_runner::TestRunner;
-                    let runner = TestRunner::default();
+
+                    let runner =
+                        TestRunner::new(Config { failure_persistence: None, ..Config::default() });
+
+                    let abi = compiled_program.abi.clone();
+                    let debug = compiled_program.debug.clone();
 
                     let executor =
                         |program: &Program<FieldElement>,
                          initial_witness: WitnessMap<FieldElement>|
                          -> Result<WitnessStack<FieldElement>, String> {
-                            execute_program(
+                            let circuit_execution = execute_program(
                                 program,
                                 initial_witness,
                                 blackbox_solver,
                                 &mut TestForeignCallExecutor::<FieldElement>::new(
-                                    false,
+                                    PrintOutput::None,
                                     foreign_call_resolver_url,
                                     root_path.clone(),
                                     package_name.clone(),
                                 ),
-                            )
-                            .map_err(|err| err.to_string())
+                            );
+
+                            let status = test_status_program_compile_pass(
+                                test_function,
+                                &abi,
+                                &debug,
+                                &circuit_execution,
+                            );
+
+                            if let TestStatus::Fail { message, error_diagnostic: _ } = status {
+                                Err(message)
+                            } else {
+                                // The fuzzer doesn't care about the actual result.
+                                Ok(WitnessStack::default())
+                            }
                         };
+
                     let fuzzer = FuzzedExecutor::new(compiled_program.into(), executor, runner);
 
                     let result = fuzzer.fuzz();
@@ -172,9 +199,9 @@ fn test_status_program_compile_fail(err: CompileError, test_function: &TestFunct
 /// passed/failed to determine the test status.
 fn test_status_program_compile_pass(
     test_function: &TestFunction,
-    abi: Abi,
-    debug: Vec<DebugInfo>,
-    circuit_execution: Result<WitnessStack<FieldElement>, NargoError<FieldElement>>,
+    abi: &Abi,
+    debug: &[DebugInfo],
+    circuit_execution: &Result<WitnessStack<FieldElement>, NargoError<FieldElement>>,
 ) -> TestStatus {
     let circuit_execution_err = match circuit_execution {
         // Circuit execution was successful; ie no errors or unsatisfied constraints
@@ -194,7 +221,7 @@ fn test_status_program_compile_pass(
     // If we reach here, then the circuit execution failed.
     //
     // Check if the function should have passed
-    let diagnostic = try_to_diagnose_runtime_error(&circuit_execution_err, &abi, &debug);
+    let diagnostic = try_to_diagnose_runtime_error(circuit_execution_err, abi, debug);
     let test_should_have_passed = !test_function.should_fail();
     if test_should_have_passed {
         return TestStatus::Fail {
@@ -251,24 +278,24 @@ fn check_expected_failure_message(
 }
 
 /// A specialized foreign call executor which tracks whether it has encountered any unknown foreign calls
-struct TestForeignCallExecutor<F> {
+struct TestForeignCallExecutor<'a, F> {
     /// The executor for any [`ForeignCall::Print`] calls.
-    printer: Option<PrintForeignCallExecutor>,
+    printer: PrintForeignCallExecutor<'a>,
     mocker: MockForeignCallExecutor<F>,
     external: Option<RPCForeignCallExecutor>,
 
     encountered_unknown_foreign_call: bool,
 }
 
-impl<F: Default> TestForeignCallExecutor<F> {
+impl<'a, F: Default> TestForeignCallExecutor<'a, F> {
     fn new(
-        show_output: bool,
+        output: PrintOutput<'a>,
         resolver_url: Option<&str>,
         root_path: Option<PathBuf>,
         package_name: Option<String>,
     ) -> Self {
         let id = rand::thread_rng().gen();
-        let printer = if show_output { Some(PrintForeignCallExecutor) } else { None };
+        let printer = PrintForeignCallExecutor { output };
         let external_resolver = resolver_url.map(|resolver_url| {
             RPCForeignCallExecutor::new(resolver_url, id, root_path, package_name)
         });
@@ -281,8 +308,8 @@ impl<F: Default> TestForeignCallExecutor<F> {
     }
 }
 
-impl<F: AcirField + Serialize + for<'a> Deserialize<'a>> ForeignCallExecutor<F>
-    for TestForeignCallExecutor<F>
+impl<'a, F: AcirField + Serialize + for<'b> Deserialize<'b>> ForeignCallExecutor<F>
+    for TestForeignCallExecutor<'a, F>
 {
     fn execute(
         &mut self,
@@ -293,13 +320,7 @@ impl<F: AcirField + Serialize + for<'a> Deserialize<'a>> ForeignCallExecutor<F>
 
         let foreign_call_name = foreign_call.function.as_str();
         match ForeignCall::lookup(foreign_call_name) {
-            Some(ForeignCall::Print) => {
-                if let Some(printer) = &mut self.printer {
-                    printer.execute(foreign_call)
-                } else {
-                    Ok(ForeignCallResult::default())
-                }
-            }
+            Some(ForeignCall::Print) => self.printer.execute(foreign_call),
 
             Some(
                 ForeignCall::CreateMock

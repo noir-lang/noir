@@ -43,7 +43,7 @@ use crate::{
             dom::DominatorTree,
             function::{Function, FunctionId, RuntimeType},
             instruction::{Instruction, InstructionId},
-            types::Type,
+            types::{NumericType, Type},
             value::{Value, ValueId},
         },
         ssa_gen::Ssa,
@@ -276,7 +276,7 @@ impl<'brillig> Context<'brillig> {
 
         // Default side effect condition variable with an enabled state.
         let mut side_effects_enabled_var =
-            function.dfg.make_constant(FieldElement::one(), Type::bool());
+            function.dfg.make_constant(FieldElement::one(), NumericType::bool());
 
         for instruction_id in instructions {
             self.fold_constants_into_instruction(
@@ -657,7 +657,7 @@ impl<'brillig> Context<'brillig> {
         dfg: &mut DataFlowGraph,
     ) -> ValueId {
         match typ {
-            Type::Numeric(_) => {
+            Type::Numeric(typ) => {
                 let memory = memory_values[*memory_index];
                 *memory_index += 1;
 
@@ -831,7 +831,10 @@ mod test {
 
     use crate::ssa::{
         function_builder::FunctionBuilder,
-        ir::{map::Id, types::Type},
+        ir::{
+            map::Id,
+            types::{NumericType, Type},
+        },
         opt::assert_normalized_ssa_equals,
         Ssa,
     };
@@ -855,7 +858,7 @@ mod test {
         assert_eq!(instructions.len(), 2); // The final return is not counted
 
         let v0 = main.parameters()[0];
-        let two = main.dfg.make_constant(2_u128.into(), Type::field());
+        let two = main.dfg.make_constant(2_u128.into(), NumericType::NativeField);
 
         main.dfg.set_value_from_id(v0, two);
 
@@ -891,7 +894,7 @@ mod test {
 
         // Note that this constant guarantees that `v0/constant < 2^8`. We then do not need to truncate the result.
         let constant = 2_u128.pow(8);
-        let constant = main.dfg.make_constant(constant.into(), Type::unsigned(16));
+        let constant = main.dfg.make_constant(constant.into(), NumericType::unsigned(16));
 
         main.dfg.set_value_from_id(v1, constant);
 
@@ -929,7 +932,7 @@ mod test {
 
         // Note that this constant does not guarantee that `v0/constant < 2^8`. We must then truncate the result.
         let constant = 2_u128.pow(8) - 1;
-        let constant = main.dfg.make_constant(constant.into(), Type::unsigned(16));
+        let constant = main.dfg.make_constant(constant.into(), NumericType::unsigned(16));
 
         main.dfg.set_value_from_id(v1, constant);
 
@@ -1150,7 +1153,7 @@ mod test {
         // Compiling main
         let mut builder = FunctionBuilder::new("main".into(), main_id);
         let v0 = builder.add_parameter(Type::unsigned(64));
-        let zero = builder.numeric_constant(0u128, Type::unsigned(64));
+        let zero = builder.numeric_constant(0u128, NumericType::unsigned(64));
         let typ = Type::Array(Arc::new(vec![Type::unsigned(64)]), 25);
 
         let array_contents = im::vector![
