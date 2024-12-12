@@ -160,8 +160,12 @@ mod test {
     use crate::ssa::{
         function_builder::FunctionBuilder,
         ir::{
-            basic_block::BasicBlockId, dfg::DataFlowGraph, function::RuntimeType,
-            instruction::Instruction, map::Id, types::Type,
+            basic_block::BasicBlockId,
+            dfg::DataFlowGraph,
+            function::RuntimeType,
+            instruction::Instruction,
+            map::Id,
+            types::{NumericType, Type},
         },
     };
 
@@ -251,7 +255,7 @@ mod test {
         builder.insert_inc_rc(v0);
         let v2 = builder.insert_load(v1, array_type);
 
-        let zero = builder.numeric_constant(0u128, Type::unsigned(64));
+        let zero = builder.numeric_constant(0u128, NumericType::unsigned(64));
         let five = builder.field_constant(5u128);
         let v7 = builder.insert_array_set(v2, zero, five);
 
@@ -302,7 +306,7 @@ mod test {
         builder.insert_store(v0, v1);
 
         let v2 = builder.insert_load(v1, array_type.clone());
-        let zero = builder.numeric_constant(0u128, Type::unsigned(64));
+        let zero = builder.numeric_constant(0u128, NumericType::unsigned(64));
         let five = builder.field_constant(5u128);
         let v7 = builder.insert_array_set(v2, zero, five);
 
