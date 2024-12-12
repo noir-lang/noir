@@ -83,7 +83,6 @@ pub(crate) fn execute_program_from_witness(
         inputs_map,
         &Bn254BlackBoxSolver(pedantic_solving),
         &mut DefaultForeignCallExecutor::new(PrintOutput::Stdout, None, None, None),
-
     )
     .map_err(CliError::CircuitExecutionError)
 }
