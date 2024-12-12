@@ -537,8 +537,8 @@ struct RcTracker {
     // If we see an inc/dec RC pair within a block we can safely remove both instructions.
     rcs_with_possible_pairs: HashMap<Type, Vec<RcInstruction>>,
     rc_pairs_to_remove: HashSet<InstructionId>,
-    // We also separately track all IncrementRc instructions and all arrays which have been mutably borrowed.
-    // If an array has not been mutably borrowed we can then safely remove all IncrementRc instructions on that array.
+    // We also separately track all IncrementRc instructions and all array types which have been mutably borrowed.
+    // If an array is the same type as one of those non-mutated array types, we can safely remove all IncrementRc instructions on that array.
     inc_rcs: HashMap<ValueId, HashSet<InstructionId>>,
     mutated_array_types: HashSet<Type>,
     // The SSA often creates patterns where after simplifications we end up with repeat
