@@ -2,7 +2,9 @@ use std::{cell::RefCell, collections::BTreeMap, path::Path};
 
 use acvm::{acir::native_types::WitnessStack, AcirField, FieldElement};
 use iter_extended::vecmap;
-use nargo::{foreign_calls::DefaultForeignCallExecutor, ops::execute_program, parse_all};
+use nargo::{
+    foreign_calls::DefaultForeignCallExecutor, ops::execute_program, parse_all, PrintOutput,
+};
 use noirc_abi::input_parser::InputValue;
 use noirc_driver::{
     compile_main, file_manager_with_stdlib, prepare_crate, CompilationResult, CompileOptions,
@@ -81,7 +83,7 @@ fn run_snippet_proptest(
     let pedandic_solving = true;
     let blackbox_solver = bn254_blackbox_solver::Bn254BlackBoxSolver(pedandic_solving);
     let foreign_call_executor =
-        RefCell::new(DefaultForeignCallExecutor::new(false, None, None, None));
+        RefCell::new(DefaultForeignCallExecutor::new(PrintOutput::None, None, None, None));
 
     // Generate multiple input/output
     proptest!(ProptestConfig::with_cases(100), |(io in strategy)| {

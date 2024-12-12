@@ -19,8 +19,10 @@ use serde::{Deserialize, Serialize};
 use crate::{
     errors::try_to_diagnose_runtime_error,
     foreign_calls::{
-        mocker::MockForeignCallExecutor, print::PrintForeignCallExecutor,
-        rpc::RPCForeignCallExecutor, ForeignCall, ForeignCallExecutor,
+        mocker::MockForeignCallExecutor,
+        print::{PrintForeignCallExecutor, PrintOutput},
+        rpc::RPCForeignCallExecutor,
+        ForeignCall, ForeignCallExecutor,
     },
     NargoError,
 };
@@ -45,7 +47,7 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
     blackbox_solver: &B,
     context: &mut Context,
     test_function: &TestFunction,
-    show_output: bool,
+    output: PrintOutput<'_>,
     foreign_call_resolver_url: Option<&str>,
     root_path: Option<PathBuf>,
     package_name: Option<String>,
@@ -64,7 +66,7 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
                 // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
                 // otherwise constraints involving these expressions will not error.
                 let mut foreign_call_executor = TestForeignCallExecutor::new(
-                    show_output,
+                    output,
                     foreign_call_resolver_url,
                     root_path,
                     package_name,
@@ -125,7 +127,7 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
                                 initial_witness,
                                 blackbox_solver,
                                 &mut TestForeignCallExecutor::<FieldElement>::new(
-                                    false,
+                                    PrintOutput::None,
                                     foreign_call_resolver_url,
                                     root_path.clone(),
                                     package_name.clone(),
@@ -251,24 +253,24 @@ fn check_expected_failure_message(
 }
 
 /// A specialized foreign call executor which tracks whether it has encountered any unknown foreign calls
-struct TestForeignCallExecutor<F> {
+struct TestForeignCallExecutor<'a, F> {
     /// The executor for any [`ForeignCall::Print`] calls.
-    printer: Option<PrintForeignCallExecutor>,
+    printer: PrintForeignCallExecutor<'a>,
     mocker: MockForeignCallExecutor<F>,
     external: Option<RPCForeignCallExecutor>,
 
     encountered_unknown_foreign_call: bool,
 }
 
-impl<F: Default> TestForeignCallExecutor<F> {
+impl<'a, F: Default> TestForeignCallExecutor<'a, F> {
     fn new(
-        show_output: bool,
+        output: PrintOutput<'a>,
         resolver_url: Option<&str>,
         root_path: Option<PathBuf>,
         package_name: Option<String>,
     ) -> Self {
         let id = rand::thread_rng().gen();
-        let printer = if show_output { Some(PrintForeignCallExecutor) } else { None };
+        let printer = PrintForeignCallExecutor { output };
         let external_resolver = resolver_url.map(|resolver_url| {
             RPCForeignCallExecutor::new(resolver_url, id, root_path, package_name)
         });
@@ -281,8 +283,8 @@ impl<F: Default> TestForeignCallExecutor<F> {
     }
 }
 
-impl<F: AcirField + Serialize + for<'a> Deserialize<'a>> ForeignCallExecutor<F>
-    for TestForeignCallExecutor<F>
+impl<'a, F: AcirField + Serialize + for<'b> Deserialize<'b>> ForeignCallExecutor<F>
+    for TestForeignCallExecutor<'a, F>
 {
     fn execute(
         &mut self,
@@ -293,13 +295,7 @@ impl<F: AcirField + Serialize + for<'a> Deserialize<'a>> ForeignCallExecutor<F>
 
         let foreign_call_name = foreign_call.function.as_str();
         match ForeignCall::lookup(foreign_call_name) {
-            Some(ForeignCall::Print) => {
-                if let Some(printer) = &mut self.printer {
-                    printer.execute(foreign_call)
-                } else {
-                    Ok(ForeignCallResult::default())
-                }
-            }
+            Some(ForeignCall::Print) => self.printer.execute(foreign_call),
 
             Some(
                 ForeignCall::CreateMock
