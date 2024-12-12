@@ -593,7 +593,7 @@ jobs:
         working-directory: ./test-repo/${{ matrix.project.path }}
         run: |
             if [[ ${{ matrix.project.repo }} == "noir-lang/noir_bigcurve" ]]; then
-                export RAYON_MAX_THREADS=1
+                export RAYON_NUM_THREADS=1
             fi
             nargo test --silence-warnings
         env:
