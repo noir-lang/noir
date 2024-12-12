@@ -1,5 +1,5 @@
 [package]
-name = "schnorr_simplification"
+name = "regression_6734"
 type = "bin"
 authors = [""]
 

@@ -346,6 +346,10 @@ impl<'context> Elaborator<'context> {
             Type::Array(_, base_type) => *base_type,
             Type::Slice(base_type) => *base_type,
             Type::Error => Type::Error,
+            Type::TypeVariable(_) => {
+                self.push_err(TypeCheckError::TypeAnnotationsNeededForIndex { span: lhs_span });
+                Type::Error
+            }
             typ => {
                 self.push_err(TypeCheckError::TypeMismatch {
                     expected_typ: "Array".to_owned(),

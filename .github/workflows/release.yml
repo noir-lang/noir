@@ -11,7 +11,7 @@ jobs:
     outputs:
       release-pr: ${{ steps.release.outputs.pr }}
       tag-name: ${{ steps.release.outputs.tag_name }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Run release-please
         id: release
@@ -23,7 +23,7 @@ jobs:
     name: Update acvm workspace package versions
     needs: [release-please]
     if: ${{ needs.release-please.outputs.release-pr }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout release branch
         uses: actions/checkout@v4
@@ -66,7 +66,7 @@ jobs:
     name: Update docs
     needs: [release-please, update-acvm-workspace-package-versions]
     if: ${{ needs.release-please.outputs.release-pr }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
  
     steps:
       - name: Checkout release branch
@@ -110,7 +110,7 @@ jobs:
 
   release-end:
     name: Release End
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     # We want this job to always run (even if the dependant jobs fail) as we need apply changes to the sticky comment.
     if: ${{ always() }}
     
@@ -145,7 +145,7 @@ jobs:
     name: Build binaries
     needs: [release-please]
     if: ${{ needs.release-please.outputs.tag-name }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Dispatch to publish workflow
         uses: benc-uk/workflow-dispatch@v1
@@ -160,7 +160,7 @@ jobs:
     name: Publish ES packages
     needs: [release-please]
     if: ${{ needs.release-please.outputs.tag-name }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Dispatch to publish-es-packages
         uses: benc-uk/workflow-dispatch@v1
@@ -174,7 +174,7 @@ jobs:
     name: Publish acvm
     needs: [release-please]
     if: ${{ needs.release-please.outputs.tag-name }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     
     steps:
       - name: Dispatch to publish-acvm
