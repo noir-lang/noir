@@ -256,6 +256,10 @@ impl Binary {
                 if rhs_is_zero {
                     return SimplifyResult::SimplifiedTo(self.lhs);
                 }
+                if operand_type == NumericType::bool() && (lhs_is_one || rhs_is_one) {
+                    let one = dfg.make_constant(FieldElement::one(), operand_type);
+                    return SimplifyResult::SimplifiedTo(one);
+                }
                 if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
                     return SimplifyResult::SimplifiedTo(self.lhs);
                 }
