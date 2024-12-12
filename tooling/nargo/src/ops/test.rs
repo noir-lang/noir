@@ -120,8 +120,11 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
                 {
                     use acvm::acir::circuit::Program;
                     use noir_fuzzer::FuzzedExecutor;
+                    use proptest::test_runner::Config;
                     use proptest::test_runner::TestRunner;
-                    let runner = TestRunner::default();
+
+                    let runner =
+                        TestRunner::new(Config { failure_persistence: None, ..Config::default() });
 
                     let abi = compiled_program.abi.clone();
                     let debug = compiled_program.debug.clone();

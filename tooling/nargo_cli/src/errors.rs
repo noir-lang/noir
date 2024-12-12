@@ -2,7 +2,11 @@ use acvm::{acir::native_types::WitnessStackError, FieldElement};
 use nargo::{errors::CompileError, NargoError};
 use nargo_toml::ManifestError;
 use noir_debugger::errors::DapError;
-use noirc_abi::errors::{AbiError, InputParserError};
+use noirc_abi::{
+    errors::{AbiError, InputParserError},
+    input_parser::InputValue,
+    AbiReturnType,
+};
 use std::path::PathBuf;
 use thiserror::Error;
 
@@ -32,6 +36,7 @@ pub(crate) enum FilesystemError {
 pub(crate) enum CliError {
     #[error("{0}")]
     Generic(String),
+
     #[error("Error: destination {} already exists", .0.display())]
     DestinationAlreadyExists(PathBuf),
 
@@ -63,4 +68,10 @@ pub(crate) enum CliError {
     /// Error from the compilation pipeline
     #[error(transparent)]
     CompileError(#[from] CompileError),
+
+    #[error("Unexpected return value: expected {expected:?}; got {actual:?}")]
+    UnexpectedReturn { expected: InputValue, actual: Option<InputValue> },
+
+    #[error("Missing return witnesses; expected {expected:?}")]
+    MissingReturn { expected: AbiReturnType },
 }

@@ -14,7 +14,7 @@ use iter_extended::vecmap;
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
-        function::{Function, RuntimeType},
+        function::Function,
         function_inserter::FunctionInserter,
         instruction::{Instruction, InstructionId},
         types::Type,
@@ -28,12 +28,7 @@ use super::unrolling::{Loop, Loops};
 impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn loop_invariant_code_motion(mut self) -> Ssa {
-        let brillig_functions = self
-            .functions
-            .iter_mut()
-            .filter(|(_, func)| matches!(func.runtime(), RuntimeType::Brillig(_)));
-
-        for (_, function) in brillig_functions {
+        for function in self.functions.values_mut() {
             function.loop_invariant_code_motion();
         }
 
@@ -64,6 +59,7 @@ impl Loops {
         }
 
         context.map_dependent_instructions();
+        context.inserter.map_data_bus_in_place();
     }
 }
 
