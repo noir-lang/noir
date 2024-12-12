@@ -173,7 +173,11 @@ pub(super) fn simplify_msm(
                 var_scalars.push(zero);
                 let result_x = dfg.make_constant(result_x, NumericType::NativeField);
                 let result_y = dfg.make_constant(result_y, NumericType::NativeField);
+
+                // Pushing a bool here is intentional, multi_scalar_mul takes two arguments:
+                // `points: [(Field, Field, bool); N]` and `scalars: [(Field, Field); N]`.
                 let result_is_infinity = dfg.make_constant(result_is_infinity, NumericType::bool());
+
                 var_points.push(result_x);
                 var_points.push(result_y);
                 var_points.push(result_is_infinity);
