@@ -96,8 +96,6 @@ pub fn compile<F: AcirField>(
     // For most test programs it would be enough to only loop `transform_internal`,
     // but some of them don't stabilize unless we also repeat the backend agnostic optimizations.
     let (mut acir, acir_opcode_positions) = loop {
-        prev_acir_opcode_positions = (0..prev_acir.opcodes.len()).rev().collect::<Vec<_>>();
-
         let (acir, acir_opcode_positions) =
             optimize_internal(prev_acir, prev_acir_opcode_positions);
 

@@ -1,3 +1,4 @@
+// Have to use inputs otherwise the ACIR gets optimized away due to constants.
 #[test(should_fail_with = "first")]
 fn test_assert_message_preserved_during_optimization(a: Field, b: Field, c: Field) {
     if (a + b) * (a - b) != c {
