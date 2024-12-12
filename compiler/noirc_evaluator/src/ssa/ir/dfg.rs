@@ -8,6 +8,7 @@ use super::{
     instruction::{
         Instruction, InstructionId, InstructionResultType, Intrinsic, TerminatorInstruction,
     },
+    list::List,
     map::DenseMap,
     types::{NumericType, Type},
     value::{Value, ValueId},
@@ -43,10 +44,10 @@ impl CallStackId {
 
     // Retrieves a CallStack from a CallStackId
     fn get_call_stack(&self, locations: &[LocationNode]) -> CallStack {
-        let mut call_stack = im::Vector::new();
+        let mut call_stack = List::new();
         let mut current_location = *self;
         while let Some(parent) = locations[current_location.index()].parent {
-            call_stack.push_front(locations[current_location.index()].value);
+            call_stack.push_back(locations[current_location.index()].value);
             current_location = parent;
         }
         call_stack
@@ -168,7 +169,7 @@ pub(crate) struct DataFlowGraph {
     pub(crate) data_bus: DataBus,
 }
 
-pub(crate) type CallStack = super::list::List<Location>;
+pub(crate) type CallStack = List<Location>;
 
 impl DataFlowGraph {
     /// Creates a new basic block with no parameters.

@@ -494,8 +494,7 @@ fn apply_side_effects(
     // Condition needs to be cast to argument type in order to multiply them together.
     // In our case, lhs is always a boolean.
     let cast = Instruction::Cast(condition, NumericType::bool());
-    let casted_condition =
-        dfg.insert_instruction_and_results(cast, block_id, None, call_stack);
+    let casted_condition = dfg.insert_instruction_and_results(cast, block_id, None, call_stack);
     let casted_condition = casted_condition.first();
 
     let lhs = dfg.insert_instruction_and_results(

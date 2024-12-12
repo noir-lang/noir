@@ -387,7 +387,7 @@ impl DependencyContext {
             .keys()
             .map(|brillig_call| {
                 SsaReport::Bug(InternalBug::UncheckedBrilligCall {
-                    call_stack: function.dfg.get_call_stack(*brillig_call),
+                    call_stack: function.dfg.get_instruction_call_stack(*brillig_call),
                 })
             })
             .collect();
