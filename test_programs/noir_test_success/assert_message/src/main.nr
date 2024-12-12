@@ -1,4 +1,6 @@
 // Have to use inputs otherwise the ACIR gets optimized away due to constants.
+// With the original ACIR the optimizations can rearrange or merge opcodes,
+// which might end up getting out of sync with assertion messages.
 #[test(should_fail_with = "first")]
 fn test_assert_message_preserved_during_optimization(a: Field, b: Field, c: Field) {
     if (a + b) * (a - b) != c {

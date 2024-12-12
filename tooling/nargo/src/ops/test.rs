@@ -218,7 +218,7 @@ fn test_status_program_compile_pass(
     // If we reach here, then the circuit execution failed.
     //
     // Check if the function should have passed
-    let diagnostic = try_to_diagnose_runtime_error(&circuit_execution_err, &abi, &debug);
+    let diagnostic = try_to_diagnose_runtime_error(circuit_execution_err, abi, debug);
     let test_should_have_passed = !test_function.should_fail();
     if test_should_have_passed {
         return TestStatus::Fail {
