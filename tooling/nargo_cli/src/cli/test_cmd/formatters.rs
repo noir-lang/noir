@@ -32,9 +32,9 @@ pub(super) trait Formatter: Send + Sync + RefUnwindSafe {
     ) -> std::io::Result<()>;
 }
 
-pub(super) struct VerboseFormatter;
+pub(super) struct PrettyFormatter;
 
-impl Formatter for VerboseFormatter {
+impl Formatter for PrettyFormatter {
     fn package_start(&self, package_name: &str, test_count: usize) -> std::io::Result<()> {
         package_start(package_name, test_count)
     }
