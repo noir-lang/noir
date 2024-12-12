@@ -388,9 +388,9 @@ mod test {
                 v5 = make_array [Field 1, Field 0, v0, Field 0, Field 2, Field 0] : [Field; 6]
                 v7 = make_array [Field 1, Field 17631683881184975370165255887551781615748388533673675138860, Field 0, v0, v1, Field 0, Field 1, Field 17631683881184975370165255887551781615748388533673675138860, Field 0] : [Field; 9]
                 v8 = make_array [v0, Field 0, Field 1, Field 0] : [Field; 4]
-                v12 = make_array [v0, v1, Field 0, Field -3227352362257037263902424173275354266044964400219754872043023745437788450996, Field 8902249110305491597038405103722863701255802573786510474664632793109847672620, u1 0] : [Field; 6]
-                v14 = call multi_scalar_mul(v12, v8) -> [Field; 3]
-                return v14
+                v11 = make_array [v0, v1, Field 0, Field -3227352362257037263902424173275354266044964400219754872043023745437788450996, Field 8902249110305491597038405103722863701255802573786510474664632793109847672620, Field 0] : [Field; 6]
+                v13 = call multi_scalar_mul(v12, v8) -> [Field; 3]
+                return v13
             }
             "#;
         assert_normalized_ssa_equals(ssa, expected_src);
