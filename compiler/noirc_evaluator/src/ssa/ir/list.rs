@@ -4,20 +4,19 @@ use std::sync::Arc;
 /// A shared linked list type intended to be cloned
 #[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct List<T> {
-    head: Arc<Node<T>>,
-    len: usize,
+    m: std::marker::PhantomData<T>,
 }
 
-#[derive(Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-enum Node<T> {
-    #[default]
-    Nil,
-    Cons(T, Arc<Node<T>>),
-}
+// #[derive(Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+// enum Node<T> {
+//     #[default]
+//     Nil,
+//     Cons(T, Arc<Node<T>>),
+// }
 
 impl<T> Default for List<T> {
     fn default() -> Self {
-        List { head: Arc::new(Node::Nil), len: 0 }
+        List { m: std::marker::PhantomData }
     }
 }
 
@@ -26,133 +25,90 @@ impl<T> List<T> {
         Self::default()
     }
 
-    /// This is actually a push_front since we just create a new head for the
-    /// list. This is done so that the tail of the list can still be shared.
-    /// In the case of call stacks, the last node will be main, while the top
-    /// of the call stack will be the head of this list.
     pub fn push_back(&mut self, value: T) {
-        self.len += 1;
-        self.head = Arc::new(Node::Cons(value, self.head.clone()));
     }
 
-    /// It is more efficient to iterate from the head of the list towards the tail.
-    /// For callstacks this means from the top of the call stack towards main.
-    fn iter_rev(&self) -> IterRev<T> {
-        IterRev { head: &self.head, len: self.len }
+    pub fn iter(&self) -> Iter<T> {
+        Iter { m: std::marker::PhantomData }
     }
 
     pub fn clear(&mut self) {
-        *self = Self::default();
     }
 
     pub fn append(&mut self, other: Self)
     where
-        T: Copy + std::fmt::Debug,
+        T: Copy,
     {
-        let other = other.into_iter().collect::<Vec<_>>();
-
-        for item in other {
-            self.push_back(item);
-        }
     }
 
     pub fn len(&self) -> usize {
-        self.len
+        0
     }
 
     pub fn is_empty(&self) -> bool {
-        self.len == 0
+        true
     }
 
-    fn pop_front(&mut self) -> Option<T>
+    pub fn pop_back(&mut self) -> Option<T>
     where
-        T: Copy,
+        T: Default,
     {
-        match self.head.as_ref() {
-            Node::Nil => None,
-            Node::Cons(value, rest) => {
-                let value = *value;
-                self.head = rest.clone();
-                self.len -= 1;
-                Some(value)
-            }
-        }
+        Some(T::default())
     }
 
     pub fn truncate(&mut self, len: usize)
     where
         T: Copy,
     {
-        if self.len > len {
-            for _ in 0..self.len - len {
-                self.pop_front();
-            }
-        }
     }
 
     pub fn unit(item: T) -> Self {
-        let mut this = Self::default();
-        this.push_back(item);
-        this
+        Self::default()
     }
 
-    pub fn back(&self) -> Option<&T> {
-        match self.head.as_ref() {
-            Node::Nil => None,
-            Node::Cons(item, _) => Some(item),
-        }
+    pub fn back(&self) -> Option<T> where T: Default {
+        Some(T::default())
     }
 }
 
-pub struct IterRev<'a, T> {
-    head: &'a Node<T>,
-    len: usize,
-}
-
-impl<T> IntoIterator for List<T>
+impl<T> Iterator for List<T>
 where
-    T: Copy + std::fmt::Debug,
+    T: Copy,
 {
     type Item = T;
 
-    type IntoIter = std::iter::Rev<std::vec::IntoIter<T>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        let items: Vec<_> = self.iter_rev().copied().collect();
-        items.into_iter().rev()
+    fn next(&mut self) -> Option<Self::Item> {
+        None
     }
+}
+
+pub struct Iter<'a, T> {
+    m: std::marker::PhantomData<&'a T>,
 }
 
 impl<'a, T> IntoIterator for &'a List<T> {
     type Item = &'a T;
 
-    type IntoIter = std::iter::Rev<<Vec<&'a T> as IntoIterator>::IntoIter>;
+    type IntoIter = Iter<'a, T>;
 
     fn into_iter(self) -> Self::IntoIter {
-        let items: Vec<_> = self.iter_rev().collect();
-        items.into_iter().rev()
+        self.iter()
     }
 }
 
-impl<'a, T> Iterator for IterRev<'a, T> {
+impl<'a, T> Iterator for Iter<'a, T> {
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self.head {
-            Node::Nil => None,
-            Node::Cons(value, rest) => {
-                self.head = rest;
-                Some(value)
-            }
-        }
+        None
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        (0, Some(self.len))
+        (0, Some(0))
     }
 }
 
-impl<'a, T> ExactSizeIterator for IterRev<'a, T> {}
+impl<'a, T> ExactSizeIterator for Iter<'a, T> {}
 
 impl<T> std::fmt::Debug for List<T>
 where
@@ -160,7 +116,7 @@ where
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "[")?;
-        for (i, item) in self.iter_rev().enumerate() {
+        for (i, item) in self.iter().enumerate() {
             if i != 0 {
                 write!(f, ", ")?;
             }
@@ -176,7 +132,7 @@ where
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "[")?;
-        for (i, item) in self.iter_rev().enumerate() {
+        for (i, item) in self.iter().enumerate() {
             if i != 0 {
                 write!(f, ", ")?;
             }

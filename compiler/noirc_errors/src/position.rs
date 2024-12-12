@@ -129,6 +129,12 @@ pub struct Location {
     pub file: FileId,
 }
 
+impl Default for Location {
+    fn default() -> Self {
+        Self::dummy()
+    }
+}
+
 impl Location {
     pub fn new(span: Span, file: FileId) -> Self {
         Self { span, file }
