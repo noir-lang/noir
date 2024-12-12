@@ -4,9 +4,19 @@ use noirc_printable_type::{ForeignCallError, PrintableValueDisplay};
 use super::{ForeignCall, ForeignCallExecutor};
 
 #[derive(Debug, Default)]
-pub(crate) struct PrintForeignCallExecutor;
+pub enum PrintOutput<'a> {
+    #[default]
+    None,
+    Stdout,
+    String(&'a mut String),
+}
 
-impl<F: AcirField> ForeignCallExecutor<F> for PrintForeignCallExecutor {
+#[derive(Debug, Default)]
+pub(crate) struct PrintForeignCallExecutor<'a> {
+    pub(crate) output: PrintOutput<'a>,
+}
+
+impl<F: AcirField> ForeignCallExecutor<F> for PrintForeignCallExecutor<'_> {
     fn execute(
         &mut self,
         foreign_call: &ForeignCallWaitInfo<F>,
@@ -26,7 +36,13 @@ impl<F: AcirField> ForeignCallExecutor<F> for PrintForeignCallExecutor {
                 let display_string =
                     format!("{display_values}{}", if skip_newline { "" } else { "\n" });
 
-                print!("{display_string}");
+                match &mut self.output {
+                    PrintOutput::None => (),
+                    PrintOutput::Stdout => print!("{display_string}"),
+                    PrintOutput::String(string) => {
+                        string.push_str(&display_string);
+                    }
+                }
 
                 Ok(ForeignCallResult::default())
             }
