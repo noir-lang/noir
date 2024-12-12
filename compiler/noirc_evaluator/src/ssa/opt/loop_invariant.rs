@@ -604,72 +604,73 @@ mod test {
         // To do so, we increment the reference counter on the array we are moving.
         // In the SSA below, we want to move `v42` out of the loop.
         let src = "
-      brillig(inline) fn main f0 {
-        b0(v0: u32, v1: u32):
-          v8 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5] : [Field; 5]
-          v9 = allocate -> &mut [Field; 5]
-          v11 = array_set v8, index v0, value Field 64
-          v13 = add v0, u32 1
-          store v11 at v9
-          jmp b1(u32 0)
-        b1(v2: u32):
-          v16 = lt v2, u32 5
-          jmpif v16 then: b3, else: b2
-        b2():
-          v17 = load v9 -> [Field; 5]
-          call f1(v17)
-          return
-        b3():
-          v19 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5] : [Field; 5]
-          v20 = allocate -> &mut [Field; 5]
-          v21 = add v1, v2
-          v23 = array_set v19, index v21, value Field 128
-          call f1(v23)
-          v25 = add v2, u32 1
-          jmp b1(v25)
-      }
-    
-      brillig(inline) fn foo f1 {
-        b0(v0: [Field; 5]):
-          return
-      }
-      ";
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            v8 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5] : [Field; 5]
+            v9 = allocate -> &mut [Field; 5]
+            v11 = array_set v8, index v0, value Field 64
+            v13 = add v0, u32 1
+            store v11 at v9
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v16 = lt v2, u32 5
+            jmpif v16 then: b3, else: b2
+          b2():
+            v17 = load v9 -> [Field; 5]
+            call f1(v17)
+            return
+          b3():
+            v19 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5] : [Field; 5]
+            v20 = allocate -> &mut [Field; 5]
+            v21 = add v1, v2
+            v23 = array_set v19, index v21, value Field 128
+            call f1(v23)
+            v25 = add v2, u32 1
+            jmp b1(v25)
+        }
+      
+        brillig(inline) fn foo f1 {
+          b0(v0: [Field; 5]):
+            return
+        }
+        ";
 
         let ssa = Ssa::from_str(src).unwrap();
 
         // We expect the `make_array` at the top of `b3` to be replaced with an `inc_rc`
         // of the newly hoisted `make_array` at the end of `b0`.
         let expected = "
-      brillig(inline) fn main f0 {
-        b0(v0: u32, v1: u32):
-          v32 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5] : [Field; 5]
-          v33 = allocate -> &mut [Field; 5]
-          v34 = array_set v32, index v0, value Field 64
-          v35 = add v0, u32 1
-          store v34 at v33
-          v36 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5] : [Field; 5]
-          jmp b1(u32 0)
-        b1(v2: u32):
-          v37 = lt v2, u32 5
-          jmpif v37 then: b3, else: b2
-        b2():
-          v38 = load v33 -> [Field; 5]
-          call f1(v38)
-          return
-        b3():
-          inc_rc v36
-          v39 = allocate -> &mut [Field; 5]
-          v40 = add v1, v2
-          v41 = array_set v36, index v40, value Field 128
-          call f1(v41)
-          v42 = add v2, u32 1
-          jmp b1(v42)
-      }
-      brillig(inline) fn foo f1 {
-        b0(v0: [Field; 5]):
-          return
-      }
-      ";
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            v32 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5] : [Field; 5]
+            v33 = allocate -> &mut [Field; 5]
+            v34 = array_set v32, index v0, value Field 64
+            v35 = add v0, u32 1
+            store v34 at v33
+            v36 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5] : [Field; 5]
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v37 = lt v2, u32 5
+            jmpif v37 then: b3, else: b2
+          b2():
+            v38 = load v33 -> [Field; 5]
+            call f1(v38)
+            return
+          b3():
+            inc_rc v36
+            v39 = allocate -> &mut [Field; 5]
+            v40 = add v1, v2
+            v41 = array_set v36, index v40, value Field 128
+            call f1(v41)
+            v42 = add v2, u32 1
+            jmp b1(v42)
+        }
+        
+        brillig(inline) fn foo f1 {
+          b0(v0: [Field; 5]):
+            return
+        }
+        ";
 
         let ssa = ssa.loop_invariant_code_motion();
         assert_normalized_ssa_equals(ssa, expected);
