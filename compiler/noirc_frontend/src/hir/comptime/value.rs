@@ -520,7 +520,7 @@ impl Value {
         )
     }
 
-    /// Converts any unsigned `Value` into a `FieldElement`.
+    /// Converts any non-negative `Value` into a `FieldElement`.
     /// Returns `None` for negative integers and non-integral `Value`s.
     pub(crate) fn to_field_element(&self) -> Option<FieldElement> {
         match self {
