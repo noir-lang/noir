@@ -716,6 +716,30 @@ mod test {
     }
 
     #[test]
+    fn remove_useless_paired_rcs_even_when_used() {
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: [Field; 2]):
+                inc_rc v0
+                v2 = array_get v0, index u32 0 -> Field
+                dec_rc v0
+                return v2
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let expected = "
+            acir(inline) fn main f0 {
+              b0(v0: [Field; 2]):
+                v2 = array_get v0, index u32 0 -> Field
+                return v2
+            }
+            ";
+        let ssa = ssa.dead_instruction_elimination();
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
     fn keep_paired_rcs_with_array_set() {
         let src = "
             acir(inline) fn main f0 {
@@ -785,6 +809,49 @@ mod test {
     }
 
     #[test]
+    fn keep_inc_rc_on_borrowed_array_set() {
+        // acir(inline) fn main f0 {
+        //     b0(v0: [u32; 2]):
+        //       inc_rc v0
+        //       v3 = array_set v0, index u32 0, value u32 1
+        //       inc_rc v0
+        //       inc_rc v0
+        //       inc_rc v0
+        //       v4 = array_get v3, index u32 1
+        //       return v4
+        //   }
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [u32; 2]):
+            inc_rc v0
+            v3 = array_set v0, index u32 0, value u32 1
+            inc_rc v0
+            inc_rc v0
+            inc_rc v0
+            v4 = array_get v3, index u32 1 -> u32
+            return v4
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        // We expect the output to be unchanged
+        // Except for the repeated inc_rc instructions
+        let expected = "
+        acir(inline) fn main f0 {
+          b0(v0: [u32; 2]):
+            inc_rc v0
+            v3 = array_set v0, index u32 0, value u32 1
+            inc_rc v0
+            v4 = array_get v3, index u32 1 -> u32
+            return v4
+        }
+        ";
+
+        let ssa = ssa.dead_instruction_elimination();
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
     fn does_not_remove_inc_or_dec_rc_of_if_they_are_loaded_from_a_reference() {
         let src = "
             brillig(inline) fn borrow_mut f0 {
@@ -800,6 +867,71 @@ mod test {
                 return
             }
             ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.dead_instruction_elimination();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn remove_inc_rcs_that_are_never_mutably_borrowed() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 2]):
+            inc_rc v0
+            inc_rc v0
+            inc_rc v0
+            v2 = array_get v0, index u32 0 -> Field
+            inc_rc v0
+            return v2
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let main = ssa.main();
+
+        // The instruction count never includes the terminator instruction
+        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 5);
+
+        let expected = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 2]):
+            v2 = array_get v0, index u32 0 -> Field
+            return v2
+        }
+        ";
+
+        let ssa = ssa.dead_instruction_elimination();
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn do_not_remove_inc_rc_if_used_as_call_arg() {
+        // We do not want to remove inc_rc instructions on values
+        // that are passed as call arguments.
+        //
+        // We could have previously inlined a function which does the following:
+        // - Accepts a mutable array as an argument
+        // - Writes to that array
+        // - Passes the new array to another call
+        //
+        // It is possible then that the mutation gets simplified out after inlining.
+        // If we then remove the inc_rc as we see no mutations to that array in the block,
+        // we may end up with an the incorrect reference count.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v4 = make_array [Field 0, Field 1, Field 2] : [Field; 3]
+            inc_rc v4
+            v6 = call f1(v4) -> Field
+            constrain v0 == v6
+            return
+        }
+        brillig(inline) fn foo f1 {
+          b0(v0: [Field; 3]):
+            return u32 1
+        }
+        ";
+
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.dead_instruction_elimination();
         assert_normalized_ssa_equals(ssa, src);
