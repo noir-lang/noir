@@ -2,7 +2,10 @@ use std::future::{self, Future};
 
 use crate::insert_all_files_for_workspace_into_file_manager;
 use async_lsp::{ErrorCode, ResponseError};
-use nargo::ops::{run_test, TestStatus};
+use nargo::{
+    ops::{run_test, TestStatus},
+    PrintOutput,
+};
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{check_crate, CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::hir::FunctionNameMatch;
@@ -84,7 +87,7 @@ fn on_test_run_request_inner(
                 &state.solver,
                 &mut context,
                 &test_function,
-                true,
+                PrintOutput::Stdout,
                 None,
                 Some(workspace.root_dir.clone()),
                 Some(package.name.to_string()),

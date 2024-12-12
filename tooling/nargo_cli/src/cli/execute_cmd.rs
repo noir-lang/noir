@@ -9,6 +9,7 @@ use nargo::constants::PROVER_INPUT_FILE;
 use nargo::errors::try_to_diagnose_runtime_error;
 use nargo::foreign_calls::DefaultForeignCallExecutor;
 use nargo::package::Package;
+use nargo::PrintOutput;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml};
 use noirc_abi::input_parser::{Format, InputValue};
 use noirc_abi::InputMap;
@@ -121,7 +122,7 @@ pub(crate) fn execute_program(
         initial_witness,
         &Bn254BlackBoxSolver,
         &mut DefaultForeignCallExecutor::new(
-            true,
+            PrintOutput::Stdout,
             foreign_call_resolver_url,
             root_path,
             package_name,
