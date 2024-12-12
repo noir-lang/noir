@@ -129,7 +129,6 @@ impl<'f> LoopInvariantContext<'f> {
                             1,
                             "ICE: We expect only a single result from an `Instruction::MakeArray`"
                         );
-                        dbg!(results.clone());
                         let inc_rc = Instruction::IncrementRc { value: results[0] };
                         let call_stack = self.inserter.function.dfg.get_call_stack(instruction_id);
                         self.inserter
