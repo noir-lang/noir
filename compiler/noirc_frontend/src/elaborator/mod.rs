@@ -1647,8 +1647,8 @@ impl<'context> Elaborator<'context> {
             self.push_err(ResolverError::AbiAttributeOutsideContract { span });
         }
 
-        let explicit_comptime = let_stmt.explicit_comptime;
-        if !explicit_comptime && matches!(let_stmt.pattern, Pattern::Mutable(..)) {
+        let comptime = let_stmt.comptime;
+        if !comptime && matches!(let_stmt.pattern, Pattern::Mutable(..)) {
             let span = let_stmt.pattern.span();
             self.push_err(ResolverError::MutableGlobal { span });
         }

@@ -410,13 +410,7 @@ impl<'context> Elaborator<'context> {
                 let kind = self
                     .interner
                     .get_global_let_statement(id)
-                    .map(|let_statement| {
-                        if let_statement.r#type == Type::FieldElement {
-                            Kind::IntegerOrField
-                        } else {
-                            Kind::numeric(let_statement.r#type)
-                        }
-                    })
+                    .map(|let_statement| Kind::numeric(let_statement.r#type))
                     .unwrap_or(Kind::u32());
 
                 let Some(stmt) = self.interner.get_global_let_statement(id) else {

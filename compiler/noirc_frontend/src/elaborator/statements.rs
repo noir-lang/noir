@@ -124,15 +124,9 @@ impl<'context> Elaborator<'context> {
 
         let attributes = let_stmt.attributes;
         let comptime = let_stmt.comptime;
-        let explicit_comptime = let_stmt.explicit_comptime;
-        let let_ = HirLetStatement {
-            pattern,
-            r#type,
-            expression,
-            attributes,
-            comptime,
-            explicit_comptime,
-        };
+        let is_global_let = let_stmt.is_global_let;
+        let let_ =
+            HirLetStatement::new(pattern, r#type, expression, attributes, comptime, is_global_let);
         (HirStatement::Let(let_), Type::Unit)
     }
 

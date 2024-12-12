@@ -16,14 +16,14 @@ impl<'a> Parser<'a> {
     pub(crate) fn parse_global(
         &mut self,
         attributes: Vec<(Attribute, Span)>,
-        explicit_comptime: bool,
+        comptime: bool,
         mutable: bool,
     ) -> LetStatement {
         // Only comptime globals are allowed to be mutable, but we always parse the `mut`
         // and throw the error in name resolution.
 
         let attributes = self.validate_secondary_attributes(attributes);
-        let comptime = true;
+        let is_global_let = true;
 
         let Some(ident) = self.eat_ident() else {
             self.eat_semicolons();
@@ -36,7 +36,7 @@ impl<'a> Parser<'a> {
                 expression: Expression { kind: ExpressionKind::Error, span: Span::default() },
                 attributes,
                 comptime,
-                explicit_comptime,
+                is_global_let,
             };
         };
 
@@ -55,7 +55,7 @@ impl<'a> Parser<'a> {
             self.expected_token(Token::Semicolon);
         }
 
-        LetStatement { pattern, r#type: typ, expression, attributes, comptime, explicit_comptime }
+        LetStatement { pattern, r#type: typ, expression, attributes, comptime, is_global_let }
     }
 }
 
@@ -106,8 +106,8 @@ mod tests {
         };
         assert_eq!("foo", name.to_string());
         assert!(matches!(let_statement.r#type.typ, UnresolvedTypeData::Unspecified));
-        assert!(let_statement.comptime);
-        assert!(!let_statement.explicit_comptime);
+        assert!(!let_statement.comptime);
+        assert!(let_statement.is_global_let);
         assert_eq!(visibility, ItemVisibility::Private);
     }
 

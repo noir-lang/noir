@@ -209,7 +209,7 @@ fn format_global(id: GlobalId, args: &ProcessRequestCallbackArgs) -> String {
 
     // See if we can figure out what's the global's value
     if let Some(stmt) = args.interner.get_global_let_statement(id) {
-        print_comptime = stmt.explicit_comptime;
+        print_comptime = stmt.comptime;
         opt_value = get_global_value(args.interner, stmt.expression);
     }
 

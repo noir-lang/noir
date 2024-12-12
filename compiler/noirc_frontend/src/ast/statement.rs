@@ -154,7 +154,7 @@ impl StatementKind {
             r#type,
             expression,
             comptime: false,
-            explicit_comptime: false,
+            is_global_let: false,
             attributes,
         })
     }
@@ -563,8 +563,13 @@ pub struct LetStatement {
 
     // True if this should only be run during compile-time
     pub comptime: bool,
-    // True if this is comptime because of an explicit annotation
-    pub explicit_comptime: bool,
+    pub is_global_let: bool,
+}
+
+impl LetStatement {
+    pub fn runs_comptime(&self) -> bool {
+        self.comptime || self.is_global_let
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]

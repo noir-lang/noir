@@ -3183,20 +3183,20 @@ fn dont_infer_globals_to_u32_from_type_use() {
         }
     "#;
 
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 3);
-    assert!(matches!(
-        errors[0].0,
-        CompilationError::ResolverError(ResolverError::UnspecifiedGlobalType { .. })
-    ));
-    assert!(matches!(
-        errors[1].0,
-        CompilationError::ResolverError(ResolverError::UnspecifiedGlobalType { .. })
-    ));
-    assert!(matches!(
-        errors[2].0,
-        CompilationError::ResolverError(ResolverError::UnspecifiedGlobalType { .. })
-    ));
+    let mut errors = get_program_errors(src);
+    assert_eq!(errors.len(), 6);
+    for (error, _file_id) in errors.drain(0..3) {
+        assert!(matches!(
+            error,
+            CompilationError::ResolverError(ResolverError::UnspecifiedGlobalType { .. })
+        ));
+    }
+    for (error, _file_id) in errors {
+        assert!(matches!(
+            error,
+            CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. })
+        ));
+    }
 }
 
 #[test]

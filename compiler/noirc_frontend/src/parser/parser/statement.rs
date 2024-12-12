@@ -370,7 +370,7 @@ impl<'a> Parser<'a> {
             expression,
             attributes,
             comptime: false,
-            explicit_comptime: false,
+            is_global_let: false,
         })
     }
 
