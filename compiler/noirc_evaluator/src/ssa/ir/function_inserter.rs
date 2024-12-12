@@ -4,11 +4,12 @@ use crate::ssa::ir::types::Type;
 
 use super::{
     basic_block::BasicBlockId,
-    dfg::{CallStack, InsertInstructionResult},
+    dfg::InsertInstructionResult,
     function::Function,
     instruction::{Instruction, InstructionId},
     value::ValueId,
 };
+use crate::ssa::ir::dfg::CallStackId;
 use fxhash::FxHashMap as HashMap;
 
 /// The FunctionInserter can be used to help modify existing Functions
@@ -72,10 +73,10 @@ impl<'f> FunctionInserter<'f> {
     }
 
     /// Get an instruction and make sure all the values in it are freshly resolved.
-    pub(crate) fn map_instruction(&mut self, id: InstructionId) -> (Instruction, CallStack) {
+    pub(crate) fn map_instruction(&mut self, id: InstructionId) -> (Instruction, CallStackId) {
         (
             self.function.dfg[id].clone().map_values(|id| self.resolve(id)),
-            self.function.dfg.get_call_stack(id),
+            self.function.dfg.get_instruction_call_stack_id(id),
         )
     }
 
@@ -115,7 +116,7 @@ impl<'f> FunctionInserter<'f> {
         instruction: Instruction,
         id: InstructionId,
         mut block: BasicBlockId,
-        call_stack: CallStack,
+        call_stack: CallStackId,
     ) -> InsertInstructionResult {
         let results = self.function.dfg.instruction_results(id);
         let results = vecmap(results, |id| self.function.dfg.resolve(*id));

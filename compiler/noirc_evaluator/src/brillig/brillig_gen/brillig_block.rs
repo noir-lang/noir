@@ -201,7 +201,7 @@ impl<'block> BrilligBlock<'block> {
     /// Converts an SSA instruction into a sequence of Brillig opcodes.
     fn convert_ssa_instruction(&mut self, instruction_id: InstructionId, dfg: &DataFlowGraph) {
         let instruction = &dfg[instruction_id];
-        self.brillig_context.set_call_stack(dfg.get_call_stack(instruction_id));
+        self.brillig_context.set_call_stack(dfg.get_instruction_call_stack(instruction_id));
 
         self.initialize_constants(
             &self.function_context.constant_allocation.allocated_at_location(

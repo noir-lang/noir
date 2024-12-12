@@ -674,7 +674,7 @@ impl<'a> Context<'a> {
         brillig: &Brillig,
     ) -> Result<Vec<SsaReport>, RuntimeError> {
         let instruction = &dfg[instruction_id];
-        self.acir_context.set_call_stack(dfg.get_call_stack(instruction_id));
+        self.acir_context.set_call_stack(dfg.get_instruction_call_stack(instruction_id));
         let mut warnings = Vec::new();
         match instruction {
             Instruction::Binary(binary) => {
@@ -1823,7 +1823,7 @@ impl<'a> Context<'a> {
     ) -> Result<(Vec<AcirVar>, Vec<SsaReport>), RuntimeError> {
         let (return_values, call_stack) = match terminator {
             TerminatorInstruction::Return { return_values, call_stack } => {
-                (return_values, call_stack.clone())
+                (return_values, *call_stack)
             }
             // TODO(https://github.com/noir-lang/noir/issues/4616): Enable recursion on foldable/non-inlined ACIR functions
             _ => unreachable!("ICE: Program must have a singular return"),
@@ -1842,6 +1842,7 @@ impl<'a> Context<'a> {
             }
         }
 
+        let call_stack = dfg.get_call_stack(call_stack);
         let warnings = if has_constant_return {
             vec![SsaReport::Warning(InternalWarning::ReturnConstant { call_stack })]
         } else {

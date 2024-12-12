@@ -1,14 +1,12 @@
 //! Dead Instruction Elimination (DIE) pass: Removes any instruction without side-effects for
 //! which the results are unused.
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
-use im::Vector;
-use noirc_errors::Location;
 use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
 use crate::ssa::{
     ir::{
         basic_block::{BasicBlock, BasicBlockId},
-        dfg::DataFlowGraph,
+        dfg::{CallStackId, DataFlowGraph},
         function::Function,
         instruction::{BinaryOp, Instruction, InstructionId, Intrinsic},
         post_order::PostOrder,
@@ -281,7 +279,7 @@ impl Context {
                 _ => panic!("Expected an ArrayGet or ArraySet instruction here"),
             };
 
-            let call_stack = function.dfg.get_call_stack(instruction_id);
+            let call_stack = function.dfg.get_instruction_call_stack_id(instruction_id);
 
             let (lhs, rhs) = if function.dfg.get_numeric_constant(*index).is_some() {
                 // If we are here it means the index is known but out of bounds. That's always an error!
@@ -297,7 +295,7 @@ impl Context {
                     Instruction::Cast(*index, Type::unsigned(SSA_WORD_SIZE)),
                     block_id,
                     None,
-                    call_stack.clone(),
+                    call_stack,
                 );
                 let index = index.first();
 
@@ -308,7 +306,7 @@ impl Context {
                     Instruction::binary(BinaryOp::Lt, index, array_length),
                     block_id,
                     None,
-                    call_stack.clone(),
+                    call_stack,
                 );
                 let is_index_out_of_bounds = is_index_out_of_bounds.first();
                 let true_const = function.dfg.make_constant(true.into(), Type::bool());
@@ -321,7 +319,7 @@ impl Context {
                 rhs,
                 function,
                 block_id,
-                call_stack.clone(),
+                call_stack,
             );
 
             let message = Some("Index out of bounds".to_owned().into());
@@ -484,7 +482,7 @@ fn apply_side_effects(
     rhs: ValueId,
     function: &mut Function,
     block_id: BasicBlockId,
-    call_stack: Vector<Location>,
+    call_stack: CallStackId,
 ) -> (ValueId, ValueId) {
     // See if there's an active "enable side effects" condition
     let Some(condition) = side_effects_condition else {
@@ -499,7 +497,7 @@ fn apply_side_effects(
         Instruction::Cast(condition, Type::bool()),
         block_id,
         None,
-        call_stack.clone(),
+        call_stack,
     );
     let casted_condition = casted_condition.first();
 
@@ -507,7 +505,7 @@ fn apply_side_effects(
         Instruction::binary(BinaryOp::Mul, lhs, casted_condition),
         block_id,
         None,
-        call_stack.clone(),
+        call_stack,
     );
     let lhs = lhs.first();
 

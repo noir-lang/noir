@@ -21,6 +21,75 @@ use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use serde_with::DisplayFromStr;
 
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub(crate) struct CallStackId(u32);
+
+impl CallStackId {
+    pub(crate) fn root() -> Self {
+        Self::new(0)
+    }
+
+    fn new(id: usize) -> Self {
+        Self(id as u32)
+    }
+
+    pub(crate) fn index(&self) -> usize {
+        self.0 as usize
+    }
+
+    pub(crate) fn is_root(&self) -> bool {
+        self.0 == 0
+    }
+
+    // Retrieves a CallStack from a CallStackId
+    fn get_call_stack(&self, locations: &[LocationNode]) -> CallStack {
+        let mut call_stack = im::Vector::new();
+        let mut current_location = *self;
+        while let Some(parent) = locations[current_location.index()].parent {
+            call_stack.push_front(locations[current_location.index()].value);
+            current_location = parent;
+        }
+        call_stack
+    }
+
+    // Adds a location to the call stack
+    fn add_location(&self, location: Location, locations: &mut Vec<LocationNode>) -> CallStackId {
+        if let Some(result) = locations[self.index()]
+            .children
+            .iter()
+            .find(|child| locations[child.index()].value == location)
+        {
+            return *result;
+        }
+        locations.push(LocationNode { parent: Some(*self), children: vec![], value: location });
+        let new_location = CallStackId::new(locations.len() - 1);
+        locations[self.index()].children.push(new_location);
+        new_location
+    }
+
+    // Returns a new CallStackId which extends the current one with the provided call_stack.
+    fn extend(&self, call_stack: &CallStack, locations: &mut Vec<LocationNode>) -> CallStackId {
+        let mut result = *self;
+        for location in call_stack {
+            result = result.add_location(*location, locations);
+        }
+        result
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct LocationNode {
+    parent: Option<CallStackId>,
+    children: Vec<CallStackId>,
+    value: Location,
+}
+
+impl LocationNode {
+    fn new() -> Self {
+        Self { parent: None, children: vec![], value: Location::dummy() }
+    }
+}
+
 /// The DataFlowGraph contains most of the actual data in a function including
 /// its blocks, instructions, and values. This struct is largely responsible for
 /// owning most data in a function and handing out Ids to this data that can be
@@ -91,7 +160,9 @@ pub(crate) struct DataFlowGraph {
     /// Instructions inserted by internal SSA passes that don't correspond to user code
     /// may not have a corresponding location.
     #[serde(skip)]
-    locations: HashMap<InstructionId, CallStack>,
+    locations: HashMap<InstructionId, CallStackId>,
+
+    location_array: Vec<LocationNode>,
 
     #[serde(skip)]
     pub(crate) data_bus: DataBus,
@@ -170,9 +241,9 @@ impl DataFlowGraph {
         instruction: Instruction,
         block: BasicBlockId,
         ctrl_typevars: Option<Vec<Type>>,
-        call_stack: CallStack,
+        call_stack: CallStackId,
     ) -> InsertInstructionResult {
-        match instruction.simplify(self, block, ctrl_typevars.clone(), &call_stack) {
+        match instruction.simplify(self, block, ctrl_typevars.clone(), call_stack) {
             SimplifyResult::SimplifiedTo(simplification) => {
                 InsertInstructionResult::SimplifiedTo(simplification)
             }
@@ -200,7 +271,7 @@ impl DataFlowGraph {
                 for instruction in instructions {
                     let id = self.make_instruction(instruction, ctrl_typevars.clone());
                     self.blocks[block].insert_instruction(id);
-                    self.locations.insert(id, call_stack.clone());
+                    self.locations.insert(id, call_stack);
                     last_id = Some(id);
                 }
 
@@ -485,19 +556,89 @@ impl DataFlowGraph {
         destination.set_terminator(terminator);
     }
 
-    pub(crate) fn get_call_stack(&self, instruction: InstructionId) -> CallStack {
+    pub(crate) fn get_instruction_call_stack(&self, instruction: InstructionId) -> CallStack {
+        let call_stack = self.locations.get(&instruction).cloned().unwrap_or_default();
+        self.get_call_stack(call_stack)
+    }
+
+    pub(crate) fn get_instruction_call_stack_id(&self, instruction: InstructionId) -> CallStackId {
         self.locations.get(&instruction).cloned().unwrap_or_default()
     }
 
-    pub(crate) fn add_location(&mut self, instruction: InstructionId, location: Location) {
-        self.locations.entry(instruction).or_default().push_back(location);
+    pub(crate) fn add_location_to_instruction(
+        &mut self,
+        instruction: InstructionId,
+        location: Location,
+    ) {
+        let call_stack = self.locations.entry(instruction).or_default();
+        call_stack.add_location(location, &mut self.location_array);
+    }
+
+    pub(crate) fn add_location_to_root(&mut self, location: Location) -> CallStackId {
+        if self.location_array.is_empty() {
+            self.location_array.push(LocationNode {
+                parent: None,
+                children: vec![],
+                value: location,
+            });
+            CallStackId::root()
+        } else {
+            CallStackId::root().add_location(location, &mut self.location_array)
+        }
+    }
+
+    // Get (or create) a CallStackId corresponding to the given locations
+    pub(crate) fn get_or_insert_locations(&mut self, locations: CallStack) -> CallStackId {
+        let mut result = CallStackId::root();
+        for location in locations {
+            result = result.add_location(location, &mut self.location_array);
+        }
+        result
     }
 
     pub(crate) fn get_value_call_stack(&self, value: ValueId) -> CallStack {
         match &self.values[self.resolve(value)] {
-            Value::Instruction { instruction, .. } => self.get_call_stack(*instruction),
+            Value::Instruction { instruction, .. } => self.get_instruction_call_stack(*instruction),
             _ => im::Vector::new(),
         }
+    }
+
+    pub(crate) fn get_value_call_stack_id(&self, value: ValueId) -> CallStackId {
+        match &self.values[self.resolve(value)] {
+            Value::Instruction { instruction, .. } => {
+                self.get_instruction_call_stack_id(*instruction)
+            }
+            _ => CallStackId::root(),
+        }
+    }
+
+    pub(crate) fn get_call_stack(&self, call_stack: CallStackId) -> CallStack {
+        call_stack.get_call_stack(&self.location_array)
+    }
+
+    pub(crate) fn extend_call_stack(
+        &mut self,
+        call_stack: CallStackId,
+        locations: &CallStack,
+    ) -> CallStackId {
+        call_stack.extend(locations, &mut self.location_array)
+    }
+
+    // Retrieve the CallStackId corresponding to call_stack with the last 'len' locations removed.
+    pub(crate) fn unwind_call_stack(
+        &self,
+        mut call_stack: CallStackId,
+        mut len: usize,
+    ) -> CallStackId {
+        while len > 0 {
+            if let Some(parent) = self.location_array[call_stack.index()].parent {
+                len -= 1;
+                call_stack = parent;
+            } else {
+                break;
+            }
+        }
+        call_stack
     }
 
     /// True if the given ValueId refers to a (recursively) constant value
