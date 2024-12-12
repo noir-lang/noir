@@ -603,6 +603,14 @@ impl RcTracker {
                     self.mutated_array_types.insert(typ);
                 }
             }
+            Instruction::Call { arguments, .. } => {
+                for arg in arguments {
+                    let typ = function.dfg.type_of_value(*arg);
+                    if matches!(&typ, Type::Array(..) | Type::Slice(..)) {
+                        self.mutated_array_types.insert(typ);
+                    }
+                }
+            }
             _ => {}
         }
     }
