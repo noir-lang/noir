@@ -31,6 +31,8 @@ pub struct HirLetStatement {
     pub expression: ExprId,
     pub attributes: Vec<SecondaryAttribute>,
     pub comptime: bool,
+    // whether the user provided the 'comptime' keyword
+    pub explicit_comptime: bool,
 }
 
 impl HirLetStatement {

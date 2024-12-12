@@ -204,8 +204,17 @@ fn format_global(id: GlobalId, args: &ProcessRequestCallbackArgs) -> String {
         string.push('\n');
     }
 
+    let mut print_comptime = definition.comptime;
+    let mut opt_value = None;
+
+    // See if we can figure out what's the global's value
+    if let Some(stmt) = args.interner.get_global_let_statement(id) {
+        print_comptime = stmt.explicit_comptime;
+        opt_value = get_global_value(args.interner, stmt.expression);
+    }
+
     string.push_str("    ");
-    if definition.comptime {
+    if print_comptime {
         string.push_str("comptime ");
     }
     if definition.mutable {
@@ -216,12 +225,9 @@ fn format_global(id: GlobalId, args: &ProcessRequestCallbackArgs) -> String {
     string.push_str(": ");
     string.push_str(&format!("{}", typ));
 
-    // See if we can figure out what's the global's value
-    if let Some(stmt) = args.interner.get_global_let_statement(id) {
-        if let Some(value) = get_global_value(args.interner, stmt.expression) {
-            string.push_str(" = ");
-            string.push_str(&value);
-        }
+    if let Some(value) = opt_value {
+        string.push_str(" = ");
+        string.push_str(&value);
     }
 
     string.push_str(&go_to_type_links(&typ, args.interner, args.files));

@@ -124,7 +124,15 @@ impl<'context> Elaborator<'context> {
 
         let attributes = let_stmt.attributes;
         let comptime = let_stmt.comptime;
-        let let_ = HirLetStatement { pattern, r#type, expression, attributes, comptime };
+        let explicit_comptime = let_stmt.explicit_comptime;
+        let let_ = HirLetStatement {
+            pattern,
+            r#type,
+            expression,
+            attributes,
+            comptime,
+            explicit_comptime,
+        };
         (HirStatement::Let(let_), Type::Unit)
     }
 
