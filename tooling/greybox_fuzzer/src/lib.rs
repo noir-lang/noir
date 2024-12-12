@@ -190,9 +190,13 @@ impl<
             if current_iteration % 10000 == 0 {
                 println!("Current iteration {current_iteration}");
             }
-            let input_map = self
-                .mutator
-                .mutate_input_map_multiple(corpus.get_next_testcase(&mut prng), &mut prng);
+            let (main_testcase, additional_testcase) =
+                corpus.get_next_testcase_with_additional(&mut prng);
+            let input_map = self.mutator.mutate_input_map_multiple(
+                main_testcase,
+                additional_testcase,
+                &mut prng,
+            );
             let (fuzz_res, coverage) =
                 self.single_fuzz(&input_map, &mut accumulated_coverage).unwrap();
             match fuzz_res {

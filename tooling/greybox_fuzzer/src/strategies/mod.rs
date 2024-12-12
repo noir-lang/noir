@@ -9,11 +9,12 @@ use std::{
     collections::{BTreeMap, HashSet},
     iter::zip,
 };
-use string::mutate_string_input_value;
+use string::{mutate_string_input_value, splice_string_input_value};
 
 mod field;
 mod int;
 mod string;
+use num_traits::Zero;
 pub struct InputMutator {
     abi: Abi,
     weight_tree: NodeWeight,
@@ -372,17 +373,222 @@ impl InputMutator {
             })
             .collect()
     }
+    pub fn splice_input_value(
+        &self,
+        abi_type: &AbiType,
+        first_input: &InputValue,
+        second_input: &InputValue,
+        prng: &mut XorShiftRng,
+        weight_tree_node: &NodeWeight,
+        mutation_weight: u32,
+    ) -> InputValue {
+        // TODO: implement proper splicing for fields and integers
+        match abi_type {
+            // Boolean only has 2 values, there is no point in performing complex logic
+            AbiType::Boolean => {
+                if prng.gen_bool(0.5) {
+                    first_input.clone()
+                } else {
+                    second_input.clone()
+                }
+            }
+            // Mutate fields in a smart way
+            AbiType::Field => {
+                if prng.gen_bool(0.5) {
+                    first_input.clone()
+                } else {
+                    second_input.clone()
+                }
+            }
+            // TODO: IMPLEMENT THESE
+            AbiType::Integer { sign, width } => {
+                if prng.gen_bool(0.5) {
+                    first_input.clone()
+                } else {
+                    second_input.clone()
+                }
+            }
+            AbiType::String { length: _ } => match prng.gen_range(0..4) {
+                0 => first_input.clone(),
+                1 => second_input.clone(),
+                _ => splice_string_input_value(first_input, second_input, prng),
+            },
+            AbiType::Array { length, typ } => {
+                let length = *length as usize;
+                let first_input_vector = match first_input {
+                    InputValue::Vec(previous_input_vector) => previous_input_vector,
+                    _ => panic!("Mismatch of AbiType and InputValue should not happen"),
+                };
+                let second_input_vector = match second_input {
+                    InputValue::Vec(previous_input_vector) => previous_input_vector,
+                    _ => panic!("Mismatch of AbiType and InputValue should not happen"),
+                };
+                InputValue::Vec(
+                    (0..length)
+                        .zip(weight_tree_node.subnodes.as_ref().unwrap())
+                        .map(|(idx, weight_node)| {
+                            if mutation_weight >= weight_node.start
+                                && mutation_weight < weight_node.end
+                            {
+                                self.splice_input_value(
+                                    typ,
+                                    &first_input_vector[idx],
+                                    &second_input_vector[idx],
+                                    prng,
+                                    weight_node,
+                                    mutation_weight,
+                                )
+                            } else {
+                                first_input_vector[idx].clone()
+                            }
+                        })
+                        .collect(),
+                )
+            }
+
+            AbiType::Struct { fields, .. } => {
+                let first_input_struct = match first_input {
+                    InputValue::Struct(previous_input_struct) => previous_input_struct,
+                    _ => panic!("Mismatch of AbiType and InputValue should not happen"),
+                };
+                let second_input_struct = match second_input {
+                    InputValue::Struct(previous_input_struct) => previous_input_struct,
+                    _ => panic!("Mismatch of AbiType and InputValue should not happen"),
+                };
+                let fields: Vec<(String, InputValue)> = fields
+                    .iter()
+                    .zip(weight_tree_node.subnodes.as_ref().unwrap())
+                    .map(|((name, typ), weight_node)| {
+                        (
+                            name.clone(),
+                            if mutation_weight >= weight_node.start
+                                && mutation_weight < weight_node.end
+                            {
+                                self.splice_input_value(
+                                    typ,
+                                    &first_input_struct[name],
+                                    &second_input_struct[name],
+                                    prng,
+                                    weight_node,
+                                    mutation_weight,
+                                )
+                            } else {
+                                first_input_struct[name].clone()
+                            },
+                        )
+                    })
+                    .collect();
+
+                let fields: BTreeMap<_, _> = fields.into_iter().collect();
+                InputValue::Struct(fields)
+            }
+
+            AbiType::Tuple { fields } => {
+                let first_input_vector = match first_input {
+                    InputValue::Vec(previous_input_vector) => previous_input_vector,
+                    _ => panic!("Mismatch of AbiType and InputValue should not happen"),
+                };
+                let second_input_vector = match second_input {
+                    InputValue::Vec(previous_input_vector) => previous_input_vector,
+                    _ => panic!("Mismatch of AbiType and InputValue should not happen"),
+                };
+                let fields: Vec<_> = zip(fields, first_input_vector)
+                    .zip(second_input_vector)
+                    .zip(weight_tree_node.subnodes.as_ref().unwrap())
+                    .map(|(((typ, first_tuple_input), second_tuple_input), weight_node)| {
+                        if mutation_weight >= weight_node.start && mutation_weight < weight_node.end
+                        {
+                            self.splice_input_value(
+                                typ,
+                                first_tuple_input,
+                                second_tuple_input,
+                                prng,
+                                weight_node,
+                                mutation_weight,
+                            )
+                        } else {
+                            first_tuple_input.clone()
+                        }
+                    })
+                    .collect();
+                InputValue::Vec(fields)
+            }
+        }
+    }
+    pub fn splice_two_maps(
+        &self,
+        first_input_map: &InputMap,
+        second_input_map: &InputMap,
+        prng: &mut XorShiftRng,
+    ) -> InputMap {
+        let TOP_LEVEL_RANDOM_SPLICE_STRATEGY_WEIGHT = 1usize;
+        let SPLICE_ONE_DESCENDANT = 1usize;
+        let TOTAL_WEIGHT = TOP_LEVEL_RANDOM_SPLICE_STRATEGY_WEIGHT + SPLICE_ONE_DESCENDANT;
+        let chosen_strategy = prng.gen_range(0..TOTAL_WEIGHT);
+        if chosen_strategy < TOP_LEVEL_RANDOM_SPLICE_STRATEGY_WEIGHT {
+            return self
+                .abi
+                .parameters
+                .iter()
+                .enumerate()
+                .map(|(idx, param)| {
+                    (
+                        param.name.clone(),
+                        if prng.gen_bool(0.5) {
+                            first_input_map[&param.name].clone()
+                        } else {
+                            second_input_map[&param.name].clone()
+                        },
+                    )
+                })
+                .collect();
+        } else {
+            let chosen_weight = prng.gen_range(0..self.weight_tree.get_weight());
+            let current_level_weight_tree = self.weight_tree.subnodes.as_ref().unwrap();
+            self.abi
+                .parameters
+                .iter()
+                .enumerate()
+                .map(|(idx, param)| {
+                    (
+                        param.name.clone(),
+                        if chosen_weight >= current_level_weight_tree[idx].start
+                            && chosen_weight < current_level_weight_tree[idx].end
+                        {
+                            self.splice_input_value(
+                                &param.typ,
+                                &first_input_map[&param.name],
+                                &second_input_map[&param.name],
+                                prng,
+                                &current_level_weight_tree[idx],
+                                chosen_weight,
+                            )
+                        } else {
+                            first_input_map[&param.name].clone()
+                        },
+                    )
+                })
+                .collect()
+        }
+    }
 
     pub fn mutate_input_map_multiple(
         &self,
         previous_input_map: &InputMap,
+        additional_input_map: Option<&InputMap>,
         prng: &mut XorShiftRng,
     ) -> InputMap {
-        const MUTATION_LOG_MIN: u32 = 1;
-        const MUTATION_LOG_MAX: u32 = 6;
         let mut starting_input_value = previous_input_map.clone();
+        const MUTATION_LOG_MIN: u32 = 0;
+        const MUTATION_LOG_MAX: u32 = 5;
+        let mut chosen_max_mutation_log = MUTATION_LOG_MAX;
+        if additional_input_map.is_some() && prng.gen_range(0..4).is_zero() {
+            starting_input_value =
+                self.splice_two_maps(previous_input_map, additional_input_map.unwrap(), prng);
+            //chosen_max_mutation_log = MUTATION_LOG_MIN;
+        }
         for _ in 0..(1 << prng.gen_range(MUTATION_LOG_MIN..=MUTATION_LOG_MAX)) {
-            starting_input_value = self.mutate_input_map_single(&previous_input_map, prng);
+            starting_input_value = self.mutate_input_map_single(&starting_input_value, prng);
         }
         starting_input_value
     }
