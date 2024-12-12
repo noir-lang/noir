@@ -61,7 +61,7 @@ pub(crate) struct TestCommand {
     format: Option<Format>,
 
     /// Display one character per test instead of one line
-    #[clap(short = 'q', long = "quiet", action)]
+    #[clap(short = 'q', long = "quiet")]
     quiet: bool,
 }
 
