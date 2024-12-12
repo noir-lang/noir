@@ -30,6 +30,31 @@ impl NumericType {
         }
     }
 
+    /// Creates a NumericType::Signed type
+    pub(crate) fn signed(bit_size: u32) -> NumericType {
+        NumericType::Signed { bit_size }
+    }
+
+    /// Creates a NumericType::Unsigned type
+    pub(crate) fn unsigned(bit_size: u32) -> NumericType {
+        NumericType::Unsigned { bit_size }
+    }
+
+    /// Creates the u1 type
+    pub(crate) fn bool() -> NumericType {
+        NumericType::Unsigned { bit_size: 1 }
+    }
+
+    /// Creates the char type, represented as u8.
+    pub(crate) fn char() -> NumericType {
+        NumericType::Unsigned { bit_size: 8 }
+    }
+
+    /// Creates the type of an array's length.
+    pub(crate) fn length_type() -> NumericType {
+        NumericType::Unsigned { bit_size: SSA_WORD_SIZE }
+    }
+
     /// Returns None if the given Field value is within the numeric limits
     /// for the current NumericType. Otherwise returns a string describing
     /// the limits, as a range.
@@ -62,6 +87,10 @@ impl NumericType {
             }
             NumericType::NativeField => None,
         }
+    }
+
+    pub(crate) fn is_unsigned(&self) -> bool {
+        matches!(self, NumericType::Unsigned { .. })
     }
 }
 
@@ -123,6 +152,14 @@ impl Type {
     /// Creates the type of an array's length.
     pub(crate) fn length_type() -> Type {
         Type::unsigned(SSA_WORD_SIZE)
+    }
+
+    /// Returns the inner NumericType if this is one, or panics otherwise
+    pub(crate) fn unwrap_numeric(&self) -> NumericType {
+        match self {
+            Type::Numeric(numeric) => *numeric,
+            other => panic!("Expected NumericType, found {other}"),
+        }
     }
 
     /// Returns the bit size of the provided numeric type.

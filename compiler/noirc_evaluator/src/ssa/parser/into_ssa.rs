@@ -207,7 +207,7 @@ impl Translator {
             }
             ParsedInstruction::Cast { target, lhs, typ } => {
                 let lhs = self.translate_value(lhs)?;
-                let value_id = self.builder.insert_cast(lhs, typ);
+                let value_id = self.builder.insert_cast(lhs, typ.unwrap_numeric());
                 self.define_variable(target, value_id)?;
             }
             ParsedInstruction::Constrain { lhs, rhs, assert_message } => {
@@ -290,7 +290,7 @@ impl Translator {
     fn translate_value(&mut self, value: ParsedValue) -> Result<ValueId, SsaError> {
         match value {
             ParsedValue::NumericConstant { constant, typ } => {
-                Ok(self.builder.numeric_constant(constant, typ))
+                Ok(self.builder.numeric_constant(constant, typ.unwrap_numeric()))
             }
             ParsedValue::Variable(identifier) => self.lookup_variable(identifier),
         }
