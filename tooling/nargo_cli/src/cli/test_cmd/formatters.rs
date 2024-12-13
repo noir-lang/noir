@@ -8,11 +8,40 @@ use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, StandardStreamLoc
 
 use super::TestResult;
 
+/// A formatter for showing test results.
+///
+/// The order of events is:
+/// 1. Compilation of all packages happen (in parallel). There's no formatter method for this.
+/// 2. If compilation is successful, one `package_start_async` for each package.
+/// 3. For each test, one `test_start_async` event.
+/// 4. For each package, sequentially:
+///     a. A `package_start_sync` event
+///     b. One `test_end` event for each test
+///     a. A `package_end` event
+///
+/// The reason we have some `sync` and `async` events is that formatters that show output
+/// to humans rely on the `sync` events to show a more readable and understandable output,
+/// and formatters that output to a machine-readable format (like JSON) rely on the `async`
+/// events to show the results as soon as they are available, regardless of a package ordering.
 pub(super) trait Formatter: Send + Sync + RefUnwindSafe {
-    fn package_start(&self, package_name: &str, test_count: usize) -> std::io::Result<()>;
+    fn package_start_async(&self, package_name: &str, test_count: usize) -> std::io::Result<()>;
+
+    fn package_start_sync(&self, package_name: &str, test_count: usize) -> std::io::Result<()>;
+
+    fn test_start_async(&self, name: &str, package_name: &str) -> std::io::Result<()>;
 
     #[allow(clippy::too_many_arguments)]
-    fn test_end(
+    fn test_end_async(
+        &self,
+        test_result: &TestResult,
+        file_manager: &FileManager,
+        show_output: bool,
+        deny_warnings: bool,
+        silence_warnings: bool,
+    ) -> std::io::Result<()>;
+
+    #[allow(clippy::too_many_arguments)]
+    fn test_end_sync(
         &self,
         test_result: &TestResult,
         current_test_count: usize,
@@ -37,11 +66,30 @@ pub(super) trait Formatter: Send + Sync + RefUnwindSafe {
 pub(super) struct PrettyFormatter;
 
 impl Formatter for PrettyFormatter {
-    fn package_start(&self, package_name: &str, test_count: usize) -> std::io::Result<()> {
+    fn package_start_async(&self, _package_name: &str, _test_count: usize) -> std::io::Result<()> {
+        Ok(())
+    }
+
+    fn package_start_sync(&self, package_name: &str, test_count: usize) -> std::io::Result<()> {
         package_start(package_name, test_count)
     }
 
-    fn test_end(
+    fn test_start_async(&self, _name: &str, _package_name: &str) -> std::io::Result<()> {
+        Ok(())
+    }
+
+    fn test_end_async(
+        &self,
+        _test_result: &TestResult,
+        _file_manager: &FileManager,
+        _show_output: bool,
+        _deny_warnings: bool,
+        _silence_warnings: bool,
+    ) -> std::io::Result<()> {
+        Ok(())
+    }
+
+    fn test_end_sync(
         &self,
         test_result: &TestResult,
         _current_test_count: usize,
@@ -175,11 +223,30 @@ impl Formatter for PrettyFormatter {
 pub(super) struct TerseFormatter;
 
 impl Formatter for TerseFormatter {
-    fn package_start(&self, package_name: &str, test_count: usize) -> std::io::Result<()> {
+    fn package_start_async(&self, _package_name: &str, _test_count: usize) -> std::io::Result<()> {
+        Ok(())
+    }
+
+    fn package_start_sync(&self, package_name: &str, test_count: usize) -> std::io::Result<()> {
         package_start(package_name, test_count)
     }
 
-    fn test_end(
+    fn test_start_async(&self, _name: &str, _package_name: &str) -> std::io::Result<()> {
+        Ok(())
+    }
+
+    fn test_end_async(
+        &self,
+        _test_result: &TestResult,
+        _file_manager: &FileManager,
+        _show_output: bool,
+        _deny_warnings: bool,
+        _silence_warnings: bool,
+    ) -> std::io::Result<()> {
+        Ok(())
+    }
+
+    fn test_end_sync(
         &self,
         test_result: &TestResult,
         current_test_count: usize,
@@ -322,17 +389,25 @@ impl Formatter for TerseFormatter {
 pub(super) struct JsonFormatter;
 
 impl Formatter for JsonFormatter {
-    fn package_start(&self, package_name: &str, test_count: usize) -> std::io::Result<()> {
+    fn package_start_async(&self, package_name: &str, test_count: usize) -> std::io::Result<()> {
         let json = json!({"type": "suite", "event": "started", "name": package_name, "test_count": test_count});
         println!("{json}");
         Ok(())
     }
 
-    fn test_end(
+    fn package_start_sync(&self, _package_name: &str, _test_count: usize) -> std::io::Result<()> {
+        Ok(())
+    }
+
+    fn test_start_async(&self, name: &str, package_name: &str) -> std::io::Result<()> {
+        let json = json!({"type": "test", "event": "started", "name": name, "suite": package_name});
+        println!("{json}");
+        Ok(())
+    }
+
+    fn test_end_async(
         &self,
         test_result: &TestResult,
-        _current_test_count: usize,
-        _total_test_count: usize,
         file_manager: &FileManager,
         show_output: bool,
         _deny_warnings: bool,
@@ -389,6 +464,19 @@ impl Formatter for JsonFormatter {
         let json = json!(json);
         println!("{json}");
 
+        Ok(())
+    }
+
+    fn test_end_sync(
+        &self,
+        _test_result: &TestResult,
+        _current_test_count: usize,
+        _total_test_count: usize,
+        _file_manager: &FileManager,
+        _show_output: bool,
+        _deny_warnings: bool,
+        _silence_warnings: bool,
+    ) -> std::io::Result<()> {
         Ok(())
     }
 

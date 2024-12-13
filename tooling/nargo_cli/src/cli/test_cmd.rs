@@ -215,6 +215,12 @@ impl<'a> TestRunner<'a> {
     ) -> bool {
         let mut all_passed = true;
 
+        for (package_name, total_test_count) in test_count_per_package {
+            self.formatter
+                .package_start_async(package_name, *total_test_count)
+                .expect("Could not display package start");
+        }
+
         let (sender, receiver) = mpsc::channel();
         let iter = &Mutex::new(tests.into_iter());
         thread::scope(|scope| {
@@ -231,6 +237,10 @@ impl<'a> TestRunner<'a> {
                         let Some(test) = iter.lock().unwrap().next() else {
                             break;
                         };
+
+                        self.formatter
+                            .test_start_async(&test.name, &test.package_name)
+                            .expect("Could not display test start");
 
                         let time_before_test = std::time::Instant::now();
                         let (status, output) = match catch_unwind(test.runner) {
@@ -259,6 +269,16 @@ impl<'a> TestRunner<'a> {
                             time_to_run,
                         };
 
+                        self.formatter
+                            .test_end_async(
+                                &test_result,
+                                self.file_manager,
+                                self.args.show_output,
+                                self.args.compile_options.deny_warnings,
+                                self.args.compile_options.silence_warnings,
+                            )
+                            .expect("Could not display test start");
+
                         if thread_sender.send(test_result).is_err() {
                             break;
                         }
@@ -279,7 +299,7 @@ impl<'a> TestRunner<'a> {
                 let total_test_count = *total_test_count;
 
                 self.formatter
-                    .package_start(package_name, total_test_count)
+                    .package_start_sync(package_name, total_test_count)
                     .expect("Could not display package start");
 
                 // Check if we have buffered test results for this package
@@ -489,7 +509,7 @@ impl<'a> TestRunner<'a> {
         current_test_count: usize,
         total_test_count: usize,
     ) -> std::io::Result<()> {
-        self.formatter.test_end(
+        self.formatter.test_end_sync(
             test_result,
             current_test_count,
             total_test_count,
