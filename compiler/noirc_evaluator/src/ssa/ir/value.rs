@@ -12,7 +12,7 @@ use super::{
 
 /// Value is the most basic type allowed in the IR.
 /// Transition Note: A Id<Value> is similar to `NodeId` in our previous IR.
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, PartialOrd, Ord, Serialize, Deserialize)]
 pub(crate) enum Value {
     /// This value was created due to an instruction
     ///
@@ -51,11 +51,44 @@ pub(crate) enum Value {
     ForeignFunction(ForeignFunctionId),
 }
 
-pub(crate) struct ForeignFunction(pub String);
+pub(crate) type ForeignFunction = String;
 pub(crate) type ForeignFunctionId = Id<ForeignFunction>;
 
 impl Value {
     pub fn constant(constant: FieldElement, typ: NumericType) -> Self {
         Self::NumericConstant { constant, typ }
+    }
+
+    pub fn field_constant(constant: FieldElement) -> Self {
+        Self::NumericConstant { constant, typ: NumericType::NativeField }
+    }
+
+    pub fn length_constant(constant: FieldElement) -> Self {
+        Self::NumericConstant { constant, typ: NumericType::length_type() }
+    }
+
+    pub fn bool_constant(constant: bool) -> Self {
+        Self::NumericConstant { constant: constant.into(), typ: NumericType::bool() }
+    }
+
+    pub fn block_param(block: BasicBlockId, position: usize) -> Self {
+        Self::Param { block, position }
+    }
+
+    pub fn instruction_result(instruction: InstructionId, position: usize) -> Self {
+        Self::Instruction { instruction, position }
+    }
+}
+
+impl std::fmt::Display for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Value::Instruction { instruction, position } => write!(f, "{instruction}:{position}"),
+            Value::Param { block, position } => write!(f, "{block}:{position}"),
+            Value::NumericConstant { constant, typ } => write!(f, "{typ} {constant}"),
+            Value::Function(id) => write!(f, "{id}"),
+            Value::Intrinsic(intrinsic) => write!(f, "{intrinsic}"),
+            Value::ForeignFunction(id) => write!(f, "{id}"),
+        }
     }
 }

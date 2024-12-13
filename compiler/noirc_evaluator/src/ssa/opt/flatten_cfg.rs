@@ -308,7 +308,7 @@ impl<'f> Context<'f> {
     ) -> bool {
         let mut result = false;
         if let Instruction::Call { func, .. } = self.inserter.function.dfg[*instruction] {
-            if let Value::Function(fid) = self.inserter.function.dfg[func] {
+            if let Value::Function(fid) = func {
                 result = *no_predicates.get(&fid).unwrap_or(&false);
             }
         }
@@ -332,8 +332,7 @@ impl<'f> Context<'f> {
         for instruction in instructions.iter() {
             if self.is_no_predicate(no_predicates, instruction) {
                 // disable side effect for no_predicate functions
-                let bool_type = NumericType::bool();
-                let one = self.inserter.function.dfg.make_constant(FieldElement::one(), bool_type);
+                let one = Value::bool_constant(true);
                 self.insert_instruction(
                     Instruction::EnableSideEffectsIf { condition: one },
                     CallStack::new(),
@@ -538,7 +537,7 @@ impl<'f> Context<'f> {
         let else_condition = if let Some(branch) = cond_context.else_branch {
             branch.condition
         } else {
-            self.inserter.function.dfg.make_constant(FieldElement::zero(), NumericType::bool())
+            Value::bool_constant(false)
         };
         let block = self.inserter.function.entry_block();
 
@@ -585,9 +584,7 @@ impl<'f> Context<'f> {
     fn insert_current_side_effects_enabled(&mut self) {
         let condition = match self.get_last_condition() {
             Some(cond) => cond,
-            None => {
-                self.inserter.function.dfg.make_constant(FieldElement::one(), NumericType::bool())
-            }
+            None => Value::bool_constant(true),
         };
         let enable_side_effects = Instruction::EnableSideEffectsIf { condition };
         let call_stack = self.inserter.function.dfg.get_value_call_stack(condition);
@@ -699,7 +696,7 @@ impl<'f> Context<'f> {
                     Instruction::RangeCheck { value, max_bit_size, assert_message }
                 }
                 Instruction::Call { func, mut arguments, result_types } => {
-                    match self.inserter.function.dfg[func] {
+                    match func {
                         Value::Intrinsic(Intrinsic::ToBits(_) | Intrinsic::ToRadix(_)) => {
                             let field = arguments[0];
                             let argument_type = self.inserter.function.dfg.type_of_value(field);

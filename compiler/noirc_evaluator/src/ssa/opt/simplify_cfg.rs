@@ -130,8 +130,7 @@ fn check_for_double_jmp(function: &mut Function, block: BasicBlockId, cfg: &mut 
         return;
     }
 
-    if !function.dfg[block].instructions().is_empty()
-        || !function.dfg[block].parameters().is_empty()
+    if !function.dfg[block].instructions().is_empty() || function.dfg[block].parameter_count() != 0
     {
         return;
     }
@@ -221,7 +220,7 @@ fn check_for_negated_jmpif_condition(
         call_stack,
     }) = function.dfg[block].terminator()
     {
-        if let Value::Instruction { instruction, .. } = function.dfg[*condition] {
+        if let Value::Instruction { instruction, .. } = *condition {
             if let Instruction::Not(negated_condition) = function.dfg[instruction] {
                 let call_stack = call_stack.clone();
                 let jmpif = TerminatorInstruction::JmpIf {
@@ -247,11 +246,9 @@ fn remove_block_parameters(
     block: BasicBlockId,
     predecessor: BasicBlockId,
 ) {
-    let block = &mut function.dfg[block];
+    let parameters = function.dfg.block_parameters(block);
 
-    if !block.parameters().is_empty() {
-        let block_params = block.take_parameters();
-
+    if parameters.len() != 0 {
         let jump_args = match function.dfg[predecessor].unwrap_terminator_mut() {
             TerminatorInstruction::Jmp { arguments, .. } => std::mem::take(arguments),
             TerminatorInstruction::JmpIf { .. } => unreachable!("If jmpif instructions are modified to support block arguments in the future, this match will need to be updated"),
@@ -260,9 +257,9 @@ fn remove_block_parameters(
             ),
         };
 
-        assert_eq!(block_params.len(), jump_args.len());
-        for (param, arg) in block_params.iter().zip(jump_args) {
-            function.dfg.set_value_from_id(*param, arg);
+        assert_eq!(parameters.len(), jump_args.len());
+        for (param, arg) in parameters.zip(jump_args) {
+            function.dfg.replace_value(param, arg);
         }
     }
 }

@@ -112,14 +112,12 @@ impl Ssa {
             for block_id in function.reachable_blocks() {
                 for instruction_id in function.dfg[block_id].instructions() {
                     let instruction = &function.dfg[*instruction_id];
-                    let Instruction::Call { func: func_id, .. } = instruction else {
+                    let Instruction::Call { func, .. } = instruction else {
                         continue;
                     };
 
-                    let func_value = &function.dfg[*func_id];
-                    let Value::Function(func_id) = func_value else { continue };
-
-                    brillig_functions.remove(func_id);
+                    let Value::Function(func_id) = *func else { continue };
+                    brillig_functions.remove(&func_id);
                 }
             }
         }
@@ -213,7 +211,7 @@ impl SimplificationCache {
             .and_modify(|existing| {
                 // `SimplificationCache` may already hold a simplification in this block
                 // so we check whether `simple` is a better simplification than the current one.
-                if let Some((_, simpler)) = simplify(dfg, *existing, simple) {
+                if let Some((_, simpler)) = simplify(*existing, simple) {
                     *existing = simpler;
                 };
             })
@@ -275,8 +273,7 @@ impl<'brillig> Context<'brillig> {
         let instructions = function.dfg[block].take_instructions();
 
         // Default side effect condition variable with an enabled state.
-        let mut side_effects_enabled_var =
-            function.dfg.make_constant(FieldElement::one(), NumericType::bool());
+        let mut side_effects_enabled_var = Value::bool_constant(true);
 
         for instruction_id in instructions {
             self.fold_constants_into_instruction(
@@ -304,7 +301,8 @@ impl<'brillig> Context<'brillig> {
         let instruction =
             Self::resolve_instruction(id, block, dfg, dom, constraint_simplification_mapping);
 
-        let old_results = dfg.instruction_results(id).to_vec();
+        let old_results = dfg.instruction_results(id);
+        let old_result_count = old_results.len();
 
         // If a copy of this instruction exists earlier in the block, then reuse the previous results.
         if let Some(cache_result) =
@@ -321,7 +319,7 @@ impl<'brillig> Context<'brillig> {
                         dfg.insert_instruction_and_results(inc_rc, block, call_stack);
                     }
 
-                    Self::replace_result_ids(dfg, &old_results, cached);
+                    Self::replace_results(dfg, old_results, cached);
                     return;
                 }
                 CacheResult::NeedToHoistToCommonBlock(dominator) => {
@@ -337,17 +335,18 @@ impl<'brillig> Context<'brillig> {
         // First try to inline a call to a brillig function with all constant arguments.
         let new_results = Self::try_inline_brillig_call_with_all_constants(
             &instruction,
-            &old_results,
+            old_results,
             block,
             dfg,
             self.brillig_info,
         )
         // Otherwise, try inserting the instruction again to apply any optimizations using the newly resolved inputs.
         .unwrap_or_else(|| {
-            Self::push_instruction(id, instruction.clone(), &old_results, block, dfg)
+            Self::push_instruction(id, instruction.clone(), old_result_count, block, dfg)
         });
 
-        Self::replace_result_ids(dfg, &old_results, &new_results);
+        let old_results = dfg.instruction_results(id);
+        Self::replace_results(dfg, old_results, &new_results);
 
         self.cache_instruction(
             instruction.clone(),
@@ -412,7 +411,7 @@ impl<'brillig> Context<'brillig> {
     fn push_instruction(
         id: InstructionId,
         instruction: Instruction,
-        old_results: &[Value],
+        old_result_count: usize,
         block: BasicBlockId,
         dfg: &mut DataFlowGraph,
     ) -> Vec<Value> {
@@ -424,7 +423,7 @@ impl<'brillig> Context<'brillig> {
             InsertInstructionResult::InstructionRemoved => vec![],
         };
         // Optimizations while inserting the instruction should not change the number of results.
-        assert_eq!(old_results.len(), new_results.len());
+        assert_eq!(old_result_count, new_results.len());
 
         new_results
     }
@@ -442,7 +441,7 @@ impl<'brillig> Context<'brillig> {
             // to map from the more complex to the simpler value.
             if let Instruction::Constrain(lhs, rhs, _) = instruction {
                 // These `ValueId`s should be fully resolved now.
-                if let Some((complex, simple)) = simplify(&function.dfg, lhs, rhs) {
+                if let Some((complex, simple)) = simplify(lhs, rhs) {
                     self.get_constraint_map(side_effects_enabled_var)
                         .entry(complex)
                         .or_default()
@@ -513,14 +512,14 @@ impl<'brillig> Context<'brillig> {
         self.constraint_simplification_mappings.entry(side_effects_enabled_var).or_default()
     }
 
-    /// Replaces a set of [`ValueId`]s inside the [`DataFlowGraph`] with another.
-    fn replace_result_ids(
+    /// Replaces a set of [`Value`]s inside the [`DataFlowGraph`] with another.
+    fn replace_results(
         dfg: &mut DataFlowGraph,
-        old_results: &[Value],
+        old_results: impl ExactSizeIterator<Item = Value>,
         new_results: &[Value],
     ) {
-        for (old_result, new_result) in old_results.iter().zip(new_results) {
-            dfg.set_value_from_id(*old_result, *new_result);
+        for (old_result, new_result) in old_results.zip(new_results) {
+            dfg.replace_value(old_result, *new_result);
         }
     }
 
@@ -544,7 +543,7 @@ impl<'brillig> Context<'brillig> {
     /// If so, we can try to evaluate that function and replace the results with the evaluation results.
     fn try_inline_brillig_call_with_all_constants(
         instruction: &Instruction,
-        old_results: &[Value],
+        old_results: impl ExactSizeIterator<Item = Value>,
         block: BasicBlockId,
         dfg: &mut DataFlowGraph,
         brillig_info: Option<BrilligInfo>,
@@ -561,7 +560,7 @@ impl<'brillig> Context<'brillig> {
             EvaluationResult::Evaluated(memory_values) => {
                 let mut memory_index = 0;
                 let new_results = vecmap(old_results, |old_result| {
-                    let typ = dfg.type_of_value(*old_result);
+                    let typ = dfg.type_of_value(old_result);
                     Self::new_value_for_type_and_memory_values(
                         typ,
                         block,
@@ -588,24 +587,24 @@ impl<'brillig> Context<'brillig> {
             return EvaluationResult::NotABrilligCall;
         };
 
-        let func_value = &dfg[*func_id];
+        let func_value = *func_id;
         let Value::Function(func_id) = func_value else {
             return EvaluationResult::NotABrilligCall;
         };
 
-        let Some(func) = brillig_functions.get(func_id) else {
+        let Some(func) = brillig_functions.get(&func_id) else {
             return EvaluationResult::NotABrilligCall;
         };
 
         if !arguments.iter().all(|argument| dfg.is_constant(*argument)) {
-            return EvaluationResult::CannotEvaluate(*func_id);
+            return EvaluationResult::CannotEvaluate(func_id);
         }
 
         let mut brillig_arguments = Vec::new();
         for argument in arguments {
             let typ = dfg.type_of_value(*argument);
             let Some(parameter) = type_to_brillig_parameter(&typ) else {
-                return EvaluationResult::CannotEvaluate(*func_id);
+                return EvaluationResult::CannotEvaluate(func_id);
             };
             brillig_arguments.push(parameter);
         }
@@ -614,12 +613,12 @@ impl<'brillig> Context<'brillig> {
         for return_id in func.returns().iter() {
             let typ = func.dfg.type_of_value(*return_id);
             if type_to_brillig_parameter(&typ).is_none() {
-                return EvaluationResult::CannotEvaluate(*func_id);
+                return EvaluationResult::CannotEvaluate(func_id);
             }
         }
 
         let Ok(generated_brillig) = gen_brillig_for(func, brillig_arguments, brillig) else {
-            return EvaluationResult::CannotEvaluate(*func_id);
+            return EvaluationResult::CannotEvaluate(func_id);
         };
 
         let mut calldata = Vec::new();
@@ -635,7 +634,7 @@ impl<'brillig> Context<'brillig> {
             VM::new(calldata, bytecode, foreign_call_results, &black_box_solver, profiling_active);
         let vm_status: VMStatus<_> = vm.process_opcodes();
         let VMStatus::Finished { return_data_offset, return_data_size } = vm_status else {
-            return EvaluationResult::CannotEvaluate(*func_id);
+            return EvaluationResult::CannotEvaluate(func_id);
         };
 
         let memory =
@@ -663,7 +662,7 @@ impl<'brillig> Context<'brillig> {
                     MemoryValue::Field(field_value) => field_value,
                     MemoryValue::Integer(u128_value, _) => u128_value.into(),
                 };
-                dfg.make_constant(field_value, typ)
+                Value::constant(field_value, typ)
             }
             Type::Array(types, length) => {
                 let mut new_array_values = Vector::new();
@@ -686,7 +685,7 @@ impl<'brillig> Context<'brillig> {
                 };
                 let instruction_id = dfg.make_instruction(instruction);
                 dfg[block_id].instructions_mut().push(instruction_id);
-                *dfg.instruction_results(instruction_id).first().unwrap()
+                Value::instruction_result(instruction_id, 0)
             }
             Type::Reference(_) => {
                 panic!("Unexpected reference type in brillig function result")
@@ -709,8 +708,8 @@ impl<'brillig> Context<'brillig> {
 
         // Should we consider calls to slice_push_back and similar to be mutating operations as well?
         if let Store { value: array, .. } | ArraySet { array, .. } = instruction {
-            let instruction = match &function.dfg[*array] {
-                Value::Instruction { instruction, .. } => &function.dfg[*instruction],
+            let instruction = match *array {
+                Value::Instruction { instruction, .. } => &function.dfg[instruction],
                 _ => return,
             };
 
@@ -807,8 +806,8 @@ fn value_id_to_calldata(value_id: Value, dfg: &DataFlowGraph, calldata: &mut Vec
 /// Check if one expression is simpler than the other.
 /// Returns `Some((complex, simple))` if a simplification was found, otherwise `None`.
 /// Expects the `ValueId`s to be fully resolved.
-fn simplify(dfg: &DataFlowGraph, lhs: Value, rhs: Value) -> Option<(Value, Value)> {
-    match (&dfg[lhs], &dfg[rhs]) {
+fn simplify(lhs: Value, rhs: Value) -> Option<(Value, Value)> {
+    match (lhs, rhs) {
         // Ignore trivial constraints
         (Value::NumericConstant { .. }, Value::NumericConstant { .. }) => None,
 
@@ -858,7 +857,7 @@ mod test {
         let v0 = main.parameters()[0];
         let two = main.dfg.make_constant(2_u128.into(), NumericType::NativeField);
 
-        main.dfg.set_value_from_id(v0, two);
+        main.dfg.replace_value(v0, two);
 
         let expected = "
             acir(inline) fn main f0 {
@@ -894,7 +893,7 @@ mod test {
         let constant = 2_u128.pow(8);
         let constant = main.dfg.make_constant(constant.into(), NumericType::unsigned(16));
 
-        main.dfg.set_value_from_id(v1, constant);
+        main.dfg.replace_value(v1, constant);
 
         let expected = "
             acir(inline) fn main f0 {
@@ -932,7 +931,7 @@ mod test {
         let constant = 2_u128.pow(8) - 1;
         let constant = main.dfg.make_constant(constant.into(), NumericType::unsigned(16));
 
-        main.dfg.set_value_from_id(v1, constant);
+        main.dfg.replace_value(v1, constant);
 
         let expected = "
             acir(inline) fn main f0 {

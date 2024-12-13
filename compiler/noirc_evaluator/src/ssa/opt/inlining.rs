@@ -135,11 +135,11 @@ fn called_functions_vec(func: &Function) -> Vec<FunctionId> {
     let mut called_function_ids = Vec::new();
     for block_id in func.reachable_blocks() {
         for instruction_id in func.dfg[block_id].instructions() {
-            let Instruction::Call { func: called_value_id, .. } = &func.dfg[*instruction_id] else {
+            let Instruction::Call { func: called_value, .. } = &func.dfg[*instruction_id] else {
                 continue;
             };
 
-            if let Value::Function(function_id) = func.dfg[*called_value_id] {
+            if let Value::Function(function_id) = *called_value {
                 called_function_ids.push(function_id);
             }
         }
@@ -405,12 +405,7 @@ impl InlineContext {
 
     /// Inlines a function into the current function and returns the translated return values
     /// of the inlined function.
-    fn inline_function(
-        &mut self,
-        ssa: &Ssa,
-        id: FunctionId,
-        arguments: &[Value],
-    ) -> Vec<Value> {
+    fn inline_function(&mut self, ssa: &Ssa, id: FunctionId, arguments: &[Value]) -> Vec<Value> {
         self.recursion_level += 1;
 
         let source_function = &ssa.functions[&id];
@@ -456,29 +451,28 @@ impl<'function> PerFunctionContext<'function> {
     /// Value::Param values are already handled as a result of previous inlining of instructions
     /// and blocks respectively. If these assertions trigger it means a value is being used before
     /// the instruction or block that defines the value is inserted.
-    fn translate_value(&mut self, id: Value) -> Value {
-        if let Some(value) = self.values.get(&id) {
+    fn translate_value(&mut self, old_value: Value) -> Value {
+        if let Some(value) = self.values.get(&old_value) {
             return *value;
         }
 
-        let new_value = match &self.source_function.dfg[id] {
+        let new_value = match old_value {
             value @ Value::Instruction { .. } => {
                 unreachable!("All Value::Instructions should already be known during inlining after creating the original inlined instruction. Unknown value {id} = {value:?}")
             }
             value @ Value::Param { .. } => {
                 unreachable!("All Value::Params should already be known from previous calls to translate_block. Unknown value {id} = {value:?}")
             }
-            Value::NumericConstant { constant, typ } => {
-                self.context.builder.numeric_constant(*constant, *typ)
-            }
-            Value::Function(function) => self.context.builder.import_function(*function),
-            Value::Intrinsic(intrinsic) => self.context.builder.import_intrinsic_id(*intrinsic),
+            Value::NumericConstant { constant, typ } => Value::constant(constant, typ),
+            Value::Function(function) => self.context.builder.import_function(function),
+            Value::Intrinsic(intrinsic) => self.context.builder.import_intrinsic_id(intrinsic),
             Value::ForeignFunction(function) => {
+                let function = &self.source_function.dfg[function];
                 self.context.builder.import_foreign_function(function)
             }
         };
 
-        self.values.insert(id, new_value);
+        self.values.insert(old_value, new_value);
         new_value
     }
 
@@ -506,9 +500,9 @@ impl<'function> PerFunctionContext<'function> {
         let original_parameters = self.source_function.dfg.block_parameters(source_block);
 
         for parameter in original_parameters {
-            let typ = self.source_function.dfg.type_of_value(*parameter);
+            let typ = self.source_function.dfg.type_of_value(parameter);
             let new_parameter = self.context.builder.add_block_parameter(new_block, typ);
-            self.values.insert(*parameter, new_parameter);
+            self.values.insert(parameter, new_parameter);
         }
 
         self.blocks.insert(source_block, new_block);
@@ -682,36 +676,40 @@ impl<'function> PerFunctionContext<'function> {
         let mut call_stack = self.context.call_stack.clone();
         call_stack.append(self.source_function.dfg.get_call_stack(id));
 
-        let results = self.source_function.dfg.instruction_results(id);
-        let results = vecmap(results, |id| self.source_function.dfg.resolve(*id));
+        let results = self
+            .source_function
+            .dfg
+            .instruction_results(id)
+            .map(|value| self.source_function.dfg.resolve(value));
 
         self.context.builder.set_call_stack(call_stack);
 
         let new_results = self.context.builder.insert_instruction(instruction);
-        Self::insert_new_instruction_results(&mut self.values, &results, new_results);
+        Self::insert_new_instruction_results(&mut self.values, results, new_results);
     }
 
     /// Modify the values HashMap to remember the mapping between an instruction result's previous
     /// ValueId (from the source_function) and its new ValueId in the destination function.
     fn insert_new_instruction_results(
         values: &mut HashMap<Value, Value>,
-        old_results: &[Value],
+        mut old_results: impl ExactSizeIterator<Item = Value>,
         new_results: InsertInstructionResult,
     ) {
         assert_eq!(old_results.len(), new_results.len());
 
         match new_results {
             InsertInstructionResult::SimplifiedTo(new_result) => {
-                values.insert(old_results[0], new_result);
+                let old_result = old_results.next().unwrap();
+                values.insert(old_result, new_result);
             }
             InsertInstructionResult::SimplifiedToMultiple(new_results) => {
-                for (old_result, new_result) in old_results.iter().zip(new_results) {
-                    values.insert(*old_result, new_result);
+                for (old_result, new_result) in old_results.zip(new_results) {
+                    values.insert(old_result, new_result);
                 }
             }
             InsertInstructionResult::Results(_, new_results) => {
-                for (old_result, new_result) in old_results.iter().zip(new_results) {
-                    values.insert(*old_result, *new_result);
+                for (old_result, new_result) in old_results.zip(new_results) {
+                    values.insert(old_result, *new_result);
                 }
             }
             InsertInstructionResult::InstructionRemoved => (),

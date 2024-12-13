@@ -459,10 +459,10 @@ impl Loop {
 
         let mut context = LoopIteration::new(function, self, fresh_block, self.header);
         let source_block = &context.dfg()[context.source_block];
-        assert_eq!(source_block.parameters().len(), 1, "Expected only 1 argument in loop header");
+        assert_eq!(source_block.parameter_count(), 1, "Expected only 1 argument in loop header");
 
         // Insert the current value of the loop induction variable into our context.
-        let first_param = source_block.parameters()[0];
+        let first_param = Value::block_param(context.source_block, 0);
         context.inserter.try_map_value(first_param, induction_value);
         // Copy over all instructions and a fresh terminator.
         context.inline_instructions_from_block();
@@ -563,7 +563,7 @@ impl Loop {
             instructions
                 .filter(|i| matches!(&function.dfg[**i], Instruction::Allocate { .. }))
                 // Get the value into which the allocation was stored.
-                .map(|i| function.dfg.instruction_results(*i)[0])
+                .map(|i| Value::instruction_result(*i, 0))
         });
 
         // Collect reference parameters of the function itself.
@@ -576,11 +576,7 @@ impl Loop {
     /// Count the number of load and store instructions of specific variables in the loop.
     ///
     /// Returns `(loads, stores)` in case we want to differentiate in the estimates.
-    fn count_loads_and_stores(
-        &self,
-        function: &Function,
-        refs: &HashSet<Value>,
-    ) -> (usize, usize) {
+    fn count_loads_and_stores(&self, function: &Function, refs: &HashSet<Value>) -> (usize, usize) {
         let mut loads = 0;
         let mut stores = 0;
         for block in &self.blocks {
@@ -613,8 +609,7 @@ impl Loop {
     /// The increment should be in the block where the back-edge was found.
     fn count_induction_increments(&self, function: &Function) -> usize {
         let back = &function.dfg[self.back_edge_start];
-        let header = &function.dfg[self.header];
-        let induction_var = header.parameters()[0];
+        let induction_var = function.dfg.block_parameters(self.header).next().unwrap();
 
         back.instructions().iter().filter(|instruction|  {
             let instruction = &function.dfg[**instruction];

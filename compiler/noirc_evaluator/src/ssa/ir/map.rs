@@ -100,15 +100,15 @@ impl std::fmt::Display for Id<super::basic_block::BasicBlock> {
     }
 }
 
-impl std::fmt::Display for Id<super::value::Value> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "v{}", self.index)
-    }
-}
-
 impl std::fmt::Display for Id<super::function::Function> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "f{}", self.index)
+    }
+}
+
+impl std::fmt::Display for Id<super::value::ForeignFunction> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "ff{}", self.index)
     }
 }
 
@@ -310,7 +310,7 @@ pub(crate) struct TwoWayMap<K, V> {
     value_to_key: HashMap<V, K>,
 }
 
-impl<K: Clone + Eq + Hash, V: Clone + Hash + Eq> TwoWayMap<K, V> {
+impl<K: Clone + Eq + Hash, V: Clone + Eq + Hash> TwoWayMap<K, V> {
     /// Returns the number of elements in the map.
     pub(crate) fn len(&self) -> usize {
         self.key_to_value.len()
@@ -389,22 +389,30 @@ impl<T> Default for AtomicCounter<T> {
     }
 }
 
-/// A set to map a string to an Id<T>. Ensures each T corresponds to exactly 1 Id.
+/// A set to map a T to an Id<T>. Ensures each T corresponds to exactly 1 Id.
 #[derive(Debug, Default)]
-pub(crate) struct StringSet<T> {
-    storage: HashMap<String, Id<T>>,
+pub(crate) struct IdSet<T> {
+    map: TwoWayMap<T, Id<T>>,
 }
 
-impl<T> StringSet<T> {
+impl<K: Clone + Eq + Hash, V: Clone + Eq + Hash> IdSet<T> {
     /// Returns an existing id for the given element, or creates a new
     /// one if it doesn't already exist.
     pub(crate) fn get_or_insert(&mut self, element: &str) -> Id<T> {
-        if let Some(existing) = self.storage.get(element) {
+        if let Some(existing) = self.map.get(element) {
             return *existing;
         }
 
-        let id = Id::new(self.storage.len());
-        self.storage.insert(id, element.to_string());
+        let id = Id::new(self.map.len());
+        self.map.insert(element.to_string(), id);
         id
+    }
+}
+
+impl<T> std::ops::Index<Id<T>> for IdSet<T> {
+    type Output = T;
+
+    fn index(&self, index: Id<T>) -> &Self::Output {
+        &self.map.value_to_key[&index]
     }
 }

@@ -78,7 +78,7 @@ impl Loop {
     /// ```
     /// In the example above, `v1` is the induction variable
     fn get_induction_variable(&self, function: &Function) -> Value {
-        function.dfg.block_parameters(self.header)[0]
+        Value::block_param(self.header, 0)
     }
 }
 
@@ -116,8 +116,7 @@ impl<'f> LoopInvariantContext<'f> {
                         self.inserter.function.dfg[instruction_id],
                         Instruction::MakeArray { .. }
                     ) {
-                        let result =
-                            self.inserter.function.dfg.instruction_results(instruction_id)[0];
+                        let result = Value::instruction_result(instruction_id, 0);
                         let inc_rc = Instruction::IncrementRc { value: result };
                         let call_stack = self.inserter.function.dfg.get_call_stack(instruction_id);
                         self.inserter
@@ -169,18 +168,20 @@ impl<'f> LoopInvariantContext<'f> {
         instruction_id: InstructionId,
         hoist_invariant: bool,
     ) {
-        let results = self.inserter.function.dfg.instruction_results(instruction_id).to_vec();
-        // We will have new IDs after pushing instructions.
-        // We should mark the resolved result IDs as also being defined within the loop.
-        let results =
-            results.into_iter().map(|value| self.inserter.resolve(value)).collect::<Vec<_>>();
-        self.defined_in_loop.extend(results.iter());
+        let results = self.inserter.function.dfg.instruction_results(instruction_id);
 
-        // We also want the update result IDs when we are marking loop invariants as we may not
-        // be going through the blocks of the loop in execution order
-        if hoist_invariant {
-            // Track already found loop invariants
-            self.loop_invariants.extend(results.iter());
+        for result in results {
+            // We will have new IDs after pushing instructions.
+            // We should mark the resolved result IDs as also being defined within the loop.
+            let result = self.inserter.resolve(result);
+            self.defined_in_loop.insert(result);
+
+            // We also want the update result IDs when we are marking loop invariants as we may not
+            // be going through the blocks of the loop in execution order
+            if hoist_invariant {
+                // Track already found loop invariants
+                self.loop_invariants.extend(results);
+            }
         }
     }
 

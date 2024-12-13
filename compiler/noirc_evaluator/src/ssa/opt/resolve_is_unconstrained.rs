@@ -33,25 +33,19 @@ impl Function {
                     _ => continue,
                 };
 
-                if let Value::Intrinsic(Intrinsic::IsUnconstrained) = &self.dfg[target_func] {
+                if let Value::Intrinsic(Intrinsic::IsUnconstrained) = target_func {
                     is_unconstrained_calls.insert(instruction_id);
                 }
             }
         }
 
         for instruction_id in is_unconstrained_calls {
-            let call_returns = self.dfg.instruction_results(instruction_id);
-            let original_return_id = call_returns[0];
-
-            // We replace the result with a fresh id. This will be unused, so the DIE pass will remove the leftover intrinsic call.
-            // TODO(ValueId): need to get a fresh value here?
-            self.dfg.replace_result(instruction_id, original_return_id);
+            let original_return_id = Value::instruction_result(instruction_id, 0);
 
             let is_unconstrained = matches!(self.runtime(), RuntimeType::Brillig(_)).into();
-            let is_within_unconstrained =
-                self.dfg.make_constant(is_unconstrained, NumericType::bool());
+            let is_within_unconstrained = Value::constant(is_unconstrained, NumericType::bool());
             // Replace all uses of the original return value with the constant
-            self.dfg.set_value_from_id(original_return_id, is_within_unconstrained);
+            self.dfg.replace_value(original_return_id, is_within_unconstrained);
         }
     }
 }

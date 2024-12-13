@@ -144,9 +144,12 @@ impl<'f> Context<'f> {
                 }
                 Instruction::Load { address, result_type } => {
                     if matches!(result_type, Array { .. } | Slice { .. }) {
-                        let result = *self.dfg.instruction_results(*instruction_id).last().unwrap();
-                        let is_reference_param =
-                            self.dfg.block_parameters(block_id).contains(address);
+                        let result = Value::instruction_result(*instruction_id, 0);
+                        let is_reference_param = self
+                            .dfg
+                            .block_parameters(block_id)
+                            .find(|value| value == address)
+                            .is_some();
                         self.arrays_from_load.insert(result, is_reference_param);
                     }
                 }

@@ -18,7 +18,7 @@ use crate::ssa::ir::map::AtomicCounter;
 use crate::ssa::ir::types::{NumericType, Type};
 use crate::ssa::ir::value::Value;
 
-use super::value::{Tree, Value, Values};
+use super::value::{Tree, Value as SsaGenValue, Values};
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 /// The FunctionContext is the main context object for translating a
@@ -174,7 +174,7 @@ impl<'a> FunctionContext<'a> {
         &mut self,
         value_to_store: Value,
         increment_array_rc: bool,
-    ) -> Value {
+    ) -> SsaGenValue {
         let element_type = self.builder.current_function.dfg.type_of_value(value_to_store);
 
         if increment_array_rc {
@@ -184,7 +184,7 @@ impl<'a> FunctionContext<'a> {
         let alloc = self.builder.insert_allocate(element_type);
         self.builder.insert_store(alloc, value_to_store);
         let typ = self.builder.type_of_value(value_to_store);
-        Value::Mutable(alloc, typ)
+        SsaGenValue::Mutable(alloc, typ)
     }
 
     /// Maps the given type to a Tree of the result type.
@@ -306,7 +306,7 @@ impl<'a> FunctionContext<'a> {
             value
         };
 
-        Ok(self.builder.numeric_constant(value, numeric_type))
+        Ok(Value::constant(value, numeric_type))
     }
 
     /// helper function which add instructions to the block computing the absolute value of the
@@ -316,7 +316,7 @@ impl<'a> FunctionContext<'a> {
 
         // We compute the absolute value of lhs
         let bit_width = FieldElement::from(2_i128.pow(bit_size));
-        let bit_width = self.builder.numeric_constant(bit_width, NumericType::NativeField);
+        let bit_width = Value::field_constant(bit_width);
         let sign_not = self.builder.insert_not(sign);
 
         // We use unsafe casts here, this is fine as we're casting to a `field` type.
@@ -423,11 +423,11 @@ impl<'a> FunctionContext<'a> {
         bit_size: u32,
         location: Location,
     ) -> Value {
-        let one = self.builder.numeric_constant(FieldElement::one(), NumericType::bool());
+        let one = Value::constant(FieldElement::one(), NumericType::bool());
         assert!(self.builder.current_function.dfg.type_of_value(rhs) == Type::unsigned(8));
 
         let bit_size_field = FieldElement::from(bit_size as i128);
-        let max = self.builder.numeric_constant(bit_size_field, NumericType::unsigned(8));
+        let max = Value::constant(bit_size_field, NumericType::unsigned(8));
         let overflow = self.builder.insert_binary(rhs, BinaryOp::Lt, max);
         self.builder.set_location(location).insert_constrain(
             overflow,
@@ -459,7 +459,7 @@ impl<'a> FunctionContext<'a> {
         location: Location,
     ) {
         let is_sub = operator == BinaryOpKind::Subtract;
-        let half_width = self.builder.numeric_constant(
+        let half_width = Value::constant(
             FieldElement::from(2_i128.pow(bit_size - 1)),
             NumericType::unsigned(bit_size),
         );
@@ -515,7 +515,7 @@ impl<'a> FunctionContext<'a> {
                 let product_overflow_check =
                     self.builder.insert_binary(product, BinaryOp::Lt, positive_maximum_with_offset);
 
-                let one = self.builder.numeric_constant(FieldElement::one(), NumericType::bool());
+                let one = Value::constant(FieldElement::one(), NumericType::bool());
                 self.builder.set_location(location).insert_constrain(
                     product_overflow_check,
                     one,
@@ -614,7 +614,7 @@ impl<'a> FunctionContext<'a> {
     pub(super) fn make_offset(&mut self, mut address: Value, offset: u128) -> Value {
         if offset != 0 {
             let typ = self.builder.type_of_value(address).unwrap_numeric();
-            let offset = self.builder.numeric_constant(offset, typ);
+            let offset = Value::constant(offset.into(), typ);
             address = self.builder.insert_binary(address, BinaryOp::Add, offset);
         }
         address
@@ -869,13 +869,12 @@ impl<'a> FunctionContext<'a> {
         location: Location,
     ) -> Value {
         let index = self.make_array_index(index);
-        let element_size =
-            self.builder.numeric_constant(self.element_size(array), NumericType::length_type());
+        let element_size = Value::length_constant(self.element_size(array));
 
         // The actual base index is the user's index * the array element type's size
         let mut index =
             self.builder.set_location(location).insert_binary(index, BinaryOp::Mul, element_size);
-        let one = self.builder.numeric_constant(FieldElement::one(), NumericType::length_type());
+        let one = Value::length_constant(FieldElement::one());
 
         new_value.for_each(|value| {
             let value = value.eval(self);
@@ -922,7 +921,7 @@ impl<'a> FunctionContext<'a> {
     /// paired inc/dec instructions within brillig functions more easily.
     pub(crate) fn increment_parameter_rcs(&mut self) -> HashSet<Value> {
         let entry = self.builder.current_function.entry_block();
-        let parameters = self.builder.current_function.dfg.block_parameters(entry).to_vec();
+        let parameters = self.builder.current_function.dfg.block_parameters(entry);
 
         let mut incremented = HashSet::default();
         let mut seen_array_types = HashSet::default();

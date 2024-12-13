@@ -6,11 +6,12 @@ use super::{
     basic_block::{BasicBlock, BasicBlockId},
     function::FunctionId,
     instruction::{
-        Instruction, InstructionId, InstructionResultType, Intrinsic, TerminatorInstruction, insert_result::InsertInstructionResult,
+        insert_result::InsertInstructionResult, Instruction, InstructionId, InstructionResultType,
+        Intrinsic, TerminatorInstruction,
     },
-    map::{DenseMap, TwoWayMap, StringSet},
+    map::{DenseMap, IdSet, TwoWayMap},
     types::{NumericType, Type},
-    value::{Value, ForeignFunctionId, ForeignFunction},
+    value::{ForeignFunction, ForeignFunctionId, Value},
 };
 
 use acvm::{acir::AcirField, FieldElement};
@@ -41,7 +42,7 @@ pub(crate) struct DataFlowGraph {
     /// This map is used to ensure that the ValueId for any given foreign function is always
     /// represented by only 1 ValueId within this function.
     #[serde(skip)]
-    foreign_functions: StringSet<ForeignFunction>,
+    foreign_functions: IdSet<ForeignFunction>,
 
     /// All blocks in a function
     blocks: DenseMap<BasicBlock>,
@@ -102,10 +103,11 @@ impl DataFlowGraph {
     }
 
     /// Iterate over the parameters of a block
-    pub(crate) fn block_parameters(&self, block: BasicBlockId) -> impl ExactSizeIterator<Item = Value> {
-        (0 .. self[block].parameter_types().len()).map(|position| {
-            Value::Param { block, position }
-        })
+    pub(crate) fn block_parameters(
+        &self,
+        block: BasicBlockId,
+    ) -> impl ExactSizeIterator<Item = Value> {
+        (0..self[block].parameter_types().len()).map(|position| Value::Param { block, position })
     }
 
     /// Inserts a new instruction into the DFG.
@@ -173,7 +175,7 @@ impl DataFlowGraph {
     /// This is the preferred method to call for optimizations simplifying
     /// values since other instructions referring to the same ValueId need
     /// not be modified to refer to a new ValueId.
-    pub(crate) fn set_value_from_id(&mut self, value_to_replace: Value, new_value: Value) {
+    pub(crate) fn replace_value(&mut self, value_to_replace: Value, new_value: Value) {
         if value_to_replace != new_value {
             self.replaced_values.insert(value_to_replace, self.resolve(new_value));
         }
@@ -294,7 +296,10 @@ impl DataFlowGraph {
     }
 
     /// Returns all of result values which are attached to this instruction.
-    pub(crate) fn instruction_results(&self, instruction: InstructionId) -> impl ExactSizeIterator<Item = Value> {
+    pub(crate) fn instruction_results(
+        &self,
+        instruction: InstructionId,
+    ) -> impl ExactSizeIterator<Item = Value> {
         let result_count = self[instruction].result_count();
         (0..result_count).map(|position| Value::Instruction { instruction, position })
     }
@@ -442,6 +447,13 @@ impl std::ops::IndexMut<BasicBlockId> for DataFlowGraph {
     /// Get a mutable reference to a function's basic block for the given id.
     fn index_mut(&mut self, id: BasicBlockId) -> &mut Self::Output {
         &mut self.blocks[id]
+    }
+}
+
+impl std::ops::Index<ForeignFunctionId> for DataFlowGraph {
+    type Output = ForeignFunction;
+    fn index_mut(&mut self, id: ForeignFunctionId) -> &Self::Output {
+        &self.foreign_functions[id]
     }
 }
 

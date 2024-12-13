@@ -32,7 +32,8 @@ pub(crate) fn display_block(
 ) -> Result {
     let block = &function.dfg[block_id];
 
-    writeln!(f, "  {}({}):", block_id, value_list_with_types(function, block.parameters()))?;
+    let parameters = function.dfg.block_parameters(block_id);
+    writeln!(f, "  {}({}):", block_id, value_list_with_types(function, parameters))?;
 
     for instruction in block.instructions() {
         display_instruction(function, *instruction, f)?;
@@ -43,33 +44,26 @@ pub(crate) fn display_block(
 
 /// Specialize displaying value ids so that if they refer to a numeric
 /// constant or a function we print those directly.
-fn value(function: &Function, id: Value) -> String {
-    let id = function.dfg.resolve(id);
-    match &function.dfg[id] {
-        Value::NumericConstant { constant, typ } => {
-            format!("{typ} {constant}")
-        }
-        Value::Function(id) => id.to_string(),
-        Value::Intrinsic(intrinsic) => intrinsic.to_string(),
-        Value::Param { .. } | Value::Instruction { .. } | Value::ForeignFunction(_) => {
-            id.to_string()
-        }
-    }
+fn value(function: &Function, value: Value) -> String {
+    function.dfg.resolve(value).to_string()
 }
 
 /// Display each value along with its type. E.g. `v0: Field, v1: u64, v2: u1`
-fn value_list_with_types(function: &Function, values: &[Value]) -> String {
-    vecmap(values, |id| {
-        let value = value(function, *id);
-        let typ = function.dfg.type_of_value(*id);
+fn value_list_with_types(
+    function: &Function,
+    values: impl ExactSizeIterator<Item = Value>,
+) -> String {
+    vecmap(values, |v| {
+        let value = value(function, v);
+        let typ = function.dfg.type_of_value(v);
         format!("{value}: {typ}")
     })
     .join(", ")
 }
 
 /// Display each value separated by a comma
-fn value_list(function: &Function, values: &[Value]) -> String {
-    vecmap(values, |id| value(function, *id)).join(", ")
+fn value_list(function: &Function, values: impl ExactSizeIterator<Item = Value>) -> String {
+    vecmap(values, |v| value(function, v)).join(", ")
 }
 
 /// Display a terminator instruction
@@ -80,7 +74,12 @@ pub(crate) fn display_terminator(
 ) -> Result {
     match terminator {
         Some(TerminatorInstruction::Jmp { destination, arguments, call_stack: _ }) => {
-            writeln!(f, "    jmp {}({})", destination, value_list(function, arguments))
+            writeln!(
+                f,
+                "    jmp {}({})",
+                destination,
+                value_list(function, arguments.iter().copied())
+            )
         }
         Some(TerminatorInstruction::JmpIf {
             condition,
@@ -100,7 +99,7 @@ pub(crate) fn display_terminator(
             if return_values.is_empty() {
                 writeln!(f, "    return")
             } else {
-                writeln!(f, "    return {}", value_list(function, return_values))
+                writeln!(f, "    return {}", value_list(function, return_values.iter().copied()))
             }
         }
         None => writeln!(f, "    (no terminator instruction)"),
@@ -117,7 +116,7 @@ pub(crate) fn display_instruction(
     write!(f, "    ")?;
 
     let results = function.dfg.instruction_results(instruction);
-    if !results.is_empty() {
+    if results.len() != 0 {
         write!(f, "{} = ", value_list(function, results))?;
     }
 
@@ -127,7 +126,7 @@ pub(crate) fn display_instruction(
 fn display_instruction_inner(
     function: &Function,
     instruction: &Instruction,
-    results: &[Value],
+    results: impl ExactSizeIterator<Item = Value>,
     f: &mut Formatter,
 ) -> Result {
     let show = |id| value(function, id);
@@ -151,7 +150,7 @@ fn display_instruction_inner(
             }
         }
         Instruction::Call { func, arguments, result_types: _ } => {
-            let arguments = value_list(function, arguments);
+            let arguments = value_list(function, arguments.iter().copied());
             writeln!(f, "call {}({}){}", show(*func), arguments, result_types(function, results))
         }
         Instruction::Allocate { element_type: _ } => {
@@ -257,8 +256,8 @@ fn try_byte_array_to_string(elements: &Vector<Value>, function: &Function) -> Op
     Some(string)
 }
 
-fn result_types(function: &Function, results: &[Value]) -> String {
-    let types = vecmap(results, |result| function.dfg.type_of_value(*result).to_string());
+fn result_types(function: &Function, results: impl ExactSizeIterator<Item = Value>) -> String {
+    let types = vecmap(results, |result| function.dfg.type_of_value(result).to_string());
     if types.is_empty() {
         String::new()
     } else if types.len() == 1 {
@@ -307,7 +306,7 @@ fn display_constrain_error(
             {
                 writeln!(f, ", {constant_string:?}")
             } else {
-                writeln!(f, ", data {}", value_list(function, values))
+                writeln!(f, ", data {}", value_list(function, values.iter().copied()))
             }
         }
     }

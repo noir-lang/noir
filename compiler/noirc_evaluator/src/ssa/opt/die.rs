@@ -163,12 +163,12 @@ impl Context {
         let instruction = &function.dfg[instruction_id];
 
         if instruction.can_eliminate_if_unused(function) {
-            let results = function.dfg.instruction_results(instruction_id);
-            results.iter().all(|result| !self.used_values.contains(result))
+            let mut results = function.dfg.instruction_results(instruction_id);
+            results.all(|result| !self.used_values.contains(&result))
         } else if let Instruction::Call { func, arguments, .. } = instruction {
             // TODO: make this more general for instructions which don't have results but have side effects "sometimes" like `Intrinsic::AsWitness`
-            let as_witness_id = function.dfg.get_intrinsic(Intrinsic::AsWitness);
-            as_witness_id == Some(func) && !self.used_values.contains(&arguments[0])
+            let as_witness = Value::Intrinsic(Intrinsic::AsWitness);
+            as_witness == *func && !self.used_values.contains(&arguments[0])
         } else {
             // If the instruction has side effects we should never remove it.
             false
@@ -184,9 +184,9 @@ impl Context {
 
     /// Inspects a value and marks all instruction results as used.
     fn mark_used_instruction_results(&mut self, dfg: &DataFlowGraph, value_id: Value) {
-        let value_id = dfg.resolve(value_id);
-        if matches!(&dfg[value_id], Value::Instruction { .. } | Value::Param { .. }) {
-            self.used_values.insert(value_id);
+        let value = dfg.resolve(value_id);
+        if matches!(value, Value::Instruction { .. } | Value::Param { .. }) {
+            self.used_values.insert(value);
         }
     }
 
@@ -283,31 +283,29 @@ impl Context {
 
             let (lhs, rhs) = if function.dfg.get_numeric_constant(*index).is_some() {
                 // If we are here it means the index is known but out of bounds. That's always an error!
-                let false_const = function.dfg.make_constant(false.into(), NumericType::bool());
-                let true_const = function.dfg.make_constant(true.into(), NumericType::bool());
+                let false_const = Value::bool_constant(false);
+                let true_const = Value::bool_constant(true);
                 (false_const, true_const)
             } else {
                 // `index` will be relative to the flattened array length, so we need to take that into account
                 let array_length = function.dfg.type_of_value(*array).flattened_size();
 
                 // If we are here it means the index is dynamic, so let's add a check that it's less than length
-                let length_type = NumericType::length_type();
                 let index = function.dfg.insert_instruction_and_results(
-                    Instruction::Cast(*index, length_type),
+                    Instruction::Cast(*index, NumericType::length_type()),
                     block_id,
                     call_stack.clone(),
                 );
                 let index = index.first();
 
-                let array_length =
-                    function.dfg.make_constant((array_length as u128).into(), length_type);
+                let array_length = Value::length_constant((array_length as u128).into());
                 let is_index_out_of_bounds = function.dfg.insert_instruction_and_results(
                     Instruction::binary(BinaryOp::Lt, index, array_length),
                     block_id,
                     call_stack.clone(),
                 );
                 let is_index_out_of_bounds = is_index_out_of_bounds.first();
-                let true_const = function.dfg.make_constant(true.into(), NumericType::bool());
+                let true_const = Value::bool_constant(true.into());
                 (is_index_out_of_bounds, true_const)
             };
 
@@ -343,11 +341,11 @@ impl Context {
     ) -> bool {
         use Instruction::*;
         if let IncrementRc { value } | DecrementRc { value } = instruction {
-            if let Value::Instruction { instruction, .. } = &dfg[*value] {
-                return match &dfg[*instruction] {
+            if let Value::Instruction { instruction, .. } = *value {
+                return match &dfg[instruction] {
                     MakeArray { .. } => true,
                     Call { func, .. } => {
-                        matches!(&dfg[*func], Value::Intrinsic(_) | Value::ForeignFunction(_))
+                        matches!(func, Value::Intrinsic(_) | Value::ForeignFunction(_))
                     }
                     _ => false,
                 };

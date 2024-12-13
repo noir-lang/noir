@@ -19,12 +19,12 @@ pub(super) fn decompose_constrain(
         // Remove trivial case `assert_eq(x, x)`
         Vec::new()
     } else {
-        match (&dfg[lhs], &dfg[rhs]) {
+        match (lhs, rhs) {
             (Value::NumericConstant { constant, typ }, Value::Instruction { instruction, .. })
             | (Value::Instruction { instruction, .. }, Value::NumericConstant { constant, typ })
-                if *typ == NumericType::bool() =>
+                if typ == NumericType::bool() =>
             {
-                match dfg[*instruction] {
+                match dfg[instruction] {
                     Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Eq })
                         if constant.is_one() =>
                     {
@@ -62,8 +62,7 @@ pub(super) fn decompose_constrain(
                         //
                         // Note that this doesn't remove the value `v2` as it may be used in other instructions, but it
                         // will likely be removed through dead instruction elimination.
-                        let one = FieldElement::one();
-                        let one = dfg.make_constant(one, NumericType::bool());
+                        let one = Value::bool_constant(true);
 
                         [
                             decompose_constrain(lhs, one, msg, dfg),
@@ -91,7 +90,7 @@ pub(super) fn decompose_constrain(
                         // Note that this doesn't remove the value `v2` as it may be used in other instructions, but it
                         // will likely be removed through dead instruction elimination.
                         let zero = FieldElement::zero();
-                        let zero = dfg.make_constant(zero, dfg.type_of_value(lhs).unwrap_numeric());
+                        let zero = Value::constant(zero, dfg.type_of_value(lhs).unwrap_numeric());
 
                         [
                             decompose_constrain(lhs, zero, msg, dfg),
@@ -113,9 +112,7 @@ pub(super) fn decompose_constrain(
                         //
                         // Note that this doesn't remove the value `v1` as it may be used in other instructions, but it
                         // will likely be removed through dead instruction elimination.
-                        let reversed_constant = FieldElement::from(!constant.is_one());
-                        let reversed_constant =
-                            dfg.make_constant(reversed_constant, NumericType::bool());
+                        let reversed_constant = Value::bool_constant(!constant.is_one());
                         decompose_constrain(value, reversed_constant, msg, dfg)
                     }
 
@@ -127,7 +124,7 @@ pub(super) fn decompose_constrain(
                 Value::Instruction { instruction: instruction_lhs, .. },
                 Value::Instruction { instruction: instruction_rhs, .. },
             ) => {
-                match (&dfg[*instruction_lhs], &dfg[*instruction_rhs]) {
+                match (&dfg[instruction_lhs], &dfg[instruction_rhs]) {
                     // Casting two values just to enforce an equality on them.
                     //
                     // This is equivalent to enforcing equality on the original values.

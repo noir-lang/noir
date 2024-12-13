@@ -179,7 +179,7 @@ impl<'f> PerFunctionContext<'f> {
         let mut per_func_block_params: HashSet<Value> = HashSet::default();
         for (block_id, _) in self.blocks.iter() {
             let block_params = self.inserter.function.dfg.block_parameters(*block_id);
-            per_func_block_params.extend(block_params.iter());
+            per_func_block_params.extend(block_params);
             let terminator = self.inserter.function.dfg[*block_id].unwrap_terminator();
             terminator.for_each_value(|value| all_terminator_values.insert(value));
         }
@@ -341,7 +341,7 @@ impl<'f> PerFunctionContext<'f> {
         let mut aliases: HashMap<Type, AliasSet> = HashMap::default();
 
         for param in params {
-            match dfg.type_of_value(*param) {
+            match dfg.type_of_value(param) {
                 // If the type indirectly contains a reference we have to assume all references
                 // are unknown since we don't have any ValueIds to use.
                 Type::Reference(element) if element.contains_reference() => return,
@@ -349,7 +349,7 @@ impl<'f> PerFunctionContext<'f> {
                     let empty_aliases = AliasSet::known_empty();
                     let alias_set =
                         aliases.entry(element.as_ref().clone()).or_insert(empty_aliases);
-                    alias_set.insert(*param);
+                    alias_set.insert(param);
                 }
                 typ if typ.contains_reference() => return,
                 _ => continue,
@@ -410,12 +410,12 @@ impl<'f> PerFunctionContext<'f> {
             Instruction::Load { address, result_type: _ } => {
                 let address = self.inserter.function.dfg.resolve(*address);
 
-                let result = self.inserter.function.dfg.instruction_results(instruction)[0];
+                let result = Value::instruction_result(instruction, 0);
                 references.remember_dereference(self.inserter.function, address, result);
 
                 // If the load is known, replace it with the known value and remove the load
                 if let Some(value) = references.get_known_value(address) {
-                    let result = self.inserter.function.dfg.instruction_results(instruction)[0];
+                    let result = Value::instruction_result(instruction, 0);
                     self.inserter.map_value(result, value);
                     self.instructions_to_remove.insert(instruction);
                 } else {
@@ -432,9 +432,8 @@ impl<'f> PerFunctionContext<'f> {
                     else {
                         panic!("Expected a Load instruction here");
                     };
-                    let result = self.inserter.function.dfg.instruction_results(instruction)[0];
-                    let previous_result =
-                        self.inserter.function.dfg.instruction_results(*last_load)[0];
+                    let result = Value::instruction_result(instruction, 0);
+                    let previous_result = Value::instruction_result(*last_load, 0);
                     if *previous_address == address {
                         self.inserter.map_value(result, previous_result);
                         self.instructions_to_remove.insert(instruction);
@@ -476,12 +475,12 @@ impl<'f> PerFunctionContext<'f> {
             }
             Instruction::Allocate { element_type: _ } => {
                 // Register the new reference
-                let result = self.inserter.function.dfg.instruction_results(instruction)[0];
+                let result = Value::instruction_result(instruction, 0);
                 references.expressions.insert(result, Expression::Other(result));
                 references.aliases.insert(Expression::Other(result), AliasSet::known(result));
             }
             Instruction::ArrayGet { array, .. } => {
-                let result = self.inserter.function.dfg.instruction_results(instruction)[0];
+                let result = Value::instruction_result(instruction, 0);
                 references.mark_value_used(*array, self.inserter.function);
 
                 if self.inserter.function.dfg.value_is_reference(result) {
@@ -498,7 +497,7 @@ impl<'f> PerFunctionContext<'f> {
                 let element_type = self.inserter.function.dfg.type_of_value(*value);
 
                 if Self::contains_references(&element_type) {
-                    let result = self.inserter.function.dfg.instruction_results(instruction)[0];
+                    let result = Value::instruction_result(instruction, 0);
                     let array = self.inserter.function.dfg.resolve(*array);
 
                     let expression = Expression::ArrayElement(Box::new(Expression::Other(array)));
@@ -540,7 +539,7 @@ impl<'f> PerFunctionContext<'f> {
                 // If `array` is an array constant that contains reference types, then insert each element
                 // as a potential alias to the array itself.
                 if Self::contains_references(typ) {
-                    let array = self.inserter.function.dfg.instruction_results(instruction)[0];
+                    let array = Value::instruction_result(instruction, 0);
 
                     let expr = Expression::ArrayElement(Box::new(Expression::Other(array)));
                     references.expressions.insert(array, expr.clone());
@@ -609,7 +608,8 @@ impl<'f> PerFunctionContext<'f> {
         match self.inserter.function.dfg[block].unwrap_terminator() {
             TerminatorInstruction::JmpIf { .. } => (), // Nothing to do
             TerminatorInstruction::Jmp { destination, arguments, .. } => {
-                let destination_parameters = self.inserter.function.dfg[*destination].parameters();
+                let destination_parameters =
+                    self.inserter.function.dfg.block_parameters(*destination);
                 assert_eq!(destination_parameters.len(), arguments.len());
 
                 // If we have multiple parameters that alias that same argument value,
@@ -619,20 +619,20 @@ impl<'f> PerFunctionContext<'f> {
                 let mut arg_set: HashMap<Value, BTreeSet<Value>> = HashMap::default();
 
                 // Add an alias for each reference parameter
-                for (parameter, argument) in destination_parameters.iter().zip(arguments) {
-                    if self.inserter.function.dfg.value_is_reference(*parameter) {
+                for (parameter, argument) in destination_parameters.zip(arguments) {
+                    if self.inserter.function.dfg.value_is_reference(parameter) {
                         let argument = self.inserter.function.dfg.resolve(*argument);
 
                         if let Some(expression) = references.expressions.get(&argument) {
                             if let Some(aliases) = references.aliases.get_mut(expression) {
                                 // The argument reference is possibly aliased by this block parameter
-                                aliases.insert(*parameter);
+                                aliases.insert(parameter);
 
                                 // Check if we have seen the same argument
                                 let seen_parameters = arg_set.entry(argument).or_default();
                                 // Add the current parameter to the parameters we have seen for this argument.
                                 // The previous parameters and the current one alias one another.
-                                seen_parameters.insert(*parameter);
+                                seen_parameters.insert(parameter);
                             }
                         }
                     }

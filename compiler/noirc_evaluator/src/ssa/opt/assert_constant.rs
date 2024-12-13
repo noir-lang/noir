@@ -64,8 +64,8 @@ fn check_instruction(
     function: &mut Function,
     instruction: InstructionId,
 ) -> Result<bool, RuntimeError> {
-    let assert_constant_id = function.dfg.import_intrinsic(Intrinsic::AssertConstant);
-    let static_assert_id = function.dfg.import_intrinsic(Intrinsic::StaticAssert);
+    let assert_constant_id = Value::Intrinsic(Intrinsic::AssertConstant);
+    let static_assert_id = Value::Intrinsic(Intrinsic::StaticAssert);
     match &function.dfg[instruction] {
         Instruction::Call { func, arguments, .. } => {
             if *func == assert_constant_id {

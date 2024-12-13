@@ -49,7 +49,7 @@ pub(crate) type InstructionId = Id<Instruction>;
 /// special support for. (LowLevel)
 /// - Opcodes which have no function definition in the
 /// source code and must be processed by the IR.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub(crate) enum Intrinsic {
     ArrayLen,
     ArrayAsStrUnchecked,
@@ -232,14 +232,14 @@ impl Intrinsic {
 }
 
 /// The endian-ness of bits when encoding values as bits in e.g. ToBits or ToRadix
-#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub(crate) enum Endian {
     Big,
     Little,
 }
 
 /// Compiler hints.
-#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub(crate) enum Hint {
     /// Hint to the compiler to treat the call as having potential side effects,
     /// so that the value passed to it can survive SSA passes without being
@@ -334,12 +334,7 @@ pub(crate) enum Instruction {
     ///     else_value
     /// }
     /// ```
-    IfElse {
-        then_condition: Value,
-        then_value: Value,
-        else_condition: Value,
-        else_value: Value,
-    },
+    IfElse { then_condition: Value, then_value: Value, else_condition: Value, else_value: Value },
 
     /// Creates a new array or slice.
     ///
@@ -402,7 +397,7 @@ impl Instruction {
             | IncrementRc { .. }
             | DecrementRc { .. } => true,
 
-            Call { func, .. } => match dfg[*func] {
+            Call { func, .. } => match *func {
                 Value::Intrinsic(intrinsic) => intrinsic.has_side_effects(),
                 _ => true, // Be conservative and assume other functions can have side effects.
             },
@@ -462,7 +457,7 @@ impl Instruction {
             | IncrementRc { .. }
             | DecrementRc { .. } => false,
 
-            Call { func, .. } => match function.dfg[*func] {
+            Call { func, .. } => match *func {
                 Value::Intrinsic(intrinsic) => {
                     intrinsic.can_be_deduplicated(deduplicate_with_predicate)
                 }
@@ -537,7 +532,7 @@ impl Instruction {
             | RangeCheck { .. } => false,
 
             // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
-            Call { func, .. } => match function.dfg[*func] {
+            Call { func, .. } => match *func {
                 // Explicitly allows removal of unused ec operations, even if they can fail
                 Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul))
                 | Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::EmbeddedCurveAdd)) => true,
@@ -573,7 +568,7 @@ impl Instruction {
 
             Instruction::EnableSideEffectsIf { .. } | Instruction::ArraySet { .. } => true,
 
-            Instruction::Call { func, .. } => match dfg[*func] {
+            Instruction::Call { func, .. } => match *func {
                 Value::Function(_) => true,
                 Value::Intrinsic(intrinsic) => {
                     matches!(intrinsic, Intrinsic::SliceInsert | Intrinsic::SliceRemove)
@@ -762,18 +757,18 @@ impl Instruction {
             Instruction::Binary(binary) => binary.simplify(dfg),
             Instruction::Cast(value, typ) => simplify_cast(*value, *typ, dfg),
             Instruction::Not(value) => {
-                match &dfg[dfg.resolve(*value)] {
+                match dfg.resolve(*value) {
                     // Limit optimizing ! on constants to only booleans. If we tried it on fields,
                     // there is no Not on FieldElement, so we'd need to convert between u128. This
                     // would be incorrect however since the extra bits on the field would not be flipped.
                     Value::NumericConstant { constant, typ } if typ.is_unsigned() => {
                         // As we're casting to a `u128`, we need to clear out any upper bits that the NOT fills.
                         let value = !constant.to_u128() % (1 << typ.bit_size());
-                        SimplifiedTo(dfg.make_constant(value.into(), *typ))
+                        SimplifiedTo(Value::constant(value.into(), typ))
                     }
                     Value::Instruction { instruction, .. } => {
                         // !!v => v
-                        if let Instruction::Not(value) = &dfg[*instruction] {
+                        if let Instruction::Not(value) = &dfg[instruction] {
                             SimplifiedTo(*value)
                         } else {
                             None
@@ -826,9 +821,9 @@ impl Instruction {
                 if let Some((numeric_constant, typ)) = dfg.get_numeric_constant_with_type(*value) {
                     let integer_modulus = 2_u128.pow(*bit_size);
                     let truncated = numeric_constant.to_u128() % integer_modulus;
-                    SimplifiedTo(dfg.make_constant(truncated.into(), typ))
-                } else if let Value::Instruction { instruction, .. } = &dfg[dfg.resolve(*value)] {
-                    match &dfg[*instruction] {
+                    SimplifiedTo(Value::constant(truncated.into(), typ))
+                } else if let Value::Instruction { instruction, .. } = dfg.resolve(*value) {
+                    match &dfg[instruction] {
                         Instruction::Truncate { bit_size: src_bit_size, .. } => {
                             // If we're truncating the value to fit into the same or larger bit size then this is a noop.
                             if src_bit_size <= bit_size && src_bit_size <= max_bit_size {
@@ -975,7 +970,7 @@ impl Instruction {
 ///   - If the array value is from a previous array-set, we recur.
 fn try_optimize_array_get_from_previous_set(
     dfg: &DataFlowGraph,
-    mut array_id: Id<Value>,
+    mut the_array: Value,
     target_index: FieldElement,
 ) -> SimplifyResult {
     let mut elements = None;
@@ -983,16 +978,16 @@ fn try_optimize_array_get_from_previous_set(
     // Arbitrary number of maximum tries just to prevent this optimization from taking too long.
     let max_tries = 5;
     for _ in 0..max_tries {
-        match &dfg[array_id] {
+        match the_array {
             Value::Instruction { instruction, .. } => {
-                match &dfg[*instruction] {
+                match &dfg[instruction] {
                     Instruction::ArraySet { array, index, value, .. } => {
                         if let Some(constant) = dfg.get_numeric_constant(*index) {
                             if constant == target_index {
                                 return SimplifyResult::SimplifiedTo(*value);
                             }
 
-                            array_id = *array; // recur
+                            the_array = *array; // recur
                         } else {
                             return SimplifyResult::None;
                         }
@@ -1050,8 +1045,8 @@ fn try_optimize_array_set_from_previous_get(
     target_index: Value,
     target_value: Value,
 ) -> SimplifyResult {
-    let array_from_get = match &dfg[target_value] {
-        Value::Instruction { instruction, .. } => match &dfg[*instruction] {
+    let array_from_get = match target_value {
+        Value::Instruction { instruction, .. } => match &dfg[instruction] {
             Instruction::ArrayGet { array, index, result_type: _ } => {
                 if *array == array_id && *index == target_index {
                     // If array and index match from the value, we can immediately simplify
@@ -1083,8 +1078,8 @@ fn try_optimize_array_set_from_previous_get(
     // Arbitrary number of maximum tries just to prevent this optimization from taking too long.
     let max_tries = 5;
     for _ in 0..max_tries {
-        match &dfg[array_id] {
-            Value::Instruction { instruction, .. } => match &dfg[*instruction] {
+        match array_id {
+            Value::Instruction { instruction, .. } => match &dfg[instruction] {
                 Instruction::ArraySet { array, index, .. } => {
                     let Some(index) = dfg.get_numeric_constant(*index) else {
                         return SimplifyResult::None;
@@ -1200,10 +1195,7 @@ pub(crate) enum TerminatorInstruction {
 
 impl TerminatorInstruction {
     /// Map each ValueId in this terminator to a new value.
-    pub(crate) fn map_values(
-        &self,
-        mut f: impl FnMut(Value) -> Value,
-    ) -> TerminatorInstruction {
+    pub(crate) fn map_values(&self, mut f: impl FnMut(Value) -> Value) -> TerminatorInstruction {
         use TerminatorInstruction::*;
         match self {
             JmpIf { condition, then_destination, else_destination, call_stack } => JmpIf {
@@ -1317,7 +1309,9 @@ impl SimplifyResult {
     pub(crate) fn instruction(self) -> Option<Instruction> {
         match self {
             SimplifyResult::SimplifiedToInstruction(instruction) => Some(instruction),
-            SimplifyResult::SimplifiedToInstructionMultiple(mut instructions) if instructions.len() == 1 => {
+            SimplifyResult::SimplifiedToInstructionMultiple(mut instructions)
+                if instructions.len() == 1 =>
+            {
                 Some(instructions.pop().unwrap())
             }
             _ => None,

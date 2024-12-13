@@ -45,10 +45,7 @@ fn find_back_edges(
 }
 
 /// Collects the underlying variables inside a value id. It might be more than one, for example in constant arrays that are constructed with multiple vars.
-pub(crate) fn collect_variables_of_value(
-    value_id: Value,
-    dfg: &DataFlowGraph,
-) -> Option<Value> {
+pub(crate) fn collect_variables_of_value(value_id: Value, dfg: &DataFlowGraph) -> Option<Value> {
     let value_id = dfg.resolve(value_id);
     let value = &dfg[value_id];
 

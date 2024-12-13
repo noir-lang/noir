@@ -1,5 +1,5 @@
-use crate::ssa::ir::value::Value;
 use super::InstructionId;
+use crate::ssa::ir::value::Value;
 
 // The result of calling DataFlowGraph::insert_instruction can
 // be a list of results or a single ValueId if the instruction was simplified
@@ -18,9 +18,9 @@ impl InsertInstructionResult {
         match self {
             InsertInstructionResult::SimplifiedTo(value) => *value,
             InsertInstructionResult::SimplifiedToMultiple(values) => values[0],
-            InsertInstructionResult::Results(instruction, results) => {
-                assert_eq!(results.len(), 1);
-                Value::Instruction { instruction: *instruction, position: 0 }
+            InsertInstructionResult::Results { id, result_count } => {
+                assert_eq!(*result_count, 1);
+                Value::instruction_result(*id, 0)
             }
             InsertInstructionResult::InstructionRemoved => {
                 panic!("Instruction was removed, no results")
@@ -39,7 +39,7 @@ impl InsertInstructionResult {
         match self {
             InsertInstructionResult::SimplifiedTo(_) => 1,
             InsertInstructionResult::SimplifiedToMultiple(results) => results.len(),
-            InsertInstructionResult::Results(_, results) => results.len(),
+            InsertInstructionResult::Results { result_count, .. } => *result_count,
             InsertInstructionResult::InstructionRemoved => 0,
         }
     }
@@ -60,41 +60,39 @@ impl Iterator for InsertInstructionResultIter {
                 let result = Value::Instruction { instruction: *id, position: self.index };
                 self.index += 1;
                 Some(result)
-            },
+            }
             SimplifiedTo(value) if self.index == 0 => {
                 self.index += 1;
-                Some(value)
-            },
+                Some(*value)
+            }
             SimplifiedToMultiple(results) => {
                 let result = results[self.index];
                 self.index += 1;
                 Some(result)
-            },
+            }
             InstructionRemoved | Results { .. } | SimplifiedTo(..) => None,
         }
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let upper_bound = match &self.results {
-            InsertInstructionResult::Results { result_count, .. } => *result_count,
-            InsertInstructionResult::SimplifiedTo(_) => 1,
-            InsertInstructionResult::SimplifiedToMultiple(results) => results.len(),
-            InsertInstructionResult::InstructionRemoved => 0,
-        };
-        (0, Some(upper_bound))
+        (0, Some(self.len()))
     }
 }
 
-impl ExactSizeIterator for InsertInstructionResultIter {}
+impl ExactSizeIterator for InsertInstructionResultIter {
+    fn len(&self) -> usize {
+        self.results.len() - self.index
+    }
+}
 
 impl std::ops::Index<usize> for InsertInstructionResult {
     type Output = Value;
 
     fn index(&self, index: usize) -> &Self::Output {
         match self {
-            InsertInstructionResult::Results(instruction, result_count) => {
-                assert!(index < result_count);
-                &Value::Instruction { instruction: *instruction, position: index }
+            InsertInstructionResult::Results { id, result_count } => {
+                assert!(index < *result_count);
+                &Value::Instruction { instruction: *id, position: index }
             }
             InsertInstructionResult::SimplifiedTo(result) => {
                 assert_eq!(index, 0);

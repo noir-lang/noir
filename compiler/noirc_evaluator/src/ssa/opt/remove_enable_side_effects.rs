@@ -71,7 +71,7 @@ impl Context {
         let instructions = function.dfg[block].take_instructions();
 
         let one = FieldElement::one();
-        let mut active_condition = function.dfg.make_constant(one, NumericType::bool());
+        let mut active_condition = Value::constant(one, NumericType::bool());
         let mut last_side_effects_enabled_instruction = None;
 
         let mut new_instructions = Vec::with_capacity(instructions.len());
@@ -157,7 +157,7 @@ impl Context {
             | Load { .. } => true,
 
             // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
-            Call { func, .. } => match dfg[*func] {
+            Call { func, .. } => match *func {
                 Value::Intrinsic(intrinsic) => match intrinsic {
                     Intrinsic::SlicePushBack
                     | Intrinsic::SlicePushFront

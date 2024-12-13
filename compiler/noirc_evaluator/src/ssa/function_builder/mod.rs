@@ -119,25 +119,6 @@ impl FunctionBuilder {
         self.current_function.dfg.add_block_parameter(entry, typ)
     }
 
-    /// Insert a numeric constant into the current function
-    pub(crate) fn numeric_constant(
-        &mut self,
-        value: impl Into<FieldElement>,
-        typ: NumericType,
-    ) -> Value {
-        self.current_function.dfg.make_constant(value.into(), typ)
-    }
-
-    /// Insert a numeric constant into the current function of type Field
-    pub(crate) fn field_constant(&mut self, value: impl Into<FieldElement>) -> Value {
-        self.numeric_constant(value.into(), NumericType::NativeField)
-    }
-
-    /// Insert a numeric constant into the current function of type Type::length_type()
-    pub(crate) fn length_constant(&mut self, value: impl Into<FieldElement>) -> Value {
-        self.numeric_constant(value.into(), NumericType::length_type())
-    }
-
     /// Returns the type of the given value.
     pub(crate) fn type_of_value(&self, value: Value) -> Type {
         self.current_function.dfg.type_of_value(value)
@@ -223,12 +204,7 @@ impl FunctionBuilder {
 
     /// Insert a binary instruction at the end of the current block.
     /// Returns the result of the binary instruction.
-    pub(crate) fn insert_binary(
-        &mut self,
-        lhs: Value,
-        operator: BinaryOp,
-        rhs: Value,
-    ) -> Value {
+    pub(crate) fn insert_binary(&mut self, lhs: Value, operator: BinaryOp, rhs: Value) -> Value {
         let lhs_type = self.type_of_value(lhs);
         let rhs_type = self.type_of_value(rhs);
         if operator != BinaryOp::Shl && operator != BinaryOp::Shr {
@@ -308,12 +284,7 @@ impl FunctionBuilder {
     }
 
     /// Insert an instruction to create a new array with the given index replaced with a new value
-    pub(crate) fn insert_array_set(
-        &mut self,
-        array: Value,
-        index: Value,
-        value: Value,
-    ) -> Value {
+    pub(crate) fn insert_array_set(&mut self, array: Value, index: Value, value: Value) -> Value {
         self.insert_instruction(Instruction::ArraySet { array, index, value, mutable: false })
             .first()
     }
@@ -348,11 +319,7 @@ impl FunctionBuilder {
 
     /// Insert a `make_array` instruction to create a new array or slice.
     /// Returns the new array value. Expects `typ` to be an array or slice type.
-    pub(crate) fn insert_make_array(
-        &mut self,
-        elements: im::Vector<Value>,
-        typ: Type,
-    ) -> Value {
+    pub(crate) fn insert_make_array(&mut self, elements: im::Vector<Value>, typ: Type) -> Value {
         assert!(matches!(typ, Type::Array(..) | Type::Slice(_)));
         self.insert_instruction(Instruction::MakeArray { elements, typ }).first()
     }
@@ -367,11 +334,7 @@ impl FunctionBuilder {
 
     /// Terminate the current block with a jmp instruction to jmp to the given
     /// block with the given arguments.
-    pub(crate) fn terminate_with_jmp(
-        &mut self,
-        destination: BasicBlockId,
-        arguments: Vec<Value>,
-    ) {
+    pub(crate) fn terminate_with_jmp(&mut self, destination: BasicBlockId, arguments: Vec<Value>) {
         let call_stack = self.call_stack.clone();
         self.terminate_block_with(TerminatorInstruction::Jmp {
             destination,

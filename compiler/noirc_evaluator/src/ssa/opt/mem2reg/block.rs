@@ -170,11 +170,7 @@ impl Block {
     }
 
     /// Iterate through each known alias of the given address and apply the function `f` to each.
-    fn for_each_alias_of<T>(
-        &mut self,
-        address: Value,
-        mut f: impl FnMut(&mut Self, Value) -> T,
-    ) {
+    fn for_each_alias_of<T>(&mut self, address: Value, mut f: impl FnMut(&mut Self, Value) -> T) {
         if let Some(expr) = self.expressions.get(&address) {
             if let Some(aliases) = self.aliases.get(expr).cloned() {
                 aliases.for_each(|alias| {
@@ -220,10 +216,7 @@ impl Block {
     }
 
     /// Collect all aliases used by the given value list
-    pub(super) fn collect_all_aliases(
-        &self,
-        values: impl IntoIterator<Item = Value>,
-    ) -> AliasSet {
+    pub(super) fn collect_all_aliases(&self, values: impl IntoIterator<Item = Value>) -> AliasSet {
         let mut aliases = AliasSet::known_empty();
         for value in values {
             aliases.unify(&self.get_aliases_for_value(value));

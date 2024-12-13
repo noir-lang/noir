@@ -65,8 +65,7 @@ impl Context<'_> {
                     if matches!(operator, BinaryOp::Shl | BinaryOp::Shr) =>
                 {
                     self.call_stack = self.function.dfg.get_call_stack(instruction_id).clone();
-                    let old_result =
-                        *self.function.dfg.instruction_results(instruction_id).first().unwrap();
+                    let old_result = Value::instruction_result(instruction_id, 0);
 
                     let bit_size = match self.function.dfg.type_of_value(lhs) {
                         Type::Numeric(NumericType::Signed { bit_size })
@@ -79,7 +78,7 @@ impl Context<'_> {
                         self.insert_shift_right(lhs, rhs, bit_size)
                     };
 
-                    self.function.dfg.set_value_from_id(old_result, new_result);
+                    self.function.dfg.replace_value(old_result, new_result);
                 }
                 _ => {
                     self.new_instructions.push(instruction_id);
@@ -99,7 +98,7 @@ impl Context<'_> {
         rhs: Value,
         bit_size: u32,
     ) -> Value {
-        let base = self.field_constant(FieldElement::from(2_u128));
+        let base = Value::field_constant(FieldElement::from(2_u128));
         let typ = self.function.dfg.type_of_value(lhs).unwrap_numeric();
         let (max_bit, pow) = if let Some(rhs_constant) = self.function.dfg.get_numeric_constant(rhs)
         {
@@ -111,11 +110,11 @@ impl Context<'_> {
             if overflows {
                 assert!(bit_size < 128, "ICE - shift left with big integers are not supported");
                 if bit_size < 128 {
-                    let zero = self.numeric_constant(FieldElement::zero(), typ);
+                    let zero = Value::constant(FieldElement::zero(), typ);
                     return InsertInstructionResult::SimplifiedTo(zero).first();
                 }
             }
-            let pow = self.numeric_constant(FieldElement::from(rhs_bit_size_pow_2), typ);
+            let pow = Value::constant(FieldElement::from(rhs_bit_size_pow_2), typ);
 
             let max_lhs_bits = self.function.dfg.get_value_max_num_bits(lhs);
 
@@ -123,7 +122,7 @@ impl Context<'_> {
         } else {
             // we use a predicate to nullify the result in case of overflow
             let u8_type = NumericType::unsigned(8);
-            let bit_size_var = self.numeric_constant(FieldElement::from(bit_size as u128), u8_type);
+            let bit_size_var = Value::constant(FieldElement::from(bit_size as u128), u8_type);
             let overflow = self.insert_binary(rhs, BinaryOp::Lt, bit_size_var);
             let predicate = self.insert_cast(overflow, typ);
             // we can safely cast to unsigned because overflow_checks prevent bit-shift with a negative value
@@ -147,21 +146,16 @@ impl Context<'_> {
     /// Insert ssa instructions which computes lhs >> rhs by doing lhs/2^rhs
     /// For negative signed integers, we do the division on the 1-complement representation of lhs,
     /// before converting back the result to the 2-complement representation.
-    pub(crate) fn insert_shift_right(
-        &mut self,
-        lhs: Value,
-        rhs: Value,
-        bit_size: u32,
-    ) -> Value {
+    pub(crate) fn insert_shift_right(&mut self, lhs: Value, rhs: Value, bit_size: u32) -> Value {
         let lhs_typ = self.function.dfg.type_of_value(lhs).unwrap_numeric();
-        let base = self.field_constant(FieldElement::from(2_u128));
+        let base = Value::field_constant(FieldElement::from(2_u128));
         let pow = self.pow(base, rhs);
         if lhs_typ.is_unsigned() {
             // unsigned right bit shift is just a normal division
             self.insert_binary(lhs, BinaryOp::Div, pow)
         } else {
             // Get the sign of the operand; positive signed operand will just do a division as well
-            let zero = self.numeric_constant(FieldElement::zero(), NumericType::signed(bit_size));
+            let zero = Value::constant(FieldElement::zero(), NumericType::signed(bit_size));
             let lhs_sign = self.insert_binary(lhs, BinaryOp::Lt, zero);
             let lhs_sign_as_field = self.insert_cast(lhs_sign, NumericType::NativeField);
             let lhs_as_field = self.insert_cast(lhs, NumericType::NativeField);
@@ -190,17 +184,17 @@ impl Context<'_> {
     fn pow(&mut self, lhs: Value, rhs: Value) -> Value {
         let typ = self.function.dfg.type_of_value(rhs);
         if let Type::Numeric(NumericType::Unsigned { bit_size }) = typ {
-            let to_bits = self.function.dfg.import_intrinsic(Intrinsic::ToBits(Endian::Little));
+            let to_bits = Value::Intrinsic(Intrinsic::ToBits(Endian::Little));
             let result_types = vec![Type::Array(Arc::new(vec![Type::bool()]), bit_size)];
             let rhs_bits = self.insert_call(to_bits, vec![rhs], result_types);
 
             let rhs_bits = rhs_bits[0];
-            let one = self.field_constant(FieldElement::one());
+            let one = Value::field_constant(FieldElement::one());
             let mut r = one;
             for i in 1..bit_size + 1 {
                 let r_squared = self.insert_binary(r, BinaryOp::Mul, r);
                 let a = self.insert_binary(r_squared, BinaryOp::Mul, lhs);
-                let idx = self.field_constant(FieldElement::from((bit_size - i) as i128));
+                let idx = Value::field_constant(FieldElement::from((bit_size - i) as i128));
                 let b = self.insert_array_get(rhs_bits, idx, Type::bool());
                 let not_b = self.insert_not(b);
                 let b = self.insert_cast(b, NumericType::NativeField);
@@ -215,27 +209,9 @@ impl Context<'_> {
         }
     }
 
-    pub(crate) fn field_constant(&mut self, constant: FieldElement) -> Value {
-        self.function.dfg.make_constant(constant, NumericType::NativeField)
-    }
-
-    /// Insert a numeric constant into the current function
-    pub(crate) fn numeric_constant(
-        &mut self,
-        value: impl Into<FieldElement>,
-        typ: NumericType,
-    ) -> Value {
-        self.function.dfg.make_constant(value.into(), typ)
-    }
-
     /// Insert a binary instruction at the end of the current block.
     /// Returns the result of the binary instruction.
-    pub(crate) fn insert_binary(
-        &mut self,
-        lhs: Value,
-        operator: BinaryOp,
-        rhs: Value,
-    ) -> Value {
+    pub(crate) fn insert_binary(&mut self, lhs: Value, operator: BinaryOp, rhs: Value) -> Value {
         let instruction = Instruction::Binary(Binary { lhs, rhs, operator });
         self.insert_instruction(instruction).first()
     }

@@ -43,7 +43,7 @@ fn known_slice_lengths(func: &Function) -> HashMap<InstructionId, u32> {
                 _ => continue,
             };
 
-            match &func.dfg[*target_func] {
+            match *target_func {
                 Value::Intrinsic(Intrinsic::AsSlice) => {
                     let array_typ = func.dfg.type_of_value(arguments[0]);
                     if let Type::Array(_, length) = array_typ {
@@ -64,17 +64,9 @@ fn replace_known_slice_lengths(
     known_slice_lengths: HashMap<InstructionId, u32>,
 ) {
     known_slice_lengths.into_iter().for_each(|(instruction_id, known_length)| {
-        let call_returns = func.dfg.instruction_results(instruction_id);
-        let original_slice_length = call_returns[0];
-
-        // We won't use the new id for the original unknown length.
-        // This isn't strictly necessary as a new result will be defined the next time for which the instruction
-        // is reinserted but this avoids leaving the program in an invalid state.
-        //
-        // TODO(ValueId): need to get a fresh value here?
-        func.dfg.replace_result(instruction_id, original_slice_length);
-        let known_length = func.dfg.make_constant(known_length.into(), NumericType::length_type());
-        func.dfg.set_value_from_id(original_slice_length, known_length);
+        let original_slice_length = Value::instruction_result(instruction_id, 0);
+        let known_length = Value::length_constant(known_length.into());
+        func.dfg.replace_value(original_slice_length, known_length);
     });
 }
 

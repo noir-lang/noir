@@ -1,7 +1,7 @@
 use iter_extended::vecmap;
 
 use crate::ssa::ir::types::Type;
-use crate::ssa::ir::value::Value as IrValueId;
+use crate::ssa::ir::value::Value as IrValue;
 
 use super::context::FunctionContext;
 
@@ -28,17 +28,17 @@ pub(super) enum Tree<T> {
 /// would be invalid.
 #[derive(Debug, Clone)]
 pub(super) enum Value {
-    Normal(IrValueId),
+    Normal(IrValue),
 
     /// A mutable variable that must be loaded as the given type before being used
-    Mutable(IrValueId, Type),
+    Mutable(IrValue, Type),
 }
 
 impl Value {
     /// Evaluate a value, returning an IrValue from it.
     /// This has no effect on Value::Normal, but any variables will
     /// need to be loaded from memory
-    pub(super) fn eval(self, ctx: &mut FunctionContext) -> IrValueId {
+    pub(super) fn eval(self, ctx: &mut FunctionContext) -> IrValue {
         match self {
             Value::Normal(value) => value,
             Value::Mutable(address, typ) => ctx.builder.insert_load(address, typ),
@@ -47,7 +47,7 @@ impl Value {
 
     /// Evaluates the value, returning a reference to the mutable variable found within
     /// if possible. Compared to .eval, this method will not load from self if it is Value::Mutable.
-    pub(super) fn eval_reference(self) -> IrValueId {
+    pub(super) fn eval_reference(self) -> IrValue {
         match self {
             Value::Normal(value) => value,
             Value::Mutable(address, _) => address,
@@ -163,14 +163,14 @@ impl<T> Tree<T> {
     }
 }
 
-impl From<IrValueId> for Values {
-    fn from(id: IrValueId) -> Self {
+impl From<IrValue> for Values {
+    fn from(id: IrValue) -> Self {
         Self::Leaf(Value::Normal(id))
     }
 }
 
-impl From<IrValueId> for Value {
-    fn from(id: IrValueId) -> Self {
+impl From<IrValue> for Value {
+    fn from(id: IrValue) -> Self {
         Value::Normal(id)
     }
 }
@@ -187,7 +187,7 @@ impl Tree<Type> {
 impl Tree<Value> {
     /// Flattens and evaluates this Tree<Value> into a list of ir values
     /// for return statements, branching instructions, or function parameters.
-    pub(super) fn into_value_list(self, ctx: &mut FunctionContext) -> Vec<IrValueId> {
+    pub(super) fn into_value_list(self, ctx: &mut FunctionContext) -> Vec<IrValue> {
         vecmap(self.flatten(), |value| value.eval(ctx))
     }
 }

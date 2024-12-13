@@ -5,8 +5,7 @@ use acvm::acir::circuit::ErrorSelector;
 use crate::ssa::{
     function_builder::FunctionBuilder,
     ir::{
-        basic_block::BasicBlockId, function::FunctionId, instruction::ConstrainError,
-        value::Value,
+        basic_block::BasicBlockId, function::FunctionId, instruction::ConstrainError, value::Value,
     },
 };
 
@@ -296,11 +295,7 @@ impl Translator {
         }
     }
 
-    fn define_variable(
-        &mut self,
-        identifier: Identifier,
-        value_id: Value,
-    ) -> Result<(), SsaError> {
+    fn define_variable(&mut self, identifier: Identifier, value_id: Value) -> Result<(), SsaError> {
         if let Some(vars) = self.variables.get(&self.current_function_id()) {
             if vars.contains_key(&identifier.name) {
                 return Err(SsaError::VariableAlreadyDefined(identifier));

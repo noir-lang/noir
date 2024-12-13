@@ -54,8 +54,7 @@ impl<'a> SliceCapacityTracker<'a> {
                 }
             }
             Instruction::Call { func, arguments, result_types: _ } => {
-                let func = &self.dfg[*func];
-                if let Value::Intrinsic(intrinsic) = func {
+                if let Value::Intrinsic(intrinsic) = *func {
                     let (argument_index, result_index) = match intrinsic {
                         Intrinsic::SlicePushBack
                         | Intrinsic::SlicePushFront

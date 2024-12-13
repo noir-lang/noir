@@ -65,7 +65,7 @@ impl Context {
         let block = function.entry_block();
         let instructions = function.dfg[block].take_instructions();
         let one = FieldElement::one();
-        let mut current_conditional = function.dfg.make_constant(one, NumericType::bool());
+        let mut current_conditional = Value::constant(one, NumericType::bool());
 
         for instruction in instructions {
             match &function.dfg[instruction] {
@@ -96,14 +96,13 @@ impl Context {
                     );
 
                     let _typ = function.dfg.type_of_value(value);
-                    let results = function.dfg.instruction_results(instruction);
-                    let result = results[0];
+                    let result = Value::instruction_result(instruction, 0);
 
-                    function.dfg.set_value_from_id(result, value);
+                    function.dfg.replace_value(result, value);
                     self.array_set_conditionals.insert(result, current_conditional);
                 }
                 Instruction::Call { func, arguments, result_types: _ } => {
-                    if let Value::Intrinsic(intrinsic) = function.dfg[*func] {
+                    if let Value::Intrinsic(intrinsic) = *func {
                         let results = function.dfg.instruction_results(instruction);
 
                         match slice_capacity_change(&function.dfg, intrinsic, arguments, results) {
@@ -126,9 +125,7 @@ impl Context {
                     function.dfg[block].instructions_mut().push(instruction);
                 }
                 Instruction::ArraySet { array, .. } => {
-                    let results = function.dfg.instruction_results(instruction);
-                    let result = if results.len() == 2 { results[1] } else { results[0] };
-
+                    let result = Value::instruction_result(instruction, 0);
                     self.array_set_conditionals.insert(result, current_conditional);
 
                     let old_capacity = self.get_or_find_capacity(&function.dfg, *array);
@@ -161,8 +158,7 @@ impl Context {
             }
         }
 
-        let dbg_value = &dfg[value];
-        unreachable!("No size for slice {value} = {dbg_value:?}")
+        unreachable!("No size for slice {value}")
     }
 }
 
@@ -181,14 +177,14 @@ fn slice_capacity_change(
     dfg: &DataFlowGraph,
     intrinsic: Intrinsic,
     arguments: &[Value],
-    results: &[Value],
+    mut results: impl ExactSizeIterator<Item = Value>,
 ) -> SizeChange {
     match intrinsic {
         Intrinsic::SlicePushBack | Intrinsic::SlicePushFront | Intrinsic::SliceInsert => {
             // Expecting:  len, slice = ...
             assert_eq!(results.len(), 2);
             let old = arguments[1];
-            let new = results[1];
+            let new = results.nth(1).unwrap();
             assert!(matches!(dfg.type_of_value(old), Type::Slice(_)));
             assert!(matches!(dfg.type_of_value(new), Type::Slice(_)));
             SizeChange::Inc { old, new }
@@ -196,7 +192,7 @@ fn slice_capacity_change(
 
         Intrinsic::SlicePopBack | Intrinsic::SliceRemove => {
             let old = arguments[1];
-            let new = results[1];
+            let new = results.nth(1).unwrap();
             assert!(matches!(dfg.type_of_value(old), Type::Slice(_)));
             assert!(matches!(dfg.type_of_value(new), Type::Slice(_)));
             SizeChange::Dec { old, new }
@@ -204,7 +200,7 @@ fn slice_capacity_change(
 
         Intrinsic::SlicePopFront => {
             let old = arguments[1];
-            let new = results[results.len() - 1];
+            let new = results.last().unwrap();
             assert!(matches!(dfg.type_of_value(old), Type::Slice(_)));
             assert!(matches!(dfg.type_of_value(new), Type::Slice(_)));
             SizeChange::Dec { old, new }
@@ -217,8 +213,9 @@ fn slice_capacity_change(
                 Type::Array(_, length) => length,
                 other => unreachable!("slice_capacity_change expected array, found {other:?}"),
             };
-            assert!(matches!(dfg.type_of_value(results[1]), Type::Slice(_)));
-            SizeChange::SetTo(results[1], length)
+            let slice = results.nth(1).unwrap();
+            assert!(matches!(dfg.type_of_value(slice), Type::Slice(_)));
+            SizeChange::SetTo(slice, length)
         }
 
         // These cases don't affect slice capacities
