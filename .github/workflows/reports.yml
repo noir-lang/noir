@@ -388,12 +388,13 @@ jobs:
           path: test-repo
           ref: ${{ matrix.project.ref }}
 
+      - name: Install Yarn dependencies
+        working-directory: ./test-repo/${{ matrix.project.path }}
+        uses: ./.github/actions/setup
+
       - name: Generate compilation report
         working-directory: ./test-repo/${{ matrix.project.path }}
         run: |
-          ls .
-          ls ./scripts
-          yarn install
           chmod +x ./scripts/generate_variants.js
           node ./scripts/generate_variants.js
           mv /home/runner/work/noir/noir/scripts/test_programs/compilation_report.sh ./compilation_report.sh
