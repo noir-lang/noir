@@ -34,7 +34,7 @@ use crate::{
             function_inserter::{ArrayCache, FunctionInserter},
             instruction::{Binary, BinaryOp, Instruction, InstructionId, TerminatorInstruction},
             post_order::PostOrder,
-            value::ValueId,
+            value::Value,
         },
         ssa_gen::Ssa,
     },
@@ -450,7 +450,7 @@ impl Loop {
         &'a self,
         function: &'a mut Function,
         unroll_into: BasicBlockId,
-        induction_value: ValueId,
+        induction_value: Value,
     ) -> Result<Option<LoopIteration<'a>>, CallStack> {
         // We insert into a fresh block first and move instructions into the unroll_into block later
         // only once we verify the jmpif instruction has a constant condition. If it does not, we can
@@ -548,7 +548,7 @@ impl Loop {
         &self,
         function: &Function,
         cfg: &ControlFlowGraph,
-    ) -> Option<HashSet<ValueId>> {
+    ) -> Option<HashSet<Value>> {
         // We need to traverse blocks from the pre-header up to the block entry point.
         let pre_header = self.get_pre_header(function, cfg).ok()?;
         let function_entry = function.entry_block();
@@ -579,7 +579,7 @@ impl Loop {
     fn count_loads_and_stores(
         &self,
         function: &Function,
-        refs: &HashSet<ValueId>,
+        refs: &HashSet<Value>,
     ) -> (usize, usize) {
         let mut loads = 0;
         let mut stores = 0;
@@ -734,7 +734,7 @@ impl BoilerplateStats {
 ///   ...
 /// ```
 /// We're looking for the terminating jump of the `main` predecessor of `loop_entry`.
-fn get_induction_variable(function: &Function, block: BasicBlockId) -> Result<ValueId, CallStack> {
+fn get_induction_variable(function: &Function, block: BasicBlockId) -> Result<Value, CallStack> {
     match function.dfg[block].terminator() {
         Some(TerminatorInstruction::Jmp { arguments, call_stack: location, .. }) => {
             // This assumption will no longer be valid if e.g. mutable variables are represented as
@@ -775,7 +775,7 @@ struct LoopIteration<'f> {
     /// the variable traditionally called `i` on each iteration of the loop.
     /// This is None until we visit the block which jumps back to the start of the
     /// loop, at which point we record its value and the block it was found in.
-    induction_value: Option<(BasicBlockId, ValueId)>,
+    induction_value: Option<(BasicBlockId, Value)>,
 }
 
 impl<'f> LoopIteration<'f> {
@@ -803,7 +803,7 @@ impl<'f> LoopIteration<'f> {
     /// It is expected the terminator instructions are set up to branch into an empty block
     /// for further unrolling. When the loop is finished this will need to be mutated to
     /// jump to the end of the loop instead.
-    fn unroll_loop_iteration(mut self) -> (BasicBlockId, ValueId, Option<ArrayCache>) {
+    fn unroll_loop_iteration(mut self) -> (BasicBlockId, Value, Option<ArrayCache>) {
         let mut next_blocks = self.unroll_loop_block();
 
         while let Some(block) = next_blocks.pop() {
@@ -874,7 +874,7 @@ impl<'f> LoopIteration<'f> {
     /// destination indicated by the constant condition (ie. the `then` or the `else`).
     fn handle_jmpif(
         &mut self,
-        condition: ValueId,
+        condition: Value,
         then_destination: BasicBlockId,
         else_destination: BasicBlockId,
         call_stack: CallStack,
@@ -1007,7 +1007,7 @@ mod tests {
     use test_case::test_case;
 
     use crate::errors::RuntimeError;
-    use crate::ssa::{ir::value::ValueId, opt::assert_normalized_ssa_equals, Ssa};
+    use crate::ssa::{ir::value::Value, opt::assert_normalized_ssa_equals, Ssa};
 
     use super::{is_new_size_ok, BoilerplateStats, Loops};
 
@@ -1146,7 +1146,7 @@ mod tests {
 
         let refs = loop0.find_pre_header_reference_values(function, &loops.cfg).unwrap();
         assert_eq!(refs.len(), 1);
-        assert!(refs.contains(&ValueId::new(2)));
+        assert!(refs.contains(&Value::new(2)));
 
         let (loads, stores) = loop0.count_loads_and_stores(function, &refs);
         assert_eq!(loads, 1);

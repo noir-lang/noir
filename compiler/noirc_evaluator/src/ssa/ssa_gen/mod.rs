@@ -30,7 +30,7 @@ use super::{
         function::RuntimeType,
         instruction::{BinaryOp, ConstrainError, TerminatorInstruction},
         types::Type,
-        value::ValueId,
+        value::Value,
     },
 };
 
@@ -165,7 +165,7 @@ impl<'a> FunctionContext<'a> {
 
     /// Codegen any non-tuple expression so that we can unwrap the Values
     /// tree to return a single value for use with most SSA instructions.
-    fn codegen_non_tuple_expression(&mut self, expr: &Expression) -> Result<ValueId, RuntimeError> {
+    fn codegen_non_tuple_expression(&mut self, expr: &Expression) -> Result<Value, RuntimeError> {
         Ok(self.codegen_expression(expr)?.into_leaf().eval(self))
     }
 
@@ -434,11 +434,11 @@ impl<'a> FunctionContext<'a> {
     /// return a reference to each element, for use with the store instruction.
     fn codegen_array_index(
         &mut self,
-        array: ValueId,
-        index: ValueId,
+        array: Value,
+        index: Value,
         element_type: &ast::Type,
         location: Location,
-        length: Option<ValueId>,
+        length: Option<Value>,
     ) -> Result<Values, RuntimeError> {
         // base_index = index * type_size
         let index = self.make_array_index(index);
@@ -476,7 +476,7 @@ impl<'a> FunctionContext<'a> {
     /// Prepare a slice access.
     /// Check that the index being used to access a slice element
     /// is less than the dynamic slice length.
-    fn codegen_slice_access_check(&mut self, index: ValueId, length: Option<ValueId>) {
+    fn codegen_slice_access_check(&mut self, index: Value, length: Option<Value>) {
         let index = self.make_array_index(index);
         // We convert the length as an array index type for comparison
         let array_len = self
@@ -666,8 +666,8 @@ impl<'a> FunctionContext<'a> {
 
     fn codegen_intrinsic_call_checks(
         &mut self,
-        function: ValueId,
-        arguments: &[ValueId],
+        function: Value,
+        arguments: &[Value],
         location: Location,
     ) {
         if let Some(intrinsic) =

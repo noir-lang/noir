@@ -2,13 +2,13 @@ use acvm::{acir::AcirField, FieldElement};
 
 use crate::ssa::ir::types::NumericType;
 
-use super::{Binary, BinaryOp, ConstrainError, DataFlowGraph, Instruction, Type, Value, ValueId};
+use super::{Binary, BinaryOp, ConstrainError, DataFlowGraph, Instruction, Type, Value, Value};
 
 /// Try to decompose this constrain instruction. This constraint will be broken down such that it instead constrains
 /// all the values which are used to compute the values which were being constrained.
 pub(super) fn decompose_constrain(
-    lhs: ValueId,
-    rhs: ValueId,
+    lhs: Value,
+    rhs: Value,
     msg: &Option<ConstrainError>,
     dfg: &mut DataFlowGraph,
 ) -> Vec<Instruction> {

@@ -1,7 +1,7 @@
 use iter_extended::vecmap;
 
 use crate::ssa::ir::types::Type;
-use crate::ssa::ir::value::ValueId as IrValueId;
+use crate::ssa::ir::value::Value as IrValueId;
 
 use super::context::FunctionContext;
 

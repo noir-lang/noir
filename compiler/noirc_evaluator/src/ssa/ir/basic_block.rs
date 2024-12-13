@@ -3,7 +3,7 @@ use super::{
     instruction::{InstructionId, TerminatorInstruction},
     map::Id,
     types::Type,
-    value::ValueId,
+    value::Value,
 };
 use serde::{Deserialize, Serialize};
 
@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
 pub(crate) struct BasicBlock {
     /// Each parameter of this block
-    parameters: Vec<ValueId>,
+    parameters: Vec<Value>,
 
     /// Types of each parameter to this block
     parameter_types: Vec<Type>,
@@ -47,7 +47,7 @@ impl BasicBlock {
     }
 
     /// Returns the parameters of this block
-    pub(crate) fn parameters(&self) -> &[ValueId] {
+    pub(crate) fn parameters(&self) -> &[Value] {
         &self.parameters
     }
 
@@ -57,21 +57,21 @@ impl BasicBlock {
     }
 
     /// Removes all the parameters of this block
-    pub(crate) fn take_parameters(&mut self) -> Vec<ValueId> {
+    pub(crate) fn take_parameters(&mut self) -> Vec<Value> {
         std::mem::take(&mut self.parameters)
     }
 
     /// Adds a parameter to this BasicBlock.
     /// Expects that the ValueId given should refer to a Value::Param
     /// instance with its position equal to self.parameters.len().
-    pub(crate) fn add_parameter(&mut self, parameter: ValueId, typ: Type) {
+    pub(crate) fn add_parameter(&mut self, parameter: Value, typ: Type) {
         self.parameters.push(parameter);
         self.parameter_types.push(typ);
     }
 
     /// Replace this block's current parameters with that of the given Vec.
     /// This does not perform any checks that any previous parameters were unused.
-    pub(crate) fn set_parameters(&mut self, parameters: Vec<ValueId>) {
+    pub(crate) fn set_parameters(&mut self, parameters: Vec<Value>) {
         self.parameters = parameters;
     }
 
@@ -146,7 +146,7 @@ impl BasicBlock {
     /// Return the jmp arguments, if any, of this block's TerminatorInstruction.
     ///
     /// If this block has no terminator, or a Return terminator this will be empty.
-    pub(crate) fn terminator_arguments(&self) -> &[ValueId] {
+    pub(crate) fn terminator_arguments(&self) -> &[Value] {
         match &self.terminator {
             Some(TerminatorInstruction::Jmp { arguments, .. }) => arguments,
             _ => &[],

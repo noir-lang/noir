@@ -44,7 +44,7 @@ use crate::ssa::{
         map::Id,
         printer::try_to_extract_string_from_error_payload,
         types::{NumericType, Type},
-        value::{Value, ValueId},
+        value::{Value, Value},
     },
     ssa_gen::Ssa,
 };
@@ -491,7 +491,7 @@ impl<'a> Context<'a> {
         }
 
         // Initialize call_data
-        let call_data_arrays: Vec<ValueId> =
+        let call_data_arrays: Vec<Value> =
             self.data_bus.call_data.iter().map(|cd| cd.array_id).collect();
         for call_data_array in call_data_arrays {
             self.ensure_array_is_initialized(call_data_array, dfg)?;
@@ -559,7 +559,7 @@ impl<'a> Context<'a> {
     /// Adds and binds `AcirVar`s for each numeric block parameter or block parameter array element.
     fn convert_ssa_block_params(
         &mut self,
-        params: &[ValueId],
+        params: &[Value],
         dfg: &DataFlowGraph,
     ) -> Result<Vec<Witness>, RuntimeError> {
         // The first witness (if any) is the next one
@@ -625,7 +625,7 @@ impl<'a> Context<'a> {
 
     /// Get the BlockId corresponding to the ValueId
     /// If there is no matching BlockId, we create a new one.
-    fn block_id(&mut self, value: &ValueId) -> BlockId {
+    fn block_id(&mut self, value: &Value) -> BlockId {
         if let Some(block_id) = self.memory_blocks.get(value) {
             return *block_id;
         }
@@ -640,7 +640,7 @@ impl<'a> Context<'a> {
     /// This is useful for referencing information that can
     /// only be computed dynamically, such as the type structure
     /// of non-homogenous arrays.
-    fn internal_block_id(&mut self, value: &ValueId) -> BlockId {
+    fn internal_block_id(&mut self, value: &Value) -> BlockId {
         if let Some(block_id) = self.internal_memory_blocks.get(value) {
             return *block_id;
         }
@@ -800,7 +800,7 @@ impl<'a> Context<'a> {
         dfg: &DataFlowGraph,
         ssa: &Ssa,
         brillig: &Brillig,
-        result_ids: &[ValueId],
+        result_ids: &[Value],
     ) -> Result<Vec<SsaReport>, RuntimeError> {
         let mut warnings = Vec::new();
 
@@ -939,7 +939,7 @@ impl<'a> Context<'a> {
 
     fn handle_ssa_call_outputs(
         &mut self,
-        result_ids: &[ValueId],
+        result_ids: &[Value],
         output_values: Vec<AcirValue>,
         dfg: &DataFlowGraph,
     ) -> Result<(), RuntimeError> {
@@ -965,7 +965,7 @@ impl<'a> Context<'a> {
 
     fn gen_brillig_parameters(
         &self,
-        values: &[ValueId],
+        values: &[Value],
         dfg: &DataFlowGraph,
     ) -> Vec<BrilligParameter> {
         values
@@ -1078,9 +1078,9 @@ impl<'a> Context<'a> {
         &mut self,
         instruction: InstructionId,
         dfg: &DataFlowGraph,
-        array: ValueId,
-        index: ValueId,
-        store_value: Option<ValueId>,
+        array: Value,
+        index: Value,
+        store_value: Option<Value>,
     ) -> Result<bool, RuntimeError> {
         let array_id = dfg.resolve(array);
         let array_typ = dfg.type_of_value(array_id);
@@ -1172,10 +1172,10 @@ impl<'a> Context<'a> {
     ///     It is a dummy value because in the case of a false predicate, the value stored at the requested index will be itself.
     fn convert_array_operation_inputs(
         &mut self,
-        array_id: ValueId,
+        array_id: Value,
         dfg: &DataFlowGraph,
-        index: ValueId,
-        store_value: Option<ValueId>,
+        index: Value,
+        store_value: Option<Value>,
         offset: usize,
     ) -> Result<(AcirVar, Option<AcirValue>), RuntimeError> {
         let array_typ = dfg.type_of_value(array_id);
@@ -1320,7 +1320,7 @@ impl<'a> Context<'a> {
     fn array_get(
         &mut self,
         instruction: InstructionId,
-        array: ValueId,
+        array: Value,
         mut var_index: AcirVar,
         dfg: &DataFlowGraph,
         mut index_side_effect: bool,
@@ -1524,7 +1524,7 @@ impl<'a> Context<'a> {
 
     fn ensure_array_is_initialized(
         &mut self,
-        array: ValueId,
+        array: Value,
         dfg: &DataFlowGraph,
     ) -> Result<BlockId, RuntimeError> {
         // Use the SSA ID to get or create its block ID
@@ -1562,7 +1562,7 @@ impl<'a> Context<'a> {
     fn init_element_type_sizes_array(
         &mut self,
         array_typ: &Type,
-        array_id: ValueId,
+        array_id: Value,
         supplied_acir_value: Option<&AcirValue>,
         dfg: &DataFlowGraph,
     ) -> Result<BlockId, RuntimeError> {
@@ -1689,7 +1689,7 @@ impl<'a> Context<'a> {
     fn get_flattened_index(
         &mut self,
         array_typ: &Type,
-        array_id: ValueId,
+        array_id: Value,
         var_index: AcirVar,
         dfg: &DataFlowGraph,
     ) -> Result<AcirVar, RuntimeError> {
@@ -1708,7 +1708,7 @@ impl<'a> Context<'a> {
         }
     }
 
-    fn flattened_slice_size(&mut self, array_id: ValueId, dfg: &DataFlowGraph) -> usize {
+    fn flattened_slice_size(&mut self, array_id: Value, dfg: &DataFlowGraph) -> usize {
         let mut size = 0;
         match &dfg[array_id] {
             Value::NumericConstant { .. } => {
@@ -1863,7 +1863,7 @@ impl<'a> Context<'a> {
     /// It is not safe to call this function on value ids that represent addresses. Instructions
     /// involving such values are evaluated via a separate path and stored in
     /// `ssa_value_to_array_address` instead.
-    fn convert_value(&mut self, value_id: ValueId, dfg: &DataFlowGraph) -> AcirValue {
+    fn convert_value(&mut self, value_id: Value, dfg: &DataFlowGraph) -> AcirValue {
         let value_id = dfg.resolve(value_id);
         let value = &dfg[value_id];
         if let Some(acir_value) = self.ssa_values.get(&value_id) {
@@ -1896,7 +1896,7 @@ impl<'a> Context<'a> {
 
     fn convert_numeric_value(
         &mut self,
-        value_id: ValueId,
+        value_id: Value,
         dfg: &DataFlowGraph,
     ) -> Result<AcirVar, InternalError> {
         match self.convert_value(value_id, dfg) {
@@ -1999,8 +1999,8 @@ impl<'a> Context<'a> {
         &mut self,
         result: AcirVar,
         bit_size: u32,
-        lhs: ValueId,
-        rhs: ValueId,
+        lhs: Value,
+        rhs: Value,
         dfg: &DataFlowGraph,
         op: BinaryOp,
     ) -> Result<(), RuntimeError> {
@@ -2092,7 +2092,7 @@ impl<'a> Context<'a> {
     /// Returns an `AcirVar`that is constrained to be result of the truncation.
     fn convert_ssa_truncate(
         &mut self,
-        value_id: ValueId,
+        value_id: Value,
         bit_size: u32,
         max_bit_size: u32,
         dfg: &DataFlowGraph,
@@ -2128,9 +2128,9 @@ impl<'a> Context<'a> {
     fn convert_ssa_intrinsic_call(
         &mut self,
         intrinsic: Intrinsic,
-        arguments: &[ValueId],
+        arguments: &[Value],
         dfg: &DataFlowGraph,
-        result_ids: &[ValueId],
+        result_ids: &[Value],
     ) -> Result<Vec<AcirValue>, RuntimeError> {
         match intrinsic {
             Intrinsic::Hint(Hint::BlackBox) => {
@@ -2818,7 +2818,7 @@ impl<'a> Context<'a> {
         &self,
         vars: Vec<AcirVar>,
         dfg: &DataFlowGraph,
-        result_ids: &[ValueId],
+        result_ids: &[Value],
     ) -> Vec<AcirValue> {
         let mut vars = vars.into_iter();
         let mut values: Vec<AcirValue> = Vec::new();

@@ -17,7 +17,7 @@ use crate::ssa::ir::{
         Binary, BinaryOp, Endian, Instruction, InstructionId, Intrinsic, TerminatorInstruction,
     },
     types::{NumericType, Type},
-    value::{Value, ValueId},
+    value::{Value, Value},
 };
 use acvm::acir::brillig::{MemoryAddress, ValueOrArray};
 use acvm::{acir::AcirField, FieldElement};
@@ -41,7 +41,7 @@ pub(crate) struct BrilligBlock<'block> {
     /// Tracks the available variable during the codegen of the block
     pub(crate) variables: BlockVariables,
     /// For each instruction, the set of values that are not used anymore after it.
-    pub(crate) last_uses: HashMap<InstructionId, HashSet<ValueId>>,
+    pub(crate) last_uses: HashMap<InstructionId, HashSet<Value>>,
 }
 
 impl<'block> BrilligBlock<'block> {
@@ -855,9 +855,9 @@ impl<'block> BrilligBlock<'block> {
     fn convert_ssa_function_call(
         &mut self,
         func_id: FunctionId,
-        arguments: &[ValueId],
+        arguments: &[Value],
         dfg: &DataFlowGraph,
-        result_ids: &[ValueId],
+        result_ids: &[Value],
     ) {
         let argument_variables =
             vecmap(arguments, |argument_id| self.convert_ssa_value(*argument_id, dfg));
@@ -875,9 +875,9 @@ impl<'block> BrilligBlock<'block> {
     /// Copy the input arguments to the results.
     fn convert_ssa_identity_call(
         &mut self,
-        arguments: &[ValueId],
+        arguments: &[Value],
         dfg: &DataFlowGraph,
-        result_ids: &[ValueId],
+        result_ids: &[Value],
     ) {
         let argument_variables =
             vecmap(arguments, |argument_id| self.convert_ssa_value(*argument_id, dfg));
@@ -982,7 +982,7 @@ impl<'block> BrilligBlock<'block> {
         dfg: &DataFlowGraph,
         intrinsic: &Value,
         instruction_id: InstructionId,
-        arguments: &[ValueId],
+        arguments: &[Value],
     ) {
         let slice_id = arguments[1];
         let element_size = dfg.type_of_value(slice_id).element_size();
@@ -1252,7 +1252,7 @@ impl<'block> BrilligBlock<'block> {
     fn update_slice_length(
         &mut self,
         target_len: MemoryAddress,
-        source_value: ValueId,
+        source_value: Value,
         dfg: &DataFlowGraph,
         binary_op: BrilligBinaryOp,
     ) {
@@ -1560,14 +1560,14 @@ impl<'block> BrilligBlock<'block> {
         }
     }
 
-    fn initialize_constants(&mut self, constants: &[ValueId], dfg: &DataFlowGraph) {
+    fn initialize_constants(&mut self, constants: &[Value], dfg: &DataFlowGraph) {
         for &constant_id in constants {
             self.convert_ssa_value(constant_id, dfg);
         }
     }
 
     /// Converts an SSA `ValueId` into a `RegisterOrMemory`. Initializes if necessary.
-    fn convert_ssa_value(&mut self, value_id: ValueId, dfg: &DataFlowGraph) -> BrilligVariable {
+    fn convert_ssa_value(&mut self, value_id: Value, dfg: &DataFlowGraph) -> BrilligVariable {
         let value_id = dfg.resolve(value_id);
         let value = &dfg[value_id];
 
@@ -1622,7 +1622,7 @@ impl<'block> BrilligBlock<'block> {
 
     fn initialize_constant_array(
         &mut self,
-        data: &im::Vector<ValueId>,
+        data: &im::Vector<Value>,
         typ: &Type,
         dfg: &DataFlowGraph,
         pointer: MemoryAddress,
@@ -1663,7 +1663,7 @@ impl<'block> BrilligBlock<'block> {
     fn initialize_constant_array_runtime(
         &mut self,
         item_types: Arc<Vec<Type>>,
-        item_to_repeat: Vec<ValueId>,
+        item_to_repeat: Vec<Value>,
         item_count: usize,
         pointer: MemoryAddress,
         dfg: &DataFlowGraph,
@@ -1776,7 +1776,7 @@ impl<'block> BrilligBlock<'block> {
     /// Converts an SSA `ValueId` into a `MemoryAddress`. Initializes if necessary.
     fn convert_ssa_single_addr_value(
         &mut self,
-        value_id: ValueId,
+        value_id: Value,
         dfg: &DataFlowGraph,
     ) -> SingleAddrVariable {
         let variable = self.convert_ssa_value(value_id, dfg);
@@ -1785,7 +1785,7 @@ impl<'block> BrilligBlock<'block> {
 
     fn allocate_external_call_result(
         &mut self,
-        result: ValueId,
+        result: Value,
         dfg: &DataFlowGraph,
     ) -> BrilligVariable {
         match dfg.type_of_value(result) {
@@ -1867,7 +1867,7 @@ impl<'block> BrilligBlock<'block> {
     /// So we divide the length by the number of subitems in an item to get the user-facing length.
     fn convert_ssa_array_len(
         &mut self,
-        array_id: ValueId,
+        array_id: Value,
         result_register: MemoryAddress,
         dfg: &DataFlowGraph,
     ) {

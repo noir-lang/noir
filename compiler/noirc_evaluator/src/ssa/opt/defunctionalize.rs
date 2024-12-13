@@ -16,7 +16,7 @@ use crate::ssa::{
         function::{Function, FunctionId, Signature},
         instruction::{BinaryOp, Instruction},
         types::{NumericType, Type},
-        value::{Value, ValueId},
+        value::{Value, Value},
     },
     ssa_gen::Ssa,
 };
@@ -194,7 +194,7 @@ fn find_variants(ssa: &Ssa) -> BTreeMap<Signature, Vec<FunctionId>> {
 fn find_functions_as_values(func: &Function) -> BTreeSet<FunctionId> {
     let mut functions_as_values: BTreeSet<FunctionId> = BTreeSet::new();
 
-    let mut process_value = |value_id: ValueId| {
+    let mut process_value = |value_id: Value| {
         if let Value::Function(id) = func.dfg[value_id] {
             functions_as_values.insert(id);
         }

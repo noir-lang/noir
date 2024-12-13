@@ -11,7 +11,7 @@ use crate::ssa::{
         instruction::{BinaryOp, Instruction, InstructionId, Intrinsic},
         post_order::PostOrder,
         types::NumericType,
-        value::{Value, ValueId},
+        value::{Value, Value},
     },
     ssa_gen::Ssa,
 };
@@ -66,7 +66,7 @@ impl Function {
 /// Per function context for tracking unused values and which instructions to remove.
 #[derive(Default)]
 struct Context {
-    used_values: HashSet<ValueId>,
+    used_values: HashSet<Value>,
     instructions_to_remove: HashSet<InstructionId>,
 
     /// IncrementRc & DecrementRc instructions must be revisited after the main DIE pass since
@@ -183,7 +183,7 @@ impl Context {
     }
 
     /// Inspects a value and marks all instruction results as used.
-    fn mark_used_instruction_results(&mut self, dfg: &DataFlowGraph, value_id: ValueId) {
+    fn mark_used_instruction_results(&mut self, dfg: &DataFlowGraph, value_id: Value) {
         let value_id = dfg.resolve(value_id);
         if matches!(&dfg[value_id], Value::Instruction { .. } | Value::Param { .. }) {
             self.used_values.insert(value_id);
@@ -386,7 +386,7 @@ fn instruction_might_result_in_out_of_bounds(
 
 fn handle_array_get_group(
     function: &Function,
-    array: &ValueId,
+    array: &Value,
     index: usize,
     next_out_of_bounds_index: &mut Option<usize>,
     possible_index_out_of_bounds_indexes: &mut Vec<usize>,
@@ -474,13 +474,13 @@ fn handle_array_get_group(
 // Given `lhs` and `rhs` values, if there's a side effects condition this will
 // return (`lhs * condition`, `rhs * condition`), otherwise just (`lhs`, `rhs`)
 fn apply_side_effects(
-    side_effects_condition: Option<ValueId>,
-    lhs: ValueId,
-    rhs: ValueId,
+    side_effects_condition: Option<Value>,
+    lhs: Value,
+    rhs: Value,
     function: &mut Function,
     block_id: BasicBlockId,
     call_stack: CallStack,
-) -> (ValueId, ValueId) {
+) -> (Value, Value) {
     // See if there's an active "enable side effects" condition
     let Some(condition) = side_effects_condition else {
         return (lhs, rhs);

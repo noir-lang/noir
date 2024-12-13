@@ -9,7 +9,7 @@ use crate::ssa::ir::{
     dfg::{CallStack, DataFlowGraph},
     instruction::{Instruction, Intrinsic, SimplifyResult},
     types::Type,
-    value::ValueId,
+    value::Value,
 };
 
 use super::{array_is_constant, make_constant_array, to_u8_vec};
@@ -17,7 +17,7 @@ use super::{array_is_constant, make_constant_array, to_u8_vec};
 pub(super) fn simplify_ec_add(
     dfg: &mut DataFlowGraph,
     solver: impl BlackBoxFunctionSolver<FieldElement>,
-    arguments: &[ValueId],
+    arguments: &[Value],
     block: BasicBlockId,
     call_stack: &CallStack,
 ) -> SimplifyResult {
@@ -69,7 +69,7 @@ pub(super) fn simplify_ec_add(
 pub(super) fn simplify_msm(
     dfg: &mut DataFlowGraph,
     solver: impl BlackBoxFunctionSolver<FieldElement>,
-    arguments: &[ValueId],
+    arguments: &[Value],
     result_types: &[Type],
     block: BasicBlockId,
     call_stack: &CallStack,
@@ -203,7 +203,7 @@ pub(super) fn simplify_msm(
 pub(super) fn simplify_poseidon2_permutation(
     dfg: &mut DataFlowGraph,
     solver: impl BlackBoxFunctionSolver<FieldElement>,
-    arguments: &[ValueId],
+    arguments: &[Value],
     block: BasicBlockId,
     call_stack: &CallStack,
 ) -> SimplifyResult {
@@ -237,7 +237,7 @@ pub(super) fn simplify_poseidon2_permutation(
 
 pub(super) fn simplify_hash(
     dfg: &mut DataFlowGraph,
-    arguments: &[ValueId],
+    arguments: &[Value],
     hash_function: fn(&[u8]) -> Result<[u8; 32], BlackBoxResolutionError>,
     block: BasicBlockId,
     call_stack: &CallStack,
@@ -268,7 +268,7 @@ type ECDSASignatureVerifier = fn(
 
 pub(super) fn simplify_signature(
     dfg: &mut DataFlowGraph,
-    arguments: &[ValueId],
+    arguments: &[Value],
     signature_verifier: ECDSASignatureVerifier,
 ) -> SimplifyResult {
     match (

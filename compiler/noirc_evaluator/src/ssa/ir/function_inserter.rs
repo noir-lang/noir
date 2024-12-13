@@ -7,7 +7,7 @@ use super::{
     dfg::{CallStack, InsertInstructionResult},
     function::Function,
     instruction::{Instruction, InstructionId},
-    value::ValueId,
+    value::Value,
 };
 use fxhash::FxHashMap as HashMap;
 
@@ -17,7 +17,7 @@ use fxhash::FxHashMap as HashMap;
 pub(crate) struct FunctionInserter<'f> {
     pub(crate) function: &'f mut Function,
 
-    values: HashMap<ValueId, ValueId>,
+    values: HashMap<Value, Value>,
 
     /// Map containing repeat array constants so that we do not initialize a new
     /// array unnecessarily. An extra tuple field is included as part of the key to
@@ -33,7 +33,7 @@ pub(crate) struct FunctionInserter<'f> {
     pre_loop: Option<BasicBlockId>,
 }
 
-pub(crate) type ArrayCache = HashMap<im::Vector<ValueId>, HashMap<Type, ValueId>>;
+pub(crate) type ArrayCache = HashMap<im::Vector<Value>, HashMap<Type, Value>>;
 
 impl<'f> FunctionInserter<'f> {
     pub(crate) fn new(function: &'f mut Function) -> FunctionInserter<'f> {
@@ -43,7 +43,7 @@ impl<'f> FunctionInserter<'f> {
     /// Resolves a ValueId to its new, updated value.
     /// If there is no updated value for this id, this returns the same
     /// ValueId that was passed in.
-    pub(crate) fn resolve(&mut self, mut value: ValueId) -> ValueId {
+    pub(crate) fn resolve(&mut self, mut value: Value) -> Value {
         value = self.function.dfg.resolve(value);
         match self.values.get(&value) {
             Some(value) => self.resolve(*value),
@@ -52,7 +52,7 @@ impl<'f> FunctionInserter<'f> {
     }
 
     /// Insert a key, value pair if the key isn't already present in the map
-    pub(crate) fn try_map_value(&mut self, key: ValueId, value: ValueId) {
+    pub(crate) fn try_map_value(&mut self, key: Value, value: Value) {
         if key == value {
             // This case is technically not needed since try_map_value isn't meant to change
             // existing entries, but we should never have a value in the map referring to itself anyway.
@@ -63,7 +63,7 @@ impl<'f> FunctionInserter<'f> {
     }
 
     /// Insert a key, value pair in the map
-    pub(crate) fn map_value(&mut self, key: ValueId, value: ValueId) {
+    pub(crate) fn map_value(&mut self, key: Value, value: Value) {
         if key == value {
             self.values.remove(&key);
         } else {
@@ -159,22 +159,22 @@ impl<'f> FunctionInserter<'f> {
         new_results
     }
 
-    fn get_cached_array(&self, elements: &im::Vector<ValueId>, typ: &Type) -> Option<ValueId> {
+    fn get_cached_array(&self, elements: &im::Vector<Value>, typ: &Type) -> Option<Value> {
         self.array_cache.as_ref()?.get(elements)?.get(typ).copied()
     }
 
     fn cache_array(
         arrays: &mut Option<ArrayCache>,
-        elements: im::Vector<ValueId>,
+        elements: im::Vector<Value>,
         typ: Type,
-        result_id: ValueId,
+        result_id: Value,
     ) {
         if let Some(arrays) = arrays {
             arrays.entry(elements).or_default().insert(typ, result_id);
         }
     }
 
-    fn array_is_constant(&self, elements: &im::Vector<ValueId>) -> bool {
+    fn array_is_constant(&self, elements: &im::Vector<Value>) -> bool {
         elements.iter().all(|element| self.function.dfg.is_constant(*element))
     }
 
@@ -198,8 +198,8 @@ impl<'f> FunctionInserter<'f> {
     /// Modify the values HashMap to remember the mapping between an instruction result's previous
     /// ValueId (from the source_function) and its new ValueId in the destination function.
     pub(crate) fn insert_new_instruction_results(
-        values: &mut HashMap<ValueId, ValueId>,
-        old_results: &[ValueId],
+        values: &mut HashMap<Value, Value>,
+        old_results: &[Value],
         new_results: &InsertInstructionResult,
     ) {
         assert_eq!(old_results.len(), new_results.len());
@@ -222,7 +222,7 @@ impl<'f> FunctionInserter<'f> {
         }
     }
 
-    pub(crate) fn remember_block_params(&mut self, block: BasicBlockId, new_values: &[ValueId]) {
+    pub(crate) fn remember_block_params(&mut self, block: BasicBlockId, new_values: &[Value]) {
         let old_parameters = self.function.dfg.block_parameters(block);
 
         for (param, new_param) in old_parameters.iter().zip(new_values) {

@@ -13,7 +13,7 @@ use crate::{
     ssa::ir::{
         dfg::DataFlowGraph,
         types::{CompositeType, Type},
-        value::ValueId,
+        value::Value,
     },
 };
 
@@ -21,12 +21,12 @@ use super::brillig_fn::FunctionContext;
 
 #[derive(Debug, Default)]
 pub(crate) struct BlockVariables {
-    available_variables: HashSet<ValueId>,
+    available_variables: HashSet<Value>,
 }
 
 impl BlockVariables {
     /// Creates a BlockVariables instance. It uses the variables that are live in to the block and the global available variables (block parameters)
-    pub(crate) fn new(live_in: HashSet<ValueId>) -> Self {
+    pub(crate) fn new(live_in: HashSet<Value>) -> Self {
         BlockVariables { available_variables: live_in }
     }
 
@@ -52,7 +52,7 @@ impl BlockVariables {
         &mut self,
         function_context: &mut FunctionContext,
         brillig_context: &mut BrilligContext<FieldElement, Stack>,
-        value_id: ValueId,
+        value_id: Value,
         dfg: &DataFlowGraph,
     ) -> BrilligVariable {
         let value_id = dfg.resolve(value_id);
@@ -72,7 +72,7 @@ impl BlockVariables {
         &mut self,
         function_context: &mut FunctionContext,
         brillig_context: &mut BrilligContext<FieldElement, Stack>,
-        value: ValueId,
+        value: Value,
         dfg: &DataFlowGraph,
     ) -> SingleAddrVariable {
         let variable = self.define_variable(function_context, brillig_context, value, dfg);
@@ -82,7 +82,7 @@ impl BlockVariables {
     /// Removes a variable so it's not used anymore within this block.
     pub(crate) fn remove_variable(
         &mut self,
-        value_id: &ValueId,
+        value_id: &Value,
         function_context: &mut FunctionContext,
         brillig_context: &mut BrilligContext<FieldElement, Stack>,
     ) {
@@ -95,7 +95,7 @@ impl BlockVariables {
     }
 
     /// Checks if a variable is allocated.
-    pub(crate) fn is_allocated(&self, value_id: &ValueId) -> bool {
+    pub(crate) fn is_allocated(&self, value_id: &Value) -> bool {
         self.available_variables.contains(value_id)
     }
 
@@ -103,7 +103,7 @@ impl BlockVariables {
     pub(crate) fn get_allocation(
         &mut self,
         function_context: &FunctionContext,
-        value_id: ValueId,
+        value_id: Value,
         dfg: &DataFlowGraph,
     ) -> BrilligVariable {
         let value_id = dfg.resolve(value_id);
@@ -127,7 +127,7 @@ pub(crate) fn compute_array_length(item_typ: &CompositeType, elem_count: usize) 
 
 /// For a given value_id, allocates the necessary registers to hold it.
 pub(crate) fn allocate_value<F, Registers: RegisterAllocator>(
-    value_id: ValueId,
+    value_id: Value,
     brillig_context: &mut BrilligContext<F, Registers>,
     dfg: &DataFlowGraph,
 ) -> BrilligVariable {

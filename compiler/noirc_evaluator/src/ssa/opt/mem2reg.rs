@@ -87,7 +87,7 @@ use crate::ssa::{
         instruction::{Instruction, InstructionId, TerminatorInstruction},
         post_order::PostOrder,
         types::Type,
-        value::ValueId,
+        value::Value,
     },
     ssa_gen::Ssa,
 };
@@ -132,16 +132,16 @@ struct PerFunctionContext<'f> {
 
     /// Track a value's last load across all blocks.
     /// If a value is not used in anymore loads we can remove the last store to that value.
-    last_loads: HashMap<ValueId, (InstructionId, BasicBlockId)>,
+    last_loads: HashMap<Value, (InstructionId, BasicBlockId)>,
 
     /// Track whether a reference was passed into another entry point
     /// This is needed to determine whether we can remove a store.
-    calls_reference_input: HashSet<ValueId>,
+    calls_reference_input: HashSet<Value>,
 
     /// Track whether a reference has been aliased, and store the respective
     /// instruction that aliased that reference.
     /// If that store has been set for removal, we can also remove this instruction.
-    aliased_references: HashMap<ValueId, HashSet<InstructionId>>,
+    aliased_references: HashMap<Value, HashSet<InstructionId>>,
 }
 
 impl<'f> PerFunctionContext<'f> {
@@ -176,7 +176,7 @@ impl<'f> PerFunctionContext<'f> {
         }
 
         let mut all_terminator_values = HashSet::default();
-        let mut per_func_block_params: HashSet<ValueId> = HashSet::default();
+        let mut per_func_block_params: HashSet<Value> = HashSet::default();
         for (block_id, _) in self.blocks.iter() {
             let block_params = self.inserter.function.dfg.block_parameters(*block_id);
             per_func_block_params.extend(block_params.iter());
@@ -215,10 +215,10 @@ impl<'f> PerFunctionContext<'f> {
     // an allocation did not come from an entry point or was passed to an entry point.
     fn is_store_alias_used(
         &self,
-        store_address: &ValueId,
+        store_address: &Value,
         block: &Block,
-        all_terminator_values: &HashSet<ValueId>,
-        per_func_block_params: &HashSet<ValueId>,
+        all_terminator_values: &HashSet<Value>,
+        per_func_block_params: &HashSet<Value>,
     ) -> bool {
         let reference_parameters = self.reference_parameters();
 
@@ -268,7 +268,7 @@ impl<'f> PerFunctionContext<'f> {
     /// All references are mutable, so these inputs are shared with the function caller
     /// and thus stores should not be eliminated, even if the blocks in this function
     /// don't use them anywhere.
-    fn reference_parameters(&self) -> BTreeSet<ValueId> {
+    fn reference_parameters(&self) -> BTreeSet<Value> {
         let parameters = self.inserter.function.parameters().iter();
         parameters
             .filter(|param| self.inserter.function.dfg.value_is_reference(**param))
@@ -566,14 +566,14 @@ impl<'f> PerFunctionContext<'f> {
         }
     }
 
-    fn set_aliases(&self, references: &mut Block, address: ValueId, new_aliases: AliasSet) {
+    fn set_aliases(&self, references: &mut Block, address: Value, new_aliases: AliasSet) {
         let expression =
             references.expressions.entry(address).or_insert(Expression::Other(address));
         let aliases = references.aliases.entry(expression.clone()).or_default();
         *aliases = new_aliases;
     }
 
-    fn mark_all_unknown(&self, values: &[ValueId], references: &mut Block) {
+    fn mark_all_unknown(&self, values: &[Value], references: &mut Block) {
         for value in values {
             if self.inserter.function.dfg.value_is_reference(*value) {
                 let value = self.inserter.function.dfg.resolve(*value);
@@ -616,7 +616,7 @@ impl<'f> PerFunctionContext<'f> {
                 // then those parameters also alias each other.
                 // We save parameters with repeat arguments to later mark those
                 // parameters as aliasing one another.
-                let mut arg_set: HashMap<ValueId, BTreeSet<ValueId>> = HashMap::default();
+                let mut arg_set: HashMap<Value, BTreeSet<Value>> = HashMap::default();
 
                 // Add an alias for each reference parameter
                 for (parameter, argument) in destination_parameters.iter().zip(arguments) {

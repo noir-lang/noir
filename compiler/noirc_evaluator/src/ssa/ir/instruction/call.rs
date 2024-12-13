@@ -16,7 +16,7 @@ use crate::ssa::{
         instruction::Intrinsic,
         map::Id,
         types::{NumericType, Type},
-        value::{Value, ValueId},
+        value::{Value, Value},
     },
     opt::flatten_cfg::value_merger::ValueMerger,
 };
@@ -33,8 +33,8 @@ mod blackbox;
 /// to the slice length, which requires inserting a binary instruction. This update instruction
 /// must be inserted into the same block that the call itself is being simplified into.
 pub(super) fn simplify_call(
-    func: ValueId,
-    arguments: &[ValueId],
+    func: Value,
+    arguments: &[Value],
     return_types: &[Type],
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
@@ -399,11 +399,11 @@ pub(super) fn simplify_call(
 /// This is because the slice length holds the user length (length as displayed by a `.len()` call),
 /// and not a flattened length used internally to represent arrays of tuples.
 fn update_slice_length(
-    slice_len: ValueId,
+    slice_len: Value,
     dfg: &mut DataFlowGraph,
     operator: BinaryOp,
     block: BasicBlockId,
-) -> ValueId {
+) -> Value {
     let one = dfg.make_constant(FieldElement::one(), NumericType::length_type());
     let instruction = Instruction::Binary(Binary { lhs: slice_len, operator, rhs: one });
     let call_stack = dfg.get_value_call_stack(slice_len);
@@ -411,9 +411,9 @@ fn update_slice_length(
 }
 
 fn simplify_slice_push_back(
-    mut slice: im::Vector<ValueId>,
+    mut slice: im::Vector<Value>,
     element_type: Type,
-    arguments: &[ValueId],
+    arguments: &[Value],
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
     call_stack: CallStack,
@@ -470,7 +470,7 @@ fn simplify_slice_push_back(
 
 fn simplify_slice_pop_back(
     slice_type: Type,
-    arguments: &[ValueId],
+    arguments: &[Value],
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
     call_stack: CallStack,
@@ -512,7 +512,7 @@ fn simplify_slice_pop_back(
 /// that value is returned. Otherwise [`SimplifyResult::None`] is returned.
 fn simplify_black_box_func(
     bb_func: BlackBoxFunc,
-    arguments: &[ValueId],
+    arguments: &[Value],
     result_types: &[Type],
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
@@ -616,7 +616,7 @@ fn make_constant_array(
     typ: NumericType,
     block: BasicBlockId,
     call_stack: &CallStack,
-) -> ValueId {
+) -> Value {
     let result_constants: im::Vector<_> =
         results.map(|element| dfg.make_constant(element, typ)).collect();
 
@@ -626,11 +626,11 @@ fn make_constant_array(
 
 fn make_array(
     dfg: &mut DataFlowGraph,
-    elements: im::Vector<ValueId>,
+    elements: im::Vector<Value>,
     typ: Type,
     block: BasicBlockId,
     call_stack: &CallStack,
-) -> ValueId {
+) -> Value {
     let instruction = Instruction::MakeArray { elements, typ };
     let call_stack = call_stack.clone();
     dfg.insert_instruction_and_results(instruction, block, call_stack).first()
@@ -642,7 +642,7 @@ fn constant_to_radix(
     field: FieldElement,
     radix: u32,
     limb_count: u32,
-    mut make_array: impl FnMut(Vec<FieldElement>) -> ValueId,
+    mut make_array: impl FnMut(Vec<FieldElement>) -> Value,
 ) -> SimplifyResult {
     let bit_size = u32::BITS - (radix - 1).leading_zeros();
     let radix_big = BigUint::from(radix);
@@ -686,7 +686,7 @@ fn array_is_constant(dfg: &DataFlowGraph, values: &im::Vector<Id<Value>>) -> boo
 
 fn simplify_hash(
     dfg: &mut DataFlowGraph,
-    arguments: &[ValueId],
+    arguments: &[Value],
     hash_function: fn(&[u8]) -> Result<[u8; 32], BlackBoxResolutionError>,
     block: BasicBlockId,
     call_stack: &CallStack,
@@ -716,7 +716,7 @@ type ECDSASignatureVerifier = fn(
 ) -> Result<bool, BlackBoxResolutionError>;
 fn simplify_signature(
     dfg: &mut DataFlowGraph,
-    arguments: &[ValueId],
+    arguments: &[Value],
     signature_verifier: ECDSASignatureVerifier,
 ) -> SimplifyResult {
     match (
@@ -758,7 +758,7 @@ fn simplify_signature(
 
 fn simplify_derive_generators(
     dfg: &mut DataFlowGraph,
-    arguments: &[ValueId],
+    arguments: &[Value],
     num_generators: u32,
     block: BasicBlockId,
     call_stack: &CallStack,

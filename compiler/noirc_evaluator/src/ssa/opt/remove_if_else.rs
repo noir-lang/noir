@@ -6,7 +6,7 @@ use fxhash::FxHashMap as HashMap;
 use crate::ssa::ir::function::RuntimeType;
 use crate::ssa::ir::instruction::Hint;
 use crate::ssa::ir::types::NumericType;
-use crate::ssa::ir::value::ValueId;
+use crate::ssa::ir::value::Value;
 use crate::ssa::{
     ir::{
         dfg::DataFlowGraph,
@@ -50,14 +50,14 @@ impl Function {
 
 #[derive(Default)]
 struct Context {
-    slice_sizes: HashMap<ValueId, u32>,
+    slice_sizes: HashMap<Value, u32>,
 
     // Maps array_set result -> element that was overwritten by that instruction.
     // Used to undo array_sets while merging values
-    prev_array_set_elem_values: HashMap<ValueId, ValueId>,
+    prev_array_set_elem_values: HashMap<Value, Value>,
 
     // Maps array_set result -> enable_side_effects_if value which was active during it.
-    array_set_conditionals: HashMap<ValueId, ValueId>,
+    array_set_conditionals: HashMap<Value, Value>,
 }
 
 impl Context {
@@ -146,7 +146,7 @@ impl Context {
         }
     }
 
-    fn get_or_find_capacity(&mut self, dfg: &DataFlowGraph, value: ValueId) -> u32 {
+    fn get_or_find_capacity(&mut self, dfg: &DataFlowGraph, value: Value) -> u32 {
         match self.slice_sizes.entry(value) {
             Entry::Occupied(entry) => return *entry.get(),
             Entry::Vacant(entry) => {
@@ -168,20 +168,20 @@ impl Context {
 
 enum SizeChange {
     None,
-    SetTo(ValueId, u32),
+    SetTo(Value, u32),
 
     // These two variants store the old and new slice ids
     // not their lengths which should be old_len = new_len +/- 1
-    Inc { old: ValueId, new: ValueId },
-    Dec { old: ValueId, new: ValueId },
+    Inc { old: Value, new: Value },
+    Dec { old: Value, new: Value },
 }
 
 /// Find the change to a slice's capacity an instruction would have
 fn slice_capacity_change(
     dfg: &DataFlowGraph,
     intrinsic: Intrinsic,
-    arguments: &[ValueId],
-    results: &[ValueId],
+    arguments: &[Value],
+    results: &[Value],
 ) -> SizeChange {
     match intrinsic {
         Intrinsic::SlicePushBack | Intrinsic::SlicePushFront | Intrinsic::SliceInsert => {

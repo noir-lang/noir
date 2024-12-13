@@ -145,7 +145,7 @@ use crate::ssa::{
         function_inserter::FunctionInserter,
         instruction::{BinaryOp, Instruction, InstructionId, Intrinsic, TerminatorInstruction},
         types::{NumericType, Type},
-        value::{Value, ValueId},
+        value::{Value, Value},
     },
     ssa_gen::Ssa,
 };
@@ -195,12 +195,12 @@ struct Context<'f> {
 
     /// Maps SSA array values with a slice type to their size.
     /// This is maintained by appropriate calls to the `SliceCapacityTracker` and is used by the `ValueMerger`.
-    slice_sizes: HashMap<ValueId, usize>,
+    slice_sizes: HashMap<Value, usize>,
 
     /// Stack of block arguments
     /// When processing a block, we pop this stack to get its arguments
     /// and at the end we push the arguments for his successor
-    arguments_stack: Vec<Vec<ValueId>>,
+    arguments_stack: Vec<Vec<Value>>,
 
     /// Stores all allocations local to the current branch.
     ///
@@ -209,7 +209,7 @@ struct Context<'f> {
     /// the other branch since there is no such value.
     ///
     /// The `ValueId` here is that which is returned by the allocate instruction.
-    local_allocations: HashSet<ValueId>,
+    local_allocations: HashSet<Value>,
 }
 
 #[derive(Clone)]
@@ -217,16 +217,16 @@ struct ConditionalBranch {
     // Contains the last processed block during the processing of the branch.
     last_block: BasicBlockId,
     // The unresolved condition of the branch
-    old_condition: ValueId,
+    old_condition: Value,
     // The condition of the branch
-    condition: ValueId,
+    condition: Value,
     // The allocations accumulated when processing the branch
-    local_allocations: HashSet<ValueId>,
+    local_allocations: HashSet<Value>,
 }
 
 struct ConditionalContext {
     // Condition from the conditional statement
-    condition: ValueId,
+    condition: Value,
     // Block containing the conditional statement
     entry_block: BasicBlockId,
     // First block of the then branch
@@ -280,7 +280,7 @@ impl<'f> Context<'f> {
 
     /// Returns the updated condition so that
     /// it is 'AND-ed' with the previous condition (if any)
-    fn link_condition(&mut self, condition: ValueId) -> ValueId {
+    fn link_condition(&mut self, condition: Value) -> Value {
         // Retrieve the previous condition
         if let Some(context) = self.condition_stack.last() {
             let previous_branch = context.else_branch.as_ref().unwrap_or(&context.then_branch);
@@ -293,7 +293,7 @@ impl<'f> Context<'f> {
     }
 
     /// Returns the current condition
-    fn get_last_condition(&self) -> Option<ValueId> {
+    fn get_last_condition(&self) -> Option<Value> {
         self.condition_stack.last().map(|context| match &context.else_branch {
             Some(else_branch) => else_branch.condition,
             None => context.then_branch.condition,
@@ -401,7 +401,7 @@ impl<'f> Context<'f> {
     /// Process a conditional statement
     fn if_start(
         &mut self,
-        condition: &ValueId,
+        condition: &Value,
         then_destination: &BasicBlockId,
         else_destination: &BasicBlockId,
         if_entry: &BasicBlockId,
@@ -764,10 +764,10 @@ impl<'f> Context<'f> {
     /// that the points will be on the curve no matter what.
     fn apply_predicate_to_msm_argument(
         &mut self,
-        argument: ValueId,
-        predicate: ValueId,
+        argument: Value,
+        predicate: Value,
         call_stack: CallStack,
-    ) -> (im::Vector<ValueId>, Type) {
+    ) -> (im::Vector<Value>, Type) {
         let array_typ;
         let mut array_with_predicate = im::Vector::new();
         if let Some((array, typ)) = &self.inserter.function.dfg.get_array_constant(argument) {
@@ -794,7 +794,7 @@ impl<'f> Context<'f> {
     }
 
     // Computes: if condition { var } else { 1 }
-    fn var_or_one(&mut self, var: ValueId, condition: ValueId, call_stack: CallStack) -> ValueId {
+    fn var_or_one(&mut self, var: Value, condition: Value, call_stack: CallStack) -> Value {
         let field = self
             .insert_instruction(
                 Instruction::binary(BinaryOp::Mul, var, condition),
@@ -823,7 +823,7 @@ mod test {
             instruction::{BinaryOp, Instruction, TerminatorInstruction},
             map::Id,
             types::Type,
-            value::{Value, ValueId},
+            value::{Value, Value},
         },
         opt::assert_normalized_ssa_equals,
         Ssa,
@@ -1200,7 +1200,7 @@ mod test {
     /// Calling this function on v3 will return [2, 6].
     fn get_all_constants_reachable_from_instruction(
         dfg: &DataFlowGraph,
-        value: ValueId,
+        value: Value,
     ) -> Vec<u128> {
         match dfg[value] {
             Value::Instruction { instruction, .. } => {

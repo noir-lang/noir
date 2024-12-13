@@ -6,7 +6,7 @@ use crate::ssa::{
     ir::{
         function::{Function, FunctionId, RuntimeType},
         instruction::Instruction,
-        value::{Value, ValueId},
+        value::{Value, Value},
     },
     ssa_gen::Ssa,
 };
@@ -126,7 +126,7 @@ impl RuntimeSeparatorContext {
 }
 
 // We only consider direct calls to functions since functions as values should have been resolved
-fn called_functions_values(func: &Function) -> BTreeSet<ValueId> {
+fn called_functions_values(func: &Function) -> BTreeSet<Value> {
     let mut called_function_ids = BTreeSet::default();
     for block_id in func.reachable_blocks() {
         for instruction_id in func.dfg[block_id].instructions() {

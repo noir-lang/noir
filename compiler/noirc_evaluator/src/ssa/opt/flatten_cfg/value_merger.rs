@@ -6,20 +6,20 @@ use crate::ssa::ir::{
     dfg::{CallStack, DataFlowGraph, InsertInstructionResult},
     instruction::{BinaryOp, Instruction},
     types::{NumericType, Type},
-    value::{Value, ValueId},
+    value::{Value, Value},
 };
 
 pub(crate) struct ValueMerger<'a> {
     dfg: &'a mut DataFlowGraph,
     block: BasicBlockId,
 
-    current_condition: Option<ValueId>,
+    current_condition: Option<Value>,
 
     // Maps SSA array values with a slice type to their size.
     // This must be computed before merging values.
-    slice_sizes: &'a mut HashMap<ValueId, u32>,
+    slice_sizes: &'a mut HashMap<Value, u32>,
 
-    array_set_conditionals: &'a mut HashMap<ValueId, ValueId>,
+    array_set_conditionals: &'a mut HashMap<Value, Value>,
 
     call_stack: CallStack,
 }
@@ -28,9 +28,9 @@ impl<'a> ValueMerger<'a> {
     pub(crate) fn new(
         dfg: &'a mut DataFlowGraph,
         block: BasicBlockId,
-        slice_sizes: &'a mut HashMap<ValueId, u32>,
-        array_set_conditionals: &'a mut HashMap<ValueId, ValueId>,
-        current_condition: Option<ValueId>,
+        slice_sizes: &'a mut HashMap<Value, u32>,
+        array_set_conditionals: &'a mut HashMap<Value, Value>,
+        current_condition: Option<Value>,
         call_stack: CallStack,
     ) -> Self {
         ValueMerger {
@@ -53,11 +53,11 @@ impl<'a> ValueMerger<'a> {
     /// as it is less clear how to merge these.
     pub(crate) fn merge_values(
         &mut self,
-        then_condition: ValueId,
-        else_condition: ValueId,
-        then_value: ValueId,
-        else_value: ValueId,
-    ) -> ValueId {
+        then_condition: Value,
+        else_condition: Value,
+        then_value: Value,
+        else_value: Value,
+    ) -> Value {
         let then_value = self.dfg.resolve(then_value);
         let else_value = self.dfg.resolve(else_value);
 
@@ -90,11 +90,11 @@ impl<'a> ValueMerger<'a> {
     pub(crate) fn merge_numeric_values(
         dfg: &mut DataFlowGraph,
         block: BasicBlockId,
-        then_condition: ValueId,
-        else_condition: ValueId,
-        then_value: ValueId,
-        else_value: ValueId,
-    ) -> ValueId {
+        then_condition: Value,
+        else_condition: Value,
+        then_value: Value,
+        else_value: Value,
+    ) -> Value {
         let then_type = dfg.type_of_value(then_value).unwrap_numeric();
         let else_type = dfg.type_of_value(else_value).unwrap_numeric();
         assert_eq!(
@@ -136,11 +136,11 @@ impl<'a> ValueMerger<'a> {
     pub(crate) fn merge_array_values(
         &mut self,
         typ: Type,
-        then_condition: ValueId,
-        else_condition: ValueId,
-        then_value: ValueId,
-        else_value: ValueId,
-    ) -> ValueId {
+        then_condition: Value,
+        else_condition: Value,
+        then_value: Value,
+        else_value: Value,
+    ) -> Value {
         let mut merged = im::Vector::new();
 
         let (element_types, len) = match &typ {
@@ -194,11 +194,11 @@ impl<'a> ValueMerger<'a> {
     fn merge_slice_values(
         &mut self,
         typ: Type,
-        then_condition: ValueId,
-        else_condition: ValueId,
-        then_value_id: ValueId,
-        else_value_id: ValueId,
-    ) -> ValueId {
+        then_condition: Value,
+        else_condition: Value,
+        then_value_id: Value,
+        else_value_id: Value,
+    ) -> Value {
         let mut merged = im::Vector::new();
 
         let element_types = match &typ {
@@ -268,7 +268,7 @@ impl<'a> ValueMerger<'a> {
     /// We need to make sure we follow the internal element type structure of the slice type
     /// even for dummy data to ensure that we do not have errors later in the compiler,
     /// such as with dynamic indexing of non-homogenous slices.
-    fn make_slice_dummy_data(&mut self, typ: &Type) -> ValueId {
+    fn make_slice_dummy_data(&mut self, typ: &Type) -> Value {
         match typ {
             Type::Numeric(numeric_type) => {
                 let zero = FieldElement::zero();
@@ -301,12 +301,12 @@ impl<'a> ValueMerger<'a> {
 
     fn try_merge_only_changed_indices(
         &mut self,
-        then_condition: ValueId,
-        else_condition: ValueId,
-        then_value: ValueId,
-        else_value: ValueId,
+        then_condition: Value,
+        else_condition: Value,
+        then_value: Value,
+        else_value: Value,
         array_length: u32,
-    ) -> Option<ValueId> {
+    ) -> Option<Value> {
         let mut found = false;
         let current_condition = self.current_condition?;
 
@@ -396,10 +396,10 @@ impl<'a> ValueMerger<'a> {
 
     fn insert_array_set(
         &mut self,
-        array: ValueId,
-        index: ValueId,
-        value: ValueId,
-        condition: Option<ValueId>,
+        array: Value,
+        index: Value,
+        value: Value,
+        condition: Option<Value>,
     ) -> InsertInstructionResult {
         let instruction = Instruction::ArraySet { array, index, value, mutable: false };
         let result = self.dfg.insert_instruction_and_results(
@@ -426,9 +426,9 @@ impl<'a> ValueMerger<'a> {
 
     fn find_previous_array_set(
         &self,
-        result: ValueId,
-        changed_indices: &mut Vec<(ValueId, ValueId, Type, ValueId)>,
-    ) -> ValueId {
+        result: Value,
+        changed_indices: &mut Vec<(Value, Value, Type, Value)>,
+    ) -> Value {
         match &self.dfg[result] {
             Value::Instruction { instruction, .. } => match &self.dfg[*instruction] {
                 Instruction::ArraySet { array, index, value, .. } => {

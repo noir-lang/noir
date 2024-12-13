@@ -14,7 +14,7 @@ use crate::ssa::{
         dfg::{CallStack, InsertInstructionResult},
         function::{Function, FunctionId, RuntimeType},
         instruction::{Instruction, InstructionId, TerminatorInstruction},
-        value::{Value, ValueId},
+        value::{Value, Value},
     },
     ssa_gen::Ssa,
 };
@@ -115,7 +115,7 @@ struct PerFunctionContext<'function> {
     /// Maps ValueIds in the function being inlined to the new ValueIds to use in the function
     /// being inlined into. This mapping also contains the mapping from parameter values to
     /// argument values.
-    values: HashMap<ValueId, ValueId>,
+    values: HashMap<Value, Value>,
 
     /// Maps blocks in the source function to blocks in the function being inlined into, where
     /// each mapping is from the start of a source block to an inlined block in which the
@@ -409,8 +409,8 @@ impl InlineContext {
         &mut self,
         ssa: &Ssa,
         id: FunctionId,
-        arguments: &[ValueId],
-    ) -> Vec<ValueId> {
+        arguments: &[Value],
+    ) -> Vec<Value> {
         self.recursion_level += 1;
 
         let source_function = &ssa.functions[&id];
@@ -456,7 +456,7 @@ impl<'function> PerFunctionContext<'function> {
     /// Value::Param values are already handled as a result of previous inlining of instructions
     /// and blocks respectively. If these assertions trigger it means a value is being used before
     /// the instruction or block that defines the value is inserted.
-    fn translate_value(&mut self, id: ValueId) -> ValueId {
+    fn translate_value(&mut self, id: Value) -> Value {
         if let Some(value) = self.values.get(&id) {
             return *value;
         }
@@ -519,7 +519,7 @@ impl<'function> PerFunctionContext<'function> {
     /// Expects that the given ValueId belongs to the source_function.
     ///
     /// Returns None if the id is not known to refer to a function.
-    fn get_function(&mut self, mut id: ValueId) -> Option<FunctionId> {
+    fn get_function(&mut self, mut id: Value) -> Option<FunctionId> {
         id = self.translate_value(id);
         match self.context.builder[id] {
             Value::Function(id) => Some(id),
@@ -532,7 +532,7 @@ impl<'function> PerFunctionContext<'function> {
     }
 
     /// Inline all reachable blocks within the source_function into the destination function.
-    fn inline_blocks(&mut self, ssa: &Ssa) -> Vec<ValueId> {
+    fn inline_blocks(&mut self, ssa: &Ssa) -> Vec<Value> {
         let mut seen_blocks = HashSet::new();
         let mut block_queue = VecDeque::new();
         block_queue.push_back(self.source_function.entry_block());
@@ -566,8 +566,8 @@ impl<'function> PerFunctionContext<'function> {
     /// If there are multiple, we'll need to create a join block to jump to with each value.
     fn handle_function_returns(
         &mut self,
-        mut returns: Vec<(BasicBlockId, Vec<ValueId>)>,
-    ) -> Vec<ValueId> {
+        mut returns: Vec<(BasicBlockId, Vec<Value>)>,
+    ) -> Vec<Value> {
         // Clippy complains if this were written as an if statement
         match returns.len() {
             1 => {
@@ -595,7 +595,7 @@ impl<'function> PerFunctionContext<'function> {
     /// Inline each instruction in the given block into the function being inlined into.
     /// This may recurse if it finds another function to inline if a call instruction is within this block.
     fn inline_block_instructions(&mut self, ssa: &Ssa, block_id: BasicBlockId) {
-        let mut side_effects_enabled: Option<ValueId> = None;
+        let mut side_effects_enabled: Option<Value> = None;
 
         let block = &self.source_function.dfg[block_id];
         for id in block.instructions() {
@@ -657,7 +657,7 @@ impl<'function> PerFunctionContext<'function> {
         ssa: &Ssa,
         call_id: InstructionId,
         function: FunctionId,
-        arguments: &[ValueId],
+        arguments: &[Value],
     ) {
         let old_results = self.source_function.dfg.instruction_results(call_id);
         let arguments = vecmap(arguments, |arg| self.translate_value(*arg));
@@ -694,8 +694,8 @@ impl<'function> PerFunctionContext<'function> {
     /// Modify the values HashMap to remember the mapping between an instruction result's previous
     /// ValueId (from the source_function) and its new ValueId in the destination function.
     fn insert_new_instruction_results(
-        values: &mut HashMap<ValueId, ValueId>,
-        old_results: &[ValueId],
+        values: &mut HashMap<Value, Value>,
+        old_results: &[Value],
         new_results: InsertInstructionResult,
     ) {
         assert_eq!(old_results.len(), new_results.len());
@@ -728,7 +728,7 @@ impl<'function> PerFunctionContext<'function> {
         &mut self,
         block_id: BasicBlockId,
         block_queue: &mut VecDeque<BasicBlockId>,
-    ) -> Option<(BasicBlockId, Vec<ValueId>)> {
+    ) -> Option<(BasicBlockId, Vec<Value>)> {
         match self.source_function.dfg[block_id].unwrap_terminator() {
             TerminatorInstruction::Jmp { destination, arguments, call_stack } => {
                 let destination = self.translate_block(*destination, block_queue);

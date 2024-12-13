@@ -1,12 +1,12 @@
 use acvm::{acir::AcirField, FieldElement};
 use num_bigint::BigUint;
 
-use super::{DataFlowGraph, Instruction, NumericType, SimplifyResult, Type, Value, ValueId};
+use super::{DataFlowGraph, Instruction, NumericType, SimplifyResult, Type, Value, Value};
 
 /// Try to simplify this cast instruction. If the instruction can be simplified to a known value,
 /// that value is returned. Otherwise None is returned.
 pub(super) fn simplify_cast(
-    value: ValueId,
+    value: Value,
     dst_typ: NumericType,
     dfg: &mut DataFlowGraph,
 ) -> SimplifyResult {

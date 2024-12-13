@@ -2,7 +2,7 @@ use acvm::{acir::AcirField, FieldElement};
 use serde::{Deserialize, Serialize};
 
 use super::{
-    DataFlowGraph, Instruction, InstructionResultType, NumericType, SimplifyResult, Type, ValueId,
+    DataFlowGraph, Instruction, InstructionResultType, NumericType, SimplifyResult, Type, Value,
 };
 
 /// Binary Operations allowed in the IR.
@@ -68,9 +68,9 @@ impl std::fmt::Display for BinaryOp {
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
 pub(crate) struct Binary {
     /// Left hand side of the binary operation
-    pub(crate) lhs: ValueId,
+    pub(crate) lhs: Value,
     /// Right hand side of the binary operation
-    pub(crate) rhs: ValueId,
+    pub(crate) rhs: Value,
     /// The binary operation to apply
     pub(crate) operator: BinaryOp,
 }

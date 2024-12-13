@@ -9,7 +9,7 @@ use crate::ssa::ir::{
     function::Function,
     instruction::{Instruction, InstructionId},
     post_order::PostOrder,
-    value::{Value, ValueId},
+    value::{Value, Value},
 };
 
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
@@ -46,9 +46,9 @@ fn find_back_edges(
 
 /// Collects the underlying variables inside a value id. It might be more than one, for example in constant arrays that are constructed with multiple vars.
 pub(crate) fn collect_variables_of_value(
-    value_id: ValueId,
+    value_id: Value,
     dfg: &DataFlowGraph,
-) -> Option<ValueId> {
+) -> Option<Value> {
     let value_id = dfg.resolve(value_id);
     let value = &dfg[value_id];
 
@@ -97,7 +97,7 @@ fn variables_used_in_block(block: &BasicBlock, dfg: &DataFlowGraph) -> Variables
     used
 }
 
-type Variables = HashSet<ValueId>;
+type Variables = HashSet<Value>;
 
 fn compute_used_before_def(
     block: &BasicBlock,
@@ -122,7 +122,7 @@ pub(crate) struct VariableLiveness {
     /// The variables that stop being alive after each specific instruction
     last_uses: HashMap<BasicBlockId, LastUses>,
     /// The list of block params the given block is defining. The order matters for the entry block, so it's a vec.
-    param_definitions: HashMap<BasicBlockId, Vec<ValueId>>,
+    param_definitions: HashMap<BasicBlockId, Vec<Value>>,
 }
 
 impl VariableLiveness {
@@ -172,7 +172,7 @@ impl VariableLiveness {
     /// Retrieves the list of block params the given block is defining.
     /// Block params are defined before the block that owns them (since they are used by the predecessor blocks). They must be defined in the immediate dominator.
     /// This is the last point where the block param can be allocated without it being allocated in different places in different branches.
-    pub(crate) fn defined_block_params(&self, block_id: &BasicBlockId) -> Vec<ValueId> {
+    pub(crate) fn defined_block_params(&self, block_id: &BasicBlockId) -> Vec<Value> {
         self.param_definitions.get(block_id).cloned().unwrap_or_default()
     }
 

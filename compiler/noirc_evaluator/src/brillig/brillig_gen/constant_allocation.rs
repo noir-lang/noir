@@ -11,7 +11,7 @@ use crate::ssa::ir::{
     function::Function,
     instruction::InstructionId,
     post_order::PostOrder,
-    value::{Value, ValueId},
+    value::{Value, Value},
 };
 
 use super::variable_liveness::{collect_variables_of_value, variables_used_in_instruction};
@@ -23,8 +23,8 @@ pub(crate) enum InstructionLocation {
 }
 
 pub(crate) struct ConstantAllocation {
-    constant_usage: HashMap<ValueId, HashMap<BasicBlockId, Vec<InstructionLocation>>>,
-    allocation_points: HashMap<BasicBlockId, HashMap<InstructionLocation, Vec<ValueId>>>,
+    constant_usage: HashMap<Value, HashMap<BasicBlockId, Vec<InstructionLocation>>>,
+    allocation_points: HashMap<BasicBlockId, HashMap<InstructionLocation, Vec<Value>>>,
     dominator_tree: DominatorTree,
     blocks_within_loops: HashSet<BasicBlockId>,
 }
@@ -47,7 +47,7 @@ impl ConstantAllocation {
         instance
     }
 
-    pub(crate) fn allocated_in_block(&self, block_id: BasicBlockId) -> Vec<ValueId> {
+    pub(crate) fn allocated_in_block(&self, block_id: BasicBlockId) -> Vec<Value> {
         self.allocation_points.get(&block_id).map_or(Vec::default(), |allocations| {
             allocations.iter().flat_map(|(_, constants)| constants.iter()).copied().collect()
         })
@@ -57,7 +57,7 @@ impl ConstantAllocation {
         &self,
         block_id: BasicBlockId,
         location: InstructionLocation,
-    ) -> Vec<ValueId> {
+    ) -> Vec<Value> {
         self.allocation_points.get(&block_id).map_or(Vec::default(), |allocations| {
             allocations.get(&location).map_or(Vec::default(), |constants| constants.clone())
         })
@@ -65,7 +65,7 @@ impl ConstantAllocation {
 
     fn collect_constant_usage(&mut self, func: &Function) {
         let mut record_if_constant =
-            |block_id: BasicBlockId, value_id: ValueId, location: InstructionLocation| {
+            |block_id: BasicBlockId, value_id: Value, location: InstructionLocation| {
                 if is_constant_value(value_id, &func.dfg) {
                     self.constant_usage
                         .entry(value_id)
@@ -126,7 +126,7 @@ impl ConstantAllocation {
 
     fn decide_allocation_point(
         &self,
-        constant_id: ValueId,
+        constant_id: Value,
         blocks_where_is_used: &[BasicBlockId],
         func: &Function,
     ) -> BasicBlockId {
@@ -164,7 +164,7 @@ impl ConstantAllocation {
     }
 }
 
-pub(crate) fn is_constant_value(id: ValueId, dfg: &DataFlowGraph) -> bool {
+pub(crate) fn is_constant_value(id: Value, dfg: &DataFlowGraph) -> bool {
     matches!(&dfg[dfg.resolve(id)], Value::NumericConstant { .. })
 }
 

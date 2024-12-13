@@ -6,7 +6,7 @@ use crate::ssa::{
         function::{Function, FunctionId},
         map::SparseMap,
         post_order::PostOrder,
-        value::{Value, ValueId},
+        value::{Value, Value},
     },
     ssa_gen::Ssa,
 };
@@ -51,7 +51,7 @@ struct IdMaps {
 
     // Maps old value id -> new value id
     // Cleared in between each function.
-    values: HashMap<ValueId, ValueId>,
+    values: HashMap<Value, Value>,
 }
 
 impl Context {
@@ -148,8 +148,8 @@ impl IdMaps {
         &mut self,
         new_function: &mut Function,
         old_function: &Function,
-        old_value: ValueId,
-    ) -> ValueId {
+        old_value: Value,
+    ) -> Value {
         let old_value = old_function.dfg.resolve(old_value);
         match &old_function.dfg[old_value] {
             value @ Value::Instruction { instruction, .. } => {

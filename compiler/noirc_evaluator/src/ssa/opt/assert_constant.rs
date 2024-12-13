@@ -4,7 +4,7 @@ use crate::{
         ir::{
             function::Function,
             instruction::{Instruction, InstructionId, Intrinsic},
-            value::ValueId,
+            value::Value,
         },
         ssa_gen::Ssa,
     },
@@ -87,7 +87,7 @@ fn check_instruction(
 fn evaluate_assert_constant(
     function: &Function,
     instruction: InstructionId,
-    arguments: &[ValueId],
+    arguments: &[Value],
 ) -> Result<bool, RuntimeError> {
     if arguments.iter().all(|arg| function.dfg.is_constant(*arg)) {
         Ok(false)
@@ -106,7 +106,7 @@ fn evaluate_assert_constant(
 fn evaluate_static_assert(
     function: &Function,
     instruction: InstructionId,
-    arguments: &[ValueId],
+    arguments: &[Value],
 ) -> Result<bool, RuntimeError> {
     if arguments.len() != 2 {
         panic!("ICE: static_assert called with wrong number of arguments")

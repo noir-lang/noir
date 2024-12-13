@@ -44,7 +44,7 @@ use crate::{
             function::{Function, FunctionId, RuntimeType},
             instruction::{Instruction, InstructionId},
             types::{NumericType, Type},
-            value::{Value, ValueId},
+            value::{Value, Value},
         },
         ssa_gen::Ssa,
     },
@@ -202,12 +202,12 @@ struct SimplificationCache {
     ///
     /// It will always have at least one value because `add` is called
     /// after the default is constructed.
-    simplifications: HashMap<BasicBlockId, ValueId>,
+    simplifications: HashMap<BasicBlockId, Value>,
 }
 
 impl SimplificationCache {
     /// Called with a newly encountered simplification.
-    fn add(&mut self, dfg: &DataFlowGraph, simple: ValueId, block: BasicBlockId) {
+    fn add(&mut self, dfg: &DataFlowGraph, simple: Value, block: BasicBlockId) {
         self.simplifications
             .entry(block)
             .and_modify(|existing| {
@@ -221,7 +221,7 @@ impl SimplificationCache {
     }
 
     /// Try to find a simplification in a visible block.
-    fn get(&self, block: BasicBlockId, dom: &DominatorTree) -> Option<ValueId> {
+    fn get(&self, block: BasicBlockId, dom: &DominatorTree) -> Option<Value> {
         // Deterministically walk up the dominator chain until we encounter a block that contains a simplification.
         dom.find_map_dominator(block, |b| self.simplifications.get(&b).cloned())
     }
@@ -234,7 +234,7 @@ impl SimplificationCache {
 /// Only blocks dominated by one in the cache should have access to this information, otherwise
 /// we create a sort of time paradox where we replace an instruction with a constant we believe
 /// it _should_ equal to, without ever actually producing and asserting the value.
-type ConstraintSimplificationCache = HashMap<ValueId, HashMap<ValueId, SimplificationCache>>;
+type ConstraintSimplificationCache = HashMap<Value, HashMap<Value, SimplificationCache>>;
 
 /// HashMap from `(Instruction, side_effects_enabled_var)` to the results of the instruction.
 /// Stored as a two-level map to avoid cloning Instructions during the `.get` call.
@@ -244,14 +244,14 @@ type ConstraintSimplificationCache = HashMap<ValueId, HashMap<ValueId, Simplific
 ///
 /// In addition to each result, the original BasicBlockId is stored as well. This allows us
 /// to deduplicate instructions across blocks as long as the new block dominates the original.
-type InstructionResultCache = HashMap<Instruction, HashMap<Option<ValueId>, ResultCache>>;
+type InstructionResultCache = HashMap<Instruction, HashMap<Option<Value>, ResultCache>>;
 
 /// Records the results of all duplicate [`Instruction`]s along with the blocks in which they sit.
 ///
 /// For more information see [`InstructionResultCache`].
 #[derive(Default)]
 struct ResultCache {
-    result: Option<(BasicBlockId, Vec<ValueId>)>,
+    result: Option<(BasicBlockId, Vec<Value>)>,
 }
 
 impl<'brillig> Context<'brillig> {
@@ -296,7 +296,7 @@ impl<'brillig> Context<'brillig> {
         dom: &mut DominatorTree,
         mut block: BasicBlockId,
         id: InstructionId,
-        side_effects_enabled_var: &mut ValueId,
+        side_effects_enabled_var: &mut Value,
     ) {
         let constraint_simplification_mapping = self.get_constraint_map(*side_effects_enabled_var);
         let dfg = &mut function.dfg;
@@ -370,7 +370,7 @@ impl<'brillig> Context<'brillig> {
         block: BasicBlockId,
         dfg: &DataFlowGraph,
         dom: &mut DominatorTree,
-        constraint_simplification_mapping: &HashMap<ValueId, SimplificationCache>,
+        constraint_simplification_mapping: &HashMap<Value, SimplificationCache>,
     ) -> Instruction {
         let instruction = dfg[instruction_id].clone();
 
@@ -383,9 +383,9 @@ impl<'brillig> Context<'brillig> {
             block: BasicBlockId,
             dfg: &DataFlowGraph,
             dom: &mut DominatorTree,
-            cache: &HashMap<ValueId, SimplificationCache>,
-            value_id: ValueId,
-        ) -> ValueId {
+            cache: &HashMap<Value, SimplificationCache>,
+            value_id: Value,
+        ) -> Value {
             let resolved_id = dfg.resolve(value_id);
             match cache.get(&resolved_id) {
                 Some(simplification_cache) => {
@@ -412,10 +412,10 @@ impl<'brillig> Context<'brillig> {
     fn push_instruction(
         id: InstructionId,
         instruction: Instruction,
-        old_results: &[ValueId],
+        old_results: &[Value],
         block: BasicBlockId,
         dfg: &mut DataFlowGraph,
-    ) -> Vec<ValueId> {
+    ) -> Vec<Value> {
         let call_stack = dfg.get_call_stack(id);
         let new_results = match dfg.insert_instruction_and_results(instruction, block, call_stack) {
             InsertInstructionResult::SimplifiedTo(new_result) => vec![new_result],
@@ -432,9 +432,9 @@ impl<'brillig> Context<'brillig> {
     fn cache_instruction(
         &mut self,
         instruction: Instruction,
-        instruction_results: Vec<ValueId>,
+        instruction_results: Vec<Value>,
         function: &Function,
-        side_effects_enabled_var: ValueId,
+        side_effects_enabled_var: Value,
         block: BasicBlockId,
     ) {
         if self.use_constraint_info {
@@ -508,16 +508,16 @@ impl<'brillig> Context<'brillig> {
     /// which all depend on the same side effect condition variable.
     fn get_constraint_map(
         &mut self,
-        side_effects_enabled_var: ValueId,
-    ) -> &mut HashMap<ValueId, SimplificationCache> {
+        side_effects_enabled_var: Value,
+    ) -> &mut HashMap<Value, SimplificationCache> {
         self.constraint_simplification_mappings.entry(side_effects_enabled_var).or_default()
     }
 
     /// Replaces a set of [`ValueId`]s inside the [`DataFlowGraph`] with another.
     fn replace_result_ids(
         dfg: &mut DataFlowGraph,
-        old_results: &[ValueId],
-        new_results: &[ValueId],
+        old_results: &[Value],
+        new_results: &[Value],
     ) {
         for (old_result, new_result) in old_results.iter().zip(new_results) {
             dfg.set_value_from_id(*old_result, *new_result);
@@ -530,7 +530,7 @@ impl<'brillig> Context<'brillig> {
         dfg: &DataFlowGraph,
         dom: &mut DominatorTree,
         instruction: &Instruction,
-        side_effects_enabled_var: ValueId,
+        side_effects_enabled_var: Value,
         block: BasicBlockId,
     ) -> Option<CacheResult> {
         let results_for_instruction = self.cached_instruction_results.get(instruction)?;
@@ -544,11 +544,11 @@ impl<'brillig> Context<'brillig> {
     /// If so, we can try to evaluate that function and replace the results with the evaluation results.
     fn try_inline_brillig_call_with_all_constants(
         instruction: &Instruction,
-        old_results: &[ValueId],
+        old_results: &[Value],
         block: BasicBlockId,
         dfg: &mut DataFlowGraph,
         brillig_info: Option<BrilligInfo>,
-    ) -> Option<Vec<ValueId>> {
+    ) -> Option<Vec<Value>> {
         let evaluation_result = Self::evaluate_const_brillig_call(
             instruction,
             brillig_info?.brillig,
@@ -653,7 +653,7 @@ impl<'brillig> Context<'brillig> {
         memory_values: &[MemoryValue<FieldElement>],
         memory_index: &mut usize,
         dfg: &mut DataFlowGraph,
-    ) -> ValueId {
+    ) -> Value {
         match typ {
             Type::Numeric(typ) => {
                 let memory = memory_values[*memory_index];
@@ -723,7 +723,7 @@ impl<'brillig> Context<'brillig> {
 
 impl ResultCache {
     /// Records that an `Instruction` in block `block` produced the result values `results`.
-    fn cache(&mut self, block: BasicBlockId, results: Vec<ValueId>) {
+    fn cache(&mut self, block: BasicBlockId, results: Vec<Value>) {
         if self.result.is_none() {
             self.result = Some((block, results));
         }
@@ -756,7 +756,7 @@ impl ResultCache {
 }
 
 enum CacheResult<'a> {
-    Cached(&'a [ValueId]),
+    Cached(&'a [Value]),
     NeedToHoistToCommonBlock(BasicBlockId),
 }
 
@@ -788,7 +788,7 @@ pub(crate) fn type_to_brillig_parameter(typ: &Type) -> Option<BrilligParameter> 
     }
 }
 
-fn value_id_to_calldata(value_id: ValueId, dfg: &DataFlowGraph, calldata: &mut Vec<FieldElement>) {
+fn value_id_to_calldata(value_id: Value, dfg: &DataFlowGraph, calldata: &mut Vec<FieldElement>) {
     if let Some(value) = dfg.get_numeric_constant(value_id) {
         calldata.push(value);
         return;
@@ -807,7 +807,7 @@ fn value_id_to_calldata(value_id: ValueId, dfg: &DataFlowGraph, calldata: &mut V
 /// Check if one expression is simpler than the other.
 /// Returns `Some((complex, simple))` if a simplification was found, otherwise `None`.
 /// Expects the `ValueId`s to be fully resolved.
-fn simplify(dfg: &DataFlowGraph, lhs: ValueId, rhs: ValueId) -> Option<(ValueId, ValueId)> {
+fn simplify(dfg: &DataFlowGraph, lhs: Value, rhs: Value) -> Option<(Value, Value)> {
     match (&dfg[lhs], &dfg[rhs]) {
         // Ignore trivial constraints
         (Value::NumericConstant { .. }, Value::NumericConstant { .. }) => None,

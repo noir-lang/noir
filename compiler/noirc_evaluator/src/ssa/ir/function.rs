@@ -9,7 +9,7 @@ use super::dfg::DataFlowGraph;
 use super::instruction::TerminatorInstruction;
 use super::map::Id;
 use super::types::Type;
-use super::value::ValueId;
+use super::value::Value;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize)]
 pub(crate) enum RuntimeType {
@@ -143,12 +143,12 @@ impl Function {
 
     /// Returns the parameters of this function.
     /// The parameters will always match that of this function's entry block.
-    pub(crate) fn parameters(&self) -> &[ValueId] {
+    pub(crate) fn parameters(&self) -> &[Value] {
         self.dfg.block_parameters(self.entry_block)
     }
 
     /// Returns the return types of this function.
-    pub(crate) fn returns(&self) -> &[ValueId] {
+    pub(crate) fn returns(&self) -> &[Value] {
         let blocks = self.reachable_blocks();
         let mut function_return_values = None;
         for block in blocks {

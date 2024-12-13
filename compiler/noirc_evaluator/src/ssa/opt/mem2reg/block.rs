@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use crate::ssa::ir::{
     function::Function,
     instruction::{Instruction, InstructionId},
-    value::ValueId,
+    value::Value,
 };
 
 use super::alias_set::AliasSet;
@@ -19,7 +19,7 @@ pub(super) struct Block {
     /// Maps a ValueId to the Expression it represents.
     /// Multiple ValueIds can map to the same Expression, e.g.
     /// dereferences to the same allocation.
-    pub(super) expressions: im::OrdMap<ValueId, Expression>,
+    pub(super) expressions: im::OrdMap<Value, Expression>,
 
     /// Each expression is tracked as to how many aliases it
     /// may have. If there is only 1, we can attempt to optimize
@@ -30,13 +30,13 @@ pub(super) struct Block {
     /// Each allocate instruction result (and some reference block parameters)
     /// will map to a Reference value which tracks whether the last value stored
     /// to the reference is known.
-    pub(super) references: im::OrdMap<ValueId, ReferenceValue>,
+    pub(super) references: im::OrdMap<Value, ReferenceValue>,
 
     /// The last instance of a `Store` instruction to each address in this block
-    pub(super) last_stores: im::OrdMap<ValueId, InstructionId>,
+    pub(super) last_stores: im::OrdMap<Value, InstructionId>,
 
     // The last instance of a `Load` instruction to each address in this block
-    pub(super) last_loads: im::OrdMap<ValueId, InstructionId>,
+    pub(super) last_loads: im::OrdMap<Value, InstructionId>,
 }
 
 /// An `Expression` here is used to represent a canonical key
@@ -46,14 +46,14 @@ pub(super) struct Block {
 pub(super) enum Expression {
     Dereference(Box<Expression>),
     ArrayElement(Box<Expression>),
-    Other(ValueId),
+    Other(Value),
 }
 
 /// Every reference's value is either Known and can be optimized away, or Unknown.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub(super) enum ReferenceValue {
     Unknown,
-    Known(ValueId),
+    Known(Value),
 }
 
 impl ReferenceValue {
@@ -68,7 +68,7 @@ impl ReferenceValue {
 
 impl Block {
     /// If the given reference id points to a known value, return the value
-    pub(super) fn get_known_value(&self, address: ValueId) -> Option<ValueId> {
+    pub(super) fn get_known_value(&self, address: Value) -> Option<Value> {
         if let Some(expression) = self.expressions.get(&address) {
             if let Some(aliases) = self.aliases.get(expression) {
                 // We could allow multiple aliases if we check that the reference
@@ -84,15 +84,15 @@ impl Block {
     }
 
     /// If the given address is known, set its value to `ReferenceValue::Known(value)`.
-    pub(super) fn set_known_value(&mut self, address: ValueId, value: ValueId) {
+    pub(super) fn set_known_value(&mut self, address: Value, value: Value) {
         self.set_value(address, ReferenceValue::Known(value));
     }
 
-    pub(super) fn set_unknown(&mut self, address: ValueId) {
+    pub(super) fn set_unknown(&mut self, address: Value) {
         self.set_value(address, ReferenceValue::Unknown);
     }
 
-    fn set_value(&mut self, address: ValueId, value: ReferenceValue) {
+    fn set_value(&mut self, address: Value, value: ReferenceValue) {
         let expression = self.expressions.entry(address).or_insert(Expression::Other(address));
         let aliases = self.aliases.entry(expression.clone()).or_default();
 
@@ -153,8 +153,8 @@ impl Block {
     pub(super) fn remember_dereference(
         &mut self,
         function: &Function,
-        address: ValueId,
-        result: ValueId,
+        address: Value,
+        result: Value,
     ) {
         if function.dfg.value_is_reference(result) {
             if let Some(known_address) = self.get_known_value(address) {
@@ -172,8 +172,8 @@ impl Block {
     /// Iterate through each known alias of the given address and apply the function `f` to each.
     fn for_each_alias_of<T>(
         &mut self,
-        address: ValueId,
-        mut f: impl FnMut(&mut Self, ValueId) -> T,
+        address: Value,
+        mut f: impl FnMut(&mut Self, Value) -> T,
     ) {
         if let Some(expr) = self.expressions.get(&address) {
             if let Some(aliases) = self.aliases.get(expr).cloned() {
@@ -184,13 +184,13 @@ impl Block {
         }
     }
 
-    fn keep_last_stores_for(&mut self, address: ValueId, function: &Function) {
+    fn keep_last_stores_for(&mut self, address: Value, function: &Function) {
         let address = function.dfg.resolve(address);
         self.keep_last_store(address, function);
         self.for_each_alias_of(address, |t, alias| t.keep_last_store(alias, function));
     }
 
-    fn keep_last_store(&mut self, address: ValueId, function: &Function) {
+    fn keep_last_store(&mut self, address: Value, function: &Function) {
         let address = function.dfg.resolve(address);
 
         if let Some(instruction) = self.last_stores.remove(&address) {
@@ -207,7 +207,7 @@ impl Block {
         }
     }
 
-    pub(super) fn mark_value_used(&mut self, value: ValueId, function: &Function) {
+    pub(super) fn mark_value_used(&mut self, value: Value, function: &Function) {
         self.keep_last_stores_for(value, function);
 
         // We must do a recursive check for arrays since they're the only Values which may contain
@@ -222,7 +222,7 @@ impl Block {
     /// Collect all aliases used by the given value list
     pub(super) fn collect_all_aliases(
         &self,
-        values: impl IntoIterator<Item = ValueId>,
+        values: impl IntoIterator<Item = Value>,
     ) -> AliasSet {
         let mut aliases = AliasSet::known_empty();
         for value in values {
@@ -231,7 +231,7 @@ impl Block {
         aliases
     }
 
-    pub(super) fn get_aliases_for_value(&self, value: ValueId) -> Cow<AliasSet> {
+    pub(super) fn get_aliases_for_value(&self, value: Value) -> Cow<AliasSet> {
         if let Some(expression) = self.expressions.get(&value) {
             if let Some(aliases) = self.aliases.get(expression) {
                 return Cow::Borrowed(aliases);
@@ -241,11 +241,11 @@ impl Block {
         Cow::Owned(AliasSet::unknown())
     }
 
-    pub(super) fn set_last_load(&mut self, address: ValueId, instruction: InstructionId) {
+    pub(super) fn set_last_load(&mut self, address: Value, instruction: InstructionId) {
         self.last_loads.insert(address, instruction);
     }
 
-    pub(super) fn keep_last_load_for(&mut self, address: ValueId, function: &Function) {
+    pub(super) fn keep_last_load_for(&mut self, address: Value, function: &Function) {
         let address = function.dfg.resolve(address);
         self.last_loads.remove(&address);
         self.for_each_alias_of(address, |block, alias| block.last_loads.remove(&alias));

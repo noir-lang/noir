@@ -17,7 +17,7 @@ use crate::ssa::{
         function_inserter::FunctionInserter,
         instruction::{Instruction, InstructionId},
         types::Type,
-        value::ValueId,
+        value::Value,
     },
     Ssa,
 };
@@ -77,17 +77,17 @@ impl Loop {
     ///     jmpif v5 then: b3, else: b2
     /// ```
     /// In the example above, `v1` is the induction variable
-    fn get_induction_variable(&self, function: &Function) -> ValueId {
+    fn get_induction_variable(&self, function: &Function) -> Value {
         function.dfg.block_parameters(self.header)[0]
     }
 }
 
 struct LoopInvariantContext<'f> {
     inserter: FunctionInserter<'f>,
-    defined_in_loop: HashSet<ValueId>,
-    loop_invariants: HashSet<ValueId>,
+    defined_in_loop: HashSet<Value>,
+    loop_invariants: HashSet<Value>,
     // Maps induction variable -> fixed upper loop bound
-    outer_induction_variables: HashMap<ValueId, FieldElement>,
+    outer_induction_variables: HashMap<Value, FieldElement>,
 }
 
 impl<'f> LoopInvariantContext<'f> {

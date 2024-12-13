@@ -5,7 +5,7 @@ use crate::ssa::{
         function::Function,
         instruction::{Instruction, InstructionId},
         types::Type,
-        value::ValueId,
+        value::Value,
     },
     ssa_gen::Ssa,
 };
@@ -40,7 +40,7 @@ struct Context {
 
 pub(crate) struct RcInstruction {
     pub(crate) id: InstructionId,
-    pub(crate) array: ValueId,
+    pub(crate) array: Value,
     pub(crate) possibly_mutated: bool,
 }
 
@@ -129,7 +129,7 @@ impl Context {
 
 /// Finds and pops the IncRc for the given array value if possible.
 pub(crate) fn pop_rc_for(
-    value: ValueId,
+    value: Value,
     function: &Function,
     inc_rcs: &mut HashMap<Type, Vec<RcInstruction>>,
 ) -> Option<RcInstruction> {

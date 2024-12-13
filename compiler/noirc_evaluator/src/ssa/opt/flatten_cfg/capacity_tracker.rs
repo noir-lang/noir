@@ -2,7 +2,7 @@ use crate::ssa::ir::{
     dfg::DataFlowGraph,
     instruction::{Instruction, Intrinsic},
     types::Type,
-    value::{Value, ValueId},
+    value::{Value, Value},
 };
 
 use acvm::{acir::AcirField, FieldElement};
@@ -21,8 +21,8 @@ impl<'a> SliceCapacityTracker<'a> {
     pub(crate) fn collect_slice_information(
         &self,
         instruction: &Instruction,
-        slice_sizes: &mut HashMap<ValueId, u32>,
-        results: &[ValueId],
+        slice_sizes: &mut HashMap<Value, u32>,
+        results: &[Value],
     ) {
         match instruction {
             Instruction::ArrayGet { array, .. } => {
@@ -154,8 +154,8 @@ impl<'a> SliceCapacityTracker<'a> {
     /// Computes the starting capacity of a slice which is still a `Value::Array`
     pub(crate) fn compute_slice_capacity(
         &self,
-        array_id: ValueId,
-        slice_sizes: &mut HashMap<ValueId, u32>,
+        array_id: Value,
+        slice_sizes: &mut HashMap<Value, u32>,
     ) {
         if let Some((array, typ)) = self.dfg.get_array_constant(array_id) {
             // Compiler sanity check

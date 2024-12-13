@@ -6,7 +6,7 @@ use crate::ssa::{
     function_builder::FunctionBuilder,
     ir::{
         basic_block::BasicBlockId, function::FunctionId, instruction::ConstrainError,
-        value::ValueId,
+        value::Value,
     },
 };
 
@@ -35,7 +35,7 @@ struct Translator {
     /// This is necessary because the SSA we parse might have undergone some
     /// passes already which replaced some of the original IDs. The translator
     /// will recreate the SSA step by step, which can result in a new ID layout.
-    variables: HashMap<FunctionId, HashMap<String, ValueId>>,
+    variables: HashMap<FunctionId, HashMap<String, Value>>,
 
     error_selector_counter: u64,
 }
@@ -279,7 +279,7 @@ impl Translator {
         Ok(())
     }
 
-    fn translate_values(&mut self, values: Vec<ParsedValue>) -> Result<Vec<ValueId>, SsaError> {
+    fn translate_values(&mut self, values: Vec<ParsedValue>) -> Result<Vec<Value>, SsaError> {
         let mut translated_values = Vec::with_capacity(values.len());
         for value in values {
             translated_values.push(self.translate_value(value)?);
@@ -287,7 +287,7 @@ impl Translator {
         Ok(translated_values)
     }
 
-    fn translate_value(&mut self, value: ParsedValue) -> Result<ValueId, SsaError> {
+    fn translate_value(&mut self, value: ParsedValue) -> Result<Value, SsaError> {
         match value {
             ParsedValue::NumericConstant { constant, typ } => {
                 Ok(self.builder.numeric_constant(constant, typ.unwrap_numeric()))
@@ -299,7 +299,7 @@ impl Translator {
     fn define_variable(
         &mut self,
         identifier: Identifier,
-        value_id: ValueId,
+        value_id: Value,
     ) -> Result<(), SsaError> {
         if let Some(vars) = self.variables.get(&self.current_function_id()) {
             if vars.contains_key(&identifier.name) {
@@ -313,7 +313,7 @@ impl Translator {
         Ok(())
     }
 
-    fn lookup_variable(&mut self, identifier: Identifier) -> Result<ValueId, SsaError> {
+    fn lookup_variable(&mut self, identifier: Identifier) -> Result<Value, SsaError> {
         if let Some(value_id) = self.variables[&self.current_function_id()].get(&identifier.name) {
             Ok(*value_id)
         } else {

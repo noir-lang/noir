@@ -12,7 +12,7 @@ use super::{
     dfg::DataFlowGraph,
     function::Function,
     instruction::{ConstrainError, Instruction, InstructionId, TerminatorInstruction},
-    value::{Value, ValueId},
+    value::{Value, Value},
 };
 
 /// Helper function for Function's Display impl to pretty-print the function with the given formatter.
@@ -43,7 +43,7 @@ pub(crate) fn display_block(
 
 /// Specialize displaying value ids so that if they refer to a numeric
 /// constant or a function we print those directly.
-fn value(function: &Function, id: ValueId) -> String {
+fn value(function: &Function, id: Value) -> String {
     let id = function.dfg.resolve(id);
     match &function.dfg[id] {
         Value::NumericConstant { constant, typ } => {
@@ -58,7 +58,7 @@ fn value(function: &Function, id: ValueId) -> String {
 }
 
 /// Display each value along with its type. E.g. `v0: Field, v1: u64, v2: u1`
-fn value_list_with_types(function: &Function, values: &[ValueId]) -> String {
+fn value_list_with_types(function: &Function, values: &[Value]) -> String {
     vecmap(values, |id| {
         let value = value(function, *id);
         let typ = function.dfg.type_of_value(*id);
@@ -68,7 +68,7 @@ fn value_list_with_types(function: &Function, values: &[ValueId]) -> String {
 }
 
 /// Display each value separated by a comma
-fn value_list(function: &Function, values: &[ValueId]) -> String {
+fn value_list(function: &Function, values: &[Value]) -> String {
     vecmap(values, |id| value(function, *id)).join(", ")
 }
 
@@ -127,7 +127,7 @@ pub(crate) fn display_instruction(
 fn display_instruction_inner(
     function: &Function,
     instruction: &Instruction,
-    results: &[ValueId],
+    results: &[Value],
     f: &mut Formatter,
 ) -> Result {
     let show = |id| value(function, id);
@@ -238,7 +238,7 @@ fn display_instruction_inner(
     }
 }
 
-fn try_byte_array_to_string(elements: &Vector<ValueId>, function: &Function) -> Option<String> {
+fn try_byte_array_to_string(elements: &Vector<Value>, function: &Function) -> Option<String> {
     let mut string = String::new();
     for element in elements {
         let element = function.dfg.get_numeric_constant(*element)?;
@@ -257,7 +257,7 @@ fn try_byte_array_to_string(elements: &Vector<ValueId>, function: &Function) -> 
     Some(string)
 }
 
-fn result_types(function: &Function, results: &[ValueId]) -> String {
+fn result_types(function: &Function, results: &[Value]) -> String {
     let types = vecmap(results, |result| function.dfg.type_of_value(*result).to_string());
     if types.is_empty() {
         String::new()
@@ -271,7 +271,7 @@ fn result_types(function: &Function, results: &[ValueId]) -> String {
 /// Tries to extract a constant string from an error payload.
 pub(crate) fn try_to_extract_string_from_error_payload(
     is_string_type: bool,
-    values: &[ValueId],
+    values: &[Value],
     dfg: &DataFlowGraph,
 ) -> Option<String> {
     (is_string_type && (values.len() == 1))

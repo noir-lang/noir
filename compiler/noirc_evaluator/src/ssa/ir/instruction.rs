@@ -21,7 +21,7 @@ use super::{
     function::Function,
     map::Id,
     types::{NumericType, Type},
-    value::{Value, ValueId},
+    value::{Value, Value},
 };
 
 mod binary;
@@ -255,22 +255,22 @@ pub(crate) enum Instruction {
     Binary(Binary),
 
     /// Converts `Value` into the given NumericType
-    Cast(ValueId, NumericType),
+    Cast(Value, NumericType),
 
     /// Computes a bit wise not
-    Not(ValueId),
+    Not(Value),
 
     /// Truncates `value` to `bit_size`
-    Truncate { value: ValueId, bit_size: u32, max_bit_size: u32 },
+    Truncate { value: Value, bit_size: u32, max_bit_size: u32 },
 
     /// Constrains two values to be equal to one another.
-    Constrain(ValueId, ValueId, Option<ConstrainError>),
+    Constrain(Value, Value, Option<ConstrainError>),
 
     /// Range constrain `value` to `max_bit_size`
-    RangeCheck { value: ValueId, max_bit_size: u32, assert_message: Option<String> },
+    RangeCheck { value: Value, max_bit_size: u32, assert_message: Option<String> },
 
     /// Performs a function call with a list of its arguments.
-    Call { func: ValueId, arguments: Vec<ValueId>, result_types: Vec<Type> },
+    Call { func: Value, arguments: Vec<Value>, result_types: Vec<Type> },
 
     /// Allocates a region of memory. Note that this is not concerned with
     /// the type of memory, the type of element is determined when loading this memory.
@@ -278,10 +278,10 @@ pub(crate) enum Instruction {
     Allocate { element_type: Type },
 
     /// Loads a value from memory.
-    Load { address: ValueId, result_type: Type },
+    Load { address: Value, result_type: Type },
 
     /// Writes a value to memory.
-    Store { address: ValueId, value: ValueId },
+    Store { address: Value, value: Value },
 
     /// Provides a context for all instructions that follow up until the next
     /// `EnableSideEffectsIf` is encountered, for stating a condition that determines whether
@@ -300,29 +300,29 @@ pub(crate) enum Instruction {
     /// This instruction is only emitted after the cfg flattening pass, and is used to annotate
     /// instruction regions with a condition that corresponds to their position in the CFG's
     /// if-branching structure.
-    EnableSideEffectsIf { condition: ValueId },
+    EnableSideEffectsIf { condition: Value },
 
     /// Retrieve a value from an array at the given index
-    ArrayGet { array: ValueId, index: ValueId, result_type: Type },
+    ArrayGet { array: Value, index: Value, result_type: Type },
 
     /// Creates a new array with the new value at the given index. All other elements are identical
     /// to those in the given array. This will not modify the original array unless `mutable` is
     /// set. This flag is off by default and only enabled when optimizations determine it is safe.
-    ArraySet { array: ValueId, index: ValueId, value: ValueId, mutable: bool },
+    ArraySet { array: Value, index: Value, value: Value, mutable: bool },
 
     /// An instruction to increment the reference count of a value.
     ///
     /// This currently only has an effect in Brillig code where array sharing and copy on write is
     /// implemented via reference counting. In ACIR code this is done with im::Vector and these
     /// IncrementRc instructions are ignored.
-    IncrementRc { value: ValueId },
+    IncrementRc { value: Value },
 
     /// An instruction to decrement the reference count of a value.
     ///
     /// This currently only has an effect in Brillig code where array sharing and copy on write is
     /// implemented via reference counting. In ACIR code this is done with im::Vector and these
     /// DecrementRc instructions are ignored.
-    DecrementRc { value: ValueId },
+    DecrementRc { value: Value },
 
     /// Merge two values returned from opposite branches of a conditional into one.
     ///
@@ -334,22 +334,22 @@ pub(crate) enum Instruction {
     /// }
     /// ```
     IfElse {
-        then_condition: ValueId,
-        then_value: ValueId,
-        else_condition: ValueId,
-        else_value: ValueId,
+        then_condition: Value,
+        then_value: Value,
+        else_condition: Value,
+        else_value: Value,
     },
 
     /// Creates a new array or slice.
     ///
     /// `typ` should be an array or slice type with an element type
     /// matching each of the `elements` values' types.
-    MakeArray { elements: im::Vector<ValueId>, typ: Type },
+    MakeArray { elements: im::Vector<Value>, typ: Type },
 }
 
 impl Instruction {
     /// Returns a binary instruction with the given operator, lhs, and rhs
-    pub(crate) fn binary(operator: BinaryOp, lhs: ValueId, rhs: ValueId) -> Instruction {
+    pub(crate) fn binary(operator: BinaryOp, lhs: Value, rhs: Value) -> Instruction {
         Instruction::Binary(Binary { lhs, operator, rhs })
     }
 
@@ -598,7 +598,7 @@ impl Instruction {
     /// Maps each ValueId inside this instruction to a new ValueId, returning the new instruction.
     /// Note that the returned instruction is fresh and will not have an assigned InstructionId
     /// until it is manually inserted in a DataFlowGraph later.
-    pub(crate) fn map_values(&self, mut f: impl FnMut(ValueId) -> ValueId) -> Instruction {
+    pub(crate) fn map_values(&self, mut f: impl FnMut(Value) -> Value) -> Instruction {
         match self {
             Instruction::Binary(binary) => Instruction::Binary(Binary {
                 lhs: f(binary.lhs),
@@ -681,7 +681,7 @@ impl Instruction {
     }
 
     /// Applies a function to each input value this instruction holds.
-    pub(crate) fn for_each_value<T>(&self, mut f: impl FnMut(ValueId) -> T) {
+    pub(crate) fn for_each_value<T>(&self, mut f: impl FnMut(Value) -> T) {
         match self {
             Instruction::Binary(binary) => {
                 f(binary.lhs);
@@ -1022,9 +1022,9 @@ fn try_optimize_array_get_from_previous_set(
 ///   - If they are not equal, recur marking the current `array_set` array as the new array id to use in the checks
 fn try_optimize_array_set_from_previous_get(
     dfg: &DataFlowGraph,
-    mut array_id: ValueId,
-    target_index: ValueId,
-    target_value: ValueId,
+    mut array_id: Value,
+    target_index: Value,
+    target_value: Value,
 ) -> SimplifyResult {
     let array_from_get = match &dfg[target_value] {
         Value::Instruction { instruction, .. } => match &dfg[*instruction] {
@@ -1106,7 +1106,7 @@ pub(crate) enum ConstrainError {
     StaticString(String),
     // These errors are handled by the program as data.
     // We use a boolean to indicate if the error is a string for printing purposes.
-    Dynamic(ErrorSelector, /* is_string */ bool, Vec<ValueId>),
+    Dynamic(ErrorSelector, /* is_string */ bool, Vec<Value>),
 }
 
 impl From<String> for ConstrainError {
@@ -1124,7 +1124,7 @@ impl From<String> for Box<ConstrainError> {
 /// The possible return values for Instruction::return_types
 pub(crate) enum InstructionResultType {
     /// The result type of this instruction matches that of this operand
-    Operand(ValueId),
+    Operand(Value),
 
     /// The result type of this instruction is known to be this type - independent of its operands.
     Known(Type),
@@ -1151,7 +1151,7 @@ pub(crate) enum TerminatorInstruction {
     /// If the condition is true: jump to the specified `then_destination`.
     /// Otherwise, jump to the specified `else_destination`.
     JmpIf {
-        condition: ValueId,
+        condition: Value,
         then_destination: BasicBlockId,
         else_destination: BasicBlockId,
         call_stack: CallStack,
@@ -1162,7 +1162,7 @@ pub(crate) enum TerminatorInstruction {
     /// Jumps to specified `destination` with `arguments`.
     /// The CallStack here is expected to be used to issue an error when the start range of
     /// a for loop cannot be deduced at compile-time.
-    Jmp { destination: BasicBlockId, arguments: Vec<ValueId>, call_stack: CallStack },
+    Jmp { destination: BasicBlockId, arguments: Vec<Value>, call_stack: CallStack },
 
     /// Return from the current function with the given return values.
     ///
@@ -1171,14 +1171,14 @@ pub(crate) enum TerminatorInstruction {
     /// unconditionally jump to a single exit block with the return values
     /// as the block arguments. Then the exit block can terminate in a return
     /// instruction returning these values.
-    Return { return_values: Vec<ValueId>, call_stack: CallStack },
+    Return { return_values: Vec<Value>, call_stack: CallStack },
 }
 
 impl TerminatorInstruction {
     /// Map each ValueId in this terminator to a new value.
     pub(crate) fn map_values(
         &self,
-        mut f: impl FnMut(ValueId) -> ValueId,
+        mut f: impl FnMut(Value) -> Value,
     ) -> TerminatorInstruction {
         use TerminatorInstruction::*;
         match self {
@@ -1201,7 +1201,7 @@ impl TerminatorInstruction {
     }
 
     /// Mutate each ValueId to a new ValueId using the given mapping function
-    pub(crate) fn mutate_values(&mut self, mut f: impl FnMut(ValueId) -> ValueId) {
+    pub(crate) fn mutate_values(&mut self, mut f: impl FnMut(Value) -> Value) {
         use TerminatorInstruction::*;
         match self {
             JmpIf { condition, .. } => {
@@ -1221,7 +1221,7 @@ impl TerminatorInstruction {
     }
 
     /// Apply a function to each value
-    pub(crate) fn for_each_value<T>(&self, mut f: impl FnMut(ValueId) -> T) {
+    pub(crate) fn for_each_value<T>(&self, mut f: impl FnMut(Value) -> T) {
         use TerminatorInstruction::*;
         match self {
             JmpIf { condition, .. } => {
@@ -1268,12 +1268,12 @@ impl TerminatorInstruction {
 /// should be simplified.
 pub(crate) enum SimplifyResult {
     /// Replace this function's result with the given value
-    SimplifiedTo(ValueId),
+    SimplifiedTo(Value),
 
     /// Replace this function's results with the given values
     /// Used for when there are multiple return values from
     /// a function such as a tuple
-    SimplifiedToMultiple(Vec<ValueId>),
+    SimplifiedToMultiple(Vec<Value>),
 
     /// Replace this function with an simpler but equivalent instruction.
     SimplifiedToInstruction(Instruction),
