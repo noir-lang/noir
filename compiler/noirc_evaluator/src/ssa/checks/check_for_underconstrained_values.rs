@@ -319,7 +319,6 @@ impl DependencyContext {
                         Value::Function(callee) => match all_functions[&callee].runtime() {
                             RuntimeType::Brillig(_) => {
                                 // Record arguments/results for each Brillig call for the check
-                                trace!("Brillig function {} called at {}", callee, instruction);
                                 self.tainted.insert(
                                     *instruction,
                                     BrilligTaintedIds::new(&arguments, &results),
@@ -403,8 +402,6 @@ impl DependencyContext {
     /// Check if any of the recorded Brillig calls have been properly constrained
     /// by given values after recording partial constraints, if so stop tracking them
     fn clear_constrained(&mut self, constrained_values: &[ValueId], function: &Function) {
-        trace!("attempting to clear Brillig calls constrained by values: {:?}", constrained_values);
-
         // Remove numeric constants
         let constrained_values =
             constrained_values.iter().filter(|v| function.dfg.get_numeric_constant(**v).is_none());
