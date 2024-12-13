@@ -13,16 +13,17 @@ use super::TestResult;
 /// The order of events is:
 /// 1. Compilation of all packages happen (in parallel). There's no formatter method for this.
 /// 2. If compilation is successful, one `package_start_async` for each package.
-/// 3. For each test, one `test_start_async` event.
+/// 3. For each test, one `test_start_async` event
+///    (there's no `test_start_sync` event because it would happen right before `test_end_sync`)
 /// 4. For each package, sequentially:
 ///     a. A `package_start_sync` event
 ///     b. One `test_end` event for each test
 ///     a. A `package_end` event
 ///
 /// The reason we have some `sync` and `async` events is that formatters that show output
-/// to humans rely on the `sync` events to show a more readable and understandable output,
+/// to humans rely on the `sync` events to show a more predictable output (package by package),
 /// and formatters that output to a machine-readable format (like JSON) rely on the `async`
-/// events to show the results as soon as they are available, regardless of a package ordering.
+/// events to show things as soon as they happen, regardless of a package ordering.
 pub(super) trait Formatter: Send + Sync + RefUnwindSafe {
     fn package_start_async(&self, package_name: &str, test_count: usize) -> std::io::Result<()>;
 
