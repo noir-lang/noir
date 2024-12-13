@@ -14,7 +14,8 @@ use crate::ssa::{ir::function::RuntimeType, opt::flatten_cfg::value_merger::Valu
 
 use super::{
     basic_block::BasicBlockId,
-    dfg::{CallStackId, DataFlowGraph},
+    call_stack::CallStackId,
+    dfg::DataFlowGraph,
     function::Function,
     map::Id,
     types::{NumericType, Type},

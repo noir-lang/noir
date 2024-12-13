@@ -3,7 +3,8 @@ use fxhash::{FxHashMap as HashMap, FxHashSet};
 
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
-    dfg::{CallStackId, DataFlowGraph, InsertInstructionResult},
+    call_stack::CallStackId,
+    dfg::{DataFlowGraph, InsertInstructionResult},
     instruction::{BinaryOp, Instruction},
     types::{NumericType, Type},
     value::{Value, ValueId},

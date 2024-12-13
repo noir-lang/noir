@@ -12,7 +12,8 @@ use num_bigint::BigUint;
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
-        dfg::{CallStackId, DataFlowGraph},
+        call_stack::CallStackId,
+        dfg::DataFlowGraph,
         instruction::Intrinsic,
         map::Id,
         types::{NumericType, Type},

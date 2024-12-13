@@ -35,7 +35,8 @@ use crate::ssa::ir::instruction::Hint;
 use crate::ssa::{
     function_builder::data_bus::DataBus,
     ir::{
-        dfg::{CallStack, DataFlowGraph},
+        call_stack::CallStack,
+        dfg::DataFlowGraph,
         function::{Function, FunctionId, RuntimeType},
         instruction::{
             Binary, BinaryOp, ConstrainError, Instruction, InstructionId, Intrinsic,

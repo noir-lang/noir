@@ -139,8 +139,9 @@ use iter_extended::vecmap;
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
+        call_stack::CallStackId,
         cfg::ControlFlowGraph,
-        dfg::{CallStackId, InsertInstructionResult},
+        dfg::InsertInstructionResult,
         function::{Function, FunctionId, RuntimeType},
         function_inserter::FunctionInserter,
         instruction::{BinaryOp, Instruction, InstructionId, Intrinsic, TerminatorInstruction},

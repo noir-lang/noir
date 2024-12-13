@@ -4,12 +4,12 @@ use crate::ssa::ir::types::Type;
 
 use super::{
     basic_block::BasicBlockId,
+    call_stack::CallStackId,
     dfg::InsertInstructionResult,
     function::Function,
     instruction::{Instruction, InstructionId},
     value::ValueId,
 };
-use crate::ssa::ir::dfg::CallStackId;
 use fxhash::FxHashMap as HashMap;
 
 /// The FunctionInserter can be used to help modify existing Functions

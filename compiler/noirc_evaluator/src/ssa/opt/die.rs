@@ -6,7 +6,8 @@ use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 use crate::ssa::{
     ir::{
         basic_block::{BasicBlock, BasicBlockId},
-        dfg::{CallStackId, DataFlowGraph},
+        call_stack::CallStackId,
+        dfg::DataFlowGraph,
         function::Function,
         instruction::{BinaryOp, Instruction, InstructionId, Intrinsic},
         post_order::PostOrder,

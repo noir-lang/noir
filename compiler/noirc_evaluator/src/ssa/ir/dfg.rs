@@ -4,11 +4,11 @@ use crate::ssa::{function_builder::data_bus::DataBus, ir::instruction::SimplifyR
 
 use super::{
     basic_block::{BasicBlock, BasicBlockId},
+    call_stack::{CallStack, CallStackId, LocationNode},
     function::FunctionId,
     instruction::{
         Instruction, InstructionId, InstructionResultType, Intrinsic, TerminatorInstruction,
     },
-    list::List,
     map::DenseMap,
     types::{NumericType, Type},
     value::{Value, ValueId},
@@ -21,71 +21,6 @@ use noirc_errors::Location;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use serde_with::DisplayFromStr;
-
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub(crate) struct CallStackId(u32);
-
-impl CallStackId {
-    pub(crate) fn root() -> Self {
-        Self::new(0)
-    }
-
-    fn new(id: usize) -> Self {
-        Self(id as u32)
-    }
-
-    pub(crate) fn index(&self) -> usize {
-        self.0 as usize
-    }
-
-    pub(crate) fn is_root(&self) -> bool {
-        self.0 == 0
-    }
-
-    /// Construct a CallStack from a CallStackId
-    fn get_call_stack(&self, locations: &[LocationNode]) -> CallStack {
-        let mut call_stack = List::new();
-        let mut current_location = *self;
-        while let Some(parent) = locations[current_location.index()].parent {
-            call_stack.push_back(locations[current_location.index()].value);
-            current_location = parent;
-        }
-        call_stack
-    }
-
-    /// Adds a location to the call stack
-    fn add_child(&self, location: Location, locations: &mut Vec<LocationNode>) -> CallStackId {
-        if let Some(result) = locations[self.index()]
-            .children
-            .iter()
-            .rev()
-            .take(1000)
-            .find(|child| locations[child.index()].value == location)
-        {
-            return *result;
-        }
-        locations.push(LocationNode { parent: Some(*self), children: vec![], value: location });
-        let new_location = CallStackId::new(locations.len() - 1);
-        locations[self.index()].children.push(new_location);
-        new_location
-    }
-
-    /// Returns a new CallStackId which extends the current one with the provided call_stack.
-    fn extend(&self, call_stack: &CallStack, locations: &mut Vec<LocationNode>) -> CallStackId {
-        let mut result = *self;
-        for location in call_stack {
-            result = result.add_child(*location, locations);
-        }
-        result
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct LocationNode {
-    parent: Option<CallStackId>,
-    children: Vec<CallStackId>,
-    value: Location,
-}
 
 /// The DataFlowGraph contains most of the actual data in a function including
 /// its blocks, instructions, and values. This struct is largely responsible for
@@ -164,8 +99,6 @@ pub(crate) struct DataFlowGraph {
     #[serde(skip)]
     pub(crate) data_bus: DataBus,
 }
-
-pub(crate) type CallStack = List<Location>;
 
 impl DataFlowGraph {
     /// Creates a new basic block with no parameters.

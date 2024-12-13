@@ -18,7 +18,8 @@ use crate::ssa::ir::{
 use super::{
     ir::{
         basic_block::BasicBlock,
-        dfg::{CallStack, CallStackId, InsertInstructionResult},
+        call_stack::{CallStack, CallStackId},
+        dfg::InsertInstructionResult,
         function::RuntimeType,
         instruction::{ConstrainError, InstructionId, Intrinsic},
         types::NumericType,

@@ -11,7 +11,8 @@ use crate::ssa::{
     function_builder::FunctionBuilder,
     ir::{
         basic_block::BasicBlockId,
-        dfg::{CallStackId, InsertInstructionResult},
+        call_stack::CallStackId,
+        dfg::InsertInstructionResult,
         function::{Function, FunctionId, RuntimeType},
         instruction::{Instruction, InstructionId, TerminatorInstruction},
         value::{Value, ValueId},

@@ -272,8 +272,8 @@ mod tests {
     use crate::ssa::{
         function_builder::FunctionBuilder,
         ir::{
-            basic_block::BasicBlockId, dfg::CallStackId, dom::DominatorTree, function::Function,
-            instruction::TerminatorInstruction, map::Id, types::Type,
+            basic_block::BasicBlockId, call_stack::CallStackId, dom::DominatorTree,
+            function::Function, instruction::TerminatorInstruction, map::Id, types::Type,
         },
     };
 

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use acvm::{acir::AcirField, BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 
-use crate::ssa::ir::dfg::CallStackId;
+use crate::ssa::ir::call_stack::CallStackId;
 use crate::ssa::ir::instruction::BlackBoxFunc;
 use crate::ssa::ir::types::NumericType;
 use crate::ssa::ir::{

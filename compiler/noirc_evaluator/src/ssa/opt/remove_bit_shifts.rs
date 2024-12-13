@@ -5,7 +5,8 @@ use acvm::{acir::AcirField, FieldElement};
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
-        dfg::{CallStackId, InsertInstructionResult},
+        call_stack::CallStackId,
+        dfg::InsertInstructionResult,
         function::{Function, RuntimeType},
         instruction::{Binary, BinaryOp, Endian, Instruction, InstructionId, Intrinsic},
         types::{NumericType, Type},

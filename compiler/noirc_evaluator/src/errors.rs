@@ -12,7 +12,7 @@ use iter_extended::vecmap;
 use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic};
 use thiserror::Error;
 
-use crate::ssa::ir::{dfg::CallStack, types::NumericType};
+use crate::ssa::ir::{call_stack::CallStack, types::NumericType};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Eq, Clone, Error)]

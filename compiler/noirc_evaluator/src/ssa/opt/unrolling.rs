@@ -27,8 +27,9 @@ use crate::{
     ssa::{
         ir::{
             basic_block::BasicBlockId,
+            call_stack::{CallStack, CallStackId},
             cfg::ControlFlowGraph,
-            dfg::{CallStack, CallStackId, DataFlowGraph},
+            dfg::DataFlowGraph,
             dom::DominatorTree,
             function::Function,
             function_inserter::{ArrayCache, FunctionInserter},

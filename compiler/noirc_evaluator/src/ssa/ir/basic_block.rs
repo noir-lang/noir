@@ -1,5 +1,5 @@
 use super::{
-    dfg::CallStackId,
+    call_stack::CallStackId,
     instruction::{InstructionId, TerminatorInstruction},
     map::Id,
     value::ValueId,
