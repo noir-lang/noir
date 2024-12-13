@@ -108,7 +108,7 @@ struct DependencyContext {
 }
 
 /// Structure keeping track of value ids descending from Brillig calls'
-/// arguments and results, also storing information on results
+/// arguments and results, also storing information osn results
 /// already properly constrained
 #[derive(Clone, Debug)]
 struct BrilligTaintedIds {
@@ -229,7 +229,7 @@ impl DependencyContext {
         function: &Function,
         all_functions: &BTreeMap<FunctionId, Function>,
     ) {
-        trace!("processing instructions of block {} of function {}", block, function);
+        trace!("processing instructions of block {} of function {}", block, function.id());
 
         for instruction in function.dfg[block].instructions() {
             let mut arguments = Vec::new();
@@ -321,7 +321,7 @@ impl DependencyContext {
                                 // Record arguments/results for each Brillig call for the check
                                 trace!(
                                     "Brillig function {} called at {}",
-                                    all_functions[&callee],
+                                    callee,
                                     instruction
                                 );
                                 self.tainted.insert(
