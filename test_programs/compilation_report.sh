@@ -41,7 +41,7 @@ for dir in ${tests_to_profile[@]}; do
 
     echo $PACKAGE_NAME
 
-    COMPILE_TIME=$((time nargo compile --force --silence-warnings --package $PACKAGE_NAME) 2>&1 | grep real | grep -oE '[0-9]+m[0-9]+.[0-9]+s')
+    COMPILE_TIME=$((time nargo compile --force --silence-warnings --package $PACKAGE_NAME --benchmark-codegen) 2>&1 | grep real | grep -oE '[0-9]+m[0-9]+.[0-9]+s')
     echo -e " {\n    \"artifact_name\":\"$PACKAGE_NAME\",\n    \"time\":\"$COMPILE_TIME\"" >> $current_dir/compilation_report.json
     
     if (($ITER == $NUM_ARTIFACTS)); then
