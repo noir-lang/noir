@@ -23,51 +23,6 @@ impl CallStackId {
     pub(crate) fn is_root(&self) -> bool {
         self.0 == 0
     }
-
-    /// Construct a CallStack from a CallStackId
-    pub(crate) fn get_call_stack(&self, locations: &[LocationNode]) -> CallStack {
-        let mut call_stack = im::Vector::new();
-        let mut current_location = *self;
-        while let Some(parent) = locations[current_location.index()].parent {
-            call_stack.push_back(locations[current_location.index()].value);
-            current_location = parent;
-        }
-        call_stack
-    }
-
-    /// Adds a location to the call stack
-    pub(crate) fn add_child(
-        &self,
-        location: Location,
-        locations: &mut Vec<LocationNode>,
-    ) -> CallStackId {
-        if let Some(result) = locations[self.index()]
-            .children
-            .iter()
-            .rev()
-            .take(1000)
-            .find(|child| locations[child.index()].value == location)
-        {
-            return *result;
-        }
-        locations.push(LocationNode { parent: Some(*self), children: vec![], value: location });
-        let new_location = CallStackId::new(locations.len() - 1);
-        locations[self.index()].children.push(new_location);
-        new_location
-    }
-
-    /// Returns a new CallStackId which extends the current one with the provided call_stack.
-    pub(crate) fn extend(
-        &self,
-        call_stack: &CallStack,
-        locations: &mut Vec<LocationNode>,
-    ) -> CallStackId {
-        let mut result = *self;
-        for location in call_stack {
-            result = result.add_child(*location, locations);
-        }
-        result
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -75,4 +30,85 @@ pub(crate) struct LocationNode {
     pub(crate) parent: Option<CallStackId>,
     pub(crate) children: Vec<CallStackId>,
     pub(crate) value: Location,
+}
+
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+pub(crate) struct CallStackHelper {
+    locations: Vec<LocationNode>,
+}
+
+impl CallStackHelper {
+    /// Construct a CallStack from a CallStackId
+    pub(crate) fn get_call_stack(&self, mut call_stack: CallStackId) -> CallStack {
+        let mut result = im::Vector::new();
+        while let Some(parent) = self.locations[call_stack.index()].parent {
+            result.push_back(self.locations[call_stack.index()].value);
+            call_stack = parent;
+        }
+        result
+    }
+
+    /// Returns a new CallStackId which extends the call_stack with the provided call_stack.
+    pub(crate) fn extend_call_stack(
+        &mut self,
+        mut call_stack: CallStackId,
+        locations: &CallStack,
+    ) -> CallStackId {
+        for location in locations {
+            call_stack = self.add_child(call_stack, *location);
+        }
+        call_stack
+    }
+
+    /// Adds a location to the call stack
+    pub(crate) fn add_child(&mut self, call_stack: CallStackId, location: Location) -> CallStackId {
+        if let Some(result) = self.locations[call_stack.index()]
+            .children
+            .iter()
+            .rev()
+            .take(1000)
+            .find(|child| self.locations[child.index()].value == location)
+        {
+            return *result;
+        }
+        self.locations.push(LocationNode {
+            parent: Some(call_stack),
+            children: vec![],
+            value: location,
+        });
+        let new_location = CallStackId::new(self.locations.len() - 1);
+        self.locations[call_stack.index()].children.push(new_location);
+        new_location
+    }
+
+    /// Retrieve the CallStackId corresponding to call_stack with the last 'len' locations removed.
+    pub(crate) fn unwind_call_stack(
+        &self,
+        mut call_stack: CallStackId,
+        mut len: usize,
+    ) -> CallStackId {
+        while len > 0 {
+            if let Some(parent) = self.locations[call_stack.index()].parent {
+                len -= 1;
+                call_stack = parent;
+            } else {
+                break;
+            }
+        }
+        call_stack
+    }
+
+    pub(crate) fn add_location_to_root(&mut self, location: Location) -> CallStackId {
+        if self.locations.is_empty() {
+            self.locations.push(LocationNode { parent: None, children: vec![], value: location });
+            CallStackId::root()
+        } else {
+            self.add_child(CallStackId::root(), location)
+        }
+    }
+
+    /// Get (or create) a CallStackId corresponding to the given locations
+    pub(crate) fn get_or_insert_locations(&mut self, locations: CallStack) -> CallStackId {
+        self.extend_call_stack(CallStackId::root(), &locations)
+    }
 }

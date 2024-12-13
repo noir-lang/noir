@@ -88,7 +88,8 @@ impl Context {
 
                 let call_stack = old_function.dfg.get_instruction_call_stack_id(old_instruction_id);
                 let locations = old_function.dfg.get_call_stack(call_stack);
-                let new_call_stack = new_function.dfg.get_or_insert_locations(locations);
+                let new_call_stack =
+                    new_function.dfg.call_stack_data.get_or_insert_locations(locations);
                 let old_results = old_function.dfg.instruction_results(old_instruction_id);
 
                 let ctrl_typevars = instruction
@@ -116,7 +117,8 @@ impl Context {
                 .map_values(|value| self.new_ids.map_value(new_function, old_function, value));
             terminator.mutate_blocks(|old_block| self.new_ids.blocks[&old_block]);
             let locations = old_function.dfg.get_call_stack(terminator.call_stack());
-            let new_call_stack = new_function.dfg.get_or_insert_locations(locations);
+            let new_call_stack =
+                new_function.dfg.call_stack_data.get_or_insert_locations(locations);
             terminator.set_call_stack(new_call_stack);
             new_function.dfg.set_block_terminator(new_block_id, terminator);
         }

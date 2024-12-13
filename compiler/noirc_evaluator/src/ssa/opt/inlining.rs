@@ -668,6 +668,7 @@ impl<'function> PerFunctionContext<'function> {
             .builder
             .current_function
             .dfg
+            .call_stack_data
             .extend_call_stack(self.context.call_stack, &call_stack);
 
         self.context.call_stack = new_call_stack;
@@ -677,6 +678,7 @@ impl<'function> PerFunctionContext<'function> {
             .builder
             .current_function
             .dfg
+            .call_stack_data
             .unwind_call_stack(self.context.call_stack, call_stack_len);
 
         let new_results = InsertInstructionResult::Results(call_id, &new_results);
@@ -695,6 +697,7 @@ impl<'function> PerFunctionContext<'function> {
             .builder
             .current_function
             .dfg
+            .call_stack_data
             .extend_call_stack(call_stack, &source_call_stack);
         let results = self.source_function.dfg.instruction_results(id);
         let results = vecmap(results, |id| self.source_function.dfg.resolve(*id));
@@ -758,6 +761,7 @@ impl<'function> PerFunctionContext<'function> {
                     .builder
                     .current_function
                     .dfg
+                    .call_stack_data
                     .extend_call_stack(self.context.call_stack, &call_stack);
 
                 self.context
@@ -779,6 +783,7 @@ impl<'function> PerFunctionContext<'function> {
                     .builder
                     .current_function
                     .dfg
+                    .call_stack_data
                     .extend_call_stack(self.context.call_stack, &call_stack);
 
                 // See if the value of the condition is known, and if so only inline the reachable
@@ -816,12 +821,14 @@ impl<'function> PerFunctionContext<'function> {
                 let block_id = self.context.builder.current_block();
 
                 if self.inlining_entry {
-                    let call_stack = self.source_function.dfg.get_call_stack(*call_stack);
+                    let call_stack =
+                        self.source_function.dfg.call_stack_data.get_call_stack(*call_stack);
                     let new_call_stack = self
                         .context
                         .builder
                         .current_function
                         .dfg
+                        .call_stack_data
                         .extend_call_stack(self.context.call_stack, &call_stack);
 
                     self.context

@@ -91,8 +91,12 @@ pub(crate) fn generate_ssa(
                 None,
             );
         }
-        let return_call_stack =
-            function_context.builder.current_function.dfg.add_location_to_root(return_location);
+        let return_call_stack = function_context
+            .builder
+            .current_function
+            .dfg
+            .call_stack_data
+            .add_location_to_root(return_location);
         let return_instruction =
             function_context.builder.current_function.dfg[block].unwrap_terminator_mut();
 

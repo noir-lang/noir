@@ -1842,7 +1842,7 @@ impl<'a> Context<'a> {
             }
         }
 
-        let call_stack = dfg.get_call_stack(call_stack);
+        let call_stack = dfg.call_stack_data.get_call_stack(call_stack);
         let warnings = if has_constant_return {
             vec![SsaReport::Warning(InternalWarning::ReturnConstant { call_stack })]
         } else {
@@ -2934,7 +2934,8 @@ mod test {
         // Set a call stack for testing whether `brillig_locations` in the `GeneratedAcir` was accurately set.
         let mut stack = CallStack::unit(Location::dummy());
         stack.push_back(Location::dummy());
-        let call_stack = builder.current_function.dfg.get_or_insert_locations(stack);
+        let call_stack =
+            builder.current_function.dfg.call_stack_data.get_or_insert_locations(stack);
         builder.set_call_stack(call_stack);
 
         let foo_v0 = builder.add_parameter(Type::field());

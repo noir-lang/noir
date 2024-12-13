@@ -85,7 +85,8 @@ impl FunctionBuilder {
         self.current_block = new_function.entry_block();
         let old_function = std::mem::replace(&mut self.current_function, new_function);
         // Copy the call stack to the new function
-        self.call_stack = self.current_function.dfg.get_or_insert_locations(call_stack);
+        self.call_stack =
+            self.current_function.dfg.call_stack_data.get_or_insert_locations(call_stack);
         self.finished_functions.push(old_function);
     }
 
@@ -199,7 +200,7 @@ impl FunctionBuilder {
     }
 
     pub(crate) fn set_location(&mut self, location: Location) -> &mut FunctionBuilder {
-        self.call_stack = self.current_function.dfg.add_location_to_root(location);
+        self.call_stack = self.current_function.dfg.call_stack_data.add_location_to_root(location);
         self
     }
 

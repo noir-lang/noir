@@ -4,7 +4,7 @@ use crate::ssa::{function_builder::data_bus::DataBus, ir::instruction::SimplifyR
 
 use super::{
     basic_block::{BasicBlock, BasicBlockId},
-    call_stack::{CallStack, CallStackId, LocationNode},
+    call_stack::{CallStack, CallStackHelper, CallStackId},
     function::FunctionId,
     instruction::{
         Instruction, InstructionId, InstructionResultType, Intrinsic, TerminatorInstruction,
@@ -94,7 +94,7 @@ pub(crate) struct DataFlowGraph {
     #[serde(skip)]
     locations: HashMap<InstructionId, CallStackId>,
 
-    location_array: Vec<LocationNode>,
+    pub(crate) call_stack_data: CallStackHelper,
 
     #[serde(skip)]
     pub(crate) data_bus: DataBus,
@@ -489,7 +489,7 @@ impl DataFlowGraph {
 
     pub(crate) fn get_instruction_call_stack(&self, instruction: InstructionId) -> CallStack {
         let call_stack = self.get_instruction_call_stack_id(instruction);
-        self.get_call_stack(call_stack)
+        self.call_stack_data.get_call_stack(call_stack)
     }
 
     pub(crate) fn get_instruction_call_stack_id(&self, instruction: InstructionId) -> CallStackId {
@@ -502,29 +502,11 @@ impl DataFlowGraph {
         location: Location,
     ) {
         let call_stack = self.locations.entry(instruction).or_default();
-        call_stack.add_child(location, &mut self.location_array);
+        *call_stack = self.call_stack_data.add_child(*call_stack, location);
     }
 
-    pub(crate) fn add_location_to_root(&mut self, location: Location) -> CallStackId {
-        if self.location_array.is_empty() {
-            self.location_array.push(LocationNode {
-                parent: None,
-                children: vec![],
-                value: location,
-            });
-            CallStackId::root()
-        } else {
-            CallStackId::root().add_child(location, &mut self.location_array)
-        }
-    }
-
-    /// Get (or create) a CallStackId corresponding to the given locations
-    pub(crate) fn get_or_insert_locations(&mut self, locations: CallStack) -> CallStackId {
-        let mut result = CallStackId::root();
-        for location in locations {
-            result = result.add_child(location, &mut self.location_array);
-        }
-        result
+    pub(crate) fn get_call_stack(&self, call_stack: CallStackId) -> CallStack {
+        self.call_stack_data.get_call_stack(call_stack)
     }
 
     pub(crate) fn get_value_call_stack(&self, value: ValueId) -> CallStack {
@@ -541,35 +523,6 @@ impl DataFlowGraph {
             }
             _ => CallStackId::root(),
         }
-    }
-
-    pub(crate) fn get_call_stack(&self, call_stack: CallStackId) -> CallStack {
-        call_stack.get_call_stack(&self.location_array)
-    }
-
-    pub(crate) fn extend_call_stack(
-        &mut self,
-        call_stack: CallStackId,
-        locations: &CallStack,
-    ) -> CallStackId {
-        call_stack.extend(locations, &mut self.location_array)
-    }
-
-    // Retrieve the CallStackId corresponding to call_stack with the last 'len' locations removed.
-    pub(crate) fn unwind_call_stack(
-        &self,
-        mut call_stack: CallStackId,
-        mut len: usize,
-    ) -> CallStackId {
-        while len > 0 {
-            if let Some(parent) = self.location_array[call_stack.index()].parent {
-                len -= 1;
-                call_stack = parent;
-            } else {
-                break;
-            }
-        }
-        call_stack
     }
 
     /// True if the given ValueId refers to a (recursively) constant value
