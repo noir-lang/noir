@@ -9,7 +9,7 @@ use acvm::{
     AcirField, BlackBoxFunctionSolver, FieldElement,
 };
 use noirc_abi::Abi;
-use noirc_driver::{compile_no_check, CompileError, CompileOptions};
+use noirc_driver::{compile_no_check, CompileError, CompileOptions, DEFAULT_EXPRESSION_WIDTH};
 use noirc_errors::{debug_info::DebugInfo, FileDiagnostic};
 use noirc_frontend::hir::{def_map::TestFunction, Context};
 use noirc_printable_type::ForeignCallError;
@@ -29,6 +29,7 @@ use crate::{
 
 use super::execute_program;
 
+#[derive(Debug)]
 pub enum TestStatus {
     Pass,
     Fail { message: String, error_diagnostic: Option<FileDiagnostic> },
@@ -62,6 +63,10 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
 
     match compile_no_check(context, config, test_function.get_id(), None, false) {
         Ok(compiled_program) => {
+            // Do the same optimizations as `compile_cmd`.
+            let target_width = config.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH);
+            let compiled_program = crate::ops::transform_program(compiled_program, target_width);
+
             if test_function_has_no_arguments {
                 // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
                 // otherwise constraints involving these expressions will not error.
@@ -81,9 +86,9 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
 
                 let status = test_status_program_compile_pass(
                     test_function,
-                    compiled_program.abi,
-                    compiled_program.debug,
-                    circuit_execution,
+                    &compiled_program.abi,
+                    &compiled_program.debug,
+                    &circuit_execution,
                 );
 
                 let ignore_foreign_call_failures =
@@ -115,14 +120,20 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
                 {
                     use acvm::acir::circuit::Program;
                     use noir_fuzzer::FuzzedExecutor;
+                    use proptest::test_runner::Config;
                     use proptest::test_runner::TestRunner;
-                    let runner = TestRunner::default();
+
+                    let runner =
+                        TestRunner::new(Config { failure_persistence: None, ..Config::default() });
+
+                    let abi = compiled_program.abi.clone();
+                    let debug = compiled_program.debug.clone();
 
                     let executor =
                         |program: &Program<FieldElement>,
                          initial_witness: WitnessMap<FieldElement>|
                          -> Result<WitnessStack<FieldElement>, String> {
-                            execute_program(
+                            let circuit_execution = execute_program(
                                 program,
                                 initial_witness,
                                 blackbox_solver,
@@ -132,9 +143,23 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
                                     root_path.clone(),
                                     package_name.clone(),
                                 ),
-                            )
-                            .map_err(|err| err.to_string())
+                            );
+
+                            let status = test_status_program_compile_pass(
+                                test_function,
+                                &abi,
+                                &debug,
+                                &circuit_execution,
+                            );
+
+                            if let TestStatus::Fail { message, error_diagnostic: _ } = status {
+                                Err(message)
+                            } else {
+                                // The fuzzer doesn't care about the actual result.
+                                Ok(WitnessStack::default())
+                            }
                         };
+
                     let fuzzer = FuzzedExecutor::new(compiled_program.into(), executor, runner);
 
                     let result = fuzzer.fuzz();
@@ -174,9 +199,9 @@ fn test_status_program_compile_fail(err: CompileError, test_function: &TestFunct
 /// passed/failed to determine the test status.
 fn test_status_program_compile_pass(
     test_function: &TestFunction,
-    abi: Abi,
-    debug: Vec<DebugInfo>,
-    circuit_execution: Result<WitnessStack<FieldElement>, NargoError<FieldElement>>,
+    abi: &Abi,
+    debug: &[DebugInfo],
+    circuit_execution: &Result<WitnessStack<FieldElement>, NargoError<FieldElement>>,
 ) -> TestStatus {
     let circuit_execution_err = match circuit_execution {
         // Circuit execution was successful; ie no errors or unsatisfied constraints
@@ -196,7 +221,7 @@ fn test_status_program_compile_pass(
     // If we reach here, then the circuit execution failed.
     //
     // Check if the function should have passed
-    let diagnostic = try_to_diagnose_runtime_error(&circuit_execution_err, &abi, &debug);
+    let diagnostic = try_to_diagnose_runtime_error(circuit_execution_err, abi, debug);
     let test_should_have_passed = !test_function.should_fail();
     if test_should_have_passed {
         return TestStatus::Fail {

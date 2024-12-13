@@ -64,8 +64,9 @@ pub(crate) fn run(args: ExecuteCommand, config: NargoConfig) -> Result<(), CliEr
         let program_artifact_path = workspace.package_build_path(package);
         let program: CompiledProgram =
             read_program_from_file(program_artifact_path.clone())?.into();
+        let abi = program.abi.clone();
 
-        let (return_value, witness_stack) = execute_program_and_decode(
+        let results = execute_program_and_decode(
             program,
             package,
             &args.prover_name,
@@ -75,14 +76,27 @@ pub(crate) fn run(args: ExecuteCommand, config: NargoConfig) -> Result<(), CliEr
         )?;
 
         println!("[{}] Circuit witness successfully solved", package.name);
-        if let Some(return_value) = return_value {
+        if let Some(ref return_value) = results.actual_return {
             println!("[{}] Circuit output: {return_value:?}", package.name);
         }
 
         let package_name = package.name.clone().into();
         let witness_name = args.witness_name.as_ref().unwrap_or(&package_name);
-        let witness_path = save_witness_to_dir(witness_stack, witness_name, target_dir)?;
+        let witness_path = save_witness_to_dir(results.witness_stack, witness_name, target_dir)?;
         println!("[{}] Witness saved to {}", package.name, witness_path.display());
+
+        // Sanity checks on the return value after the witness has been saved, so it can be inspected if necessary.
+        if let Some(expected) = results.expected_return {
+            if results.actual_return.as_ref() != Some(&expected) {
+                return Err(CliError::UnexpectedReturn { expected, actual: results.actual_return });
+            }
+        }
+        // We can expect that if the circuit returns something, it should be non-empty after execution.
+        if let Some(ref expected) = abi.return_type {
+            if results.actual_return.is_none() {
+                return Err(CliError::MissingReturn { expected: expected.clone() });
+            }
+        }
     }
     Ok(())
 }
@@ -94,18 +108,24 @@ fn execute_program_and_decode(
     foreign_call_resolver_url: Option<&str>,
     root_path: Option<PathBuf>,
     package_name: Option<String>,
-) -> Result<(Option<InputValue>, WitnessStack<FieldElement>), CliError> {
+) -> Result<ExecutionResults, CliError> {
     // Parse the initial witness values from Prover.toml
-    let (inputs_map, _) =
+    let (inputs_map, expected_return) =
         read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &program.abi)?;
     let witness_stack =
         execute_program(&program, &inputs_map, foreign_call_resolver_url, root_path, package_name)?;
     // Get the entry point witness for the ABI
     let main_witness =
         &witness_stack.peek().expect("Should have at least one witness on the stack").witness;
-    let (_, return_value) = program.abi.decode(main_witness)?;
+    let (_, actual_return) = program.abi.decode(main_witness)?;
 
-    Ok((return_value, witness_stack))
+    Ok(ExecutionResults { expected_return, actual_return, witness_stack })
+}
+
+struct ExecutionResults {
+    expected_return: Option<InputValue>,
+    actual_return: Option<InputValue>,
+    witness_stack: WitnessStack<FieldElement>,
 }
 
 pub(crate) fn execute_program(
