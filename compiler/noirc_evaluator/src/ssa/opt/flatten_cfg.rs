@@ -1210,9 +1210,7 @@ mod test {
                 let mut constants = vec![];
 
                 dfg[instruction].for_each_value(|value| {
-                    for constant in get_all_constants_reachable_from_instruction(dfg, value) {
-                        constants.push(constant);
-                    }
+                    constants.extend(get_all_constants_reachable_from_instruction(dfg, value));
                 });
 
                 constants.sort();
