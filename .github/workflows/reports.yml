@@ -382,9 +382,17 @@ jobs:
           path: test-repo
           ref: ${{ matrix.project.ref }}
 
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+
       - name: Generate compilation report
         working-directory: ./test-repo/${{ matrix.project.path }}
         run: |
+          chmod +x ./scripts/generate_variants.js
+          node ./scripts/generate_variants.js
           mv /home/runner/work/noir/noir/scripts/test_programs/compilation_report.sh ./compilation_report.sh
           chmod +x ./compilation_report.sh
           ./compilation_report.sh 1 ${{ matrix.project.package }}
