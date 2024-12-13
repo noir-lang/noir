@@ -1614,7 +1614,7 @@ impl<'block> BrilligBlock<'block> {
 
                 self.brillig_context.const_instruction(
                     new_variable.extract_single_addr(),
-                    value_id.to_usize().into(),
+                    value_id.to_u32().into(),
                 );
                 new_variable
             }
