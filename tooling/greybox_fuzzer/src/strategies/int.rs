@@ -467,9 +467,11 @@ pub fn mutate_int_input_value(
             Sign::Unsigned => {
                 let initial_i128 = initial_field_value.to_i128();
                 let mut selector = prng.gen_range(0..UNSIGNED_SIGNED_TOTAL_WEIGHT);
+                //println!("Selector: {}", selector);
                 if selector < SUBSTITUTE_BY_FIXED_WEIGHT {
                     return InputValue::Field(FieldElement::from(
-                        FIXED_UNSIGNED_VALUES[prng.gen_range(0..(width * 4) as usize)],
+                        FIXED_UNSIGNED_VALUES[prng.gen_range(0..(width * 4) as usize)]
+                            & ((1i128 << width) - 1),
                     ));
                 }
                 selector -= SUBSTITUTE_BY_FIXED_WEIGHT;
@@ -540,22 +542,22 @@ pub fn mutate_int_input_value(
                 let dictionary_value = width_dictionary.choose(prng).unwrap();
                 let chosen_operation = prng.gen::<MutationOperation>();
                 return InputValue::Field(match width {
-                    8 => add_sub_xor_and_or_unsigned::<i8>(
+                    8 => add_sub_xor_and_or_unsigned::<u8>(
                         &initial_field_value,
                         &dictionary_value,
                         chosen_operation,
                     ),
-                    16 => add_sub_xor_and_or_unsigned::<i16>(
+                    16 => add_sub_xor_and_or_unsigned::<u16>(
                         &initial_field_value,
                         &dictionary_value,
                         chosen_operation,
                     ),
-                    32 => add_sub_xor_and_or_unsigned::<i32>(
+                    32 => add_sub_xor_and_or_unsigned::<u32>(
                         &initial_field_value,
                         &dictionary_value,
                         chosen_operation,
                     ),
-                    64 => add_sub_xor_and_or_unsigned::<i64>(
+                    64 => add_sub_xor_and_or_unsigned::<u64>(
                         &initial_field_value,
                         &dictionary_value,
                         chosen_operation,
