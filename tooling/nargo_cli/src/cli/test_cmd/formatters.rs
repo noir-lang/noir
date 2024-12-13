@@ -443,7 +443,7 @@ impl Formatter for JsonFormatter {
                 }
             }
             TestStatus::Skipped => {
-                json.insert("event".to_string(), json!("skipped"));
+                json.insert("event".to_string(), json!("ignored"));
             }
             TestStatus::CompileError(diagnostic) => {
                 json.insert("event".to_string(), json!("failed"));
@@ -491,16 +491,16 @@ impl Formatter for JsonFormatter {
     ) -> std::io::Result<()> {
         let mut passed = 0;
         let mut failed = 0;
-        let mut skipped = 0;
+        let mut ignored = 0;
         for test_result in test_results {
             match &test_result.status {
                 TestStatus::Pass => passed += 1,
                 TestStatus::Fail { .. } | TestStatus::CompileError(..) => failed += 1,
-                TestStatus::Skipped => skipped += 1,
+                TestStatus::Skipped => ignored += 1,
             }
         }
         let event = if failed == 0 { "ok" } else { "failed" };
-        let json = json!({"type": "suite", "event": event, "passed": passed, "failed": failed, "skipped": skipped});
+        let json = json!({"type": "suite", "event": event, "passed": passed, "failed": failed, "ignored": ignored});
         println!("{json}");
         Ok(())
     }
