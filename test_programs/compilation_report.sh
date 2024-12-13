@@ -29,12 +29,19 @@ for dir in ${tests_to_profile[@]}; do
 
     cd $base_path/$dir
 
+    # The default package to run is the supplied list hardcoded at the top of the script
     PACKAGE_NAME=$dir
-    if [ "$#" -ne 0 ]; then
+    # If a specific package name has been provided use that name
+    if [ "$#" -eq  2 ]; then
+      PACKAGE_NAME=$2
+    # Otherwise default to the current directory as the package we want to run
+    elif [ "$#" -ne 0 ]; then
       PACKAGE_NAME=$(basename $current_dir)
     fi
 
-    COMPILE_TIME=$((time nargo compile --force --silence-warnings) 2>&1 | grep real | grep -oE '[0-9]+m[0-9]+.[0-9]+s')
+    echo $PACKAGE_NAME
+
+    COMPILE_TIME=$((time nargo compile --force --silence-warnings --package $PACKAGE_NAME) 2>&1 | grep real | grep -oE '[0-9]+m[0-9]+.[0-9]+s')
     echo -e " {\n    \"artifact_name\":\"$PACKAGE_NAME\",\n    \"time\":\"$COMPILE_TIME\"" >> $current_dir/compilation_report.json
     
     if (($ITER == $NUM_ARTIFACTS)); then

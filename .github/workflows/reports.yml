@@ -335,6 +335,79 @@ jobs:
           retention-days: 3
           overwrite: true
 
+  external_repo_compilation_report_workspace_packages:
+    needs: [build-nargo]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-contracts }
+          # - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/parity-root }
+          # - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-inner }
+          # - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-tail }
+          # - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-reset }
+          # TODO: Bring these back once they no longer time out
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits, package: rollup_base_public }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits, package: rollup_base_private }
+
+    name: External repo compilation report - ${{ matrix.project.repo }}/${{ matrix.project.path }}
+    steps:
+      - name: Download nargo binary
+        uses: actions/download-artifact@v4
+        with:
+          name: nargo
+          path: ./nargo
+
+      - name: Set nargo on PATH
+        run: |
+          nargo_binary="${{ github.workspace }}/nargo/nargo"
+          chmod +x $nargo_binary
+          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
+          export PATH="$PATH:$(dirname $nargo_binary)"
+          nargo -V
+
+      - uses: actions/checkout@v4
+        with:
+          path: scripts
+          sparse-checkout: |
+            test_programs/compilation_report.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ matrix.project.repo }}
+          path: test-repo
+          ref: ${{ matrix.project.ref }}
+
+      - name: Generate compilation report
+        working-directory: ./test-repo/${{ matrix.project.path }}
+        run: |
+          mv /home/runner/work/noir/noir/scripts/test_programs/compilation_report.sh ./compilation_report.sh
+          chmod +x ./compilation_report.sh
+          ./compilation_report.sh 1 ${{ matrix.project.package }}
+
+      - name: Move compilation report
+        id: report
+        shell: bash
+        run: |
+          PACKAGE_NAME=${{ matrix.project.path }}
+          PACKAGE_NAME="$(basename $PACKAGE_NAME)${{ matrix.project.package }}"
+          echo $PACKAGE_NAME
+          mv ./test-repo/${{ matrix.project.path }}/compilation_report.json ./compilation_report_$PACKAGE_NAME.json
+          echo "compilation_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
+
+      - name: Upload compilation report
+        uses: actions/upload-artifact@v4
+        with:
+          name: compilation_report_${{ steps.report.outputs.compilation_report_name }}
+          path: compilation_report_${{ steps.report.outputs.compilation_report_name }}.json
+          retention-days: 3
+          overwrite: true
+
+
   upload_compilation_report:
     name: Upload compilation report 
     needs: [generate_compilation_report, external_repo_compilation_report]
