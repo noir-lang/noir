@@ -495,12 +495,7 @@ fn simplify_slice_pop_back(
 
         let element_type = Some(vec![element_type.clone()]);
         let get_last_elem = dfg
-            .insert_instruction_and_results(
-                get_last_elem_instr,
-                block,
-                element_type,
-                call_stack,
-            )
+            .insert_instruction_and_results(get_last_elem_instr, block, element_type, call_stack)
             .first();
         results.push_front(get_last_elem);
 
