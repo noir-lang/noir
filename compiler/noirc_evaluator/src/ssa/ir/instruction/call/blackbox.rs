@@ -3,6 +3,7 @@ use std::sync::Arc;
 use acvm::{acir::AcirField, BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 
 use crate::ssa::ir::instruction::BlackBoxFunc;
+use crate::ssa::ir::types::NumericType;
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
     dfg::{CallStack, DataFlowGraph},
@@ -47,9 +48,10 @@ pub(super) fn simplify_ec_add(
                 return SimplifyResult::None;
             };
 
-            let result_x = dfg.make_constant(result_x, Type::field());
-            let result_y = dfg.make_constant(result_y, Type::field());
-            let result_is_infinity = dfg.make_constant(result_is_infinity, Type::field());
+            let result_x = dfg.make_constant(result_x, NumericType::NativeField);
+            let result_y = dfg.make_constant(result_y, NumericType::NativeField);
+            let result_is_infinity =
+                dfg.make_constant(result_is_infinity, NumericType::NativeField);
 
             let typ = Type::Array(Arc::new(vec![Type::field()]), 3);
 
@@ -142,9 +144,10 @@ pub(super) fn simplify_msm(
 
             // If there are no variable term, we can directly return the constant result
             if var_scalars.is_empty() {
-                let result_x = dfg.make_constant(result_x, Type::field());
-                let result_y = dfg.make_constant(result_y, Type::field());
-                let result_is_infinity = dfg.make_constant(result_is_infinity, Type::field());
+                let result_x = dfg.make_constant(result_x, NumericType::NativeField);
+                let result_y = dfg.make_constant(result_y, NumericType::NativeField);
+                let result_is_infinity =
+                    dfg.make_constant(result_is_infinity, NumericType::NativeField);
 
                 let elements = im::vector![result_x, result_y, result_is_infinity];
                 let typ = Type::Array(Arc::new(vec![Type::field()]), 3);
@@ -163,14 +166,18 @@ pub(super) fn simplify_msm(
                 return SimplifyResult::None;
             }
             // Add the constant part back to the non-constant part, if it is not null
-            let one = dfg.make_constant(FieldElement::one(), Type::field());
-            let zero = dfg.make_constant(FieldElement::zero(), Type::field());
+            let one = dfg.make_constant(FieldElement::one(), NumericType::NativeField);
+            let zero = dfg.make_constant(FieldElement::zero(), NumericType::NativeField);
             if result_is_infinity.is_zero() {
                 var_scalars.push(one);
                 var_scalars.push(zero);
-                let result_x = dfg.make_constant(result_x, Type::field());
-                let result_y = dfg.make_constant(result_y, Type::field());
-                let result_is_infinity = dfg.make_constant(result_is_infinity, Type::bool());
+                let result_x = dfg.make_constant(result_x, NumericType::NativeField);
+                let result_y = dfg.make_constant(result_y, NumericType::NativeField);
+
+                // Pushing a bool here is intentional, multi_scalar_mul takes two arguments:
+                // `points: [(Field, Field, bool); N]` and `scalars: [(Field, Field); N]`.
+                let result_is_infinity = dfg.make_constant(result_is_infinity, NumericType::bool());
+
                 var_points.push(result_x);
                 var_points.push(result_y);
                 var_points.push(result_is_infinity);
@@ -221,7 +228,7 @@ pub(super) fn simplify_poseidon2_permutation(
             };
 
             let new_state = new_state.into_iter();
-            let typ = Type::field();
+            let typ = NumericType::NativeField;
             let result_array = make_constant_array(dfg, new_state, typ, block, call_stack);
 
             SimplifyResult::SimplifiedTo(result_array)
@@ -246,7 +253,7 @@ pub(super) fn simplify_hash(
 
             let hash_values = hash.iter().map(|byte| FieldElement::from_be_bytes_reduce(&[*byte]));
 
-            let u8_type = Type::unsigned(8);
+            let u8_type = NumericType::Unsigned { bit_size: 8 };
             let result_array = make_constant_array(dfg, hash_values, u8_type, block, call_stack);
             SimplifyResult::SimplifiedTo(result_array)
         }
@@ -296,7 +303,7 @@ pub(super) fn simplify_signature(
                 signature_verifier(&hashed_message, &public_key_x, &public_key_y, &signature)
                     .expect("Rust solvable black box function should not fail");
 
-            let valid_signature = dfg.make_constant(valid_signature.into(), Type::bool());
+            let valid_signature = dfg.make_constant(valid_signature.into(), NumericType::bool());
             SimplifyResult::SimplifiedTo(valid_signature)
         }
         _ => SimplifyResult::None,

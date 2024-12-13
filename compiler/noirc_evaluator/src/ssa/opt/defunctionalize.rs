@@ -130,13 +130,14 @@ impl DefunctionalizationContext {
         // Change the type of all the values that are not call targets to NativeField
         let value_ids = vecmap(func.dfg.values_iter(), |(id, _)| id);
         for value_id in value_ids {
-            if let Type::Function = &func.dfg[value_id].get_type() {
+            if let Type::Function = func.dfg[value_id].get_type().as_ref() {
                 match &func.dfg[value_id] {
                     // If the value is a static function, transform it to the function id
                     Value::Function(id) => {
                         if !call_target_values.contains(&value_id) {
+                            let field = NumericType::NativeField;
                             let new_value =
-                                func.dfg.make_constant(function_id_to_field(*id), Type::field());
+                                func.dfg.make_constant(function_id_to_field(*id), field);
                             func.dfg.set_value_from_id(value_id, new_value);
                         }
                     }
@@ -287,10 +288,8 @@ fn create_apply_function(
             let is_last = index == function_ids.len() - 1;
             let mut next_function_block = None;
 
-            let function_id_constant = function_builder.numeric_constant(
-                function_id_to_field(*function_id),
-                Type::Numeric(NumericType::NativeField),
-            );
+            let function_id_constant = function_builder
+                .numeric_constant(function_id_to_field(*function_id), NumericType::NativeField);
 
             // If it's not the last function to dispatch, create an if statement
             if !is_last {

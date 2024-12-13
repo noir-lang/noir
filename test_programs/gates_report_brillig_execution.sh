@@ -8,8 +8,6 @@ excluded_dirs=(
   "double_verify_nested_proof" 
   "overlapping_dep_and_mod" 
   "comptime_println"
-  #  Takes a very long time to execute as large loops do not get simplified.
-  "regression_4709"
   #  bit sizes for bigint operation doesn't match up.
   "bigint"
   #  Expected to fail as test asserts on which runtime it is in.
