@@ -469,19 +469,13 @@ fn simplify_slice_push_back(
 }
 
 fn simplify_slice_pop_back(
-    element_type: Type,
+    slice_type: Type,
     arguments: &[ValueId],
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
     call_stack: CallStack,
 ) -> SimplifyResult {
-    let element_types = match element_type.clone() {
-        Type::Slice(element_types) | Type::Array(element_types, _) => element_types,
-        _ => {
-            unreachable!("ICE: Expected slice or array, but got {element_type}");
-        }
-    };
-
+    let element_types = slice_type.element_types();
     let element_count = element_types.len();
     let mut results = VecDeque::with_capacity(element_count + 1);
 
@@ -495,7 +489,8 @@ fn simplify_slice_pop_back(
     flattened_len = update_slice_length(flattened_len, dfg, BinaryOp::Sub, block);
 
     // We must pop multiple elements in the case of a slice of tuples
-    for result_type in element_types.iter() {
+    // Iterating through element types in reverse here since we're popping from the end
+    for result_type in element_types.iter().rev() {
         let result_type = result_type.clone();
         let get_last_elem_instr =
             Instruction::ArrayGet { array: arguments[1], index: flattened_len, result_type };
@@ -503,13 +498,12 @@ fn simplify_slice_pop_back(
         let get_last_elem = dfg
             .insert_instruction_and_results(get_last_elem_instr, block, call_stack.clone())
             .first();
-        results.push_front(get_last_elem);
 
+        results.push_front(get_last_elem);
         flattened_len = update_slice_length(flattened_len, dfg, BinaryOp::Sub, block);
     }
 
     results.push_front(arguments[1]);
-
     results.push_front(new_slice_length);
     SimplifyResult::SimplifiedToMultiple(results.into())
 }
