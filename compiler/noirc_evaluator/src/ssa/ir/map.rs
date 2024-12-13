@@ -26,7 +26,10 @@ pub(crate) struct Id<T> {
 
 impl<T> Id<T> {
     /// Constructs a new Id for the given index.
-    pub(crate) fn new(index: u32) -> Self {
+    ///
+    /// This is private so that we can guarantee ids created from this function
+    /// point to valid T values in their external maps.
+    fn new(index: u32) -> Self {
         Self { index, _marker: std::marker::PhantomData }
     }
 
@@ -41,7 +44,7 @@ impl<T> Id<T> {
     /// as unlike DenseMap::push and SparseMap::push, the Ids created
     /// here are likely invalid for any particularly map.
     #[cfg(test)]
-    pub(crate) fn test_new(index: usize) -> Self {
+    pub(crate) fn test_new(index: u32) -> Self {
         Self::new(index)
     }
 }
