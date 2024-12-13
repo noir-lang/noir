@@ -70,6 +70,8 @@ fn replace_known_slice_lengths(
         // We won't use the new id for the original unknown length.
         // This isn't strictly necessary as a new result will be defined the next time for which the instruction
         // is reinserted but this avoids leaving the program in an invalid state.
+        //
+        // TODO(ValueId): need to get a fresh value here?
         func.dfg.replace_result(instruction_id, original_slice_length);
         let known_length = func.dfg.make_constant(known_length.into(), NumericType::length_type());
         func.dfg.set_value_from_id(original_slice_length, known_length);

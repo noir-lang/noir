@@ -28,6 +28,7 @@ mod binary;
 mod call;
 mod cast;
 mod constrain;
+pub(crate) mod insert_result;
 
 pub(crate) use binary::{Binary, BinaryOp};
 use call::simplify_call;
@@ -932,6 +933,29 @@ impl Instruction {
             Instruction::MakeArray { .. } => None,
         }
     }
+
+    /// Returns the number of results this instruction produces
+    pub(crate) fn result_count(&self) -> usize {
+        match self {
+            Instruction::Constrain(..)
+            | Instruction::RangeCheck { .. }
+            | Instruction::Store { .. }
+            | Instruction::EnableSideEffectsIf { .. }
+            | Instruction::IncrementRc { .. }
+            | Instruction::DecrementRc { .. } => 0,
+            Instruction::Binary(_)
+            | Instruction::Cast(_, _)
+            | Instruction::Not(_)
+            | Instruction::Truncate { .. }
+            | Instruction::Allocate { .. }
+            | Instruction::Load { .. }
+            | Instruction::ArrayGet { .. }
+            | Instruction::ArraySet { .. }
+            | Instruction::IfElse { .. }
+            | Instruction::MakeArray { .. } => 1,
+            Instruction::Call { result_types, .. } => result_types.len(),
+        }
+    }
 }
 
 /// Given a chain of operations like:
@@ -1290,10 +1314,12 @@ pub(crate) enum SimplifyResult {
 }
 
 impl SimplifyResult {
-    pub(crate) fn instructions(self) -> Option<Vec<Instruction>> {
+    pub(crate) fn instruction(self) -> Option<Instruction> {
         match self {
-            SimplifyResult::SimplifiedToInstruction(instruction) => Some(vec![instruction]),
-            SimplifyResult::SimplifiedToInstructionMultiple(instructions) => Some(instructions),
+            SimplifyResult::SimplifiedToInstruction(instruction) => Some(instruction),
+            SimplifyResult::SimplifiedToInstructionMultiple(mut instructions) if instructions.len() == 1 => {
+                Some(instructions.pop().unwrap())
+            }
             _ => None,
         }
     }

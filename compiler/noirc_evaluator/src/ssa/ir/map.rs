@@ -387,3 +387,23 @@ impl<T> Default for AtomicCounter<T> {
         Self { next: Default::default(), _marker: Default::default() }
     }
 }
+
+/// A set to map a string to an Id<T>. Ensures each T corresponds to exactly 1 Id.
+#[derive(Debug, Default)]
+pub(crate) struct StringSet<T> {
+    storage: HashMap<String, Id<T>>,
+}
+
+impl<T> StringSet<T> {
+    /// Returns an existing id for the given element, or creates a new
+    /// one if it doesn't already exist.
+    pub(crate) fn get_or_insert(&mut self, element: &str) -> Id<T> {
+        if let Some(existing) = self.storage.get(element) {
+            return *existing;
+        }
+
+        let id = Id::new(self.storage.len());
+        self.storage.insert(id, element.to_string());
+        id
+    }
+}

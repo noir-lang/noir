@@ -44,6 +44,7 @@ impl Function {
             let original_return_id = call_returns[0];
 
             // We replace the result with a fresh id. This will be unused, so the DIE pass will remove the leftover intrinsic call.
+            // TODO(ValueId): need to get a fresh value here?
             self.dfg.replace_result(instruction_id, original_return_id);
 
             let is_unconstrained = matches!(self.runtime(), RuntimeType::Brillig(_)).into();

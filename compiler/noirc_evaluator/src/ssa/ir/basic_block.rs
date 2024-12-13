@@ -15,9 +15,6 @@ use serde::{Deserialize, Serialize};
 /// block, then all instructions are executed. ie single-entry single-exit.
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
 pub(crate) struct BasicBlock {
-    /// Each parameter of this block
-    parameters: Vec<Value>,
-
     /// Types of each parameter to this block
     parameter_types: Vec<Type>,
 
@@ -40,15 +37,9 @@ impl BasicBlock {
     pub(crate) fn new() -> Self {
         Self {
             parameter_types: Vec::new(),
-            parameters: Vec::new(),
             instructions: Vec::new(),
             terminator: None,
         }
-    }
-
-    /// Returns the parameters of this block
-    pub(crate) fn parameters(&self) -> &[Value] {
-        &self.parameters
     }
 
     /// Retrieve the type of the given parameter
@@ -56,23 +47,23 @@ impl BasicBlock {
         &self.parameter_types[parameter_index]
     }
 
-    /// Removes all the parameters of this block
-    pub(crate) fn take_parameters(&mut self) -> Vec<Value> {
-        std::mem::take(&mut self.parameters)
+    /// Adds a parameter to this BasicBlock.
+    pub(crate) fn add_parameter(&mut self, typ: Type) {
+        self.parameter_types.push(typ);
     }
 
-    /// Adds a parameter to this BasicBlock.
-    /// Expects that the ValueId given should refer to a Value::Param
-    /// instance with its position equal to self.parameters.len().
-    pub(crate) fn add_parameter(&mut self, parameter: Value, typ: Type) {
-        self.parameters.push(parameter);
-        self.parameter_types.push(typ);
+    pub(crate) fn parameter_types(&self) -> &[Type] {
+        &self.parameter_types
+    }
+
+    pub(crate) fn parameter_count(&self) -> usize {
+        self.parameter_types.len()
     }
 
     /// Replace this block's current parameters with that of the given Vec.
     /// This does not perform any checks that any previous parameters were unused.
-    pub(crate) fn set_parameters(&mut self, parameters: Vec<Value>) {
-        self.parameters = parameters;
+    pub(crate) fn set_parameters(&mut self, types: Vec<Type>) {
+        self.parameter_types = types;
     }
 
     /// Insert an instruction at the end of this block
@@ -167,13 +158,5 @@ impl BasicBlock {
             Some(TerminatorInstruction::Return { .. }) => vec![].into_iter(),
             None => vec![].into_iter(),
         }
-    }
-
-    pub(crate) fn parameter_types(&self) -> &[Type] {
-        &self.parameter_types
-    }
-
-    pub(crate) fn parameter_types_mut(&mut self) -> &mut Vec<Type> {
-        &mut self.parameter_types
     }
 }

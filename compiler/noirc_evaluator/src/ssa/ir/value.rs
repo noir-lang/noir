@@ -12,7 +12,7 @@ use super::{
 
 /// Value is the most basic type allowed in the IR.
 /// Transition Note: A Id<Value> is similar to `NodeId` in our previous IR.
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Serialize, Deserialize)]
 pub(crate) enum Value {
     /// This value was created due to an instruction
     ///
@@ -48,5 +48,14 @@ pub(crate) enum Value {
     /// This Value refers to an external function in the IR.
     /// ForeignFunction's always have the type Type::Function and have similar semantics to Function,
     /// other than generating different backend operations and being only accessible through Brillig.
-    ForeignFunction(String),
+    ForeignFunction(ForeignFunctionId),
+}
+
+pub(crate) struct ForeignFunction(pub String);
+pub(crate) type ForeignFunctionId = Id<ForeignFunction>;
+
+impl Value {
+    pub fn constant(constant: FieldElement, typ: NumericType) -> Self {
+        Self::NumericConstant { constant, typ }
+    }
 }
