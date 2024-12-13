@@ -182,11 +182,11 @@ impl DataFlowGraph {
     }
 
     /// Set the type of value_id to the target_type.
-    pub(crate) fn set_type_of_value(&mut self, value_id: Value, target_type: Type) {
-        match &self.values[value_id] {
+    pub(crate) fn set_type_of_value(&mut self, value: Value, target_type: Type) {
+        match value {
             Value::Instruction { instruction, position } => {
-                let position = *position;
-                match &mut self.instructions[*instruction] {
+                let position = position;
+                match &mut self.instructions[instruction] {
                     Instruction::Call { result_types, .. } => {
                         result_types[position] = target_type;
                     }
@@ -220,7 +220,7 @@ impl DataFlowGraph {
                 }
             }
             Value::Param { block, position } => {
-                self.blocks[*block].parameter_types_mut()[*position] = target_type;
+                self.blocks[block].parameter_types_mut()[position] = target_type;
             }
             value => unreachable!("ICE: Cannot set type of {:?}", value),
         }
@@ -254,16 +254,16 @@ impl DataFlowGraph {
     pub(crate) fn type_of_value(&self, value: Value) -> Type {
         match value {
             Value::Instruction { instruction, position } => {
-                match self[*instruction].result_type() {
+                match self[instruction].result_type() {
                     // How expensive is this recursive call? Maybe we should store types
                     InstructionResultType::Operand(value) => self.type_of_value(value),
                     InstructionResultType::Known(typ) => typ,
                     InstructionResultType::None => unreachable!("Instruction has no results"),
-                    InstructionResultType::Multiple(types) => types[*position].clone(),
+                    InstructionResultType::Multiple(types) => types[position].clone(),
                 }
             }
-            Value::Param { block, position } => self[*block].type_of_parameter(*position).clone(),
-            Value::NumericConstant { typ, .. } => Type::Numeric(*typ),
+            Value::Param { block, position } => self[block].type_of_parameter(position).clone(),
+            Value::NumericConstant { typ, .. } => Type::Numeric(typ),
             Value::Function(_) => Type::Function,
             Value::Intrinsic(_) => Type::Function,
             Value::ForeignFunction(_) => Type::Function,
@@ -309,7 +309,7 @@ impl DataFlowGraph {
         let block = &mut self.blocks[block_id];
         let position = block.parameter_types().len();
         block.add_parameter(typ);
-        Value::Param { block, position }
+        Value::Param { block: block_id, position }
     }
 
     /// Returns the field element represented by this value if it is a numeric constant.
@@ -325,7 +325,7 @@ impl DataFlowGraph {
         value: Value,
     ) -> Option<(FieldElement, NumericType)> {
         match self.resolve(value) {
-            Value::NumericConstant { constant, typ } => Some((*constant, *typ)),
+            Value::NumericConstant { constant, typ } => Some((constant, typ)),
             _ => None,
         }
     }
@@ -334,7 +334,7 @@ impl DataFlowGraph {
     /// Otherwise, this returns None.
     pub(crate) fn get_array_constant(&self, value: Value) -> Option<(im::Vector<Value>, Type)> {
         match self.resolve(value) {
-            Value::Instruction { instruction, .. } => match &self.instructions[*instruction] {
+            Value::Instruction { instruction, .. } => match &self.instructions[instruction] {
                 Instruction::MakeArray { elements, typ } => Some((elements.clone(), typ.clone())),
                 _ => None,
             },
@@ -394,7 +394,7 @@ impl DataFlowGraph {
 
     pub(crate) fn get_value_call_stack(&self, value: Value) -> CallStack {
         match self.resolve(value) {
-            Value::Instruction { instruction, .. } => self.get_call_stack(*instruction),
+            Value::Instruction { instruction, .. } => self.get_call_stack(instruction),
             _ => CallStack::new(),
         }
     }
@@ -403,7 +403,7 @@ impl DataFlowGraph {
     pub(crate) fn is_constant(&self, argument: Value) -> bool {
         match self.resolve(argument) {
             Value::Param { .. } => false,
-            Value::Instruction { instruction, .. } => match &self[*instruction] {
+            Value::Instruction { instruction, .. } => match &self[instruction] {
                 Instruction::MakeArray { elements, .. } => {
                     elements.iter().all(|element| self.is_constant(*element))
                 }

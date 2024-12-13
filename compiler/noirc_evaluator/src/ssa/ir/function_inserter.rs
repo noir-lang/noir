@@ -118,7 +118,7 @@ impl<'f> FunctionInserter<'f> {
         call_stack: CallStack,
     ) -> InsertInstructionResult {
         let results = self.function.dfg.instruction_results(id);
-        let results = vecmap(results, |id| self.function.dfg.resolve(*id));
+        let results = vecmap(results, |id| self.function.dfg.resolve(id));
 
         // Large arrays can lead to OOM panics if duplicated from being unrolled in loops.
         // To prevent this, try to reuse the same ID for identical arrays instead of inserting
@@ -225,8 +225,8 @@ impl<'f> FunctionInserter<'f> {
     pub(crate) fn remember_block_params(&mut self, block: BasicBlockId, new_values: &[Value]) {
         let old_parameters = self.function.dfg.block_parameters(block);
 
-        for (param, new_param) in old_parameters.iter().zip(new_values) {
-            self.values.entry(*param).or_insert(*new_param);
+        for (param, new_param) in old_parameters.zip(new_values) {
+            self.values.entry(param).or_insert(*new_param);
         }
     }
 
@@ -238,9 +238,9 @@ impl<'f> FunctionInserter<'f> {
         let old_parameters = self.function.dfg.block_parameters(block);
         let new_parameters = self.function.dfg.block_parameters(new_block);
 
-        for (param, new_param) in old_parameters.iter().zip(new_parameters) {
+        for (param, new_param) in old_parameters.zip(new_parameters) {
             // Don't overwrite any existing entries to avoid overwriting the induction variable
-            self.values.entry(*param).or_insert(*new_param);
+            self.values.entry(param).or_insert(new_param);
         }
     }
 }

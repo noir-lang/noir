@@ -93,7 +93,7 @@ impl Binary {
         if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
             return match eval_constant_binary_op(lhs, rhs, self.operator, operand_type) {
                 Some((result, result_type)) => {
-                    let value = dfg.make_constant(result, result_type);
+                    let value = Value::constant(result, result_type);
                     SimplifyResult::SimplifiedTo(value)
                 }
                 None => SimplifyResult::None,
@@ -128,7 +128,7 @@ impl Binary {
                     return SimplifyResult::SimplifiedTo(self.lhs);
                 }
                 if lhs_is_zero || rhs_is_zero {
-                    let zero = dfg.make_constant(FieldElement::zero(), operand_type);
+                    let zero = Value::constant(FieldElement::zero(), operand_type);
                     return SimplifyResult::SimplifiedTo(zero);
                 }
                 if dfg.resolve(self.lhs) == dfg.resolve(self.rhs)
@@ -145,7 +145,7 @@ impl Binary {
             }
             BinaryOp::Mod => {
                 if rhs_is_one {
-                    let zero = dfg.make_constant(FieldElement::zero(), operand_type);
+                    let zero = Value::constant(FieldElement::zero(), operand_type);
                     return SimplifyResult::SimplifiedTo(zero);
                 }
                 if operand_type.is_unsigned() {
@@ -168,8 +168,7 @@ impl Binary {
             }
             BinaryOp::Eq => {
                 if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
-                    let one = dfg.make_constant(FieldElement::one(), NumericType::bool());
-                    return SimplifyResult::SimplifiedTo(one);
+                    return SimplifyResult::SimplifiedTo(Value::bool_constant(true));
                 }
 
                 if operand_type == NumericType::bool() {
@@ -191,27 +190,24 @@ impl Binary {
             }
             BinaryOp::Lt => {
                 if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
-                    let zero = dfg.make_constant(FieldElement::zero(), NumericType::bool());
-                    return SimplifyResult::SimplifiedTo(zero);
+                    return SimplifyResult::SimplifiedTo(Value::bool_constant(false));
                 }
                 if operand_type.is_unsigned() {
                     if rhs_is_zero {
                         // Unsigned values cannot be less than zero.
-                        let zero = dfg.make_constant(FieldElement::zero(), NumericType::bool());
-                        return SimplifyResult::SimplifiedTo(zero);
+                        return SimplifyResult::SimplifiedTo(Value::bool_constant(false));
                     } else if rhs_is_one {
-                        let zero = dfg.make_constant(FieldElement::zero(), operand_type);
                         return SimplifyResult::SimplifiedToInstruction(Instruction::binary(
                             BinaryOp::Eq,
                             self.lhs,
-                            zero,
+                            Value::constant(FieldElement::zero(), operand_type),
                         ));
                     }
                 }
             }
             BinaryOp::And => {
                 if lhs_is_zero || rhs_is_zero {
-                    let zero = dfg.make_constant(FieldElement::zero(), operand_type);
+                    let zero = Value::constant(FieldElement::zero(), operand_type);
                     return SimplifyResult::SimplifiedTo(zero);
                 }
                 if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
@@ -257,7 +253,7 @@ impl Binary {
                     return SimplifyResult::SimplifiedTo(self.lhs);
                 }
                 if operand_type == NumericType::bool() && (lhs_is_one || rhs_is_one) {
-                    let one = dfg.make_constant(FieldElement::one(), operand_type);
+                    let one = Value::constant(FieldElement::one(), operand_type);
                     return SimplifyResult::SimplifiedTo(one);
                 }
                 if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
@@ -272,7 +268,7 @@ impl Binary {
                     return SimplifyResult::SimplifiedTo(self.lhs);
                 }
                 if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
-                    let zero = dfg.make_constant(FieldElement::zero(), operand_type);
+                    let zero = Value::constant(FieldElement::zero(), operand_type);
                     return SimplifyResult::SimplifiedTo(zero);
                 }
             }
@@ -282,7 +278,7 @@ impl Binary {
                 if let Some(rhs_const) = rhs {
                     if rhs_const >= FieldElement::from(operand_type.bit_size() as u128) {
                         // Shifting by the full width of the operand type, any `lhs` goes to zero.
-                        let zero = dfg.make_constant(FieldElement::zero(), operand_type);
+                        let zero = Value::constant(FieldElement::zero(), operand_type);
                         return SimplifyResult::SimplifiedTo(zero);
                     }
                     return SimplifyResult::None;

@@ -137,7 +137,7 @@ impl FunctionBuilder {
     }
 
     /// Returns the parameters of the given block in the current function.
-    pub(crate) fn block_parameters(&self, block: BasicBlockId) -> &[Value] {
+    pub(crate) fn block_parameters(&self, block: BasicBlockId) -> impl ExactSizeIterator<Item = Value> {
         self.current_function.dfg.block_parameters(block)
     }
 
@@ -381,16 +381,11 @@ impl FunctionBuilder {
     /// Retrieve a value reference to the given intrinsic operation.
     /// Returns None if there is no intrinsic matching the given name.
     pub(crate) fn import_intrinsic(&mut self, name: &str) -> Option<Value> {
-        Intrinsic::lookup(name).map(|intrinsic| self.import_intrinsic_id(intrinsic))
-    }
-
-    /// Retrieve a value reference to the given intrinsic operation.
-    pub(crate) fn import_intrinsic_id(&mut self, intrinsic: Intrinsic) -> Value {
-        self.current_function.dfg.import_intrinsic(intrinsic)
+        Intrinsic::lookup(name).map(|intrinsic| Value::Intrinsic(intrinsic))
     }
 
     pub(crate) fn get_intrinsic_from_value(&mut self, value: Value) -> Option<Intrinsic> {
-        match self.current_function.dfg[value] {
+        match value {
             Value::Intrinsic(intrinsic) => Some(intrinsic),
             _ => None,
         }
@@ -448,14 +443,6 @@ impl FunctionBuilder {
 
     pub(crate) fn record_error_type(&mut self, selector: ErrorSelector, typ: HirType) {
         self.error_types.insert(selector, typ);
-    }
-}
-
-impl std::ops::Index<Value> for FunctionBuilder {
-    type Output = Value;
-
-    fn index(&self, id: Value) -> &Self::Output {
-        &self.current_function.dfg[id]
     }
 }
 

@@ -143,23 +143,20 @@ impl Function {
 
     /// Returns the parameters of this function.
     /// The parameters will always match that of this function's entry block.
-    pub(crate) fn parameters(&self) -> &[Value] {
+    pub(crate) fn parameters(&self) -> impl ExactSizeIterator<Item = Value> {
         self.dfg.block_parameters(self.entry_block)
     }
 
     /// Returns the return types of this function.
     pub(crate) fn returns(&self) -> &[Value] {
         let blocks = self.reachable_blocks();
-        let mut function_return_values = None;
         for block in blocks {
             let terminator = self.dfg[block].terminator();
             if let Some(TerminatorInstruction::Return { return_values, .. }) = terminator {
-                function_return_values = Some(return_values);
-                break;
+                return return_values;
             }
         }
-        function_return_values
-            .expect("Expected a return instruction, as function construction is finished")
+        panic!("Expected a return instruction, as function construction is finished")
     }
 
     /// Collects all the reachable blocks of this function.
@@ -180,7 +177,7 @@ impl Function {
     }
 
     pub(crate) fn signature(&self) -> Signature {
-        let params = vecmap(self.parameters(), |param| self.dfg.type_of_value(*param));
+        let params = vecmap(self.parameters(), |param| self.dfg.type_of_value(param));
         let returns = vecmap(self.returns(), |ret| self.dfg.type_of_value(*ret));
         Signature { params, returns }
     }

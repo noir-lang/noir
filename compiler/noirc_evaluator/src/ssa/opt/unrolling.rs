@@ -568,7 +568,7 @@ impl Loop {
 
         // Collect reference parameters of the function itself.
         let params =
-            function.parameters().iter().filter(|p| function.dfg.value_is_reference(**p)).copied();
+            function.parameters().filter(|p| function.dfg.value_is_reference(*p));
 
         Some(params.chain(allocations).collect())
     }

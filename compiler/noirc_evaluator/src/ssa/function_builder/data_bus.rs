@@ -7,6 +7,7 @@ use crate::ssa::ir::{
 };
 use acvm::FieldElement;
 use fxhash::FxHashMap as HashMap;
+use iter_extended::vecmap;
 use noirc_frontend::ast;
 use noirc_frontend::hir_def::function::FunctionSignature;
 use serde::{Deserialize, Serialize};
@@ -132,10 +133,8 @@ impl FunctionBuilder {
                 for _i in 0..len {
                     for subitem_typ in typ.iter() {
                         // load each element of the array, and add it to the databus
-                        let length_type = NumericType::length_type();
-                        let index_var = FieldElement::from(index as i128);
                         let index_var =
-                            self.current_function.dfg.make_constant(index_var, length_type);
+                            Value::length_constant((index as i128).into());
                         let element = self.insert_array_get(value, index_var, subitem_typ.clone());
                         index += match subitem_typ {
                             Type::Array(_, _) | Type::Slice(_) => subitem_typ.element_size(),
@@ -189,14 +188,16 @@ impl FunctionBuilder {
     ) -> Vec<DataBusBuilder> {
         //filter parameters of the first block that have call-data visibility
         let first_block = self.current_function.entry_block();
-        let params = self.current_function.dfg[first_block].parameters();
+        let params = self.current_function.dfg.block_parameters(first_block);
 
         // Reshape the is_params_databus to map to the SSA-level parameters
         let is_params_databus =
             self.deflatten_databus_visibilities(params, flattened_databus_visibilities);
 
+        let params = self.current_function.dfg.block_parameters(first_block);
         let mut databus_param: BTreeMap<u32, Vec<Value>> = BTreeMap::new();
-        for (param, databus_attribute) in params.iter().zip(is_params_databus) {
+
+        for (param, databus_attribute) in params.zip(is_params_databus) {
             match databus_attribute {
                 DatabusVisibility::None | DatabusVisibility::ReturnData => continue,
                 DatabusVisibility::CallData(call_data_id) => {
@@ -211,30 +212,24 @@ impl FunctionBuilder {
             }
         }
         // create the call-data-bus from the filtered lists
-        let mut result = Vec::new();
-        for id in databus_param.keys() {
-            let builder = DataBusBuilder::new();
-            let call_databus = self.initialize_data_bus(&databus_param[id], builder, Some(*id));
-            result.push(call_databus);
-        }
-        result
+        vecmap(databus_param.keys(), |id| {
+            self.initialize_data_bus(&databus_param[id], DataBusBuilder::new(), Some(*id))
+        })
     }
 
     /// This function takes the flattened databus visibilities and generates the databus visibility for each ssa parameter
     /// asserting that an ssa parameter is not assigned two different databus visibilities
     fn deflatten_databus_visibilities(
         &self,
-        ssa_params: &[Value],
+        ssa_params: impl ExactSizeIterator<Item = Value>,
         mut flattened_params_databus_visibility: Vec<DatabusVisibility>,
     ) -> Vec<DatabusVisibility> {
-        let ssa_param_sizes: Vec<usize> = ssa_params
-            .iter()
+        let ssa_param_sizes = ssa_params
             .map(|ssa_param| {
-                self.current_function.dfg.type_of_value(*ssa_param).flattened_size() as usize
-            })
-            .collect();
+                self.current_function.dfg.type_of_value(ssa_param).flattened_size() as usize
+            });
 
-        let mut is_ssa_params_databus = Vec::with_capacity(ssa_params.len());
+        let mut is_ssa_params_databus = Vec::with_capacity(ssa_param_sizes.len());
         for size in ssa_param_sizes {
             let visibilities: Vec<DatabusVisibility> =
                 flattened_params_databus_visibility.drain(0..size).collect();

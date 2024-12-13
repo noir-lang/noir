@@ -40,8 +40,8 @@ pub(super) fn simplify_call(
     block: BasicBlockId,
     call_stack: &CallStack,
 ) -> SimplifyResult {
-    let intrinsic = match &dfg[func] {
-        Value::Intrinsic(intrinsic) => *intrinsic,
+    let intrinsic = match func {
+        Value::Intrinsic(intrinsic) => intrinsic,
         _ => return SimplifyResult::None,
     };
 
@@ -99,7 +99,7 @@ pub(super) fn simplify_call(
         Intrinsic::ArrayLen => {
             if let Some(length) = dfg.try_get_array_length(arguments[0]) {
                 let length = FieldElement::from(length as u128);
-                SimplifyResult::SimplifiedTo(dfg.make_constant(length, NumericType::length_type()))
+                SimplifyResult::SimplifiedTo(Value::length_constant(length))
             } else if matches!(dfg.type_of_value(arguments[1]), Type::Slice(_)) {
                 SimplifyResult::SimplifiedTo(arguments[0])
             } else {
@@ -122,7 +122,7 @@ pub(super) fn simplify_call(
                 );
                 let slice_length_value = array.len() / elements_size;
                 let slice_length =
-                    dfg.make_constant(slice_length_value.into(), NumericType::length_type());
+                    Value::length_constant(slice_length_value.into());
                 let new_slice =
                     make_array(dfg, array, Type::Slice(inner_element_types), block, call_stack);
                 SimplifyResult::SimplifiedToMultiple(vec![slice_length, new_slice])
@@ -368,7 +368,7 @@ pub(super) fn simplify_call(
             if let Some(constants) = constant_args {
                 let lhs = constants[0];
                 let rhs = constants[1];
-                let result = dfg.make_constant((lhs < rhs).into(), NumericType::bool());
+                let result = Value::bool_constant((lhs < rhs).into());
                 SimplifyResult::SimplifiedTo(result)
             } else {
                 SimplifyResult::None
@@ -404,7 +404,7 @@ fn update_slice_length(
     operator: BinaryOp,
     block: BasicBlockId,
 ) -> Value {
-    let one = dfg.make_constant(FieldElement::one(), NumericType::length_type());
+    let one = Value::length_constant(FieldElement::one());
     let instruction = Instruction::Binary(Binary { lhs: slice_len, operator, rhs: one });
     let call_stack = dfg.get_value_call_stack(slice_len);
     dfg.insert_instruction_and_results(instruction, block, call_stack).first()
@@ -419,7 +419,7 @@ fn simplify_slice_push_back(
     call_stack: CallStack,
 ) -> SimplifyResult {
     // The capacity must be an integer so that we can compare it against the slice length
-    let capacity = dfg.make_constant((slice.len() as u128).into(), NumericType::length_type());
+    let capacity = Value::length_constant((slice.len() as u128).into());
     let len_equals_capacity_instr =
         Instruction::Binary(Binary { lhs: arguments[0], operator: BinaryOp::Eq, rhs: capacity });
     let len_equals_capacity = dfg
@@ -482,7 +482,7 @@ fn simplify_slice_pop_back(
     let new_slice_length = update_slice_length(arguments[0], dfg, BinaryOp::Sub, block);
 
     let element_size =
-        dfg.make_constant((element_count as u128).into(), NumericType::length_type());
+        Value::length_constant((element_count as u128).into());
     let flattened_len_instr = Instruction::binary(BinaryOp::Mul, arguments[0], element_size);
     let mut flattened_len =
         dfg.insert_instruction_and_results(flattened_len_instr, block, call_stack.clone()).first();
@@ -618,7 +618,7 @@ fn make_constant_array(
     call_stack: &CallStack,
 ) -> Value {
     let result_constants: im::Vector<_> =
-        results.map(|element| dfg.make_constant(element, typ)).collect();
+        results.map(|element| Value::constant(element, typ)).collect();
 
     let typ = Type::Array(Arc::new(vec![Type::Numeric(typ)]), result_constants.len() as u32);
     make_array(dfg, result_constants, typ, block, call_stack)
@@ -668,19 +668,16 @@ fn constant_to_radix(
     }
 }
 
-fn to_u8_vec(dfg: &DataFlowGraph, values: im::Vector<Id<Value>>) -> Vec<u8> {
-    values
-        .iter()
-        .map(|id| {
-            let field = dfg
-                .get_numeric_constant(*id)
-                .expect("value id from array should point at constant");
-            *field.to_be_bytes().last().unwrap()
-        })
-        .collect()
+fn to_u8_vec(dfg: &DataFlowGraph, values: im::Vector<Value>) -> Vec<u8> {
+    vecmap(values, |value| {
+        let field = dfg
+            .get_numeric_constant(value)
+            .expect("value id from array should point at constant");
+        *field.to_be_bytes().last().unwrap()
+    })
 }
 
-fn array_is_constant(dfg: &DataFlowGraph, values: &im::Vector<Id<Value>>) -> bool {
+fn array_is_constant(dfg: &DataFlowGraph, values: &im::Vector<Value>) -> bool {
     values.iter().all(|value| dfg.get_numeric_constant(*value).is_some())
 }
 
@@ -749,7 +746,7 @@ fn simplify_signature(
                 signature_verifier(&hashed_message, &public_key_x, &public_key_y, &signature)
                     .expect("Rust solvable black box function should not fail");
 
-            let valid_signature = dfg.make_constant(valid_signature.into(), NumericType::bool());
+            let valid_signature = Value::bool_constant(valid_signature.into());
             SimplifyResult::SimplifiedTo(valid_signature)
         }
         _ => SimplifyResult::None,
@@ -779,15 +776,15 @@ fn simplify_derive_generators(
                 num_generators,
                 starting_index.try_to_u32().expect("argument is declared as u32"),
             );
-            let is_infinite = dfg.make_constant(FieldElement::zero(), NumericType::bool());
+            let is_infinite = Value::bool_constant(false);
             let mut results = Vec::new();
             for gen in generators {
                 let x_big: BigUint = gen.x.into();
                 let x = FieldElement::from_be_bytes_reduce(&x_big.to_bytes_be());
                 let y_big: BigUint = gen.y.into();
                 let y = FieldElement::from_be_bytes_reduce(&y_big.to_bytes_be());
-                results.push(dfg.make_constant(x, NumericType::NativeField));
-                results.push(dfg.make_constant(y, NumericType::NativeField));
+                results.push(Value::field_constant(x));
+                results.push(Value::field_constant(y));
                 results.push(is_infinite);
             }
             let len = results.len() as u32;

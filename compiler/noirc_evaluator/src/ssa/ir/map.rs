@@ -304,7 +304,7 @@ impl<T> std::ops::IndexMut<Id<T>> for SparseMap<T> {
 /// This is accomplished by keeping the map bijective - for every
 /// value there is exactly one key and vice-versa. Any duplicate values
 /// are prevented in the call to insert.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct TwoWayMap<K, V> {
     key_to_value: HashMap<K, V>,
     value_to_key: HashMap<V, K>,
@@ -390,7 +390,7 @@ impl<T> Default for AtomicCounter<T> {
 }
 
 /// A set to map a T to an Id<T>. Ensures each T corresponds to exactly 1 Id.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub(crate) struct IdSet<T> {
     map: TwoWayMap<T, Id<T>>,
 }

@@ -45,13 +45,12 @@ fn find_back_edges(
 }
 
 /// Collects the underlying variables inside a value id. It might be more than one, for example in constant arrays that are constructed with multiple vars.
-pub(crate) fn collect_variables_of_value(value_id: Value, dfg: &DataFlowGraph) -> Option<Value> {
-    let value_id = dfg.resolve(value_id);
-    let value = &dfg[value_id];
+pub(crate) fn collect_variables_of_value(value: Value, dfg: &DataFlowGraph) -> Option<Value> {
+    let value = dfg.resolve(value);
 
     match value {
         Value::Instruction { .. } | Value::Param { .. } | Value::NumericConstant { .. } => {
-            Some(value_id)
+            Some(value)
         }
         // Functions are not variables in a defunctionalized SSA. Only constant function values should appear.
         Value::ForeignFunction(_) | Value::Function(_) | Value::Intrinsic(..) => None,
@@ -72,7 +71,7 @@ pub(crate) fn variables_used_in_instruction(
     used
 }
 
-fn variables_used_in_block(block: &BasicBlock, dfg: &DataFlowGraph) -> Variables {
+fn variables_used_in_block(block: &BasicBlock, block_id: BasicBlockId, dfg: &DataFlowGraph) -> Variables {
     let mut used: Variables = block
         .instructions()
         .iter()
@@ -83,7 +82,7 @@ fn variables_used_in_block(block: &BasicBlock, dfg: &DataFlowGraph) -> Variables
         .collect();
 
     // We consider block parameters used, so they live up to the block that owns them.
-    used.extend(block.parameters().iter());
+    used.extend(dfg.block_parameters(block_id));
 
     if let Some(terminator) = block.terminator() {
         terminator.for_each_value(|value_id| {
@@ -98,10 +97,11 @@ type Variables = HashSet<Value>;
 
 fn compute_used_before_def(
     block: &BasicBlock,
+    block_id: BasicBlockId,
     dfg: &DataFlowGraph,
     defined_in_block: &Variables,
 ) -> Variables {
-    variables_used_in_block(block, dfg)
+    variables_used_in_block(block, block_id, dfg)
         .into_iter()
         .filter(|id| !defined_in_block.contains(id))
         .collect()
@@ -179,13 +179,13 @@ impl VariableLiveness {
         reverse_post_order.extend_from_slice(self.post_order.as_slice());
         reverse_post_order.reverse();
         for block in reverse_post_order {
-            let params = func.dfg[block].parameters();
+            let params = func.dfg.block_parameters(block);
             // If it has no dominator, it's the entry block
             let dominator_block =
                 self.dominator_tree.immediate_dominator(block).unwrap_or(func.entry_block());
             let definitions_for_the_dominator =
                 self.param_definitions.entry(dominator_block).or_default();
-            definitions_for_the_dominator.extend(params.iter());
+            definitions_for_the_dominator.extend(params);
         }
     }
 
@@ -212,9 +212,8 @@ impl VariableLiveness {
 
         defined.extend(constants.allocated_in_block(block_id));
 
-        let block: &BasicBlock = &func.dfg[block_id];
-
-        let used_before_def = compute_used_before_def(block, &func.dfg, &defined);
+        let block = &func.dfg[block_id];
+        let used_before_def = compute_used_before_def(block, block_id, &func.dfg, &defined);
 
         let mut live_out = HashSet::default();
 
@@ -245,9 +244,8 @@ impl VariableLiveness {
         }
 
         for instruction_id in block.instructions() {
-            let result_values = dfg.instruction_results(*instruction_id);
-            for result_value in result_values {
-                defined_vars.insert(dfg.resolve(*result_value));
+            for result_value in dfg.instruction_results(*instruction_id) {
+                defined_vars.insert(dfg.resolve(result_value));
             }
         }
 

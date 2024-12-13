@@ -69,8 +69,8 @@ impl Function {
 }
 
 fn contains_array_parameter(function: &mut Function) -> bool {
-    let mut parameters = function.parameters().iter();
-    parameters.any(|parameter| function.dfg.type_of_value(*parameter).contains_an_array())
+    let mut parameters = function.parameters();
+    parameters.any(|parameter| function.dfg.type_of_value(parameter).contains_an_array())
 }
 
 impl Context {

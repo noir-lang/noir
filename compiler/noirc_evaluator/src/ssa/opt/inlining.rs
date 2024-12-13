@@ -385,9 +385,9 @@ impl InlineContext {
         let original_parameters = context.source_function.parameters();
 
         for parameter in original_parameters {
-            let typ = context.source_function.dfg.type_of_value(*parameter);
+            let typ = context.source_function.dfg.type_of_value(parameter);
             let new_parameter = context.context.builder.add_block_parameter(entry_block, typ);
-            context.values.insert(*parameter, new_parameter);
+            context.values.insert(parameter, new_parameter);
         }
 
         context.blocks.insert(context.source_function.entry_block(), entry_block);
@@ -420,7 +420,7 @@ impl InlineContext {
 
         let parameters = source_function.parameters();
         assert_eq!(parameters.len(), arguments.len());
-        context.values = parameters.iter().copied().zip(arguments.iter().copied()).collect();
+        context.values = parameters.zip(arguments.iter().copied()).collect();
 
         let current_block = context.context.builder.current_block();
         context.blocks.insert(source_function.entry_block(), current_block);
@@ -465,7 +465,7 @@ impl<'function> PerFunctionContext<'function> {
             }
             Value::NumericConstant { constant, typ } => Value::constant(constant, typ),
             Value::Function(function) => self.context.builder.import_function(function),
-            Value::Intrinsic(intrinsic) => self.context.builder.import_intrinsic_id(intrinsic),
+            Value::Intrinsic(intrinsic) => Value::Intrinsic(intrinsic),
             Value::ForeignFunction(function) => {
                 let function = &self.source_function.dfg[function];
                 self.context.builder.import_foreign_function(function)
@@ -513,9 +513,9 @@ impl<'function> PerFunctionContext<'function> {
     /// Expects that the given ValueId belongs to the source_function.
     ///
     /// Returns None if the id is not known to refer to a function.
-    fn get_function(&mut self, mut id: Value) -> Option<FunctionId> {
-        id = self.translate_value(id);
-        match self.context.builder[id] {
+    fn get_function(&mut self, mut value: Value) -> Option<FunctionId> {
+        value = self.translate_value(value);
+        match value {
             Value::Function(id) => Some(id),
             // We don't set failed_to_inline_a_call for intrinsics since those
             // don't correspond to actual functions in the SSA program that would
@@ -580,7 +580,7 @@ impl<'function> PerFunctionContext<'function> {
                 }
 
                 self.context.builder.switch_to_block(return_block);
-                self.context.builder.block_parameters(return_block).to_vec()
+                self.context.builder.block_parameters(return_block).collect()
             }
             _ => unreachable!("Inlined function had no return values"),
         }

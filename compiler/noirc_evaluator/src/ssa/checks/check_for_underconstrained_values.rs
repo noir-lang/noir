@@ -243,9 +243,9 @@ impl DependencyContext {
             });
 
             // Collect non-constant instruction results
-            for value_id in function.dfg.instruction_results(*instruction).iter() {
-                if function.dfg.get_numeric_constant(*value_id).is_none() {
-                    results.push(function.dfg.resolve(*value_id));
+            for value_id in function.dfg.instruction_results(*instruction) {
+                if function.dfg.get_numeric_constant(value_id).is_none() {
+                    results.push(function.dfg.resolve(value_id));
                 }
             }
 
@@ -282,7 +282,7 @@ impl DependencyContext {
                     // as .for_each_value() used previously also includes func_id
                     arguments.remove(0);
 
-                    match &function.dfg[*func_id] {
+                    match *func_id {
                         Value::Intrinsic(intrinsic) => match intrinsic {
                             Intrinsic::ApplyRangeConstraint | Intrinsic::AssertConstant => {
                                 // Consider these intrinsic arguments constrained
@@ -474,10 +474,9 @@ impl Context {
     ) -> HashSet<usize> {
         let variable_parameters_and_return_values = function
             .parameters()
-            .iter()
-            .chain(function.returns())
-            .filter(|id| function.dfg.get_numeric_constant(**id).is_none())
-            .map(|value_id| function.dfg.resolve(*value_id));
+            .chain(function.returns().iter().copied())
+            .filter(|value| function.dfg.get_numeric_constant(*value).is_none())
+            .map(|value| function.dfg.resolve(value));
 
         let mut connected_sets_indices: HashSet<usize> = HashSet::new();
 
@@ -545,9 +544,9 @@ impl Context {
                 }
             });
             // And non-constant results
-            for value_id in function.dfg.instruction_results(*instruction).iter() {
-                if function.dfg.get_numeric_constant(*value_id).is_none() {
-                    instruction_arguments_and_results.insert(function.dfg.resolve(*value_id));
+            for value_id in function.dfg.instruction_results(*instruction) {
+                if function.dfg.get_numeric_constant(value_id).is_none() {
+                    instruction_arguments_and_results.insert(function.dfg.resolve(value_id));
                 }
             }
 
@@ -568,7 +567,7 @@ impl Context {
                 }
 
                 Instruction::Call { func: func_id, arguments: argument_ids, result_types: _ } => {
-                    match &function.dfg[*func_id] {
+                    match *func_id {
                         Value::Intrinsic(intrinsic) => match intrinsic {
                             Intrinsic::ApplyRangeConstraint
                             | Intrinsic::AssertConstant
@@ -603,16 +602,16 @@ impl Context {
                                 // For calls to Brillig functions we memorize the mapping of results to argument ValueId's and InstructionId's
                                 // The latter are needed to produce the callstack later
                                 for result in
-                                    function.dfg.instruction_results(*instruction).iter().filter(
+                                    function.dfg.instruction_results(*instruction).filter(
                                         |value_id| {
-                                            function.dfg.get_numeric_constant(**value_id).is_none()
+                                            function.dfg.get_numeric_constant(*value_id).is_none()
                                         },
                                     )
                                 {
                                     self.brillig_return_to_argument
-                                        .insert(*result, argument_ids.clone());
+                                        .insert(result, argument_ids.clone());
                                     self.brillig_return_to_instruction_id
-                                        .insert(*result, *instruction);
+                                        .insert(result, *instruction);
                                 }
                             }
                             RuntimeType::Acir(..) => {

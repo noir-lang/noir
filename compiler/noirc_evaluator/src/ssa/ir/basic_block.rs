@@ -52,6 +52,10 @@ impl BasicBlock {
         &self.parameter_types
     }
 
+    pub(crate) fn parameter_types_mut(&mut self) -> &mut Vec<Type> {
+        &mut self.parameter_types
+    }
+
     pub(crate) fn parameter_count(&self) -> usize {
         self.parameter_types.len()
     }

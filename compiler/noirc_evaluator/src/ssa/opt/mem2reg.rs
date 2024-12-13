@@ -269,10 +269,9 @@ impl<'f> PerFunctionContext<'f> {
     /// and thus stores should not be eliminated, even if the blocks in this function
     /// don't use them anywhere.
     fn reference_parameters(&self) -> BTreeSet<Value> {
-        let parameters = self.inserter.function.parameters().iter();
+        let parameters = self.inserter.function.parameters();
         parameters
-            .filter(|param| self.inserter.function.dfg.value_is_reference(**param))
-            .copied()
+            .filter(|param| self.inserter.function.dfg.value_is_reference(*param))
             .collect()
     }
 
