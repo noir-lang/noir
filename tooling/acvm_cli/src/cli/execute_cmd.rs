@@ -5,6 +5,7 @@ use acir::native_types::{WitnessMap, WitnessStack};
 use acir::FieldElement;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
+use nargo::PrintOutput;
 
 use crate::cli::fs::inputs::{read_bytecode_from_file, read_inputs_from_file};
 use crate::errors::CliError;
@@ -73,7 +74,7 @@ pub(crate) fn execute_program_from_witness(
         &program,
         inputs_map,
         &Bn254BlackBoxSolver,
-        &mut DefaultForeignCallExecutor::new(true, None, None, None),
+        &mut DefaultForeignCallExecutor::new(PrintOutput::Stdout, None, None, None),
     )
     .map_err(CliError::CircuitExecutionError)
 }

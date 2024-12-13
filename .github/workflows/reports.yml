@@ -8,7 +8,7 @@ on:
 
 jobs:
   build-nargo:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout Noir repo
@@ -38,11 +38,10 @@ jobs:
           path: ./dist/*
           retention-days: 3
 
-
   compare_gates_reports:
     name: Circuit sizes
     needs: [build-nargo]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
 
@@ -93,7 +92,7 @@ jobs:
   compare_brillig_bytecode_size_reports:
     name: Brillig bytecode sizes
     needs: [build-nargo]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
 
@@ -142,7 +141,7 @@ jobs:
   compare_brillig_execution_reports:
     name: Brillig execution trace sizes  
     needs: [build-nargo]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
 
@@ -191,7 +190,7 @@ jobs:
   generate_memory_report:
     name: Peak memory usage  
     needs: [build-nargo]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
 
@@ -218,9 +217,268 @@ jobs:
           ./memory_report.sh
           mv memory_report.json ../memory_report.json
 
+      - name: Upload memory report
+        uses: actions/upload-artifact@v4
+        with:
+          name: in_progress_memory_report
+          path: memory_report.json
+          retention-days: 3
+          overwrite: true
+
+  generate_compilation_report:
+    name: Compilation time
+    needs: [build-nargo]
+    runs-on: ubuntu-22.04
+    permissions:
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download nargo binary
+        uses: actions/download-artifact@v4
+        with:
+          name: nargo
+          path: ./nargo
+
+      - name: Set nargo on PATH
+        run: |
+          nargo_binary="${{ github.workspace }}/nargo/nargo"
+          chmod +x $nargo_binary
+          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
+          export PATH="$PATH:$(dirname $nargo_binary)"
+          nargo -V
+
+      - name: Generate Compilation report
+        working-directory: ./test_programs
+        run: |
+          ./compilation_report.sh
+          cat compilation_report.json
+          mv compilation_report.json ../compilation_report.json
+
+      - name: Upload compilation report
+        uses: actions/upload-artifact@v4
+        with:
+          name: in_progress_compilation_report
+          path: compilation_report.json
+          retention-days: 3
+          overwrite: true
+
+  external_repo_compilation_report:
+    needs: [build-nargo]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-contracts }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/parity-root }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-inner }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-tail }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-reset }
+          # TODO: Bring these back once they no longer time out
+          # - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-base-private }
+          # - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-base-public }
+
+    name: External repo compilation report - ${{ matrix.project.repo }}/${{ matrix.project.path }}
+    steps:
+      - name: Download nargo binary
+        uses: actions/download-artifact@v4
+        with:
+          name: nargo
+          path: ./nargo
+
+      - name: Set nargo on PATH
+        run: |
+          nargo_binary="${{ github.workspace }}/nargo/nargo"
+          chmod +x $nargo_binary
+          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
+          export PATH="$PATH:$(dirname $nargo_binary)"
+          nargo -V
+
+      - uses: actions/checkout@v4
+        with:
+          path: scripts
+          sparse-checkout: |
+            test_programs/compilation_report.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ matrix.project.repo }}
+          path: test-repo
+          ref: ${{ matrix.project.ref }}
+
+      - name: Generate compilation report
+        working-directory: ./test-repo/${{ matrix.project.path }}
+        run: |
+          mv /home/runner/work/noir/noir/scripts/test_programs/compilation_report.sh ./compilation_report.sh
+          chmod +x ./compilation_report.sh
+          ./compilation_report.sh 1
+
+      - name: Move compilation report
+        id: report
+        shell: bash
+        run: |
+          PACKAGE_NAME=${{ matrix.project.path }}
+          PACKAGE_NAME=$(basename $PACKAGE_NAME)
+          mv ./test-repo/${{ matrix.project.path }}/compilation_report.json ./compilation_report_$PACKAGE_NAME.json
+          echo "compilation_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
+
+      - name: Upload compilation report
+        uses: actions/upload-artifact@v4
+        with:
+          name: compilation_report_${{ steps.report.outputs.compilation_report_name }}
+          path: compilation_report_${{ steps.report.outputs.compilation_report_name }}.json
+          retention-days: 3
+          overwrite: true
+
+  upload_compilation_report:
+    name: Upload compilation report 
+    needs: [generate_compilation_report, external_repo_compilation_report]
+    # We want this job to run even if one variation of the matrix in `external_repo_compilation_report` fails
+    if: always() 
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download initial compilation report
+        uses: actions/download-artifact@v4
+        with:
+          name: in_progress_compilation_report
+
+      - name: Download matrix compilation reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: compilation_report_*
+          path: ./reports
+
+      - name: Merge compilation reports using jq
+        run: |
+          mv ./.github/scripts/merge-bench-reports.sh merge-bench-reports.sh
+          ./merge-bench-reports.sh compilation_report
+
+      - name: Parse compilation report
+        id: compilation_report
+        uses: noir-lang/noir-bench-report@0d7464a8c39170523932d7846b6e6b458a294aea
+        with:
+          report: compilation_report.json
+          header: |
+            # Compilation Report
+          memory_report: false
+
+      - name: Add memory report to sticky comment
+        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: compilation
+          message: ${{ steps.compilation_report.outputs.markdown }}
+
+  external_repo_memory_report:
+    needs: [build-nargo]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # TODO: Bring this report back under a flag. The `noir-contracts` report takes just under 30 minutes.
+          # - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-contracts }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/parity-root }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-inner }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-reset }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-tail }
+
+    name: External repo memory report - ${{ matrix.project.repo }}/${{ matrix.project.path }}
+    steps:
+      - name: Download nargo binary
+        uses: actions/download-artifact@v4
+        with:
+          name: nargo
+          path: ./nargo
+
+      - name: Set nargo on PATH
+        run: |
+          nargo_binary="${{ github.workspace }}/nargo/nargo"
+          chmod +x $nargo_binary
+          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
+          export PATH="$PATH:$(dirname $nargo_binary)"
+          nargo -V
+
+      - uses: actions/checkout@v4
+        with:
+          path: scripts
+          sparse-checkout: |
+            test_programs/memory_report.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ matrix.project.repo }}
+          path: test-repo
+          ref: ${{ matrix.project.ref }}
+
+      - name: Generate compilation report
+        working-directory: ./test-repo/${{ matrix.project.path }}
+        run: |
+          mv /home/runner/work/noir/noir/scripts/test_programs/memory_report.sh ./memory_report.sh
+          chmod +x ./memory_report.sh
+          ./memory_report.sh 1
+
+      - name: Move compilation report
+        id: report
+        shell: bash
+        run: |
+          PACKAGE_NAME=${{ matrix.project.path }}
+          PACKAGE_NAME=$(basename $PACKAGE_NAME)
+          mv ./test-repo/${{ matrix.project.path }}/memory_report.json ./memory_report_$PACKAGE_NAME.json
+          echo "memory_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
+
+      - name: Upload memory report
+        uses: actions/upload-artifact@v4
+        with:
+          name: memory_report_${{ steps.report.outputs.memory_report_name }}
+          path: memory_report_${{ steps.report.outputs.memory_report_name }}.json
+          retention-days: 3
+          overwrite: true
+
+  upload_memory_report:
+    name: Upload memory report 
+    needs: [generate_memory_report, external_repo_memory_report]
+    # We want this job to run even if one variation of the matrix in `external_repo_memory_report` fails
+    if: always() 
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download initial memory report
+        uses: actions/download-artifact@v4
+        with:
+          name: in_progress_memory_report
+
+      - name: Download matrix memory reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: memory_report_*
+          path: ./reports
+
+      - name: Merge memory reports using jq
+        run: |
+          mv ./.github/scripts/merge-bench-reports.sh merge-bench-reports.sh
+          ./merge-bench-reports.sh memory_report
+
       - name: Parse memory report
         id: memory_report
-        uses: noir-lang/noir-bench-report@ccb0d806a91d3bd86dba0ba3d580a814eed5673c
+        uses: noir-lang/noir-bench-report@0d7464a8c39170523932d7846b6e6b458a294aea
         with:
           report: memory_report.json
           header: |
@@ -233,3 +491,49 @@ jobs:
         with:
           header: memory
           message: ${{ steps.memory_report.outputs.markdown }}
+
+  generate_compilation_report:
+    name: Compilation time
+    needs: [build-nargo]
+    runs-on: ubuntu-22.04
+    permissions:
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download nargo binary
+        uses: actions/download-artifact@v4
+        with:
+          name: nargo
+          path: ./nargo
+
+      - name: Set nargo on PATH
+        run: |
+          nargo_binary="${{ github.workspace }}/nargo/nargo"
+          chmod +x $nargo_binary
+          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
+          export PATH="$PATH:$(dirname $nargo_binary)"
+          nargo -V
+
+      - name: Generate Compilation report
+        working-directory: ./test_programs
+        run: |
+          ./compilation_report.sh
+          mv compilation_report.json ../compilation_report.json
+
+      - name: Parse compilation report
+        id: compilation_report
+        uses: noir-lang/noir-bench-report@0d7464a8c39170523932d7846b6e6b458a294aea
+        with:
+          report: compilation_report.json
+          header: |
+            # Compilation Report
+          memory_report: false
+
+      - name: Add memory report to sticky comment
+        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: compilation
+          message: ${{ steps.compilation_report.outputs.markdown }}

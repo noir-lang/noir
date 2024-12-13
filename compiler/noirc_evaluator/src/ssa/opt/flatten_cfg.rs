@@ -144,7 +144,7 @@ use crate::ssa::{
         function::{Function, FunctionId, RuntimeType},
         function_inserter::FunctionInserter,
         instruction::{BinaryOp, Instruction, InstructionId, Intrinsic, TerminatorInstruction},
-        types::Type,
+        types::{NumericType, Type},
         value::{Value, ValueId},
     },
     ssa_gen::Ssa,
@@ -332,15 +332,12 @@ impl<'f> Context<'f> {
         for instruction in instructions.iter() {
             if self.is_no_predicate(no_predicates, instruction) {
                 // disable side effect for no_predicate functions
-                let one = self
-                    .inserter
-                    .function
-                    .dfg
-                    .make_constant(FieldElement::one(), Type::unsigned(1));
+                let bool_type = NumericType::bool();
+                let one = self.inserter.function.dfg.make_constant(FieldElement::one(), bool_type);
                 self.insert_instruction_with_typevars(
                     Instruction::EnableSideEffectsIf { condition: one },
                     None,
-                    im::Vector::new(),
+                    CallStack::new(),
                 );
                 self.push_instruction(*instruction);
                 self.insert_current_side_effects_enabled();
@@ -540,7 +537,7 @@ impl<'f> Context<'f> {
         let else_condition = if let Some(branch) = cond_context.else_branch {
             branch.condition
         } else {
-            self.inserter.function.dfg.make_constant(FieldElement::zero(), Type::bool())
+            self.inserter.function.dfg.make_constant(FieldElement::zero(), NumericType::bool())
         };
         let block = self.inserter.function.entry_block();
 
@@ -606,7 +603,7 @@ impl<'f> Context<'f> {
         let condition = match self.get_last_condition() {
             Some(cond) => cond,
             None => {
-                self.inserter.function.dfg.make_constant(FieldElement::one(), Type::unsigned(1))
+                self.inserter.function.dfg.make_constant(FieldElement::one(), NumericType::bool())
             }
         };
         let enable_side_effects = Instruction::EnableSideEffectsIf { condition };
@@ -653,13 +650,9 @@ impl<'f> Context<'f> {
 
                     // Condition needs to be cast to argument type in order to multiply them together.
                     let argument_type = self.inserter.function.dfg.type_of_value(lhs);
-                    // Sanity check that we're not constraining non-primitive types
-                    assert!(matches!(argument_type, Type::Numeric(_)));
 
-                    let casted_condition = self.insert_instruction(
-                        Instruction::Cast(condition, argument_type),
-                        call_stack.clone(),
-                    );
+                    let cast = Instruction::Cast(condition, argument_type.unwrap_numeric());
+                    let casted_condition = self.insert_instruction(cast, call_stack.clone());
 
                     let lhs = self.insert_instruction(
                         Instruction::binary(BinaryOp::Mul, lhs, casted_condition),
@@ -708,10 +701,8 @@ impl<'f> Context<'f> {
 
                     // Condition needs to be cast to argument type in order to multiply them together.
                     let argument_type = self.inserter.function.dfg.type_of_value(value);
-                    let casted_condition = self.insert_instruction(
-                        Instruction::Cast(condition, argument_type),
-                        call_stack.clone(),
-                    );
+                    let cast = Instruction::Cast(condition, argument_type.unwrap_numeric());
+                    let casted_condition = self.insert_instruction(cast, call_stack.clone());
 
                     let value = self.insert_instruction(
                         Instruction::binary(BinaryOp::Mul, value, casted_condition),
@@ -725,10 +716,8 @@ impl<'f> Context<'f> {
                         let field = arguments[0];
                         let argument_type = self.inserter.function.dfg.type_of_value(field);
 
-                        let casted_condition = self.insert_instruction(
-                            Instruction::Cast(condition, argument_type),
-                            call_stack.clone(),
-                        );
+                        let cast = Instruction::Cast(condition, argument_type.unwrap_numeric());
+                        let casted_condition = self.insert_instruction(cast, call_stack.clone());
                         let field = self.insert_instruction(
                             Instruction::binary(BinaryOp::Mul, field, casted_condition),
                             call_stack.clone(),

@@ -469,7 +469,7 @@ impl<'function> PerFunctionContext<'function> {
                 unreachable!("All Value::Params should already be known from previous calls to translate_block. Unknown value {id} = {value:?}")
             }
             Value::NumericConstant { constant, typ } => {
-                self.context.builder.numeric_constant(*constant, typ.clone())
+                self.context.builder.numeric_constant(*constant, *typ)
             }
             Value::Function(function) => self.context.builder.import_function(*function),
             Value::Intrinsic(intrinsic) => self.context.builder.import_intrinsic_id(*intrinsic),
@@ -1062,10 +1062,10 @@ mod test {
         let join_block = builder.insert_block();
         builder.terminate_with_jmpif(inner2_cond, then_block, else_block);
         builder.switch_to_block(then_block);
-        let one = builder.numeric_constant(FieldElement::one(), Type::field());
+        let one = builder.field_constant(FieldElement::one());
         builder.terminate_with_jmp(join_block, vec![one]);
         builder.switch_to_block(else_block);
-        let two = builder.numeric_constant(FieldElement::from(2_u128), Type::field());
+        let two = builder.field_constant(FieldElement::from(2_u128));
         builder.terminate_with_jmp(join_block, vec![two]);
         let join_param = builder.add_block_parameter(join_block, Type::field());
         builder.switch_to_block(join_block);
@@ -1177,17 +1177,16 @@ mod test {
         builder.terminate_with_return(v0);
 
         builder.new_brillig_function("bar".into(), bar_id, InlineType::default());
-        let bar_v0 =
-            builder.numeric_constant(1_usize, Type::Numeric(NumericType::Unsigned { bit_size: 1 }));
+        let bar_v0 = builder.numeric_constant(1_usize, NumericType::bool());
         let then_block = builder.insert_block();
         let else_block = builder.insert_block();
         let join_block = builder.insert_block();
         builder.terminate_with_jmpif(bar_v0, then_block, else_block);
         builder.switch_to_block(then_block);
-        let one = builder.numeric_constant(FieldElement::one(), Type::field());
+        let one = builder.field_constant(FieldElement::one());
         builder.terminate_with_jmp(join_block, vec![one]);
         builder.switch_to_block(else_block);
-        let two = builder.numeric_constant(FieldElement::from(2_u128), Type::field());
+        let two = builder.field_constant(FieldElement::from(2_u128));
         builder.terminate_with_jmp(join_block, vec![two]);
         let join_param = builder.add_block_parameter(join_block, Type::field());
         builder.switch_to_block(join_block);

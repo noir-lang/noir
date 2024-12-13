@@ -87,7 +87,6 @@ fn call_foreign(
         "sha256_compression" => sha256_compression(interner, args, location),
         _ => {
             let explanation = match name {
-                "schnorr_verify" => "Schnorr verification will be removed.".into(),
                 "and" | "xor" => "It should be turned into a binary operation.".into(),
                 "recursive_aggregation" => "A proof cannot be verified at comptime.".into(),
                 _ => {

@@ -4,6 +4,8 @@ use acvm::{acir::AcirField, FieldElement};
 use fxhash::FxHashMap as HashMap;
 
 use crate::ssa::ir::function::RuntimeType;
+use crate::ssa::ir::instruction::Hint;
+use crate::ssa::ir::types::NumericType;
 use crate::ssa::ir::value::ValueId;
 use crate::ssa::{
     ir::{
@@ -62,7 +64,8 @@ impl Context {
     fn remove_if_else(&mut self, function: &mut Function) {
         let block = function.entry_block();
         let instructions = function.dfg[block].take_instructions();
-        let mut current_conditional = function.dfg.make_constant(FieldElement::one(), Type::bool());
+        let one = FieldElement::one();
+        let mut current_conditional = function.dfg.make_constant(one, NumericType::bool());
 
         for instruction in instructions {
             match &function.dfg[instruction] {
@@ -231,6 +234,7 @@ fn slice_capacity_change(
         | Intrinsic::ArrayAsStrUnchecked
         | Intrinsic::StrAsBytes
         | Intrinsic::BlackBox(_)
+        | Intrinsic::Hint(Hint::BlackBox)
         | Intrinsic::FromField
         | Intrinsic::AsField
         | Intrinsic::AsWitness

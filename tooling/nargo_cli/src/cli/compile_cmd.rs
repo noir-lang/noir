@@ -5,10 +5,12 @@ use std::time::Duration;
 use acvm::acir::circuit::ExpressionWidth;
 use fm::FileManager;
 use nargo::ops::{collect_errors, compile_contract, compile_program, report_errors};
-use nargo::package::{CrateName, Package};
+use nargo::package::Package;
 use nargo::workspace::Workspace;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
-use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
+use nargo_toml::{
+    get_package_manifest, resolve_workspace_from_toml, ManifestError, PackageSelection,
+};
 use noirc_driver::DEFAULT_EXPRESSION_WIDTH;
 use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
 use noirc_driver::{CompilationResult, CompileOptions, CompiledContract};
@@ -21,19 +23,14 @@ use notify_debouncer_full::new_debouncer;
 use crate::errors::CliError;
 
 use super::fs::program::{read_program_from_file, save_contract_to_file, save_program_to_file};
-use super::NargoConfig;
+use super::{NargoConfig, PackageOptions};
 use rayon::prelude::*;
 
 /// Compile the program and its secret execution trace into ACIR format
 #[derive(Debug, Clone, Args)]
 pub(crate) struct CompileCommand {
-    /// The name of the package to compile
-    #[clap(long, conflicts_with = "workspace")]
-    package: Option<CrateName>,
-
-    /// Compile all packages in the workspace.
-    #[clap(long, conflicts_with = "package")]
-    workspace: bool,
+    #[clap(flatten)]
+    pub(super) package_options: PackageOptions,
 
     #[clap(flatten)]
     compile_options: CompileOptions,
@@ -44,16 +41,8 @@ pub(crate) struct CompileCommand {
 }
 
 pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliError> {
-    let toml_path = get_package_manifest(&config.program_dir)?;
-    let default_selection =
-        if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
-    let selection = args.package.map_or(default_selection, PackageSelection::Selected);
-
-    let workspace = resolve_workspace_from_toml(
-        &toml_path,
-        selection,
-        Some(NOIR_ARTIFACT_VERSION_STRING.to_owned()),
-    )?;
+    let selection = args.package_options.package_selection();
+    let workspace = read_workspace(&config.program_dir, selection)?;
 
     if args.watch {
         watch_workspace(&workspace, &args.compile_options)
@@ -63,6 +52,22 @@ pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliEr
     }
 
     Ok(())
+}
+
+/// Read a given program directory into a workspace.
+fn read_workspace(
+    program_dir: &Path,
+    selection: PackageSelection,
+) -> Result<Workspace, ManifestError> {
+    let toml_path = get_package_manifest(program_dir)?;
+
+    let workspace = resolve_workspace_from_toml(
+        &toml_path,
+        selection,
+        Some(NOIR_ARTIFACT_VERSION_STRING.to_owned()),
+    )?;
+
+    Ok(workspace)
 }
 
 /// Continuously recompile the workspace on any Noir file change event.
@@ -109,15 +114,21 @@ fn watch_workspace(workspace: &Workspace, compile_options: &CompileOptions) -> n
     Ok(())
 }
 
+/// Parse all files in the workspace.
+fn parse_workspace(workspace: &Workspace) -> (FileManager, ParsedFiles) {
+    let mut file_manager = workspace.new_file_manager();
+    insert_all_files_for_workspace_into_file_manager(workspace, &mut file_manager);
+    let parsed_files = parse_all(&file_manager);
+    (file_manager, parsed_files)
+}
+
 /// Parse and compile the entire workspace, then report errors.
 /// This is the main entry point used by all other commands that need compilation.
 pub(super) fn compile_workspace_full(
     workspace: &Workspace,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError> {
-    let mut workspace_file_manager = workspace.new_file_manager();
-    insert_all_files_for_workspace_into_file_manager(workspace, &mut workspace_file_manager);
-    let parsed_files = parse_all(&workspace_file_manager);
+    let (workspace_file_manager, parsed_files) = parse_workspace(workspace);
 
     let compiled_workspace =
         compile_workspace(&workspace_file_manager, &parsed_files, workspace, compile_options);
@@ -150,7 +161,7 @@ fn compile_workspace(
     let program_warnings_or_errors: CompilationResult<()> =
         compile_programs(file_manager, parsed_files, workspace, &binary_packages, compile_options);
 
-    let contract_warnings_or_errors: CompilationResult<()> = compiled_contracts(
+    let contract_warnings_or_errors: CompilationResult<()> = compile_contracts(
         file_manager,
         parsed_files,
         &contract_packages,
@@ -244,7 +255,7 @@ fn compile_programs(
 }
 
 /// Compile the given contracts in the workspace.
-fn compiled_contracts(
+fn compile_contracts(
     file_manager: &FileManager,
     parsed_files: &ParsedFiles,
     contract_packages: &[Package],
@@ -294,5 +305,140 @@ pub(crate) fn get_target_width(
         manifest_default_width
     } else {
         compile_options_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{
+        path::{Path, PathBuf},
+        str::FromStr,
+    };
+
+    use clap::Parser;
+    use nargo::ops::compile_program;
+    use nargo_toml::PackageSelection;
+    use noirc_driver::{CompileOptions, CrateName};
+    use rayon::prelude::*;
+
+    use crate::cli::compile_cmd::{get_target_width, parse_workspace, read_workspace};
+
+    /// Try to find the directory that Cargo sets when it is running;
+    /// otherwise fallback to assuming the CWD is the root of the repository
+    /// and append the crate path.
+    fn test_programs_dir() -> PathBuf {
+        let root_dir = match std::env::var("CARGO_MANIFEST_DIR") {
+            Ok(dir) => PathBuf::from(dir).parent().unwrap().parent().unwrap().to_path_buf(),
+            Err(_) => std::env::current_dir().unwrap(),
+        };
+        root_dir.join("test_programs")
+    }
+
+    /// Collect the test programs under a sub-directory.
+    fn read_test_program_dirs(
+        test_programs_dir: &Path,
+        test_sub_dir: &str,
+    ) -> impl Iterator<Item = PathBuf> {
+        let test_case_dir = test_programs_dir.join(test_sub_dir);
+        std::fs::read_dir(test_case_dir)
+            .unwrap()
+            .flatten()
+            .filter(|c| c.path().is_dir())
+            .map(|c| c.path())
+    }
+
+    #[derive(Parser, Debug)]
+    #[command(ignore_errors = true)]
+    struct Options {
+        /// Test name to filter for.
+        ///
+        /// For example:
+        /// ```text
+        /// cargo test -p nargo_cli -- test_transform_program_is_idempotent slice_loop
+        /// ```
+        args: Vec<String>,
+    }
+
+    impl Options {
+        fn package_selection(&self) -> PackageSelection {
+            match self.args.as_slice() {
+                [_test_name, test_program] => {
+                    PackageSelection::Selected(CrateName::from_str(test_program).unwrap())
+                }
+                _ => PackageSelection::DefaultOrAll,
+            }
+        }
+    }
+
+    /// Check that `nargo::ops::transform_program` is idempotent by compiling the
+    /// test programs and running them through the optimizer twice.
+    ///
+    /// This test is here purely because of the convenience of having access to
+    /// the utility functions to process workspaces.
+    #[test]
+    fn test_transform_program_is_idempotent() {
+        let opts = Options::parse();
+
+        let sel = opts.package_selection();
+        let verbose = matches!(sel, PackageSelection::Selected(_));
+
+        let test_workspaces = read_test_program_dirs(&test_programs_dir(), "execution_success")
+            .filter_map(|dir| read_workspace(&dir, sel.clone()).ok())
+            .collect::<Vec<_>>();
+
+        assert!(!test_workspaces.is_empty(), "should find some test workspaces");
+
+        test_workspaces.par_iter().for_each(|workspace| {
+            let (file_manager, parsed_files) = parse_workspace(workspace);
+            let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
+
+            for package in binary_packages {
+                let (program_0, _warnings) = compile_program(
+                    &file_manager,
+                    &parsed_files,
+                    workspace,
+                    package,
+                    &CompileOptions::default(),
+                    None,
+                )
+                .expect("failed to compile");
+
+                let width = get_target_width(package.expression_width, None);
+
+                let program_1 = nargo::ops::transform_program(program_0, width);
+                let program_2 = nargo::ops::transform_program(program_1.clone(), width);
+
+                if verbose {
+                    // Compare where the most likely difference is.
+                    similar_asserts::assert_eq!(
+                        format!("{}", program_1.program),
+                        format!("{}", program_2.program),
+                        "optimization not idempotent for test program '{}'",
+                        package.name
+                    );
+                    assert_eq!(
+                        program_1.program, program_2.program,
+                        "optimization not idempotent for test program '{}'",
+                        package.name
+                    );
+
+                    // Compare the whole content.
+                    similar_asserts::assert_eq!(
+                        serde_json::to_string_pretty(&program_1).unwrap(),
+                        serde_json::to_string_pretty(&program_2).unwrap(),
+                        "optimization not idempotent for test program '{}'",
+                        package.name
+                    );
+                } else {
+                    // Just compare hashes, which would just state that the program failed.
+                    // Then we can use the filter option to zoom in one one to see why.
+                    assert!(
+                        fxhash::hash64(&program_1) == fxhash::hash64(&program_2),
+                        "optimization not idempotent for test program '{}'",
+                        package.name
+                    );
+                }
+            }
+        });
     }
 }

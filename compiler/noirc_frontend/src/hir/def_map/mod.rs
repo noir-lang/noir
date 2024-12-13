@@ -289,6 +289,29 @@ impl CrateDefMap {
             String::new()
         }
     }
+
+    /// Return a topological ordering of each module such that any child modules
+    /// are before their parent modules. Sibling modules will respect the ordering
+    /// declared from their parent module (the `mod foo; mod bar;` declarations).
+    pub fn get_module_topological_order(&self) -> HashMap<LocalModuleId, usize> {
+        let mut ordering = HashMap::default();
+        self.topologically_sort_modules(self.root, &mut 0, &mut ordering);
+        ordering
+    }
+
+    fn topologically_sort_modules(
+        &self,
+        current: LocalModuleId,
+        index: &mut usize,
+        ordering: &mut HashMap<LocalModuleId, usize>,
+    ) {
+        for child in &self.modules[current.0].child_declaration_order {
+            self.topologically_sort_modules(*child, index, ordering);
+        }
+
+        ordering.insert(current, *index);
+        *index += 1;
+    }
 }
 
 /// Specifies a contract function and extra metadata that

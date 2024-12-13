@@ -72,7 +72,10 @@ pub struct SsaEvaluatorOptions {
     /// Skip the check for under constrained values
     pub skip_underconstrained_check: bool,
 
-    /// The higher the value, the more inlined brillig functions will be.
+    /// Skip the missing Brillig call constraints check
+    pub skip_brillig_constraints_check: bool,
+
+    /// The higher the value, the more inlined Brillig functions will be.
     pub inliner_aggressiveness: i64,
 
     /// Maximum accepted percentage increase in the Brillig bytecode size after unrolling loops.
@@ -94,60 +97,32 @@ pub(crate) fn optimize_into_acir(
 ) -> Result<ArtifactsAndWarnings, RuntimeError> {
     let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
     let ssa_gen_span_guard = ssa_gen_span.enter();
-
-    let mut ssa = SsaBuilder::new(
+    let builder = SsaBuilder::new(
         program,
         options.ssa_logging.clone(),
         options.force_brillig_output,
         options.print_codegen_timings,
         &options.emit_ssa,
-    )?
-    .run_pass(Ssa::defunctionalize, "Defunctionalization")
-    .run_pass(Ssa::remove_paired_rc, "Removing Paired rc_inc & rc_decs")
-    .run_pass(Ssa::separate_runtime, "Runtime Separation")
-    .run_pass(Ssa::resolve_is_unconstrained, "Resolving IsUnconstrained")
-    .run_pass(|ssa| ssa.inline_functions(options.inliner_aggressiveness), "Inlining (1st)")
-    // Run mem2reg with the CFG separated into blocks
-    .run_pass(Ssa::mem2reg, "Mem2Reg (1st)")
-    .run_pass(Ssa::simplify_cfg, "Simplifying (1st)")
-    .run_pass(Ssa::as_slice_optimization, "`as_slice` optimization")
-    .try_run_pass(
-        Ssa::evaluate_static_assert_and_assert_constant,
-        "`static_assert` and `assert_constant`",
-    )?
-    .run_pass(Ssa::loop_invariant_code_motion, "Loop Invariant Code Motion")
-    .try_run_pass(
-        |ssa| ssa.unroll_loops_iteratively(options.max_bytecode_increase_percent),
-        "Unrolling",
-    )?
-    .run_pass(Ssa::simplify_cfg, "Simplifying (2nd)")
-    .run_pass(Ssa::flatten_cfg, "Flattening")
-    .run_pass(Ssa::remove_bit_shifts, "After Removing Bit Shifts")
-    // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
-    .run_pass(Ssa::mem2reg, "Mem2Reg (2nd)")
-    // Run the inlining pass again to handle functions with `InlineType::NoPredicates`.
-    // Before flattening is run, we treat functions marked with the `InlineType::NoPredicates` as an entry point.
-    // This pass must come immediately following `mem2reg` as the succeeding passes
-    // may create an SSA which inlining fails to handle.
-    .run_pass(
-        |ssa| ssa.inline_functions_with_no_predicates(options.inliner_aggressiveness),
-        "Inlining (2nd)",
-    )
-    .run_pass(Ssa::remove_if_else, "Remove IfElse")
-    .run_pass(Ssa::fold_constants, "Constant Folding")
-    .run_pass(Ssa::remove_enable_side_effects, "EnableSideEffectsIf removal")
-    .run_pass(Ssa::fold_constants_using_constraints, "Constraint Folding")
-    .run_pass(Ssa::dead_instruction_elimination, "Dead Instruction Elimination (1st)")
-    .run_pass(Ssa::simplify_cfg, "Simplifying:")
-    .run_pass(Ssa::array_set_optimization, "Array Set Optimizations")
-    .finish();
+    )?;
 
-    let ssa_level_warnings = if options.skip_underconstrained_check {
-        vec![]
-    } else {
-        time("After Check for Underconstrained Values", options.print_codegen_timings, || {
-            ssa.check_for_underconstrained_values()
-        })
+    let mut ssa = optimize_all(builder, options)?;
+
+    let mut ssa_level_warnings = vec![];
+
+    if !options.skip_underconstrained_check {
+        ssa_level_warnings.extend(time(
+            "After Check for Underconstrained Values",
+            options.print_codegen_timings,
+            || ssa.check_for_underconstrained_values(),
+        ));
+    }
+
+    if !options.skip_brillig_constraints_check {
+        ssa_level_warnings.extend(time(
+            "After Check for Missing Brillig Call Constraints",
+            options.print_codegen_timings,
+            || ssa.check_for_missing_brillig_constraints(),
+        ));
     };
 
     drop(ssa_gen_span_guard);
@@ -173,7 +148,52 @@ pub(crate) fn optimize_into_acir(
     let artifacts = time("SSA to ACIR", options.print_codegen_timings, || {
         ssa.into_acir(&brillig, options.expression_width)
     })?;
+
     Ok(ArtifactsAndWarnings(artifacts, ssa_level_warnings))
+}
+
+/// Run all SSA passes.
+fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ssa, RuntimeError> {
+    Ok(builder
+        .run_pass(Ssa::defunctionalize, "Defunctionalization")
+        .run_pass(Ssa::remove_paired_rc, "Removing Paired rc_inc & rc_decs")
+        .run_pass(Ssa::separate_runtime, "Runtime Separation")
+        .run_pass(Ssa::resolve_is_unconstrained, "Resolving IsUnconstrained")
+        .run_pass(|ssa| ssa.inline_functions(options.inliner_aggressiveness), "Inlining (1st)")
+        // Run mem2reg with the CFG separated into blocks
+        .run_pass(Ssa::mem2reg, "Mem2Reg (1st)")
+        .run_pass(Ssa::simplify_cfg, "Simplifying (1st)")
+        .run_pass(Ssa::as_slice_optimization, "`as_slice` optimization")
+        .try_run_pass(
+            Ssa::evaluate_static_assert_and_assert_constant,
+            "`static_assert` and `assert_constant`",
+        )?
+        .run_pass(Ssa::loop_invariant_code_motion, "Loop Invariant Code Motion")
+        .try_run_pass(
+            |ssa| ssa.unroll_loops_iteratively(options.max_bytecode_increase_percent),
+            "Unrolling",
+        )?
+        .run_pass(Ssa::simplify_cfg, "Simplifying (2nd)")
+        .run_pass(Ssa::flatten_cfg, "Flattening")
+        .run_pass(Ssa::remove_bit_shifts, "After Removing Bit Shifts")
+        // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
+        .run_pass(Ssa::mem2reg, "Mem2Reg (2nd)")
+        // Run the inlining pass again to handle functions with `InlineType::NoPredicates`.
+        // Before flattening is run, we treat functions marked with the `InlineType::NoPredicates` as an entry point.
+        // This pass must come immediately following `mem2reg` as the succeeding passes
+        // may create an SSA which inlining fails to handle.
+        .run_pass(
+            |ssa| ssa.inline_functions_with_no_predicates(options.inliner_aggressiveness),
+            "Inlining (2nd)",
+        )
+        .run_pass(Ssa::remove_if_else, "Remove IfElse")
+        .run_pass(Ssa::fold_constants, "Constant Folding")
+        .run_pass(Ssa::remove_enable_side_effects, "EnableSideEffectsIf removal")
+        .run_pass(Ssa::fold_constants_using_constraints, "Constraint Folding")
+        .run_pass(Ssa::dead_instruction_elimination, "Dead Instruction Elimination (1st)")
+        .run_pass(Ssa::simplify_cfg, "Simplifying:")
+        .run_pass(Ssa::array_set_optimization, "Array Set Optimizations")
+        .finish())
 }
 
 // Helper to time SSA passes
@@ -449,7 +469,7 @@ impl SsaBuilder {
     }
 
     fn finish(self) -> Ssa {
-        self.ssa
+        self.ssa.generate_entry_point_index()
     }
 
     /// Runs the given SSA pass and prints the SSA afterward if `print_ssa_passes` is true.
