@@ -375,18 +375,18 @@ jobs:
             test_programs/compilation_report.sh
           sparse-checkout-cone-mode: false
 
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
           repository: ${{ matrix.project.repo }}
           path: test-repo
           ref: ${{ matrix.project.ref }}
-
-      - uses: actions/checkout@v4
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20.x'
 
       - name: Generate compilation report
         working-directory: ./test-repo/${{ matrix.project.path }}
