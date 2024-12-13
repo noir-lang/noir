@@ -2905,7 +2905,7 @@ mod test {
         ssa::{
             function_builder::FunctionBuilder,
             ir::{
-                dfg::CallStack,
+                call_stack::CallStack,
                 function::FunctionId,
                 instruction::BinaryOp,
                 map::Id,
