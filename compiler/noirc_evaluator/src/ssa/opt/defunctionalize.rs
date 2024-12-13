@@ -268,7 +268,7 @@ fn create_apply_functions(
 }
 
 fn function_id_to_field(function_id: FunctionId) -> FieldElement {
-    (function_id.to_usize() as u128).into()
+    (function_id.to_u32() as u128).into()
 }
 
 /// Creates an apply function for the given signature and variants
