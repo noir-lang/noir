@@ -319,11 +319,7 @@ impl DependencyContext {
                         Value::Function(callee) => match all_functions[&callee].runtime() {
                             RuntimeType::Brillig(_) => {
                                 // Record arguments/results for each Brillig call for the check
-                                trace!(
-                                    "Brillig function {} called at {}",
-                                    callee,
-                                    instruction
-                                );
+                                trace!("Brillig function {} called at {}", callee, instruction);
                                 self.tainted.insert(
                                     *instruction,
                                     BrilligTaintedIds::new(&arguments, &results),
@@ -376,7 +372,7 @@ impl DependencyContext {
             }
         }
 
-        trace!("resulting Brillig involved values: {:?}", self.tainted);
+        trace!("Number tainted Brillig calls: {}", self.tainted.len());
     }
 
     /// Every Brillig call not properly constrained should remain in the tainted set
