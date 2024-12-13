@@ -20,19 +20,21 @@ sidebar_position: 0
 pagination_next: tutorials/noirjs_app
 ---
 
-Noir has the ability to generate a verifier contract in Solidity, which can be deployed in many EVM-compatible blockchains such as Ethereum.
+Noir is universal. The witness and the compiled program can be fed into a proving backend such as Aztec's [Barretenberg](https://github.com/AztecProtocol/aztec-packages/tree/master/barretenberg), which can then generate a verifier contract for deployment on blockchains.
 
 This allows for a powerful feature set, as one can make use of the conciseness and the privacy provided by Noir in an immutable ledger. Applications can range from simple P2P guessing games, to complex private DeFi interactions.
 
-This guide shows you how to generate a Solidity Verifier and deploy it on the [Remix IDE](https://remix.ethereum.org/). It is assumed that:
+Although not strictly in the domain of Noir itself, this guide shows how to generate a Solidity Verifier with Barretenberg and deploy it on the [Remix IDE](https://remix.ethereum.org/). It is assumed that:
 
+- You will be using Barretenberg as your proving backend
+- You will be using an EVM blockchain to verify your proof
 - You are comfortable with the Solidity programming language and understand how contracts are deployed on the Ethereum network
 - You have Noir installed and you have a Noir program. If you don't, [get started](../getting_started/quick_start.md) with Nargo and the example Hello Noir circuit
 - You are comfortable navigating RemixIDE. If you aren't or you need a refresher, you can find some video tutorials [here](https://www.youtube.com/channel/UCjTUPyFEr2xDGN6Cg8nKDaA) that could help you.
 
 ## Rundown
 
-Generating a Solidity Verifier contract is actually a one-command process. However, compiling it and deploying it can have some caveats. Here's the rundown of this guide:
+Generating a Solidity Verifier with Barretenberg contract is actually a one-command process. However, compiling it and deploying it can have some caveats. Here's the rundown of this guide:
 
 1. How to generate a solidity smart contract
 2. How to compile the smart contract in the RemixIDE
@@ -46,24 +48,22 @@ This is by far the most straightforward step. Just run:
 nargo compile
 ```
 
-This will compile your source code into a Noir build artifact to be stored in the `./target` directory, you can then generate the smart contract using the commands:
+This will compile your source code into a Noir build artifact to be stored in the `./target` directory. From here on, it's Barretenberg's work. You can generate the smart contract using the commands:
 
 ```sh
-# Here we pass the path to the newly generated Noir artifact.
-bb write_vk -b ./target/<noir_artifact_name>.json
-bb contract
+# using Barretenberg's UltraHonk here
+bb write_vk_ultra_keccak_honk -b ./target/<noir_artifact_name>.json
+bb contract_ultra_honk -b ./target/<noir_artifact_name>.json -o ./target/Verifier.sol
 ```
 
-replacing `<noir_artifact_name>` with the name of your Noir project. A new `contract` folder would then be generated in your project directory, containing the Solidity
-file `contract.sol`. It can be deployed to any EVM blockchain acting as a verifier smart contract.
+replacing `<noir_artifact_name>` with the name of your Noir project. A `Verifier.sol` contract is now in the target folder and can be deployed to any EVM blockchain acting as a verifier smart contract.
 
 You can find more information about `bb` and the default Noir proving backend on [this page](../getting_started/quick_start.md#proving-backend).
 
-:::info
+:::tip[Why UltraHonk?]
 
-It is possible to generate verifier contracts of Noir programs for other smart contract platforms as long as the proving backend supplies an implementation.
+UltraHonk is faster and more efficient, however the verifier contracts are more expensive. If gas cost is a concern, try UltraPlonk instead!
 
-Barretenberg, the default proving backend for Nargo, supports generation of verifier contracts, for the time being these are only in Solidity.
 :::
 
 ## Step 2 - Compiling
@@ -85,17 +85,11 @@ To compile our the verifier, we can navigate to the compilation tab:
 
 ![Compilation Tab](@site/static/img/how-tos/solidity_verifier_2.png)
 
-Remix should automatically match a suitable compiler version. However, hitting the "Compile" button will most likely generate a "Stack too deep" error:
+Remix should automatically match a suitable compiler version. However, hitting the "Compile" button will most likely tell you the contract is too big to deploy on mainnet:
 
-![Stack too deep](@site/static/img/how-tos/solidity_verifier_3.png)
+![Stack too deep](@site/static/img/how-tos/solidity_verifier_6.png)
 
-This is due to the verify function needing to put many variables on the stack, but enabling the optimizer resolves the issue. To do this, let's open the "Advanced Configurations" tab and enable optimization. The default 200 runs will suffice.
-
-:::info
-
-This time we will see a warning about an unused function parameter. This is expected, as the `verify` function doesn't use the `_proof` parameter inside a solidity block, it is loaded from calldata and used in assembly.
-
-:::
+If you care about that, you can just use some optimization. To do this, open the "Advanced Configurations" tab and enable optimization. The default 200 runs will suffice.
 
 ![Compilation success](@site/static/img/how-tos/solidity_verifier_4.png)
 
@@ -103,55 +97,36 @@ This time we will see a warning about an unused function parameter. This is expe
 
 At this point we should have a compiled contract ready to deploy. If we navigate to the deploy section in Remix, we will see many different environments we can deploy to. The steps to deploy on each environment would be out-of-scope for this guide, so we will just use the default Remix VM.
 
-Looking closely, we will notice that our "Solidity Verifier" is actually three contracts working together:
+Looking closely, we will notice that our "Solidity Verifier" is composed on multiple contracts working together. Remix will take care of the dependencies for us so we can simply deploy the HonkVerifier contract by selecting it and hitting "deploy":
 
-- An `UltraVerificationKey` library which simply stores the verification key for our circuit.
-- An abstract contract `BaseUltraVerifier` containing most of the verifying logic.
-- A main `UltraVerifier` contract that inherits from the Base and uses the Key contract.
+![Deploying HonkVerifier](@site/static/img/how-tos/solidity_verifier_7.png)
 
-Remix will take care of the dependencies for us so we can simply deploy the UltraVerifier contract by selecting it and hitting "deploy":
-
-![Deploying UltraVerifier](@site/static/img/how-tos/solidity_verifier_5.png)
-
-A contract will show up in the "Deployed Contracts" section, where we can retrieve the Verification Key Hash. This is particularly useful for double-checking that the deployer contract is the correct one.
-
-:::note
-
-Why "UltraVerifier"?
-
-To be precise, the Noir compiler (`nargo`) doesn't generate the verifier contract directly. It compiles the Noir code into an intermediate language (ACIR), which is then executed by the backend. So it is the backend that returns the verifier smart contract, not Noir.
-
-In this case, the Barretenberg Backend uses the UltraPlonk proving system, hence the "UltraVerifier" name.
-
-:::
+A contract will show up in the "Deployed Contracts" section.
 
 ## Step 4 - Verifying
 
-To verify a proof using the Solidity verifier contract, we call the `verify` function in this extended contract:
+To verify a proof using the Solidity verifier contract, we call the `verify` function:
 
 ```solidity
 function verify(bytes calldata _proof, bytes32[] calldata _publicInputs) external view returns (bool)
 ```
 
-When using the default example in the [Hello Noir](../getting_started/quick_start.md) guide, the easiest way to confirm that the verifier contract is doing its job is by calling the `verify` function via remix with the required parameters. Note that the public inputs must be passed in separately to the rest of the proof so we must split the proof as returned from `bb`.
-
-First generate a proof with `bb` at the location `./proof` using the steps in [get started](../getting_started/quick_start.md), this proof is in a binary format but we want to convert it into a hex string to pass into Remix, this can be done with the
+First generate a proof with `bb`. We will first execute the circuit with `nargo` and then use the proving backend to prove. For UltraHonk, the `keccak` version is needed:
 
 ```bash
-# This value must be changed to match the number of public inputs (including return values!) in your program.
-NUM_PUBLIC_INPUTS=1
-PUBLIC_INPUT_BYTES=32*NUM_PUBLIC_INPUTS
-HEX_PUBLIC_INPUTS=$(head -c $PUBLIC_INPUT_BYTES ./proof | od -An -v -t x1 | tr -d $' \n')
-HEX_PROOF=$(tail -c +$(($PUBLIC_INPUT_BYTES + 1)) ./proof | od -An -v -t x1 | tr -d $' \n')
-
-echo "Public inputs:"
-echo $HEX_PUBLIC_INPUTS
-
-echo "Proof:"
-echo "0x$HEX_PROOF"
+nargo execute <witness-name>
+bb prove_ultra_keccak_honk -b ./target/<circuit-name>.json -w ./target/<witness-name> -o ./target/proof
 ```
 
-Remix expects that the public inputs will be split into an array of `bytes32` values so `HEX_PUBLIC_INPUTS` needs to be split up into 32 byte chunks which are prefixed with `0x` accordingly.
+Barretenberg attaches the public inputs to the proof, which in this case it's not very useful. If you're up for some JS, `bb.js` has [a method for it](https://github.com/AztecProtocol/aztec-packages/blob/master/barretenberg/ts/src/proof/index.ts), but in the CLI you can use this ugly snippet:
+
+```bash
+cat ./target/proof | od -An -v -t x1 | tr -d $' \n' | sed 's/^.\{8\}//' | (read hex; echo "${hex:0:192}${hex:256}")
+```
+
+Beautiful. This assumes a circuit with one public input (32 bytes, for Barretenberg). For more inputs, you can just increment `hex:256` with 32 more bytes for each public input.
+
+Anyway, Remix expects that the public inputs will be split into an array of `bytes32` values so `HEX_PUBLIC_INPUTS` needs to be split up into 32 byte chunks which are prefixed with `0x` accordingly.
 
 A programmatic example of how the `verify` function is called can be seen in the example zk voting application [here](https://github.com/noir-lang/noir-examples/blob/33e598c257e2402ea3a6b68dd4c5ad492bce1b0a/foundry-voting/src/zkVote.sol#L35):
 
@@ -188,7 +163,7 @@ the `verify` function will expect the public inputs array (second function param
 
 Passing only two inputs will result in an error such as `PUBLIC_INPUT_COUNT_INVALID(3, 2)`.
 
-In this case, the inputs parameter to `verify` would be an array ordered as `[pubkey_x, pubkey_y, return`.
+In this case, the inputs parameter to `verify` would be an array ordered as `[pubkey_x, pubkey_y, return]`.
 
 :::
 
