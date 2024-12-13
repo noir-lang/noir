@@ -57,7 +57,7 @@ impl CallStackId {
     fn add_child(&self, location: Location, locations: &mut Vec<LocationNode>) -> CallStackId {
         if let Some(result) = locations[self.index()]
             .children
-            .iter()
+            .iter().rev().take(1000)
             .find(|child| locations[child.index()].value == location)
         {
             return *result;
