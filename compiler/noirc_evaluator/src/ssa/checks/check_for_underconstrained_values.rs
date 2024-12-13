@@ -387,7 +387,11 @@ impl DependencyContext {
             })
             .collect();
 
-        trace!("making {} under constrained reports for function {}", warnings.len(), function.name());
+        trace!(
+            "making {} under constrained reports for function {}",
+            warnings.len(),
+            function.name()
+        );
         warnings
     }
 
