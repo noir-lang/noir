@@ -108,7 +108,7 @@ struct DependencyContext {
 }
 
 /// Structure keeping track of value ids descending from Brillig calls'
-/// arguments and results, also storing information osn results
+/// arguments and results, also storing information on results
 /// already properly constrained
 #[derive(Clone, Debug)]
 struct BrilligTaintedIds {
