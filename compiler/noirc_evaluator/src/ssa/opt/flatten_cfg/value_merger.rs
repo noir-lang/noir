@@ -130,30 +130,27 @@ impl<'a> ValueMerger<'a> {
             let conditional_diff_value = dfg
                 .insert_instruction_and_results(conditional_diff, block, None, call_stack.clone())
                 .first();
-    
+
             let merged_field =
                 Instruction::binary(BinaryOp::Add, else_value, conditional_diff_value);
-            dfg
-                .insert_instruction_and_results(merged_field, block, None, call_stack.clone())
+            dfg.insert_instruction_and_results(merged_field, block, None, call_stack.clone())
                 .first()
         } else {
             let cast = Instruction::Cast(else_condition, else_type);
             let else_condition =
                 dfg.insert_instruction_and_results(cast, block, None, call_stack.clone()).first();
-    
+
             let mul = Instruction::binary(BinaryOp::Mul, then_condition, then_value);
             let then_value =
                 dfg.insert_instruction_and_results(mul, block, None, call_stack.clone()).first();
-    
+
             let mul = Instruction::binary(BinaryOp::Mul, else_condition, else_value);
             let else_value =
                 dfg.insert_instruction_and_results(mul, block, None, call_stack.clone()).first();
-    
+
             let add = Instruction::binary(BinaryOp::Add, then_value, else_value);
             dfg.insert_instruction_and_results(add, block, None, call_stack).first()
         }
-
-       
     }
 
     /// Given an if expression that returns an array: `if c { array1 } else { array2 }`,
