@@ -31,7 +31,11 @@ cfg-if.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true
+similar-asserts.workspace = true
+tracing-test = "0.2.5"
+num-traits.workspace = true
+test-case.workspace = true
 
 [features]
 bn254 = ["noirc_frontend/bn254"]
-bls12_381= []
+bls12_381 = []

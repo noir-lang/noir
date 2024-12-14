@@ -1,22 +1,15 @@
 fn main() {
-    comptime
-    {
+    comptime {
         closure_test(0);
     }
 }
 
 fn closure_test(mut x: Field) {
     let one = 1;
-    let add1 = |z| {
-        (|| {
-            *z += one;
-        })()
-    };
+    let add1 = |z| (|| { *z += one; })();
 
     let two = 2;
-    let add2 = |z| {
-        *z = *z + two;
-    };
+    let add2 = |z| { *z = *z + two; };
 
     add1(&mut x);
     assert(x == 1);

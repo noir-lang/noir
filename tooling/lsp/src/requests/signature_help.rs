@@ -12,8 +12,7 @@ use noirc_frontend::{
         MethodCallExpression, Statement, Visitor,
     },
     hir_def::{function::FuncMeta, stmt::HirPattern},
-    macros_api::NodeInterner,
-    node_interner::ReferenceId,
+    node_interner::{NodeInterner, ReferenceId},
     parser::Item,
     ParsedModule, Type,
 };

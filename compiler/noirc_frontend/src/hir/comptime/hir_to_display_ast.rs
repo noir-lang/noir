@@ -9,10 +9,11 @@ use crate::ast::{
     UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
 };
 use crate::ast::{ConstrainStatement, Expression, Statement, StatementKind};
-use crate::hir_def::expr::{HirArrayLiteral, HirBlockExpression, HirExpression, HirIdent};
+use crate::hir_def::expr::{
+    HirArrayLiteral, HirBlockExpression, HirExpression, HirIdent, HirLiteral,
+};
 use crate::hir_def::stmt::{HirLValue, HirPattern, HirStatement};
 use crate::hir_def::types::{Type, TypeBinding};
-use crate::macros_api::HirLiteral;
 use crate::node_interner::{ExprId, NodeInterner, StmtId};
 
 // TODO:
@@ -51,7 +52,7 @@ impl HirStatement {
             }),
             HirStatement::For(for_stmt) => StatementKind::For(ForLoopStatement {
                 identifier: for_stmt.identifier.to_display_ast(interner),
-                range: ForRange::Range(
+                range: ForRange::range(
                     for_stmt.start_range.to_display_ast(interner),
                     for_stmt.end_range.to_display_ast(interner),
                 ),
@@ -120,9 +121,9 @@ impl HirExpression {
             HirExpression::Literal(HirLiteral::Str(string)) => {
                 ExpressionKind::Literal(Literal::Str(string.clone()))
             }
-            HirExpression::Literal(HirLiteral::FmtStr(string, _exprs)) => {
+            HirExpression::Literal(HirLiteral::FmtStr(fragments, _exprs, length)) => {
                 // TODO: Is throwing away the exprs here valid?
-                ExpressionKind::Literal(Literal::FmtStr(string.clone()))
+                ExpressionKind::Literal(Literal::FmtStr(fragments.clone(), *length))
             }
             HirExpression::Literal(HirLiteral::Unit) => ExpressionKind::Literal(Literal::Unit),
             HirExpression::Block(expr) => ExpressionKind::Block(expr.to_display_ast(interner)),
@@ -302,7 +303,8 @@ impl Type {
             Type::Struct(def, generics) => {
                 let struct_def = def.borrow();
                 let ordered_args = vecmap(generics, |generic| generic.to_display_ast());
-                let generics = GenericTypeArgs { ordered_args, named_args: Vec::new() };
+                let generics =
+                    GenericTypeArgs { ordered_args, named_args: Vec::new(), kinds: Vec::new() };
                 let name = Path::from_ident(struct_def.name.clone());
                 UnresolvedTypeData::Named(name, generics, false)
             }
@@ -311,14 +313,15 @@ impl Type {
                 // alias' definition was changed
                 let type_def = type_def.borrow();
                 let ordered_args = vecmap(generics, |generic| generic.to_display_ast());
-                let generics = GenericTypeArgs { ordered_args, named_args: Vec::new() };
+                let generics =
+                    GenericTypeArgs { ordered_args, named_args: Vec::new(), kinds: Vec::new() };
                 let name = Path::from_ident(type_def.name.clone());
                 UnresolvedTypeData::Named(name, generics, false)
             }
-            Type::TypeVariable(binding, kind) => match &*binding.borrow() {
+            Type::TypeVariable(binding) => match &*binding.borrow() {
                 TypeBinding::Bound(typ) => return typ.to_display_ast(),
-                TypeBinding::Unbound(id) => {
-                    let name = format!("var_{:?}_{}", kind, id);
+                TypeBinding::Unbound(id, type_var_kind) => {
+                    let name = format!("var_{:?}_{}", type_var_kind, id);
                     let path = Path::from_single(name, Span::empty(0));
                     let expression = UnresolvedTypeExpression::Variable(path);
                     UnresolvedTypeData::Expression(expression)
@@ -329,14 +332,15 @@ impl Type {
                 let named_args = vecmap(&generics.named, |named_type| {
                     (named_type.name.clone(), named_type.typ.to_display_ast())
                 });
-                let generics = GenericTypeArgs { ordered_args, named_args };
+                let generics = GenericTypeArgs { ordered_args, named_args, kinds: Vec::new() };
                 let name = Path::from_single(name.as_ref().clone(), Span::default());
                 UnresolvedTypeData::TraitAsType(name, generics)
             }
-            Type::NamedGeneric(_var, name, _kind) => {
+            Type::NamedGeneric(_var, name) => {
                 let name = Path::from_single(name.as_ref().clone(), Span::default());
                 UnresolvedTypeData::Named(name, GenericTypeArgs::default(), true)
             }
+            Type::CheckedCast { to, .. } => to.to_display_ast().typ,
             Type::Function(args, ret, env, unconstrained) => {
                 let args = vecmap(args, |arg| arg.to_display_ast());
                 let ret = Box::new(ret.to_display_ast());
@@ -373,7 +377,7 @@ impl Type {
 
         match self.follow_bindings() {
             Type::Constant(length, _kind) => UnresolvedTypeExpression::Constant(length, span),
-            Type::NamedGeneric(_var, name, _kind) => {
+            Type::NamedGeneric(_var, name) => {
                 let path = Path::from_single(name.as_ref().clone(), span);
                 UnresolvedTypeExpression::Variable(path)
             }
@@ -416,7 +420,7 @@ impl HirArrayLiteral {
                 let repeated_element = Box::new(repeated_element.to_display_ast(interner));
                 let length = match length {
                     Type::Constant(length, _kind) => {
-                        let literal = Literal::Integer((*length as u128).into(), false);
+                        let literal = Literal::Integer(*length, false);
                         let expr_kind = ExpressionKind::Literal(literal);
                         Box::new(Expression::new(expr_kind, span))
                     }

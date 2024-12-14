@@ -1,7 +1,12 @@
-use lsp_types::{Position, Range, TextEdit};
-use noirc_frontend::macros_api::ModuleDefId;
+use noirc_frontend::hir::def_map::ModuleDefId;
 
-use crate::modules::{relative_module_full_path, relative_module_id_path};
+use crate::{
+    modules::{relative_module_full_path, relative_module_id_path},
+    use_segment_positions::{
+        use_completion_item_additional_text_edits, UseCompletionItemAdditionTextEditsRequest,
+    },
+    visibility::module_def_id_is_visible,
+};
 
 use super::{
     kinds::{FunctionCompletionKind, FunctionKind, RequestedItems},
@@ -26,6 +31,17 @@ impl<'a> NodeFinder<'a> {
 
             for (module_def_id, visibility, defining_module) in entries {
                 if self.suggested_module_def_ids.contains(module_def_id) {
+                    continue;
+                }
+
+                if !module_def_id_is_visible(
+                    *module_def_id,
+                    self.module_id,
+                    *visibility,
+                    *defining_module,
+                    self.interner,
+                    self.def_maps,
+                ) {
                     continue;
                 }
 
@@ -54,11 +70,9 @@ impl<'a> NodeFinder<'a> {
                     } else {
                         let Some(module_full_path) = relative_module_full_path(
                             *module_def_id,
-                            *visibility,
                             self.module_id,
                             current_module_parent_id,
                             self.interner,
-                            self.def_maps,
                         ) else {
                             continue;
                         };
@@ -76,27 +90,18 @@ impl<'a> NodeFinder<'a> {
                     let mut label_details = completion_item.label_details.unwrap();
                     label_details.detail = Some(format!("(use {})", full_path));
                     completion_item.label_details = Some(label_details);
-
-                    let line = self.auto_import_line as u32;
-                    let character = (self.nesting * 4) as u32;
-                    let indent = " ".repeat(self.nesting * 4);
-                    let mut newlines = "\n";
-
-                    // If the line we are inserting into is not an empty line, insert an extra line to make some room
-                    if let Some(line_text) = self.lines.get(line as usize) {
-                        if !line_text.trim().is_empty() {
-                            newlines = "\n\n";
-                        }
-                    }
-
-                    completion_item.additional_text_edits = Some(vec![TextEdit {
-                        range: Range {
-                            start: Position { line, character },
-                            end: Position { line, character },
-                        },
-                        new_text: format!("use {};{}{}", full_path, newlines, indent),
-                    }]);
-
+                    completion_item.additional_text_edits =
+                        Some(use_completion_item_additional_text_edits(
+                            UseCompletionItemAdditionTextEditsRequest {
+                                full_path: &full_path,
+                                files: self.files,
+                                file: self.file,
+                                lines: &self.lines,
+                                nesting: self.nesting,
+                                auto_import_line: self.auto_import_line,
+                            },
+                            &self.use_segment_positions,
+                        ));
                     completion_item.sort_text = Some(auto_import_sort_text());
 
                     self.completion_items.push(completion_item);

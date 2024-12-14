@@ -1,2 +1,1 @@
-struct MyStruct {
-}
+pub struct MyStruct {}

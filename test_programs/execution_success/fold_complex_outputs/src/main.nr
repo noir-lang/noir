@@ -2,7 +2,7 @@ struct MyStruct {
     x: u32,
     y: u32,
     z: u32,
-    nested_struct: InnerStruct
+    nested_struct: InnerStruct,
 }
 
 struct InnerStruct {

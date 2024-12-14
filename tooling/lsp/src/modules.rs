@@ -1,14 +1,8 @@
-use std::collections::BTreeMap;
-
 use noirc_frontend::{
-    ast::ItemVisibility,
     graph::{CrateId, Dependency},
-    hir::def_map::{CrateDefMap, ModuleId},
-    macros_api::{ModuleDefId, NodeInterner},
-    node_interner::ReferenceId,
+    hir::def_map::{ModuleDefId, ModuleId},
+    node_interner::{NodeInterner, ReferenceId},
 };
-
-use crate::visibility::is_visible;
 
 pub(crate) fn get_parent_module(
     interner: &NodeInterner,
@@ -34,18 +28,12 @@ pub(crate) fn module_def_id_to_reference_id(module_def_id: ModuleDefId) -> Refer
 /// - Otherwise, that item's parent module's path is returned
 pub(crate) fn relative_module_full_path(
     module_def_id: ModuleDefId,
-    visibility: ItemVisibility,
     current_module_id: ModuleId,
     current_module_parent_id: Option<ModuleId>,
     interner: &NodeInterner,
-    def_maps: &BTreeMap<CrateId, CrateDefMap>,
 ) -> Option<String> {
     let full_path;
     if let ModuleDefId::ModuleId(module_id) = module_def_id {
-        if !is_visible(module_id, current_module_id, visibility, def_maps) {
-            return None;
-        }
-
         full_path = relative_module_id_path(
             module_id,
             &current_module_id,
@@ -56,10 +44,6 @@ pub(crate) fn relative_module_full_path(
         let Some(parent_module) = get_parent_module(interner, module_def_id) else {
             return None;
         };
-
-        if !is_visible(parent_module, current_module_id, visibility, def_maps) {
-            return None;
-        }
 
         full_path = relative_module_id_path(
             parent_module,

@@ -1,7 +1,7 @@
 use super::expr::HirIdent;
 use crate::ast::Ident;
-use crate::macros_api::SecondaryAttribute;
 use crate::node_interner::{ExprId, StmtId};
+use crate::token::SecondaryAttribute;
 use crate::Type;
 use fm::FileId;
 use noirc_errors::{Location, Span};
@@ -105,7 +105,7 @@ impl HirPattern {
         }
     }
 
-    pub(crate) fn location(&self) -> Location {
+    pub fn location(&self) -> Location {
         match self {
             HirPattern::Identifier(ident) => ident.location,
             HirPattern::Mutable(_, location)

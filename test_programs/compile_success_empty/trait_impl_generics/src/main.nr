@@ -23,7 +23,7 @@ fn main() {
 
     assert(x.foo() == 32);
     assert(y.foo() == 64);
-    // Types matching multiple impls will currently choose 
+    // Types matching multiple impls will currently choose
     // the first matching one instead of erroring
     assert(z.foo() == 32);
 
@@ -44,7 +44,9 @@ trait T2 {
     fn t2(self) -> Self;
 }
 
-struct S2<T> { x: T }
+struct S2<T> {
+    x: T,
+}
 
 impl<T> T2 for S2<T> {
     fn t2(self) -> Self {

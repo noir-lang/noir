@@ -24,7 +24,7 @@ impl<'a> CodeActionFinder<'a> {
             return;
         }
 
-        let Some(unused_items) = self.interner.unused_items().get(&self.module_id) else {
+        let Some(unused_items) = self.usage_tracker.unused_items().get(&self.module_id) else {
             return;
         };
 
@@ -106,11 +106,12 @@ fn use_tree_without_unused_import(
                 let mut prefix = use_tree.prefix.clone();
                 prefix.segments.extend(new_use_tree.prefix.segments);
 
-                Some(UseTree { prefix, kind: new_use_tree.kind })
+                Some(UseTree { prefix, kind: new_use_tree.kind, span: use_tree.span })
             } else {
                 Some(UseTree {
                     prefix: use_tree.prefix.clone(),
                     kind: UseTreeKind::List(new_use_trees),
+                    span: use_tree.span,
                 })
             };
 

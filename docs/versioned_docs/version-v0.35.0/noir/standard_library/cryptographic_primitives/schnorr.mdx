@@ -1,0 +1,64 @@
+---
+title: Schnorr Signatures
+description: Learn how you can verify Schnorr signatures using Noir
+keywords: [cryptographic primitives, Noir project, schnorr, signatures]
+sidebar_position: 2
+---
+
+import BlackBoxInfo from '@site/src/components/Notes/_blackbox';
+
+## schnorr::verify_signature
+
+Verifier for Schnorr signatures over the embedded curve (for BN254 it is Grumpkin).
+See schnorr::verify_signature_slice for a version that works directly on slices.
+
+```rust title="schnorr_verify" showLineNumbers 
+pub fn verify_signature<let N: u32>(
+    public_key_x: Field,
+    public_key_y: Field,
+    signature: [u8; 64],
+    message: [u8; N]
+) -> bool
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/schnorr.nr#L4-L11" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/schnorr.nr#L4-L11</a></sub></sup>
+
+
+where `_signature` can be generated like so using the npm package
+[@noir-lang/barretenberg](https://www.npmjs.com/package/@noir-lang/barretenberg)
+
+```js
+const { BarretenbergWasm } = require('@noir-lang/barretenberg/dest/wasm');
+const { Schnorr } = require('@noir-lang/barretenberg/dest/crypto/schnorr');
+
+...
+
+const barretenberg = await BarretenbergWasm.new();
+const schnorr = new Schnorr(barretenberg);
+const pubKey = schnorr.computePublicKey(privateKey);
+const message = ...
+const signature = Array.from(
+    schnorr.constructSignature(hash, privateKey).toBuffer()
+);
+
+...
+```
+
+<BlackBoxInfo to="../black_box_fns"/>
+
+## schnorr::verify_signature_slice
+
+Verifier for Schnorr signatures over the embedded curve (for BN254 it is Grumpkin)
+where the message is a slice. 
+
+```rust title="schnorr_verify_slice" showLineNumbers 
+pub fn verify_signature_slice(
+    public_key_x: Field,
+    public_key_y: Field,
+    signature: [u8; 64],
+    message: [u8]
+) -> bool
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/schnorr.nr#L15-L22" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/schnorr.nr#L15-L22</a></sub></sup>
+
+
+<BlackBoxInfo to="../black_box_fns"/>

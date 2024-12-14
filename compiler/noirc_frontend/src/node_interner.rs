@@ -13,24 +13,18 @@ use petgraph::prelude::DiGraph;
 use petgraph::prelude::NodeIndex as PetGraphIndex;
 use rustc_hash::FxHashMap as HashMap;
 
-use crate::ast::ExpressionKind;
-use crate::ast::Ident;
-use crate::ast::LValue;
-use crate::ast::Pattern;
-use crate::ast::StatementKind;
-use crate::ast::UnresolvedTypeData;
+use crate::ast::{
+    ExpressionKind, Ident, LValue, Pattern, StatementKind, UnaryOp, UnresolvedTypeData,
+};
 use crate::graph::CrateId;
 use crate::hir::comptime;
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait, UnresolvedTypeAlias};
 use crate::hir::def_map::DefMaps;
-use crate::hir::def_map::{LocalModuleId, ModuleId};
+use crate::hir::def_map::{LocalModuleId, ModuleDefId, ModuleId};
 use crate::hir::type_check::generics::TraitGenerics;
 use crate::hir_def::traits::NamedType;
-use crate::macros_api::ModuleDefId;
-use crate::macros_api::UnaryOp;
-use crate::usage_tracker::UnusedItem;
-use crate::usage_tracker::UsageTracker;
+use crate::hir_def::traits::ResolvedTraitBound;
 use crate::QuotedType;
 
 use crate::ast::{BinaryOpKind, FunctionDefinition, ItemVisibility};
@@ -39,7 +33,7 @@ use crate::hir_def::expr::HirIdent;
 use crate::hir_def::stmt::HirLetStatement;
 use crate::hir_def::traits::TraitImpl;
 use crate::hir_def::traits::{Trait, TraitConstraint};
-use crate::hir_def::types::{StructType, Type};
+use crate::hir_def::types::{Kind, StructType, Type};
 use crate::hir_def::{
     expr::HirExpression,
     function::{FuncMeta, HirFunction},
@@ -49,7 +43,7 @@ use crate::locations::LocationIndices;
 use crate::token::{Attributes, SecondaryAttribute};
 use crate::GenericTypeVars;
 use crate::Generics;
-use crate::{Shared, TypeAlias, TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind};
+use crate::{Shared, TypeAlias, TypeBindings, TypeVariable, TypeVariableId};
 
 /// An arbitrary number to limit the recursion depth when searching for trait impls.
 /// This is needed to stop recursing for cases such as `impl<T> Foo for T where T: Eq`
@@ -60,6 +54,7 @@ pub struct ModuleAttributes {
     pub name: String,
     pub location: Location,
     pub parent: Option<LocalModuleId>,
+    pub visibility: ItemVisibility,
 }
 
 type StructAttributes = Vec<SecondaryAttribute>;
@@ -274,8 +269,6 @@ pub struct NodeInterner {
     /// share the same global values.
     pub(crate) comptime_scopes: Vec<HashMap<DefinitionId, comptime::Value>>,
 
-    pub(crate) usage_tracker: UsageTracker,
-
     /// Captures the documentation comments for each module, struct, trait, function, etc.
     pub(crate) doc_comments: HashMap<ReferenceId, Vec<String>>,
 }
@@ -296,6 +289,7 @@ pub enum DependencyId {
     Global(GlobalId),
     Function(FuncId),
     Alias(TypeAliasId),
+    Trait(TraitId),
     Variable(Location),
 }
 
@@ -586,7 +580,7 @@ pub enum DefinitionKind {
 
     /// Generic types in functions (T, U in `fn foo<T, U>(...)` are declared as variables
     /// in scope in case they resolve to numeric generics later.
-    GenericType(TypeVariable),
+    NumericGeneric(TypeVariable, Box<Type>),
 }
 
 impl DefinitionKind {
@@ -601,7 +595,7 @@ impl DefinitionKind {
             DefinitionKind::Function(_) => None,
             DefinitionKind::Global(_) => None,
             DefinitionKind::Local(id) => *id,
-            DefinitionKind::GenericType(_) => None,
+            DefinitionKind::NumericGeneric(_, _) => None,
         }
     }
 }
@@ -682,7 +676,6 @@ impl Default for NodeInterner {
             auto_import_names: HashMap::default(),
             comptime_scopes: vec![HashMap::default()],
             trait_impl_associated_types: HashMap::default(),
-            usage_tracker: UsageTracker::default(),
             doc_comments: HashMap::default(),
         }
     }
@@ -733,10 +726,12 @@ impl NodeInterner {
             crate_id: unresolved_trait.crate_id,
             location: Location::new(unresolved_trait.trait_def.span, unresolved_trait.file_id),
             generics,
-            self_type_typevar: TypeVariable::unbound(self.next_type_variable_id()),
+            self_type_typevar: TypeVariable::unbound(self.next_type_variable_id(), Kind::Normal),
             methods: Vec::new(),
             method_ids: unresolved_trait.method_ids.clone(),
             associated_types,
+            trait_bounds: Vec::new(),
+            where_clause: Vec::new(),
         };
 
         self.traits.insert(type_id, new_trait);
@@ -1336,6 +1331,10 @@ impl NodeInterner {
         Type::type_variable(self.next_type_variable_id())
     }
 
+    pub fn next_type_variable_with_kind(&self, kind: Kind) -> Type {
+        Type::type_variable_with_kind(self, kind)
+    }
+
     pub fn store_instantiation_bindings(
         &mut self,
         expr_id: ExprId,
@@ -1532,9 +1531,11 @@ impl NodeInterner {
             let named = trait_associated_types.to_vec();
             TraitConstraint {
                 typ: object_type.clone(),
-                trait_id,
-                trait_generics: TraitGenerics { ordered, named },
-                span: Span::default(),
+                trait_bound: ResolvedTraitBound {
+                    trait_id,
+                    trait_generics: TraitGenerics { ordered, named },
+                    span: Span::default(),
+                },
             }
         };
 
@@ -1614,9 +1615,11 @@ impl NodeInterner {
 
                 let constraint = TraitConstraint {
                     typ: existing_object_type,
-                    trait_id,
-                    trait_generics,
-                    span: Span::default(),
+                    trait_bound: ResolvedTraitBound {
+                        trait_id,
+                        trait_generics,
+                        span: Span::default(),
+                    },
                 };
                 matching_impls.push((impl_kind.clone(), fresh_bindings, constraint));
             }
@@ -1636,8 +1639,8 @@ impl NodeInterner {
             Err(ImplSearchErrorKind::Nested(errors))
         } else {
             let impls = vecmap(matching_impls, |(_, _, constraint)| {
-                let name = &self.get_trait(constraint.trait_id).name;
-                format!("{}: {name}{}", constraint.typ, constraint.trait_generics)
+                let name = &self.get_trait(constraint.trait_bound.trait_id).name;
+                format!("{}: {name}{}", constraint.typ, constraint.trait_bound.trait_generics)
             });
             Err(ImplSearchErrorKind::MultipleMatching(impls))
         }
@@ -1659,20 +1662,22 @@ impl NodeInterner {
             let constraint_type =
                 constraint.typ.force_substitute(instantiation_bindings).substitute(type_bindings);
 
-            let trait_generics = vecmap(&constraint.trait_generics.ordered, |generic| {
-                generic.force_substitute(instantiation_bindings).substitute(type_bindings)
-            });
+            let trait_generics =
+                vecmap(&constraint.trait_bound.trait_generics.ordered, |generic| {
+                    generic.force_substitute(instantiation_bindings).substitute(type_bindings)
+                });
 
-            let trait_associated_types = vecmap(&constraint.trait_generics.named, |generic| {
-                let typ = generic.typ.force_substitute(instantiation_bindings);
-                NamedType { name: generic.name.clone(), typ: typ.substitute(type_bindings) }
-            });
+            let trait_associated_types =
+                vecmap(&constraint.trait_bound.trait_generics.named, |generic| {
+                    let typ = generic.typ.force_substitute(instantiation_bindings);
+                    NamedType { name: generic.name.clone(), typ: typ.substitute(type_bindings) }
+                });
 
             // We can ignore any associated types on the constraint since those should not affect
             // which impl we choose.
             self.lookup_trait_implementation_helper(
                 &constraint_type,
-                constraint.trait_id,
+                constraint.trait_bound.trait_id,
                 &trait_generics,
                 &trait_associated_types,
                 // Use a fresh set of type bindings here since the constraint_type originates from
@@ -1737,7 +1742,16 @@ impl NodeInterner {
         // Replace each generic with a fresh type variable
         let substitutions = impl_generics
             .into_iter()
-            .map(|typevar| (typevar.id(), (typevar, self.next_type_variable())))
+            .map(|typevar| {
+                let typevar_kind = typevar.kind();
+                let typevar_id = typevar.id();
+                let substitution = (
+                    typevar,
+                    typevar_kind.clone(),
+                    self.next_type_variable_with_kind(typevar_kind),
+                );
+                (typevar_id, substitution)
+            })
             .collect();
 
         let instantiated_object_type = object_type.substitute(&substitutions);
@@ -1857,8 +1871,33 @@ impl NodeInterner {
 
     /// Removes all TraitImplKind::Assumed from the list of known impls for the given trait
     pub fn remove_assumed_trait_implementations_for_trait(&mut self, trait_id: TraitId) {
+        self.remove_assumed_trait_implementations_for_trait_and_parents(trait_id, trait_id);
+    }
+
+    fn remove_assumed_trait_implementations_for_trait_and_parents(
+        &mut self,
+        trait_id: TraitId,
+        starting_trait_id: TraitId,
+    ) {
         let entries = self.trait_implementation_map.entry(trait_id).or_default();
         entries.retain(|(_, kind)| matches!(kind, TraitImplKind::Normal(_)));
+
+        // Also remove assumed implementations for the parent traits, if any
+        if let Some(trait_bounds) =
+            self.try_get_trait(trait_id).map(|the_trait| the_trait.trait_bounds.clone())
+        {
+            for parent_trait_bound in trait_bounds {
+                // Avoid looping forever in case there are cycles
+                if parent_trait_bound.trait_id == starting_trait_id {
+                    continue;
+                }
+
+                self.remove_assumed_trait_implementations_for_trait_and_parents(
+                    parent_trait_bound.trait_id,
+                    starting_trait_id,
+                );
+            }
+        }
     }
 
     /// Tags the given identifier with the selected trait_impl so that monomorphization
@@ -2008,6 +2047,10 @@ impl NodeInterner {
         self.add_dependency(dependent, DependencyId::Alias(dependency));
     }
 
+    pub fn add_trait_dependency(&mut self, dependent: DependencyId, dependency: TraitId) {
+        self.add_dependency(dependent, DependencyId::Trait(dependency));
+    }
+
     pub fn add_dependency(&mut self, dependent: DependencyId, dependency: DependencyId) {
         let dependent_index = self.get_or_insert_dependency(dependent);
         let dependency_index = self.get_or_insert_dependency(dependency);
@@ -2063,6 +2106,11 @@ impl NodeInterner {
                             push_error(alias.name.to_string(), &scc, i, alias.location);
                             break;
                         }
+                        DependencyId::Trait(trait_id) => {
+                            let the_trait = self.get_trait(trait_id);
+                            push_error(the_trait.name.to_string(), &scc, i, the_trait.location);
+                            break;
+                        }
                         // Mutually recursive functions are allowed
                         DependencyId::Function(_) => (),
                         // Local variables should never be in a dependency cycle, scoping rules
@@ -2091,6 +2139,7 @@ impl NodeInterner {
             DependencyId::Global(id) => {
                 Cow::Borrowed(self.get_global(id).ident.0.contents.as_ref())
             }
+            DependencyId::Trait(id) => Cow::Owned(self.get_trait(id).name.to_string()),
             DependencyId::Variable(loc) => {
                 unreachable!("Variable used at location {loc:?} caught in a dependency cycle")
             }
@@ -2137,6 +2186,7 @@ impl NodeInterner {
 
     pub fn get_lvalue(&self, id: InternedExpressionKind, span: Span) -> LValue {
         LValue::from_expression_kind(self.get_expression_kind(id).clone(), span)
+            .expect("Called LValue::from_expression with an invalid expression")
     }
 
     pub fn push_pattern(&mut self, pattern: Pattern) -> InternedPattern {
@@ -2228,11 +2278,17 @@ impl NodeInterner {
         let trait_generics = the_trait.generics.clone();
 
         let self_type_var = the_trait.self_type_typevar.clone();
-        bindings.insert(self_type_var.id(), (self_type_var, impl_self_type));
+        bindings.insert(
+            self_type_var.id(),
+            (self_type_var.clone(), self_type_var.kind(), impl_self_type),
+        );
 
         for (trait_generic, trait_impl_generic) in trait_generics.iter().zip(trait_impl_generics) {
             let type_var = trait_generic.type_var.clone();
-            bindings.insert(type_var.id(), (type_var, trait_impl_generic.clone()));
+            bindings.insert(
+                type_var.id(),
+                (type_var, trait_generic.kind(), trait_impl_generic.clone()),
+            );
         }
 
         // Now that the normal bindings are added, we still need to bind the associated types
@@ -2241,7 +2297,10 @@ impl NodeInterner {
 
         for (trait_type, impl_type) in trait_associated_types.iter().zip(impl_associated_types) {
             let type_variable = trait_type.type_var.clone();
-            bindings.insert(type_variable.id(), (type_variable, impl_type.typ.clone()));
+            bindings.insert(
+                type_variable.id(),
+                (type_variable, trait_type.kind(), impl_type.typ.clone()),
+            );
         }
 
         bindings
@@ -2255,12 +2314,6 @@ impl NodeInterner {
 
     pub fn doc_comments(&self, id: ReferenceId) -> Option<&Vec<String>> {
         self.doc_comments.get(&id)
-    }
-
-    pub fn unused_items(
-        &self,
-    ) -> &std::collections::HashMap<ModuleId, std::collections::HashMap<Ident, UnusedItem>> {
-        self.usage_tracker.unused_items()
     }
 }
 
@@ -2298,7 +2351,7 @@ impl Methods {
     }
 
     /// Select the 1 matching method with an object type matching `typ`
-    fn find_matching_method(
+    pub fn find_matching_method(
         &self,
         typ: &Type,
         has_self_param: bool,
@@ -2362,26 +2415,31 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         Type::Array(_, _) => Some(Array),
         Type::Slice(_) => Some(Slice),
         Type::Integer(_, _) => Some(FieldOrInt),
-        Type::TypeVariable(_, TypeVariableKind::IntegerOrField) => Some(FieldOrInt),
-        Type::TypeVariable(_, TypeVariableKind::Integer) => Some(FieldOrInt),
+        Type::TypeVariable(var) => {
+            if var.is_integer() || var.is_integer_or_field() {
+                Some(FieldOrInt)
+            } else {
+                None
+            }
+        }
         Type::Bool => Some(Bool),
         Type::String(_) => Some(String),
         Type::FmtString(_, _) => Some(FmtString),
         Type::Unit => Some(Unit),
         Type::Tuple(_) => Some(Tuple),
         Type::Function(_, _, _, _) => Some(Function),
-        Type::NamedGeneric(_, _, _) => Some(Generic),
+        Type::NamedGeneric(_, _) => Some(Generic),
         Type::Quoted(quoted) => Some(Quoted(*quoted)),
         Type::MutableReference(element) => get_type_method_key(element),
         Type::Alias(alias, _) => get_type_method_key(&alias.borrow().typ),
 
         // We do not support adding methods to these types
-        Type::TypeVariable(_, _)
-        | Type::Forall(_, _)
+        Type::Forall(_, _)
         | Type::Constant(..)
         | Type::Error
         | Type::Struct(_, _)
         | Type::InfixExpr(..)
+        | Type::CheckedCast { .. }
         | Type::TraitAsType(..) => None,
     }
 }

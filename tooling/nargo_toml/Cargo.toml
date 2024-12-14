@@ -25,3 +25,5 @@ noirc_driver.workspace = true
 semver = "1.0.20"
 
 [dev-dependencies]
+tempfile.workspace = true
+test-case.workspace = true

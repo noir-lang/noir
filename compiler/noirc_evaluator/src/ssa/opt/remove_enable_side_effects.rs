@@ -16,9 +16,9 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         dfg::DataFlowGraph,
-        function::Function,
-        instruction::{BinaryOp, Instruction, Intrinsic},
-        types::Type,
+        function::{Function, RuntimeType},
+        instruction::{BinaryOp, Hint, Instruction, Intrinsic},
+        types::NumericType,
         value::Value,
     },
     ssa_gen::Ssa,
@@ -29,23 +29,30 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn remove_enable_side_effects(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            remove_enable_side_effects(function);
+            function.remove_enable_side_effects();
         }
         self
     }
 }
 
-fn remove_enable_side_effects(function: &mut Function) {
-    let mut context = Context::default();
-    context.block_queue.push(function.entry_block());
-
-    while let Some(block) = context.block_queue.pop() {
-        if context.visited_blocks.contains(&block) {
-            continue;
+impl Function {
+    pub(crate) fn remove_enable_side_effects(&mut self) {
+        if matches!(self.runtime(), RuntimeType::Brillig(_)) {
+            // Brillig functions do not make use of the `EnableSideEffects` instruction so are unaffected by this pass.
+            return;
         }
 
-        context.visited_blocks.insert(block);
-        context.remove_enable_side_effects_in_block(function, block);
+        let mut context = Context::default();
+        context.block_queue.push(self.entry_block());
+
+        while let Some(block) = context.block_queue.pop() {
+            if context.visited_blocks.contains(&block) {
+                continue;
+            }
+
+            context.visited_blocks.insert(block);
+            context.remove_enable_side_effects_in_block(self, block);
+        }
     }
 }
 
@@ -63,7 +70,8 @@ impl Context {
     ) {
         let instructions = function.dfg[block].take_instructions();
 
-        let mut active_condition = function.dfg.make_constant(FieldElement::one(), Type::bool());
+        let one = FieldElement::one();
+        let mut active_condition = function.dfg.make_constant(one, NumericType::bool());
         let mut last_side_effects_enabled_instruction = None;
 
         let mut new_instructions = Vec::with_capacity(instructions.len());
@@ -138,7 +146,8 @@ impl Context {
             | RangeCheck { .. }
             | IfElse { .. }
             | IncrementRc { .. }
-            | DecrementRc { .. } => false,
+            | DecrementRc { .. }
+            | MakeArray { .. } => false,
 
             EnableSideEffectsIf { .. }
             | ArrayGet { .. }
@@ -166,12 +175,16 @@ impl Context {
                     | Intrinsic::ToBits(_)
                     | Intrinsic::ToRadix(_)
                     | Intrinsic::BlackBox(_)
+                    | Intrinsic::Hint(Hint::BlackBox)
                     | Intrinsic::FromField
                     | Intrinsic::AsField
                     | Intrinsic::AsSlice
                     | Intrinsic::AsWitness
                     | Intrinsic::IsUnconstrained
-                    | Intrinsic::DerivePedersenGenerators => false,
+                    | Intrinsic::DerivePedersenGenerators
+                    | Intrinsic::ArrayRefCount
+                    | Intrinsic::SliceRefCount
+                    | Intrinsic::FieldLessThan => false,
                 },
 
                 // We must assume that functions contain a side effect as we cannot inspect more deeply.
@@ -191,7 +204,7 @@ mod test {
         ir::{
             instruction::{BinaryOp, Instruction},
             map::Id,
-            types::Type,
+            types::{NumericType, Type},
         },
     };
 
@@ -222,9 +235,9 @@ mod test {
         let mut builder = FunctionBuilder::new("main".into(), main_id);
         let v0 = builder.add_parameter(Type::field());
 
-        let two = builder.numeric_constant(2u128, Type::field());
+        let two = builder.field_constant(2u128);
 
-        let one = builder.numeric_constant(1u128, Type::bool());
+        let one = builder.numeric_constant(1u128, NumericType::bool());
 
         builder.insert_enable_side_effects_if(one);
         builder.insert_binary(v0, BinaryOp::Mul, two);

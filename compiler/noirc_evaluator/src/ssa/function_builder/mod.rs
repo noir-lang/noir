@@ -4,6 +4,7 @@ use std::{borrow::Cow, collections::BTreeMap, sync::Arc};
 
 use acvm::{acir::circuit::ErrorSelector, FieldElement};
 use noirc_errors::Location;
+use noirc_frontend::hir_def::types::Type as HirType;
 use noirc_frontend::monomorphization::ast::InlineType;
 
 use crate::ssa::ir::{
@@ -19,7 +20,8 @@ use super::{
         basic_block::BasicBlock,
         dfg::{CallStack, InsertInstructionResult},
         function::RuntimeType,
-        instruction::{ConstrainError, ErrorType, InstructionId, Intrinsic},
+        instruction::{ConstrainError, InstructionId, Intrinsic},
+        types::NumericType,
     },
     ssa_gen::Ssa,
 };
@@ -36,7 +38,7 @@ pub(crate) struct FunctionBuilder {
     current_block: BasicBlockId,
     finished_functions: Vec<Function>,
     call_stack: CallStack,
-    error_types: BTreeMap<ErrorSelector, ErrorType>,
+    error_types: BTreeMap<ErrorSelector, HirType>,
 }
 
 impl FunctionBuilder {
@@ -95,8 +97,13 @@ impl FunctionBuilder {
     }
 
     /// Finish the current function and create a new unconstrained function.
-    pub(crate) fn new_brillig_function(&mut self, name: String, function_id: FunctionId) {
-        self.new_function_with_type(name, function_id, RuntimeType::Brillig);
+    pub(crate) fn new_brillig_function(
+        &mut self,
+        name: String,
+        function_id: FunctionId,
+        inline_type: InlineType,
+    ) {
+        self.new_function_with_type(name, function_id, RuntimeType::Brillig(inline_type));
     }
 
     /// Consume the FunctionBuilder returning all the functions it has generated.
@@ -116,24 +123,19 @@ impl FunctionBuilder {
     pub(crate) fn numeric_constant(
         &mut self,
         value: impl Into<FieldElement>,
-        typ: Type,
+        typ: NumericType,
     ) -> ValueId {
         self.current_function.dfg.make_constant(value.into(), typ)
     }
 
     /// Insert a numeric constant into the current function of type Field
     pub(crate) fn field_constant(&mut self, value: impl Into<FieldElement>) -> ValueId {
-        self.numeric_constant(value.into(), Type::field())
+        self.numeric_constant(value.into(), NumericType::NativeField)
     }
 
     /// Insert a numeric constant into the current function of type Type::length_type()
     pub(crate) fn length_constant(&mut self, value: impl Into<FieldElement>) -> ValueId {
-        self.numeric_constant(value.into(), Type::length_type())
-    }
-
-    /// Insert an array constant into the current function with the given element values.
-    pub(crate) fn array_constant(&mut self, elements: im::Vector<ValueId>, typ: Type) -> ValueId {
-        self.current_function.dfg.make_array(elements, typ)
+        self.numeric_constant(value.into(), NumericType::length_type())
     }
 
     /// Returns the type of the given value.
@@ -194,7 +196,7 @@ impl FunctionBuilder {
     }
 
     pub(crate) fn set_location(&mut self, location: Location) -> &mut FunctionBuilder {
-        self.call_stack = im::Vector::unit(location);
+        self.call_stack = CallStack::unit(location);
         self
     }
 
@@ -250,7 +252,7 @@ impl FunctionBuilder {
 
     /// Insert a cast instruction at the end of the current block.
     /// Returns the result of the cast instruction.
-    pub(crate) fn insert_cast(&mut self, value: ValueId, typ: Type) -> ValueId {
+    pub(crate) fn insert_cast(&mut self, value: ValueId, typ: NumericType) -> ValueId {
         self.insert_instruction(Instruction::Cast(value, typ), None).first()
     }
 
@@ -322,6 +324,16 @@ impl FunctionBuilder {
             .first()
     }
 
+    pub(crate) fn insert_mutable_array_set(
+        &mut self,
+        array: ValueId,
+        index: ValueId,
+        value: ValueId,
+    ) -> ValueId {
+        self.insert_instruction(Instruction::ArraySet { array, index, value, mutable: true }, None)
+            .first()
+    }
+
     /// Insert an instruction to increment an array's reference count. This only has an effect
     /// in unconstrained code where arrays are reference counted and copy on write.
     pub(crate) fn insert_inc_rc(&mut self, value: ValueId) {
@@ -338,6 +350,17 @@ impl FunctionBuilder {
     /// inserted during the flattening pass when branching is removed.
     pub(crate) fn insert_enable_side_effects_if(&mut self, condition: ValueId) {
         self.insert_instruction(Instruction::EnableSideEffectsIf { condition }, None);
+    }
+
+    /// Insert a `make_array` instruction to create a new array or slice.
+    /// Returns the new array value. Expects `typ` to be an array or slice type.
+    pub(crate) fn insert_make_array(
+        &mut self,
+        elements: im::Vector<ValueId>,
+        typ: Type,
+    ) -> ValueId {
+        assert!(matches!(typ, Type::Array(..) | Type::Slice(_)));
+        self.insert_instruction(Instruction::MakeArray { elements, typ }, None).first()
     }
 
     /// Terminates the current block with the given terminator instruction
@@ -419,29 +442,38 @@ impl FunctionBuilder {
     /// Insert instructions to increment the reference count of any array(s) stored
     /// within the given value. If the given value is not an array and does not contain
     /// any arrays, this does nothing.
-    pub(crate) fn increment_array_reference_count(&mut self, value: ValueId) {
-        self.update_array_reference_count(value, true);
+    ///
+    /// Returns whether a reference count instruction was issued.
+    pub(crate) fn increment_array_reference_count(&mut self, value: ValueId) -> bool {
+        self.update_array_reference_count(value, true)
     }
 
     /// Insert instructions to decrement the reference count of any array(s) stored
     /// within the given value. If the given value is not an array and does not contain
     /// any arrays, this does nothing.
-    pub(crate) fn decrement_array_reference_count(&mut self, value: ValueId) {
-        self.update_array_reference_count(value, false);
+    ///
+    /// Returns whether a reference count instruction was issued.
+    pub(crate) fn decrement_array_reference_count(&mut self, value: ValueId) -> bool {
+        self.update_array_reference_count(value, false)
     }
 
     /// Increment or decrement the given value's reference count if it is an array.
     /// If it is not an array, this does nothing. Note that inc_rc and dec_rc instructions
     /// are ignored outside of unconstrained code.
-    fn update_array_reference_count(&mut self, value: ValueId, increment: bool) {
+    ///
+    /// Returns whether a reference count instruction was issued.
+    fn update_array_reference_count(&mut self, value: ValueId, increment: bool) -> bool {
         match self.type_of_value(value) {
-            Type::Numeric(_) => (),
-            Type::Function => (),
+            Type::Numeric(_) => false,
+            Type::Function => false,
             Type::Reference(element) => {
                 if element.contains_an_array() {
                     let reference = value;
                     let value = self.insert_load(reference, element.as_ref().clone());
                     self.update_array_reference_count(value, increment);
+                    true
+                } else {
+                    false
                 }
             }
             Type::Array(..) | Type::Slice(..) => {
@@ -452,11 +484,12 @@ impl FunctionBuilder {
                 } else {
                     self.insert_dec_rc(value);
                 }
+                true
             }
         }
     }
 
-    pub(crate) fn record_error_type(&mut self, selector: ErrorSelector, typ: ErrorType) {
+    pub(crate) fn record_error_type(&mut self, selector: ErrorSelector, typ: HirType) {
         self.error_types.insert(selector, typ);
     }
 }
@@ -494,8 +527,7 @@ mod tests {
     use crate::ssa::ir::{
         instruction::{Endian, Intrinsic},
         map::Id,
-        types::Type,
-        value::Value,
+        types::{NumericType, Type},
     };
 
     use super::FunctionBuilder;
@@ -507,20 +539,17 @@ mod tests {
         // let bits: [u1; 8] = x.to_le_bits();
         let func_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("func".into(), func_id);
-        let one = builder.numeric_constant(FieldElement::one(), Type::bool());
-        let zero = builder.numeric_constant(FieldElement::zero(), Type::bool());
+        let one = builder.numeric_constant(FieldElement::one(), NumericType::bool());
+        let zero = builder.numeric_constant(FieldElement::zero(), NumericType::bool());
 
         let to_bits_id = builder.import_intrinsic_id(Intrinsic::ToBits(Endian::Little));
-        let input = builder.numeric_constant(FieldElement::from(7_u128), Type::field());
-        let length = builder.numeric_constant(FieldElement::from(8_u128), Type::field());
+        let input = builder.field_constant(FieldElement::from(7_u128));
+        let length = builder.field_constant(FieldElement::from(8_u128));
         let result_types = vec![Type::Array(Arc::new(vec![Type::bool()]), 8)];
         let call_results =
             builder.insert_call(to_bits_id, vec![input, length], result_types).into_owned();
 
-        let slice = match &builder.current_function.dfg[call_results[0]] {
-            Value::Array { array, .. } => array,
-            _ => panic!(),
-        };
+        let slice = builder.current_function.dfg.get_array_constant(call_results[0]).unwrap().0;
         assert_eq!(slice[0], one);
         assert_eq!(slice[1], one);
         assert_eq!(slice[2], one);

@@ -1,7 +1,10 @@
 use crate::cmp::Eq;
 
-unconstrained fn __get_shuffle_indices<T, let N: u32>(lhs: [T; N], rhs: [T; N]) -> [Field; N] where T: Eq {
-    let mut shuffle_indices: [Field;N ] = [0; N];
+unconstrained fn __get_shuffle_indices<T, let N: u32>(lhs: [T; N], rhs: [T; N]) -> [Field; N]
+where
+    T: Eq,
+{
+    let mut shuffle_indices: [Field; N] = [0; N];
 
     let mut shuffle_mask: [bool; N] = [false; N];
     for i in 0..N {
@@ -35,7 +38,10 @@ unconstrained fn __get_index<let N: u32>(indices: [Field; N], idx: Field) -> Fie
     result
 }
 
-pub(crate) fn check_shuffle<T, let N: u32>(lhs: [T; N], rhs: [T; N]) where T: Eq {
+pub(crate) fn check_shuffle<T, let N: u32>(lhs: [T; N], rhs: [T; N])
+where
+    T: Eq,
+{
     unsafe {
         let shuffle_indices = __get_shuffle_indices(lhs, rhs);
 
@@ -53,13 +59,13 @@ pub(crate) fn check_shuffle<T, let N: u32>(lhs: [T; N], rhs: [T; N]) where T: Eq
 }
 
 mod test {
-    use super::check_shuffle;
     use crate::cmp::Eq;
+    use super::check_shuffle;
 
     struct CompoundStruct {
         a: bool,
         b: Field,
-        c: u64
+        c: u64,
     }
     impl Eq for CompoundStruct {
         fn eq(self, other: Self) -> bool {
@@ -102,14 +108,14 @@ mod test {
             CompoundStruct { a: false, b: -100, c: 54321 },
             CompoundStruct { a: true, b: 5, c: 0xffffffffffffffff },
             CompoundStruct { a: true, b: 9814, c: 0xeeffee0011001133 },
-            CompoundStruct { a: false, b: 0x155, c: 0 }
+            CompoundStruct { a: false, b: 0x155, c: 0 },
         ];
         let rhs: [CompoundStruct; 5] = [
             CompoundStruct { a: false, b: 0x155, c: 0 },
             CompoundStruct { a: false, b: 0, c: 12345 },
             CompoundStruct { a: false, b: -100, c: 54321 },
             CompoundStruct { a: true, b: 9814, c: 0xeeffee0011001133 },
-            CompoundStruct { a: true, b: 5, c: 0xffffffffffffffff }
+            CompoundStruct { a: true, b: 5, c: 0xffffffffffffffff },
         ];
         check_shuffle(lhs, rhs);
     }

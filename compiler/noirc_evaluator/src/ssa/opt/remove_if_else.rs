@@ -3,6 +3,9 @@ use std::collections::hash_map::Entry;
 use acvm::{acir::AcirField, FieldElement};
 use fxhash::FxHashMap as HashMap;
 
+use crate::ssa::ir::function::RuntimeType;
+use crate::ssa::ir::instruction::Hint;
+use crate::ssa::ir::types::NumericType;
 use crate::ssa::ir::value::ValueId;
 use crate::ssa::{
     ir::{
@@ -28,20 +31,26 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn remove_if_else(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            // This should match the check in flatten_cfg
-            if let crate::ssa::ir::function::RuntimeType::Brillig = function.runtime() {
-                continue;
-            }
-
-            Context::default().remove_if_else(function);
+            function.remove_if_else();
         }
         self
     }
 }
 
+impl Function {
+    pub(crate) fn remove_if_else(&mut self) {
+        // This should match the check in flatten_cfg
+        if matches!(self.runtime(), RuntimeType::Brillig(_)) {
+            // skip
+        } else {
+            Context::default().remove_if_else(self);
+        }
+    }
+}
+
 #[derive(Default)]
 struct Context {
-    slice_sizes: HashMap<ValueId, usize>,
+    slice_sizes: HashMap<ValueId, u32>,
 
     // Maps array_set result -> element that was overwritten by that instruction.
     // Used to undo array_sets while merging values
@@ -55,14 +64,15 @@ impl Context {
     fn remove_if_else(&mut self, function: &mut Function) {
         let block = function.entry_block();
         let instructions = function.dfg[block].take_instructions();
-        let mut current_conditional = function.dfg.make_constant(FieldElement::one(), Type::bool());
+        let one = FieldElement::one();
+        let mut current_conditional = function.dfg.make_constant(one, NumericType::bool());
 
         for instruction in instructions {
             match &function.dfg[instruction] {
                 Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
                     let then_condition = *then_condition;
-                    let then_value = *then_value;
                     let else_condition = *else_condition;
+                    let then_value = *then_value;
                     let else_value = *else_value;
 
                     let typ = function.dfg.type_of_value(then_value);
@@ -112,7 +122,9 @@ impl Context {
                             }
                             SizeChange::Dec { old, new } => {
                                 let old_capacity = self.get_or_find_capacity(&function.dfg, old);
-                                self.slice_sizes.insert(new, old_capacity - 1);
+                                // We use a saturating sub here as calling `pop_front` or `pop_back` on a zero-length slice
+                                // would otherwise underflow.
+                                self.slice_sizes.insert(new, old_capacity.saturating_sub(1));
                             }
                         }
                     }
@@ -139,13 +151,13 @@ impl Context {
         }
     }
 
-    fn get_or_find_capacity(&mut self, dfg: &DataFlowGraph, value: ValueId) -> usize {
+    fn get_or_find_capacity(&mut self, dfg: &DataFlowGraph, value: ValueId) -> u32 {
         match self.slice_sizes.entry(value) {
             Entry::Occupied(entry) => return *entry.get(),
             Entry::Vacant(entry) => {
                 if let Some((array, typ)) = dfg.get_array_constant(value) {
                     let length = array.len() / typ.element_types().len();
-                    return *entry.insert(length);
+                    return *entry.insert(length as u32);
                 }
 
                 if let Type::Array(_, length) = dfg.type_of_value(value) {
@@ -161,7 +173,7 @@ impl Context {
 
 enum SizeChange {
     None,
-    SetTo(ValueId, usize),
+    SetTo(ValueId, u32),
 
     // These two variants store the old and new slice ids
     // not their lengths which should be old_len = new_len +/- 1
@@ -222,12 +234,16 @@ fn slice_capacity_change(
         | Intrinsic::ArrayAsStrUnchecked
         | Intrinsic::StrAsBytes
         | Intrinsic::BlackBox(_)
+        | Intrinsic::Hint(Hint::BlackBox)
         | Intrinsic::FromField
         | Intrinsic::AsField
         | Intrinsic::AsWitness
         | Intrinsic::IsUnconstrained
         | Intrinsic::DerivePedersenGenerators
         | Intrinsic::ToBits(_)
-        | Intrinsic::ToRadix(_) => SizeChange::None,
+        | Intrinsic::ToRadix(_)
+        | Intrinsic::ArrayRefCount
+        | Intrinsic::SliceRefCount
+        | Intrinsic::FieldLessThan => SizeChange::None,
     }
 }

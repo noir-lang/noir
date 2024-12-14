@@ -36,31 +36,3 @@ pub use hir_def::types::*;
 
 // Unit tests that involve all modules
 pub mod tests;
-
-// API for experimental macros feature
-pub mod macros_api {
-
-    pub use acvm::FieldElement;
-    pub use fm::FileId;
-    pub use noirc_errors::Span;
-
-    pub use crate::graph::CrateId;
-    pub use crate::hir_def::expr::{HirExpression, HirLiteral};
-    pub use crate::hir_def::stmt::HirStatement;
-    pub use crate::node_interner::{NodeInterner, StructId};
-    pub use crate::parser::{parse_program, SortedModule};
-    pub use crate::token::SecondaryAttribute;
-
-    pub use crate::ast::{
-        BlockExpression, CallExpression, CastExpression, Documented, Expression, ExpressionKind,
-        FunctionReturnType, Ident, IndexExpression, ItemVisibility, LetStatement, Literal,
-        MemberAccessExpression, MethodCallExpression, NoirFunction, Path, PathKind, Pattern,
-        Statement, UnresolvedType, UnresolvedTypeData, Visibility,
-    };
-    pub use crate::ast::{
-        ForLoopStatement, ForRange, FunctionDefinition, ImportStatement, NoirStruct, Param,
-        PrefixExpression, Signedness, StatementKind, TypeImpl, UnaryOp,
-    };
-    pub use crate::hir::{def_map::ModuleDefId, Context as HirContext};
-    pub use crate::{StructType, Type};
-}

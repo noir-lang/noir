@@ -4,10 +4,9 @@ use lsp_types::{
 };
 use noirc_frontend::{
     ast::AttributeTarget,
-    hir::def_map::ModuleId,
+    hir::def_map::{ModuleDefId, ModuleId},
     hir_def::{function::FuncMeta, stmt::HirPattern},
-    macros_api::{ModuleDefId, StructId},
-    node_interner::{FuncId, GlobalId, ReferenceId, TraitId, TypeAliasId},
+    node_interner::{FuncId, GlobalId, ReferenceId, StructId, TraitId, TypeAliasId},
     QuotedType, Type,
 };
 
@@ -33,6 +32,14 @@ impl<'a> NodeFinder<'a> {
                 ModuleDefId::FunctionId(_) | ModuleDefId::GlobalId(_) => return Vec::new(),
                 ModuleDefId::ModuleId(_)
                 | ModuleDefId::TypeId(_)
+                | ModuleDefId::TypeAliasId(_)
+                | ModuleDefId::TraitId(_) => (),
+            },
+            RequestedItems::OnlyTraits => match module_def_id {
+                ModuleDefId::FunctionId(_) | ModuleDefId::GlobalId(_) | ModuleDefId::TypeId(_) => {
+                    return Vec::new()
+                }
+                ModuleDefId::ModuleId(_)
                 | ModuleDefId::TypeAliasId(_)
                 | ModuleDefId::TraitId(_) => (),
             },

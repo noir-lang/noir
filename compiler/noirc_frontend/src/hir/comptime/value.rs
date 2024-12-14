@@ -1,7 +1,6 @@
 use std::{borrow::Cow, rc::Rc, vec};
 
 use acvm::{AcirField, FieldElement};
-use chumsky::Parser;
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::{Location, Span};
@@ -9,17 +8,17 @@ use strum_macros::Display;
 
 use crate::{
     ast::{
-        ArrayLiteral, BlockExpression, ConstructorExpression, Ident, IntegerBitSize, LValue,
-        Pattern, Signedness, Statement, StatementKind, UnresolvedType, UnresolvedTypeData,
+        ArrayLiteral, BlockExpression, ConstructorExpression, Expression, ExpressionKind, Ident,
+        IntegerBitSize, LValue, Literal, Path, Pattern, Signedness, Statement, StatementKind,
+        UnresolvedType, UnresolvedTypeData,
     },
     hir::{def_map::ModuleId, type_check::generics::TraitGenerics},
-    hir_def::expr::{HirArrayLiteral, HirConstructorExpression, HirIdent, HirLambda, ImplKind},
-    macros_api::{
-        Expression, ExpressionKind, HirExpression, HirLiteral, Literal, NodeInterner, Path,
-        StructId,
+    hir_def::expr::{
+        HirArrayLiteral, HirConstructorExpression, HirExpression, HirIdent, HirLambda, HirLiteral,
+        ImplKind,
     },
-    node_interner::{ExprId, FuncId, StmtId, TraitId, TraitImplId},
-    parser::{self, NoirParser, TopLevelStatement},
+    node_interner::{ExprId, FuncId, NodeInterner, StmtId, StructId, TraitId, TraitImplId},
+    parser::{Item, Parser},
     token::{SpannedToken, Token, Tokens},
     Kind, QuotedType, Shared, Type, TypeBindings,
 };
@@ -121,7 +120,7 @@ impl Value {
             Value::U32(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo),
             Value::U64(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour),
             Value::String(value) => {
-                let length = Type::Constant(value.len() as u32, Kind::u32());
+                let length = Type::Constant(value.len().into(), Kind::u32());
                 Type::String(Box::new(length))
             }
             Value::FormatString(_, typ) => return Cow::Borrowed(typ),
@@ -261,7 +260,8 @@ impl Value {
                 tokens_to_parse.0.insert(0, SpannedToken::new(Token::LeftBrace, location.span));
                 tokens_to_parse.0.push(SpannedToken::new(Token::RightBrace, location.span));
 
-                return match parser::expression().parse(tokens_to_parse) {
+                let parser = Parser::for_tokens(tokens_to_parse);
+                return match parser.parse_result(Parser::parse_expression_or_error) {
                     Ok(expr) => Ok(expr),
                     Err(mut errors) => {
                         let error = errors.swap_remove(0);
@@ -523,8 +523,8 @@ impl Value {
         self,
         location: Location,
         interner: &NodeInterner,
-    ) -> IResult<Vec<TopLevelStatement>> {
-        let parser = parser::top_level_items();
+    ) -> IResult<Vec<Item>> {
+        let parser = Parser::parse_top_level_items;
         match self {
             Value::Quoted(tokens) => {
                 parse_tokens(tokens, interner, parser, location, "top-level item")
@@ -543,15 +543,18 @@ pub(crate) fn unwrap_rc<T: Clone>(rc: Rc<T>) -> T {
     Rc::try_unwrap(rc).unwrap_or_else(|rc| (*rc).clone())
 }
 
-fn parse_tokens<T>(
+fn parse_tokens<'a, T, F>(
     tokens: Rc<Vec<Token>>,
     interner: &NodeInterner,
-    parser: impl NoirParser<T>,
+    parsing_function: F,
     location: Location,
     rule: &'static str,
-) -> IResult<T> {
-    let parser = parser.then_ignore(chumsky::primitive::end());
-    match parser.parse(add_token_spans(tokens.clone(), location.span)) {
+) -> IResult<T>
+where
+    F: FnOnce(&mut Parser<'a>) -> T,
+{
+    let parser = Parser::for_tokens(add_token_spans(tokens.clone(), location.span));
+    match parser.parse_result(parsing_function) {
         Ok(expr) => Ok(expr),
         Err(mut errors) => {
             let error = errors.swap_remove(0);

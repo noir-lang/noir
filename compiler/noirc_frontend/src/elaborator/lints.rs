@@ -1,15 +1,18 @@
 use crate::{
-    ast::{FunctionKind, Ident},
+    ast::{Ident, NoirFunction, Signedness, UnaryOp, Visibility},
     graph::CrateId,
     hir::{
         resolution::errors::{PubPosition, ResolverError},
         type_check::TypeCheckError,
     },
-    hir_def::{expr::HirIdent, function::FuncMeta},
-    macros_api::{
-        HirExpression, HirLiteral, NodeInterner, NoirFunction, Signedness, UnaryOp, Visibility,
+    hir_def::{
+        expr::{HirBlockExpression, HirExpression, HirIdent, HirLiteral},
+        function::FuncMeta,
+        stmt::HirStatement,
     },
-    node_interner::{DefinitionKind, ExprId, FuncId, FunctionModifiers},
+    node_interner::{
+        DefinitionId, DefinitionKind, ExprId, FuncId, FunctionModifiers, NodeInterner,
+    },
     Type,
 };
 
@@ -64,7 +67,7 @@ pub(super) fn low_level_function_outside_stdlib(
     crate_id: CrateId,
 ) -> Option<ResolverError> {
     let is_low_level_function =
-        modifiers.attributes.function.as_ref().map_or(false, |func| func.is_low_level());
+        modifiers.attributes.function().map_or(false, |func| func.is_low_level());
     if !crate_id.is_stdlib() && is_low_level_function {
         let ident = func_meta_name_ident(func, modifiers);
         Some(ResolverError::LowLevelFunctionOutsideOfStdlib { ident })
@@ -78,8 +81,7 @@ pub(super) fn oracle_not_marked_unconstrained(
     func: &FuncMeta,
     modifiers: &FunctionModifiers,
 ) -> Option<ResolverError> {
-    let is_oracle_function =
-        modifiers.attributes.function.as_ref().map_or(false, |func| func.is_oracle());
+    let is_oracle_function = modifiers.attributes.function().map_or(false, |func| func.is_oracle());
     if is_oracle_function && !modifiers.is_unconstrained {
         let ident = func_meta_name_ident(func, modifiers);
         Some(ResolverError::OracleMarkedAsConstrained { ident })
@@ -102,8 +104,7 @@ pub(super) fn oracle_called_from_constrained_function(
     }
 
     let function_attributes = interner.function_attributes(called_func);
-    let is_oracle_call =
-        function_attributes.function.as_ref().map_or(false, |func| func.is_oracle());
+    let is_oracle_call = function_attributes.function().map_or(false, |func| func.is_oracle());
     if is_oracle_call {
         Some(ResolverError::UnconstrainedOracleReturnToConstrained { span })
     } else {
@@ -119,19 +120,6 @@ pub(super) fn missing_pub(func: &FuncMeta, modifiers: &FunctionModifiers) -> Opt
     {
         let ident = func_meta_name_ident(func, modifiers);
         Some(ResolverError::NecessaryPub { ident })
-    } else {
-        None
-    }
-}
-
-/// `#[recursive]` attribute is only allowed for entry point functions
-pub(super) fn recursive_non_entrypoint_function(
-    func: &FuncMeta,
-    modifiers: &FunctionModifiers,
-) -> Option<ResolverError> {
-    if !func.is_entry_point && func.kind == FunctionKind::Recursive {
-        let ident = func_meta_name_ident(func, modifiers);
-        Some(ResolverError::MisplacedRecursiveAttribute { ident })
     } else {
         None
     }
@@ -262,4 +250,78 @@ pub(crate) fn overflowing_int(
 
 fn func_meta_name_ident(func: &FuncMeta, modifiers: &FunctionModifiers) -> Ident {
     Ident(Spanned::from(func.name.location.span, modifiers.name.clone()))
+}
+
+/// Check that a recursive function *can* return without endlessly calling itself.
+pub(crate) fn unbounded_recursion<'a>(
+    interner: &'a NodeInterner,
+    func_id: FuncId,
+    func_name: impl FnOnce() -> &'a str,
+    func_span: Span,
+    body_id: ExprId,
+) -> Option<ResolverError> {
+    if !can_return_without_recursing(interner, func_id, body_id) {
+        Some(ResolverError::UnconditionalRecursion {
+            name: func_name().to_string(),
+            span: func_span,
+        })
+    } else {
+        None
+    }
+}
+
+/// Check if an expression will end up calling a specific function.
+fn can_return_without_recursing(interner: &NodeInterner, func_id: FuncId, expr_id: ExprId) -> bool {
+    let check = |e| can_return_without_recursing(interner, func_id, e);
+
+    let check_block = |block: HirBlockExpression| {
+        block.statements.iter().all(|stmt_id| match interner.statement(stmt_id) {
+            HirStatement::Let(s) => check(s.expression),
+            HirStatement::Assign(s) => check(s.expression),
+            HirStatement::Expression(e) => check(e),
+            HirStatement::Semi(e) => check(e),
+            // Rust doesn't seem to check the for loop body (it's bounds might mean it's never called).
+            HirStatement::For(e) => check(e.start_range) && check(e.end_range),
+            HirStatement::Constrain(_)
+            | HirStatement::Comptime(_)
+            | HirStatement::Break
+            | HirStatement::Continue
+            | HirStatement::Error => true,
+        })
+    };
+
+    match interner.expression(&expr_id) {
+        HirExpression::Ident(ident, _) => {
+            if ident.id == DefinitionId::dummy_id() {
+                return true;
+            }
+            let definition = interner.definition(ident.id);
+            if let DefinitionKind::Function(id) = definition.kind {
+                func_id != id
+            } else {
+                true
+            }
+        }
+        HirExpression::Block(b) => check_block(b),
+        HirExpression::Prefix(e) => check(e.rhs),
+        HirExpression::Infix(e) => check(e.lhs) && check(e.rhs),
+        HirExpression::Index(e) => check(e.collection) && check(e.index),
+        HirExpression::MemberAccess(e) => check(e.lhs),
+        HirExpression::Call(e) => check(e.func) && e.arguments.iter().cloned().all(check),
+        HirExpression::MethodCall(e) => check(e.object) && e.arguments.iter().cloned().all(check),
+        HirExpression::Cast(e) => check(e.lhs),
+        HirExpression::If(e) => {
+            check(e.condition) && (check(e.consequence) || e.alternative.map(check).unwrap_or(true))
+        }
+        HirExpression::Tuple(e) => e.iter().cloned().all(check),
+        HirExpression::Unsafe(b) => check_block(b),
+        // Rust doesn't check the lambda body (it might not be called).
+        HirExpression::Lambda(_)
+        | HirExpression::Literal(_)
+        | HirExpression::Constructor(_)
+        | HirExpression::Quote(_)
+        | HirExpression::Unquote(_)
+        | HirExpression::Comptime(_)
+        | HirExpression::Error => true,
+    }
 }

@@ -6,7 +6,7 @@ import { resolve, join } from 'path';
 import toml from 'toml';
 
 import { Noir } from '@noir-lang/noir_js';
-import { BarretenbergBackend } from '@noir-lang/backend_barretenberg';
+import { UltraPlonkBackend } from '@aztec/bb.js';
 import { Field, InputMap } from '@noir-lang/noirc_abi';
 
 import { compile, createFileManager } from '@noir-lang/noir_wasm';
@@ -17,7 +17,7 @@ it.skip(`smart contract can verify a recursive proof`, async () => {
   const fm = createFileManager(basePath);
   const innerCompilationResult = await compile(
     fm,
-    join(basePath, './test_programs/execution_success/assert_statement_recursive'),
+    join(basePath, './test_programs/execution_success/assert_statement'),
   );
   if (!('program' in innerCompilationResult)) {
     throw new Error('Compilation failed');
@@ -35,11 +35,11 @@ it.skip(`smart contract can verify a recursive proof`, async () => {
 
   // Intermediate proof
 
-  const inner_backend = new BarretenbergBackend(innerProgram);
+  const inner_backend = new UltraPlonkBackend(innerProgram.bytecode, {}, { recursive: true });
   const inner = new Noir(innerProgram);
 
   const inner_prover_toml = readFileSync(
-    join(basePath, `./test_programs/execution_success/assert_statement_recursive/Prover.toml`),
+    join(basePath, `./test_programs/execution_success/assert_statement/Prover.toml`),
   ).toString();
 
   const inner_inputs = toml.parse(inner_prover_toml);
@@ -67,7 +67,7 @@ it.skip(`smart contract can verify a recursive proof`, async () => {
 
   const { witness: recursionWitness } = await recursion.execute(recursion_inputs);
 
-  const recursion_backend = new BarretenbergBackend(recursionProgram);
+  const recursion_backend = new UltraPlonkBackend(recursionProgram.bytecode, {}, { recursive: false });
   const recursion_proof = await recursion_backend.generateProof(recursionWitness);
   expect(await recursion_backend.verifyProof(recursion_proof)).to.be.true;
 

@@ -1,4 +1,4 @@
-use reexporting_lib::{FooStruct, MyStruct, lib};
+use reexporting_lib::{FooStruct, lib, MyStruct};
 
 fn main() {
     let x: FooStruct = MyStruct { inner: 0 };

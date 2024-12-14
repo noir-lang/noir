@@ -10,7 +10,7 @@ use acir::{
             AcirFunctionId, BlockId, ConstantOrWitnessEnum, FunctionInput, InvalidInputBitSize,
         },
         AssertionPayload, ErrorSelector, ExpressionOrMemory, Opcode, OpcodeLocation,
-        RawAssertionPayload, ResolvedAssertionPayload, STRING_ERROR_SELECTOR,
+        RawAssertionPayload, ResolvedAssertionPayload,
     },
     native_types::{Expression, Witness, WitnessMap},
     AcirField, BlackBoxFunc,
@@ -18,8 +18,7 @@ use acir::{
 use acvm_blackbox_solver::BlackBoxResolutionError;
 
 use self::{
-    arithmetic::ExpressionSolver, blackbox::bigint::AcvmBigIntSolver, directives::solve_directives,
-    memory_op::MemoryOpSolver,
+    arithmetic::ExpressionSolver, blackbox::bigint::AcvmBigIntSolver, memory_op::MemoryOpSolver,
 };
 use crate::BlackBoxFunctionSolver;
 
@@ -29,8 +28,6 @@ use thiserror::Error;
 pub(crate) mod arithmetic;
 // Brillig bytecode
 pub(crate) mod brillig;
-// Directives
-pub(crate) mod directives;
 // black box functions
 pub(crate) mod blackbox;
 mod memory_op;
@@ -168,6 +165,14 @@ impl<F> From<InvalidInputBitSize> for OpcodeResolutionError<F> {
     }
 }
 
+pub type ProfilingSamples = Vec<ProfilingSample>;
+
+#[derive(Default)]
+pub struct ProfilingSample {
+    pub call_stack: Vec<OpcodeLocation>,
+    pub brillig_function_id: Option<BrilligFunctionId>,
+}
+
 pub struct ACVM<'a, F, B: BlackBoxFunctionSolver<F>> {
     status: ACVMStatus<F>,
 
@@ -198,6 +203,10 @@ pub struct ACVM<'a, F, B: BlackBoxFunctionSolver<F>> {
     unconstrained_functions: &'a [BrilligBytecode<F>],
 
     assertion_payloads: &'a [(OpcodeLocation, AssertionPayload<F>)],
+
+    profiling_active: bool,
+
+    profiling_samples: ProfilingSamples,
 }
 
 impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
@@ -222,7 +231,14 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             acir_call_results: Vec::default(),
             unconstrained_functions,
             assertion_payloads,
+            profiling_active: false,
+            profiling_samples: Vec::new(),
         }
+    }
+
+    // Enable profiling
+    pub fn with_profiler(&mut self, profiling_active: bool) {
+        self.profiling_active = profiling_active;
     }
 
     /// Returns a reference to the current state of the ACVM's [`WitnessMap`].
@@ -244,6 +260,10 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
     /// Returns the index of the current opcode to be executed.
     pub fn instruction_pointer(&self) -> usize {
         self.instruction_pointer
+    }
+
+    pub fn take_profiling_samples(&mut self) -> ProfilingSamples {
+        std::mem::take(&mut self.profiling_samples)
     }
 
     /// Finalize the ACVM execution, returning the resulting [`WitnessMap`].
@@ -339,7 +359,6 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
 
     pub fn solve_opcode(&mut self) -> ACVMStatus<F> {
         let opcode = &self.opcodes[self.instruction_pointer];
-
         let resolution = match opcode {
             Opcode::AssertZero(expr) => ExpressionSolver::solve(&mut self.witness_map, expr),
             Opcode::BlackBoxFuncCall(bb_func) => blackbox::solve(
@@ -348,7 +367,6 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
                 bb_func,
                 &mut self.bigint_solver,
             ),
-            Opcode::Directive(directive) => solve_directives(&mut self.witness_map, directive),
             Opcode::MemoryInit { block_id, init, .. } => {
                 let solver = self.block_solvers.entry(*block_id).or_default();
                 solver.init(init, &self.witness_map)
@@ -422,59 +440,32 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         &self,
         location: OpcodeLocation,
     ) -> Option<ResolvedAssertionPayload<F>> {
-        let (_, found_assertion_payload) =
+        let (_, assertion_descriptor) =
             self.assertion_payloads.iter().find(|(loc, _)| location == *loc)?;
-        match found_assertion_payload {
-            AssertionPayload::StaticString(string) => {
-                Some(ResolvedAssertionPayload::String(string.clone()))
-            }
-            AssertionPayload::Dynamic(error_selector, expression) => {
-                let mut fields = vec![];
-                for expr in expression {
-                    match expr {
-                        ExpressionOrMemory::Expression(expr) => {
-                            let value = get_value(expr, &self.witness_map).ok()?;
-                            fields.push(value);
-                        }
-                        ExpressionOrMemory::Memory(block_id) => {
-                            let memory_block = self.block_solvers.get(block_id)?;
-                            fields.extend((0..memory_block.block_len).map(|memory_index| {
-                                *memory_block
-                                    .block_value
-                                    .get(&memory_index)
-                                    .expect("All memory is initialized on creation")
-                            }));
-                        }
-                    }
+        let mut fields = Vec::new();
+        for expr in assertion_descriptor.payload.iter() {
+            match expr {
+                ExpressionOrMemory::Expression(expr) => {
+                    let value = get_value(expr, &self.witness_map).ok()?;
+                    fields.push(value);
                 }
-                let error_selector = ErrorSelector::new(*error_selector);
-
-                Some(match error_selector {
-                    STRING_ERROR_SELECTOR => {
-                        // If the error selector is 0, it means the error is a string
-                        let string = fields
-                            .iter()
-                            .map(|field| {
-                                let as_u8: u8 = field
-                                    .try_to_u64()
-                                    .expect("String character doesn't fit in u64")
-                                    .try_into()
-                                    .expect("String character doesn't fit in u8");
-                                as_u8 as char
-                            })
-                            .collect();
-                        ResolvedAssertionPayload::String(string)
-                    }
-                    _ => {
-                        // If the error selector is not 0, it means the error is a custom error
-                        ResolvedAssertionPayload::Raw(RawAssertionPayload {
-                            selector: error_selector,
-                            data: fields,
-                        })
-                    }
-                })
+                ExpressionOrMemory::Memory(block_id) => {
+                    let memory_block = self.block_solvers.get(block_id)?;
+                    fields.extend((0..memory_block.block_len).map(|memory_index| {
+                        *memory_block
+                            .block_value
+                            .get(&memory_index)
+                            .expect("All memory is initialized on creation")
+                    }));
+                }
             }
         }
+        let error_selector = ErrorSelector::new(assertion_descriptor.error_selector);
+
+        Some(ResolvedAssertionPayload::Raw(RawAssertionPayload {
+            selector: error_selector,
+            data: fields,
+        }))
     }
 
     fn solve_brillig_call_opcode(
@@ -503,10 +494,11 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
                 self.backend,
                 self.instruction_pointer,
                 *id,
+                self.profiling_active,
             )?,
         };
 
-        let result = solver.solve().map_err(|err| self.map_brillig_error(err))?;
+        let result = solver.solve()?;
 
         match result {
             BrilligSolverStatus::ForeignCallWait(foreign_call) => {
@@ -519,34 +511,30 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             }
             BrilligSolverStatus::Finished => {
                 // Write execution outputs
-                solver.finalize(&mut self.witness_map, outputs)?;
-                Ok(None)
-            }
-        }
-    }
-
-    fn map_brillig_error(&self, mut err: OpcodeResolutionError<F>) -> OpcodeResolutionError<F> {
-        match &mut err {
-            OpcodeResolutionError::BrilligFunctionFailed { call_stack, payload, .. } => {
-                // Some brillig errors have static strings as payloads, we can resolve them here
-                let last_location =
-                    call_stack.last().expect("Call stacks should have at least one item");
-                let assertion_descriptor =
-                    self.assertion_payloads.iter().find_map(|(loc, payload)| {
-                        if loc == last_location {
-                            Some(payload)
-                        } else {
-                            None
-                        }
+                if self.profiling_active {
+                    let profiling_info =
+                        solver.finalize_with_profiling(&mut self.witness_map, outputs)?;
+                    profiling_info.into_iter().for_each(|sample| {
+                        let mapped =
+                            sample.call_stack.into_iter().map(|loc| OpcodeLocation::Brillig {
+                                acir_index: self.instruction_pointer,
+                                brillig_index: loc,
+                            });
+                        self.profiling_samples.push(ProfilingSample {
+                            call_stack: std::iter::once(OpcodeLocation::Acir(
+                                self.instruction_pointer,
+                            ))
+                            .chain(mapped)
+                            .collect(),
+                            brillig_function_id: Some(*id),
+                        });
                     });
-
-                if let Some(AssertionPayload::StaticString(string)) = assertion_descriptor {
-                    *payload = Some(ResolvedAssertionPayload::String(string.clone()));
+                } else {
+                    solver.finalize(&mut self.witness_map, outputs)?;
                 }
 
-                err
+                Ok(None)
             }
-            _ => err,
         }
     }
 
@@ -575,6 +563,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             self.backend,
             self.instruction_pointer,
             *id,
+            self.profiling_active,
         );
         match solver {
             Ok(solver) => StepResult::IntoBrillig(solver),

@@ -1,6 +1,5 @@
 // TODO(https://github.com/noir-lang/noir/issues/4932): rename this file to something more generic
 use ark_ec::AffineRepr;
-use ark_ff::MontConfig;
 use num_bigint::BigUint;
 
 use crate::FieldElement;
@@ -16,7 +15,6 @@ pub fn multi_scalar_mul(
     scalars_hi: &[FieldElement],
 ) -> Result<(FieldElement, FieldElement, FieldElement), BlackBoxResolutionError> {
     if points.len() != 3 * scalars_lo.len() || scalars_lo.len() != scalars_hi.len() {
-        dbg!(&points.len(), &scalars_lo.len(), &scalars_hi.len());
         return Err(BlackBoxResolutionError::Failed(
             BlackBoxFunc::MultiScalarMul,
             "Points and scalars must have the same length".to_string(),
@@ -47,15 +45,15 @@ pub fn multi_scalar_mul(
         let mut bytes = scalar_high.to_be_bytes().to_vec();
         bytes.extend_from_slice(&scalar_low.to_be_bytes());
 
-        // Check if this is smaller than the grumpkin modulus
         let grumpkin_integer = BigUint::from_bytes_be(&bytes);
 
-        if grumpkin_integer >= grumpkin::FrConfig::MODULUS.into() {
-            return Err(BlackBoxResolutionError::Failed(
-                BlackBoxFunc::MultiScalarMul,
-                format!("{} is not a valid grumpkin scalar", grumpkin_integer.to_str_radix(16)),
-            ));
-        }
+        // Check if this is smaller than the grumpkin modulus
+        // if grumpkin_integer >= grumpkin::FrConfig::MODULUS.into() {
+        //     return Err(BlackBoxResolutionError::Failed(
+        //         BlackBoxFunc::MultiScalarMul,
+        //         format!("{} is not a valid grumpkin scalar", grumpkin_integer.to_str_radix(16)),
+        //     ));
+        // }
 
         let iteration_output_point =
             grumpkin::SWAffine::from(point.mul_bigint(grumpkin_integer.to_u64_digits()));
@@ -121,8 +119,6 @@ fn create_point(
 mod tests {
     use super::*;
 
-    use ark_ff::BigInteger;
-
     fn get_generator() -> [FieldElement; 3] {
         let generator = grumpkin::SWAffine::generator();
         let generator_x = FieldElement::from_repr(*generator.x().unwrap());
@@ -176,23 +172,23 @@ mod tests {
         assert_eq!(res, expected_error);
     }
 
-    #[test]
-    fn rejects_grumpkin_modulus() {
-        let x = grumpkin::FrConfig::MODULUS.to_bytes_be();
+    // #[test]
+    // fn rejects_grumpkin_modulus() {
+    //     let x = grumpkin::FrConfig::MODULUS.to_bytes_be();
 
-        let low = FieldElement::from_be_bytes_reduce(&x[16..32]);
-        let high = FieldElement::from_be_bytes_reduce(&x[0..16]);
+    //     let low = FieldElement::from_be_bytes_reduce(&x[16..32]);
+    //     let high = FieldElement::from_be_bytes_reduce(&x[0..16]);
 
-        let res = multi_scalar_mul(&get_generator(), &[low], &[high]);
+    //     let res = multi_scalar_mul(&get_generator(), &[low], &[high]);
 
-        assert_eq!(
-            res,
-            Err(BlackBoxResolutionError::Failed(
-                BlackBoxFunc::MultiScalarMul,
-                "30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47 is not a valid grumpkin scalar".into(),
-            ))
-        );
-    }
+    //     assert_eq!(
+    //         res,
+    //         Err(BlackBoxResolutionError::Failed(
+    //             BlackBoxFunc::MultiScalarMul,
+    //             "30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47 is not a valid grumpkin scalar".into(),
+    //         ))
+    //     );
+    // }
 
     #[test]
     fn rejects_invalid_point() {

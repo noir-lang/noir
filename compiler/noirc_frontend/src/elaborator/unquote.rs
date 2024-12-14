@@ -1,5 +1,5 @@
 use crate::{
-    macros_api::Path,
+    ast::Path,
     token::{SpannedToken, Token, Tokens},
 };
 

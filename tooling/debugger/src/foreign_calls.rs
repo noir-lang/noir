@@ -3,7 +3,10 @@ use acvm::{
     pwg::ForeignCallWaitInfo,
     AcirField, FieldElement,
 };
-use nargo::ops::{DefaultForeignCallExecutor, ForeignCallExecutor};
+use nargo::{
+    foreign_calls::{DefaultForeignCallExecutor, ForeignCallExecutor},
+    PrintOutput,
+};
 use noirc_artifacts::debug::{DebugArtifact, DebugVars, StackFrame};
 use noirc_errors::debug_info::{DebugFnId, DebugVarId};
 use noirc_printable_type::ForeignCallError;
@@ -41,21 +44,21 @@ pub trait DebugForeignCallExecutor: ForeignCallExecutor<FieldElement> {
     fn current_stack_frame(&self) -> Option<StackFrame<FieldElement>>;
 }
 
-pub struct DefaultDebugForeignCallExecutor {
-    executor: DefaultForeignCallExecutor<FieldElement>,
+pub struct DefaultDebugForeignCallExecutor<'a> {
+    executor: DefaultForeignCallExecutor<'a, FieldElement>,
     pub debug_vars: DebugVars<FieldElement>,
 }
 
-impl DefaultDebugForeignCallExecutor {
-    pub fn new(show_output: bool) -> Self {
+impl<'a> DefaultDebugForeignCallExecutor<'a> {
+    pub fn new(output: PrintOutput<'a>) -> Self {
         Self {
-            executor: DefaultForeignCallExecutor::new(show_output, None, None, None),
+            executor: DefaultForeignCallExecutor::new(output, None, None, None),
             debug_vars: DebugVars::default(),
         }
     }
 
-    pub fn from_artifact(show_output: bool, artifact: &DebugArtifact) -> Self {
-        let mut ex = Self::new(show_output);
+    pub fn from_artifact(output: PrintOutput<'a>, artifact: &DebugArtifact) -> Self {
+        let mut ex = Self::new(output);
         ex.load_artifact(artifact);
         ex
     }
@@ -70,7 +73,7 @@ impl DefaultDebugForeignCallExecutor {
     }
 }
 
-impl DebugForeignCallExecutor for DefaultDebugForeignCallExecutor {
+impl DebugForeignCallExecutor for DefaultDebugForeignCallExecutor<'_> {
     fn get_variables(&self) -> Vec<StackFrame<FieldElement>> {
         self.debug_vars.get_variables()
     }
@@ -88,7 +91,7 @@ fn debug_fn_id(value: &FieldElement) -> DebugFnId {
     DebugFnId(value.to_u128() as u32)
 }
 
-impl ForeignCallExecutor<FieldElement> for DefaultDebugForeignCallExecutor {
+impl ForeignCallExecutor<FieldElement> for DefaultDebugForeignCallExecutor<'_> {
     fn execute(
         &mut self,
         foreign_call: &ForeignCallWaitInfo<FieldElement>,

@@ -22,7 +22,7 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn remove_paired_rc(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            remove_paired_rc(function);
+            function.remove_paired_rc();
         }
         self
     }
@@ -44,26 +44,28 @@ pub(crate) struct RcInstruction {
     pub(crate) possibly_mutated: bool,
 }
 
-/// This function is very simplistic for now. It takes advantage of the fact that dec_rc
-/// instructions are currently issued only at the end of a function for parameters and will
-/// only check the first and last block for inc & dec rc instructions to be removed. The rest
-/// of the function is still checked for array_set instructions.
-///
-/// This restriction lets this function largely ignore merging intermediate results from other
-/// blocks and handling loops.
-fn remove_paired_rc(function: &mut Function) {
-    // `dec_rc` is only issued for parameters currently so we can speed things
-    // up a bit by skipping any functions without them.
-    if !contains_array_parameter(function) {
-        return;
+impl Function {
+    /// This function is very simplistic for now. It takes advantage of the fact that dec_rc
+    /// instructions are currently issued only at the end of a function for parameters and will
+    /// only check the first and last block for inc & dec rc instructions to be removed. The rest
+    /// of the function is still checked for array_set instructions.
+    ///
+    /// This restriction lets this function largely ignore merging intermediate results from other
+    /// blocks and handling loops.
+    pub(crate) fn remove_paired_rc(&mut self) {
+        // `dec_rc` is only issued for parameters currently so we can speed things
+        // up a bit by skipping any functions without them.
+        if !contains_array_parameter(self) {
+            return;
+        }
+
+        let mut context = Context::default();
+
+        context.find_rcs_in_entry_block(self);
+        context.scan_for_array_sets(self);
+        let to_remove = context.find_rcs_to_remove(self);
+        remove_instructions(to_remove, self);
     }
-
-    let mut context = Context::default();
-
-    context.find_rcs_in_entry_block(function);
-    context.scan_for_array_sets(function);
-    let to_remove = context.find_rcs_to_remove(function);
-    remove_instructions(to_remove, function);
 }
 
 fn contains_array_parameter(function: &mut Function) -> bool {
@@ -153,11 +155,17 @@ fn remove_instructions(to_remove: HashSet<InstructionId>, function: &mut Functio
 mod test {
     use std::sync::Arc;
 
+    use noirc_frontend::monomorphization::ast::InlineType;
+
     use crate::ssa::{
         function_builder::FunctionBuilder,
         ir::{
-            basic_block::BasicBlockId, dfg::DataFlowGraph, function::RuntimeType,
-            instruction::Instruction, map::Id, types::Type,
+            basic_block::BasicBlockId,
+            dfg::DataFlowGraph,
+            function::RuntimeType,
+            instruction::Instruction,
+            map::Id,
+            types::{NumericType, Type},
         },
     };
 
@@ -193,11 +201,12 @@ mod test {
         //     inc_rc v0
         //     inc_rc v0
         //     dec_rc v0
-        //     return [v0]
+        //     v1 = make_array [v0]
+        //     return v1
         // }
         let main_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("foo".into(), main_id);
-        builder.set_runtime(RuntimeType::Brillig);
+        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
 
         let inner_array_type = Type::Array(Arc::new(vec![Type::field()]), 2);
         let v0 = builder.add_parameter(inner_array_type.clone());
@@ -207,8 +216,8 @@ mod test {
         builder.insert_dec_rc(v0);
 
         let outer_array_type = Type::Array(Arc::new(vec![inner_array_type]), 1);
-        let array = builder.array_constant(vec![v0].into(), outer_array_type);
-        builder.terminate_with_return(vec![array]);
+        let v1 = builder.insert_make_array(vec![v0].into(), outer_array_type);
+        builder.terminate_with_return(vec![v1]);
 
         let ssa = builder.finish().remove_paired_rc();
         let main = ssa.main();
@@ -246,7 +255,7 @@ mod test {
         builder.insert_inc_rc(v0);
         let v2 = builder.insert_load(v1, array_type);
 
-        let zero = builder.numeric_constant(0u128, Type::unsigned(64));
+        let zero = builder.numeric_constant(0u128, NumericType::unsigned(64));
         let five = builder.field_constant(5u128);
         let v7 = builder.insert_array_set(v2, zero, five);
 
@@ -297,7 +306,7 @@ mod test {
         builder.insert_store(v0, v1);
 
         let v2 = builder.insert_load(v1, array_type.clone());
-        let zero = builder.numeric_constant(0u128, Type::unsigned(64));
+        let zero = builder.numeric_constant(0u128, NumericType::unsigned(64));
         let five = builder.field_constant(5u128);
         let v7 = builder.insert_array_set(v2, zero, five);
 

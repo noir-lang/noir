@@ -1,11 +1,11 @@
 #![cfg(test)]
 
-use crate::{notifications::on_did_open_text_document, test_utils};
+use crate::{notifications::on_did_open_text_document, test_utils, tests::apply_text_edits};
 
 use lsp_types::{
     CodeActionContext, CodeActionOrCommand, CodeActionParams, CodeActionResponse,
     DidOpenTextDocumentParams, PartialResultParams, Position, Range, TextDocumentIdentifier,
-    TextDocumentItem, TextEdit, WorkDoneProgressParams,
+    TextDocumentItem, WorkDoneProgressParams,
 };
 
 use super::on_code_action_request;
@@ -70,24 +70,10 @@ pub(crate) async fn assert_code_action(title: &str, src: &str, expected: &str) {
 
     let workspace_edit = action.edit.as_ref().unwrap();
     let text_edits = workspace_edit.changes.as_ref().unwrap().iter().next().unwrap().1;
-    assert_eq!(text_edits.len(), 1);
 
-    let result = apply_text_edit(&src.replace(">|<", ""), &text_edits[0]);
+    let result = apply_text_edits(&src.replace(">|<", ""), text_edits);
     if result != expected {
         println!("Expected:\n```\n{}\n```\n\nGot:\n```\n{}\n```", expected, result);
         assert_eq!(result, expected);
     }
-}
-
-fn apply_text_edit(src: &str, text_edit: &TextEdit) -> String {
-    let mut lines: Vec<_> = src.lines().collect();
-    assert_eq!(text_edit.range.start.line, text_edit.range.end.line);
-
-    let mut line = lines[text_edit.range.start.line as usize].to_string();
-    line.replace_range(
-        text_edit.range.start.character as usize..text_edit.range.end.character as usize,
-        &text_edit.new_text,
-    );
-    lines[text_edit.range.start.line as usize] = &line;
-    lines.join("\n")
 }

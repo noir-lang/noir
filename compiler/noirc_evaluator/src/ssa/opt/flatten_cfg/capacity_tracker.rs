@@ -21,30 +21,28 @@ impl<'a> SliceCapacityTracker<'a> {
     pub(crate) fn collect_slice_information(
         &self,
         instruction: &Instruction,
-        slice_sizes: &mut HashMap<ValueId, usize>,
+        slice_sizes: &mut HashMap<ValueId, u32>,
         results: &[ValueId],
     ) {
         match instruction {
             Instruction::ArrayGet { array, .. } => {
-                let array_typ = self.dfg.type_of_value(*array);
-                let array_value = &self.dfg[*array];
-                if matches!(array_value, Value::Array { .. }) && array_typ.contains_slice_element()
-                {
-                    // Initial insertion into the slice sizes map
-                    // Any other insertions should only occur if the value is already
-                    // a part of the map.
-                    self.compute_slice_capacity(*array, slice_sizes);
+                if let Some((_, array_type)) = self.dfg.get_array_constant(*array) {
+                    if array_type.contains_slice_element() {
+                        // Initial insertion into the slice sizes map
+                        // Any other insertions should only occur if the value is already
+                        // a part of the map.
+                        self.compute_slice_capacity(*array, slice_sizes);
+                    }
                 }
             }
             Instruction::ArraySet { array, value, .. } => {
-                let array_typ = self.dfg.type_of_value(*array);
-                let array_value = &self.dfg[*array];
-                if matches!(array_value, Value::Array { .. }) && array_typ.contains_slice_element()
-                {
-                    // Initial insertion into the slice sizes map
-                    // Any other insertions should only occur if the value is already
-                    // a part of the map.
-                    self.compute_slice_capacity(*array, slice_sizes);
+                if let Some((_, array_type)) = self.dfg.get_array_constant(*array) {
+                    if array_type.contains_slice_element() {
+                        // Initial insertion into the slice sizes map
+                        // Any other insertions should only occur if the value is already
+                        // a part of the map.
+                        self.compute_slice_capacity(*array, slice_sizes);
+                    }
                 }
 
                 let value_typ = self.dfg.type_of_value(*value);
@@ -99,20 +97,21 @@ impl<'a> SliceCapacityTracker<'a> {
                             let slice_contents = arguments[argument_index];
 
                             if let Some(contents_capacity) = slice_sizes.get(&slice_contents) {
-                                let new_capacity = *contents_capacity - 1;
+                                // We use a saturating sub here as calling `pop_front` or `pop_back`
+                                // on a zero-length slice would otherwise underflow.
+                                let new_capacity = contents_capacity.saturating_sub(1);
                                 slice_sizes.insert(result_slice, new_capacity);
                             }
                         }
                         Intrinsic::ToBits(_) => {
                             // Compiler sanity check
                             assert!(matches!(self.dfg.type_of_value(result_slice), Type::Slice(_)));
-                            slice_sizes.insert(result_slice, FieldElement::max_num_bits() as usize);
+                            slice_sizes.insert(result_slice, FieldElement::max_num_bits());
                         }
                         Intrinsic::ToRadix(_) => {
                             // Compiler sanity check
                             assert!(matches!(self.dfg.type_of_value(result_slice), Type::Slice(_)));
-                            slice_sizes
-                                .insert(result_slice, FieldElement::max_num_bytes() as usize);
+                            slice_sizes.insert(result_slice, FieldElement::max_num_bytes());
                         }
                         Intrinsic::AsSlice => {
                             let array_size = self
@@ -157,15 +156,15 @@ impl<'a> SliceCapacityTracker<'a> {
     pub(crate) fn compute_slice_capacity(
         &self,
         array_id: ValueId,
-        slice_sizes: &mut HashMap<ValueId, usize>,
+        slice_sizes: &mut HashMap<ValueId, u32>,
     ) {
-        if let Value::Array { array, typ } = &self.dfg[array_id] {
+        if let Some((array, typ)) = self.dfg.get_array_constant(array_id) {
             // Compiler sanity check
             assert!(!typ.is_nested_slice(), "ICE: Nested slices are not allowed and should not have reached the flattening pass of SSA");
             if let Type::Slice(_) = typ {
                 let element_size = typ.element_size();
                 let len = array.len() / element_size;
-                slice_sizes.insert(array_id, len);
+                slice_sizes.insert(array_id, len as u32);
             }
         }
     }

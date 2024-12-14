@@ -1,12 +1,11 @@
 use std::{collections::BTreeMap, fmt::Display};
 
-use chumsky::Parser;
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 
 use crate::{
-    ast::Documented,
+    ast::{Documented, Expression, ExpressionKind},
     hir::{
         comptime::{Interpreter, InterpreterError, Value},
         def_collector::{
@@ -19,13 +18,10 @@ use crate::{
         def_map::{LocalModuleId, ModuleId},
         resolution::errors::ResolverError,
     },
-    hir_def::expr::HirIdent,
-    lexer::Lexer,
-    macros_api::{
-        Expression, ExpressionKind, HirExpression, NodeInterner, SecondaryAttribute, StructId,
-    },
-    node_interner::{DefinitionKind, DependencyId, FuncId, TraitId},
-    parser::{self, TopLevelStatement, TopLevelStatementKind},
+    hir_def::expr::{HirExpression, HirIdent},
+    node_interner::{DefinitionKind, DependencyId, FuncId, NodeInterner, StructId, TraitId},
+    parser::{Item, ItemKind},
+    token::{MetaAttribute, SecondaryAttribute},
     Type, TypeBindings, UnificationError,
 };
 
@@ -42,6 +38,8 @@ struct AttributeContext {
     // The module where the attribute is located
     attribute_module: LocalModuleId,
 }
+
+type CollectedAttributes = Vec<(FuncId, Value, Vec<Expression>, AttributeContext, Span)>;
 
 impl AttributeContext {
     fn new(file: FileId, module: LocalModuleId) -> Self {
@@ -94,6 +92,7 @@ impl<'context> Elaborator<'context> {
         let mut elaborator = Elaborator::new(
             self.interner,
             self.def_maps,
+            self.usage_tracker,
             self.crate_id,
             self.debug_comptime_in_file,
             self.interpreter_call_stack.clone(),
@@ -134,42 +133,37 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn run_comptime_attributes_on_item(
+    fn collect_comptime_attributes_on_item(
         &mut self,
         attributes: &[SecondaryAttribute],
         item: Value,
-        span: Span,
         attribute_context: AttributeContext,
-        generated_items: &mut CollectedItems,
+        attributes_to_run: &mut CollectedAttributes,
     ) {
         for attribute in attributes {
-            self.run_comptime_attribute_on_item(
+            self.collect_comptime_attribute_on_item(
                 attribute,
                 &item,
-                span,
                 attribute_context,
-                generated_items,
+                attributes_to_run,
             );
         }
     }
 
-    fn run_comptime_attribute_on_item(
+    fn collect_comptime_attribute_on_item(
         &mut self,
         attribute: &SecondaryAttribute,
         item: &Value,
-        span: Span,
         attribute_context: AttributeContext,
-        generated_items: &mut CollectedItems,
+        attributes_to_run: &mut CollectedAttributes,
     ) {
-        if let SecondaryAttribute::Custom(attribute) = attribute {
+        if let SecondaryAttribute::Meta(attribute) = attribute {
             self.elaborate_in_comptime_context(|this| {
-                if let Err(error) = this.run_comptime_attribute_name_on_item(
-                    &attribute.contents,
+                if let Err(error) = this.collect_comptime_attribute_name_on_item(
+                    attribute,
                     item.clone(),
-                    span,
-                    attribute.contents_span,
                     attribute_context,
-                    generated_items,
+                    attributes_to_run,
                 ) {
                     this.errors.push(error);
                 }
@@ -177,45 +171,58 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn run_comptime_attribute_name_on_item(
+    /// Resolve an attribute to the function it refers to and add it to `attributes_to_run`
+    fn collect_comptime_attribute_name_on_item(
         &mut self,
-        attribute: &str,
+        attribute: &MetaAttribute,
         item: Value,
-        span: Span,
-        attribute_span: Span,
         attribute_context: AttributeContext,
-        generated_items: &mut CollectedItems,
+        attributes_to_run: &mut CollectedAttributes,
     ) -> Result<(), (CompilationError, FileId)> {
         self.file = attribute_context.attribute_file;
         self.local_module = attribute_context.attribute_module;
+        let span = attribute.span;
 
-        let location = Location::new(attribute_span, self.file);
-        let Some((function, arguments)) = Self::parse_attribute(attribute, location)? else {
-            // Do not issue an error if the attribute is unknown
-            return Ok(());
-        };
+        let function = Expression { kind: ExpressionKind::Variable(attribute.name.clone()), span };
+        let arguments = attribute.arguments.clone();
 
         // Elaborate the function, rolling back any errors generated in case it is unknown
         let error_count = self.errors.len();
+        let function_string = function.to_string();
         let function = self.elaborate_expression(function).0;
         self.errors.truncate(error_count);
 
         let definition_id = match self.interner.expression(&function) {
             HirExpression::Ident(ident, _) => ident.id,
-            _ => return Ok(()),
+            _ => {
+                let error =
+                    ResolverError::AttributeFunctionIsNotAPath { function: function_string, span };
+                return Err((error.into(), self.file));
+            }
         };
 
         let Some(definition) = self.interner.try_definition(definition_id) else {
-            // If there's no such function, don't return an error.
-            // This preserves backwards compatibility in allowing custom attributes that
-            // do not refer to comptime functions.
-            return Ok(());
+            let error = ResolverError::AttributeFunctionNotInScope { name: function_string, span };
+            return Err((error.into(), self.file));
         };
 
         let DefinitionKind::Function(function) = definition.kind else {
             return Err((ResolverError::NonFunctionInAnnotation { span }.into(), self.file));
         };
 
+        attributes_to_run.push((function, item, arguments, attribute_context, span));
+        Ok(())
+    }
+
+    fn run_attribute(
+        &mut self,
+        attribute_context: AttributeContext,
+        function: FuncId,
+        arguments: Vec<Expression>,
+        item: Value,
+        location: Location,
+        generated_items: &mut CollectedItems,
+    ) -> Result<(), (CompilationError, FileId)> {
         self.file = attribute_context.file;
         self.local_module = attribute_context.module;
 
@@ -227,10 +234,7 @@ impl<'context> Elaborator<'context> {
             arguments,
             location,
         )
-        .map_err(|error| {
-            let file = error.get_location().file;
-            (error.into(), file)
-        })?;
+        .map_err(|error| error.into_compilation_error_pair())?;
 
         arguments.insert(0, (item, location));
 
@@ -249,37 +253,6 @@ impl<'context> Elaborator<'context> {
         }
 
         Ok(())
-    }
-
-    /// Parses an attribute in the form of a function call (e.g. `#[foo(a b, c d)]`) into
-    /// the function and quoted arguments called (e.g. `("foo", vec![(a b, location), (c d, location)])`)
-    #[allow(clippy::type_complexity)]
-    pub(crate) fn parse_attribute(
-        annotation: &str,
-        location: Location,
-    ) -> Result<Option<(Expression, Vec<Expression>)>, (CompilationError, FileId)> {
-        let (tokens, mut lexing_errors) = Lexer::lex(annotation);
-        if !lexing_errors.is_empty() {
-            return Err((lexing_errors.swap_remove(0).into(), location.file));
-        }
-
-        let expression = parser::expression()
-            .parse(tokens)
-            .map_err(|mut errors| (errors.swap_remove(0).into(), location.file))?;
-
-        let (mut func, mut arguments) = match expression.kind {
-            ExpressionKind::Call(call) => (*call.func, call.arguments),
-            ExpressionKind::Variable(_) => (expression, Vec::new()),
-            _ => return Ok(None),
-        };
-
-        func.span = func.span.shift_by(location.span.start());
-
-        for argument in &mut arguments {
-            argument.span = argument.span.shift_by(location.span.start());
-        }
-
-        Ok(Some((func, arguments)))
     }
 
     fn handle_attribute_arguments(
@@ -350,8 +323,6 @@ impl<'context> Elaborator<'context> {
                 push_arg(Value::TraitDefinition(trait_id));
             } else {
                 let (expr_id, expr_type) = interpreter.elaborator.elaborate_expression(arg);
-                push_arg(interpreter.evaluate(expr_id)?);
-
                 if let Err(UnificationError) = expr_type.unify(param_type) {
                     return Err(InterpreterError::TypeMismatch {
                         expected: param_type.clone(),
@@ -359,6 +330,7 @@ impl<'context> Elaborator<'context> {
                         location: arg_location,
                     });
                 }
+                push_arg(interpreter.evaluate(expr_id)?);
             };
         }
 
@@ -372,7 +344,7 @@ impl<'context> Elaborator<'context> {
 
     fn add_items(
         &mut self,
-        items: Vec<TopLevelStatement>,
+        items: Vec<Item>,
         generated_items: &mut CollectedItems,
         location: Location,
     ) {
@@ -383,17 +355,18 @@ impl<'context> Elaborator<'context> {
 
     pub(crate) fn add_item(
         &mut self,
-        item: TopLevelStatement,
+        item: Item,
         generated_items: &mut CollectedItems,
         location: Location,
     ) {
         match item.kind {
-            TopLevelStatementKind::Function(function) => {
+            ItemKind::Function(function) => {
                 let module_id = self.module_id();
 
                 if let Some(id) = dc_mod::collect_function(
                     self.interner,
                     self.def_maps.get_mut(&self.crate_id).unwrap(),
+                    self.usage_tracker,
                     &function,
                     module_id,
                     self.file,
@@ -409,7 +382,7 @@ impl<'context> Elaborator<'context> {
                     });
                 }
             }
-            TopLevelStatementKind::TraitImpl(mut trait_impl) => {
+            ItemKind::TraitImpl(mut trait_impl) => {
                 let (methods, associated_types, associated_constants) =
                     dc_mod::collect_trait_impl_items(
                         self.interner,
@@ -439,10 +412,11 @@ impl<'context> Elaborator<'context> {
                     resolved_trait_generics: Vec::new(),
                 });
             }
-            TopLevelStatementKind::Global(global, visibility) => {
+            ItemKind::Global(global, visibility) => {
                 let (global, error) = dc_mod::collect_global(
                     self.interner,
                     self.def_maps.get_mut(&self.crate_id).unwrap(),
+                    self.usage_tracker,
                     Documented::new(global, item.doc_comments),
                     visibility,
                     self.file,
@@ -455,10 +429,11 @@ impl<'context> Elaborator<'context> {
                     self.errors.push(error);
                 }
             }
-            TopLevelStatementKind::Struct(struct_def) => {
+            ItemKind::Struct(struct_def) => {
                 if let Some((type_id, the_struct)) = dc_mod::collect_struct(
                     self.interner,
                     self.def_maps.get_mut(&self.crate_id).unwrap(),
+                    self.usage_tracker,
                     Documented::new(struct_def, item.doc_comments),
                     self.file,
                     self.local_module,
@@ -468,20 +443,24 @@ impl<'context> Elaborator<'context> {
                     generated_items.types.insert(type_id, the_struct);
                 }
             }
-            TopLevelStatementKind::Impl(r#impl) => {
+            ItemKind::Impl(r#impl) => {
                 let module = self.module_id();
-                dc_mod::collect_impl(self.interner, generated_items, r#impl, self.file, module);
+                dc_mod::collect_impl(
+                    self.interner,
+                    generated_items,
+                    r#impl,
+                    self.file,
+                    module,
+                    &mut self.errors,
+                );
             }
 
-            // Assume that an error has already been issued
-            TopLevelStatementKind::Error => (),
-
-            TopLevelStatementKind::Module(_)
-            | TopLevelStatementKind::Import(..)
-            | TopLevelStatementKind::Trait(_)
-            | TopLevelStatementKind::TypeAlias(_)
-            | TopLevelStatementKind::SubModule(_)
-            | TopLevelStatementKind::InnerAttribute(_) => {
+            ItemKind::ModuleDecl(_)
+            | ItemKind::Import(..)
+            | ItemKind::Trait(_)
+            | ItemKind::TypeAlias(_)
+            | ItemKind::Submodules(_)
+            | ItemKind::InnerAttribute(_) => {
                 let item = item.kind.to_string();
                 let error = InterpreterError::UnsupportedTopLevelItemUnquote { item, location };
                 self.errors.push(error.into_compilation_error_pair());
@@ -511,65 +490,91 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    /// Run all the attributes on each item. The ordering is unspecified to users but currently
-    /// we run trait attributes first to (e.g.) register derive handlers before derive is
-    /// called on structs.
-    /// Returns any new items generated by attributes.
+    /// Run all the attributes on each item in the crate in source-order.
+    /// Source-order is defined as running all child modules before their parent modules are run.
+    /// Child modules of a parent are run in order of their `mod foo;` declarations in the parent.
     pub(super) fn run_attributes(
         &mut self,
         traits: &BTreeMap<TraitId, UnresolvedTrait>,
         types: &BTreeMap<StructId, UnresolvedStruct>,
         functions: &[UnresolvedFunctions],
         module_attributes: &[ModuleAttribute],
-    ) -> CollectedItems {
-        let mut generated_items = CollectedItems::default();
+    ) {
+        let mut attributes_to_run = Vec::new();
 
         for (trait_id, trait_) in traits {
             let attributes = &trait_.trait_def.attributes;
             let item = Value::TraitDefinition(*trait_id);
-            let span = trait_.trait_def.span;
             let context = AttributeContext::new(trait_.file_id, trait_.module_id);
-            self.run_comptime_attributes_on_item(
+            self.collect_comptime_attributes_on_item(
                 attributes,
                 item,
-                span,
                 context,
-                &mut generated_items,
+                &mut attributes_to_run,
             );
         }
 
         for (struct_id, struct_def) in types {
             let attributes = &struct_def.struct_def.attributes;
             let item = Value::StructDefinition(*struct_id);
-            let span = struct_def.struct_def.span;
             let context = AttributeContext::new(struct_def.file_id, struct_def.module_id);
-            self.run_comptime_attributes_on_item(
+            self.collect_comptime_attributes_on_item(
                 attributes,
                 item,
-                span,
                 context,
-                &mut generated_items,
+                &mut attributes_to_run,
             );
         }
 
-        self.run_attributes_on_functions(functions, &mut generated_items);
+        self.collect_attributes_on_functions(functions, &mut attributes_to_run);
+        self.collect_attributes_on_modules(module_attributes, &mut attributes_to_run);
 
-        self.run_attributes_on_modules(module_attributes, &mut generated_items);
+        self.sort_attributes_by_run_order(&mut attributes_to_run);
 
-        generated_items
+        // run
+        for (attribute, item, args, context, span) in attributes_to_run {
+            let location = Location::new(span, context.attribute_file);
+
+            let mut generated_items = CollectedItems::default();
+            self.elaborate_in_comptime_context(|this| {
+                if let Err(error) = this.run_attribute(
+                    context,
+                    attribute,
+                    args,
+                    item,
+                    location,
+                    &mut generated_items,
+                ) {
+                    this.errors.push(error);
+                }
+            });
+
+            if !generated_items.is_empty() {
+                self.elaborate_items(generated_items);
+            }
+        }
     }
 
-    fn run_attributes_on_modules(
+    fn sort_attributes_by_run_order(&self, attributes: &mut CollectedAttributes) {
+        let module_order = self.def_maps[&self.crate_id].get_module_topological_order();
+
+        // Sort each attribute by (module, location in file) so that we can execute in
+        // the order they were defined in, running attributes in child modules first.
+        attributes.sort_by_key(|(_, _, _, ctx, span)| {
+            (module_order[&ctx.attribute_module], span.start())
+        });
+    }
+
+    fn collect_attributes_on_modules(
         &mut self,
         module_attributes: &[ModuleAttribute],
-        generated_items: &mut CollectedItems,
+        attributes_to_run: &mut CollectedAttributes,
     ) {
         for module_attribute in module_attributes {
             let local_id = module_attribute.module_id;
             let module_id = ModuleId { krate: self.crate_id, local_id };
             let item = Value::ModuleDefinition(module_id);
             let attribute = &module_attribute.attribute;
-            let span = Span::default();
 
             let context = AttributeContext {
                 file: module_attribute.file_id,
@@ -578,14 +583,14 @@ impl<'context> Elaborator<'context> {
                 attribute_module: module_attribute.attribute_module_id,
             };
 
-            self.run_comptime_attribute_on_item(attribute, &item, span, context, generated_items);
+            self.collect_comptime_attribute_on_item(attribute, &item, context, attributes_to_run);
         }
     }
 
-    fn run_attributes_on_functions(
+    fn collect_attributes_on_functions(
         &mut self,
         function_sets: &[UnresolvedFunctions],
-        generated_items: &mut CollectedItems,
+        attributes_to_run: &mut CollectedAttributes,
     ) {
         for function_set in function_sets {
             self.self_type = function_set.self_type.clone();
@@ -594,13 +599,11 @@ impl<'context> Elaborator<'context> {
                 let context = AttributeContext::new(function_set.file_id, *local_module);
                 let attributes = function.secondary_attributes();
                 let item = Value::FunctionDefinition(*function_id);
-                let span = function.span();
-                self.run_comptime_attributes_on_item(
+                self.collect_comptime_attributes_on_item(
                     attributes,
                     item,
-                    span,
                     context,
-                    generated_items,
+                    attributes_to_run,
                 );
             }
         }

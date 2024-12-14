@@ -9,11 +9,15 @@
 
 pub mod constants;
 pub mod errors;
+pub mod foreign_calls;
 pub mod ops;
 pub mod package;
 pub mod workspace;
 
-use std::collections::{BTreeMap, HashMap};
+use std::{
+    collections::{BTreeMap, HashMap, HashSet},
+    path::PathBuf,
+};
 
 use fm::{FileManager, FILE_EXTENSION};
 use noirc_driver::{add_dep, prepare_crate, prepare_dependency};
@@ -23,8 +27,10 @@ use noirc_frontend::{
 };
 use package::{Dependency, Package};
 use rayon::prelude::*;
+use walkdir::WalkDir;
 
 pub use self::errors::NargoError;
+pub use self::foreign_calls::print::PrintOutput;
 
 pub fn prepare_dependencies(
     context: &mut Context,
@@ -58,8 +64,14 @@ pub fn insert_all_files_for_workspace_into_file_manager_with_overrides(
     file_manager: &mut FileManager,
     overrides: &HashMap<&std::path::Path, &str>,
 ) {
+    let mut processed_entry_paths = HashSet::new();
     for package in workspace.clone().into_iter() {
-        insert_all_files_for_package_into_file_manager(package, file_manager, overrides);
+        insert_all_files_for_package_into_file_manager(
+            package,
+            file_manager,
+            overrides,
+            &mut processed_entry_paths,
+        );
     }
 }
 // We will pre-populate the file manager with all the files in the package
@@ -72,27 +84,55 @@ fn insert_all_files_for_package_into_file_manager(
     package: &Package,
     file_manager: &mut FileManager,
     overrides: &HashMap<&std::path::Path, &str>,
+    processed_entry_paths: &mut HashSet<PathBuf>,
 ) {
+    if processed_entry_paths.contains(&package.entry_path) {
+        return;
+    }
+    processed_entry_paths.insert(package.entry_path.clone());
+
     // Start off at the entry path and read all files in the parent directory.
     let entry_path_parent = package
         .entry_path
         .parent()
         .unwrap_or_else(|| panic!("The entry path is expected to be a single file within a directory and so should have a parent {:?}", package.entry_path));
 
-    // Get all files in the package and add them to the file manager
-    let paths = get_all_noir_source_in_dir(entry_path_parent)
-        .expect("could not get all paths in the package");
-    for path in paths {
+    for entry in WalkDir::new(entry_path_parent) {
+        let Ok(entry) = entry else {
+            continue;
+        };
+
+        if !entry.file_type().is_file() {
+            continue;
+        }
+
+        if !entry.path().extension().map_or(false, |ext| ext == FILE_EXTENSION) {
+            continue;
+        };
+
+        let path = entry.into_path();
+
+        // Avoid reading the source if the file is already there
+        if file_manager.has_file(&path) {
+            continue;
+        }
+
         let source = if let Some(src) = overrides.get(path.as_path()) {
             src.to_string()
         } else {
             std::fs::read_to_string(path.as_path())
                 .unwrap_or_else(|_| panic!("could not read file {:?} into string", path))
         };
+
         file_manager.add_file_with_source(path.as_path(), source);
     }
 
-    insert_all_files_for_packages_dependencies_into_file_manager(package, file_manager);
+    insert_all_files_for_packages_dependencies_into_file_manager(
+        package,
+        file_manager,
+        overrides,
+        processed_entry_paths,
+    );
 }
 
 // Inserts all files for the dependencies of the package into the file manager
@@ -100,6 +140,8 @@ fn insert_all_files_for_package_into_file_manager(
 fn insert_all_files_for_packages_dependencies_into_file_manager(
     package: &Package,
     file_manager: &mut FileManager,
+    overrides: &HashMap<&std::path::Path, &str>,
+    processed_entry_paths: &mut HashSet<PathBuf>,
 ) {
     for (_, dep) in package.dependencies.iter() {
         match dep {
@@ -107,9 +149,9 @@ fn insert_all_files_for_packages_dependencies_into_file_manager(
                 insert_all_files_for_package_into_file_manager(
                     package,
                     file_manager,
-                    &HashMap::new(),
+                    overrides,
+                    processed_entry_paths,
                 );
-                insert_all_files_for_packages_dependencies_into_file_manager(package, file_manager);
             }
         }
     }
@@ -142,85 +184,4 @@ pub fn prepare_package<'file_manager, 'parsed_files>(
     prepare_dependencies(&mut context, crate_id, &package.dependencies);
 
     (context, crate_id)
-}
-
-// Get all Noir source files in the directory and subdirectories.
-//
-// Panics: If the path is not a path to a directory.
-fn get_all_noir_source_in_dir(dir: &std::path::Path) -> std::io::Result<Vec<std::path::PathBuf>> {
-    get_all_paths_in_dir(dir, |path| {
-        path.extension().map_or(false, |extension| extension == FILE_EXTENSION)
-    })
-}
-
-// Get all paths in the directory and subdirectories.
-//
-// Panics: If the path is not a path to a directory.
-//
-// TODO: Along with prepare_package, this function is an abstraction leak
-// TODO: given that this crate should not know about the file manager.
-// TODO: We can clean this up in a future refactor
-fn get_all_paths_in_dir(
-    dir: &std::path::Path,
-    predicate: fn(&std::path::Path) -> bool,
-) -> std::io::Result<Vec<std::path::PathBuf>> {
-    assert!(dir.is_dir(), "directory {dir:?} is not a path to a directory");
-
-    let mut paths = Vec::new();
-
-    if dir.is_dir() {
-        for entry in std::fs::read_dir(dir)? {
-            let entry = entry?;
-            let path = entry.path();
-            if path.is_dir() {
-                let mut sub_paths = get_all_paths_in_dir(&path, predicate)?;
-                paths.append(&mut sub_paths);
-            } else if predicate(&path) {
-                paths.push(path);
-            }
-        }
-    }
-
-    Ok(paths)
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::get_all_paths_in_dir;
-    use std::{
-        fs::{self, File},
-        path::Path,
-    };
-    use tempfile::tempdir;
-
-    fn create_test_dir_structure(temp_dir: &Path) -> std::io::Result<()> {
-        fs::create_dir(temp_dir.join("sub_dir1"))?;
-        File::create(temp_dir.join("sub_dir1/file1.txt"))?;
-        fs::create_dir(temp_dir.join("sub_dir2"))?;
-        File::create(temp_dir.join("sub_dir2/file2.txt"))?;
-        File::create(temp_dir.join("file3.txt"))?;
-        Ok(())
-    }
-
-    #[test]
-    fn test_get_all_paths_in_dir() {
-        let temp_dir = tempdir().expect("could not create a temporary directory");
-        create_test_dir_structure(temp_dir.path())
-            .expect("could not create test directory structure");
-
-        let paths = get_all_paths_in_dir(temp_dir.path(), |_| true)
-            .expect("could not get all paths in the test directory");
-
-        // This should be the paths to all of the files in the directory and the subdirectory
-        let expected_paths = vec![
-            temp_dir.path().join("file3.txt"),
-            temp_dir.path().join("sub_dir1/file1.txt"),
-            temp_dir.path().join("sub_dir2/file2.txt"),
-        ];
-
-        assert_eq!(paths.len(), expected_paths.len());
-        for path in expected_paths {
-            assert!(paths.contains(&path));
-        }
-    }
 }

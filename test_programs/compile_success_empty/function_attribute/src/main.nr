@@ -1,5 +1,5 @@
 #[function_attr]
-fn foo() {}
+pub fn foo() {}
 
 struct Foo {}
 

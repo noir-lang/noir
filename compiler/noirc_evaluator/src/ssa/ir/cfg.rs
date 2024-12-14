@@ -59,7 +59,7 @@ impl ControlFlowGraph {
 
     /// Clears out a given block's successors. This also removes the given block from
     /// being a predecessor of any of its previous successors.
-    fn invalidate_block_successors(&mut self, basic_block_id: BasicBlockId) {
+    pub(crate) fn invalidate_block_successors(&mut self, basic_block_id: BasicBlockId) {
         let node = self
             .data
             .get_mut(&basic_block_id)
@@ -231,7 +231,7 @@ mod tests {
         func.dfg[block2_id].set_terminator(TerminatorInstruction::Jmp {
             destination: ret_block_id,
             arguments: vec![],
-            call_stack: im::Vector::new(),
+            call_stack: CallStack::new(),
         });
         func.dfg[block0_id].set_terminator(TerminatorInstruction::JmpIf {
             condition: cond,

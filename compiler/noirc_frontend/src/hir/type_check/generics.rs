@@ -4,8 +4,7 @@ use iter_extended::vecmap;
 
 use crate::{
     hir_def::traits::NamedType,
-    macros_api::NodeInterner,
-    node_interner::{FuncId, TraitId, TypeAliasId},
+    node_interner::{FuncId, NodeInterner, TraitId, TypeAliasId},
     ResolvedGeneric, StructType, Type,
 };
 
@@ -133,6 +132,10 @@ impl TraitGenerics {
         let named =
             vecmap(&self.named, |named| NamedType { name: named.name.clone(), typ: f(&named.typ) });
         TraitGenerics { ordered, named }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.ordered.is_empty() && self.named.is_empty()
     }
 }
 

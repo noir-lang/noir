@@ -5,7 +5,7 @@ use crate::ssa::ir::{
     basic_block::BasicBlockId,
     dfg::{CallStack, DataFlowGraph, InsertInstructionResult},
     instruction::{BinaryOp, Instruction},
-    types::Type,
+    types::{NumericType, Type},
     value::{Value, ValueId},
 };
 
@@ -17,7 +17,7 @@ pub(crate) struct ValueMerger<'a> {
 
     // Maps SSA array values with a slice type to their size.
     // This must be computed before merging values.
-    slice_sizes: &'a mut HashMap<ValueId, usize>,
+    slice_sizes: &'a mut HashMap<ValueId, u32>,
 
     array_set_conditionals: &'a mut HashMap<ValueId, ValueId>,
 
@@ -28,7 +28,7 @@ impl<'a> ValueMerger<'a> {
     pub(crate) fn new(
         dfg: &'a mut DataFlowGraph,
         block: BasicBlockId,
-        slice_sizes: &'a mut HashMap<ValueId, usize>,
+        slice_sizes: &'a mut HashMap<ValueId, u32>,
         array_set_conditionals: &'a mut HashMap<ValueId, ValueId>,
         current_condition: Option<ValueId>,
         call_stack: CallStack,
@@ -45,7 +45,7 @@ impl<'a> ValueMerger<'a> {
 
     /// Merge two values a and b from separate basic blocks to a single value.
     /// If these two values are numeric, the result will be
-    /// `then_condition * then_value + else_condition * else_value`.
+    /// `then_condition * (then_value - else_value) + else_value`.
     /// Otherwise, if the values being merged are arrays, a new array will be made
     /// recursively from combining each element of both input arrays.
     ///
@@ -95,8 +95,8 @@ impl<'a> ValueMerger<'a> {
         then_value: ValueId,
         else_value: ValueId,
     ) -> ValueId {
-        let then_type = dfg.type_of_value(then_value);
-        let else_type = dfg.type_of_value(else_value);
+        let then_type = dfg.type_of_value(then_value).unwrap_numeric();
+        let else_type = dfg.type_of_value(else_value).unwrap_numeric();
         assert_eq!(
             then_type, else_type,
             "Expected values merged to be of the same type but found {then_type} and {else_type}"
@@ -112,22 +112,13 @@ impl<'a> ValueMerger<'a> {
         let call_stack = if then_call_stack.is_empty() { else_call_stack } else { then_call_stack };
 
         // We must cast the bool conditions to the actual numeric type used by each value.
-        let then_condition = dfg
-            .insert_instruction_and_results(
-                Instruction::Cast(then_condition, then_type),
-                block,
-                None,
-                call_stack.clone(),
-            )
-            .first();
-        let else_condition = dfg
-            .insert_instruction_and_results(
-                Instruction::Cast(else_condition, else_type),
-                block,
-                None,
-                call_stack.clone(),
-            )
-            .first();
+        let cast = Instruction::Cast(then_condition, then_type);
+        let then_condition =
+            dfg.insert_instruction_and_results(cast, block, None, call_stack.clone()).first();
+
+        let cast = Instruction::Cast(else_condition, else_type);
+        let else_condition =
+            dfg.insert_instruction_and_results(cast, block, None, call_stack.clone()).first();
 
         let mul = Instruction::binary(BinaryOp::Mul, then_condition, then_value);
         let then_value =
@@ -159,7 +150,7 @@ impl<'a> ValueMerger<'a> {
             _ => panic!("Expected array type"),
         };
 
-        let actual_length = len * element_types.len();
+        let actual_length = len * element_types.len() as u32;
 
         if let Some(result) = self.try_merge_only_changed_indices(
             then_condition,
@@ -173,8 +164,9 @@ impl<'a> ValueMerger<'a> {
 
         for i in 0..len {
             for (element_index, element_type) in element_types.iter().enumerate() {
-                let index = ((i * element_types.len() + element_index) as u128).into();
-                let index = self.dfg.make_constant(index, Type::field());
+                let index =
+                    ((i * element_types.len() as u32 + element_index as u32) as u128).into();
+                let index = self.dfg.make_constant(index, NumericType::NativeField);
 
                 let typevars = Some(vec![element_type.clone()]);
 
@@ -202,7 +194,9 @@ impl<'a> ValueMerger<'a> {
             }
         }
 
-        self.dfg.make_array(merged, typ)
+        let instruction = Instruction::MakeArray { elements: merged, typ };
+        let call_stack = self.call_stack.clone();
+        self.dfg.insert_instruction_and_results(instruction, self.block, None, call_stack).first()
     }
 
     fn merge_slice_values(
@@ -224,30 +218,30 @@ impl<'a> ValueMerger<'a> {
             let (slice, typ) = self.dfg.get_array_constant(then_value_id).unwrap_or_else(|| {
                 panic!("ICE: Merging values during flattening encountered slice {then_value_id} without a preset size");
             });
-            slice.len() / typ.element_types().len()
+            (slice.len() / typ.element_types().len()) as u32
         });
 
         let else_len = self.slice_sizes.get(&else_value_id).copied().unwrap_or_else(|| {
             let (slice, typ) = self.dfg.get_array_constant(else_value_id).unwrap_or_else(|| {
                 panic!("ICE: Merging values during flattening encountered slice {else_value_id} without a preset size");
             });
-            slice.len() / typ.element_types().len()
+            (slice.len() / typ.element_types().len()) as u32
         });
 
         let len = then_len.max(else_len);
 
         for i in 0..len {
             for (element_index, element_type) in element_types.iter().enumerate() {
-                let index_usize = i * element_types.len() + element_index;
-                let index_value = (index_usize as u128).into();
-                let index = self.dfg.make_constant(index_value, Type::field());
+                let index_u32 = i * element_types.len() as u32 + element_index as u32;
+                let index_value = (index_u32 as u128).into();
+                let index = self.dfg.make_constant(index_value, NumericType::NativeField);
 
                 let typevars = Some(vec![element_type.clone()]);
 
                 let mut get_element = |array, typevars, len| {
                     // The smaller slice is filled with placeholder data. Codegen for slice accesses must
                     // include checks against the dynamic slice length so that this placeholder data is not incorrectly accessed.
-                    if len <= index_usize {
+                    if len <= index_u32 {
                         self.make_slice_dummy_data(element_type)
                     } else {
                         let get = Instruction::ArrayGet { array, index };
@@ -262,10 +256,13 @@ impl<'a> ValueMerger<'a> {
                     }
                 };
 
-                let then_element =
-                    get_element(then_value_id, typevars.clone(), then_len * element_types.len());
+                let then_element = get_element(
+                    then_value_id,
+                    typevars.clone(),
+                    then_len * element_types.len() as u32,
+                );
                 let else_element =
-                    get_element(else_value_id, typevars, else_len * element_types.len());
+                    get_element(else_value_id, typevars, else_len * element_types.len() as u32);
 
                 merged.push_back(self.merge_values(
                     then_condition,
@@ -276,7 +273,9 @@ impl<'a> ValueMerger<'a> {
             }
         }
 
-        self.dfg.make_array(merged, typ)
+        let instruction = Instruction::MakeArray { elements: merged, typ };
+        let call_stack = self.call_stack.clone();
+        self.dfg.insert_instruction_and_results(instruction, self.block, None, call_stack).first()
     }
 
     /// Construct a dummy value to be attached to the smaller of two slices being merged.
@@ -287,7 +286,7 @@ impl<'a> ValueMerger<'a> {
         match typ {
             Type::Numeric(numeric_type) => {
                 let zero = FieldElement::zero();
-                self.dfg.make_constant(zero, Type::Numeric(*numeric_type))
+                self.dfg.make_constant(zero, *numeric_type)
             }
             Type::Array(element_types, len) => {
                 let mut array = im::Vector::new();
@@ -296,7 +295,11 @@ impl<'a> ValueMerger<'a> {
                         array.push_back(self.make_slice_dummy_data(typ));
                     }
                 }
-                self.dfg.make_array(array, typ.clone())
+                let instruction = Instruction::MakeArray { elements: array, typ: typ.clone() };
+                let call_stack = self.call_stack.clone();
+                self.dfg
+                    .insert_instruction_and_results(instruction, self.block, None, call_stack)
+                    .first()
             }
             Type::Slice(_) => {
                 // TODO(#3188): Need to update flattening to use true user facing length of slices
@@ -318,7 +321,7 @@ impl<'a> ValueMerger<'a> {
         else_condition: ValueId,
         then_value: ValueId,
         else_value: ValueId,
-        array_length: usize,
+        array_length: u32,
     ) -> Option<ValueId> {
         let mut found = false;
         let current_condition = self.current_condition?;
@@ -372,7 +375,7 @@ impl<'a> ValueMerger<'a> {
             .chain(seen_else.into_iter().map(|(_, index, typ, condition)| (index, typ, condition)))
             .collect();
 
-        if !found || changed_indices.len() >= array_length {
+        if !found || changed_indices.len() as u32 >= array_length {
             return None;
         }
 

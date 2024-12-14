@@ -6,8 +6,9 @@ version = 2
 yanked = "warn"
 
 ignore = [
-    "RUSTSEC-2020-0168", # mach unmaintained
-    "RUSTSEC-2020-0016"  # net2 unmaintained
+    "RUSTSEC-2024-0388", # derivative unmaintained
+    "RUSTSEC-2024-0384", # instant unmaintained
+    "RUSTSEC-2020-0016", # net2 unmaintained
 ]
 
 # This section is considered when running `cargo deny check bans`.
@@ -49,16 +50,13 @@ allow = [
     "ISC",
     "0BSD",
     "Unicode-DFS-2016",
+    "Unicode-3.0",
     "Unlicense",
     "Zlib",
-    # https://github.com/briansmith/ring/issues/902
-    "LicenseRef-ring",
-    # https://github.com/rustls/webpki/blob/main/LICENSE ISC Style
-    "LicenseRef-rustls-webpki",
     # bitmaps 2.1.0, im 15.1.0
     "MPL-2.0",
     # Boost Software License
-    "BSL-1.0"
+    "BSL-1.0",
 ]
 
 # Allow 1 or more licenses on a per-crate basis, so that particular licenses
@@ -76,16 +74,6 @@ exceptions = [
     { allow = ["CDDL-1.0"], name = "inferno" },
 ]
 
-[[licenses.clarify]]
-name = "ring"
-expression = "LicenseRef-ring"
-license-files = [{ path = "LICENSE", hash = 0xbd0eed23 }]
-
-[[licenses.clarify]]
-name = "rustls-webpki"
-expression = "LicenseRef-rustls-webpki"
-license-files = [{ path = "LICENSE", hash = 0x001c7e6c }]
-
 # This section is considered when running `cargo deny check sources`.
 # More documentation about the 'sources' section can be found here:
 # https://embarkstudios.github.io/cargo-deny/checks/sources/cfg.html
@@ -101,7 +89,4 @@ unknown-git = "deny"
 #
 # crates.io rejects git dependencies so anything depending on these is unpublishable and you'll ruin my day
 # when I find out.
-allow-git = [
-    "https://github.com/jfecher/chumsky",
-    "https://github.com/noir-lang/clap-markdown",
-]
+allow-git = ["https://github.com/noir-lang/clap-markdown"]

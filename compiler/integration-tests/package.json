@@ -1,34 +1,34 @@
 {
-    "name": "integration-tests",
-    "license": "(MIT OR Apache-2.0)",
-    "main": "index.js",
-    "private": true,
-    "scripts": {
-        "build": "echo Integration Test build step",
-        "test": "yarn test:browser && yarn test:node",
-        "test:node": "bash ./scripts/setup.sh && hardhat test test/node/prove_and_verify.test.ts && hardhat test test/node/smart_contract_verifier.test.ts && hardhat test test/node/onchain_recursive_verification.test.ts",
-        "test:browser": "web-test-runner",
-        "test:integration:browser": "web-test-runner test/browser/**/*.test.ts",
-        "test:integration:browser:watch": "web-test-runner test/browser/**/*.test.ts --watch",
-        "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0"
-    },
-    "dependencies": {
-        "@noir-lang/backend_barretenberg": "workspace:*",
-        "@noir-lang/noir_js": "workspace:*",
-        "@noir-lang/noir_wasm": "workspace:*",
-        "@nomicfoundation/hardhat-chai-matchers": "^2.0.0",
-        "@nomicfoundation/hardhat-ethers": "^3.0.0",
-        "@web/dev-server-esbuild": "^0.3.6",
-        "@web/dev-server-import-maps": "^0.2.0",
-        "@web/test-runner": "^0.18.1",
-        "@web/test-runner-playwright": "^0.11.0",
-        "eslint": "^8.57.0",
-        "eslint-plugin-prettier": "^5.1.3",
-        "ethers": "^6.7.1",
-        "hardhat": "^2.22.6",
-        "prettier": "3.2.5",
-        "smol-toml": "^1.1.2",
-        "toml": "^3.0.0",
-        "tslog": "^4.9.2"
-    }
+  "name": "integration-tests",
+  "license": "(MIT OR Apache-2.0)",
+  "main": "index.js",
+  "private": true,
+  "scripts": {
+    "build": "echo Integration Test build step",
+    "test": "yarn test:browser && yarn test:node",
+    "test:node": "bash ./scripts/setup.sh && hardhat test test/node/prove_and_verify.test.ts && hardhat test test/node/smart_contract_verifier.test.ts && hardhat test test/node/onchain_recursive_verification.test.ts",
+    "test:browser": "web-test-runner",
+    "test:integration:browser": "web-test-runner test/browser/**/*.test.ts",
+    "test:integration:browser:watch": "web-test-runner test/browser/**/*.test.ts --watch",
+    "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0"
+  },
+  "dependencies": {
+    "@aztec/bb.js": "0.66.0",
+    "@noir-lang/noir_js": "workspace:*",
+    "@noir-lang/noir_wasm": "workspace:*",
+    "@nomicfoundation/hardhat-chai-matchers": "^2.0.0",
+    "@nomicfoundation/hardhat-ethers": "^3.0.0",
+    "@web/dev-server-esbuild": "^0.3.6",
+    "@web/dev-server-import-maps": "^0.2.0",
+    "@web/test-runner": "^0.18.1",
+    "@web/test-runner-playwright": "^0.11.0",
+    "eslint": "^8.57.0",
+    "eslint-plugin-prettier": "^5.1.3",
+    "ethers": "^6.7.1",
+    "hardhat": "^2.22.6",
+    "prettier": "3.2.5",
+    "smol-toml": "^1.1.2",
+    "toml": "^3.0.0",
+    "tslog": "^4.9.2"
+  }
 }

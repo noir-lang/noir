@@ -18,7 +18,8 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         cfg::ControlFlowGraph,
         function::{Function, RuntimeType},
-        instruction::TerminatorInstruction,
+        instruction::{Instruction, TerminatorInstruction},
+        value::Value,
     },
     ssa_gen::Ssa,
 };
@@ -31,53 +32,58 @@ impl Ssa {
     /// 4. Removing any blocks which have no instructions other than a single terminating jmp.
     /// 5. Replacing any jmpifs with constant conditions with jmps. If this causes the block to have
     ///    only 1 successor then (2) also will be applied.
+    /// 6. Replacing any jmpifs with a negated condition with a jmpif with a un-negated condition and reversed branches.
     ///
     /// Currently, 1 is unimplemented.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn simplify_cfg(mut self) -> Self {
         for function in self.functions.values_mut() {
-            simplify_function(function);
+            function.simplify_function();
         }
         self
     }
 }
 
-/// Simplify a function's cfg by going through each block to check for any simple blocks that can
-/// be inlined into their predecessor.
-fn simplify_function(function: &mut Function) {
-    let mut cfg = ControlFlowGraph::with_function(function);
-    let mut stack = vec![function.entry_block()];
-    let mut visited = HashSet::new();
+impl Function {
+    /// Simplify a function's cfg by going through each block to check for any simple blocks that can
+    /// be inlined into their predecessor.
+    pub(crate) fn simplify_function(&mut self) {
+        let mut cfg = ControlFlowGraph::with_function(self);
+        let mut stack = vec![self.entry_block()];
+        let mut visited = HashSet::new();
 
-    while let Some(block) = stack.pop() {
-        if visited.insert(block) {
-            stack.extend(function.dfg[block].successors().filter(|block| !visited.contains(block)));
-        }
+        while let Some(block) = stack.pop() {
+            if visited.insert(block) {
+                stack.extend(self.dfg[block].successors().filter(|block| !visited.contains(block)));
+            }
 
-        // This call is before try_inline_into_predecessor so that if it succeeds in changing a
-        // jmpif into a jmp, the block may then be inlined entirely into its predecessor in try_inline_into_predecessor.
-        check_for_constant_jmpif(function, block, &mut cfg);
+            check_for_negated_jmpif_condition(self, block, &mut cfg);
 
-        let mut predecessors = cfg.predecessors(block);
+            // This call is before try_inline_into_predecessor so that if it succeeds in changing a
+            // jmpif into a jmp, the block may then be inlined entirely into its predecessor in try_inline_into_predecessor.
+            check_for_constant_jmpif(self, block, &mut cfg);
 
-        if predecessors.len() == 1 {
-            let predecessor = predecessors.next().expect("Already checked length of predecessors");
-            drop(predecessors);
+            let mut predecessors = cfg.predecessors(block);
+            if predecessors.len() == 1 {
+                let predecessor =
+                    predecessors.next().expect("Already checked length of predecessors");
+                drop(predecessors);
 
-            // If the block has only 1 predecessor, we can safely remove its block parameters
-            remove_block_parameters(function, block, predecessor);
+                // If the block has only 1 predecessor, we can safely remove its block parameters
+                remove_block_parameters(self, block, predecessor);
 
-            // Note: this function relies on `remove_block_parameters` being called first.
-            // Otherwise the inlined block will refer to parameters that no longer exist.
-            //
-            // If successful, `block` will be empty and unreachable after this call, so any
-            // optimizations performed after this point on the same block should check if
-            // the inlining here was successful before continuing.
-            try_inline_into_predecessor(function, &mut cfg, block, predecessor);
-        } else {
-            drop(predecessors);
+                // Note: this function relies on `remove_block_parameters` being called first.
+                // Otherwise the inlined block will refer to parameters that no longer exist.
+                //
+                // If successful, `block` will be empty and unreachable after this call, so any
+                // optimizations performed after this point on the same block should check if
+                // the inlining here was successful before continuing.
+                try_inline_into_predecessor(self, &mut cfg, block, predecessor);
+            } else {
+                drop(predecessors);
 
-            check_for_double_jmp(function, block, &mut cfg);
+                check_for_double_jmp(self, block, &mut cfg);
+            }
         }
     }
 }
@@ -96,14 +102,23 @@ fn check_for_constant_jmpif(
     }) = function.dfg[block].terminator()
     {
         if let Some(constant) = function.dfg.get_numeric_constant(*condition) {
-            let destination =
-                if constant.is_zero() { *else_destination } else { *then_destination };
+            let (destination, unchosen_destination) = if constant.is_zero() {
+                (*else_destination, *then_destination)
+            } else {
+                (*then_destination, *else_destination)
+            };
 
             let arguments = Vec::new();
             let call_stack = call_stack.clone();
             let jmp = TerminatorInstruction::Jmp { destination, arguments, call_stack };
             function.dfg[block].set_terminator(jmp);
             cfg.recompute_block(function, block);
+
+            // If `block` was the only predecessor to `unchosen_destination` then it's no long reachable through the CFG,
+            // we can then invalidate it successors as it's an invalid predecessor.
+            if cfg.predecessors(unchosen_destination).len() == 0 {
+                cfg.invalidate_block_successors(unchosen_destination);
+            }
         }
     }
 }
@@ -173,6 +188,55 @@ fn check_for_double_jmp(function: &mut Function, block: BasicBlockId, cfg: &mut 
     cfg.recompute_block(function, block);
 }
 
+/// Optimize a jmpif on a negated condition by swapping the branches.
+fn check_for_negated_jmpif_condition(
+    function: &mut Function,
+    block: BasicBlockId,
+    cfg: &mut ControlFlowGraph,
+) {
+    if matches!(function.runtime(), RuntimeType::Acir(_)) {
+        // Swapping the `then` and `else` branches of a `JmpIf` within an ACIR function
+        // can result in the situation where the branches merge together again in the `then` block, e.g.
+        //
+        // acir(inline) fn main f0 {
+        //   b0(v0: u1):
+        //     jmpif v0 then: b2, else: b1
+        //   b2():
+        //     return
+        //   b1():
+        //     jmp b2()
+        // }
+        //
+        // This breaks the `flatten_cfg` pass as it assumes that merges only happen in
+        // the `else` block or a 3rd block.
+        //
+        // See: https://github.com/noir-lang/noir/pull/5891#issuecomment-2500219428
+        return;
+    }
+
+    if let Some(TerminatorInstruction::JmpIf {
+        condition,
+        then_destination,
+        else_destination,
+        call_stack,
+    }) = function.dfg[block].terminator()
+    {
+        if let Value::Instruction { instruction, .. } = function.dfg[*condition] {
+            if let Instruction::Not(negated_condition) = function.dfg[instruction] {
+                let call_stack = call_stack.clone();
+                let jmpif = TerminatorInstruction::JmpIf {
+                    condition: negated_condition,
+                    then_destination: *else_destination,
+                    else_destination: *then_destination,
+                    call_stack,
+                };
+                function.dfg[block].set_terminator(jmpif);
+                cfg.recompute_block(function, block);
+            }
+        }
+    }
+}
+
 /// If the given block has block parameters, replace them with the jump arguments from the predecessor.
 ///
 /// Currently, if this function is needed, `try_inline_into_predecessor` will also always apply,
@@ -235,6 +299,8 @@ mod test {
             map::Id,
             types::Type,
         },
+        opt::assert_normalized_ssa_equals,
+        Ssa,
     };
     use acvm::acir::AcirField;
 
@@ -347,5 +413,60 @@ mod test {
             }
             other => panic!("Unexpected terminator {other:?}"),
         }
+    }
+
+    #[test]
+    fn swap_negated_jmpif_branches_in_brillig() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut Field
+            store Field 0 at v1
+            v3 = not v0
+            jmpif v3 then: b1, else: b2
+          b1():
+            store Field 2 at v1
+            jmp b2()
+          b2():
+            v5 = load v1 -> Field
+            v6 = eq v5, Field 2
+            constrain v5 == Field 2
+            return
+        }";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let expected = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut Field
+            store Field 0 at v1
+            v3 = not v0
+            jmpif v0 then: b2, else: b1
+          b1():
+            store Field 2 at v1
+            jmp b2()
+          b2():
+            v5 = load v1 -> Field
+            v6 = eq v5, Field 2
+            constrain v5 == Field 2
+            return
+        }";
+        assert_normalized_ssa_equals(ssa.simplify_cfg(), expected);
+    }
+
+    #[test]
+    fn does_not_swap_negated_jmpif_branches_in_acir() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = not v0
+            jmpif v1 then: b1, else: b2
+          b1():
+            jmp b2()
+          b2():
+            return
+        }";
+        let ssa = Ssa::from_str(src).unwrap();
+        assert_normalized_ssa_equals(ssa.simplify_cfg(), src);
     }
 }
