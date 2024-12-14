@@ -29,7 +29,9 @@ for dir in ${tests_to_profile[@]}; do
 
     cd $base_path/$dir
 
+    # The default package to run is the supplied list hardcoded at the top of the script
     PACKAGE_NAME=$dir
+    # Otherwise default to the current directory as the package we want to run
     if [ "$#" -ne 0 ]; then
       PACKAGE_NAME=$(basename $current_dir)
     fi

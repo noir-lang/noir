@@ -1880,7 +1880,7 @@ impl<'a> Context<'a> {
                 // This conversion is for debugging support only, to allow the
                 // debugging instrumentation code to work. Taking the reference
                 // of a function in ACIR is useless.
-                let id = self.acir_context.add_constant(function_id.to_usize());
+                let id = self.acir_context.add_constant(function_id.to_u32());
                 AcirValue::Var(id, AcirType::field())
             }
             Value::ForeignFunction(_) => unimplemented!(
