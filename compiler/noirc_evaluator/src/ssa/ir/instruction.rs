@@ -669,6 +669,70 @@ impl Instruction {
         }
     }
 
+    /// Maps each ValueId inside this instruction to a new ValueId in place.
+    pub(crate) fn map_values_mut(&mut self, mut f: impl FnMut(ValueId) -> ValueId) {
+        match self {
+            Instruction::Binary(binary) => {
+                binary.lhs = f(binary.lhs);
+                binary.rhs = f(binary.rhs);
+            }
+            Instruction::Cast(value, _) => *value = f(*value),
+            Instruction::Not(value) => *value = f(*value),
+            Instruction::Truncate { value, bit_size: _, max_bit_size: _ } => {
+                *value = f(*value);
+            }
+            Instruction::Constrain(lhs, rhs, assert_message) => {
+                *lhs = f(*lhs);
+                *rhs = f(*rhs);
+                if let Some(ConstrainError::Dynamic(_, _, payload_values)) = assert_message {
+                    for value in payload_values {
+                        *value = f(*value);
+                    }
+                }
+            }
+            Instruction::Call { func, arguments } => {
+                *func = f(*func);
+                for argument in arguments {
+                    *argument = f(*argument);
+                }
+            }
+            Instruction::Allocate => (),
+            Instruction::Load { address } => *address = f(*address),
+            Instruction::Store { address, value } => {
+                *address = f(*address);
+                *value = f(*value);
+            }
+            Instruction::EnableSideEffectsIf { condition } => {
+                *condition = f(*condition);
+            }
+            Instruction::ArrayGet { array, index } => {
+                *array = f(*array);
+                *index = f(*index);
+            }
+            Instruction::ArraySet { array, index, value, mutable: _ } => {
+                *array = f(*array);
+                *index = f(*index);
+                *value = f(*value);
+            }
+            Instruction::IncrementRc { value } => *value = f(*value),
+            Instruction::DecrementRc { value } => *value = f(*value),
+            Instruction::RangeCheck { value, max_bit_size: _, assert_message: _ } => {
+                *value = f(*value);
+            }
+            Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
+                *then_condition = f(*then_condition);
+                *then_value = f(*then_value);
+                *else_condition = f(*else_condition);
+                *else_value = f(*else_value);
+            }
+            Instruction::MakeArray { elements, typ: _ } => {
+                for element in elements.iter_mut() {
+                    *element = f(*element);
+                }
+            }
+        }
+    }
+
     /// Applies a function to each input value this instruction holds.
     pub(crate) fn for_each_value<T>(&self, mut f: impl FnMut(ValueId) -> T) {
         match self {
@@ -1193,7 +1257,7 @@ impl TerminatorInstruction {
     }
 
     /// Mutate each ValueId to a new ValueId using the given mapping function
-    pub(crate) fn mutate_values(&mut self, mut f: impl FnMut(ValueId) -> ValueId) {
+    pub(crate) fn map_values_mut(&mut self, mut f: impl FnMut(ValueId) -> ValueId) {
         use TerminatorInstruction::*;
         match self {
             JmpIf { condition, .. } => {

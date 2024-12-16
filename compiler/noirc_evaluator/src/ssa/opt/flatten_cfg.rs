@@ -1207,20 +1207,15 @@ mod test {
     ) -> Vec<u128> {
         match dfg[value] {
             Value::Instruction { instruction, .. } => {
-                let mut values = vec![];
-                dfg[instruction].map_values(|value| {
-                    values.push(value);
-                    value
+                let mut constants = vec![];
+
+                dfg[instruction].for_each_value(|value| {
+                    constants.extend(get_all_constants_reachable_from_instruction(dfg, value));
                 });
 
-                let mut values: Vec<_> = values
-                    .into_iter()
-                    .flat_map(|value| get_all_constants_reachable_from_instruction(dfg, value))
-                    .collect();
-
-                values.sort();
-                values.dedup();
-                values
+                constants.sort();
+                constants.dedup();
+                constants
             }
             Value::NumericConstant { constant, .. } => vec![constant.to_u128()],
             _ => Vec::new(),
