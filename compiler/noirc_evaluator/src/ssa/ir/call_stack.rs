@@ -32,9 +32,18 @@ pub(crate) struct LocationNode {
     pub(crate) value: Location,
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct CallStackHelper {
     locations: Vec<LocationNode>,
+}
+
+impl Default for CallStackHelper {
+    /// Generates a new helper, with an empty location tree
+    fn default() -> Self {
+        let mut result = CallStackHelper { locations: Vec::new() };
+        result.add_location_to_root(Location::dummy());
+        result
+    }
 }
 
 impl CallStackHelper {

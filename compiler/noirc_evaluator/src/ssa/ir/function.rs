@@ -10,7 +10,6 @@ use super::instruction::TerminatorInstruction;
 use super::map::Id;
 use super::types::Type;
 use super::value::ValueId;
-use noirc_errors::Location;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize)]
 pub(crate) enum RuntimeType {
@@ -86,8 +85,6 @@ impl Function {
     /// Note that any parameters or attributes of the function must be manually added later.
     pub(crate) fn new(name: String, id: FunctionId) -> Self {
         let mut dfg = DataFlowGraph::default();
-        // Adds root node for the location tree
-        dfg.call_stack_data.add_location_to_root(Location::dummy());
         let entry_block = dfg.make_block();
         Self { name, id, entry_block, dfg, runtime: RuntimeType::Acir(InlineType::default()) }
     }
