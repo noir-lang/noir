@@ -7,7 +7,7 @@ set -eu
 # couldn't be compiled.
 
 function process_json_lines() {
-  cat $1 | jq -c 'select(.type == "test" and (.event == "failed" or .event == "ignored")) | {suite: .suite, name: .name, status: .event}' | jq -s -c 'sort_by(.suite, .name) | .[]' > $1.jq
+  cat $1 | jq -c 'select(.type == "test" and .event == "failed") | {suite: .suite, name: .name, status: .event}' | jq -s -c 'sort_by(.suite, .name) | .[]' > $1.jq
 }
 
 if [ -f $1 ] && [ -f $2 ]; then
