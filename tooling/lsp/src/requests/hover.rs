@@ -5,7 +5,6 @@ use fm::{FileMap, PathString};
 use lsp_types::{Hover, HoverContents, HoverParams, MarkupContent, MarkupKind};
 use noirc_frontend::{
     ast::{ItemVisibility, Visibility},
-    elaborator::types::try_eval_array_length_id,
     hir::def_map::ModuleId,
     hir_def::{
         expr::{HirArrayLiteral, HirExpression, HirLiteral},
@@ -205,8 +204,17 @@ fn format_global(id: GlobalId, args: &ProcessRequestCallbackArgs) -> String {
         string.push('\n');
     }
 
+    let mut print_comptime = definition.comptime;
+    let mut opt_value = None;
+
+    // See if we can figure out what's the global's value
+    if let Some(stmt) = args.interner.get_global_let_statement(id) {
+        print_comptime = stmt.comptime;
+        opt_value = get_global_value(args.interner, stmt.expression);
+    }
+
     string.push_str("    ");
-    if definition.comptime {
+    if print_comptime {
         string.push_str("comptime ");
     }
     if definition.mutable {
@@ -217,12 +225,9 @@ fn format_global(id: GlobalId, args: &ProcessRequestCallbackArgs) -> String {
     string.push_str(": ");
     string.push_str(&format!("{}", typ));
 
-    // See if we can figure out what's the global's value
-    if let Some(stmt) = args.interner.get_global_let_statement(id) {
-        if let Some(value) = get_global_value(args.interner, stmt.expression) {
-            string.push_str(" = ");
-            string.push_str(&value);
-        }
+    if let Some(value) = opt_value {
+        string.push_str(" = ");
+        string.push_str(&value);
     }
 
     string.push_str(&go_to_type_links(&typ, args.interner, args.files));
@@ -233,13 +238,6 @@ fn format_global(id: GlobalId, args: &ProcessRequestCallbackArgs) -> String {
 }
 
 fn get_global_value(interner: &NodeInterner, expr: ExprId) -> Option<String> {
-    let span = interner.expr_span(&expr);
-
-    // Globals as array lengths are extremely common, so we try that first.
-    if let Ok(result) = try_eval_array_length_id(interner, expr, span) {
-        return Some(result.to_string());
-    }
-
     match interner.expression(&expr) {
         HirExpression::Literal(literal) => match literal {
             HirLiteral::Array(hir_array_literal) => {
