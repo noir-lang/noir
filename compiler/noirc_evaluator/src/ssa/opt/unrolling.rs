@@ -27,8 +27,9 @@ use crate::{
     ssa::{
         ir::{
             basic_block::BasicBlockId,
+            call_stack::{CallStack, CallStackId},
             cfg::ControlFlowGraph,
-            dfg::{CallStack, DataFlowGraph},
+            dfg::DataFlowGraph,
             dom::DominatorTree,
             function::Function,
             function_inserter::{ArrayCache, FunctionInserter},
@@ -470,7 +471,7 @@ impl Loop {
         match context.dfg()[fresh_block].unwrap_terminator() {
             TerminatorInstruction::JmpIf { condition, then_destination, else_destination, call_stack } => {
                 let condition = *condition;
-                let next_blocks = context.handle_jmpif(condition, *then_destination, *else_destination, call_stack.clone());
+                let next_blocks = context.handle_jmpif(condition, *then_destination, *else_destination, *call_stack);
 
                 // If there is only 1 next block the jmpif evaluated to a single known block.
                 // This is the expected case and lets us know if we should loop again or not.
@@ -746,10 +747,11 @@ fn get_induction_variable(function: &Function, block: BasicBlockId) -> Result<Va
             if function.dfg.get_numeric_constant(value).is_some() {
                 Ok(value)
             } else {
-                Err(location.clone())
+                let call_stack = function.dfg.get_call_stack(*location);
+                Err(call_stack)
             }
         }
-        Some(terminator) => Err(terminator.call_stack()),
+        Some(terminator) => Err(function.dfg.get_call_stack(terminator.call_stack())),
         None => Err(CallStack::new()),
     }
 }
@@ -848,12 +850,7 @@ impl<'f> LoopIteration<'f> {
                 then_destination,
                 else_destination,
                 call_stack,
-            } => self.handle_jmpif(
-                *condition,
-                *then_destination,
-                *else_destination,
-                call_stack.clone(),
-            ),
+            } => self.handle_jmpif(*condition, *then_destination, *else_destination, *call_stack),
             TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
                 if self.get_original_block(*destination) == self.loop_.header {
                     // We found the back-edge of the loop.
@@ -877,7 +874,7 @@ impl<'f> LoopIteration<'f> {
         condition: ValueId,
         then_destination: BasicBlockId,
         else_destination: BasicBlockId,
-        call_stack: CallStack,
+        call_stack: CallStackId,
     ) -> Vec<BasicBlockId> {
         let condition = self.inserter.resolve(condition);
 
@@ -938,10 +935,9 @@ impl<'f> LoopIteration<'f> {
             }
             self.inserter.push_instruction(instruction, self.insert_block);
         }
-        let mut terminator = self.dfg()[self.source_block]
-            .unwrap_terminator()
-            .clone()
-            .map_values(|value| self.inserter.resolve(value));
+        let mut terminator = self.dfg()[self.source_block].unwrap_terminator().clone();
+
+        terminator.map_values_mut(|value| self.inserter.resolve(value));
 
         // Replace the blocks in the terminator with fresh one with the same parameters,
         // while remembering which were the original block IDs.
@@ -1146,7 +1142,7 @@ mod tests {
 
         let refs = loop0.find_pre_header_reference_values(function, &loops.cfg).unwrap();
         assert_eq!(refs.len(), 1);
-        assert!(refs.contains(&ValueId::new(2)));
+        assert!(refs.contains(&ValueId::test_new(2)));
 
         let (loads, stores) = loop0.count_loads_and_stores(function, &refs);
         assert_eq!(loads, 1);

@@ -14,7 +14,8 @@ use crate::ssa::{ir::function::RuntimeType, opt::flatten_cfg::value_merger::Valu
 
 use super::{
     basic_block::BasicBlockId,
-    dfg::{CallStack, DataFlowGraph},
+    call_stack::CallStackId,
+    dfg::DataFlowGraph,
     function::Function,
     map::Id,
     types::{NumericType, Type},
@@ -669,6 +670,70 @@ impl Instruction {
         }
     }
 
+    /// Maps each ValueId inside this instruction to a new ValueId in place.
+    pub(crate) fn map_values_mut(&mut self, mut f: impl FnMut(ValueId) -> ValueId) {
+        match self {
+            Instruction::Binary(binary) => {
+                binary.lhs = f(binary.lhs);
+                binary.rhs = f(binary.rhs);
+            }
+            Instruction::Cast(value, _) => *value = f(*value),
+            Instruction::Not(value) => *value = f(*value),
+            Instruction::Truncate { value, bit_size: _, max_bit_size: _ } => {
+                *value = f(*value);
+            }
+            Instruction::Constrain(lhs, rhs, assert_message) => {
+                *lhs = f(*lhs);
+                *rhs = f(*rhs);
+                if let Some(ConstrainError::Dynamic(_, _, payload_values)) = assert_message {
+                    for value in payload_values {
+                        *value = f(*value);
+                    }
+                }
+            }
+            Instruction::Call { func, arguments } => {
+                *func = f(*func);
+                for argument in arguments {
+                    *argument = f(*argument);
+                }
+            }
+            Instruction::Allocate => (),
+            Instruction::Load { address } => *address = f(*address),
+            Instruction::Store { address, value } => {
+                *address = f(*address);
+                *value = f(*value);
+            }
+            Instruction::EnableSideEffectsIf { condition } => {
+                *condition = f(*condition);
+            }
+            Instruction::ArrayGet { array, index } => {
+                *array = f(*array);
+                *index = f(*index);
+            }
+            Instruction::ArraySet { array, index, value, mutable: _ } => {
+                *array = f(*array);
+                *index = f(*index);
+                *value = f(*value);
+            }
+            Instruction::IncrementRc { value } => *value = f(*value),
+            Instruction::DecrementRc { value } => *value = f(*value),
+            Instruction::RangeCheck { value, max_bit_size: _, assert_message: _ } => {
+                *value = f(*value);
+            }
+            Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
+                *then_condition = f(*then_condition);
+                *then_value = f(*then_value);
+                *else_condition = f(*else_condition);
+                *else_value = f(*else_value);
+            }
+            Instruction::MakeArray { elements, typ: _ } => {
+                for element in elements.iter_mut() {
+                    *element = f(*element);
+                }
+            }
+        }
+    }
+
     /// Applies a function to each input value this instruction holds.
     pub(crate) fn for_each_value<T>(&self, mut f: impl FnMut(ValueId) -> T) {
         match self {
@@ -744,7 +809,7 @@ impl Instruction {
         dfg: &mut DataFlowGraph,
         block: BasicBlockId,
         ctrl_typevars: Option<Vec<Type>>,
-        call_stack: &CallStack,
+        call_stack: CallStackId,
     ) -> SimplifyResult {
         use SimplifyResult::*;
         match self {
@@ -801,7 +866,7 @@ impl Instruction {
                             instruction,
                             block,
                             Option::None,
-                            call_stack.clone(),
+                            call_stack,
                         );
                         return SimplifiedTo(new_array.first());
                     }
@@ -1146,7 +1211,7 @@ pub(crate) enum TerminatorInstruction {
         condition: ValueId,
         then_destination: BasicBlockId,
         else_destination: BasicBlockId,
-        call_stack: CallStack,
+        call_stack: CallStackId,
     },
 
     /// Unconditional Jump
@@ -1154,7 +1219,7 @@ pub(crate) enum TerminatorInstruction {
     /// Jumps to specified `destination` with `arguments`.
     /// The CallStack here is expected to be used to issue an error when the start range of
     /// a for loop cannot be deduced at compile-time.
-    Jmp { destination: BasicBlockId, arguments: Vec<ValueId>, call_stack: CallStack },
+    Jmp { destination: BasicBlockId, arguments: Vec<ValueId>, call_stack: CallStackId },
 
     /// Return from the current function with the given return values.
     ///
@@ -1163,7 +1228,7 @@ pub(crate) enum TerminatorInstruction {
     /// unconditionally jump to a single exit block with the return values
     /// as the block arguments. Then the exit block can terminate in a return
     /// instruction returning these values.
-    Return { return_values: Vec<ValueId>, call_stack: CallStack },
+    Return { return_values: Vec<ValueId>, call_stack: CallStackId },
 }
 
 impl TerminatorInstruction {
@@ -1178,22 +1243,22 @@ impl TerminatorInstruction {
                 condition: f(*condition),
                 then_destination: *then_destination,
                 else_destination: *else_destination,
-                call_stack: call_stack.clone(),
+                call_stack: *call_stack,
             },
             Jmp { destination, arguments, call_stack } => Jmp {
                 destination: *destination,
                 arguments: vecmap(arguments, |value| f(*value)),
-                call_stack: call_stack.clone(),
+                call_stack: *call_stack,
             },
             Return { return_values, call_stack } => Return {
                 return_values: vecmap(return_values, |value| f(*value)),
-                call_stack: call_stack.clone(),
+                call_stack: *call_stack,
             },
         }
     }
 
     /// Mutate each ValueId to a new ValueId using the given mapping function
-    pub(crate) fn mutate_values(&mut self, mut f: impl FnMut(ValueId) -> ValueId) {
+    pub(crate) fn map_values_mut(&mut self, mut f: impl FnMut(ValueId) -> ValueId) {
         use TerminatorInstruction::*;
         match self {
             JmpIf { condition, .. } => {
@@ -1247,11 +1312,19 @@ impl TerminatorInstruction {
         }
     }
 
-    pub(crate) fn call_stack(&self) -> CallStack {
+    pub(crate) fn call_stack(&self) -> CallStackId {
         match self {
             TerminatorInstruction::JmpIf { call_stack, .. }
             | TerminatorInstruction::Jmp { call_stack, .. }
-            | TerminatorInstruction::Return { call_stack, .. } => call_stack.clone(),
+            | TerminatorInstruction::Return { call_stack, .. } => *call_stack,
+        }
+    }
+
+    pub(crate) fn set_call_stack(&mut self, new_call_stack: CallStackId) {
+        match self {
+            TerminatorInstruction::JmpIf { call_stack, .. }
+            | TerminatorInstruction::Jmp { call_stack, .. }
+            | TerminatorInstruction::Return { call_stack, .. } => *call_stack = new_call_stack,
         }
     }
 }

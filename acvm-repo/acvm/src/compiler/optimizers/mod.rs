@@ -37,7 +37,7 @@ pub fn optimize<F: AcirField>(acir: Circuit<F>) -> (Circuit<F>, AcirTransformati
 /// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] independent optimizations to a [`Circuit`].
 ///
 /// Accepts an injected `acir_opcode_positions` to allow optimizations to be applied in a loop.
-#[tracing::instrument(level = "trace", name = "optimize_acir" skip(acir))]
+#[tracing::instrument(level = "trace", name = "optimize_acir" skip(acir, acir_opcode_positions))]
 pub(super) fn optimize_internal<F: AcirField>(
     acir: Circuit<F>,
     acir_opcode_positions: Vec<usize>,
