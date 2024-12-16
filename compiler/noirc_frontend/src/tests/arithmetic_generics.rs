@@ -197,9 +197,5 @@ fn global_arithmetic_generic_larger_than_u32() {
     }
     "#;
     let errors = get_program_errors(source);
-
-    // TODO cleanup
-    dbg!(&errors);
-
     assert_eq!(errors.len(), 0);
 }
