@@ -64,6 +64,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "array_len" => array_len(interner, arguments, location),
             "array_refcount" => Ok(Value::U32(0)),
             "assert_constant" => Ok(Value::Bool(true)),
+            "as_field" => as_field(interner, arguments, location),
             "as_slice" => as_slice(interner, arguments, location),
             "ctstring_eq" => ctstring_eq(arguments, location),
             "ctstring_hash" => ctstring_hash(arguments, location),
@@ -116,6 +117,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "field_less_than" => field_less_than(arguments, location),
             "fmtstr_as_ctstring" => fmtstr_as_ctstring(interner, arguments, location),
             "fmtstr_quoted_contents" => fmtstr_quoted_contents(interner, arguments, location),
+            "from_field" => from_field(interner, arguments, return_type, location),
             "fresh_type_variable" => fresh_type_variable(interner),
             "function_def_add_attribute" => function_def_add_attribute(self, arguments, location),
             "function_def_body" => function_def_body(interner, arguments, location),
@@ -288,6 +290,16 @@ fn array_as_str_unchecked(
     let string_bytes = try_vecmap(array, |byte| get_u8((byte, location)))?;
     let string = String::from_utf8_lossy(&string_bytes).into_owned();
     Ok(Value::String(Rc::new(string)))
+}
+
+// fn as_field<T>(x: T) -> Field {}
+fn as_field(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (value, value_location) = check_one_argument(arguments, location)?;
+    Interpreter::evaluate_cast_one_step(&Type::FieldElement, value_location, value, interner)
 }
 
 fn as_slice(
@@ -2222,6 +2234,17 @@ fn fmtstr_quoted_contents(
     let (string, _) = get_format_string(interner, self_argument)?;
     let tokens = lex(&string);
     Ok(Value::Quoted(Rc::new(tokens)))
+}
+
+// fn from_field<T>(x: Field) -> T {}
+fn from_field(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    let (value, value_location) = check_one_argument(arguments, location)?;
+    Interpreter::evaluate_cast_one_step(&return_type, value_location, value, interner)
 }
 
 // fn fresh_type_variable() -> Type
