@@ -1133,7 +1133,7 @@ impl<'interner> Monomorphizer<'interner> {
             | HirType::Error
             | HirType::Quoted(_) => Ok(()),
             HirType::Constant(_value, kind) => {
-                if kind.is_error() {
+                if kind.is_error() || kind.default_type().is_none() {
                     Err(MonomorphizationError::UnknownConstant { location })
                 } else {
                     Ok(())
@@ -1154,7 +1154,6 @@ impl<'interner> Monomorphizer<'interner> {
 
                 Ok(())
             }
-
             HirType::TypeVariable(ref binding) => {
                 let type_var_kind = match &*binding.borrow() {
                     TypeBinding::Bound(binding) => {

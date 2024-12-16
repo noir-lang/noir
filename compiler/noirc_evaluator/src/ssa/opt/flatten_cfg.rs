@@ -1453,7 +1453,7 @@ mod test {
           b2():
             return
           b1():
-            jmp b2()           
+            jmp b2()
         }
         ";
         let merged_ssa = Ssa::from_str(src).unwrap();
