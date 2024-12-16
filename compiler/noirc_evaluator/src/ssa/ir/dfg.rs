@@ -4,6 +4,7 @@ use crate::ssa::{function_builder::data_bus::DataBus, ir::instruction::SimplifyR
 
 use super::{
     basic_block::{BasicBlock, BasicBlockId},
+    call_stack::{CallStack, CallStackHelper, CallStackId},
     function::FunctionId,
     instruction::{
         Instruction, InstructionId, InstructionResultType, Intrinsic, TerminatorInstruction,
@@ -91,13 +92,13 @@ pub(crate) struct DataFlowGraph {
     /// Instructions inserted by internal SSA passes that don't correspond to user code
     /// may not have a corresponding location.
     #[serde(skip)]
-    locations: HashMap<InstructionId, CallStack>,
+    locations: HashMap<InstructionId, CallStackId>,
+
+    pub(crate) call_stack_data: CallStackHelper,
 
     #[serde(skip)]
     pub(crate) data_bus: DataBus,
 }
-
-pub(crate) type CallStack = super::list::List<Location>;
 
 impl DataFlowGraph {
     /// Creates a new basic block with no parameters.
@@ -170,9 +171,9 @@ impl DataFlowGraph {
         instruction: Instruction,
         block: BasicBlockId,
         ctrl_typevars: Option<Vec<Type>>,
-        call_stack: CallStack,
+        call_stack: CallStackId,
     ) -> InsertInstructionResult {
-        match instruction.simplify(self, block, ctrl_typevars.clone(), &call_stack) {
+        match instruction.simplify(self, block, ctrl_typevars.clone(), call_stack) {
             SimplifyResult::SimplifiedTo(simplification) => {
                 InsertInstructionResult::SimplifiedTo(simplification)
             }
@@ -200,7 +201,7 @@ impl DataFlowGraph {
                 for instruction in instructions {
                     let id = self.make_instruction(instruction, ctrl_typevars.clone());
                     self.blocks[block].insert_instruction(id);
-                    self.locations.insert(id, call_stack.clone());
+                    self.locations.insert(id, call_stack);
                     last_id = Some(id);
                 }
 
@@ -486,18 +487,41 @@ impl DataFlowGraph {
         destination.set_terminator(terminator);
     }
 
-    pub(crate) fn get_call_stack(&self, instruction: InstructionId) -> CallStack {
+    pub(crate) fn get_instruction_call_stack(&self, instruction: InstructionId) -> CallStack {
+        let call_stack = self.get_instruction_call_stack_id(instruction);
+        self.call_stack_data.get_call_stack(call_stack)
+    }
+
+    pub(crate) fn get_instruction_call_stack_id(&self, instruction: InstructionId) -> CallStackId {
         self.locations.get(&instruction).cloned().unwrap_or_default()
     }
 
-    pub(crate) fn add_location(&mut self, instruction: InstructionId, location: Location) {
-        self.locations.entry(instruction).or_default().push_back(location);
+    pub(crate) fn add_location_to_instruction(
+        &mut self,
+        instruction: InstructionId,
+        location: Location,
+    ) {
+        let call_stack = self.locations.entry(instruction).or_default();
+        *call_stack = self.call_stack_data.add_child(*call_stack, location);
+    }
+
+    pub(crate) fn get_call_stack(&self, call_stack: CallStackId) -> CallStack {
+        self.call_stack_data.get_call_stack(call_stack)
     }
 
     pub(crate) fn get_value_call_stack(&self, value: ValueId) -> CallStack {
         match &self.values[self.resolve(value)] {
-            Value::Instruction { instruction, .. } => self.get_call_stack(*instruction),
+            Value::Instruction { instruction, .. } => self.get_instruction_call_stack(*instruction),
             _ => CallStack::new(),
+        }
+    }
+
+    pub(crate) fn get_value_call_stack_id(&self, value: ValueId) -> CallStackId {
+        match &self.values[self.resolve(value)] {
+            Value::Instruction { instruction, .. } => {
+                self.get_instruction_call_stack_id(*instruction)
+            }
+            _ => CallStackId::root(),
         }
     }
 
