@@ -706,7 +706,6 @@ impl<'f> Context<'f> {
                         let argument_type = self.inserter.function.dfg.type_of_value(field);
 
                         let cast = Instruction::Cast(condition, argument_type.unwrap_numeric());
-
                         let casted_condition = self.insert_instruction(cast, call_stack);
                         let field = self.insert_instruction(
                             Instruction::binary(BinaryOp::Mul, field, casted_condition),
