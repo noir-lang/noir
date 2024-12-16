@@ -91,12 +91,18 @@ pub(crate) fn generate_ssa(
                 None,
             );
         }
+        let return_call_stack = function_context
+            .builder
+            .current_function
+            .dfg
+            .call_stack_data
+            .add_location_to_root(return_location);
         let return_instruction =
             function_context.builder.current_function.dfg[block].unwrap_terminator_mut();
+
         match return_instruction {
             TerminatorInstruction::Return { return_values, call_stack } => {
-                call_stack.clear();
-                call_stack.push_back(return_location);
+                *call_stack = return_call_stack;
                 // replace the returned values with the return data array
                 if let Some(return_data_bus) = return_data.databus {
                     return_values.clear();
