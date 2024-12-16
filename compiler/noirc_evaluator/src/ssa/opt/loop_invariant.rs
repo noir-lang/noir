@@ -119,7 +119,11 @@ impl<'f> LoopInvariantContext<'f> {
                         let result =
                             self.inserter.function.dfg.instruction_results(instruction_id)[0];
                         let inc_rc = Instruction::IncrementRc { value: result };
-                        let call_stack = self.inserter.function.dfg.get_call_stack(instruction_id);
+                        let call_stack = self
+                            .inserter
+                            .function
+                            .dfg
+                            .get_instruction_call_stack_id(instruction_id);
                         self.inserter
                             .function
                             .dfg

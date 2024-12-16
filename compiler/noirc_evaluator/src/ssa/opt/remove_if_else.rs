@@ -78,7 +78,7 @@ impl Context {
                     let typ = function.dfg.type_of_value(then_value);
                     assert!(!matches!(typ, Type::Numeric(_)));
 
-                    let call_stack = function.dfg.get_call_stack(instruction);
+                    let call_stack = function.dfg.get_instruction_call_stack_id(instruction);
                     let mut value_merger = ValueMerger::new(
                         &mut function.dfg,
                         block,
