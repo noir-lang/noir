@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{default, path::PathBuf};
 
 use acvm::{
     acir::native_types::{WitnessMap, WitnessStack},
@@ -33,8 +33,7 @@ impl FuzzingRunStatus {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn run_fuzzing_harness<B: BlackBoxFunctionSolver<FieldElement>>(
-    blackbox_solver: &B,
+pub fn run_fuzzing_harness<B: BlackBoxFunctionSolver<FieldElement> + Default>(
     context: &mut Context,
     fuzzing_harness: &FuzzingHarness,
     show_output: bool,
@@ -42,6 +41,7 @@ pub fn run_fuzzing_harness<B: BlackBoxFunctionSolver<FieldElement>>(
     root_path: Option<PathBuf>,
     package_name: Option<String>,
     config: &CompileOptions,
+    num_threads: usize,
 ) -> FuzzingRunStatus {
     let fuzzing_harness_has_no_arguments = context
         .def_interner
@@ -89,7 +89,7 @@ pub fn run_fuzzing_harness<B: BlackBoxFunctionSolver<FieldElement>>(
                     execute_program(
                         program,
                         initial_witness,
-                        blackbox_solver,
+                        &B::default(),
                         &mut DefaultForeignCallExecutor::<FieldElement>::new(
                             false,
                             foreign_call_resolver_url,
@@ -110,7 +110,7 @@ pub fn run_fuzzing_harness<B: BlackBoxFunctionSolver<FieldElement>>(
                     execute_program_with_brillig_fuzzing(
                         program,
                         initial_witness,
-                        blackbox_solver,
+                        &B::default(),
                         &mut DefaultForeignCallExecutor::<FieldElement>::new(
                             false,
                             foreign_call_resolver_url,
@@ -125,10 +125,11 @@ pub fn run_fuzzing_harness<B: BlackBoxFunctionSolver<FieldElement>>(
                 let mut fuzzer = FuzzedExecutor::new(
                     acir_program.into(),
                     brillig_program.into(),
-                    acir_executor,
+                    acir_executor.clone(),
                     brillig_executor,
                     &package_name.clone().unwrap(),
                     context.def_interner.function_name(&fuzzing_harness.get_id()),
+                    num_threads,
                 );
 
                 let result = fuzzer.fuzz();
@@ -150,7 +151,7 @@ pub fn run_fuzzing_harness<B: BlackBoxFunctionSolver<FieldElement>>(
                         let execution_failure = execute_program(
                             &unwrapped_acir_program.program,
                             initial_witness,
-                            blackbox_solver,
+                            &B::default(),
                             &mut DefaultForeignCallExecutor::<FieldElement>::new(
                                 false,
                                 foreign_call_resolver_url,

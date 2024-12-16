@@ -167,7 +167,7 @@ impl<'a> Corpus<'a> {
     pub fn get_next_testcase_with_additional(
         &mut self,
         prng: &mut XorShiftRng,
-    ) -> (&InputMap, Option<&InputMap>) {
+    ) -> (InputMap, Option<InputMap>) {
         if !self.current_sequence.is_empty() {
             // Update counts
             self.current_sequence.decrement();
@@ -211,11 +211,11 @@ impl<'a> Corpus<'a> {
                 additional_index += 1;
             }
             return (
-                &self.discovered_testcases[self.current_sequence.testcase_index],
-                Some(&self.discovered_testcases[additional_index]),
+                self.discovered_testcases[self.current_sequence.testcase_index].clone(),
+                Some(self.discovered_testcases[additional_index].clone()),
             );
         } else {
-            return (&self.discovered_testcases[self.current_sequence.testcase_index], None);
+            return (self.discovered_testcases[self.current_sequence.testcase_index].clone(), None);
         }
     }
 }

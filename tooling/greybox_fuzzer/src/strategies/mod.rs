@@ -574,8 +574,8 @@ impl InputMutator {
 
     pub fn mutate_input_map_multiple(
         &self,
-        previous_input_map: &InputMap,
-        additional_input_map: Option<&InputMap>,
+        previous_input_map: InputMap,
+        additional_input_map: Option<InputMap>,
         prng: &mut XorShiftRng,
     ) -> InputMap {
         let mut starting_input_value = previous_input_map.clone();
@@ -584,7 +584,7 @@ impl InputMutator {
         let mut chosen_max_mutation_log = MUTATION_LOG_MAX;
         if additional_input_map.is_some() && prng.gen_range(0..4).is_zero() {
             starting_input_value =
-                self.splice_two_maps(previous_input_map, additional_input_map.unwrap(), prng);
+                self.splice_two_maps(&previous_input_map, &additional_input_map.unwrap(), prng);
             //chosen_max_mutation_log = MUTATION_LOG_MIN;
         }
         for _ in 0..(1 << prng.gen_range(MUTATION_LOG_MIN..=MUTATION_LOG_MAX)) {

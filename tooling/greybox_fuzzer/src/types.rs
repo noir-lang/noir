@@ -1,3 +1,4 @@
+use acvm::{acir::native_types::WitnessStack, FieldElement};
 use noirc_abi::InputMap;
 
 type CounterExample = InputMap;
@@ -23,6 +24,8 @@ pub struct FuzzTestResult {
 pub struct CaseOutcome {
     /// Data of a single fuzz test case
     pub case: InputMap,
+    pub witness: WitnessStack<FieldElement>,
+    pub brillig_coverage: Vec<u32>,
 }
 
 /// Returned by a single fuzz when there is a discrepancy between brillig and acir execution

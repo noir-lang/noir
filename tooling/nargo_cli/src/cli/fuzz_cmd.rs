@@ -1,3 +1,4 @@
+use core::num;
 use std::{io::Write, path::PathBuf};
 
 use acvm::{BlackBoxFunctionSolver, FieldElement};
@@ -38,6 +39,10 @@ pub(crate) struct FuzzCommand {
     /// Display output of `println` statements
     #[arg(long)]
     show_output: bool,
+
+    /// The number of threads to use for fuzzing
+    #[arg(long, default_value = "1")]
+    num_threads: usize,
 
     /// Only run harnesses that match exactly
     #[clap(long)]
@@ -135,6 +140,7 @@ pub(crate) fn run(args: FuzzCommand, config: NargoConfig) -> Result<(), CliError
                 Some(workspace.root_dir.clone()),
                 Some(package.name.to_string()),
                 &args.compile_options,
+                args.num_threads,
             )
             .unwrap_or_else(|_| Vec::new())
         })
@@ -193,6 +199,7 @@ fn run_fuzzers<S: BlackBoxFunctionSolver<FieldElement> + Default>(
     root_path: Option<PathBuf>,
     package_name: Option<String>,
     compile_options: &CompileOptions,
+    num_threads: usize,
 ) -> Result<Vec<(String, FuzzingRunStatus)>, CliError> {
     let fuzzing_harnesses = get_fuzzing_harnesses_in_package(
         file_manager,
@@ -223,6 +230,7 @@ fn run_fuzzers<S: BlackBoxFunctionSolver<FieldElement> + Default>(
                 root_path.clone(),
                 package_name.clone(),
                 compile_options,
+                num_threads,
             );
 
             (fuzzing_harness_name, status)
@@ -244,6 +252,7 @@ fn run_fuzzing_harness<S: BlackBoxFunctionSolver<FieldElement> + Default>(
     root_path: Option<PathBuf>,
     package_name: Option<String>,
     compile_options: &CompileOptions,
+    num_threads: usize,
 ) -> FuzzingRunStatus {
     // This is really hacky but we can't share `Context` or `S` across threads.
     // We then need to construct a separate copy for each test.
@@ -257,10 +266,7 @@ fn run_fuzzing_harness<S: BlackBoxFunctionSolver<FieldElement> + Default>(
         .get_all_fuzzing_harnesses_in_crate_matching(&crate_id, FunctionNameMatch::Exact(fn_name));
     let (_, fuzzing_harness) = fuzzing_harnesses.first().expect("Fuzzing harness should exist");
 
-    let blackbox_solver = S::default();
-
-    nargo::ops::run_fuzzing_harness(
-        &blackbox_solver,
+    nargo::ops::run_fuzzing_harness::<S>(
         &mut context,
         fuzzing_harness,
         show_output,
@@ -268,6 +274,7 @@ fn run_fuzzing_harness<S: BlackBoxFunctionSolver<FieldElement> + Default>(
         root_path,
         package_name,
         compile_options,
+        num_threads,
     )
 }
 

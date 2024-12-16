@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use acvm::{
     acir::{
         circuit::Program,
@@ -21,6 +23,10 @@ mod strategies;
 mod types;
 
 use corpus::Corpus;
+use rayon::{
+    current_num_threads,
+    iter::{FromParallelIterator, ParallelBridge, ParallelIterator},
+};
 use strategies::InputMutator;
 use types::{CaseOutcome, CounterExampleOutcome, DiscrepancyOutcome, FuzzOutcome, FuzzTestResult};
 
@@ -29,6 +35,7 @@ use rand::prelude::*;
 use rand::{Rng, SeedableRng};
 use rand_xorshift::XorShiftRng;
 
+use rayon::prelude::IntoParallelIterator;
 /// An executor for Noir programs which which provides fuzzing support
 ///
 /// After instantiation, calling `fuzz` will proceed to hammer the program with
@@ -58,18 +65,38 @@ pub struct FuzzedExecutor<E, F> {
 
     /// Function name
     function_name: String,
-}
 
+    /// Number of threads to use
+    num_threads: usize,
+}
+type BrilligCoverage = Vec<u32>;
+// impl<T: Send> FromParallelIterator<T>
+//     for Vec<Result<(FuzzOutcome, Option<SingleTestCaseCoverage>), ()>>
+// {
+// }
+
+// impl FromParallelIterator<Result<(FuzzOutcome, Option<SingleTestCaseCoverage>), ()>>
+//     for Vec<Result<(FuzzOutcome, Option<SingleTestCaseCoverage>), ()>>
+// {
+//     fn from_par_iter<I>(par_iter: I) -> Self
+//     where
+//         I: IntoParallelIterator<Item = Result<(FuzzOutcome, Option<SingleTestCaseCoverage>), ()>>,
+//     {
+//         par_iter.into_par_iter().collect()
+//     }
+// }
 impl<
         E: Fn(
-            &Program<FieldElement>,
-            WitnessMap<FieldElement>,
-        ) -> Result<WitnessStack<FieldElement>, String>,
+                &Program<FieldElement>,
+                WitnessMap<FieldElement>,
+            ) -> Result<WitnessStack<FieldElement>, String>
+            + Sync,
         F: Fn(
-            &Program<FieldElement>,
-            WitnessMap<FieldElement>,
-            &BranchToFeatureMap,
-        ) -> Result<(WitnessStack<FieldElement>, Option<Vec<u32>>), String>,
+                &Program<FieldElement>,
+                WitnessMap<FieldElement>,
+                &BranchToFeatureMap,
+            ) -> Result<(WitnessStack<FieldElement>, Option<Vec<u32>>), String>
+            + Sync,
     > FuzzedExecutor<E, F>
 {
     /// Instantiates a fuzzed executor given an executor
@@ -80,6 +107,7 @@ impl<
         brillig_executor: F,
         package_name: &str,
         function_name: &str,
+        num_threads: usize,
     ) -> Self {
         let location_to_feature_map = analyze_brillig_program_before_fuzzing(&brillig_program);
         let dictionary = build_dictionary_from_program(&acir_program.bytecode);
@@ -93,6 +121,7 @@ impl<
             mutator,
             package_name: package_name.to_string(),
             function_name: function_name.to_string(),
+            num_threads,
         }
     }
 
@@ -106,7 +135,7 @@ impl<
         let mut prng = XorShiftRng::seed_from_u64(seed);
         let mut corpus =
             Corpus::new(&self.package_name, &self.function_name, &self.acir_program.abi);
-
+        //println!("Current threads: {}", current_num_threads());
         match corpus.attempt_load() {
             Ok(_) => (),
             Err(error_string) => {
@@ -128,7 +157,7 @@ impl<
             starting_corpus.push(self.mutator.generate_default_input_map());
         }
         for entry in starting_corpus.iter() {
-            let (fuzz_res, coverage) = self.single_fuzz(&entry, &mut accumulated_coverage).unwrap();
+            let fuzz_res = self.single_fuzz(&entry).unwrap();
             match fuzz_res {
                 FuzzOutcome::Case(_) => {}
                 FuzzOutcome::Discrepancy(DiscrepancyOutcome {
@@ -168,7 +197,26 @@ impl<
                     };
                 }
             }
-            if accumulated_coverage.merge(&coverage.unwrap()) {
+            let (_case, witness, brillig_coverage) = match fuzz_res {
+                FuzzOutcome::Case(CaseOutcome { case, witness, brillig_coverage }) => {
+                    (case, witness, brillig_coverage)
+                }
+                _ => panic!("Already checked this"),
+            };
+            // Update the potential list
+            if accumulated_coverage.potential_bool_witness_list.is_none() {
+                // If it's the first time, we need to assign
+                accumulated_coverage.potential_bool_witness_list =
+                    Some(PotentialBoolWitnessList::from(&witness));
+            } else {
+                accumulated_coverage.potential_bool_witness_list.as_mut().unwrap().update(&witness);
+            }
+            let new_coverage = SingleTestCaseCoverage::new(
+                &witness,
+                brillig_coverage,
+                &accumulated_coverage.potential_bool_witness_list.as_mut().unwrap(),
+            );
+            if accumulated_coverage.merge(&&new_coverage) {
                 println!("Input: {:?}", entry);
                 self.mutator.update_dictionary(&entry);
                 match corpus.insert(entry.clone(), only_default_input) {
@@ -186,41 +234,85 @@ impl<
             }
         }
         let mut current_iteration = 0;
+        let pool = rayon::ThreadPoolBuilder::new()
+            .num_threads(self.num_threads)
+            .stack_size(4 * 1024 * 1024)
+            .build()
+            .unwrap();
+        let testcases_per_iteration = 128;
         let fuzz_res = loop {
-            if current_iteration % 10000 == 0 {
+            if current_iteration % 128 == 0 {
                 println!("Current iteration {current_iteration}");
             }
-            let (main_testcase, additional_testcase) =
-                corpus.get_next_testcase_with_additional(&mut prng);
-            let input_map = self.mutator.mutate_input_map_multiple(
-                main_testcase,
-                additional_testcase,
-                &mut prng,
-            );
-            let (fuzz_res, coverage) =
-                self.single_fuzz(&input_map, &mut accumulated_coverage).unwrap();
-            match fuzz_res {
-                FuzzOutcome::Case(_) => (),
-                _ => {
-                    break fuzz_res;
-                }
+            let mut testcase_set: Vec<(usize, InputMap)> = Vec::new();
+            testcase_set.reserve(testcases_per_iteration);
+            for i in 0..testcases_per_iteration {
+                let (main_testcase, additional_testcase) =
+                    corpus.get_next_testcase_with_additional(&mut prng);
+                let input_map = self.mutator.mutate_input_map_multiple(
+                    main_testcase,
+                    additional_testcase,
+                    &mut prng,
+                );
+                testcase_set.push((i, input_map));
             }
-            if accumulated_coverage.merge(&coverage.unwrap()) {
-                println!("Input: {:?}", input_map);
-                self.mutator.update_dictionary(&input_map);
-                match corpus.insert(input_map.clone(), true) {
-                    Ok(_) => (),
-                    Err(error_string) => {
-                        return FuzzTestResult {
-                            success: false,
-                            reason: Some(error_string),
-                            counterexample: None,
+
+            let all_fuzzing_results: Vec<FuzzOutcome> = pool
+                .install(|| {
+                    testcase_set.clone().into_iter().par_bridge().map(|(index, input)| unsafe {
+                        let res: FuzzOutcome = self.single_fuzz(&input).unwrap();
+                        res
+                    })
+                })
+                .collect::<Vec<FuzzOutcome>>();
+            let mut potential_res = None;
+            for fuzz_res in all_fuzzing_results.into_iter() {
+                let (case, witness, brillig_coverage) = match fuzz_res {
+                    FuzzOutcome::Case(CaseOutcome { case, witness, brillig_coverage }) => {
+                        (case, witness, brillig_coverage)
+                    }
+                    _ => {
+                        potential_res = Some(fuzz_res);
+                        break;
+                    }
+                };
+                // Update the potential list
+                if accumulated_coverage.potential_bool_witness_list.is_none() {
+                    // If it's the first time, we need to assign
+                    accumulated_coverage.potential_bool_witness_list =
+                        Some(PotentialBoolWitnessList::from(&witness));
+                } else {
+                    accumulated_coverage
+                        .potential_bool_witness_list
+                        .as_mut()
+                        .unwrap()
+                        .update(&witness);
+                }
+                let new_coverage = SingleTestCaseCoverage::new(
+                    &witness,
+                    brillig_coverage,
+                    &accumulated_coverage.potential_bool_witness_list.as_mut().unwrap(),
+                );
+                if accumulated_coverage.merge(&&new_coverage) {
+                    println!("Input: {:?}", case);
+                    self.mutator.update_dictionary(&case);
+                    match corpus.insert(case, true) {
+                        Ok(_) => (),
+                        Err(error_string) => {
+                            return FuzzTestResult {
+                                success: false,
+                                reason: Some(error_string),
+                                counterexample: None,
+                            }
                         }
                     }
+                    println!("Found new feature!");
                 }
-                println!("Found new feature!");
             }
-            current_iteration += 1;
+            if potential_res.is_some() {
+                break potential_res.unwrap();
+            }
+            current_iteration += testcases_per_iteration;
         };
         println!("Total iterations: {current_iteration}");
         match fuzz_res {
@@ -244,7 +336,11 @@ impl<
                 };
                 let reason = if reason.is_empty() { None } else { Some(reason) };
 
-                FuzzTestResult { success: false, reason, counterexample: Some(counterexample) }
+                FuzzTestResult {
+                    success: false,
+                    reason,
+                    counterexample: Some(counterexample.clone()),
+                }
             }
             FuzzOutcome::CounterExample(CounterExampleOutcome {
                 exit_reason: status,
@@ -253,73 +349,54 @@ impl<
                 let reason = status.to_string();
                 let reason = if reason.is_empty() { None } else { Some(reason) };
 
-                FuzzTestResult { success: false, reason, counterexample: Some(counterexample) }
+                FuzzTestResult {
+                    success: false,
+                    reason,
+                    counterexample: Some(counterexample.clone()),
+                }
             }
         }
     }
 
     /// Granular and single-step function that runs only one fuzz and returns either a `CaseOutcome`
     /// or a `CounterExampleOutcome`
-    pub fn single_fuzz(
-        &self,
-        input_map: &InputMap,
-        accumulated_coverage: &mut AccumulatedFuzzerCoverage,
-    ) -> Result<(FuzzOutcome, Option<SingleTestCaseCoverage>), ()> {
+    pub fn single_fuzz(&self, input_map: &InputMap) -> Result<FuzzOutcome, ()> {
         let initial_witness = self.acir_program.abi.encode(&input_map, None).unwrap();
         let initial_witness2 = self.acir_program.abi.encode(&input_map, None).unwrap();
+        let acir_start = Instant::now();
         let result_acir = (self.acir_executor)(&self.acir_program.bytecode, initial_witness);
+        let acir_elapsed = acir_start.elapsed();
+        let brillig_start = Instant::now();
         let result_brillig = (self.brillig_executor)(
             &self.brillig_program.bytecode,
             initial_witness2,
             &self.location_to_feature_map,
         );
+        let brillig_elapsed = brillig_start.elapsed();
+        println!("Acir: {}, brillig: {}", acir_elapsed.as_micros(), brillig_elapsed.as_micros());
 
         // TODO: Add handling for `vm.assume` equivalent
 
         match (result_acir, result_brillig) {
-            (Ok(witnesses), Ok((_map, brillig_coverage))) => {
-                // Update the potential list
-                if accumulated_coverage.potential_bool_witness_list.is_none() {
-                    // If it's the first time, we need to assign
-                    accumulated_coverage.potential_bool_witness_list =
-                        Some(PotentialBoolWitnessList::from(&witnesses));
-                } else {
-                    accumulated_coverage
-                        .potential_bool_witness_list
-                        .as_mut()
-                        .unwrap()
-                        .update(&witnesses);
-                }
-                let new_coverage = SingleTestCaseCoverage::new(
-                    &witnesses,
-                    brillig_coverage.unwrap(),
-                    &accumulated_coverage.potential_bool_witness_list.as_mut().unwrap(),
-                );
-                Ok((FuzzOutcome::Case(CaseOutcome { case: input_map.clone() }), Some(new_coverage)))
-            }
-            (Err(err), Ok(_)) => Ok((
-                FuzzOutcome::Discrepancy(DiscrepancyOutcome {
-                    exit_reason: err,
-                    acir_failed: true,
-                    counterexample: input_map.clone(),
-                }),
-                None,
-            )),
-            (Ok(_), Err(err)) => Ok((
-                FuzzOutcome::Discrepancy(DiscrepancyOutcome {
-                    exit_reason: err,
-                    acir_failed: false,
-                    counterexample: input_map.clone(),
-                }),
-                None,
-            )),
-            (Err(err), Err(..)) => Ok((
-                FuzzOutcome::CounterExample(CounterExampleOutcome {
-                    exit_reason: err,
-                    counterexample: input_map.clone(),
-                }),
-                None,
-            )),
+            (Ok(witnesses), Ok((_map, brillig_coverage))) => Ok(FuzzOutcome::Case(CaseOutcome {
+                case: input_map.clone(),
+                witness: witnesses,
+                brillig_coverage: brillig_coverage.unwrap(),
+            })),
+            (Err(err), Ok(_)) => Ok(FuzzOutcome::Discrepancy(DiscrepancyOutcome {
+                exit_reason: err,
+                acir_failed: true,
+                counterexample: input_map.clone(),
+            })),
+            (Ok(_), Err(err)) => Ok(FuzzOutcome::Discrepancy(DiscrepancyOutcome {
+                exit_reason: err,
+                acir_failed: false,
+                counterexample: input_map.clone(),
+            })),
+            (Err(err), Err(..)) => Ok(FuzzOutcome::CounterExample(CounterExampleOutcome {
+                exit_reason: err,
+                counterexample: input_map.clone(),
+            })),
         }
     }
 }

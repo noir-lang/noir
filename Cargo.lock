@@ -2964,6 +2964,7 @@ dependencies = [
  "proptest",
  "rand 0.8.5",
  "rand_xorshift",
+ "rayon",
  "sha256",
  "walkdir",
 ]

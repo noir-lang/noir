@@ -50,7 +50,7 @@ impl PotentialBoolWitnessList {
     }
 }
 /// Represents a single encountered state of a boolean witness in the Acir program
-#[derive(Hash, PartialEq, Eq, Clone, Copy)]
+#[derive(Hash, PartialEq, Eq, Clone, Copy, Debug)]
 pub struct AcirBoolState {
     witness_id: u32,
     state: bool,
@@ -74,15 +74,13 @@ impl SingleTestCaseCoverage {
         let witness_map = &acir_witnesses.peek().unwrap().witness;
 
         for potential_bool_witness_index in potential_bool_witness_list.witness.iter() {
-            let value = witness_map
-                .get(&potential_bool_witness_index)
-                .expect("Witness should be there")
-                .to_i128();
-            assert!(value == 0i128 || value == 1i128);
+            let value =
+                witness_map.get(&potential_bool_witness_index).expect("Witness should be there");
+            assert!(value.is_zero() || value.is_one());
 
             acir_bool_coverage.push(AcirBoolState {
                 witness_id: potential_bool_witness_index.witness_index(),
-                state: value == 1i128,
+                state: value.is_one(),
             });
         }
         Self { acir_bool_coverage, brillig_coverage }
