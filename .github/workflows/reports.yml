@@ -601,7 +601,7 @@ jobs:
 
   upload_execution_report:
     name: Upload execution report 
-    needs: [generate_execution_report]
+    needs: [generate_execution_report, external_repo_execution_report]
     # We want this job to run even if one variation of the matrix in `external_repo_execution_report` fails
     if: always() 
     runs-on: ubuntu-latest
