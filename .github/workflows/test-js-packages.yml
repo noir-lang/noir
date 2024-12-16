@@ -592,7 +592,11 @@ jobs:
       
       - name: Run nargo test
         working-directory: ./test-repo/${{ matrix.project.path }}
-        run: nargo test --silence-warnings --format json > ${{ github.workspace }}/.github/critical_libraries_status/${{ matrix.project.repo }}_${{ matrix.project.path }}.actual.jsonl
+        run: |
+          ls -la ${{ github.workspace }}
+          ls -la ${{ github.workspace }}/.github
+          ls -la ${{ github.workspace }}/.github/critical_libraries_status
+          nargo test --silence-warnings --format json > ${{ github.workspace }}/.github/critical_libraries_status/${{ matrix.project.repo }}_${{ matrix.project.path }}.actual.jsonl
         env:
           NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS: true
       
