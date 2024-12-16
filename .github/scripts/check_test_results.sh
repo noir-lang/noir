@@ -20,6 +20,8 @@ elif [ -s $2]; then
   # Only the actual file exists, which means we are expecting the external library
   # not to compile but it did.
   echo "Error: expected external library not to compile, but it did. Please run its tests with 'nargo test --format json' and save that output to $1"
+  echo "Got this output:"
+  cat $2
   exit -1
 else
   # Both files don't exists, which means we are expecting the external library not
