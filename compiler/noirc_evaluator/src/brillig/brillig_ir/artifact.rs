@@ -2,7 +2,7 @@ use acvm::acir::brillig::Opcode as BrilligOpcode;
 use acvm::acir::circuit::ErrorSelector;
 use std::collections::{BTreeMap, HashMap};
 
-use crate::ssa::ir::{basic_block::BasicBlockId, dfg::CallStack, function::FunctionId};
+use crate::ssa::ir::{basic_block::BasicBlockId, call_stack::CallStack, function::FunctionId};
 use crate::ErrorType;
 
 use super::procedures::ProcedureId;

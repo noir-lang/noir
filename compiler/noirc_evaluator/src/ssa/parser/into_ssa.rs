@@ -57,7 +57,7 @@ impl Translator {
         // A FunctionBuilder must be created with a main Function, so here wer remove it
         // from the parsed SSA to avoid adding it twice later on.
         let main_function = parsed_ssa.functions.remove(0);
-        let main_id = FunctionId::new(0);
+        let main_id = FunctionId::test_new(0);
         let mut builder = FunctionBuilder::new(main_function.external_name.clone(), main_id);
         builder.set_runtime(main_function.runtime_type);
 
@@ -65,7 +65,7 @@ impl Translator {
         let mut function_id_counter = 1;
         let mut functions = HashMap::new();
         for function in &parsed_ssa.functions {
-            let function_id = FunctionId::new(function_id_counter);
+            let function_id = FunctionId::test_new(function_id_counter);
             function_id_counter += 1;
 
             functions.insert(function.internal_name.clone(), function_id);

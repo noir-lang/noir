@@ -35,7 +35,8 @@ use crate::ssa::ir::instruction::Hint;
 use crate::ssa::{
     function_builder::data_bus::DataBus,
     ir::{
-        dfg::{CallStack, DataFlowGraph},
+        call_stack::CallStack,
+        dfg::DataFlowGraph,
         function::{Function, FunctionId, RuntimeType},
         instruction::{
             Binary, BinaryOp, ConstrainError, Instruction, InstructionId, Intrinsic,
@@ -675,7 +676,7 @@ impl<'a> Context<'a> {
         brillig: &Brillig,
     ) -> Result<Vec<SsaReport>, RuntimeError> {
         let instruction = &dfg[instruction_id];
-        self.acir_context.set_call_stack(dfg.get_call_stack(instruction_id));
+        self.acir_context.set_call_stack(dfg.get_instruction_call_stack(instruction_id));
         let mut warnings = Vec::new();
         match instruction {
             Instruction::Binary(binary) => {
@@ -1822,7 +1823,7 @@ impl<'a> Context<'a> {
     ) -> Result<(Vec<AcirVar>, Vec<SsaReport>), RuntimeError> {
         let (return_values, call_stack) = match terminator {
             TerminatorInstruction::Return { return_values, call_stack } => {
-                (return_values, call_stack.clone())
+                (return_values, *call_stack)
             }
             // TODO(https://github.com/noir-lang/noir/issues/4616): Enable recursion on foldable/non-inlined ACIR functions
             _ => unreachable!("ICE: Program must have a singular return"),
@@ -1841,6 +1842,7 @@ impl<'a> Context<'a> {
             }
         }
 
+        let call_stack = dfg.call_stack_data.get_call_stack(call_stack);
         let warnings = if has_constant_return {
             vec![SsaReport::Warning(InternalWarning::ReturnConstant { call_stack })]
         } else {
@@ -1880,7 +1882,7 @@ impl<'a> Context<'a> {
                 // This conversion is for debugging support only, to allow the
                 // debugging instrumentation code to work. Taking the reference
                 // of a function in ACIR is useless.
-                let id = self.acir_context.add_constant(function_id.to_usize());
+                let id = self.acir_context.add_constant(function_id.to_u32());
                 AcirValue::Var(id, AcirType::field())
             }
             Value::ForeignFunction(_) => unimplemented!(
@@ -2903,7 +2905,7 @@ mod test {
         ssa::{
             function_builder::FunctionBuilder,
             ir::{
-                dfg::CallStack,
+                call_stack::CallStack,
                 function::FunctionId,
                 instruction::BinaryOp,
                 map::Id,
@@ -2932,7 +2934,9 @@ mod test {
         // Set a call stack for testing whether `brillig_locations` in the `GeneratedAcir` was accurately set.
         let mut stack = CallStack::unit(Location::dummy());
         stack.push_back(Location::dummy());
-        builder.set_call_stack(stack);
+        let call_stack =
+            builder.current_function.dfg.call_stack_data.get_or_insert_locations(stack);
+        builder.set_call_stack(call_stack);
 
         let foo_v0 = builder.add_parameter(Type::field());
         let foo_v1 = builder.add_parameter(Type::field());

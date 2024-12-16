@@ -76,6 +76,7 @@ impl<'context> Elaborator<'context> {
     ) -> (HirStatement, Type) {
         let expr_span = let_stmt.expression.span;
         let (expression, expr_type) = self.elaborate_expression(let_stmt.expression);
+
         let type_contains_unspecified = let_stmt.r#type.contains_unspecified();
         let annotated_type = self.resolve_inferred_type(let_stmt.r#type);
 
@@ -123,7 +124,9 @@ impl<'context> Elaborator<'context> {
 
         let attributes = let_stmt.attributes;
         let comptime = let_stmt.comptime;
-        let let_ = HirLetStatement { pattern, r#type, expression, attributes, comptime };
+        let is_global_let = let_stmt.is_global_let;
+        let let_ =
+            HirLetStatement::new(pattern, r#type, expression, attributes, comptime, is_global_let);
         (HirStatement::Let(let_), Type::Unit)
     }
 
