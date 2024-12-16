@@ -629,12 +629,12 @@ jobs:
 
       - name: Parse execution report
         id: execution_report
-        uses: noir-lang/noir-bench-report@0bed8f72357ac78d1d3d52f7c6809b1151fc1a63
+        uses: noir-lang/noir-bench-report@0954121203ee55dcda5c7397b9c669c439a20922
         with:
           report: execution_report.json
           header: |
             # Execution Report
-          memory_report: false
+          execution_report: true
 
       - name: Add memory report to sticky comment
         if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
