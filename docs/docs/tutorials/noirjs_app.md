@@ -44,6 +44,12 @@ In this guide, we will install versions pinned to 1.0.0-beta.0. These work with 
 
 ZK is a powerful technology. An app that reveals computational correctness but doesn't reveal some of its inputs is almost unbelievable, yet Noir makes it as easy as a single line of code.
 
+:::tip
+
+It's not just you. We also enjoy syntax highlighting. [Check out the Language Server](../tooling/language_server.md)
+
+:::
+
 All you need is a `main.nr` and a `Nargo.toml` file. You can follow the [noirup](../getting_started/noir_installation.md) installation and just run `noirup -v 1.0.0-beta.0`, or just create them by hand:
 
 ```bash
