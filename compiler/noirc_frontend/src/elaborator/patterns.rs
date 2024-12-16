@@ -666,7 +666,7 @@ impl<'context> Elaborator<'context> {
                         self.interner.add_function_reference(func_id, hir_ident.location);
                     }
                     DefinitionKind::Global(global_id) => {
-                        let _was_unresolved = self.elaborate_unresolved_global(&global_id);
+                        self.elaborate_unresolved_global(&global_id);
                         if let Some(current_item) = self.current_item {
                             self.interner.add_global_dependency(current_item, global_id);
                         }
