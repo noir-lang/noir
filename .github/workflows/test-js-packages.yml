@@ -591,9 +591,12 @@ jobs:
       
       - name: Run nargo test
         working-directory: ./test-repo/${{ matrix.project.path }}
-        run: nargo test --silence-warnings --format json
+        run: nargo test --silence-warnings --format json > .github/critical_libraries_status/${{ matrix.project.repo }}_${{ matrix.project.path }}.actual.jsonl
         env:
           NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS: true
+      
+      - name: Compare test results
+        run: ./.github/scripts/check_test_results.sh .github/critical_libraries_status/${{ matrix.project.repo }}_${{ matrix.project.path }}.jsonl .github/critical_libraries_status/${{ matrix.project.repo }}_${{ matrix.project.path }}.actual.jsonl
 
   # This is a job which depends on all test jobs and reports the overall status.
   # This allows us to add/remove test jobs without having to update the required workflows.
