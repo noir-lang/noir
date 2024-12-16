@@ -206,7 +206,7 @@ const backend = new UltraHonkBackend(program.bytecode);
 
 :::warning
 
-WASMs are not always easy to work with. In our case, `vite` likes serving them with the wrong MIME type. There are different fixes but we found the easiest one is just YOLO instantiating the WASMs manually. Paste this at the top of the file, and it will work just fine:
+WASMs are not always easy to work with. In our case, `vite` likes serving them with the wrong MIME type. There are different fixes but we found the easiest one is just YOLO instantiating the WASMs manually. Paste this at the top of the file, just below the other imports, and it will work just fine:
 
 ```js
 import initNoirC from "@noir-lang/noirc_abi";
