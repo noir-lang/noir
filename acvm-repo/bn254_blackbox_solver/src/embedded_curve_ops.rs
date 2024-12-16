@@ -82,7 +82,7 @@ pub fn embedded_curve_add(
     input2: [FieldElement; 3],
     pedantic_solving: bool,
 ) -> Result<(FieldElement, FieldElement, FieldElement), BlackBoxResolutionError> {
-    if pedantic_solving && input1[2] > FieldElement::one() && input2[2] > FieldElement::one() {
+    if pedantic_solving && (input1[2] > FieldElement::one() || input2[2] > FieldElement::one()) {
         panic!("--pedantic-solving: is_infinity expected to be a bool, but found to be > 1")
     }
 
