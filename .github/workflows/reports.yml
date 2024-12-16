@@ -260,7 +260,6 @@ jobs:
           cat compilation_report.json
           ARTIFACT_NAMES=$(jq -r '.compilation_reports[].artifact_name' compilation_report.json)
           mkdir artifacts
-          # ls ./test_programs/execution_success
           for artifact in $ARTIFACT_NAMES; do
             ls ./test_programs/execution_success/$artifact/target
             mv ./test_programs/execution_success/$artifact/target/$artifact.json ./artifacts/$artifact.json
@@ -510,7 +509,7 @@ jobs:
           message: ${{ steps.memory_report.outputs.markdown }}
 
   generate_execution_report:
-    name: Execution time report
+    name: Execution time
     needs: [build-nargo, generate_compilation_report]
     runs-on: ubuntu-22.04
     permissions:
@@ -538,6 +537,17 @@ jobs:
         with:
           name: compilation_artifacts
           path: ./artifacts
+
+      - name: Move compilation artifacts
+      run: |
+        ls ./artifacts
+        for artifact in ./artifacts/*; do
+          echo $artifact
+          PACKAGE_NAME=$(basename $artifact .json)
+          echo $PACKAGE_NAME
+          ls ./test_programs/execution_success/$PACKAGE_NAME/target
+          mv $artifact ./test_programs/execution_success/$PACKAGE_NAME/target/$PACKAGE_NAME.json
+        done
 
       - name: Generate Execution report
         working-directory: ./test_programs
