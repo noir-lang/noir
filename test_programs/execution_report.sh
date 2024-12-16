@@ -36,9 +36,12 @@ for dir in ${tests_to_profile[@]}; do
       PACKAGE_NAME=$(basename $current_dir)
     fi
 
+    echo $(ls .)
     # TODO: For now I am just recompiling the package. But we should be using pre-existing artifacts 
     # as we already compile these packages a few places in CI 
     nargo compile --force --silence-warnings
+
+    echo $(ls .)
 
     # Check whether a compilation artifact exists. 
     # Any programs part of this benchmark should already be compiled.
