@@ -260,7 +260,7 @@ jobs:
           cat compilation_report.json
           ARTIFACT_NAMES=$(jq '.compilation_reports[].artifact_name' compilation_report.json)
           for artifact in $ARTIFACT_NAMES; do
-            mv ./execution_success/"$artifact"/target/"$artifact".json ../artifacts/"$artifact".json
+            mv ./test_programs/execution_success/"$artifact"/target/"$artifact".json ./artifacts/"$artifact".json
           done
 
       - name: Upload compilation report
