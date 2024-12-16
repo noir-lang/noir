@@ -14,7 +14,8 @@ use crate::ssa::{ir::function::RuntimeType, opt::flatten_cfg::value_merger::Valu
 
 use super::{
     basic_block::BasicBlockId,
-    dfg::{CallStack, DataFlowGraph},
+    call_stack::CallStackId,
+    dfg::DataFlowGraph,
     function::Function,
     map::Id,
     types::{NumericType, Type},
@@ -808,7 +809,7 @@ impl Instruction {
         dfg: &mut DataFlowGraph,
         block: BasicBlockId,
         ctrl_typevars: Option<Vec<Type>>,
-        call_stack: &CallStack,
+        call_stack: CallStackId,
     ) -> SimplifyResult {
         use SimplifyResult::*;
         match self {
@@ -865,7 +866,7 @@ impl Instruction {
                             instruction,
                             block,
                             Option::None,
-                            call_stack.clone(),
+                            call_stack,
                         );
                         return SimplifiedTo(new_array.first());
                     }
@@ -1210,7 +1211,7 @@ pub(crate) enum TerminatorInstruction {
         condition: ValueId,
         then_destination: BasicBlockId,
         else_destination: BasicBlockId,
-        call_stack: CallStack,
+        call_stack: CallStackId,
     },
 
     /// Unconditional Jump
@@ -1218,7 +1219,7 @@ pub(crate) enum TerminatorInstruction {
     /// Jumps to specified `destination` with `arguments`.
     /// The CallStack here is expected to be used to issue an error when the start range of
     /// a for loop cannot be deduced at compile-time.
-    Jmp { destination: BasicBlockId, arguments: Vec<ValueId>, call_stack: CallStack },
+    Jmp { destination: BasicBlockId, arguments: Vec<ValueId>, call_stack: CallStackId },
 
     /// Return from the current function with the given return values.
     ///
@@ -1227,7 +1228,7 @@ pub(crate) enum TerminatorInstruction {
     /// unconditionally jump to a single exit block with the return values
     /// as the block arguments. Then the exit block can terminate in a return
     /// instruction returning these values.
-    Return { return_values: Vec<ValueId>, call_stack: CallStack },
+    Return { return_values: Vec<ValueId>, call_stack: CallStackId },
 }
 
 impl TerminatorInstruction {
@@ -1242,16 +1243,16 @@ impl TerminatorInstruction {
                 condition: f(*condition),
                 then_destination: *then_destination,
                 else_destination: *else_destination,
-                call_stack: call_stack.clone(),
+                call_stack: *call_stack,
             },
             Jmp { destination, arguments, call_stack } => Jmp {
                 destination: *destination,
                 arguments: vecmap(arguments, |value| f(*value)),
-                call_stack: call_stack.clone(),
+                call_stack: *call_stack,
             },
             Return { return_values, call_stack } => Return {
                 return_values: vecmap(return_values, |value| f(*value)),
-                call_stack: call_stack.clone(),
+                call_stack: *call_stack,
             },
         }
     }
@@ -1311,11 +1312,19 @@ impl TerminatorInstruction {
         }
     }
 
-    pub(crate) fn call_stack(&self) -> CallStack {
+    pub(crate) fn call_stack(&self) -> CallStackId {
         match self {
             TerminatorInstruction::JmpIf { call_stack, .. }
             | TerminatorInstruction::Jmp { call_stack, .. }
-            | TerminatorInstruction::Return { call_stack, .. } => call_stack.clone(),
+            | TerminatorInstruction::Return { call_stack, .. } => *call_stack,
+        }
+    }
+
+    pub(crate) fn set_call_stack(&mut self, new_call_stack: CallStackId) {
+        match self {
+            TerminatorInstruction::JmpIf { call_stack, .. }
+            | TerminatorInstruction::Jmp { call_stack, .. }
+            | TerminatorInstruction::Return { call_stack, .. } => *call_stack = new_call_stack,
         }
     }
 }

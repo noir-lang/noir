@@ -382,7 +382,7 @@ impl DependencyContext {
             .keys()
             .map(|brillig_call| {
                 SsaReport::Bug(InternalBug::UncheckedBrilligCall {
-                    call_stack: function.dfg.get_call_stack(*brillig_call),
+                    call_stack: function.dfg.get_instruction_call_stack(*brillig_call),
                 })
             })
             .collect();
@@ -513,7 +513,7 @@ impl Context {
             // There is a value not in the set, which means that the inputs/outputs of this call have not been properly constrained
             if unused_inputs {
                 warnings.push(SsaReport::Bug(InternalBug::IndependentSubgraph {
-                    call_stack: function.dfg.get_call_stack(
+                    call_stack: function.dfg.get_instruction_call_stack(
                         self.brillig_return_to_instruction_id[&brillig_output_in_set],
                     ),
                 }));

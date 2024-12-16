@@ -139,8 +139,9 @@ use iter_extended::vecmap;
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
+        call_stack::CallStackId,
         cfg::ControlFlowGraph,
-        dfg::{CallStack, InsertInstructionResult},
+        dfg::InsertInstructionResult,
         function::{Function, FunctionId, RuntimeType},
         function_inserter::FunctionInserter,
         instruction::{BinaryOp, Instruction, InstructionId, Intrinsic, TerminatorInstruction},
@@ -234,7 +235,7 @@ struct ConditionalContext {
     // First block of the else branch
     else_branch: Option<ConditionalBranch>,
     // Call stack where the final location is that of the entire `if` expression
-    call_stack: CallStack,
+    call_stack: CallStackId,
 }
 
 fn flatten_function_cfg(function: &mut Function, no_predicates: &HashMap<FunctionId, bool>) {
@@ -285,7 +286,7 @@ impl<'f> Context<'f> {
         if let Some(context) = self.condition_stack.last() {
             let previous_branch = context.else_branch.as_ref().unwrap_or(&context.then_branch);
             let and = Instruction::binary(BinaryOp::And, previous_branch.condition, condition);
-            let call_stack = self.inserter.function.dfg.get_value_call_stack(condition);
+            let call_stack = self.inserter.function.dfg.get_value_call_stack_id(condition);
             self.insert_instruction(and, call_stack)
         } else {
             condition
@@ -337,7 +338,7 @@ impl<'f> Context<'f> {
                 self.insert_instruction_with_typevars(
                     Instruction::EnableSideEffectsIf { condition: one },
                     None,
-                    CallStack::new(),
+                    CallStackId::root(),
                 );
                 self.push_instruction(*instruction);
                 self.insert_current_side_effects_enabled();
@@ -365,13 +366,7 @@ impl<'f> Context<'f> {
                 call_stack,
             } => {
                 self.arguments_stack.push(vec![]);
-                self.if_start(
-                    condition,
-                    then_destination,
-                    else_destination,
-                    &block,
-                    call_stack.clone(),
-                )
+                self.if_start(condition, then_destination, else_destination, &block, *call_stack)
             }
             TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
                 let arguments = vecmap(arguments.clone(), |value| self.inserter.resolve(value));
@@ -387,7 +382,7 @@ impl<'f> Context<'f> {
                 }
             }
             TerminatorInstruction::Return { return_values, call_stack } => {
-                let call_stack = call_stack.clone();
+                let call_stack = *call_stack;
                 let return_values =
                     vecmap(return_values.clone(), |value| self.inserter.resolve(value));
                 let new_return = TerminatorInstruction::Return { return_values, call_stack };
@@ -406,7 +401,7 @@ impl<'f> Context<'f> {
         then_destination: &BasicBlockId,
         else_destination: &BasicBlockId,
         if_entry: &BasicBlockId,
-        call_stack: CallStack,
+        call_stack: CallStackId,
     ) -> Vec<BasicBlockId> {
         // manage conditions
         let old_condition = *condition;
@@ -447,11 +442,9 @@ impl<'f> Context<'f> {
         cond_context.then_branch.last_block = *block;
 
         let condition_call_stack =
-            self.inserter.function.dfg.get_value_call_stack(cond_context.condition);
-        let else_condition = self.insert_instruction(
-            Instruction::Not(cond_context.condition),
-            condition_call_stack.clone(),
-        );
+            self.inserter.function.dfg.get_value_call_stack_id(cond_context.condition);
+        let else_condition =
+            self.insert_instruction(Instruction::Not(cond_context.condition), condition_call_stack);
         let else_condition = self.link_condition(else_condition);
 
         let old_allocations = std::mem::take(&mut self.local_allocations);
@@ -549,7 +542,7 @@ impl<'f> Context<'f> {
                 else_condition,
                 else_value: else_arg,
             };
-            let call_stack = cond_context.call_stack.clone();
+            let call_stack = cond_context.call_stack;
             self.inserter
                 .function
                 .dfg
@@ -566,7 +559,7 @@ impl<'f> Context<'f> {
     /// Insert a new instruction into the function's entry block.
     /// Unlike push_instruction, this function will not map any ValueIds.
     /// within the given instruction, nor will it modify self.values in any way.
-    fn insert_instruction(&mut self, instruction: Instruction, call_stack: CallStack) -> ValueId {
+    fn insert_instruction(&mut self, instruction: Instruction, call_stack: CallStackId) -> ValueId {
         let block = self.inserter.function.entry_block();
         self.inserter
             .function
@@ -583,7 +576,7 @@ impl<'f> Context<'f> {
         &mut self,
         instruction: Instruction,
         ctrl_typevars: Option<Vec<Type>>,
-        call_stack: CallStack,
+        call_stack: CallStackId,
     ) -> InsertInstructionResult {
         let block = self.inserter.function.entry_block();
         self.inserter.function.dfg.insert_instruction_and_results(
@@ -607,7 +600,7 @@ impl<'f> Context<'f> {
             }
         };
         let enable_side_effects = Instruction::EnableSideEffectsIf { condition };
-        let call_stack = self.inserter.function.dfg.get_value_call_stack(condition);
+        let call_stack = self.inserter.function.dfg.get_value_call_stack_id(condition);
         self.insert_instruction_with_typevars(enable_side_effects, None, call_stack);
     }
 
@@ -623,7 +616,7 @@ impl<'f> Context<'f> {
     /// any instructions in between it should be None.
     fn push_instruction(&mut self, id: InstructionId) {
         let (instruction, call_stack) = self.inserter.map_instruction(id);
-        let instruction = self.handle_instruction_side_effects(instruction, call_stack.clone());
+        let instruction = self.handle_instruction_side_effects(instruction, call_stack);
 
         let instruction_is_allocate = matches!(&instruction, Instruction::Allocate);
         let entry = self.inserter.function.entry_block();
@@ -641,7 +634,7 @@ impl<'f> Context<'f> {
     fn handle_instruction_side_effects(
         &mut self,
         instruction: Instruction,
-        call_stack: CallStack,
+        call_stack: CallStackId,
     ) -> Instruction {
         if let Some(condition) = self.get_last_condition() {
             match instruction {
@@ -652,11 +645,11 @@ impl<'f> Context<'f> {
                     let argument_type = self.inserter.function.dfg.type_of_value(lhs);
 
                     let cast = Instruction::Cast(condition, argument_type.unwrap_numeric());
-                    let casted_condition = self.insert_instruction(cast, call_stack.clone());
+                    let casted_condition = self.insert_instruction(cast, call_stack);
 
                     let lhs = self.insert_instruction(
                         Instruction::binary(BinaryOp::Mul, lhs, casted_condition),
-                        call_stack.clone(),
+                        call_stack,
                     );
                     let rhs = self.insert_instruction(
                         Instruction::binary(BinaryOp::Mul, rhs, casted_condition),
@@ -675,15 +668,11 @@ impl<'f> Context<'f> {
                         let typ = self.inserter.function.dfg.type_of_value(value);
                         let load = Instruction::Load { address };
                         let previous_value = self
-                            .insert_instruction_with_typevars(
-                                load,
-                                Some(vec![typ]),
-                                call_stack.clone(),
-                            )
+                            .insert_instruction_with_typevars(load, Some(vec![typ]), call_stack)
                             .first();
 
-                        let else_condition = self
-                            .insert_instruction(Instruction::Not(condition), call_stack.clone());
+                        let else_condition =
+                            self.insert_instruction(Instruction::Not(condition), call_stack);
 
                         let instruction = Instruction::IfElse {
                             then_condition: condition,
@@ -702,11 +691,11 @@ impl<'f> Context<'f> {
                     // Condition needs to be cast to argument type in order to multiply them together.
                     let argument_type = self.inserter.function.dfg.type_of_value(value);
                     let cast = Instruction::Cast(condition, argument_type.unwrap_numeric());
-                    let casted_condition = self.insert_instruction(cast, call_stack.clone());
+                    let casted_condition = self.insert_instruction(cast, call_stack);
 
                     let value = self.insert_instruction(
                         Instruction::binary(BinaryOp::Mul, value, casted_condition),
-                        call_stack.clone(),
+                        call_stack,
                     );
                     Instruction::RangeCheck { value, max_bit_size, assert_message }
                 }
@@ -717,10 +706,10 @@ impl<'f> Context<'f> {
                         let argument_type = self.inserter.function.dfg.type_of_value(field);
 
                         let cast = Instruction::Cast(condition, argument_type.unwrap_numeric());
-                        let casted_condition = self.insert_instruction(cast, call_stack.clone());
+                        let casted_condition = self.insert_instruction(cast, call_stack);
                         let field = self.insert_instruction(
                             Instruction::binary(BinaryOp::Mul, field, casted_condition),
-                            call_stack.clone(),
+                            call_stack,
                         );
 
                         arguments[0] = field;
@@ -729,8 +718,8 @@ impl<'f> Context<'f> {
                     }
                     //Issue #5045: We set curve points to infinity if condition is false
                     Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::EmbeddedCurveAdd)) => {
-                        arguments[2] = self.var_or_one(arguments[2], condition, call_stack.clone());
-                        arguments[5] = self.var_or_one(arguments[5], condition, call_stack.clone());
+                        arguments[2] = self.var_or_one(arguments[2], condition, call_stack);
+                        arguments[5] = self.var_or_one(arguments[5], condition, call_stack);
 
                         Instruction::Call { func, arguments }
                     }
@@ -748,7 +737,7 @@ impl<'f> Context<'f> {
                         let (elements, typ) = self.apply_predicate_to_msm_argument(
                             arguments[points_array_idx],
                             condition,
-                            call_stack.clone(),
+                            call_stack,
                         );
 
                         let instruction = Instruction::MakeArray { elements, typ };
@@ -772,7 +761,7 @@ impl<'f> Context<'f> {
         &mut self,
         argument: ValueId,
         predicate: ValueId,
-        call_stack: CallStack,
+        call_stack: CallStackId,
     ) -> (im::Vector<ValueId>, Type) {
         let array_typ;
         let mut array_with_predicate = im::Vector::new();
@@ -780,11 +769,7 @@ impl<'f> Context<'f> {
             array_typ = typ.clone();
             for (i, value) in array.clone().iter().enumerate() {
                 if i % 3 == 2 {
-                    array_with_predicate.push_back(self.var_or_one(
-                        *value,
-                        predicate,
-                        call_stack.clone(),
-                    ));
+                    array_with_predicate.push_back(self.var_or_one(*value, predicate, call_stack));
                 } else {
                     array_with_predicate.push_back(*value);
                 }
@@ -800,13 +785,10 @@ impl<'f> Context<'f> {
     }
 
     // Computes: if condition { var } else { 1 }
-    fn var_or_one(&mut self, var: ValueId, condition: ValueId, call_stack: CallStack) -> ValueId {
-        let field = self.insert_instruction(
-            Instruction::binary(BinaryOp::Mul, var, condition),
-            call_stack.clone(),
-        );
-        let not_condition =
-            self.insert_instruction(Instruction::Not(condition), call_stack.clone());
+    fn var_or_one(&mut self, var: ValueId, condition: ValueId, call_stack: CallStackId) -> ValueId {
+        let field =
+            self.insert_instruction(Instruction::binary(BinaryOp::Mul, var, condition), call_stack);
+        let not_condition = self.insert_instruction(Instruction::Not(condition), call_stack);
         self.insert_instruction(
             Instruction::binary(BinaryOp::Add, field, not_condition),
             call_stack,

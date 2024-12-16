@@ -128,7 +128,7 @@ impl ControlFlowGraph {
 #[cfg(test)]
 mod tests {
     use crate::ssa::ir::{
-        dfg::CallStack, instruction::TerminatorInstruction, map::Id, types::Type,
+        call_stack::CallStackId, instruction::TerminatorInstruction, map::Id, types::Type,
     };
 
     use super::{super::function::Function, ControlFlowGraph};
@@ -140,7 +140,7 @@ mod tests {
         let block_id = func.entry_block();
         func.dfg[block_id].set_terminator(TerminatorInstruction::Return {
             return_values: vec![],
-            call_stack: CallStack::new(),
+            call_stack: CallStackId::root(),
         });
 
         ControlFlowGraph::with_function(&func);
@@ -168,17 +168,17 @@ mod tests {
             condition: cond,
             then_destination: block2_id,
             else_destination: block1_id,
-            call_stack: CallStack::new(),
+            call_stack: CallStackId::root(),
         });
         func.dfg[block1_id].set_terminator(TerminatorInstruction::JmpIf {
             condition: cond,
             then_destination: block1_id,
             else_destination: block2_id,
-            call_stack: CallStack::new(),
+            call_stack: CallStackId::root(),
         });
         func.dfg[block2_id].set_terminator(TerminatorInstruction::Return {
             return_values: vec![],
-            call_stack: CallStack::new(),
+            call_stack: CallStackId::root(),
         });
 
         let mut cfg = ControlFlowGraph::with_function(&func);
@@ -226,18 +226,18 @@ mod tests {
         let ret_block_id = func.dfg.make_block();
         func.dfg[ret_block_id].set_terminator(TerminatorInstruction::Return {
             return_values: vec![],
-            call_stack: CallStack::new(),
+            call_stack: CallStackId::root(),
         });
         func.dfg[block2_id].set_terminator(TerminatorInstruction::Jmp {
             destination: ret_block_id,
             arguments: vec![],
-            call_stack: CallStack::new(),
+            call_stack: CallStackId::root(),
         });
         func.dfg[block0_id].set_terminator(TerminatorInstruction::JmpIf {
             condition: cond,
             then_destination: block1_id,
             else_destination: ret_block_id,
-            call_stack: CallStack::new(),
+            call_stack: CallStackId::root(),
         });
 
         // Recompute new and changed blocks

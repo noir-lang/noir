@@ -317,7 +317,7 @@ impl<'brillig> Context<'brillig> {
                     if matches!(instruction, Instruction::MakeArray { .. }) {
                         let value = *cached.last().unwrap();
                         let inc_rc = Instruction::IncrementRc { value };
-                        let call_stack = dfg.get_call_stack(id);
+                        let call_stack = dfg.get_instruction_call_stack_id(id);
                         dfg.insert_instruction_and_results(inc_rc, block, None, call_stack);
                     }
 
@@ -421,7 +421,7 @@ impl<'brillig> Context<'brillig> {
             .requires_ctrl_typevars()
             .then(|| vecmap(old_results, |result| dfg.type_of_value(*result)));
 
-        let call_stack = dfg.get_call_stack(id);
+        let call_stack = dfg.get_instruction_call_stack_id(id);
         let new_results =
             match dfg.insert_instruction_and_results(instruction, block, ctrl_typevars, call_stack)
             {
