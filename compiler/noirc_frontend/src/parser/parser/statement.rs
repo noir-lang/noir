@@ -364,7 +364,14 @@ impl<'a> Parser<'a> {
             Expression { kind: ExpressionKind::Error, span: self.current_token_span }
         };
 
-        Some(LetStatement { pattern, r#type, expression, attributes, comptime: false })
+        Some(LetStatement {
+            pattern,
+            r#type,
+            expression,
+            attributes,
+            comptime: false,
+            is_global_let: false,
+        })
     }
 
     /// ConstrainStatement
