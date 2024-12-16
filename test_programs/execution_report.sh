@@ -39,9 +39,7 @@ for dir in ${tests_to_profile[@]}; do
     echo $(ls .)
     # TODO: For now I am just recompiling the package. But we should be using pre-existing artifacts 
     # as we already compile these packages a few places in CI 
-    nargo compile --force --silence-warnings
-
-    echo $(ls .)
+    # nargo compile --force --silence-warnings
 
     # Check whether a compilation artifact exists. 
     # Any programs part of this benchmark should already be compiled.
