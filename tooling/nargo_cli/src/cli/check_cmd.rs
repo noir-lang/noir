@@ -4,33 +4,25 @@ use clap::Args;
 use fm::FileManager;
 use iter_extended::btree_map;
 use nargo::{
-    errors::CompileError,
-    insert_all_files_for_workspace_into_file_manager,
-    ops::report_errors,
-    package::{CrateName, Package},
-    parse_all, prepare_package,
+    errors::CompileError, insert_all_files_for_workspace_into_file_manager, ops::report_errors,
+    package::Package, parse_all, prepare_package,
 };
-use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
+use nargo_toml::{get_package_manifest, resolve_workspace_from_toml};
 use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
 use noirc_driver::{
     check_crate, compute_function_abi, CompileOptions, CrateId, NOIR_ARTIFACT_VERSION_STRING,
 };
 use noirc_frontend::hir::{Context, ParsedFiles};
 
-use super::fs::write_to_file;
 use super::NargoConfig;
+use super::{fs::write_to_file, PackageOptions};
 
 /// Checks the constraint system for errors
 #[derive(Debug, Clone, Args)]
 #[clap(visible_alias = "c")]
 pub(crate) struct CheckCommand {
-    /// The name of the package to check
-    #[clap(long, conflicts_with = "workspace")]
-    package: Option<CrateName>,
-
-    /// Check all packages in the workspace
-    #[clap(long, conflicts_with = "package")]
-    workspace: bool,
+    #[clap(flatten)]
+    pub(super) package_options: PackageOptions,
 
     /// Force overwrite of existing files
     #[clap(long = "overwrite")]
@@ -42,9 +34,7 @@ pub(crate) struct CheckCommand {
 
 pub(crate) fn run(args: CheckCommand, config: NargoConfig) -> Result<(), CliError> {
     let toml_path = get_package_manifest(&config.program_dir)?;
-    let default_selection =
-        if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
-    let selection = args.package.map_or(default_selection, PackageSelection::Selected);
+    let selection = args.package_options.package_selection();
     let workspace = resolve_workspace_from_toml(
         &toml_path,
         selection,

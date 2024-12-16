@@ -18,9 +18,11 @@ use crate::ssa::ir::{
 use super::{
     ir::{
         basic_block::BasicBlock,
-        dfg::{CallStack, InsertInstructionResult},
+        call_stack::{CallStack, CallStackId},
+        dfg::InsertInstructionResult,
         function::RuntimeType,
         instruction::{ConstrainError, InstructionId, Intrinsic},
+        types::NumericType,
     },
     ssa_gen::Ssa,
 };
@@ -33,10 +35,10 @@ use super::{
 /// Contrary to the name, this struct has the capacity to build as many
 /// functions as needed, although it is limited to one function at a time.
 pub(crate) struct FunctionBuilder {
-    pub(super) current_function: Function,
+    pub(crate) current_function: Function,
     current_block: BasicBlockId,
     finished_functions: Vec<Function>,
-    call_stack: CallStack,
+    call_stack: CallStackId,
     error_types: BTreeMap<ErrorSelector, HirType>,
 }
 
@@ -52,7 +54,7 @@ impl FunctionBuilder {
             current_block: new_function.entry_block(),
             current_function: new_function,
             finished_functions: Vec::new(),
-            call_stack: CallStack::new(),
+            call_stack: CallStackId::root(),
             error_types: BTreeMap::default(),
         }
     }
@@ -77,11 +79,14 @@ impl FunctionBuilder {
         function_id: FunctionId,
         runtime_type: RuntimeType,
     ) {
+        let call_stack = self.current_function.dfg.get_call_stack(self.call_stack);
         let mut new_function = Function::new(name, function_id);
         new_function.set_runtime(runtime_type);
         self.current_block = new_function.entry_block();
-
         let old_function = std::mem::replace(&mut self.current_function, new_function);
+        // Copy the call stack to the new function
+        self.call_stack =
+            self.current_function.dfg.call_stack_data.get_or_insert_locations(call_stack);
         self.finished_functions.push(old_function);
     }
 
@@ -122,19 +127,19 @@ impl FunctionBuilder {
     pub(crate) fn numeric_constant(
         &mut self,
         value: impl Into<FieldElement>,
-        typ: Type,
+        typ: NumericType,
     ) -> ValueId {
         self.current_function.dfg.make_constant(value.into(), typ)
     }
 
     /// Insert a numeric constant into the current function of type Field
     pub(crate) fn field_constant(&mut self, value: impl Into<FieldElement>) -> ValueId {
-        self.numeric_constant(value.into(), Type::field())
+        self.numeric_constant(value.into(), NumericType::NativeField)
     }
 
     /// Insert a numeric constant into the current function of type Type::length_type()
     pub(crate) fn length_constant(&mut self, value: impl Into<FieldElement>) -> ValueId {
-        self.numeric_constant(value.into(), Type::length_type())
+        self.numeric_constant(value.into(), NumericType::length_type())
     }
 
     /// Returns the type of the given value.
@@ -170,7 +175,7 @@ impl FunctionBuilder {
             instruction,
             block,
             ctrl_typevars,
-            self.call_stack.clone(),
+            self.call_stack,
         )
     }
 
@@ -195,17 +200,17 @@ impl FunctionBuilder {
     }
 
     pub(crate) fn set_location(&mut self, location: Location) -> &mut FunctionBuilder {
-        self.call_stack = im::Vector::unit(location);
+        self.call_stack = self.current_function.dfg.call_stack_data.add_location_to_root(location);
         self
     }
 
-    pub(crate) fn set_call_stack(&mut self, call_stack: CallStack) -> &mut FunctionBuilder {
+    pub(crate) fn set_call_stack(&mut self, call_stack: CallStackId) -> &mut FunctionBuilder {
         self.call_stack = call_stack;
         self
     }
 
     pub(crate) fn get_call_stack(&self) -> CallStack {
-        self.call_stack.clone()
+        self.current_function.dfg.get_call_stack(self.call_stack)
     }
 
     /// Insert a Load instruction at the end of the current block, loading from the given address
@@ -251,7 +256,7 @@ impl FunctionBuilder {
 
     /// Insert a cast instruction at the end of the current block.
     /// Returns the result of the cast instruction.
-    pub(crate) fn insert_cast(&mut self, value: ValueId, typ: Type) -> ValueId {
+    pub(crate) fn insert_cast(&mut self, value: ValueId, typ: NumericType) -> ValueId {
         self.insert_instruction(Instruction::Cast(value, typ), None).first()
     }
 
@@ -377,7 +382,7 @@ impl FunctionBuilder {
         destination: BasicBlockId,
         arguments: Vec<ValueId>,
     ) {
-        let call_stack = self.call_stack.clone();
+        let call_stack = self.call_stack;
         self.terminate_block_with(TerminatorInstruction::Jmp {
             destination,
             arguments,
@@ -393,7 +398,7 @@ impl FunctionBuilder {
         then_destination: BasicBlockId,
         else_destination: BasicBlockId,
     ) {
-        let call_stack = self.call_stack.clone();
+        let call_stack = self.call_stack;
         self.terminate_block_with(TerminatorInstruction::JmpIf {
             condition,
             then_destination,
@@ -404,7 +409,7 @@ impl FunctionBuilder {
 
     /// Terminate the current block with a return instruction
     pub(crate) fn terminate_with_return(&mut self, return_values: Vec<ValueId>) {
-        let call_stack = self.call_stack.clone();
+        let call_stack = self.call_stack;
         self.terminate_block_with(TerminatorInstruction::Return { return_values, call_stack });
     }
 
@@ -526,7 +531,7 @@ mod tests {
     use crate::ssa::ir::{
         instruction::{Endian, Intrinsic},
         map::Id,
-        types::Type,
+        types::{NumericType, Type},
     };
 
     use super::FunctionBuilder;
@@ -538,12 +543,12 @@ mod tests {
         // let bits: [u1; 8] = x.to_le_bits();
         let func_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("func".into(), func_id);
-        let one = builder.numeric_constant(FieldElement::one(), Type::bool());
-        let zero = builder.numeric_constant(FieldElement::zero(), Type::bool());
+        let one = builder.numeric_constant(FieldElement::one(), NumericType::bool());
+        let zero = builder.numeric_constant(FieldElement::zero(), NumericType::bool());
 
         let to_bits_id = builder.import_intrinsic_id(Intrinsic::ToBits(Endian::Little));
-        let input = builder.numeric_constant(FieldElement::from(7_u128), Type::field());
-        let length = builder.numeric_constant(FieldElement::from(8_u128), Type::field());
+        let input = builder.field_constant(FieldElement::from(7_u128));
+        let length = builder.field_constant(FieldElement::from(8_u128));
         let result_types = vec![Type::Array(Arc::new(vec![Type::bool()]), 8)];
         let call_results =
             builder.insert_call(to_bits_id, vec![input, length], result_types).into_owned();

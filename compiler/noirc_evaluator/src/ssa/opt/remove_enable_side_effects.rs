@@ -17,8 +17,8 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         dfg::DataFlowGraph,
         function::{Function, RuntimeType},
-        instruction::{BinaryOp, Instruction, Intrinsic},
-        types::Type,
+        instruction::{BinaryOp, Hint, Instruction, Intrinsic},
+        types::NumericType,
         value::Value,
     },
     ssa_gen::Ssa,
@@ -70,7 +70,8 @@ impl Context {
     ) {
         let instructions = function.dfg[block].take_instructions();
 
-        let mut active_condition = function.dfg.make_constant(FieldElement::one(), Type::bool());
+        let one = FieldElement::one();
+        let mut active_condition = function.dfg.make_constant(one, NumericType::bool());
         let mut last_side_effects_enabled_instruction = None;
 
         let mut new_instructions = Vec::with_capacity(instructions.len());
@@ -174,6 +175,7 @@ impl Context {
                     | Intrinsic::ToBits(_)
                     | Intrinsic::ToRadix(_)
                     | Intrinsic::BlackBox(_)
+                    | Intrinsic::Hint(Hint::BlackBox)
                     | Intrinsic::FromField
                     | Intrinsic::AsField
                     | Intrinsic::AsSlice
@@ -202,7 +204,7 @@ mod test {
         ir::{
             instruction::{BinaryOp, Instruction},
             map::Id,
-            types::Type,
+            types::{NumericType, Type},
         },
     };
 
@@ -233,9 +235,9 @@ mod test {
         let mut builder = FunctionBuilder::new("main".into(), main_id);
         let v0 = builder.add_parameter(Type::field());
 
-        let two = builder.numeric_constant(2u128, Type::field());
+        let two = builder.field_constant(2u128);
 
-        let one = builder.numeric_constant(1u128, Type::bool());
+        let one = builder.numeric_constant(1u128, NumericType::bool());
 
         builder.insert_enable_side_effects_if(one);
         builder.insert_binary(v0, BinaryOp::Mul, two);

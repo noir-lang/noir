@@ -43,7 +43,7 @@ use crate::{
             dom::DominatorTree,
             function::{Function, FunctionId, RuntimeType},
             instruction::{Instruction, InstructionId},
-            types::Type,
+            types::{NumericType, Type},
             value::{Value, ValueId},
         },
         ssa_gen::Ssa,
@@ -125,11 +125,13 @@ impl Ssa {
         }
 
         // The ones that remain are never called: let's remove them.
-        for func_id in brillig_functions.keys() {
+        for (func_id, func) in &brillig_functions {
             // We never want to remove the main function (it could be `unconstrained` or it
             // could have been turned into brillig if `--force-brillig` was given).
             // We also don't want to remove entry points.
-            if self.main_id == *func_id || self.entry_point_to_generated_index.contains_key(func_id)
+            let runtime = func.runtime();
+            if self.main_id == *func_id
+                || (runtime.is_entry_point() && matches!(runtime, RuntimeType::Acir(_)))
             {
                 continue;
             }
@@ -274,7 +276,7 @@ impl<'brillig> Context<'brillig> {
 
         // Default side effect condition variable with an enabled state.
         let mut side_effects_enabled_var =
-            function.dfg.make_constant(FieldElement::one(), Type::bool());
+            function.dfg.make_constant(FieldElement::one(), NumericType::bool());
 
         for instruction_id in instructions {
             self.fold_constants_into_instruction(
@@ -315,7 +317,7 @@ impl<'brillig> Context<'brillig> {
                     if matches!(instruction, Instruction::MakeArray { .. }) {
                         let value = *cached.last().unwrap();
                         let inc_rc = Instruction::IncrementRc { value };
-                        let call_stack = dfg.get_call_stack(id);
+                        let call_stack = dfg.get_instruction_call_stack_id(id);
                         dfg.insert_instruction_and_results(inc_rc, block, None, call_stack);
                     }
 
@@ -370,7 +372,7 @@ impl<'brillig> Context<'brillig> {
         dom: &mut DominatorTree,
         constraint_simplification_mapping: &HashMap<ValueId, SimplificationCache>,
     ) -> Instruction {
-        let instruction = dfg[instruction_id].clone();
+        let mut instruction = dfg[instruction_id].clone();
 
         // Alternate between resolving `value_id` in the `dfg` and checking to see if the resolved value
         // has been constrained to be equal to some simpler value in the current block.
@@ -398,9 +400,10 @@ impl<'brillig> Context<'brillig> {
         }
 
         // Resolve any inputs to ensure that we're comparing like-for-like instructions.
-        instruction.map_values(|value_id| {
+        instruction.map_values_mut(|value_id| {
             resolve_cache(block, dfg, dom, constraint_simplification_mapping, value_id)
-        })
+        });
+        instruction
     }
 
     /// Pushes a new [`Instruction`] into the [`DataFlowGraph`] which applies any optimizations
@@ -418,7 +421,7 @@ impl<'brillig> Context<'brillig> {
             .requires_ctrl_typevars()
             .then(|| vecmap(old_results, |result| dfg.type_of_value(*result)));
 
-        let call_stack = dfg.get_call_stack(id);
+        let call_stack = dfg.get_instruction_call_stack_id(id);
         let new_results =
             match dfg.insert_instruction_and_results(instruction, block, ctrl_typevars, call_stack)
             {
@@ -655,7 +658,7 @@ impl<'brillig> Context<'brillig> {
         dfg: &mut DataFlowGraph,
     ) -> ValueId {
         match typ {
-            Type::Numeric(_) => {
+            Type::Numeric(typ) => {
                 let memory = memory_values[*memory_index];
                 *memory_index += 1;
 
@@ -829,7 +832,10 @@ mod test {
 
     use crate::ssa::{
         function_builder::FunctionBuilder,
-        ir::{map::Id, types::Type},
+        ir::{
+            map::Id,
+            types::{NumericType, Type},
+        },
         opt::assert_normalized_ssa_equals,
         Ssa,
     };
@@ -853,7 +859,7 @@ mod test {
         assert_eq!(instructions.len(), 2); // The final return is not counted
 
         let v0 = main.parameters()[0];
-        let two = main.dfg.make_constant(2_u128.into(), Type::field());
+        let two = main.dfg.make_constant(2_u128.into(), NumericType::NativeField);
 
         main.dfg.set_value_from_id(v0, two);
 
@@ -889,7 +895,7 @@ mod test {
 
         // Note that this constant guarantees that `v0/constant < 2^8`. We then do not need to truncate the result.
         let constant = 2_u128.pow(8);
-        let constant = main.dfg.make_constant(constant.into(), Type::unsigned(16));
+        let constant = main.dfg.make_constant(constant.into(), NumericType::unsigned(16));
 
         main.dfg.set_value_from_id(v1, constant);
 
@@ -927,7 +933,7 @@ mod test {
 
         // Note that this constant does not guarantee that `v0/constant < 2^8`. We must then truncate the result.
         let constant = 2_u128.pow(8) - 1;
-        let constant = main.dfg.make_constant(constant.into(), Type::unsigned(16));
+        let constant = main.dfg.make_constant(constant.into(), NumericType::unsigned(16));
 
         main.dfg.set_value_from_id(v1, constant);
 
@@ -1148,7 +1154,7 @@ mod test {
         // Compiling main
         let mut builder = FunctionBuilder::new("main".into(), main_id);
         let v0 = builder.add_parameter(Type::unsigned(64));
-        let zero = builder.numeric_constant(0u128, Type::unsigned(64));
+        let zero = builder.numeric_constant(0u128, NumericType::unsigned(64));
         let typ = Type::Array(Arc::new(vec![Type::unsigned(64)]), 25);
 
         let array_contents = im::vector![

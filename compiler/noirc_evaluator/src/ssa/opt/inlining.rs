@@ -11,7 +11,8 @@ use crate::ssa::{
     function_builder::FunctionBuilder,
     ir::{
         basic_block::BasicBlockId,
-        dfg::{CallStack, InsertInstructionResult},
+        call_stack::CallStackId,
+        dfg::InsertInstructionResult,
         function::{Function, FunctionId, RuntimeType},
         instruction::{Instruction, InstructionId, TerminatorInstruction},
         value::{Value, ValueId},
@@ -83,7 +84,7 @@ struct InlineContext {
     recursion_level: u32,
     builder: FunctionBuilder,
 
-    call_stack: CallStack,
+    call_stack: CallStackId,
 
     // The FunctionId of the entry point function we're inlining into in the old, unmodified Ssa.
     entry_point: FunctionId,
@@ -365,7 +366,7 @@ impl InlineContext {
             builder,
             recursion_level: 0,
             entry_point,
-            call_stack: CallStack::new(),
+            call_stack: CallStackId::root(),
             inline_no_predicates_functions,
             functions_not_to_inline,
         }
@@ -469,7 +470,7 @@ impl<'function> PerFunctionContext<'function> {
                 unreachable!("All Value::Params should already be known from previous calls to translate_block. Unknown value {id} = {value:?}")
             }
             Value::NumericConstant { constant, typ } => {
-                self.context.builder.numeric_constant(*constant, typ.clone())
+                self.context.builder.numeric_constant(*constant, *typ)
             }
             Value::Function(function) => self.context.builder.import_function(*function),
             Value::Intrinsic(intrinsic) => self.context.builder.import_intrinsic_id(*intrinsic),
@@ -660,13 +661,25 @@ impl<'function> PerFunctionContext<'function> {
         let old_results = self.source_function.dfg.instruction_results(call_id);
         let arguments = vecmap(arguments, |arg| self.translate_value(*arg));
 
-        let call_stack = self.source_function.dfg.get_call_stack(call_id);
+        let call_stack = self.source_function.dfg.get_instruction_call_stack(call_id);
         let call_stack_len = call_stack.len();
-        self.context.call_stack.append(call_stack);
+        let new_call_stack = self
+            .context
+            .builder
+            .current_function
+            .dfg
+            .call_stack_data
+            .extend_call_stack(self.context.call_stack, &call_stack);
 
+        self.context.call_stack = new_call_stack;
         let new_results = self.context.inline_function(ssa, function, &arguments);
-
-        self.context.call_stack.truncate(self.context.call_stack.len() - call_stack_len);
+        self.context.call_stack = self
+            .context
+            .builder
+            .current_function
+            .dfg
+            .call_stack_data
+            .unwind_call_stack(self.context.call_stack, call_stack_len);
 
         let new_results = InsertInstructionResult::Results(call_id, &new_results);
         Self::insert_new_instruction_results(&mut self.values, old_results, new_results);
@@ -677,9 +690,15 @@ impl<'function> PerFunctionContext<'function> {
     fn push_instruction(&mut self, id: InstructionId) {
         let instruction = self.source_function.dfg[id].map_values(|id| self.translate_value(id));
 
-        let mut call_stack = self.context.call_stack.clone();
-        call_stack.append(self.source_function.dfg.get_call_stack(id));
-
+        let mut call_stack = self.context.call_stack;
+        let source_call_stack = self.source_function.dfg.get_instruction_call_stack(id);
+        call_stack = self
+            .context
+            .builder
+            .current_function
+            .dfg
+            .call_stack_data
+            .extend_call_stack(call_stack, &source_call_stack);
         let results = self.source_function.dfg.instruction_results(id);
         let results = vecmap(results, |id| self.source_function.dfg.resolve(*id));
 
@@ -736,8 +755,14 @@ impl<'function> PerFunctionContext<'function> {
                 let destination = self.translate_block(*destination, block_queue);
                 let arguments = vecmap(arguments, |arg| self.translate_value(*arg));
 
-                let mut new_call_stack = self.context.call_stack.clone();
-                new_call_stack.append(call_stack.clone());
+                let call_stack = self.source_function.dfg.get_call_stack(*call_stack);
+                let new_call_stack = self
+                    .context
+                    .builder
+                    .current_function
+                    .dfg
+                    .call_stack_data
+                    .extend_call_stack(self.context.call_stack, &call_stack);
 
                 self.context
                     .builder
@@ -752,9 +777,14 @@ impl<'function> PerFunctionContext<'function> {
                 call_stack,
             } => {
                 let condition = self.translate_value(*condition);
-
-                let mut new_call_stack = self.context.call_stack.clone();
-                new_call_stack.append(call_stack.clone());
+                let call_stack = self.source_function.dfg.get_call_stack(*call_stack);
+                let new_call_stack = self
+                    .context
+                    .builder
+                    .current_function
+                    .dfg
+                    .call_stack_data
+                    .extend_call_stack(self.context.call_stack, &call_stack);
 
                 // See if the value of the condition is known, and if so only inline the reachable
                 // branch. This lets us inline some recursive functions without recurring forever.
@@ -791,8 +821,16 @@ impl<'function> PerFunctionContext<'function> {
                 let block_id = self.context.builder.current_block();
 
                 if self.inlining_entry {
-                    let mut new_call_stack = self.context.call_stack.clone();
-                    new_call_stack.append(call_stack.clone());
+                    let call_stack =
+                        self.source_function.dfg.call_stack_data.get_call_stack(*call_stack);
+                    let new_call_stack = self
+                        .context
+                        .builder
+                        .current_function
+                        .dfg
+                        .call_stack_data
+                        .extend_call_stack(self.context.call_stack, &call_stack);
+
                     self.context
                         .builder
                         .set_call_stack(new_call_stack)
@@ -1062,10 +1100,10 @@ mod test {
         let join_block = builder.insert_block();
         builder.terminate_with_jmpif(inner2_cond, then_block, else_block);
         builder.switch_to_block(then_block);
-        let one = builder.numeric_constant(FieldElement::one(), Type::field());
+        let one = builder.field_constant(FieldElement::one());
         builder.terminate_with_jmp(join_block, vec![one]);
         builder.switch_to_block(else_block);
-        let two = builder.numeric_constant(FieldElement::from(2_u128), Type::field());
+        let two = builder.field_constant(FieldElement::from(2_u128));
         builder.terminate_with_jmp(join_block, vec![two]);
         let join_param = builder.add_block_parameter(join_block, Type::field());
         builder.switch_to_block(join_block);
@@ -1177,17 +1215,16 @@ mod test {
         builder.terminate_with_return(v0);
 
         builder.new_brillig_function("bar".into(), bar_id, InlineType::default());
-        let bar_v0 =
-            builder.numeric_constant(1_usize, Type::Numeric(NumericType::Unsigned { bit_size: 1 }));
+        let bar_v0 = builder.numeric_constant(1_usize, NumericType::bool());
         let then_block = builder.insert_block();
         let else_block = builder.insert_block();
         let join_block = builder.insert_block();
         builder.terminate_with_jmpif(bar_v0, then_block, else_block);
         builder.switch_to_block(then_block);
-        let one = builder.numeric_constant(FieldElement::one(), Type::field());
+        let one = builder.field_constant(FieldElement::one());
         builder.terminate_with_jmp(join_block, vec![one]);
         builder.switch_to_block(else_block);
-        let two = builder.numeric_constant(FieldElement::from(2_u128), Type::field());
+        let two = builder.field_constant(FieldElement::from(2_u128));
         builder.terminate_with_jmp(join_block, vec![two]);
         let join_param = builder.add_block_parameter(join_block, Type::field());
         builder.switch_to_block(join_block);

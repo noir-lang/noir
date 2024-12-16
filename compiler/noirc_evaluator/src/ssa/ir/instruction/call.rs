@@ -12,16 +12,17 @@ use num_bigint::BigUint;
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
-        dfg::{CallStack, DataFlowGraph},
+        call_stack::CallStackId,
+        dfg::DataFlowGraph,
         instruction::Intrinsic,
         map::Id,
-        types::Type,
+        types::{NumericType, Type},
         value::{Value, ValueId},
     },
     opt::flatten_cfg::value_merger::ValueMerger,
 };
 
-use super::{Binary, BinaryOp, Endian, Instruction, SimplifyResult};
+use super::{Binary, BinaryOp, Endian, Hint, Instruction, SimplifyResult};
 
 mod blackbox;
 
@@ -38,7 +39,7 @@ pub(super) fn simplify_call(
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
     ctrl_typevars: Option<Vec<Type>>,
-    call_stack: &CallStack,
+    call_stack: CallStackId,
 ) -> SimplifyResult {
     let intrinsic = match &dfg[func] {
         Value::Intrinsic(intrinsic) => *intrinsic,
@@ -61,7 +62,13 @@ pub(super) fn simplify_call(
                     unreachable!("ICE: Intrinsic::ToRadix return type must be array")
                 };
                 constant_to_radix(endian, field, 2, limb_count, |values| {
-                    make_constant_array(dfg, values.into_iter(), Type::bool(), block, call_stack)
+                    make_constant_array(
+                        dfg,
+                        values.into_iter(),
+                        NumericType::bool(),
+                        block,
+                        call_stack,
+                    )
                 })
             } else {
                 SimplifyResult::None
@@ -81,7 +88,7 @@ pub(super) fn simplify_call(
                     make_constant_array(
                         dfg,
                         values.into_iter(),
-                        Type::unsigned(8),
+                        NumericType::Unsigned { bit_size: 8 },
                         block,
                         call_stack,
                     )
@@ -93,7 +100,7 @@ pub(super) fn simplify_call(
         Intrinsic::ArrayLen => {
             if let Some(length) = dfg.try_get_array_length(arguments[0]) {
                 let length = FieldElement::from(length as u128);
-                SimplifyResult::SimplifiedTo(dfg.make_constant(length, Type::length_type()))
+                SimplifyResult::SimplifiedTo(dfg.make_constant(length, NumericType::length_type()))
             } else if matches!(dfg.type_of_value(arguments[1]), Type::Slice(_)) {
                 SimplifyResult::SimplifiedTo(arguments[0])
             } else {
@@ -116,7 +123,7 @@ pub(super) fn simplify_call(
                 );
                 let slice_length_value = array.len() / elements_size;
                 let slice_length =
-                    dfg.make_constant(slice_length_value.into(), Type::length_type());
+                    dfg.make_constant(slice_length_value.into(), NumericType::length_type());
                 let new_slice =
                     make_array(dfg, array, Type::Slice(inner_element_types), block, call_stack);
                 SimplifyResult::SimplifiedToMultiple(vec![slice_length, new_slice])
@@ -142,14 +149,7 @@ pub(super) fn simplify_call(
                     return SimplifyResult::SimplifiedToMultiple(vec![new_slice_length, new_slice]);
                 }
 
-                simplify_slice_push_back(
-                    slice,
-                    element_type,
-                    arguments,
-                    dfg,
-                    block,
-                    call_stack.clone(),
-                )
+                simplify_slice_push_back(slice, element_type, arguments, dfg, block, call_stack)
             } else {
                 SimplifyResult::None
             }
@@ -179,7 +179,7 @@ pub(super) fn simplify_call(
 
             let slice = dfg.get_array_constant(arguments[1]);
             if let Some((_, typ)) = slice {
-                simplify_slice_pop_back(typ, arguments, dfg, block, call_stack.clone())
+                simplify_slice_pop_back(typ, arguments, dfg, block, call_stack)
             } else {
                 SimplifyResult::None
             }
@@ -326,14 +326,12 @@ pub(super) fn simplify_call(
                 SimplifyResult::None
             }
         }
+        Intrinsic::Hint(Hint::BlackBox) => SimplifyResult::None,
         Intrinsic::BlackBox(bb_func) => {
             simplify_black_box_func(bb_func, arguments, dfg, block, call_stack)
         }
         Intrinsic::AsField => {
-            let instruction = Instruction::Cast(
-                arguments[0],
-                Type::Numeric(crate::ssa::ir::types::NumericType::NativeField),
-            );
+            let instruction = Instruction::Cast(arguments[0], NumericType::NativeField);
             SimplifyResult::SimplifiedToInstruction(instruction)
         }
         Intrinsic::FromField => {
@@ -350,11 +348,11 @@ pub(super) fn simplify_call(
                     truncate,
                     block,
                     Some(vec![incoming_type]),
-                    call_stack.clone(),
+                    call_stack,
                 )
                 .first();
 
-            let instruction = Instruction::Cast(truncated_value, target_type);
+            let instruction = Instruction::Cast(truncated_value, target_type.unwrap_numeric());
             SimplifyResult::SimplifiedToInstruction(instruction)
         }
         Intrinsic::AsWitness => SimplifyResult::None,
@@ -370,7 +368,7 @@ pub(super) fn simplify_call(
             if let Some(constants) = constant_args {
                 let lhs = constants[0];
                 let rhs = constants[1];
-                let result = dfg.make_constant((lhs < rhs).into(), Type::bool());
+                let result = dfg.make_constant((lhs < rhs).into(), NumericType::bool());
                 SimplifyResult::SimplifiedTo(result)
             } else {
                 SimplifyResult::None
@@ -406,9 +404,9 @@ fn update_slice_length(
     operator: BinaryOp,
     block: BasicBlockId,
 ) -> ValueId {
-    let one = dfg.make_constant(FieldElement::one(), Type::length_type());
+    let one = dfg.make_constant(FieldElement::one(), NumericType::length_type());
     let instruction = Instruction::Binary(Binary { lhs: slice_len, operator, rhs: one });
-    let call_stack = dfg.get_value_call_stack(slice_len);
+    let call_stack = dfg.get_value_call_stack_id(slice_len);
     dfg.insert_instruction_and_results(instruction, block, None, call_stack).first()
 }
 
@@ -418,23 +416,18 @@ fn simplify_slice_push_back(
     arguments: &[ValueId],
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
-    call_stack: CallStack,
+    call_stack: CallStackId,
 ) -> SimplifyResult {
     // The capacity must be an integer so that we can compare it against the slice length
-    let capacity = dfg.make_constant((slice.len() as u128).into(), Type::length_type());
+    let capacity = dfg.make_constant((slice.len() as u128).into(), NumericType::length_type());
     let len_equals_capacity_instr =
         Instruction::Binary(Binary { lhs: arguments[0], operator: BinaryOp::Eq, rhs: capacity });
     let len_equals_capacity = dfg
-        .insert_instruction_and_results(len_equals_capacity_instr, block, None, call_stack.clone())
+        .insert_instruction_and_results(len_equals_capacity_instr, block, None, call_stack)
         .first();
     let len_not_equals_capacity_instr = Instruction::Not(len_equals_capacity);
     let len_not_equals_capacity = dfg
-        .insert_instruction_and_results(
-            len_not_equals_capacity_instr,
-            block,
-            None,
-            call_stack.clone(),
-        )
+        .insert_instruction_and_results(len_not_equals_capacity_instr, block, None, call_stack)
         .first();
 
     let new_slice_length = update_slice_length(arguments[0], dfg, BinaryOp::Add, block);
@@ -444,7 +437,7 @@ fn simplify_slice_push_back(
     }
     let slice_size = slice.len() as u32;
     let element_size = element_type.element_size() as u32;
-    let new_slice = make_array(dfg, slice, element_type, block, &call_stack);
+    let new_slice = make_array(dfg, slice, element_type, block, call_stack);
 
     let set_last_slice_value_instr = Instruction::ArraySet {
         array: new_slice,
@@ -454,7 +447,7 @@ fn simplify_slice_push_back(
     };
 
     let set_last_slice_value = dfg
-        .insert_instruction_and_results(set_last_slice_value_instr, block, None, call_stack.clone())
+        .insert_instruction_and_results(set_last_slice_value_instr, block, None, call_stack)
         .first();
 
     let mut slice_sizes = HashMap::default();
@@ -476,42 +469,34 @@ fn simplify_slice_push_back(
 }
 
 fn simplify_slice_pop_back(
-    element_type: Type,
+    slice_type: Type,
     arguments: &[ValueId],
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
-    call_stack: CallStack,
+    call_stack: CallStackId,
 ) -> SimplifyResult {
-    let element_types = match element_type.clone() {
-        Type::Slice(element_types) | Type::Array(element_types, _) => element_types,
-        _ => {
-            unreachable!("ICE: Expected slice or array, but got {element_type}");
-        }
-    };
-
-    let element_count = element_type.element_size();
+    let element_types = slice_type.element_types();
+    let element_count = element_types.len();
     let mut results = VecDeque::with_capacity(element_count + 1);
 
     let new_slice_length = update_slice_length(arguments[0], dfg, BinaryOp::Sub, block);
 
-    let element_size = dfg.make_constant((element_count as u128).into(), Type::length_type());
+    let element_size =
+        dfg.make_constant((element_count as u128).into(), NumericType::length_type());
     let flattened_len_instr = Instruction::binary(BinaryOp::Mul, arguments[0], element_size);
-    let mut flattened_len = dfg
-        .insert_instruction_and_results(flattened_len_instr, block, None, call_stack.clone())
-        .first();
+    let mut flattened_len =
+        dfg.insert_instruction_and_results(flattened_len_instr, block, None, call_stack).first();
     flattened_len = update_slice_length(flattened_len, dfg, BinaryOp::Sub, block);
 
     // We must pop multiple elements in the case of a slice of tuples
-    for _ in 0..element_count {
+    // Iterating through element types in reverse here since we're popping from the end
+    for element_type in element_types.iter().rev() {
         let get_last_elem_instr =
             Instruction::ArrayGet { array: arguments[1], index: flattened_len };
+
+        let element_type = Some(vec![element_type.clone()]);
         let get_last_elem = dfg
-            .insert_instruction_and_results(
-                get_last_elem_instr,
-                block,
-                Some(element_types.to_vec()),
-                call_stack.clone(),
-            )
+            .insert_instruction_and_results(get_last_elem_instr, block, element_type, call_stack)
             .first();
         results.push_front(get_last_elem);
 
@@ -531,7 +516,7 @@ fn simplify_black_box_func(
     arguments: &[ValueId],
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
-    call_stack: &CallStack,
+    call_stack: CallStackId,
 ) -> SimplifyResult {
     cfg_if::cfg_if! {
         if #[cfg(feature = "bn254")] {
@@ -568,7 +553,7 @@ fn simplify_black_box_func(
                     let result_array = make_constant_array(
                         dfg,
                         state_values,
-                        Type::unsigned(64),
+                        NumericType::Unsigned { bit_size: 64 },
                         block,
                         call_stack,
                     );
@@ -628,14 +613,14 @@ fn simplify_black_box_func(
 fn make_constant_array(
     dfg: &mut DataFlowGraph,
     results: impl Iterator<Item = FieldElement>,
-    typ: Type,
+    typ: NumericType,
     block: BasicBlockId,
-    call_stack: &CallStack,
+    call_stack: CallStackId,
 ) -> ValueId {
     let result_constants: im::Vector<_> =
-        results.map(|element| dfg.make_constant(element, typ.clone())).collect();
+        results.map(|element| dfg.make_constant(element, typ)).collect();
 
-    let typ = Type::Array(Arc::new(vec![typ]), result_constants.len() as u32);
+    let typ = Type::Array(Arc::new(vec![Type::Numeric(typ)]), result_constants.len() as u32);
     make_array(dfg, result_constants, typ, block, call_stack)
 }
 
@@ -644,28 +629,10 @@ fn make_array(
     elements: im::Vector<ValueId>,
     typ: Type,
     block: BasicBlockId,
-    call_stack: &CallStack,
+    call_stack: CallStackId,
 ) -> ValueId {
     let instruction = Instruction::MakeArray { elements, typ };
-    let call_stack = call_stack.clone();
     dfg.insert_instruction_and_results(instruction, block, None, call_stack).first()
-}
-
-fn make_constant_slice(
-    dfg: &mut DataFlowGraph,
-    results: Vec<FieldElement>,
-    typ: Type,
-    block: BasicBlockId,
-    call_stack: &CallStack,
-) -> (ValueId, ValueId) {
-    let result_constants = vecmap(results, |element| dfg.make_constant(element, typ.clone()));
-
-    let typ = Type::Slice(Arc::new(vec![typ]));
-    let length = FieldElement::from(result_constants.len() as u128);
-    let length = dfg.make_constant(length, Type::length_type());
-
-    let slice = make_array(dfg, result_constants.into(), typ, block, call_stack);
-    (length, slice)
 }
 
 /// Returns a slice (represented by a tuple (len, slice)) of constants corresponding to the limbs of the radix decomposition.
@@ -721,7 +688,7 @@ fn simplify_hash(
     arguments: &[ValueId],
     hash_function: fn(&[u8]) -> Result<[u8; 32], BlackBoxResolutionError>,
     block: BasicBlockId,
-    call_stack: &CallStack,
+    call_stack: CallStackId,
 ) -> SimplifyResult {
     match dfg.get_array_constant(arguments[0]) {
         Some((input, _)) if array_is_constant(dfg, &input) => {
@@ -732,8 +699,8 @@ fn simplify_hash(
 
             let hash_values = hash.iter().map(|byte| FieldElement::from_be_bytes_reduce(&[*byte]));
 
-            let result_array =
-                make_constant_array(dfg, hash_values, Type::unsigned(8), block, call_stack);
+            let u8_type = NumericType::Unsigned { bit_size: 8 };
+            let result_array = make_constant_array(dfg, hash_values, u8_type, block, call_stack);
             SimplifyResult::SimplifiedTo(result_array)
         }
         _ => SimplifyResult::None,
@@ -781,7 +748,7 @@ fn simplify_signature(
                 signature_verifier(&hashed_message, &public_key_x, &public_key_y, &signature)
                     .expect("Rust solvable black box function should not fail");
 
-            let valid_signature = dfg.make_constant(valid_signature.into(), Type::bool());
+            let valid_signature = dfg.make_constant(valid_signature.into(), NumericType::bool());
             SimplifyResult::SimplifiedTo(valid_signature)
         }
         _ => SimplifyResult::None,
@@ -793,7 +760,7 @@ fn simplify_derive_generators(
     arguments: &[ValueId],
     num_generators: u32,
     block: BasicBlockId,
-    call_stack: &CallStack,
+    call_stack: CallStackId,
 ) -> SimplifyResult {
     if arguments.len() == 2 {
         let domain_separator_string = dfg.get_array_constant(arguments[0]);
@@ -811,15 +778,15 @@ fn simplify_derive_generators(
                 num_generators,
                 starting_index.try_to_u32().expect("argument is declared as u32"),
             );
-            let is_infinite = dfg.make_constant(FieldElement::zero(), Type::bool());
+            let is_infinite = dfg.make_constant(FieldElement::zero(), NumericType::bool());
             let mut results = Vec::new();
             for gen in generators {
                 let x_big: BigUint = gen.x.into();
                 let x = FieldElement::from_be_bytes_reduce(&x_big.to_bytes_be());
                 let y_big: BigUint = gen.y.into();
                 let y = FieldElement::from_be_bytes_reduce(&y_big.to_bytes_be());
-                results.push(dfg.make_constant(x, Type::field()));
-                results.push(dfg.make_constant(y, Type::field()));
+                results.push(dfg.make_constant(x, NumericType::NativeField));
+                results.push(dfg.make_constant(y, NumericType::NativeField));
                 results.push(is_infinite);
             }
             let len = results.len() as u32;

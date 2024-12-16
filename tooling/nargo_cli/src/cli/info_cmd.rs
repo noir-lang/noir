@@ -3,11 +3,10 @@ use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 use iter_extended::vecmap;
 use nargo::{
-    constants::PROVER_INPUT_FILE,
-    foreign_calls::DefaultForeignCallExecutor,
-    package::{CrateName, Package},
+    constants::PROVER_INPUT_FILE, foreign_calls::DefaultForeignCallExecutor, package::Package,
+    PrintOutput,
 };
-use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
+use nargo_toml::{get_package_manifest, resolve_workspace_from_toml};
 use noirc_abi::input_parser::Format;
 use noirc_artifacts::program::ProgramArtifact;
 use noirc_driver::{CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
@@ -20,7 +19,7 @@ use crate::{cli::fs::inputs::read_inputs_from_file, errors::CliError};
 use super::{
     compile_cmd::{compile_workspace_full, get_target_width},
     fs::program::read_program_from_file,
-    NargoConfig,
+    NargoConfig, PackageOptions,
 };
 
 /// Provides detailed information on each of a program's function (represented by a single circuit)
@@ -31,13 +30,8 @@ use super::{
 #[derive(Debug, Clone, Args)]
 #[clap(visible_alias = "i")]
 pub(crate) struct InfoCommand {
-    /// The name of the package to detail
-    #[clap(long, conflicts_with = "workspace")]
-    package: Option<CrateName>,
-
-    /// Detail all packages in the workspace
-    #[clap(long, conflicts_with = "package")]
-    workspace: bool,
+    #[clap(flatten)]
+    pub(super) package_options: PackageOptions,
 
     /// Output a JSON formatted report. Changes to this format are not currently considered breaking.
     #[clap(long, hide = true)]
@@ -56,9 +50,7 @@ pub(crate) struct InfoCommand {
 
 pub(crate) fn run(mut args: InfoCommand, config: NargoConfig) -> Result<(), CliError> {
     let toml_path = get_package_manifest(&config.program_dir)?;
-    let default_selection =
-        if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
-    let selection = args.package.map_or(default_selection, PackageSelection::Selected);
+    let selection = args.package_options.package_selection();
     let workspace = resolve_workspace_from_toml(
         &toml_path,
         selection,
@@ -263,7 +255,7 @@ fn profile_brillig_execution(
             &program_artifact.bytecode,
             initial_witness,
             &Bn254BlackBoxSolver,
-            &mut DefaultForeignCallExecutor::new(false, None, None, None),
+            &mut DefaultForeignCallExecutor::new(PrintOutput::None, None, None, None),
         )?;
 
         let expression_width = get_target_width(package.expression_width, expression_width);

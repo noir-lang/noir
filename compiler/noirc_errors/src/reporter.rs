@@ -272,7 +272,7 @@ fn convert_diagnostic(
     diagnostic.with_message(&cd.message).with_labels(secondary_labels).with_notes(notes)
 }
 
-fn stack_trace<'files>(
+pub fn stack_trace<'files>(
     files: &'files impl Files<'files, FileId = fm::FileId>,
     call_stack: &[Location],
 ) -> String {
