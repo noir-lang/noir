@@ -1,3 +1,4 @@
+use fxhash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
 use noirc_errors::Location;
@@ -29,7 +30,14 @@ impl CallStackId {
 pub(crate) struct LocationNode {
     pub(crate) parent: Option<CallStackId>,
     pub(crate) children: Vec<CallStackId>,
+    pub(crate) children_hash: FxHashMap<u64, CallStackId>,
     pub(crate) value: Location,
+}
+
+impl LocationNode {
+    pub(crate) fn new(parent: Option<CallStackId>, value: Location) -> Self {
+        LocationNode { parent, children: Vec::new(), children_hash: FxHashMap::default(), value }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -71,23 +79,20 @@ impl CallStackHelper {
 
     /// Adds a location to the call stack
     pub(crate) fn add_child(&mut self, call_stack: CallStackId, location: Location) -> CallStackId {
-        if let Some(result) = self.locations[call_stack.index()]
-            .children
-            .iter()
-            .rev()
-            .take(1000)
-            .find(|child| self.locations[child.index()].value == location)
-        {
-            return *result;
+        let key = fxhash::hash64(&location);
+        if let Some(result) = self.locations[call_stack.index()].children_hash.get(&key) {
+            if self.locations[result.index()].value == location {
+                return *result;
+            }
         }
-        self.locations.push(LocationNode {
-            parent: Some(call_stack),
-            children: vec![],
-            value: location,
-        });
-        let new_location = CallStackId::new(self.locations.len() - 1);
-        self.locations[call_stack.index()].children.push(new_location);
-        new_location
+        let new_location = LocationNode::new(Some(call_stack), location);
+        let key = fxhash::hash64(&new_location.value);
+        self.locations.push(new_location);
+        let new_location_id = CallStackId::new(self.locations.len() - 1);
+
+        self.locations[call_stack.index()].children.push(new_location_id);
+        self.locations[call_stack.index()].children_hash.insert(key, new_location_id);
+        new_location_id
     }
 
     /// Retrieve the CallStackId corresponding to call_stack with the last 'len' locations removed.
@@ -109,7 +114,7 @@ impl CallStackHelper {
 
     pub(crate) fn add_location_to_root(&mut self, location: Location) -> CallStackId {
         if self.locations.is_empty() {
-            self.locations.push(LocationNode { parent: None, children: vec![], value: location });
+            self.locations.push(LocationNode::new(None, location));
             CallStackId::root()
         } else {
             self.add_child(CallStackId::root(), location)
