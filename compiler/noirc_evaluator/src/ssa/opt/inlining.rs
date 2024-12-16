@@ -405,8 +405,8 @@ impl InlineContext {
     }
 
     /// Inlines a function into the current function.
-    /// Returns the number of return values.
-    fn inline_function(&mut self, ssa: &Ssa, id: FunctionId, arguments: &[Value]) -> usize {
+    /// Returns the returned values of the function.
+    fn inline_function(&mut self, ssa: &Ssa, id: FunctionId, arguments: &[Value]) -> Vec<Value> {
         self.recursion_level += 1;
 
         let source_function = &ssa.functions[&id];
@@ -426,9 +426,9 @@ impl InlineContext {
         let current_block = context.context.builder.current_block();
         context.blocks.insert(source_function.entry_block(), current_block);
 
-        let return_value_count = context.inline_blocks(ssa);
+        let return_values = context.inline_blocks(ssa);
         self.recursion_level -= 1;
-        return_value_count
+        return_values
     }
 }
 
@@ -527,8 +527,8 @@ impl<'function> PerFunctionContext<'function> {
     }
 
     /// Inline all reachable blocks within the source_function into the destination function.
-    /// Returns the number of return values of this function
-    fn inline_blocks(&mut self, ssa: &Ssa) -> usize {
+    /// Returns the returned values of this function.
+    fn inline_blocks(&mut self, ssa: &Ssa) -> Vec<Value> {
         let mut seen_blocks = HashSet::new();
         let mut block_queue = VecDeque::new();
         block_queue.push_back(self.source_function.entry_block());
@@ -561,14 +561,14 @@ impl<'function> PerFunctionContext<'function> {
     /// If there is only 1 return we can just continue inserting into that block.
     /// If there are multiple, we'll need to create a join block to jump to with each value.
     ///
-    /// Returns the number of return values (not the sum of all of them).
-    fn handle_function_returns(&mut self, mut returns: Vec<(BasicBlockId, Vec<Value>)>) -> usize {
+    /// Returns the returned values.
+    fn handle_function_returns(&mut self, mut returns: Vec<(BasicBlockId, Vec<Value>)>) -> Vec<Value> {
         // Clippy complains if this were written as an if statement
         match returns.len() {
             1 => {
                 let (return_block, return_values) = returns.remove(0);
                 self.context.builder.switch_to_block(return_block);
-                return_values.len()
+                return_values
             }
             n if n > 1 => {
                 // If there is more than 1 return instruction we'll need to create a single block we
@@ -581,7 +581,7 @@ impl<'function> PerFunctionContext<'function> {
                 }
 
                 self.context.builder.switch_to_block(return_block);
-                self.context.builder.block_parameters(return_block).len()
+                self.context.builder.block_parameters(return_block).collect()
             }
             _ => unreachable!("Inlined function had no return values"),
         }
@@ -661,11 +661,11 @@ impl<'function> PerFunctionContext<'function> {
         let call_stack_len = call_stack.len();
         self.context.call_stack.append(call_stack);
 
-        let result_count = self.context.inline_function(ssa, function, &arguments);
+        let results = self.context.inline_function(ssa, function, &arguments);
 
         self.context.call_stack.truncate(self.context.call_stack.len() - call_stack_len);
 
-        let new_results = InsertInstructionResult::Results { id: call_id, result_count };
+        let new_results = InsertInstructionResult::SimplifiedToMultiple(results);
         Self::insert_new_instruction_results(&mut self.values, old_results, new_results);
     }
 

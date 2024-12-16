@@ -412,7 +412,7 @@ impl<'f> PerFunctionContext<'f> {
 
                 // If the load is known, replace it with the known value and remove the load
                 if let Some(value) = references.get_known_value(address) {
-                    let result = Value::instruction_result(instruction, 0);
+                    eprintln!("Mapping {result} to {value}");
                     self.inserter.map_value(result, value);
                     self.instructions_to_remove.insert(instruction);
                 } else {
@@ -465,6 +465,7 @@ impl<'f> PerFunctionContext<'f> {
                     }
                 }
 
+                eprintln!("Remembering *{address} = {value}");
                 references.set_known_value(address, value);
                 // If we see a store to an address, the last load to that address needs to remain.
                 references.keep_last_load_for(address, self.inserter.function);

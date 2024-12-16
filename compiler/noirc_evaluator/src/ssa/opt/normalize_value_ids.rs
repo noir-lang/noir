@@ -170,7 +170,10 @@ impl IdMaps {
 
             value @ Value::NumericConstant { .. } => value,
             Value::Intrinsic(intrinsic) => Value::Intrinsic(intrinsic),
-            Value::ForeignFunction(id) => Value::ForeignFunction(id),
+            Value::ForeignFunction(id) => {
+                let name = &old_function.dfg[id];
+                new_function.dfg.import_foreign_function(name)
+            }
         }
     }
 }
