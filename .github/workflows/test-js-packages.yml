@@ -564,6 +564,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           repository: ${{ matrix.project.repo }}
           path: test-repo
