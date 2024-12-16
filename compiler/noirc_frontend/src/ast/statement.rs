@@ -154,6 +154,7 @@ impl StatementKind {
             r#type,
             expression,
             comptime: false,
+            is_global_let: false,
             attributes,
         })
     }
@@ -562,6 +563,7 @@ pub struct LetStatement {
 
     // True if this should only be run during compile-time
     pub comptime: bool,
+    pub is_global_let: bool,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
