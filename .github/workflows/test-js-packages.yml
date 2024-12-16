@@ -543,8 +543,6 @@ jobs:
   external-repo-checks:
     needs: [build-nargo, critical-library-list]
     runs-on: ubuntu-22.04
-    # Only run when 'run-external-checks' label is present
-    if: contains(github.event.pull_request.labels.*.name, 'run-external-checks')
     timeout-minutes: 30
     strategy:
       fail-fast: false
