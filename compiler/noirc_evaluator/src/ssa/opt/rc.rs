@@ -166,6 +166,7 @@ mod test {
             instruction::Instruction,
             map::Id,
             types::{NumericType, Type},
+            value::Value,
         },
     };
 
@@ -255,8 +256,8 @@ mod test {
         builder.insert_inc_rc(v0);
         let v2 = builder.insert_load(v1, array_type);
 
-        let zero = builder.numeric_constant(0u128, NumericType::unsigned(64));
-        let five = builder.field_constant(5u128);
+        let zero = Value::constant(0u128.into(), NumericType::unsigned(64));
+        let five = Value::field_constant(5u128.into());
         let v7 = builder.insert_array_set(v2, zero, five);
 
         builder.insert_store(v1, v7);
@@ -306,8 +307,8 @@ mod test {
         builder.insert_store(v0, v1);
 
         let v2 = builder.insert_load(v1, array_type.clone());
-        let zero = builder.numeric_constant(0u128, NumericType::unsigned(64));
-        let five = builder.field_constant(5u128);
+        let zero = Value::constant(0u128.into(), NumericType::unsigned(64));
+        let five = Value::field_constant(5u128.into());
         let v7 = builder.insert_array_set(v2, zero, five);
 
         builder.insert_store(v0, v7);

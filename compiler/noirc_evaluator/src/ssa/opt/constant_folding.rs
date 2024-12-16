@@ -833,6 +833,7 @@ mod test {
         ir::{
             map::Id,
             types::{NumericType, Type},
+            value::Value,
         },
         opt::assert_normalized_ssa_equals,
         Ssa,
@@ -856,8 +857,8 @@ mod test {
         let instructions = main.dfg[main.entry_block()].instructions();
         assert_eq!(instructions.len(), 2); // The final return is not counted
 
-        let v0 = main.parameters()[0];
-        let two = main.dfg.make_constant(2_u128.into(), NumericType::NativeField);
+        let v0 = main.parameters().nth(0).unwrap();
+        let two = Value::constant(2_u128.into(), NumericType::NativeField);
 
         main.dfg.replace_value(v0, two);
 
@@ -889,11 +890,11 @@ mod test {
         let instructions = main.dfg[main.entry_block()].instructions();
         assert_eq!(instructions.len(), 2); // The final return is not counted
 
-        let v1 = main.parameters()[1];
+        let v1 = main.parameters().nth(1).unwrap();
 
         // Note that this constant guarantees that `v0/constant < 2^8`. We then do not need to truncate the result.
         let constant = 2_u128.pow(8);
-        let constant = main.dfg.make_constant(constant.into(), NumericType::unsigned(16));
+        let constant = Value::constant(constant.into(), NumericType::unsigned(16));
 
         main.dfg.replace_value(v1, constant);
 
@@ -927,11 +928,11 @@ mod test {
         let instructions = main.dfg[main.entry_block()].instructions();
         assert_eq!(instructions.len(), 2); // The final return is not counted
 
-        let v1 = main.parameters()[1];
+        let v1 = main.parameters().nth(1).unwrap();
 
         // Note that this constant does not guarantee that `v0/constant < 2^8`. We must then truncate the result.
         let constant = 2_u128.pow(8) - 1;
-        let constant = main.dfg.make_constant(constant.into(), NumericType::unsigned(16));
+        let constant = Value::constant(constant.into(), NumericType::unsigned(16));
 
         main.dfg.replace_value(v1, constant);
 
@@ -1152,7 +1153,7 @@ mod test {
         // Compiling main
         let mut builder = FunctionBuilder::new("main".into(), main_id);
         let v0 = builder.add_parameter(Type::unsigned(64));
-        let zero = builder.numeric_constant(0u128, NumericType::unsigned(64));
+        let zero = Value::constant(0u128.into(), NumericType::unsigned(64));
         let typ = Type::Array(Arc::new(vec![Type::unsigned(64)]), 25);
 
         let array_contents = im::vector![

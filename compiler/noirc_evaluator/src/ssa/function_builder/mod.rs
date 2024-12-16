@@ -472,12 +472,13 @@ impl std::ops::Index<BasicBlockId> for FunctionBuilder {
 mod tests {
     use std::sync::Arc;
 
-    use acvm::{acir::AcirField, FieldElement};
+    use acvm::FieldElement;
 
     use crate::ssa::ir::{
         instruction::{Endian, Intrinsic},
         map::Id,
-        types::{NumericType, Type},
+        types::Type,
+        value::Value,
     };
 
     use super::FunctionBuilder;
@@ -489,17 +490,17 @@ mod tests {
         // let bits: [u1; 8] = x.to_le_bits();
         let func_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("func".into(), func_id);
-        let one = builder.numeric_constant(FieldElement::one(), NumericType::bool());
-        let zero = builder.numeric_constant(FieldElement::zero(), NumericType::bool());
+        let one = Value::bool_constant(true);
+        let zero = Value::bool_constant(false);
 
-        let to_bits_id = builder.import_intrinsic_id(Intrinsic::ToBits(Endian::Little));
-        let input = builder.field_constant(FieldElement::from(7_u128));
-        let length = builder.field_constant(FieldElement::from(8_u128));
+        let to_bits_id = Value::Intrinsic(Intrinsic::ToBits(Endian::Little));
+        let input = Value::field_constant(FieldElement::from(7_u128));
+        let length = Value::field_constant(FieldElement::from(8_u128));
         let result_types = vec![Type::Array(Arc::new(vec![Type::bool()]), 8)];
-        let call_results =
-            builder.insert_call(to_bits_id, vec![input, length], result_types).into_owned();
+        let mut call_results = builder.insert_call(to_bits_id, vec![input, length], result_types);
 
-        let slice = builder.current_function.dfg.get_array_constant(call_results[0]).unwrap().0;
+        let first_result = call_results.next().unwrap();
+        let slice = builder.current_function.dfg.get_array_constant(first_result).unwrap().0;
         assert_eq!(slice[0], one);
         assert_eq!(slice[1], one);
         assert_eq!(slice[2], one);

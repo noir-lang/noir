@@ -204,7 +204,8 @@ mod test {
         ir::{
             instruction::{BinaryOp, Instruction},
             map::Id,
-            types::{NumericType, Type},
+            types::Type,
+            value::Value,
         },
     };
 
@@ -235,19 +236,18 @@ mod test {
         let mut builder = FunctionBuilder::new("main".into(), main_id);
         let v0 = builder.add_parameter(Type::field());
 
-        let two = builder.field_constant(2u128);
+        let two = Value::field_constant(2u128.into());
+        let true_bool = Value::bool_constant(true);
 
-        let one = builder.numeric_constant(1u128, NumericType::bool());
-
-        builder.insert_enable_side_effects_if(one);
+        builder.insert_enable_side_effects_if(true_bool);
         builder.insert_binary(v0, BinaryOp::Mul, two);
-        builder.insert_enable_side_effects_if(one);
+        builder.insert_enable_side_effects_if(true_bool);
         builder.insert_binary(v0, BinaryOp::Mul, two);
-        builder.insert_enable_side_effects_if(one);
+        builder.insert_enable_side_effects_if(true_bool);
         builder.insert_binary(v0, BinaryOp::Mul, two);
-        builder.insert_enable_side_effects_if(one);
+        builder.insert_enable_side_effects_if(true_bool);
         builder.insert_binary(v0, BinaryOp::Mul, two);
-        builder.insert_enable_side_effects_if(one);
+        builder.insert_enable_side_effects_if(true_bool);
 
         let ssa = builder.finish();
 

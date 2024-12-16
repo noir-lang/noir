@@ -192,6 +192,7 @@ mod test {
             function::{Function, FunctionId, RuntimeType},
             map::Id,
             types::Type,
+            value::Value,
         },
         opt::runtime_separation::called_functions,
         ssa_gen::Ssa,
@@ -214,12 +215,12 @@ mod test {
 
         let bar_id = Id::test_new(1);
         let bar = builder.import_function(bar_id);
-        let results = builder.insert_call(bar, Vec::new(), vec![Type::field()]).to_vec();
+        let results = builder.insert_call(bar, Vec::new(), vec![Type::field()]).collect();
         builder.terminate_with_return(results);
 
         builder.new_function("bar".into(), bar_id, InlineType::default());
         let expected_return = 72u128;
-        let seventy_two = builder.field_constant(expected_return);
+        let seventy_two = Value::field_constant(expected_return.into());
         builder.terminate_with_return(vec![seventy_two]);
 
         let ssa = builder.finish();
@@ -288,18 +289,18 @@ mod test {
         let baz_id = Id::test_new(2);
         let bar = builder.import_function(bar_id);
         let baz = builder.import_function(baz_id);
-        let v0 = builder.insert_call(bar, Vec::new(), vec![Type::field()]).to_vec();
-        let v1 = builder.insert_call(baz, Vec::new(), vec![Type::field()]).to_vec();
-        builder.terminate_with_return(vec![v0[0], v1[0]]);
+        let v0 = builder.insert_call(bar, Vec::new(), vec![Type::field()]).next().unwrap();
+        let v1 = builder.insert_call(baz, Vec::new(), vec![Type::field()]).next().unwrap();
+        builder.terminate_with_return(vec![v0, v1]);
 
         builder.new_brillig_function("bar".into(), bar_id, InlineType::default());
         let baz = builder.import_function(baz_id);
-        let v0 = builder.insert_call(baz, Vec::new(), vec![Type::field()]).to_vec();
+        let v0 = builder.insert_call(baz, Vec::new(), vec![Type::field()]).collect();
         builder.terminate_with_return(v0);
 
         builder.new_function("baz".into(), baz_id, InlineType::default());
         let expected_return = 72u128;
-        let seventy_two = builder.field_constant(expected_return);
+        let seventy_two = Value::field_constant(expected_return.into());
         builder.terminate_with_return(vec![seventy_two]);
 
         let ssa = builder.finish();

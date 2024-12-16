@@ -78,6 +78,11 @@ impl Value {
     pub(crate) fn instruction_result(instruction: InstructionId, position: usize) -> Self {
         Self::Instruction { instruction, position }
     }
+
+    #[cfg(test)]
+    pub(crate) fn test_instruction_result(instruction: u32, position: usize) -> Self {
+        Self::Instruction { instruction: Id::test_new(instruction), position }
+    }
 }
 
 impl std::fmt::Display for Value {

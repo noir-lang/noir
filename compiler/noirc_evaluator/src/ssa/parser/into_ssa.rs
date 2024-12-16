@@ -191,17 +191,17 @@ impl Translator {
 
                 let arguments = self.translate_values(arguments)?;
 
-                let value_ids = self.builder.insert_call(function_id, arguments, types).to_vec();
+                let values = self.builder.insert_call(function_id, arguments, types);
 
-                if value_ids.len() != targets.len() {
+                if values.len() != targets.len() {
                     return Err(SsaError::MismatchedReturnValues {
                         returns: targets,
-                        expected: value_ids.len(),
+                        expected: values.len(),
                     });
                 }
 
-                for (target, value_id) in targets.into_iter().zip(value_ids.into_iter()) {
-                    self.define_variable(target, value_id)?;
+                for (target, value) in targets.into_iter().zip(values) {
+                    self.define_variable(target, value)?;
                 }
             }
             ParsedInstruction::Cast { target, lhs, typ } => {
@@ -289,7 +289,7 @@ impl Translator {
     fn translate_value(&mut self, value: ParsedValue) -> Result<Value, SsaError> {
         match value {
             ParsedValue::NumericConstant { constant, typ } => {
-                Ok(self.builder.numeric_constant(constant, typ.unwrap_numeric()))
+                Ok(Value::constant(constant, typ.unwrap_numeric()))
             }
             ParsedValue::Variable(identifier) => self.lookup_variable(identifier),
         }

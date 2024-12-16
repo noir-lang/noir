@@ -336,6 +336,7 @@ mod test {
     use crate::ssa::ir::instruction::BinaryOp;
     use crate::ssa::ir::map::Id;
     use crate::ssa::ir::types::Type;
+    use crate::ssa::ir::value::Value;
 
     #[test]
     fn simple_back_propagation() {
@@ -371,7 +372,7 @@ mod test {
 
         let v3 = builder.insert_allocate(Type::field());
 
-        let zero = builder.field_constant(0u128);
+        let zero = Value::field_constant(0u128.into());
         builder.insert_store(v3, zero);
 
         let v4 = builder.insert_binary(v0, BinaryOp::Eq, zero);
@@ -380,7 +381,7 @@ mod test {
 
         builder.switch_to_block(b2);
 
-        let twenty_seven = builder.field_constant(27u128);
+        let twenty_seven = Value::field_constant(27u128.into());
         let v7 = builder.insert_binary(v0, BinaryOp::Add, twenty_seven);
         builder.insert_store(v3, v7);
 
@@ -486,7 +487,7 @@ mod test {
 
         let v3 = builder.insert_allocate(Type::field());
 
-        let zero = builder.field_constant(0u128);
+        let zero = Value::field_constant(0u128.into());
         builder.insert_store(v3, zero);
 
         builder.terminate_with_jmp(b1, vec![zero]);
@@ -514,7 +515,7 @@ mod test {
 
         builder.switch_to_block(b5);
 
-        let twenty_seven = builder.field_constant(27u128);
+        let twenty_seven = Value::field_constant(27u128.into());
         let v10 = builder.insert_binary(v7, BinaryOp::Eq, twenty_seven);
 
         let v11 = builder.insert_not(v10);
@@ -533,7 +534,7 @@ mod test {
 
         builder.switch_to_block(b8);
 
-        let one = builder.field_constant(1u128);
+        let one = Value::field_constant(1u128.into());
         let v15 = builder.insert_binary(v7, BinaryOp::Add, one);
 
         builder.terminate_with_jmp(b4, vec![v15]);
@@ -620,8 +621,8 @@ mod test {
         builder.terminate_with_jmpif(v0, b1, b2);
 
         builder.switch_to_block(b1);
-        let twenty_seven = builder.field_constant(27_u128);
-        let twenty_nine = builder.field_constant(29_u128);
+        let twenty_seven = Value::field_constant(27_u128.into());
+        let twenty_nine = Value::field_constant(29_u128.into());
         builder.terminate_with_jmp(b3, vec![twenty_seven, twenty_nine]);
 
         builder.switch_to_block(b3);
@@ -630,8 +631,8 @@ mod test {
         builder.terminate_with_return(vec![v1]);
 
         builder.switch_to_block(b2);
-        let twenty_eight = builder.field_constant(28_u128);
-        let forty = builder.field_constant(40_u128);
+        let twenty_eight = Value::field_constant(28_u128.into());
+        let forty = Value::field_constant(40_u128.into());
         builder.terminate_with_jmp(b3, vec![twenty_eight, forty]);
 
         let ssa = builder.finish();

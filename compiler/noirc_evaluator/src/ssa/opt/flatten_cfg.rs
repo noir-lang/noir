@@ -821,7 +821,7 @@ mod test {
             instruction::{BinaryOp, Instruction, TerminatorInstruction},
             map::Id,
             types::Type,
-            value::{Value, Value},
+            value::Value,
         },
         opt::assert_normalized_ssa_equals,
         Ssa,
@@ -1200,7 +1200,7 @@ mod test {
         dfg: &DataFlowGraph,
         value: Value,
     ) -> Vec<u128> {
-        match dfg[value] {
+        match value {
             Value::Instruction { instruction, .. } => {
                 let mut values = vec![];
                 dfg[instruction].map_values(|value| {
@@ -1391,12 +1391,12 @@ mod test {
         let b4 = builder.insert_block();
         let b5 = builder.insert_block();
 
-        let zero = builder.field_constant(0u128);
-        let one = builder.field_constant(1u128);
-        let two = builder.field_constant(2u128);
-        let four = builder.field_constant(4u128);
-        let ten = builder.field_constant(10u128);
-        let one_hundred = builder.field_constant(100u128);
+        let zero = Value::field_constant(0u128.into());
+        let one = Value::field_constant(1u128.into());
+        let two = Value::field_constant(2u128.into());
+        let four = Value::field_constant(4u128.into());
+        let ten = Value::field_constant(10u128.into());
+        let one_hundred = Value::field_constant(100u128.into());
 
         let v0 = builder.insert_allocate(Type::field());
         builder.insert_store(v0, zero);

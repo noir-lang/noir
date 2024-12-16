@@ -2909,6 +2909,7 @@ mod test {
                 instruction::BinaryOp,
                 map::Id,
                 types::{NumericType, Type},
+                value::Value,
             },
         },
     };
@@ -2939,7 +2940,7 @@ mod test {
         let foo_v1 = builder.add_parameter(Type::field());
 
         let foo_equality_check = builder.insert_binary(foo_v0, BinaryOp::Eq, foo_v1);
-        let zero = builder.numeric_constant(0u128, NumericType::unsigned(1));
+        let zero = Value::constant(0u128.into(), NumericType::unsigned(1));
         builder.insert_constrain(foo_equality_check, zero, None);
         builder.terminate_with_return(vec![foo_v0]);
     }
@@ -2987,11 +2988,12 @@ mod test {
 
         let foo_id = Id::test_new(1);
         let foo = builder.import_function(foo_id);
-        let main_call1_results =
-            builder.insert_call(foo, vec![main_v0, main_v1], vec![Type::field()]).to_vec();
-        let main_call2_results =
-            builder.insert_call(foo, vec![main_v0, main_v1], vec![Type::field()]).to_vec();
-        builder.insert_constrain(main_call1_results[0], main_call2_results[0], None);
+        let main_call1_result =
+            builder.insert_call(foo, vec![main_v0, main_v1], vec![Type::field()]).next().unwrap();
+        let main_call2_result =
+            builder.insert_call(foo, vec![main_v0, main_v1], vec![Type::field()]).next().unwrap();
+
+        builder.insert_constrain(main_call1_result, main_call2_result, None);
         builder.terminate_with_return(vec![]);
 
         build_basic_foo_with_return(&mut builder, foo_id, false, inline_type);
@@ -3091,12 +3093,15 @@ mod test {
 
         let foo_id = Id::test_new(1);
         let foo = builder.import_function(foo_id);
-        let main_call1_results =
-            builder.insert_call(foo, vec![main_v0, main_v1], vec![Type::field()]).to_vec();
-        let main_call2_results = builder
-            .insert_call(foo, vec![main_call1_results[0], main_v1], vec![Type::field()])
-            .to_vec();
-        builder.insert_constrain(main_call1_results[0], main_call2_results[0], None);
+        let main_call1_result =
+            builder.insert_call(foo, vec![main_v0, main_v1], vec![Type::field()]).next().unwrap();
+
+        let main_call2_result = builder
+            .insert_call(foo, vec![main_call1_result, main_v1], vec![Type::field()])
+            .next()
+            .unwrap();
+
+        builder.insert_constrain(main_call1_result, main_call2_result, None);
         builder.terminate_with_return(vec![]);
 
         build_basic_foo_with_return(&mut builder, foo_id, false, inline_type);
@@ -3173,13 +3178,17 @@ mod test {
 
         let func_with_nested_foo_call_id = Id::test_new(1);
         let func_with_nested_foo_call = builder.import_function(func_with_nested_foo_call_id);
-        let main_call1_results = builder
+        let main_call1_result = builder
             .insert_call(func_with_nested_foo_call, vec![main_v0, main_v1], vec![Type::field()])
-            .to_vec();
-        let main_call2_results = builder
+            .next()
+            .unwrap();
+
+        let main_call2_result = builder
             .insert_call(func_with_nested_foo_call, vec![main_v0, main_v1], vec![Type::field()])
-            .to_vec();
-        builder.insert_constrain(main_call1_results[0], main_call2_results[0], None);
+            .next()
+            .unwrap();
+
+        builder.insert_constrain(main_call1_result, main_call2_result, None);
         builder.terminate_with_return(vec![]);
 
         builder.new_function(
@@ -3190,15 +3199,15 @@ mod test {
         let func_with_nested_call_v0 = builder.add_parameter(Type::field());
         let func_with_nested_call_v1 = builder.add_parameter(Type::field());
 
-        let two = builder.field_constant(2u128);
+        let two = Value::field_constant(2u128.into());
         let v0_plus_two = builder.insert_binary(func_with_nested_call_v0, BinaryOp::Add, two);
 
         let foo_id = Id::test_new(2);
         let foo_call = builder.import_function(foo_id);
         let foo_call = builder
             .insert_call(foo_call, vec![v0_plus_two, func_with_nested_call_v1], vec![Type::field()])
-            .to_vec();
-        builder.terminate_with_return(vec![foo_call[0]]);
+            .collect();
+        builder.terminate_with_return(foo_call);
 
         build_basic_foo_with_return(&mut builder, foo_id, false, inline_type);
 
@@ -3313,13 +3322,13 @@ mod test {
         let bar = builder.import_function(bar_id);
 
         // Insert multiple calls to the same Brillig function
-        builder.insert_call(foo, vec![main_v0, main_v1], vec![Type::field()]).to_vec();
-        builder.insert_call(foo, vec![main_v0, main_v1], vec![Type::field()]).to_vec();
-        builder.insert_call(foo, vec![main_v0, main_v1], vec![Type::field()]).to_vec();
+        builder.insert_call(foo, vec![main_v0, main_v1], vec![Type::field()]);
+        builder.insert_call(foo, vec![main_v0, main_v1], vec![Type::field()]);
+        builder.insert_call(foo, vec![main_v0, main_v1], vec![Type::field()]);
         // Interleave a call to a separate Brillig function to make sure that we can call multiple separate Brillig functions
-        builder.insert_call(bar, vec![main_v0, main_v1], vec![Type::field()]).to_vec();
-        builder.insert_call(foo, vec![main_v0, main_v1], vec![Type::field()]).to_vec();
-        builder.insert_call(bar, vec![main_v0, main_v1], vec![Type::field()]).to_vec();
+        builder.insert_call(bar, vec![main_v0, main_v1], vec![Type::field()]);
+        builder.insert_call(foo, vec![main_v0, main_v1], vec![Type::field()]);
+        builder.insert_call(bar, vec![main_v0, main_v1], vec![Type::field()]);
         builder.terminate_with_return(vec![]);
 
         build_basic_foo_with_return(&mut builder, foo_id, true, InlineType::default());
@@ -3383,7 +3392,7 @@ mod test {
 
         // Call the same primitive operation again
         let v1_div_v2 = builder.insert_binary(main_v1, BinaryOp::Div, main_v2);
-        let one = builder.numeric_constant(1u128, NumericType::unsigned(32));
+        let one = Value::constant(1u128.into(), NumericType::unsigned(32));
         builder.insert_constrain(v1_div_v2, one, None);
 
         builder.terminate_with_return(vec![]);
@@ -3451,12 +3460,12 @@ mod test {
         builder.insert_constrain(v0_div_v1, main_v2, None);
 
         // Insert multiple calls to the same Brillig function
-        builder.insert_call(foo, vec![main_v0, main_v1], vec![Type::field()]).to_vec();
-        builder.insert_call(foo, vec![main_v0, main_v1], vec![Type::field()]).to_vec();
+        builder.insert_call(foo, vec![main_v0, main_v1], vec![Type::field()]);
+        builder.insert_call(foo, vec![main_v0, main_v1], vec![Type::field()]);
 
         // Call the same primitive operation again
         let v1_div_v2 = builder.insert_binary(main_v1, BinaryOp::Div, main_v2);
-        let one = builder.numeric_constant(1u128, NumericType::unsigned(32));
+        let one = Value::constant(1u128.into(), NumericType::unsigned(32));
         builder.insert_constrain(v1_div_v2, one, None);
 
         builder.terminate_with_return(vec![]);
@@ -3536,13 +3545,13 @@ mod test {
         builder.insert_constrain(v0_div_v1, main_v2, None);
 
         // Insert multiple calls to the same Brillig function
-        builder.insert_call(foo, vec![main_v0, main_v1], vec![Type::field()]).to_vec();
-        builder.insert_call(foo, vec![main_v0, main_v1], vec![Type::field()]).to_vec();
-        builder.insert_call(bar, vec![main_v0, main_v1], vec![Type::field()]).to_vec();
+        builder.insert_call(foo, vec![main_v0, main_v1], vec![Type::field()]);
+        builder.insert_call(foo, vec![main_v0, main_v1], vec![Type::field()]);
+        builder.insert_call(bar, vec![main_v0, main_v1], vec![Type::field()]);
 
         // Call the same primitive operation again
         let v1_div_v2 = builder.insert_binary(main_v1, BinaryOp::Div, main_v2);
-        let one = builder.numeric_constant(1u128, NumericType::unsigned(32));
+        let one = Value::constant(1u128.into(), NumericType::unsigned(32));
         builder.insert_constrain(v1_div_v2, one, None);
 
         builder.terminate_with_return(vec![]);

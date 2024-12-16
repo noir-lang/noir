@@ -815,6 +815,7 @@ mod test {
             instruction::{BinaryOp, Intrinsic, TerminatorInstruction},
             map::Id,
             types::{NumericType, Type},
+            value::Value,
         },
     };
 
@@ -834,12 +835,12 @@ mod test {
 
         let bar_id = Id::test_new(1);
         let bar = builder.import_function(bar_id);
-        let results = builder.insert_call(bar, Vec::new(), vec![Type::field()]).to_vec();
+        let results = builder.insert_call(bar, Vec::new(), vec![Type::field()]).collect();
         builder.terminate_with_return(results);
 
         builder.new_function("bar".into(), bar_id, InlineType::default());
         let expected_return = 72u128;
-        let seventy_two = builder.field_constant(expected_return);
+        let seventy_two = Value::field_constant(expected_return.into());
         builder.terminate_with_return(vec![seventy_two]);
 
         let ssa = builder.finish();
@@ -886,9 +887,12 @@ mod test {
         let main_f2 = builder.import_function(id1_id);
         let main_f3 = builder.import_function(id2_id);
 
-        let main_v7 = builder.insert_call(main_f2, vec![main_f1], vec![Type::Function])[0];
-        let main_v13 = builder.insert_call(main_f3, vec![main_v7], vec![Type::Function])[0];
-        let main_v16 = builder.insert_call(main_v13, vec![main_v0], vec![Type::field()])[0];
+        let main_v7 =
+            builder.insert_call(main_f2, vec![main_f1], vec![Type::Function]).next().unwrap();
+        let main_v13 =
+            builder.insert_call(main_f3, vec![main_v7], vec![Type::Function]).next().unwrap();
+        let main_v16 =
+            builder.insert_call(main_v13, vec![main_v0], vec![Type::field()]).next().unwrap();
         builder.terminate_with_return(vec![main_v16]);
 
         // Compiling square f1
@@ -940,15 +944,15 @@ mod test {
         let factorial_id = Id::test_new(1);
         let factorial = builder.import_function(factorial_id);
 
-        let five = builder.field_constant(5u128);
-        let results = builder.insert_call(factorial, vec![five], vec![Type::field()]).to_vec();
+        let five = Value::field_constant(5u128.into());
+        let results = builder.insert_call(factorial, vec![five], vec![Type::field()]).collect();
         builder.terminate_with_return(results);
 
         builder.new_function("factorial".into(), factorial_id, InlineType::default());
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();
 
-        let one = builder.field_constant(1u128);
+        let one = Value::field_constant(1u128.into());
 
         let v0 = builder.add_parameter(Type::field());
         let v1 = builder.insert_binary(v0, BinaryOp::Lt, one);
@@ -960,7 +964,7 @@ mod test {
         builder.switch_to_block(b2);
         let factorial_id = builder.import_function(factorial_id);
         let v2 = builder.insert_binary(v0, BinaryOp::Sub, one);
-        let v3 = builder.insert_call(factorial_id, vec![v2], vec![Type::field()])[0];
+        let v3 = builder.insert_call(factorial_id, vec![v2], vec![Type::field()]).next().unwrap();
         let v4 = builder.insert_binary(v0, BinaryOp::Mul, v3);
         builder.terminate_with_return(vec![v4]);
 
@@ -1040,8 +1044,9 @@ mod test {
         let main_cond = builder.add_parameter(Type::bool());
         let inner1_id = Id::test_new(1);
         let inner1 = builder.import_function(inner1_id);
-        let main_v2 = builder.insert_call(inner1, vec![main_cond], vec![Type::field()])[0];
-        let assert_constant = builder.import_intrinsic_id(Intrinsic::AssertConstant);
+        let mut main_v2 = builder.insert_call(inner1, vec![main_cond], vec![Type::field()]);
+        let main_v2 = main_v2.next().unwrap();
+        let assert_constant = Value::Intrinsic(Intrinsic::AssertConstant);
         builder.insert_call(assert_constant, vec![main_v2], vec![]);
         builder.terminate_with_return(vec![]);
 
@@ -1049,7 +1054,8 @@ mod test {
         let inner1_cond = builder.add_parameter(Type::bool());
         let inner2_id = Id::test_new(2);
         let inner2 = builder.import_function(inner2_id);
-        let inner1_v2 = builder.insert_call(inner2, vec![inner1_cond], vec![Type::field()])[0];
+        let mut inner1_v2 = builder.insert_call(inner2, vec![inner1_cond], vec![Type::field()]);
+        let inner1_v2 = inner1_v2.next().unwrap();
         builder.terminate_with_return(vec![inner1_v2]);
 
         builder.new_function("inner2".into(), inner2_id, InlineType::default());
@@ -1059,10 +1065,10 @@ mod test {
         let join_block = builder.insert_block();
         builder.terminate_with_jmpif(inner2_cond, then_block, else_block);
         builder.switch_to_block(then_block);
-        let one = builder.field_constant(FieldElement::one());
+        let one = Value::field_constant(FieldElement::one());
         builder.terminate_with_jmp(join_block, vec![one]);
         builder.switch_to_block(else_block);
-        let two = builder.field_constant(FieldElement::from(2_u128));
+        let two = Value::field_constant(FieldElement::from(2_u128));
         builder.terminate_with_jmp(join_block, vec![two]);
         let join_param = builder.add_block_parameter(join_block, Type::field());
         builder.switch_to_block(join_block);
@@ -1099,7 +1105,7 @@ mod test {
         let mut builder = FunctionBuilder::new("main".into(), main_id);
 
         let main = builder.import_function(main_id);
-        let results = builder.insert_call(main, Vec::new(), vec![]).to_vec();
+        let results = builder.insert_call(main, Vec::new(), vec![]).collect();
         builder.terminate_with_return(results);
 
         let ssa = builder.finish();
@@ -1126,12 +1132,12 @@ mod test {
 
         let bar_id = Id::test_new(1);
         let bar = builder.import_function(bar_id);
-        let results = builder.insert_call(bar, Vec::new(), vec![Type::field()]).to_vec();
+        let results = builder.insert_call(bar, Vec::new(), vec![Type::field()]).collect();
         builder.terminate_with_return(results);
 
         builder.new_brillig_function("bar".into(), bar_id, InlineType::default());
         let expected_return = 72u128;
-        let seventy_two = builder.field_constant(expected_return);
+        let seventy_two = Value::field_constant(expected_return.into());
         builder.terminate_with_return(vec![seventy_two]);
 
         let ssa = builder.finish();
@@ -1168,22 +1174,22 @@ mod test {
 
         let bar_id = Id::test_new(1);
         let bar = builder.import_function(bar_id);
-        let v0 = builder.insert_call(bar, Vec::new(), vec![Type::field()]).to_vec();
-        let _v1 = builder.insert_call(bar, Vec::new(), vec![Type::field()]).to_vec();
-        let _v2 = builder.insert_call(bar, Vec::new(), vec![Type::field()]).to_vec();
+        let v0 = builder.insert_call(bar, Vec::new(), vec![Type::field()]).collect();
+        let _v1 = builder.insert_call(bar, Vec::new(), vec![Type::field()]);
+        let _v2 = builder.insert_call(bar, Vec::new(), vec![Type::field()]);
         builder.terminate_with_return(v0);
 
         builder.new_brillig_function("bar".into(), bar_id, InlineType::default());
-        let bar_v0 = builder.numeric_constant(1_usize, NumericType::bool());
+        let bar_v0 = Value::constant(1_usize.into(), NumericType::bool());
         let then_block = builder.insert_block();
         let else_block = builder.insert_block();
         let join_block = builder.insert_block();
         builder.terminate_with_jmpif(bar_v0, then_block, else_block);
         builder.switch_to_block(then_block);
-        let one = builder.field_constant(FieldElement::one());
+        let one = Value::field_constant(FieldElement::one());
         builder.terminate_with_jmp(join_block, vec![one]);
         builder.switch_to_block(else_block);
-        let two = builder.field_constant(FieldElement::from(2_u128));
+        let two = Value::field_constant(2_u128.into());
         builder.terminate_with_jmp(join_block, vec![two]);
         let join_param = builder.add_block_parameter(join_block, Type::field());
         builder.switch_to_block(join_block);

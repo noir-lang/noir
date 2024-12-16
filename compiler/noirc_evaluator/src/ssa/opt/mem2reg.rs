@@ -671,6 +671,7 @@ mod tests {
             instruction::{BinaryOp, Instruction, Intrinsic, TerminatorInstruction},
             map::Id,
             types::Type,
+            value::Value,
         },
         opt::assert_normalized_ssa_equals,
         Ssa,
@@ -681,7 +682,7 @@ mod tests {
         // fn func() {
         //   b0():
         //     v0 = allocate
-        //     v1 = make_array [Field 1, Field 2]
+        //     v1 = make_array [Field 1, Field 0]
         //     store v1 in v0
         //     v2 = load v0
         //     v3 = array_get v2, index 1
@@ -691,12 +692,13 @@ mod tests {
         let func_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("func".into(), func_id);
         let v0 = builder.insert_allocate(Type::Array(Arc::new(vec![Type::field()]), 2));
-        let one = builder.field_constant(FieldElement::one());
-        let two = builder.field_constant(FieldElement::one());
+
+        let zero = Value::field_constant(FieldElement::zero());
+        let one = Value::field_constant(FieldElement::one());
 
         let element_type = Arc::new(vec![Type::field()]);
         let array_type = Type::Array(element_type, 2);
-        let v1 = builder.insert_make_array(vector![one, two], array_type.clone());
+        let v1 = builder.insert_make_array(vector![one, zero], array_type.clone());
 
         builder.insert_store(v0, v1);
         let v2 = builder.insert_load(v0, array_type);
@@ -715,7 +717,7 @@ mod tests {
             TerminatorInstruction::Return { return_values, .. } => return_values.first().unwrap(),
             _ => unreachable!(),
         };
-        assert_eq!(func.dfg[*ret_val_id], func.dfg[two]);
+        assert_eq!(*ret_val_id, zero);
     }
 
     #[test]
@@ -732,10 +734,10 @@ mod tests {
         let func_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("func".into(), func_id);
         let v0 = builder.insert_allocate(Type::field());
-        let one = builder.field_constant(FieldElement::one());
+        let one = Value::field_constant(FieldElement::one());
         builder.insert_store(v0, one);
         let v1 = builder.insert_load(v0, Type::field());
-        let f0 = builder.import_intrinsic_id(Intrinsic::AssertConstant);
+        let f0 = Value::Intrinsic(Intrinsic::AssertConstant);
         builder.insert_call(f0, vec![v0], vec![]);
         builder.terminate_with_return(vec![v1]);
 
@@ -748,10 +750,10 @@ mod tests {
         assert_eq!(count_stores(block_id, &func.dfg), 1);
 
         let ret_val_id = match func.dfg[block_id].terminator().unwrap() {
-            TerminatorInstruction::Return { return_values, .. } => return_values.first().unwrap(),
+            TerminatorInstruction::Return { return_values, .. } => *return_values.first().unwrap(),
             _ => unreachable!(),
         };
-        assert_eq!(func.dfg[*ret_val_id], func.dfg[one]);
+        assert_eq!(ret_val_id, one);
     }
 
     #[test]
@@ -766,7 +768,7 @@ mod tests {
         let func_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("func".into(), func_id);
         let v0 = builder.insert_allocate(Type::field());
-        let const_one = builder.field_constant(FieldElement::one());
+        let const_one = Value::field_constant(FieldElement::one());
         builder.insert_store(v0, const_one);
         builder.terminate_with_return(vec![v0]);
 
@@ -785,10 +787,7 @@ mod tests {
             _ => unreachable!(),
         };
 
-        // Since the mem2reg pass simplifies as it goes, the id of the allocate instruction result
-        // is most likely no longer v0. We have to retrieve the new id here.
-        let allocate_id = func.dfg.instruction_results(instructions[0])[0];
-        assert_eq!(ret_val_id, allocate_id);
+        assert_eq!(ret_val_id, v0);
     }
 
     fn count_stores(block: BasicBlockId, dfg: &DataFlowGraph) -> usize {
@@ -827,7 +826,7 @@ mod tests {
 
         let v0 = builder.insert_allocate(Type::field());
 
-        let five = builder.field_constant(5u128);
+        let five = Value::field_constant(5u128.into());
         builder.insert_store(v0, five);
 
         let v1 = builder.insert_load(v0, Type::field());
@@ -838,7 +837,7 @@ mod tests {
         let v2 = builder.add_block_parameter(b1, Type::field());
         let v3 = builder.insert_load(v0, Type::field());
 
-        let six = builder.field_constant(6u128);
+        let six = Value::field_constant(6u128.into());
         builder.insert_store(v0, six);
         let v4 = builder.insert_load(v0, Type::field());
 
@@ -969,7 +968,7 @@ mod tests {
         let mut builder = FunctionBuilder::new("main".into(), main_id);
 
         let v0 = builder.insert_allocate(Type::field());
-        let zero = builder.field_constant(0u128);
+        let zero = Value::field_constant(0u128.into());
         builder.insert_store(v0, zero);
 
         let v2 = builder.insert_allocate(Type::field());
@@ -993,9 +992,9 @@ mod tests {
         // Loop body
         builder.switch_to_block(b2);
         let v5 = builder.insert_load(v2, v2_type.clone());
-        let two = builder.field_constant(2u128);
+        let two = Value::field_constant(2u128.into());
         builder.insert_store(v5, two);
-        let one = builder.field_constant(1u128);
+        let one = Value::field_constant(1u128.into());
         let v3_plus_one = builder.insert_binary(v3, BinaryOp::Add, one);
         builder.terminate_with_jmp(b1, vec![v3_plus_one]);
 
@@ -1048,8 +1047,8 @@ mod tests {
         let v0 = builder.add_parameter(field_ref.clone());
         let v1 = builder.add_parameter(field_ref.clone());
 
-        let zero = builder.field_constant(0u128);
-        let one = builder.field_constant(0u128);
+        let zero = Value::field_constant(0u128.into());
+        let one = Value::field_constant(1u128.into());
         builder.insert_store(v0, zero);
         builder.insert_store(v1, one);
 

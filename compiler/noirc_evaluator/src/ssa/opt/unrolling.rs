@@ -1140,7 +1140,7 @@ mod tests {
 
         let refs = loop0.find_pre_header_reference_values(function, &loops.cfg).unwrap();
         assert_eq!(refs.len(), 1);
-        assert!(refs.contains(&Value::test_new(2)));
+        assert!(refs.contains(&Value::test_instruction_result(0, 0)));
 
         let (loads, stores) = loop0.count_loads_and_stores(function, &refs);
         assert_eq!(loads, 1);
