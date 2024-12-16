@@ -270,9 +270,7 @@ impl<'f> PerFunctionContext<'f> {
     /// don't use them anywhere.
     fn reference_parameters(&self) -> BTreeSet<Value> {
         let parameters = self.inserter.function.parameters();
-        parameters
-            .filter(|param| self.inserter.function.dfg.value_is_reference(*param))
-            .collect()
+        parameters.filter(|param| self.inserter.function.dfg.value_is_reference(*param)).collect()
     }
 
     /// The value of each reference at the start of the given block is the unification

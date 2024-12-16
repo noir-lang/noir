@@ -4,14 +4,8 @@
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::ir::{
-    basic_block::BasicBlockId,
-    cfg::ControlFlowGraph,
-    dfg::DataFlowGraph,
-    dom::DominatorTree,
-    function::Function,
-    instruction::InstructionId,
-    post_order::PostOrder,
-    value::{Value, Value},
+    basic_block::BasicBlockId, cfg::ControlFlowGraph, dfg::DataFlowGraph, dom::DominatorTree,
+    function::Function, instruction::InstructionId, post_order::PostOrder, value::Value,
 };
 
 use super::variable_liveness::{collect_variables_of_value, variables_used_in_instruction};

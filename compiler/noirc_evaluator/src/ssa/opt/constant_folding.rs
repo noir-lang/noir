@@ -22,7 +22,6 @@
 use std::collections::{BTreeMap, HashSet, VecDeque};
 
 use acvm::{
-    acir::AcirField,
     brillig_vm::{MemoryValue, VMStatus, VM},
     FieldElement,
 };
@@ -39,12 +38,13 @@ use crate::{
     ssa::{
         ir::{
             basic_block::BasicBlockId,
-            dfg::{DataFlowGraph, InsertInstructionResult},
+            dfg::DataFlowGraph,
             dom::DominatorTree,
             function::{Function, FunctionId, RuntimeType},
+            instruction::insert_result::InsertInstructionResult,
             instruction::{Instruction, InstructionId},
-            types::{NumericType, Type},
-            value::{Value, Value},
+            types::Type,
+            value::Value,
         },
         ssa_gen::Ssa,
     },
@@ -205,7 +205,7 @@ struct SimplificationCache {
 
 impl SimplificationCache {
     /// Called with a newly encountered simplification.
-    fn add(&mut self, dfg: &DataFlowGraph, simple: Value, block: BasicBlockId) {
+    fn add(&mut self, simple: Value, block: BasicBlockId) {
         self.simplifications
             .entry(block)
             .and_modify(|existing| {
@@ -419,8 +419,10 @@ impl<'brillig> Context<'brillig> {
         let new_results = match dfg.insert_instruction_and_results(instruction, block, call_stack) {
             InsertInstructionResult::SimplifiedTo(new_result) => vec![new_result],
             InsertInstructionResult::SimplifiedToMultiple(new_results) => new_results,
-            InsertInstructionResult::Results(_, new_results) => new_results.to_vec(),
             InsertInstructionResult::InstructionRemoved => vec![],
+            InsertInstructionResult::Results { id, result_count } => {
+                (0..result_count).map(|position| Value::instruction_result(id, position)).collect()
+            }
         };
         // Optimizations while inserting the instruction should not change the number of results.
         assert_eq!(old_result_count, new_results.len());
@@ -445,7 +447,7 @@ impl<'brillig> Context<'brillig> {
                     self.get_constraint_map(side_effects_enabled_var)
                         .entry(complex)
                         .or_default()
-                        .add(&function.dfg, simple, block);
+                        .add(simple, block);
                 }
             }
         }

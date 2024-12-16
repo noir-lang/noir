@@ -9,7 +9,7 @@ use crate::ssa::ir::{
     function::Function,
     instruction::{Instruction, InstructionId},
     post_order::PostOrder,
-    value::{Value, Value},
+    value::Value,
 };
 
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
@@ -71,7 +71,11 @@ pub(crate) fn variables_used_in_instruction(
     used
 }
 
-fn variables_used_in_block(block: &BasicBlock, block_id: BasicBlockId, dfg: &DataFlowGraph) -> Variables {
+fn variables_used_in_block(
+    block: &BasicBlock,
+    block_id: BasicBlockId,
+    dfg: &DataFlowGraph,
+) -> Variables {
     let mut used: Variables = block
         .instructions()
         .iter()

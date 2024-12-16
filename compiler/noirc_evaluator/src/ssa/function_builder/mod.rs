@@ -1,8 +1,8 @@
 pub(crate) mod data_bus;
 
-use std::{borrow::Cow, collections::BTreeMap};
+use std::collections::BTreeMap;
 
-use acvm::{acir::circuit::ErrorSelector, FieldElement};
+use acvm::acir::circuit::ErrorSelector;
 use noirc_errors::Location;
 use noirc_frontend::hir_def::types::Type as HirType;
 use noirc_frontend::monomorphization::ast::InlineType;
@@ -12,15 +12,18 @@ use crate::ssa::ir::{
     function::{Function, FunctionId},
     instruction::{Binary, BinaryOp, Instruction, TerminatorInstruction},
     types::Type,
-    value::{Value, Value},
+    value::Value,
 };
 
 use super::{
     ir::{
         basic_block::BasicBlock,
-        dfg::{CallStack, InsertInstructionResult},
+        dfg::CallStack,
         function::RuntimeType,
-        instruction::{ConstrainError, InstructionId, Intrinsic},
+        instruction::insert_result::InsertInstructionResult,
+        instruction::{
+            insert_result::InsertInstructionResultIter, ConstrainError, InstructionId, Intrinsic,
+        },
         types::NumericType,
     },
     ssa_gen::Ssa,
@@ -137,7 +140,10 @@ impl FunctionBuilder {
     }
 
     /// Returns the parameters of the given block in the current function.
-    pub(crate) fn block_parameters(&self, block: BasicBlockId) -> impl ExactSizeIterator<Item = Value> {
+    pub(crate) fn block_parameters(
+        &self,
+        block: BasicBlockId,
+    ) -> impl ExactSizeIterator<Item = Value> {
         self.current_function.dfg.block_parameters(block)
     }
 
@@ -267,7 +273,7 @@ impl FunctionBuilder {
         func: Value,
         arguments: Vec<Value>,
         result_types: Vec<Type>,
-    ) -> Cow<[Value]> {
+    ) -> InsertInstructionResultIter {
         let call = Instruction::Call { func, arguments, result_types };
         self.insert_instruction(call).results()
     }
@@ -381,7 +387,7 @@ impl FunctionBuilder {
     /// Retrieve a value reference to the given intrinsic operation.
     /// Returns None if there is no intrinsic matching the given name.
     pub(crate) fn import_intrinsic(&mut self, name: &str) -> Option<Value> {
-        Intrinsic::lookup(name).map(|intrinsic| Value::Intrinsic(intrinsic))
+        Intrinsic::lookup(name).map(Value::Intrinsic)
     }
 
     pub(crate) fn get_intrinsic_from_value(&mut self, value: Value) -> Option<Intrinsic> {

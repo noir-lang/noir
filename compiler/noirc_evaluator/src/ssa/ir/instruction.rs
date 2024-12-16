@@ -21,7 +21,7 @@ use super::{
     function::Function,
     map::Id,
     types::{NumericType, Type},
-    value::{Value, Value},
+    value::Value,
 };
 
 mod binary;

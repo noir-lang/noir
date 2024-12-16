@@ -1,5 +1,3 @@
-use std::borrow::Cow;
-
 use crate::ssa::{function_builder::data_bus::DataBus, ir::instruction::SimplifyResult};
 
 use super::{
@@ -7,20 +5,18 @@ use super::{
     function::FunctionId,
     instruction::{
         insert_result::InsertInstructionResult, Instruction, InstructionId, InstructionResultType,
-        Intrinsic, TerminatorInstruction,
+        TerminatorInstruction,
     },
-    map::{DenseMap, IdSet, TwoWayMap},
+    map::{DenseMap, ForeignFunctions},
     types::{NumericType, Type},
-    value::{ForeignFunction, ForeignFunctionId, Value},
+    value::{ForeignFunctionId, Value},
 };
 
 use acvm::{acir::AcirField, FieldElement};
 use fxhash::FxHashMap as HashMap;
-use iter_extended::vecmap;
 use noirc_errors::Location;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
-use serde_with::DisplayFromStr;
 
 /// The DataFlowGraph contains most of the actual data in a function including
 /// its blocks, instructions, and values. This struct is largely responsible for
@@ -42,7 +38,7 @@ pub(crate) struct DataFlowGraph {
     /// This map is used to ensure that the ValueId for any given foreign function is always
     /// represented by only 1 ValueId within this function.
     #[serde(skip)]
-    foreign_functions: IdSet<ForeignFunction>,
+    foreign_functions: ForeignFunctions,
 
     /// All blocks in a function
     blocks: DenseMap<BasicBlock>,
@@ -87,7 +83,7 @@ impl DataFlowGraph {
         block: BasicBlockId,
     ) -> BasicBlockId {
         let new_block = self.make_block();
-        let mut parameter_types = self.blocks[block].parameter_types().to_vec();
+        let parameter_types = self.blocks[block].parameter_types().to_vec();
         self.blocks[new_block].set_parameters(parameter_types);
         new_block
     }
@@ -107,7 +103,8 @@ impl DataFlowGraph {
         &self,
         block: BasicBlockId,
     ) -> impl ExactSizeIterator<Item = Value> {
-        (0..self[block].parameter_types().len()).map(|position| Value::Param { block, position })
+        (0..self[block].parameter_types().len())
+            .map(move |position| Value::Param { block, position })
     }
 
     /// Inserts a new instruction into the DFG.
@@ -155,7 +152,7 @@ impl DataFlowGraph {
                 }
 
                 let id = last_id.expect("There should be at least 1 simplified instruction");
-                InsertInstructionResult::Results { id, result_count }
+                InsertInstructionResult::Results { id, result_count: last_count }
             }
             result @ (SimplifyResult::SimplifiedToInstruction(_) | SimplifyResult::None) => {
                 let instruction = result.instruction().unwrap_or(instruction);
@@ -185,7 +182,6 @@ impl DataFlowGraph {
     pub(crate) fn set_type_of_value(&mut self, value: Value, target_type: Type) {
         match value {
             Value::Instruction { instruction, position } => {
-                let position = position;
                 match &mut self.instructions[instruction] {
                     Instruction::Call { result_types, .. } => {
                         result_types[position] = target_type;
@@ -301,7 +297,7 @@ impl DataFlowGraph {
         instruction: InstructionId,
     ) -> impl ExactSizeIterator<Item = Value> {
         let result_count = self[instruction].result_count();
-        (0..result_count).map(|position| Value::Instruction { instruction, position })
+        (0..result_count).map(move |position| Value::Instruction { instruction, position })
     }
 
     /// Add a parameter to the given block
@@ -451,8 +447,9 @@ impl std::ops::IndexMut<BasicBlockId> for DataFlowGraph {
 }
 
 impl std::ops::Index<ForeignFunctionId> for DataFlowGraph {
-    type Output = ForeignFunction;
-    fn index_mut(&mut self, id: ForeignFunctionId) -> &Self::Output {
+    type Output = String;
+
+    fn index(&self, id: ForeignFunctionId) -> &Self::Output {
         &self.foreign_functions[id]
     }
 }

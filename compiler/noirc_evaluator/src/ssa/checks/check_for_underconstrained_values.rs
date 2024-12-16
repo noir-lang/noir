@@ -6,7 +6,7 @@ use crate::ssa::ir::basic_block::BasicBlockId;
 use crate::ssa::ir::function::RuntimeType;
 use crate::ssa::ir::function::{Function, FunctionId};
 use crate::ssa::ir::instruction::{Hint, Instruction, InstructionId, Intrinsic};
-use crate::ssa::ir::value::{Value, Value};
+use crate::ssa::ir::value::Value;
 use crate::ssa::ssa_gen::Ssa;
 use im::HashMap;
 use rayon::prelude::*;
@@ -601,13 +601,11 @@ impl Context {
                             RuntimeType::Brillig(_) => {
                                 // For calls to Brillig functions we memorize the mapping of results to argument ValueId's and InstructionId's
                                 // The latter are needed to produce the callstack later
-                                for result in
-                                    function.dfg.instruction_results(*instruction).filter(
-                                        |value_id| {
-                                            function.dfg.get_numeric_constant(*value_id).is_none()
-                                        },
-                                    )
-                                {
+                                for result in function.dfg.instruction_results(*instruction).filter(
+                                    |value_id| {
+                                        function.dfg.get_numeric_constant(*value_id).is_none()
+                                    },
+                                ) {
                                     self.brillig_return_to_argument
                                         .insert(result, argument_ids.clone());
                                     self.brillig_return_to_instruction_id

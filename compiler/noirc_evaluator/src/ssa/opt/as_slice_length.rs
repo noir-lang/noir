@@ -2,7 +2,7 @@ use crate::ssa::{
     ir::{
         function::Function,
         instruction::{Instruction, InstructionId, Intrinsic},
-        types::{NumericType, Type},
+        types::Type,
         value::Value,
     },
     ssa_gen::Ssa,

@@ -17,7 +17,7 @@ use crate::ssa::ir::{
         Binary, BinaryOp, Endian, Instruction, InstructionId, Intrinsic, TerminatorInstruction,
     },
     types::{NumericType, Type},
-    value::{Value, Value},
+    value::Value,
 };
 use acvm::acir::brillig::{MemoryAddress, ValueOrArray};
 use acvm::{acir::AcirField, FieldElement};
@@ -146,11 +146,10 @@ impl<'block> BrilligBlock<'block> {
                 arguments,
                 call_stack: _,
             } => {
-                let target_block = &dfg[*destination_block];
-                for (src, dest) in arguments.iter().zip(target_block.parameters()) {
+                for (src, dest) in arguments.iter().zip(dfg.block_parameters(*destination_block)) {
                     // Destinations are block parameters so they should have been allocated previously.
                     let destination =
-                        self.variables.get_allocation(self.function_context, *dest, dfg);
+                        self.variables.get_allocation(self.function_context, dest, dfg);
                     let source = self.convert_ssa_value(*src, dfg);
                     self.brillig_context
                         .mov_instruction(destination.extract_register(), source.extract_register());
@@ -210,7 +209,7 @@ impl<'block> BrilligBlock<'block> {
                 let result_var = self.variables.define_single_addr_variable(
                     self.function_context,
                     self.brillig_context,
-                    dfg.instruction_results(instruction_id)[0],
+                    Value::instruction_result(instruction_id, 0),
                     dfg,
                 );
                 self.convert_ssa_binary(binary, dfg, result_var);
@@ -275,7 +274,7 @@ impl<'block> BrilligBlock<'block> {
                 }
             }
             Instruction::Allocate { .. } => {
-                let result_value = dfg.instruction_results(instruction_id)[0];
+                let result_value = Value::instruction_result(instruction_id, 0);
                 let pointer = self.variables.define_single_addr_variable(
                     self.function_context,
                     self.brillig_context,
@@ -295,7 +294,7 @@ impl<'block> BrilligBlock<'block> {
                 let target_variable = self.variables.define_variable(
                     self.function_context,
                     self.brillig_context,
-                    dfg.instruction_results(instruction_id)[0],
+                    Value::instruction_result(instruction_id, 0),
                     dfg,
                 );
 
@@ -309,7 +308,7 @@ impl<'block> BrilligBlock<'block> {
                 let result_register = self.variables.define_single_addr_variable(
                     self.function_context,
                     self.brillig_context,
-                    dfg.instruction_results(instruction_id)[0],
+                    Value::instruction_result(instruction_id, 0),
                     dfg,
                 );
                 self.brillig_context.not_instruction(condition_register, result_register);
@@ -545,7 +544,8 @@ impl<'block> BrilligBlock<'block> {
                             );
                         }
                         Intrinsic::Hint(Hint::BlackBox) => {
-                            let result_ids = dfg.instruction_results(instruction_id).collect::<Vec<_>>();
+                            let result_ids =
+                                dfg.instruction_results(instruction_id).collect::<Vec<_>>();
                             self.convert_ssa_identity_call(arguments, dfg, &result_ids);
                         }
                         Intrinsic::BlackBox(bb_func) => {
@@ -637,7 +637,7 @@ impl<'block> BrilligBlock<'block> {
                         | Intrinsic::AssertConstant
                         | Intrinsic::StaticAssert
                         | Intrinsic::ArrayAsStrUnchecked => {
-                            unreachable!("unsupported function call type {fucn:?}")
+                            unreachable!("unsupported function call type {func}")
                         }
                     }
                 }
@@ -982,7 +982,6 @@ impl<'block> BrilligBlock<'block> {
         let element_size = dfg.type_of_value(slice_id).element_size();
         let source_vector = self.convert_ssa_value(slice_id, dfg).extract_vector();
 
-        let mut results = dfg.instruction_results(instruction_id);
         match intrinsic {
             Value::Intrinsic(Intrinsic::SlicePushBack) => {
                 let target_len = Value::instruction_result(instruction_id, 0);
@@ -1054,7 +1053,7 @@ impl<'block> BrilligBlock<'block> {
                 self.slice_push_front_operation(target_vector, source_vector, &item_values);
             }
             Value::Intrinsic(Intrinsic::SlicePopBack) => {
-                let results = results.collect::<Vec<_>>();
+                let results = dfg.instruction_results(instruction_id).collect::<Vec<_>>();
                 let target_len = match self.variables.define_variable(
                     self.function_context,
                     self.brillig_context,
@@ -1093,7 +1092,7 @@ impl<'block> BrilligBlock<'block> {
                 self.slice_pop_back_operation(target_vector, source_vector, &pop_variables);
             }
             Value::Intrinsic(Intrinsic::SlicePopFront) => {
-                let results = results.collect::<Vec<_>>();
+                let results = dfg.instruction_results(instruction_id).collect::<Vec<_>>();
                 let target_len = match self.variables.define_variable(
                     self.function_context,
                     self.brillig_context,
@@ -1182,7 +1181,7 @@ impl<'block> BrilligBlock<'block> {
                 self.brillig_context.deallocate_single_addr(converted_index);
             }
             Value::Intrinsic(Intrinsic::SliceRemove) => {
-                let results = results.collect::<Vec<_>>();
+                let results = dfg.instruction_results(instruction_id).collect::<Vec<_>>();
                 let target_len = match self.variables.define_variable(
                     self.function_context,
                     self.brillig_context,

@@ -4,7 +4,7 @@
 //! with a non-literal target can be replaced with a call to an apply function.
 //! The apply function is a dispatch function that takes the function id as a parameter
 //! and dispatches to the correct target.
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::collections::{BTreeMap, BTreeSet};
 
 use acvm::FieldElement;
 use iter_extended::vecmap;
@@ -15,12 +15,12 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         function::{Function, FunctionId, Signature},
         instruction::{BinaryOp, Instruction},
-        types::{NumericType, Type},
-        value::{Value, Value},
+        types::Type,
+        value::Value,
     },
     ssa_gen::Ssa,
 };
-use fxhash::FxHashMap as HashMap;
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 /// Represents an 'apply' function created by this pass to dispatch higher order functions to.
 /// Pseudocode of an `apply` function is given below:
@@ -76,9 +76,10 @@ impl DefunctionalizationContext {
 
     /// Defunctionalize a single function
     fn defunctionalize(&mut self, func: &mut Function) {
-        let mut call_target_values = HashSet::new();
+        let mut call_target_values = HashSet::default();
+        let reachable_blocks = func.reachable_blocks();
 
-        for block_id in func.reachable_blocks() {
+        for block_id in reachable_blocks.clone() {
             let block = &func.dfg[block_id];
             let instructions = block.instructions().to_vec();
 
@@ -128,24 +129,60 @@ impl DefunctionalizationContext {
             }
         }
 
-        // Change the type of all the values that are not call targets to NativeField
-        let values = vecmap(func.dfg.values_iter(), |(value, _)| value);
+        self.mutate_values(func, call_target_values, reachable_blocks);
+    }
+
+    /// Change the type of all the values that are not call targets to NativeField
+    fn mutate_values(
+        &self,
+        func: &mut Function,
+        call_target_values: HashSet<Value>,
+        reachable_blocks: BTreeSet<BasicBlockId>,
+    ) {
+        let mut values = HashSet::default();
+
+        // Collect all the values used first.
+        // We can't borrow `func` mutably again for `change_type_of_value` otherwise
+        for block in reachable_blocks {
+            let instructions = func.dfg[block].take_instructions();
+            for instruction in &instructions {
+                func.dfg[*instruction].for_each_value(|value| {
+                    values.insert(value);
+                });
+            }
+
+            func.dfg[block].unwrap_terminator().for_each_value(|value| {
+                values.insert(value);
+            });
+
+            *func.dfg[block].instructions_mut() = instructions;
+        }
+
         for value in values {
-            if let Type::Function = func.dfg.type_of_value(value) {
-                match value {
-                    // If the value is a static function, transform it to the function id
-                    Value::Function(id) => {
-                        if !call_target_values.contains(&value) {
-                            let new_value = Value::field_constant(function_id_to_field(id));
-                            func.dfg.replace_value(value, new_value);
-                        }
+            self.change_type_of_value(value, func, &call_target_values);
+        }
+    }
+
+    fn change_type_of_value(
+        &self,
+        value: Value,
+        func: &mut Function,
+        call_target_values: &HashSet<Value>,
+    ) {
+        if let Type::Function = func.dfg.type_of_value(value) {
+            match value {
+                // If the value is a static function, transform it to the function id
+                Value::Function(id) => {
+                    if !call_target_values.contains(&value) {
+                        let new_value = Value::field_constant(function_id_to_field(id));
+                        func.dfg.replace_value(value, new_value);
                     }
-                    // If the value is a function used as value, just change the type of it
-                    Value::Instruction { .. } | Value::Param { .. } => {
-                        func.dfg.set_type_of_value(value, Type::field());
-                    }
-                    _ => {}
                 }
+                // If the value is a function used as value, just change the type of it
+                Value::Instruction { .. } | Value::Param { .. } => {
+                    func.dfg.set_type_of_value(value, Type::field());
+                }
+                _ => {}
             }
         }
     }
@@ -320,7 +357,7 @@ fn create_apply_function(
             let target_function_value = function_builder.import_function(*function_id);
             let call_results = function_builder
                 .insert_call(target_function_value, params_ids.clone(), signature.returns.clone())
-                .to_vec();
+                .collect();
 
             // Jump to the target block for returning
             function_builder.terminate_with_jmp(target_block, call_results);

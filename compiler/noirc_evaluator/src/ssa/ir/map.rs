@@ -1,12 +1,15 @@
 use fxhash::FxHashMap as HashMap;
 use serde::{Deserialize, Serialize};
 use std::{
+    borrow::Borrow,
     collections::BTreeMap,
     hash::Hash,
     str::FromStr,
     sync::atomic::{AtomicU32, Ordering},
 };
 use thiserror::Error;
+
+use super::value::ForeignFunctionId;
 
 /// A unique ID corresponding to a value of type T.
 /// This type can be used to retrieve a value of type T from
@@ -329,7 +332,11 @@ impl<K: Clone + Eq + Hash, V: Clone + Eq + Hash> TwoWayMap<K, V> {
         key
     }
 
-    pub(crate) fn get(&self, key: &K) -> Option<&V> {
+    pub(crate) fn get<Q>(&self, key: &Q) -> Option<&V>
+    where
+        K: Borrow<Q>,
+        Q: ?Sized + Hash + Eq,
+    {
         self.key_to_value.get(key)
     }
 }
@@ -389,30 +396,29 @@ impl<T> Default for AtomicCounter<T> {
     }
 }
 
-/// A set to map a T to an Id<T>. Ensures each T corresponds to exactly 1 Id.
 #[derive(Debug, Default, Clone)]
-pub(crate) struct IdSet<T> {
-    map: TwoWayMap<T, Id<T>>,
+pub(crate) struct ForeignFunctions {
+    map: TwoWayMap<String, ForeignFunctionId>,
 }
 
-impl<K: Clone + Eq + Hash, V: Clone + Eq + Hash> IdSet<T> {
+impl ForeignFunctions {
     /// Returns an existing id for the given element, or creates a new
     /// one if it doesn't already exist.
-    pub(crate) fn get_or_insert(&mut self, element: &str) -> Id<T> {
+    pub(crate) fn get_or_insert(&mut self, element: &str) -> ForeignFunctionId {
         if let Some(existing) = self.map.get(element) {
             return *existing;
         }
 
-        let id = Id::new(self.map.len());
+        let id = Id::new(self.map.len().try_into().unwrap());
         self.map.insert(element.to_string(), id);
         id
     }
 }
 
-impl<T> std::ops::Index<Id<T>> for IdSet<T> {
-    type Output = T;
+impl std::ops::Index<ForeignFunctionId> for ForeignFunctions {
+    type Output = String;
 
-    fn index(&self, index: Id<T>) -> &Self::Output {
+    fn index(&self, index: ForeignFunctionId) -> &Self::Output {
         &self.map.value_to_key[&index]
     }
 }

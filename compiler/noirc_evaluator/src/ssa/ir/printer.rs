@@ -12,7 +12,7 @@ use super::{
     dfg::DataFlowGraph,
     function::Function,
     instruction::{ConstrainError, Instruction, InstructionId, TerminatorInstruction},
-    value::{Value, Value},
+    value::Value,
 };
 
 /// Helper function for Function's Display impl to pretty-print the function with the given formatter.
@@ -120,6 +120,7 @@ pub(crate) fn display_instruction(
         write!(f, "{} = ", value_list(function, results))?;
     }
 
+    let results = function.dfg.instruction_results(instruction);
     display_instruction_inner(function, &function.dfg[instruction], results, f)
 }
 

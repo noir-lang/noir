@@ -133,19 +133,20 @@
 //!   store v12 at v5         (new store)
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
-use acvm::{acir::AcirField, acir::BlackBoxFunc, FieldElement};
+use acvm::acir::BlackBoxFunc;
 use iter_extended::vecmap;
 
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         cfg::ControlFlowGraph,
-        dfg::{CallStack, InsertInstructionResult},
+        dfg::CallStack,
         function::{Function, FunctionId, RuntimeType},
         function_inserter::FunctionInserter,
+        instruction::insert_result::InsertInstructionResult,
         instruction::{BinaryOp, Instruction, InstructionId, Intrinsic, TerminatorInstruction},
-        types::{NumericType, Type},
-        value::{Value, Value},
+        types::Type,
+        value::Value,
     },
     ssa_gen::Ssa,
 };
@@ -307,10 +308,10 @@ impl<'f> Context<'f> {
         instruction: &InstructionId,
     ) -> bool {
         let mut result = false;
-        if let Instruction::Call { func, .. } = self.inserter.function.dfg[*instruction] {
-            if let Value::Function(fid) = func {
-                result = *no_predicates.get(&fid).unwrap_or(&false);
-            }
+        if let Instruction::Call { func: Value::Function(fid), .. } =
+            &self.inserter.function.dfg[*instruction]
+        {
+            result = *no_predicates.get(fid).unwrap_or(&false);
         }
         result
     }
@@ -522,10 +523,10 @@ impl<'f> Context<'f> {
         let mut else_args = Vec::new();
         if cond_context.else_branch.is_some() {
             let last_else = cond_context.else_branch.clone().unwrap().last_block;
-            else_args = self.inserter.function.dfg[last_else].terminator_arguments().to_vec();
+            else_args = self.inserter.function.dfg[last_else].jmp_arguments().to_vec();
         }
 
-        let then_args = self.inserter.function.dfg[last_then].terminator_arguments().to_vec();
+        let then_args = self.inserter.function.dfg[last_then].jmp_arguments().to_vec();
 
         let params = self.inserter.function.dfg.block_parameters(destination);
         assert_eq!(params.len(), then_args.len());

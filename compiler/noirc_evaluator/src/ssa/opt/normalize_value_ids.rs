@@ -6,7 +6,7 @@ use crate::ssa::{
         function::{Function, FunctionId},
         map::SparseMap,
         post_order::PostOrder,
-        value::{Value, Value},
+        value::Value,
     },
     ssa_gen::Ssa,
 };

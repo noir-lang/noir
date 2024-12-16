@@ -1,13 +1,16 @@
-use std::{borrow::Cow, sync::Arc};
-
 use acvm::{acir::AcirField, FieldElement};
+use std::sync::Arc;
 
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
-        dfg::{CallStack, InsertInstructionResult},
+        dfg::CallStack,
         function::{Function, RuntimeType},
-        instruction::{Binary, BinaryOp, Endian, Instruction, InstructionId, Intrinsic},
+        instruction::insert_result::InsertInstructionResult,
+        instruction::{
+            insert_result::InsertInstructionResultIter, Binary, BinaryOp, Endian, Instruction,
+            InstructionId, Intrinsic,
+        },
         types::{NumericType, Type},
         value::Value,
     },
@@ -110,8 +113,7 @@ impl Context<'_> {
             if overflows {
                 assert!(bit_size < 128, "ICE - shift left with big integers are not supported");
                 if bit_size < 128 {
-                    let zero = Value::constant(FieldElement::zero(), typ);
-                    return InsertInstructionResult::SimplifiedTo(zero).first();
+                    return Value::constant(FieldElement::zero(), typ);
                 }
             }
             let pow = Value::constant(FieldElement::from(rhs_bit_size_pow_2), typ);
@@ -186,9 +188,9 @@ impl Context<'_> {
         if let Type::Numeric(NumericType::Unsigned { bit_size }) = typ {
             let to_bits = Value::Intrinsic(Intrinsic::ToBits(Endian::Little));
             let result_types = vec![Type::Array(Arc::new(vec![Type::bool()]), bit_size)];
-            let rhs_bits = self.insert_call(to_bits, vec![rhs], result_types);
 
-            let rhs_bits = rhs_bits[0];
+            let rhs_bits = self.insert_call(to_bits, vec![rhs], result_types).next().unwrap();
+
             let one = Value::field_constant(FieldElement::one());
             let mut r = one;
             for i in 1..bit_size + 1 {
@@ -246,7 +248,7 @@ impl Context<'_> {
         func: Value,
         arguments: Vec<Value>,
         result_types: Vec<Type>,
-    ) -> Cow<[Value]> {
+    ) -> InsertInstructionResultIter {
         let call = Instruction::Call { func, arguments, result_types };
         self.insert_instruction(call).results()
     }
@@ -271,8 +273,8 @@ impl Context<'_> {
             self.call_stack.clone(),
         );
 
-        if let InsertInstructionResult::Results(instruction_id, _) = result {
-            self.new_instructions.push(instruction_id);
+        if let InsertInstructionResult::Results { id, .. } = result {
+            self.new_instructions.push(id);
         }
 
         result

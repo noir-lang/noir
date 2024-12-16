@@ -51,31 +51,31 @@ pub(crate) enum Value {
     ForeignFunction(ForeignFunctionId),
 }
 
-pub(crate) type ForeignFunction = String;
+pub(crate) struct ForeignFunction(pub(crate) String);
 pub(crate) type ForeignFunctionId = Id<ForeignFunction>;
 
 impl Value {
-    pub fn constant(constant: FieldElement, typ: NumericType) -> Self {
+    pub(crate) fn constant(constant: FieldElement, typ: NumericType) -> Self {
         Self::NumericConstant { constant, typ }
     }
 
-    pub fn field_constant(constant: FieldElement) -> Self {
+    pub(crate) fn field_constant(constant: FieldElement) -> Self {
         Self::NumericConstant { constant, typ: NumericType::NativeField }
     }
 
-    pub fn length_constant(constant: FieldElement) -> Self {
+    pub(crate) fn length_constant(constant: FieldElement) -> Self {
         Self::NumericConstant { constant, typ: NumericType::length_type() }
     }
 
-    pub fn bool_constant(constant: bool) -> Self {
+    pub(crate) fn bool_constant(constant: bool) -> Self {
         Self::NumericConstant { constant: constant.into(), typ: NumericType::bool() }
     }
 
-    pub fn block_param(block: BasicBlockId, position: usize) -> Self {
+    pub(crate) fn block_param(block: BasicBlockId, position: usize) -> Self {
         Self::Param { block, position }
     }
 
-    pub fn instruction_result(instruction: InstructionId, position: usize) -> Self {
+    pub(crate) fn instruction_result(instruction: InstructionId, position: usize) -> Self {
         Self::Instruction { instruction, position }
     }
 }

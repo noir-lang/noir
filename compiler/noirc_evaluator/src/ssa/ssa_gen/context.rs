@@ -574,16 +574,12 @@ impl<'a> FunctionContext<'a> {
         location: Location,
     ) -> Values {
         let result_types = Self::convert_type(result_type).flatten();
-        let results =
+        let mut results =
             self.builder.set_location(location).insert_call(function, arguments, result_types);
 
-        let mut i = 0;
-        let reshaped_return_values = Self::map_type(result_type, |_| {
-            let result = results[i].into();
-            i += 1;
-            result
-        });
-        assert_eq!(i, results.len());
+        let reshaped_return_values =
+            Self::map_type(result_type, |_| results.next().unwrap().into());
+        assert!(results.next().is_none());
         reshaped_return_values
     }
 

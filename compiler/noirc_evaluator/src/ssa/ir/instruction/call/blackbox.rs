@@ -149,8 +149,7 @@ pub(super) fn simplify_msm(
                 let result_y = Value::field_constant(result_y);
 
                 // TODO: Is this correct? Seems this is meant for var_points not var_scalars
-                let result_is_infinity =
-                    Value::field_constant(result_is_infinity);
+                let result_is_infinity = Value::field_constant(result_is_infinity);
 
                 let elements = im::vector![result_x, result_y, result_is_infinity];
                 let typ = Type::Array(Arc::new(vec![Type::field()]), 3);

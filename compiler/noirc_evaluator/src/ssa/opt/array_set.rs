@@ -145,11 +145,8 @@ impl<'f> Context<'f> {
                 Instruction::Load { address, result_type } => {
                     if matches!(result_type, Array { .. } | Slice { .. }) {
                         let result = Value::instruction_result(*instruction_id, 0);
-                        let is_reference_param = self
-                            .dfg
-                            .block_parameters(block_id)
-                            .find(|value| value == address)
-                            .is_some();
+                        let is_reference_param =
+                            self.dfg.block_parameters(block_id).any(|value| value == *address);
                         self.arrays_from_load.insert(result, is_reference_param);
                     }
                 }

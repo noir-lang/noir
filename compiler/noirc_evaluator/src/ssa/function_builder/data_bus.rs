@@ -1,11 +1,6 @@
 use std::{collections::BTreeMap, sync::Arc};
 
-use crate::ssa::ir::{
-    function::RuntimeType,
-    types::{NumericType, Type},
-    value::Value,
-};
-use acvm::FieldElement;
+use crate::ssa::ir::{function::RuntimeType, types::Type, value::Value};
 use fxhash::FxHashMap as HashMap;
 use iter_extended::vecmap;
 use noirc_frontend::ast;
@@ -133,8 +128,7 @@ impl FunctionBuilder {
                 for _i in 0..len {
                     for subitem_typ in typ.iter() {
                         // load each element of the array, and add it to the databus
-                        let index_var =
-                            Value::length_constant((index as i128).into());
+                        let index_var = Value::length_constant((index as i128).into());
                         let element = self.insert_array_get(value, index_var, subitem_typ.clone());
                         index += match subitem_typ {
                             Type::Array(_, _) | Type::Slice(_) => subitem_typ.element_size(),
@@ -224,10 +218,10 @@ impl FunctionBuilder {
         ssa_params: impl ExactSizeIterator<Item = Value>,
         mut flattened_params_databus_visibility: Vec<DatabusVisibility>,
     ) -> Vec<DatabusVisibility> {
-        let ssa_param_sizes = ssa_params
-            .map(|ssa_param| {
-                self.current_function.dfg.type_of_value(ssa_param).flattened_size() as usize
-            });
+        let ssa_params_len = ssa_params.len();
+        let ssa_param_sizes = ssa_params.map(|ssa_param| {
+            self.current_function.dfg.type_of_value(ssa_param).flattened_size() as usize
+        });
 
         let mut is_ssa_params_databus = Vec::with_capacity(ssa_param_sizes.len());
         for size in ssa_param_sizes {
@@ -241,8 +235,7 @@ impl FunctionBuilder {
             is_ssa_params_databus.push(visibility);
         }
 
-        assert_eq!(is_ssa_params_databus.len(), ssa_params.len());
-
+        assert_eq!(is_ssa_params_databus.len(), ssa_params_len);
         is_ssa_params_databus
     }
 }

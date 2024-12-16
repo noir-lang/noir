@@ -11,7 +11,7 @@ use crate::ssa::{
         instruction::{BinaryOp, Instruction, InstructionId, Intrinsic},
         post_order::PostOrder,
         types::NumericType,
-        value::{Value, Value},
+        value::Value,
     },
     ssa_gen::Ssa,
 };
@@ -305,7 +305,7 @@ impl Context {
                     call_stack.clone(),
                 );
                 let is_index_out_of_bounds = is_index_out_of_bounds.first();
-                let true_const = Value::bool_constant(true.into());
+                let true_const = Value::bool_constant(true);
                 (is_index_out_of_bounds, true_const)
             };
 

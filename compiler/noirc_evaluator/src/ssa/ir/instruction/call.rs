@@ -14,9 +14,8 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         dfg::{CallStack, DataFlowGraph},
         instruction::Intrinsic,
-        map::Id,
         types::{NumericType, Type},
-        value::{Value, Value},
+        value::Value,
     },
     opt::flatten_cfg::value_merger::ValueMerger,
 };
@@ -121,8 +120,7 @@ pub(super) fn simplify_call(
                     "expected array length to be multiple of its elements size"
                 );
                 let slice_length_value = array.len() / elements_size;
-                let slice_length =
-                    Value::length_constant(slice_length_value.into());
+                let slice_length = Value::length_constant(slice_length_value.into());
                 let new_slice =
                     make_array(dfg, array, Type::Slice(inner_element_types), block, call_stack);
                 SimplifyResult::SimplifiedToMultiple(vec![slice_length, new_slice])
@@ -368,7 +366,7 @@ pub(super) fn simplify_call(
             if let Some(constants) = constant_args {
                 let lhs = constants[0];
                 let rhs = constants[1];
-                let result = Value::bool_constant((lhs < rhs).into());
+                let result = Value::bool_constant(lhs < rhs);
                 SimplifyResult::SimplifiedTo(result)
             } else {
                 SimplifyResult::None
@@ -481,8 +479,7 @@ fn simplify_slice_pop_back(
 
     let new_slice_length = update_slice_length(arguments[0], dfg, BinaryOp::Sub, block);
 
-    let element_size =
-        Value::length_constant((element_count as u128).into());
+    let element_size = Value::length_constant((element_count as u128).into());
     let flattened_len_instr = Instruction::binary(BinaryOp::Mul, arguments[0], element_size);
     let mut flattened_len =
         dfg.insert_instruction_and_results(flattened_len_instr, block, call_stack.clone()).first();
@@ -670,9 +667,8 @@ fn constant_to_radix(
 
 fn to_u8_vec(dfg: &DataFlowGraph, values: im::Vector<Value>) -> Vec<u8> {
     vecmap(values, |value| {
-        let field = dfg
-            .get_numeric_constant(value)
-            .expect("value id from array should point at constant");
+        let field =
+            dfg.get_numeric_constant(value).expect("value id from array should point at constant");
         *field.to_be_bytes().last().unwrap()
     })
 }
@@ -746,7 +742,7 @@ fn simplify_signature(
                 signature_verifier(&hashed_message, &public_key_x, &public_key_y, &signature)
                     .expect("Rust solvable black box function should not fail");
 
-            let valid_signature = Value::bool_constant(valid_signature.into());
+            let valid_signature = Value::bool_constant(valid_signature);
             SimplifyResult::SimplifiedTo(valid_signature)
         }
         _ => SimplifyResult::None,

@@ -4,8 +4,9 @@ use crate::ssa::ir::types::Type;
 
 use super::{
     basic_block::BasicBlockId,
-    dfg::{CallStack, InsertInstructionResult},
+    dfg::CallStack,
     function::Function,
+    instruction::insert_result::InsertInstructionResult,
     instruction::{Instruction, InstructionId},
     value::Value,
 };
@@ -105,7 +106,7 @@ impl<'f> FunctionInserter<'f> {
         let (instruction, location) = self.map_instruction(id);
 
         match self.push_instruction_value(instruction, id, block, location) {
-            InsertInstructionResult::Results(new_id, _) => Some(new_id),
+            InsertInstructionResult::Results { id: new_id, .. } => Some(new_id),
             _ => None,
         }
     }
@@ -213,9 +214,9 @@ impl<'f> FunctionInserter<'f> {
                     values.insert(*old_result, *new_result);
                 }
             }
-            InsertInstructionResult::Results(_, new_results) => {
-                for (old_result, new_result) in old_results.iter().zip(*new_results) {
-                    values.insert(*old_result, *new_result);
+            InsertInstructionResult::Results { id, result_count: _ } => {
+                for (i, old_result) in old_results.iter().enumerate() {
+                    values.insert(*old_result, Value::instruction_result(*id, i));
                 }
             }
             InsertInstructionResult::InstructionRemoved => (),

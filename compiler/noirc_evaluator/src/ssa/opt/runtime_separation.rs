@@ -6,7 +6,7 @@ use crate::ssa::{
     ir::{
         function::{Function, FunctionId, RuntimeType},
         instruction::Instruction,
-        value::{Value, Value},
+        value::Value,
     },
     ssa_gen::Ssa,
 };

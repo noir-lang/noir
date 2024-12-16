@@ -77,7 +77,7 @@ impl Loop {
     ///     jmpif v5 then: b3, else: b2
     /// ```
     /// In the example above, `v1` is the induction variable
-    fn get_induction_variable(&self, function: &Function) -> Value {
+    fn get_induction_variable(&self) -> Value {
         Value::block_param(self.header, 0)
     }
 }
@@ -137,7 +137,7 @@ impl<'f> LoopInvariantContext<'f> {
         // reliant upon the maximum induction variable.
         let upper_bound = loop_.get_const_upper_bound(self.inserter.function);
         if let Some(upper_bound) = upper_bound {
-            let induction_variable = loop_.get_induction_variable(self.inserter.function);
+            let induction_variable = loop_.get_induction_variable();
             let induction_variable = self.inserter.resolve(induction_variable);
             self.outer_induction_variables.insert(induction_variable, upper_bound);
         }
@@ -180,7 +180,7 @@ impl<'f> LoopInvariantContext<'f> {
             // be going through the blocks of the loop in execution order
             if hoist_invariant {
                 // Track already found loop invariants
-                self.loop_invariants.extend(results);
+                self.loop_invariants.insert(result);
             }
         }
     }

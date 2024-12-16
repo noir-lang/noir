@@ -3,10 +3,11 @@ use fxhash::{FxHashMap as HashMap, FxHashSet};
 
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
-    dfg::{CallStack, DataFlowGraph, InsertInstructionResult},
+    dfg::{CallStack, DataFlowGraph},
+    instruction::insert_result::InsertInstructionResult,
     instruction::{BinaryOp, Instruction},
-    types::{NumericType, Type},
-    value::{Value, Value},
+    types::Type,
+    value::Value,
 };
 
 pub(crate) struct ValueMerger<'a> {
@@ -406,16 +407,7 @@ impl<'a> ValueMerger<'a> {
         );
 
         if let Some(condition) = condition {
-            let result_index = if result.len() == 1 {
-                0
-            } else {
-                // Slices return (length, slice)
-                assert_eq!(result.len(), 2);
-                1
-            };
-
-            let result_value = result[result_index];
-            self.array_set_conditionals.insert(result_value, condition);
+            self.array_set_conditionals.insert(result.first(), condition);
         }
 
         result

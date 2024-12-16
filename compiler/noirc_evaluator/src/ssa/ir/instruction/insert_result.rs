@@ -84,24 +84,3 @@ impl ExactSizeIterator for InsertInstructionResultIter {
         self.results.len() - self.index
     }
 }
-
-impl std::ops::Index<usize> for InsertInstructionResult {
-    type Output = Value;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        match self {
-            InsertInstructionResult::Results { id, result_count } => {
-                assert!(index < *result_count);
-                &Value::Instruction { instruction: *id, position: index }
-            }
-            InsertInstructionResult::SimplifiedTo(result) => {
-                assert_eq!(index, 0);
-                result
-            }
-            InsertInstructionResult::SimplifiedToMultiple(results) => &results[index],
-            InsertInstructionResult::InstructionRemoved => {
-                panic!("Cannot index into InsertInstructionResult::InstructionRemoved")
-            }
-        }
-    }
-}

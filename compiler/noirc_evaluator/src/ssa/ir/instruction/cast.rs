@@ -1,7 +1,7 @@
 use acvm::{acir::AcirField, FieldElement};
 use num_bigint::BigUint;
 
-use super::{DataFlowGraph, Instruction, NumericType, SimplifyResult, Type, Value, Value};
+use super::{DataFlowGraph, Instruction, NumericType, SimplifyResult, Type, Value};
 
 /// Try to simplify this cast instruction. If the instruction can be simplified to a known value,
 /// that value is returned. Otherwise None is returned.
