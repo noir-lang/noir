@@ -566,12 +566,6 @@ pub struct LetStatement {
     pub is_global_let: bool,
 }
 
-impl LetStatement {
-    pub fn runs_comptime(&self) -> bool {
-        self.comptime || self.is_global_let
-    }
-}
-
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct AssignStatement {
     pub lvalue: LValue,

@@ -414,7 +414,7 @@ impl<'context> Elaborator<'context> {
                     .unwrap_or(Kind::u32());
 
                 let Some(stmt) = self.interner.get_global_let_statement(id) else {
-                    if self.elaborate_unresolved_global(&id) {
+                    if self.elaborate_global_if_unresolved(&id) {
                         return self.lookup_generic_or_global_type(path);
                     } else {
                         let path = path.clone();

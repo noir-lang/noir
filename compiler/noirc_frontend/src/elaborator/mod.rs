@@ -1694,7 +1694,7 @@ impl<'context> Elaborator<'context> {
     }
 
     /// If the given global is unresolved, elaborate it and return true
-    fn elaborate_unresolved_global(&mut self, global_id: &GlobalId) -> bool {
+    fn elaborate_global_if_unresolved(&mut self, global_id: &GlobalId) -> bool {
         if let Some(global) = self.unresolved_globals.remove(global_id) {
             self.elaborate_global(global);
             true
