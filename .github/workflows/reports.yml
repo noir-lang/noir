@@ -256,7 +256,6 @@ jobs:
           mv compilation_report.json ../compilation_report.json
 
       - name: Move compilation artifacts
-        working-directory: ./test_programs
         run: |
           cat compilation_report.json
           ARTIFACT_NAMES=$(jq '.compilation_reports[].artifact_name' compilation_report.json)
