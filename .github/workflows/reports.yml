@@ -490,3 +490,156 @@ jobs:
         with:
           header: memory
           message: ${{ steps.memory_report.outputs.markdown }}
+
+  # external_repo_execution_report:
+  #   needs: [build-nargo]
+  #   runs-on: ubuntu-latest
+  #   timeout-minutes: 30
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       include:
+  #         - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/parity-root }
+  #         - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-inner }
+  #         - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-tail }
+  #         - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-reset }
+  #         - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-base-private }
+  #         - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-base-public }
+
+  #   name: External repo execution report - ${{ matrix.project.repo }}/${{ matrix.project.path }}
+  #   steps:
+  #     - name: Download nargo binary
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: nargo
+  #         path: ./nargo
+
+  #     - name: Set nargo on PATH
+  #       run: |
+  #         nargo_binary="${{ github.workspace }}/nargo/nargo"
+  #         chmod +x $nargo_binary
+  #         echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
+  #         export PATH="$PATH:$(dirname $nargo_binary)"
+  #         nargo -V
+
+  #     - uses: actions/checkout@v4
+  #       with:
+  #         path: scripts
+  #         sparse-checkout: |
+  #           test_programs/execution_report.sh
+  #         sparse-checkout-cone-mode: false
+
+  #     - name: Checkout
+  #       uses: actions/checkout@v4
+  #       with:
+  #         repository: ${{ matrix.project.repo }}
+  #         path: test-repo
+  #         ref: ${{ matrix.project.ref }}
+
+  #     - name: Generate execution report
+  #       working-directory: ./test-repo/${{ matrix.project.path }}
+  #       run: |
+  #         mv /home/runner/work/noir/noir/scripts/test_programs/execution_report.sh ./execution_report.sh
+  #         chmod +x ./execution_report.sh
+  #         ./execution_report.sh 1
+
+  #     - name: Move execution report
+  #       id: report
+  #       shell: bash
+  #       run: |
+  #         PACKAGE_NAME=${{ matrix.project.path }}
+  #         PACKAGE_NAME=$(basename $PACKAGE_NAME)
+  #         mv ./test-repo/${{ matrix.project.path }}/execution_report.json ./execution_report_$PACKAGE_NAME.json
+  #         echo "execution_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
+
+  #     - name: Upload execution report
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: execution_report_${{ steps.report.outputs.execution_report_name }}
+  #         path: execution_report_${{ steps.report.outputs.execution_report_name }}.json
+  #         retention-days: 3
+  #         overwrite: true
+
+  generate_execution_report:
+    name: Execution time report
+    needs: [build-nargo]
+    runs-on: ubuntu-22.04
+    permissions:
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download nargo binary
+        uses: actions/download-artifact@v4
+        with:
+          name: nargo
+          path: ./nargo
+
+      - name: Set nargo on PATH
+        run: |
+          nargo_binary="${{ github.workspace }}/nargo/nargo"
+          chmod +x $nargo_binary
+          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
+          export PATH="$PATH:$(dirname $nargo_binary)"
+          nargo -V
+
+      - name: Generate Execution report
+        working-directory: ./test_programs
+        run: |
+          ./execution_report.sh
+          cat execution_report.json
+          mv execution_report.json ../execution_report.json
+
+      - name: Upload execution report
+        uses: actions/upload-artifact@v4
+        with:
+          name: in_progress_execution_report
+          path: execution_report.json
+          retention-days: 3
+          overwrite: true
+
+  upload_execution_report:
+    name: Upload execution report 
+    needs: [generate_execution_report]
+    # We want this job to run even if one variation of the matrix in `external_repo_execution_report` fails
+    if: always() 
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download initial execution report
+        uses: actions/download-artifact@v4
+        with:
+          name: in_progress_execution_report
+
+      # - name: Download matrix execution reports
+      #   uses: actions/download-artifact@v4
+      #   with:
+      #     pattern: execution_report_*
+      #     path: ./reports
+
+      # - name: Merge execution reports using jq
+      #   run: |
+      #     mv ./.github/scripts/merge-bench-reports.sh merge-bench-reports.sh
+      #     ./merge-bench-reports.sh execution_report
+
+      - name: Parse execution report
+        id: execution_report
+        uses: noir-lang/noir-bench-report@0bed8f72357ac78d1d3d52f7c6809b1151fc1a63
+        with:
+          report: execution_report.json
+          header: |
+            # Execution Report
+          memory_report: false
+
+      - name: Add memory report to sticky comment
+        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: execution_time
+          message: ${{ steps.execution_report.outputs.markdown }}
+
