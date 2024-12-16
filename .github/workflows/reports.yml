@@ -578,6 +578,7 @@ jobs:
       - name: Generate execution report
         working-directory: ./test-repo/${{ matrix.project.path }}
         run: |
+          cat Prover.toml
           mv /home/runner/work/noir/noir/scripts/test_programs/execution_report.sh ./execution_report.sh
           chmod +x ./execution_report.sh
           ./execution_report.sh 1
