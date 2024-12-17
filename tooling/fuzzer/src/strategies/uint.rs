@@ -14,7 +14,7 @@ use rand::Rng;
 /// 2. Generate a random value around the edges (+/- 3 around 0 and max possible value)
 #[derive(Debug)]
 pub struct UintStrategy {
-    /// Bit size of uint (e.g. 128)
+    /// Bit size of uint (e.g. 64)
     bits: usize,
     /// A set of fixtures to be generated
     fixtures: Vec<FieldElement>,
@@ -41,15 +41,18 @@ impl UintStrategy {
         }
     }
 
+    /// Generate random numbers starting from near 0 or the maximum of the range.
     fn generate_edge_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
         let rng = runner.rng();
         // Choose if we want values around 0 or max
         let is_min = rng.gen_bool(0.5);
         let offset = rng.gen_range(0..4);
         let start = if is_min { offset } else { self.type_max().saturating_sub(offset) };
-        Ok(proptest::num::u128::BinarySearch::new(start))
+        Ok(proptest::num::u64::BinarySearch::new(start))
     }
 
+    /// Pick a random `FieldElement` from the `fixtures` as a starting point for
+    /// generating random numbers.
     fn generate_fixtures_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
         // generate random cases if there's no fixtures
         if self.fixtures.is_empty() {
@@ -59,32 +62,38 @@ impl UintStrategy {
         // Generate value tree from fixture.
         let fixture = &self.fixtures[runner.rng().gen_range(0..self.fixtures.len())];
         if fixture.num_bits() <= self.bits as u32 {
-            return Ok(proptest::num::u128::BinarySearch::new(fixture.to_u128()));
+            if let Some(start) = fixture.try_to_u64() {
+                return Ok(proptest::num::u64::BinarySearch::new(start));
+            }
         }
 
         // If fixture is not a valid type, generate random value.
         self.generate_random_tree(runner)
     }
 
+    /// Generate random values between 0 and the MAX with the given bit width.
     fn generate_random_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
         let rng = runner.rng();
         let start = rng.gen_range(0..=self.type_max());
 
-        Ok(proptest::num::u128::BinarySearch::new(start))
+        Ok(proptest::num::u64::BinarySearch::new(start))
     }
 
-    fn type_max(&self) -> u128 {
-        if self.bits < 128 {
+    /// Maximum integer that fits in the given bit width.
+    fn type_max(&self) -> u64 {
+        if self.bits < 64 {
             (1 << self.bits) - 1
         } else {
-            u128::MAX
+            u64::MAX
         }
     }
 }
 
 impl Strategy for UintStrategy {
-    type Tree = proptest::num::u128::BinarySearch;
-    type Value = u128;
+    type Tree = proptest::num::u64::BinarySearch;
+    type Value = u64;
+
+    /// Pick randomly from the 3 available strategies for generating unsigned integers.
     fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
         let total_weight = self.random_weight + self.fixtures_weight + self.edge_weight;
         let bias = runner.rng().gen_range(0..total_weight);

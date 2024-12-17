@@ -11,6 +11,9 @@ use uint::UintStrategy;
 mod int;
 mod uint;
 
+/// Create a strategy for generating random values for an [AbiType].
+///
+/// Uses the `dictionary` for unsigned integer types.
 pub(super) fn arb_value_from_abi_type(
     abi_type: &AbiType,
     dictionary: HashSet<FieldElement>,
@@ -25,6 +28,7 @@ pub(super) fn arb_value_from_abi_type(
                 .sboxed()
         }
         AbiType::Integer { width, .. } => {
+            // TODO: i128 in wasm?
             let shift = 2i128.pow(*width);
             IntStrategy::new(*width as usize)
                 .prop_map(move |mut int| {
@@ -38,7 +42,6 @@ pub(super) fn arb_value_from_abi_type(
         AbiType::Boolean => {
             any::<bool>().prop_map(|val| InputValue::Field(FieldElement::from(val))).sboxed()
         }
-
         AbiType::String { length } => {
             // Strings only allow ASCII characters as each character must be able to be represented by a single byte.
             let string_regex = format!("[[:ascii:]]{{{length}}}");
@@ -53,7 +56,6 @@ pub(super) fn arb_value_from_abi_type(
 
             elements.prop_map(InputValue::Vec).sboxed()
         }
-
         AbiType::Struct { fields, .. } => {
             let fields: Vec<SBoxedStrategy<(String, InputValue)>> = fields
                 .iter()
@@ -69,7 +71,6 @@ pub(super) fn arb_value_from_abi_type(
                 })
                 .sboxed()
         }
-
         AbiType::Tuple { fields } => {
             let fields: Vec<_> =
                 fields.iter().map(|typ| arb_value_from_abi_type(typ, dictionary.clone())).collect();
@@ -78,6 +79,9 @@ pub(super) fn arb_value_from_abi_type(
     }
 }
 
+/// Given the [Abi] description of a [ProgramArtifact], generate random [InputValue]s for each circuit parameter.
+///
+/// Use the `dictionary` to draw values from for numeric types.
 pub(super) fn arb_input_map(
     abi: &Abi,
     dictionary: HashSet<FieldElement>,

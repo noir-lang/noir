@@ -38,14 +38,14 @@ pub struct FuzzedExecutor<E> {
     runner: TestRunner,
 }
 
-impl<
-        E: Fn(
-            &Program<FieldElement>,
-            WitnessMap<FieldElement>,
-        ) -> Result<WitnessStack<FieldElement>, String>,
-    > FuzzedExecutor<E>
+impl<E> FuzzedExecutor<E>
+where
+    E: Fn(
+        &Program<FieldElement>,
+        WitnessMap<FieldElement>,
+    ) -> Result<WitnessStack<FieldElement>, String>,
 {
-    /// Instantiates a fuzzed executor given a testrunner
+    /// Instantiates a fuzzed executor given a [TestRunner].
     pub fn new(program: ProgramArtifact, executor: E, runner: TestRunner) -> Self {
         Self { program, executor, runner }
     }
