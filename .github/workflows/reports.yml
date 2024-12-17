@@ -657,8 +657,7 @@ jobs:
             if [[ "$PACKAGE_NAME" == "$NAME_FROM_MATRIX" ]]; then
               echo "got here"
               mkdir ./test-repo/${{ matrix.project.path }}/target
-              cp $artifact $PACKAGE_NAME.json
-              mv $PACKAGE_NAME.json ./test-repo/${{ matrix.project.path }}/target/$PACKAGE_NAME.json
+              mv $artifact ./test-repo/${{ matrix.project.path }}/target/$PACKAGE_NAME.json
               break
             fi
             ls ./test-repo/${{ matrix.project.path }}
