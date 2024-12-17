@@ -31,10 +31,11 @@ impl UintStrategy {
     /// # Arguments
     /// * `bits` - Size of uint in bits
     /// * `fixtures` - Set of `FieldElements` representing values which the fuzzer weight towards testing.
-    pub fn new(bits: usize, fixtures: HashSet<FieldElement>) -> Self {
+    pub fn new(bits: usize, fixtures: &HashSet<FieldElement>) -> Self {
         Self {
             bits,
-            fixtures: fixtures.into_iter().collect(),
+            // We can only consider the fixtures which fit into the bit width.
+            fixtures: fixtures.iter().filter(|f| f.num_bits() <= bits as u32).copied().collect(),
             edge_weight: 10usize,
             fixtures_weight: 40usize,
             random_weight: 50usize,
@@ -61,10 +62,8 @@ impl UintStrategy {
 
         // Generate value tree from fixture.
         let fixture = &self.fixtures[runner.rng().gen_range(0..self.fixtures.len())];
-        if fixture.num_bits() <= self.bits as u32 {
-            if let Some(start) = fixture.try_to_u64() {
-                return Ok(proptest::num::u64::BinarySearch::new(start));
-            }
+        if let Some(start) = fixture.try_to_u64() {
+            return Ok(proptest::num::u64::BinarySearch::new(start));
         }
 
         // If fixture is not a valid type, generate random value.

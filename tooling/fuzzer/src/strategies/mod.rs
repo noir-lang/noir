@@ -16,14 +16,14 @@ mod uint;
 /// Uses the `dictionary` for unsigned integer types.
 pub(super) fn arb_value_from_abi_type(
     abi_type: &AbiType,
-    dictionary: HashSet<FieldElement>,
+    dictionary: &HashSet<FieldElement>,
 ) -> SBoxedStrategy<InputValue> {
     match abi_type {
         AbiType::Field => vec(any::<u8>(), 32)
             .prop_map(|bytes| InputValue::Field(FieldElement::from_be_bytes_reduce(&bytes)))
             .sboxed(),
         AbiType::Integer { width, sign } if sign == &Sign::Unsigned => {
-            UintStrategy::new(*width as usize, dictionary)
+            UintStrategy::new(*width as usize, &dictionary)
                 .prop_map(|uint| InputValue::Field(uint.into()))
                 .sboxed()
         }
@@ -60,7 +60,7 @@ pub(super) fn arb_value_from_abi_type(
             let fields: Vec<SBoxedStrategy<(String, InputValue)>> = fields
                 .iter()
                 .map(|(name, typ)| {
-                    (Just(name.clone()), arb_value_from_abi_type(typ, dictionary.clone())).sboxed()
+                    (Just(name.clone()), arb_value_from_abi_type(typ, dictionary)).sboxed()
                 })
                 .collect();
 
@@ -73,7 +73,7 @@ pub(super) fn arb_value_from_abi_type(
         }
         AbiType::Tuple { fields } => {
             let fields: Vec<_> =
-                fields.iter().map(|typ| arb_value_from_abi_type(typ, dictionary.clone())).collect();
+                fields.iter().map(|typ| arb_value_from_abi_type(typ, dictionary)).collect();
             fields.prop_map(InputValue::Vec).sboxed()
         }
     }
@@ -84,14 +84,12 @@ pub(super) fn arb_value_from_abi_type(
 /// Use the `dictionary` to draw values from for numeric types.
 pub(super) fn arb_input_map(
     abi: &Abi,
-    dictionary: HashSet<FieldElement>,
+    dictionary: &HashSet<FieldElement>,
 ) -> BoxedStrategy<InputMap> {
     let values: Vec<_> = abi
         .parameters
         .iter()
-        .map(|param| {
-            (Just(param.name.clone()), arb_value_from_abi_type(&param.typ, dictionary.clone()))
-        })
+        .map(|param| (Just(param.name.clone()), arb_value_from_abi_type(&param.typ, dictionary)))
         .collect();
 
     values
