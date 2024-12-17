@@ -759,7 +759,7 @@ impl TypeVariable {
     /// and if unbound, that it's a Kind::Integer
     pub fn is_integer(&self) -> bool {
         match &*self.borrow() {
-            TypeBinding::Bound(binding) => matches!(binding.follow_bindings(), Type::Integer(..)),
+            TypeBinding::Bound(binding) => binding.is_integer(),
             TypeBinding::Unbound(_, type_var_kind) => {
                 matches!(type_var_kind.follow_bindings(), Kind::Integer)
             }
@@ -770,9 +770,7 @@ impl TypeVariable {
     /// and if unbound, that it's a Kind::IntegerOrField
     pub fn is_integer_or_field(&self) -> bool {
         match &*self.borrow() {
-            TypeBinding::Bound(binding) => {
-                matches!(binding.follow_bindings(), Type::Integer(..))
-            }
+            TypeBinding::Bound(binding) => binding.is_integer_or_field(),
             TypeBinding::Unbound(_, type_var_kind) => {
                 matches!(type_var_kind.follow_bindings(), Kind::IntegerOrField)
             }
@@ -1028,10 +1026,19 @@ impl Type {
     }
 
     pub fn is_integer(&self) -> bool {
-        matches!(self.follow_bindings(), Type::Integer(..))
+        match self.follow_bindings() {
+            Type::Integer(_, num_bits) => num_bits.is_integer_size(),
+            _ => false,
+        }
     }
 
-    /// If value_level, only check for Type::FieldElement,
+    // is `self` integer or value-level field
+    pub fn is_integer_or_field(&self) -> bool {
+        let value_level = true;
+        self.is_integer() || self.is_field_element(value_level)
+    }
+
+    /// If value_level, only check for Type::field_element(),
     /// else only check for a type-level FieldElement
     pub fn is_field_element(&self, value_level: bool) -> bool {
         match self.follow_bindings() {
@@ -1056,7 +1063,9 @@ impl Type {
         use Kind as K;
         use Type::*;
         match self.follow_bindings() {
-            Integer(..) => true,
+            Integer(_, num_bits) => {
+                !num_bits.is_zero() && !num_bits.is_one()
+            },
             TypeVariable(var) => match &*var.borrow() {
                 TypeBinding::Bound(typ) => typ.is_numeric_value(),
                 TypeBinding::Unbound(_, type_var_kind) => {
@@ -1309,7 +1318,6 @@ impl Type {
             },
             Type::InfixExpr(lhs, _op, rhs) => lhs.infix_kind(rhs),
             Type::Alias(def, generics) => def.borrow().get_type(generics).kind(),
-            // This is a concrete FieldElement, not an IntegerOrField
             Type::Integer(..)
             | Type::Array(..)
             | Type::Slice(..)

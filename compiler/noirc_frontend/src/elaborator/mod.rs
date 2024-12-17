@@ -646,7 +646,7 @@ impl<'context> Elaborator<'context> {
             } else {
                 self.resolve_type(unresolved_typ.clone())
             };
-            if !matches!(typ, Type::Integer(_, _)) || typ.is_unit() {
+            if !typ.is_integer_or_field() {
                 let unsupported_typ_err =
                     ResolverError::UnsupportedNumericGenericType(UnsupportedNumericGenericType {
                         ident: ident.clone(),

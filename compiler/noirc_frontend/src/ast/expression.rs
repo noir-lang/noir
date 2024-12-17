@@ -112,15 +112,22 @@ impl UnresolvedGeneric {
     ) -> Result<Type, UnsupportedNumericGenericType> {
         use crate::ast::UnresolvedTypeData::Integer;
 
-        // TODO: only fields and "regular integers"?
-        match typ.typ {
-            Integer(sign, bits) => Ok(Type::Integer(sign, bits)),
-            // TODO: fix comment after seeing if this is buggy
-            // Only fields and integers are supported for numeric kinds
-            _ => Err(UnsupportedNumericGenericType {
+        let unsupported_numeric_generic_type = || {
+            Err(UnsupportedNumericGenericType {
                 ident: self.ident().clone(),
                 typ: typ.typ.clone(),
-            }),
+            })
+        };
+
+        match typ.typ {
+            Integer(sign, num_bits) => {
+                if !num_bits.is_integer_or_field_size() {
+                    return unsupported_numeric_generic_type();
+                }
+                Ok(Type::Integer(sign, num_bits))
+            },
+            // Only fields and integers are supported for numeric kinds
+            _ => unsupported_numeric_generic_type(),
         }
     }
 

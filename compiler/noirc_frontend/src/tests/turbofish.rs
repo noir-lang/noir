@@ -374,6 +374,10 @@ fn use_generic_type_alias_with_partial_generics_with_turbofish_in_method_call_er
         }
     "#;
     let errors = get_program_errors(src);
+
+    // TODO cleanup
+    dbg!(&errors);
+
     assert_eq!(errors.len(), 1);
 
     let CompilationError::TypeError(TypeCheckError::TypeMismatch {
@@ -443,6 +447,10 @@ fn trait_function_with_turbofish_on_trait_gives_error() {
     }
     "#;
     let errors = get_program_errors(src);
+
+    // TODO cleanup
+    dbg!(&errors);
+
     assert_eq!(errors.len(), 1);
 
     let CompilationError::TypeError(TypeCheckError::TypeMismatch {

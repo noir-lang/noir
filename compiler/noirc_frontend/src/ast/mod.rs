@@ -78,6 +78,14 @@ impl IntegerBitSize {
     pub fn is_field_element_bits(&self) -> bool {
         matches!(self, IntegerBitSize::FieldElementBits)
     }
+
+    pub fn is_integer_size(&self) -> bool {
+        !self.is_zero() && !self.is_one() && !self.is_field_element_bits()
+    }
+
+    pub fn is_integer_or_field_size(&self) -> bool {
+        !self.is_zero() && !self.is_one()
+    }
 }
 
 impl IntegerBitSize {
