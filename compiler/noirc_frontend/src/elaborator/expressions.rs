@@ -114,7 +114,7 @@ impl<'context> Elaborator<'context> {
 
     fn elaborate_block_expression(&mut self, block: BlockExpression) -> (HirBlockExpression, Type) {
         self.push_scope();
-        let mut block_type = Type::Unit;
+        let mut block_type = Type::unit();
         let mut statements = Vec::with_capacity(block.statements.len());
 
         for (i, statement) in block.statements.into_iter().enumerate() {
@@ -125,7 +125,7 @@ impl<'context> Elaborator<'context> {
                 let inner_expr_type = self.interner.id_type(expr);
                 let span = self.interner.expr_span(&expr);
 
-                self.unify(&inner_expr_type, &Type::Unit, || TypeCheckError::UnusedResultError {
+                self.unify(&inner_expr_type, &Type::unit(), || TypeCheckError::UnusedResultError {
                     expr_type: inner_expr_type.clone(),
                     expr_span: span,
                 });
@@ -156,8 +156,8 @@ impl<'context> Elaborator<'context> {
     fn elaborate_literal(&mut self, literal: Literal, span: Span) -> (HirExpression, Type) {
         use HirExpression::Literal as Lit;
         match literal {
-            Literal::Unit => (Lit(HirLiteral::Unit), Type::Unit),
-            Literal::Bool(b) => (Lit(HirLiteral::Bool(b)), Type::Bool),
+            Literal::Unit => (Lit(HirLiteral::Unit), Type::unit()),
+            Literal::Bool(b) => (Lit(HirLiteral::Bool(b)), Type::bool()),
             Literal::Integer(integer, sign) => {
                 let int = HirLiteral::Integer(integer, sign);
                 (Lit(int), self.polymorphic_integer_or_field())
@@ -771,8 +771,8 @@ impl<'context> Elaborator<'context> {
         let (condition, cond_type) = self.elaborate_expression(if_expr.condition);
         let (consequence, mut ret_type) = self.elaborate_expression(if_expr.consequence);
 
-        self.unify(&cond_type, &Type::Bool, || TypeCheckError::TypeMismatch {
-            expected_typ: Type::Bool.to_string(),
+        self.unify(&cond_type, &Type::bool(), || TypeCheckError::TypeMismatch {
+            expected_typ: Type::bool().to_string(),
             expr_typ: cond_type.to_string(),
             expr_span,
         });
@@ -788,9 +788,9 @@ impl<'context> Elaborator<'context> {
                     expr_span,
                 };
 
-                let context = if ret_type == Type::Unit {
+                let context = if ret_type.is_unit() {
                     "Are you missing a semicolon at the end of your 'else' branch?"
-                } else if else_type == Type::Unit {
+                } else if else_type.is_unit() {
                     "Are you missing a semicolon at the end of the first block of this 'if'?"
                 } else {
                     "Expected the types of both if branches to be equal"
@@ -802,7 +802,7 @@ impl<'context> Elaborator<'context> {
         });
 
         if alternative.is_none() {
-            ret_type = Type::Unit;
+            ret_type = Type::unit();
         }
 
         let if_expr = HirIfExpression { condition, consequence, alternative };
@@ -854,7 +854,7 @@ impl<'context> Elaborator<'context> {
         });
 
         let env_type =
-            if captured_vars.is_empty() { Type::Unit } else { Type::Tuple(captured_vars) };
+            if captured_vars.is_empty() { Type::unit() } else { Type::Tuple(captured_vars) };
 
         let captures = lambda_context.captures;
         let expr = HirExpression::Lambda(HirLambda { parameters, return_type, body, captures });

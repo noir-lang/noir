@@ -743,10 +743,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     Ok(Value::Field(value))
                 }
                 (Signedness::Signed, IntegerBitSize::Zero) => {
-                    return Err(InterpreterError::TypeUnsupported { typ, location });
+                    Err(InterpreterError::TypeUnsupported { typ, location })
                 }
                 (Signedness::Signed, IntegerBitSize::One) => {
-                    return Err(InterpreterError::TypeUnsupported { typ, location });
+                    Err(InterpreterError::TypeUnsupported { typ, location })
                 }
                 (Signedness::Signed, IntegerBitSize::Eight) => {
                     let value: i8 =
@@ -781,7 +781,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     Ok(Value::I64(value))
                 }
                 (Signedness::Signed, IntegerBitSize::FieldElementBits) => {
-                    return Err(InterpreterError::TypeUnsupported { typ, location });
+                    Err(InterpreterError::TypeUnsupported { typ, location })
                 }
             }
         } else if let Type::TypeVariable(variable) = &typ {
@@ -1456,7 +1456,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     Ok(Value::Unit)
                 }
                 (Signedness::Unsigned, IntegerBitSize::One) => {
-                    Ok(Value::Bool(!lhs.is_zero() || lhs_is_negative)),
+                    Ok(Value::Bool(!lhs.is_zero() || lhs_is_negative))
                 }
                 (Signedness::Unsigned, IntegerBitSize::Eight) => cast_to_int!(lhs, to_u128, u8, U8),
                 (Signedness::Unsigned, IntegerBitSize::Sixteen) => {

@@ -42,7 +42,7 @@ impl<'context> Elaborator<'context> {
             }
             StatementKind::Semi(expr) => {
                 let (expr, _typ) = self.elaborate_expression(expr);
-                (HirStatement::Semi(expr), Type::Unit)
+                (HirStatement::Semi(expr), Type::unit())
             }
             StatementKind::Interned(id) => {
                 let kind = self.interner.get_statement_kind(id);
@@ -127,7 +127,7 @@ impl<'context> Elaborator<'context> {
         let is_global_let = let_stmt.is_global_let;
         let let_ =
             HirLetStatement::new(pattern, r#type, expression, attributes, comptime, is_global_let);
-        (HirStatement::Let(let_), Type::Unit)
+        (HirStatement::Let(let_), Type::unit())
     }
 
     pub(super) fn elaborate_constrain(
@@ -176,13 +176,13 @@ impl<'context> Elaborator<'context> {
         // Must type check the assertion message expression so that we instantiate bindings
         let msg = message.map(|assert_msg_expr| self.elaborate_expression(assert_msg_expr).0);
 
-        self.unify(&expr_type, &Type::Bool, || TypeCheckError::TypeMismatch {
+        self.unify(&expr_type, &Type::bool(), || TypeCheckError::TypeMismatch {
             expr_typ: expr_type.to_string(),
-            expected_typ: Type::Bool.to_string(),
+            expected_typ: Type::bool().to_string(),
             expr_span,
         });
 
-        (HirStatement::Constrain(HirConstrainStatement(expr_id, self.file, msg)), Type::Unit)
+        (HirStatement::Constrain(HirConstrainStatement(expr_id, self.file, msg)), Type::unit())
     }
 
     pub(super) fn elaborate_assign(&mut self, assign: AssignStatement) -> (HirStatement, Type) {
@@ -205,7 +205,7 @@ impl<'context> Elaborator<'context> {
         });
 
         let stmt = HirAssignStatement { lvalue, expression };
-        (HirStatement::Assign(stmt), Type::Unit)
+        (HirStatement::Assign(stmt), Type::unit())
     }
 
     pub(super) fn elaborate_for(&mut self, for_loop: ForLoopStatement) -> (HirStatement, Type) {
@@ -265,7 +265,7 @@ impl<'context> Elaborator<'context> {
         let statement =
             HirStatement::For(HirForStatement { start_range, end_range, block, identifier });
 
-        (statement, Type::Unit)
+        (statement, Type::unit())
     }
 
     fn elaborate_jump(&mut self, is_break: bool, span: noirc_errors::Span) -> (HirStatement, Type) {

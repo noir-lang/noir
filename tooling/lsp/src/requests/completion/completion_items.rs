@@ -185,9 +185,7 @@ impl<'a> NodeFinder<'a> {
             FunctionKind::Any => (),
             FunctionKind::SelfType(mut self_type) => {
                 if let Some(func_self_type) = func_self_type {
-                    if matches!(self_type, Type::Integer(..))
-                        || matches!(self_type, Type::FieldElement)
-                    {
+                    if matches!(self_type, Type::Integer(..)) {
                         // Check that the pattern type is the same as self type.
                         // We do this because some types (only Field and integer types)
                         // have their methods in the same HashMap.
@@ -464,9 +462,7 @@ fn func_meta_type_to_string(func_meta: &FuncMeta, has_self_type: bool) -> String
         string.push(')');
 
         let ret: &Type = ret;
-        if let Type::Unit = ret {
-            // Nothing
-        } else {
+        if !ret.is_unit() {
             string.push_str(" -> ");
             string.push_str(&ret.to_string());
         }

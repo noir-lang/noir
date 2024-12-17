@@ -74,7 +74,6 @@ impl<'context> Elaborator<'context> {
             };
 
         let resolved_type = match typ.typ {
-            FieldElement => Type::FieldElement,
             Array(size, elem) => {
                 let elem = Box::new(self.resolve_type_inner(*elem, kind));
                 let size = self.convert_expression_type(size, &Kind::u32(), span);
@@ -86,7 +85,6 @@ impl<'context> Elaborator<'context> {
             }
             Expression(expr) => self.convert_expression_type(expr, kind, span),
             Integer(sign, bits) => Type::Integer(sign, bits),
-            Bool => Type::Bool,
             String(size) => {
                 let resolved_size = self.convert_expression_type(size, &Kind::u32(), span);
                 Type::String(Box::new(resolved_size))
@@ -105,7 +103,6 @@ impl<'context> Elaborator<'context> {
                 }
                 Type::Quoted(quoted)
             }
-            Unit => Type::Unit,
             Unspecified => {
                 let span = typ.span;
                 self.push_err(TypeCheckError::UnspecifiedType { span });
@@ -124,19 +121,14 @@ impl<'context> Elaborator<'context> {
                 let env_span = env.span;
 
                 let env = Box::new(self.resolve_type_inner(*env, kind));
-
-                match *env {
-                    Type::Unit | Type::Tuple(_) | Type::NamedGeneric(_, _) => {
-                        Type::Function(args, ret, env, unconstrained)
-                    }
-                    _ => {
-                        self.push_err(ResolverError::InvalidClosureEnvironment {
-                            typ: *env,
-                            span: env_span,
-                        });
-                        Type::Error
-                    }
+                if !env.is_unit() && !env.is_tuple() && !env.is_named_generic() {
+                    self.push_err(ResolverError::InvalidClosureEnvironment {
+                        typ: *env,
+                        span: env_span,
+                    });
+                    return Type::Error;
                 }
+                Type::Function(args, ret, env, unconstrained)
             }
             MutableReference(element) => {
                 Type::MutableReference(Box::new(self.resolve_type_inner(*element, kind)))
@@ -869,7 +861,7 @@ impl<'context> Elaborator<'context> {
         };
 
         let from_is_polymorphic = match from_follow_bindings {
-            Type::Integer(..) | Type::FieldElement | Type::Bool => false,
+            Type::Integer(..) => false,
 
             Type::TypeVariable(ref var) if var.is_integer() || var.is_integer_or_field() => true,
             Type::TypeVariable(_) => {
@@ -909,8 +901,6 @@ impl<'context> Elaborator<'context> {
 
         match to {
             Type::Integer(sign, bits) => Type::Integer(*sign, *bits),
-            Type::FieldElement => Type::FieldElement,
-            Type::Bool => Type::Bool,
             Type::Error => Type::Error,
             _ => {
                 self.push_err(TypeCheckError::UnsupportedCast { span });
@@ -934,7 +924,7 @@ impl<'context> Elaborator<'context> {
 
         match (lhs_type, rhs_type) {
             // Avoid reporting errors multiple times
-            (Error, _) | (_, Error) => Ok((Bool, false)),
+            (Error, _) | (_, Error) => Ok((Type::bool(), false)),
             (Alias(alias, args), other) | (other, Alias(alias, args)) => {
                 let alias = alias.borrow().get_type(args);
                 self.comparator_operand_type_rules(&alias, other, op, span)
@@ -948,9 +938,12 @@ impl<'context> Elaborator<'context> {
                 }
 
                 let use_impl = self.bind_type_variables_for_infix(lhs_type, op, rhs_type, span);
-                Ok((Bool, use_impl))
+                Ok((Type::bool(), use_impl))
             }
             (Integer(sign_x, bit_width_x), Integer(sign_y, bit_width_y)) => {
+                if bit_width_x.is_field_element_bits() && !op.kind.is_valid_for_field_type() {
+                    return Err(TypeCheckError::FieldComparison { span });
+                }
                 if sign_x != sign_y {
                     return Err(TypeCheckError::IntegerSignedness {
                         sign_x: *sign_x,
@@ -965,19 +958,8 @@ impl<'context> Elaborator<'context> {
                         span,
                     });
                 }
-                Ok((Bool, false))
+                Ok((Type::bool(), false))
             }
-            (FieldElement, FieldElement) => {
-                if op.kind.is_valid_for_field_type() {
-                    Ok((Bool, false))
-                } else {
-                    Err(TypeCheckError::FieldComparison { span })
-                }
-            }
-
-            // <= and friends are technically valid for booleans, just not very useful
-            (Bool, Bool) => Ok((Bool, false)),
-
             (lhs, rhs) => {
                 self.unify(lhs, rhs, || TypeCheckError::TypeMismatchWithSource {
                     expected: lhs.clone(),
@@ -985,7 +967,7 @@ impl<'context> Elaborator<'context> {
                     span: op.location.span,
                     source: Source::Binary,
                 });
-                Ok((Bool, true))
+                Ok((Type::bool(), true))
             }
         }
     }
@@ -1077,6 +1059,14 @@ impl<'context> Elaborator<'context> {
                 Ok((other.clone(), use_impl))
             }
             (Integer(sign_x, bit_width_x), Integer(sign_y, bit_width_y)) => {
+                if bit_width_x.is_field_element_bits() && !op.kind.is_valid_for_field_type() {
+                    if op.kind == BinaryOpKind::Modulo {
+                        return Err(TypeCheckError::FieldModulo { span });
+                    } else {
+                        assert!(op.kind.is_bitwise(), "ICE: non-modulo, non-binary-op invalid for field type: {:?}", op.kind);
+                        return Err(TypeCheckError::FieldBitwiseOp { span });
+                    }
+                }
                 if op.kind == BinaryOpKind::ShiftLeft || op.kind == BinaryOpKind::ShiftRight {
                     if *sign_y != Signedness::Unsigned || *bit_width_y != IntegerBitSize::Eight {
                         return Err(TypeCheckError::InvalidShiftSize { span });
@@ -1099,19 +1089,6 @@ impl<'context> Elaborator<'context> {
                 }
                 Ok((Integer(*sign_x, *bit_width_x), false))
             }
-            // The result of two Fields is always a witness
-            (FieldElement, FieldElement) => {
-                if !op.kind.is_valid_for_field_type() {
-                    if op.kind == BinaryOpKind::Modulo {
-                        return Err(TypeCheckError::FieldModulo { span });
-                    } else {
-                        return Err(TypeCheckError::FieldBitwiseOp { span });
-                    }
-                }
-                Ok((FieldElement, false))
-            }
-
-            (Bool, Bool) => Ok((Bool, false)),
 
             (lhs, rhs) => {
                 if op.kind == BinaryOpKind::ShiftLeft || op.kind == BinaryOpKind::ShiftRight {
@@ -1172,6 +1149,17 @@ impl<'context> Elaborator<'context> {
                         Ok((rhs_type.clone(), !rhs_type.is_numeric_value()))
                     }
                     Integer(sign_x, bit_width_x) => {
+                        // The result of a Field is always a witness
+                        let value_level = true;
+                        if rhs_type.is_field_element(value_level) {
+                            if *op == UnaryOp::Not {
+                                return Err(TypeCheckError::FieldNot { span });
+                            }
+                            return Ok((Type::field_element(), false));
+                        }
+                        if rhs_type.is_bool() {
+                            return Ok((Type::bool(), false));
+                        }
                         if *op == UnaryOp::Minus && *sign_x == Signedness::Unsigned {
                             return Err(TypeCheckError::InvalidUnaryOp {
                                 kind: rhs_type.to_string(),
@@ -1180,16 +1168,6 @@ impl<'context> Elaborator<'context> {
                         }
                         Ok((Integer(*sign_x, *bit_width_x), false))
                     }
-                    // The result of a Field is always a witness
-                    FieldElement => {
-                        if *op == UnaryOp::Not {
-                            return Err(TypeCheckError::FieldNot { span });
-                        }
-                        Ok((FieldElement, false))
-                    }
-
-                    Bool => Ok((Bool, false)),
-
                     _ => Ok((rhs_type.clone(), true)),
                 }
             }

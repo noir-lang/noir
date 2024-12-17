@@ -1045,7 +1045,7 @@ impl Type {
     }
 
     pub fn is_integer(&self) -> bool {
-        matches!(self.follow_bindings(), Type::Integer(_, _))
+        matches!(self.follow_bindings(), Type::Integer(..))
     }
 
     /// If value_level, only check for Type::FieldElement,
@@ -1082,6 +1082,14 @@ impl Type {
             },
             _ => false,
         }
+    }
+
+    pub fn is_tuple(&self) -> bool {
+        matches!(self.follow_bindings(), Type::Tuple(..))
+    }
+
+    pub fn is_named_generic(&self) -> bool {
+        matches!(self.follow_bindings(), Type::NamedGeneric(..))
     }
 
     pub fn is_primitive(&self) -> bool {
@@ -1350,7 +1358,7 @@ impl Type {
     pub fn field_count(&self, location: &Location) -> u32 {
         match self {
             Type::Integer(_, num_bits) => {
-                if num_bits == &IntegerBitSize::Zero {
+                if num_bits.is_zero() {
                     unreachable!("This type cannot exist as a parameter to main")
                 } else {
                     1
@@ -1445,7 +1453,7 @@ impl Type {
         let this = self.substitute(bindings).follow_bindings();
         match &this {
             Type::Integer(_, num_bits) => {
-                if num_bits == &IntegerBitSize::FieldElementBits {
+                if num_bits.is_field_element_bits() {
                     if only_integer {
                         return Err(UnificationError);
                     } else {

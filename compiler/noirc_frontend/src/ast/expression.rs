@@ -110,11 +110,12 @@ impl UnresolvedGeneric {
         &self,
         typ: &UnresolvedType,
     ) -> Result<Type, UnsupportedNumericGenericType> {
-        use crate::ast::UnresolvedTypeData::{FieldElement, Integer};
+        use crate::ast::UnresolvedTypeData::Integer;
 
+        // TODO: only fields and "regular integers"?
         match typ.typ {
-            FieldElement => Ok(Type::FieldElement),
             Integer(sign, bits) => Ok(Type::Integer(sign, bits)),
+            // TODO: fix comment after seeing if this is buggy
             // Only fields and integers are supported for numeric kinds
             _ => Err(UnsupportedNumericGenericType {
                 ident: self.ident().clone(),
@@ -342,6 +343,15 @@ impl BinaryOpKind {
                 | BinaryOpKind::Less
                 | BinaryOpKind::Greater
                 | BinaryOpKind::GreaterEqual
+        )
+    }
+
+    pub fn is_bitwise(&self) -> bool {
+        matches!(
+            self,
+            BinaryOpKind::And
+                | BinaryOpKind::Or
+                | BinaryOpKind::Xor
         )
     }
 
@@ -888,7 +898,7 @@ impl FunctionReturnType {
     pub fn get_type(&self) -> Cow<UnresolvedType> {
         match self {
             FunctionReturnType::Default(span) => {
-                Cow::Owned(UnresolvedType { typ: UnresolvedTypeData::Unit, span: *span })
+                Cow::Owned(UnresolvedTypeData::unit().with_span(*span))
             }
             FunctionReturnType::Ty(typ) => Cow::Borrowed(typ),
         }

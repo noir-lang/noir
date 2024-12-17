@@ -60,7 +60,7 @@ impl NoirFunction {
 
     pub fn return_type(&self) -> UnresolvedType {
         match &self.def.return_type {
-            FunctionReturnType::Default(span) => UnresolvedTypeData::Unit.with_span(*span),
+            FunctionReturnType::Default(span) => UnresolvedTypeData::unit().with_span(*span),
             FunctionReturnType::Ty(ty) => ty.clone(),
         }
     }

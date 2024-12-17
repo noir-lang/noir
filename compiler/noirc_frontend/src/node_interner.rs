@@ -14,7 +14,7 @@ use petgraph::prelude::NodeIndex as PetGraphIndex;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::{
-    ExpressionKind, Ident, LValue, Pattern, StatementKind, UnaryOp, UnresolvedTypeData,
+    ExpressionKind, Ident, IntegerBitSize, LValue, Pattern, StatementKind, UnaryOp, UnresolvedTypeData,
 };
 use crate::graph::CrateId;
 use crate::hir::comptime;

@@ -115,7 +115,7 @@ pub(super) fn oracle_called_from_constrained_function(
 /// `pub` is required on return types for entry point functions
 pub(super) fn missing_pub(func: &FuncMeta, modifiers: &FunctionModifiers) -> Option<ResolverError> {
     if func.is_entry_point
-        && func.return_type() != &Type::Unit
+        && !func.return_type().is_unit()
         && func.return_visibility == Visibility::Private
     {
         let ident = func_meta_name_ident(func, modifiers);

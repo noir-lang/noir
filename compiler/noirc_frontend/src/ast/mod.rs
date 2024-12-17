@@ -66,6 +66,18 @@ impl IntegerBitSize {
             }
         }
     }
+
+    pub fn is_zero(&self) -> bool {
+        matches!(self, IntegerBitSize::Zero)
+    }
+
+    pub fn is_one(&self) -> bool {
+        matches!(self, IntegerBitSize::One)
+    }
+
+    pub fn is_field_element_bits(&self) -> bool {
+        matches!(self, IntegerBitSize::FieldElementBits)
+    }
 }
 
 impl IntegerBitSize {
@@ -296,13 +308,21 @@ impl std::fmt::Display for UnresolvedTypeData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use UnresolvedTypeData::*;
         match self {
-            FieldElement => write!(f, "Field"),
             Array(len, typ) => write!(f, "[{typ}; {len}]"),
             Slice(typ) => write!(f, "[{typ}]"),
-            Integer(sign, num_bits) => match sign {
-                Signedness::Signed => write!(f, "i{num_bits}"),
-                Signedness::Unsigned => write!(f, "u{num_bits}"),
-            },
+            Integer(sign, num_bits) => {
+                if num_bits.is_zero() {
+                    return write!(f, "()");
+                } else if num_bits.is_one() {
+                    return write!(f, "bool");
+                } else if num_bits.is_field_element_bits() {
+                    return write!(f, "Field");
+                }
+                match sign {
+                    Signedness::Signed => write!(f, "i{num_bits}"),
+                    Signedness::Unsigned => write!(f, "u{num_bits}"),
+                }
+            }
             Named(s, args, _) => write!(f, "{s}{args}"),
             TraitAsType(s, args) => write!(f, "impl {s}{args}"),
             Tuple(elements) => {
@@ -310,7 +330,6 @@ impl std::fmt::Display for UnresolvedTypeData {
                 write!(f, "({})", elements.join(", "))
             }
             Expression(expression) => expression.fmt(f),
-            Bool => write!(f, "bool"),
             String(len) => write!(f, "str<{len}>"),
             FormatString(len, elements) => write!(f, "fmt<{len}, {elements}"),
             Function(args, ret, env, unconstrained) => {
@@ -319,21 +338,18 @@ impl std::fmt::Display for UnresolvedTypeData {
                 }
 
                 let args = vecmap(args, ToString::to_string).join(", ");
-
-                match &env.as_ref().typ {
-                    UnresolvedTypeData::Unit => {
-                        write!(f, "fn({args}) -> {ret}")
-                    }
-                    UnresolvedTypeData::Tuple(env_types) => {
-                        let env_types = vecmap(env_types, |arg| arg.typ.to_string()).join(", ");
-                        write!(f, "fn[{env_types}]({args}) -> {ret}")
-                    }
-                    other => write!(f, "fn[{other}]({args}) -> {ret}"),
+                let env_typ = &env.as_ref().typ;
+                if env_typ.is_unit() {
+                    write!(f, "fn({args}) -> {ret}")
+                } else if let UnresolvedTypeData::Tuple(env_types) = env_typ {
+                    let env_types = vecmap(env_types, |arg| arg.typ.to_string()).join(", ");
+                    write!(f, "fn[{env_types}]({args}) -> {ret}")
+                } else {
+                    write!(f, "fn[{env_typ}]({args}) -> {ret}")
                 }
             }
             MutableReference(element) => write!(f, "&mut {element}"),
             Quoted(quoted) => write!(f, "{}", quoted),
-            Unit => write!(f, "()"),
             Error => write!(f, "error"),
             Unspecified => write!(f, "unspecified"),
             Parenthesized(typ) => write!(f, "({typ})"),
