@@ -644,15 +644,23 @@ jobs:
       - name: Move compilation artifacts
         run: |
           ls ./artifacts
+          ls ./test-repo/${{ matrix.project.path }}
           for artifact in ./artifacts/*; do
             echo $artifact
             PACKAGE_NAME=$(basename $artifact .json)
             echo $PACKAGE_NAME
+            NAME_FROM_MATRIX=${{ matrix.project.path }}
+            NAME_FROM_MATRIX=$(basename $PACKAGE_NAME)
+            if [ $PACKAGE_NAME -eq $NAME_FROM_MATRIX ]; then
+              echo "got here"
+              mkdir ./test-repo/${{ matrix.project.path }}/target 
+              mv $artifact ./test-repo/${{ matrix.project.path }}/target/$PACKAGE_NAME.json
+              break
+            fi
             # if [ ! -d "./test-repo/${{ matrix.project.path }}/target" ]; then
             # fi
-            ls ./test-repo/${{ matrix.project.path }}
             ls ./test-repo/${{ matrix.project.path }}/target
-            mv $artifact ./test-repo/${{ matrix.project.path }}/target/$PACKAGE_NAME.json
+            # mv $artifact ./test-repo/${{ matrix.project.path }}/target/$PACKAGE_NAME.json
           done
 
       - name: Generate execution report
