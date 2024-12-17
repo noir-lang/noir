@@ -300,6 +300,7 @@ jobs:
         with:
           path: scripts
           sparse-checkout: |
+            scripts/install_bb.sh
             .github/scripts/single_artifact_gates_report.sh
             test_programs/compilation_report.sh
           sparse-checkout-cone-mode: false
@@ -338,7 +339,7 @@ jobs:
 
       - name: Install `bb`
         run: |
-          ./scripts/install_bb.sh
+          /home/runner/work/noir/noir/scripts/scripts/install_bb.sh
           echo "$HOME/.bb/" >> $GITHUB_PATH
 
       - name: Generate gates report
