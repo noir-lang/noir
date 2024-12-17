@@ -350,7 +350,7 @@ jobs:
             echo $artifact
             PACKAGE_NAME=$(basename $artifact .json)
             echo $PACKAGE_NAME
-            mv ./test-repo/${{ matrix.project.path }}/target/$PACKAGE_NAME.json ./compilation_artifact_${{ steps.report.outputs.compilation_report_name }}.json
+            mv ./test-repo/${{ matrix.project.path }}/target/$PACKAGE_NAME.json ./compilation_artifact_$PACKAGE_NAME.json
             echo "compilation_artifact_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
           done
 
@@ -661,8 +661,9 @@ jobs:
               echo "got here"
               mkdir ./test-repo/${{ matrix.project.path }}/target
               # cd ./artifacts
-              cp ./artifacts/$ARTIFACT_NAME ./$ARTIFACT_NAME.json
-              mv $ARTIFACT_NAME.json ./test-repo/${{ matrix.project.path }}/target/$PACKAGE_NAME.json
+              # cp ./artifacts/$ARTIFACT_NAME ./$ARTIFACT_NAME.json
+              ls ./artifacts/$ARTIFACT_NAME
+              mv ./artifacts/$ARTIFACT_NAME/$ARTIFACT_NAME.json ./test-repo/${{ matrix.project.path }}/target/$PACKAGE_NAME.json
               break
             fi
             ls ./test-repo/${{ matrix.project.path }}
