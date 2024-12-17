@@ -406,7 +406,7 @@ jobs:
           - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-base-private }
           - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-base-public }
 
-    name: External repo compilation report - ${{ matrix.project.repo }}/${{ matrix.project.path }}
+    name: External repo compilation and execution reports - ${{ matrix.project.repo }}/${{ matrix.project.path }}
     steps:
       - name: Download nargo binary
         uses: actions/download-artifact@v4
@@ -487,13 +487,13 @@ jobs:
           retention-days: 3
           overwrite: true
 
-      # - name: Upload execution report
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: execution_report_${{ steps.report.outputs.execution_report_name }}
-      #     path: execution_report_${{ steps.report.outputs.execution_report_name }}.json
-      #     retention-days: 3
-      #     overwrite: true
+      - name: Upload execution report
+        uses: actions/upload-artifact@v4
+        with:
+          name: execution_report_${{ steps.report.outputs.execution_report_name }}
+          path: execution_report_${{ steps.report.outputs.execution_report_name }}.json
+          retention-days: 3
+          overwrite: true
 
   upload_compilation_report:
     name: Upload compilation report 
