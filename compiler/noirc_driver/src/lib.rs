@@ -150,6 +150,12 @@ pub struct CompileOptions {
     /// A lower value keeps the original program if it was smaller, even if it has more jumps.
     #[arg(long, hide = true, allow_hyphen_values = true)]
     pub max_bytecode_increase_percent: Option<i32>,
+
+    /// Use pedantic ACVM solving, i.e. double-check some black-box function
+    /// assumptions when solving.
+    /// This is disabled by default.
+    #[arg(long, default_value = "false")]
+    pub pedantic_solving: bool,
 }
 
 pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
@@ -313,6 +319,7 @@ pub fn check_crate(
         context,
         options.debug_comptime_in_file.as_deref(),
         error_on_unused_imports,
+        options.pedantic_solving,
     );
     let warnings_and_errors: Vec<FileDiagnostic> = diagnostics
         .into_iter()

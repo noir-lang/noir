@@ -452,7 +452,7 @@ fn prepare_package_from_source_string() {
     "#;
 
     let client = ClientSocket::new_closed();
-    let mut state = LspState::new(&client, acvm::blackbox_solver::StubbedBlackBoxSolver);
+    let mut state = LspState::new(&client, acvm::blackbox_solver::StubbedBlackBoxSolver::default());
 
     let (mut context, crate_id) = prepare_source(source.to_string(), &mut state);
     let _check_result = noirc_driver::check_crate(&mut context, crate_id, &Default::default());

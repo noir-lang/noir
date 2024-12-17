@@ -11,7 +11,7 @@ $BACKEND contract -o ./src/contract.sol
 
 # We now generate a proof and check whether the verifier contract will verify it.
 
-nargo execute witness
+nargo execute --pedantic-solving witness 
 
 PROOF_PATH=./target/proof
 $BACKEND prove -b ./target/hello_world.json -w ./target/witness.gz -o $PROOF_PATH

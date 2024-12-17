@@ -592,7 +592,7 @@ jobs:
       
       - name: Run nargo test
         working-directory: ./test-repo/${{ matrix.project.path }}
-        run: nargo test -q --silence-warnings
+        run: nargo test -q --silence-warnings --pedantic-solving
         env:
           NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS: true
 
