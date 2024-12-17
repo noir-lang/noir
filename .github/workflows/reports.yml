@@ -353,6 +353,7 @@ jobs:
             mv ./test-repo/${{ matrix.project.path }}/target/$PACKAGE_NAME.json ./compilation_artifact_$PACKAGE_NAME.json
             echo "compilation_artifact_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
           done
+          ls ./
 
       - name: Upload compilation report
         uses: actions/upload-artifact@v4
