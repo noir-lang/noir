@@ -23,13 +23,16 @@ pub(super) fn arb_value_from_abi_type(
             .prop_map(|bytes| InputValue::Field(FieldElement::from_be_bytes_reduce(&bytes)))
             .sboxed(),
         AbiType::Integer { width, sign } if sign == &Sign::Unsigned => {
-            UintStrategy::new(*width as usize, dictionary)
+            // We've restricted the type system to only allow u64s as the maximum integer type.
+            let width = (*width).min(64);
+            UintStrategy::new(width as usize, dictionary)
                 .prop_map(|uint| InputValue::Field(uint.into()))
                 .sboxed()
         }
         AbiType::Integer { width, .. } => {
-            let shift = 2i128.pow(*width);
-            IntStrategy::new(*width as usize)
+            let width = (*width).min(64);
+            let shift = 2i128.pow(width);
+            IntStrategy::new(width as usize)
                 .prop_map(move |mut int| {
                     if int < 0 {
                         int += shift

@@ -1,4 +1,4 @@
-use std::{cmp, collections::HashSet};
+use std::collections::HashSet;
 
 use acvm::{AcirField, FieldElement};
 use proptest::{
@@ -64,12 +64,8 @@ impl UintStrategy {
 
         // Generate value tree from fixture.
         let fixture = &self.fixtures[runner.rng().gen_range(0..self.fixtures.len())];
-        if fixture.num_bits() <= self.type_max_bits() as u32 {
-            return Ok(BinarySearch::new(fixture.to_u128()));
-        }
 
-        // If fixture is not a valid type, generate random value.
-        self.generate_random_tree(runner)
+        Ok(BinarySearch::new(fixture.to_u128()))
     }
 
     /// Generate random values between 0 and the MAX with the given bit width.
@@ -82,19 +78,11 @@ impl UintStrategy {
 
     /// Maximum integer that fits in the given bit width.
     fn type_max(&self) -> u128 {
-        let bits = self.type_max_bits();
-        if bits < 128 {
-            (1 << bits) - 1
+        if self.bits < 128 {
+            (1 << self.bits) - 1
         } else {
             u128::MAX
         }
-    }
-
-    /// Maximum bits that we generate values for.
-    ///
-    /// We've restricted the type system to only allow u64s as the maximum integer type.
-    fn type_max_bits(&self) -> usize {
-        cmp::min(self.bits, 64)
     }
 }
 

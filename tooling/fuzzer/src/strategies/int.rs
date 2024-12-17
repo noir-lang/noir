@@ -1,5 +1,3 @@
-use std::cmp;
-
 use proptest::{
     strategy::{NewTree, Strategy},
     test_runner::TestRunner,
@@ -56,9 +54,8 @@ impl IntStrategy {
 
     /// Maximum allowed positive number.
     fn type_max(&self) -> i128 {
-        let bits = self.type_max_bits();
-        if bits < 128 {
-            (1i128 << (bits - 1)) - 1
+        if self.bits < 128 {
+            (1i128 << (self.bits - 1)) - 1
         } else {
             i128::MAX
         }
@@ -66,19 +63,11 @@ impl IntStrategy {
 
     /// Minimum allowed negative number.
     fn type_min(&self) -> i128 {
-        let bits = self.type_max_bits();
-        if bits < 128 {
-            -(1i128 << (bits - 1))
+        if self.bits < 128 {
+            -(1i128 << (self.bits - 1))
         } else {
             i128::MIN
         }
-    }
-
-    /// Maximum number of bits for which we generate random numbers.
-    ///
-    /// We've restricted the type system to only allow u64s as the maximum integer type.
-    fn type_max_bits(&self) -> usize {
-        cmp::min(self.bits, 64)
     }
 }
 
