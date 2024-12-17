@@ -398,13 +398,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-contracts, library: true }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/parity-root, library: false }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-inner, library: false }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-tail, library: false }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-reset, library: false }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-base-private, library: false }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-base-public, library: false }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-contracts, library: "true" }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/parity-root, library: "false" }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-inner, library: "false" }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-tail, library: "false" }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-reset, library: "false" }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-base-private, library: "false" }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-base-public, library: "false" }
 
     name: External repo compilation report - ${{ matrix.project.repo }}/${{ matrix.project.path }}
     steps:
