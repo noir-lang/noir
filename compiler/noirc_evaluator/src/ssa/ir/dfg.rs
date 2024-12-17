@@ -2,7 +2,6 @@ use crate::ssa::{function_builder::data_bus::DataBus, ir::instruction::SimplifyR
 
 use super::{
     basic_block::{BasicBlock, BasicBlockId},
-    function::FunctionId,
     instruction::{
         insert_result::InsertInstructionResult, Instruction, InstructionId, InstructionResultType,
         TerminatorInstruction,
@@ -27,12 +26,6 @@ use serde_with::serde_as;
 pub(crate) struct DataFlowGraph {
     /// All of the instructions in a function
     instructions: DenseMap<Instruction>,
-
-    /// Contains each function that has been imported into the current function.
-    /// A unique `ValueId` for each function's [`Value::Function`] is stored so any given FunctionId
-    /// will always have the same ValueId within this function.
-    #[serde(skip)]
-    functions: HashMap<FunctionId, Value>,
 
     /// Contains each foreign function that has been imported into the current function.
     /// This map is used to ensure that the ValueId for any given foreign function is always
@@ -231,14 +224,6 @@ impl DataFlowGraph {
             Some(id) => self.resolve(*id),
             None => original_value_id,
         }
-    }
-
-    /// Gets or creates a ValueId for the given FunctionId.
-    pub(crate) fn import_function(&mut self, function: FunctionId) -> Value {
-        if let Some(existing) = self.functions.get(&function) {
-            return *existing;
-        }
-        Value::Function(function)
     }
 
     /// Gets or creates a ValueId for the given FunctionId.

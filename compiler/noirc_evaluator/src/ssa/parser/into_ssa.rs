@@ -185,8 +185,7 @@ impl Translator {
                 let function_id = if let Some(id) = self.builder.import_intrinsic(&function.name) {
                     id
                 } else {
-                    let function_id = self.lookup_function(function)?;
-                    self.builder.import_function(function_id)
+                    Value::Function(self.lookup_function(function)?)
                 };
 
                 let arguments = self.translate_values(arguments)?;

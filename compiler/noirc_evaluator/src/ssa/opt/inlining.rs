@@ -140,7 +140,7 @@ fn called_functions_vec(func: &Function) -> Vec<FunctionId> {
                 continue;
             };
 
-            if let Value::Function(function_id) = *called_value {
+            if let Value::Function(function_id) = func.dfg.resolve(*called_value) {
                 called_function_ids.push(function_id);
             }
         }
@@ -457,7 +457,7 @@ impl<'function> PerFunctionContext<'function> {
             return *value;
         }
 
-        let new_value = match old_value {
+        let new_value = match self.source_function.dfg.resolve(old_value) {
             value @ Value::Instruction { .. } => {
                 unreachable!("All Value::Instructions should already be known during inlining after creating the original inlined instruction. Unknown value {value}")
             }
@@ -465,7 +465,7 @@ impl<'function> PerFunctionContext<'function> {
                 unreachable!("All Value::Params should already be known from previous calls to translate_block. Unknown value {value}")
             }
             Value::NumericConstant { constant, typ } => Value::constant(constant, typ),
-            Value::Function(function) => self.context.builder.import_function(function),
+            Value::Function(function) => Value::Function(function),
             Value::Intrinsic(intrinsic) => Value::Intrinsic(intrinsic),
             Value::ForeignFunction(function) => {
                 let function = &self.source_function.dfg[function];
@@ -562,7 +562,10 @@ impl<'function> PerFunctionContext<'function> {
     /// If there are multiple, we'll need to create a join block to jump to with each value.
     ///
     /// Returns the returned values.
-    fn handle_function_returns(&mut self, mut returns: Vec<(BasicBlockId, Vec<Value>)>) -> Vec<Value> {
+    fn handle_function_returns(
+        &mut self,
+        mut returns: Vec<(BasicBlockId, Vec<Value>)>,
+    ) -> Vec<Value> {
         // Clippy complains if this were written as an if statement
         match returns.len() {
             1 => {
@@ -834,7 +837,7 @@ mod test {
         let mut builder = FunctionBuilder::new("foo".into(), foo_id);
 
         let bar_id = Id::test_new(1);
-        let bar = builder.import_function(bar_id);
+        let bar = Value::Function(bar_id);
         let results = builder.insert_call(bar, Vec::new(), vec![Type::field()]).collect();
         builder.terminate_with_return(results);
 
@@ -883,9 +886,9 @@ mod test {
         let mut builder = FunctionBuilder::new("main".into(), main_id);
         let main_v0 = builder.add_parameter(Type::field());
 
-        let main_f1 = builder.import_function(square_id);
-        let main_f2 = builder.import_function(id1_id);
-        let main_f3 = builder.import_function(id2_id);
+        let main_f1 = Value::Function(square_id);
+        let main_f2 = Value::Function(id1_id);
+        let main_f3 = Value::Function(id2_id);
 
         let main_v7 =
             builder.insert_call(main_f2, vec![main_f1], vec![Type::Function]).next().unwrap();
@@ -942,7 +945,7 @@ mod test {
         let mut builder = FunctionBuilder::new("main".into(), main_id);
 
         let factorial_id = Id::test_new(1);
-        let factorial = builder.import_function(factorial_id);
+        let factorial = Value::Function(factorial_id);
 
         let five = Value::field_constant(5u128.into());
         let results = builder.insert_call(factorial, vec![five], vec![Type::field()]).collect();
@@ -962,7 +965,7 @@ mod test {
         builder.terminate_with_return(vec![one]);
 
         builder.switch_to_block(b2);
-        let factorial_id = builder.import_function(factorial_id);
+        let factorial_id = Value::Function(factorial_id);
         let v2 = builder.insert_binary(v0, BinaryOp::Sub, one);
         let v3 = builder.insert_call(factorial_id, vec![v2], vec![Type::field()]).next().unwrap();
         let v4 = builder.insert_binary(v0, BinaryOp::Mul, v3);
@@ -1043,7 +1046,7 @@ mod test {
 
         let main_cond = builder.add_parameter(Type::bool());
         let inner1_id = Id::test_new(1);
-        let inner1 = builder.import_function(inner1_id);
+        let inner1 = Value::Function(inner1_id);
         let mut main_v2 = builder.insert_call(inner1, vec![main_cond], vec![Type::field()]);
         let main_v2 = main_v2.next().unwrap();
         let assert_constant = Value::Intrinsic(Intrinsic::AssertConstant);
@@ -1053,7 +1056,7 @@ mod test {
         builder.new_function("inner1".into(), inner1_id, InlineType::default());
         let inner1_cond = builder.add_parameter(Type::bool());
         let inner2_id = Id::test_new(2);
-        let inner2 = builder.import_function(inner2_id);
+        let inner2 = Value::Function(inner2_id);
         let mut inner1_v2 = builder.insert_call(inner2, vec![inner1_cond], vec![Type::field()]);
         let inner1_v2 = inner1_v2.next().unwrap();
         builder.terminate_with_return(vec![inner1_v2]);
@@ -1104,7 +1107,7 @@ mod test {
         let main_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("main".into(), main_id);
 
-        let main = builder.import_function(main_id);
+        let main = Value::Function(main_id);
         let results = builder.insert_call(main, Vec::new(), vec![]).collect();
         builder.terminate_with_return(results);
 
@@ -1131,7 +1134,7 @@ mod test {
         builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
 
         let bar_id = Id::test_new(1);
-        let bar = builder.import_function(bar_id);
+        let bar = Value::Function(bar_id);
         let results = builder.insert_call(bar, Vec::new(), vec![Type::field()]).collect();
         builder.terminate_with_return(results);
 
@@ -1173,7 +1176,7 @@ mod test {
         builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
 
         let bar_id = Id::test_new(1);
-        let bar = builder.import_function(bar_id);
+        let bar = Value::Function(bar_id);
         let v0 = builder.insert_call(bar, Vec::new(), vec![Type::field()]).collect();
         let _v1 = builder.insert_call(bar, Vec::new(), vec![Type::field()]);
         let _v2 = builder.insert_call(bar, Vec::new(), vec![Type::field()]);

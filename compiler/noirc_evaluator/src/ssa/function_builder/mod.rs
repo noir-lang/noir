@@ -372,12 +372,6 @@ impl FunctionBuilder {
         self.terminate_block_with(TerminatorInstruction::Return { return_values, call_stack });
     }
 
-    /// Returns a ValueId pointing to the given function or imports the function
-    /// into the current function if it was not already, and returns that ID.
-    pub(crate) fn import_function(&mut self, function: FunctionId) -> Value {
-        self.current_function.dfg.import_function(function)
-    }
-
     /// Returns a ValueId pointing to the given oracle/foreign function or imports the oracle
     /// into the current function if it was not already, and returns that ID.
     pub(crate) fn import_foreign_function(&mut self, function: &str) -> Value {

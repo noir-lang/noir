@@ -108,7 +108,7 @@ impl DefunctionalizationContext {
                         let apply_function = self.get_apply_function(&signature);
 
                         // Replace the instruction with a call to apply
-                        let apply_function_value_id = func.dfg.import_function(apply_function.id);
+                        let apply_function_value_id = Value::Function(apply_function.id);
                         if apply_function.dispatches_to_multiple_functions {
                             arguments.insert(0, target_func);
                         }
@@ -354,7 +354,7 @@ fn create_apply_function(
             previous_target_block = Some(target_block);
 
             // Call the function
-            let target_function_value = function_builder.import_function(*function_id);
+            let target_function_value = Value::Function(*function_id);
             let call_results = function_builder
                 .insert_call(target_function_value, params_ids.clone(), signature.returns.clone())
                 .collect();

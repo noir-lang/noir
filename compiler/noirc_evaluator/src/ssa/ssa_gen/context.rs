@@ -674,7 +674,7 @@ impl<'a> FunctionContext<'a> {
     /// if it is not yet compiled.
     pub(super) fn get_or_queue_function(&mut self, id: FuncId) -> Values {
         let function = self.shared_context.get_or_queue_function(id);
-        self.builder.import_function(function).into()
+        Value::Function(function).into()
     }
 
     /// Extracts the current value out of an LValue.

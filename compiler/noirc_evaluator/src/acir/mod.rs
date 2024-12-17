@@ -2987,7 +2987,7 @@ mod test {
         let main_v1 = builder.add_parameter(Type::field());
 
         let foo_id = Id::test_new(1);
-        let foo = builder.import_function(foo_id);
+        let foo = Value::Function(foo_id);
         let main_call1_result =
             builder.insert_call(foo, vec![main_v0, main_v1], vec![Type::field()]).next().unwrap();
         let main_call2_result =
@@ -3092,7 +3092,7 @@ mod test {
         let main_v1 = builder.add_parameter(Type::field());
 
         let foo_id = Id::test_new(1);
-        let foo = builder.import_function(foo_id);
+        let foo = Value::Function(foo_id);
         let main_call1_result =
             builder.insert_call(foo, vec![main_v0, main_v1], vec![Type::field()]).next().unwrap();
 
@@ -3177,7 +3177,7 @@ mod test {
         let main_v1 = builder.add_parameter(Type::field());
 
         let func_with_nested_foo_call_id = Id::test_new(1);
-        let func_with_nested_foo_call = builder.import_function(func_with_nested_foo_call_id);
+        let func_with_nested_foo_call = Value::Function(func_with_nested_foo_call_id);
         let main_call1_result = builder
             .insert_call(func_with_nested_foo_call, vec![main_v0, main_v1], vec![Type::field()])
             .next()
@@ -3203,7 +3203,7 @@ mod test {
         let v0_plus_two = builder.insert_binary(func_with_nested_call_v0, BinaryOp::Add, two);
 
         let foo_id = Id::test_new(2);
-        let foo_call = builder.import_function(foo_id);
+        let foo_call = Value::Function(foo_id);
         let foo_call = builder
             .insert_call(foo_call, vec![v0_plus_two, func_with_nested_call_v1], vec![Type::field()])
             .collect();
@@ -3317,9 +3317,9 @@ mod test {
         let main_v1 = builder.add_parameter(Type::field());
 
         let foo_id = Id::test_new(1);
-        let foo = builder.import_function(foo_id);
+        let foo = Value::Function(foo_id);
         let bar_id = Id::test_new(2);
-        let bar = builder.import_function(bar_id);
+        let bar = Value::Function(bar_id);
 
         // Insert multiple calls to the same Brillig function
         builder.insert_call(foo, vec![main_v0, main_v1], vec![Type::field()]);
@@ -3453,7 +3453,7 @@ mod test {
         let main_v2 = builder.add_parameter(Type::unsigned(32));
 
         let foo_id = Id::test_new(1);
-        let foo = builder.import_function(foo_id);
+        let foo = Value::Function(foo_id);
 
         // Call a primitive operation that uses Brillig
         let v0_div_v1 = builder.insert_binary(main_v0, BinaryOp::Div, main_v1);
@@ -3536,9 +3536,9 @@ mod test {
         let main_v2 = builder.add_parameter(Type::unsigned(32));
 
         let foo_id = Id::test_new(1);
-        let foo = builder.import_function(foo_id);
+        let foo = Value::Function(foo_id);
         let bar_id = Id::test_new(2);
-        let bar = builder.import_function(bar_id);
+        let bar = Value::Function(bar_id);
 
         // Call a primitive operation that uses Brillig
         let v0_div_v1 = builder.insert_binary(main_v0, BinaryOp::Div, main_v1);

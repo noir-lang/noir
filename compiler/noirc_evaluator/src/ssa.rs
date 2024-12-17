@@ -502,7 +502,7 @@ impl SsaBuilder {
             }
         };
         if print_ssa_pass {
-            self.ssa.normalize_ids();
+            // self.ssa.normalize_ids();
             println!("After {msg}:\n{}", self.ssa);
         }
         self

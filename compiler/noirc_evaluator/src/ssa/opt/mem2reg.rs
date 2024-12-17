@@ -465,7 +465,6 @@ impl<'f> PerFunctionContext<'f> {
                     }
                 }
 
-                eprintln!("Remembering *{address} = {value}");
                 references.set_known_value(address, value);
                 // If we see a store to an address, the last load to that address needs to remain.
                 references.keep_last_load_for(address, self.inserter.function);

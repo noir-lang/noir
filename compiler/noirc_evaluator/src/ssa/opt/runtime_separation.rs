@@ -111,13 +111,11 @@ impl RuntimeSeparatorContext {
     fn replace_calls_to_mapped_functions(&self, ssa: &mut Ssa) {
         for (_function_id, func) in ssa.functions.iter_mut() {
             if matches!(func.runtime(), RuntimeType::Brillig(_)) {
-                for called_func_value in called_functions_values(func).iter() {
-                    let Value::Function(called_func_id) = called_func_value else {
-                        unreachable!("Value should be a function")
-                    };
-                    if let Some(mapped_func_id) = self.mapped_functions.get(called_func_id) {
-                        let mapped_value_id = func.dfg.import_function(*mapped_func_id);
-                        func.dfg.replace_value(*called_func_value, mapped_value_id);
+                for called_func_id in called_functions(func) {
+                    if let Some(mapped_func_id) = self.mapped_functions.get(&called_func_id) {
+                        let mapped_value_id = Value::Function(*mapped_func_id);
+                        let called_func_value = Value::Function(called_func_id);
+                        func.dfg.replace_value(called_func_value, mapped_value_id);
                     }
                 }
             }
@@ -126,7 +124,7 @@ impl RuntimeSeparatorContext {
 }
 
 // We only consider direct calls to functions since functions as values should have been resolved
-fn called_functions_values(func: &Function) -> BTreeSet<Value> {
+fn called_functions(func: &Function) -> BTreeSet<FunctionId> {
     let mut called_function_ids = BTreeSet::default();
     for block_id in func.reachable_blocks() {
         for instruction_id in func.dfg[block_id].instructions() {
@@ -134,25 +132,13 @@ fn called_functions_values(func: &Function) -> BTreeSet<Value> {
                 continue;
             };
 
-            if let Value::Function(_) = called_value {
-                called_function_ids.insert(*called_value);
+            if let Value::Function(function_id) = func.dfg.resolve(*called_value) {
+                called_function_ids.insert(function_id);
             }
         }
     }
 
     called_function_ids
-}
-
-fn called_functions(func: &Function) -> BTreeSet<FunctionId> {
-    called_functions_values(func)
-        .into_iter()
-        .map(|value| {
-            let Value::Function(func_id) = value else {
-                unreachable!("Value should be a function")
-            };
-            func_id
-        })
-        .collect()
 }
 
 fn collect_reachable_functions(
@@ -168,8 +154,8 @@ fn collect_reachable_functions(
     let func = &ssa.functions[&current_func_id];
     let called_functions = called_functions(func);
 
-    for called_func_id in called_functions.iter() {
-        collect_reachable_functions(ssa, *called_func_id, reachable_functions);
+    for called_func_id in called_functions {
+        collect_reachable_functions(ssa, called_func_id, reachable_functions);
     }
 }
 
@@ -214,7 +200,7 @@ mod test {
         builder.current_function.set_runtime(RuntimeType::Brillig(InlineType::default()));
 
         let bar_id = Id::test_new(1);
-        let bar = builder.import_function(bar_id);
+        let bar = Value::Function(bar_id);
         let results = builder.insert_call(bar, Vec::new(), vec![Type::field()]).collect();
         builder.terminate_with_return(results);
 
@@ -287,14 +273,14 @@ mod test {
 
         let bar_id = Id::test_new(1);
         let baz_id = Id::test_new(2);
-        let bar = builder.import_function(bar_id);
-        let baz = builder.import_function(baz_id);
+        let bar = Value::Function(bar_id);
+        let baz = Value::Function(baz_id);
         let v0 = builder.insert_call(bar, Vec::new(), vec![Type::field()]).next().unwrap();
         let v1 = builder.insert_call(baz, Vec::new(), vec![Type::field()]).next().unwrap();
         builder.terminate_with_return(vec![v0, v1]);
 
         builder.new_brillig_function("bar".into(), bar_id, InlineType::default());
-        let baz = builder.import_function(baz_id);
+        let baz = Value::Function(baz_id);
         let v0 = builder.insert_call(baz, Vec::new(), vec![Type::field()]).collect();
         builder.terminate_with_return(v0);
 
