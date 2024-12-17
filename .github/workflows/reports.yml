@@ -336,12 +336,17 @@ jobs:
 
       # While we've got the compiled artifacts, we measure the number of gates in the circuits.
 
+      - name: Install `bb`
+        run: |
+          ./scripts/install_bb.sh
+          echo "$HOME/.bb/" >> $GITHUB_PATH
+
       - name: Generate gates report
         working-directory: ./test-repo/${{ matrix.project.path }}
         run: |
           PACKAGE_NAME=${{ matrix.project.path }}
           PACKAGE_NAME=$(basename $PACKAGE_NAME)
-          mv /home/runner/work/noir/noir/.github/scripts/single_artifact_gates_report.sh ./single_artifact_gates_report.sh
+          mv /home/runner/work/noir/noir/scripts/.github/scripts/single_artifact_gates_report.sh ./single_artifact_gates_report.sh
           ./single_artifact_gates_report.sh ./temp/target/* > gates_report_$PACKAGE_NAME.json
           echo "gates_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
 
