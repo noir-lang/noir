@@ -82,7 +82,12 @@ impl UintStrategy {
 
     /// Maximum integer that fits in the given bit width.
     fn type_max(&self) -> u128 {
-        (1 << self.type_max_bits()) - 1
+        let bits = self.type_max_bits();
+        if bits < 128 {
+            (1 << bits) - 1
+        } else {
+            u128::MAX
+        }
     }
 
     /// Maximum bits that we generate values for.

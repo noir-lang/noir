@@ -50,19 +50,28 @@ impl IntStrategy {
 
     fn generate_random_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
         let rng = runner.rng();
-
         let start: i128 = rng.gen_range(self.type_min()..=self.type_max());
         Ok(BinarySearch::new(start))
     }
 
-    /// We've restricted the type system to only allow u64s as the maximum integer type.
+    /// Maximum allowed positive number.
     fn type_max(&self) -> i128 {
-        (1i128 << (self.type_max_bits() - 1)) - 1
+        let bits = self.type_max_bits();
+        if bits < 128 {
+            (1i128 << (bits - 1)) - 1
+        } else {
+            i128::MAX
+        }
     }
 
-    /// We've restricted the type system to only allow u64s as the maximum integer type.
+    /// Minimum allowed negative number.
     fn type_min(&self) -> i128 {
-        -(1i128 << (self.type_max_bits() - 1))
+        let bits = self.type_max_bits();
+        if bits < 128 {
+            -(1i128 << (bits - 1))
+        } else {
+            i128::MIN
+        }
     }
 
     /// Maximum number of bits for which we generate random numbers.
