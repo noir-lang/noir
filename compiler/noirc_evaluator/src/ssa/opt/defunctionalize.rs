@@ -76,33 +76,29 @@ impl DefunctionalizationContext {
 
     /// Defunctionalize a single function
     fn defunctionalize(&mut self, func: &mut Function) {
-        let mut instructions_with_higher_order_functions = Vec::new();
-        let reachable_blocks = func.reachable_blocks();
+        for block_id in func.reachable_blocks() {
+            let instructions = func.dfg[block_id].take_instructions();
 
-        for block_id in reachable_blocks.clone() {
-            let block = &func.dfg[block_id];
-            let instructions = block.instructions().to_vec();
+            // First replace any function parameters with fields
+            for parameter in func.dfg[block_id].parameter_types_mut() {
+                if *parameter == Type::Function {
+                    *parameter = Type::field();
+                }
+            }
 
-            for instruction_id in instructions {
-                let instruction = func.dfg[instruction_id].clone();
+            // Then replace the terminator values
+            func.dfg[block_id].unwrap_terminator_mut().mutate_values(Self::function_to_field);
+
+            for instruction_id in &instructions {
+                let instruction_id = *instruction_id;
                 let mut replacement_instruction = None;
 
-                let (target_func, arguments) = match &instruction {
-                    Instruction::Call { func, arguments, .. } => {
-                        for argument in arguments {
-                            if matches!(argument, Value::Function(_)) {
-                                instructions_with_higher_order_functions.push(instruction_id);
-                            }
-                        }
-                        (*func, arguments)
-                    }
-                    other => {
-                        other.for_each_value(|value| {
-                            // All uses of functions outside of Call instructions are higher order
-                            if matches!(value, Value::Function(_)) {
-                                instructions_with_higher_order_functions.push(instruction_id);
-                            }
-                        });
+                // Finally, check to see if this is a call to a non-function literal
+                // and if so replace the call with a call to the apply function
+                let (target_func, arguments) = match &func.dfg[instruction_id] {
+                    Instruction::Call { func, arguments, .. } => (*func, arguments),
+                    _ => {
+                        Self::mutate_function_instruction_arguments(func, instruction_id);
                         continue;
                     }
                 };
@@ -137,44 +133,67 @@ impl DefunctionalizationContext {
                 if let Some(new_instruction) = replacement_instruction {
                     func.dfg[instruction_id] = new_instruction;
                 }
-            }
-        }
 
-        self.mutate_values(func, reachable_blocks, instructions_with_higher_order_functions);
+                // Change any function literals in this instruction to fields.
+                // This must be done after using the apply function
+                Self::mutate_function_instruction_arguments(func, instruction_id);
+            }
+
+            *func.dfg[block_id].instructions_mut() = instructions;
+        }
     }
 
-    /// Change the type of all the values that are not call targets to NativeField
-    fn mutate_values(
-        &self,
-        func: &mut Function,
-        reachable_blocks: BTreeSet<BasicBlockId>,
-        instructions_with_higher_order_functions: Vec<InstructionId>,
+    /// Mutates any function literals used in the given instruction into field literals,
+    /// and mutates any function types returned into field types
+    fn mutate_function_instruction_arguments(
+        function: &mut Function,
+        instruction_id: InstructionId,
     ) {
-        // First change all block arguments and terminators
-        for block in reachable_blocks {
-            for parameter in func.dfg[block].parameter_types_mut() {
-                if *parameter == Type::Function {
-                    *parameter = Type::field();
+        let mut contains_function = false;
+
+        match &function.dfg[instruction_id] {
+            // Special case calls to avoid changing `func` to a field
+            Instruction::Call { func, arguments, result_types } => {
+                for argument in arguments {
+                    if matches!(argument, Value::Function(_)) {
+                        contains_function = true;
+                        break;
+                    }
+                }
+                contains_function = contains_function
+                    || result_types.iter().any(|typ| matches!(typ, Type::Function));
+
+                if contains_function {
+                    let func = *func;
+                    let result_types = vecmap(result_types, Self::function_type_to_field);
+                    let arguments = vecmap(arguments.iter().copied(), Self::function_to_field);
+                    let new_instruction = Instruction::Call { func, arguments, result_types };
+                    function.dfg[instruction_id] = new_instruction;
                 }
             }
+            other => {
+                other.for_each_value(|value| {
+                    // All uses of functions outside of Call instructions are higher order
+                    contains_function = contains_function || matches!(value, Value::Function(_));
+                });
+                other.for_each_type(|typ| {
+                    contains_function = contains_function || matches!(typ, Type::Function);
+                });
+                if contains_function {
+                    let mut instruction =
+                        function.dfg[instruction_id].map_values(Self::function_to_field);
+                    instruction.map_types_mut(|typ| *typ = Self::function_type_to_field(typ));
+                    function.dfg[instruction_id] = instruction;
+                }
+            }
+        };
+    }
 
-            func.dfg[block].unwrap_terminator_mut().mutate_values(Self::function_to_field);
-        }
-
-        // Replace each function value in each instruction that uses one with a field value
-        for instruction_id in instructions_with_higher_order_functions {
-            let instruction = &func.dfg[instruction_id];
-
-            // In call instructions, we should only map the arguments
-            let new_instruction =
-                if let Instruction::Call { func, arguments, result_types } = instruction {
-                    let arguments = vecmap(arguments.iter().copied(), Self::function_to_field);
-                    Instruction::Call { func: *func, arguments, result_types: result_types.clone() }
-                } else {
-                    func.dfg[instruction_id].map_values(Self::function_to_field)
-                };
-
-            func.dfg[instruction_id] = new_instruction;
+    fn function_type_to_field(typ: &Type) -> Type {
+        if matches!(typ, Type::Function) {
+            Type::field()
+        } else {
+            typ.clone()
         }
     }
 

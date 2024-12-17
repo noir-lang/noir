@@ -741,6 +741,54 @@ impl Instruction {
         }
     }
 
+    /// Iterate over the types in this instruction, if any.
+    /// Note that this skips over any `NumericType`s.
+    pub(crate) fn for_each_type(&self, mut f: impl FnMut(&Type)) {
+        match self {
+            Instruction::Binary(_)
+            | Instruction::Cast(_, _)
+            | Instruction::Not(_)
+            | Instruction::Truncate { .. }
+            | Instruction::Constrain(..)
+            | Instruction::RangeCheck { .. }
+            | Instruction::ArraySet { .. }
+            | Instruction::IncrementRc { .. }
+            | Instruction::DecrementRc { .. }
+            | Instruction::IfElse { .. }
+            | Instruction::Store { .. }
+            | Instruction::EnableSideEffectsIf { .. } => (),
+            Instruction::Allocate { element_type } => f(element_type),
+            Instruction::Load { result_type, .. } => f(result_type),
+            Instruction::ArrayGet { result_type, .. } => f(result_type),
+            Instruction::MakeArray { typ, .. } => f(typ),
+            Instruction::Call { result_types, .. } => result_types.iter().for_each(f),
+        }
+    }
+
+    /// Mutate the types on this instruction.
+    /// Note that `NumericType`s are skipped over.
+    pub(crate) fn map_types_mut(&mut self, mut f: impl FnMut(&mut Type)) {
+        match self {
+            Instruction::Binary(_)
+            | Instruction::Cast(_, _)
+            | Instruction::Not(_)
+            | Instruction::Truncate { .. }
+            | Instruction::Constrain(..)
+            | Instruction::RangeCheck { .. }
+            | Instruction::ArraySet { .. }
+            | Instruction::IncrementRc { .. }
+            | Instruction::DecrementRc { .. }
+            | Instruction::IfElse { .. }
+            | Instruction::Store { .. }
+            | Instruction::EnableSideEffectsIf { .. } => (),
+            Instruction::Allocate { element_type } => f(element_type),
+            Instruction::Load { result_type, .. } => f(result_type),
+            Instruction::ArrayGet { result_type, .. } => f(result_type),
+            Instruction::MakeArray { typ, .. } => f(typ),
+            Instruction::Call { result_types, .. } => result_types.iter_mut().for_each(f),
+        }
+    }
+
     /// Try to simplify this instruction. If the instruction can be simplified to a known value,
     /// that value is returned. Otherwise None is returned.
     ///
