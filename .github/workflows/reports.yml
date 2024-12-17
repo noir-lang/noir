@@ -225,191 +225,6 @@ jobs:
           retention-days: 3
           overwrite: true
 
-  generate_compilation_report:
-    name: Compilation time
-    needs: [build-nargo]
-    runs-on: ubuntu-22.04
-    permissions:
-      pull-requests: write
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download nargo binary
-        uses: actions/download-artifact@v4
-        with:
-          name: nargo
-          path: ./nargo
-
-      - name: Set nargo on PATH
-        run: |
-          nargo_binary="${{ github.workspace }}/nargo/nargo"
-          chmod +x $nargo_binary
-          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
-          export PATH="$PATH:$(dirname $nargo_binary)"
-          nargo -V
-
-      - name: Generate Compilation report
-        working-directory: ./test_programs
-        run: |
-          ./compilation_report.sh
-          mv compilation_report.json ../compilation_report.json
-
-      - name: Move compilation artifacts
-        run: |
-          ARTIFACT_NAMES=$(jq -r '.compilation_reports[].artifact_name' compilation_report.json)
-          mkdir artifacts
-          for artifact in $ARTIFACT_NAMES; do
-            mv ./test_programs/execution_success/$artifact/target/$artifact.json ./artifacts/$artifact.json
-          done
-
-      - name: Upload compilation report
-        uses: actions/upload-artifact@v4
-        with:
-          name: in_progress_compilation_report
-          path: compilation_report.json
-          retention-days: 3
-          overwrite: true
-
-      - name: Upload compilation artifacts
-        uses: actions/upload-artifact@v4
-        with: 
-          name: compilation_artifacts
-          path: ./artifacts
-          retention-days: 3
-          overwrite: true
-
-  external_repo_compilation_report:
-    needs: [build-nargo]
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-contracts }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/parity-root }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-inner }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-tail }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-reset }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-base-private }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-base-public }
-
-    name: External repo compilation report - ${{ matrix.project.repo }}/${{ matrix.project.path }}
-    steps:
-      - name: Download nargo binary
-        uses: actions/download-artifact@v4
-        with:
-          name: nargo
-          path: ./nargo
-
-      - name: Set nargo on PATH
-        run: |
-          nargo_binary="${{ github.workspace }}/nargo/nargo"
-          chmod +x $nargo_binary
-          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
-          export PATH="$PATH:$(dirname $nargo_binary)"
-          nargo -V
-
-      - uses: actions/checkout@v4
-        with:
-          path: scripts
-          sparse-checkout: |
-            test_programs/compilation_report.sh
-          sparse-checkout-cone-mode: false
-
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ matrix.project.repo }}
-          path: test-repo
-          ref: ${{ matrix.project.ref }}
-
-      - name: Generate compilation report
-        working-directory: ./test-repo/${{ matrix.project.path }}
-        run: |
-          mv /home/runner/work/noir/noir/scripts/test_programs/compilation_report.sh ./compilation_report.sh
-          chmod +x ./compilation_report.sh
-          ./compilation_report.sh 1
-
-      - name: Move compilation report
-        id: report
-        shell: bash
-        run: |
-          PACKAGE_NAME=${{ matrix.project.path }}
-          PACKAGE_NAME=$(basename $PACKAGE_NAME)
-          mv ./test-repo/${{ matrix.project.path }}/compilation_report.json ./compilation_report_$PACKAGE_NAME.json
-          echo "compilation_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
-
-      - name: Move compilation artifacts
-        id: artifact
-        run: |
-          for artifact in ./test-repo/${{ matrix.project.path }}/target/*; do 
-            PACKAGE_NAME=$(basename $artifact .json)
-            mv ./test-repo/${{ matrix.project.path }}/target/$PACKAGE_NAME.json ./compilation_artifact_$PACKAGE_NAME.json
-            echo "compilation_artifact_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
-          done
-
-      - name: Upload compilation report
-        uses: actions/upload-artifact@v4
-        with:
-          name: compilation_report_${{ steps.report.outputs.compilation_report_name }}
-          path: compilation_report_${{ steps.report.outputs.compilation_report_name }}.json
-          retention-days: 3
-          overwrite: true
-      
-      - name: Upload compilation artifacts
-        uses: actions/upload-artifact@v4
-        with: 
-          name: compilation_artifact_${{ steps.artifact.outputs.compilation_artifact_name }}
-          path: compilation_artifact_${{ steps.artifact.outputs.compilation_artifact_name }}.json
-          retention-days: 3
-          overwrite: true
-
-  upload_compilation_report:
-    name: Upload compilation report 
-    needs: [generate_compilation_report, external_repo_compilation_report]
-    # We want this job to run even if one variation of the matrix in `external_repo_compilation_report` fails
-    if: always() 
-    runs-on: ubuntu-latest
-    permissions:
-      pull-requests: write
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download initial compilation report
-        uses: actions/download-artifact@v4
-        with:
-          name: in_progress_compilation_report
-
-      - name: Download matrix compilation reports
-        uses: actions/download-artifact@v4
-        with:
-          pattern: compilation_report_*
-          path: ./reports
-
-      - name: Merge compilation reports using jq
-        run: |
-          mv ./.github/scripts/merge-bench-reports.sh merge-bench-reports.sh
-          ./merge-bench-reports.sh compilation_report
-
-      - name: Parse compilation report
-        id: compilation_report
-        uses: noir-lang/noir-bench-report@0d7464a8c39170523932d7846b6e6b458a294aea
-        with:
-          report: compilation_report.json
-          header: |
-            # Compilation Report
-          memory_report: false
-
-      - name: Add memory report to sticky comment
-        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          header: compilation
-          message: ${{ steps.compilation_report.outputs.markdown }}
-
   external_repo_memory_report:
     needs: [build-nargo]
     runs-on: ubuntu-latest
@@ -523,9 +338,9 @@ jobs:
           header: memory
           message: ${{ steps.memory_report.outputs.markdown }}
 
-  generate_execution_report:
-    name: Execution time
-    needs: [build-nargo, generate_compilation_report]
+  generate_compilation_and_execution_report:
+    name: Compilation time
+    needs: [build-nargo]
     runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
@@ -547,26 +362,26 @@ jobs:
           export PATH="$PATH:$(dirname $nargo_binary)"
           nargo -V
 
-      - name: Download program artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: compilation_artifacts
-          path: ./artifacts
-
-      - name: Move compilation artifacts
+      - name: Generate Compilation report
+        working-directory: ./test_programs
         run: |
-          for artifact in ./artifacts/*; do
-            PACKAGE_NAME=$(basename $artifact .json)
-            mkdir ./test_programs/execution_success/$PACKAGE_NAME/target
-            mv $artifact ./test_programs/execution_success/$PACKAGE_NAME/target/$PACKAGE_NAME.json
-          done
+          ./compilation_report.sh
+          mv compilation_report.json ../compilation_report.json
 
       - name: Generate Execution report
         working-directory: ./test_programs
         run: |
           ./execution_report.sh
           mv execution_report.json ../execution_report.json
-
+          
+      - name: Upload compilation report
+        uses: actions/upload-artifact@v4
+        with:
+          name: in_progress_compilation_report
+          path: compilation_report.json
+          retention-days: 3
+          overwrite: true
+      
       - name: Upload execution report
         uses: actions/upload-artifact@v4
         with:
@@ -575,21 +390,23 @@ jobs:
           retention-days: 3
           overwrite: true
 
-  external_repo_execution_report:
-    needs: [build-nargo, external_repo_compilation_report]
+  external_repo_compilation_and_execution_report:
+    needs: [build-nargo]
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
         include:
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-contracts, library: true }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/parity-root }
           - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-inner }
           - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-tail }
           - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-reset }
           - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-base-private }
           - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-base-public }
 
-    name: External repo execution report - ${{ matrix.project.repo }}/${{ matrix.project.path }}
+    name: External repo compilation report - ${{ matrix.project.repo }}/${{ matrix.project.path }}
     steps:
       - name: Download nargo binary
         uses: actions/download-artifact@v4
@@ -609,6 +426,13 @@ jobs:
         with:
           path: scripts
           sparse-checkout: |
+            test_programs/compilation_report.sh
+          sparse-checkout-cone-mode: false
+            
+      - uses: actions/checkout@v4
+        with:
+          path: scripts
+          sparse-checkout: |
             test_programs/execution_report.sh
           sparse-checkout-cone-mode: false
 
@@ -619,38 +443,32 @@ jobs:
           path: test-repo
           ref: ${{ matrix.project.ref }}
 
-      - name: Get package name
+      - name: Generate compilation report
+        working-directory: ./test-repo/${{ matrix.project.path }}
         run: |
-          PACKAGE_NAME=$(basename ${{ matrix.project.path }})
-          echo $PACKAGE_NAME
-
-      - name: Download program artifacts
-        uses: actions/download-artifact@v4
-        with:
-          pattern: compilation_artifact_*
-          path: ./artifacts
-
-      - name: Move compilation artifacts
-        run: |
-          NAME_FROM_MATRIX=${{ matrix.project.path }}
-          NAME_FROM_MATRIX=$(basename $NAME_FROM_MATRIX)
-          # Convert `-` to `_` as that is how package names must be specified
-          NAME_FROM_MATRIX="${NAME_FROM_MATRIX//-/_}"
-          for artifact in ./artifacts/*; do
-            ARTIFACT_NAME=$(basename $artifact .json)
-            PACKAGE_NAME="${ARTIFACT_NAME#compilation_artifact_}"
-            if [[ "$PACKAGE_NAME" == "$NAME_FROM_MATRIX" ]]; then
-              mkdir ./test-repo/${{ matrix.project.path }}/target
-              mv ./artifacts/$ARTIFACT_NAME/$ARTIFACT_NAME.json ./test-repo/${{ matrix.project.path }}/target/$PACKAGE_NAME.json
-              break
-            fi
-          done
-
+          mv /home/runner/work/noir/noir/scripts/test_programs/compilation_report.sh ./compilation_report.sh
+          chmod +x ./compilation_report.sh
+          ./compilation_report.sh 1
+      
       - name: Generate execution report
         working-directory: ./test-repo/${{ matrix.project.path }}
         run: |
           mv /home/runner/work/noir/noir/scripts/test_programs/execution_report.sh ./execution_report.sh
+          IS_LIBRARY=${{ matrix.project.path }}
+          echo $IS_LIBRARY
+          if $IS_LIBRARY; then
+            exit 0
+          fi
           ./execution_report.sh 1
+
+      - name: Move compilation report
+        id: report
+        shell: bash
+        run: |
+          PACKAGE_NAME=${{ matrix.project.path }}
+          PACKAGE_NAME=$(basename $PACKAGE_NAME)
+          mv ./test-repo/${{ matrix.project.path }}/compilation_report.json ./compilation_report_$PACKAGE_NAME.json
+          echo "compilation_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
 
       - name: Move execution report
         id: report
@@ -661,6 +479,14 @@ jobs:
           mv ./test-repo/${{ matrix.project.path }}/execution_report.json ./execution_report_$PACKAGE_NAME.json
           echo "execution_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
 
+      - name: Upload compilation report
+        uses: actions/upload-artifact@v4
+        with:
+          name: compilation_report_${{ steps.report.outputs.compilation_report_name }}
+          path: compilation_report_${{ steps.report.outputs.compilation_report_name }}.json
+          retention-days: 3
+          overwrite: true
+
       - name: Upload execution report
         uses: actions/upload-artifact@v4
         with:
@@ -669,9 +495,53 @@ jobs:
           retention-days: 3
           overwrite: true
 
+  upload_compilation_report:
+    name: Upload compilation report 
+    needs: [generate_compilation_and_execution_report, external_repo_compilation_and_execution_report]
+    # We want this job to run even if one variation of the matrix in `external_repo_compilation_and_execution_report` fails
+    if: always() 
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download initial compilation report
+        uses: actions/download-artifact@v4
+        with:
+          name: in_progress_compilation_report
+
+      - name: Download matrix compilation reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: compilation_report_*
+          path: ./reports
+
+      - name: Merge compilation reports using jq
+        run: |
+          mv ./.github/scripts/merge-bench-reports.sh merge-bench-reports.sh
+          ./merge-bench-reports.sh compilation_report
+
+      - name: Parse compilation report
+        id: compilation_report
+        uses: noir-lang/noir-bench-report@0d7464a8c39170523932d7846b6e6b458a294aea
+        with:
+          report: compilation_report.json
+          header: |
+            # Compilation Report
+          memory_report: false
+
+      - name: Add memory report to sticky comment
+        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: compilation
+          message: ${{ steps.compilation_report.outputs.markdown }}
+
   upload_execution_report:
     name: Upload execution report 
-    needs: [generate_execution_report, external_repo_execution_report]
+    needs: [generate_compilation_and_execution_report, external_repo_compilation_and_execution_report]
     # We want this job to run even if one variation of the matrix in `external_repo_execution_report` fails
     if: always() 
     runs-on: ubuntu-latest
