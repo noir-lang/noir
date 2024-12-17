@@ -1,5 +1,5 @@
 use crate::{
-    ast::{Ident, NoirFunction, Signedness, UnaryOp, Visibility},
+    ast::{Ident, IntegerBitSize, NoirFunction, Signedness, UnaryOp, Visibility},
     graph::CrateId,
     hir::{
         resolution::errors::{PubPosition, ResolverError},
@@ -202,6 +202,8 @@ pub(crate) fn overflowing_int(
     let mut errors = Vec::with_capacity(2);
     match expr {
         HirExpression::Literal(HirLiteral::Integer(value, negative)) => match annotated_type {
+            // Field assignments can't overflow
+            Type::Integer(Signedness::Unsigned, IntegerBitSize::FieldElementBits) => return vec![],
             Type::Integer(Signedness::Unsigned, bit_count) => {
                 let bit_count: u32 = (*bit_count).into();
                 let max = 2u128.pow(bit_count) - 1;

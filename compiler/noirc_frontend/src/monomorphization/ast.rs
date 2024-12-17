@@ -419,10 +419,19 @@ impl std::fmt::Display for Type {
         match self {
             Type::Field => write!(f, "Field"),
             Type::Array(len, elements) => write!(f, "[{elements}; {len}]"),
-            Type::Integer(sign, bits) => match sign {
-                Signedness::Unsigned => write!(f, "u{bits}"),
-                Signedness::Signed => write!(f, "i{bits}"),
-            },
+            Type::Integer(sign, num_bits) => {
+                if num_bits.is_zero() {
+                    return write!(f, "()");
+                } else if num_bits.is_one() {
+                    return write!(f, "bool");
+                } else if num_bits.is_field_element_bits() {
+                    return write!(f, "Field");
+                }
+                match sign {
+                    Signedness::Signed => write!(f, "i{num_bits}"),
+                    Signedness::Unsigned => write!(f, "u{num_bits}"),
+                }
+            }
             Type::Bool => write!(f, "bool"),
             Type::String(len) => write!(f, "str<{len}>"),
             Type::FmtString(len, elements) => {

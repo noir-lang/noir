@@ -33,10 +33,6 @@ mod arithmetic;
 
 #[derive(Eq, Clone, Ord, PartialOrd)]
 pub enum Type {
-    // TODO: cleanup
-    // /// A primitive Field type
-    // FieldElement,
-
     /// Array(N, E) is an array of N elements of type E. It is expected that N
     /// is either a type variable of some kind or a Type::Constant.
     Array(Box<Type>, Box<Type>),
@@ -48,10 +44,6 @@ pub enum Type {
     /// E.g. `u32` would be `Integer(Unsigned, ThirtyTwo)`
     Integer(Signedness, IntegerBitSize),
 
-    // TODO: cleanup
-    // /// The primitive `bool` type.
-    // Bool,
-
     /// String(N) is an array of characters of length N. It is expected that N
     /// is either a type variable of some kind or a Type::Constant.
     String(Box<Type>),
@@ -59,10 +51,6 @@ pub enum Type {
     /// FmtString(N, Vec<E>) is an array of characters of length N that contains
     /// a list of fields specified inside the string by the following regular expression r"\{([\S]+)\}"
     FmtString(Box<Type>, Box<Type>),
-
-    // TODO: cleanup
-    // /// The unit type `()`.
-    // Unit,
 
     /// A tuple type with the given list of fields in the order they appear in source code.
     Tuple(Vec<Type>),
@@ -1030,11 +1018,6 @@ impl Type {
             _ => false,
         }
     }
-
-    // TODO cleanup
-    // pub fn is_field_element(&self) -> bool {
-    //     matches!(self.follow_bindings(), Type::Integer(Signedness::Unsigned, IntegerBitSize::FieldElementBits))
-    // }
 
     pub fn is_unit(&self) -> bool {
         matches!(self.follow_bindings(), Type::Integer(Signedness::Unsigned, IntegerBitSize::Zero))

@@ -1082,7 +1082,7 @@ impl<'interner> Monomorphizer<'interner> {
                 let ret = Box::new(Self::convert_type(ret, location)?);
                 let env = Self::convert_type(env, location)?;
                 match &env {
-                    ast::Type::Unit => {
+                    ast::Type::Integer(_, IntegerBitSize::Zero) | ast::Type::Unit => {
                         ast::Type::Function(args, ret, Box::new(env), *unconstrained)
                     }
                     ast::Type::Tuple(_elements) => ast::Type::Tuple(vec![

@@ -310,6 +310,7 @@ impl std::fmt::Display for UnresolvedTypeData {
         match self {
             Array(len, typ) => write!(f, "[{typ}; {len}]"),
             Slice(typ) => write!(f, "[{typ}]"),
+            // NOTE: identical to implementation in Display for Type
             Integer(sign, num_bits) => {
                 if num_bits.is_zero() {
                     return write!(f, "()");
