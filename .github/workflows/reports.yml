@@ -344,6 +344,7 @@ jobs:
           echo "compilation_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
 
       - name: Move compilation artifacts
+        id: artifact
         run: |
           cat compilation_report_${{ steps.report.outputs.compilation_report_name }}.json
           for artifact in ./test-repo/${{ matrix.project.path }}/target/*; do 
@@ -366,10 +367,8 @@ jobs:
       - name: Upload compilation artifacts
         uses: actions/upload-artifact@v4
         with: 
-          # name: compilation_artifacts
-          # path: ./artifacts
-          name: compilation_artifact_${{ steps.report.outputs.compilation_artifact_name }}
-          path: compilation_artifact_${{ steps.report.outputs.compilation_artifact_name }}.json
+          name: compilation_artifact_${{ steps.artifact.outputs.compilation_artifact_name }}
+          path: compilation_artifact_${{ steps.artifact.outputs.compilation_artifact_name }}.json
           retention-days: 3
           overwrite: true
 
