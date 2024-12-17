@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{cmp, collections::HashSet};
 
 use acvm::{AcirField, FieldElement};
 use proptest::{
@@ -6,6 +6,15 @@ use proptest::{
     test_runner::TestRunner,
 };
 use rand::Rng;
+
+/// Using `u64` instead of `u128` because the latter was not available for Wasm.
+/// Once https://github.com/proptest-rs/proptest/pull/519 is released we can switch
+/// back, although since we've restricted the type system to only allow u64s
+/// as the maximum integer type.
+type BinarySearch = proptest::num::u64::BinarySearch;
+
+/// We have a `IntegerBitSize::U128` numeric type, but we will only generate values up to 64 bits here.
+const MAX_BIT_SIZE: usize = 64;
 
 /// Value tree for unsigned ints (up to u128).
 /// The strategy combines 2 different strategies, each assigned a specific weight:
@@ -49,7 +58,7 @@ impl UintStrategy {
         let is_min = rng.gen_bool(0.5);
         let offset = rng.gen_range(0..4);
         let start = if is_min { offset } else { self.type_max().saturating_sub(offset) };
-        Ok(proptest::num::u64::BinarySearch::new(start))
+        Ok(BinarySearch::new(start))
     }
 
     /// Pick a random `FieldElement` from the `fixtures` as a starting point for
@@ -63,7 +72,7 @@ impl UintStrategy {
         // Generate value tree from fixture.
         let fixture = &self.fixtures[runner.rng().gen_range(0..self.fixtures.len())];
         if let Some(start) = fixture.try_to_u64() {
-            return Ok(proptest::num::u64::BinarySearch::new(start));
+            return Ok(BinarySearch::new(start));
         }
 
         // If fixture is not a valid type, generate random value.
@@ -75,21 +84,22 @@ impl UintStrategy {
         let rng = runner.rng();
         let start = rng.gen_range(0..=self.type_max());
 
-        Ok(proptest::num::u64::BinarySearch::new(start))
+        Ok(BinarySearch::new(start))
     }
 
     /// Maximum integer that fits in the given bit width.
     fn type_max(&self) -> u64 {
-        if self.bits < 64 {
-            (1 << self.bits) - 1
-        } else {
-            u64::MAX
-        }
+        (1 << self.type_max_bits()) - 1
+    }
+
+    /// Maximum bits that we generate values for.
+    fn type_max_bits(&self) -> usize {
+        cmp::max(self.bits, MAX_BIT_SIZE)
     }
 }
 
 impl Strategy for UintStrategy {
-    type Tree = proptest::num::u64::BinarySearch;
+    type Tree = BinarySearch;
     type Value = u64;
 
     /// Pick randomly from the 3 available strategies for generating unsigned integers.
