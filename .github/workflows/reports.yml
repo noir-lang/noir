@@ -272,13 +272,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-contracts }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/parity-root }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-inner }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-tail }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-reset }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-base-private }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-base-public }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-contracts, skip_gates: true }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/parity-root, skip_gates: false }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-inner, skip_gates: false }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-tail, skip_gates: false }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-reset, skip_gates: false }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-base-private, skip_gates: false }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-base-public, skip_gates: false }
 
     name: External repo compilation report - ${{ matrix.project.repo }}/${{ matrix.project.path }}
     steps:
@@ -338,11 +338,13 @@ jobs:
       # While we've got the compiled artifacts, we measure the number of gates in the circuits.
 
       - name: Install `bb`
+        if: ${{ !matrix.project.skip_gates }}
         run: |
           ./scripts/scripts/install_bb.sh
           echo "$HOME/.bb/" >> $GITHUB_PATH
 
       - name: Generate gates report
+        if: ${{ !matrix.project.skip_gates }}  
         id: gates_report
         run: |
           PACKAGE_NAME=${{ matrix.project.path }}
@@ -351,6 +353,7 @@ jobs:
           echo "gates_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
 
       - name: Upload gates report
+        if: ${{ !matrix.project.skip_gates }}
         uses: actions/upload-artifact@v4
         with:
           name: gates_report_${{ steps.gates_report.outputs.gates_report_name }}
