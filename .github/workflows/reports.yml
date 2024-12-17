@@ -470,14 +470,14 @@ jobs:
           mv ./test-repo/${{ matrix.project.path }}/compilation_report.json ./compilation_report_$PACKAGE_NAME.json
           echo "compilation_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
 
-      # - name: Move execution report
-      #   id: report
-      #   shell: bash
-      #   run: |
-      #     PACKAGE_NAME=${{ matrix.project.path }}
-      #     PACKAGE_NAME=$(basename $PACKAGE_NAME)
-      #     mv ./test-repo/${{ matrix.project.path }}/execution_report.json ./execution_report_$PACKAGE_NAME.json
-      #     echo "execution_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
+      - name: Move execution report
+        id: report
+        shell: bash
+        run: |
+          PACKAGE_NAME=${{ matrix.project.path }}
+          PACKAGE_NAME=$(basename $PACKAGE_NAME)
+          mv ./test-repo/${{ matrix.project.path }}/execution_report.json ./execution_report_$PACKAGE_NAME.json
+          echo "execution_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
 
       - name: Upload compilation report
         uses: actions/upload-artifact@v4
