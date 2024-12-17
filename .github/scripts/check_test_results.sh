@@ -7,14 +7,17 @@ set -eu
 # couldn't be compiled.
 
 function process_json_lines() {
-  cat $1 | jq -c 'select(.type == "test" and .event == "failed") | {suite: .suite, name: .name, status: .event}' | jq -s -c 'sort_by(.suite, .name) | .[]' > $1.jq
+  cat $1 | jq -c 'select(.type == "test" and .event == "failed") | {suite: .suite, name: .name}' | jq -s -c 'sort_by(.suite, .name) | .[]' > $1.jq
 }
 
 if [ -f $1 ] && [ -f $2 ]; then
   # Both files exist, let's compare them
-  $(process_json_lines $1)
   $(process_json_lines $2)
-  diff $1.jq $2.jq
+  if ! diff $1 $2.jq; then
+    echo "Error: test failures don't match expected failures"
+    echo "Lines prefixed with '>' are new test failures (you could add them to '$1')"
+    echo "Lines prefixed with '<' are tests that were expected to fail but passed (you could remove them from '$1')"
+  fi
 elif [ -f $1 ]; then
   # Only the expected file exists, which means the actual test couldn't be compiled.
   echo "Error: external library tests couldn't be compiled."
