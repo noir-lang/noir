@@ -650,6 +650,8 @@ jobs:
             echo $PACKAGE_NAME
             # if [ ! -d "./test-repo/${{ matrix.project.path }}/target" ]; then
             # fi
+            ls ./test-repo/${{ matrix.project.path }}
+            ls ./test-repo/${{ matrix.project.path }}/target
             mv $artifact ./test-repo/${{ matrix.project.path }}/target/$PACKAGE_NAME.json
           done
 
