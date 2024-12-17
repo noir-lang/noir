@@ -116,4 +116,13 @@ impl From<bool> for Field {
         value as Field
     }
 }
+
+// Field
+impl From<Field> for u64 {
+    fn from(value: Field) -> u64 {
+        value.assert_max_bit_size::<64>();
+        value as u64
+    }
+}
+
 // docs:end:from-impls

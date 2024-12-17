@@ -176,8 +176,6 @@ impl Context {
                     | Intrinsic::ToRadix(_)
                     | Intrinsic::BlackBox(_)
                     | Intrinsic::Hint(Hint::BlackBox)
-                    | Intrinsic::FromField
-                    | Intrinsic::AsField
                     | Intrinsic::AsSlice
                     | Intrinsic::AsWitness
                     | Intrinsic::IsUnconstrained

@@ -139,8 +139,11 @@ impl U128 {
         }
     }
 
-    pub fn from_integer<T>(i: T) -> U128 {
-        let f = crate::as_field(i);
+    pub fn from_integer<T>(i: T) -> U128
+    where
+        T: super::convert::Into<Field>,
+    {
+        let f = i.into();
         // Reject values which would overflow a u128
         f.assert_max_bit_size::<128>();
         let lo = f as u64 as Field;
@@ -148,8 +151,11 @@ impl U128 {
         U128 { lo, hi }
     }
 
-    pub fn to_integer<T>(self) -> T {
-        crate::from_field(self.lo + self.hi * pow64)
+    pub fn to_integer<T>(self) -> T
+    where
+        T: super::convert::From<Field>,
+    {
+        T::from(self.lo + self.hi * pow64)
     }
 
     fn wrapping_mul(self: Self, b: U128) -> U128 {
