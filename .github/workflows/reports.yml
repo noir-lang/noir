@@ -339,19 +339,16 @@ jobs:
 
       - name: Install `bb`
         run: |
-          /home/runner/work/noir/noir/scripts/scripts/install_bb.sh
+          ./scripts/scripts/install_bb.sh
           echo "$HOME/.bb/" >> $GITHUB_PATH
 
       - name: Generate gates report
         id: gates_report
-        working-directory: ./test-repo/${{ matrix.project.path }}
         run: |
           PACKAGE_NAME=${{ matrix.project.path }}
           PACKAGE_NAME=$(basename $PACKAGE_NAME)
-          mv /home/runner/work/noir/noir/scripts/.github/scripts/single_artifact_gates_report.sh ./single_artifact_gates_report.sh
-          ./single_artifact_gates_report.sh ./target/*.json > gates_report_$PACKAGE_NAME.json
+          ./scripts/.github/scripts/single_artifact_gates_report.sh ./test-repo/${{ matrix.project.path }}/target/*.json > gates_report_$PACKAGE_NAME.json
           echo "gates_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
-
 
       - name: Upload gates report
         uses: actions/upload-artifact@v4
