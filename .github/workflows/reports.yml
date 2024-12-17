@@ -638,7 +638,7 @@ jobs:
       - name: Download program artifacts
         uses: actions/download-artifact@v4
         with:
-          name: compilation_artifact_*
+          pattern: compilation_artifact_*
           path: ./artifacts
 
       - name: Move compilation artifacts
