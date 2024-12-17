@@ -71,7 +71,13 @@ exceptions = [
     { allow = ["MPL-2.0"], name = "sized-chunks" },
     { allow = ["MPL-2.0"], name = "webpki-roots" },
     { allow = ["CDDL-1.0"], name = "inferno" },
+    { allow = ["OpenSSL"], name = "ring" },
 ]
+
+[[licenses.clarify]]
+crate = "ring"
+expression = "ISC"
+license-files = [{ path = "LICENSE", hash = 0xbd0eed23 }]
 
 # This section is considered when running `cargo deny check sources`.
 # More documentation about the 'sources' section can be found here:
