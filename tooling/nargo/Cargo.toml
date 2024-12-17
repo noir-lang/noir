@@ -35,8 +35,4 @@ noir_fuzzer.workspace = true
 proptest.workspace = true
 
 [dev-dependencies]
-jsonrpc.workspace = true
-jsonrpc-http-server = "18.0"
-jsonrpc-core-client = "18.0"
-jsonrpc-derive = "18.0"
-jsonrpc-core = "18.0"
+jsonrpsee = { workspace = true, features = ["server"] }

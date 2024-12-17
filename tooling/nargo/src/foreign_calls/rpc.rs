@@ -26,7 +26,7 @@ pub(crate) struct RPCForeignCallExecutor {
     package_name: Option<String>,
     /// Runtime to execute asynchronous tasks on.
     /// See [bridging](https://tokio.rs/tokio/topics/bridging).
-    rt: tokio::runtime::Runtime,
+    runtime: tokio::runtime::Runtime,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -51,6 +51,8 @@ struct ResolveForeignCallRequest<F> {
     package_name: Option<String>,
 }
 
+type ResolveForeignCallResult<F> = Result<ForeignCallResult<F>, ForeignCallError>;
+
 impl RPCForeignCallExecutor {
     pub(crate) fn new(
         resolver_url: &str,
@@ -72,7 +74,7 @@ impl RPCForeignCallExecutor {
 
         // Opcodes are executed in the `ProgramExecutor::execute_circuit` one by one in a loop,
         // we don't need a concurrent thread pool.
-        let rt = tokio::runtime::Builder::new_current_thread()
+        let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_time()
             .enable_io()
             .build()
@@ -83,18 +85,16 @@ impl RPCForeignCallExecutor {
             id,
             root_path,
             package_name,
-            rt,
+            runtime,
         }
     }
 }
 
-impl<F: AcirField + Serialize + for<'a> Deserialize<'a>> ForeignCallExecutor<F>
-    for RPCForeignCallExecutor
+impl<F> ForeignCallExecutor<F> for RPCForeignCallExecutor
+where
+    F: AcirField + Serialize + for<'a> Deserialize<'a>,
 {
-    fn execute(
-        &mut self,
-        foreign_call: &ForeignCallWaitInfo<F>,
-    ) -> Result<ForeignCallResult<F>, ForeignCallError> {
+    fn execute(&mut self, foreign_call: &ForeignCallWaitInfo<F>) -> ResolveForeignCallResult<F> {
         let encoded_params = rpc_params!(ResolveForeignCallRequest {
             session_id: self.id,
             function_call: foreign_call.clone(),
@@ -102,9 +102,9 @@ impl<F: AcirField + Serialize + for<'a> Deserialize<'a>> ForeignCallExecutor<F>
             package_name: self.package_name.clone(),
         });
 
-        let parsed_response = self
-            .rt
-            .block_on(self.external_resolver.request("resolve_foreign_call", encoded_params))?;
+        let parsed_response = self.runtime.block_on(async {
+            self.external_resolver.request("resolve_foreign_call", encoded_params).await
+        })?;
 
         Ok(parsed_response)
     }
@@ -112,24 +112,28 @@ impl<F: AcirField + Serialize + for<'a> Deserialize<'a>> ForeignCallExecutor<F>
 
 #[cfg(test)]
 mod tests {
+
     use acvm::{
         acir::brillig::ForeignCallParam, brillig_vm::brillig::ForeignCallResult,
         pwg::ForeignCallWaitInfo, FieldElement,
     };
-    use jsonrpc_core::Result as RpcResult;
-    use jsonrpc_derive::rpc;
-    use jsonrpc_http_server::{Server, ServerBuilder};
+    use jsonrpsee::proc_macros::rpc;
+    use jsonrpsee::server::Server;
+    use jsonrpsee::types::ErrorObjectOwned;
+    use tokio::sync::{mpsc, oneshot};
 
-    use super::{ForeignCallExecutor, RPCForeignCallExecutor, ResolveForeignCallRequest};
+    use super::{
+        ForeignCallExecutor, RPCForeignCallExecutor, ResolveForeignCallRequest,
+        ResolveForeignCallResult,
+    };
 
-    #[allow(unreachable_pub)]
-    #[rpc]
-    pub trait OracleResolver {
-        #[rpc(name = "resolve_foreign_call")]
+    #[rpc(server)]
+    trait OracleResolver {
+        #[method(name = "resolve_foreign_call")]
         fn resolve_foreign_call(
             &self,
             req: ResolveForeignCallRequest<FieldElement>,
-        ) -> RpcResult<ForeignCallResult<FieldElement>>;
+        ) -> Result<ForeignCallResult<FieldElement>, ErrorObjectOwned>;
     }
 
     struct OracleResolverImpl;
@@ -150,99 +154,135 @@ mod tests {
         }
     }
 
-    impl OracleResolver for OracleResolverImpl {
+    impl OracleResolverServer for OracleResolverImpl {
         fn resolve_foreign_call(
             &self,
             req: ResolveForeignCallRequest<FieldElement>,
-        ) -> RpcResult<ForeignCallResult<FieldElement>> {
+        ) -> Result<ForeignCallResult<FieldElement>, ErrorObjectOwned> {
             let response = match req.function_call.function.as_str() {
                 "sum" => self.sum(req.function_call.inputs[0].clone()),
                 "echo" => self.echo(req.function_call.inputs[0].clone()),
                 "id" => FieldElement::from(req.session_id as u128).into(),
-
                 _ => panic!("unexpected foreign call"),
             };
             Ok(response)
         }
     }
 
-    fn build_oracle_server() -> (Server, String) {
-        let mut io = jsonrpc_core::IoHandler::new();
-        io.extend_with(OracleResolverImpl.to_delegate());
+    /// The test client send its request and a response channel.
+    type RPCForeignCallClientRequest = (
+        ForeignCallWaitInfo<FieldElement>,
+        oneshot::Sender<ResolveForeignCallResult<FieldElement>>,
+    );
 
-        // Choosing port 0 results in a random port being assigned.
-        let server = ServerBuilder::new(io)
-            .start_http(&"127.0.0.1:0".parse().expect("Invalid address"))
-            .expect("Could not start server");
-
-        let url = format!("http://{}", server.address());
-        (server, url)
+    /// Async client used in the tests.
+    #[derive(Clone)]
+    struct RPCForeignCallClient {
+        tx: mpsc::UnboundedSender<RPCForeignCallClientRequest>,
     }
 
-    #[test]
-    fn test_oracle_resolver_echo() {
-        let (server, url) = build_oracle_server();
+    impl RPCForeignCallExecutor {
+        /// Spawn and run the executor in the background until all clients are closed.
+        fn run(mut self) -> RPCForeignCallClient {
+            let (tx, mut rx) = mpsc::unbounded_channel::<RPCForeignCallClientRequest>();
+            let _ = tokio::task::spawn_blocking(move || {
+                while let Some((req, tx)) = rx.blocking_recv() {
+                    let res = self.execute(&req);
+                    let _ = tx.send(res);
+                }
+            });
+            RPCForeignCallClient { tx }
+        }
+    }
 
-        let mut executor = RPCForeignCallExecutor::new(&url, 1, None, None);
+    impl RPCForeignCallClient {
+        /// Asynchronously execute a foreign call.
+        async fn execute(
+            &self,
+            req: &ForeignCallWaitInfo<FieldElement>,
+        ) -> ResolveForeignCallResult<FieldElement> {
+            let (tx, rx) = oneshot::channel();
+            self.tx.send((req.clone(), tx)).expect("failed to send to executor");
+            rx.await.expect("failed to receive from executor")
+        }
+    }
+
+    /// Start running the Oracle server or a random port, returning the listen URL.
+    async fn build_oracle_server() -> std::io::Result<String> {
+        // Choosing port 0 results in a random port being assigned.
+        let server = Server::builder().build("127.0.0.1:0").await?;
+        let addr = server.local_addr()?;
+        let handle = server.start(OracleResolverImpl.into_rpc());
+        let url = format!("http://{}", addr);
+        // In this test we don't care about doing shutdown so let's it run forever.
+        tokio::spawn(handle.stopped());
+        Ok(url)
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_oracle_resolver_echo() -> std::io::Result<()> {
+        let url = build_oracle_server().await?;
+
+        let executor = RPCForeignCallExecutor::new(&url, 1, None, None).run();
 
         let foreign_call: ForeignCallWaitInfo<FieldElement> = ForeignCallWaitInfo {
             function: "echo".to_string(),
             inputs: vec![ForeignCallParam::Single(1_u128.into())],
         };
 
-        let result = executor.execute(&foreign_call);
+        let result = executor.execute(&foreign_call).await;
         assert_eq!(result.unwrap(), ForeignCallResult { values: foreign_call.inputs });
 
-        server.close();
+        Ok(())
     }
 
-    #[test]
-    fn test_oracle_resolver_sum() {
-        let (server, url) = build_oracle_server();
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_oracle_resolver_sum() -> std::io::Result<()> {
+        let url = build_oracle_server().await?;
 
-        let mut executor = RPCForeignCallExecutor::new(&url, 2, None, None);
+        let executor = RPCForeignCallExecutor::new(&url, 2, None, None).run();
 
         let foreign_call: ForeignCallWaitInfo<FieldElement> = ForeignCallWaitInfo {
             function: "sum".to_string(),
             inputs: vec![ForeignCallParam::Array(vec![1_usize.into(), 2_usize.into()])],
         };
 
-        let result = executor.execute(&foreign_call);
+        let result = executor.execute(&foreign_call).await;
         assert_eq!(result.unwrap(), FieldElement::from(3_usize).into());
 
-        server.close();
+        Ok(())
     }
 
-    #[test]
-    fn foreign_call_executor_id_is_persistent() {
-        let (server, url) = build_oracle_server();
+    #[tokio::test(flavor = "multi_thread")]
+    async fn foreign_call_executor_id_is_persistent() -> std::io::Result<()> {
+        let url = build_oracle_server().await?;
 
-        let mut executor = RPCForeignCallExecutor::new(&url, 3, None, None);
+        let executor = RPCForeignCallExecutor::new(&url, 3, None, None).run();
 
         let foreign_call: ForeignCallWaitInfo<FieldElement> =
             ForeignCallWaitInfo { function: "id".to_string(), inputs: Vec::new() };
 
-        let result_1 = executor.execute(&foreign_call).unwrap();
-        let result_2 = executor.execute(&foreign_call).unwrap();
+        let result_1 = executor.execute(&foreign_call).await.unwrap();
+        let result_2 = executor.execute(&foreign_call).await.unwrap();
         assert_eq!(result_1, result_2);
 
-        server.close();
+        Ok(())
     }
 
-    #[test]
-    fn oracle_resolver_rpc_can_distinguish_executors() {
-        let (server, url) = build_oracle_server();
+    #[tokio::test(flavor = "multi_thread")]
+    async fn oracle_resolver_rpc_can_distinguish_executors() -> std::io::Result<()> {
+        let url = build_oracle_server().await?;
 
-        let mut executor_1 = RPCForeignCallExecutor::new(&url, 4, None, None);
-        let mut executor_2 = RPCForeignCallExecutor::new(&url, 5, None, None);
+        let executor_1 = RPCForeignCallExecutor::new(&url, 4, None, None).run();
+        let executor_2 = RPCForeignCallExecutor::new(&url, 5, None, None).run();
 
         let foreign_call: ForeignCallWaitInfo<FieldElement> =
             ForeignCallWaitInfo { function: "id".to_string(), inputs: Vec::new() };
 
-        let result_1 = executor_1.execute(&foreign_call).unwrap();
-        let result_2 = executor_2.execute(&foreign_call).unwrap();
+        let result_1 = executor_1.execute(&foreign_call).await.unwrap();
+        let result_2 = executor_2.execute(&foreign_call).await.unwrap();
         assert_ne!(result_1, result_2);
 
-        server.close();
+        Ok(())
     }
 }
