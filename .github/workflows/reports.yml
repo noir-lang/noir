@@ -76,7 +76,7 @@ jobs:
       
       - name: Compare gates reports
         id: gates_diff
-        uses: noir-lang/noir-gates-diff@1931aaaa848a1a009363d6115293f7b7fc72bb87
+        uses: noir-lang/noir-gates-diff@10f066ecad44098afef183327a13b4a7c4189ae6
         with:
           report: gates_report.json
           summaryQuantile: 0.9 # only display the 10% most significant circuit size diffs in the summary (defaults to 20%)
@@ -429,7 +429,7 @@ jobs:
 
       - name: Compare gates reports
         id: gates_diff
-        uses: noir-lang/noir-gates-diff@1931aaaa848a1a009363d6115293f7b7fc72bb87
+        uses: noir-lang/noir-gates-diff@10f066ecad44098afef183327a13b4a7c4189ae6
         with:
           report: protocol_circuits_gates_report.json
           summaryQuantile: 0.9 # only display the 10% most significant circuit size diffs in the summary (defaults to 20%)
