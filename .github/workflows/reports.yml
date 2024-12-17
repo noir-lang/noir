@@ -650,13 +650,15 @@ jobs:
           echo $NAME_FROM_MATRIX
           for artifact in ./artifacts/*; do
             echo $artifact
-            PACKAGE_NAME=$(basename $artifact .json)
+            ARTIFACT_NAME=$(basename $artifact .json)
+            echo $ARTIFACT_NAME
+            PACKAGE_NAME="${ARTIFACT_NAME#compilation_artifact_}"
             echo $PACKAGE_NAME
-
             if [[ "$PACKAGE_NAME" == "$NAME_FROM_MATRIX" ]]; then
               echo "got here"
-              mkdir ./test-repo/${{ matrix.project.path }}/target 
-              mv $artifact ./test-repo/${{ matrix.project.path }}/target/$PACKAGE_NAME.json
+              mkdir ./test-repo/${{ matrix.project.path }}/target
+              cp $artifact $PACKAGE_NAME.json
+              mv $PACKAGE_NAME.json ./test-repo/${{ matrix.project.path }}/target/$PACKAGE_NAME.json
               break
             fi
             ls ./test-repo/${{ matrix.project.path }}
