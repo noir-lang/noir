@@ -343,7 +343,7 @@ jobs:
           mv /home/runner/work/noir/noir/scripts/test_programs/execution_report.sh ./execution_report.sh
           IS_LIBRARY=${{ matrix.project.is_library }}
           echo $IS_LIBRARY
-          if [ $IS_LIBRARY == "true"]; then
+          if [[ "$IS_LIBRARY" == "true" ]]; then
             exit 0
           fi
           ./execution_report.sh 1
