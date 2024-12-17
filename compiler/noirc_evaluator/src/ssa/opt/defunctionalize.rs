@@ -14,13 +14,13 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         function::{Function, FunctionId, Signature},
-        instruction::{BinaryOp, Instruction},
+        instruction::{BinaryOp, Instruction, InstructionId},
         types::Type,
         value::Value,
     },
     ssa_gen::Ssa,
 };
-use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use fxhash::FxHashMap as HashMap;
 
 /// Represents an 'apply' function created by this pass to dispatch higher order functions to.
 /// Pseudocode of an `apply` function is given below:
@@ -76,7 +76,7 @@ impl DefunctionalizationContext {
 
     /// Defunctionalize a single function
     fn defunctionalize(&mut self, func: &mut Function) {
-        let mut call_target_values = HashSet::default();
+        let mut instructions_with_higher_order_functions = Vec::new();
         let reachable_blocks = func.reachable_blocks();
 
         for block_id in reachable_blocks.clone() {
@@ -86,10 +86,25 @@ impl DefunctionalizationContext {
             for instruction_id in instructions {
                 let instruction = func.dfg[instruction_id].clone();
                 let mut replacement_instruction = None;
-                // Operate on call instructions
+
                 let (target_func, arguments) = match &instruction {
-                    Instruction::Call { func, arguments, .. } => (*func, arguments),
-                    _ => continue,
+                    Instruction::Call { func, arguments, .. } => {
+                        for argument in arguments {
+                            if matches!(argument, Value::Function(_)) {
+                                instructions_with_higher_order_functions.push(instruction_id);
+                            }
+                        }
+                        (*func, arguments)
+                    }
+                    other => {
+                        other.for_each_value(|value| {
+                            // All uses of functions outside of Call instructions are higher order
+                            if matches!(value, Value::Function(_)) {
+                                instructions_with_higher_order_functions.push(instruction_id);
+                            }
+                        });
+                        continue;
+                    }
                 };
 
                 match target_func {
@@ -113,36 +128,29 @@ impl DefunctionalizationContext {
                             arguments.insert(0, target_func);
                         }
                         let func = apply_function_value_id;
-                        call_target_values.insert(func);
-
                         replacement_instruction =
                             Some(Instruction::Call { func, arguments, result_types: returns });
                     }
-                    Value::Function(..) => {
-                        call_target_values.insert(target_func);
-                    }
                     _ => {}
                 }
+
                 if let Some(new_instruction) = replacement_instruction {
                     func.dfg[instruction_id] = new_instruction;
                 }
             }
         }
 
-        self.mutate_values(func, call_target_values, reachable_blocks);
+        self.mutate_values(func, reachable_blocks, instructions_with_higher_order_functions);
     }
 
     /// Change the type of all the values that are not call targets to NativeField
     fn mutate_values(
         &self,
         func: &mut Function,
-        call_target_values: HashSet<Value>,
         reachable_blocks: BTreeSet<BasicBlockId>,
+        instructions_with_higher_order_functions: Vec<InstructionId>,
     ) {
-        let mut values = HashSet::default();
-
-        // Collect all the values used first.
-        // We can't borrow `func` mutably again for `change_type_of_value` otherwise
+        // First change all block arguments and terminators
         for block in reachable_blocks {
             for parameter in func.dfg[block].parameter_types_mut() {
                 if *parameter == Type::Function {
@@ -150,46 +158,31 @@ impl DefunctionalizationContext {
                 }
             }
 
-            let instructions = func.dfg[block].take_instructions();
-            for instruction in &instructions {
-                func.dfg[*instruction].for_each_value(|value| {
-                    values.insert(value);
-                });
-            }
-
-            func.dfg[block].unwrap_terminator().for_each_value(|value| {
-                values.insert(value);
-            });
-
-            *func.dfg[block].instructions_mut() = instructions;
+            func.dfg[block].unwrap_terminator_mut().mutate_values(Self::function_to_field);
         }
 
-        for value in values {
-            self.change_type_of_value(value, func, &call_target_values);
+        // Replace each function value in each instruction that uses one with a field value
+        for instruction_id in instructions_with_higher_order_functions {
+            let instruction = &func.dfg[instruction_id];
+
+            // In call instructions, we should only map the arguments
+            let new_instruction =
+                if let Instruction::Call { func, arguments, result_types } = instruction {
+                    let arguments = vecmap(arguments.iter().copied(), Self::function_to_field);
+                    Instruction::Call { func: *func, arguments, result_types: result_types.clone() }
+                } else {
+                    func.dfg[instruction_id].map_values(Self::function_to_field)
+                };
+
+            func.dfg[instruction_id] = new_instruction;
         }
     }
 
-    fn change_type_of_value(
-        &self,
-        value: Value,
-        func: &mut Function,
-        call_target_values: &HashSet<Value>,
-    ) {
-        if let Type::Function = func.dfg.type_of_value(value) {
-            match value {
-                // If the value is a static function, transform it to the function id
-                Value::Function(id) => {
-                    if !call_target_values.contains(&value) {
-                        let new_value = Value::field_constant(function_id_to_field(id));
-                        func.dfg.replace_value(value, new_value);
-                    }
-                }
-                // If the value is a function used as value, just change the type of it
-                Value::Instruction { .. } | Value::Param { .. } => {
-                    func.dfg.set_type_of_value(value, Type::field());
-                }
-                _ => {}
-            }
+    fn function_to_field(value: Value) -> Value {
+        if let Value::Function(id) = value {
+            Value::field_constant((id.to_u32() as usize).into())
+        } else {
+            value
         }
     }
 

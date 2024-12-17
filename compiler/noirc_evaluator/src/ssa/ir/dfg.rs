@@ -171,50 +171,6 @@ impl DataFlowGraph {
         }
     }
 
-    /// Set the type of value_id to the target_type.
-    pub(crate) fn set_type_of_value(&mut self, value: Value, target_type: Type) {
-        match value {
-            Value::Instruction { instruction, position } => {
-                match &mut self.instructions[instruction] {
-                    Instruction::Call { result_types, .. } => {
-                        result_types[position] = target_type;
-                    }
-                    Instruction::Load { result_type, .. }
-                    | Instruction::ArrayGet { result_type, .. } => {
-                        *result_type = target_type;
-                    }
-
-                    Instruction::Cast(_, result_type) => {
-                        *result_type = target_type.unwrap_numeric();
-                    }
-
-                    instruction @ (Instruction::Binary(_)
-                    | Instruction::Not(_)
-                    | Instruction::Truncate { .. }
-                    | Instruction::Allocate { .. }
-                    | Instruction::Store { .. }
-                    | Instruction::ArraySet { .. }
-                    | Instruction::IfElse { .. }
-                    | Instruction::MakeArray { .. }) => {
-                        panic!("Can't set the type of {instruction:?}")
-                    }
-
-                    Instruction::EnableSideEffectsIf { .. }
-                    | Instruction::Constrain(..)
-                    | Instruction::RangeCheck { .. }
-                    | Instruction::IncrementRc { .. }
-                    | Instruction::DecrementRc { .. } => {
-                        unreachable!("These instructions have no results")
-                    }
-                }
-            }
-            Value::Param { block, position } => {
-                self.blocks[block].parameter_types_mut()[position] = target_type;
-            }
-            value => unreachable!("ICE: Cannot set type of {:?}", value),
-        }
-    }
-
     /// If `original_value_id`'s underlying `Value` has been substituted for that of another
     /// `ValueId`, this function will return the `ValueId` from which the substitution was taken.
     /// If `original_value_id`'s underlying `Value` has not been substituted, the same `ValueId`
