@@ -73,7 +73,7 @@ impl IntStrategy {
 
     /// Maximum number of bits for which we generate random numbers.
     fn type_max_bits(&self) -> usize {
-        cmp::max(self.bits, 64)
+        cmp::min(self.bits, 64)
     }
 }
 

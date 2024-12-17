@@ -87,7 +87,7 @@ impl UintStrategy {
 
     /// Maximum bits that we generate values for.
     fn type_max_bits(&self) -> usize {
-        cmp::max(self.bits, 128)
+        cmp::min(self.bits, 128)
     }
 }
 
