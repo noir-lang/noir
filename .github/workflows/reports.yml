@@ -645,12 +645,14 @@ jobs:
         run: |
           ls ./artifacts
           ls ./test-repo/${{ matrix.project.path }}
+          NAME_FROM_MATRIX=${{ matrix.project.path }}
+          NAME_FROM_MATRIX=$(basename $NAME_FROM_MATRIX)
+          echo $NAME_FROM_MATRIX
           for artifact in ./artifacts/*; do
             echo $artifact
             PACKAGE_NAME=$(basename $artifact .json)
             echo $PACKAGE_NAME
-            NAME_FROM_MATRIX=${{ matrix.project.path }}
-            NAME_FROM_MATRIX=$(basename $PACKAGE_NAME)
+
             if [[ "$PACKAGE_NAME" == "$NAME_FROM_MATRIX" ]]; then
               echo "got here"
               mkdir ./test-repo/${{ matrix.project.path }}/target 
