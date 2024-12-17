@@ -6,13 +6,7 @@ use proptest::{
 };
 use rand::Rng;
 
-/// Using `i64` instead of `i128` because the latter was not available for Wasm.
-/// Once https://github.com/proptest-rs/proptest/pull/519 is released we can switch
-/// back, although since we've restricted the type system to only allow u64s
-/// as the maximum integer type. We could come up with strategy that covers
-/// double the range of i64 by using u64 and mapping it to i128, but I'm not
-/// sure it's worth the effort.
-type BinarySearch = proptest::num::i64::BinarySearch;
+type BinarySearch = proptest::num::i128::BinarySearch;
 
 /// Strategy for signed ints (up to i128).
 /// The strategy combines 2 different strategies, each assigned a specific weight:
@@ -46,7 +40,7 @@ impl IntStrategy {
         let kind = rng.gen_range(0..4);
         let start = match kind {
             0 => self.type_min() + offset,
-            1 => -offset - 1i64,
+            1 => -offset - 1i128,
             2 => offset,
             3 => self.type_max() - offset,
             _ => unreachable!(),
@@ -57,29 +51,29 @@ impl IntStrategy {
     fn generate_random_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
         let rng = runner.rng();
 
-        let start: i64 = rng.gen_range(self.type_min()..=self.type_max());
+        let start: i128 = rng.gen_range(self.type_min()..=self.type_max());
         Ok(BinarySearch::new(start))
     }
 
     /// We've restricted the type system to only allow u64s as the maximum integer type.
-    fn type_max(&self) -> i64 {
-        (1i64 << (self.type_max_bits() - 1)) - 1
+    fn type_max(&self) -> i128 {
+        (1i128 << (self.type_max_bits() - 1)) - 1
     }
 
     /// We've restricted the type system to only allow u64s as the maximum integer type.
-    fn type_min(&self) -> i64 {
-        -(1i64 << (self.type_max_bits() - 1))
+    fn type_min(&self) -> i128 {
+        -(1i128 << (self.type_max_bits() - 1))
     }
 
     /// Maximum number of bits for which we generate random numbers.
     fn type_max_bits(&self) -> usize {
-        cmp::min(self.bits, 64)
+        cmp::min(self.bits, 128)
     }
 }
 
 impl Strategy for IntStrategy {
     type Tree = BinarySearch;
-    type Value = i64;
+    type Value = i128;
 
     fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
         let total_weight = self.random_weight + self.edge_weight;

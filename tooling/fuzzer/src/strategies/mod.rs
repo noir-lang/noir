@@ -28,13 +28,12 @@ pub(super) fn arb_value_from_abi_type(
                 .sboxed()
         }
         AbiType::Integer { width, .. } => {
-            let shift = 2i64.pow(*width);
+            let shift = 2i128.pow(*width);
             IntStrategy::new(*width as usize)
                 .prop_map(move |mut int| {
                     if int < 0 {
                         int += shift
                     }
-                    let int: i128 = int.into();
                     InputValue::Field(int.into())
                 })
                 .sboxed()
