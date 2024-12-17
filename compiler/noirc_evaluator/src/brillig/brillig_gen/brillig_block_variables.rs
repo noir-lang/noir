@@ -52,17 +52,18 @@ impl BlockVariables {
         &mut self,
         function_context: &mut FunctionContext,
         brillig_context: &mut BrilligContext<FieldElement, Stack>,
-        value_id: Value,
+        value: Value,
         dfg: &DataFlowGraph,
     ) -> BrilligVariable {
-        let value_id = dfg.resolve(value_id);
-        let variable = allocate_value(value_id, brillig_context, dfg);
+        let value = dfg.resolve(value);
 
-        if function_context.ssa_value_allocations.insert(value_id, variable).is_some() {
-            unreachable!("ICE: ValueId {value_id:?} was already in cache");
+        let variable = allocate_value(value, brillig_context, dfg);
+
+        if function_context.ssa_value_allocations.insert(value, variable).is_some() {
+            unreachable!("ICE: Value {value:?} was already in cache");
         }
 
-        self.available_variables.insert(value_id);
+        self.available_variables.insert(value);
 
         variable
     }

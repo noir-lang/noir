@@ -159,8 +159,8 @@ impl<'block> BrilligBlock<'block> {
                 );
             }
             TerminatorInstruction::Return { return_values, .. } => {
-                let return_registers = vecmap(return_values, |value_id| {
-                    self.convert_ssa_value(*value_id, dfg).extract_register()
+                let return_registers = vecmap(return_values, |value| {
+                    self.convert_ssa_value(*value, dfg).extract_register()
                 });
                 self.brillig_context.codegen_return(&return_registers);
             }
@@ -317,22 +317,22 @@ impl<'block> BrilligBlock<'block> {
                 Value::ForeignFunction(func_name) => {
                     let result_ids = dfg.instruction_results(instruction_id).collect::<Vec<_>>();
 
-                    let input_values = vecmap(arguments, |value_id| {
-                        let variable = self.convert_ssa_value(*value_id, dfg);
+                    let input_values = vecmap(arguments, |value| {
+                        let variable = self.convert_ssa_value(*value, dfg);
                         self.brillig_context.variable_to_value_or_array(variable)
                     });
-                    let input_value_types = vecmap(arguments, |value_id| {
-                        let value_type = dfg.type_of_value(*value_id);
+                    let input_value_types = vecmap(arguments, |value| {
+                        let value_type = dfg.type_of_value(*value);
                         type_to_heap_value_type(&value_type)
                     });
-                    let output_variables = vecmap(&result_ids, |value_id| {
-                        self.allocate_external_call_result(*value_id, dfg)
+                    let output_variables = vecmap(&result_ids, |value| {
+                        self.allocate_external_call_result(*value, dfg)
                     });
                     let output_values = vecmap(&output_variables, |variable| {
                         self.brillig_context.variable_to_value_or_array(*variable)
                     });
-                    let output_value_types = vecmap(&result_ids, |value_id| {
-                        let value_type = dfg.type_of_value(*value_id);
+                    let output_value_types = vecmap(&result_ids, |value| {
+                        let value_type = dfg.type_of_value(*value);
                         type_to_heap_value_type(&value_type)
                     });
 
@@ -792,13 +792,13 @@ impl<'block> BrilligBlock<'block> {
                 unreachable!("IfElse instructions should not be possible in brillig")
             }
             Instruction::MakeArray { elements: array, typ } => {
-                let value_id = Value::instruction_result(instruction_id, 0);
+                let value = Value::instruction_result(instruction_id, 0);
 
-                if !self.variables.is_allocated(&value_id) {
+                if !self.variables.is_allocated(&value) {
                     let new_variable = self.variables.define_variable(
                         self.function_context,
                         self.brillig_context,
-                        value_id,
+                        value,
                         dfg,
                     );
 
@@ -1571,26 +1571,26 @@ impl<'block> BrilligBlock<'block> {
     }
 
     /// Converts an SSA `ValueId` into a `RegisterOrMemory`. Initializes if necessary.
-    fn convert_ssa_value(&mut self, value_id: Value, dfg: &DataFlowGraph) -> BrilligVariable {
-        let value = dfg.resolve(value_id);
+    fn convert_ssa_value(&mut self, value: Value, dfg: &DataFlowGraph) -> BrilligVariable {
+        let value = dfg.resolve(value);
 
         match value {
             Value::Param { .. } | Value::Instruction { .. } => {
                 // All block parameters and instruction results should have already been
                 // converted to registers so we fetch from the cache.
 
-                self.variables.get_allocation(self.function_context, value_id, dfg)
+                self.variables.get_allocation(self.function_context, value, dfg)
             }
             Value::NumericConstant { constant, .. } => {
                 // Constants might have been converted previously or not, so we get or create and
                 // (re)initialize the value inside.
-                if self.variables.is_allocated(&value_id) {
-                    self.variables.get_allocation(self.function_context, value_id, dfg)
+                if self.variables.is_allocated(&value) {
+                    self.variables.get_allocation(self.function_context, value, dfg)
                 } else {
                     let new_variable = self.variables.define_variable(
                         self.function_context,
                         self.brillig_context,
-                        value_id,
+                        value,
                         dfg,
                     );
 
@@ -1607,7 +1607,7 @@ impl<'block> BrilligBlock<'block> {
                 let new_variable = self.variables.define_variable(
                     self.function_context,
                     self.brillig_context,
-                    value_id,
+                    value,
                     dfg,
                 );
 
@@ -1779,10 +1779,10 @@ impl<'block> BrilligBlock<'block> {
     /// Converts an SSA `ValueId` into a `MemoryAddress`. Initializes if necessary.
     fn convert_ssa_single_addr_value(
         &mut self,
-        value_id: Value,
+        value: Value,
         dfg: &DataFlowGraph,
     ) -> SingleAddrVariable {
-        let variable = self.convert_ssa_value(value_id, dfg);
+        let variable = self.convert_ssa_value(value, dfg);
         variable.extract_single_addr()
     }
 

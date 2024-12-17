@@ -140,6 +140,7 @@ pub(crate) fn optimize_into_acir(
         print_codegen_timings: options.print_codegen_timings,
     }
     .run_pass(|ssa| ssa.fold_constants_with_brillig(&brillig), "Inlining Brillig Calls Inlining")
+    .run_pass(Ssa::simplify_cfg, "Simplifying (4th)")
     .run_pass(Ssa::dead_instruction_elimination, "Dead Instruction Elimination (2nd)")
     .finish();
 
@@ -191,7 +192,7 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
         .run_pass(Ssa::remove_enable_side_effects, "EnableSideEffectsIf removal")
         .run_pass(Ssa::fold_constants_using_constraints, "Constraint Folding")
         .run_pass(Ssa::dead_instruction_elimination, "Dead Instruction Elimination (1st)")
-        .run_pass(Ssa::simplify_cfg, "Simplifying:")
+        .run_pass(Ssa::simplify_cfg, "Simplifying (3rd)")
         .run_pass(Ssa::array_set_optimization, "Array Set Optimizations")
         .finish())
 }
@@ -502,7 +503,7 @@ impl SsaBuilder {
             }
         };
         if print_ssa_pass {
-            self.ssa.normalize_ids();
+            // self.ssa.normalize_ids();
             println!("After {msg}:\n{}", self.ssa);
         }
         self

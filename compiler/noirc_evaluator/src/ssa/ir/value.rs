@@ -88,8 +88,16 @@ impl Value {
 impl std::fmt::Display for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Value::Instruction { instruction, position } => write!(f, "{instruction}:{position}"),
-            Value::Param { block, position } => write!(f, "{block}:{position}"),
+            Value::Instruction { instruction, position } => {
+                // Because these are so common, we don't show the `:0` suffix since
+                // most instructions only have 1 result
+                if *position == 0 {
+                    write!(f, "{instruction}")
+                } else {
+                    write!(f, "{instruction}.{position}")
+                }
+            }
+            Value::Param { block, position } => write!(f, "{block}.{position}"),
             Value::NumericConstant { constant, typ } => write!(f, "{typ} {constant}"),
             Value::Function(id) => write!(f, "{id}"),
             Value::Intrinsic(intrinsic) => write!(f, "{intrinsic}"),
