@@ -545,7 +545,7 @@ jobs:
             echo $artifact
             PACKAGE_NAME=$(basename $artifact .json)
             echo $PACKAGE_NAME
-            ls ./test_programs/execution_success/$PACKAGE_NAME/target
+            mkdir ./test_programs/execution_success/$PACKAGE_NAME/target
             mv $artifact ./test_programs/execution_success/$PACKAGE_NAME/target/$PACKAGE_NAME.json
           done
 
