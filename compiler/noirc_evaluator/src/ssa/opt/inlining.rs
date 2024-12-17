@@ -700,7 +700,7 @@ impl<'function> PerFunctionContext<'function> {
         mut old_results: impl ExactSizeIterator<Item = Value>,
         new_results: InsertInstructionResult,
     ) {
-        assert_eq!(old_results.len(), new_results.len());
+        assert_eq!(old_results.len() as u32, new_results.len());
 
         match new_results {
             InsertInstructionResult::SimplifiedTo(new_result) => {
@@ -714,7 +714,7 @@ impl<'function> PerFunctionContext<'function> {
             }
             InsertInstructionResult::Results { id, result_count: _ } => {
                 for (i, old_result) in old_results.enumerate() {
-                    values.insert(old_result, Value::instruction_result(id, i));
+                    values.insert(old_result, Value::instruction_result(id, i as u32));
                 }
             }
             InsertInstructionResult::InstructionRemoved => (),

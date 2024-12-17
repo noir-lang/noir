@@ -205,7 +205,7 @@ impl<'f> FunctionInserter<'f> {
         old_results: &[Value],
         new_results: &InsertInstructionResult,
     ) {
-        assert_eq!(old_results.len(), new_results.len());
+        assert_eq!(old_results.len(), new_results.len() as usize);
 
         match new_results {
             InsertInstructionResult::SimplifiedTo(new_result) => {
@@ -223,7 +223,7 @@ impl<'f> FunctionInserter<'f> {
             InsertInstructionResult::Results { id, result_count: _ } => {
                 for (i, old_result) in old_results.iter().enumerate() {
                     if !old_result.is_constant() {
-                        values.insert(*old_result, Value::instruction_result(*id, i));
+                        values.insert(*old_result, Value::instruction_result(*id, i as u32));
                     }
                 }
             }

@@ -96,7 +96,7 @@ impl DataFlowGraph {
         &self,
         block: BasicBlockId,
     ) -> impl ExactSizeIterator<Item = Value> {
-        (0..self[block].parameter_types().len())
+        (0..self[block].parameter_types().len() as u32)
             .map(move |position| Value::Param { block, position })
     }
 
@@ -196,7 +196,7 @@ impl DataFlowGraph {
                     InstructionResultType::Operand(value) => self.type_of_value(value),
                     InstructionResultType::Known(typ) => typ,
                     InstructionResultType::None => unreachable!("Instruction has no results"),
-                    InstructionResultType::Multiple(types) => types[position].clone(),
+                    InstructionResultType::Multiple(types) => types[position as usize].clone(),
                 }
             }
             Value::Param { block, position } => self[block].type_of_parameter(position).clone(),
@@ -244,7 +244,7 @@ impl DataFlowGraph {
     /// Add a parameter to the given block
     pub(crate) fn add_block_parameter(&mut self, block_id: BasicBlockId, typ: Type) -> Value {
         let block = &mut self.blocks[block_id];
-        let position = block.parameter_types().len();
+        let position = block.parameter_types().len().try_into().unwrap();
         block.add_parameter(typ);
         Value::Param { block: block_id, position }
     }

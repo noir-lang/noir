@@ -6,7 +6,7 @@ use crate::ssa::ir::value::Value;
 // to an existing value.
 #[derive(Debug)]
 pub(crate) enum InsertInstructionResult {
-    Results { id: InstructionId, result_count: usize },
+    Results { id: InstructionId, result_count: u32 },
     SimplifiedTo(Value),
     SimplifiedToMultiple(Vec<Value>),
     InstructionRemoved,
@@ -35,10 +35,10 @@ impl InsertInstructionResult {
     }
 
     /// Returns the amount of ValueIds contained
-    pub(crate) fn len(&self) -> usize {
+    pub(crate) fn len(&self) -> u32 {
         match self {
             InsertInstructionResult::SimplifiedTo(_) => 1,
-            InsertInstructionResult::SimplifiedToMultiple(results) => results.len(),
+            InsertInstructionResult::SimplifiedToMultiple(results) => results.len() as u32,
             InsertInstructionResult::Results { result_count, .. } => *result_count,
             InsertInstructionResult::InstructionRemoved => 0,
         }
@@ -47,7 +47,7 @@ impl InsertInstructionResult {
 
 pub(crate) struct InsertInstructionResultIter {
     results: InsertInstructionResult,
-    index: usize,
+    index: u32,
 }
 
 impl Iterator for InsertInstructionResultIter {
@@ -65,8 +65,8 @@ impl Iterator for InsertInstructionResultIter {
                 self.index += 1;
                 Some(*value)
             }
-            SimplifiedToMultiple(results) if self.index < results.len() => {
-                let result = results[self.index];
+            SimplifiedToMultiple(results) if self.index < results.len() as u32 => {
+                let result = results[self.index as usize];
                 self.index += 1;
                 Some(result)
             }
@@ -83,6 +83,6 @@ impl Iterator for InsertInstructionResultIter {
 
 impl ExactSizeIterator for InsertInstructionResultIter {
     fn len(&self) -> usize {
-        self.results.len() - self.index
+        (self.results.len() - self.index) as usize
     }
 }

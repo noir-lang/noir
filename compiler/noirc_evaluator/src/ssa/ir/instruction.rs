@@ -978,7 +978,7 @@ impl Instruction {
     }
 
     /// Returns the number of results this instruction produces
-    pub(crate) fn result_count(&self) -> usize {
+    pub(crate) fn result_count(&self) -> u32 {
         match self {
             Instruction::Constrain(..)
             | Instruction::RangeCheck { .. }
@@ -996,7 +996,7 @@ impl Instruction {
             | Instruction::ArraySet { .. }
             | Instruction::IfElse { .. }
             | Instruction::MakeArray { .. } => 1,
-            Instruction::Call { result_types, .. } => result_types.len(),
+            Instruction::Call { result_types, .. } => result_types.len() as u32,
         }
     }
 }

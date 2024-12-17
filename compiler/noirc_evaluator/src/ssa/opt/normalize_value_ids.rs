@@ -95,7 +95,7 @@ impl Context {
                     call_stack,
                 );
 
-                assert_eq!(old_results.len(), new_results.len());
+                assert_eq!(old_results.len() as u32, new_results.len());
                 for (old_result, new_result) in old_results.zip(new_results.results()) {
                     let old_result = old_function.dfg.resolve(old_result);
                     self.new_ids.values.insert(old_result, new_result);
