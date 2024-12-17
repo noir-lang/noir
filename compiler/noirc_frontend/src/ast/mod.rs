@@ -43,21 +43,27 @@ use iter_extended::vecmap;
 #[cfg_attr(test, derive(Arbitrary))]
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Ord, PartialOrd)]
 pub enum IntegerBitSize {
+    Zero, // bit size of Unit
     One,
     Eight,
     Sixteen,
     ThirtyTwo,
     SixtyFour,
+    FieldElementBits, // max bit size of FieldElement
 }
 
 impl IntegerBitSize {
     pub fn bit_size(&self) -> u8 {
         match self {
+            IntegerBitSize::Zero => 0,
             IntegerBitSize::One => 1,
             IntegerBitSize::Eight => 8,
             IntegerBitSize::Sixteen => 16,
             IntegerBitSize::ThirtyTwo => 32,
             IntegerBitSize::SixtyFour => 64,
+            IntegerBitSize::FieldElementBits => {
+                FieldElement::max_num_bits().try_into().expect("ICE: FieldElement has more than u8::MAX bits")
+            }
         }
     }
 }
@@ -72,11 +78,13 @@ impl From<IntegerBitSize> for u32 {
     fn from(size: IntegerBitSize) -> u32 {
         use IntegerBitSize::*;
         match size {
+            Zero => 0,
             One => 1,
             Eight => 8,
             Sixteen => 16,
             ThirtyTwo => 32,
             SixtyFour => 64,
+            FieldElementBits => FieldElement::max_num_bits(),
         }
     }
 }
@@ -88,7 +96,11 @@ impl TryFrom<u32> for IntegerBitSize {
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
         use IntegerBitSize::*;
+        if value == FieldElement::max_num_bits() {
+            return Ok(FieldElementBits);
+        }
         match value {
+            0 => Ok(Zero),
             1 => Ok(One),
             8 => Ok(Eight),
             16 => Ok(Sixteen),
@@ -110,15 +122,12 @@ impl core::fmt::Display for IntegerBitSize {
 /// for structs within, but are otherwise identical to Types.
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum UnresolvedTypeData {
-    FieldElement,
     Array(UnresolvedTypeExpression, Box<UnresolvedType>), // [Field; 4] = Array(4, Field)
     Slice(Box<UnresolvedType>),
     Integer(Signedness, IntegerBitSize), // u32 = Integer(unsigned, ThirtyTwo)
-    Bool,
     Expression(UnresolvedTypeExpression),
     String(UnresolvedTypeExpression),
     FormatString(UnresolvedTypeExpression, Box<UnresolvedType>),
-    Unit,
 
     Parenthesized(Box<UnresolvedType>),
 
