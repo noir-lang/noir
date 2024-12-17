@@ -587,7 +587,7 @@ jobs:
           overwrite: true
 
   external_repo_execution_report:
-    needs: [build-nargo]
+    needs: [build-nargo, external_repo_compilation_report]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -629,6 +629,11 @@ jobs:
           repository: ${{ matrix.project.repo }}
           path: test-repo
           ref: ${{ matrix.project.ref }}
+
+      - name: Get package name
+        run: |
+          PACKAGE_NAME=$(basename ${{ matrix.project.path }})
+          echo $PACKAGE_NAME
 
       - name: Download program artifacts
         uses: actions/download-artifact@v4
