@@ -216,6 +216,21 @@ fn compile_programs(
             cached_program,
         )?;
 
+        if compile_options.check_non_determinism {
+            dbg!("got here");
+            let (program_two, _) = compile_program(
+                file_manager,
+                parsed_files,
+                workspace,
+                package,
+                compile_options,
+                load_cached_program(package),
+            )?;
+            if fxhash::hash64(&program) != fxhash::hash64(&program_two) {
+                panic!("Non deterministic result compiling {}", package.name);
+            }
+        }
+
         // Choose the target width for the final, backend specific transformation.
         let target_width =
             get_target_width(package.expression_width, compile_options.expression_width);
@@ -234,6 +249,7 @@ fn compile_programs(
                 return Ok(((), warnings));
             }
         }
+
         // Run ACVM optimizations and set the target width.
         let program = nargo::ops::transform_program(program, target_width);
         // Check solvability.
