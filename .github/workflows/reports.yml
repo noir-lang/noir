@@ -390,110 +390,110 @@ jobs:
           retention-days: 3
           overwrite: true
 
-  # external_repo_compilation_and_execution_report:
-  #   needs: [build-nargo]
-  #   runs-on: ubuntu-latest
-  #   timeout-minutes: 15
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       include:
-  #         - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-contracts, library: true }
-  #         - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/parity-root, library: false }
-  #         - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-inner, library: false }
-  #         - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-tail, library: false }
-  #         - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-reset, library: false }
-  #         - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-base-private, library: false }
-  #         - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-base-public, library: false }
+  external_repo_compilation_and_execution_report:
+    needs: [build-nargo]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-contracts, library: true }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/parity-root, library: false }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-inner, library: false }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-tail, library: false }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-reset, library: false }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-base-private, library: false }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-base-public, library: false }
 
-  #   name: External repo compilation report - ${{ matrix.project.repo }}/${{ matrix.project.path }}
-  #   steps:
-  #     - name: Download nargo binary
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         name: nargo
-  #         path: ./nargo
+    name: External repo compilation report - ${{ matrix.project.repo }}/${{ matrix.project.path }}
+    steps:
+      - name: Download nargo binary
+        uses: actions/download-artifact@v4
+        with:
+          name: nargo
+          path: ./nargo
 
-  #     - name: Set nargo on PATH
-  #       run: |
-  #         nargo_binary="${{ github.workspace }}/nargo/nargo"
-  #         chmod +x $nargo_binary
-  #         echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
-  #         export PATH="$PATH:$(dirname $nargo_binary)"
-  #         nargo -V
+      - name: Set nargo on PATH
+        run: |
+          nargo_binary="${{ github.workspace }}/nargo/nargo"
+          chmod +x $nargo_binary
+          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
+          export PATH="$PATH:$(dirname $nargo_binary)"
+          nargo -V
 
-  #     - uses: actions/checkout@v4
-  #       with:
-  #         path: scripts
-  #         sparse-checkout: |
-  #           test_programs/compilation_report.sh
-  #         sparse-checkout-cone-mode: false
+      - uses: actions/checkout@v4
+        with:
+          path: scripts
+          sparse-checkout: |
+            test_programs/compilation_report.sh
+          sparse-checkout-cone-mode: false
             
-  #     - uses: actions/checkout@v4
-  #       with:
-  #         path: scripts
-  #         sparse-checkout: |
-  #           test_programs/execution_report.sh
-  #         sparse-checkout-cone-mode: false
+      - uses: actions/checkout@v4
+        with:
+          path: scripts
+          sparse-checkout: |
+            test_programs/execution_report.sh
+          sparse-checkout-cone-mode: false
 
-  #     - name: Checkout
-  #       uses: actions/checkout@v4
-  #       with:
-  #         repository: ${{ matrix.project.repo }}
-  #         path: test-repo
-  #         ref: ${{ matrix.project.ref }}
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ matrix.project.repo }}
+          path: test-repo
+          ref: ${{ matrix.project.ref }}
 
-  #     - name: Generate compilation report
-  #       working-directory: ./test-repo/${{ matrix.project.path }}
-  #       run: |
-  #         mv /home/runner/work/noir/noir/scripts/test_programs/compilation_report.sh ./compilation_report.sh
-  #         chmod +x ./compilation_report.sh
-  #         ./compilation_report.sh 1
+      - name: Generate compilation report
+        working-directory: ./test-repo/${{ matrix.project.path }}
+        run: |
+          mv /home/runner/work/noir/noir/scripts/test_programs/compilation_report.sh ./compilation_report.sh
+          chmod +x ./compilation_report.sh
+          ./compilation_report.sh 1
       
-  #     - name: Generate execution report
-  #       working-directory: ./test-repo/${{ matrix.project.path }}
-  #       run: |
-  #         mv /home/runner/work/noir/noir/scripts/test_programs/execution_report.sh ./execution_report.sh
-  #         IS_LIBRARY=${{ matrix.project.path }}
-  #         echo $IS_LIBRARY
-  #         if $IS_LIBRARY; then
-  #           exit 0
-  #         fi
-  #         ./execution_report.sh 1
+      - name: Generate execution report
+        working-directory: ./test-repo/${{ matrix.project.path }}
+        run: |
+          mv /home/runner/work/noir/noir/scripts/test_programs/execution_report.sh ./execution_report.sh
+          IS_LIBRARY=${{ matrix.project.path }}
+          echo $IS_LIBRARY
+          if $IS_LIBRARY; then
+            exit 0
+          fi
+          ./execution_report.sh 1
 
-  #     - name: Move compilation report
-  #       id: report
-  #       shell: bash
-  #       run: |
-  #         PACKAGE_NAME=${{ matrix.project.path }}
-  #         PACKAGE_NAME=$(basename $PACKAGE_NAME)
-  #         mv ./test-repo/${{ matrix.project.path }}/compilation_report.json ./compilation_report_$PACKAGE_NAME.json
-  #         echo "compilation_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
+      - name: Move compilation report
+        id: report
+        shell: bash
+        run: |
+          PACKAGE_NAME=${{ matrix.project.path }}
+          PACKAGE_NAME=$(basename $PACKAGE_NAME)
+          mv ./test-repo/${{ matrix.project.path }}/compilation_report.json ./compilation_report_$PACKAGE_NAME.json
+          echo "compilation_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
 
-  #     - name: Move execution report
-  #       id: report
-  #       shell: bash
-  #       run: |
-  #         PACKAGE_NAME=${{ matrix.project.path }}
-  #         PACKAGE_NAME=$(basename $PACKAGE_NAME)
-  #         mv ./test-repo/${{ matrix.project.path }}/execution_report.json ./execution_report_$PACKAGE_NAME.json
-  #         echo "execution_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
+      - name: Move execution report
+        id: report
+        shell: bash
+        run: |
+          PACKAGE_NAME=${{ matrix.project.path }}
+          PACKAGE_NAME=$(basename $PACKAGE_NAME)
+          mv ./test-repo/${{ matrix.project.path }}/execution_report.json ./execution_report_$PACKAGE_NAME.json
+          echo "execution_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
 
-  #     - name: Upload compilation report
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: compilation_report_${{ steps.report.outputs.compilation_report_name }}
-  #         path: compilation_report_${{ steps.report.outputs.compilation_report_name }}.json
-  #         retention-days: 3
-  #         overwrite: true
+      - name: Upload compilation report
+        uses: actions/upload-artifact@v4
+        with:
+          name: compilation_report_${{ steps.report.outputs.compilation_report_name }}
+          path: compilation_report_${{ steps.report.outputs.compilation_report_name }}.json
+          retention-days: 3
+          overwrite: true
 
-  #     - name: Upload execution report
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: execution_report_${{ steps.report.outputs.execution_report_name }}
-  #         path: execution_report_${{ steps.report.outputs.execution_report_name }}.json
-  #         retention-days: 3
-  #         overwrite: true
+      - name: Upload execution report
+        uses: actions/upload-artifact@v4
+        with:
+          name: execution_report_${{ steps.report.outputs.execution_report_name }}
+          path: execution_report_${{ steps.report.outputs.execution_report_name }}.json
+          retention-days: 3
+          overwrite: true
 
   upload_compilation_report:
     name: Upload compilation report 
