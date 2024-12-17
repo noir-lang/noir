@@ -346,15 +346,11 @@ jobs:
       - name: Move compilation artifacts
         id: artifact
         run: |
-          cat compilation_report_${{ steps.report.outputs.compilation_report_name }}.json
           for artifact in ./test-repo/${{ matrix.project.path }}/target/*; do 
-            echo $artifact
             PACKAGE_NAME=$(basename $artifact .json)
-            echo $PACKAGE_NAME
             mv ./test-repo/${{ matrix.project.path }}/target/$PACKAGE_NAME.json ./compilation_artifact_$PACKAGE_NAME.json
             echo "compilation_artifact_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
           done
-          ls ./
 
       - name: Upload compilation report
         uses: actions/upload-artifact@v4
@@ -563,9 +559,7 @@ jobs:
         run: |
           ls ./artifacts
           for artifact in ./artifacts/*; do
-            echo $artifact
             PACKAGE_NAME=$(basename $artifact .json)
-            echo $PACKAGE_NAME
             mkdir ./test_programs/execution_success/$PACKAGE_NAME/target
             mv $artifact ./test_programs/execution_success/$PACKAGE_NAME/target/$PACKAGE_NAME.json
           done
@@ -573,10 +567,7 @@ jobs:
       - name: Generate Execution report
         working-directory: ./test_programs
         run: |
-          ls ../
-          ls ../artifacts
           ./execution_report.sh
-          cat execution_report.json
           mv execution_report.json ../execution_report.json
 
       - name: Upload execution report
@@ -644,41 +635,24 @@ jobs:
 
       - name: Move compilation artifacts
         run: |
-          ls ./artifacts
-          ls ./test-repo/${{ matrix.project.path }}
           NAME_FROM_MATRIX=${{ matrix.project.path }}
           NAME_FROM_MATRIX=$(basename $NAME_FROM_MATRIX)
-          echo $NAME_FROM_MATRIX
+          # Convert `-` to `_` as that is how package names must be specified
           NAME_FROM_MATRIX="${NAME_FROM_MATRIX//-/_}"
-          echo $NAME_FROM_MATRIX
           for artifact in ./artifacts/*; do
-            echo $artifact
             ARTIFACT_NAME=$(basename $artifact .json)
-            echo $ARTIFACT_NAME
             PACKAGE_NAME="${ARTIFACT_NAME#compilation_artifact_}"
-            echo $PACKAGE_NAME
             if [[ "$PACKAGE_NAME" == "$NAME_FROM_MATRIX" ]]; then
-              echo "got here"
               mkdir ./test-repo/${{ matrix.project.path }}/target
-              # cd ./artifacts
-              # cp ./artifacts/$ARTIFACT_NAME ./$ARTIFACT_NAME.json
-              ls ./artifacts/$ARTIFACT_NAME
               mv ./artifacts/$ARTIFACT_NAME/$ARTIFACT_NAME.json ./test-repo/${{ matrix.project.path }}/target/$PACKAGE_NAME.json
               break
             fi
-            ls ./test-repo/${{ matrix.project.path }}
-            # if [ ! -d "./test-repo/${{ matrix.project.path }}/target" ]; then
-            # fi
-            # ls ./test-repo/${{ matrix.project.path }}/target
-            # mv $artifact ./test-repo/${{ matrix.project.path }}/target/$PACKAGE_NAME.json
           done
 
       - name: Generate execution report
         working-directory: ./test-repo/${{ matrix.project.path }}
         run: |
-          ls ./target/
           mv /home/runner/work/noir/noir/scripts/test_programs/execution_report.sh ./execution_report.sh
-          chmod +x ./execution_report.sh
           ./execution_report.sh 1
 
       - name: Move execution report

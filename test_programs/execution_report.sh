@@ -36,20 +36,12 @@ for dir in ${tests_to_profile[@]}; do
       PACKAGE_NAME=$(basename $current_dir)
     fi
 
-    echo $(ls .)
-    # TODO: For now I am just recompiling the package. But we should be using pre-existing artifacts 
-    # as we already compile these packages a few places in CI 
-    # nargo compile --force --silence-warnings
-
     # Check whether a compilation artifact exists. 
     # Any programs part of this benchmark should already be compiled.
     # We want to make sure that compilation time is not included in the execution time.
-    if [ -e ./target/*.json ]
-    then
-        echo "ok"
-    else
-        echo "Missing compilation artifact for $PACKAGE_NAME"
-        exit 1
+    if [ ! -e ./target/*.json ]; then
+      echo "Missing compilation artifact for $PACKAGE_NAME"
+      exit 1
     fi
 
     COMPILE_TIME=$((time nargo execute --silence-warnings) 2>&1 | grep real | grep -oE '[0-9]+m[0-9]+.[0-9]+s')
