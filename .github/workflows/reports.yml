@@ -428,6 +428,7 @@ jobs:
         run: |
           mv ./.github/scripts/merge-gates-reports.sh merge-gates-reports.sh
           ./merge-gates-reports.sh > protocol_circuits_gates_report.json
+          cat protocol_circuits_gates_report.json
 
       - name: Compare gates reports
         id: gates_diff
