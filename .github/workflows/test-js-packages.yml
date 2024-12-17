@@ -543,7 +543,7 @@ jobs:
   external-repo-checks:
     needs: [build-nargo, critical-library-list]
     runs-on: ubuntu-22.04
-    timeout-minutes: 30
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
