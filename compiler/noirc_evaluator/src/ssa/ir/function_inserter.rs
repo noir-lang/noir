@@ -59,6 +59,7 @@ impl<'f> FunctionInserter<'f> {
             // existing entries, but we should never have a value in the map referring to itself anyway.
             self.values.remove(&key);
         } else {
+            assert!(!key.is_constant());
             self.values.entry(key).or_insert(value);
         }
     }
@@ -68,6 +69,7 @@ impl<'f> FunctionInserter<'f> {
         if key == value {
             self.values.remove(&key);
         } else {
+            assert!(!key.is_constant());
             self.values.insert(key, value);
         }
     }
@@ -207,16 +209,22 @@ impl<'f> FunctionInserter<'f> {
 
         match new_results {
             InsertInstructionResult::SimplifiedTo(new_result) => {
-                values.insert(old_results[0], *new_result);
+                if !old_results[0].is_constant() {
+                    values.insert(old_results[0], *new_result);
+                }
             }
             InsertInstructionResult::SimplifiedToMultiple(new_results) => {
                 for (old_result, new_result) in old_results.iter().zip(new_results) {
-                    values.insert(*old_result, *new_result);
+                    if !old_result.is_constant() {
+                        values.insert(*old_result, *new_result);
+                    }
                 }
             }
             InsertInstructionResult::Results { id, result_count: _ } => {
                 for (i, old_result) in old_results.iter().enumerate() {
-                    values.insert(*old_result, Value::instruction_result(*id, i));
+                    if !old_result.is_constant() {
+                        values.insert(*old_result, Value::instruction_result(*id, i));
+                    }
                 }
             }
             InsertInstructionResult::InstructionRemoved => (),

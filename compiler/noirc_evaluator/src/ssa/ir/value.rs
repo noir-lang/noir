@@ -83,6 +83,22 @@ impl Value {
     pub(crate) fn test_instruction_result(instruction: u32, position: usize) -> Self {
         Self::Instruction { instruction: Id::test_new(instruction), position }
     }
+
+    /// Return the instruction id associated with this value.
+    /// Panics if this is not a Value::Instruction
+    pub(crate) fn instruction_id(&self) -> InstructionId {
+        match self {
+            Value::Instruction { instruction, .. } => *instruction,
+            other => panic!("Expected Value::Instruction, found {other}"),
+        }
+    }
+
+    /// True if this is a constant value like an integer or function.
+    /// False if this is an instruction result or parameter.
+    pub(crate) fn is_constant(&self) -> bool {
+        use Value::*;
+        matches!(self, NumericConstant { .. } | Function(_) | Intrinsic(_) | ForeignFunction(_))
+    }
 }
 
 impl std::fmt::Display for Value {

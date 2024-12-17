@@ -20,13 +20,14 @@ impl Ssa {
     /// During normal compilation this is often not the case since prior passes
     /// may increase the ID counter so that later passes start at different offsets,
     /// even if they contain the same SSA code.
-    pub(crate) fn normalize_ids(&mut self) {
+    pub(crate) fn normalize_ids(mut self) -> Self {
         let mut context = Context::default();
         context.populate_functions(&self.functions);
         for function in self.functions.values_mut() {
             context.normalize_ids(function);
         }
         self.functions = context.functions.into_btree();
+        self
     }
 }
 

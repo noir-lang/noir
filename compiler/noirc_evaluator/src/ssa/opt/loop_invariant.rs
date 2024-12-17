@@ -16,7 +16,7 @@ use crate::ssa::{
         function::Function,
         function_inserter::FunctionInserter,
         instruction::{Instruction, InstructionId},
-        types::Type,
+        types::{NumericType, Type},
         value::Value,
     },
     Ssa,
@@ -53,6 +53,8 @@ impl Loops {
                 // If the loop does not have a preheader we skip hoisting loop invariants for this loop
                 continue;
             };
+
+            println!("Hoisting from function\n{}", context.inserter.function);
 
             context.hoist_loop_invariants(&loop_, pre_header);
         }
@@ -108,7 +110,9 @@ impl<'f> LoopInvariantContext<'f> {
                 let hoist_invariant = self.can_hoist_invariant(instruction_id);
 
                 if hoist_invariant {
-                    self.inserter.push_instruction(instruction_id, pre_header);
+                    if let Some(id) = self.inserter.push_instruction(instruction_id, pre_header) {
+                        println!("inserted {id}");
+                    }
 
                     // If we are hoisting a MakeArray instruction,
                     // we need to issue an extra inc_rc in case they are mutated afterward.
@@ -125,7 +129,9 @@ impl<'f> LoopInvariantContext<'f> {
                             .insert_instruction_and_results(inc_rc, *block, call_stack);
                     }
                 } else {
-                    self.inserter.push_instruction(instruction_id, *block);
+                    if let Some(id) = self.inserter.push_instruction(instruction_id, *block) {
+                        println!("Inserted {id}");
+                    }
                 }
 
                 self.extend_values_defined_in_loop_and_invariants(instruction_id, hoist_invariant);
@@ -153,11 +159,20 @@ impl<'f> LoopInvariantContext<'f> {
 
         for block in loop_.blocks.iter() {
             let params = self.inserter.function.dfg.block_parameters(*block);
+            let params = params.map(|value| self.inserter.resolve(value));
+            let params = params.filter(|value| matches!(value, Value::Param { .. }));
             self.defined_in_loop.extend(params);
-            for instruction_id in self.inserter.function.dfg[*block].instructions() {
+
+            let instructions = self.inserter.function.dfg[*block].take_instructions();
+
+            for instruction_id in &instructions {
                 let results = self.inserter.function.dfg.instruction_results(*instruction_id);
+                let results = results.map(|value| self.inserter.resolve(value));
+                let results = results.filter(|value| matches!(value, Value::Instruction { .. }));
                 self.defined_in_loop.extend(results);
             }
+
+            *self.inserter.function.dfg[*block].instructions_mut() = instructions;
         }
     }
 
@@ -168,19 +183,20 @@ impl<'f> LoopInvariantContext<'f> {
         instruction_id: InstructionId,
         hoist_invariant: bool,
     ) {
-        let results = self.inserter.function.dfg.instruction_results(instruction_id);
-
-        for result in results {
+        for result in self.inserter.function.dfg.instruction_results(instruction_id) {
             // We will have new IDs after pushing instructions.
             // We should mark the resolved result IDs as also being defined within the loop.
             let result = self.inserter.resolve(result);
-            self.defined_in_loop.insert(result);
 
-            // We also want the update result IDs when we are marking loop invariants as we may not
-            // be going through the blocks of the loop in execution order
-            if hoist_invariant {
-                // Track already found loop invariants
-                self.loop_invariants.insert(result);
+            if matches!(result, Value::Instruction { .. }) {
+                self.defined_in_loop.insert(result);
+
+                // We also want the update result IDs when we are marking loop invariants as we may not
+                // be going through the blocks of the loop in execution order
+                if hoist_invariant {
+                    // Track already found loop invariants
+                    self.loop_invariants.insert(result);
+                }
             }
         }
     }
@@ -191,7 +207,10 @@ impl<'f> LoopInvariantContext<'f> {
         // We may have already re-inserted new instructions if two loops share blocks
         // so we need to map all the values in the instruction which we want to check.
         let (instruction, _) = self.inserter.map_instruction(instruction_id);
+
         instruction.for_each_value(|value| {
+            let value = self.inserter.resolve(value);
+
             // If an instruction value is defined in the loop and not already a loop invariant
             // the instruction results are not loop invariants.
             //
@@ -242,6 +261,7 @@ impl<'f> LoopInvariantContext<'f> {
     /// Leaving out this mapping could lead to instructions with values that do not exist.
     fn map_dependent_instructions(&mut self) {
         let blocks = self.inserter.function.reachable_blocks();
+
         for block in blocks {
             for instruction_id in self.inserter.function.dfg[block].take_instructions() {
                 self.inserter.push_instruction(instruction_id, block);
