@@ -350,6 +350,7 @@ jobs:
           PACKAGE_NAME=${{ matrix.project.path }}
           PACKAGE_NAME=$(basename $PACKAGE_NAME)
           ./scripts/.github/scripts/single_artifact_gates_report.sh ./test-repo/${{ matrix.project.path }}/target/*.json > gates_report_$PACKAGE_NAME.json
+          cat gates_report_$PACKAGE_NAME.json
           echo "gates_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
 
       - name: Upload gates report
