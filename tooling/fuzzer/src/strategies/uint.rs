@@ -86,8 +86,10 @@ impl UintStrategy {
     }
 
     /// Maximum bits that we generate values for.
+    ///
+    /// We've restricted the type system to only allow u64s as the maximum integer type.
     fn type_max_bits(&self) -> usize {
-        cmp::min(self.bits, 128)
+        cmp::min(self.bits, 64)
     }
 }
 
