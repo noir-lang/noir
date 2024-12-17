@@ -342,11 +342,9 @@ jobs:
         run: |
           mv /home/runner/work/noir/noir/scripts/test_programs/execution_report.sh ./execution_report.sh
           IS_LIBRARY=${{ matrix.project.is_library }}
-          echo $IS_LIBRARY
-          if [[ "$IS_LIBRARY" == "true" ]]; then
-            exit 0
+          if [[ "$IS_LIBRARY" != "true" ]]; then
+            ./execution_report.sh 1
           fi
-          ./execution_report.sh 1
 
       - name: Move compilation report
         id: compilation_report
@@ -361,11 +359,14 @@ jobs:
         id: execution_report
         shell: bash
         run: |
-          PACKAGE_NAME=${{ matrix.project.path }}
-          PACKAGE_NAME=$(basename $PACKAGE_NAME)
-          mv ./test-repo/${{ matrix.project.path }}/execution_report.json ./execution_report_$PACKAGE_NAME.json
-          echo "execution_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
-
+          IS_LIBRARY=${{ matrix.project.is_library }}
+          if [[ "$IS_LIBRARY" != "true" ]]; then
+            PACKAGE_NAME=${{ matrix.project.path }}
+            PACKAGE_NAME=$(basename $PACKAGE_NAME)
+            mv ./test-repo/${{ matrix.project.path }}/execution_report.json ./execution_report_$PACKAGE_NAME.json
+            echo "execution_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
+          fi
+          
       - name: Upload compilation report
         uses: actions/upload-artifact@v4
         with:
