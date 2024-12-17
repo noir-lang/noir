@@ -429,12 +429,12 @@ jobs:
             test_programs/compilation_report.sh
           sparse-checkout-cone-mode: false
             
-      - uses: actions/checkout@v4
-        with:
-          path: scripts
-          sparse-checkout: |
-            test_programs/execution_report.sh
-          sparse-checkout-cone-mode: false
+      # - uses: actions/checkout@v4
+      #   with:
+      #     path: scripts
+      #     sparse-checkout: |
+      #       test_programs/execution_report.sh
+      #     sparse-checkout-cone-mode: false
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -450,16 +450,16 @@ jobs:
           chmod +x ./compilation_report.sh
           ./compilation_report.sh 1
       
-      - name: Generate execution report
-        working-directory: ./test-repo/${{ matrix.project.path }}
-        run: |
-          mv /home/runner/work/noir/noir/scripts/test_programs/execution_report.sh ./execution_report.sh
-          IS_LIBRARY=${{ matrix.project.is_library }}
-          echo $IS_LIBRARY
-          if [ $IS_LIBRARY == "true"]; then
-            exit 0
-          fi
-          ./execution_report.sh 1
+      # - name: Generate execution report
+      #   working-directory: ./test-repo/${{ matrix.project.path }}
+      #   run: |
+      #     mv /home/runner/work/noir/noir/scripts/test_programs/execution_report.sh ./execution_report.sh
+      #     # IS_LIBRARY=${{ matrix.project.is_library }}
+      #     # echo $IS_LIBRARY
+      #     # if [ $IS_LIBRARY == "true"]; then
+      #     #   exit 0
+      #     # fi
+      #     ./execution_report.sh 1
 
       - name: Move compilation report
         id: report
@@ -470,14 +470,14 @@ jobs:
           mv ./test-repo/${{ matrix.project.path }}/compilation_report.json ./compilation_report_$PACKAGE_NAME.json
           echo "compilation_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
 
-      - name: Move execution report
-        id: report
-        shell: bash
-        run: |
-          PACKAGE_NAME=${{ matrix.project.path }}
-          PACKAGE_NAME=$(basename $PACKAGE_NAME)
-          mv ./test-repo/${{ matrix.project.path }}/execution_report.json ./execution_report_$PACKAGE_NAME.json
-          echo "execution_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
+      # - name: Move execution report
+      #   id: report
+      #   shell: bash
+      #   run: |
+      #     PACKAGE_NAME=${{ matrix.project.path }}
+      #     PACKAGE_NAME=$(basename $PACKAGE_NAME)
+      #     mv ./test-repo/${{ matrix.project.path }}/execution_report.json ./execution_report_$PACKAGE_NAME.json
+      #     echo "execution_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
 
       - name: Upload compilation report
         uses: actions/upload-artifact@v4
@@ -487,13 +487,13 @@ jobs:
           retention-days: 3
           overwrite: true
 
-      - name: Upload execution report
-        uses: actions/upload-artifact@v4
-        with:
-          name: execution_report_${{ steps.report.outputs.execution_report_name }}
-          path: execution_report_${{ steps.report.outputs.execution_report_name }}.json
-          retention-days: 3
-          overwrite: true
+      # - name: Upload execution report
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: execution_report_${{ steps.report.outputs.execution_report_name }}
+      #     path: execution_report_${{ steps.report.outputs.execution_report_name }}.json
+      #     retention-days: 3
+      #     overwrite: true
 
   upload_compilation_report:
     name: Upload compilation report 
