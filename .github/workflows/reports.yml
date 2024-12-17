@@ -319,7 +319,7 @@ jobs:
           ./compilation_report.sh 1
 
       - name: Move compilation report
-        id: report
+        id: compilation_report
         shell: bash
         run: |
           PACKAGE_NAME=${{ matrix.project.path }}
@@ -330,8 +330,8 @@ jobs:
       - name: Upload compilation report
         uses: actions/upload-artifact@v4
         with:
-          name: compilation_report_${{ steps.report.outputs.compilation_report_name }}
-          path: compilation_report_${{ steps.report.outputs.compilation_report_name }}.json
+          name: compilation_report_${{ steps.compilation_report.outputs.compilation_report_name }}
+          path: compilation_report_${{ steps.compilation_report.outputs.compilation_report_name }}.json
           retention-days: 3
           overwrite: true
 
@@ -343,6 +343,7 @@ jobs:
           echo "$HOME/.bb/" >> $GITHUB_PATH
 
       - name: Generate gates report
+        id: gates_report
         working-directory: ./test-repo/${{ matrix.project.path }}
         run: |
           PACKAGE_NAME=${{ matrix.project.path }}
@@ -355,8 +356,8 @@ jobs:
       - name: Upload gates report
         uses: actions/upload-artifact@v4
         with:
-          name: gates_report_${{ steps.report.outputs.gates_report_name }}
-          path: gates_report_${{ steps.report.outputs.gates_report_name }}.json
+          name: gates_report_${{ steps.gates_report.outputs.gates_report_name }}
+          path: gates_report_${{ steps.gates_report.outputs.gates_report_name }}.json
           retention-days: 3
           overwrite: true
 
