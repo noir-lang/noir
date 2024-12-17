@@ -257,7 +257,6 @@ jobs:
 
       - name: Move compilation artifacts
         run: |
-          cat compilation_report.json
           ARTIFACT_NAMES=$(jq -r '.compilation_reports[].artifact_name' compilation_report.json)
           mkdir artifacts
           for artifact in $ARTIFACT_NAMES; do
