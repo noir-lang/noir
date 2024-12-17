@@ -462,7 +462,7 @@ jobs:
           ./execution_report.sh 1
 
       - name: Move compilation report
-        id: report
+        id: compilation_report
         shell: bash
         run: |
           PACKAGE_NAME=${{ matrix.project.path }}
@@ -471,7 +471,7 @@ jobs:
           echo "compilation_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
 
       - name: Move execution report
-        id: report
+        id: execution_report
         shell: bash
         run: |
           PACKAGE_NAME=${{ matrix.project.path }}
@@ -497,7 +497,7 @@ jobs:
 
   upload_compilation_report:
     name: Upload compilation report 
-    needs: [generate_compilation_and_execution_report]
+    needs: [generate_compilation_and_execution_report, external_repo_compilation_and_execution_report]
     # We want this job to run even if one variation of the matrix in `external_repo_compilation_and_execution_report` fails
     if: always() 
     runs-on: ubuntu-latest
@@ -541,8 +541,8 @@ jobs:
 
   upload_execution_report:
     name: Upload execution report 
-    needs: [generate_compilation_and_execution_report]
-    # We want this job to run even if one variation of the matrix in `external_repo_execution_report` fails
+    needs: [generate_compilation_and_execution_report, external_repo_compilation_and_execution_report]
+    # We want this job to run even if one variation of the matrix in `external_repo_compilation_and_execution_report` fails
     if: always() 
     runs-on: ubuntu-latest
     permissions:
