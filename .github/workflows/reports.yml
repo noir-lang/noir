@@ -398,7 +398,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # - library: [{ path: noir-projects/noir-contracts }]
           - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-contracts, is_library: "true" }
           - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/parity-root }
           - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-inner }
