@@ -23,7 +23,7 @@ pub(super) fn arb_value_from_abi_type(
             .prop_map(|bytes| InputValue::Field(FieldElement::from_be_bytes_reduce(&bytes)))
             .sboxed(),
         AbiType::Integer { width, sign } if sign == &Sign::Unsigned => {
-            UintStrategy::new(*width as usize, &dictionary)
+            UintStrategy::new(*width as usize, dictionary)
                 .prop_map(|uint| InputValue::Field(uint.into()))
                 .sboxed()
         }
