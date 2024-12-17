@@ -346,7 +346,12 @@ jobs:
       - name: Move compilation artifacts
         run: |
           cat compilation_report_${{ steps.report.outputs.compilation_report_name }}.json
-          mv ./test-repo/${{ matrix.project.path }}/target/${{ steps.report.outputs.compilation_report_name }}.json .${{ steps.report.outputs.compilation_report_name }}.json
+          for artifact in ./test-repo/${{ matrix.project.path }}/target/*; do 
+            echo $artifact
+            PACKAGE_NAME=$(basename $artifact .json)
+            echo $PACKAGE_NAME
+            mv ./test-repo/${{ matrix.project.path }}/target/$PACKAGE_NAME.json ./compilation_artifact_${{ steps.report.outputs.compilation_report_name }}.json
+          done
 
       - name: Upload compilation report
         uses: actions/upload-artifact@v4
