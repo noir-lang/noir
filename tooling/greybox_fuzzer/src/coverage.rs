@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::hash::Hash;
 
 use acvm::acir::circuit::opcodes::{BlackBoxFuncCall, ConstantOrWitnessEnum};
 use acvm::acir::circuit::Opcode;
@@ -11,6 +12,7 @@ use num_traits::Zero;
 pub type Branch = (usize, usize);
 pub type BranchToFeatureMap = HashMap<Branch, usize>;
 
+#[derive(Default)]
 pub struct PotentialBoolWitnessList {
     witness: HashSet<Witness>,
 }
@@ -31,6 +33,9 @@ impl From<&WitnessStack<FieldElement>> for PotentialBoolWitnessList {
 }
 
 impl PotentialBoolWitnessList {
+    pub fn new(given_set: HashSet<Witness>) -> Self {
+        Self { witness: given_set }
+    }
     pub fn update(&mut self, witness_stack: &WitnessStack<FieldElement>) {
         assert!(witness_stack.length() == 1);
         let first_func_witnesses = witness_stack.peek().unwrap();
@@ -48,6 +53,21 @@ impl PotentialBoolWitnessList {
             self.witness.remove(&witness_index);
         }
     }
+    pub fn merge_new(&self, witness_stack: &WitnessStack<FieldElement>) -> Self {
+        assert!(witness_stack.length() == 1);
+        let first_func_witnesses = witness_stack.peek().unwrap();
+        let mut new_set = HashSet::new();
+        for witness_index in self.witness.iter().copied() {
+            let value = first_func_witnesses
+                .witness
+                .get(&witness_index)
+                .expect("There should be a witness in the witness map");
+            if value.is_zero() || value.is_one() {
+                new_set.insert(witness_index);
+            }
+        }
+        Self::new(new_set)
+    }
 }
 /// Represents a single encountered state of a boolean witness in the Acir program
 #[derive(Hash, PartialEq, Eq, Clone, Copy, Debug)]
@@ -58,7 +78,7 @@ pub struct AcirBoolState {
 
 pub struct SingleTestCaseCoverage {
     acir_bool_coverage: Vec<AcirBoolState>,
-    brillig_coverage: Vec<u32>,
+    pub brillig_coverage: Vec<u32>,
 }
 
 impl SingleTestCaseCoverage {
@@ -69,19 +89,21 @@ impl SingleTestCaseCoverage {
     ) -> Self {
         // Process all booleans
         let mut acir_bool_coverage = Vec::new();
-        assert!(acir_witnesses.length() == 1);
+        // If the witness stack was not empty
+        if acir_witnesses.length() == 1 {
+            let witness_map = &acir_witnesses.peek().unwrap().witness;
 
-        let witness_map = &acir_witnesses.peek().unwrap().witness;
+            for potential_bool_witness_index in potential_bool_witness_list.witness.iter() {
+                let value = witness_map
+                    .get(&potential_bool_witness_index)
+                    .expect("Witness should be there");
+                assert!(value.is_zero() || value.is_one());
 
-        for potential_bool_witness_index in potential_bool_witness_list.witness.iter() {
-            let value =
-                witness_map.get(&potential_bool_witness_index).expect("Witness should be there");
-            assert!(value.is_zero() || value.is_one());
-
-            acir_bool_coverage.push(AcirBoolState {
-                witness_id: potential_bool_witness_index.witness_index(),
-                state: value.is_one(),
-            });
+                acir_bool_coverage.push(AcirBoolState {
+                    witness_id: potential_bool_witness_index.witness_index(),
+                    state: value.is_one(),
+                });
+            }
         }
         Self { acir_bool_coverage, brillig_coverage }
     }
@@ -133,6 +155,30 @@ impl AccumulatedFuzzerCoverage {
             }
         }
         new_coverage_detected
+    }
+    pub fn detect_new_coverage(&self, new_coverage: &SingleTestCaseCoverage) -> bool {
+        assert!(new_coverage.brillig_coverage.len() == self.brillig_branch_coverage.len());
+        for (idx, value) in new_coverage.brillig_coverage.iter().enumerate() {
+            if !value.is_zero() {
+                let prev_value = self.brillig_branch_coverage[idx];
+                // New power of two detected
+                if self.brillig_branch_coverage[idx].encountered_loop_log2s
+                    | 1u32 << (if value.is_zero() { 0 } else { value.ilog2() + 1 })
+                    != prev_value.encountered_loop_log2s
+                {
+                    return true;
+                }
+                if value > &prev_value.encountered_maximum {
+                    return true;
+                }
+            }
+        }
+        for acir_bool_state in new_coverage.acir_bool_coverage.iter() {
+            if !self.acir_bool_coverage.contains(acir_bool_state) {
+                return true;
+            }
+        }
+        false
     }
 }
 pub fn analyze_brillig_program_before_fuzzing(program: &ProgramArtifact) -> BranchToFeatureMap {

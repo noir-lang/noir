@@ -164,10 +164,15 @@ impl<'a> Corpus<'a> {
         self.discovered_testcases.push(new_testcase);
         Ok(())
     }
+    pub fn get_testcase_by_index(&self, index: usize) -> &InputMap {
+        assert!(index < self.discovered_testcases.len());
+
+        &self.discovered_testcases[index]
+    }
     pub fn get_next_testcase_with_additional(
         &mut self,
         prng: &mut XorShiftRng,
-    ) -> (InputMap, Option<InputMap>) {
+    ) -> (usize, Option<usize>) {
         if !self.current_sequence.is_empty() {
             // Update counts
             self.current_sequence.decrement();
@@ -180,6 +185,55 @@ impl<'a> Corpus<'a> {
             let weakly_fuzzed_group: Vec<_> = (0..(self.discovered_testcases.len()))
                 .filter(|&index| self.executions_per_testcase[index] <= average)
                 .collect();
+            let chosen_index = (0..(self.discovered_testcases.len()))
+                .rev()
+                .min_by(|&i, &j| {
+                    self.executions_per_testcase[i].cmp(&self.executions_per_testcase[j])
+                })
+                .unwrap();
+            self.sequence_number[chosen_index] += 1;
+            self.current_sequence = Sequence {
+                testcase_index: chosen_index,
+                executions_left: min(
+                    1u64 << min(
+                        Self::MAX_EXECUTIONS_PER_SEQUENCE_LOG,
+                        self.sequence_number[chosen_index],
+                    ),
+                    average / 2,
+                ),
+            };
+            self.total_executions += 1;
+            self.executions_per_testcase[chosen_index] += 1;
+            // println!(
+            //     "Starting sequence {} on input {:?}",
+            //     self.current_sequence.executions_left,
+            //     self.discovered_testcases[self.current_sequence.testcase_index]
+            // );
+        }
+        if self.discovered_testcases.len() > 1 {
+            let mut additional_index = prng.gen_range(0..(self.discovered_testcases.len() - 1));
+            if additional_index >= self.current_sequence.testcase_index {
+                additional_index += 1;
+            }
+            return (self.current_sequence.testcase_index, Some(additional_index));
+        } else {
+            return (self.current_sequence.testcase_index, None);
+        }
+    }
+
+    pub fn get_next_nonmutated_testcase_with_additional_and_seed(
+        &mut self,
+        prng: &mut XorShiftRng,
+    ) -> (InputMap, Option<InputMap>) {
+        if !self.current_sequence.is_empty() {
+            // Update counts
+            self.current_sequence.decrement();
+            self.executions_per_testcase[self.current_sequence.testcase_index] += 1;
+            self.total_executions += 1;
+        } else {
+            // Compute average
+            let average = self.total_executions / self.discovered_testcases.len() as u64;
+            // Get least fuzzed testcase
             let chosen_index = (0..(self.discovered_testcases.len()))
                 .rev()
                 .min_by(|&i, &j| {

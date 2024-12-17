@@ -24,8 +24,10 @@ pub struct FuzzTestResult {
 pub struct CaseOutcome {
     /// Data of a single fuzz test case
     pub case: InputMap,
-    pub witness: WitnessStack<FieldElement>,
-    pub brillig_coverage: Vec<u32>,
+    pub witness: Option<WitnessStack<FieldElement>>,
+    pub brillig_coverage: Option<Vec<u32>>,
+    pub acir_time: u128,
+    pub brillig_time: u128,
 }
 
 /// Returned by a single fuzz when there is a discrepancy between brillig and acir execution
