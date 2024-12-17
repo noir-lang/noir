@@ -343,11 +343,26 @@ jobs:
           mv ./test-repo/${{ matrix.project.path }}/compilation_report.json ./compilation_report_$PACKAGE_NAME.json
           echo "compilation_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
 
+      - name: Move compilation artifacts
+        run: |
+          cat compilation_report_${{ steps.report.outputs.compilation_report_name }}.json
+          mv ./test-repo/${{ matrix.project.path }}/target/${{ steps.report.outputs.compilation_report_name }}.json .${{ steps.report.outputs.compilation_report_name }}.json
+
       - name: Upload compilation report
         uses: actions/upload-artifact@v4
         with:
           name: compilation_report_${{ steps.report.outputs.compilation_report_name }}
           path: compilation_report_${{ steps.report.outputs.compilation_report_name }}.json
+          retention-days: 3
+          overwrite: true
+      
+      - name: Upload compilation artifacts
+        uses: actions/upload-artifact@v4
+        with: 
+          # name: compilation_artifacts
+          # path: ./artifacts
+          name: compilation_artifact_${{ steps.report.outputs.compilation_report_name }}
+          path: compilation_artifact_${{ steps.report.outputs.compilation_report_name }}.json
           retention-days: 3
           overwrite: true
 
@@ -609,6 +624,23 @@ jobs:
           repository: ${{ matrix.project.repo }}
           path: test-repo
           ref: ${{ matrix.project.ref }}
+
+      - name: Download program artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: compilation_artifact_*
+          path: ./artifacts
+
+      - name: Move compilation artifacts
+        run: |
+          ls ./artifacts
+          for artifact in ./artifacts/*; do
+            echo $artifact
+            PACKAGE_NAME=$(basename $artifact .json)
+            echo $PACKAGE_NAME
+            mkdir ./test-repo/${{ matrix.project.path }}/target
+            mv $artifact ./test-repo/${{ matrix.project.path }}/target/$PACKAGE_NAME.json
+          done
 
       - name: Generate execution report
         working-directory: ./test-repo/${{ matrix.project.path }}
