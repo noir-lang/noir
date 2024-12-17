@@ -54,8 +54,6 @@ impl Loops {
                 continue;
             };
 
-            println!("Hoisting from function\n{}", context.inserter.function);
-
             context.hoist_loop_invariants(&loop_, pre_header);
         }
 
@@ -110,9 +108,7 @@ impl<'f> LoopInvariantContext<'f> {
                 let hoist_invariant = self.can_hoist_invariant(instruction_id);
 
                 if hoist_invariant {
-                    if let Some(id) = self.inserter.push_instruction(instruction_id, pre_header) {
-                        println!("inserted {id}");
-                    }
+                    self.inserter.push_instruction(instruction_id, pre_header);
 
                     // If we are hoisting a MakeArray instruction,
                     // we need to issue an extra inc_rc in case they are mutated afterward.
@@ -129,9 +125,7 @@ impl<'f> LoopInvariantContext<'f> {
                             .insert_instruction_and_results(inc_rc, *block, call_stack);
                     }
                 } else {
-                    if let Some(id) = self.inserter.push_instruction(instruction_id, *block) {
-                        println!("Inserted {id}");
-                    }
+                    self.inserter.push_instruction(instruction_id, *block);
                 }
 
                 self.extend_values_defined_in_loop_and_invariants(instruction_id, hoist_invariant);

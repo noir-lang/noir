@@ -76,18 +76,11 @@ impl DefunctionalizationContext {
 
     /// Defunctionalize a single function
     fn defunctionalize(&mut self, func: &mut Function) {
-        for block_id in func.reachable_blocks() {
+        let reachable_blocks = func.reachable_blocks();
+
+        for block_id in &reachable_blocks {
+            let block_id = *block_id;
             let instructions = func.dfg[block_id].take_instructions();
-
-            // First replace any function parameters with fields
-            for parameter in func.dfg[block_id].parameter_types_mut() {
-                if *parameter == Type::Function {
-                    *parameter = Type::field();
-                }
-            }
-
-            // Then replace the terminator values
-            func.dfg[block_id].unwrap_terminator_mut().mutate_values(Self::function_to_field);
 
             for instruction_id in &instructions {
                 let instruction_id = *instruction_id;
@@ -140,6 +133,21 @@ impl DefunctionalizationContext {
             }
 
             *func.dfg[block_id].instructions_mut() = instructions;
+        }
+
+        // After changing the values in the function, go back and update block parameter
+        // and terminator types. This must be done afterward since otherwise it changes the
+        // type the apply functions search for. Alternatively we could change the apply functions
+        // type to convert the Function types there to Field preemptively.
+        for block_id in reachable_blocks {
+            for parameter in func.dfg[block_id].parameter_types_mut() {
+                if *parameter == Type::Function {
+                    *parameter = Type::field();
+                }
+            }
+
+            // Then replace the terminator values
+            func.dfg[block_id].unwrap_terminator_mut().mutate_values(Self::function_to_field);
         }
     }
 
