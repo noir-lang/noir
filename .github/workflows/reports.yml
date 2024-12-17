@@ -429,12 +429,12 @@ jobs:
             test_programs/compilation_report.sh
           sparse-checkout-cone-mode: false
             
-      # - uses: actions/checkout@v4
-      #   with:
-      #     path: scripts
-      #     sparse-checkout: |
-      #       test_programs/execution_report.sh
-      #     sparse-checkout-cone-mode: false
+      - uses: actions/checkout@v4
+        with:
+          path: scripts
+          sparse-checkout: |
+            test_programs/execution_report.sh
+          sparse-checkout-cone-mode: false
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -450,16 +450,16 @@ jobs:
           chmod +x ./compilation_report.sh
           ./compilation_report.sh 1
       
-      # - name: Generate execution report
-      #   working-directory: ./test-repo/${{ matrix.project.path }}
-      #   run: |
-      #     mv /home/runner/work/noir/noir/scripts/test_programs/execution_report.sh ./execution_report.sh
-      #     # IS_LIBRARY=${{ matrix.project.is_library }}
-      #     # echo $IS_LIBRARY
-      #     # if [ $IS_LIBRARY == "true"]; then
-      #     #   exit 0
-      #     # fi
-      #     ./execution_report.sh 1
+      - name: Generate execution report
+        working-directory: ./test-repo/${{ matrix.project.path }}
+        run: |
+          mv /home/runner/work/noir/noir/scripts/test_programs/execution_report.sh ./execution_report.sh
+          # IS_LIBRARY=${{ matrix.project.is_library }}
+          # echo $IS_LIBRARY
+          # if [ $IS_LIBRARY == "true"]; then
+          #   exit 0
+          # fi
+          ./execution_report.sh 1
 
       - name: Move compilation report
         id: report
