@@ -44,9 +44,12 @@ for dir in ${tests_to_profile[@]}; do
     # Check whether a compilation artifact exists. 
     # Any programs part of this benchmark should already be compiled.
     # We want to make sure that compilation time is not included in the execution time.
-    if [[ ! -e ./target/*.json ]]; then
-      echo "Missing compilation artifact for $PACKAGE_NAME"
-      exit 1
+    if [ -e ./target/*.json ]
+    then
+        echo "ok"
+    else
+        echo "Missing compilation artifact for $PACKAGE_NAME"
+        exit 1
     fi
 
     COMPILE_TIME=$((time nargo execute --silence-warnings) 2>&1 | grep real | grep -oE '[0-9]+m[0-9]+.[0-9]+s')
