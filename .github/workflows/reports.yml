@@ -369,16 +369,16 @@ jobs:
       - name: Upload compilation report
         uses: actions/upload-artifact@v4
         with:
-          name: compilation_report_${{ steps.report.outputs.compilation_report_name }}
-          path: compilation_report_${{ steps.report.outputs.compilation_report_name }}.json
+          name: compilation_report_${{ steps.compilation_report.outputs.compilation_report_name }}
+          path: compilation_report_${{ steps.compilation_report.outputs.compilation_report_name }}.json
           retention-days: 3
           overwrite: true
 
       - name: Upload execution report
         uses: actions/upload-artifact@v4
         with:
-          name: execution_report_${{ steps.report.outputs.execution_report_name }}
-          path: execution_report_${{ steps.report.outputs.execution_report_name }}.json
+          name: execution_report_${{ steps.execution_report.outputs.execution_report_name }}
+          path: execution_report_${{ steps.execution_report.outputs.execution_report_name }}.json
           retention-days: 3
           overwrite: true
 
