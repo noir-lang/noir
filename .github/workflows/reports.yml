@@ -648,7 +648,8 @@ jobs:
             echo $artifact
             PACKAGE_NAME=$(basename $artifact .json)
             echo $PACKAGE_NAME
-            mkdir ./test-repo/${{ matrix.project.path }}/target
+            # if [ ! -d "./test-repo/${{ matrix.project.path }}/target" ]; then
+            # fi
             mv $artifact ./test-repo/${{ matrix.project.path }}/target/$PACKAGE_NAME.json
           done
 
