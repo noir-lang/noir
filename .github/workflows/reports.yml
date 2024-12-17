@@ -659,6 +659,7 @@ jobs:
               mv $artifact ./test-repo/${{ matrix.project.path }}/target/$PACKAGE_NAME.json
               break
             fi
+            ls ./test-repo/${{ matrix.project.path }}
             # if [ ! -d "./test-repo/${{ matrix.project.path }}/target" ]; then
             # fi
             # ls ./test-repo/${{ matrix.project.path }}/target
