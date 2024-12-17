@@ -260,7 +260,6 @@ jobs:
           ARTIFACT_NAMES=$(jq -r '.compilation_reports[].artifact_name' compilation_report.json)
           mkdir artifacts
           for artifact in $ARTIFACT_NAMES; do
-            ls ./test_programs/execution_success/$artifact/target
             mv ./test_programs/execution_success/$artifact/target/$artifact.json ./artifacts/$artifact.json
           done
 
@@ -556,7 +555,6 @@ jobs:
 
       - name: Move compilation artifacts
         run: |
-          ls ./artifacts
           for artifact in ./artifacts/*; do
             PACKAGE_NAME=$(basename $artifact .json)
             mkdir ./test_programs/execution_success/$PACKAGE_NAME/target
