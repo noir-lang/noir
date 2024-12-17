@@ -167,10 +167,6 @@ impl DataFlowGraph {
     /// not be modified to refer to a new ValueId.
     pub(crate) fn replace_value(&mut self, value_to_replace: Value, new_value: Value) {
         if value_to_replace != new_value {
-            if value_to_replace.is_constant() {
-                panic!("Replacing constant {value_to_replace} with {new_value}");
-            }
-
             self.replaced_values.insert(value_to_replace, self.resolve(new_value));
         }
     }

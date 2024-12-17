@@ -16,7 +16,7 @@ use crate::ssa::{
         function::Function,
         function_inserter::FunctionInserter,
         instruction::{Instruction, InstructionId},
-        types::{NumericType, Type},
+        types::Type,
         value::Value,
     },
     Ssa,
