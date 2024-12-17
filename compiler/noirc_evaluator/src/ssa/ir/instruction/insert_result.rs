@@ -65,12 +65,14 @@ impl Iterator for InsertInstructionResultIter {
                 self.index += 1;
                 Some(*value)
             }
-            SimplifiedToMultiple(results) => {
+            SimplifiedToMultiple(results) if self.index < results.len() => {
                 let result = results[self.index];
                 self.index += 1;
                 Some(result)
             }
-            InstructionRemoved | Results { .. } | SimplifiedTo(..) => None,
+            InstructionRemoved | Results { .. } | SimplifiedTo(..) | SimplifiedToMultiple(_) => {
+                None
+            }
         }
     }
 
