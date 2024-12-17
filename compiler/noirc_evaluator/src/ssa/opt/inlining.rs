@@ -453,11 +453,12 @@ impl<'function> PerFunctionContext<'function> {
     /// and blocks respectively. If these assertions trigger it means a value is being used before
     /// the instruction or block that defines the value is inserted.
     fn translate_value(&mut self, old_value: Value) -> Value {
+        let old_value = self.source_function.dfg.resolve(old_value);
         if let Some(value) = self.values.get(&old_value) {
             return *value;
         }
 
-        let new_value = match self.source_function.dfg.resolve(old_value) {
+        let new_value = match old_value {
             value @ Value::Instruction { .. } => {
                 unreachable!("All Value::Instructions should already be known during inlining after creating the original inlined instruction. Unknown value {value}")
             }

@@ -144,6 +144,12 @@ impl DefunctionalizationContext {
         // Collect all the values used first.
         // We can't borrow `func` mutably again for `change_type_of_value` otherwise
         for block in reachable_blocks {
+            for parameter in func.dfg[block].parameter_types_mut() {
+                if *parameter == Type::Function {
+                    *parameter = Type::field();
+                }
+            }
+
             let instructions = func.dfg[block].take_instructions();
             for instruction in &instructions {
                 func.dfg[*instruction].for_each_value(|value| {

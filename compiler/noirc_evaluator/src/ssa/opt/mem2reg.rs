@@ -412,7 +412,6 @@ impl<'f> PerFunctionContext<'f> {
 
                 // If the load is known, replace it with the known value and remove the load
                 if let Some(value) = references.get_known_value(address) {
-                    eprintln!("Mapping {result} to {value}");
                     self.inserter.map_value(result, value);
                     self.instructions_to_remove.insert(instruction);
                 } else {

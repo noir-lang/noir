@@ -66,6 +66,16 @@ fn value_list(function: &Function, values: impl ExactSizeIterator<Item = Value>)
     vecmap(values, |v| value(function, v)).join(", ")
 }
 
+fn type_list(types: &[Type]) -> String {
+    if types.is_empty() {
+        String::new()
+    } else if types.len() == 1 {
+        format!(" -> {}", &types[0])
+    } else {
+        format!(" -> ({})", vecmap(types, ToString::to_string).join(", "))
+    }
+}
+
 /// Display a terminator instruction
 pub(crate) fn display_terminator(
     function: &Function,
@@ -120,14 +130,12 @@ pub(crate) fn display_instruction(
         write!(f, "{} = ", value_list(function, results))?;
     }
 
-    let results = function.dfg.instruction_results(instruction);
-    display_instruction_inner(function, &function.dfg[instruction], results, f)
+    display_instruction_inner(function, &function.dfg[instruction], f)
 }
 
 fn display_instruction_inner(
     function: &Function,
     instruction: &Instruction,
-    results: impl ExactSizeIterator<Item = Value>,
     f: &mut Formatter,
 ) -> Result {
     let show = |id| value(function, id);
@@ -150,15 +158,15 @@ fn display_instruction_inner(
                 writeln!(f)
             }
         }
-        Instruction::Call { func, arguments, result_types: _ } => {
+        Instruction::Call { func, arguments, result_types } => {
             let arguments = value_list(function, arguments.iter().copied());
-            writeln!(f, "call {}({}){}", show(*func), arguments, result_types(function, results))
+            writeln!(f, "call {}({}){}", show(*func), arguments, type_list(result_types))
         }
-        Instruction::Allocate { element_type: _ } => {
-            writeln!(f, "allocate{}", result_types(function, results))
+        Instruction::Allocate { element_type } => {
+            writeln!(f, "allocate -> &mut {element_type}")
         }
-        Instruction::Load { address, result_type: _ } => {
-            writeln!(f, "load {}{}", show(*address), result_types(function, results))
+        Instruction::Load { address, result_type } => {
+            writeln!(f, "load {} -> {result_type}", show(*address))
         }
         Instruction::Store { address, value } => {
             writeln!(f, "store {} at {}", show(*value), show(*address))
@@ -166,14 +174,8 @@ fn display_instruction_inner(
         Instruction::EnableSideEffectsIf { condition } => {
             writeln!(f, "enable_side_effects {}", show(*condition))
         }
-        Instruction::ArrayGet { array, index, result_type: _ } => {
-            writeln!(
-                f,
-                "array_get {}, index {}{}",
-                show(*array),
-                show(*index),
-                result_types(function, results)
-            )
+        Instruction::ArrayGet { array, index, result_type } => {
+            writeln!(f, "array_get {}, index {} -> {result_type}", show(*array), show(*index),)
         }
         Instruction::ArraySet { array, index, value, mutable } => {
             let array = show(*array);
@@ -255,17 +257,6 @@ fn try_byte_array_to_string(elements: &Vector<Value>, function: &Function) -> Op
         }
     }
     Some(string)
-}
-
-fn result_types(function: &Function, results: impl ExactSizeIterator<Item = Value>) -> String {
-    let types = vecmap(results, |result| function.dfg.type_of_value(result).to_string());
-    if types.is_empty() {
-        String::new()
-    } else if types.len() == 1 {
-        format!(" -> {}", types[0])
-    } else {
-        format!(" -> ({})", types.join(", "))
-    }
 }
 
 /// Tries to extract a constant string from an error payload.
