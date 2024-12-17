@@ -21,10 +21,11 @@ noirc_errors.workspace = true
 noirc_frontend.workspace = true
 noirc_printable_type.workspace = true
 iter-extended.workspace = true
-thiserror.workspace = true
-tracing.workspace = true
 rayon.workspace = true
-jsonrpc.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+jsonrpsee.workspace = true
 rand.workspace = true
 serde.workspace = true
 walkdir = "2.5.0"
@@ -34,6 +35,7 @@ noir_fuzzer.workspace = true
 proptest.workspace = true
 
 [dev-dependencies]
+jsonrpc.workspace = true
 jsonrpc-http-server = "18.0"
 jsonrpc-core-client = "18.0"
 jsonrpc-derive = "18.0"

@@ -1,7 +1,11 @@
 use std::path::PathBuf;
 
 use acvm::{acir::brillig::ForeignCallResult, pwg::ForeignCallWaitInfo, AcirField};
-use jsonrpc::{arg as build_json_rpc_arg, minreq_http::Builder, Client};
+use jsonrpsee::{
+    core::client::ClientT,
+    http_client::{HttpClient, HttpClientBuilder},
+    rpc_params,
+};
 use noirc_printable_type::ForeignCallError;
 use serde::{Deserialize, Serialize};
 
@@ -15,11 +19,14 @@ pub(crate) struct RPCForeignCallExecutor {
     /// instantiations of `DefaultForeignCallExecutor`.
     id: u64,
     /// JSON RPC client to resolve foreign calls
-    external_resolver: Client,
+    external_resolver: HttpClient,
     /// Root path to the program or workspace in execution.
     root_path: Option<PathBuf>,
     /// Name of the package in execution
     package_name: Option<String>,
+    /// Runtime to execute asynchronous tasks on.
+    /// See [bridging](https://tokio.rs/tokio/topics/bridging).
+    rt: tokio::runtime::Runtime,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -31,15 +38,16 @@ struct ResolveForeignCallRequest<F> {
     /// performed in parallel.
     session_id: u64,
 
-    #[serde(flatten)]
     /// The foreign call which the external RPC server is to provide a response for.
+    #[serde(flatten)]
     function_call: ForeignCallWaitInfo<F>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
     /// Root path to the program or workspace in execution.
-    root_path: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    root_path: Option<String>,
+
     /// Name of the package in execution
+    #[serde(skip_serializing_if = "Option::is_none")]
     package_name: Option<String>,
 }
 
@@ -50,18 +58,33 @@ impl RPCForeignCallExecutor {
         root_path: Option<PathBuf>,
         package_name: Option<String>,
     ) -> Self {
-        let mut transport_builder =
-            Builder::new().url(resolver_url).expect("Invalid oracle resolver URL");
+        let mut client_builder = HttpClientBuilder::new();
 
         if let Some(Ok(timeout)) =
             std::env::var("NARGO_FOREIGN_CALL_TIMEOUT").ok().map(|timeout| timeout.parse())
         {
             let timeout_duration = std::time::Duration::from_millis(timeout);
-            transport_builder = transport_builder.timeout(timeout_duration);
+            client_builder = client_builder.request_timeout(timeout_duration);
         };
-        let oracle_resolver = Client::with_transport(transport_builder.build());
 
-        RPCForeignCallExecutor { external_resolver: oracle_resolver, id, root_path, package_name }
+        let oracle_resolver =
+            client_builder.build(resolver_url).expect("Invalid oracle resolver URL");
+
+        // Opcodes are executed in the `ProgramExecutor::execute_circuit` one by one in a loop,
+        // we don't need a concurrent thread pool.
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_time()
+            .enable_io()
+            .build()
+            .expect("failed to build tokio runtime");
+
+        RPCForeignCallExecutor {
+            external_resolver: oracle_resolver,
+            id,
+            root_path,
+            package_name,
+            rt,
+        }
     }
 }
 
@@ -72,18 +95,16 @@ impl<F: AcirField + Serialize + for<'a> Deserialize<'a>> ForeignCallExecutor<F>
         &mut self,
         foreign_call: &ForeignCallWaitInfo<F>,
     ) -> Result<ForeignCallResult<F>, ForeignCallError> {
-        let encoded_params = vec![build_json_rpc_arg(ResolveForeignCallRequest {
+        let encoded_params = rpc_params!(ResolveForeignCallRequest {
             session_id: self.id,
             function_call: foreign_call.clone(),
             root_path: self.root_path.clone().map(|path| path.to_str().unwrap().to_string()),
             package_name: self.package_name.clone(),
-        })];
+        });
 
-        let req = self.external_resolver.build_request("resolve_foreign_call", &encoded_params);
-
-        let response = self.external_resolver.send_request(req)?;
-
-        let parsed_response: ForeignCallResult<F> = response.result()?;
+        let parsed_response = self
+            .rt
+            .block_on(self.external_resolver.request("resolve_foreign_call", encoded_params))?;
 
         Ok(parsed_response)
     }
