@@ -3,7 +3,7 @@ set -eu
 
 BACKEND=${BACKEND:-bb}
 
-cargo run execute --pedantic-solving witness
+nargo run execute --pedantic-solving witness
 
 # TODO: `bb` should create `proofs` directory if it doesn't exist.
 mkdir -p proofs
