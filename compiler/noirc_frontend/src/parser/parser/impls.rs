@@ -258,7 +258,7 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::{
         ast::{
-            ItemVisibility, NoirTraitImpl, Pattern, TraitImplItemKind, TypeImpl, UnresolvedTypeData,
+            ItemVisibility, NoirTraitImpl, Pattern, TraitImplItemKind, TypeImpl,
         },
         parser::{
             parser::{
@@ -455,7 +455,7 @@ mod tests {
         let src = "impl Foo for Field {}";
         let trait_impl = parse_trait_impl_no_errors(src);
         assert_eq!(trait_impl.trait_name.to_string(), "Foo");
-        assert!(matches!(trait_impl.object_type.typ, UnresolvedTypeData::FieldElement));
+        assert!(trait_impl.object_type.typ.is_field_element());
         assert!(trait_impl.items.is_empty());
         assert!(trait_impl.impl_generics.is_empty());
     }
@@ -465,7 +465,7 @@ mod tests {
         let src = "impl <T> Foo for Field {}";
         let trait_impl = parse_trait_impl_no_errors(src);
         assert_eq!(trait_impl.trait_name.to_string(), "Foo");
-        assert!(matches!(trait_impl.object_type.typ, UnresolvedTypeData::FieldElement));
+        assert!(trait_impl.object_type.typ.is_field_element());
         assert!(trait_impl.items.is_empty());
         assert_eq!(trait_impl.impl_generics.len(), 1);
     }

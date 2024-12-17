@@ -81,7 +81,7 @@ pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
             AbiType::Array { length, typ: Box::new(abi_type_from_hir_type(context, typ)) }
         }
         Type::Integer(sign, bit_width) => {
-            // TODO: combine Bool, etc in ABI
+            // TODO: combine Bool, etc in ABI?
             if bit_width.is_zero() {
                 unreachable!("{typ} cannot be used in the abi")
             } else if bit_width.is_one() {

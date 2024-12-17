@@ -11,14 +11,11 @@ impl<'a> Formatter<'a> {
 
         match typ.typ {
             UnresolvedTypeData::Integer(_, num_bits) => {
-                // unit
                 if num_bits.is_zero() {
                     self.write_left_paren();
                     self.write_right_paren();
-                // bool
                 } else if num_bits.is_one() {
                     self.write_keyword(Keyword::Bool);
-                // (un)signed integer or Field
                 } else {
                     self.write_current_token_and_bump();
                 }

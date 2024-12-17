@@ -286,7 +286,7 @@ fn empty_body() -> BlockExpression {
 #[cfg(test)]
 mod tests {
     use crate::{
-        ast::{ItemVisibility, NoirFunction, UnresolvedTypeData, Visibility},
+        ast::{ItemVisibility, NoirFunction, Visibility},
         parser::{
             parser::{
                 parse_program,
@@ -380,7 +380,7 @@ mod tests {
         let src = "fn foo() -> Field {}";
         let noir_function = parse_function_no_error(src);
         assert_eq!(noir_function.def.return_visibility, Visibility::Private);
-        assert_eq!(noir_function.return_type().typ, UnresolvedTypeData::FieldElement);
+        assert!(noir_function.return_type().typ.is_field_element());
     }
 
     #[test]
@@ -388,7 +388,7 @@ mod tests {
         let src = "fn foo() -> pub Field {}";
         let noir_function = parse_function_no_error(src);
         assert_eq!(noir_function.def.return_visibility, Visibility::Public);
-        assert_eq!(noir_function.return_type().typ, UnresolvedTypeData::FieldElement);
+        assert!(noir_function.return_type().typ.is_field_element());
     }
 
     #[test]

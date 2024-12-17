@@ -418,7 +418,7 @@ mod tests {
 
     #[test]
     fn instantiate_after_canonicalize_smoke_test() {
-        let field_element_kind = Kind::numeric(Type::FieldElement);
+        let field_element_kind = Kind::numeric(Type::field_element());
         let x_var = TypeVariable::unbound(TypeVariableId(0), field_element_kind.clone());
         let x_type = Type::TypeVariable(x_var.clone());
         let one = Type::Constant(FieldElement::one(), field_element_kind.clone());
@@ -498,13 +498,13 @@ mod proptests {
     fn arbitrary_unsigned_type_with_generator() -> BoxedStrategy<(Type, BoxedStrategy<FieldElement>)>
     {
         prop_oneof![
-            strategy::Just((Type::FieldElement, arbitrary_field_element().boxed())),
+            strategy::Just((Type::field_element(), arbitrary_field_element().boxed())),
             any::<IntegerBitSize>().prop_map(|bit_size| {
                 let typ = Type::Integer(Signedness::Unsigned, bit_size);
                 let maximum_size = typ.integral_maximum_size().unwrap().to_u128();
                 (typ, arbitrary_u128_field_element(maximum_size).boxed())
             }),
-            strategy::Just((Type::Bool, arbitrary_u128_field_element(1).boxed())),
+            strategy::Just((Type::bool(), arbitrary_u128_field_element(1).boxed())),
         ]
         .boxed()
     }

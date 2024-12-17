@@ -55,7 +55,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        ast::{NoirTypeAlias, UnresolvedTypeData},
+        ast::NoirTypeAlias,
         parser::{
             parser::{parse_program, tests::expect_no_errors},
             ItemKind,
@@ -79,7 +79,7 @@ mod tests {
         let alias = parse_type_alias_no_errors(src);
         assert_eq!("Foo", alias.name.to_string());
         assert!(alias.generics.is_empty());
-        assert_eq!(alias.typ.typ, UnresolvedTypeData::FieldElement);
+        assert!(alias.typ.typ.is_field_element());
     }
 
     #[test]
