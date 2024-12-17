@@ -657,7 +657,9 @@ jobs:
             if [[ "$PACKAGE_NAME" == "$NAME_FROM_MATRIX" ]]; then
               echo "got here"
               mkdir ./test-repo/${{ matrix.project.path }}/target
-              mv $artifact ./test-repo/${{ matrix.project.path }}/target/$PACKAGE_NAME.json
+              cd ./artifacts
+              cp ./artifacts/$ARTIFACT_NAME ./$ARTIFACT_NAME.json
+              mv $ARTIFACT_NAME.json ./test-repo/${{ matrix.project.path }}/target/$PACKAGE_NAME.json
               break
             fi
             ls ./test-repo/${{ matrix.project.path }}
@@ -670,7 +672,7 @@ jobs:
       - name: Generate execution report
         working-directory: ./test-repo/${{ matrix.project.path }}
         run: |
-          ls .
+          ls ./target/
           mv /home/runner/work/noir/noir/scripts/test_programs/execution_report.sh ./execution_report.sh
           chmod +x ./execution_report.sh
           ./execution_report.sh 1

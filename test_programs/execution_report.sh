@@ -44,7 +44,7 @@ for dir in ${tests_to_profile[@]}; do
     # Check whether a compilation artifact exists. 
     # Any programs part of this benchmark should already be compiled.
     # We want to make sure that compilation time is not included in the execution time.
-    if [ ! -f ./target/*.json ]; then
+    if [[ ! -e ./target/*.json ]]; then
       echo "Missing compilation artifact for $PACKAGE_NAME"
       exit 1
     fi
