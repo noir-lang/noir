@@ -7,14 +7,7 @@ use proptest::{
 };
 use rand::Rng;
 
-/// Using `u64` instead of `u128` because the latter was not available for Wasm.
-/// Once https://github.com/proptest-rs/proptest/pull/519 is released we can switch
-/// back, although since we've restricted the type system to only allow u64s
-/// as the maximum integer type.
-type BinarySearch = proptest::num::u64::BinarySearch;
-
-/// We have a `IntegerBitSize::U128` numeric type, but we will only generate values up to 64 bits here.
-const MAX_BIT_SIZE: usize = 64;
+type BinarySearch = proptest::num::u128::BinarySearch;
 
 /// Value tree for unsigned ints (up to u128).
 /// The strategy combines 2 different strategies, each assigned a specific weight:
@@ -71,8 +64,8 @@ impl UintStrategy {
 
         // Generate value tree from fixture.
         let fixture = &self.fixtures[runner.rng().gen_range(0..self.fixtures.len())];
-        if let Some(start) = fixture.try_to_u64() {
-            return Ok(BinarySearch::new(start));
+        if fixture.num_bits() <= self.type_max_bits() as u32 {
+            return Ok(BinarySearch::new(fixture.to_u128()));
         }
 
         // If fixture is not a valid type, generate random value.
@@ -88,19 +81,19 @@ impl UintStrategy {
     }
 
     /// Maximum integer that fits in the given bit width.
-    fn type_max(&self) -> u64 {
+    fn type_max(&self) -> u128 {
         (1 << self.type_max_bits()) - 1
     }
 
     /// Maximum bits that we generate values for.
     fn type_max_bits(&self) -> usize {
-        cmp::max(self.bits, MAX_BIT_SIZE)
+        cmp::max(self.bits, 128)
     }
 }
 
 impl Strategy for UintStrategy {
     type Tree = BinarySearch;
-    type Value = u64;
+    type Value = u128;
 
     /// Pick randomly from the 3 available strategies for generating unsigned integers.
     fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
