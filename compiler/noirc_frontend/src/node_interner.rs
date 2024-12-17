@@ -2229,7 +2229,7 @@ impl NodeInterner {
             self.id_type(operator_expr)
         };
 
-        let env = Box::new(Type::Unit);
+        let env = Box::new(Type::unit());
         (Type::Function(args, Box::new(ret.clone()), env, false), ret)
     }
 
@@ -2238,7 +2238,7 @@ impl NodeInterner {
         let rhs_type = self.id_type(rhs);
         let args = vec![rhs_type];
         let ret = self.id_type(operator_expr);
-        let env = Box::new(Type::Unit);
+        let env = Box::new(Type::unit());
         (Type::Function(args, Box::new(ret.clone()), env, false), ret)
     }
 
@@ -2413,9 +2413,10 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
     use TypeMethodKey::*;
     let typ = typ.follow_bindings();
     match &typ {
-        Type::FieldElement => Some(FieldOrInt),
         Type::Array(_, _) => Some(Array),
         Type::Slice(_) => Some(Slice),
+        Type::Integer(_, IntegerBitSize::Zero) => Some(Unit),
+        Type::Integer(_, IntegerBitSize::One) => Some(Bool),
         Type::Integer(_, _) => Some(FieldOrInt),
         Type::TypeVariable(var) => {
             if var.is_integer() || var.is_integer_or_field() {
@@ -2424,10 +2425,8 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
                 None
             }
         }
-        Type::Bool => Some(Bool),
         Type::String(_) => Some(String),
         Type::FmtString(_, _) => Some(FmtString),
-        Type::Unit => Some(Unit),
         Type::Tuple(_) => Some(Tuple),
         Type::Function(_, _, _, _) => Some(Function),
         Type::NamedGeneric(_, _) => Some(Generic),

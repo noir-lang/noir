@@ -689,19 +689,19 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let typ = self.elaborator.interner.id_type(id).follow_bindings();
         let location = self.elaborator.interner.expr_location(&id);
 
-        // TODO: cleanup
-        // if typ.is_field() {
-        //     Ok(Value::Field(value))
-        // } else if let Type::Integer(sign, bit_size) = &typ {
         if let Type::Integer(sign, bit_size) = &typ {
             match (sign, bit_size) {
                 (Signedness::Unsigned, IntegerBitSize::Zero) => {
-                    
-                    "TODO"
+                    if value != FieldElement::zero() {
+                        return Err(InterpreterError::IntegerOutOfRangeForType { value, typ, location });
+                    }
+                    Ok(Value::Unit)
                 }
                 (Signedness::Unsigned, IntegerBitSize::One) => {
-
-                    "TODO"
+                    if FieldElement::one() < value {
+                        return Err(InterpreterError::IntegerOutOfRangeForType { value, typ, location });
+                    }
+                    Ok(Value::Bool(value == FieldElement::one()))
                 }
                 (Signedness::Unsigned, IntegerBitSize::Eight) => {
                     let value: u8 =
@@ -740,8 +740,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     Ok(Value::U64(value))
                 }
                 (Signedness::Unsigned, IntegerBitSize::FieldElementBits) => {
-
-                    "TODO"
+                    Ok(Value::Field(value))
                 }
                 (Signedness::Signed, IntegerBitSize::Zero) => {
                     return Err(InterpreterError::TypeUnsupported { typ, location });

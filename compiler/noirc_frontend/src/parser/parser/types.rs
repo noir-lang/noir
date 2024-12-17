@@ -101,7 +101,7 @@ impl<'a> Parser<'a> {
 
     fn parse_bool_type(&mut self) -> Option<UnresolvedTypeData> {
         if self.eat_keyword(Keyword::Bool) {
-            return Some(UnresolvedTypeData::Bool);
+            return Some(UnresolvedTypeData::bool());
         }
 
         None
@@ -109,7 +109,7 @@ impl<'a> Parser<'a> {
 
     fn parse_field_type(&mut self) -> Option<UnresolvedTypeData> {
         if self.eat_keyword(Keyword::Field) {
-            return Some(UnresolvedTypeData::FieldElement);
+            return Some(UnresolvedTypeData::field_element());
         }
 
         None
@@ -254,7 +254,7 @@ impl<'a> Parser<'a> {
             self.eat_or_error(Token::RightBracket);
             typ
         } else {
-            UnresolvedTypeData::Unit.with_span(self.span_at_previous_token_end())
+            UnresolvedTypeData::unit().with_span(self.span_at_previous_token_end())
         };
 
         if !self.eat_left_paren() {
@@ -278,7 +278,7 @@ impl<'a> Parser<'a> {
             self.parse_type_or_error()
         } else {
             self.expected_token(Token::Arrow);
-            UnresolvedTypeData::Unit.with_span(self.span_at_previous_token_end())
+            UnresolvedTypeData::unit().with_span(self.span_at_previous_token_end())
         };
 
         Some(UnresolvedTypeData::Function(args, Box::new(ret), Box::new(env), unconstrained))
@@ -384,7 +384,7 @@ impl<'a> Parser<'a> {
         }
 
         if self.eat_right_paren() {
-            return Some(UnresolvedTypeData::Unit);
+            return Some(UnresolvedTypeData::unit());
         }
 
         let (mut types, trailing_comma) = self.parse_many_return_trailing_separator_if_any(

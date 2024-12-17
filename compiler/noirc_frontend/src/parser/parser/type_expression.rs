@@ -304,7 +304,7 @@ impl<'a> Parser<'a> {
 
         if self.eat_right_paren() {
             return Some(UnresolvedType {
-                typ: UnresolvedTypeData::Unit,
+                typ: UnresolvedTypeData::unit(),
                 span: self.span_since(start_span),
             });
         }

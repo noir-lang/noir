@@ -1072,8 +1072,9 @@ fn type_is_bool(arguments: Vec<(Value, Location)>, location: Location) -> IResul
 fn type_is_field(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     let value = check_one_argument(arguments, location)?;
     let typ = get_type(value)?;
+    let value_level = true;
 
-    Ok(Value::Bool(typ.is_field_element()))
+    Ok(Value::Bool(typ.is_field_element(value_level)))
 }
 
 // fn is_unit(self) -> bool
@@ -1237,8 +1238,7 @@ fn unresolved_type_is_field(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let typ = get_unresolved_type(interner, self_argument)?;
-    let value_level = true;
-    Ok(Value::Bool(typ.is_field_element(value_level)))
+    Ok(Value::Bool(typ.is_field_element()))
 }
 
 // fn is_unit(self) -> bool

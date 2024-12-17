@@ -956,9 +956,7 @@ impl<'interner> Monomorphizer<'interner> {
     fn convert_type(typ: &HirType, location: Location) -> Result<ast::Type, MonomorphizationError> {
         let typ = typ.follow_bindings_shallow();
         Ok(match typ.as_ref() {
-            HirType::FieldElement => ast::Type::Field,
             HirType::Integer(sign, bits) => ast::Type::Integer(*sign, *bits),
-            HirType::Bool => ast::Type::Bool,
             HirType::String(size) => {
                 let size = match size.evaluate_to_u32(location.span) {
                     Ok(size) => size,
@@ -992,7 +990,6 @@ impl<'interner> Monomorphizer<'interner> {
                 let fields = Box::new(Self::convert_type(fields.as_ref(), location)?);
                 ast::Type::FmtString(size, fields)
             }
-            HirType::Unit => ast::Type::Unit,
             HirType::Array(length, element) => {
                 let element = Box::new(Self::convert_type(element.as_ref(), location)?);
                 let length = match length.evaluate_to_u32(location.span) {
@@ -1123,11 +1120,8 @@ impl<'interner> Monomorphizer<'interner> {
     fn check_type(typ: &HirType, location: Location) -> Result<(), MonomorphizationError> {
         let typ = typ.follow_bindings_shallow();
         match typ.as_ref() {
-            HirType::FieldElement
-            | HirType::Integer(..)
-            | HirType::Bool
+            HirType::Integer(..)
             | HirType::String(..)
-            | HirType::Unit
             | HirType::TraitAsType(..)
             | HirType::Forall(_, _)
             | HirType::Error

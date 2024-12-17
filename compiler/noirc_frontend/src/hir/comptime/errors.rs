@@ -419,7 +419,8 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             }
             InterpreterError::NonIntegerUsedInLoop { typ, location } => {
                 let msg = format!("Non-integer type `{typ}` used in for loop");
-                let secondary = if matches!(typ, Type::FieldElement) {
+                let value_level = true;
+                let secondary = if typ.is_field_element(value_level) {
                     "`field` is not an integer type, try `u32` instead".to_string()
                 } else {
                     String::new()

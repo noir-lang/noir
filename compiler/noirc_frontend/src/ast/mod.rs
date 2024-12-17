@@ -446,16 +446,37 @@ impl UnresolvedTypeData {
             }
             UnresolvedTypeData::Unspecified => true,
 
-            UnresolvedTypeData::FieldElement
-            | UnresolvedTypeData::Integer(_, _)
-            | UnresolvedTypeData::Bool
-            | UnresolvedTypeData::Unit
+            UnresolvedTypeData::Integer(_, _)
             | UnresolvedTypeData::Quoted(_)
             | UnresolvedTypeData::AsTraitPath(_)
             | UnresolvedTypeData::Resolved(_)
             | UnresolvedTypeData::Interned(_)
             | UnresolvedTypeData::Error => false,
         }
+    }
+
+    pub(crate) fn unit() -> UnresolvedTypeData {
+        UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::Zero)
+    }
+
+    pub(crate) fn bool() -> UnresolvedTypeData {
+        UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::One)
+    }
+
+    pub(crate) fn field_element() -> UnresolvedTypeData {
+        UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::FieldElementBits)
+    }
+
+    pub(crate) fn is_unit(&self) -> bool {
+        matches!(self, UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::Zero))
+    }
+
+    pub(crate) fn is_bool(&self) -> bool {
+        matches!(self, UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::One))
+    }
+
+    pub(crate) fn is_field_element(&self) -> bool {
+        matches!(self, UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::FieldElementBits))
     }
 }
 
