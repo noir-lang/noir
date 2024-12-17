@@ -217,7 +217,6 @@ fn compile_programs(
         )?;
 
         if compile_options.check_non_determinism {
-            dbg!("got here");
             let (program_two, _) = compile_program(
                 file_manager,
                 parsed_files,
@@ -249,7 +248,6 @@ fn compile_programs(
                 return Ok(((), warnings));
             }
         }
-
         // Run ACVM optimizations and set the target width.
         let program = nargo::ops::transform_program(program, target_width);
         // Check solvability.
