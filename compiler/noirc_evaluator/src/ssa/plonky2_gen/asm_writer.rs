@@ -20,7 +20,7 @@ use tracing::Instrument;
 
 use crate::{
     debug_trace::{AsmListIndexRange, DebugTraceList, SourcePoint},
-    ssa::ir::dfg::CallStack,
+    ssa::ir::call_stack::CallStack,
 };
 
 use super::config::P2Builder;

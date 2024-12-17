@@ -581,7 +581,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                             },
                         )?;
 
-                    if let_.comptime || crate_of_global != self.crate_id {
+                    if let_.runs_comptime() || crate_of_global != self.crate_id {
                         self.evaluate_let(let_.clone())?;
                     }
 
@@ -1380,13 +1380,19 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     fn evaluate_cast(&mut self, cast: &HirCastExpression, id: ExprId) -> IResult<Value> {
         let evaluated_lhs = self.evaluate(cast.lhs)?;
-        Self::evaluate_cast_one_step(cast, id, evaluated_lhs, self.elaborator.interner)
+        let location = self.elaborator.interner.expr_location(&id);
+        Self::evaluate_cast_one_step(
+            &cast.r#type,
+            location,
+            evaluated_lhs,
+            self.elaborator.interner,
+        )
     }
 
     /// evaluate_cast without recursion
     pub fn evaluate_cast_one_step(
-        cast: &HirCastExpression,
-        id: ExprId,
+        typ: &Type,
+        location: Location,
         evaluated_lhs: Value,
         interner: &NodeInterner,
     ) -> IResult<Value> {
@@ -1417,7 +1423,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (if value { FieldElement::one() } else { FieldElement::zero() }, false)
             }
             value => {
-                let location = interner.expr_location(&id);
                 let typ = value.get_type().into_owned();
                 return Err(InterpreterError::NonNumericCasted { typ, location });
             }
@@ -1434,7 +1439,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
 
         // Now actually cast the lhs, bit casting and wrapping as necessary
-        match cast.r#type.follow_bindings() {
+        match typ.follow_bindings() {
             Type::FieldElement => {
                 if lhs_is_negative {
                     lhs = FieldElement::zero() - lhs;
@@ -1443,8 +1448,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             }
             Type::Integer(sign, bit_size) => match (sign, bit_size) {
                 (Signedness::Unsigned, IntegerBitSize::One) => {
-                    let location = interner.expr_location(&id);
-                    Err(InterpreterError::TypeUnsupported { typ: cast.r#type.clone(), location })
+                    Err(InterpreterError::TypeUnsupported { typ: typ.clone(), location })
                 }
                 (Signedness::Unsigned, IntegerBitSize::Eight) => cast_to_int!(lhs, to_u128, u8, U8),
                 (Signedness::Unsigned, IntegerBitSize::Sixteen) => {
@@ -1457,8 +1461,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     cast_to_int!(lhs, to_u128, u64, U64)
                 }
                 (Signedness::Signed, IntegerBitSize::One) => {
-                    let location = interner.expr_location(&id);
-                    Err(InterpreterError::TypeUnsupported { typ: cast.r#type.clone(), location })
+                    Err(InterpreterError::TypeUnsupported { typ: typ.clone(), location })
                 }
                 (Signedness::Signed, IntegerBitSize::Eight) => cast_to_int!(lhs, to_i128, i8, I8),
                 (Signedness::Signed, IntegerBitSize::Sixteen) => {
@@ -1472,10 +1475,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 }
             },
             Type::Bool => Ok(Value::Bool(!lhs.is_zero() || lhs_is_negative)),
-            typ => {
-                let location = interner.expr_location(&id);
-                Err(InterpreterError::CastToNonNumericType { typ, location })
-            }
+            typ => Err(InterpreterError::CastToNonNumericType { typ, location }),
         }
     }
 

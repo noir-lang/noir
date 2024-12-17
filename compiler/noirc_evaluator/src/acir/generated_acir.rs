@@ -16,7 +16,7 @@ use super::brillig_directive;
 use crate::{
     brillig::brillig_ir::artifact::GeneratedBrillig,
     errors::{InternalError, RuntimeError, SsaReport},
-    ssa::ir::dfg::CallStack,
+    ssa::ir::call_stack::CallStack,
     ErrorType,
 };
 

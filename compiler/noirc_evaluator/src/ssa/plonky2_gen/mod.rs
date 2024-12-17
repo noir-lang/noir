@@ -26,7 +26,7 @@ use std::collections::{BTreeMap, HashMap};
 use self::config::{P2Builder, P2Config, P2Field};
 
 use crate::ssa::ir::{
-    dfg::CallStack,
+    call_stack::CallStack,
     instruction::Instruction,
     types::NumericType,
     types::Type,
@@ -385,7 +385,7 @@ impl Builder {
                     let instruction = format!("{:?}", self.dfg[*instruction_id].clone());
                     return Err(error.into_runtime_error(
                         instruction,
-                        self.dfg.get_call_stack(*instruction_id),
+                        self.dfg.get_instruction_call_stack(*instruction_id),
                     ));
                 }
                 Ok(_) => (),
@@ -578,7 +578,7 @@ impl Builder {
     }
 
     fn add_instruction(&mut self, instruction_id: InstructionId) -> Result<(), Plonky2GenError> {
-        self.asm_writer.comment_update_call_stack(self.dfg.get_call_stack(instruction_id));
+        self.asm_writer.comment_update_call_stack(self.dfg.get_instruction_call_stack(instruction_id));
         let instruction = self.dfg[instruction_id].clone();
 
         match instruction {
