@@ -94,6 +94,9 @@ impl<F> ForeignCallExecutor<F> for RPCForeignCallExecutor
 where
     F: AcirField + Serialize + for<'a> Deserialize<'a>,
 {
+    /// Execute an async call blocking the current thread.
+    /// This method cannot be called from inside a `tokio` runtime, for that to work
+    /// we need to offload the execution into a different thread; see the tests.
     fn execute(&mut self, foreign_call: &ForeignCallWaitInfo<F>) -> ResolveForeignCallResult<F> {
         let encoded_params = rpc_params!(ResolveForeignCallRequest {
             session_id: self.id,
@@ -112,7 +115,6 @@ where
 
 #[cfg(test)]
 mod tests {
-
     use acvm::{
         acir::brillig::ForeignCallParam, brillig_vm::brillig::ForeignCallResult,
         pwg::ForeignCallWaitInfo, FieldElement,
@@ -185,12 +187,14 @@ mod tests {
         /// Spawn and run the executor in the background until all clients are closed.
         fn run(mut self) -> RPCForeignCallClient {
             let (tx, mut rx) = mpsc::unbounded_channel::<RPCForeignCallClientRequest>();
-            let _ = tokio::task::spawn_blocking(move || {
+            let handle = tokio::task::spawn_blocking(move || {
                 while let Some((req, tx)) = rx.blocking_recv() {
                     let res = self.execute(&req);
                     let _ = tx.send(res);
                 }
             });
+            // The task will finish when the client goes out of scope.
+            drop(handle);
             RPCForeignCallClient { tx }
         }
     }
