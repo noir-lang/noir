@@ -348,7 +348,7 @@ jobs:
           PACKAGE_NAME=${{ matrix.project.path }}
           PACKAGE_NAME=$(basename $PACKAGE_NAME)
           mv /home/runner/work/noir/noir/scripts/.github/scripts/single_artifact_gates_report.sh ./single_artifact_gates_report.sh
-          ./single_artifact_gates_report.sh ./temp/target/*.json > gates_report_$PACKAGE_NAME.json
+          ./single_artifact_gates_report.sh ./target/*.json > gates_report_$PACKAGE_NAME.json
           echo "gates_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
 
 
