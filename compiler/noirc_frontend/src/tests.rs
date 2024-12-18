@@ -1416,9 +1416,6 @@ fn ban_mutable_globals() {
     "#;
 
     let errors = get_program_errors(src);
-    // TODO cleanup
-    dbg!(&errors);
-
     assert_eq!(get_program_errors(src).len(), 1);
 }
 
@@ -1640,10 +1637,6 @@ fn bool_numeric_generic() {
     }
     "#;
     let errors = get_program_errors(src);
-
-    // TODO cleanup
-    dbg!(&errors);
-
     assert_eq!(errors.len(), 1);
     assert!(matches!(
         errors[0].0,
