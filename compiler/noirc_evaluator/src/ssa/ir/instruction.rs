@@ -556,10 +556,22 @@ impl Instruction {
     /// If true the instruction will depend on `enable_side_effects` context during acir-gen.
     pub(crate) fn requires_acir_gen_predicate(&self, dfg: &DataFlowGraph) -> bool {
         match self {
-            Instruction::Binary(binary)
-                if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) =>
-            {
-                true
+            Instruction::Binary(binary) => {
+                // Some binary math can overflow or underflow
+                match binary.operator {
+                    BinaryOp::Add
+                    | BinaryOp::Sub
+                    | BinaryOp::Mul
+                    | BinaryOp::Div
+                    | BinaryOp::Mod => true,
+                    BinaryOp::Eq
+                    | BinaryOp::Lt
+                    | BinaryOp::And
+                    | BinaryOp::Or
+                    | BinaryOp::Xor
+                    | BinaryOp::Shl
+                    | BinaryOp::Shr => false,
+                }
             }
 
             Instruction::ArrayGet { array, index } => {
@@ -577,7 +589,6 @@ impl Instruction {
                 _ => false,
             },
             Instruction::Cast(_, _)
-            | Instruction::Binary(_)
             | Instruction::Not(_)
             | Instruction::Truncate { .. }
             | Instruction::Constrain(_, _, _)
