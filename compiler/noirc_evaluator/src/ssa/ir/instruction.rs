@@ -557,13 +557,16 @@ impl Instruction {
     pub(crate) fn requires_acir_gen_predicate(&self, dfg: &DataFlowGraph) -> bool {
         match self {
             Instruction::Binary(binary) => {
-                // Some binary math can overflow or underflow
                 match binary.operator {
                     BinaryOp::Add
                     | BinaryOp::Sub
                     | BinaryOp::Mul
                     | BinaryOp::Div
-                    | BinaryOp::Mod => true,
+                    | BinaryOp::Mod => {
+                        // Some binary math can overflow or underflow, but this is only the case
+                        // for unsigned types (here we assume the type of binary.lhs is the same)
+                        dfg.type_of_value(binary.rhs).is_unsigned()
+                    }
                     BinaryOp::Eq
                     | BinaryOp::Lt
                     | BinaryOp::And
