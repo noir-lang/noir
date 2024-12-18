@@ -18,9 +18,8 @@ use serde::{Deserialize, Serialize};
 use crate::{
     errors::try_to_diagnose_runtime_error,
     foreign_calls::{
-        layers::{Empty, Unhandled},
-        print::PrintOutput,
-        DefaultForeignCallExecutor, DefaultForeignCallLayers, ForeignCallExecutor,
+        layers, print::PrintOutput, DefaultForeignCallExecutor, DefaultForeignCallLayers,
+        ForeignCallExecutor,
     },
     NargoError,
 };
@@ -277,7 +276,7 @@ fn check_expected_failure_message(
 
 /// A specialized foreign call executor which tracks whether it has encountered any unknown foreign calls
 struct TestForeignCallExecutor<'a, F> {
-    executor: DefaultForeignCallLayers<'a, Unhandled, F>,
+    executor: DefaultForeignCallLayers<'a, layers::Unhandled, F>,
     encountered_unknown_foreign_call: bool,
 }
 
@@ -294,7 +293,7 @@ where
     ) -> Self {
         // Use a base layer that doesn't handle anything, which we handle in the `execute` below.
         let executor = DefaultForeignCallExecutor::with_base(
-            Unhandled,
+            layers::Unhandled,
             output,
             resolver_url,
             root_path,
@@ -317,8 +316,7 @@ impl<'a, F: AcirField + Serialize + for<'b> Deserialize<'b>> ForeignCallExecutor
         match self.executor.execute(foreign_call) {
             Err(ForeignCallError::NoHandler(_)) => {
                 self.encountered_unknown_foreign_call = true;
-                let mut empty = Empty;
-                empty.execute(foreign_call)
+                layers::Empty.execute(foreign_call)
             }
             other => other,
         }

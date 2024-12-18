@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use acvm::{acir::brillig::ForeignCallResult, pwg::ForeignCallWaitInfo, AcirField};
-use layers::Layer;
+use layers::{Layer, Layering};
 use mocker::MockForeignCallExecutor;
 use noirc_printable_type::ForeignCallError;
 use print::{PrintForeignCallExecutor, PrintOutput};
@@ -94,15 +94,12 @@ impl DefaultForeignCallExecutor {
         B: ForeignCallExecutor<F> + 'a,
     {
         // Adding them in the opposite order, so print is the outermost layer.
-        Layer::new(
-            resolver_url.map(|resolver_url| {
-                let id = rand::thread_rng().gen();
-                RPCForeignCallExecutor::new(resolver_url, id, root_path, package_name)
-            }),
-            base,
-        )
-        .add(MockForeignCallExecutor::default())
-        .add(PrintForeignCallExecutor::new(output))
+        base.add_layer(resolver_url.map(|resolver_url| {
+            let id = rand::thread_rng().gen();
+            RPCForeignCallExecutor::new(resolver_url, id, root_path, package_name)
+        }))
+        .add_layer(MockForeignCallExecutor::default())
+        .add_layer(PrintForeignCallExecutor::new(output))
     }
 }
 

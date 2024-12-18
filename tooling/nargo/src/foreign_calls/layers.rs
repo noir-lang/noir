@@ -92,9 +92,8 @@ impl<F> Layer<Unhandled, Unhandled, F> {
 
 impl<H, I, F> Layer<H, I, F> {
     /// Compose layers.
-    #[allow(clippy::should_implement_trait)]
-    pub fn add<J>(self, handler: J) -> Layer<J, Self, F> {
-        Layer { handler, inner: self, _field: PhantomData }
+    pub fn add_layer<J>(self, handler: J) -> Layer<J, Self, F> {
+        Layer::new(handler, self)
     }
 
     pub fn handler(&self) -> &H {
@@ -103,6 +102,26 @@ impl<H, I, F> Layer<H, I, F> {
 
     pub fn inner(&self) -> &I {
         &self.inner
+    }
+}
+
+/// Compose handlers.
+pub trait Layering {
+    fn add_layer<L, F>(self, other: L) -> Layer<L, Self, F>
+    where
+        Self: Sized + ForeignCallExecutor<F>,
+        L: ForeignCallExecutor<F>;
+}
+
+impl<T> Layering for T {
+    /// Add an executor layer on top of this one.
+    /// The `other` layer will be called first.
+    fn add_layer<L, F>(self, other: L) -> Layer<L, T, F>
+    where
+        T: Sized + ForeignCallExecutor<F>,
+        L: ForeignCallExecutor<F>,
+    {
+        Layer::new(other, self)
     }
 }
 
