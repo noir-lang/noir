@@ -20,6 +20,7 @@ use crate::monomorphization::{
     perform_impl_bindings, perform_instantiation_bindings, resolve_trait_method,
     undo_instantiation_bindings,
 };
+use crate::node_interner::GlobalValue;
 use crate::token::{FmtStrFragment, Tokens};
 use crate::TypeVariable;
 use crate::{
@@ -568,26 +569,39 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             DefinitionKind::Local(_) => self.lookup(&ident),
             DefinitionKind::Global(global_id) => {
                 // Avoid resetting the value if it is already known
-                if let Some(value) = &self.elaborator.interner.get_global(*global_id).value {
-                    Ok(value.clone())
-                } else {
-                    let global_id = *global_id;
-                    let crate_of_global = self.elaborator.interner.get_global(global_id).crate_id;
-                    let let_ =
-                        self.elaborator.interner.get_global_let_statement(global_id).ok_or_else(
-                            || {
+                let global_id = *global_id;
+                let global_info = self.elaborator.interner.get_global(global_id);
+                let global_crate_id = global_info.crate_id;
+                match &global_info.value {
+                    GlobalValue::Resolved(value) => Ok(value.clone()),
+                    GlobalValue::Resolving => {
+                        // Note that the error we issue here isn't very informative (it doesn't include the actual cycle)
+                        // but the general dependency cycle detector will give a better error later on during compilation.
+                        let location = self.elaborator.interner.expr_location(&id);
+                        Err(InterpreterError::GlobalsDependencyCycle { location })
+                    }
+                    GlobalValue::Unresolved => {
+                        let let_ = self
+                            .elaborator
+                            .interner
+                            .get_global_let_statement(global_id)
+                            .ok_or_else(|| {
                                 let location = self.elaborator.interner.expr_location(&id);
                                 InterpreterError::VariableNotInScope { location }
-                            },
-                        )?;
+                            })?;
 
-                    if let_.runs_comptime() || crate_of_global != self.crate_id {
-                        self.evaluate_let(let_.clone())?;
+                        self.elaborator.interner.get_global_mut(global_id).value =
+                            GlobalValue::Resolving;
+
+                        if let_.runs_comptime() || global_crate_id != self.crate_id {
+                            self.evaluate_let(let_.clone())?;
+                        }
+
+                        let value = self.lookup(&ident)?;
+                        self.elaborator.interner.get_global_mut(global_id).value =
+                            GlobalValue::Resolved(value.clone());
+                        Ok(value)
                     }
-
-                    let value = self.lookup(&ident)?;
-                    self.elaborator.interner.get_global_mut(global_id).value = Some(value.clone());
-                    Ok(value)
                 }
             }
             DefinitionKind::NumericGeneric(type_variable, numeric_typ) => {
@@ -1396,13 +1410,19 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     fn evaluate_cast(&mut self, cast: &HirCastExpression, id: ExprId) -> IResult<Value> {
         let evaluated_lhs = self.evaluate(cast.lhs)?;
-        Self::evaluate_cast_one_step(cast, id, evaluated_lhs, self.elaborator.interner)
+        let location = self.elaborator.interner.expr_location(&id);
+        Self::evaluate_cast_one_step(
+            &cast.r#type,
+            location,
+            evaluated_lhs,
+            self.elaborator.interner,
+        )
     }
 
     /// evaluate_cast without recursion
     pub fn evaluate_cast_one_step(
-        cast: &HirCastExpression,
-        id: ExprId,
+        typ: &Type,
+        location: Location,
         evaluated_lhs: Value,
         interner: &NodeInterner,
     ) -> IResult<Value> {
@@ -1433,7 +1453,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (if value { FieldElement::one() } else { FieldElement::zero() }, false)
             }
             value => {
-                let location = interner.expr_location(&id);
                 let typ = value.get_type().into_owned();
                 return Err(InterpreterError::NonNumericCasted { typ, location });
             }
@@ -1450,7 +1469,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
 
         // Now actually cast the lhs, bit casting and wrapping as necessary
-        match cast.r#type.follow_bindings() {
+        match typ.follow_bindings() {
             Type::Integer(sign, bit_size) => match (sign, bit_size) {
                 (Signedness::Unsigned, IntegerBitSize::Zero) => {
                     Ok(Value::Unit)
@@ -1479,8 +1498,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     Err(InterpreterError::TypeUnsupported { typ: cast.r#type.clone(), location })
                 }
                 (Signedness::Signed, IntegerBitSize::One) => {
-                    let location = interner.expr_location(&id);
-                    Err(InterpreterError::TypeUnsupported { typ: cast.r#type.clone(), location })
+                    Err(InterpreterError::TypeUnsupported { typ: typ.clone(), location })
                 }
                 (Signedness::Signed, IntegerBitSize::Eight) => cast_to_int!(lhs, to_i128, i8, I8),
                 (Signedness::Signed, IntegerBitSize::Sixteen) => {
@@ -1497,10 +1515,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     Err(InterpreterError::TypeUnsupported { typ: cast.r#type.clone(), location })
                 }
             },
-            typ => {
-                let location = interner.expr_location(&id);
-                Err(InterpreterError::CastToNonNumericType { typ, location })
-            }
+            typ => Err(InterpreterError::CastToNonNumericType { typ, location }),
         }
     }
 

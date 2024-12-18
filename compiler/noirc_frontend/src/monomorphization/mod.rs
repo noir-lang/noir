@@ -11,7 +11,7 @@
 use crate::ast::{FunctionKind, IntegerBitSize, Signedness, UnaryOp, Visibility};
 use crate::hir::comptime::InterpreterError;
 use crate::hir::type_check::{NoMatchingImplFoundError, TypeCheckError};
-use crate::node_interner::{ExprId, ImplSearchErrorKind};
+use crate::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind};
 use crate::token::FmtStrFragment;
 use crate::{
     debug::DebugInstrumenter,
@@ -895,7 +895,7 @@ impl<'interner> Monomorphizer<'interner> {
             DefinitionKind::Global(global_id) => {
                 let global = self.interner.get_global(*global_id);
 
-                let expr = if let Some(value) = global.value.clone() {
+                let expr = if let GlobalValue::Resolved(value) = global.value.clone() {
                     value
                         .into_hir_expression(self.interner, global.location)
                         .map_err(MonomorphizationError::InterpreterError)?
