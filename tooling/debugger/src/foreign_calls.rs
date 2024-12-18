@@ -4,8 +4,8 @@ use acvm::{
     AcirField, FieldElement,
 };
 use nargo::{
-    foreign_calls::{layers::Layer, ForeignCallExecutor},
-    PrintForeignCallExecutor, PrintOutput,
+    foreign_calls::{layers::Layer, DefaultForeignCallExecutor, ForeignCallExecutor},
+    PrintOutput,
 };
 use noirc_artifacts::debug::{DebugArtifact, DebugVars, StackFrame};
 use noirc_errors::debug_info::{DebugFnId, DebugVarId};
@@ -50,9 +50,16 @@ pub struct DefaultDebugForeignCallExecutor {
 }
 
 impl DefaultDebugForeignCallExecutor {
+    pub fn make(
+        output: PrintOutput<'_>,
+        ex: DefaultDebugForeignCallExecutor,
+    ) -> impl DebugForeignCallExecutor + '_ {
+        Layer::new(DefaultForeignCallExecutor::new(output, None, None, None)).add(ex)
+    }
+
     #[allow(clippy::new_ret_no_self, dead_code)]
     pub fn new(output: PrintOutput<'_>) -> impl DebugForeignCallExecutor + '_ {
-        Layer::default().add(PrintForeignCallExecutor::new(output)).add(Self::default())
+        Self::make(output, Self::default())
     }
 
     pub fn from_artifact<'a>(
@@ -61,7 +68,7 @@ impl DefaultDebugForeignCallExecutor {
     ) -> impl DebugForeignCallExecutor + 'a {
         let mut ex = Self::default();
         ex.load_artifact(artifact);
-        Layer::default().add(PrintForeignCallExecutor::new(output)).add(ex)
+        Self::make(output, ex)
     }
 
     pub fn load_artifact(&mut self, artifact: &DebugArtifact) {

@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use acvm::{acir::brillig::ForeignCallResult, pwg::ForeignCallWaitInfo, AcirField};
+use layers::Layer;
 use mocker::MockForeignCallExecutor;
 use noirc_printable_type::ForeignCallError;
 use print::{PrintForeignCallExecutor, PrintOutput};
@@ -69,19 +70,43 @@ pub struct DefaultForeignCallExecutor;
 
 impl DefaultForeignCallExecutor {
     #[allow(clippy::new_ret_no_self)]
-    pub fn new<'a, F: AcirField + Serialize + for<'de> Deserialize<'de> + 'a>(
+    pub fn new<'a, F>(
         output: PrintOutput<'a>,
         resolver_url: Option<&str>,
         root_path: Option<PathBuf>,
         package_name: Option<String>,
-    ) -> impl ForeignCallExecutor<F> + 'a {
+    ) -> impl ForeignCallExecutor<F> + 'a
+    where
+        F: AcirField + Serialize + for<'de> Deserialize<'de> + 'a,
+    {
+        Self::with_base(Layer::default(), output, resolver_url, root_path, package_name)
+    }
+
+    pub fn with_base<'a, F, H, I>(
+        base: Layer<H, I, F>,
+        output: PrintOutput<'a>,
+        resolver_url: Option<&str>,
+        root_path: Option<PathBuf>,
+        package_name: Option<String>,
+    ) -> DefaultForeignCallLayers<'a, Layer<H, I, F>, F>
+    where
+        F: AcirField + Serialize + for<'de> Deserialize<'de> + 'a,
+        H: ForeignCallExecutor<F> + 'a,
+        I: ForeignCallExecutor<F> + 'a,
+    {
         // Adding them in the opposite order, so print is the outermost layer.
-        layers::Layer::default()
-            .add(resolver_url.map(|resolver_url| {
-                let id = rand::thread_rng().gen();
-                RPCForeignCallExecutor::new(resolver_url, id, root_path, package_name)
-            }))
-            .add(MockForeignCallExecutor::default())
-            .add(PrintForeignCallExecutor::new(output))
+        base.add(resolver_url.map(|resolver_url| {
+            let id = rand::thread_rng().gen();
+            RPCForeignCallExecutor::new(resolver_url, id, root_path, package_name)
+        }))
+        .add(MockForeignCallExecutor::default())
+        .add(PrintForeignCallExecutor::new(output))
     }
 }
+
+/// Facilitate static typing of layers on a base layer, so inner layers can be accessed.
+pub type DefaultForeignCallLayers<'a, B, F> = Layer<
+    PrintForeignCallExecutor<'a>,
+    Layer<MockForeignCallExecutor<F>, Layer<Option<RPCForeignCallExecutor>, B, F>, F>,
+    F,
+>;

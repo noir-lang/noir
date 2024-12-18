@@ -47,7 +47,7 @@ impl<F: PartialEq> MockedCall<F> {
 }
 
 #[derive(Debug, Default)]
-pub(crate) struct MockForeignCallExecutor<F> {
+pub struct MockForeignCallExecutor<F> {
     /// Mocks have unique ids used to identify them in Noir, allowing to update or remove them.
     last_mock_id: usize,
     /// The registered mocks
@@ -179,6 +179,7 @@ where
 }
 
 /// Handler that panics if any of the mock functions are called.
+#[allow(dead_code)] // TODO: Make the mocker optional
 pub(crate) struct DisabledMockForeignCallExecutor<F> {
     _field: PhantomData<F>,
 }

@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use super::ForeignCallExecutor;
 
 #[derive(Debug)]
-pub(crate) struct RPCForeignCallExecutor {
+pub struct RPCForeignCallExecutor {
     /// A randomly generated id for this `DefaultForeignCallExecutor`.
     ///
     /// This is used so that a single `external_resolver` can distinguish between requests from multiple
@@ -54,7 +54,7 @@ struct ResolveForeignCallRequest<F> {
 type ResolveForeignCallResult<F> = Result<ForeignCallResult<F>, ForeignCallError>;
 
 impl RPCForeignCallExecutor {
-    pub(crate) fn new(
+    pub fn new(
         resolver_url: &str,
         id: u64,
         root_path: Option<PathBuf>,

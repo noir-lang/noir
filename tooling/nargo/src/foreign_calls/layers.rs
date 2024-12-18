@@ -27,8 +27,8 @@ impl<F: AcirField> ForeignCallExecutor<F> for Empty {
 
 /// Forwards to the inner executor if its own handler doesn't handle the call.
 pub struct Layer<H, I, F> {
-    handler: H,
-    inner: I,
+    pub handler: H,
+    pub inner: I,
     _field: PhantomData<F>,
 }
 
@@ -50,6 +50,7 @@ where
 
 impl<H, F> Layer<H, Empty, F> {
     /// Create a layer from a handler.
+    /// If the handler doesn't handle a call, an empty response is returned.
     pub fn new(handler: H) -> Self {
         Layer { handler, inner: Empty, _field: PhantomData }
     }
