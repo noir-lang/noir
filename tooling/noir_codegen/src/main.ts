@@ -37,7 +37,9 @@ function getFilesToProcess(cwd: string, filesOrPattern: string[]) {
 
   if (res.length === 0) {
     // If there are no files found, but first parameter is surrounded with single quotes, we try again without quotes
-    const match = filesOrPattern[0].match(/'([\s\S]*)'/)?.[1];
+    const regex = /(['\S\s]*)/;
+const result = regex.exec(filesOrPattern[0]);
+const match = result ? result[1] : null;
     if (match) res = glob(cwd, [match]);
   }
 
