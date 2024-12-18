@@ -575,6 +575,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 match &global_info.value {
                     GlobalValue::Resolved(value) => Ok(value.clone()),
                     GlobalValue::Resolving => {
+                        // Note that the error we issue here isn't very informative (it doesn't include the actual cycle)
+                        // but the general dependency cycle detector will give a better error later on during compilation.
                         let location = self.elaborator.interner.expr_location(&id);
                         Err(InterpreterError::GlobalsDependencyCycle { location })
                     }
