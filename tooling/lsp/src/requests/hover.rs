@@ -427,12 +427,9 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
     string.push(')');
 
     let return_type = func_meta.return_type();
-    match return_type {
-        Type::Unit => (),
-        _ => {
-            string.push_str(" -> ");
-            string.push_str(&format!("{}", return_type));
-        }
+    if !return_type.is_unit() {
+        string.push_str(" -> ");
+        string.push_str(&format!("{}", return_type));
     }
 
     string.push_str(&go_to_type_links(return_type, args.interner, args.files));
@@ -678,12 +675,9 @@ impl<'a> TypeLinksGatherer<'a> {
                 self.gather_type_links(rhs);
             }
             Type::CheckedCast { to, .. } => self.gather_type_links(to),
-            Type::FieldElement
-            | Type::Integer(..)
-            | Type::Bool
+            Type::Integer(..)
             | Type::String(_)
             | Type::FmtString(_, _)
-            | Type::Unit
             | Type::Forall(_, _)
             | Type::Constant(..)
             | Type::Quoted(_)

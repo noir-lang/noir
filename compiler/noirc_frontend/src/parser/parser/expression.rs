@@ -1567,7 +1567,7 @@ mod tests {
 
         let (pattern, typ) = lambda.parameters.remove(0);
         assert_eq!(pattern.to_string(), "y");
-        assert!(matches!(typ.typ, UnresolvedTypeData::FieldElement));
+        assert!(typ.typ.is_field_element());
     }
 
     #[test]
@@ -1579,7 +1579,7 @@ mod tests {
         };
         assert!(lambda.parameters.is_empty());
         assert_eq!(lambda.body.to_string(), "1");
-        assert!(matches!(lambda.return_type.typ, UnresolvedTypeData::FieldElement));
+        assert!(lambda.return_type.typ.is_field_element());
     }
 
     #[test]

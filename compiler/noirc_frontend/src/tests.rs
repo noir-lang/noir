@@ -1065,7 +1065,7 @@ fn multiple_resolution_errors() {
 #[test]
 fn resolve_prefix_expr() {
     let src = r#"
-        fn main(x : Field) {
+        fn main(x : i32) {
             let _y = -x;
         }
     "#;
@@ -1253,7 +1253,7 @@ fn get_monomorphization_error(src: &str) -> Option<MonomorphizationError> {
 
 fn check_rewrite(src: &str, expected: &str) {
     let program = monomorphize_program(src).unwrap();
-    assert!(format!("{}", program) == expected);
+    assert_eq!(format!("{}", program), expected);
 }
 
 #[test]
@@ -1392,6 +1392,10 @@ fn for_loop_over_array() {
         }
     "#;
     let errors = get_program_errors(src);
+
+    // TODO cleanup
+    dbg!(&errors);
+
     assert_eq!(errors.len(), 0);
 }
 
@@ -1414,6 +1418,8 @@ fn ban_mutable_globals() {
             let _ = FOO; // silence FOO never used warning
         }
     "#;
+
+    let errors = get_program_errors(src);
     assert_eq!(get_program_errors(src).len(), 1);
 }
 
@@ -1671,6 +1677,10 @@ fn bool_generic_as_loop_bound() {
     }
     "#;
     let errors = get_program_errors(src);
+
+    // TODO cleanup
+    dbg!(&errors);
+
     assert_eq!(errors.len(), 3);
     assert!(matches!(
         errors[0].0,
@@ -2010,6 +2020,7 @@ fn numeric_generic_field_larger_than_u32() {
     assert_eq!(errors.len(), 0);
 }
 
+// TODO: move to arithmetic_generics tests
 #[test]
 fn numeric_generic_field_arithmetic_larger_than_u32() {
     let src = r#"

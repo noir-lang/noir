@@ -14,7 +14,7 @@ use petgraph::prelude::NodeIndex as PetGraphIndex;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::{
-    ExpressionKind, Ident, LValue, Pattern, StatementKind, UnaryOp, UnresolvedTypeData,
+    ExpressionKind, Ident, IntegerBitSize, LValue, Pattern, StatementKind, UnaryOp, UnresolvedTypeData,
 };
 use crate::graph::CrateId;
 use crate::hir::comptime;
@@ -2236,7 +2236,7 @@ impl NodeInterner {
             self.id_type(operator_expr)
         };
 
-        let env = Box::new(Type::Unit);
+        let env = Box::new(Type::unit());
         (Type::Function(args, Box::new(ret.clone()), env, false), ret)
     }
 
@@ -2245,7 +2245,7 @@ impl NodeInterner {
         let rhs_type = self.id_type(rhs);
         let args = vec![rhs_type];
         let ret = self.id_type(operator_expr);
-        let env = Box::new(Type::Unit);
+        let env = Box::new(Type::unit());
         (Type::Function(args, Box::new(ret.clone()), env, false), ret)
     }
 
@@ -2419,11 +2419,18 @@ enum TypeMethodKey {
 fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
     use TypeMethodKey::*;
     let typ = typ.follow_bindings();
-    match &typ {
-        Type::FieldElement => Some(FieldOrInt),
+
+    // TODO: cleanup
+    let result = match &typ {
         Type::Array(_, _) => Some(Array),
         Type::Slice(_) => Some(Slice),
-        Type::Integer(_, _) => Some(FieldOrInt),
+        Type::Integer(_, num_bits) => {
+            match num_bits {
+                IntegerBitSize::Zero => Some(Unit),
+                IntegerBitSize::One => Some(Bool),
+                _ => Some(FieldOrInt),
+            }
+        }
         Type::TypeVariable(var) => {
             if var.is_integer() || var.is_integer_or_field() {
                 Some(FieldOrInt)
@@ -2431,10 +2438,8 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
                 None
             }
         }
-        Type::Bool => Some(Bool),
         Type::String(_) => Some(String),
         Type::FmtString(_, _) => Some(FmtString),
-        Type::Unit => Some(Unit),
         Type::Tuple(_) => Some(Tuple),
         Type::Function(_, _, _, _) => Some(Function),
         Type::NamedGeneric(_, _) => Some(Generic),
@@ -2450,5 +2455,9 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         | Type::InfixExpr(..)
         | Type::CheckedCast { .. }
         | Type::TraitAsType(..) => None,
-    }
+    };
+
+    // // TODO cleanup
+    // dbg!("get_type_method_key", &typ, &result);
+    result
 }

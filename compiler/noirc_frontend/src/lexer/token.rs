@@ -615,6 +615,9 @@ pub enum IntType {
 
 impl fmt::Display for IntType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+
+        // TODO: cleanup if this is unused
+        panic!("Display IntType");
         match *self {
             IntType::Unsigned(num) => write!(f, "u{num}"),
             IntType::Signed(num) => write!(f, "i{num}"),
