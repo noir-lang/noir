@@ -43,5 +43,5 @@ jsonrpsee = { workspace = true, features = ["server"] }
 default = ["execute", "test"]
 
 # Execution currently uses HTTP based Oracle resolvers; does not compile to Wasm.
-execute = ["jsonrpsee/http-client", "jsonrpsee/macros", "tokio/rt", "serde"]
-test = ["execute", "noir_fuzzer", "proptest", "rand"]
+execute = ["jsonrpsee/http-client", "jsonrpsee/macros", "tokio/rt", "serde", "rand"]
+test = ["execute", "noir_fuzzer", "proptest"]
