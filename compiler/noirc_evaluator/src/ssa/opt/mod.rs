@@ -39,7 +39,7 @@ pub(crate) fn assert_normalized_ssa_equals(mut ssa: super::Ssa, expected: &str) 
 
     use crate::{ssa::Ssa, trim_comments_from_lines, trim_leading_whitespace_from_lines};
 
-    ssa.normalize_ids();
+    ssa = ssa.normalize_ids();
 
     let ssa = ssa.to_string();
     let ssa = trim_leading_whitespace_from_lines(&ssa);

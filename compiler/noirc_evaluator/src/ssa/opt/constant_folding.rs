@@ -1173,7 +1173,7 @@ mod test {
         builder.terminate_with_return(Vec::new());
 
         let mut ssa = builder.finish();
-        ssa.normalize_ids();
+        ssa = ssa.normalize_ids();
 
         println!("{ssa}");
 
