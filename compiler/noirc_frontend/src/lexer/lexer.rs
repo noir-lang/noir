@@ -735,6 +735,15 @@ impl<'a> Lexer<'a> {
                 self.next_char();
                 Some(DocStyle::Outer)
             }
+            Some('@') => {
+                self.next_char();
+                let next_word = self.lex_word('@');
+                if next_word.1 == "@safety" {
+                    Some(DocStyle::Safety)
+                } else {
+                    None
+                }
+            }
             _ => None,
         };
         let comment = self.eat_while(None, |ch| ch != '\n');
@@ -760,6 +769,15 @@ impl<'a> Lexer<'a> {
             Some('*') if !matches!(self.peek2_char(), Some('*' | '/')) => {
                 self.next_char();
                 Some(DocStyle::Outer)
+            }
+            Some('@') => {
+                self.next_char();
+                let next_word = self.lex_word('@');
+                if next_word.1 == "@safety" {
+                    Some(DocStyle::Safety)
+                } else {
+                    None
+                }
             }
             _ => None,
         };

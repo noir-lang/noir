@@ -14,6 +14,7 @@ fn main() {
     let foo = Foo { bar: &mut Bar { value: 0 } };
 
     unsafe {
+        //@safety: testing context
         foo.crash_fn()
     };
 }
