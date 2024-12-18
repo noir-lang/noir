@@ -604,17 +604,15 @@ impl<'context> Elaborator<'context> {
                     alias_generics
                 };
 
-                // Now instantiate the underlying struct with those generics, the struct might
+                // Now instantiate the underlying struct or alias with those generics, the struct might
                 // have more generics than those in the alias, like in this example:
                 //
                 // type Alias<T> = Struct<T, i32>;
                 let typ = type_alias.get_type(&generics);
-                let Type::Struct(_, generics) = typ else {
-                    // See https://github.com/noir-lang/noir/issues/6398
-                    panic!("Expected type alias to point to struct")
-                };
-
-                generics
+                match typ {
+                    Type::Struct(_, generics) | Type::Alias(_, generics) => generics,
+                    _ => panic!("Expected type alias to point to struct or alias"),
+                }
             }
             PathResolutionItem::TraitFunction(trait_id, Some(generics), _func_id) => {
                 let trait_ = self.interner.get_trait(trait_id);
