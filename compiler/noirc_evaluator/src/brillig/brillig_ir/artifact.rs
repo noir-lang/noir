@@ -27,7 +27,7 @@ pub(crate) struct GeneratedBrillig<F> {
     pub(crate) locations: BTreeMap<OpcodeLocation, CallStack>,
     pub(crate) error_types: BTreeMap<ErrorSelector, ErrorType>,
     pub(crate) name: String,
-    pub(crate) procedure_locations: HashMap<ProcedureId, (OpcodeLocation, OpcodeLocation)>,
+    pub(crate) procedure_locations: BTreeMap<ProcedureId, (OpcodeLocation, OpcodeLocation)>,
 }
 
 #[derive(Default, Debug, Clone)]
@@ -61,13 +61,13 @@ pub(crate) struct BrilligArtifact<F> {
     /// This is created as artifacts are linked together and allows us to determine
     /// which opcodes originate from reusable procedures.s
     /// The range is inclusive for both start and end opcode locations.
-    pub(crate) procedure_locations: HashMap<ProcedureId, (OpcodeLocation, OpcodeLocation)>,
+    pub(crate) procedure_locations: BTreeMap<ProcedureId, (OpcodeLocation, OpcodeLocation)>,
 }
 
 /// A pointer to a location in the opcode.
 pub(crate) type OpcodeLocation = usize;
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
 pub(crate) enum LabelType {
     /// Labels for the entry point bytecode
     Entrypoint,
@@ -97,7 +97,7 @@ impl std::fmt::Display for LabelType {
 ///
 /// It is assumed that an entity will keep a map
 /// of labels to Opcode locations.
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
 pub(crate) struct Label {
     pub(crate) label_type: LabelType,
     pub(crate) section: Option<usize>,
