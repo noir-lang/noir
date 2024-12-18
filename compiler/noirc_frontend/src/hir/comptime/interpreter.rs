@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::collections::{HashSet, VecDeque};
 use std::{collections::hash_map::Entry, rc::Rc};
 
 use acvm::blackbox_solver::BigIntSolverWithId;
@@ -20,6 +20,7 @@ use crate::monomorphization::{
     perform_impl_bindings, perform_instantiation_bindings, resolve_trait_method,
     undo_instantiation_bindings,
 };
+use crate::node_interner::GlobalId;
 use crate::token::{FmtStrFragment, Tokens};
 use crate::TypeVariable;
 use crate::{
@@ -66,6 +67,12 @@ pub struct Interpreter<'local, 'interner> {
 
     /// Stateful bigint calculator.
     bigint_solver: BigIntSolverWithId,
+
+    /// Globals currently being interpreted, to detect recursive cycles.
+    /// Note that recursive cycles are also detected by NodeInterner,
+    /// it's just that the error message there happens after we evaluate globals:
+    /// if we don't detect cycles here too the program will stack overflow.
+    globals_being_interpreted: HashSet<GlobalId>,
 }
 
 #[allow(unused)]
@@ -82,6 +89,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             bound_generics: Vec::new(),
             in_loop: false,
             bigint_solver: BigIntSolverWithId::default(),
+            globals_being_interpreted: HashSet::new(),
         }
     }
 
@@ -572,6 +580,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let global_info = self.elaborator.interner.get_global(global_id);
                 if let Some(value) = &global_info.value {
                     Ok(value.clone())
+                } else if self.globals_being_interpreted.contains(&global_id) {
+                    let location = self.elaborator.interner.expr_location(&id);
+                    Err(InterpreterError::GlobalsDependencyCycle { location })
                 } else {
                     let let_ =
                         self.elaborator.interner.get_global_let_statement(global_id).ok_or_else(
@@ -582,7 +593,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                         )?;
 
                     if let_.runs_comptime() || global_info.crate_id != self.crate_id {
+                        self.globals_being_interpreted.insert(global_id);
                         self.evaluate_let(let_.clone())?;
+                        self.globals_being_interpreted.remove(&global_id);
                     }
 
                     let value = self.lookup(&ident)?;

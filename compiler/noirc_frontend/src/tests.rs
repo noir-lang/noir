@@ -3855,3 +3855,23 @@ fn disallows_underscore_on_right_hand_side() {
 
     assert_eq!(name, "_");
 }
+
+#[test]
+fn errors_on_cyclic_globals() {
+    let src = r#"
+    pub comptime global A: u32 = B;
+    pub comptime global B: u32 = A;
+
+    fn main() { }
+    "#;
+    let errors = get_program_errors(src);
+
+    assert!(errors.iter().any(|(error, _)| matches!(
+        error,
+        CompilationError::InterpreterError(InterpreterError::GlobalsDependencyCycle { .. })
+    )));
+    assert!(errors.iter().any(|(error, _)| matches!(
+        error,
+        CompilationError::ResolverError(ResolverError::DependencyCycle { .. })
+    )));
+}
