@@ -25,6 +25,18 @@ impl<F: AcirField> ForeignCallExecutor<F> for Empty {
     }
 }
 
+/// Returns `NoHandler` for every call.
+pub struct Unhandled;
+
+impl<F: AcirField> ForeignCallExecutor<F> for Unhandled {
+    fn execute(
+        &mut self,
+        foreign_call: &ForeignCallWaitInfo<F>,
+    ) -> Result<ForeignCallResult<F>, ForeignCallError> {
+        Err(ForeignCallError::NoHandler(foreign_call.function.clone()))
+    }
+}
+
 /// Forwards to the inner executor if its own handler doesn't handle the call.
 pub struct Layer<H, I, F> {
     pub handler: H,
@@ -52,7 +64,14 @@ impl<H, F> Layer<H, Empty, F> {
     /// Create a layer from a handler.
     /// If the handler doesn't handle a call, an empty response is returned.
     pub fn new(handler: H) -> Self {
-        Layer { handler, inner: Empty, _field: PhantomData }
+        Self { handler, inner: Empty, _field: PhantomData }
+    }
+}
+
+impl<F> Layer<Unhandled, Unhandled, F> {
+    /// A base layer that doesn't handle anything.
+    pub fn unhandled() -> Self {
+        Self { handler: Unhandled, inner: Unhandled, _field: PhantomData }
     }
 }
 

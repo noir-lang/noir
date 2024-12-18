@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     errors::try_to_diagnose_runtime_error,
     foreign_calls::{
-        layers::{Empty, Layer},
+        layers::{Empty, Layer, Unhandled},
         print::PrintOutput,
         DefaultForeignCallExecutor, DefaultForeignCallLayers, ForeignCallExecutor,
     },
@@ -95,7 +95,7 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
 
                 if let TestStatus::Fail { .. } = status {
                     if ignore_foreign_call_failures
-                        && foreign_call_executor.encountered_unknown_foreign_call()
+                        && foreign_call_executor.encountered_unknown_foreign_call
                     {
                         TestStatus::Skipped
                     } else {
@@ -276,24 +276,9 @@ fn check_expected_failure_message(
 }
 
 /// A specialized foreign call executor which tracks whether it has encountered any unknown foreign calls
-#[derive(Default)]
-struct UnknownForeignCallProbe {
-    encountered_unknown_foreign_call: bool,
-}
-
-impl<F> ForeignCallExecutor<F> for UnknownForeignCallProbe {
-    fn execute(
-        &mut self,
-        foreign_call: &ForeignCallWaitInfo<F>,
-    ) -> Result<ForeignCallResult<F>, ForeignCallError> {
-        self.encountered_unknown_foreign_call = true;
-        Err(ForeignCallError::NoHandler(foreign_call.function.clone()))
-    }
-}
-
-/// A specialized foreign call executor which tracks whether it has encountered any unknown foreign calls
 struct TestForeignCallExecutor<'a, F> {
-    executor: DefaultForeignCallLayers<'a, Layer<UnknownForeignCallProbe, Empty, F>, F>,
+    executor: DefaultForeignCallLayers<'a, Layer<Unhandled, Unhandled, F>, F>,
+    encountered_unknown_foreign_call: bool,
 }
 
 impl<'a, F> TestForeignCallExecutor<'a, F>
@@ -307,7 +292,8 @@ where
         root_path: Option<PathBuf>,
         package_name: Option<String>,
     ) -> Self {
-        let base = Layer::new(UnknownForeignCallProbe { encountered_unknown_foreign_call: false });
+        // Create a base layer that doesn't handle any call.
+        let base = Layer::unhandled();
 
         let executor = DefaultForeignCallExecutor::with_base(
             base,
@@ -317,17 +303,7 @@ where
             package_name,
         );
 
-        Self { executor }
-    }
-}
-
-impl<'a, F> TestForeignCallExecutor<'a, F> {
-    fn encountered_unknown_foreign_call_mut(&mut self) -> &mut bool {
-        &mut self.executor.inner.inner.inner.handler.encountered_unknown_foreign_call
-    }
-
-    fn encountered_unknown_foreign_call(&mut self) -> bool {
-        *self.encountered_unknown_foreign_call_mut()
+        Self { executor, encountered_unknown_foreign_call: false }
     }
 }
 
@@ -339,7 +315,14 @@ impl<'a, F: AcirField + Serialize + for<'b> Deserialize<'b>> ForeignCallExecutor
         foreign_call: &ForeignCallWaitInfo<F>,
     ) -> Result<ForeignCallResult<F>, ForeignCallError> {
         // If the circuit has reached a new foreign call opcode then it can't have failed from any previous unknown foreign calls.
-        *self.encountered_unknown_foreign_call_mut() = false;
-        self.executor.execute(foreign_call)
+        self.encountered_unknown_foreign_call = false;
+        match self.executor.execute(foreign_call) {
+            Err(ForeignCallError::NoHandler(_)) => {
+                self.encountered_unknown_foreign_call = true;
+                let mut empty = Empty;
+                empty.execute(foreign_call)
+            }
+            other => other,
+        }
     }
 }
