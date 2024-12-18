@@ -608,11 +608,7 @@ impl<'context> Elaborator<'context> {
                 // have more generics than those in the alias, like in this example:
                 //
                 // type Alias<T> = Struct<T, i32>;
-                let typ = type_alias.get_type(&generics);
-                match typ {
-                    Type::Struct(_, generics) | Type::Alias(_, generics) => generics,
-                    _ => panic!("Expected type alias to point to struct or alias"),
-                }
+                get_type_alias_generics(&type_alias, &generics)
             }
             PathResolutionItem::TraitFunction(trait_id, Some(generics), _func_id) => {
                 let trait_ = self.interner.get_trait(trait_id);
@@ -876,5 +872,16 @@ impl<'context> Elaborator<'context> {
         self.interner.push_expr_type(id, typ.clone());
 
         (id, typ)
+    }
+}
+
+fn get_type_alias_generics(type_alias: &TypeAlias, generics: &[Type]) -> Vec<Type> {
+    let typ = type_alias.get_type(generics);
+    match typ {
+        Type::Struct(_, generics) => generics,
+        Type::Alias(type_alias, generics) => {
+            get_type_alias_generics(&type_alias.borrow(), &generics)
+        }
+        _ => panic!("Expected type alias to point to struct or alias"),
     }
 }

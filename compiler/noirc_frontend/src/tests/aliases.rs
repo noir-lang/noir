@@ -68,3 +68,10 @@ fn double_alias_in_path() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn double_generic_alias_in_path() {
+    let src = r#"
+    "#;
+    assert_no_errors(src);
+}
