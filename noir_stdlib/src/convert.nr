@@ -116,13 +116,60 @@ impl From<bool> for Field {
         value as Field
     }
 }
+// docs:end:from-impls
 
-// Field
-impl From<Field> for u64 {
-    fn from(value: Field) -> u64 {
-        value.assert_max_bit_size::<64>();
-        value as u64
+pub(crate) trait UnsafeFromField {
+    fn unsafe_from_field(input: Field) -> Self;
+}
+
+impl UnsafeFromField for u8 {
+    fn unsafe_from_field(input: Field) -> u8 {
+        input as u8
     }
 }
 
-// docs:end:from-impls
+impl UnsafeFromField for u16 {
+    fn unsafe_from_field(input: Field) -> u16 {
+        input as u16
+    }
+}
+impl UnsafeFromField for u32 {
+    fn unsafe_from_field(input: Field) -> u32 {
+        input as u32
+    }
+}
+
+impl UnsafeFromField for u64 {
+    fn unsafe_from_field(input: Field) -> u64 {
+        input as u64
+    }
+}
+
+impl UnsafeFromField for i8 {
+    fn unsafe_from_field(input: Field) -> i8 {
+        input as i8
+    }
+}
+
+impl UnsafeFromField for i16 {
+    fn unsafe_from_field(input: Field) -> i16 {
+        input as i16
+    }
+}
+impl UnsafeFromField for i32 {
+    fn unsafe_from_field(input: Field) -> i32 {
+        input as i32
+    }
+}
+
+impl UnsafeFromField for i64 {
+    fn unsafe_from_field(input: Field) -> i64 {
+        input as i64
+    }
+}
+
+impl UnsafeFromField for Field {
+    fn unsafe_from_field(input: Field) -> Field {
+        input
+    }
+}
