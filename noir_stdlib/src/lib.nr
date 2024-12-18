@@ -91,16 +91,14 @@ pub fn static_assert<let N: u32>(predicate: bool, message: str<N>) {}
 
 pub fn wrapping_add<T>(x: T, y: T) -> T
 where
-    T: convert::Into<Field>,
-    T: convert::From<Field>,
+    T: convert::Into<Field> + convert::From<Field>,
 {
     T::from(x.into() + y.into())
 }
 
 pub fn wrapping_sub<T>(x: T, y: T) -> T
 where
-    T: convert::Into<Field>,
-    T: convert::From<Field>,
+    T: convert::Into<Field> + convert::From<Field>,
 {
     //340282366920938463463374607431768211456 is 2^128, it is used to avoid underflow
     T::from(
@@ -110,8 +108,7 @@ where
 
 pub fn wrapping_mul<T>(x: T, y: T) -> T
 where
-    T: convert::Into<Field>,
-    T: convert::From<Field>,
+    T: convert::Into<Field> + convert::From<Field>,
 {
     T::from(x.into() * y.into())
 }
