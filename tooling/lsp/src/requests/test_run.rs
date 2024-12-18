@@ -3,6 +3,7 @@ use std::future::{self, Future};
 use crate::insert_all_files_for_workspace_into_file_manager;
 use async_lsp::{ErrorCode, ResponseError};
 use nargo::{
+    foreign_calls::DefaultForeignCallExecutor,
     ops::{run_test, TestStatus},
     PrintOutput,
 };
@@ -88,10 +89,16 @@ fn on_test_run_request_inner(
                 &mut context,
                 &test_function,
                 PrintOutput::Stdout,
-                None,
-                Some(workspace.root_dir.clone()),
-                Some(package.name.to_string()),
                 &CompileOptions::default(),
+                |output, base| {
+                    DefaultForeignCallExecutor::with_base(
+                        base,
+                        output,
+                        None,
+                        Some(workspace.root_dir.clone()),
+                        Some(package.name.to_string()),
+                    )
+                },
             );
             let result = match test_result {
                 TestStatus::Pass => NargoTestRunResult {
