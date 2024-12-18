@@ -67,7 +67,7 @@ pub(crate) struct BrilligArtifact<F> {
 /// A pointer to a location in the opcode.
 pub(crate) type OpcodeLocation = usize;
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub(crate) enum LabelType {
     /// Labels for the entry point bytecode
     Entrypoint,
