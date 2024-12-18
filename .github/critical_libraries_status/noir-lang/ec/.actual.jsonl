@@ -1,0 +1,4 @@
+{"event":"started","name":"one","test_count":1,"type":"suite"}
+{"event":"started","name":"foo","suite":"one","type":"test"}
+{"event":"failed","exec_time":0.05356625,"name":"foo","suite":"one","type":"test"}
+{"event":"ok","failed":0,"ignored":0,"passed":1,"type":"suite"}
