@@ -44,7 +44,7 @@ impl Function {
         }
 
         let is_unconstrained = matches!(self.runtime(), RuntimeType::Brillig(_)).into();
-        let is_within_unconstrained = Value::constant(is_unconstrained, NumericType::bool());
+        let is_within_unconstrained = self.dfg.constant(is_unconstrained, NumericType::bool());
 
         for instruction_id in &is_unconstrained_calls {
             // Replace all uses of the original return value with the constant

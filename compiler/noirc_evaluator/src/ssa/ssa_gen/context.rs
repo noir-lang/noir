@@ -306,17 +306,17 @@ impl<'a> FunctionContext<'a> {
             value
         };
 
-        Ok(Value::constant(value, numeric_type))
+        Ok(self.builder.constant(value, numeric_type))
     }
 
     /// helper function which add instructions to the block computing the absolute value of the
     /// given signed integer input. When the input is negative, we return its two complement, and itself when it is positive.
-    fn absolute_value_helper(&mut self, input: Value, sign: Value, bit_size: u32) -> Value {
+    fn absolute_value_helper(&mut self, input: Value, sign: Value, bit_size: u8) -> Value {
         assert_eq!(self.builder.type_of_value(sign), Type::bool());
 
         // We compute the absolute value of lhs
-        let bit_width = FieldElement::from(2_i128.pow(bit_size));
-        let bit_width = Value::field_constant(bit_width);
+        let bit_width = FieldElement::from(2_i128.pow(bit_size as u32));
+        let bit_width = self.builder.field_constant(bit_width);
         let sign_not = self.builder.insert_not(sign);
 
         // We use unsafe casts here, this is fine as we're casting to a `field` type.
@@ -391,7 +391,7 @@ impl<'a> FunctionContext<'a> {
                     }
                     BinaryOpKind::ShiftLeft => {
                         if let Some(rhs_const) = dfg.get_numeric_constant(rhs) {
-                            let bit_shift_size = rhs_const.to_u128() as u32;
+                            let bit_shift_size = rhs_const.to_u128() as u8;
 
                             if max_lhs_bits + bit_shift_size <= bit_size {
                                 // `lhs` has been casted up from a smaller type such that shifting it by a constant
@@ -420,14 +420,14 @@ impl<'a> FunctionContext<'a> {
         &mut self,
         result: Value,
         rhs: Value,
-        bit_size: u32,
+        bit_size: u8,
         location: Location,
     ) -> Value {
-        let one = Value::constant(FieldElement::one(), NumericType::bool());
+        let one = self.builder.bool_constant(true);
         assert!(self.builder.current_function.dfg.type_of_value(rhs) == Type::unsigned(8));
 
         let bit_size_field = FieldElement::from(bit_size as i128);
-        let max = Value::constant(bit_size_field, NumericType::unsigned(8));
+        let max = self.builder.constant(bit_size_field, NumericType::unsigned(8));
         let overflow = self.builder.insert_binary(rhs, BinaryOp::Lt, max);
         self.builder.set_location(location).insert_constrain(
             overflow,
@@ -455,12 +455,12 @@ impl<'a> FunctionContext<'a> {
         lhs: Value,
         rhs: Value,
         operator: BinaryOpKind,
-        bit_size: u32,
+        bit_size: u8,
         location: Location,
     ) {
         let is_sub = operator == BinaryOpKind::Subtract;
-        let half_width = Value::constant(
-            FieldElement::from(2_i128.pow(bit_size - 1)),
+        let half_width = self.builder.constant(
+            FieldElement::from(2_i128.pow((bit_size - 1) as u32)),
             NumericType::unsigned(bit_size),
         );
         // We compute the sign of the operands. The overflow checks for signed integers depends on these signs
@@ -515,7 +515,7 @@ impl<'a> FunctionContext<'a> {
                 let product_overflow_check =
                     self.builder.insert_binary(product, BinaryOp::Lt, positive_maximum_with_offset);
 
-                let one = Value::constant(FieldElement::one(), NumericType::bool());
+                let one = self.builder.bool_constant(true);
                 self.builder.set_location(location).insert_constrain(
                     product_overflow_check,
                     one,
@@ -610,7 +610,7 @@ impl<'a> FunctionContext<'a> {
     pub(super) fn make_offset(&mut self, mut address: Value, offset: u128) -> Value {
         if offset != 0 {
             let typ = self.builder.type_of_value(address).unwrap_numeric();
-            let offset = Value::constant(offset.into(), typ);
+            let offset = self.builder.constant(offset.into(), typ);
             address = self.builder.insert_binary(address, BinaryOp::Add, offset);
         }
         address
@@ -865,12 +865,12 @@ impl<'a> FunctionContext<'a> {
         location: Location,
     ) -> Value {
         let index = self.make_array_index(index);
-        let element_size = Value::length_constant(self.element_size(array));
+        let element_size = self.builder.length_constant(self.element_size(array));
 
         // The actual base index is the user's index * the array element type's size
         let mut index =
             self.builder.set_location(location).insert_binary(index, BinaryOp::Mul, element_size);
-        let one = Value::length_constant(FieldElement::one());
+        let one = self.builder.length_constant(FieldElement::one());
 
         new_value.for_each(|value| {
             let value = value.eval(self);

@@ -99,7 +99,7 @@ pub(super) fn simplify_call(
         Intrinsic::ArrayLen => {
             if let Some(length) = dfg.try_get_array_length(arguments[0]) {
                 let length = FieldElement::from(length as u128);
-                SimplifyResult::SimplifiedTo(Value::length_constant(length))
+                SimplifyResult::SimplifiedTo(dfg.length_constant(length))
             } else if matches!(dfg.type_of_value(arguments[1]), Type::Slice(_)) {
                 SimplifyResult::SimplifiedTo(arguments[0])
             } else {
@@ -121,7 +121,7 @@ pub(super) fn simplify_call(
                     "expected array length to be multiple of its elements size"
                 );
                 let slice_length_value = array.len() / elements_size;
-                let slice_length = Value::length_constant(slice_length_value.into());
+                let slice_length = dfg.length_constant(slice_length_value.into());
                 let new_slice =
                     make_array(dfg, array, Type::Slice(inner_element_types), block, call_stack);
                 SimplifyResult::SimplifiedToMultiple(vec![slice_length, new_slice])
@@ -309,7 +309,7 @@ pub(super) fn simplify_call(
             let value = arguments[0];
             let max_bit_size = dfg.get_numeric_constant(arguments[1]);
             if let Some(max_bit_size) = max_bit_size {
-                let max_bit_size = max_bit_size.to_u128() as u32;
+                let max_bit_size = max_bit_size.to_u128().try_into().unwrap();
                 let max_potential_bits = dfg.get_value_max_num_bits(value);
                 if max_potential_bits < max_bit_size {
                     SimplifyResult::Remove
@@ -360,7 +360,7 @@ pub(super) fn simplify_call(
             if let Some(constants) = constant_args {
                 let lhs = constants[0];
                 let rhs = constants[1];
-                let result = Value::bool_constant(lhs < rhs);
+                let result = dfg.bool_constant(lhs < rhs);
                 SimplifyResult::SimplifiedTo(result)
             } else {
                 SimplifyResult::None
@@ -396,7 +396,7 @@ fn update_slice_length(
     operator: BinaryOp,
     block: BasicBlockId,
 ) -> Value {
-    let one = Value::length_constant(FieldElement::one());
+    let one = dfg.length_constant(FieldElement::one());
     let instruction = Instruction::Binary(Binary { lhs: slice_len, operator, rhs: one });
     let call_stack = dfg.get_value_call_stack_id(slice_len);
     dfg.insert_instruction_and_results(instruction, block, call_stack).first()
@@ -411,7 +411,7 @@ fn simplify_slice_push_back(
     call_stack: CallStackId,
 ) -> SimplifyResult {
     // The capacity must be an integer so that we can compare it against the slice length
-    let capacity = Value::length_constant((slice.len() as u128).into());
+    let capacity = dfg.length_constant((slice.len() as u128).into());
     let len_equals_capacity_instr =
         Instruction::Binary(Binary { lhs: arguments[0], operator: BinaryOp::Eq, rhs: capacity });
     let len_equals_capacity =
@@ -471,7 +471,7 @@ fn simplify_slice_pop_back(
 
     let new_slice_length = update_slice_length(arguments[0], dfg, BinaryOp::Sub, block);
 
-    let element_size = Value::length_constant((element_count as u128).into());
+    let element_size = dfg.length_constant((element_count as u128).into());
     let flattened_len_instr = Instruction::binary(BinaryOp::Mul, arguments[0], element_size);
     let mut flattened_len =
         dfg.insert_instruction_and_results(flattened_len_instr, block, call_stack).first();
@@ -606,7 +606,7 @@ fn make_constant_array(
     call_stack: CallStackId,
 ) -> Value {
     let result_constants: im::Vector<_> =
-        results.map(|element| Value::constant(element, typ)).collect();
+        results.map(|element| dfg.constant(element, typ)).collect();
 
     let typ = Type::Array(Arc::new(vec![Type::Numeric(typ)]), result_constants.len() as u32);
     make_array(dfg, result_constants, typ, block, call_stack)
@@ -732,7 +732,7 @@ fn simplify_signature(
                 signature_verifier(&hashed_message, &public_key_x, &public_key_y, &signature)
                     .expect("Rust solvable black box function should not fail");
 
-            let valid_signature = Value::bool_constant(valid_signature);
+            let valid_signature = dfg.bool_constant(valid_signature);
             SimplifyResult::SimplifiedTo(valid_signature)
         }
         _ => SimplifyResult::None,
@@ -762,15 +762,15 @@ fn simplify_derive_generators(
                 num_generators,
                 starting_index.try_to_u32().expect("argument is declared as u32"),
             );
-            let is_infinite = Value::bool_constant(false);
+            let is_infinite = dfg.bool_constant(false);
             let mut results = Vec::new();
             for gen in generators {
                 let x_big: BigUint = gen.x.into();
                 let x = FieldElement::from_be_bytes_reduce(&x_big.to_bytes_be());
                 let y_big: BigUint = gen.y.into();
                 let y = FieldElement::from_be_bytes_reduce(&y_big.to_bytes_be());
-                results.push(Value::field_constant(x));
-                results.push(Value::field_constant(y));
+                results.push(dfg.field_constant(x));
+                results.push(dfg.field_constant(y));
                 results.push(is_infinite);
             }
             let len = results.len() as u32;

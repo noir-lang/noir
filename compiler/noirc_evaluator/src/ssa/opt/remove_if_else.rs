@@ -1,6 +1,5 @@
 use std::collections::hash_map::Entry;
 
-use acvm::{acir::AcirField, FieldElement};
 use fxhash::FxHashMap as HashMap;
 
 use crate::ssa::{
@@ -8,7 +7,7 @@ use crate::ssa::{
         dfg::DataFlowGraph,
         function::{Function, RuntimeType},
         instruction::{Hint, Instruction, Intrinsic},
-        types::{NumericType, Type},
+        types::Type,
         value::Value,
     },
     opt::flatten_cfg::value_merger::ValueMerger,
@@ -60,8 +59,7 @@ impl Context {
     fn remove_if_else(&mut self, function: &mut Function) {
         let block = function.entry_block();
         let instructions = function.dfg[block].take_instructions();
-        let one = FieldElement::one();
-        let mut current_conditional = Value::constant(one, NumericType::bool());
+        let mut current_conditional = function.dfg.bool_constant(true);
 
         for instruction in instructions {
             match &function.dfg[instruction] {

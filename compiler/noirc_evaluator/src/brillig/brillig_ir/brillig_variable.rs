@@ -12,11 +12,11 @@ use super::BRILLIG_MEMORY_ADDRESSING_BIT_SIZE;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
 pub(crate) struct SingleAddrVariable {
     pub(crate) address: MemoryAddress,
-    pub(crate) bit_size: u32,
+    pub(crate) bit_size: u8,
 }
 
 impl SingleAddrVariable {
-    pub(crate) fn new(address: MemoryAddress, bit_size: u32) -> Self {
+    pub(crate) fn new(address: MemoryAddress, bit_size: u8) -> Self {
         SingleAddrVariable { address, bit_size }
     }
 
@@ -25,7 +25,7 @@ impl SingleAddrVariable {
     }
 
     pub(crate) fn new_field(address: MemoryAddress) -> Self {
-        SingleAddrVariable { address, bit_size: FieldElement::max_num_bits() }
+        SingleAddrVariable { address, bit_size: FieldElement::max_num_bits() as u8 }
     }
 }
 
@@ -84,7 +84,7 @@ impl BrilligVariable {
 pub(crate) fn type_to_heap_value_type(typ: &Type) -> HeapValueType {
     match typ {
         Type::Numeric(_) | Type::Reference(_) | Type::Function => HeapValueType::Simple(
-            BitSize::try_from_u32::<FieldElement>(get_bit_size_from_ssa_type(typ)).unwrap(),
+            BitSize::try_from_u8::<FieldElement>(get_bit_size_from_ssa_type(typ)).unwrap(),
         ),
         Type::Array(elem_type, size) => HeapValueType::Array {
             value_types: elem_type.as_ref().iter().map(type_to_heap_value_type).collect(),
@@ -96,7 +96,7 @@ pub(crate) fn type_to_heap_value_type(typ: &Type) -> HeapValueType {
     }
 }
 
-pub(crate) fn get_bit_size_from_ssa_type(typ: &Type) -> u32 {
+pub(crate) fn get_bit_size_from_ssa_type(typ: &Type) -> u8 {
     match typ {
         Type::Reference(_) => BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
         // NB. function references are converted to a constant when

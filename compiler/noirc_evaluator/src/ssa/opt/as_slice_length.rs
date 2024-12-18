@@ -65,7 +65,7 @@ fn replace_known_slice_lengths(
 ) {
     known_slice_lengths.into_iter().for_each(|(instruction_id, known_length)| {
         let original_slice_length = Value::instruction_result(instruction_id, 0);
-        let known_length = Value::length_constant(known_length.into());
+        let known_length = func.dfg.length_constant(known_length.into());
         func.dfg.replace_value(original_slice_length, known_length);
     });
 }

@@ -82,7 +82,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         result: SingleAddrVariable,
         operation: BrilligBinaryOp,
     ) {
-        let is_field_op = lhs.bit_size == FieldElement::max_num_bits();
+        let is_field_op = lhs.bit_size as u32 == FieldElement::max_num_bits();
         let expected_result_bit_size = Self::binary_result_bit_size(operation, lhs.bit_size);
         assert!(
             result.bit_size == expected_result_bit_size,
@@ -151,7 +151,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.deallocate_single_addr(scratch_var_j);
     }
 
-    fn binary_result_bit_size(operation: BrilligBinaryOp, arguments_bit_size: u32) -> u32 {
+    fn binary_result_bit_size(operation: BrilligBinaryOp, arguments_bit_size: u8) -> u8 {
         match operation {
             BrilligBinaryOp::Equals
             | BrilligBinaryOp::LessThan
@@ -337,7 +337,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.push_opcode(BrilligOpcode::Cast {
             destination: destination.address,
             source: source.address,
-            bit_size: BitSize::try_from_u32::<F>(destination.bit_size).unwrap(),
+            bit_size: BitSize::try_from_u8::<F>(destination.bit_size).unwrap(),
         });
     }
 
@@ -351,16 +351,16 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     pub(crate) fn indirect_const_instruction(
         &mut self,
         result_pointer: MemoryAddress,
-        bit_size: u32,
+        bit_size: u8,
         constant: F,
     ) {
         self.debug_show.indirect_const_instruction(result_pointer, constant);
         self.constant(result_pointer, bit_size, constant, true);
     }
 
-    fn constant(&mut self, result: MemoryAddress, bit_size: u32, constant: F, indirect: bool) {
+    fn constant(&mut self, result: MemoryAddress, bit_size: u8, constant: F, indirect: bool) {
         assert!(
-            bit_size >= constant.num_bits(),
+            bit_size >= constant.num_bits().try_into().unwrap(),
             "Constant {} does not fit in bit size {}",
             constant,
             bit_size
@@ -369,13 +369,13 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             self.push_opcode(BrilligOpcode::IndirectConst {
                 destination_pointer: result,
                 value: constant,
-                bit_size: BitSize::try_from_u32::<F>(bit_size).unwrap(),
+                bit_size: BitSize::try_from_u8::<F>(bit_size).unwrap(),
             });
         } else {
             self.push_opcode(BrilligOpcode::Const {
                 destination: result,
                 value: constant,
-                bit_size: BitSize::try_from_u32::<F>(bit_size).unwrap(),
+                bit_size: BitSize::try_from_u8::<F>(bit_size).unwrap(),
             });
         }
     }
@@ -388,7 +388,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     pub(crate) fn make_constant_instruction(
         &mut self,
         constant: F,
-        bit_size: u32,
+        bit_size: u8,
     ) -> SingleAddrVariable {
         let var = SingleAddrVariable::new(self.allocate_register(), bit_size);
         self.const_instruction(var, constant);

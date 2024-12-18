@@ -164,7 +164,7 @@ impl<'a> ValueMerger<'a> {
             for (element_index, element_type) in element_types.iter().enumerate() {
                 let index =
                     ((i * element_types.len() as u32 + element_index as u32) as u128).into();
-                let index = Value::field_constant(index);
+                let index = self.dfg.field_constant(index);
 
                 let mut get_element = |array| {
                     let result_type = element_type.clone();
@@ -225,7 +225,7 @@ impl<'a> ValueMerger<'a> {
             for (element_index, element_type) in element_types.iter().enumerate() {
                 let index_u32 = i * element_types.len() as u32 + element_index as u32;
                 let index_value = (index_u32 as u128).into();
-                let index = Value::field_constant(index_value);
+                let index = self.dfg.field_constant(index_value);
 
                 let mut get_element = |array, len| {
                     // The smaller slice is filled with placeholder data. Codegen for slice accesses must
@@ -264,7 +264,7 @@ impl<'a> ValueMerger<'a> {
     /// such as with dynamic indexing of non-homogenous slices.
     fn make_slice_dummy_data(&mut self, typ: &Type) -> Value {
         match typ {
-            Type::Numeric(numeric_type) => Value::constant(FieldElement::zero(), *numeric_type),
+            Type::Numeric(numeric_type) => self.dfg.constant(FieldElement::zero(), *numeric_type),
             Type::Array(element_types, len) => {
                 let mut array = im::Vector::new();
                 for _ in 0..*len {

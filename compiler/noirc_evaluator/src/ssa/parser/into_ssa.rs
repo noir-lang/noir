@@ -155,31 +155,31 @@ impl Translator {
     fn translate_instruction(&mut self, instruction: ParsedInstruction) -> Result<(), SsaError> {
         match instruction {
             ParsedInstruction::Allocate { target, typ } => {
-                let value_id = self.builder.insert_allocate(typ);
-                self.define_variable(target, value_id)?;
+                let value = self.builder.insert_allocate(typ);
+                self.define_variable(target, value)?;
             }
             ParsedInstruction::ArrayGet { target, element_type, array, index } => {
                 let array = self.translate_value(array)?;
                 let index = self.translate_value(index)?;
-                let value_id = self.builder.insert_array_get(array, index, element_type);
-                self.define_variable(target, value_id)?;
+                let value = self.builder.insert_array_get(array, index, element_type);
+                self.define_variable(target, value)?;
             }
             ParsedInstruction::ArraySet { target, array, index, value, mutable } => {
                 let array = self.translate_value(array)?;
                 let index = self.translate_value(index)?;
                 let value = self.translate_value(value)?;
-                let value_id = if mutable {
+                let value = if mutable {
                     self.builder.insert_mutable_array_set(array, index, value)
                 } else {
                     self.builder.insert_array_set(array, index, value)
                 };
-                self.define_variable(target, value_id)?;
+                self.define_variable(target, value)?;
             }
             ParsedInstruction::BinaryOp { target, lhs, op, rhs } => {
                 let lhs = self.translate_value(lhs)?;
                 let rhs = self.translate_value(rhs)?;
-                let value_id = self.builder.insert_binary(lhs, op, rhs);
-                self.define_variable(target, value_id)?;
+                let value = self.builder.insert_binary(lhs, op, rhs);
+                self.define_variable(target, value)?;
             }
             ParsedInstruction::Call { targets, function, arguments, types } => {
                 let function_id = if let Some(id) = self.builder.import_intrinsic(&function.name) {
@@ -205,8 +205,8 @@ impl Translator {
             }
             ParsedInstruction::Cast { target, lhs, typ } => {
                 let lhs = self.translate_value(lhs)?;
-                let value_id = self.builder.insert_cast(lhs, typ.unwrap_numeric());
-                self.define_variable(target, value_id)?;
+                let value = self.builder.insert_cast(lhs, typ.unwrap_numeric());
+                self.define_variable(target, value)?;
             }
             ParsedInstruction::Constrain { lhs, rhs, assert_message } => {
                 let lhs = self.translate_value(lhs)?;
@@ -245,18 +245,18 @@ impl Translator {
                     .into_iter()
                     .map(|element| self.translate_value(element))
                     .collect::<Result<_, _>>()?;
-                let value_id = self.builder.insert_make_array(elements, typ);
-                self.define_variable(target, value_id)?;
+                let value = self.builder.insert_make_array(elements, typ);
+                self.define_variable(target, value)?;
             }
             ParsedInstruction::Load { target, value, typ } => {
                 let value = self.translate_value(value)?;
-                let value_id = self.builder.insert_load(value, typ);
-                self.define_variable(target, value_id)?;
+                let value = self.builder.insert_load(value, typ);
+                self.define_variable(target, value)?;
             }
             ParsedInstruction::Not { target, value } => {
                 let value = self.translate_value(value)?;
-                let value_id = self.builder.insert_not(value);
-                self.define_variable(target, value_id)?;
+                let value = self.builder.insert_not(value);
+                self.define_variable(target, value)?;
             }
             ParsedInstruction::RangeCheck { value, max_bit_size } => {
                 let value = self.translate_value(value)?;
@@ -269,8 +269,8 @@ impl Translator {
             }
             ParsedInstruction::Truncate { target, value, bit_size, max_bit_size } => {
                 let value = self.translate_value(value)?;
-                let value_id = self.builder.insert_truncate(value, bit_size, max_bit_size);
-                self.define_variable(target, value_id)?;
+                let value = self.builder.insert_truncate(value, bit_size, max_bit_size);
+                self.define_variable(target, value)?;
             }
         }
 
@@ -294,7 +294,7 @@ impl Translator {
         }
     }
 
-    fn define_variable(&mut self, identifier: Identifier, value_id: Value) -> Result<(), SsaError> {
+    fn define_variable(&mut self, identifier: Identifier, value: Value) -> Result<(), SsaError> {
         if let Some(vars) = self.variables.get(&self.current_function_id()) {
             if vars.contains_key(&identifier.name) {
                 return Err(SsaError::VariableAlreadyDefined(identifier));
@@ -302,14 +302,14 @@ impl Translator {
         }
 
         let entry = self.variables.entry(self.current_function_id()).or_default();
-        entry.insert(identifier.name, value_id);
+        entry.insert(identifier.name, value);
 
         Ok(())
     }
 
     fn lookup_variable(&mut self, identifier: Identifier) -> Result<Value, SsaError> {
-        if let Some(value_id) = self.variables[&self.current_function_id()].get(&identifier.name) {
-            Ok(*value_id)
+        if let Some(value) = self.variables[&self.current_function_id()].get(&identifier.name) {
+            Ok(*value)
         } else {
             Err(SsaError::UnknownVariable(identifier))
         }

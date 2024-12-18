@@ -1868,6 +1868,7 @@ impl<'a> Context<'a> {
         let acir_value = match value {
             Value::NumericConstant { constant, typ } => {
                 let typ = AcirType::from(Type::Numeric(typ));
+                let constant = dfg[constant];
                 AcirValue::Var(self.acir_context.add_constant(constant), typ)
             }
             Value::Intrinsic(..) => todo!(),
@@ -1925,11 +1926,11 @@ impl<'a> Context<'a> {
                 // Conservative max bit size that is small enough such that two operands can be
                 // multiplied and still fit within the field modulus. This is necessary for the
                 // truncation technique: result % 2^bit_size to be valid.
-                let max_integer_bit_size = FieldElement::max_num_bits() / 2;
+                let max_integer_bit_size = (FieldElement::max_num_bits() / 2) as u8;
                 if *bit_size > max_integer_bit_size {
                     return Err(RuntimeError::UnsupportedIntegerSize {
-                        num_bits: *bit_size,
-                        max_num_bits: max_integer_bit_size,
+                        num_bits: *bit_size as u32,
+                        max_num_bits: max_integer_bit_size as u32,
                         call_stack: self.acir_context.get_call_stack(),
                     });
                 }
@@ -1993,7 +1994,7 @@ impl<'a> Context<'a> {
     fn check_unsigned_overflow(
         &mut self,
         result: AcirVar,
-        bit_size: u32,
+        bit_size: u8,
         lhs: Value,
         rhs: Value,
         dfg: &DataFlowGraph,
@@ -2088,8 +2089,8 @@ impl<'a> Context<'a> {
     fn convert_ssa_truncate(
         &mut self,
         value_id: Value,
-        bit_size: u32,
-        max_bit_size: u32,
+        bit_size: u8,
+        max_bit_size: u8,
         dfg: &DataFlowGraph,
     ) -> Result<AcirVar, RuntimeError> {
         let mut var = self.convert_numeric_value(value_id, dfg)?;
@@ -2101,7 +2102,8 @@ impl<'a> Context<'a> {
                 ) {
                     // Subtractions must first have the integer modulus added before truncation can be
                     // applied. This is done in order to prevent underflow.
-                    let integer_modulus = self.acir_context.add_constant(2_u128.pow(bit_size));
+                    let integer_modulus =
+                        self.acir_context.add_constant(2_u128.pow(bit_size as u32));
                     var = self.acir_context.add_var(var, integer_modulus)?;
                 }
             }
@@ -2942,7 +2944,7 @@ mod test {
         let foo_v1 = builder.add_parameter(Type::field());
 
         let foo_equality_check = builder.insert_binary(foo_v0, BinaryOp::Eq, foo_v1);
-        let zero = Value::constant(0u128.into(), NumericType::unsigned(1));
+        let zero = builder.constant(0u128.into(), NumericType::unsigned(1));
         builder.insert_constrain(foo_equality_check, zero, None);
         builder.terminate_with_return(vec![foo_v0]);
     }
@@ -3201,7 +3203,7 @@ mod test {
         let func_with_nested_call_v0 = builder.add_parameter(Type::field());
         let func_with_nested_call_v1 = builder.add_parameter(Type::field());
 
-        let two = Value::field_constant(2u128.into());
+        let two = builder.field_constant(2u128.into());
         let v0_plus_two = builder.insert_binary(func_with_nested_call_v0, BinaryOp::Add, two);
 
         let foo_id = Id::test_new(2);
@@ -3394,7 +3396,7 @@ mod test {
 
         // Call the same primitive operation again
         let v1_div_v2 = builder.insert_binary(main_v1, BinaryOp::Div, main_v2);
-        let one = Value::constant(1u128.into(), NumericType::unsigned(32));
+        let one = builder.constant(1u128.into(), NumericType::unsigned(32));
         builder.insert_constrain(v1_div_v2, one, None);
 
         builder.terminate_with_return(vec![]);
@@ -3467,7 +3469,7 @@ mod test {
 
         // Call the same primitive operation again
         let v1_div_v2 = builder.insert_binary(main_v1, BinaryOp::Div, main_v2);
-        let one = Value::constant(1u128.into(), NumericType::unsigned(32));
+        let one = builder.constant(1u128.into(), NumericType::unsigned(32));
         builder.insert_constrain(v1_div_v2, one, None);
 
         builder.terminate_with_return(vec![]);
@@ -3553,7 +3555,7 @@ mod test {
 
         // Call the same primitive operation again
         let v1_div_v2 = builder.insert_binary(main_v1, BinaryOp::Div, main_v2);
-        let one = Value::constant(1u128.into(), NumericType::unsigned(32));
+        let one = builder.constant(1u128.into(), NumericType::unsigned(32));
         builder.insert_constrain(v1_div_v2, one, None);
 
         builder.terminate_with_return(vec![]);

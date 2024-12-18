@@ -16,27 +16,27 @@ use crate::ssa::ssa_gen::SSA_WORD_SIZE;
 /// is reasonable.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 pub enum NumericType {
-    Signed { bit_size: u32 },
-    Unsigned { bit_size: u32 },
+    Signed { bit_size: u8 },
+    Unsigned { bit_size: u8 },
     NativeField,
 }
 
 impl NumericType {
     /// Returns the bit size of the provided numeric type.
-    pub(crate) fn bit_size(self: &NumericType) -> u32 {
+    pub(crate) fn bit_size(self: &NumericType) -> u8 {
         match self {
-            NumericType::NativeField => FieldElement::max_num_bits(),
+            NumericType::NativeField => FieldElement::max_num_bits().try_into().unwrap(),
             NumericType::Unsigned { bit_size } | NumericType::Signed { bit_size } => *bit_size,
         }
     }
 
     /// Creates a NumericType::Signed type
-    pub(crate) fn signed(bit_size: u32) -> NumericType {
+    pub(crate) fn signed(bit_size: u8) -> NumericType {
         NumericType::Signed { bit_size }
     }
 
     /// Creates a NumericType::Unsigned type
-    pub(crate) fn unsigned(bit_size: u32) -> NumericType {
+    pub(crate) fn unsigned(bit_size: u8) -> NumericType {
         NumericType::Unsigned { bit_size }
     }
 
@@ -65,6 +65,7 @@ impl NumericType {
     ) -> Option<String> {
         match self {
             NumericType::Unsigned { bit_size } => {
+                let bit_size = bit_size as u32;
                 let max = 2u128.pow(bit_size) - 1;
                 if negative {
                     return Some(format!("0..={}", max));
@@ -76,6 +77,7 @@ impl NumericType {
                 }
             }
             NumericType::Signed { bit_size } => {
+                let bit_size = bit_size as u32;
                 let min = 2u128.pow(bit_size - 1);
                 let max = 2u128.pow(bit_size - 1) - 1;
                 let target_max = if negative { min } else { max };
@@ -120,12 +122,12 @@ impl Type {
     }
 
     /// Create a new signed integer type with the given amount of bits.
-    pub(crate) fn signed(bit_size: u32) -> Type {
+    pub(crate) fn signed(bit_size: u8) -> Type {
         Type::Numeric(NumericType::Signed { bit_size })
     }
 
     /// Create a new unsigned integer type with the given amount of bits.
-    pub(crate) fn unsigned(bit_size: u32) -> Type {
+    pub(crate) fn unsigned(bit_size: u8) -> Type {
         Type::Numeric(NumericType::Unsigned { bit_size })
     }
 
@@ -167,7 +169,7 @@ impl Type {
     /// # Panics
     ///
     /// Panics if `self` is not a [`Type::Numeric`]
-    pub(crate) fn bit_size(&self) -> u32 {
+    pub(crate) fn bit_size(&self) -> u8 {
         match self {
             Type::Numeric(numeric_type) => numeric_type.bit_size(),
             other => panic!("bit_size: Expected numeric type, found {other}"),

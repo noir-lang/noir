@@ -32,7 +32,7 @@ pub(crate) enum Value {
     Param { block: BasicBlockId, position: u32 },
 
     /// This Value originates from a numeric constant
-    NumericConstant { constant: FieldElement, typ: NumericType },
+    NumericConstant { constant: FieldElementId, typ: NumericType },
 
     /// This Value refers to a function in the IR.
     /// Functions always have the type Type::Function.
@@ -54,23 +54,9 @@ pub(crate) enum Value {
 pub(crate) struct ForeignFunction(pub(crate) String);
 pub(crate) type ForeignFunctionId = Id<ForeignFunction>;
 
+pub(crate) type FieldElementId = Id<FieldElement>;
+
 impl Value {
-    pub(crate) fn constant(constant: FieldElement, typ: NumericType) -> Self {
-        Self::NumericConstant { constant, typ }
-    }
-
-    pub(crate) fn field_constant(constant: FieldElement) -> Self {
-        Self::NumericConstant { constant, typ: NumericType::NativeField }
-    }
-
-    pub(crate) fn length_constant(constant: FieldElement) -> Self {
-        Self::NumericConstant { constant, typ: NumericType::length_type() }
-    }
-
-    pub(crate) fn bool_constant(constant: bool) -> Self {
-        Self::NumericConstant { constant: constant.into(), typ: NumericType::bool() }
-    }
-
     pub(crate) fn block_param(block: BasicBlockId, position: u32) -> Self {
         Self::Param { block, position }
     }

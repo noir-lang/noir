@@ -100,9 +100,9 @@ impl Context<'_> {
         &mut self,
         lhs: Value,
         rhs: Value,
-        bit_size: u32,
+        bit_size: u8,
     ) -> Value {
-        let base = Value::field_constant(FieldElement::from(2_u128));
+        let base = self.function.dfg.field_constant(FieldElement::from(2_u128));
         let typ = self.function.dfg.type_of_value(lhs).unwrap_numeric();
         let (max_bit, pow) = if let Some(rhs_constant) = self.function.dfg.get_numeric_constant(rhs)
         {
@@ -114,25 +114,29 @@ impl Context<'_> {
             if overflows {
                 assert!(bit_size < 128, "ICE - shift left with big integers are not supported");
                 if bit_size < 128 {
-                    return Value::constant(FieldElement::zero(), typ);
+                    return self.function.dfg.constant(FieldElement::zero(), typ);
                 }
             }
-            let pow = Value::constant(FieldElement::from(rhs_bit_size_pow_2), typ);
+            let pow = self.function.dfg.constant(FieldElement::from(rhs_bit_size_pow_2), typ);
 
             let max_lhs_bits = self.function.dfg.get_value_max_num_bits(lhs);
 
-            (max_lhs_bits + bit_shift_size, pow)
+            (max_lhs_bits + bit_shift_size as u8, pow)
         } else {
             // we use a predicate to nullify the result in case of overflow
             let u8_type = NumericType::unsigned(8);
-            let bit_size_var = Value::constant(FieldElement::from(bit_size as u128), u8_type);
+            let bit_size_var =
+                self.function.dfg.constant(FieldElement::from(bit_size as u128), u8_type);
             let overflow = self.insert_binary(rhs, BinaryOp::Lt, bit_size_var);
             let predicate = self.insert_cast(overflow, typ);
             // we can safely cast to unsigned because overflow_checks prevent bit-shift with a negative value
             let rhs_unsigned = self.insert_cast(rhs, NumericType::unsigned(bit_size));
             let pow = self.pow(base, rhs_unsigned);
             let pow = self.insert_cast(pow, typ);
-            (FieldElement::max_num_bits(), self.insert_binary(predicate, BinaryOp::Mul, pow))
+            (
+                FieldElement::max_num_bits().try_into().unwrap(),
+                self.insert_binary(predicate, BinaryOp::Mul, pow),
+            )
         };
 
         if max_bit <= bit_size {
@@ -149,16 +153,17 @@ impl Context<'_> {
     /// Insert ssa instructions which computes lhs >> rhs by doing lhs/2^rhs
     /// For negative signed integers, we do the division on the 1-complement representation of lhs,
     /// before converting back the result to the 2-complement representation.
-    pub(crate) fn insert_shift_right(&mut self, lhs: Value, rhs: Value, bit_size: u32) -> Value {
+    pub(crate) fn insert_shift_right(&mut self, lhs: Value, rhs: Value, bit_size: u8) -> Value {
         let lhs_typ = self.function.dfg.type_of_value(lhs).unwrap_numeric();
-        let base = Value::field_constant(FieldElement::from(2_u128));
+        let base = self.function.dfg.field_constant(FieldElement::from(2_u128));
         let pow = self.pow(base, rhs);
         if lhs_typ.is_unsigned() {
             // unsigned right bit shift is just a normal division
             self.insert_binary(lhs, BinaryOp::Div, pow)
         } else {
             // Get the sign of the operand; positive signed operand will just do a division as well
-            let zero = Value::constant(FieldElement::zero(), NumericType::signed(bit_size));
+            let zero =
+                self.function.dfg.constant(FieldElement::zero(), NumericType::signed(bit_size));
             let lhs_sign = self.insert_binary(lhs, BinaryOp::Lt, zero);
             let lhs_sign_as_field = self.insert_cast(lhs_sign, NumericType::NativeField);
             let lhs_as_field = self.insert_cast(lhs, NumericType::NativeField);
@@ -188,16 +193,17 @@ impl Context<'_> {
         let typ = self.function.dfg.type_of_value(rhs);
         if let Type::Numeric(NumericType::Unsigned { bit_size }) = typ {
             let to_bits = Value::Intrinsic(Intrinsic::ToBits(Endian::Little));
-            let result_types = vec![Type::Array(Arc::new(vec![Type::bool()]), bit_size)];
+            let result_types = vec![Type::Array(Arc::new(vec![Type::bool()]), bit_size as u32)];
 
             let rhs_bits = self.insert_call(to_bits, vec![rhs], result_types).next().unwrap();
 
-            let one = Value::field_constant(FieldElement::one());
+            let one = self.function.dfg.field_constant(FieldElement::one());
             let mut r = one;
             for i in 1..bit_size + 1 {
                 let r_squared = self.insert_binary(r, BinaryOp::Mul, r);
                 let a = self.insert_binary(r_squared, BinaryOp::Mul, lhs);
-                let idx = Value::field_constant(FieldElement::from((bit_size - i) as i128));
+                let idx =
+                    self.function.dfg.field_constant(FieldElement::from((bit_size - i) as i128));
                 let b = self.insert_array_get(rhs_bits, idx, Type::bool());
                 let not_b = self.insert_not(b);
                 let b = self.insert_cast(b, NumericType::NativeField);
@@ -230,8 +236,8 @@ impl Context<'_> {
     pub(crate) fn insert_truncate(
         &mut self,
         value: Value,
-        bit_size: u32,
-        max_bit_size: u32,
+        bit_size: u8,
+        max_bit_size: u8,
     ) -> Value {
         self.insert_instruction(Instruction::Truncate { value, bit_size, max_bit_size }).first()
     }

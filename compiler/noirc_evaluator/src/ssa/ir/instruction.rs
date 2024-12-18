@@ -44,6 +44,8 @@ use constrain::decompose_constrain;
 /// placement within a block.
 pub(crate) type InstructionId = Id<Instruction>;
 
+pub(crate) type BitSize = u8;
+
 /// These are similar to built-ins in other languages.
 /// These can be classified under two categories:
 /// - Opcodes which the IR knows the target machine has
@@ -263,13 +265,13 @@ pub(crate) enum Instruction {
     Not(Value),
 
     /// Truncates `value` to `bit_size`
-    Truncate { value: Value, bit_size: u32, max_bit_size: u32 },
+    Truncate { value: Value, bit_size: BitSize, max_bit_size: BitSize },
 
     /// Constrains two values to be equal to one another.
     Constrain(Value, Value, Option<ConstrainError>),
 
     /// Range constrain `value` to `max_bit_size`
-    RangeCheck { value: Value, max_bit_size: u32, assert_message: Option<String> },
+    RangeCheck { value: Value, max_bit_size: BitSize, assert_message: Option<String> },
 
     /// Performs a function call with a list of its arguments.
     Call { func: Value, arguments: Vec<Value>, result_types: Vec<Type> },
@@ -876,8 +878,9 @@ impl Instruction {
                     // would be incorrect however since the extra bits on the field would not be flipped.
                     Value::NumericConstant { constant, typ } if typ.is_unsigned() => {
                         // As we're casting to a `u128`, we need to clear out any upper bits that the NOT fills.
+                        let constant = &dfg[constant];
                         let value = !constant.to_u128() % (1 << typ.bit_size());
-                        SimplifiedTo(Value::constant(value.into(), typ))
+                        SimplifiedTo(dfg.constant(value.into(), typ))
                     }
                     Value::Instruction { instruction, .. } => {
                         // !!v => v
@@ -929,9 +932,9 @@ impl Instruction {
                     return SimplifiedTo(*value);
                 }
                 if let Some((numeric_constant, typ)) = dfg.get_numeric_constant_with_type(*value) {
-                    let integer_modulus = 2_u128.pow(*bit_size);
+                    let integer_modulus = 2_u128.pow(*bit_size as u32);
                     let truncated = numeric_constant.to_u128() % integer_modulus;
-                    SimplifiedTo(Value::constant(truncated.into(), typ))
+                    SimplifiedTo(dfg.constant(truncated.into(), typ))
                 } else if let Value::Instruction { instruction, .. } = dfg.resolve(*value) {
                     match &dfg[instruction] {
                         Instruction::Truncate { bit_size: src_bit_size, .. } => {
@@ -955,7 +958,8 @@ impl Instruction {
                             let divisor = dfg
                                 .get_numeric_constant(*rhs)
                                 .expect("rhs is checked to be constant.");
-                            let divisor_bits = divisor.num_bits();
+
+                            let divisor_bits: BitSize = divisor.num_bits().try_into().unwrap();
 
                             // 2^{max_quotient_bits} = 2^{max_numerator_bits} / 2^{divisor_bits}
                             // => max_quotient_bits = max_numerator_bits - divisor_bits

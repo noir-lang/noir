@@ -51,12 +51,12 @@ impl AcirType {
     }
 
     /// Returns the bit size of the underlying type
-    pub(crate) fn bit_size<F: AcirField>(&self) -> u32 {
+    pub(crate) fn bit_size<F: AcirField>(&self) -> u8 {
         match self {
             AcirType::NumericType(numeric_type) => match numeric_type {
                 NumericType::Signed { bit_size } => *bit_size,
                 NumericType::Unsigned { bit_size } => *bit_size,
-                NumericType::NativeField => F::max_num_bits(),
+                NumericType::NativeField => F::max_num_bits() as u8,
             },
             AcirType::Array(_, _) => unreachable!("cannot fetch bit size of array type"),
         }
@@ -68,7 +68,7 @@ impl AcirType {
     }
 
     /// Returns an unsigned type of the specified bit size
-    pub(crate) fn unsigned(bit_size: u32) -> Self {
+    pub(crate) fn unsigned(bit_size: u8) -> Self {
         AcirType::NumericType(NumericType::Unsigned { bit_size })
     }
 
@@ -112,9 +112,7 @@ impl From<NumericType> for AcirType {
 pub(crate) struct AcirContext<F: AcirField, B: BlackBoxFunctionSolver<F>> {
     blackbox_solver: B,
 
-    /// Two-way map that links `AcirVar` to `AcirVarData`.
-    ///
-    /// The vars object is an instance of the `TwoWayMap`, which provides a bidirectional mapping between `AcirVar` and `AcirVarData`.
+    /// Map that links `AcirVar` to `AcirVarData`.
     vars: HashMap<AcirVar, AcirVarData<F>>,
 
     constant_witnesses: HashMap<F, Witness>,
@@ -772,7 +770,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         &mut self,
         lhs: AcirVar,
         rhs: AcirVar,
-        bit_size: u32,
+        bit_size: u8,
         predicate: AcirVar,
     ) -> Result<(AcirVar, AcirVar), RuntimeError> {
         let zero = self.add_constant(F::zero());
@@ -831,7 +829,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         let mut max_rhs_bits = bit_size;
         // when rhs is constant, we can better estimate the maximum bit sizes
         if let Some(rhs_const) = rhs_expr.to_const() {
-            max_rhs_bits = rhs_const.num_bits();
+            max_rhs_bits = rhs_const.num_bits().try_into().unwrap();
             if max_rhs_bits != 0 {
                 if max_rhs_bits > bit_size {
                     return Ok((zero, zero));
@@ -895,7 +893,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
 
         // Avoids overflow: 'q*b+r < 2^max_q_bits*2^max_rhs_bits'
         let mut avoid_overflow = false;
-        if max_q_bits + max_rhs_bits >= F::max_num_bits() - 1 {
+        if ((max_q_bits + max_rhs_bits) as u32) >= F::max_num_bits() - 1 {
             // q*b+r can overflow; we avoid this when b is constant
             if rhs_expr.is_const() {
                 avoid_overflow = true;
@@ -928,7 +926,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                     r_predicate,
                     max_r_predicate,
                     predicate,
-                    rhs_const.num_bits(),
+                    rhs_const.num_bits().try_into().unwrap(),
                 )?;
             }
         }
@@ -952,7 +950,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         lhs: AcirVar,
         rhs: AcirVar,
         offset: AcirVar,
-        bits: u32,
+        bits: u8,
     ) -> Result<(), RuntimeError> {
         const fn num_bits<T>() -> usize {
             std::mem::size_of::<T>() * 8
@@ -963,7 +961,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         }
 
         assert!(
-            bits < F::max_num_bits(),
+            (bits as u32) < F::max_num_bits(),
             "range check with bit size of the prime field is not implemented yet"
         );
 
@@ -981,13 +979,13 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
             };
             // we now have lhs+offset <= rhs <=> lhs_offset <= rhs_offset
 
-            let bit_size = bit_size_u128(rhs_offset);
+            let bit_size = bit_size_u128(rhs_offset) as u8;
             // r = 2^bit_size - rhs_offset -1, is of bit size  'bit_size' by construction
             let r = (1_u128 << bit_size) - rhs_offset - 1;
             // however, since it is a constant, we can compute it's actual bit size
             let r_bit_size = bit_size_u128(r);
             // witness = lhs_offset + r
-            assert!(bits + r_bit_size < F::max_num_bits()); //we need to ensure lhs_offset + r does not overflow
+            assert!(bits as u32 + r_bit_size < F::max_num_bits()); //we need to ensure lhs_offset + r does not overflow
 
             let r_var = self.add_constant(r);
             let aor = self.add_var(lhs_offset, r_var)?;
@@ -1009,7 +1007,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         &mut self,
         lhs: AcirVar,
         leading: AcirVar,
-        max_bit_size: u32,
+        max_bit_size: u8,
     ) -> Result<AcirVar, RuntimeError> {
         let max_power_of_two =
             self.add_constant(F::from(2_u128).pow(&F::from(max_bit_size as u128 - 1)));
@@ -1028,7 +1026,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         &mut self,
         lhs: AcirVar,
         rhs: AcirVar,
-        bit_size: u32,
+        bit_size: u8,
     ) -> Result<(AcirVar, AcirVar), RuntimeError> {
         // We derive the signed division from the unsigned euclidean division.
         // note that this is not euclidean division!
@@ -1085,7 +1083,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         lhs: AcirVar,
         rhs: AcirVar,
         typ: AcirType,
-        bit_size: u32,
+        bit_size: u8,
         predicate: AcirVar,
     ) -> Result<AcirVar, RuntimeError> {
         let numeric_type = match typ {
@@ -1114,7 +1112,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                 // If `variable` is constant then we don't need to add a constraint.
                 // We _do_ add a constraint if `variable` would fail the range check however so that we throw an error.
                 if let Some(constant) = self.var_to_expression(variable)?.to_const() {
-                    if constant.num_bits() <= *bit_size {
+                    if constant.num_bits() <= *bit_size as u32 {
                         return Ok(variable);
                     }
                 }
@@ -1142,8 +1140,8 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
     pub(crate) fn truncate_var(
         &mut self,
         lhs: AcirVar,
-        rhs: u32,
-        max_bit_size: u32,
+        rhs: u8,
+        max_bit_size: u8,
     ) -> Result<AcirVar, RuntimeError> {
         // 2^{rhs}
         let divisor = self.add_constant(F::from(2_u128).pow(&F::from(rhs as u128)));
@@ -1165,7 +1163,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         &mut self,
         lhs: AcirVar,
         rhs: AcirVar,
-        bit_count: u32,
+        bit_count: u8,
     ) -> Result<AcirVar, RuntimeError> {
         let pow_last = self.add_constant(F::from(1_u128 << (bit_count - 1)));
         let pow = self.add_constant(F::from(1_u128 << (bit_count)));
@@ -1213,7 +1211,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         &mut self,
         lhs: AcirVar,
         rhs: AcirVar,
-        max_bits: u32,
+        max_bits: u8,
     ) -> Result<AcirVar, RuntimeError> {
         // Returns a `Witness` that is constrained to be:
         // - `1` if lhs >= rhs
@@ -1237,7 +1235,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         // Ensure that 2^{max_bits + 1} is less than the field size
         //
         // TODO: perhaps this should be a user error, instead of an assert
-        assert!(max_bits + 1 < F::max_num_bits());
+        assert!(max_bits as u32 + 1 < F::max_num_bits());
 
         let two_max_bits = self.add_constant(F::from(2_u128).pow(&F::from(max_bits as u128)));
         let diff = self.sub_var(lhs, rhs)?;
@@ -1281,7 +1279,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         &mut self,
         lhs: AcirVar,
         rhs: AcirVar,
-        bit_size: u32,
+        bit_size: u8,
     ) -> Result<AcirVar, RuntimeError> {
         // Flip the result of calling more than equal method to
         // compute less than.
@@ -1517,7 +1515,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                 match self.vars[&input].as_constant() {
                     Some(constant) if allow_constant_inputs => {
                         single_val_witnesses.push(
-                            FunctionInput::constant(*constant, num_bits).map_err(
+                            FunctionInput::constant(*constant, num_bits as u32).map_err(
                                 |invalid_input_bit_size| {
                                     RuntimeError::InvalidBlackBoxInputBitSize {
                                         value: invalid_input_bit_size.value,
@@ -1532,7 +1530,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                     _ => {
                         let witness_var = self.get_or_create_witness_var(input)?;
                         let witness = self.var_to_witness(witness_var)?;
-                        single_val_witnesses.push(FunctionInput::witness(witness, num_bits));
+                        single_val_witnesses.push(FunctionInput::witness(witness, num_bits as u32));
                     }
                 }
             }
@@ -1603,6 +1601,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         let input_expr = self.var_to_expression(input_var)?;
 
         let bit_size = u32::BITS - (radix - 1).leading_zeros();
+        let bit_size: u8 = bit_size.try_into().unwrap();
         let limbs = self.acir_ir.radix_le_decompose(&input_expr, radix, limb_count, bit_size)?;
 
         let mut limb_vars = vecmap(limbs, |witness| {

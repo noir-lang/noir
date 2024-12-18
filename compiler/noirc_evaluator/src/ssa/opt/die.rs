@@ -293,8 +293,8 @@ impl Context {
 
             let (lhs, rhs) = if function.dfg.get_numeric_constant(*index).is_some() {
                 // If we are here it means the index is known but out of bounds. That's always an error!
-                let false_const = Value::bool_constant(false);
-                let true_const = Value::bool_constant(true);
+                let false_const = function.dfg.bool_constant(false);
+                let true_const = function.dfg.bool_constant(true);
                 (false_const, true_const)
             } else {
                 // `index` will be relative to the flattened array length, so we need to take that into account
@@ -308,14 +308,14 @@ impl Context {
                 );
                 let index = index.first();
 
-                let array_length = Value::length_constant((array_length as u128).into());
+                let array_length = function.dfg.length_constant((array_length as u128).into());
                 let is_index_out_of_bounds = function.dfg.insert_instruction_and_results(
                     Instruction::binary(BinaryOp::Lt, index, array_length),
                     block_id,
                     call_stack,
                 );
                 let is_index_out_of_bounds = is_index_out_of_bounds.first();
-                let true_const = Value::bool_constant(true);
+                let true_const = function.dfg.bool_constant(true);
                 (is_index_out_of_bounds, true_const)
             };
 
@@ -636,7 +636,6 @@ mod test {
         ir::{
             map::Id,
             types::{NumericType, Type},
-            value::Value,
         },
         opt::assert_normalized_ssa_equals,
         Ssa,
@@ -770,7 +769,7 @@ mod test {
 
         // Compiling main
         let mut builder = FunctionBuilder::new("main".into(), main_id);
-        let zero = Value::constant(0u128.into(), NumericType::unsigned(32));
+        let zero = builder.constant(0u128.into(), NumericType::unsigned(32));
         let array_type = Type::Array(Arc::new(vec![Type::unsigned(32)]), 2);
         let v1 = builder.insert_make_array(vector![zero, zero], array_type.clone());
         let v2 = builder.insert_allocate(array_type.clone());
@@ -783,7 +782,7 @@ mod test {
         builder.switch_to_block(b1);
 
         let v3 = builder.insert_load(v2, array_type);
-        let one = Value::constant(1u128.into(), NumericType::unsigned(32));
+        let one = builder.constant(1u128.into(), NumericType::unsigned(32));
         let v5 = builder.insert_array_set(v3, zero, one);
         builder.terminate_with_return(vec![v5]);
 

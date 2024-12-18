@@ -142,7 +142,8 @@ impl FunctionBuilder {
                 for _i in 0..len {
                     for subitem_typ in typ.iter() {
                         // load each element of the array, and add it to the databus
-                        let index_var = Value::length_constant((index as i128).into());
+                        let index_var =
+                            self.current_function.dfg.length_constant((index as i128).into());
                         let element = self.insert_array_get(value, index_var, subitem_typ.clone());
                         index += match subitem_typ {
                             Type::Array(_, _) | Type::Slice(_) => subitem_typ.element_size(),

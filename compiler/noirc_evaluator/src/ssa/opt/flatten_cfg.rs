@@ -333,7 +333,7 @@ impl<'f> Context<'f> {
         for instruction in instructions.iter() {
             if self.is_no_predicate(no_predicates, instruction) {
                 // disable side effect for no_predicate functions
-                let one = Value::bool_constant(true);
+                let one = self.inserter.function.dfg.bool_constant(true);
                 self.insert_instruction(
                     Instruction::EnableSideEffectsIf { condition: one },
                     CallStackId::root(),
@@ -529,7 +529,7 @@ impl<'f> Context<'f> {
         let else_condition = if let Some(branch) = cond_context.else_branch {
             branch.condition
         } else {
-            Value::bool_constant(false)
+            self.inserter.function.dfg.bool_constant(false)
         };
         let block = self.inserter.function.entry_block();
 
@@ -576,7 +576,7 @@ impl<'f> Context<'f> {
     fn insert_current_side_effects_enabled(&mut self) {
         let condition = match self.get_last_condition() {
             Some(cond) => cond,
-            None => Value::bool_constant(true),
+            None => self.inserter.function.dfg.bool_constant(true),
         };
         let enable_side_effects = Instruction::EnableSideEffectsIf { condition };
         let call_stack = self.inserter.function.dfg.get_value_call_stack_id(condition);
@@ -1190,7 +1190,7 @@ mod test {
                 constants.dedup();
                 constants
             }
-            Value::NumericConstant { constant, .. } => vec![constant.to_u128()],
+            Value::NumericConstant { constant, .. } => vec![dfg[constant].to_u128()],
             _ => Vec::new(),
         }
     }
@@ -1364,12 +1364,12 @@ mod test {
         let b4 = builder.insert_block();
         let b5 = builder.insert_block();
 
-        let zero = Value::field_constant(0u128.into());
-        let one = Value::field_constant(1u128.into());
-        let two = Value::field_constant(2u128.into());
-        let four = Value::field_constant(4u128.into());
-        let ten = Value::field_constant(10u128.into());
-        let one_hundred = Value::field_constant(100u128.into());
+        let zero = builder.field_constant(0u128.into());
+        let one = builder.field_constant(1u128.into());
+        let two = builder.field_constant(2u128.into());
+        let four = builder.field_constant(4u128.into());
+        let ten = builder.field_constant(10u128.into());
+        let one_hundred = builder.field_constant(100u128.into());
 
         let v0 = builder.insert_allocate(Type::field());
         builder.insert_store(v0, zero);

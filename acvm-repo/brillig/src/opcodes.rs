@@ -110,8 +110,8 @@ pub enum IntegerBitSize {
     U128,
 }
 
-impl From<IntegerBitSize> for u32 {
-    fn from(bit_size: IntegerBitSize) -> u32 {
+impl From<IntegerBitSize> for u8 {
+    fn from(bit_size: IntegerBitSize) -> u8 {
         match bit_size {
             IntegerBitSize::U1 => 1,
             IntegerBitSize::U8 => 8,
@@ -123,10 +123,16 @@ impl From<IntegerBitSize> for u32 {
     }
 }
 
-impl TryFrom<u32> for IntegerBitSize {
+impl From<IntegerBitSize> for u32 {
+    fn from(bit_size: IntegerBitSize) -> u32 {
+        u8::from(bit_size) as u32
+    }
+}
+
+impl TryFrom<u8> for IntegerBitSize {
     type Error = &'static str;
 
-    fn try_from(value: u32) -> Result<Self, Self::Error> {
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             1 => Ok(IntegerBitSize::U1),
             8 => Ok(IntegerBitSize::U8),
@@ -159,15 +165,15 @@ pub enum BitSize {
 }
 
 impl BitSize {
-    pub fn to_u32<F: AcirField>(self) -> u32 {
+    pub fn to_u8<F: AcirField>(self) -> u8 {
         match self {
-            BitSize::Field => F::max_num_bits(),
+            BitSize::Field => F::max_num_bits().try_into().unwrap(),
             BitSize::Integer(bit_size) => bit_size.into(),
         }
     }
 
-    pub fn try_from_u32<F: AcirField>(value: u32) -> Result<Self, &'static str> {
-        if value == F::max_num_bits() {
+    pub fn try_from_u8<F: AcirField>(value: u8) -> Result<Self, &'static str> {
+        if value as u32 == F::max_num_bits() {
             Ok(BitSize::Field)
         } else {
             Ok(BitSize::Integer(IntegerBitSize::try_from(value)?))

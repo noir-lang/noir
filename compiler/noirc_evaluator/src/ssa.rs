@@ -105,6 +105,12 @@ pub(crate) fn optimize_into_acir(
         &options.emit_ssa,
     )?;
 
+    eprintln!("Value size: {}", std::mem::size_of::<ir::value::Value>() * 8);
+    eprintln!("Field size: {}", std::mem::size_of::<FieldElement>() * 8);
+    eprintln!("NumTy size: {}", std::mem::size_of::<ir::types::NumericType>() * 8);
+    eprintln!("u64   size: {}", std::mem::size_of::<u64>() * 8);
+    eprintln!("Intri size: {}", std::mem::size_of::<ir::instruction::Intrinsic>() * 8);
+
     let mut ssa = optimize_all(builder, options)?;
 
     let mut ssa_level_warnings = vec![];
@@ -140,7 +146,6 @@ pub(crate) fn optimize_into_acir(
         print_codegen_timings: options.print_codegen_timings,
     }
     .run_pass(|ssa| ssa.fold_constants_with_brillig(&brillig), "Inlining Brillig Calls Inlining")
-    .run_pass(Ssa::simplify_cfg, "Simplifying (4th)")
     .run_pass(Ssa::dead_instruction_elimination, "Dead Instruction Elimination (2nd)")
     .finish();
 

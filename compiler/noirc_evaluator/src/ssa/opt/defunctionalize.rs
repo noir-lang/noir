@@ -147,7 +147,9 @@ impl DefunctionalizationContext {
             }
 
             // Then replace the terminator values
-            func.dfg[block_id].unwrap_terminator_mut().map_values_mut(Self::function_to_field);
+            let mut terminator = func.dfg[block_id].take_terminator();
+            terminator.map_values_mut(|v| Self::function_to_field(func, v));
+            func.dfg[block_id].set_terminator(terminator);
         }
     }
 
@@ -174,7 +176,10 @@ impl DefunctionalizationContext {
                 if contains_function {
                     let func = *func;
                     let result_types = vecmap(result_types, Self::function_type_to_field);
-                    let arguments = vecmap(arguments.iter().copied(), Self::function_to_field);
+                    let mut arguments = arguments.clone();
+                    for arg in arguments.iter_mut() {
+                        *arg = Self::function_to_field(function, *arg);
+                    }
                     let new_instruction = Instruction::Call { func, arguments, result_types };
                     function.dfg[instruction_id] = new_instruction;
                 }
@@ -188,8 +193,8 @@ impl DefunctionalizationContext {
                     contains_function = contains_function || matches!(typ, Type::Function);
                 });
                 if contains_function {
-                    let mut instruction =
-                        function.dfg[instruction_id].map_values(Self::function_to_field);
+                    let mut instruction = function.dfg[instruction_id].clone();
+                    instruction.map_values_mut(|v| Self::function_to_field(function, v));
                     instruction.map_types_mut(|typ| *typ = Self::function_type_to_field(typ));
                     function.dfg[instruction_id] = instruction;
                 }
@@ -205,9 +210,9 @@ impl DefunctionalizationContext {
         }
     }
 
-    fn function_to_field(value: Value) -> Value {
+    fn function_to_field(function: &mut Function, value: Value) -> Value {
         if let Value::Function(id) = value {
-            Value::field_constant((id.to_u32() as usize).into())
+            function.dfg.field_constant((id.to_u32() as usize).into())
         } else {
             value
         }
@@ -349,7 +354,8 @@ fn create_apply_function(
             let is_last = index == function_ids.len() - 1;
             let mut next_function_block = None;
 
-            let function_id_constant = Value::field_constant(function_id_to_field(*function_id));
+            let function_id_constant =
+                function_builder.field_constant(function_id_to_field(*function_id));
 
             // If it's not the last function to dispatch, create an if statement
             if !is_last {

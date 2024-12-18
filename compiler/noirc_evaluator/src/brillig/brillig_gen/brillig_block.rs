@@ -592,9 +592,9 @@ impl<'block> BrilligBlock<'block> {
                         Intrinsic::AsWitness => (),
                         Intrinsic::FieldLessThan => {
                             let lhs = self.convert_ssa_single_addr_value(arguments[0], dfg);
-                            assert!(lhs.bit_size == FieldElement::max_num_bits());
+                            assert_eq!(lhs.bit_size as u32, FieldElement::max_num_bits());
                             let rhs = self.convert_ssa_single_addr_value(arguments[1], dfg);
-                            assert!(rhs.bit_size == FieldElement::max_num_bits());
+                            assert_eq!(rhs.bit_size as u32, FieldElement::max_num_bits());
 
                             let destination = self
                                 .variables
@@ -727,15 +727,16 @@ impl<'block> BrilligBlock<'block> {
                     // Cast original value to field
                     let left = SingleAddrVariable {
                         address: self.brillig_context.allocate_register(),
-                        bit_size: FieldElement::max_num_bits(),
+                        bit_size: FieldElement::max_num_bits() as u8,
                     };
                     self.convert_cast(left, value);
 
                     // Create a field constant with the max
-                    let max = BigUint::from(2_u128).pow(*max_bit_size) - BigUint::from(1_u128);
+                    let max =
+                        BigUint::from(2_u128).pow(*max_bit_size as u32) - BigUint::from(1_u128);
                     let right = self.brillig_context.make_constant_instruction(
                         FieldElement::from_be_bytes_reduce(&max.to_bytes_be()),
-                        FieldElement::max_num_bits(),
+                        FieldElement::max_num_bits() as u8,
                     );
 
                     // Check if lte max
@@ -1482,7 +1483,7 @@ impl<'block> BrilligBlock<'block> {
         let max_lhs_bits = dfg.get_value_max_num_bits(binary.lhs);
         let max_rhs_bits = dfg.get_value_max_num_bits(binary.rhs);
 
-        if bit_size == FieldElement::max_num_bits() {
+        if bit_size as u32 == FieldElement::max_num_bits() {
             return;
         }
 
@@ -1594,6 +1595,7 @@ impl<'block> BrilligBlock<'block> {
                         dfg,
                     );
 
+                    let constant = dfg[constant];
                     self.brillig_context
                         .const_instruction(new_variable.extract_single_addr(), constant);
                     new_variable

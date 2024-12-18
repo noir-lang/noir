@@ -34,7 +34,7 @@ use super::{
     },
 };
 
-pub(crate) const SSA_WORD_SIZE: u32 = 32;
+pub(crate) const SSA_WORD_SIZE: u8 = 32;
 
 /// Generates SSA for the given monomorphized program.
 ///
@@ -220,7 +220,7 @@ impl<'a> FunctionContext<'a> {
                 Ok(match array.typ {
                     ast::Type::Slice(_) => {
                         let slice_length =
-                            Value::length_constant((array.contents.len() as u128).into());
+                            self.builder.length_constant((array.contents.len() as u128).into());
                         let slice_contents =
                             self.codegen_array_checked(elements, typ[1].clone())?;
                         Tree::Branch(vec![slice_length.into(), slice_contents])
@@ -235,7 +235,7 @@ impl<'a> FunctionContext<'a> {
             }
             ast::Literal::Bool(value) => {
                 // Don't need to call checked_numeric_constant here since `value` can only be true or false
-                Ok(Value::constant((*value as u128).into(), NumericType::bool()).into())
+                Ok(self.builder.bool_constant(*value).into())
             }
             ast::Literal::Str(string) => Ok(self.codegen_string(string)),
             ast::Literal::FmtStr(fragments, number_of_fields, fields) => {
@@ -258,7 +258,7 @@ impl<'a> FunctionContext<'a> {
                 // A caller needs multiple pieces of information to make use of a format string
                 // The message string, the number of fields to be formatted, and the fields themselves
                 let string = self.codegen_string(&string);
-                let field_count = Value::length_constant((*number_of_fields as u128).into());
+                let field_count = self.builder.length_constant((*number_of_fields as u128).into());
                 let fields = self.codegen_expression(fields)?;
 
                 Ok(Tree::Branch(vec![string, field_count.into(), fields]))
@@ -279,7 +279,7 @@ impl<'a> FunctionContext<'a> {
 
     fn codegen_string(&mut self, string: &str) -> Values {
         let elements = vecmap(string.as_bytes(), |byte| {
-            let char = Value::constant((*byte as u128).into(), NumericType::char());
+            let char = self.builder.constant((*byte as u128).into(), NumericType::char());
             (char.into(), false)
         });
         let typ = Self::convert_non_tuple_type(&ast::Type::String(elements.len() as u32));
@@ -357,7 +357,7 @@ impl<'a> FunctionContext<'a> {
                 let rhs = self.codegen_expression(&unary.rhs)?;
                 let rhs = rhs.into_leaf().eval(self);
                 let typ = self.builder.type_of_value(rhs).unwrap_numeric();
-                let zero = Value::constant(0u128.into(), typ);
+                let zero = self.builder.constant(0u128.into(), typ);
                 Ok(self.insert_binary(
                     zero,
                     noirc_frontend::ast::BinaryOpKind::Subtract,
@@ -449,7 +449,7 @@ impl<'a> FunctionContext<'a> {
         // base_index = index * type_size
         let index = self.make_array_index(index);
         let type_size = Self::convert_type(element_type).size_of_type();
-        let type_size = Value::length_constant((type_size as u128).into());
+        let type_size = self.builder.length_constant((type_size as u128).into());
         let base_index =
             self.builder.set_location(location).insert_binary(index, BinaryOp::Mul, type_size);
 
@@ -488,7 +488,7 @@ impl<'a> FunctionContext<'a> {
             .make_array_index(length.expect("ICE: a length must be supplied for indexing slices"));
 
         let is_offset_out_of_bounds = self.builder.insert_binary(index, BinaryOp::Lt, array_len);
-        let true_const = Value::constant(true.into(), NumericType::bool());
+        let true_const = self.builder.bool_constant(true);
 
         self.builder.insert_constrain(
             is_offset_out_of_bounds,
@@ -680,7 +680,7 @@ impl<'a> FunctionContext<'a> {
         {
             match intrinsic {
                 Intrinsic::SliceInsert => {
-                    let one = Value::length_constant(1u128.into());
+                    let one = self.builder.length_constant(1u128.into());
 
                     // We add one here in the case of a slice insert as a slice insert at the length of the slice
                     // can be converted to a slice push back
@@ -738,7 +738,7 @@ impl<'a> FunctionContext<'a> {
         assert_payload: &Option<Box<(Expression, HirType)>>,
     ) -> Result<Values, RuntimeError> {
         let expr = self.codegen_non_tuple_expression(expr)?;
-        let true_literal = Value::constant(true.into(), NumericType::bool());
+        let true_literal = self.builder.bool_constant(true);
 
         // Set the location here for any errors that may occur when we codegen the assert message
         self.builder.set_location(location);

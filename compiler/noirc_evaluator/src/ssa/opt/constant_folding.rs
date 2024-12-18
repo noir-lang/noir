@@ -273,7 +273,7 @@ impl<'brillig> Context<'brillig> {
         let instructions = function.dfg[block].take_instructions();
 
         // Default side effect condition variable with an enabled state.
-        let mut side_effects_enabled_var = Value::bool_constant(true);
+        let mut side_effects_enabled_var = function.dfg.bool_constant(true);
 
         for instruction_id in instructions {
             self.fold_constants_into_instruction(
@@ -665,7 +665,7 @@ impl<'brillig> Context<'brillig> {
                     MemoryValue::Field(field_value) => field_value,
                     MemoryValue::Integer(u128_value, _) => u128_value.into(),
                 };
-                Value::constant(field_value, typ)
+                dfg.constant(field_value, typ)
             }
             Type::Array(types, length) => {
                 let mut new_array_values = Vector::new();
@@ -834,7 +834,6 @@ mod test {
         ir::{
             map::Id,
             types::{NumericType, Type},
-            value::Value,
         },
         opt::assert_normalized_ssa_equals,
         Ssa,
@@ -859,7 +858,7 @@ mod test {
         assert_eq!(instructions.len(), 2); // The final return is not counted
 
         let v0 = main.parameters().next().unwrap();
-        let two = Value::constant(2_u128.into(), NumericType::NativeField);
+        let two = main.dfg.constant(2_u128.into(), NumericType::NativeField);
 
         main.dfg.replace_value(v0, two);
 
@@ -895,7 +894,7 @@ mod test {
 
         // Note that this constant guarantees that `v0/constant < 2^8`. We then do not need to truncate the result.
         let constant = 2_u128.pow(8);
-        let constant = Value::constant(constant.into(), NumericType::unsigned(16));
+        let constant = main.dfg.constant(constant.into(), NumericType::unsigned(16));
 
         main.dfg.replace_value(v1, constant);
 
@@ -933,7 +932,7 @@ mod test {
 
         // Note that this constant does not guarantee that `v0/constant < 2^8`. We must then truncate the result.
         let constant = 2_u128.pow(8) - 1;
-        let constant = Value::constant(constant.into(), NumericType::unsigned(16));
+        let constant = main.dfg.constant(constant.into(), NumericType::unsigned(16));
 
         main.dfg.replace_value(v1, constant);
 
@@ -1154,7 +1153,7 @@ mod test {
         // Compiling main
         let mut builder = FunctionBuilder::new("main".into(), main_id);
         let v0 = builder.add_parameter(Type::unsigned(64));
-        let zero = Value::constant(0u128.into(), NumericType::unsigned(64));
+        let zero = builder.constant(0u128.into(), NumericType::unsigned(64));
         let typ = Type::Array(Arc::new(vec![Type::unsigned(64)]), 25);
 
         let array_contents = im::vector![

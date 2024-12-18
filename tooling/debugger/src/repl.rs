@@ -391,7 +391,8 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
             return;
         };
 
-        let Ok(bit_size) = BitSize::try_from_u32::<FieldElement>(bit_size) else {
+        let Ok(bit_size) = BitSize::try_from_u8::<FieldElement>(bit_size.try_into().unwrap())
+        else {
             println!("Invalid bit size: {bit_size}");
             return;
         };

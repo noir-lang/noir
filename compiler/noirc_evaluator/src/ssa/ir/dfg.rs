@@ -7,9 +7,9 @@ use super::{
         insert_result::InsertInstructionResult, Instruction, InstructionId, InstructionResultType,
         TerminatorInstruction,
     },
-    map::{DenseMap, ForeignFunctions},
+    map::{DenseMap, ForeignFunctions, UniqueMap},
     types::{NumericType, Type},
-    value::{ForeignFunctionId, Value},
+    value::{FieldElementId, ForeignFunctionId, Value},
 };
 
 use acvm::{acir::AcirField, FieldElement};
@@ -40,6 +40,10 @@ pub(crate) struct DataFlowGraph {
     /// Debugging information about which Values are substituted for another.
     #[serde(skip)]
     replaced_values: HashMap<Value, Value>,
+
+    /// Each FieldElement is assigned a unique id
+    #[serde(skip)]
+    numeric_constants: UniqueMap<FieldElement>,
 
     /// Source location of each instruction for debugging and issuing errors.
     ///
@@ -237,7 +241,7 @@ impl DataFlowGraph {
     ///
     /// Should `value` be a numeric constant then this function will return the exact number of bits required,
     /// otherwise it will return the minimum number of bits based on type information.
-    pub(crate) fn get_value_max_num_bits(&self, value: Value) -> u32 {
+    pub(crate) fn get_value_max_num_bits(&self, value: Value) -> u8 {
         match value {
             Value::Instruction { instruction, .. } => {
                 if let Instruction::Cast(original_value, _) = self[instruction] {
@@ -247,7 +251,9 @@ impl DataFlowGraph {
                 }
             }
 
-            Value::NumericConstant { constant, .. } => constant.num_bits(),
+            Value::NumericConstant { constant, .. } => {
+                self[constant].num_bits().try_into().unwrap()
+            }
             _ => self.type_of_value(value).bit_size(),
         }
     }
@@ -288,9 +294,32 @@ impl DataFlowGraph {
         value: Value,
     ) -> Option<(FieldElement, NumericType)> {
         match self.resolve(value) {
-            Value::NumericConstant { constant, typ } => Some((constant, typ)),
+            Value::NumericConstant { constant, typ } => Some((self[constant], typ)),
             _ => None,
         }
+    }
+
+    pub(crate) fn constant(&mut self, constant: FieldElement, typ: NumericType) -> Value {
+        self.constant_by_ref(&constant, typ)
+    }
+
+    /// The same as `self.constant` but avoids copying the given FieldElement
+    /// unless the underlying map doesn't contain it already.
+    pub(crate) fn constant_by_ref(&mut self, constant: &FieldElement, typ: NumericType) -> Value {
+        let constant = self.numeric_constants.get_or_insert(constant);
+        Value::NumericConstant { constant, typ }
+    }
+
+    pub(crate) fn field_constant(&mut self, constant: FieldElement) -> Value {
+        self.constant(constant, NumericType::NativeField)
+    }
+
+    pub(crate) fn length_constant(&mut self, constant: FieldElement) -> Value {
+        self.constant(constant, NumericType::length_type())
+    }
+
+    pub(crate) fn bool_constant(&mut self, constant: bool) -> Value {
+        self.constant(constant.into(), NumericType::bool())
     }
 
     /// Returns the Value::Array associated with this Value if it refers to an array constant.
@@ -441,6 +470,14 @@ impl std::ops::Index<ForeignFunctionId> for DataFlowGraph {
 
     fn index(&self, id: ForeignFunctionId) -> &Self::Output {
         &self.foreign_functions[id]
+    }
+}
+
+impl std::ops::Index<FieldElementId> for DataFlowGraph {
+    type Output = FieldElement;
+
+    fn index(&self, id: FieldElementId) -> &Self::Output {
+        &self.numeric_constants[id]
     }
 }
 

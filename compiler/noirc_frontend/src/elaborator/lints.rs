@@ -203,7 +203,7 @@ pub(crate) fn overflowing_int(
     match expr {
         HirExpression::Literal(HirLiteral::Integer(value, negative)) => match annotated_type {
             Type::Integer(Signedness::Unsigned, bit_count) => {
-                let bit_count: u32 = (*bit_count).into();
+                let bit_count = bit_count.bit_size() as u32;
                 let max = 2u128.pow(bit_count) - 1;
                 if value > max.into() || negative {
                     errors.push(TypeCheckError::OverflowingAssignment {
@@ -215,7 +215,7 @@ pub(crate) fn overflowing_int(
                 }
             }
             Type::Integer(Signedness::Signed, bit_count) => {
-                let bit_count: u32 = (*bit_count).into();
+                let bit_count = bit_count.bit_size() as u32;
                 let min = 2u128.pow(bit_count - 1);
                 let max = 2u128.pow(bit_count - 1) - 1;
                 if (negative && value > min.into()) || (!negative && value > max.into()) {

@@ -146,5 +146,9 @@ pub(crate) enum ParsedTerminator {
 #[derive(Debug, Clone)]
 pub(crate) enum ParsedValue {
     NumericConstant { constant: FieldElement, typ: Type },
-    Variable(Identifier),
+    InstructionResult { id: u32, position: u32 },
+    BlockParameter { id: u32, position: u32 },
+    Function { id: u32 },
+    ForeignFunction { id: u32 },
+    Intrinsic(Identifier),
 }

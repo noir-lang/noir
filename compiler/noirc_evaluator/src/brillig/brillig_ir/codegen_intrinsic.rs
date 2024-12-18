@@ -18,7 +18,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         &mut self,
         destination_of_truncated_value: SingleAddrVariable,
         value_to_truncate: SingleAddrVariable,
-        bit_size: u32,
+        bit_size: u8,
     ) {
         assert!(
             bit_size <= value_to_truncate.bit_size,
@@ -72,7 +72,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         little_endian: bool,
         output_bits: bool, // If true will generate bit limbs, if false will generate byte limbs
     ) {
-        assert!(source_field.bit_size == F::max_num_bits());
+        assert!(source_field.bit_size as u32 == F::max_num_bits());
         assert!(radix.bit_size == 32);
 
         self.codegen_initialize_array(target_array);

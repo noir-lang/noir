@@ -2,7 +2,7 @@ pub(crate) mod data_bus;
 
 use std::collections::BTreeMap;
 
-use acvm::acir::circuit::ErrorSelector;
+use acvm::{acir::circuit::ErrorSelector, FieldElement};
 use noirc_errors::Location;
 use noirc_frontend::hir_def::types::Type as HirType;
 use noirc_frontend::monomorphization::ast::InlineType;
@@ -243,8 +243,8 @@ impl FunctionBuilder {
     pub(crate) fn insert_truncate(
         &mut self,
         value: Value,
-        bit_size: u32,
-        max_bit_size: u32,
+        bit_size: u8,
+        max_bit_size: u8,
     ) -> Value {
         self.insert_instruction(Instruction::Truncate { value, bit_size, max_bit_size }).first()
     }
@@ -263,7 +263,7 @@ impl FunctionBuilder {
     pub(crate) fn insert_range_check(
         &mut self,
         value: Value,
-        max_bit_size: u32,
+        max_bit_size: u8,
         assert_message: Option<String>,
     ) {
         self.insert_instruction(Instruction::RangeCheck { value, max_bit_size, assert_message });
@@ -393,6 +393,22 @@ impl FunctionBuilder {
         }
     }
 
+    pub(crate) fn constant(&mut self, value: FieldElement, typ: NumericType) -> Value {
+        self.current_function.dfg.constant(value, typ)
+    }
+
+    pub(crate) fn field_constant(&mut self, value: FieldElement) -> Value {
+        self.current_function.dfg.constant(value, NumericType::NativeField)
+    }
+
+    pub(crate) fn length_constant(&mut self, value: FieldElement) -> Value {
+        self.current_function.dfg.constant(value, NumericType::length_type())
+    }
+
+    pub(crate) fn bool_constant(&mut self, value: bool) -> Value {
+        self.current_function.dfg.constant(value.into(), NumericType::bool())
+    }
+
     /// Insert instructions to increment the reference count of any array(s) stored
     /// within the given value. If the given value is not an array and does not contain
     /// any arrays, this does nothing.
@@ -486,12 +502,12 @@ mod tests {
         // let bits: [u1; 8] = x.to_le_bits();
         let func_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("func".into(), func_id);
-        let one = Value::bool_constant(true);
-        let zero = Value::bool_constant(false);
+        let one = builder.bool_constant(true);
+        let zero = builder.bool_constant(false);
 
         let to_bits_id = Value::Intrinsic(Intrinsic::ToBits(Endian::Little));
-        let input = Value::field_constant(FieldElement::from(7_u128));
-        let length = Value::field_constant(FieldElement::from(8_u128));
+        let input = builder.field_constant(FieldElement::from(7_u128));
+        let length = builder.field_constant(FieldElement::from(8_u128));
         let result_types = vec![Type::Array(Arc::new(vec![Type::bool()]), 8)];
         let mut call_results = builder.insert_call(to_bits_id, vec![input, length], result_types);
 

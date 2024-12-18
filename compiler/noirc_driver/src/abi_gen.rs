@@ -87,7 +87,7 @@ pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
                 Signedness::Signed => Sign::Signed,
             };
 
-            AbiType::Integer { sign, width: (*bit_width).into() }
+            AbiType::Integer { sign, width: bit_width.bit_size() as u32 }
         }
         Type::TypeVariable(binding) => {
             if binding.is_integer() || binding.is_integer_or_field() {

@@ -465,7 +465,10 @@ impl<'function> PerFunctionContext<'function> {
             value @ Value::Param { .. } => {
                 unreachable!("All Value::Params should already be known from previous calls to translate_block. Unknown value {value}")
             }
-            Value::NumericConstant { constant, typ } => Value::constant(constant, typ),
+            Value::NumericConstant { constant, typ } => {
+                let field = &self.source_function.dfg[constant];
+                self.context.builder.current_function.dfg.constant_by_ref(field, typ)
+            }
             Value::Function(function) => Value::Function(function),
             Value::Intrinsic(intrinsic) => Value::Intrinsic(intrinsic),
             Value::ForeignFunction(function) => {
@@ -874,7 +877,7 @@ mod test {
 
         builder.new_function("bar".into(), bar_id, InlineType::default());
         let expected_return = 72u128;
-        let seventy_two = Value::field_constant(expected_return.into());
+        let seventy_two = builder.field_constant(expected_return.into());
         builder.terminate_with_return(vec![seventy_two]);
 
         let ssa = builder.finish();
@@ -978,7 +981,7 @@ mod test {
         let factorial_id = Id::test_new(1);
         let factorial = Value::Function(factorial_id);
 
-        let five = Value::field_constant(5u128.into());
+        let five = builder.field_constant(5u128.into());
         let results = builder.insert_call(factorial, vec![five], vec![Type::field()]).collect();
         builder.terminate_with_return(results);
 
@@ -986,7 +989,7 @@ mod test {
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();
 
-        let one = Value::field_constant(1u128.into());
+        let one = builder.field_constant(1u128.into());
 
         let v0 = builder.add_parameter(Type::field());
         let v1 = builder.insert_binary(v0, BinaryOp::Lt, one);
@@ -1099,10 +1102,10 @@ mod test {
         let join_block = builder.insert_block();
         builder.terminate_with_jmpif(inner2_cond, then_block, else_block);
         builder.switch_to_block(then_block);
-        let one = Value::field_constant(FieldElement::one());
+        let one = builder.field_constant(FieldElement::one());
         builder.terminate_with_jmp(join_block, vec![one]);
         builder.switch_to_block(else_block);
-        let two = Value::field_constant(FieldElement::from(2_u128));
+        let two = builder.field_constant(FieldElement::from(2_u128));
         builder.terminate_with_jmp(join_block, vec![two]);
         let join_param = builder.add_block_parameter(join_block, Type::field());
         builder.switch_to_block(join_block);
@@ -1171,7 +1174,7 @@ mod test {
 
         builder.new_brillig_function("bar".into(), bar_id, InlineType::default());
         let expected_return = 72u128;
-        let seventy_two = Value::field_constant(expected_return.into());
+        let seventy_two = builder.field_constant(expected_return.into());
         builder.terminate_with_return(vec![seventy_two]);
 
         let ssa = builder.finish();
@@ -1214,16 +1217,16 @@ mod test {
         builder.terminate_with_return(v0);
 
         builder.new_brillig_function("bar".into(), bar_id, InlineType::default());
-        let bar_v0 = Value::constant(1_usize.into(), NumericType::bool());
+        let bar_v0 = builder.constant(1_usize.into(), NumericType::bool());
         let then_block = builder.insert_block();
         let else_block = builder.insert_block();
         let join_block = builder.insert_block();
         builder.terminate_with_jmpif(bar_v0, then_block, else_block);
         builder.switch_to_block(then_block);
-        let one = Value::field_constant(FieldElement::one());
+        let one = builder.field_constant(FieldElement::one());
         builder.terminate_with_jmp(join_block, vec![one]);
         builder.switch_to_block(else_block);
-        let two = Value::field_constant(2_u128.into());
+        let two = builder.field_constant(2_u128.into());
         builder.terminate_with_jmp(join_block, vec![two]);
         let join_param = builder.add_block_parameter(join_block, Type::field());
         builder.switch_to_block(join_block);
