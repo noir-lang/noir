@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use noirc_errors::Location;
 
-pub(crate) type CallStack = im::Vector<Location>;
+pub(crate) type CallStack = Vec<Location>;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub(crate) struct CallStackId(u32);
@@ -57,9 +57,9 @@ impl Default for CallStackHelper {
 impl CallStackHelper {
     /// Construct a CallStack from a CallStackId
     pub(crate) fn get_call_stack(&self, mut call_stack: CallStackId) -> CallStack {
-        let mut result = im::Vector::new();
+        let mut result = Vec::new();
         while let Some(parent) = self.locations[call_stack.index()].parent {
-            result.push_back(self.locations[call_stack.index()].value);
+            result.push(self.locations[call_stack.index()].value);
             call_stack = parent;
         }
         result

@@ -165,6 +165,36 @@ impl DataFlowGraph {
         id
     }
 
+    fn insert_instruction_without_simplification(
+        &mut self,
+        instruction_data: Instruction,
+        block: BasicBlockId,
+        ctrl_typevars: Option<Vec<Type>>,
+        call_stack: CallStackId,
+    ) -> InstructionId {
+        let id = self.make_instruction(instruction_data, ctrl_typevars);
+        self.blocks[block].insert_instruction(id);
+        self.locations.insert(id, call_stack);
+        id
+    }
+
+    pub(crate) fn insert_instruction_and_results_without_simplification(
+        &mut self,
+        instruction_data: Instruction,
+        block: BasicBlockId,
+        ctrl_typevars: Option<Vec<Type>>,
+        call_stack: CallStackId,
+    ) -> InsertInstructionResult {
+        let id = self.insert_instruction_without_simplification(
+            instruction_data,
+            block,
+            ctrl_typevars,
+            call_stack,
+        );
+
+        InsertInstructionResult::Results(id, self.instruction_results(id))
+    }
+
     /// Inserts a new instruction at the end of the given block and returns its results
     pub(crate) fn insert_instruction_and_results(
         &mut self,
@@ -184,7 +214,8 @@ impl DataFlowGraph {
             result @ (SimplifyResult::SimplifiedToInstruction(_)
             | SimplifyResult::SimplifiedToInstructionMultiple(_)
             | SimplifyResult::None) => {
-                let instructions = result.instructions().unwrap_or(vec![instruction]);
+                let mut instructions = result.instructions().unwrap_or(vec![instruction]);
+                assert!(!instructions.is_empty(), "`SimplifyResult::SimplifiedToInstructionMultiple` must not return empty vector");
 
                 if instructions.len() > 1 {
                     // There's currently no way to pass results from one instruction in `instructions` on to the next.
@@ -196,17 +227,22 @@ impl DataFlowGraph {
                     );
                 }
 
-                let mut last_id = None;
-
+                // Pull off the last instruction as we want to return its results.
+                let last_instruction = instructions.pop().expect("`instructions` can't be empty");
                 for instruction in instructions {
-                    let id = self.make_instruction(instruction, ctrl_typevars.clone());
-                    self.blocks[block].insert_instruction(id);
-                    self.locations.insert(id, call_stack);
-                    last_id = Some(id);
+                    self.insert_instruction_without_simplification(
+                        instruction,
+                        block,
+                        ctrl_typevars.clone(),
+                        call_stack,
+                    );
                 }
-
-                let id = last_id.expect("There should be at least 1 simplified instruction");
-                InsertInstructionResult::Results(id, self.instruction_results(id))
+                self.insert_instruction_and_results_without_simplification(
+                    last_instruction,
+                    block,
+                    ctrl_typevars,
+                    call_stack,
+                )
             }
         }
     }
