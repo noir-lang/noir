@@ -91,26 +91,26 @@ pub fn static_assert<let N: u32>(predicate: bool, message: str<N>) {}
 
 pub fn wrapping_add<T>(x: T, y: T) -> T
 where
-    T: convert::Into<Field> + convert::UnsafeFromField,
+    T: convert::Into<Field> + convert::CastFromField,
 {
-    T::unsafe_from_field(x.into() + y.into())
+    T::cast_from_field(x.into() + y.into())
 }
 
 pub fn wrapping_sub<T>(x: T, y: T) -> T
 where
-    T: convert::Into<Field> + convert::UnsafeFromField,
+    T: convert::Into<Field> + convert::CastFromField,
 {
     //340282366920938463463374607431768211456 is 2^128, it is used to avoid underflow
-    T::unsafe_from_field(
+    T::cast_from_field(
         x.into() + 340282366920938463463374607431768211456 - y.into(),
     )
 }
 
 pub fn wrapping_mul<T>(x: T, y: T) -> T
 where
-    T: convert::Into<Field> + convert::UnsafeFromField,
+    T: convert::Into<Field> + convert::CastFromField,
 {
-    T::unsafe_from_field(x.into() * y.into())
+    T::cast_from_field(x.into() * y.into())
 }
 
 #[builtin(as_witness)]

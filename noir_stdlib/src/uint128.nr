@@ -153,9 +153,9 @@ impl U128 {
 
     pub fn to_integer<T>(self) -> T
     where
-        T: super::convert::UnsafeFromField,
+        T: super::convert::CastFromField,
     {
-        T::unsafe_from_field(self.lo + self.hi * pow64)
+        T::cast_from_field(self.lo + self.hi * pow64)
     }
 
     fn wrapping_mul(self: Self, b: U128) -> U128 {
