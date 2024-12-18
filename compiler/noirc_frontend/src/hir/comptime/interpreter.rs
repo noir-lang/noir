@@ -1,4 +1,4 @@
-use std::collections::{HashSet, VecDeque};
+use std::collections::VecDeque;
 use std::{collections::hash_map::Entry, rc::Rc};
 
 use acvm::blackbox_solver::BigIntSolverWithId;
@@ -20,7 +20,7 @@ use crate::monomorphization::{
     perform_impl_bindings, perform_instantiation_bindings, resolve_trait_method,
     undo_instantiation_bindings,
 };
-use crate::node_interner::GlobalId;
+use crate::node_interner::GlobalValue;
 use crate::token::{FmtStrFragment, Tokens};
 use crate::TypeVariable;
 use crate::{
@@ -67,12 +67,6 @@ pub struct Interpreter<'local, 'interner> {
 
     /// Stateful bigint calculator.
     bigint_solver: BigIntSolverWithId,
-
-    /// Globals currently being interpreted, to detect recursive cycles.
-    /// Note that recursive cycles are also detected by NodeInterner,
-    /// it's just that the error message there happens after we evaluate globals:
-    /// if we don't detect cycles here too the program will stack overflow.
-    globals_being_interpreted: HashSet<GlobalId>,
 }
 
 #[allow(unused)]
@@ -89,7 +83,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             bound_generics: Vec::new(),
             in_loop: false,
             bigint_solver: BigIntSolverWithId::default(),
-            globals_being_interpreted: HashSet::new(),
         }
     }
 
@@ -578,29 +571,35 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 // Avoid resetting the value if it is already known
                 let global_id = *global_id;
                 let global_info = self.elaborator.interner.get_global(global_id);
-                if let Some(value) = &global_info.value {
-                    Ok(value.clone())
-                } else if self.globals_being_interpreted.contains(&global_id) {
-                    let location = self.elaborator.interner.expr_location(&id);
-                    Err(InterpreterError::GlobalsDependencyCycle { location })
-                } else {
-                    let let_ =
-                        self.elaborator.interner.get_global_let_statement(global_id).ok_or_else(
-                            || {
+                let global_crate_id = global_info.crate_id;
+                match &global_info.value {
+                    GlobalValue::Resolved(value) => Ok(value.clone()),
+                    GlobalValue::Resolving => {
+                        let location = self.elaborator.interner.expr_location(&id);
+                        Err(InterpreterError::GlobalsDependencyCycle { location })
+                    }
+                    GlobalValue::Unresolved => {
+                        let let_ = self
+                            .elaborator
+                            .interner
+                            .get_global_let_statement(global_id)
+                            .ok_or_else(|| {
                                 let location = self.elaborator.interner.expr_location(&id);
                                 InterpreterError::VariableNotInScope { location }
-                            },
-                        )?;
+                            })?;
 
-                    if let_.runs_comptime() || global_info.crate_id != self.crate_id {
-                        self.globals_being_interpreted.insert(global_id);
-                        self.evaluate_let(let_.clone())?;
-                        self.globals_being_interpreted.remove(&global_id);
+                        self.elaborator.interner.get_global_mut(global_id).value =
+                            GlobalValue::Resolving;
+
+                        if let_.runs_comptime() || global_crate_id != self.crate_id {
+                            self.evaluate_let(let_.clone())?;
+                        }
+
+                        let value = self.lookup(&ident)?;
+                        self.elaborator.interner.get_global_mut(global_id).value =
+                            GlobalValue::Resolved(value.clone());
+                        Ok(value)
                     }
-
-                    let value = self.lookup(&ident)?;
-                    self.elaborator.interner.get_global_mut(global_id).value = Some(value.clone());
-                    Ok(value)
                 }
             }
             DefinitionKind::NumericGeneric(type_variable, numeric_typ) => {

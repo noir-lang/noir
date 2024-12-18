@@ -28,8 +28,8 @@ use crate::{
         traits::{NamedType, ResolvedTraitBound, Trait, TraitConstraint},
     },
     node_interner::{
-        DependencyId, ExprId, ImplSearchErrorKind, NodeInterner, TraitId, TraitImplKind,
-        TraitMethodId,
+        DependencyId, ExprId, GlobalValue, ImplSearchErrorKind, NodeInterner, TraitId,
+        TraitImplKind, TraitMethodId,
     },
     token::SecondaryAttribute,
     Generics, Kind, ResolvedGeneric, Type, TypeBinding, TypeBindings, UnificationError,
@@ -426,7 +426,8 @@ impl<'context> Elaborator<'context> {
                 let rhs = stmt.expression;
                 let span = self.interner.expr_span(&rhs);
 
-                let Some(global_value) = &self.interner.get_global(id).value else {
+                let GlobalValue::Resolved(global_value) = &self.interner.get_global(id).value
+                else {
                     self.push_err(ResolverError::UnevaluatedGlobalType { span });
                     return None;
                 };
