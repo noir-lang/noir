@@ -173,3 +173,62 @@ impl CastFromField for Field {
         input
     }
 }
+
+pub(crate) trait CastToField {
+    fn cast_to_field(input: Self) -> Field;
+}
+
+impl CastToField for u8 {
+    fn cast_to_field(input: u8) -> Field {
+        input as Field
+    }
+}
+
+impl CastToField for u16 {
+    fn cast_to_field(input: u16) -> Field {
+        input as Field
+    }
+}
+
+impl CastToField for u32 {
+    fn cast_to_field(input: u32) -> Field {
+        input as Field
+    }
+}
+
+impl CastToField for u64 {
+    fn cast_to_field(input: u64) -> Field {
+        input as Field
+    }
+}
+
+impl CastToField for i8 {
+    fn cast_to_field(input: i8) -> Field {
+        input as Field
+    }
+}
+
+impl CastToField for i16 {
+    fn cast_to_field(input: i16) -> Field {
+        input as Field
+    }
+}
+
+impl CastToField for i32 {
+    fn cast_to_field(input: i32) -> Field {
+        input as Field
+    }
+}
+
+impl CastToField for i64 {
+    fn cast_to_field(input: i64) -> Field {
+        input as Field
+    }
+}
+
+impl CastToField for Field {
+    fn cast_to_field(input: Field) -> Field {
+        input
+    }
+}
+
