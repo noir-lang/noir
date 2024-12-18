@@ -97,7 +97,7 @@ impl std::fmt::Display for LabelType {
 ///
 /// It is assumed that an entity will keep a map
 /// of labels to Opcode locations.
-#[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub(crate) struct Label {
     pub(crate) label_type: LabelType,
     pub(crate) section: Option<usize>,
