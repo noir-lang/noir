@@ -2,6 +2,7 @@ use crate::ssa::{function_builder::data_bus::DataBus, ir::instruction::SimplifyR
 
 use super::{
     basic_block::{BasicBlock, BasicBlockId},
+    call_stack::{CallStack, CallStackHelper, CallStackId},
     instruction::{
         insert_result::InsertInstructionResult, Instruction, InstructionId, InstructionResultType,
         TerminatorInstruction,
@@ -28,8 +29,8 @@ pub(crate) struct DataFlowGraph {
     instructions: DenseMap<Instruction>,
 
     /// Contains each foreign function that has been imported into the current function.
-    /// This map is used to ensure that the ValueId for any given foreign function is always
-    /// represented by only 1 ValueId within this function.
+    /// This map is used to ensure that the Value for any given foreign function is always
+    /// represented by only 1 Value within this function.
     #[serde(skip)]
     foreign_functions: ForeignFunctions,
 
@@ -51,13 +52,13 @@ pub(crate) struct DataFlowGraph {
     /// Instructions inserted by internal SSA passes that don't correspond to user code
     /// may not have a corresponding location.
     #[serde(skip)]
-    locations: HashMap<InstructionId, CallStack>,
+    locations: HashMap<InstructionId, CallStackId>,
+
+    pub(crate) call_stack_data: CallStackHelper,
 
     #[serde(skip)]
     pub(crate) data_bus: DataBus,
 }
-
-pub(crate) type CallStack = super::list::List<Location>;
 
 impl DataFlowGraph {
     /// Creates a new basic block with no parameters.
@@ -107,14 +108,39 @@ impl DataFlowGraph {
         self.instructions.insert(instruction_data)
     }
 
+    fn insert_instruction_without_simplification(
+        &mut self,
+        instruction_data: Instruction,
+        block: BasicBlockId,
+        call_stack: CallStackId,
+    ) -> InstructionId {
+        let id = self.make_instruction(instruction_data);
+        self.blocks[block].insert_instruction(id);
+        self.locations.insert(id, call_stack);
+        id
+    }
+
+    pub(crate) fn insert_instruction_and_results_without_simplification(
+        &mut self,
+        instruction_data: Instruction,
+        block: BasicBlockId,
+        call_stack: CallStackId,
+    ) -> InsertInstructionResult {
+        let result_count = instruction_data.result_count();
+        let id =
+            self.insert_instruction_without_simplification(instruction_data, block, call_stack);
+
+        InsertInstructionResult::Results { id, result_count }
+    }
+
     /// Inserts a new instruction at the end of the given block and returns its results
     pub(crate) fn insert_instruction_and_results(
         &mut self,
         instruction: Instruction,
         block: BasicBlockId,
-        call_stack: CallStack,
+        call_stack: CallStackId,
     ) -> InsertInstructionResult {
-        match instruction.simplify(self, block, &call_stack) {
+        match instruction.simplify(self, block, call_stack) {
             SimplifyResult::SimplifiedTo(simplification) => {
                 InsertInstructionResult::SimplifiedTo(simplification)
             }
@@ -140,7 +166,7 @@ impl DataFlowGraph {
                     last_count = instruction.result_count();
                     let id = self.make_instruction(instruction);
                     self.blocks[block].insert_instruction(id);
-                    self.locations.insert(id, call_stack.clone());
+                    self.locations.insert(id, call_stack);
                     last_id = Some(id);
                 }
 
@@ -153,7 +179,7 @@ impl DataFlowGraph {
 
                 let id = self.make_instruction(instruction);
                 self.blocks[block].insert_instruction(id);
-                self.locations.insert(id, call_stack.clone());
+                self.locations.insert(id, call_stack);
 
                 InsertInstructionResult::Results { id, result_count }
             }
@@ -163,8 +189,8 @@ impl DataFlowGraph {
     /// Set the value of value_to_replace to refer to the value referred to by new_value.
     ///
     /// This is the preferred method to call for optimizations simplifying
-    /// values since other instructions referring to the same ValueId need
-    /// not be modified to refer to a new ValueId.
+    /// values since other instructions referring to the same Value need
+    /// not be modified to refer to a new Value.
     pub(crate) fn replace_value(&mut self, value_to_replace: Value, new_value: Value) {
         if value_to_replace != new_value {
             self.replaced_values.insert(value_to_replace, self.resolve(new_value));
@@ -172,8 +198,8 @@ impl DataFlowGraph {
     }
 
     /// If `original_value_id`'s underlying `Value` has been substituted for that of another
-    /// `ValueId`, this function will return the `ValueId` from which the substitution was taken.
-    /// If `original_value_id`'s underlying `Value` has not been substituted, the same `ValueId`
+    /// `Value`, this function will return the `Value` from which the substitution was taken.
+    /// If `original_value_id`'s underlying `Value` has not been substituted, the same `Value`
     /// is returned.
     pub(crate) fn resolve(&self, original_value_id: Value) -> Value {
         match self.replaced_values.get(&original_value_id) {
@@ -182,7 +208,7 @@ impl DataFlowGraph {
         }
     }
 
-    /// Gets or creates a ValueId for the given FunctionId.
+    /// Gets or creates a Value for the given FunctionId.
     pub(crate) fn import_foreign_function(&mut self, function: &str) -> Value {
         Value::ForeignFunction(self.foreign_functions.get_or_insert(function))
     }
@@ -267,7 +293,7 @@ impl DataFlowGraph {
         }
     }
 
-    /// Returns the Value::Array associated with this ValueId if it refers to an array constant.
+    /// Returns the Value::Array associated with this Value if it refers to an array constant.
     /// Otherwise, this returns None.
     pub(crate) fn get_array_constant(&self, value: Value) -> Option<(im::Vector<Value>, Type)> {
         match self.resolve(value) {
@@ -321,22 +347,45 @@ impl DataFlowGraph {
         destination.set_terminator(terminator);
     }
 
-    pub(crate) fn get_call_stack(&self, instruction: InstructionId) -> CallStack {
+    pub(crate) fn get_instruction_call_stack(&self, instruction: InstructionId) -> CallStack {
+        let call_stack = self.get_instruction_call_stack_id(instruction);
+        self.call_stack_data.get_call_stack(call_stack)
+    }
+
+    pub(crate) fn get_instruction_call_stack_id(&self, instruction: InstructionId) -> CallStackId {
         self.locations.get(&instruction).cloned().unwrap_or_default()
     }
 
-    pub(crate) fn add_location(&mut self, instruction: InstructionId, location: Location) {
-        self.locations.entry(instruction).or_default().push_back(location);
+    pub(crate) fn add_location_to_instruction(
+        &mut self,
+        instruction: InstructionId,
+        location: Location,
+    ) {
+        let call_stack = self.locations.entry(instruction).or_default();
+        *call_stack = self.call_stack_data.add_child(*call_stack, location);
+    }
+
+    pub(crate) fn get_call_stack(&self, call_stack: CallStackId) -> CallStack {
+        self.call_stack_data.get_call_stack(call_stack)
     }
 
     pub(crate) fn get_value_call_stack(&self, value: Value) -> CallStack {
         match self.resolve(value) {
-            Value::Instruction { instruction, .. } => self.get_call_stack(instruction),
+            Value::Instruction { instruction, .. } => self.get_instruction_call_stack(instruction),
             _ => CallStack::new(),
         }
     }
 
-    /// True if the given ValueId refers to a (recursively) constant value
+    pub(crate) fn get_value_call_stack_id(&self, value: Value) -> CallStackId {
+        match self.resolve(value) {
+            Value::Instruction { instruction, .. } => {
+                self.get_instruction_call_stack_id(instruction)
+            }
+            _ => CallStackId::root(),
+        }
+    }
+
+    /// True if the given Value refers to a (recursively) constant value
     pub(crate) fn is_constant(&self, argument: Value) -> bool {
         match self.resolve(argument) {
             Value::Param { .. } => false,

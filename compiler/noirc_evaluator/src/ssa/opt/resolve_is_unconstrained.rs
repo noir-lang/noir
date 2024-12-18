@@ -43,12 +43,12 @@ impl Function {
             }
         }
 
-        for instruction_id in &is_unconstrained_calls {
-            let original_return_id = Value::instruction_result(*instruction_id, 0);
+        let is_unconstrained = matches!(self.runtime(), RuntimeType::Brillig(_)).into();
+        let is_within_unconstrained = Value::constant(is_unconstrained, NumericType::bool());
 
-            let is_unconstrained = matches!(self.runtime(), RuntimeType::Brillig(_)).into();
-            let is_within_unconstrained = Value::constant(is_unconstrained, NumericType::bool());
+        for instruction_id in &is_unconstrained_calls {
             // Replace all uses of the original return value with the constant
+            let original_return_id = Value::instruction_result(*instruction_id, 0);
             self.dfg.replace_value(original_return_id, is_within_unconstrained);
         }
 

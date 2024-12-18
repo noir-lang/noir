@@ -1,5 +1,5 @@
 use super::{
-    dfg::CallStack,
+    call_stack::CallStackId,
     instruction::{InstructionId, TerminatorInstruction},
     map::Id,
     types::Type,
@@ -129,7 +129,7 @@ impl BasicBlock {
             terminator,
             TerminatorInstruction::Return {
                 return_values: Vec::new(),
-                call_stack: CallStack::new(),
+                call_stack: CallStackId::root(),
             },
         )
     }

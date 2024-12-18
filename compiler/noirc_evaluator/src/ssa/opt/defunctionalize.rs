@@ -147,7 +147,7 @@ impl DefunctionalizationContext {
             }
 
             // Then replace the terminator values
-            func.dfg[block_id].unwrap_terminator_mut().mutate_values(Self::function_to_field);
+            func.dfg[block_id].unwrap_terminator_mut().map_values_mut(Self::function_to_field);
         }
     }
 

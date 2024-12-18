@@ -86,13 +86,16 @@ impl Context {
                 let instruction = old_function.dfg[old_instruction_id]
                     .map_values(|value| self.new_ids.map_value(new_function, old_function, value));
 
-                let call_stack = old_function.dfg.get_call_stack(old_instruction_id);
+                let call_stack = old_function.dfg.get_instruction_call_stack_id(old_instruction_id);
+                let locations = old_function.dfg.get_call_stack(call_stack);
+                let new_call_stack =
+                    new_function.dfg.call_stack_data.get_or_insert_locations(locations);
                 let old_results = old_function.dfg.instruction_results(old_instruction_id);
 
                 let new_results = new_function.dfg.insert_instruction_and_results(
                     instruction,
                     new_block_id,
-                    call_stack,
+                    new_call_stack,
                 );
 
                 assert_eq!(old_results.len() as u32, new_results.len());
@@ -103,10 +106,15 @@ impl Context {
             }
 
             let old_block = &mut old_function.dfg[old_block_id];
-            let mut terminator = old_block
-                .take_terminator()
-                .map_values(|value| self.new_ids.map_value(new_function, old_function, value));
+            let mut terminator = old_block.take_terminator();
+            terminator
+                .map_values_mut(|value| self.new_ids.map_value(new_function, old_function, value));
+
             terminator.mutate_blocks(|old_block| self.new_ids.blocks[&old_block]);
+            let locations = old_function.dfg.get_call_stack(terminator.call_stack());
+            let new_call_stack =
+                new_function.dfg.call_stack_data.get_or_insert_locations(locations);
+            terminator.set_call_stack(new_call_stack);
             new_function.dfg.set_block_terminator(new_block_id, terminator);
         }
 

@@ -2,11 +2,12 @@ use std::sync::Arc;
 
 use acvm::{acir::AcirField, BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 
+use crate::ssa::ir::call_stack::CallStackId;
 use crate::ssa::ir::instruction::BlackBoxFunc;
 use crate::ssa::ir::types::NumericType;
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
-    dfg::{CallStack, DataFlowGraph},
+    dfg::DataFlowGraph,
     instruction::{Instruction, Intrinsic, SimplifyResult},
     types::Type,
     value::Value,
@@ -19,7 +20,7 @@ pub(super) fn simplify_ec_add(
     solver: impl BlackBoxFunctionSolver<FieldElement>,
     arguments: &[Value],
     block: BasicBlockId,
-    call_stack: &CallStack,
+    call_stack: CallStackId,
 ) -> SimplifyResult {
     match (
         dfg.get_numeric_constant(arguments[0]),
@@ -57,8 +58,7 @@ pub(super) fn simplify_ec_add(
 
             let elements = im::vector![result_x, result_y, result_is_infinity];
             let instruction = Instruction::MakeArray { elements, typ };
-            let result_array =
-                dfg.insert_instruction_and_results(instruction, block, call_stack.clone());
+            let result_array = dfg.insert_instruction_and_results(instruction, block, call_stack);
 
             SimplifyResult::SimplifiedTo(result_array.first())
         }
@@ -72,7 +72,7 @@ pub(super) fn simplify_msm(
     arguments: &[Value],
     result_types: &[Type],
     block: BasicBlockId,
-    call_stack: &CallStack,
+    call_stack: CallStackId,
 ) -> SimplifyResult {
     let mut is_constant;
 
@@ -155,7 +155,7 @@ pub(super) fn simplify_msm(
                 let typ = Type::Array(Arc::new(vec![Type::field()]), 3);
                 let instruction = Instruction::MakeArray { elements, typ };
                 let result_array =
-                    dfg.insert_instruction_and_results(instruction, block, call_stack.clone());
+                    dfg.insert_instruction_and_results(instruction, block, call_stack);
 
                 return SimplifyResult::SimplifiedTo(result_array.first());
             }
@@ -183,12 +183,10 @@ pub(super) fn simplify_msm(
             // Construct the simplified MSM expression
             let typ = Type::Array(Arc::new(vec![Type::field()]), var_scalars.len() as u32);
             let scalars = Instruction::MakeArray { elements: var_scalars.into(), typ };
-            let scalars =
-                dfg.insert_instruction_and_results(scalars, block, call_stack.clone()).first();
+            let scalars = dfg.insert_instruction_and_results(scalars, block, call_stack).first();
             let typ = Type::Array(Arc::new(vec![Type::field()]), var_points.len() as u32);
             let points = Instruction::MakeArray { elements: var_points.into(), typ };
-            let points =
-                dfg.insert_instruction_and_results(points, block, call_stack.clone()).first();
+            let points = dfg.insert_instruction_and_results(points, block, call_stack).first();
             let msm = Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul));
 
             SimplifyResult::SimplifiedToInstruction(Instruction::Call {
@@ -206,7 +204,7 @@ pub(super) fn simplify_poseidon2_permutation(
     solver: impl BlackBoxFunctionSolver<FieldElement>,
     arguments: &[Value],
     block: BasicBlockId,
-    call_stack: &CallStack,
+    call_stack: CallStackId,
 ) -> SimplifyResult {
     match (dfg.get_array_constant(arguments[0]), dfg.get_numeric_constant(arguments[1])) {
         (Some((state, _)), Some(state_length)) if array_is_constant(dfg, &state) => {
@@ -241,7 +239,7 @@ pub(super) fn simplify_hash(
     arguments: &[Value],
     hash_function: fn(&[u8]) -> Result<[u8; 32], BlackBoxResolutionError>,
     block: BasicBlockId,
-    call_stack: &CallStack,
+    call_stack: CallStackId,
 ) -> SimplifyResult {
     match dfg.get_array_constant(arguments[0]) {
         Some((input, _)) if array_is_constant(dfg, &input) => {

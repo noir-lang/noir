@@ -3,7 +3,8 @@ use fxhash::{FxHashMap as HashMap, FxHashSet};
 
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
-    dfg::{CallStack, DataFlowGraph},
+    call_stack::CallStackId,
+    dfg::DataFlowGraph,
     instruction::insert_result::InsertInstructionResult,
     instruction::{BinaryOp, Instruction},
     types::Type,
@@ -22,7 +23,7 @@ pub(crate) struct ValueMerger<'a> {
 
     array_set_conditionals: &'a mut HashMap<Value, Value>,
 
-    call_stack: CallStack,
+    call_stack: CallStackId,
 }
 
 impl<'a> ValueMerger<'a> {
@@ -32,7 +33,7 @@ impl<'a> ValueMerger<'a> {
         slice_sizes: &'a mut HashMap<Value, u32>,
         array_set_conditionals: &'a mut HashMap<Value, Value>,
         current_condition: Option<Value>,
-        call_stack: CallStack,
+        call_stack: CallStackId,
     ) -> Self {
         ValueMerger {
             dfg,
@@ -107,25 +108,23 @@ impl<'a> ValueMerger<'a> {
             return then_value;
         }
 
-        let then_call_stack = dfg.get_value_call_stack(then_value);
-        let else_call_stack = dfg.get_value_call_stack(else_value);
+        let then_call_stack = dfg.get_value_call_stack_id(then_value);
+        let else_call_stack = dfg.get_value_call_stack_id(else_value);
 
-        let call_stack = if then_call_stack.is_empty() { else_call_stack } else { then_call_stack };
+        let call_stack = if then_call_stack.is_root() { else_call_stack } else { then_call_stack };
 
         // We must cast the bool conditions to the actual numeric type used by each value.
         let cast = Instruction::Cast(then_condition, then_type);
-        let then_condition =
-            dfg.insert_instruction_and_results(cast, block, call_stack.clone()).first();
+        let then_condition = dfg.insert_instruction_and_results(cast, block, call_stack).first();
 
         let cast = Instruction::Cast(else_condition, else_type);
-        let else_condition =
-            dfg.insert_instruction_and_results(cast, block, call_stack.clone()).first();
+        let else_condition = dfg.insert_instruction_and_results(cast, block, call_stack).first();
 
         let mul = Instruction::binary(BinaryOp::Mul, then_condition, then_value);
-        let then_value = dfg.insert_instruction_and_results(mul, block, call_stack.clone()).first();
+        let then_value = dfg.insert_instruction_and_results(mul, block, call_stack).first();
 
         let mul = Instruction::binary(BinaryOp::Mul, else_condition, else_value);
-        let else_value = dfg.insert_instruction_and_results(mul, block, call_stack.clone()).first();
+        let else_value = dfg.insert_instruction_and_results(mul, block, call_stack).first();
 
         let add = Instruction::binary(BinaryOp::Add, then_value, else_value);
         dfg.insert_instruction_and_results(add, block, call_stack).first()
@@ -171,7 +170,7 @@ impl<'a> ValueMerger<'a> {
                     let result_type = element_type.clone();
                     let get = Instruction::ArrayGet { array, index, result_type };
                     self.dfg
-                        .insert_instruction_and_results(get, self.block, self.call_stack.clone())
+                        .insert_instruction_and_results(get, self.block, self.call_stack)
                         .first()
                 };
 
@@ -188,8 +187,7 @@ impl<'a> ValueMerger<'a> {
         }
 
         let instruction = Instruction::MakeArray { elements: merged, typ };
-        let call_stack = self.call_stack.clone();
-        self.dfg.insert_instruction_and_results(instruction, self.block, call_stack).first()
+        self.dfg.insert_instruction_and_results(instruction, self.block, self.call_stack).first()
     }
 
     fn merge_slice_values(
@@ -238,11 +236,7 @@ impl<'a> ValueMerger<'a> {
                         let result_type = element_type.clone();
                         let get = Instruction::ArrayGet { array, index, result_type };
                         self.dfg
-                            .insert_instruction_and_results(
-                                get,
-                                self.block,
-                                self.call_stack.clone(),
-                            )
+                            .insert_instruction_and_results(get, self.block, self.call_stack)
                             .first()
                     }
                 };
@@ -261,8 +255,7 @@ impl<'a> ValueMerger<'a> {
         }
 
         let instruction = Instruction::MakeArray { elements: merged, typ };
-        let call_stack = self.call_stack.clone();
-        self.dfg.insert_instruction_and_results(instruction, self.block, call_stack).first()
+        self.dfg.insert_instruction_and_results(instruction, self.block, self.call_stack).first()
     }
 
     /// Construct a dummy value to be attached to the smaller of two slices being merged.
@@ -280,7 +273,7 @@ impl<'a> ValueMerger<'a> {
                     }
                 }
                 let instruction = Instruction::MakeArray { elements: array, typ: typ.clone() };
-                let call_stack = self.call_stack.clone();
+                let call_stack = self.call_stack;
                 self.dfg.insert_instruction_and_results(instruction, self.block, call_stack).first()
             }
             Type::Slice(_) => {
@@ -369,9 +362,7 @@ impl<'a> ValueMerger<'a> {
 
             let mut get_element = |array, result_type| {
                 let get = Instruction::ArrayGet { array, index, result_type };
-                self.dfg
-                    .insert_instruction_and_results(get, self.block, self.call_stack.clone())
-                    .first()
+                self.dfg.insert_instruction_and_results(get, self.block, self.call_stack).first()
             };
 
             let then_element = get_element(then_value, element_type.clone());
@@ -389,7 +380,7 @@ impl<'a> ValueMerger<'a> {
     }
 
     fn insert_instruction(&mut self, instruction: Instruction) -> InsertInstructionResult {
-        self.dfg.insert_instruction_and_results(instruction, self.block, self.call_stack.clone())
+        self.dfg.insert_instruction_and_results(instruction, self.block, self.call_stack)
     }
 
     fn insert_array_set(
@@ -400,11 +391,8 @@ impl<'a> ValueMerger<'a> {
         condition: Option<Value>,
     ) -> InsertInstructionResult {
         let instruction = Instruction::ArraySet { array, index, value, mutable: false };
-        let result = self.dfg.insert_instruction_and_results(
-            instruction,
-            self.block,
-            self.call_stack.clone(),
-        );
+        let result =
+            self.dfg.insert_instruction_and_results(instruction, self.block, self.call_stack);
 
         if let Some(condition) = condition {
             self.array_set_conditionals.insert(result.first(), condition);

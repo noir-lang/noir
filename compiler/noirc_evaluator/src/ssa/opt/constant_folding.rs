@@ -315,7 +315,7 @@ impl<'brillig> Context<'brillig> {
                     if matches!(instruction, Instruction::MakeArray { .. }) {
                         let value = *cached.last().unwrap();
                         let inc_rc = Instruction::IncrementRc { value };
-                        let call_stack = dfg.get_call_stack(id);
+                        let call_stack = dfg.get_instruction_call_stack_id(id);
                         dfg.insert_instruction_and_results(inc_rc, block, call_stack);
                     }
 
@@ -371,7 +371,7 @@ impl<'brillig> Context<'brillig> {
         dom: &mut DominatorTree,
         constraint_simplification_mapping: &HashMap<Value, SimplificationCache>,
     ) -> Instruction {
-        let instruction = dfg[instruction_id].clone();
+        let mut instruction = dfg[instruction_id].clone();
 
         // Alternate between resolving `value_id` in the `dfg` and checking to see if the resolved value
         // has been constrained to be equal to some simpler value in the current block.
@@ -399,9 +399,10 @@ impl<'brillig> Context<'brillig> {
         }
 
         // Resolve any inputs to ensure that we're comparing like-for-like instructions.
-        instruction.map_values(|value_id| {
+        instruction.map_values_mut(|value_id| {
             resolve_cache(block, dfg, dom, constraint_simplification_mapping, value_id)
-        })
+        });
+        instruction
     }
 
     /// Pushes a new [`Instruction`] into the [`DataFlowGraph`] which applies any optimizations
@@ -415,7 +416,7 @@ impl<'brillig> Context<'brillig> {
         block: BasicBlockId,
         dfg: &mut DataFlowGraph,
     ) -> Vec<Value> {
-        let call_stack = dfg.get_call_stack(id);
+        let call_stack = dfg.get_instruction_call_stack_id(id);
         let new_results = match dfg.insert_instruction_and_results(instruction, block, call_stack) {
             InsertInstructionResult::SimplifiedTo(new_result) => vec![new_result],
             InsertInstructionResult::SimplifiedToMultiple(new_results) => new_results,
@@ -424,9 +425,9 @@ impl<'brillig> Context<'brillig> {
                 (0..result_count).map(|position| Value::instruction_result(id, position)).collect()
             }
         };
+
         // Optimizations while inserting the instruction should not change the number of results.
         assert_eq!(old_result_count, new_results.len());
-
         new_results
     }
 

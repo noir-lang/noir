@@ -109,7 +109,7 @@ fn check_for_constant_jmpif(
             };
 
             let arguments = Vec::new();
-            let call_stack = call_stack.clone();
+            let call_stack = *call_stack;
             let jmp = TerminatorInstruction::Jmp { destination, arguments, call_stack };
             function.dfg[block].set_terminator(jmp);
             cfg.recompute_block(function, block);
@@ -221,12 +221,11 @@ fn check_for_negated_jmpif_condition(
     }) = function.dfg[block].terminator()
     {
         if let Instruction::Not(negated_condition) = function.dfg[*instruction] {
-            let call_stack = call_stack.clone();
             let jmpif = TerminatorInstruction::JmpIf {
                 condition: negated_condition,
                 then_destination: *else_destination,
                 else_destination: *then_destination,
-                call_stack,
+                call_stack: *call_stack,
             };
             function.dfg[block].set_terminator(jmpif);
             cfg.recompute_block(function, block);
