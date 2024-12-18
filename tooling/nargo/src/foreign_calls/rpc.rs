@@ -223,7 +223,7 @@ mod tests {
         Ok(url)
     }
 
-    #[tokio::test(flavor = "multi_thread")]
+    #[tokio::test]
     async fn test_oracle_resolver_echo() -> std::io::Result<()> {
         let url = build_oracle_server().await?;
 
@@ -240,7 +240,7 @@ mod tests {
         Ok(())
     }
 
-    #[tokio::test(flavor = "multi_thread")]
+    #[tokio::test]
     async fn test_oracle_resolver_sum() -> std::io::Result<()> {
         let url = build_oracle_server().await?;
 
@@ -257,7 +257,7 @@ mod tests {
         Ok(())
     }
 
-    #[tokio::test(flavor = "multi_thread")]
+    #[tokio::test]
     async fn foreign_call_executor_id_is_persistent() -> std::io::Result<()> {
         let url = build_oracle_server().await?;
 
@@ -273,7 +273,7 @@ mod tests {
         Ok(())
     }
 
-    #[tokio::test(flavor = "multi_thread")]
+    #[tokio::test]
     async fn oracle_resolver_rpc_can_distinguish_executors() -> std::io::Result<()> {
         let url = build_oracle_server().await?;
 

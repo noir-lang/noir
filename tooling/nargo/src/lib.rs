@@ -9,10 +9,16 @@
 
 pub mod constants;
 pub mod errors;
-pub mod foreign_calls;
 pub mod ops;
 pub mod package;
 pub mod workspace;
+
+#[cfg(feature = "execute")]
+pub mod foreign_calls;
+
+pub use self::errors::NargoError;
+#[cfg(feature = "execute")]
+pub use self::foreign_calls::print::PrintOutput;
 
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
@@ -28,9 +34,6 @@ use noirc_frontend::{
 use package::{Dependency, Package};
 use rayon::prelude::*;
 use walkdir::WalkDir;
-
-pub use self::errors::NargoError;
-pub use self::foreign_calls::print::PrintOutput;
 
 pub fn prepare_dependencies(
     context: &mut Context,
