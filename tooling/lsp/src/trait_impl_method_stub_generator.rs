@@ -368,8 +368,6 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                 self.append_type(right);
             }
             Type::CheckedCast { to, .. } => self.append_type(to),
-            Type::Constant(..)
-            // TODO: is this exception needed for FieldElement?
             Type::Integer(_, num_bits) => {
                 if num_bits.is_field_element_bits() {
                     self.string.push_str("Field")
@@ -377,7 +375,8 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                     self.string.push_str(&typ.to_string())
                 }
             }
-            Type::String(_)
+            Type::Constant(..)
+            | Type::String(_)
             | Type::FmtString(_, _)
             | Type::Quoted(_)
             | Type::Error => self.string.push_str(&typ.to_string()),

@@ -1049,9 +1049,10 @@ impl Type {
         }
     }
 
-    pub fn is_signed(&self) -> bool {
-        matches!(self.follow_bindings(), Type::Integer(Signedness::Signed, _))
-    }
+    // TODO unused
+    // pub fn is_signed(&self) -> bool {
+    //     matches!(self.follow_bindings(), Type::Integer(Signedness::Signed, _))
+    // }
 
     pub fn is_unsigned(&self) -> bool {
         matches!(self.follow_bindings(), Type::Integer(Signedness::Unsigned, _))
@@ -1064,7 +1065,7 @@ impl Type {
         use Type::*;
         match self.follow_bindings() {
             Integer(_, num_bits) => {
-                !num_bits.is_zero() && !num_bits.is_one()
+                !num_bits.is_zero()
             },
             TypeVariable(var) => match &*var.borrow() {
                 TypeBinding::Bound(typ) => typ.is_numeric_value(),
@@ -1444,6 +1445,10 @@ impl Type {
         let this = self.substitute(bindings).follow_bindings();
         match &this {
             Type::Integer(_, num_bits) => {
+
+                // TODO cleanup
+                dbg!("try_bind_to_polymorphic_int", self.kind(), &this, only_integer);
+
                 if num_bits.is_field_element_bits() {
                     if only_integer {
                         return Err(UnificationError);
@@ -1451,6 +1456,13 @@ impl Type {
                         bindings.insert(target_id, (var.clone(), Kind::IntegerOrField, this));
                         return Ok(());
                     }
+                }
+
+                // can't bind () to a polymorphic int
+                // // TODO: likely need to error somewhere else
+                // if num_bits.is_zero() {
+                if num_bits.is_zero() {
+                    return Err(UnificationError)
                 }
 
                 bindings.insert(target_id, (var.clone(), Kind::Integer, this));
@@ -1600,7 +1612,11 @@ impl Type {
                 TypeBinding::Bound(typ) => {
                     if typ.is_numeric_value() {
                         other.try_unify_to_type_variable(var, bindings, |bindings| {
-                            let only_integer = matches!(typ, Type::Integer(..));
+                            let only_integer = typ.is_integer();
+
+                            // TODO cleanup
+                            dbg!("try_bind_to_polymorphic_int: bound", &other, &var, only_integer);
+
                             other.try_bind_to_polymorphic_int(var, bindings, only_integer)
                         })
                     } else {
@@ -1612,11 +1628,19 @@ impl Type {
                 TypeBinding::Unbound(_id, Kind::IntegerOrField) => other
                     .try_unify_to_type_variable(var, bindings, |bindings| {
                         let only_integer = false;
+
+                        // TODO cleanup
+                        dbg!("try_bind_to_polymorphic_int: unbound int-or-field", &other, &var, only_integer);
+
                         other.try_bind_to_polymorphic_int(var, bindings, only_integer)
                     }),
                 TypeBinding::Unbound(_id, Kind::Integer) => {
                     other.try_unify_to_type_variable(var, bindings, |bindings| {
                         let only_integer = true;
+
+                        // TODO cleanup
+                        dbg!("try_bind_to_polymorphic_int: unbound int", &other, &var, only_integer);
+
                         other.try_bind_to_polymorphic_int(var, bindings, only_integer)
                     })
                 }

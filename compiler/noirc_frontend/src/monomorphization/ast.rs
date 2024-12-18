@@ -295,13 +295,14 @@ pub struct Function {
 /// - All structs replaced with tuples
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum Type {
-    Field,
     Array(/*len:*/ u32, Box<Type>), // Array(4, Field) = [Field; 4]
-    Integer(Signedness, /*bits:*/ IntegerBitSize), // u32 = Integer(unsigned, ThirtyTwo)
+    // TODO
+    Unit,
     Bool,
+    Field,
+    Integer(Signedness, /*bits:*/ IntegerBitSize), // u32 = Integer(unsigned, ThirtyTwo)
     String(/*len:*/ u32), // String(4) = str[4]
     FmtString(/*len:*/ u32, Box<Type>),
-    Unit,
     Tuple(Vec<Type>),
     Slice(Box<Type>),
     MutableReference(Box<Type>),

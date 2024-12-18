@@ -1494,11 +1494,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     Ok(Value::Field(lhs))
                 }
                 (Signedness::Signed, IntegerBitSize::Zero) => {
-                    let location = interner.expr_location(&id);
-                    Err(InterpreterError::TypeUnsupported { typ: cast.r#type.clone(), location })
+                    let typ = typ.clone();
+                    Err(InterpreterError::TypeUnsupported { typ, location })
                 }
                 (Signedness::Signed, IntegerBitSize::One) => {
-                    Err(InterpreterError::TypeUnsupported { typ: typ.clone(), location })
+                    let typ = typ.clone();
+                    Err(InterpreterError::TypeUnsupported { typ, location })
                 }
                 (Signedness::Signed, IntegerBitSize::Eight) => cast_to_int!(lhs, to_i128, i8, I8),
                 (Signedness::Signed, IntegerBitSize::Sixteen) => {
@@ -1511,8 +1512,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     cast_to_int!(lhs, to_i128, i64, I64)
                 }
                 (Signedness::Signed, IntegerBitSize::FieldElementBits) => {
-                    let location = interner.expr_location(&id);
-                    Err(InterpreterError::TypeUnsupported { typ: cast.r#type.clone(), location })
+                    let typ = typ.clone();
+                    Err(InterpreterError::TypeUnsupported { typ, location })
                 }
             },
             typ => Err(InterpreterError::CastToNonNumericType { typ, location }),

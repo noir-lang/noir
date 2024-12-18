@@ -299,7 +299,7 @@ fn as_field(
     location: Location,
 ) -> IResult<Value> {
     let (value, value_location) = check_one_argument(arguments, location)?;
-    Interpreter::evaluate_cast_one_step(&Type::FieldElement, value_location, value, interner)
+    Interpreter::evaluate_cast_one_step(&Type::field_element(), value_location, value, interner)
 }
 
 fn as_slice(

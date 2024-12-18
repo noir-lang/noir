@@ -1392,6 +1392,10 @@ fn for_loop_over_array() {
         }
     "#;
     let errors = get_program_errors(src);
+
+    // TODO cleanup
+    dbg!(&errors);
+
     assert_eq!(errors.len(), 0);
 }
 
