@@ -141,9 +141,9 @@ impl U128 {
 
     pub fn from_integer<T>(i: T) -> U128
     where
-        T: super::convert::Into<Field>,
+        T: super::convert::CastToField,
     {
-        let f = i.into();
+        let f = i.cast_to_field();
         // Reject values which would overflow a u128
         f.assert_max_bit_size::<128>();
         let lo = f as u64 as Field;
