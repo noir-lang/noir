@@ -69,7 +69,7 @@ impl<H, I, F> Layer<H, I, F> {
 
 impl<H, F> Layer<H, Empty, F> {
     /// Create a layer from a handler.
-    /// If the handler doesn't handle a call, an empty response is returned.
+    /// If the handler doesn't handle a call, a default empty response is returned.
     pub fn or_empty(handler: H) -> Self {
         Self { handler, inner: Empty, _field: PhantomData }
     }
@@ -77,7 +77,7 @@ impl<H, F> Layer<H, Empty, F> {
 
 impl<H, F> Layer<H, Unhandled, F> {
     /// Create a layer from a handler.
-    /// If the handler doesn't handle a call, nothing will.
+    /// If the handler doesn't handle a call, `NoHandler` error is returned.
     pub fn or_unhandled(handler: H) -> Self {
         Self { handler, inner: Unhandled, _field: PhantomData }
     }
@@ -91,7 +91,7 @@ impl<F> Layer<Unhandled, Unhandled, F> {
 }
 
 impl<H, I, F> Layer<H, I, F> {
-    /// Compose layers.
+    /// Add another layer on top of this one.
     pub fn add_layer<J>(self, handler: J) -> Layer<J, Self, F> {
         Layer::new(handler, self)
     }
@@ -107,6 +107,8 @@ impl<H, I, F> Layer<H, I, F> {
 
 /// Compose handlers.
 pub trait Layering {
+    /// Layer an executor on top of this one.
+    /// The `other` executor will be called first.
     fn add_layer<L, F>(self, other: L) -> Layer<L, Self, F>
     where
         Self: Sized + ForeignCallExecutor<F>,
@@ -114,8 +116,6 @@ pub trait Layering {
 }
 
 impl<T> Layering for T {
-    /// Add an executor layer on top of this one.
-    /// The `other` layer will be called first.
     fn add_layer<L, F>(self, other: L) -> Layer<L, T, F>
     where
         T: Sized + ForeignCallExecutor<F>,
