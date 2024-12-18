@@ -421,9 +421,9 @@ impl<'brillig> Context<'brillig> {
             InsertInstructionResult::SimplifiedTo(new_result) => vec![new_result],
             InsertInstructionResult::SimplifiedToMultiple(new_results) => new_results,
             InsertInstructionResult::InstructionRemoved => vec![],
-            InsertInstructionResult::Results { id, result_count } => {
-                (0..result_count).map(|position| Value::instruction_result(id, position)).collect()
-            }
+            InsertInstructionResult::Results { id, result_count } => (0..result_count)
+                .map(|position| Value::instruction_result(id, position as u16))
+                .collect(),
         };
 
         // Optimizations while inserting the instruction should not change the number of results.

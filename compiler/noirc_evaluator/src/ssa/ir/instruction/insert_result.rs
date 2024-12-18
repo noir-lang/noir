@@ -47,7 +47,7 @@ impl InsertInstructionResult {
 
 pub(crate) struct InsertInstructionResultIter {
     results: InsertInstructionResult,
-    index: u32,
+    index: u16,
 }
 
 impl Iterator for InsertInstructionResultIter {
@@ -56,7 +56,7 @@ impl Iterator for InsertInstructionResultIter {
     fn next(&mut self) -> Option<Self::Item> {
         use InsertInstructionResult::*;
         match &self.results {
-            Results { id, result_count } if self.index < *result_count => {
+            Results { id, result_count } if (self.index as u32) < *result_count => {
                 let result = Value::Instruction { instruction: *id, position: self.index };
                 self.index += 1;
                 Some(result)
@@ -65,7 +65,7 @@ impl Iterator for InsertInstructionResultIter {
                 self.index += 1;
                 Some(*value)
             }
-            SimplifiedToMultiple(results) if self.index < results.len() as u32 => {
+            SimplifiedToMultiple(results) if self.index < results.len() as u16 => {
                 let result = results[self.index as usize];
                 self.index += 1;
                 Some(result)
@@ -83,6 +83,6 @@ impl Iterator for InsertInstructionResultIter {
 
 impl ExactSizeIterator for InsertInstructionResultIter {
     fn len(&self) -> usize {
-        (self.results.len() - self.index) as usize
+        (self.results.len() - self.index as u32) as usize
     }
 }

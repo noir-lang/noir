@@ -222,7 +222,7 @@ impl<'f> FunctionInserter<'f> {
             InsertInstructionResult::Results { id, result_count: _ } => {
                 for (i, old_result) in old_results.iter().enumerate() {
                     if !old_result.is_constant() {
-                        values.insert(*old_result, Value::instruction_result(*id, i as u32));
+                        values.insert(*old_result, Value::instruction_result(*id, i as u16));
                     }
                 }
             }

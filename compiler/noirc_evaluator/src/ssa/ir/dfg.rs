@@ -101,8 +101,8 @@ impl DataFlowGraph {
         &self,
         block: BasicBlockId,
     ) -> impl ExactSizeIterator<Item = Value> {
-        (0..self[block].parameter_types().len() as u32)
-            .map(move |position| Value::Param { block, position })
+        let parameter_count = self[block].parameter_types().len().try_into().unwrap();
+        (0..parameter_count).map(move |position| Value::Param { block, position })
     }
 
     /// Inserts a new instruction into the DFG.
@@ -269,7 +269,7 @@ impl DataFlowGraph {
         &self,
         instruction: InstructionId,
     ) -> impl ExactSizeIterator<Item = Value> {
-        let result_count = self[instruction].result_count();
+        let result_count: u16 = self[instruction].result_count().try_into().unwrap();
         (0..result_count).map(move |position| Value::Instruction { instruction, position })
     }
 

@@ -23,13 +23,13 @@ pub(crate) enum Value {
     /// Example, if you add two numbers together, then the resulting
     /// value would have position `0`, the typ would be the type
     /// of the operands, and the instruction would map to an add instruction.
-    Instruction { instruction: InstructionId, position: u32 },
+    Instruction { instruction: InstructionId, position: u16 },
 
     /// This Value originates from a block parameter. Since function parameters
     /// are also represented as block parameters, this includes function parameters as well.
     ///
     /// position -- the index of this Value in the block parameters list
-    Param { block: BasicBlockId, position: u32 },
+    Param { block: BasicBlockId, position: u16 },
 
     /// This Value originates from a numeric constant
     NumericConstant { constant: FieldElementId, typ: NumericType },
@@ -57,16 +57,16 @@ pub(crate) type ForeignFunctionId = Id<ForeignFunction>;
 pub(crate) type FieldElementId = Id<FieldElement>;
 
 impl Value {
-    pub(crate) fn block_param(block: BasicBlockId, position: u32) -> Self {
+    pub(crate) fn block_param(block: BasicBlockId, position: u16) -> Self {
         Self::Param { block, position }
     }
 
-    pub(crate) fn instruction_result(instruction: InstructionId, position: u32) -> Self {
+    pub(crate) fn instruction_result(instruction: InstructionId, position: u16) -> Self {
         Self::Instruction { instruction, position }
     }
 
     #[cfg(test)]
-    pub(crate) fn test_instruction_result(instruction: u32, position: u32) -> Self {
+    pub(crate) fn test_instruction_result(instruction: u32, position: u16) -> Self {
         Self::Instruction { instruction: Id::test_new(instruction), position }
     }
 

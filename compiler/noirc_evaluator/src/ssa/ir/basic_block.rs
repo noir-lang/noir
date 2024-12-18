@@ -39,7 +39,7 @@ impl BasicBlock {
     }
 
     /// Retrieve the type of the given parameter
-    pub(crate) fn type_of_parameter(&self, parameter_index: u32) -> &Type {
+    pub(crate) fn type_of_parameter(&self, parameter_index: u16) -> &Type {
         &self.parameter_types[parameter_index as usize]
     }
 

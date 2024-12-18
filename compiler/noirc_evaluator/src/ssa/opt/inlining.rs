@@ -728,7 +728,7 @@ impl<'function> PerFunctionContext<'function> {
             }
             InsertInstructionResult::Results { id, result_count: _ } => {
                 for (i, old_result) in old_results.enumerate() {
-                    values.insert(old_result, Value::instruction_result(id, i as u32));
+                    values.insert(old_result, Value::instruction_result(id, i as u16));
                 }
             }
             InsertInstructionResult::InstructionRemoved => (),
