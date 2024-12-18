@@ -54,7 +54,7 @@ impl DefaultDebugForeignCallExecutor {
         output: PrintOutput<'_>,
         ex: DefaultDebugForeignCallExecutor,
     ) -> impl DebugForeignCallExecutor + '_ {
-        Layer::new(DefaultForeignCallExecutor::new(output, None, None, None)).add(ex)
+        Layer::new(ex, DefaultForeignCallExecutor::new(output, None, None, None))
     }
 
     #[allow(clippy::new_ret_no_self, dead_code)]

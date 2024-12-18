@@ -79,26 +79,28 @@ impl DefaultForeignCallExecutor {
     where
         F: AcirField + Serialize + for<'de> Deserialize<'de> + 'a,
     {
-        Self::with_base(Layer::default(), output, resolver_url, root_path, package_name)
+        Self::with_base(layers::Empty, output, resolver_url, root_path, package_name)
     }
 
-    pub fn with_base<'a, F, H, I>(
-        base: Layer<H, I, F>,
+    pub fn with_base<'a, F, B>(
+        base: B,
         output: PrintOutput<'a>,
         resolver_url: Option<&str>,
         root_path: Option<PathBuf>,
         package_name: Option<String>,
-    ) -> DefaultForeignCallLayers<'a, Layer<H, I, F>, F>
+    ) -> DefaultForeignCallLayers<'a, B, F>
     where
         F: AcirField + Serialize + for<'de> Deserialize<'de> + 'a,
-        H: ForeignCallExecutor<F> + 'a,
-        I: ForeignCallExecutor<F> + 'a,
+        B: ForeignCallExecutor<F> + 'a,
     {
         // Adding them in the opposite order, so print is the outermost layer.
-        base.add(resolver_url.map(|resolver_url| {
-            let id = rand::thread_rng().gen();
-            RPCForeignCallExecutor::new(resolver_url, id, root_path, package_name)
-        }))
+        Layer::new(
+            resolver_url.map(|resolver_url| {
+                let id = rand::thread_rng().gen();
+                RPCForeignCallExecutor::new(resolver_url, id, root_path, package_name)
+            }),
+            base,
+        )
         .add(MockForeignCallExecutor::default())
         .add(PrintForeignCallExecutor::new(output))
     }

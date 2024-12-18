@@ -60,11 +60,26 @@ where
     }
 }
 
+impl<H, I, F> Layer<H, I, F> {
+    /// Create a layer from two handlers
+    pub fn new(handler: H, inner: I) -> Self {
+        Self { handler, inner, _field: PhantomData }
+    }
+}
+
 impl<H, F> Layer<H, Empty, F> {
     /// Create a layer from a handler.
     /// If the handler doesn't handle a call, an empty response is returned.
-    pub fn new(handler: H) -> Self {
+    pub fn or_empty(handler: H) -> Self {
         Self { handler, inner: Empty, _field: PhantomData }
+    }
+}
+
+impl<H, F> Layer<H, Unhandled, F> {
+    /// Create a layer from a handler.
+    /// If the handler doesn't handle a call, nothing will.
+    pub fn or_unhandled(handler: H) -> Self {
+        Self { handler, inner: Unhandled, _field: PhantomData }
     }
 }
 
@@ -88,14 +103,6 @@ impl<H, I, F> Layer<H, I, F> {
 
     pub fn inner(&self) -> &I {
         &self.inner
-    }
-}
-
-/// We can create an empty layer and compose on top of it;
-/// the `inner` will never be called.
-impl<F> Default for Layer<Empty, Empty, F> {
-    fn default() -> Self {
-        Self::new(Empty)
     }
 }
 
