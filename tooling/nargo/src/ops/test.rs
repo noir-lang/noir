@@ -295,7 +295,7 @@ impl<'a, F: Default> TestForeignCallExecutor<'a, F> {
         package_name: Option<String>,
     ) -> Self {
         let id = rand::thread_rng().gen();
-        let printer = PrintForeignCallExecutor { output };
+        let printer = PrintForeignCallExecutor::new(output);
         let external_resolver = resolver_url.map(|resolver_url| {
             RPCForeignCallExecutor::new(resolver_url, id, root_path, package_name)
         });
@@ -339,7 +339,7 @@ impl<'a, F: AcirField + Serialize + for<'b> Deserialize<'b>> ForeignCallExecutor
                 };
 
                 if let Some(external_resolver) = &mut self.external {
-                    // If the user has registered an external resolver then we forward any remaining oracle calls there.
+                    // If the user has registered a n external resolver then we forward any remaining oracle calls there.
                     match external_resolver.execute(foreign_call) {
                         Err(ForeignCallError::NoHandler(_)) => (),
                         response_or_error => return response_or_error,

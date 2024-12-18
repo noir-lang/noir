@@ -18,7 +18,7 @@ pub mod foreign_calls;
 
 pub use self::errors::NargoError;
 #[cfg(feature = "execute")]
-pub use self::foreign_calls::print::PrintOutput;
+pub use self::foreign_calls::print::{PrintForeignCallExecutor, PrintOutput};
 
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
