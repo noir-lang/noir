@@ -858,7 +858,7 @@ mod test {
         let instructions = main.dfg[main.entry_block()].instructions();
         assert_eq!(instructions.len(), 2); // The final return is not counted
 
-        let v0 = main.parameters().nth(0).unwrap();
+        let v0 = main.parameters().next().unwrap();
         let two = Value::constant(2_u128.into(), NumericType::NativeField);
 
         main.dfg.replace_value(v0, two);
