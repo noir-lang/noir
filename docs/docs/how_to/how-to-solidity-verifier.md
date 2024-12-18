@@ -140,7 +140,7 @@ First generate a proof with `bb` at the location `./proof` using the steps in [g
 ```bash
 # This value must be changed to match the number of public inputs (including return values!) in your program.
 NUM_PUBLIC_INPUTS=1
-PUBLIC_INPUT_BYTES=32*NUM_PUBLIC_INPUTS
+PUBLIC_INPUT_BYTES=$((32*$NUM_PUBLIC_INPUTS))
 HEX_PUBLIC_INPUTS=$(head -c $PUBLIC_INPUT_BYTES ./proof | od -An -v -t x1 | tr -d $' \n')
 HEX_PROOF=$(tail -c +$(($PUBLIC_INPUT_BYTES + 1)) ./proof | od -An -v -t x1 | tr -d $' \n')
 
