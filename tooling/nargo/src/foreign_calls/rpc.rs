@@ -224,8 +224,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_oracle_resolver_echo() -> std::io::Result<()> {
-        let url = build_oracle_server().await?;
+    async fn test_oracle_resolver_echo() {
+        let url = build_oracle_server().await.unwrap();
 
         let executor = RPCForeignCallExecutor::new(&url, 1, None, None).run();
 
@@ -236,13 +236,11 @@ mod tests {
 
         let result = executor.execute(&foreign_call).await;
         assert_eq!(result.unwrap(), ForeignCallResult { values: foreign_call.inputs });
-
-        Ok(())
     }
 
     #[tokio::test]
-    async fn test_oracle_resolver_sum() -> std::io::Result<()> {
-        let url = build_oracle_server().await?;
+    async fn test_oracle_resolver_sum() {
+        let url = build_oracle_server().await.unwrap();
 
         let executor = RPCForeignCallExecutor::new(&url, 2, None, None).run();
 
@@ -253,13 +251,11 @@ mod tests {
 
         let result = executor.execute(&foreign_call).await;
         assert_eq!(result.unwrap(), FieldElement::from(3_usize).into());
-
-        Ok(())
     }
 
     #[tokio::test]
-    async fn foreign_call_executor_id_is_persistent() -> std::io::Result<()> {
-        let url = build_oracle_server().await?;
+    async fn foreign_call_executor_id_is_persistent() {
+        let url = build_oracle_server().await.unwrap();
 
         let executor = RPCForeignCallExecutor::new(&url, 3, None, None).run();
 
@@ -269,13 +265,11 @@ mod tests {
         let result_1 = executor.execute(&foreign_call).await.unwrap();
         let result_2 = executor.execute(&foreign_call).await.unwrap();
         assert_eq!(result_1, result_2);
-
-        Ok(())
     }
 
     #[tokio::test]
-    async fn oracle_resolver_rpc_can_distinguish_executors() -> std::io::Result<()> {
-        let url = build_oracle_server().await?;
+    async fn oracle_resolver_rpc_can_distinguish_executors() {
+        let url = build_oracle_server().await.unwrap();
 
         let executor_1 = RPCForeignCallExecutor::new(&url, 4, None, None).run();
         let executor_2 = RPCForeignCallExecutor::new(&url, 5, None, None).run();
@@ -286,7 +280,5 @@ mod tests {
         let result_1 = executor_1.execute(&foreign_call).await.unwrap();
         let result_2 = executor_2.execute(&foreign_call).await.unwrap();
         assert_ne!(result_1, result_2);
-
-        Ok(())
     }
 }
