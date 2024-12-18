@@ -590,6 +590,8 @@ pub fn compile_no_check(
     cached_program: Option<CompiledProgram>,
     force_compile: bool,
 ) -> Result<CompiledProgram, CompileError> {
+    // dbg!(context.crate_graph.arena.len());
+    // dbg!(context.def_interner.nodes.vec.len());
     let program = if options.instrument_debug {
         monomorphize_debug(main_function, &mut context.def_interner, &context.debug_instrumenter)?
     } else {
@@ -611,6 +613,16 @@ pub fn compile_no_check(
 
     // Hash the AST program, which is going to be used to fingerprint the compilation artifact.
     let hash = fxhash::hash64(&program);
+
+    let program_two = if options.instrument_debug {
+        monomorphize_debug(main_function, &mut context.def_interner, &context.debug_instrumenter)?
+    } else {
+        monomorphize(main_function, &mut context.def_interner)?
+    };
+    let hash_two = fxhash::hash64(&program_two);
+
+    dbg!(hash);
+    dbg!(hash_two);
 
     if let Some(cached_program) = cached_program {
         if !force_compile && cached_program.hash == hash {
