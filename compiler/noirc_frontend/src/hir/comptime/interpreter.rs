@@ -568,11 +568,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             DefinitionKind::Local(_) => self.lookup(&ident),
             DefinitionKind::Global(global_id) => {
                 // Avoid resetting the value if it is already known
-                if let Some(value) = &self.elaborator.interner.get_global(*global_id).value {
+                let global_id = *global_id;
+                let global_info = self.elaborator.interner.get_global(global_id);
+                if let Some(value) = &global_info.value {
                     Ok(value.clone())
                 } else {
-                    let global_id = *global_id;
-                    let crate_of_global = self.elaborator.interner.get_global(global_id).crate_id;
                     let let_ =
                         self.elaborator.interner.get_global_let_statement(global_id).ok_or_else(
                             || {
@@ -581,7 +581,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                             },
                         )?;
 
-                    if let_.runs_comptime() || crate_of_global != self.crate_id {
+                    if let_.runs_comptime() || global_info.crate_id != self.crate_id {
                         self.evaluate_let(let_.clone())?;
                     }
 
