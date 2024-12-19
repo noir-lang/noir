@@ -3,6 +3,7 @@
 // The feature being tested is brillig recursion
 fn main(x: u32) {
     unsafe {
+        //@safety: testing context
         assert(fibonacci(x) == 55);
     }
 }

@@ -489,9 +489,12 @@ mod tests {
 
     #[test]
     fn format_unsafe_statement() {
-        let src = " fn foo() { unsafe { 1  } } ";
+        let src = " fn foo() { unsafe { 
+        //@safety: testing context
+        1  } } ";
         let expected = "fn foo() {
     unsafe {
+        //@safety: testing context
         1
     }
 }

@@ -14,6 +14,7 @@ fn test_acir() {
 #[test(should_fail)]
 fn test_brillig() {
     unsafe {
+        //@safety: testing context
         assert_eq(out_of_bounds_unconstrained_wrapper([0; 50], [0; 50]), 0);
     }
 }

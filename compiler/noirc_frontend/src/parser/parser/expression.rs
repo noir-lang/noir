@@ -8,7 +8,7 @@ use crate::{
         MemberAccessExpression, MethodCallExpression, Statement, TypePath, UnaryOp, UnresolvedType,
     },
     parser::{labels::ParsingRuleLabel, parser::parse_many::separated_by_comma, ParserErrorReason},
-    token::{Keyword, Token, TokenKind},
+    token::{DocStyle, Keyword, SpannedToken, Token, TokenKind},
 };
 
 use super::{
@@ -373,6 +373,20 @@ impl<'a> Parser<'a> {
     fn parse_unsafe_expr(&mut self) -> Option<ExpressionKind> {
         if !self.eat_keyword(Keyword::Unsafe) {
             return None;
+        }
+
+        let next_token = self.next_token.token();
+        if matches!(
+            next_token,
+            Token::LineComment(_, Some(DocStyle::Safety))
+                | Token::BlockComment(_, Some(DocStyle::Safety))
+        ) {
+            //Checks the safety comment is there, and skip it
+            let span = self.current_token_span;
+            self.eat_left_brace();
+            self.token = SpannedToken::new(Token::LeftBrace, span);
+        } else {
+            self.push_error(ParserErrorReason::MissingSafetyComment, self.current_token_span);
         }
 
         let start_span = self.current_token_span;
@@ -957,7 +971,8 @@ mod tests {
 
     #[test]
     fn parses_unsafe_expression() {
-        let src = "unsafe { 1 }";
+        let src = "unsafe { //@safety: test
+        1 }";
         let expr = parse_expression_no_errors(src);
         let ExpressionKind::Unsafe(block, _) = expr.kind else {
             panic!("Expected unsafe expression");

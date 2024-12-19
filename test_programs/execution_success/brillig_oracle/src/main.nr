@@ -4,6 +4,7 @@ use std::test::OracleMock;
 // Tests oracle usage in brillig/unconstrained functions
 fn main(_x: Field) {
     unsafe {
+        //@safety: testing context
         let size = 20;
         // TODO: Add a method along the lines of `(0..size).to_array()`.
         let mut mock_oracle_response = [0; 20];

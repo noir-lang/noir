@@ -4,6 +4,7 @@
 fn main(x: Field) {
     assert(
         1 == unsafe {
+            //@safety: testing context
             conditional(x as bool)
         }
     );

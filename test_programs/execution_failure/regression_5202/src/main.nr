@@ -14,12 +14,14 @@ unconstrained fn should_i_assert() -> bool {
 
 fn get_magical_boolean() -> bool {
     let option = unsafe {
+        //@safety: testing context
         get_unconstrained_option()
     };
 
     let pre_assert = option.is_some().to_field();
 
     if unsafe {
+        //@safety: testing context
         should_i_assert()
     } {
         // Note that `should_i_assert` is unconstrained, so Noir should not be able to infer
