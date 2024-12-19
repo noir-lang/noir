@@ -322,9 +322,10 @@ pub fn fully_qualified_module_path(
 ) -> String {
     let child_id = module_id.local_id.0;
 
-    let def_map = def_maps.get(crate_id).expect("The local crate should be analyzed already");
+    let def_map =
+        def_maps.get(&module_id.krate).expect("The local crate should be analyzed already");
 
-    let module = &def_maps[crate_id].modules()[module_id.local_id.0];
+    let module = &def_map.modules()[module_id.local_id.0];
 
     let module_path = def_map.get_module_path_with_separator(child_id, module.parent, "::");
 
