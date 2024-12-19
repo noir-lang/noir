@@ -1,3 +1,4 @@
+use iter_extended::vecmap;
 use noirc_errors::{CustomDiagnostic, Span};
 use thiserror::Error;
 
@@ -95,16 +96,21 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
                 CustomDiagnostic::simple_warning(error.to_string(), String::new(), ident.span())
             }
             PathResolutionError::UnresolvedWithPossibleTraitsToImport { ident, traits } => {
+                let traits = vecmap(traits, |trait_name| format!("`{}`", trait_name));
                 CustomDiagnostic::simple_error(
                     error.to_string(),
-                    format!("The following traits which provide {ident} are implemented but not in scope: {}", traits.join(", ")),
+                    format!("The following traits which provide `{ident}` are implemented but not in scope: {}", traits.join(", ")),
                     ident.span(),
                 )
             }
             PathResolutionError::MultipleTraitsInScope { ident, traits } => {
+                let traits = vecmap(traits, |trait_name| format!("`{}`", trait_name));
                 CustomDiagnostic::simple_error(
                     error.to_string(),
-                    format!("All these trait which provide {ident} are implemented and in scope: {}", traits.join(", ")),
+                    format!(
+                        "All these trait which provide `{ident}` are implemented and in scope: {}",
+                        traits.join(", ")
+                    ),
                     ident.span(),
                 )
             }

@@ -4,8 +4,8 @@ use std::{
 };
 
 use crate::{
-    ast::ItemVisibility, hir_def::traits::ResolvedTraitBound, node_interner::GlobalValue,
-    usage_tracker::UsageTracker, StructField, StructType, TypeBindings,
+    ast::ItemVisibility, graph::CrateGraph, hir_def::traits::ResolvedTraitBound,
+    node_interner::GlobalValue, usage_tracker::UsageTracker, StructField, StructType, TypeBindings,
 };
 use crate::{
     ast::{
@@ -97,6 +97,7 @@ pub struct Elaborator<'context> {
     pub(crate) interner: &'context mut NodeInterner,
     pub(crate) def_maps: &'context mut DefMaps,
     pub(crate) usage_tracker: &'context mut UsageTracker,
+    pub(crate) crate_graph: &'context CrateGraph,
 
     pub(crate) file: FileId,
 
@@ -201,6 +202,7 @@ impl<'context> Elaborator<'context> {
         interner: &'context mut NodeInterner,
         def_maps: &'context mut DefMaps,
         usage_tracker: &'context mut UsageTracker,
+        crate_graph: &'context CrateGraph,
         crate_id: CrateId,
         debug_comptime_in_file: Option<FileId>,
         interpreter_call_stack: im::Vector<Location>,
@@ -211,6 +213,7 @@ impl<'context> Elaborator<'context> {
             interner,
             def_maps,
             usage_tracker,
+            crate_graph,
             file: FileId::dummy(),
             unsafe_block_status: UnsafeBlockStatus::NotInUnsafeBlock,
             nested_loops: 0,
@@ -242,6 +245,7 @@ impl<'context> Elaborator<'context> {
             &mut context.def_interner,
             &mut context.def_maps,
             &mut context.usage_tracker,
+            &context.crate_graph,
             crate_id,
             debug_comptime_in_file,
             im::Vector::new(),

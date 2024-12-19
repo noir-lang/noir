@@ -2,12 +2,13 @@ use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 
 use crate::ast::{Ident, Path, PathKind, UnresolvedType};
-use crate::hir::def_map::{ModuleData, ModuleDefId, ModuleId, PerNs};
+use crate::hir::def_map::{fully_qualified_module_path, ModuleData, ModuleDefId, ModuleId, PerNs};
 use crate::hir::resolution::import::{resolve_path_kind, PathResolutionError};
 
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir::resolution::visibility::item_in_module_is_visible;
 
+use crate::hir_def::traits::Trait;
 use crate::locations::ReferencesTracker;
 use crate::node_interner::{FuncId, GlobalId, StructId, TraitId, TypeAliasId};
 use crate::{Shared, Type, TypeAlias};
@@ -291,7 +292,8 @@ impl<'context> Elaborator<'context> {
                             return Err(PathResolutionError::Unresolved(current_ident.clone()));
                         } else {
                             let traits = vecmap(vec, |trait_id| {
-                                self.interner.get_trait(trait_id).name.to_string()
+                                let trait_ = self.interner.get_trait(trait_id);
+                                self.fully_qualified_trait_path(trait_)
                             });
                             return Err(
                                 PathResolutionError::UnresolvedWithPossibleTraitsToImport {
@@ -312,9 +314,10 @@ impl<'context> Elaborator<'context> {
                         trait_id,
                     ) => {
                         let trait_ = self.interner.get_trait(trait_id);
+                        let trait_name = self.fully_qualified_trait_path(trait_);
                         errors.push(PathResolutionError::TraitMethodNotInScope {
                             ident: current_ident.clone(),
-                            trait_name: trait_.name.to_string(),
+                            trait_name,
                         });
                         per_ns
                     }
@@ -322,7 +325,7 @@ impl<'context> Elaborator<'context> {
                         let traits = vecmap(vec, |trait_id| {
                             let trait_ = self.interner.get_trait(trait_id);
                             self.usage_tracker.mark_as_used(starting_module, &trait_.name);
-                            trait_.name.to_string()
+                            self.fully_qualified_trait_path(trait_)
                         });
                         return Err(PathResolutionError::MultipleTraitsInScope {
                             ident: current_ident.clone(),
@@ -440,6 +443,10 @@ impl<'context> Elaborator<'context> {
         let (trait_id, item) = results.remove(0);
         let per_ns = PerNs { types: None, values: Some(*item) };
         StructMethodLookupResult::FoundTraitMethod(per_ns, trait_id)
+    }
+
+    fn fully_qualified_trait_path(&self, trait_: &Trait) -> String {
+        fully_qualified_module_path(self.def_maps, self.crate_graph, &trait_.crate_id, trait_.id.0)
     }
 }
 
