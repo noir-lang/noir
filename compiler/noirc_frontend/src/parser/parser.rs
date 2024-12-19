@@ -154,10 +154,7 @@ impl<'a> Parser<'a> {
     where
         F: FnOnce(&mut Parser<'a>) -> Option<T>,
     {
-        match self.parse_result(parsing_function) {
-            Ok(item) => item,
-            Err(_) => None,
-        }
+        self.parse_result(parsing_function).unwrap_or_default()
     }
 
     /// Bumps this parser by one token. Returns the token that was previously the "current" token.
