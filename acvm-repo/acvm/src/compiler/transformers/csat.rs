@@ -81,7 +81,7 @@ impl CSatTransformer {
         // The last optimization to do is to create intermediate variables in order to flatten the fan-in and the amount of mul terms
         // If a opcode has more than one mul term. We may need an intermediate variable for each one. Since not every variable will need to link to
         // the mul term, we could possibly do it that way.
-        // We wil call this a partial opcode scan optimization which will result in the opcodes being able to fit into the correct width
+        // We will call this a partial opcode scan optimization which will result in the opcodes being able to fit into the correct width
         let mut opcode =
             self.partial_opcode_scan_optimization(opcode, intermediate_variables, num_witness);
         opcode.sort();
