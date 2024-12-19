@@ -726,7 +726,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn parse_comment(&mut self, start: u32) -> SpannedTokenResult {
-        let doc_style = match self.peek_char() {
+        let mut doc_style = match self.peek_char() {
             Some('!') => {
                 self.next_char();
                 Some(DocStyle::Inner)
@@ -735,18 +735,17 @@ impl<'a> Lexer<'a> {
                 self.next_char();
                 Some(DocStyle::Outer)
             }
-            Some('@') => {
-                self.next_char();
-                let next_word = self.lex_word('@');
-                if next_word.1 == "@safety" {
-                    Some(DocStyle::Safety)
-                } else {
-                    None
-                }
-            }
+            Some('@') => Some(DocStyle::Safety),
             _ => None,
         };
-        let comment = self.eat_while(None, |ch| ch != '\n');
+        let mut comment = self.eat_while(None, |ch| ch != '\n');
+        if doc_style == Some(DocStyle::Safety) {
+            if comment.starts_with("@safety") {
+                comment = comment["@safety".len()..].to_string();
+            } else {
+                doc_style = None;
+            }
+        }
 
         if !comment.is_ascii() {
             let span = Span::from(start..self.position);
@@ -761,7 +760,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn parse_block_comment(&mut self, start: u32) -> SpannedTokenResult {
-        let doc_style = match self.peek_char() {
+        let mut doc_style = match self.peek_char() {
             Some('!') => {
                 self.next_char();
                 Some(DocStyle::Inner)
@@ -770,15 +769,7 @@ impl<'a> Lexer<'a> {
                 self.next_char();
                 Some(DocStyle::Outer)
             }
-            Some('@') => {
-                self.next_char();
-                let next_word = self.lex_word('@');
-                if next_word.1 == "@safety" {
-                    Some(DocStyle::Safety)
-                } else {
-                    None
-                }
-            }
+            Some('@') => Some(DocStyle::Safety),
             _ => None,
         };
 
@@ -805,7 +796,13 @@ impl<'a> Lexer<'a> {
                 ch => content.push(ch),
             }
         }
-
+        if doc_style == Some(DocStyle::Safety) {
+            if content.starts_with("@safety") {
+                content = content["@safety".len()..].to_string();
+            } else {
+                doc_style = None;
+            }
+        }
         if depth == 0 {
             if !content.is_ascii() {
                 let span = Span::from(start..self.position);
