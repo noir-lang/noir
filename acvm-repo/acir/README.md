@@ -16,7 +16,7 @@ More precisely, Noir is a programming language for zero-knowledge proofs (ZKP)
 which allows users to write programs in an intuitive way using a high-level
 language close to Rust syntax. Noir is able to generate a proof of execution of
 a Noir program, using an external proving system. However, proving systems use
-specific low-level constrain-based languages. Similarly, frontends have their
+specific low-level constraint-based languages. Similarly, frontends have their
 own internal representation in order to represent user programs.
 
 The goal of ACIR is to provide a generic open-source intermediate
