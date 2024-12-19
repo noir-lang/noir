@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use acvm::{acir::brillig::ForeignCallResult, pwg::ForeignCallWaitInfo, AcirField};
 use noirc_printable_type::ForeignCallError;
 
@@ -38,13 +36,12 @@ impl<F: AcirField> ForeignCallExecutor<F> for Unhandled {
 }
 
 /// Forwards to the inner executor if its own handler doesn't handle the call.
-pub struct Layer<H, I, F> {
+pub struct Layer<H, I> {
     pub handler: H,
     pub inner: I,
-    _field: PhantomData<F>,
 }
 
-impl<H, I, F> ForeignCallExecutor<F> for Layer<H, I, F>
+impl<H, I, F> ForeignCallExecutor<F> for Layer<H, I>
 where
     H: ForeignCallExecutor<F>,
     I: ForeignCallExecutor<F>,
@@ -60,39 +57,39 @@ where
     }
 }
 
-impl<H, I, F> Layer<H, I, F> {
+impl<H, I> Layer<H, I> {
     /// Create a layer from two handlers
     pub fn new(handler: H, inner: I) -> Self {
-        Self { handler, inner, _field: PhantomData }
+        Self { handler, inner }
     }
 }
 
-impl<H, F> Layer<H, Empty, F> {
+impl<H> Layer<H, Empty> {
     /// Create a layer from a handler.
     /// If the handler doesn't handle a call, a default empty response is returned.
     pub fn or_empty(handler: H) -> Self {
-        Self { handler, inner: Empty, _field: PhantomData }
+        Self { handler, inner: Empty }
     }
 }
 
-impl<H, F> Layer<H, Unhandled, F> {
+impl<H> Layer<H, Unhandled> {
     /// Create a layer from a handler.
     /// If the handler doesn't handle a call, `NoHandler` error is returned.
     pub fn or_unhandled(handler: H) -> Self {
-        Self { handler, inner: Unhandled, _field: PhantomData }
+        Self { handler, inner: Unhandled }
     }
 }
 
-impl<F> Layer<Unhandled, Unhandled, F> {
+impl Layer<Unhandled, Unhandled> {
     /// A base layer that doesn't handle anything.
     pub fn unhandled() -> Self {
-        Self { handler: Unhandled, inner: Unhandled, _field: PhantomData }
+        Self { handler: Unhandled, inner: Unhandled }
     }
 }
 
-impl<H, I, F> Layer<H, I, F> {
+impl<H, I> Layer<H, I> {
     /// Add another layer on top of this one.
-    pub fn add_layer<J>(self, handler: J) -> Layer<J, Self, F> {
+    pub fn add_layer<J>(self, handler: J) -> Layer<J, Self> {
         Layer::new(handler, self)
     }
 
@@ -109,14 +106,14 @@ impl<H, I, F> Layer<H, I, F> {
 pub trait Layering {
     /// Layer an executor on top of this one.
     /// The `other` executor will be called first.
-    fn add_layer<L, F>(self, other: L) -> Layer<L, Self, F>
+    fn add_layer<L, F>(self, other: L) -> Layer<L, Self>
     where
         Self: Sized + ForeignCallExecutor<F>,
         L: ForeignCallExecutor<F>;
 }
 
 impl<T> Layering for T {
-    fn add_layer<L, F>(self, other: L) -> Layer<L, T, F>
+    fn add_layer<L, F>(self, other: L) -> Layer<L, T>
     where
         T: Sized + ForeignCallExecutor<F>,
         L: ForeignCallExecutor<F>,

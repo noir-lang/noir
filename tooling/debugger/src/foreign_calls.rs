@@ -179,7 +179,7 @@ impl ForeignCallExecutor<FieldElement> for DefaultDebugForeignCallExecutor {
     }
 }
 
-impl<H, I> DebugForeignCallExecutor for Layer<H, I, FieldElement>
+impl<H, I> DebugForeignCallExecutor for Layer<H, I>
 where
     H: DebugForeignCallExecutor,
     I: ForeignCallExecutor<FieldElement>,

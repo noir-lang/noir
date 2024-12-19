@@ -54,6 +54,5 @@ impl DefaultForeignCallExecutor {
 /// Facilitate static typing of layers on a base layer, so inner layers can be accessed.
 pub type DefaultForeignCallLayers<'a, B, F> = Layer<
     PrintForeignCallExecutor<'a>,
-    Layer<MockForeignCallExecutor<F>, Layer<Option<RPCForeignCallExecutor>, B, F>, F>,
-    F,
+    Layer<MockForeignCallExecutor<F>, Layer<Option<RPCForeignCallExecutor>, B>>,
 >;
