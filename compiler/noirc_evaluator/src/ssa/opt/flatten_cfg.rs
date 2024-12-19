@@ -926,7 +926,6 @@ mod test {
                 v8 = mul v5, v2
                 v9 = add v7, v8
                 store v9 at v1
-                v10 = not v0
                 enable_side_effects u1 1
                 return
             }
@@ -965,15 +964,14 @@ mod test {
                 v8 = mul v5, v2
                 v9 = add v7, v8
                 store v9 at v1
-                v10 = not v0
-                enable_side_effects v10
-                v11 = load v1 -> Field
-                v12 = cast v10 as Field
-                v13 = cast v0 as Field
-                v15 = mul v12, Field 6
-                v16 = mul v13, v11
-                v17 = add v15, v16
-                store v17 at v1
+                enable_side_effects v3
+                v10 = load v1 -> Field
+                v11 = cast v3 as Field
+                v12 = cast v0 as Field
+                v14 = mul v11, Field 6
+                v15 = mul v12, v10
+                v16 = add v14, v15
+                store v16 at v1
                 enable_side_effects u1 1
                 return
             }
@@ -1101,16 +1099,14 @@ mod test {
             v23 = mul v20, Field 6
             v24 = mul v21, v16
             v25 = add v23, v24
-            enable_side_effects v0
-            v26 = not v0
-            enable_side_effects v26
-            v27 = cast v26 as Field
-            v28 = cast v0 as Field
-            v30 = mul v27, Field 3
-            v31 = mul v28, v25
-            v32 = add v30, v31
+            enable_side_effects v3
+            v26 = cast v3 as Field
+            v27 = cast v0 as Field
+            v29 = mul v26, Field 3
+            v30 = mul v27, v25
+            v31 = add v29, v30
             enable_side_effects u1 1
-            return v32
+            return v31
         }";
 
         let main = ssa.main();
@@ -1304,13 +1300,12 @@ mod test {
             v16 = mul v14, v11
             v17 = add v15, v16
             store v17 at v6
-            v18 = not v5
-            enable_side_effects v18
-            v19 = load v6 -> u8
-            v20 = cast v18 as u8
-            v21 = cast v4 as u8
-            v22 = mul v21, v19
-            store v22 at v6
+            enable_side_effects v12
+            v18 = load v6 -> u8
+            v19 = cast v12 as u8
+            v20 = cast v4 as u8
+            v21 = mul v20, v18
+            store v21 at v6
             enable_side_effects u1 1
             constrain v5 == u1 1
             return
