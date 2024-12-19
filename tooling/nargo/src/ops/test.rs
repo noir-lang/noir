@@ -12,7 +12,6 @@ use noirc_abi::Abi;
 use noirc_driver::{compile_no_check, CompileError, CompileOptions, DEFAULT_EXPRESSION_WIDTH};
 use noirc_errors::{debug_info::DebugInfo, FileDiagnostic};
 use noirc_frontend::hir::{def_map::TestFunction, Context};
-use noirc_printable_type::ForeignCallError;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 
@@ -22,7 +21,7 @@ use crate::{
         mocker::MockForeignCallExecutor,
         print::{PrintForeignCallExecutor, PrintOutput},
         rpc::RPCForeignCallExecutor,
-        ForeignCall, ForeignCallExecutor,
+        ForeignCall, ForeignCallError, ForeignCallExecutor,
     },
     NargoError,
 };

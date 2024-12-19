@@ -13,10 +13,7 @@ use acvm::{
 use errors::AbiError;
 use input_parser::InputValue;
 use iter_extended::{try_btree_map, try_vecmap, vecmap};
-use noirc_printable_type::{
-    decode_value as printable_type_decode_value, PrintableType, PrintableValue,
-    PrintableValueDisplay,
-};
+use noirc_printable_type::{PrintableType, PrintableValue, PrintableValueDisplay};
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use std::{collections::BTreeMap, str};
@@ -30,7 +27,10 @@ mod arbitrary;
 
 pub mod errors;
 pub mod input_parser;
+mod printable_type;
 mod serialization;
+
+pub use printable_type::decode_value as decode_printable_value;
 
 /// A map from the fields in an TOML/JSON file which correspond to some ABI to their values
 pub type InputMap = BTreeMap<String, InputValue>;
@@ -417,7 +417,7 @@ pub fn decode_value(
     Ok(value)
 }
 
-fn decode_string_value(field_elements: &[FieldElement]) -> String {
+pub fn decode_string_value<F: AcirField>(field_elements: &[F]) -> String {
     let string_as_slice = vecmap(field_elements, |e| {
         let mut field_as_bytes = e.to_be_bytes();
         let char_byte = field_as_bytes.pop().unwrap(); // A character in a string is represented by a u8, thus we just want the last byte of the element
@@ -476,21 +476,21 @@ pub fn display_abi_error<F: AcirField>(
         AbiErrorType::FmtString { length, item_types } => {
             let mut fields_iter = fields.iter().copied();
             let PrintableValue::String(string) =
-                printable_type_decode_value(&mut fields_iter, &PrintableType::String { length })
+                decode_printable_value(&mut fields_iter, &PrintableType::String { length })
             else {
                 unreachable!("Got non-string from string decoding");
             };
             let _length_of_items = fields_iter.next();
             let items = item_types.into_iter().map(|abi_type| {
                 let printable_typ = (&abi_type).into();
-                let decoded = printable_type_decode_value(&mut fields_iter, &printable_typ);
+                let decoded = decode_printable_value(&mut fields_iter, &printable_typ);
                 (decoded, printable_typ)
             });
             PrintableValueDisplay::FmtString(string, items.collect())
         }
         AbiErrorType::Custom(abi_typ) => {
             let printable_type = (&abi_typ).into();
-            let decoded = printable_type_decode_value(&mut fields.iter().copied(), &printable_type);
+            let decoded = decode_printable_value(&mut fields.iter().copied(), &printable_type);
             PrintableValueDisplay::Plain(decoded, printable_type)
         }
         AbiErrorType::String { string } => {
