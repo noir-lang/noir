@@ -292,7 +292,6 @@ mod test {
             instruction::{BinaryOp, TerminatorInstruction},
             map::Id,
             types::Type,
-            value::Value,
         },
         opt::assert_normalized_ssa_equals,
         Ssa,
@@ -319,7 +318,7 @@ mod test {
         let v1 = builder.add_block_parameter(b2, Type::field());
 
         let expected_return = 7u128;
-        let seven = Value::field_constant(expected_return.into());
+        let seven = builder.field_constant(expected_return.into());
         builder.terminate_with_jmp(b1, vec![seven]);
 
         builder.switch_to_block(b1);
@@ -372,8 +371,8 @@ mod test {
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();
 
-        let one = Value::field_constant(1u128.into());
-        let two = Value::field_constant(2u128.into());
+        let one = builder.field_constant(1u128.into());
+        let two = builder.field_constant(2u128.into());
 
         let v1 = builder.insert_binary(v0, BinaryOp::Eq, v0);
         builder.terminate_with_jmpif(v1, b1, b2);

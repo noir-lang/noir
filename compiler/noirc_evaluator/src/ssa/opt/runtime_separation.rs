@@ -206,7 +206,7 @@ mod test {
 
         builder.new_function("bar".into(), bar_id, InlineType::default());
         let expected_return = 72u128;
-        let seventy_two = Value::field_constant(expected_return.into());
+        let seventy_two = builder.field_constant(expected_return.into());
         builder.terminate_with_return(vec![seventy_two]);
 
         let ssa = builder.finish();
@@ -286,7 +286,7 @@ mod test {
 
         builder.new_function("baz".into(), baz_id, InlineType::default());
         let expected_return = 72u128;
-        let seventy_two = Value::field_constant(expected_return.into());
+        let seventy_two = builder.field_constant(expected_return.into());
         builder.terminate_with_return(vec![seventy_two]);
 
         let ssa = builder.finish();

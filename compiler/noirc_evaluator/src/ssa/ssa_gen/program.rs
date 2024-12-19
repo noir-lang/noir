@@ -126,7 +126,6 @@ impl Display for Ssa {
 mod test {
     use crate::ssa::ir::map::Id;
 
-    use crate::ssa::ir::value::Value;
     use crate::ssa::ssa_gen::Ssa;
     use crate::ssa::{
         function_builder::FunctionBuilder,
@@ -141,8 +140,8 @@ mod test {
         let mut builder = FunctionBuilder::new("main".into(), main_id);
         let v0 = builder.add_parameter(Type::field());
 
-        let one = Value::field_constant(1u128.into());
-        let three = Value::field_constant(3u128.into());
+        let one = builder.field_constant(1u128.into());
+        let three = builder.field_constant(3u128.into());
 
         let v1 = builder.insert_binary(v0, BinaryOp::Add, one);
         let v2 = builder.insert_binary(v1, BinaryOp::Mul, three);

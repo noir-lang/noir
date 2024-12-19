@@ -693,8 +693,8 @@ mod tests {
         let mut builder = FunctionBuilder::new("func".into(), func_id);
         let v0 = builder.insert_allocate(Type::Array(Arc::new(vec![Type::field()]), 2));
 
-        let zero = Value::field_constant(FieldElement::zero());
-        let one = Value::field_constant(FieldElement::one());
+        let zero = builder.field_constant(FieldElement::zero());
+        let one = builder.field_constant(FieldElement::one());
 
         let element_type = Arc::new(vec![Type::field()]);
         let array_type = Type::Array(element_type, 2);
@@ -734,7 +734,7 @@ mod tests {
         let func_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("func".into(), func_id);
         let v0 = builder.insert_allocate(Type::field());
-        let one = Value::field_constant(FieldElement::one());
+        let one = builder.field_constant(FieldElement::one());
         builder.insert_store(v0, one);
         let v1 = builder.insert_load(v0, Type::field());
         let f0 = Value::Intrinsic(Intrinsic::AssertConstant);
@@ -768,7 +768,7 @@ mod tests {
         let func_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("func".into(), func_id);
         let v0 = builder.insert_allocate(Type::field());
-        let const_one = Value::field_constant(FieldElement::one());
+        let const_one = builder.field_constant(FieldElement::one());
         builder.insert_store(v0, const_one);
         builder.terminate_with_return(vec![v0]);
 
@@ -826,7 +826,7 @@ mod tests {
 
         let v0 = builder.insert_allocate(Type::field());
 
-        let five = Value::field_constant(5u128.into());
+        let five = builder.field_constant(5u128.into());
         builder.insert_store(v0, five);
 
         let v1 = builder.insert_load(v0, Type::field());
@@ -837,7 +837,7 @@ mod tests {
         let v2 = builder.add_block_parameter(b1, Type::field());
         let v3 = builder.insert_load(v0, Type::field());
 
-        let six = Value::field_constant(6u128.into());
+        let six = builder.field_constant(6u128.into());
         builder.insert_store(v0, six);
         let v4 = builder.insert_load(v0, Type::field());
 
@@ -968,7 +968,7 @@ mod tests {
         let mut builder = FunctionBuilder::new("main".into(), main_id);
 
         let v0 = builder.insert_allocate(Type::field());
-        let zero = Value::field_constant(0u128.into());
+        let zero = builder.field_constant(0u128.into());
         builder.insert_store(v0, zero);
 
         let v2 = builder.insert_allocate(Type::field());
@@ -992,9 +992,9 @@ mod tests {
         // Loop body
         builder.switch_to_block(b2);
         let v5 = builder.insert_load(v2, v2_type.clone());
-        let two = Value::field_constant(2u128.into());
+        let two = builder.field_constant(2u128.into());
         builder.insert_store(v5, two);
-        let one = Value::field_constant(1u128.into());
+        let one = builder.field_constant(1u128.into());
         let v3_plus_one = builder.insert_binary(v3, BinaryOp::Add, one);
         builder.terminate_with_jmp(b1, vec![v3_plus_one]);
 
@@ -1047,8 +1047,8 @@ mod tests {
         let v0 = builder.add_parameter(field_ref.clone());
         let v1 = builder.add_parameter(field_ref.clone());
 
-        let zero = Value::field_constant(0u128.into());
-        let one = Value::field_constant(1u128.into());
+        let zero = builder.field_constant(0u128.into());
+        let one = builder.field_constant(1u128.into());
         builder.insert_store(v0, zero);
         builder.insert_store(v1, one);
 

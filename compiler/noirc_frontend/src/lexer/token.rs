@@ -609,8 +609,8 @@ impl Token {
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub enum IntType {
-    Unsigned(u32), // u32 = Unsigned(32)
-    Signed(u32),   // i64 = Signed(64)
+    Unsigned(u8), // u32 = Unsigned(32)
+    Signed(u8),   // i64 = Signed(64)
 }
 
 impl fmt::Display for IntType {
@@ -638,16 +638,12 @@ impl IntType {
         };
 
         // Word start with 'u' or 'i'. Check if the latter is an integer
-
-        let str_as_u32 = match word[1..].parse::<u32>() {
-            Ok(str_as_u32) => str_as_u32,
-            Err(_) => return None,
-        };
+        let str_as_u8 = word[1..].parse::<u8>().ok()?;
 
         if is_signed {
-            Some(IntType::Signed(str_as_u32))
+            Some(IntType::Signed(str_as_u8))
         } else {
-            Some(IntType::Unsigned(str_as_u32))
+            Some(IntType::Unsigned(str_as_u8))
         }
     }
 }

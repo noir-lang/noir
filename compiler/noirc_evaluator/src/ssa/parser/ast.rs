@@ -116,7 +116,7 @@ pub(crate) enum ParsedInstruction {
     },
     RangeCheck {
         value: ParsedValue,
-        max_bit_size: u32,
+        max_bit_size: u8,
     },
     Store {
         value: ParsedValue,
@@ -125,8 +125,8 @@ pub(crate) enum ParsedInstruction {
     Truncate {
         target: Identifier,
         value: ParsedValue,
-        bit_size: u32,
-        max_bit_size: u32,
+        bit_size: u8,
+        max_bit_size: u8,
     },
 }
 
