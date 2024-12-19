@@ -16,6 +16,7 @@ unconstrained fn convert(trigger: Trigger) -> ResultType {
 impl Trigger {
     fn execute(self) -> ResultType {
         let result = unsafe {
+            //@safety: testing context
             convert(self)
         };
         assert(result.a == self.x + 1);

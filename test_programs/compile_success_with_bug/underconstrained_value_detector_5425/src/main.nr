@@ -10,6 +10,7 @@ unconstrained fn maximum_price(options: [u32; 3]) -> u32 {
 
 fn main(sandwiches: pub [u32; 3], drinks: pub [u32; 3], snacks: pub [u32; 3], best_value: u32) {
     unsafe {
+        //@safety: testing context
         let meal_deal_cost: u32 = 390;
         let most_expensive_sandwich = maximum_price(sandwiches);
         let mut sandwich_exists = false;

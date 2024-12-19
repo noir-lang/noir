@@ -1,6 +1,7 @@
 fn main(x: u16) {
     test_u16(x);
     unsafe {
+        //@safety: testing context
         test_u16_unconstrained(x);
     }
 }

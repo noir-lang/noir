@@ -67,6 +67,7 @@ We can then run `u72_to_u8` as unconstrained brillig code in order to calculate 
 ```rust
 fn main(num: u72) -> pub [u8; 8] {
     let out = unsafe { 
+        //@safety: 'out' is properly constrained below in 'assert(num == reconstructed_num);'
         u72_to_u8(num) 
     };
 
@@ -96,6 +97,7 @@ This ends up taking off another ~250 gates from our circuit! We've ended up with
 
 Note that in order to invoke unconstrained functions we need to wrap them in an `unsafe` block,
 to make it clear that the call is unconstrained.
+Furthermore, a warning is emitted unless the `unsafe` block starts with a `//@safety: ...` comment explaining why it is fine to call the unconstrained function.
 
 Generally we want to use brillig whenever there's something that's easy to verify but hard to compute within the circuit. For example, if you wanted to calculate a square root of a number it'll be a much better idea to calculate this in brillig and then assert that if you square the result you get back your number.
 

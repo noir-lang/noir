@@ -18,6 +18,7 @@ fn main(mut x: [u8; 5], y: [u8; 5]) {
         test_unconstrained1(a, b)
     } else {
         unsafe {
+            //@safety: testing context
             test_unconstrained2(a, b)
         }
     };

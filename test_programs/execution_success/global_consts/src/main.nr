@@ -25,7 +25,10 @@ unconstrained fn calculate_global_value() -> Field {
 }
 
 // Regression test for https://github.com/noir-lang/noir/issues/4318
-global CALCULATED_GLOBAL: Field = unsafe { calculate_global_value() };
+global CALCULATED_GLOBAL: Field = unsafe {
+    //@safety: testing context
+    calculate_global_value()
+};
 
 fn main(
     a: [Field; M + N - N],
