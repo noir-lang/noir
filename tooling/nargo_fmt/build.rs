@@ -1,10 +1,9 @@
 use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::{env, fs};
 
 fn main() {
-    let out_dir = env::var("OUT_DIR").unwrap();
+    let out_dir = std::env::var("OUT_DIR").unwrap();
     let destination = Path::new(&out_dir).join("execute.rs");
     let mut test_file = File::create(destination).unwrap();
 
@@ -24,7 +23,7 @@ fn generate_formatter_tests(test_file: &mut File, test_data_dir: &Path) {
     let outputs_dir = test_data_dir.join("expected");
 
     let test_case_files =
-        fs::read_dir(inputs_dir).unwrap().flatten().filter(|c| c.path().is_file());
+        std::fs::read_dir(inputs_dir).unwrap().flatten().filter(|c| c.path().is_file());
 
     for file in test_case_files {
         let file_path = file.path();

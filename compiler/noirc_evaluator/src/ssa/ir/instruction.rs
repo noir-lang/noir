@@ -43,9 +43,9 @@ pub(crate) type InstructionId = Id<Instruction>;
 /// These are similar to built-ins in other languages.
 /// These can be classified under two categories:
 /// - Opcodes which the IR knows the target machine has
-/// special support for. (LowLevel)
+///   special support for. (LowLevel)
 /// - Opcodes which have no function definition in the
-/// source code and must be processed by the IR.
+///   source code and must be processed by the IR.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub(crate) enum Intrinsic {
     ArrayLen,
