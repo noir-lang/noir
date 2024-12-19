@@ -74,8 +74,12 @@ pub(crate) fn execute_program_from_witness(
         &program,
         inputs_map,
         &Bn254BlackBoxSolver,
-        &mut DefaultForeignCallBuilder { output: PrintOutput::Stdout, ..Default::default() }
-            .build(),
+        &mut DefaultForeignCallBuilder {
+            output: PrintOutput::Stdout,
+            enable_mocks: false,
+            ..Default::default()
+        }
+        .build(),
     )
     .map_err(CliError::CircuitExecutionError)
 }
