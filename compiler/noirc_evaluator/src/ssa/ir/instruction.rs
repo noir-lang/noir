@@ -981,7 +981,7 @@ impl Instruction {
                         then_condition: inner_then_condition,
                         then_value: inner_then_value,
                         else_condition: inner_else_condition,
-                        ..
+                        else_value: inner_else_value,
                     } = dfg[*instruction]
                     {
                         if then_condition == inner_then_condition {
@@ -992,18 +992,24 @@ impl Instruction {
                                 else_value,
                             };
                             return SimplifiedToInstruction(instruction);
+                        } else if then_condition == inner_else_condition {
+                            let instruction = Instruction::IfElse {
+                                then_condition,
+                                then_value: inner_else_value,
+                                else_condition: inner_then_condition,
+                                else_value,
+                            };
+                            return SimplifiedToInstruction(instruction);
                         }
-                        // TODO: We could check to see if `then_condition == inner_else_condition`
-                        // but we run into issues with duplicate NOT instructions having distinct ValueIds.
                     }
                 };
 
                 if let Value::Instruction { instruction, .. } = &dfg[else_value] {
                     if let Instruction::IfElse {
                         then_condition: inner_then_condition,
+                        then_value: inner_then_value,
                         else_condition: inner_else_condition,
                         else_value: inner_else_value,
-                        ..
                     } = dfg[*instruction]
                     {
                         if then_condition == inner_then_condition {
@@ -1014,9 +1020,15 @@ impl Instruction {
                                 else_value: inner_else_value,
                             };
                             return SimplifiedToInstruction(instruction);
+                        } else if then_condition == inner_else_condition {
+                            let instruction = Instruction::IfElse {
+                                then_condition,
+                                then_value,
+                                else_condition: inner_then_condition,
+                                else_value: inner_then_value,
+                            };
+                            return SimplifiedToInstruction(instruction);
                         }
-                        // TODO: We could check to see if `then_condition == inner_else_condition`
-                        // but we run into issues with duplicate NOT instructions having distinct ValueIds.
                     }
                 };
 
