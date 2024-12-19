@@ -85,6 +85,7 @@ impl<F> Expression<F> {
     ///
     /// - `mul_term` in an expression contains degree-2 terms
     /// - `linear_combinations` contains degree-1 terms
+    ///
     /// Hence, it is sufficient to check that there are no `mul_terms`
     ///
     /// Examples:
@@ -98,11 +99,11 @@ impl<F> Expression<F> {
     /// Returns `true` if the expression can be seen as a degree-1 univariate polynomial
     ///
     /// - `mul_terms` in an expression can be univariate, however unless the coefficient
-    /// is zero, it is always degree-2.
+    ///   is zero, it is always degree-2.
     /// - `linear_combinations` contains the sum of degree-1 terms, these terms do not
-    /// need to contain the same variable and so it can be multivariate. However, we
-    /// have thus far only checked if `linear_combinations` contains one term, so this
-    /// method will return false, if the `Expression` has not been simplified.
+    ///   need to contain the same variable and so it can be multivariate. However, we
+    ///   have thus far only checked if `linear_combinations` contains one term, so this
+    ///   method will return false, if the `Expression` has not been simplified.
     ///
     /// Hence, we check in the simplest case if an expression is a degree-1 univariate,
     /// by checking if it contains no `mul_terms` and it contains one `linear_combination` term.

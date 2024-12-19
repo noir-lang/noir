@@ -154,9 +154,7 @@ impl<'a> Parser<'a> {
 
     /// InternedPattern = interned_pattern
     fn parse_interned_pattern(&mut self) -> Option<Pattern> {
-        let Some(token) = self.eat_kind(TokenKind::InternedPattern) else {
-            return None;
-        };
+        let token = self.eat_kind(TokenKind::InternedPattern)?;
 
         match token.into_token() {
             Token::InternedPattern(pattern) => {

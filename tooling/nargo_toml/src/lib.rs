@@ -93,7 +93,7 @@ pub fn find_package_root(current_path: &Path) -> Result<PathBuf, ManifestError> 
 /// * `C:\foo\bar` -> `C:\foo`
 /// * `//shared/foo/bar` -> `//shared/foo`
 /// * `/foo` -> `/foo`
-/// otherwise empty path.
+///   otherwise empty path.
 fn path_root(path: &Path) -> PathBuf {
     let mut components = path.components();
 
