@@ -162,7 +162,7 @@ pub(crate) fn execute_program(
                 diagnostic.report(&debug_artifact, false);
             }
 
-            Err(crate::errors::CliError::NargoError(err))
+            Err(CliError::NargoError(err))
         }
     }
 }

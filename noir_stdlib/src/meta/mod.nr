@@ -52,7 +52,7 @@ pub comptime fn derive(s: StructDefinition, traits: [TraitDefinition]) -> Quoted
     let mut result = quote {};
 
     for trait_to_derive in traits {
-        let handler = unsafe { HANDLERS.get(trait_to_derive) };
+        let handler = HANDLERS.get(trait_to_derive);
         assert(handler.is_some(), f"No derive function registered for `{trait_to_derive}`");
 
         let trait_impl = handler.unwrap()(s);
