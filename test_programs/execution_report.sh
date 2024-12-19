@@ -62,7 +62,7 @@ for dir in ${tests_to_profile[@]}; do
     # Keep only last three decimal points
     AVG_TIME=$(awk '{printf "%.3f\n", $1}' <<< "$AVG_TIME")
 
-    echo -e " {\n    \"artifact_name\":\"$PACKAGE_NAME\",\n    \"time\":\"0m"$AVG_TIME"s\"" >> $current_dir/execution_report.json
+    echo -e " {\n    \"artifact_name\":\"$PACKAGE_NAME\",\n    \"time\":\""$AVG_TIME"s\"" >> $current_dir/execution_report.json
     
     if (($ITER == $NUM_ARTIFACTS)); then
         echo "}" >> $current_dir/execution_report.json
