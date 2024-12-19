@@ -42,7 +42,7 @@ pub(crate) struct DataFlowGraph {
     /// Call instructions require the func signature, but
     /// other instructions may need some more reading on my part
     #[serde_as(as = "HashMap<DisplayFromStr, _>")]
-    results: HashMap<InstructionId, Vec<ValueId>>,
+    results: HashMap<InstructionId, smallvec::SmallVec<[ValueId; 1]>>,
 
     /// Storage for all of the values defined in this
     /// function.
@@ -346,10 +346,11 @@ impl DataFlowGraph {
         ctrl_typevars: Option<Vec<Type>>,
     ) {
         let result_types = self.instruction_result_types(instruction_id, ctrl_typevars);
-        let results = vecmap(result_types.into_iter().enumerate(), |(position, typ)| {
+
+        let results = result_types.into_iter().enumerate().map(|(position, typ)| {
             let instruction = instruction_id;
             self.values.insert(Value::Instruction { typ, position, instruction })
-        });
+        }).collect();
 
         self.results.insert(instruction_id, results);
     }
