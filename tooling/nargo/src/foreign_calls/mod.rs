@@ -8,6 +8,7 @@ pub mod print;
 pub mod default;
 #[cfg(feature = "rpc")]
 pub mod rpc;
+pub use default::DefaultForeignCallBuilder;
 #[cfg(feature = "rpc")]
 pub use default::DefaultForeignCallExecutor;
 

@@ -14,7 +14,7 @@ use clap::Args;
 use fm::FileManager;
 use formatters::{Formatter, JsonFormatter, PrettyFormatter, TerseFormatter};
 use nargo::{
-    foreign_calls::DefaultForeignCallExecutor, insert_all_files_for_workspace_into_file_manager,
+    foreign_calls::DefaultForeignCallBuilder, insert_all_files_for_workspace_into_file_manager,
     ops::TestStatus, package::Package, parse_all, prepare_package, workspace::Workspace,
     PrintOutput,
 };
@@ -497,13 +497,13 @@ impl<'a> TestRunner<'a> {
             PrintOutput::String(&mut output_string),
             &self.args.compile_options,
             |output, base| {
-                DefaultForeignCallExecutor::with_base(
-                    base,
+                DefaultForeignCallBuilder {
                     output,
-                    foreign_call_resolver_url,
-                    root_path.clone(),
-                    Some(package_name.clone()),
-                )
+                    resolver_url: foreign_call_resolver_url.map(|s| s.to_string()),
+                    root_path: root_path.clone(),
+                    package_name: Some(package_name.clone()),
+                }
+                .build_with_base(base)
             },
         );
         (test_status, output_string)

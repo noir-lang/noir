@@ -4,10 +4,7 @@ use acvm::{
     AcirField, FieldElement,
 };
 use nargo::{
-    foreign_calls::{
-        layers::{Layer, Layering},
-        DefaultForeignCallExecutor, ForeignCallExecutor,
-    },
+    foreign_calls::{layers::Layer, DefaultForeignCallBuilder, ForeignCallExecutor},
     PrintOutput,
 };
 use noirc_artifacts::debug::{DebugArtifact, DebugVars, StackFrame};
@@ -57,7 +54,7 @@ impl DefaultDebugForeignCallExecutor {
         output: PrintOutput<'_>,
         ex: DefaultDebugForeignCallExecutor,
     ) -> impl DebugForeignCallExecutor + '_ {
-        DefaultForeignCallExecutor::new(output, None, None, None).add_layer(ex)
+        DefaultForeignCallBuilder::default().with_output(output).build().add_layer(ex)
     }
 
     #[allow(clippy::new_ret_no_self, dead_code)]

@@ -13,10 +13,10 @@ use super::{
 #[cfg(feature = "rpc")]
 use super::rpc::RPCForeignCallExecutor;
 
-/// A configuration where we can enable fields based on feature flags,
-/// which is easier than providing different overrides for `new`.
+/// A builder for [DefaultForeignCallLayers] where we can enable fields based on feature flags,
+/// which is easier than providing different overrides for a `new` method.
 #[derive(Default)]
-pub struct DefaultForeignCallConfig<'a> {
+pub struct DefaultForeignCallBuilder<'a> {
     pub output: PrintOutput<'a>,
     #[cfg(feature = "rpc")]
     pub resolver_url: Option<String>,
@@ -26,7 +26,14 @@ pub struct DefaultForeignCallConfig<'a> {
     pub package_name: Option<String>,
 }
 
-impl<'a> DefaultForeignCallConfig<'a> {
+impl<'a> DefaultForeignCallBuilder<'a> {
+    /// Override the output.
+    pub fn with_output(mut self, output: PrintOutput<'a>) -> Self {
+        self.output = output;
+        self
+    }
+
+    /// Compose the executor layers with [layers::Empty] as the default handler.
     pub fn build<F>(self) -> DefaultForeignCallLayers<'a, layers::Empty, F>
     where
         F: AcirField + Serialize + for<'de> Deserialize<'de> + 'a,
@@ -34,6 +41,7 @@ impl<'a> DefaultForeignCallConfig<'a> {
         self.build_with_base(layers::Empty)
     }
 
+    /// Compose the executor layers with `base` as the default handler.
     pub fn build_with_base<B, F>(self, base: B) -> DefaultForeignCallLayers<'a, B, F>
     where
         F: AcirField + Serialize + for<'de> Deserialize<'de> + 'a,
@@ -83,7 +91,7 @@ pub struct DefaultForeignCallExecutor;
 /// Convenience constructors for the RPC case. Non-RPC versions are not provided
 /// because once a crate opts into this within the workspace, everyone gets it
 /// even if they don't want to. For the non-RPC case we can nudge people to
-/// use `DefaultForeignCallConfig` which is easier to keep flexible.
+/// use `DefaultForeignCallBuilder` which is easier to keep flexible.
 #[cfg(feature = "rpc")]
 impl DefaultForeignCallExecutor {
     #[allow(clippy::new_ret_no_self)]
@@ -96,26 +104,12 @@ impl DefaultForeignCallExecutor {
     where
         F: AcirField + Serialize + for<'de> Deserialize<'de> + 'a,
     {
-        Self::with_base(layers::Empty, output, resolver_url, root_path, package_name)
-    }
-
-    pub fn with_base<'a, F, B>(
-        base: B,
-        output: PrintOutput<'a>,
-        resolver_url: Option<&str>,
-        root_path: Option<std::path::PathBuf>,
-        package_name: Option<String>,
-    ) -> DefaultForeignCallLayers<'a, B, F>
-    where
-        F: AcirField + Serialize + for<'de> Deserialize<'de> + 'a,
-        B: ForeignCallExecutor<F> + 'a,
-    {
-        DefaultForeignCallConfig {
+        DefaultForeignCallBuilder {
             output,
             resolver_url: resolver_url.map(|s| s.to_string()),
             root_path,
             package_name,
         }
-        .build_with_base(base)
+        .build()
     }
 }
