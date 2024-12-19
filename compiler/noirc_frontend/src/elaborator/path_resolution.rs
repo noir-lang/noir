@@ -9,7 +9,7 @@ use crate::hir::resolution::visibility::item_in_module_is_visible;
 
 use crate::locations::ReferencesTracker;
 use crate::node_interner::{FuncId, GlobalId, StructId, TraitId, TypeAliasId};
-use crate::Type;
+use crate::{Shared, Type, TypeAlias};
 
 use super::types::SELF_TYPE_NAME;
 use super::Elaborator;
@@ -218,18 +218,8 @@ impl<'context> Elaborator<'context> {
                 ),
                 ModuleDefId::TypeAliasId(id) => {
                     let type_alias = self.interner.get_type_alias(id);
-                    let type_alias = type_alias.borrow();
-
-                    let module_id = match &type_alias.typ {
-                        Type::Struct(struct_id, _generics) => struct_id.borrow().id.module_id(),
-                        Type::Error => {
-                            return Err(PathResolutionError::Unresolved(last_ident.clone()));
-                        }
-                        _ => {
-                            // For now we only allow type aliases that point to structs.
-                            // The more general case is captured here: https://github.com/noir-lang/noir/issues/6398
-                            panic!("Type alias in path not pointing to struct not yet supported")
-                        }
+                    let Some(module_id) = get_type_alias_module_def_id(&type_alias) else {
+                        return Err(PathResolutionError::Unresolved(last_ident.clone()));
                     };
 
                     (
@@ -343,5 +333,20 @@ fn merge_intermediate_path_resolution_item_with_module_def_id(
                 PathResolutionItem::TraitFunction(trait_id, generics, func_id)
             }
         },
+    }
+}
+
+fn get_type_alias_module_def_id(type_alias: &Shared<TypeAlias>) -> Option<ModuleId> {
+    let type_alias = type_alias.borrow();
+
+    match &type_alias.typ {
+        Type::Struct(struct_id, _generics) => Some(struct_id.borrow().id.module_id()),
+        Type::Alias(type_alias, _generics) => get_type_alias_module_def_id(type_alias),
+        Type::Error => None,
+        _ => {
+            // For now we only allow type aliases that point to structs.
+            // The more general case is captured here: https://github.com/noir-lang/noir/issues/6398
+            panic!("Type alias in path not pointing to struct not yet supported")
+        }
     }
 }
