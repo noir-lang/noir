@@ -32,7 +32,7 @@ use crate::{
     Kind, QuotedType, Shared, StructType, Type,
 };
 
-use super::{Elaborator, LambdaContext};
+use super::{Elaborator, LambdaContext, UnsafeBlockStatus};
 
 impl<'context> Elaborator<'context> {
     pub(crate) fn elaborate_expression(&mut self, expr: Expression) -> (ExprId, Type) {
@@ -58,8 +58,8 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::Comptime(comptime, _) => {
                 return self.elaborate_comptime_block(comptime, expr.span)
             }
-            ExpressionKind::Unsafe(block_expression, _) => {
-                self.elaborate_unsafe_block(block_expression)
+            ExpressionKind::Unsafe(block_expression, span) => {
+                self.elaborate_unsafe_block(block_expression, span)
             }
             ExpressionKind::Resolved(id) => return (id, self.interner.id_type(id)),
             ExpressionKind::Interned(id) => {
@@ -140,15 +140,24 @@ impl<'context> Elaborator<'context> {
         (HirBlockExpression { statements }, block_type)
     }
 
-    fn elaborate_unsafe_block(&mut self, block: BlockExpression) -> (HirExpression, Type) {
+    fn elaborate_unsafe_block(
+        &mut self,
+        block: BlockExpression,
+        span: Span,
+    ) -> (HirExpression, Type) {
         // Before entering the block we cache the old value of `in_unsafe_block` so it can be restored.
-        let old_in_unsafe_block = self.in_unsafe_block;
-        self.in_unsafe_block = true;
+        let old_in_unsafe_block = self.unsafe_block_status;
+        self.unsafe_block_status = UnsafeBlockStatus::InUnsafeBlockWithoutUnconstrainedCalls;
 
         let (hir_block_expression, typ) = self.elaborate_block_expression(block);
 
+        if let UnsafeBlockStatus::InUnsafeBlockWithoutUnconstrainedCalls = self.unsafe_block_status
+        {
+            self.push_err(TypeCheckError::UnnecessaryUnsafeBlock { span });
+        }
+
         // Finally, we restore the original value of `self.in_unsafe_block`.
-        self.in_unsafe_block = old_in_unsafe_block;
+        self.unsafe_block_status = old_in_unsafe_block;
 
         (HirExpression::Unsafe(hir_block_expression), typ)
     }
@@ -410,6 +419,8 @@ impl<'context> Elaborator<'context> {
         method_call: MethodCallExpression,
         span: Span,
     ) -> (HirExpression, Type) {
+        dbg!(&method_call);
+
         let object_span = method_call.object.span;
         let (mut object, mut object_type) = self.elaborate_expression(method_call.object);
         object_type = object_type.follow_bindings();

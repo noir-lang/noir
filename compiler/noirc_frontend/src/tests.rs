@@ -3875,3 +3875,22 @@ fn errors_on_cyclic_globals() {
         CompilationError::ResolverError(ResolverError::DependencyCycle { .. })
     )));
 }
+
+#[test]
+fn warns_on_unneeded_unsafe() {
+    let src = r#"
+    fn main() { 
+        unsafe { 
+            foo() 
+        }
+    }
+
+    fn foo() {}
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        &errors[0].0,
+        CompilationError::TypeError(TypeCheckError::UnnecessaryUnsafeBlock { .. })
+    ));
+}
