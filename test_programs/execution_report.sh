@@ -56,18 +56,13 @@ for dir in ${tests_to_profile[@]}; do
 
     for ((i = 1; i <= NUM_RUNS; i++)); do
       EXECUTION_TIME=$((time nargo execute --silence-warnings) 2>&1 | grep real | grep -oE '[0-9]+m[0-9]+.[0-9]+s')
-      echo $EXECUTION_TIME
       # Convert to seconds and add to total time
-      TOTAL_TIME=$($total_time + $(echo $EXECUTION_TIME | sed -E 's/([0-9]+)m([0-9.]+)s/\1 * 60 + \2/' | bc))
+      TOTAL_TIME=$(echo "$TOTAL_TIME + $(echo $EXECUTION_TIME | sed -E 's/([0-9]+)m([0-9.]+)s/\1 * 60 + \2/' | bc)" | bc)
     done
+
     AVG_TIME=$(echo "$TOTAL_TIME / $NUM_RUNS" | bc -l)
-
-    echo $PACKAGE_NAME
-    echo $AVG_TIME
-
     # Keep only last three decimal points
     AVG_TIME=$(awk '{printf "%.3f\n", $1}' <<< "$AVG_TIME")
-    echo $AVG_TIME
 
     echo -e " {\n    \"artifact_name\":\"$PACKAGE_NAME\",\n    \"time\":\"0m"$AVG_TIME"s\"" >> $current_dir/execution_report.json
     
