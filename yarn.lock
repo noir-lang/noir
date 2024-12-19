@@ -221,9 +221,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@aztec/bb.js@npm:0.66.0":
-  version: 0.66.0
-  resolution: "@aztec/bb.js@npm:0.66.0"
+"@aztec/bb.js@npm:0.67.1":
+  version: 0.67.1
+  resolution: "@aztec/bb.js@npm:0.67.1"
   dependencies:
     comlink: ^4.4.1
     commander: ^10.0.1
@@ -233,7 +233,7 @@ __metadata:
     tslib: ^2.4.0
   bin:
     bb.js: dest/node/main.js
-  checksum: 7295bf6543afe1c2db795a95c7ed40806de63c77e44bb4dacb2ec6a9171d1d34749150844ab47bc2499d06676e623acb408857b6aa9da702d3c576efadb8c906
+  checksum: 1df1968fa83a867d920c70e8b5aceaa371e68c71651f05f543b7231cb1be1f2be449adc6cdb6b52ff0ed0f972d74289bcb3ff129334a4d0e8f853cd267625634
   languageName: node
   linkType: hard
 
@@ -14124,7 +14124,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "integration-tests@workspace:compiler/integration-tests"
   dependencies:
-    "@aztec/bb.js": 0.66.0
+    "@aztec/bb.js": 0.67.1
     "@noir-lang/noir_js": "workspace:*"
     "@noir-lang/noir_wasm": "workspace:*"
     "@nomicfoundation/hardhat-chai-matchers": ^2.0.0
