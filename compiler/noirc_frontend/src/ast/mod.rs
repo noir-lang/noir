@@ -76,6 +76,14 @@ impl From<IntegerBitSize> for u8 {
 
 pub struct InvalidIntegerBitSizeError(pub u32);
 
+impl TryFrom<u8> for IntegerBitSize {
+    type Error = InvalidIntegerBitSizeError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        Self::try_from(value as u32)
+    }
+}
+
 impl TryFrom<u32> for IntegerBitSize {
     type Error = InvalidIntegerBitSizeError;
 
