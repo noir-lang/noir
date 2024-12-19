@@ -142,7 +142,7 @@ impl U128 {
 
     pub fn from_integer<T>(i: T) -> U128
     where
-        T: super::convert::AsPrimitive<Field>,
+        T: AsPrimitive<Field>,
     {
         let f = i.as_();
         // Reject values which would overflow a u128
@@ -154,7 +154,7 @@ impl U128 {
 
     pub fn to_integer<T>(self) -> T
     where
-        Field: super::convert::AsPrimitive<T>,
+        Field: AsPrimitive<T>,
     {
         AsPrimitive::as_(self.lo + self.hi * pow64)
     }
