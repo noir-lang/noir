@@ -1461,7 +1461,7 @@ mod test {
     }
 
     #[test]
-    fn eliminates_unnecessary_stores_of_numeric_types() {
+    fn eliminates_unnecessary_if_else_instructions_on_numeric_types() {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: bool):
@@ -1501,7 +1501,7 @@ mod test {
     }
 
     #[test]
-    fn eliminates_unnecessary_stores_of_array_types() {
+    fn eliminates_unnecessary_if_else_instructions_on_array_types() {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: bool, v1: bool):
