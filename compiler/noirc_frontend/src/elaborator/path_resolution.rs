@@ -403,6 +403,8 @@ impl<'context> Elaborator<'context> {
 
         // Otherwise, the function could be defined in zero, one or more traits.
         let starting_module = self.get_module(starting_module_id);
+
+        // Gather a list of items for which their trait is in scope.
         let mut results = Vec::new();
 
         for (trait_id, item) in values.iter() {
@@ -421,6 +423,7 @@ impl<'context> Elaborator<'context> {
 
         if results.is_empty() {
             if values.len() == 1 {
+                // This is the backwards-compatible case where there's a single trait method but it's not in scope
                 let (trait_id, item) = values.iter().next().expect("Expected an item");
                 let trait_id = trait_id.expect("The None option was already considered before");
                 let per_ns = PerNs { types: None, values: Some(*item) };
