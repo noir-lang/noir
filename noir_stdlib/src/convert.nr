@@ -118,117 +118,50 @@ impl From<bool> for Field {
 }
 // docs:end:from-impls
 
-pub(crate) trait CastFromField {
-    fn cast_from_field(input: Field) -> Self;
+/// A generic interface for casting between primitive types,
+/// equivalent of using the `as` keyword between values.
+///
+/// # Example
+///
+/// ```
+/// let x: Field = 1234567890;
+/// let y: u8 = x as u8;
+/// let z: u8 = x.as_();
+/// assert_eq(y, z);
+/// ```
+pub trait AsPrimitive<T> {
+    /// The equivalent of doing `self as T`.
+    fn as_(self) -> T;
 }
 
-impl CastFromField for u8 {
-    fn cast_from_field(input: Field) -> u8 {
-        input as u8
-    }
-}
+#[generate_as_primitive_impls]
+comptime fn generate_as_primitive_impls(_: FunctionDefinition) -> Quoted {
+    let types = [
+        quote { bool },
+        quote { u8 },
+        quote { u16 },
+        quote { u32 },
+        quote { u64 },
+        quote { i8 },
+        quote { i16 },
+        quote { i32 },
+        quote { i64 },
+        quote { Field },
+    ];
 
-impl CastFromField for u16 {
-    fn cast_from_field(input: Field) -> u16 {
-        input as u16
+    let mut impls = &[];
+    for type1 in types {
+        for type2 in types {
+            impls = impls.push_back(
+                quote {
+                impl AsPrimitive<$type1> for $type2 {
+                    fn as_(self) -> $type1 {
+                        self as $type1
+                    }
+                }
+            },
+            );
+        }
     }
+    impls.join(quote {})
 }
-impl CastFromField for u32 {
-    fn cast_from_field(input: Field) -> u32 {
-        input as u32
-    }
-}
-
-impl CastFromField for u64 {
-    fn cast_from_field(input: Field) -> u64 {
-        input as u64
-    }
-}
-
-impl CastFromField for i8 {
-    fn cast_from_field(input: Field) -> i8 {
-        input as i8
-    }
-}
-
-impl CastFromField for i16 {
-    fn cast_from_field(input: Field) -> i16 {
-        input as i16
-    }
-}
-impl CastFromField for i32 {
-    fn cast_from_field(input: Field) -> i32 {
-        input as i32
-    }
-}
-
-impl CastFromField for i64 {
-    fn cast_from_field(input: Field) -> i64 {
-        input as i64
-    }
-}
-
-impl CastFromField for Field {
-    fn cast_from_field(input: Field) -> Field {
-        input
-    }
-}
-
-pub(crate) trait CastToField {
-    fn cast_to_field(input: Self) -> Field;
-}
-
-impl CastToField for u8 {
-    fn cast_to_field(input: u8) -> Field {
-        input as Field
-    }
-}
-
-impl CastToField for u16 {
-    fn cast_to_field(input: u16) -> Field {
-        input as Field
-    }
-}
-
-impl CastToField for u32 {
-    fn cast_to_field(input: u32) -> Field {
-        input as Field
-    }
-}
-
-impl CastToField for u64 {
-    fn cast_to_field(input: u64) -> Field {
-        input as Field
-    }
-}
-
-impl CastToField for i8 {
-    fn cast_to_field(input: i8) -> Field {
-        input as Field
-    }
-}
-
-impl CastToField for i16 {
-    fn cast_to_field(input: i16) -> Field {
-        input as Field
-    }
-}
-
-impl CastToField for i32 {
-    fn cast_to_field(input: i32) -> Field {
-        input as Field
-    }
-}
-
-impl CastToField for i64 {
-    fn cast_to_field(input: i64) -> Field {
-        input as Field
-    }
-}
-
-impl CastToField for Field {
-    fn cast_to_field(input: Field) -> Field {
-        input
-    }
-}
-

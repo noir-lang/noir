@@ -1,5 +1,6 @@
 use crate::cmp::{Eq, Ord, Ordering};
 use crate::ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Not, Rem, Shl, Shr, Sub};
+use super::convert::AsPrimitive;
 
 global pow64: Field = 18446744073709551616; //2^64;
 global pow63: Field = 9223372036854775808; // 2^63;
@@ -141,9 +142,9 @@ impl U128 {
 
     pub fn from_integer<T>(i: T) -> U128
     where
-        T: super::convert::CastToField,
+        T: super::convert::AsPrimitive<Field>,
     {
-        let f = i.cast_to_field();
+        let f = i.as_();
         // Reject values which would overflow a u128
         f.assert_max_bit_size::<128>();
         let lo = f as u64 as Field;
@@ -153,9 +154,9 @@ impl U128 {
 
     pub fn to_integer<T>(self) -> T
     where
-        T: super::convert::CastFromField,
+        Field: super::convert::AsPrimitive<T>,
     {
-        T::cast_from_field(self.lo + self.hi * pow64)
+        AsPrimitive::as_(self.lo + self.hi * pow64)
     }
 
     fn wrapping_mul(self: Self, b: U128) -> U128 {

@@ -1,3 +1,5 @@
+use convert::AsPrimitive;
+
 pub mod hash;
 pub mod aes128;
 pub mod array;
@@ -91,26 +93,27 @@ pub fn static_assert<let N: u32>(predicate: bool, message: str<N>) {}
 
 pub fn wrapping_add<T>(x: T, y: T) -> T
 where
-    T: convert::CastToField + convert::CastFromField,
+    T: convert::AsPrimitive<Field>,
+    Field: convert::AsPrimitive<T>,
 {
-    T::cast_from_field(x.cast_to_field() + y.cast_to_field())
+    AsPrimitive::as_(x.as_() + y.as_())
 }
 
 pub fn wrapping_sub<T>(x: T, y: T) -> T
 where
-    T: convert::CastToField + convert::CastFromField,
+    T: convert::AsPrimitive<Field>,
+    Field: convert::AsPrimitive<T>,
 {
     //340282366920938463463374607431768211456 is 2^128, it is used to avoid underflow
-    T::cast_from_field(
-        x.cast_to_field() + 340282366920938463463374607431768211456 - y.cast_to_field(),
-    )
+    AsPrimitive::as_(x.as_() + 340282366920938463463374607431768211456 - y.as_())
 }
 
 pub fn wrapping_mul<T>(x: T, y: T) -> T
 where
-    T: convert::CastToField + convert::CastFromField,
+    T: convert::AsPrimitive<Field>,
+    Field: convert::AsPrimitive<T>,
 {
-    T::cast_from_field(x.cast_to_field() * y.cast_to_field())
+    AsPrimitive::as_(x.as_() * y.as_())
 }
 
 #[builtin(as_witness)]
