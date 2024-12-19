@@ -117,7 +117,7 @@ impl<'a> SliceCapacityTracker<'a> {
                             let array_size = self
                                 .dfg
                                 .try_get_array_length(arguments[argument_index])
-                                .expect("ICE: Should be have an array length for AsSlice input");
+                                .expect("ICE: Should have an array length for AsSlice input");
                             slice_sizes.insert(result_slice, array_size);
                         }
                         _ => {}
