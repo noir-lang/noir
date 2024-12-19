@@ -635,9 +635,7 @@ impl<'block> BrilligBlock<'block> {
                             let array = array.extract_register();
                             self.brillig_context.load_instruction(destination, array);
                         }
-                        Intrinsic::FromField
-                        | Intrinsic::AsField
-                        | Intrinsic::IsUnconstrained
+                        Intrinsic::IsUnconstrained
                         | Intrinsic::DerivePedersenGenerators
                         | Intrinsic::ApplyRangeConstraint
                         | Intrinsic::StrAsBytes

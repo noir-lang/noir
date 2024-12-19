@@ -22,7 +22,6 @@ enum ACVMCommand {
     Execute(execute_cmd::ExecuteCommand),
 }
 
-#[cfg(not(feature = "codegen-docs"))]
 pub(crate) fn start_cli() -> eyre::Result<()> {
     let ACVMCli { command } = ACVMCli::parse();
 
@@ -30,12 +29,5 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         ACVMCommand::Execute(args) => execute_cmd::run(args),
     }?;
 
-    Ok(())
-}
-
-#[cfg(feature = "codegen-docs")]
-pub(crate) fn start_cli() -> eyre::Result<()> {
-    let markdown: String = clap_markdown::help_markdown::<NargoCli>();
-    println!("{markdown}");
     Ok(())
 }

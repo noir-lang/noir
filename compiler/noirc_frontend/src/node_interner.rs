@@ -414,7 +414,7 @@ pub struct DefinitionId(usize);
 impl DefinitionId {
     //dummy id for error reporting
     pub fn dummy_id() -> DefinitionId {
-        DefinitionId(std::usize::MAX)
+        DefinitionId(usize::MAX)
     }
 }
 
@@ -425,7 +425,7 @@ pub struct GlobalId(usize);
 impl GlobalId {
     // Dummy id for error reporting
     pub fn dummy_id() -> Self {
-        GlobalId(std::usize::MAX)
+        GlobalId(usize::MAX)
     }
 }
 
@@ -496,7 +496,7 @@ pub struct TypeAliasId(pub usize);
 
 impl TypeAliasId {
     pub fn dummy_id() -> TypeAliasId {
-        TypeAliasId(std::usize::MAX)
+        TypeAliasId(usize::MAX)
     }
 }
 
