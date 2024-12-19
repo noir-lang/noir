@@ -1461,7 +1461,7 @@ mod test {
     }
 
     #[test]
-    fn stores_if_else_numeric() {
+    fn eliminates_unnecessary_stores_of_numeric_types() {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: bool):
@@ -1501,7 +1501,7 @@ mod test {
     }
 
     #[test]
-    fn stores_if_else() {
+    fn eliminates_unnecessary_stores_of_array_types() {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: bool, v1: bool):
@@ -1529,7 +1529,6 @@ mod test {
             .fold_constants()
             .dead_instruction_elimination();
 
-        print!("{ssa}");
         let expected = "
         acir(inline) fn main f0 {
           b0(v0: u1, v1: u1):
