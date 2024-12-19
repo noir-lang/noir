@@ -348,16 +348,14 @@ jobs:
       
       - name: Generate execution report without averages
         working-directory: ./test-repo/${{ matrix.project.path }}
-        if: ${{ !matrix.project.is_library }}
-        if: ${{ !matrix.project.take_average }}
+        if: ${{ !matrix.project.is_library }} && ${{ !matrix.project.take_average }}
         run: |
           mv /home/runner/work/noir/noir/scripts/test_programs/execution_report.sh ./execution_report.sh
           ./execution_report.sh 1
 
       - name: Generate execution report with averages
         working-directory: ./test-repo/${{ matrix.project.path }}
-        if: ${{ !matrix.project.is_library }}
-        if: ${{ matrix.project.take_average }}
+        if: ${{ !matrix.project.is_library }} && ${{ matrix.project.take_average }}
         run: |
           mv /home/runner/work/noir/noir/scripts/test_programs/execution_report.sh ./execution_report.sh
           ./execution_report.sh 1 1
