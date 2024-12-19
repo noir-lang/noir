@@ -80,7 +80,8 @@ fn run_snippet_proptest(
         Err(e) => panic!("failed to compile program; brillig = {force_brillig}:\n{source}\n{e:?}"),
     };
 
-    let blackbox_solver = bn254_blackbox_solver::Bn254BlackBoxSolver;
+    let pedandic_solving = true;
+    let blackbox_solver = bn254_blackbox_solver::Bn254BlackBoxSolver(pedandic_solving);
     let foreign_call_executor =
         RefCell::new(DefaultForeignCallExecutor::new(PrintOutput::None, None, None, None));
 
