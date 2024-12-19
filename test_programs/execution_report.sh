@@ -51,9 +51,7 @@ for dir in ${tests_to_profile[@]}; do
     if [ "$2" == "1" ]; then
       NUM_RUNS=5
     fi
-
-    echo "num_runs: $NUM_RUNS"
-
+    
     for ((i = 1; i <= NUM_RUNS; i++)); do
       EXECUTION_TIME=$((time nargo execute --silence-warnings) 2>&1 | grep real | grep -oE '[0-9]+m[0-9]+.[0-9]+s')
       # Convert to seconds and add to total time
