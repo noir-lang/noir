@@ -51,7 +51,7 @@ impl PostOrder {
                         // stack, we push the item that's due for a visit first to the top.
                         for successor_id in func.dfg[block_id].successors().rev() {
                             if !visited.contains(&successor_id) {
-                                // This not visited check would also be cover by the next
+                                // This not visited check would also be covered by the next
                                 // iteration, but checking here two saves an iteration per successor.
                                 stack.push((Visit::First, successor_id));
                             }
