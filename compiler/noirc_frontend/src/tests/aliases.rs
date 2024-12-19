@@ -47,3 +47,31 @@ fn alias_in_let_pattern() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn double_alias_in_path() {
+    let src = r#"
+    struct Foo {}
+
+    impl Foo {
+        fn new() -> Self {
+            Self {}
+        }
+    }
+
+    type FooAlias1 = Foo;
+    type FooAlias2 = FooAlias1;
+
+    fn main() { 
+        let _ = FooAlias2::new();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn double_generic_alias_in_path() {
+    let src = r#"
+    "#;
+    assert_no_errors(src);
+}
