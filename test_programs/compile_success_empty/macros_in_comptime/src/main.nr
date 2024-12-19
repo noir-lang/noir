@@ -6,7 +6,7 @@ global three_field: Field = 3;
 
 fn main() {
     comptime {
-        unsafe { 
+        unsafe {
             //@safety: testing context
             foo::<three_field>(5)
         };
