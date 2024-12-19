@@ -1,8 +1,4 @@
-use std::{
-    cmp::Ordering,
-    collections::BTreeMap,
-    fmt::{self, Display},
-};
+use std::{cmp::Ordering, collections::BTreeMap, fmt::Display};
 
 use noirc_frontend::ast::{ItemVisibility, PathKind, UseTree, UseTreeKind};
 
@@ -157,7 +153,7 @@ impl Segment {
 }
 
 impl Display for Segment {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Segment::Crate => write!(f, "crate"),
             Segment::Super => write!(f, "super"),

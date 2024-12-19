@@ -156,6 +156,10 @@ pub struct CompileOptions {
     /// This is disabled by default.
     #[arg(long, default_value = "false")]
     pub pedantic_solving: bool,
+
+    /// Used internally to test for non-determinism in the compiler.
+    #[clap(long, hide = true)]
+    pub check_non_determinism: bool,
 }
 
 pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {

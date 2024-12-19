@@ -1454,7 +1454,7 @@ fn poseidon2_permutation_zeroes() {
 fn sha256_compression_zeros() {
     let pedantic_solving = true;
     let results = solve_array_input_blackbox_call(
-        [(FieldElement::zero(), false); 24].try_into().unwrap(),
+        [(FieldElement::zero(), false); 24].into(),
         8,
         None,
         pedantic_solving,

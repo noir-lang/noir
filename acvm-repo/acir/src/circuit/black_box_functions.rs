@@ -42,13 +42,13 @@ pub enum BlackBoxFunc {
     /// https://tools.ietf.org/html/rfc7693
     /// - inputs are a byte array, i.e a vector of (witness, 8)
     /// - output is a byte array of length 32, i.e. an array of 32
-    /// (witness, 8), constrained to be the blake2s of the inputs.
+    ///   (witness, 8), constrained to be the blake2s of the inputs.
     Blake2s,
 
     /// Computes the Blake3 hash of the inputs
     /// - inputs are a byte array, i.e a vector of (witness, 8)
     /// - output is a byte array of length 32, i.e an array of 32
-    /// (witness, 8), constrained to be the blake3 of the inputs.
+    ///   (witness, 8), constrained to be the blake3 of the inputs.
     Blake3,
 
     /// Verifies a ECDSA signature over the secp256k1 curve.

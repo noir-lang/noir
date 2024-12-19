@@ -205,6 +205,10 @@ pub enum TypeCheckError {
     CyclicType { typ: Type, span: Span },
     #[error("Type annotations required before indexing this array or slice")]
     TypeAnnotationsNeededForIndex { span: Span },
+    #[error("Unnecessary `unsafe` block")]
+    UnnecessaryUnsafeBlock { span: Span },
+    #[error("Unnecessary `unsafe` block")]
+    NestedUnsafeBlock { span: Span },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -514,6 +518,20 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 Diagnostic::simple_error(
                     "Type annotations required before indexing this array or slice".into(), 
                     "Type annotations needed before this point, can't decide if this is an array or slice".into(),
+                    *span,
+                )
+            },
+            TypeCheckError::UnnecessaryUnsafeBlock { span } => {
+                Diagnostic::simple_warning(
+                    "Unnecessary `unsafe` block".into(), 
+                    "".into(),
+                    *span,
+                )
+            },
+            TypeCheckError::NestedUnsafeBlock { span } => {
+                Diagnostic::simple_warning(
+                    "Unnecessary `unsafe` block".into(), 
+                    "Because it's nested inside another `unsafe` block".into(),
                     *span,
                 )
             },

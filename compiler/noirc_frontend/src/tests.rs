@@ -3857,3 +3857,63 @@ fn disallows_underscore_on_right_hand_side() {
 
     assert_eq!(name, "_");
 }
+
+#[test]
+fn errors_on_cyclic_globals() {
+    let src = r#"
+    pub comptime global A: u32 = B;
+    pub comptime global B: u32 = A;
+
+    fn main() { }
+    "#;
+    let errors = get_program_errors(src);
+
+    assert!(errors.iter().any(|(error, _)| matches!(
+        error,
+        CompilationError::InterpreterError(InterpreterError::GlobalsDependencyCycle { .. })
+    )));
+    assert!(errors.iter().any(|(error, _)| matches!(
+        error,
+        CompilationError::ResolverError(ResolverError::DependencyCycle { .. })
+    )));
+}
+
+#[test]
+fn warns_on_unneeded_unsafe() {
+    let src = r#"
+    fn main() { 
+        unsafe { 
+            foo() 
+        }
+    }
+
+    fn foo() {}
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        &errors[0].0,
+        CompilationError::TypeError(TypeCheckError::UnnecessaryUnsafeBlock { .. })
+    ));
+}
+
+#[test]
+fn warns_on_nested_unsafe() {
+    let src = r#"
+    fn main() { 
+        unsafe { 
+            unsafe {
+                foo() 
+            }
+        }
+    }
+
+    unconstrained fn foo() {}
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        &errors[0].0,
+        CompilationError::TypeError(TypeCheckError::NestedUnsafeBlock { .. })
+    ));
+}
