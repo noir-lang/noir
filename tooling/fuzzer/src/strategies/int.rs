@@ -4,6 +4,8 @@ use proptest::{
 };
 use rand::Rng;
 
+type BinarySearch = proptest::num::i128::BinarySearch;
+
 /// Strategy for signed ints (up to i128).
 /// The strategy combines 2 different strategies, each assigned a specific weight:
 /// 1. Generate purely random value in a range. This will first choose bit size uniformly (up `bits`
@@ -27,6 +29,7 @@ impl IntStrategy {
         Self { bits, edge_weight: 10usize, random_weight: 50usize }
     }
 
+    /// Generate random values near MIN or the MAX value.
     fn generate_edge_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
         let rng = runner.rng();
 
@@ -40,16 +43,16 @@ impl IntStrategy {
             3 => self.type_max() - offset,
             _ => unreachable!(),
         };
-        Ok(proptest::num::i128::BinarySearch::new(start))
+        Ok(BinarySearch::new(start))
     }
 
     fn generate_random_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
         let rng = runner.rng();
-
         let start: i128 = rng.gen_range(self.type_min()..=self.type_max());
-        Ok(proptest::num::i128::BinarySearch::new(start))
+        Ok(BinarySearch::new(start))
     }
 
+    /// Maximum allowed positive number.
     fn type_max(&self) -> i128 {
         if self.bits < 128 {
             (1i128 << (self.bits - 1)) - 1
@@ -58,6 +61,7 @@ impl IntStrategy {
         }
     }
 
+    /// Minimum allowed negative number.
     fn type_min(&self) -> i128 {
         if self.bits < 128 {
             -(1i128 << (self.bits - 1))
@@ -68,7 +72,7 @@ impl IntStrategy {
 }
 
 impl Strategy for IntStrategy {
-    type Tree = proptest::num::i128::BinarySearch;
+    type Tree = BinarySearch;
     type Value = i128;
 
     fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
