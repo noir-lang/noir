@@ -4,7 +4,7 @@ use acvm::{
     AcirField, FieldElement,
 };
 use nargo::{
-    foreign_calls::{DefaultForeignCallExecutor, ForeignCallExecutor},
+    foreign_calls::{layers::Layer, DefaultForeignCallExecutor, ForeignCallExecutor},
     PrintOutput,
 };
 use noirc_artifacts::debug::{DebugArtifact, DebugVars, StackFrame};
@@ -44,23 +44,31 @@ pub trait DebugForeignCallExecutor: ForeignCallExecutor<FieldElement> {
     fn current_stack_frame(&self) -> Option<StackFrame<FieldElement>>;
 }
 
-pub struct DefaultDebugForeignCallExecutor<'a> {
-    executor: DefaultForeignCallExecutor<'a, FieldElement>,
+#[derive(Default)]
+pub struct DefaultDebugForeignCallExecutor {
     pub debug_vars: DebugVars<FieldElement>,
 }
 
-impl<'a> DefaultDebugForeignCallExecutor<'a> {
-    pub fn new(output: PrintOutput<'a>) -> Self {
-        Self {
-            executor: DefaultForeignCallExecutor::new(output, None, None, None),
-            debug_vars: DebugVars::default(),
-        }
+impl DefaultDebugForeignCallExecutor {
+    pub fn make(
+        output: PrintOutput<'_>,
+        ex: DefaultDebugForeignCallExecutor,
+    ) -> impl DebugForeignCallExecutor + '_ {
+        Layer::new(ex, DefaultForeignCallExecutor::new(output, None, None, None))
     }
 
-    pub fn from_artifact(output: PrintOutput<'a>, artifact: &DebugArtifact) -> Self {
-        let mut ex = Self::new(output);
+    #[allow(clippy::new_ret_no_self, dead_code)]
+    pub fn new(output: PrintOutput<'_>) -> impl DebugForeignCallExecutor + '_ {
+        Self::make(output, Self::default())
+    }
+
+    pub fn from_artifact<'a>(
+        output: PrintOutput<'a>,
+        artifact: &DebugArtifact,
+    ) -> impl DebugForeignCallExecutor + 'a {
+        let mut ex = Self::default();
         ex.load_artifact(artifact);
-        ex
+        Self::make(output, ex)
     }
 
     pub fn load_artifact(&mut self, artifact: &DebugArtifact) {
@@ -73,7 +81,7 @@ impl<'a> DefaultDebugForeignCallExecutor<'a> {
     }
 }
 
-impl DebugForeignCallExecutor for DefaultDebugForeignCallExecutor<'_> {
+impl DebugForeignCallExecutor for DefaultDebugForeignCallExecutor {
     fn get_variables(&self) -> Vec<StackFrame<FieldElement>> {
         self.debug_vars.get_variables()
     }
@@ -91,7 +99,7 @@ fn debug_fn_id(value: &FieldElement) -> DebugFnId {
     DebugFnId(value.to_u128() as u32)
 }
 
-impl ForeignCallExecutor<FieldElement> for DefaultDebugForeignCallExecutor<'_> {
+impl ForeignCallExecutor<FieldElement> for DefaultDebugForeignCallExecutor {
     fn execute(
         &mut self,
         foreign_call: &ForeignCallWaitInfo<FieldElement>,
@@ -166,7 +174,21 @@ impl ForeignCallExecutor<FieldElement> for DefaultDebugForeignCallExecutor<'_> {
                 self.debug_vars.pop_fn();
                 Ok(ForeignCallResult::default())
             }
-            None => self.executor.execute(foreign_call),
+            None => Err(ForeignCallError::NoHandler(foreign_call_name.to_string())),
         }
+    }
+}
+
+impl<H, I> DebugForeignCallExecutor for Layer<H, I, FieldElement>
+where
+    H: DebugForeignCallExecutor,
+    I: ForeignCallExecutor<FieldElement>,
+{
+    fn get_variables(&self) -> Vec<StackFrame<FieldElement>> {
+        self.handler().get_variables()
+    }
+
+    fn current_stack_frame(&self) -> Option<StackFrame<FieldElement>> {
+        self.handler().current_stack_frame()
     }
 }

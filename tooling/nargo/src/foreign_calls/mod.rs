@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use acvm::{acir::brillig::ForeignCallResult, pwg::ForeignCallWaitInfo, AcirField};
+use layers::{Layer, Layering};
 use mocker::MockForeignCallExecutor;
 use noirc_printable_type::ForeignCallError;
 use print::{PrintForeignCallExecutor, PrintOutput};
@@ -8,6 +9,7 @@ use rand::Rng;
 use rpc::RPCForeignCallExecutor;
 use serde::{Deserialize, Serialize};
 
+pub mod layers;
 pub(crate) mod mocker;
 pub(crate) mod print;
 pub(crate) mod rpc;
@@ -64,77 +66,46 @@ impl ForeignCall {
     }
 }
 
-#[derive(Debug, Default)]
-pub struct DefaultForeignCallExecutor<'a, F> {
-    /// The executor for any [`ForeignCall::Print`] calls.
-    printer: PrintForeignCallExecutor<'a>,
-    mocker: MockForeignCallExecutor<F>,
-    external: Option<RPCForeignCallExecutor>,
-}
+pub struct DefaultForeignCallExecutor;
 
-impl<'a, F: Default> DefaultForeignCallExecutor<'a, F> {
-    pub fn new(
+impl DefaultForeignCallExecutor {
+    #[allow(clippy::new_ret_no_self)]
+    pub fn new<'a, F>(
         output: PrintOutput<'a>,
         resolver_url: Option<&str>,
         root_path: Option<PathBuf>,
         package_name: Option<String>,
-    ) -> Self {
-        let id = rand::thread_rng().gen();
-        let printer = PrintForeignCallExecutor { output };
-        let external_resolver = resolver_url.map(|resolver_url| {
+    ) -> impl ForeignCallExecutor<F> + 'a
+    where
+        F: AcirField + Serialize + for<'de> Deserialize<'de> + 'a,
+    {
+        Self::with_base(layers::Empty, output, resolver_url, root_path, package_name)
+    }
+
+    pub fn with_base<'a, F, B>(
+        base: B,
+        output: PrintOutput<'a>,
+        resolver_url: Option<&str>,
+        root_path: Option<PathBuf>,
+        package_name: Option<String>,
+    ) -> DefaultForeignCallLayers<'a, B, F>
+    where
+        F: AcirField + Serialize + for<'de> Deserialize<'de> + 'a,
+        B: ForeignCallExecutor<F> + 'a,
+    {
+        // Adding them in the opposite order, so print is the outermost layer.
+        base.add_layer(resolver_url.map(|resolver_url| {
+            let id = rand::thread_rng().gen();
             RPCForeignCallExecutor::new(resolver_url, id, root_path, package_name)
-        });
-        DefaultForeignCallExecutor {
-            printer,
-            mocker: MockForeignCallExecutor::default(),
-            external: external_resolver,
-        }
+        }))
+        .add_layer(MockForeignCallExecutor::default())
+        .add_layer(PrintForeignCallExecutor::new(output))
     }
 }
 
-impl<'a, F: AcirField + Serialize + for<'b> Deserialize<'b>> ForeignCallExecutor<F>
-    for DefaultForeignCallExecutor<'a, F>
-{
-    fn execute(
-        &mut self,
-        foreign_call: &ForeignCallWaitInfo<F>,
-    ) -> Result<ForeignCallResult<F>, ForeignCallError> {
-        let foreign_call_name = foreign_call.function.as_str();
-        match ForeignCall::lookup(foreign_call_name) {
-            Some(ForeignCall::Print) => self.printer.execute(foreign_call),
-            Some(
-                ForeignCall::CreateMock
-                | ForeignCall::SetMockParams
-                | ForeignCall::GetMockLastParams
-                | ForeignCall::SetMockReturns
-                | ForeignCall::SetMockTimes
-                | ForeignCall::ClearMock,
-            ) => self.mocker.execute(foreign_call),
-
-            None => {
-                // First check if there's any defined mock responses for this foreign call.
-                match self.mocker.execute(foreign_call) {
-                    Err(ForeignCallError::NoHandler(_)) => (),
-                    response_or_error => return response_or_error,
-                };
-
-                if let Some(external_resolver) = &mut self.external {
-                    // If the user has registered an external resolver then we forward any remaining oracle calls there.
-                    match external_resolver.execute(foreign_call) {
-                        Err(ForeignCallError::NoHandler(_)) => (),
-                        response_or_error => return response_or_error,
-                    };
-                }
-
-                // If all executors have no handler for the given foreign call then we cannot
-                // return a correct response to the ACVM. The best we can do is to return an empty response,
-                // this allows us to ignore any foreign calls which exist solely to pass information from inside
-                // the circuit to the environment (e.g. custom logging) as the execution will still be able to progress.
-                //
-                // We optimistically return an empty response for all oracle calls as the ACVM will error
-                // should a response have been required.
-                Ok(ForeignCallResult::default())
-            }
-        }
-    }
-}
+/// Facilitate static typing of layers on a base layer, so inner layers can be accessed.
+pub type DefaultForeignCallLayers<'a, B, F> = Layer<
+    PrintForeignCallExecutor<'a>,
+    Layer<MockForeignCallExecutor<F>, Layer<Option<RPCForeignCallExecutor>, B, F>, F>,
+    F,
+>;

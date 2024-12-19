@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use acvm::{
     acir::brillig::{ForeignCallParam, ForeignCallResult},
     pwg::ForeignCallWaitInfo,
@@ -45,7 +47,7 @@ impl<F: PartialEq> MockedCall<F> {
 }
 
 #[derive(Debug, Default)]
-pub(crate) struct MockForeignCallExecutor<F> {
+pub struct MockForeignCallExecutor<F> {
     /// Mocks have unique ids used to identify them in Noir, allowing to update or remove them.
     last_mock_id: usize,
     /// The registered mocks
@@ -78,8 +80,9 @@ impl<F: AcirField> MockForeignCallExecutor<F> {
     }
 }
 
-impl<F: AcirField + Serialize + for<'a> Deserialize<'a>> ForeignCallExecutor<F>
-    for MockForeignCallExecutor<F>
+impl<F> ForeignCallExecutor<F> for MockForeignCallExecutor<F>
+where
+    F: AcirField + Serialize + for<'a> Deserialize<'a>,
 {
     fn execute(
         &mut self,
@@ -172,5 +175,34 @@ impl<F: AcirField + Serialize + for<'a> Deserialize<'a>> ForeignCallExecutor<F>
                 }
             }
         }
+    }
+}
+
+/// Handler that panics if any of the mock functions are called.
+#[allow(dead_code)] // TODO: Make the mocker optional
+pub(crate) struct DisabledMockForeignCallExecutor<F> {
+    _field: PhantomData<F>,
+}
+
+impl<F> ForeignCallExecutor<F> for DisabledMockForeignCallExecutor<F> {
+    fn execute(
+        &mut self,
+        foreign_call: &ForeignCallWaitInfo<F>,
+    ) -> Result<ForeignCallResult<F>, ForeignCallError> {
+        let foreign_call_name = foreign_call.function.as_str();
+        if let Some(call) = ForeignCall::lookup(foreign_call_name) {
+            match call {
+                ForeignCall::CreateMock
+                | ForeignCall::SetMockParams
+                | ForeignCall::GetMockLastParams
+                | ForeignCall::SetMockReturns
+                | ForeignCall::SetMockTimes
+                | ForeignCall::ClearMock => {
+                    panic!("unexpected mock call: {}", foreign_call.function)
+                }
+                _ => {}
+            }
+        }
+        Err(ForeignCallError::NoHandler(foreign_call.function.clone()))
     }
 }
