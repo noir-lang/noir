@@ -13,10 +13,7 @@ workspace = true
 
 [dependencies]
 acvm.workspace = true
-iter-extended.workspace = true
 serde.workspace = true
-serde_json.workspace = true
-thiserror.workspace = true
-jsonrpc.workspace = true
+regex = "1.9.1"
 
 [dev-dependencies]

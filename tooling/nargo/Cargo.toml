@@ -27,6 +27,7 @@ rayon.workspace = true
 jsonrpc.workspace = true
 rand.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 walkdir = "2.5.0"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
