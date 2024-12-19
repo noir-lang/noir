@@ -43,7 +43,7 @@ pub(super) fn xor<F: AcirField>(
     })
 }
 
-/// Derives the rest of the witness based on the initial low level variables
+/// Derive the rest of the witness based on the initial low level variables
 fn solve_logic_opcode<F: AcirField>(
     initial_witness: &mut WitnessMap<F>,
     a: &FunctionInput<F>,
