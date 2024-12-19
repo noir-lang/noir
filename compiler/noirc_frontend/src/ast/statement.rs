@@ -634,6 +634,7 @@ impl Display for ConstrainKind {
 pub enum Pattern {
     Identifier(Ident),
     Mutable(Box<Pattern>, Span, /*is_synthesized*/ bool),
+    // TODO: tuple pattern as a type of struct pattern?
     Tuple(Vec<Pattern>, Span),
     Struct(Path, Vec<(Ident, Pattern)>, Span),
     Interned(InternedPattern, Span),
@@ -673,7 +674,7 @@ impl Pattern {
                 for pattern in patterns {
                     expressions.push(pattern.try_as_expression(interner)?);
                 }
-                Some(Expression { kind: ExpressionKind::Tuple(expressions), span: *span })
+                Some(Expression { kind: ExpressionKind::tuple(expressions), span: *span })
             }
             Pattern::Struct(path, patterns, span) => {
                 let mut fields = Vec::new();

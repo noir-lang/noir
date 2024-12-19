@@ -32,7 +32,6 @@ pub enum ExpressionKind {
     Infix(Box<InfixExpression>),
     If(Box<IfExpression>),
     Variable(Path),
-    Tuple(Vec<Expression>),
     Lambda(Box<Lambda>),
     Parenthesized(Box<Expression>),
     Quote(Tokens),
@@ -613,12 +612,14 @@ impl Display for ExpressionKind {
             Infix(infix) => infix.fmt(f),
             If(if_expr) => if_expr.fmt(f),
             Variable(path) => path.fmt(f),
+
+            // TODO: special-case needed in Constructor::fmt?
+            // Tuple(elements) => {
+            //     let elements = vecmap(elements, ToString::to_string);
+            //     write!(f, "({})", elements.join(", "))
+            // }
             Constructor(constructor) => constructor.fmt(f),
             MemberAccess(access) => access.fmt(f),
-            Tuple(elements) => {
-                let elements = vecmap(elements, ToString::to_string);
-                write!(f, "({})", elements.join(", "))
-            }
             Lambda(lambda) => lambda.fmt(f),
             Parenthesized(sub_expr) => write!(f, "({sub_expr})"),
             Comptime(block, _) => write!(f, "comptime {block}"),

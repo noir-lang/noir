@@ -2435,7 +2435,11 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         Type::String(_) => Some(String),
         Type::FmtString(_, _) => Some(FmtString),
         Type::Unit => Some(Unit),
-        Type::Tuple(_) => Some(Tuple),
+        Type::Struct(s, _) => if s.is_tuple() {
+            Some(Tuple)
+        } else {
+            None
+        },
         Type::Function(_, _, _, _) => Some(Function),
         Type::NamedGeneric(_, _) => Some(Generic),
         Type::Quoted(quoted) => Some(Quoted(*quoted)),
@@ -2446,7 +2450,6 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         Type::Forall(_, _)
         | Type::Constant(..)
         | Type::Error
-        | Type::Struct(_, _)
         | Type::InfixExpr(..)
         | Type::CheckedCast { .. }
         | Type::TraitAsType(..) => None,

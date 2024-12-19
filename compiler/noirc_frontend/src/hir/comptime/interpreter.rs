@@ -395,30 +395,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let argument = Value::Pointer(Shared::new(argument), true);
                 self.define_pattern(pattern, typ, argument, location)
             }
-            HirPattern::Tuple(pattern_fields, _) => {
-                let typ = &typ.follow_bindings();
-
-                match (argument, typ) {
-                    (Value::Tuple(fields), Type::Tuple(type_fields))
-                        if fields.len() == pattern_fields.len() =>
-                    {
-                        for ((pattern, typ), argument) in
-                            pattern_fields.iter().zip(type_fields).zip(fields)
-                        {
-                            self.define_pattern(pattern, typ, argument, location)?;
-                        }
-                        Ok(())
-                    }
-                    (value, _) => {
-                        let actual = value.get_type().into_owned();
-                        Err(InterpreterError::TypeMismatch {
-                            expected: typ.clone(),
-                            actual,
-                            location,
-                        })
-                    }
-                }
-            }
             HirPattern::Struct(struct_type, pattern_fields, _) => {
                 self.push_scope();
 
@@ -528,7 +504,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirExpression::MethodCall(call) => self.evaluate_method_call(call, id),
             HirExpression::Cast(cast) => self.evaluate_cast(&cast, id),
             HirExpression::If(if_) => self.evaluate_if(if_, id),
-            HirExpression::Tuple(tuple) => self.evaluate_tuple(tuple),
             HirExpression::Lambda(lambda) => self.evaluate_lambda(lambda, id),
             HirExpression::Quote(tokens) => self.evaluate_quote(tokens, id),
             HirExpression::Comptime(block) => self.evaluate_block(block),
@@ -1282,18 +1257,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn evaluate_access(&mut self, access: HirMemberAccess, id: ExprId) -> IResult<Value> {
         let (fields, struct_type) = match self.evaluate(access.lhs)? {
             Value::Struct(fields, typ) => (fields, typ),
-            Value::Tuple(fields) => {
-                let (fields, field_types): (HashMap<Rc<String>, Value>, Vec<Type>) = fields
-                    .into_iter()
-                    .enumerate()
-                    .map(|(i, field)| {
-                        let field_type = field.get_type().into_owned();
-                        let key_val_pair = (Rc::new(i.to_string()), field);
-                        (key_val_pair, field_type)
-                    })
-                    .unzip();
-                (fields, Type::Tuple(field_types))
-            }
             value => {
                 let location = self.elaborator.interner.expr_location(&id);
                 let typ = value.get_type().into_owned();
@@ -1523,11 +1486,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         result
     }
 
-    fn evaluate_tuple(&mut self, tuple: Vec<ExprId>) -> IResult<Value> {
-        let fields = try_vecmap(tuple, |field| self.evaluate(field))?;
-        Ok(Value::Tuple(fields))
-    }
-
     fn evaluate_lambda(&mut self, lambda: HirLambda, id: ExprId) -> IResult<Value> {
         let location = self.elaborator.interner.expr_location(&id);
         let environment =
@@ -1623,10 +1581,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 })?;
 
                 match object_value {
-                    Value::Tuple(mut fields) => {
-                        fields[index] = rhs;
-                        self.store_lvalue(*object, Value::Tuple(fields))
-                    }
                     Value::Struct(mut fields, typ) => {
                         fields.insert(Rc::new(field_name.0.contents), rhs);
                         self.store_lvalue(*object, Value::Struct(fields, typ.follow_bindings()))
@@ -1682,7 +1636,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 })?;
 
                 match object_value {
-                    Value::Tuple(mut values) => Ok(values.swap_remove(index)),
                     Value::Struct(fields, _) => Ok(fields[&field_name.0.contents].clone()),
                     value => Err(InterpreterError::NonTupleOrStructInMemberAccess {
                         typ: value.get_type().into_owned(),

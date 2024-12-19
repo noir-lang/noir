@@ -61,9 +61,6 @@ pub enum Type {
     /// The unit type `()`.
     Unit,
 
-    /// A tuple type with the given list of fields in the order they appear in source code.
-    Tuple(Vec<Type>),
-
     /// A user-defined struct type. The `Shared<StructType>` field here refers to
     /// the shared definition for each instance of this struct type. The `Vec<Type>`
     /// represents the generic arguments (if any) to this struct type.
@@ -853,6 +850,12 @@ impl std::fmt::Display for Type {
                 } else {
                     write!(f, "{}<{}>", s.borrow(), args.join(", "))
                 }
+
+                // TODO: move to struct printer
+                // Type::Tuple(elements) => {,
+                //     let elements = vecmap(elements, ToString::to_string);
+                //     write!(f, "({})", elements.join(", "))
+                // }
             }
             Type::Alias(alias, args) => {
                 let args = vecmap(args, |arg| arg.to_string());
@@ -864,10 +867,6 @@ impl std::fmt::Display for Type {
             }
             Type::TraitAsType(_id, name, generics) => {
                 write!(f, "impl {}{}", name, generics)
-            }
-            Type::Tuple(elements) => {
-                let elements = vecmap(elements, ToString::to_string);
-                write!(f, "({})", elements.join(", "))
             }
             Type::Bool => write!(f, "bool"),
             Type::String(len) => write!(f, "str<{len}>"),
@@ -998,6 +997,10 @@ impl Type {
         Self::type_variable_with_kind(interner, type_var_kind)
     }
 
+    pub fn tuple(args: Vec<Type>) -> Type {
+        "TODO: Type::Struct from tuple"
+    }
+
     /// A bit of an awkward name for this function - this function returns
     /// true for type variables or polymorphic integers which are unbound.
     /// NamedGenerics will always be false as although they are bindable,
@@ -1073,14 +1076,13 @@ impl Type {
             | Type::String(_)
             | Type::FmtString(_, _)
             | Type::Unit
-            | Type::Function(..)
-            | Type::Tuple(..) => true,
+            | Type::Function(..) => true,
+            Type::Struct(s, _args) => s.is_primitive(), // TODO: tuples are primitive, but not structs
             Type::Alias(alias_type, generics) => {
                 alias_type.borrow().get_type(&generics).is_primitive()
             }
             Type::MutableReference(typ) => typ.is_primitive(),
-            Type::Struct(..)
-            | Type::TypeVariable(..)
+            Type::TypeVariable(..)
             | Type::TraitAsType(..)
             | Type::NamedGeneric(..)
             | Type::CheckedCast { .. }
@@ -1139,7 +1141,6 @@ impl Type {
                 length.is_valid_for_program_input() && element.is_valid_for_program_input()
             }
             Type::String(length) => length.is_valid_for_program_input(),
-            Type::Tuple(elements) => elements.iter().all(|elem| elem.is_valid_for_program_input()),
             Type::Struct(definition, generics) => definition
                 .borrow()
                 .get_fields(generics)
@@ -1194,7 +1195,6 @@ impl Type {
                 length.is_valid_non_inlined_function_input() && element.is_valid_non_inlined_function_input()
             }
             Type::String(length) => length.is_valid_non_inlined_function_input(),
-            Type::Tuple(elements) => elements.iter().all(|elem| elem.is_valid_non_inlined_function_input()),
             Type::Struct(definition, generics) => definition
                 .borrow()
                 .get_fields(generics)
@@ -1244,9 +1244,6 @@ impl Type {
                     && element.is_valid_for_unconstrained_boundary()
             }
             Type::String(length) => length.is_valid_for_unconstrained_boundary(),
-            Type::Tuple(elements) => {
-                elements.iter().all(|elem| elem.is_valid_for_unconstrained_boundary())
-            }
             Type::Struct(definition, generics) => definition
                 .borrow()
                 .get_fields(generics)
@@ -1318,7 +1315,6 @@ impl Type {
             | Type::String(..)
             | Type::FmtString(..)
             | Type::Unit
-            | Type::Tuple(..)
             | Type::Struct(..)
             | Type::TraitAsType(..)
             | Type::Function(..)
@@ -1358,9 +1354,6 @@ impl Type {
             }
             Type::CheckedCast { to, .. } => to.field_count(location),
             Type::Alias(def, generics) => def.borrow().get_type(generics).field_count(location),
-            Type::Tuple(fields) => {
-                fields.iter().fold(0, |acc, field_typ| acc + field_typ.field_count(location))
-            }
             Type::String(size) => size
                 .evaluate_to_u32(location.span)
                 .expect("Cannot have variable sized strings as a parameter to main"),
@@ -1396,14 +1389,6 @@ impl Type {
                 let fields = struct_typ.borrow().get_fields(generics);
                 for field in fields.iter() {
                     if field.1.contains_slice() {
-                        return true;
-                    }
-                }
-                false
-            }
-            Type::Tuple(types) => {
-                for typ in types.iter() {
-                    if typ.contains_slice() {
                         return true;
                     }
                 }
@@ -1624,17 +1609,6 @@ impl Type {
             (FmtString(len_a, elements_a), FmtString(len_b, elements_b)) => {
                 len_a.try_unify(len_b, bindings)?;
                 elements_a.try_unify(elements_b, bindings)
-            }
-
-            (Tuple(elements_a), Tuple(elements_b)) => {
-                if elements_a.len() != elements_b.len() {
-                    Err(UnificationError)
-                } else {
-                    for (a, b) in elements_a.iter().zip(elements_b) {
-                        a.try_unify(b, bindings)?;
-                    }
-                    Ok(())
-                }
             }
 
             // No recursive try_unify call for struct fields. Don't want
@@ -2002,10 +1976,6 @@ impl Type {
                 let typ = def.borrow().get_field(name, args).unwrap().0;
                 (name.clone(), typ)
             }),
-            Type::Tuple(fields) => {
-                let fields = fields.iter().enumerate();
-                vecmap(fields, |(i, field)| (i.to_string(), field.clone()))
-            }
             other => panic!("Tried to iterate over the fields of '{other}', which has none"),
         };
         fields.into_iter()
@@ -2022,12 +1992,6 @@ impl Type {
                 .borrow()
                 .get_field(field_name, &args)
                 .map(|(typ, visibility, _)| (typ, visibility)),
-            Type::Tuple(fields) => {
-                let mut fields = fields.into_iter().enumerate();
-                fields
-                    .find(|(i, _)| i.to_string() == *field_name)
-                    .map(|(_, typ)| (typ, ItemVisibility::Public))
-            }
             _ => None,
         }
     }
@@ -2230,12 +2194,6 @@ impl Type {
                 });
                 Type::Alias(alias.clone(), args)
             }
-            Type::Tuple(fields) => {
-                let fields = vecmap(fields, |field| {
-                    field.substitute_helper(type_bindings, substitute_bound_typevars)
-                });
-                Type::Tuple(fields)
-            }
             Type::Forall(typevars, typ) => {
                 // Trying to substitute_helper a variable de, substitute_bound_typevarsfined within a nested Forall
                 // is usually impossible and indicative of an error in the type checker somewhere.
@@ -2301,7 +2259,6 @@ impl Type {
                 args.ordered.iter().any(|arg| arg.occurs(target_id))
                     || args.named.iter().any(|arg| arg.typ.occurs(target_id))
             }
-            Type::Tuple(fields) => fields.iter().any(|field| field.occurs(target_id)),
             Type::CheckedCast { from, to } => from.occurs(target_id) || to.occurs(target_id),
             Type::NamedGeneric(type_var, _) | Type::TypeVariable(type_var) => {
                 match &*type_var.borrow() {
@@ -2360,7 +2317,6 @@ impl Type {
                 // calling follow_bindings here already.
                 def.borrow().get_type(args).follow_bindings()
             }
-            Tuple(args) => Tuple(vecmap(args, |arg| arg.follow_bindings())),
             CheckedCast { from, to } => {
                 let from = Box::new(from.follow_bindings());
                 let to = Box::new(to.follow_bindings());
@@ -2445,11 +2401,6 @@ impl Type {
             Type::FmtString(len, captures) => {
                 len.replace_named_generics_with_type_variables();
                 captures.replace_named_generics_with_type_variables();
-            }
-            Type::Tuple(fields) => {
-                for field in fields {
-                    field.replace_named_generics_with_type_variables();
-                }
             }
             Type::Struct(_, generics) => {
                 for generic in generics {
@@ -2552,7 +2503,6 @@ impl Type {
             | Type::String(..)
             | Type::FmtString(..)
             | Type::Unit
-            | Type::Tuple(..)
             | Type::Struct(..)
             | Type::TraitAsType(..)
             | Type::Function(..)
@@ -2719,7 +2669,6 @@ impl From<&Type> for PrintableType {
             }
             Type::Alias(alias, args) => alias.borrow().get_type(args).into(),
             Type::TraitAsType(..) => unreachable!(),
-            Type::Tuple(types) => PrintableType::Tuple { types: vecmap(types, |typ| typ.into()) },
             Type::CheckedCast { to, .. } => to.as_ref().into(),
             Type::NamedGeneric(..) => unreachable!(),
             Type::Forall(..) => unreachable!(),
@@ -2768,6 +2717,10 @@ impl std::fmt::Debug for Type {
                 }
             }
             Type::Struct(s, args) => {
+                // // TODO: move to struct printer
+                // let elements = vecmap(elements, |arg| format!("{:?}", arg));
+                // write!(f, "({})", elements.join(", "))
+
                 let args = vecmap(args, |arg| format!("{:?}", arg));
                 if args.is_empty() {
                     write!(f, "{}", s.borrow())
@@ -2784,10 +2737,6 @@ impl std::fmt::Debug for Type {
                 }
             }
             Type::TraitAsType(_id, name, generics) => write!(f, "impl {}{:?}", name, generics),
-            Type::Tuple(elements) => {
-                let elements = vecmap(elements, |arg| format!("{:?}", arg));
-                write!(f, "({})", elements.join(", "))
-            }
             Type::Bool => write!(f, "bool"),
             Type::String(len) => write!(f, "str<{len:?}>"),
             Type::FmtString(len, elements) => {
@@ -2885,7 +2834,6 @@ impl std::hash::Hash for Type {
                 len.hash(state);
                 env.hash(state);
             }
-            Type::Tuple(elems) => elems.hash(state),
             Type::Struct(def, args) => {
                 def.hash(state);
                 args.hash(state);
@@ -2956,7 +2904,6 @@ impl PartialEq for Type {
             (FmtString(lhs_len, lhs_env), FmtString(rhs_len, rhs_env)) => {
                 lhs_len == rhs_len && lhs_env == rhs_env
             }
-            (Tuple(lhs_types), Tuple(rhs_types)) => lhs_types == rhs_types,
             (Struct(lhs_struct, lhs_generics), Struct(rhs_struct, rhs_generics)) => {
                 lhs_struct == rhs_struct && lhs_generics == rhs_generics
             }

@@ -52,7 +52,9 @@ pub enum Value {
     // in case they use functions such as `Quoted::as_type` which require them.
     Closure(HirLambda, Vec<Value>, Type, Option<FuncId>, ModuleId),
 
-    Tuple(Vec<Value>),
+    // TODO keep Value::Tuple?
+    // Tuple(Vec<Value>),
+
     Struct(HashMap<Rc<String>, Value>, Type),
     Pointer(Shared<Value>, /* auto_deref */ bool),
     Array(Vector<Value>, Type),
@@ -105,6 +107,11 @@ impl Value {
         Value::Expr(ExprValue::Pattern(pattern))
     }
 
+    pub(crate) fn tuple(_: ()) -> Self {
+        // Value::Constructor()
+        "TODO: Value::tuple(args: Vec<_>)"
+    }
+
     pub(crate) fn get_type(&self) -> Cow<Type> {
         Cow::Owned(match self {
             Value::Unit => Type::Unit,
@@ -126,9 +133,11 @@ impl Value {
             Value::FormatString(_, typ) => return Cow::Borrowed(typ),
             Value::Function(_, typ, _) => return Cow::Borrowed(typ),
             Value::Closure(_, _, typ, ..) => return Cow::Borrowed(typ),
-            Value::Tuple(fields) => {
-                Type::Tuple(vecmap(fields, |field| field.get_type().into_owned()))
-            }
+
+            // TODO: special-case for tuple?
+            // Value::Tuple(fields) => {
+            //     Type::Tuple(vecmap(fields, |field| field.get_type().into_owned()))
+            // }
             Value::Struct(_, typ) => return Cow::Borrowed(typ),
             Value::Array(_, typ) => return Cow::Borrowed(typ),
             Value::Slice(_, typ) => return Cow::Borrowed(typ),
@@ -221,10 +230,12 @@ impl Value {
                 interner.store_instantiation_bindings(expr_id, unwrap_rc(bindings));
                 ExpressionKind::Resolved(expr_id)
             }
-            Value::Tuple(fields) => {
-                let fields = try_vecmap(fields, |field| field.into_expression(interner, location))?;
-                ExpressionKind::Tuple(fields)
-            }
+
+            // TODO cleanup
+            // Value::Tuple(fields) => {
+            //     let fields = try_vecmap(fields, |field| field.into_expression(interner, location))?;
+            //     ExpressionKind::Tuple(fields)
+            // }
             Value::Struct(fields, typ) => {
                 let fields = try_vecmap(fields, |(name, field)| {
                     let field = field.into_expression(interner, location)?;
@@ -368,11 +379,13 @@ impl Value {
                 interner.store_instantiation_bindings(expr_id, unwrap_rc(bindings));
                 return Ok(expr_id);
             }
-            Value::Tuple(fields) => {
-                let fields =
-                    try_vecmap(fields, |field| field.into_hir_expression(interner, location))?;
-                HirExpression::Tuple(fields)
-            }
+
+            // TODO: keep Value::Tuple?
+            // Value::Tuple(fields) => {
+            //     let fields =
+            //         try_vecmap(fields, |field| field.into_hir_expression(interner, location))?;
+            //     HirExpression::Tuple(fields)
+            // }
             Value::Struct(fields, typ) => {
                 let fields = try_vecmap(fields, |(name, field)| {
                     let field = field.into_hir_expression(interner, location)?;

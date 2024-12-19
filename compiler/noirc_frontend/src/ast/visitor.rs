@@ -216,10 +216,6 @@ pub trait Visitor {
         true
     }
 
-    fn visit_tuple(&mut self, _: &[Expression], _: Span) -> bool {
-        true
-    }
-
     fn visit_parenthesized(&mut self, _: &Expression, _: Span) -> bool {
         true
     }
@@ -832,11 +828,6 @@ impl Expression {
             }
             ExpressionKind::If(if_expression) => {
                 if_expression.accept(self.span, visitor);
-            }
-            ExpressionKind::Tuple(expressions) => {
-                if visitor.visit_tuple(expressions, self.span) {
-                    visit_expressions(expressions, visitor);
-                }
             }
             ExpressionKind::Lambda(lambda) => lambda.accept(self.span, visitor),
             ExpressionKind::Parenthesized(expression) => {

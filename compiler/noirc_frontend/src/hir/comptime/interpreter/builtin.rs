@@ -509,10 +509,10 @@ fn struct_def_fields(
     for field in struct_def.get_fields_as_written() {
         let name = Value::Quoted(Rc::new(vec![Token::Ident(field.name.to_string())]));
         let typ = Value::Type(field.typ);
-        fields.push_back(Value::Tuple(vec![name, typ]));
+        fields.push_back(Value::tuple(vec![name, typ]));
     }
 
-    let typ = Type::Slice(Box::new(Type::Tuple(vec![
+    let typ = Type::Slice(Box::new(Type::tuple(vec![
         Type::Quoted(QuotedType::Quoted),
         Type::Quoted(QuotedType::Type),
     ])));
@@ -593,10 +593,10 @@ fn struct_def_set_fields(
                 }
             } else {
                 let type_var = interner.next_type_variable();
-                let expected = Type::Tuple(vec![type_var.clone(), type_var]);
+                let expected = Type::tuple(vec![type_var.clone(), type_var]);
 
                 let actual =
-                    Type::Tuple(vecmap(&field_pair, |value| value.get_type().into_owned()));
+                    Type::tuple(vecmap(&field_pair, |value| value.get_type().into_owned()));
 
                 Err(InterpreterError::TypeMismatch { expected, actual, location })
             }
@@ -631,7 +631,7 @@ fn slice_remove(
     }
 
     let element = values.remove(index);
-    Ok(Value::Tuple(vec![Value::Slice(values, typ), element]))
+    Ok(Value::tuple(vec![Value::Slice(values, typ), element]))
 }
 
 fn slice_push_front(
@@ -656,7 +656,7 @@ fn slice_pop_front(
 
     let (mut values, typ) = get_slice(interner, argument)?;
     match values.pop_front() {
-        Some(element) => Ok(Value::Tuple(vec![element, Value::Slice(values, typ)])),
+        Some(element) => Ok(Value::tuple(vec![element, Value::Slice(values, typ)])),
         None => failing_constraint("slice_pop_front called on empty slice", location, call_stack),
     }
 }
@@ -671,7 +671,7 @@ fn slice_pop_back(
 
     let (mut values, typ) = get_slice(interner, argument)?;
     match values.pop_back() {
-        Some(element) => Ok(Value::Tuple(vec![Value::Slice(values, typ), element])),
+        Some(element) => Ok(Value::tuple(vec![Value::Slice(values, typ), element])),
         None => failing_constraint("slice_pop_back called on empty slice", location, call_stack),
     }
 }
@@ -856,7 +856,7 @@ fn type_as_array(
 ) -> IResult<Value> {
     type_as(arguments, return_type, location, |typ| {
         if let Type::Array(length, array_type) = typ {
-            Some(Value::Tuple(vec![Value::Type(*array_type), Value::Type(*length)]))
+            Some(Value::tuple(vec![Value::Type(*array_type), Value::Type(*length)]))
         } else {
             None
         }
@@ -896,7 +896,7 @@ fn type_as_integer(
 ) -> IResult<Value> {
     type_as(arguments, return_type, location, |typ| {
         if let Type::Integer(sign, bits) = typ {
-            Some(Value::Tuple(vec![Value::Bool(sign.is_signed()), Value::U8(bits.bit_size())]))
+            Some(Value::tuple(vec![Value::Bool(sign.is_signed()), Value::U8(bits.bit_size())]))
         } else {
             None
         }
@@ -956,7 +956,7 @@ fn type_as_struct(
 ) -> IResult<Value> {
     type_as(arguments, return_type, location, |typ| {
         if let Type::Struct(struct_type, generics) = typ {
-            Some(Value::Tuple(vec![
+            Some(Value::tuple(vec![
                 Value::StructDefinition(struct_type.borrow().id),
                 Value::Slice(
                     generics.into_iter().map(Value::Type).collect(),
@@ -976,7 +976,7 @@ fn type_as_tuple(
     location: Location,
 ) -> IResult<Value> {
     type_as(arguments, return_type.clone(), location, |typ| {
-        if let Type::Tuple(types) = typ {
+        if let Type::tuple(types) = typ {
             let t = extract_option_generic_type(return_type);
 
             let Type::Slice(slice_type) = t else {
@@ -1329,7 +1329,7 @@ fn zeroed(return_type: Type, span: Span) -> IResult<Value> {
             }
         }
         Type::Unit => Ok(Value::Unit),
-        Type::Tuple(fields) => Ok(Value::Tuple(try_vecmap(fields, |field| zeroed(field, span))?)),
+        Type::tuple(fields) => Ok(Value::tuple(try_vecmap(fields, |field| zeroed(field, span))?)),
         Type::Struct(struct_type, generics) => {
             let fields = struct_type.borrow().get_fields(&generics);
             let mut values = HashMap::default();
@@ -1406,7 +1406,7 @@ fn expr_as_assert(
                 let predicate = Value::expression(predicate.kind);
 
                 let option_type = extract_option_generic_type(return_type);
-                let Type::Tuple(mut tuple_types) = option_type else {
+                let Type::tuple(mut tuple_types) = option_type else {
                     panic!("Expected the return type option generic arg to be a tuple");
                 };
                 assert_eq!(tuple_types.len(), 2);
@@ -1415,7 +1415,7 @@ fn expr_as_assert(
                 let message = message.map(|msg| Value::expression(msg.kind));
                 let message = option(option_type, message, location.span).ok()?;
 
-                Some(Value::Tuple(vec![predicate, message]))
+                Some(Value::tuple(vec![predicate, message]))
             } else {
                 None
             }
@@ -1452,7 +1452,7 @@ fn expr_as_assert_eq(
                 let rhs = Value::expression(rhs.kind);
 
                 let option_type = extract_option_generic_type(return_type);
-                let Type::Tuple(mut tuple_types) = option_type else {
+                let Type::tuple(mut tuple_types) = option_type else {
                     panic!("Expected the return type option generic arg to be a tuple");
                 };
                 assert_eq!(tuple_types.len(), 3);
@@ -1461,7 +1461,7 @@ fn expr_as_assert_eq(
                 let message = message.map(|message| Value::expression(message.kind));
                 let message = option(option_type, message, location.span).ok()?;
 
-                Some(Value::Tuple(vec![lhs, rhs, message]))
+                Some(Value::tuple(vec![lhs, rhs, message]))
             } else {
                 None
             }
@@ -1482,7 +1482,7 @@ fn expr_as_assign(
         if let ExprValue::Statement(StatementKind::Assign(assign)) = expr {
             let lhs = Value::lvalue(assign.lvalue);
             let rhs = Value::expression(assign.expression.kind);
-            Some(Value::Tuple(vec![lhs, rhs]))
+            Some(Value::tuple(vec![lhs, rhs]))
         } else {
             None
         }
@@ -1499,7 +1499,7 @@ fn expr_as_binary_op(
     expr_as(interner, arguments, return_type.clone(), location, |expr| {
         if let ExprValue::Expression(ExpressionKind::Infix(infix_expr)) = expr {
             let option_type = extract_option_generic_type(return_type);
-            let Type::Tuple(mut tuple_types) = option_type else {
+            let Type::tuple(mut tuple_types) = option_type else {
                 panic!("Expected the return type option generic arg to be a tuple");
             };
             assert_eq!(tuple_types.len(), 3);
@@ -1516,7 +1516,7 @@ fn expr_as_binary_op(
             let unary_op = Value::Struct(fields, binary_op_type);
             let lhs = Value::expression(infix_expr.lhs.kind);
             let rhs = Value::expression(infix_expr.rhs.kind);
-            Some(Value::Tuple(vec![lhs, unary_op, rhs]))
+            Some(Value::tuple(vec![lhs, unary_op, rhs]))
         } else {
             None
         }
@@ -1566,7 +1566,7 @@ fn expr_as_cast(
         if let ExprValue::Expression(ExpressionKind::Cast(cast)) = expr {
             let lhs = Value::expression(cast.lhs.kind);
             let typ = Value::UnresolvedType(cast.r#type.typ);
-            Some(Value::Tuple(vec![lhs, typ]))
+            Some(Value::tuple(vec![lhs, typ]))
         } else {
             None
         }
@@ -1622,15 +1622,15 @@ fn expr_as_constructor(
             let typ = Value::UnresolvedType(constructor.typ.typ);
             let fields = constructor.fields.into_iter();
             let fields = fields.map(|(name, value)| {
-                Value::Tuple(vec![quote_ident(&name), Value::expression(value.kind)])
+                Value::tuple(vec![quote_ident(&name), Value::expression(value.kind)])
             });
             let fields = fields.collect();
-            let fields_type = Type::Slice(Box::new(Type::Tuple(vec![
+            let fields_type = Type::Slice(Box::new(Type::tuple(vec![
                 Type::Quoted(QuotedType::Quoted),
                 Type::Quoted(QuotedType::Expr),
             ])));
             let fields = Value::Slice(fields, fields_type);
-            Some(Value::Tuple(vec![typ, fields]))
+            Some(Value::tuple(vec![typ, fields]))
         } else {
             None
         };
@@ -1652,7 +1652,7 @@ fn expr_as_for(
                     Value::Quoted(Rc::new(vec![Token::Ident(for_statement.identifier.0.contents)]));
                 let array = Value::expression(array.kind);
                 let body = Value::expression(for_statement.block.kind);
-                Some(Value::Tuple(vec![identifier, array, body]))
+                Some(Value::tuple(vec![identifier, array, body]))
             } else {
                 None
             }
@@ -1678,7 +1678,7 @@ fn expr_as_for_range(
                 let from = Value::expression(from.kind);
                 let to = Value::expression(to.kind);
                 let body = Value::expression(for_statement.block.kind);
-                Some(Value::Tuple(vec![identifier, from, to, body]))
+                Some(Value::tuple(vec![identifier, from, to, body]))
             } else {
                 None
             }
@@ -1702,7 +1702,7 @@ fn expr_as_function_call(
             let arguments = arguments.map(|argument| Value::expression(argument.kind)).collect();
             let arguments =
                 Value::Slice(arguments, Type::Slice(Box::new(Type::Quoted(QuotedType::Expr))));
-            Some(Value::Tuple(vec![function, arguments]))
+            Some(Value::tuple(vec![function, arguments]))
         } else {
             None
         }
@@ -1720,7 +1720,7 @@ fn expr_as_if(
         if let ExprValue::Expression(ExpressionKind::If(if_expr)) = expr {
             // Get the type of `Option<Expr>`
             let option_type = extract_option_generic_type(return_type.clone());
-            let Type::Tuple(option_types) = option_type else {
+            let Type::tuple(option_types) = option_type else {
                 panic!("Expected the return type option generic arg to be a tuple");
             };
             assert_eq!(option_types.len(), 3);
@@ -1732,7 +1732,7 @@ fn expr_as_if(
                 location.span,
             );
 
-            Some(Value::Tuple(vec![
+            Some(Value::tuple(vec![
                 Value::expression(if_expr.condition.kind),
                 Value::expression(if_expr.consequence.kind),
                 alternative.ok()?,
@@ -1752,7 +1752,7 @@ fn expr_as_index(
 ) -> IResult<Value> {
     expr_as(interner, arguments, return_type, location, |expr| {
         if let ExprValue::Expression(ExpressionKind::Index(index_expr)) = expr {
-            Some(Value::Tuple(vec![
+            Some(Value::tuple(vec![
                 Value::expression(index_expr.collection.kind),
                 Value::expression(index_expr.index.kind),
             ]))
@@ -1771,13 +1771,13 @@ fn expr_as_integer(
 ) -> IResult<Value> {
     expr_as(interner, arguments, return_type.clone(), location, |expr| match expr {
         ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(field, sign))) => {
-            Some(Value::Tuple(vec![Value::Field(field), Value::Bool(sign)]))
+            Some(Value::tuple(vec![Value::Field(field), Value::Bool(sign)]))
         }
         ExprValue::Expression(ExpressionKind::Resolved(id)) => {
             if let HirExpression::Literal(HirLiteral::Integer(field, sign)) =
                 interner.expression(&id)
             {
-                Some(Value::Tuple(vec![Value::Field(field), Value::Bool(sign)]))
+                Some(Value::tuple(vec![Value::Field(field), Value::Bool(sign)]))
             } else {
                 None
             }
@@ -1797,7 +1797,7 @@ fn expr_as_lambda(
         if let ExprValue::Expression(ExpressionKind::Lambda(lambda)) = expr {
             // ([(Expr, Option<UnresolvedType>)], Option<UnresolvedType>, Expr)
             let option_type = extract_option_generic_type(return_type);
-            let Type::Tuple(mut tuple_types) = option_type else {
+            let Type::tuple(mut tuple_types) = option_type else {
                 panic!("Expected the return type option generic arg to be a tuple");
             };
             assert_eq!(tuple_types.len(), 3);
@@ -1819,12 +1819,12 @@ fn expr_as_lambda(
                         Some(Value::UnresolvedType(typ.typ))
                     };
                     let typ = option(option_unresolved_type.clone(), typ, location.span).unwrap();
-                    Value::Tuple(vec![pattern, typ])
+                    Value::tuple(vec![pattern, typ])
                 })
                 .collect();
             let parameters = Value::Slice(
                 parameters,
-                Type::Slice(Box::new(Type::Tuple(vec![
+                Type::Slice(Box::new(Type::tuple(vec![
                     Type::Quoted(QuotedType::Expr),
                     Type::Quoted(QuotedType::UnresolvedType),
                 ]))),
@@ -1841,7 +1841,7 @@ fn expr_as_lambda(
 
             let body = Value::expression(lambda.body.kind);
 
-            Some(Value::Tuple(vec![parameters, return_type, body]))
+            Some(Value::tuple(vec![parameters, return_type, body]))
         } else {
             None
         }
@@ -1858,7 +1858,7 @@ fn expr_as_let(
     expr_as(interner, arguments, return_type.clone(), location, |expr| match expr {
         ExprValue::Statement(StatementKind::Let(let_statement)) => {
             let option_type = extract_option_generic_type(return_type);
-            let Type::Tuple(mut tuple_types) = option_type else {
+            let Type::tuple(mut tuple_types) = option_type else {
                 panic!("Expected the return type option generic arg to be a tuple");
             };
             assert_eq!(tuple_types.len(), 3);
@@ -1873,7 +1873,7 @@ fn expr_as_let(
 
             let typ = option(option_type, typ, location.span).ok()?;
 
-            Some(Value::Tuple(vec![
+            Some(Value::tuple(vec![
                 Value::pattern(let_statement.pattern),
                 typ,
                 Value::expression(let_statement.expression.kind),
@@ -1892,13 +1892,13 @@ fn expr_as_member_access(
 ) -> IResult<Value> {
     expr_as(interner, arguments, return_type, location, |expr| match expr {
         ExprValue::Expression(ExpressionKind::MemberAccess(member_access)) => {
-            Some(Value::Tuple(vec![
+            Some(Value::tuple(vec![
                 Value::expression(member_access.lhs.kind),
                 quote_ident(&member_access.rhs),
             ]))
         }
         ExprValue::LValue(crate::ast::LValue::MemberAccess { object, field_name, span: _ }) => {
-            Some(Value::Tuple(vec![Value::lvalue(*object), quote_ident(&field_name)]))
+            Some(Value::tuple(vec![Value::lvalue(*object), quote_ident(&field_name)]))
         }
         _ => None,
     })
@@ -1929,7 +1929,7 @@ fn expr_as_method_call(
             let arguments =
                 Value::Slice(arguments, Type::Slice(Box::new(Type::Quoted(QuotedType::Expr))));
 
-            Some(Value::Tuple(vec![object, name, generics, arguments]))
+            Some(Value::tuple(vec![object, name, generics, arguments]))
         } else {
             None
         }
@@ -1948,7 +1948,7 @@ fn expr_as_repeated_element_array(
             ArrayLiteral::Repeated { repeated_element, length },
         ))) = expr
         {
-            Some(Value::Tuple(vec![
+            Some(Value::tuple(vec![
                 Value::expression(repeated_element.kind),
                 Value::expression(length.kind),
             ]))
@@ -1970,7 +1970,7 @@ fn expr_as_repeated_element_slice(
             ArrayLiteral::Repeated { repeated_element, length },
         ))) = expr
         {
-            Some(Value::Tuple(vec![
+            Some(Value::tuple(vec![
                 Value::expression(repeated_element.kind),
                 Value::expression(length.kind),
             ]))
@@ -2009,7 +2009,9 @@ fn expr_as_tuple(
     location: Location,
 ) -> IResult<Value> {
     expr_as(interner, arguments, return_type, location, |expr| {
-        if let ExprValue::Expression(ExpressionKind::Tuple(expressions)) = expr {
+        // TODO cleanup
+        // if let ExprValue::Expression(ExpressionKind::Tuple(expressions)) = expr.get_tuple() {
+        if let Some(expressions) = expr.get_tuple() {
             let expressions =
                 expressions.into_iter().map(|expr| Value::expression(expr.kind)).collect();
             let typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Expr)));
@@ -2030,9 +2032,7 @@ fn expr_as_unary_op(
     expr_as(interner, arguments, return_type.clone(), location, |expr| {
         if let ExprValue::Expression(ExpressionKind::Prefix(prefix_expr)) = expr {
             let option_type = extract_option_generic_type(return_type);
-            let Type::Tuple(mut tuple_types) = option_type else {
-                panic!("Expected the return type option generic arg to be a tuple");
-            };
+            assert!(option_type.is_tuple(), "Expected the return type option generic arg to be a tuple");
             assert_eq!(tuple_types.len(), 2);
 
             tuple_types.pop().unwrap();
@@ -2051,7 +2051,7 @@ fn expr_as_unary_op(
 
             let unary_op = Value::Struct(fields, unary_op_type);
             let rhs = Value::expression(prefix_expr.rhs.kind);
-            Some(Value::Tuple(vec![unary_op, rhs]))
+            Some(Value::tuple(vec![unary_op, rhs]))
         } else {
             None
         }
@@ -2385,11 +2385,11 @@ fn function_def_parameters(
         .map(|(hir_pattern, typ, _visibility)| {
             let name = Value::Quoted(Rc::new(hir_pattern_to_tokens(interner, hir_pattern)));
             let typ = Value::Type(typ.clone());
-            Value::Tuple(vec![name, typ])
+            Value::tuple(vec![name, typ])
         })
         .collect();
 
-    let typ = Type::Slice(Box::new(Type::Tuple(vec![
+    let typ = Type::Slice(Box::new(Type::tuple(vec![
         Type::Quoted(QuotedType::Quoted),
         Type::Quoted(QuotedType::Type),
     ])));
