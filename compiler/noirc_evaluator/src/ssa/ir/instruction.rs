@@ -49,9 +49,9 @@ pub(crate) type BitSize = u8;
 /// These are similar to built-ins in other languages.
 /// These can be classified under two categories:
 /// - Opcodes which the IR knows the target machine has
-/// special support for. (LowLevel)
+///   special support for. (LowLevel)
 /// - Opcodes which have no function definition in the
-/// source code and must be processed by the IR.
+///   source code and must be processed by the IR.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub(crate) enum Intrinsic {
     ArrayLen,
@@ -71,8 +71,6 @@ pub(crate) enum Intrinsic {
     ToRadix(Endian),
     BlackBox(BlackBoxFunc),
     Hint(Hint),
-    FromField,
-    AsField,
     AsWitness,
     IsUnconstrained,
     DerivePedersenGenerators,
@@ -103,8 +101,6 @@ impl std::fmt::Display for Intrinsic {
             Intrinsic::ToRadix(Endian::Little) => write!(f, "to_le_radix"),
             Intrinsic::BlackBox(function) => write!(f, "{function}"),
             Intrinsic::Hint(Hint::BlackBox) => write!(f, "black_box"),
-            Intrinsic::FromField => write!(f, "from_field"),
-            Intrinsic::AsField => write!(f, "as_field"),
             Intrinsic::AsWitness => write!(f, "as_witness"),
             Intrinsic::IsUnconstrained => write!(f, "is_unconstrained"),
             Intrinsic::DerivePedersenGenerators => write!(f, "derive_pedersen_generators"),
@@ -146,8 +142,6 @@ impl Intrinsic {
             | Intrinsic::SlicePushFront
             | Intrinsic::SliceInsert
             | Intrinsic::StrAsBytes
-            | Intrinsic::FromField
-            | Intrinsic::AsField
             | Intrinsic::IsUnconstrained
             | Intrinsic::DerivePedersenGenerators
             | Intrinsic::FieldLessThan => false,
@@ -219,8 +213,6 @@ impl Intrinsic {
             "to_be_radix" => Some(Intrinsic::ToRadix(Endian::Big)),
             "to_le_bits" => Some(Intrinsic::ToBits(Endian::Little)),
             "to_be_bits" => Some(Intrinsic::ToBits(Endian::Big)),
-            "from_field" => Some(Intrinsic::FromField),
-            "as_field" => Some(Intrinsic::AsField),
             "as_witness" => Some(Intrinsic::AsWitness),
             "is_unconstrained" => Some(Intrinsic::IsUnconstrained),
             "derive_pedersen_generators" => Some(Intrinsic::DerivePedersenGenerators),

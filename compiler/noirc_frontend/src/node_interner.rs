@@ -414,7 +414,7 @@ pub struct DefinitionId(usize);
 impl DefinitionId {
     //dummy id for error reporting
     pub fn dummy_id() -> DefinitionId {
-        DefinitionId(std::usize::MAX)
+        DefinitionId(usize::MAX)
     }
 }
 
@@ -425,7 +425,7 @@ pub struct GlobalId(usize);
 impl GlobalId {
     // Dummy id for error reporting
     pub fn dummy_id() -> Self {
-        GlobalId(std::usize::MAX)
+        GlobalId(usize::MAX)
     }
 }
 
@@ -496,7 +496,7 @@ pub struct TypeAliasId(pub usize);
 
 impl TypeAliasId {
     pub fn dummy_id() -> TypeAliasId {
-        TypeAliasId(std::usize::MAX)
+        TypeAliasId(usize::MAX)
     }
 }
 
@@ -609,7 +609,14 @@ pub struct GlobalInfo {
     pub crate_id: CrateId,
     pub location: Location,
     pub let_statement: StmtId,
-    pub value: Option<comptime::Value>,
+    pub value: GlobalValue,
+}
+
+#[derive(Debug, Clone)]
+pub enum GlobalValue {
+    Unresolved,
+    Resolving,
+    Resolved(comptime::Value),
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -861,7 +868,7 @@ impl NodeInterner {
             crate_id,
             let_statement,
             location,
-            value: None,
+            value: GlobalValue::Unresolved,
         });
         self.global_attributes.insert(id, attributes);
         id

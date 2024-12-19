@@ -328,25 +328,6 @@ pub(super) fn simplify_call(
         Intrinsic::BlackBox(bb_func) => {
             simplify_black_box_func(bb_func, arguments, return_types, dfg, block, call_stack)
         }
-        Intrinsic::AsField => {
-            let instruction = Instruction::Cast(arguments[0], NumericType::NativeField);
-            SimplifyResult::SimplifiedToInstruction(instruction)
-        }
-        Intrinsic::FromField => {
-            let incoming_type = Type::field();
-            let target_type = return_type.unwrap();
-
-            let truncate = Instruction::Truncate {
-                value: arguments[0],
-                bit_size: target_type.bit_size(),
-                max_bit_size: incoming_type.bit_size(),
-            };
-            let truncated_value =
-                dfg.insert_instruction_and_results(truncate, block, call_stack).first();
-
-            let instruction = Instruction::Cast(truncated_value, target_type.unwrap_numeric());
-            SimplifyResult::SimplifiedToInstruction(instruction)
-        }
         Intrinsic::AsWitness => SimplifyResult::None,
         Intrinsic::IsUnconstrained => SimplifyResult::None,
         Intrinsic::DerivePedersenGenerators => {

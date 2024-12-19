@@ -18,6 +18,8 @@
 //!
 //! When unrolling ACIR code, we remove reference count instructions because they are
 //! only used by Brillig bytecode.
+use std::collections::BTreeSet;
+
 use acvm::{acir::AcirField, FieldElement};
 use im::HashSet;
 
@@ -117,7 +119,7 @@ pub(super) struct Loop {
     back_edge_start: BasicBlockId,
 
     /// All the blocks contained within the loop, including `header` and `back_edge_start`.
-    pub(super) blocks: HashSet<BasicBlockId>,
+    pub(super) blocks: BTreeSet<BasicBlockId>,
 }
 
 pub(super) struct Loops {
@@ -238,7 +240,7 @@ impl Loop {
         back_edge_start: BasicBlockId,
         cfg: &ControlFlowGraph,
     ) -> Self {
-        let mut blocks = HashSet::default();
+        let mut blocks = BTreeSet::default();
         blocks.insert(header);
 
         let mut insert = |block, stack: &mut Vec<BasicBlockId>| {

@@ -2,14 +2,14 @@
 //!
 //! The algorithm is split into two parts:
 //! 1. The outer part:
-//!   A. An (unrolled) CFG can be though of as a linear sequence of blocks where some nodes split
-//!   off, but eventually rejoin to a new node and continue the linear sequence.
-//!   B. Follow this sequence in order, and whenever a split is found call
-//!   `find_join_point_of_branches` and then recur from the join point it returns until the
-//!   return instruction is found.
+//!    A. An (unrolled) CFG can be though of as a linear sequence of blocks where some nodes split
+//!       off, but eventually rejoin to a new node and continue the linear sequence.
+//!    B. Follow this sequence in order, and whenever a split is found call
+//!       `find_join_point_of_branches` and then recur from the join point it returns until the
+//!       return instruction is found.
 //!
 //! 2. The inner part defined by `find_join_point_of_branches`:
-//!   A. For each of the two branches in a jmpif block:
+//!    A. For each of the two branches in a jmpif block:
 //!     - Check if either has multiple predecessors. If so, it is a join point.
 //!     - If not, continue to search the linear sequence of successor blocks from that block.
 //!       - If another split point is found, recur in `find_join_point_of_branches`

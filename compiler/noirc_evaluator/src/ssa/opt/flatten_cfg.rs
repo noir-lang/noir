@@ -34,7 +34,7 @@
 //! the following transformations of certain instructions within the block are expected:
 //!
 //! 1. A constraint is multiplied by the condition and changes the constraint to
-//! an equality with c:
+//!    an equality with c:
 //!
 //! constrain v0
 //! ============

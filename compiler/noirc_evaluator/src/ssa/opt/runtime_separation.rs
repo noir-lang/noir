@@ -78,7 +78,7 @@ impl RuntimeSeparatorContext {
 
         if within_brillig {
             for called_func_id in called_functions.iter() {
-                let called_func = &ssa.functions[&called_func_id];
+                let called_func = &ssa.functions[called_func_id];
                 if matches!(called_func.runtime(), RuntimeType::Acir(_)) {
                     self.acir_functions_called_from_brillig.insert(*called_func_id);
                 }
