@@ -114,7 +114,7 @@ pub(crate) fn solve_poseidon2_permutation_opcode<F: AcirField>(
         return Err(OpcodeResolutionError::BlackBoxFunctionFailed(
             acir::BlackBoxFunc::Poseidon2Permutation,
             format!(
-                "the number of inputs does not match specified length. {} != {}",
+                "the number of inputs does not match the specified length. {} != {}",
                 inputs.len(),
                 len
             ),
