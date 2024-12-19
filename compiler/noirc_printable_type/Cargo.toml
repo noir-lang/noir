@@ -14,6 +14,5 @@ workspace = true
 [dependencies]
 acvm.workspace = true
 serde.workspace = true
-regex = "1.9.1"
 
 [dev-dependencies]

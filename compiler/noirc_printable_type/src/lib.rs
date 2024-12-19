@@ -7,7 +7,6 @@ use std::{collections::BTreeMap, str};
 
 use acvm::AcirField;
 
-use regex::{Captures, Regex};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -70,7 +69,6 @@ pub enum PrintableValueDisplay<F> {
     Plain(PrintableValue<F>, PrintableType),
     FmtString(String, Vec<(PrintableValue<F>, PrintableType)>),
 }
-
 impl<F: AcirField> std::fmt::Display for PrintableValueDisplay<F> {
     fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -79,15 +77,10 @@ impl<F: AcirField> std::fmt::Display for PrintableValueDisplay<F> {
                 write!(fmt, "{output_string}")
             }
             Self::FmtString(template, values) => {
-                let mut display_iter = values.iter();
-                let re = Regex::new(r"\{([a-zA-Z0-9_]+)\}").map_err(|_| std::fmt::Error)?;
-
-                let formatted_str = replace_all(&re, template, |_: &Captures| {
-                    let (value, typ) = display_iter.next().ok_or(std::fmt::Error)?;
-                    to_string(value, typ).ok_or(std::fmt::Error)
-                })?;
-
-                write!(fmt, "{formatted_str}")
+                let mut values_iter = values.iter();
+                write_template_replacing_interpolations(template, fmt, || {
+                    values_iter.next().and_then(|(value, typ)| to_string(value, typ))
+                })
             }
         }
     }
@@ -190,22 +183,65 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
     Some(output)
 }
 
-// Taken from Regex docs directly
-fn replace_all<E>(
-    re: &Regex,
-    haystack: &str,
-    mut replacement: impl FnMut(&Captures) -> Result<String, E>,
-) -> Result<String, E> {
-    let mut new = String::with_capacity(haystack.len());
-    let mut last_match = 0;
-    for caps in re.captures_iter(haystack) {
-        let m = caps.get(0).unwrap();
-        new.push_str(&haystack[last_match..m.start()]);
-        new.push_str(&replacement(&caps)?);
-        last_match = m.end();
+fn write_template_replacing_interpolations(
+    template: &str,
+    fmt: &mut std::fmt::Formatter<'_>,
+    mut replacement: impl FnMut() -> Option<String>,
+) -> std::fmt::Result {
+    let mut last_index = 0; // How far we've written from the template
+    let mut char_indices = template.char_indices().peekable();
+    while let Some((char_index, char)) = char_indices.next() {
+        // If we see a '}' it must be "}}" because the ones for interpolation are handled
+        // when we see '{'
+        if char == '}' {
+            // Write what we've seen so far in the template, including this '}'
+            write!(fmt, "{}", &template[last_index..=char_index])?;
+
+            // Skip the second '}'
+            let (_, closing_curly) = char_indices.next().unwrap();
+            assert_eq!(closing_curly, '}');
+
+            last_index = char_indices.peek().map(|(index, _)| *index).unwrap_or(template.len());
+            continue;
+        }
+
+        // Keep going forward until we find a '{'
+        if char != '{' {
+            continue;
+        }
+
+        // We'll either have to write an interpolation or '{{' if it's an escape,
+        // so let's write what we've seen so far in the template.
+        write!(fmt, "{}", &template[last_index..char_index])?;
+
+        // If it's '{{', write '{' and keep going
+        if char_indices.peek().map(|(_, char)| char) == Some(&'{') {
+            write!(fmt, "{{")?;
+
+            // Skip the second '{'
+            char_indices.next().unwrap();
+
+            last_index = char_indices.peek().map(|(index, _)| *index).unwrap_or(template.len());
+            continue;
+        }
+
+        // Write the interpolation
+        if let Some(string) = replacement() {
+            write!(fmt, "{}", string)?;
+        } else {
+            return Err(std::fmt::Error);
+        }
+
+        // Whatever was inside '{...}' doesn't matter, so skip until we find '}'
+        while let Some((_, char)) = char_indices.next() {
+            if char == '}' {
+                last_index = char_indices.peek().map(|(index, _)| *index).unwrap_or(template.len());
+                break;
+            }
+        }
     }
-    new.push_str(&haystack[last_match..]);
-    Ok(new)
+
+    write!(fmt, "{}", &template[last_index..])
 }
 
 /// This trims any leading zeroes.

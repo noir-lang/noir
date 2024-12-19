@@ -3227,7 +3227,6 @@ name = "noirc_printable_type"
 version = "1.0.0-beta.0"
 dependencies = [
  "acvm",
- "regex",
  "serde",
 ]
 
