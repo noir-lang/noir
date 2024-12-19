@@ -36,9 +36,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_single_where_clause(&mut self) -> Option<(UnresolvedType, Vec<TraitBound>)> {
-        let Some(typ) = self.parse_type() else {
-            return None;
-        };
+        let typ = self.parse_type()?;
 
         self.eat_or_error(Token::Colon);
 

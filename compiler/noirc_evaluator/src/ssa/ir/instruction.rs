@@ -43,9 +43,9 @@ pub(crate) type InstructionId = Id<Instruction>;
 /// These are similar to built-ins in other languages.
 /// These can be classified under two categories:
 /// - Opcodes which the IR knows the target machine has
-/// special support for. (LowLevel)
+///   special support for. (LowLevel)
 /// - Opcodes which have no function definition in the
-/// source code and must be processed by the IR.
+///   source code and must be processed by the IR.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub(crate) enum Intrinsic {
     ArrayLen,
@@ -65,8 +65,6 @@ pub(crate) enum Intrinsic {
     ToRadix(Endian),
     BlackBox(BlackBoxFunc),
     Hint(Hint),
-    FromField,
-    AsField,
     AsWitness,
     IsUnconstrained,
     DerivePedersenGenerators,
@@ -97,8 +95,6 @@ impl std::fmt::Display for Intrinsic {
             Intrinsic::ToRadix(Endian::Little) => write!(f, "to_le_radix"),
             Intrinsic::BlackBox(function) => write!(f, "{function}"),
             Intrinsic::Hint(Hint::BlackBox) => write!(f, "black_box"),
-            Intrinsic::FromField => write!(f, "from_field"),
-            Intrinsic::AsField => write!(f, "as_field"),
             Intrinsic::AsWitness => write!(f, "as_witness"),
             Intrinsic::IsUnconstrained => write!(f, "is_unconstrained"),
             Intrinsic::DerivePedersenGenerators => write!(f, "derive_pedersen_generators"),
@@ -140,8 +136,6 @@ impl Intrinsic {
             | Intrinsic::SlicePushFront
             | Intrinsic::SliceInsert
             | Intrinsic::StrAsBytes
-            | Intrinsic::FromField
-            | Intrinsic::AsField
             | Intrinsic::IsUnconstrained
             | Intrinsic::DerivePedersenGenerators
             | Intrinsic::FieldLessThan => false,
@@ -213,8 +207,6 @@ impl Intrinsic {
             "to_be_radix" => Some(Intrinsic::ToRadix(Endian::Big)),
             "to_le_bits" => Some(Intrinsic::ToBits(Endian::Little)),
             "to_be_bits" => Some(Intrinsic::ToBits(Endian::Big)),
-            "from_field" => Some(Intrinsic::FromField),
-            "as_field" => Some(Intrinsic::AsField),
             "as_witness" => Some(Intrinsic::AsWitness),
             "is_unconstrained" => Some(Intrinsic::IsUnconstrained),
             "derive_pedersen_generators" => Some(Intrinsic::DerivePedersenGenerators),
@@ -556,10 +548,25 @@ impl Instruction {
     /// If true the instruction will depend on `enable_side_effects` context during acir-gen.
     pub(crate) fn requires_acir_gen_predicate(&self, dfg: &DataFlowGraph) -> bool {
         match self {
-            Instruction::Binary(binary)
-                if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) =>
-            {
-                true
+            Instruction::Binary(binary) => {
+                match binary.operator {
+                    BinaryOp::Add
+                    | BinaryOp::Sub
+                    | BinaryOp::Mul
+                    | BinaryOp::Div
+                    | BinaryOp::Mod => {
+                        // Some binary math can overflow or underflow, but this is only the case
+                        // for unsigned types (here we assume the type of binary.lhs is the same)
+                        dfg.type_of_value(binary.rhs).is_unsigned()
+                    }
+                    BinaryOp::Eq
+                    | BinaryOp::Lt
+                    | BinaryOp::And
+                    | BinaryOp::Or
+                    | BinaryOp::Xor
+                    | BinaryOp::Shl
+                    | BinaryOp::Shr => false,
+                }
             }
 
             Instruction::ArrayGet { array, index } => {
@@ -577,7 +584,6 @@ impl Instruction {
                 _ => false,
             },
             Instruction::Cast(_, _)
-            | Instruction::Binary(_)
             | Instruction::Not(_)
             | Instruction::Truncate { .. }
             | Instruction::Constrain(_, _, _)
@@ -952,9 +958,11 @@ impl Instruction {
                 }
             }
             Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
+                let then_condition = dfg.resolve(*then_condition);
+                let else_condition = dfg.resolve(*else_condition);
                 let typ = dfg.type_of_value(*then_value);
 
-                if let Some(constant) = dfg.get_numeric_constant(*then_condition) {
+                if let Some(constant) = dfg.get_numeric_constant(then_condition) {
                     if constant.is_one() {
                         return SimplifiedTo(*then_value);
                     } else if constant.is_zero() {
@@ -968,10 +976,51 @@ impl Instruction {
                     return SimplifiedTo(then_value);
                 }
 
-                if matches!(&typ, Type::Numeric(_)) {
-                    let then_condition = *then_condition;
-                    let else_condition = *else_condition;
+                if let Value::Instruction { instruction, .. } = &dfg[then_value] {
+                    if let Instruction::IfElse {
+                        then_condition: inner_then_condition,
+                        then_value: inner_then_value,
+                        else_condition: inner_else_condition,
+                        ..
+                    } = dfg[*instruction]
+                    {
+                        if then_condition == inner_then_condition {
+                            let instruction = Instruction::IfElse {
+                                then_condition,
+                                then_value: inner_then_value,
+                                else_condition: inner_else_condition,
+                                else_value,
+                            };
+                            return SimplifiedToInstruction(instruction);
+                        }
+                        // TODO: We could check to see if `then_condition == inner_else_condition`
+                        // but we run into issues with duplicate NOT instructions having distinct ValueIds.
+                    }
+                };
 
+                if let Value::Instruction { instruction, .. } = &dfg[else_value] {
+                    if let Instruction::IfElse {
+                        then_condition: inner_then_condition,
+                        else_condition: inner_else_condition,
+                        else_value: inner_else_value,
+                        ..
+                    } = dfg[*instruction]
+                    {
+                        if then_condition == inner_then_condition {
+                            let instruction = Instruction::IfElse {
+                                then_condition,
+                                then_value,
+                                else_condition: inner_else_condition,
+                                else_value: inner_else_value,
+                            };
+                            return SimplifiedToInstruction(instruction);
+                        }
+                        // TODO: We could check to see if `then_condition == inner_else_condition`
+                        // but we run into issues with duplicate NOT instructions having distinct ValueIds.
+                    }
+                };
+
+                if matches!(&typ, Type::Numeric(_)) {
                     let result = ValueMerger::merge_numeric_values(
                         dfg,
                         block,
