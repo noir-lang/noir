@@ -35,7 +35,7 @@ use crate::{
     Generics, Kind, ResolvedGeneric, Type, TypeBinding, TypeBindings, UnificationError,
 };
 
-use super::{lints, path_resolution::PathResolutionItem, Elaborator};
+use super::{lints, path_resolution::PathResolutionItem, Elaborator, UnsafeBlockStatus};
 
 pub const SELF_TYPE_NAME: &str = "Self";
 
@@ -1483,8 +1483,14 @@ impl<'context> Elaborator<'context> {
             func_type_is_unconstrained || self.is_unconstrained_call(call.func);
         let crossing_runtime_boundary = is_current_func_constrained && is_unconstrained_call;
         if crossing_runtime_boundary {
-            if !self.in_unsafe_block {
-                self.push_err(TypeCheckError::Unsafe { span });
+            match self.unsafe_block_status {
+                UnsafeBlockStatus::NotInUnsafeBlock => {
+                    self.push_err(TypeCheckError::Unsafe { span });
+                }
+                UnsafeBlockStatus::InUnsafeBlockWithoutUnconstrainedCalls => {
+                    self.unsafe_block_status = UnsafeBlockStatus::InUnsafeBlockWithConstrainedCalls;
+                }
+                UnsafeBlockStatus::InUnsafeBlockWithConstrainedCalls => (),
             }
 
             if let Some(called_func_id) = self.interner.lookup_function_from_expr(&call.func) {
