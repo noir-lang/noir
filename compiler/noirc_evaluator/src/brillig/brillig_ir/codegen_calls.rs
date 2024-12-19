@@ -57,7 +57,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         self.deallocate_single_addr(stack_size_register);
     }
 
-    /// Codegens a return from the current function.
+    /// Generates a return from the current function.
     pub(crate) fn codegen_return(&mut self, return_registers: &[MemoryAddress]) {
         let mut sources = Vec::with_capacity(return_registers.len());
         let mut destinations = Vec::with_capacity(return_registers.len());
