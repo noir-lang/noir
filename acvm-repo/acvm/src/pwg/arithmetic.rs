@@ -51,7 +51,7 @@ impl ExpressionSolver {
                     let total_sum = a + opcode.q_c;
                     if (q + b).is_zero() {
                         if !total_sum.is_zero() {
-                            Err(OpcodeResolutionError::UnsatisfiedConstrain {
+                            Err(OpcodeResolutionError::UnsatisfiedConstraint {
                                 opcode_location: ErrorLocation::Unresolved,
                                 payload: None,
                             })
@@ -80,7 +80,7 @@ impl ExpressionSolver {
                 let total_sum = sum + opcode.q_c;
                 if partial_prod.is_zero() {
                     if !total_sum.is_zero() {
-                        Err(OpcodeResolutionError::UnsatisfiedConstrain {
+                        Err(OpcodeResolutionError::UnsatisfiedConstraint {
                             opcode_location: ErrorLocation::Unresolved,
                             payload: None,
                         })
@@ -96,7 +96,7 @@ impl ExpressionSolver {
                 // All the variables in the MulTerm are solved and the Fan-in is also solved
                 // There is nothing to solve
                 if !(a + b + opcode.q_c).is_zero() {
-                    Err(OpcodeResolutionError::UnsatisfiedConstrain {
+                    Err(OpcodeResolutionError::UnsatisfiedConstraint {
                         opcode_location: ErrorLocation::Unresolved,
                         payload: None,
                     })
@@ -114,7 +114,7 @@ impl ExpressionSolver {
                 let total_sum = total_prod + partial_sum + opcode.q_c;
                 if coeff.is_zero() {
                     if !total_sum.is_zero() {
-                        Err(OpcodeResolutionError::UnsatisfiedConstrain {
+                        Err(OpcodeResolutionError::UnsatisfiedConstraint {
                             opcode_location: ErrorLocation::Unresolved,
                             payload: None,
                         })
