@@ -977,7 +977,8 @@ mod tests {
 
     #[test]
     fn parses_unsafe_expression() {
-        let src = "unsafe { 1 }";
+        let src = "unsafe { //@safety: test
+        1 }";
         let expr = parse_expression_no_errors(src);
         let ExpressionKind::Unsafe(block, _) = expr.kind else {
             panic!("Expected unsafe expression");

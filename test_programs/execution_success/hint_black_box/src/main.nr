@@ -23,10 +23,10 @@ fn main(a: u32, b: u32) {
     //assert_eq(slice_sum(black_box(arr.as_slice())), b);
 
     // But we can pass a blackboxed slice to Brillig.
-    let s = unsafe { 
+    let s = unsafe {
         //@safety: testing context
-        brillig_slice_sum(black_box(arr.as_slice())) }
-    ;
+        brillig_slice_sum(black_box(arr.as_slice()))
+    };
     assert_eq(s, b);
 
     let mut d = b;
