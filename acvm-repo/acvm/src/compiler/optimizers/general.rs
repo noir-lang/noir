@@ -27,7 +27,7 @@ fn remove_zero_coefficients<F: AcirField>(mut opcode: Expression<F>) -> Expressi
     opcode
 }
 
-// Simplifies all mul terms with the same bi-variate variables
+// Simplifies all mul terms with the same bivariate variables
 fn simplify_mul_terms<F: AcirField>(mut gate: Expression<F>) -> Expression<F> {
     let mut hash_map: IndexMap<(Witness, Witness), F> = IndexMap::new();
 
