@@ -686,7 +686,7 @@ fn warns_if_trait_is_not_in_scope_for_function_call_and_there_is_only_one_trait_
         panic!("Expected a 'trait method not in scope' error");
     };
     assert_eq!(ident.to_string(), "foo");
-    assert_eq!(trait_name, "Foo");
+    assert_eq!(trait_name, "private_mod::Foo");
 }
 
 #[test]
@@ -759,7 +759,7 @@ fn errors_if_trait_is_not_in_scope_for_function_call_and_there_are_multiple_cand
     };
     assert_eq!(ident.to_string(), "foo");
     traits.sort();
-    assert_eq!(traits, vec!["Foo", "Foo2"]);
+    assert_eq!(traits, vec!["private_mod::Foo", "private_mod::Foo2"]);
 }
 
 #[test]
@@ -808,5 +808,5 @@ fn errors_if_multiple_trait_methods_are_in_scope() {
     };
     assert_eq!(ident.to_string(), "foo");
     traits.sort();
-    assert_eq!(traits, vec!["Foo", "Foo2"]);
+    assert_eq!(traits, vec!["private_mod::Foo", "private_mod::Foo2"]);
 }
