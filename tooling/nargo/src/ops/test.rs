@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use acvm::{
     acir::{
         brillig::ForeignCallResult,
@@ -13,17 +11,10 @@ use noirc_driver::{compile_no_check, CompileError, CompileOptions, DEFAULT_EXPRE
 use noirc_errors::{debug_info::DebugInfo, FileDiagnostic};
 use noirc_frontend::hir::{def_map::TestFunction, Context};
 use noirc_printable_type::ForeignCallError;
-use rand::Rng;
-use serde::{Deserialize, Serialize};
 
 use crate::{
     errors::try_to_diagnose_runtime_error,
-    foreign_calls::{
-        mocker::MockForeignCallExecutor,
-        print::{PrintForeignCallExecutor, PrintOutput},
-        rpc::RPCForeignCallExecutor,
-        ForeignCall, ForeignCallExecutor,
-    },
+    foreign_calls::{layers, print::PrintOutput, ForeignCallExecutor},
     NargoError,
 };
 
@@ -44,16 +35,19 @@ impl TestStatus {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
+pub fn run_test<'a, B, F, E>(
     blackbox_solver: &B,
     context: &mut Context,
     test_function: &TestFunction,
-    output: PrintOutput<'_>,
-    foreign_call_resolver_url: Option<&str>,
-    root_path: Option<PathBuf>,
-    package_name: Option<String>,
+    output: PrintOutput<'a>,
     config: &CompileOptions,
-) -> TestStatus {
+    foreign_call_executor: F,
+) -> TestStatus
+where
+    B: BlackBoxFunctionSolver<FieldElement>,
+    F: Fn(PrintOutput<'a>, layers::Unhandled) -> E + 'a,
+    E: ForeignCallExecutor<FieldElement>,
+{
     let test_function_has_no_arguments = context
         .def_interner
         .function_meta(&test_function.get_id())
@@ -70,12 +64,8 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
             if test_function_has_no_arguments {
                 // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
                 // otherwise constraints involving these expressions will not error.
-                let mut foreign_call_executor = TestForeignCallExecutor::new(
-                    output,
-                    foreign_call_resolver_url,
-                    root_path,
-                    package_name,
-                );
+                let mut foreign_call_executor =
+                    TestForeignCallExecutor::new(output, &foreign_call_executor);
 
                 let circuit_execution = execute_program(
                     &compiled_program.program,
@@ -137,11 +127,9 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
                                 program,
                                 initial_witness,
                                 blackbox_solver,
-                                &mut TestForeignCallExecutor::<FieldElement>::new(
+                                &mut TestForeignCallExecutor::new(
                                     PrintOutput::None,
-                                    foreign_call_resolver_url,
-                                    root_path.clone(),
-                                    package_name.clone(),
+                                    &foreign_call_executor,
                                 ),
                             );
 
@@ -278,38 +266,28 @@ fn check_expected_failure_message(
 }
 
 /// A specialized foreign call executor which tracks whether it has encountered any unknown foreign calls
-struct TestForeignCallExecutor<'a, F> {
-    /// The executor for any [`ForeignCall::Print`] calls.
-    printer: PrintForeignCallExecutor<'a>,
-    mocker: MockForeignCallExecutor<F>,
-    external: Option<RPCForeignCallExecutor>,
-
+struct TestForeignCallExecutor<E> {
+    executor: E,
     encountered_unknown_foreign_call: bool,
 }
 
-impl<'a, F: Default> TestForeignCallExecutor<'a, F> {
-    fn new(
-        output: PrintOutput<'a>,
-        resolver_url: Option<&str>,
-        root_path: Option<PathBuf>,
-        package_name: Option<String>,
-    ) -> Self {
-        let id = rand::thread_rng().gen();
-        let printer = PrintForeignCallExecutor { output };
-        let external_resolver = resolver_url.map(|resolver_url| {
-            RPCForeignCallExecutor::new(resolver_url, id, root_path, package_name)
-        });
-        TestForeignCallExecutor {
-            printer,
-            mocker: MockForeignCallExecutor::default(),
-            external: external_resolver,
-            encountered_unknown_foreign_call: false,
-        }
+impl<E> TestForeignCallExecutor<E> {
+    #[allow(clippy::new_ret_no_self)]
+    fn new<'a, F>(output: PrintOutput<'a>, foreign_call_executor: &F) -> Self
+    where
+        F: Fn(PrintOutput<'a>, layers::Unhandled) -> E + 'a,
+    {
+        // Use a base layer that doesn't handle anything, which we handle in the `execute` below.
+        let executor = foreign_call_executor(output, layers::Unhandled);
+
+        Self { executor, encountered_unknown_foreign_call: false }
     }
 }
 
-impl<'a, F: AcirField + Serialize + for<'b> Deserialize<'b>> ForeignCallExecutor<F>
-    for TestForeignCallExecutor<'a, F>
+impl<E, F> ForeignCallExecutor<F> for TestForeignCallExecutor<E>
+where
+    F: AcirField,
+    E: ForeignCallExecutor<F>,
 {
     fn execute(
         &mut self,
@@ -317,46 +295,12 @@ impl<'a, F: AcirField + Serialize + for<'b> Deserialize<'b>> ForeignCallExecutor
     ) -> Result<ForeignCallResult<F>, ForeignCallError> {
         // If the circuit has reached a new foreign call opcode then it can't have failed from any previous unknown foreign calls.
         self.encountered_unknown_foreign_call = false;
-
-        let foreign_call_name = foreign_call.function.as_str();
-        match ForeignCall::lookup(foreign_call_name) {
-            Some(ForeignCall::Print) => self.printer.execute(foreign_call),
-
-            Some(
-                ForeignCall::CreateMock
-                | ForeignCall::SetMockParams
-                | ForeignCall::GetMockLastParams
-                | ForeignCall::SetMockReturns
-                | ForeignCall::SetMockTimes
-                | ForeignCall::ClearMock,
-            ) => self.mocker.execute(foreign_call),
-
-            None => {
-                // First check if there's any defined mock responses for this foreign call.
-                match self.mocker.execute(foreign_call) {
-                    Err(ForeignCallError::NoHandler(_)) => (),
-                    response_or_error => return response_or_error,
-                };
-
-                if let Some(external_resolver) = &mut self.external {
-                    // If the user has registered an external resolver then we forward any remaining oracle calls there.
-                    match external_resolver.execute(foreign_call) {
-                        Err(ForeignCallError::NoHandler(_)) => (),
-                        response_or_error => return response_or_error,
-                    };
-                }
-
+        match self.executor.execute(foreign_call) {
+            Err(ForeignCallError::NoHandler(_)) => {
                 self.encountered_unknown_foreign_call = true;
-
-                // If all executors have no handler for the given foreign call then we cannot
-                // return a correct response to the ACVM. The best we can do is to return an empty response,
-                // this allows us to ignore any foreign calls which exist solely to pass information from inside
-                // the circuit to the environment (e.g. custom logging) as the execution will still be able to progress.
-                //
-                // We optimistically return an empty response for all oracle calls as the ACVM will error
-                // should a response have been required.
-                Ok(ForeignCallResult::default())
+                layers::Empty.execute(foreign_call)
             }
+            other => other,
         }
     }
 }

@@ -17,6 +17,6 @@ iter-extended.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
-jsonrpc.workspace = true
+jsonrpsee.workspace = true
 
 [dev-dependencies]
