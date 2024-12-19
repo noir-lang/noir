@@ -14,8 +14,9 @@ use clap::Args;
 use fm::FileManager;
 use formatters::{Formatter, JsonFormatter, PrettyFormatter, TerseFormatter};
 use nargo::{
-    insert_all_files_for_workspace_into_file_manager, ops::TestStatus, package::Package, parse_all,
-    prepare_package, workspace::Workspace, PrintOutput,
+    foreign_calls::DefaultForeignCallExecutor, insert_all_files_for_workspace_into_file_manager,
+    ops::TestStatus, package::Package, parse_all, prepare_package, workspace::Workspace,
+    PrintOutput,
 };
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml};
 use noirc_driver::{check_crate, CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
@@ -494,10 +495,16 @@ impl<'a> TestRunner<'a> {
             &mut context,
             test_function,
             PrintOutput::String(&mut output_string),
-            foreign_call_resolver_url,
-            root_path,
-            Some(package_name),
             &self.args.compile_options,
+            |output, base| {
+                DefaultForeignCallExecutor::with_base(
+                    base,
+                    output,
+                    foreign_call_resolver_url,
+                    root_path.clone(),
+                    Some(package_name.clone()),
+                )
+            },
         );
         (test_status, output_string)
     }

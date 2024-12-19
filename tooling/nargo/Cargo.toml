@@ -27,21 +27,20 @@ tracing.workspace = true
 walkdir = "2.5.0"
 
 # Some dependencies are optional so we can compile to Wasm.
-rand = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
 jsonrpsee = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
+rand = { workspace = true, optional = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-noir_fuzzer = { workspace = true, optional = true }
-proptest = { workspace = true, optional = true }
+noir_fuzzer = { workspace = true }
+proptest = { workspace = true }
 
 [dev-dependencies]
 jsonrpsee = { workspace = true, features = ["server"] }
 
 [features]
-default = ["execute", "test"]
+default = ["rpc"]
 
 # Execution currently uses HTTP based Oracle resolvers; does not compile to Wasm.
-execute = ["jsonrpsee/http-client", "jsonrpsee/macros", "tokio/rt", "serde", "rand"]
-test = ["execute", "noir_fuzzer", "proptest"]
+rpc = ["jsonrpsee/http-client", "jsonrpsee/macros", "tokio/rt", "serde", "rand"]

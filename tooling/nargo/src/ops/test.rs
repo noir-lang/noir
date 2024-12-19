@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use acvm::{
     acir::{
         brillig::ForeignCallResult,
@@ -13,14 +11,10 @@ use noirc_driver::{compile_no_check, CompileError, CompileOptions, DEFAULT_EXPRE
 use noirc_errors::{debug_info::DebugInfo, FileDiagnostic};
 use noirc_frontend::hir::{def_map::TestFunction, Context};
 use noirc_printable_type::ForeignCallError;
-use serde::{Deserialize, Serialize};
 
 use crate::{
     errors::try_to_diagnose_runtime_error,
-    foreign_calls::{
-        layers, print::PrintOutput, DefaultForeignCallExecutor, DefaultForeignCallLayers,
-        ForeignCallExecutor,
-    },
+    foreign_calls::{layers, print::PrintOutput, ForeignCallExecutor},
     NargoError,
 };
 
@@ -41,16 +35,19 @@ impl TestStatus {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
+pub fn run_test<'a, B, F, E>(
     blackbox_solver: &B,
     context: &mut Context,
     test_function: &TestFunction,
-    output: PrintOutput<'_>,
-    foreign_call_resolver_url: Option<&str>,
-    root_path: Option<PathBuf>,
-    package_name: Option<String>,
+    output: PrintOutput<'a>,
     config: &CompileOptions,
-) -> TestStatus {
+    foreign_call_executor: F,
+) -> TestStatus
+where
+    B: BlackBoxFunctionSolver<FieldElement>,
+    F: Fn(PrintOutput<'a>, layers::Unhandled) -> E + 'a,
+    E: ForeignCallExecutor<FieldElement>,
+{
     let test_function_has_no_arguments = context
         .def_interner
         .function_meta(&test_function.get_id())
@@ -67,12 +64,8 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
             if test_function_has_no_arguments {
                 // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
                 // otherwise constraints involving these expressions will not error.
-                let mut foreign_call_executor = TestForeignCallExecutor::new(
-                    output,
-                    foreign_call_resolver_url,
-                    root_path,
-                    package_name,
-                );
+                let mut foreign_call_executor =
+                    TestForeignCallExecutor::new(output, &foreign_call_executor);
 
                 let circuit_execution = execute_program(
                     &compiled_program.program,
@@ -134,11 +127,9 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
                                 program,
                                 initial_witness,
                                 blackbox_solver,
-                                &mut TestForeignCallExecutor::<FieldElement>::new(
+                                &mut TestForeignCallExecutor::new(
                                     PrintOutput::None,
-                                    foreign_call_resolver_url,
-                                    root_path.clone(),
-                                    package_name.clone(),
+                                    &foreign_call_executor,
                                 ),
                             );
 
@@ -275,37 +266,28 @@ fn check_expected_failure_message(
 }
 
 /// A specialized foreign call executor which tracks whether it has encountered any unknown foreign calls
-struct TestForeignCallExecutor<'a, F> {
-    executor: DefaultForeignCallLayers<'a, layers::Unhandled, F>,
+struct TestForeignCallExecutor<E> {
+    executor: E,
     encountered_unknown_foreign_call: bool,
 }
 
-impl<'a, F> TestForeignCallExecutor<'a, F>
-where
-    F: Default + AcirField + Serialize + for<'de> Deserialize<'de> + 'a,
-{
+impl<E> TestForeignCallExecutor<E> {
     #[allow(clippy::new_ret_no_self)]
-    fn new(
-        output: PrintOutput<'a>,
-        resolver_url: Option<&str>,
-        root_path: Option<PathBuf>,
-        package_name: Option<String>,
-    ) -> Self {
+    fn new<'a, F>(output: PrintOutput<'a>, foreign_call_executor: &F) -> Self
+    where
+        F: Fn(PrintOutput<'a>, layers::Unhandled) -> E + 'a,
+    {
         // Use a base layer that doesn't handle anything, which we handle in the `execute` below.
-        let executor = DefaultForeignCallExecutor::with_base(
-            layers::Unhandled,
-            output,
-            resolver_url,
-            root_path,
-            package_name,
-        );
+        let executor = foreign_call_executor(output, layers::Unhandled);
 
         Self { executor, encountered_unknown_foreign_call: false }
     }
 }
 
-impl<'a, F: AcirField + Serialize + for<'b> Deserialize<'b>> ForeignCallExecutor<F>
-    for TestForeignCallExecutor<'a, F>
+impl<E, F> ForeignCallExecutor<F> for TestForeignCallExecutor<E>
+where
+    F: AcirField,
+    E: ForeignCallExecutor<F>,
 {
     fn execute(
         &mut self,
