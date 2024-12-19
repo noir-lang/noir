@@ -1459,4 +1459,88 @@ mod test {
         let merged_ssa = Ssa::from_str(src).unwrap();
         let _ = merged_ssa.flatten_cfg();
     }
+
+    #[test]
+    fn eliminates_unnecessary_if_else_instructions_on_numeric_types() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: bool):
+            v1 = allocate -> &mut [Field; 1]
+            store Field 0 at v1
+            jmpif v0 then: b1, else: b2
+          b1():
+            store Field 1 at v1 
+            store Field 2 at v1 
+            jmp b2()
+          b2():
+            v3 = load v1 -> Field
+            return v3
+        }";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.flatten_cfg().mem2reg().fold_constants();
+
+        let expected = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut [Field; 1]
+            enable_side_effects v0
+            v2 = not v0
+            v3 = cast v0 as Field
+            v4 = cast v2 as Field
+            v6 = mul v3, Field 2
+            v7 = mul v4, v3
+            v8 = add v6, v7
+            enable_side_effects u1 1
+            return v8
+        }
+        ";
+
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn eliminates_unnecessary_if_else_instructions_on_array_types() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: bool, v1: bool):
+            v2 = make_array [Field 0] : [Field; 1]
+            v3 = allocate -> &mut [Field; 1]
+            store v2 at v3
+            jmpif v0 then: b1, else: b2
+          b1():
+            v4 = make_array [Field 1] : [Field; 1]
+            store v4 at v3 
+            v5 = make_array [Field 2] : [Field; 1]
+            store v5 at v3 
+            jmp b2()
+          b2():
+            v24 = load v3 -> Field
+            return v24
+        }";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa
+            .flatten_cfg()
+            .mem2reg()
+            .remove_if_else()
+            .fold_constants()
+            .dead_instruction_elimination();
+
+        let expected = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            enable_side_effects v0
+            v2 = cast v0 as Field
+            v4 = mul v2, Field 2
+            v5 = make_array [v4] : [Field; 1]
+            enable_side_effects u1 1
+            return v5
+        }
+        ";
+
+        assert_normalized_ssa_equals(ssa, expected);
+    }
 }
