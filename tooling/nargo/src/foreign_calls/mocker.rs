@@ -192,7 +192,8 @@ impl<F> ForeignCallExecutor<F> for DisabledMockForeignCallExecutor {
                 | ForeignCall::SetMockReturns
                 | ForeignCall::SetMockTimes
                 | ForeignCall::ClearMock => {
-                    panic!("unexpected mock call: {}", foreign_call.function)
+                    // Returning an error instead of panicking so this can be tested.
+                    return Err(ForeignCallError::Disabled(foreign_call.function.to_string()));
                 }
                 _ => {}
             }
