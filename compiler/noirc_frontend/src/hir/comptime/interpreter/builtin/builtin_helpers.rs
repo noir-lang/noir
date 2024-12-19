@@ -142,7 +142,7 @@ pub(crate) fn get_struct_field<T>(
 pub(crate) fn get_bool((value, location): (Value, Location)) -> IResult<bool> {
     match value {
         Value::Bool(value) => Ok(value),
-        value => type_mismatch(value, Type::Bool, location),
+        value => type_mismatch(value, Type::bool(), location),
     }
 }
 
@@ -240,7 +240,7 @@ pub(crate) fn get_tuple(
 pub(crate) fn get_field((value, location): (Value, Location)) -> IResult<FieldElement> {
     match value {
         Value::Field(value) => Ok(value),
-        value => type_mismatch(value, Type::FieldElement, location),
+        value => type_mismatch(value, Type::field_element(), location),
     }
 }
 
@@ -637,7 +637,7 @@ pub(crate) fn to_byte_slice(values: &[u8]) -> Value {
 pub(crate) fn to_field_array(values: &[FieldElement]) -> Value {
     let typ = Type::Array(
         Box::new(Type::Constant(values.len().into(), Kind::u32())),
-        Box::new(Type::FieldElement),
+        Box::new(Type::field_element()),
     );
     Value::Array(values.iter().copied().map(Value::Field).collect(), typ)
 }

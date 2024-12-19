@@ -72,7 +72,6 @@ fn build_abi_error_type(context: &Context, typ: ErrorType) -> AbiErrorType {
 
 pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
     match typ {
-        Type::FieldElement => AbiType::Field,
         Type::Array(size, typ) => {
             let span = get_main_function_span(context);
             let length = size
@@ -82,6 +81,13 @@ pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
             AbiType::Array { length, typ: Box::new(abi_type_from_hir_type(context, typ)) }
         }
         Type::Integer(sign, bit_width) => {
+            if bit_width.is_zero() {
+                unreachable!("{typ} cannot be used in the abi")
+            } else if bit_width.is_one() {
+                return AbiType::Boolean;
+            } else if bit_width.is_field_element_bits() {
+                return AbiType::Field;
+            }
             let sign = match sign {
                 Signedness::Unsigned => Sign::Unsigned,
                 Signedness::Signed => Sign::Signed,
@@ -101,7 +107,6 @@ pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
                 unreachable!("{typ} cannot be used in the abi")
             }
         }
-        Type::Bool => AbiType::Boolean,
         Type::String(size) => {
             let span = get_main_function_span(context);
             let size = size
@@ -126,7 +131,6 @@ pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
             AbiType::Tuple { fields }
         }
         Type::Error
-        | Type::Unit
         | Type::Constant(..)
         | Type::InfixExpr(..)
         | Type::TraitAsType(..)

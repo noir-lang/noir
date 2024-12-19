@@ -156,7 +156,7 @@ impl<'context> Elaborator<'context> {
                         None
                     };
 
-                    let no_environment = Box::new(Type::Unit);
+                    let no_environment = Box::new(Type::unit());
                     let function_type = Type::Function(
                         arguments,
                         Box::new(return_type),

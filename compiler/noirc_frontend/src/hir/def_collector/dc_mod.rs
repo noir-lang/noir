@@ -836,7 +836,6 @@ impl<'a> ModCollector<'a> {
         errors: &mut Vec<(CompilationError, FileId)>,
     ) -> Type {
         match &typ.typ {
-            UnresolvedTypeData::FieldElement => Type::FieldElement,
             UnresolvedTypeData::Integer(sign, bits) => Type::Integer(*sign, *bits),
             _ => {
                 let span = typ.span;
