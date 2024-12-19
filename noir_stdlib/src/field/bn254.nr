@@ -81,7 +81,7 @@ pub fn assert_gt(a: Field, b: Field) {
     if is_unconstrained() {
         assert(
             unsafe {
-                //@safety: unsafe in unconstrained
+                //@safety: already unconstrained
                 field_less_than(b, a)
             },
         );
