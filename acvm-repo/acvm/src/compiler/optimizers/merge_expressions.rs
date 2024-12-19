@@ -404,7 +404,7 @@ mod tests {
                 ],
                 q_c: FieldElement::zero(),
             }),
-            Opcode::BlackBoxFuncCall(acir::circuit::opcodes::BlackBoxFuncCall::RANGE {
+            Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
                 input: FunctionInput::witness(Witness(3), 32),
             }),
         ];

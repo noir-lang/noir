@@ -92,9 +92,7 @@ fn format_module(id: ModuleId, args: &ProcessRequestCallbackArgs) -> Option<Stri
     let mut string = String::new();
 
     if id.local_id == crate_root {
-        let Some(dep) = args.dependencies.iter().find(|dep| dep.crate_id == id.krate) else {
-            return None;
-        };
+        let dep = args.dependencies.iter().find(|dep| dep.crate_id == id.krate)?;
         string.push_str("    crate ");
         string.push_str(&dep.name.to_string());
     } else {

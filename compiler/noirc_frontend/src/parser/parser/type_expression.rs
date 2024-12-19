@@ -158,9 +158,7 @@ impl<'a> Parser<'a> {
 
     /// ConstantTypeExpression = int
     fn parse_constant_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
-        let Some(int) = self.eat_int() else {
-            return None;
-        };
+        let int = self.eat_int()?;
 
         Some(UnresolvedTypeExpression::Constant(int, self.previous_token_span))
     }

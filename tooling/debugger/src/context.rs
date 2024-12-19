@@ -1015,10 +1015,10 @@ mod tests {
             outputs: vec![],
             predicate: None,
         }];
-        let brillig_funcs = &vec![brillig_bytecode];
+        let brillig_funcs = &[brillig_bytecode];
         let current_witness_index = 2;
         let circuit = Circuit { current_witness_index, opcodes, ..Circuit::default() };
-        let circuits = &vec![circuit];
+        let circuits = &[circuit];
 
         let debug_symbols = vec![];
         let file_map = BTreeMap::new();
@@ -1185,7 +1185,7 @@ mod tests {
         ];
         let current_witness_index = 3;
         let circuit = Circuit { current_witness_index, opcodes, ..Circuit::default() };
-        let circuits = &vec![circuit];
+        let circuits = &[circuit];
 
         let debug_symbols = vec![];
         let file_map = BTreeMap::new();
@@ -1197,7 +1197,7 @@ mod tests {
             PrintOutput::Stdout,
             debug_artifact,
         ));
-        let brillig_funcs = &vec![brillig_bytecode];
+        let brillig_funcs = &[brillig_bytecode];
         let mut context = DebugContext::new(
             &StubbedBlackBoxSolver,
             circuits,
@@ -1283,7 +1283,7 @@ mod tests {
         };
         let circuits = vec![circuit_one, circuit_two];
         let debug_artifact = DebugArtifact { debug_symbols: vec![], file_map: BTreeMap::new() };
-        let brillig_funcs = &vec![brillig_one, brillig_two];
+        let brillig_funcs = &[brillig_one, brillig_two];
 
         let context = DebugContext::new(
             &StubbedBlackBoxSolver,

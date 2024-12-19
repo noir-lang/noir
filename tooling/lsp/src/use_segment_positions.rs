@@ -193,10 +193,13 @@ impl UseSegmentPositions {
     }
 
     fn insert_use_segment_position(&mut self, segment: String, position: UseSegmentPosition) {
-        if self.use_segment_positions.get(&segment).is_none() {
-            self.use_segment_positions.insert(segment, position);
-        } else {
-            self.use_segment_positions.insert(segment, UseSegmentPosition::NoneOrMultiple);
+        match self.use_segment_positions.entry(segment) {
+            std::collections::hash_map::Entry::Vacant(e) => {
+                e.insert(position);
+            }
+            std::collections::hash_map::Entry::Occupied(mut e) => {
+                e.insert(UseSegmentPosition::NoneOrMultiple);
+            }
         }
     }
 }
