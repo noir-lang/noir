@@ -75,23 +75,27 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         assert!(source_field.bit_size == F::max_num_bits());
         assert!(radix.bit_size == 32);
 
+        let bits_register = self.make_constant_instruction(output_bits.into(), 1);
         self.codegen_initialize_array(target_array);
-
-        let heap_array = self.codegen_brillig_array_to_heap_array(target_array);
+        let pointer = self.codegen_make_array_items_pointer(target_array);
+        let num_limbs = self.make_usize_constant_instruction(target_array.size.into());
 
         // Perform big-endian ToRadix
         self.black_box_op_instruction(BlackBoxOp::ToRadix {
             input: source_field.address,
             radix: radix.address,
-            output: heap_array,
-            output_bits,
+            output_pointer: pointer,
+            num_limbs: num_limbs.address,
+            output_bits: bits_register.address,
         });
 
         if little_endian {
             let items_len = self.make_usize_constant_instruction(target_array.size.into());
-            self.codegen_array_reverse(heap_array.pointer, items_len.address);
+            self.codegen_array_reverse(pointer, items_len.address);
             self.deallocate_single_addr(items_len);
         }
-        self.deallocate_register(heap_array.pointer);
+        self.deallocate_register(pointer);
+        self.deallocate_single_addr(bits_register);
+        self.deallocate_single_addr(num_limbs);
     }
 }
