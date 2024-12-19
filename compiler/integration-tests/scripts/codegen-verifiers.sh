@@ -30,6 +30,6 @@ $NARGO_BACKEND_PATH contract -k $KEYS/assert_statement -o $contracts_dir/assert_
 recursion_dir=$repo_root/compiler/integration-tests/circuits/recursion
 nargo --program-dir $recursion_dir compile
 $NARGO_BACKEND_PATH write_vk -b $recursion_dir/target/recursion.json -o $KEYS/recursion
-$NARGO_BACKEND_PATH contract -k $KEYS/recursion ./ -o $contracts_dir/recursion.sol
+ $NARGO_BACKEND_PATH contract -k $KEYS/recursion -o $contracts_dir/recursion.sol
 
 rm -rf $KEYS

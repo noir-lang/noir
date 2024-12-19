@@ -3,7 +3,7 @@ import { ethers } from 'hardhat';
 
 import { readFileSync } from 'node:fs';
 import { resolve, join } from 'path';
-import toml from 'toml';
+import * as TOML from 'smol-toml';
 
 import { Noir } from '@noir-lang/noir_js';
 import { UltraPlonkBackend } from '@aztec/bb.js';

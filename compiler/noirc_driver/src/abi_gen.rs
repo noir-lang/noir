@@ -77,7 +77,7 @@ pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
             let span = get_main_function_span(context);
             let length = size
                 .evaluate_to_u32(span)
-                .expect("Cannot have variable sized arrays as a parameter to main");
+                .expect("Cannot have variable-sized arrays as a parameter to main");
             let typ = typ.as_ref();
             AbiType::Array { length, typ: Box::new(abi_type_from_hir_type(context, typ)) }
         }
