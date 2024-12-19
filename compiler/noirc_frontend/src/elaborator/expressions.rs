@@ -429,8 +429,6 @@ impl<'context> Elaborator<'context> {
         method_call: MethodCallExpression,
         span: Span,
     ) -> (HirExpression, Type) {
-        dbg!(&method_call);
-
         let object_span = method_call.object.span;
         let (mut object, mut object_type) = self.elaborate_expression(method_call.object);
         object_type = object_type.follow_bindings();
