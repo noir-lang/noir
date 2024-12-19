@@ -33,9 +33,8 @@ gloo-utils.workspace = true
 tracing-subscriber.workspace = true
 tracing-web.workspace = true
 
-# Disable the rpc feature so we don't get the HTTP dependency which doesn't compile to Wasm.
-# Cannot use `workspace = true` because it would unify all packages and compile with the default
-# features on, ignoring the setting here, but with `path` it works.
+# Cannot use the `rpc` feature because the HTTP dependency wouldn't compile to Wasm.
+# We could use `path` if `rpc` was a default feature, but we made it opt-in so we don't get any problems when publishing the workspace.
 nargo.workspace = true
 
 # This is an unused dependency, we are adding it
