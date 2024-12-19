@@ -11,7 +11,6 @@ use noirc_driver::{compile_no_check, CompileError, CompileOptions, DEFAULT_EXPRE
 use noirc_errors::{debug_info::DebugInfo, FileDiagnostic};
 use noirc_frontend::hir::{def_map::TestFunction, Context};
 use noirc_printable_type::ForeignCallError;
-use serde::{Deserialize, Serialize};
 
 use crate::{
     errors::try_to_diagnose_runtime_error,
@@ -287,7 +286,7 @@ impl<E> TestForeignCallExecutor<E> {
 
 impl<E, F> ForeignCallExecutor<F> for TestForeignCallExecutor<E>
 where
-    F: AcirField + Serialize + for<'b> Deserialize<'b>,
+    F: AcirField,
     E: ForeignCallExecutor<F>,
 {
     fn execute(

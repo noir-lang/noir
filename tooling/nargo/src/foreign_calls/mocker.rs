@@ -6,7 +6,6 @@ use acvm::{
     AcirField,
 };
 use noirc_printable_type::{decode_string_value, ForeignCallError};
-use serde::{Deserialize, Serialize};
 
 use super::{ForeignCall, ForeignCallExecutor};
 
@@ -82,7 +81,7 @@ impl<F: AcirField> MockForeignCallExecutor<F> {
 
 impl<F> ForeignCallExecutor<F> for MockForeignCallExecutor<F>
 where
-    F: AcirField + Serialize + for<'a> Deserialize<'a>,
+    F: AcirField,
 {
     fn execute(
         &mut self,
