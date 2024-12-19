@@ -954,8 +954,9 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         offset: AcirVar,
         bits: u32,
     ) -> Result<(), RuntimeError> {
+        #[allow(unused_qualifications)]
         const fn num_bits<T>() -> usize {
-            size_of::<T>() * 8
+            std::mem::size_of::<T>() * 8
         }
 
         fn bit_size_u128(a: u128) -> u32 where {
