@@ -40,7 +40,7 @@ pub(crate) fn evaluate_binary_field_op<F: AcirField>(
     };
 
     Ok(match op {
-        // Perform addition, subtraction, multiplication, and division based on the BinaryOp variant.
+        // Perform addition, subtraction, multiplication, and division based on the BinaryFieldOp variant.
         BinaryFieldOp::Add => MemoryValue::new_field(a + b),
         BinaryFieldOp::Sub => MemoryValue::new_field(a - b),
         BinaryFieldOp::Mul => MemoryValue::new_field(a * b),
