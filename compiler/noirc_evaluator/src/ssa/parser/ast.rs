@@ -116,7 +116,7 @@ pub(crate) enum ParsedInstruction {
     },
     RangeCheck {
         value: ParsedValue,
-        max_bit_size: u32,
+        max_bit_size: u8,
     },
     Store {
         value: ParsedValue,
@@ -125,8 +125,8 @@ pub(crate) enum ParsedInstruction {
     Truncate {
         target: Identifier,
         value: ParsedValue,
-        bit_size: u32,
-        max_bit_size: u32,
+        bit_size: u8,
+        max_bit_size: u8,
     },
 }
 
@@ -146,5 +146,9 @@ pub(crate) enum ParsedTerminator {
 #[derive(Debug, Clone)]
 pub(crate) enum ParsedValue {
     NumericConstant { constant: FieldElement, typ: Type },
-    Variable(Identifier),
+    InstructionResult { id: u32, position: u32 },
+    BlockParameter { id: u32, position: u32 },
+    Function { id: u32 },
+    ForeignFunction { id: u32 },
+    Intrinsic(Identifier),
 }

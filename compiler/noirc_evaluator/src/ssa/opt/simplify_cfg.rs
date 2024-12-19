@@ -130,8 +130,7 @@ fn check_for_double_jmp(function: &mut Function, block: BasicBlockId, cfg: &mut 
         return;
     }
 
-    if !function.dfg[block].instructions().is_empty()
-        || !function.dfg[block].parameters().is_empty()
+    if !function.dfg[block].instructions().is_empty() || function.dfg[block].parameter_count() != 0
     {
         return;
     }
@@ -215,24 +214,21 @@ fn check_for_negated_jmpif_condition(
     }
 
     if let Some(TerminatorInstruction::JmpIf {
-        condition,
+        condition: Value::Instruction { instruction, .. },
         then_destination,
         else_destination,
         call_stack,
     }) = function.dfg[block].terminator()
     {
-        if let Value::Instruction { instruction, .. } = function.dfg[*condition] {
-            if let Instruction::Not(negated_condition) = function.dfg[instruction] {
-                let call_stack = *call_stack;
-                let jmpif = TerminatorInstruction::JmpIf {
-                    condition: negated_condition,
-                    then_destination: *else_destination,
-                    else_destination: *then_destination,
-                    call_stack,
-                };
-                function.dfg[block].set_terminator(jmpif);
-                cfg.recompute_block(function, block);
-            }
+        if let Instruction::Not(negated_condition) = function.dfg[*instruction] {
+            let jmpif = TerminatorInstruction::JmpIf {
+                condition: negated_condition,
+                then_destination: *else_destination,
+                else_destination: *then_destination,
+                call_stack: *call_stack,
+            };
+            function.dfg[block].set_terminator(jmpif);
+            cfg.recompute_block(function, block);
         }
     }
 }
@@ -247,11 +243,9 @@ fn remove_block_parameters(
     block: BasicBlockId,
     predecessor: BasicBlockId,
 ) {
-    let block = &mut function.dfg[block];
+    let parameters = function.dfg.block_parameters(block);
 
-    if !block.parameters().is_empty() {
-        let block_params = block.take_parameters();
-
+    if parameters.len() != 0 {
         let jump_args = match function.dfg[predecessor].unwrap_terminator_mut() {
             TerminatorInstruction::Jmp { arguments, .. } => std::mem::take(arguments),
             TerminatorInstruction::JmpIf { .. } => unreachable!("If jmpif instructions are modified to support block arguments in the future, this match will need to be updated"),
@@ -260,9 +254,9 @@ fn remove_block_parameters(
             ),
         };
 
-        assert_eq!(block_params.len(), jump_args.len());
-        for (param, arg) in block_params.iter().zip(jump_args) {
-            function.dfg.set_value_from_id(*param, arg);
+        assert_eq!(parameters.len(), jump_args.len());
+        for (param, arg) in parameters.zip(jump_args) {
+            function.dfg.replace_value(param, arg);
         }
     }
 }
@@ -324,7 +318,7 @@ mod test {
         let v1 = builder.add_block_parameter(b2, Type::field());
 
         let expected_return = 7u128;
-        let seven = builder.field_constant(expected_return);
+        let seven = builder.field_constant(expected_return.into());
         builder.terminate_with_jmp(b1, vec![seven]);
 
         builder.switch_to_block(b1);
@@ -377,8 +371,8 @@ mod test {
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();
 
-        let one = builder.field_constant(1u128);
-        let two = builder.field_constant(2u128);
+        let one = builder.field_constant(1u128.into());
+        let two = builder.field_constant(2u128.into());
 
         let v1 = builder.insert_binary(v0, BinaryOp::Eq, v0);
         builder.terminate_with_jmpif(v1, b1, b2);

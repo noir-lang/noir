@@ -2,7 +2,8 @@ use super::{
     call_stack::CallStackId,
     instruction::{InstructionId, TerminatorInstruction},
     map::Id,
-    value::ValueId,
+    types::Type,
+    value::Value,
 };
 use serde::{Deserialize, Serialize};
 
@@ -14,8 +15,8 @@ use serde::{Deserialize, Serialize};
 /// block, then all instructions are executed. ie single-entry single-exit.
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
 pub(crate) struct BasicBlock {
-    /// Parameters to the basic block.
-    parameters: Vec<ValueId>,
+    /// Types of each parameter to this block
+    parameter_types: Vec<Type>,
 
     /// Instructions in the basic block.
     instructions: Vec<InstructionId>,
@@ -31,33 +32,38 @@ pub(crate) struct BasicBlock {
 pub(crate) type BasicBlockId = Id<BasicBlock>;
 
 impl BasicBlock {
-    /// Create a new BasicBlock with the given parameters.
-    /// Parameters can also be added later via BasicBlock::add_parameter
+    /// Create a new BasicBlock with no parameters.
+    /// Parameters can be added later via BasicBlock::add_parameter
     pub(crate) fn new() -> Self {
-        Self { parameters: Vec::new(), instructions: Vec::new(), terminator: None }
+        Self { parameter_types: Vec::new(), instructions: Vec::new(), terminator: None }
     }
 
-    /// Returns the parameters of this block
-    pub(crate) fn parameters(&self) -> &[ValueId] {
-        &self.parameters
-    }
-
-    /// Removes all the parameters of this block
-    pub(crate) fn take_parameters(&mut self) -> Vec<ValueId> {
-        std::mem::take(&mut self.parameters)
+    /// Retrieve the type of the given parameter
+    pub(crate) fn type_of_parameter(&self, parameter_index: u16) -> &Type {
+        &self.parameter_types[parameter_index as usize]
     }
 
     /// Adds a parameter to this BasicBlock.
-    /// Expects that the ValueId given should refer to a Value::Param
-    /// instance with its position equal to self.parameters.len().
-    pub(crate) fn add_parameter(&mut self, parameter: ValueId) {
-        self.parameters.push(parameter);
+    pub(crate) fn add_parameter(&mut self, typ: Type) {
+        self.parameter_types.push(typ);
+    }
+
+    pub(crate) fn parameter_types(&self) -> &[Type] {
+        &self.parameter_types
+    }
+
+    pub(crate) fn parameter_types_mut(&mut self) -> &mut Vec<Type> {
+        &mut self.parameter_types
+    }
+
+    pub(crate) fn parameter_count(&self) -> usize {
+        self.parameter_types.len()
     }
 
     /// Replace this block's current parameters with that of the given Vec.
     /// This does not perform any checks that any previous parameters were unused.
-    pub(crate) fn set_parameters(&mut self, parameters: Vec<ValueId>) {
-        self.parameters = parameters;
+    pub(crate) fn set_parameters(&mut self, types: Vec<Type>) {
+        self.parameter_types = types;
     }
 
     /// Insert an instruction at the end of this block
@@ -131,7 +137,7 @@ impl BasicBlock {
     /// Return the jmp arguments, if any, of this block's TerminatorInstruction.
     ///
     /// If this block has no terminator, or a Return terminator this will be empty.
-    pub(crate) fn terminator_arguments(&self) -> &[ValueId] {
+    pub(crate) fn jmp_arguments(&self) -> &[Value] {
         match &self.terminator {
             Some(TerminatorInstruction::Jmp { arguments, .. }) => arguments,
             _ => &[],

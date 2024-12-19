@@ -7,7 +7,9 @@ use serde::{Deserialize, Serialize};
 use strum_macros::EnumIter;
 
 #[allow(clippy::upper_case_acronyms)]
-#[derive(Clone, Debug, Hash, Copy, PartialEq, Eq, Serialize, Deserialize, EnumIter)]
+#[derive(
+    Clone, Debug, Hash, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, EnumIter,
+)]
 pub enum BlackBoxFunc {
     /// Ciphers (encrypts) the provided plaintext using AES128 in CBC mode,
     /// padding the input using PKCS#7.

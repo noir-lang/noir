@@ -1,5 +1,8 @@
 use serde::{Deserialize, Serialize};
-use std::hash::{Hash, Hasher};
+use std::{
+    hash::{Hash, Hasher},
+    sync::Arc,
+};
 
 use acvm::{
     acir::AcirField,
@@ -19,13 +22,14 @@ use super::{
     function::Function,
     map::Id,
     types::{NumericType, Type},
-    value::{Value, ValueId},
+    value::Value,
 };
 
 mod binary;
 mod call;
 mod cast;
 mod constrain;
+pub(crate) mod insert_result;
 
 pub(crate) use binary::{Binary, BinaryOp};
 use call::simplify_call;
@@ -40,13 +44,15 @@ use constrain::decompose_constrain;
 /// placement within a block.
 pub(crate) type InstructionId = Id<Instruction>;
 
+pub(crate) type BitSize = u8;
+
 /// These are similar to built-ins in other languages.
 /// These can be classified under two categories:
 /// - Opcodes which the IR knows the target machine has
 ///   special support for. (LowLevel)
 /// - Opcodes which have no function definition in the
 ///   source code and must be processed by the IR.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub(crate) enum Intrinsic {
     ArrayLen,
     ArrayAsStrUnchecked,
@@ -221,14 +227,14 @@ impl Intrinsic {
 }
 
 /// The endian-ness of bits when encoding values as bits in e.g. ToBits or ToRadix
-#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub(crate) enum Endian {
     Big,
     Little,
 }
 
 /// Compiler hints.
-#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub(crate) enum Hint {
     /// Hint to the compiler to treat the call as having potential side effects,
     /// so that the value passed to it can survive SSA passes without being
@@ -245,33 +251,33 @@ pub(crate) enum Instruction {
     Binary(Binary),
 
     /// Converts `Value` into the given NumericType
-    Cast(ValueId, NumericType),
+    Cast(Value, NumericType),
 
     /// Computes a bit wise not
-    Not(ValueId),
+    Not(Value),
 
     /// Truncates `value` to `bit_size`
-    Truncate { value: ValueId, bit_size: u32, max_bit_size: u32 },
+    Truncate { value: Value, bit_size: BitSize, max_bit_size: BitSize },
 
     /// Constrains two values to be equal to one another.
-    Constrain(ValueId, ValueId, Option<ConstrainError>),
+    Constrain(Value, Value, Option<ConstrainError>),
 
     /// Range constrain `value` to `max_bit_size`
-    RangeCheck { value: ValueId, max_bit_size: u32, assert_message: Option<String> },
+    RangeCheck { value: Value, max_bit_size: BitSize, assert_message: Option<String> },
 
     /// Performs a function call with a list of its arguments.
-    Call { func: ValueId, arguments: Vec<ValueId> },
+    Call { func: Value, arguments: Vec<Value>, result_types: Vec<Type> },
 
     /// Allocates a region of memory. Note that this is not concerned with
     /// the type of memory, the type of element is determined when loading this memory.
     /// This is used for representing mutable variables and references.
-    Allocate,
+    Allocate { element_type: Type },
 
     /// Loads a value from memory.
-    Load { address: ValueId },
+    Load { address: Value, result_type: Type },
 
     /// Writes a value to memory.
-    Store { address: ValueId, value: ValueId },
+    Store { address: Value, value: Value },
 
     /// Provides a context for all instructions that follow up until the next
     /// `EnableSideEffectsIf` is encountered, for stating a condition that determines whether
@@ -290,29 +296,29 @@ pub(crate) enum Instruction {
     /// This instruction is only emitted after the cfg flattening pass, and is used to annotate
     /// instruction regions with a condition that corresponds to their position in the CFG's
     /// if-branching structure.
-    EnableSideEffectsIf { condition: ValueId },
+    EnableSideEffectsIf { condition: Value },
 
     /// Retrieve a value from an array at the given index
-    ArrayGet { array: ValueId, index: ValueId },
+    ArrayGet { array: Value, index: Value, result_type: Type },
 
     /// Creates a new array with the new value at the given index. All other elements are identical
     /// to those in the given array. This will not modify the original array unless `mutable` is
     /// set. This flag is off by default and only enabled when optimizations determine it is safe.
-    ArraySet { array: ValueId, index: ValueId, value: ValueId, mutable: bool },
+    ArraySet { array: Value, index: Value, value: Value, mutable: bool },
 
     /// An instruction to increment the reference count of a value.
     ///
     /// This currently only has an effect in Brillig code where array sharing and copy on write is
     /// implemented via reference counting. In ACIR code this is done with im::Vector and these
     /// IncrementRc instructions are ignored.
-    IncrementRc { value: ValueId },
+    IncrementRc { value: Value },
 
     /// An instruction to decrement the reference count of a value.
     ///
     /// This currently only has an effect in Brillig code where array sharing and copy on write is
     /// implemented via reference counting. In ACIR code this is done with im::Vector and these
     /// DecrementRc instructions are ignored.
-    DecrementRc { value: ValueId },
+    DecrementRc { value: Value },
 
     /// Merge two values returned from opposite branches of a conditional into one.
     ///
@@ -323,23 +329,18 @@ pub(crate) enum Instruction {
     ///     else_value
     /// }
     /// ```
-    IfElse {
-        then_condition: ValueId,
-        then_value: ValueId,
-        else_condition: ValueId,
-        else_value: ValueId,
-    },
+    IfElse { then_condition: Value, then_value: Value, else_condition: Value, else_value: Value },
 
     /// Creates a new array or slice.
     ///
     /// `typ` should be an array or slice type with an element type
     /// matching each of the `elements` values' types.
-    MakeArray { elements: im::Vector<ValueId>, typ: Type },
+    MakeArray { elements: im::Vector<Value>, typ: Type },
 }
 
 impl Instruction {
     /// Returns a binary instruction with the given operator, lhs, and rhs
-    pub(crate) fn binary(operator: BinaryOp, lhs: ValueId, rhs: ValueId) -> Instruction {
+    pub(crate) fn binary(operator: BinaryOp, lhs: Value, rhs: Value) -> Instruction {
         Instruction::Binary(Binary { lhs, operator, rhs })
     }
 
@@ -347,6 +348,17 @@ impl Instruction {
     pub(crate) fn result_type(&self) -> InstructionResultType {
         match self {
             Instruction::Binary(binary) => binary.result_type(),
+            Instruction::Load { result_type: typ, .. }
+            | Instruction::ArrayGet { result_type: typ, .. } => {
+                InstructionResultType::Known(typ.clone())
+            }
+            Instruction::Call { result_types, .. } => {
+                InstructionResultType::Multiple(result_types.clone())
+            }
+            Instruction::Allocate { element_type } => {
+                let typ = Type::Reference(Arc::new(element_type.clone()));
+                InstructionResultType::Known(typ)
+            }
             Instruction::Cast(_, typ) => InstructionResultType::Known(Type::Numeric(*typ)),
             Instruction::MakeArray { typ, .. } => InstructionResultType::Known(typ.clone()),
             Instruction::Not(value)
@@ -361,17 +373,7 @@ impl Instruction {
             | Instruction::DecrementRc { .. }
             | Instruction::RangeCheck { .. }
             | Instruction::EnableSideEffectsIf { .. } => InstructionResultType::None,
-            Instruction::Allocate { .. }
-            | Instruction::Load { .. }
-            | Instruction::ArrayGet { .. }
-            | Instruction::Call { .. } => InstructionResultType::Unknown,
         }
-    }
-
-    /// True if this instruction requires specifying the control type variables when
-    /// inserting this instruction into a DataFlowGraph.
-    pub(crate) fn requires_ctrl_typevars(&self) -> bool {
-        matches!(self.result_type(), InstructionResultType::Unknown)
     }
 
     /// Indicates if the instruction has a side effect, ie. it can fail, or it interacts with memory.
@@ -384,13 +386,13 @@ impl Instruction {
         match self {
             // These either have side-effects or interact with memory
             EnableSideEffectsIf { .. }
-            | Allocate
+            | Allocate { .. }
             | Load { .. }
             | Store { .. }
             | IncrementRc { .. }
             | DecrementRc { .. } => true,
 
-            Call { func, .. } => match dfg[*func] {
+            Call { func, .. } => match *func {
                 Value::Intrinsic(intrinsic) => intrinsic.has_side_effects(),
                 _ => true, // Be conservative and assume other functions can have side effects.
             },
@@ -444,13 +446,13 @@ impl Instruction {
         match self {
             // These either have side-effects or interact with memory
             EnableSideEffectsIf { .. }
-            | Allocate
+            | Allocate { .. }
             | Load { .. }
             | Store { .. }
             | IncrementRc { .. }
             | DecrementRc { .. } => false,
 
-            Call { func, .. } => match function.dfg[*func] {
+            Call { func, .. } => match *func {
                 Value::Intrinsic(intrinsic) => {
                     intrinsic.can_be_deduplicated(deduplicate_with_predicate)
                 }
@@ -499,7 +501,7 @@ impl Instruction {
             Cast(_, _)
             | Not(_)
             | Truncate { .. }
-            | Allocate
+            | Allocate { .. }
             | Load { .. }
             | ArrayGet { .. }
             | IfElse { .. }
@@ -525,7 +527,7 @@ impl Instruction {
             | RangeCheck { .. } => false,
 
             // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
-            Call { func, .. } => match function.dfg[*func] {
+            Call { func, .. } => match *func {
                 // Explicitly allows removal of unused ec operations, even if they can fail
                 Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul))
                 | Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::EmbeddedCurveAdd)) => true,
@@ -554,14 +556,14 @@ impl Instruction {
                 true
             }
 
-            Instruction::ArrayGet { array, index } => {
+            Instruction::ArrayGet { array, index, result_type: _ } => {
                 // `ArrayGet`s which read from "known good" indices from an array should not need a predicate.
                 !dfg.is_safe_index(*index, *array)
             }
 
             Instruction::EnableSideEffectsIf { .. } | Instruction::ArraySet { .. } => true,
 
-            Instruction::Call { func, .. } => match dfg[*func] {
+            Instruction::Call { func, .. } => match *func {
                 Value::Function(_) => true,
                 Value::Intrinsic(intrinsic) => {
                     matches!(intrinsic, Intrinsic::SliceInsert | Intrinsic::SliceRemove)
@@ -574,7 +576,7 @@ impl Instruction {
             | Instruction::Truncate { .. }
             | Instruction::Constrain(_, _, _)
             | Instruction::RangeCheck { .. }
-            | Instruction::Allocate
+            | Instruction::Allocate { .. }
             | Instruction::Load { .. }
             | Instruction::Store { .. }
             | Instruction::IfElse { .. }
@@ -584,10 +586,10 @@ impl Instruction {
         }
     }
 
-    /// Maps each ValueId inside this instruction to a new ValueId, returning the new instruction.
+    /// Maps each Value inside this instruction to a new Value, returning the new instruction.
     /// Note that the returned instruction is fresh and will not have an assigned InstructionId
     /// until it is manually inserted in a DataFlowGraph later.
-    pub(crate) fn map_values(&self, mut f: impl FnMut(ValueId) -> ValueId) -> Instruction {
+    pub(crate) fn map_values(&self, mut f: impl FnMut(Value) -> Value) -> Instruction {
         match self {
             Instruction::Binary(binary) => Instruction::Binary(Binary {
                 lhs: f(binary.lhs),
@@ -617,21 +619,28 @@ impl Instruction {
                 });
                 Instruction::Constrain(lhs, rhs, assert_message)
             }
-            Instruction::Call { func, arguments } => Instruction::Call {
+            Instruction::Call { func, arguments, result_types } => Instruction::Call {
                 func: f(*func),
                 arguments: vecmap(arguments.iter().copied(), f),
+                result_types: result_types.clone(),
             },
-            Instruction::Allocate => Instruction::Allocate,
-            Instruction::Load { address } => Instruction::Load { address: f(*address) },
+            Instruction::Allocate { element_type } => {
+                Instruction::Allocate { element_type: element_type.clone() }
+            }
+            Instruction::Load { address, result_type } => {
+                Instruction::Load { address: f(*address), result_type: result_type.clone() }
+            }
             Instruction::Store { address, value } => {
                 Instruction::Store { address: f(*address), value: f(*value) }
             }
             Instruction::EnableSideEffectsIf { condition } => {
                 Instruction::EnableSideEffectsIf { condition: f(*condition) }
             }
-            Instruction::ArrayGet { array, index } => {
-                Instruction::ArrayGet { array: f(*array), index: f(*index) }
-            }
+            Instruction::ArrayGet { array, index, result_type } => Instruction::ArrayGet {
+                array: f(*array),
+                index: f(*index),
+                result_type: result_type.clone(),
+            },
             Instruction::ArraySet { array, index, value, mutable } => Instruction::ArraySet {
                 array: f(*array),
                 index: f(*index),
@@ -662,8 +671,8 @@ impl Instruction {
         }
     }
 
-    /// Maps each ValueId inside this instruction to a new ValueId in place.
-    pub(crate) fn map_values_mut(&mut self, mut f: impl FnMut(ValueId) -> ValueId) {
+    /// Maps each Value inside this instruction to a new Value in place.
+    pub(crate) fn map_values_mut(&mut self, mut f: impl FnMut(Value) -> Value) {
         match self {
             Instruction::Binary(binary) => {
                 binary.lhs = f(binary.lhs);
@@ -683,14 +692,14 @@ impl Instruction {
                     }
                 }
             }
-            Instruction::Call { func, arguments } => {
+            Instruction::Call { func, arguments, result_types: _ } => {
                 *func = f(*func);
                 for argument in arguments {
                     *argument = f(*argument);
                 }
             }
-            Instruction::Allocate => (),
-            Instruction::Load { address } => *address = f(*address),
+            Instruction::Allocate { element_type: _ } => (),
+            Instruction::Load { address, result_type: _ } => *address = f(*address),
             Instruction::Store { address, value } => {
                 *address = f(*address);
                 *value = f(*value);
@@ -698,7 +707,7 @@ impl Instruction {
             Instruction::EnableSideEffectsIf { condition } => {
                 *condition = f(*condition);
             }
-            Instruction::ArrayGet { array, index } => {
+            Instruction::ArrayGet { array, index, result_type: _ } => {
                 *array = f(*array);
                 *index = f(*index);
             }
@@ -727,13 +736,13 @@ impl Instruction {
     }
 
     /// Applies a function to each input value this instruction holds.
-    pub(crate) fn for_each_value<T>(&self, mut f: impl FnMut(ValueId) -> T) {
+    pub(crate) fn for_each_value<T>(&self, mut f: impl FnMut(Value) -> T) {
         match self {
             Instruction::Binary(binary) => {
                 f(binary.lhs);
                 f(binary.rhs);
             }
-            Instruction::Call { func, arguments } => {
+            Instruction::Call { func, arguments, result_types: _ } => {
                 f(*func);
                 for argument in arguments {
                     f(*argument);
@@ -742,7 +751,7 @@ impl Instruction {
             Instruction::Cast(value, _)
             | Instruction::Not(value)
             | Instruction::Truncate { value, .. }
-            | Instruction::Load { address: value } => {
+            | Instruction::Load { address: value, result_type: _ } => {
                 f(*value);
             }
             Instruction::Constrain(lhs, rhs, assert_error) => {
@@ -760,7 +769,7 @@ impl Instruction {
                 f(*value);
             }
             Instruction::Allocate { .. } => (),
-            Instruction::ArrayGet { array, index } => {
+            Instruction::ArrayGet { array, index, result_type: _ } => {
                 f(*array);
                 f(*index);
             }
@@ -791,6 +800,54 @@ impl Instruction {
         }
     }
 
+    /// Iterate over the types in this instruction, if any.
+    /// Note that this skips over any `NumericType`s.
+    pub(crate) fn for_each_type(&self, mut f: impl FnMut(&Type)) {
+        match self {
+            Instruction::Binary(_)
+            | Instruction::Cast(_, _)
+            | Instruction::Not(_)
+            | Instruction::Truncate { .. }
+            | Instruction::Constrain(..)
+            | Instruction::RangeCheck { .. }
+            | Instruction::ArraySet { .. }
+            | Instruction::IncrementRc { .. }
+            | Instruction::DecrementRc { .. }
+            | Instruction::IfElse { .. }
+            | Instruction::Store { .. }
+            | Instruction::EnableSideEffectsIf { .. } => (),
+            Instruction::Allocate { element_type } => f(element_type),
+            Instruction::Load { result_type, .. } => f(result_type),
+            Instruction::ArrayGet { result_type, .. } => f(result_type),
+            Instruction::MakeArray { typ, .. } => f(typ),
+            Instruction::Call { result_types, .. } => result_types.iter().for_each(f),
+        }
+    }
+
+    /// Mutate the types on this instruction.
+    /// Note that `NumericType`s are skipped over.
+    pub(crate) fn map_types_mut(&mut self, mut f: impl FnMut(&mut Type)) {
+        match self {
+            Instruction::Binary(_)
+            | Instruction::Cast(_, _)
+            | Instruction::Not(_)
+            | Instruction::Truncate { .. }
+            | Instruction::Constrain(..)
+            | Instruction::RangeCheck { .. }
+            | Instruction::ArraySet { .. }
+            | Instruction::IncrementRc { .. }
+            | Instruction::DecrementRc { .. }
+            | Instruction::IfElse { .. }
+            | Instruction::Store { .. }
+            | Instruction::EnableSideEffectsIf { .. } => (),
+            Instruction::Allocate { element_type } => f(element_type),
+            Instruction::Load { result_type, .. } => f(result_type),
+            Instruction::ArrayGet { result_type, .. } => f(result_type),
+            Instruction::MakeArray { typ, .. } => f(typ),
+            Instruction::Call { result_types, .. } => result_types.iter_mut().for_each(f),
+        }
+    }
+
     /// Try to simplify this instruction. If the instruction can be simplified to a known value,
     /// that value is returned. Otherwise None is returned.
     ///
@@ -800,7 +857,6 @@ impl Instruction {
         &self,
         dfg: &mut DataFlowGraph,
         block: BasicBlockId,
-        ctrl_typevars: Option<Vec<Type>>,
         call_stack: CallStackId,
     ) -> SimplifyResult {
         use SimplifyResult::*;
@@ -808,18 +864,19 @@ impl Instruction {
             Instruction::Binary(binary) => binary.simplify(dfg),
             Instruction::Cast(value, typ) => simplify_cast(*value, *typ, dfg),
             Instruction::Not(value) => {
-                match &dfg[dfg.resolve(*value)] {
+                match dfg.resolve(*value) {
                     // Limit optimizing ! on constants to only booleans. If we tried it on fields,
                     // there is no Not on FieldElement, so we'd need to convert between u128. This
                     // would be incorrect however since the extra bits on the field would not be flipped.
                     Value::NumericConstant { constant, typ } if typ.is_unsigned() => {
                         // As we're casting to a `u128`, we need to clear out any upper bits that the NOT fills.
+                        let constant = &dfg[constant];
                         let value = !constant.to_u128() % (1 << typ.bit_size());
-                        SimplifiedTo(dfg.make_constant(value.into(), *typ))
+                        SimplifiedTo(dfg.constant(value.into(), typ))
                     }
                     Value::Instruction { instruction, .. } => {
                         // !!v => v
-                        if let Instruction::Not(value) = &dfg[*instruction] {
+                        if let Instruction::Not(value) = &dfg[instruction] {
                             SimplifiedTo(*value)
                         } else {
                             None
@@ -836,7 +893,7 @@ impl Instruction {
                     SimplifiedToInstructionMultiple(constraints)
                 }
             }
-            Instruction::ArrayGet { array, index } => {
+            Instruction::ArrayGet { array, index, result_type: _ } => {
                 if let Some(index) = dfg.get_numeric_constant(*index) {
                     try_optimize_array_get_from_previous_set(dfg, *array, index)
                 } else {
@@ -854,12 +911,8 @@ impl Instruction {
                         let elements = array.update(index, *value);
                         let typ = dfg.type_of_value(*array_id);
                         let instruction = Instruction::MakeArray { elements, typ };
-                        let new_array = dfg.insert_instruction_and_results(
-                            instruction,
-                            block,
-                            Option::None,
-                            call_stack,
-                        );
+                        let new_array =
+                            dfg.insert_instruction_and_results(instruction, block, call_stack);
                         return SimplifiedTo(new_array.first());
                     }
                 }
@@ -871,11 +924,11 @@ impl Instruction {
                     return SimplifiedTo(*value);
                 }
                 if let Some((numeric_constant, typ)) = dfg.get_numeric_constant_with_type(*value) {
-                    let integer_modulus = 2_u128.pow(*bit_size);
+                    let integer_modulus = 2_u128.pow(*bit_size as u32);
                     let truncated = numeric_constant.to_u128() % integer_modulus;
-                    SimplifiedTo(dfg.make_constant(truncated.into(), typ))
-                } else if let Value::Instruction { instruction, .. } = &dfg[dfg.resolve(*value)] {
-                    match &dfg[*instruction] {
+                    SimplifiedTo(dfg.constant(truncated.into(), typ))
+                } else if let Value::Instruction { instruction, .. } = dfg.resolve(*value) {
+                    match &dfg[instruction] {
                         Instruction::Truncate { bit_size: src_bit_size, .. } => {
                             // If we're truncating the value to fit into the same or larger bit size then this is a noop.
                             if src_bit_size <= bit_size && src_bit_size <= max_bit_size {
@@ -897,7 +950,8 @@ impl Instruction {
                             let divisor = dfg
                                 .get_numeric_constant(*rhs)
                                 .expect("rhs is checked to be constant.");
-                            let divisor_bits = divisor.num_bits();
+
+                            let divisor_bits: BitSize = divisor.num_bits().try_into().unwrap();
 
                             // 2^{max_quotient_bits} = 2^{max_numerator_bits} / 2^{divisor_bits}
                             // => max_quotient_bits = max_numerator_bits - divisor_bits
@@ -917,8 +971,8 @@ impl Instruction {
                     None
                 }
             }
-            Instruction::Call { func, arguments } => {
-                simplify_call(*func, arguments, dfg, block, ctrl_typevars, call_stack)
+            Instruction::Call { func, arguments, result_types } => {
+                simplify_call(*func, arguments, result_types, dfg, block, call_stack)
             }
             Instruction::EnableSideEffectsIf { condition } => {
                 if let Some(last) = dfg[block].instructions().last().copied() {
@@ -980,6 +1034,29 @@ impl Instruction {
             Instruction::MakeArray { .. } => None,
         }
     }
+
+    /// Returns the number of results this instruction produces
+    pub(crate) fn result_count(&self) -> u32 {
+        match self {
+            Instruction::Constrain(..)
+            | Instruction::RangeCheck { .. }
+            | Instruction::Store { .. }
+            | Instruction::EnableSideEffectsIf { .. }
+            | Instruction::IncrementRc { .. }
+            | Instruction::DecrementRc { .. } => 0,
+            Instruction::Binary(_)
+            | Instruction::Cast(_, _)
+            | Instruction::Not(_)
+            | Instruction::Truncate { .. }
+            | Instruction::Allocate { .. }
+            | Instruction::Load { .. }
+            | Instruction::ArrayGet { .. }
+            | Instruction::ArraySet { .. }
+            | Instruction::IfElse { .. }
+            | Instruction::MakeArray { .. } => 1,
+            Instruction::Call { result_types, .. } => result_types.len() as u32,
+        }
+    }
 }
 
 /// Given a chain of operations like:
@@ -999,7 +1076,7 @@ impl Instruction {
 ///   - If the array value is from a previous array-set, we recur.
 fn try_optimize_array_get_from_previous_set(
     dfg: &DataFlowGraph,
-    mut array_id: Id<Value>,
+    mut the_array: Value,
     target_index: FieldElement,
 ) -> SimplifyResult {
     let mut elements = None;
@@ -1007,16 +1084,16 @@ fn try_optimize_array_get_from_previous_set(
     // Arbitrary number of maximum tries just to prevent this optimization from taking too long.
     let max_tries = 5;
     for _ in 0..max_tries {
-        match &dfg[array_id] {
+        match the_array {
             Value::Instruction { instruction, .. } => {
-                match &dfg[*instruction] {
+                match &dfg[instruction] {
                     Instruction::ArraySet { array, index, value, .. } => {
                         if let Some(constant) = dfg.get_numeric_constant(*index) {
                             if constant == target_index {
                                 return SimplifyResult::SimplifiedTo(*value);
                             }
 
-                            array_id = *array; // recur
+                            the_array = *array; // recur
                         } else {
                             return SimplifyResult::None;
                         }
@@ -1070,13 +1147,13 @@ fn try_optimize_array_get_from_previous_set(
 ///   - If they are not equal, recur marking the current `array_set` array as the new array id to use in the checks
 fn try_optimize_array_set_from_previous_get(
     dfg: &DataFlowGraph,
-    mut array_id: ValueId,
-    target_index: ValueId,
-    target_value: ValueId,
+    mut array_id: Value,
+    target_index: Value,
+    target_value: Value,
 ) -> SimplifyResult {
-    let array_from_get = match &dfg[target_value] {
-        Value::Instruction { instruction, .. } => match &dfg[*instruction] {
-            Instruction::ArrayGet { array, index } => {
+    let array_from_get = match target_value {
+        Value::Instruction { instruction, .. } => match &dfg[instruction] {
+            Instruction::ArrayGet { array, index, result_type: _ } => {
                 if *array == array_id && *index == target_index {
                     // If array and index match from the value, we can immediately simplify
                     return SimplifyResult::SimplifiedTo(array_id);
@@ -1107,8 +1184,8 @@ fn try_optimize_array_set_from_previous_get(
     // Arbitrary number of maximum tries just to prevent this optimization from taking too long.
     let max_tries = 5;
     for _ in 0..max_tries {
-        match &dfg[array_id] {
-            Value::Instruction { instruction, .. } => match &dfg[*instruction] {
+        match array_id {
+            Value::Instruction { instruction, .. } => match &dfg[instruction] {
                 Instruction::ArraySet { array, index, .. } => {
                     let Some(index) = dfg.get_numeric_constant(*index) else {
                         return SimplifyResult::None;
@@ -1154,7 +1231,7 @@ pub(crate) enum ConstrainError {
     StaticString(String),
     // These errors are handled by the program as data.
     // We use a boolean to indicate if the error is a string for printing purposes.
-    Dynamic(ErrorSelector, /* is_string */ bool, Vec<ValueId>),
+    Dynamic(ErrorSelector, /* is_string */ bool, Vec<Value>),
 }
 
 impl From<String> for ConstrainError {
@@ -1172,14 +1249,13 @@ impl From<String> for Box<ConstrainError> {
 /// The possible return values for Instruction::return_types
 pub(crate) enum InstructionResultType {
     /// The result type of this instruction matches that of this operand
-    Operand(ValueId),
+    Operand(Value),
 
     /// The result type of this instruction is known to be this type - independent of its operands.
     Known(Type),
 
-    /// The result type of this function is unknown and separate from its operand types.
-    /// This occurs for function calls and load operations.
-    Unknown,
+    /// Function calls are a special case, they may return multiple values
+    Multiple(Vec<Type>),
 
     /// This instruction does not return any results.
     None,
@@ -1200,7 +1276,7 @@ pub(crate) enum TerminatorInstruction {
     /// If the condition is true: jump to the specified `then_destination`.
     /// Otherwise, jump to the specified `else_destination`.
     JmpIf {
-        condition: ValueId,
+        condition: Value,
         then_destination: BasicBlockId,
         else_destination: BasicBlockId,
         call_stack: CallStackId,
@@ -1211,7 +1287,7 @@ pub(crate) enum TerminatorInstruction {
     /// Jumps to specified `destination` with `arguments`.
     /// The CallStack here is expected to be used to issue an error when the start range of
     /// a for loop cannot be deduced at compile-time.
-    Jmp { destination: BasicBlockId, arguments: Vec<ValueId>, call_stack: CallStackId },
+    Jmp { destination: BasicBlockId, arguments: Vec<Value>, call_stack: CallStackId },
 
     /// Return from the current function with the given return values.
     ///
@@ -1220,15 +1296,12 @@ pub(crate) enum TerminatorInstruction {
     /// unconditionally jump to a single exit block with the return values
     /// as the block arguments. Then the exit block can terminate in a return
     /// instruction returning these values.
-    Return { return_values: Vec<ValueId>, call_stack: CallStackId },
+    Return { return_values: Vec<Value>, call_stack: CallStackId },
 }
 
 impl TerminatorInstruction {
-    /// Map each ValueId in this terminator to a new value.
-    pub(crate) fn map_values(
-        &self,
-        mut f: impl FnMut(ValueId) -> ValueId,
-    ) -> TerminatorInstruction {
+    /// Map each Value in this terminator to a new value.
+    pub(crate) fn map_values(&self, mut f: impl FnMut(Value) -> Value) -> TerminatorInstruction {
         use TerminatorInstruction::*;
         match self {
             JmpIf { condition, then_destination, else_destination, call_stack } => JmpIf {
@@ -1249,8 +1322,8 @@ impl TerminatorInstruction {
         }
     }
 
-    /// Mutate each ValueId to a new ValueId using the given mapping function
-    pub(crate) fn map_values_mut(&mut self, mut f: impl FnMut(ValueId) -> ValueId) {
+    /// Mutate each Value to a new Value using the given mapping function
+    pub(crate) fn map_values_mut(&mut self, mut f: impl FnMut(Value) -> Value) {
         use TerminatorInstruction::*;
         match self {
             JmpIf { condition, .. } => {
@@ -1270,7 +1343,7 @@ impl TerminatorInstruction {
     }
 
     /// Apply a function to each value
-    pub(crate) fn for_each_value<T>(&self, mut f: impl FnMut(ValueId) -> T) {
+    pub(crate) fn for_each_value<T>(&self, mut f: impl FnMut(Value) -> T) {
         use TerminatorInstruction::*;
         match self {
             JmpIf { condition, .. } => {
@@ -1325,12 +1398,12 @@ impl TerminatorInstruction {
 /// should be simplified.
 pub(crate) enum SimplifyResult {
     /// Replace this function's result with the given value
-    SimplifiedTo(ValueId),
+    SimplifiedTo(Value),
 
     /// Replace this function's results with the given values
     /// Used for when there are multiple return values from
     /// a function such as a tuple
-    SimplifiedToMultiple(Vec<ValueId>),
+    SimplifiedToMultiple(Vec<Value>),
 
     /// Replace this function with an simpler but equivalent instruction.
     SimplifiedToInstruction(Instruction),
@@ -1347,10 +1420,14 @@ pub(crate) enum SimplifyResult {
 }
 
 impl SimplifyResult {
-    pub(crate) fn instructions(self) -> Option<Vec<Instruction>> {
+    pub(crate) fn instruction(self) -> Option<Instruction> {
         match self {
-            SimplifyResult::SimplifiedToInstruction(instruction) => Some(vec![instruction]),
-            SimplifyResult::SimplifiedToInstructionMultiple(instructions) => Some(instructions),
+            SimplifyResult::SimplifiedToInstruction(instruction) => Some(instruction),
+            SimplifyResult::SimplifiedToInstructionMultiple(mut instructions)
+                if instructions.len() == 1 =>
+            {
+                Some(instructions.pop().unwrap())
+            }
             _ => None,
         }
     }

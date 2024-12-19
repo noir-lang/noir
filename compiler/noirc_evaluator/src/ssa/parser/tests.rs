@@ -58,8 +58,8 @@ fn test_make_array() {
     let src = "
         acir(inline) fn main f0 {
           b0():
-            v1 = make_array [Field 1] : [Field; 1]
-            return v1
+            i0 = make_array [Field 1] : [Field; 1]
+            return i0
         }
         ";
     assert_ssa_roundtrip(src);
@@ -303,8 +303,8 @@ fn test_array_set() {
 fn test_mutable_array_set() {
     let src = "
         acir(inline) fn main f0 {
-          b0(v0: [Field; 3]):
-            v3 = array_set mut v0, index Field 0, value Field 1
+          b0(b0.0: [Field; 3]):
+            i0 = array_set mut b0.0, index Field 0, value Field 1
             return
         }
         ";
@@ -315,9 +315,9 @@ fn test_mutable_array_set() {
 fn test_array_get_set_bug() {
     let src = "
         acir(inline) fn main f0 {
-          b0(v0: [u32; 3]):
-            v3 = array_set v0, index u32 1, value u32 2
-            v5 = array_get v3, index u32 0 -> u32
+          b0(b0.0: [u32; 3]):
+            i0 = array_set b0.0, index u32 1, value u32 2
+            i1 = array_get i0, index u32 0 -> u32
             return
         }
         ";
@@ -330,8 +330,8 @@ fn test_binary() {
         let src = format!(
             "
             acir(inline) fn main f0 {{
-              b0(v0: Field, v1: Field):
-                v2 = {op} v0, v1
+              b0(b0.0: Field, v1: Field):
+                i0 = {op} b0.0, v1
                 return
             }}
             "
@@ -344,8 +344,8 @@ fn test_binary() {
 fn test_truncate() {
     let src = "
         acir(inline) fn main f0 {
-          b0(v0: Field):
-            v1 = truncate v0 to 8 bits, max_bit_size: 16
+          b0(b0.0: Field):
+            i0 = truncate b0.0 to 8 bits, max_bit_size: 16
             return
         }
         ";
@@ -356,8 +356,8 @@ fn test_truncate() {
 fn test_not() {
     let src = "
         acir(inline) fn main f0 {
-          b0(v0: Field):
-            v1 = not v0
+          b0(b0.0: Field):
+            i0 = not b0.0
             return
         }
         ";
@@ -368,8 +368,8 @@ fn test_not() {
 fn test_range_check() {
     let src = "
         acir(inline) fn main f0 {
-          b0(v0: Field):
-            range_check v0 to 8 bits
+          b0(b0.0: Field):
+            range_check b0.0 to 8 bits
             return
         }
         ";
@@ -381,7 +381,7 @@ fn test_allocate() {
     let src = "
         acir(inline) fn main f0 {
           b0():
-            v0 = allocate -> &mut [Field; 3]
+            i0 = allocate -> &mut [Field; 3]
             return
         }
         ";
@@ -392,8 +392,8 @@ fn test_allocate() {
 fn test_load() {
     let src = "
         acir(inline) fn main f0 {
-          b0(v0: Field):
-            v1 = load v0 -> Field
+          b0(b0.0: Field):
+            i0 = load b0.0 -> Field
             return
         }
         ";
@@ -404,8 +404,8 @@ fn test_load() {
 fn test_store() {
     let src = "
         acir(inline) fn main f0 {
-          b0(v0: Field):
-            store Field 1 at v0
+          b0(b0.0: Field):
+            store Field 1 at b0.0
             return
         }
         ";
@@ -416,8 +416,8 @@ fn test_store() {
 fn test_inc_rc() {
     let src = "
         acir(inline) fn main f0 {
-          b0(v0: [Field; 3]):
-            inc_rc v0
+          b0(b0.0: [Field; 3]):
+            inc_rc b0.0
             return
         }
         ";
@@ -428,8 +428,8 @@ fn test_inc_rc() {
 fn test_dec_rc() {
     let src = "
         acir(inline) fn main f0 {
-          b0(v0: [Field; 3]):
-            dec_rc v0
+          b0(b0.0: [Field; 3]):
+            dec_rc b0.0
             return
         }
         ";
@@ -440,7 +440,7 @@ fn test_dec_rc() {
 fn test_mutable_reference_type() {
     let src = "
         acir(inline) fn main f0 {
-          b0(v0: &mut Field):
+          b0(b0.0: &mut Field):
             return
         }
         ";
@@ -452,14 +452,14 @@ fn test_parses_with_comments() {
     let src = "
         // This is a comment
         acir(inline) fn main f0 {
-          b0(v0: &mut Field): // This is a block
+          b0(b0.0: &mut Field): // This is a block
             return // Returns nothing
         }
         ";
 
     let expected = "
         acir(inline) fn main f0 {
-          b0(v0: &mut Field):
+          b0(b0.0: &mut Field):
             return
         }
         ";
@@ -472,8 +472,8 @@ fn test_parses_with_comments() {
 fn test_slice() {
     let src = "
         acir(inline) fn main f0 {
-          b0(v0: [Field; 3]):
-            v2, v3 = call as_slice(v0) -> (u32, [Field])
+          b0(b0.0: [Field; 3]):
+            i0, i0.1 = call as_slice(b0.0) -> (u32, [Field])
             return
         }
         ";
@@ -496,7 +496,7 @@ fn test_function_type() {
     let src = "
         acir(inline) fn main f0 {
           b0():
-            v0 = allocate -> &mut function
+            i0 = allocate -> &mut function
             return
         }
         ";

@@ -6,7 +6,7 @@ use crate::ssa::ir::basic_block::BasicBlockId;
 use crate::ssa::ir::function::RuntimeType;
 use crate::ssa::ir::function::{Function, FunctionId};
 use crate::ssa::ir::instruction::{Hint, Instruction, InstructionId, Intrinsic};
-use crate::ssa::ir::value::{Value, ValueId};
+use crate::ssa::ir::value::Value;
 use crate::ssa::ssa_gen::Ssa;
 use im::HashMap;
 use rayon::prelude::*;
@@ -73,7 +73,7 @@ fn check_for_underconstrained_values_within_function(
 
     context.compute_sets_of_connected_value_ids(function, all_functions);
 
-    let all_brillig_generated_values: HashSet<ValueId> =
+    let all_brillig_generated_values: HashSet<Value> =
         context.brillig_return_to_argument.keys().copied().collect();
 
     let connected_sets_indices =
@@ -98,10 +98,10 @@ struct DependencyContext {
     visited_blocks: HashSet<BasicBlockId>,
     block_queue: Vec<BasicBlockId>,
     // Map keeping track of values stored at memory locations
-    memory_slots: HashMap<ValueId, ValueId>,
+    memory_slots: HashMap<Value, Value>,
     // Map of values resulting from array get instructions
     // to the actual array values
-    array_elements: HashMap<ValueId, ValueId>,
+    array_elements: HashMap<Value, Value>,
     // Map of brillig call ids to sets of the value ids descending
     // from their arguments and results
     tainted: HashMap<InstructionId, BrilligTaintedIds>,
@@ -113,22 +113,22 @@ struct DependencyContext {
 #[derive(Clone, Debug)]
 struct BrilligTaintedIds {
     // Argument descendant value ids
-    arguments: HashSet<ValueId>,
+    arguments: HashSet<Value>,
     // Results status
     results: Vec<ResultStatus>,
     // Initial result value ids
-    root_results: HashSet<ValueId>,
+    root_results: HashSet<Value>,
 }
 
 #[derive(Clone, Debug)]
 enum ResultStatus {
     // Keep track of descendants until found constrained
-    Unconstrained { descendants: HashSet<ValueId> },
+    Unconstrained { descendants: HashSet<Value> },
     Constrained,
 }
 
 impl BrilligTaintedIds {
-    fn new(arguments: &[ValueId], results: &[ValueId]) -> Self {
+    fn new(arguments: &[Value], results: &[Value]) -> Self {
         BrilligTaintedIds {
             arguments: HashSet::from_iter(arguments.iter().copied()),
             results: results
@@ -143,7 +143,7 @@ impl BrilligTaintedIds {
     /// (for arguments one set is enough, for results we keep them
     /// separate as the forthcoming check considers the call covered
     /// if all the results were properly covered)
-    fn update_children(&mut self, parents: &HashSet<ValueId>, children: &[ValueId]) {
+    fn update_children(&mut self, parents: &HashSet<Value>, children: &[Value]) {
         if self.arguments.intersection(parents).next().is_some() {
             self.arguments.extend(children);
         }
@@ -173,7 +173,7 @@ impl BrilligTaintedIds {
     /// along the way to take them into final consideration
     /// Generally, a valid partial constraint should link up a result descendant
     /// and an argument descendant, although there are also edge cases mentioned below.
-    fn store_partial_constraints(&mut self, constrained_values: &HashSet<ValueId>) {
+    fn store_partial_constraints(&mut self, constrained_values: &HashSet<Value>) {
         let mut results_involved: Vec<usize> = vec![];
 
         // For a valid partial constraint, a value descending from
@@ -243,9 +243,9 @@ impl DependencyContext {
             });
 
             // Collect non-constant instruction results
-            for value_id in function.dfg.instruction_results(*instruction).iter() {
-                if function.dfg.get_numeric_constant(*value_id).is_none() {
-                    results.push(function.dfg.resolve(*value_id));
+            for value_id in function.dfg.instruction_results(*instruction) {
+                if function.dfg.get_numeric_constant(value_id).is_none() {
+                    results.push(function.dfg.resolve(value_id));
                 }
             }
 
@@ -256,7 +256,7 @@ impl DependencyContext {
                 Instruction::Store { address, value } => {
                     self.memory_slots.insert(*address, function.dfg.resolve(*value));
                 }
-                Instruction::Load { address } => {
+                Instruction::Load { address, result_type: _ } => {
                     // Recall the value stored at address as parent for the results
                     if let Some(value_id) = self.memory_slots.get(address) {
                         self.update_children(&[*value_id], &results);
@@ -282,7 +282,7 @@ impl DependencyContext {
                     // as .for_each_value() used previously also includes func_id
                     arguments.remove(0);
 
-                    match &function.dfg[*func_id] {
+                    match *func_id {
                         Value::Intrinsic(intrinsic) => match intrinsic {
                             Intrinsic::ApplyRangeConstraint | Intrinsic::AssertConstant => {
                                 // Consider these intrinsic arguments constrained
@@ -314,7 +314,7 @@ impl DependencyContext {
                                 self.update_children(&arguments, &results);
                             }
                         },
-                        Value::Function(callee) => match all_functions[callee].runtime() {
+                        Value::Function(callee) => match all_functions[&callee].runtime() {
                             RuntimeType::Brillig(_) => {
                                 // Record arguments/results for each Brillig call for the check
                                 self.tainted.insert(
@@ -394,7 +394,7 @@ impl DependencyContext {
     }
 
     /// Update sets of value ids that can be traced back to the Brillig calls being tracked
-    fn update_children(&mut self, parents: &[ValueId], children: &[ValueId]) {
+    fn update_children(&mut self, parents: &[Value], children: &[Value]) {
         let parents: HashSet<_> = HashSet::from_iter(parents.iter().copied());
         for (_, tainted_ids) in self.tainted.iter_mut() {
             tainted_ids.update_children(&parents, children);
@@ -403,7 +403,7 @@ impl DependencyContext {
 
     /// Check if any of the recorded Brillig calls have been properly constrained
     /// by given values after recording partial constraints, if so stop tracking them
-    fn clear_constrained(&mut self, constrained_values: &[ValueId], function: &Function) {
+    fn clear_constrained(&mut self, constrained_values: &[Value], function: &Function) {
         // Remove numeric constants
         let constrained_values =
             constrained_values.iter().filter(|v| function.dfg.get_numeric_constant(**v).is_none());
@@ -433,9 +433,9 @@ impl DependencyContext {
 struct Context {
     visited_blocks: HashSet<BasicBlockId>,
     block_queue: Vec<BasicBlockId>,
-    value_sets: Vec<HashSet<ValueId>>,
-    brillig_return_to_argument: HashMap<ValueId, Vec<ValueId>>,
-    brillig_return_to_instruction_id: HashMap<ValueId, InstructionId>,
+    value_sets: Vec<HashSet<Value>>,
+    brillig_return_to_argument: HashMap<Value, Vec<Value>>,
+    brillig_return_to_instruction_id: HashMap<Value, InstructionId>,
 }
 
 impl Context {
@@ -469,10 +469,9 @@ impl Context {
     ) -> HashSet<usize> {
         let variable_parameters_and_return_values = function
             .parameters()
-            .iter()
-            .chain(function.returns())
-            .filter(|id| function.dfg.get_numeric_constant(**id).is_none())
-            .map(|value_id| function.dfg.resolve(*value_id));
+            .chain(function.returns().iter().copied())
+            .filter(|value| function.dfg.get_numeric_constant(*value).is_none())
+            .map(|value| function.dfg.resolve(value));
 
         let mut connected_sets_indices: HashSet<usize> = HashSet::new();
 
@@ -491,8 +490,8 @@ impl Context {
     /// Find which Brillig calls separate this set from others and return bug warnings about them
     fn find_disconnecting_brillig_calls_with_results_in_set(
         &self,
-        current_set: &HashSet<ValueId>,
-        all_brillig_generated_values: &HashSet<ValueId>,
+        current_set: &HashSet<Value>,
+        all_brillig_generated_values: &HashSet<Value>,
         function: &Function,
     ) -> Vec<SsaReport> {
         let mut warnings = Vec::new();
@@ -502,7 +501,7 @@ impl Context {
         // Go through all Brillig outputs in the set
         for brillig_output_in_set in intersection {
             // Get the inputs that correspond to the output
-            let inputs: HashSet<ValueId> =
+            let inputs: HashSet<Value> =
                 self.brillig_return_to_argument[&brillig_output_in_set].iter().copied().collect();
 
             // Check if any of them are not in the set
@@ -540,9 +539,9 @@ impl Context {
                 }
             });
             // And non-constant results
-            for value_id in function.dfg.instruction_results(*instruction).iter() {
-                if function.dfg.get_numeric_constant(*value_id).is_none() {
-                    instruction_arguments_and_results.insert(function.dfg.resolve(*value_id));
+            for value_id in function.dfg.instruction_results(*instruction) {
+                if function.dfg.get_numeric_constant(value_id).is_none() {
+                    instruction_arguments_and_results.insert(function.dfg.resolve(value_id));
                 }
             }
 
@@ -562,8 +561,8 @@ impl Context {
                     self.value_sets.push(instruction_arguments_and_results);
                 }
 
-                Instruction::Call { func: func_id, arguments: argument_ids } => {
-                    match &function.dfg[*func_id] {
+                Instruction::Call { func: func_id, arguments: argument_ids, result_types: _ } => {
+                    match *func_id {
                         Value::Intrinsic(intrinsic) => match intrinsic {
                             Intrinsic::ApplyRangeConstraint
                             | Intrinsic::AssertConstant
@@ -591,21 +590,19 @@ impl Context {
                                 self.value_sets.push(instruction_arguments_and_results);
                             }
                         },
-                        Value::Function(callee) => match all_functions[callee].runtime() {
+                        Value::Function(callee) => match all_functions[&callee].runtime() {
                             RuntimeType::Brillig(_) => {
                                 // For calls to Brillig functions we memorize the mapping of results to argument ValueId's and InstructionId's
                                 // The latter are needed to produce the callstack later
-                                for result in
-                                    function.dfg.instruction_results(*instruction).iter().filter(
-                                        |value_id| {
-                                            function.dfg.get_numeric_constant(**value_id).is_none()
-                                        },
-                                    )
-                                {
+                                for result in function.dfg.instruction_results(*instruction).filter(
+                                    |value_id| {
+                                        function.dfg.get_numeric_constant(*value_id).is_none()
+                                    },
+                                ) {
                                     self.brillig_return_to_argument
-                                        .insert(*result, argument_ids.clone());
+                                        .insert(result, argument_ids.clone());
                                     self.brillig_return_to_instruction_id
-                                        .insert(*result, *instruction);
+                                        .insert(result, *instruction);
                                 }
                             }
                             RuntimeType::Acir(..) => {
@@ -636,15 +633,15 @@ impl Context {
     /// Merge all small sets into larger ones based on whether the sets intersect or not
     ///
     /// If two small sets have a common ValueId, we merge them into one
-    fn merge_sets(current: &[HashSet<ValueId>]) -> Vec<HashSet<ValueId>> {
+    fn merge_sets(current: &[HashSet<Value>]) -> Vec<HashSet<Value>> {
         let mut new_set_id: usize = 0;
-        let mut updated_sets: HashMap<usize, HashSet<ValueId>> = HashMap::new();
-        let mut value_dictionary: HashMap<ValueId, usize> = HashMap::new();
-        let mut parsed_value_set: HashSet<ValueId> = HashSet::new();
+        let mut updated_sets: HashMap<usize, HashSet<Value>> = HashMap::new();
+        let mut value_dictionary: HashMap<Value, usize> = HashMap::new();
+        let mut parsed_value_set: HashSet<Value> = HashSet::new();
 
         for set in current.iter() {
             // Check if the set has any of the ValueIds we've encountered at previous iterations
-            let intersection: HashSet<ValueId> =
+            let intersection: HashSet<Value> =
                 set.intersection(&parsed_value_set).copied().collect();
             parsed_value_set.extend(set.iter());
 
@@ -700,7 +697,7 @@ impl Context {
 
     /// Parallel version of merge_sets
     /// The sets are merged by chunks, and then the chunks are merged together
-    fn merge_sets_par(sets: &[HashSet<ValueId>]) -> Vec<HashSet<ValueId>> {
+    fn merge_sets_par(sets: &[HashSet<Value>]) -> Vec<HashSet<Value>> {
         let mut sets = sets.to_owned();
         let mut len = sets.len();
         let mut prev_len = len + 1;

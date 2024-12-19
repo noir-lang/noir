@@ -4,7 +4,7 @@
 //! with a non-literal target can be replaced with a call to an apply function.
 //! The apply function is a dispatch function that takes the function id as a parameter
 //! and dispatches to the correct target.
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::collections::{BTreeMap, BTreeSet};
 
 use acvm::FieldElement;
 use iter_extended::vecmap;
@@ -14,9 +14,9 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         function::{Function, FunctionId, Signature},
-        instruction::{BinaryOp, Instruction},
-        types::{NumericType, Type},
-        value::{Value, ValueId},
+        instruction::{BinaryOp, Instruction, InstructionId},
+        types::Type,
+        value::Value,
     },
     ssa_gen::Ssa,
 };
@@ -76,78 +76,145 @@ impl DefunctionalizationContext {
 
     /// Defunctionalize a single function
     fn defunctionalize(&mut self, func: &mut Function) {
-        let mut call_target_values = HashSet::new();
+        let reachable_blocks = func.reachable_blocks();
 
-        for block_id in func.reachable_blocks() {
-            let block = &func.dfg[block_id];
-            let instructions = block.instructions().to_vec();
+        for block_id in &reachable_blocks {
+            let block_id = *block_id;
+            let instructions = func.dfg[block_id].take_instructions();
 
-            for instruction_id in instructions {
-                let instruction = func.dfg[instruction_id].clone();
+            for instruction_id in &instructions {
+                let instruction_id = *instruction_id;
                 let mut replacement_instruction = None;
-                // Operate on call instructions
-                let (target_func_id, arguments) = match &instruction {
-                    Instruction::Call { func: target_func_id, arguments } => {
-                        (*target_func_id, arguments)
+
+                // Finally, check to see if this is a call to a non-function literal
+                // and if so replace the call with a call to the apply function
+                let (target_func, arguments) = match &func.dfg[instruction_id] {
+                    Instruction::Call { func, arguments, .. } => (*func, arguments),
+                    _ => {
+                        Self::mutate_function_instruction_arguments(func, instruction_id);
+                        continue;
                     }
-                    _ => continue,
                 };
 
-                match func.dfg[target_func_id] {
+                match target_func {
                     // If the target is a function used as value
                     Value::Param { .. } | Value::Instruction { .. } => {
                         let mut arguments = arguments.clone();
                         let results = func.dfg.instruction_results(instruction_id);
+                        let returns = vecmap(results, |result| func.dfg.type_of_value(result));
+
                         let signature = Signature {
                             params: vecmap(&arguments, |param| func.dfg.type_of_value(*param)),
-                            returns: vecmap(results, |result| func.dfg.type_of_value(*result)),
+                            returns: returns.clone(),
                         };
 
                         // Find the correct apply function
                         let apply_function = self.get_apply_function(&signature);
 
                         // Replace the instruction with a call to apply
-                        let apply_function_value_id = func.dfg.import_function(apply_function.id);
+                        let apply_function_value_id = Value::Function(apply_function.id);
                         if apply_function.dispatches_to_multiple_functions {
-                            arguments.insert(0, target_func_id);
+                            arguments.insert(0, target_func);
                         }
                         let func = apply_function_value_id;
-                        call_target_values.insert(func);
-
-                        replacement_instruction = Some(Instruction::Call { func, arguments });
-                    }
-                    Value::Function(..) => {
-                        call_target_values.insert(target_func_id);
+                        replacement_instruction =
+                            Some(Instruction::Call { func, arguments, result_types: returns });
                     }
                     _ => {}
                 }
+
                 if let Some(new_instruction) = replacement_instruction {
                     func.dfg[instruction_id] = new_instruction;
                 }
+
+                // Change any function literals in this instruction to fields.
+                // This must be done after using the apply function
+                Self::mutate_function_instruction_arguments(func, instruction_id);
             }
+
+            *func.dfg[block_id].instructions_mut() = instructions;
         }
 
-        // Change the type of all the values that are not call targets to NativeField
-        let value_ids = vecmap(func.dfg.values_iter(), |(id, _)| id);
-        for value_id in value_ids {
-            if let Type::Function = func.dfg[value_id].get_type().as_ref() {
-                match &func.dfg[value_id] {
-                    // If the value is a static function, transform it to the function id
-                    Value::Function(id) => {
-                        if !call_target_values.contains(&value_id) {
-                            let field = NumericType::NativeField;
-                            let new_value =
-                                func.dfg.make_constant(function_id_to_field(*id), field);
-                            func.dfg.set_value_from_id(value_id, new_value);
-                        }
-                    }
-                    // If the value is a function used as value, just change the type of it
-                    Value::Instruction { .. } | Value::Param { .. } => {
-                        func.dfg.set_type_of_value(value_id, Type::field());
-                    }
-                    _ => {}
+        // After changing the values in the function, go back and update block parameter
+        // and terminator types. This must be done afterward since otherwise it changes the
+        // type the apply functions search for. Alternatively we could change the apply functions
+        // type to convert the Function types there to Field preemptively.
+        for block_id in reachable_blocks {
+            for parameter in func.dfg[block_id].parameter_types_mut() {
+                if *parameter == Type::Function {
+                    *parameter = Type::field();
                 }
             }
+
+            // Then replace the terminator values
+            let mut terminator = func.dfg[block_id].take_terminator();
+            terminator.map_values_mut(|v| Self::function_to_field(func, v));
+            func.dfg[block_id].set_terminator(terminator);
+        }
+    }
+
+    /// Mutates any function literals used in the given instruction into field literals,
+    /// and mutates any function types returned into field types
+    fn mutate_function_instruction_arguments(
+        function: &mut Function,
+        instruction_id: InstructionId,
+    ) {
+        let mut contains_function = false;
+
+        match &function.dfg[instruction_id] {
+            // Special case calls to avoid changing `func` to a field
+            Instruction::Call { func, arguments, result_types } => {
+                for argument in arguments {
+                    if matches!(argument, Value::Function(_)) {
+                        contains_function = true;
+                        break;
+                    }
+                }
+                contains_function = contains_function
+                    || result_types.iter().any(|typ| matches!(typ, Type::Function));
+
+                if contains_function {
+                    let func = *func;
+                    let result_types = vecmap(result_types, Self::function_type_to_field);
+                    let mut arguments = arguments.clone();
+                    for arg in arguments.iter_mut() {
+                        *arg = Self::function_to_field(function, *arg);
+                    }
+                    let new_instruction = Instruction::Call { func, arguments, result_types };
+                    function.dfg[instruction_id] = new_instruction;
+                }
+            }
+            other => {
+                other.for_each_value(|value| {
+                    // All uses of functions outside of Call instructions are higher order
+                    contains_function = contains_function || matches!(value, Value::Function(_));
+                });
+                other.for_each_type(|typ| {
+                    contains_function = contains_function || matches!(typ, Type::Function);
+                });
+                if contains_function {
+                    let mut instruction = function.dfg[instruction_id].clone();
+                    instruction.map_values_mut(|v| Self::function_to_field(function, v));
+                    instruction.map_types_mut(|typ| *typ = Self::function_type_to_field(typ));
+                    function.dfg[instruction_id] = instruction;
+                }
+            }
+        };
+    }
+
+    fn function_type_to_field(typ: &Type) -> Type {
+        if matches!(typ, Type::Function) {
+            Type::field()
+        } else {
+            typ.clone()
+        }
+    }
+
+    fn function_to_field(function: &mut Function, value: Value) -> Value {
+        if let Value::Function(id) = value {
+            function.dfg.field_constant((id.to_u32() as usize).into())
+        } else {
+            value
         }
     }
 
@@ -193,8 +260,8 @@ fn find_variants(ssa: &Ssa) -> BTreeMap<Signature, Vec<FunctionId>> {
 fn find_functions_as_values(func: &Function) -> BTreeSet<FunctionId> {
     let mut functions_as_values: BTreeSet<FunctionId> = BTreeSet::new();
 
-    let mut process_value = |value_id: ValueId| {
-        if let Value::Function(id) = func.dfg[value_id] {
+    let mut process_value = |value_id: Value| {
+        if let Value::Function(id) = value_id {
             functions_as_values.insert(id);
         }
     };
@@ -229,12 +296,11 @@ fn find_dynamic_dispatches(func: &Function) -> BTreeSet<Signature> {
         for instruction_id in block.instructions() {
             let instruction = &func.dfg[*instruction_id];
             match instruction {
-                Instruction::Call { func: target, arguments } => {
-                    if let Value::Param { .. } | Value::Instruction { .. } = &func.dfg[*target] {
-                        let results = func.dfg.instruction_results(*instruction_id);
+                Instruction::Call { func: target, arguments, result_types } => {
+                    if let Value::Param { .. } | Value::Instruction { .. } = *target {
                         dispatches.insert(Signature {
                             params: vecmap(arguments, |param| func.dfg.type_of_value(*param)),
-                            returns: vecmap(results, |result| func.dfg.type_of_value(*result)),
+                            returns: result_types.clone(),
                         });
                     }
                 }
@@ -288,8 +354,8 @@ fn create_apply_function(
             let is_last = index == function_ids.len() - 1;
             let mut next_function_block = None;
 
-            let function_id_constant = function_builder
-                .numeric_constant(function_id_to_field(*function_id), NumericType::NativeField);
+            let function_id_constant =
+                function_builder.field_constant(function_id_to_field(*function_id));
 
             // If it's not the last function to dispatch, create an if statement
             if !is_last {
@@ -320,10 +386,10 @@ fn create_apply_function(
             previous_target_block = Some(target_block);
 
             // Call the function
-            let target_function_value = function_builder.import_function(*function_id);
+            let target_function_value = Value::Function(*function_id);
             let call_results = function_builder
                 .insert_call(target_function_value, params_ids.clone(), signature.returns.clone())
-                .to_vec();
+                .collect();
 
             // Jump to the target block for returning
             function_builder.terminate_with_jmp(target_block, call_results);

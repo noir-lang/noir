@@ -1,12 +1,16 @@
+use acvm::FieldElement;
 use fxhash::FxHashMap as HashMap;
 use serde::{Deserialize, Serialize};
 use std::{
+    borrow::Borrow,
     collections::BTreeMap,
     hash::Hash,
     str::FromStr,
     sync::atomic::{AtomicU32, Ordering},
 };
 use thiserror::Error;
+
+use super::value::ForeignFunctionId;
 
 /// A unique ID corresponding to a value of type T.
 /// This type can be used to retrieve a value of type T from
@@ -100,21 +104,27 @@ impl std::fmt::Display for Id<super::basic_block::BasicBlock> {
     }
 }
 
-impl std::fmt::Display for Id<super::value::Value> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "v{}", self.index)
-    }
-}
-
 impl std::fmt::Display for Id<super::function::Function> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "f{}", self.index)
     }
 }
 
+impl std::fmt::Display for Id<super::value::ForeignFunction> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "ff{}", self.index)
+    }
+}
+
 impl std::fmt::Display for Id<super::instruction::Instruction> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "i{}", self.index)
+    }
+}
+
+impl std::fmt::Display for Id<FieldElement> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "n{}", self.index)
     }
 }
 
@@ -304,13 +314,13 @@ impl<T> std::ops::IndexMut<Id<T>> for SparseMap<T> {
 /// This is accomplished by keeping the map bijective - for every
 /// value there is exactly one key and vice-versa. Any duplicate values
 /// are prevented in the call to insert.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct TwoWayMap<K, V> {
     key_to_value: HashMap<K, V>,
     value_to_key: HashMap<V, K>,
 }
 
-impl<K: Clone + Eq + Hash, V: Clone + Hash + Eq> TwoWayMap<K, V> {
+impl<K: Clone + Eq + Hash, V: Clone + Eq + Hash> TwoWayMap<K, V> {
     /// Returns the number of elements in the map.
     pub(crate) fn len(&self) -> usize {
         self.key_to_value.len()
@@ -329,7 +339,11 @@ impl<K: Clone + Eq + Hash, V: Clone + Hash + Eq> TwoWayMap<K, V> {
         key
     }
 
-    pub(crate) fn get(&self, key: &K) -> Option<&V> {
+    pub(crate) fn get<Q>(&self, key: &Q) -> Option<&V>
+    where
+        K: Borrow<Q>,
+        Q: ?Sized + Hash + Eq,
+    {
         self.key_to_value.get(key)
     }
 }
@@ -386,5 +400,83 @@ impl<T> AtomicCounter<T> {
 impl<T> Default for AtomicCounter<T> {
     fn default() -> Self {
         Self { next: Default::default(), _marker: Default::default() }
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub(crate) struct ForeignFunctions {
+    map: TwoWayMap<String, ForeignFunctionId>,
+}
+
+impl ForeignFunctions {
+    /// Returns an existing id for the given element, or creates a new
+    /// one if it doesn't already exist.
+    pub(crate) fn get_or_insert(&mut self, element: &str) -> ForeignFunctionId {
+        if let Some(existing) = self.map.get(element) {
+            return *existing;
+        }
+
+        let id = Id::new(self.map.len().try_into().unwrap());
+        self.map.insert(element.to_string(), id);
+        id
+    }
+}
+
+impl std::ops::Index<ForeignFunctionId> for ForeignFunctions {
+    type Output = String;
+
+    fn index(&self, index: ForeignFunctionId) -> &Self::Output {
+        &self.map.value_to_key[&index]
+    }
+}
+
+/// A UniqueMap is a map which keeps each T unique.
+/// It can be used as an interner where each equal T needs to be given the same id.
+#[derive(Debug, Clone)]
+pub(crate) struct UniqueMap<T> {
+    key_to_value: HashMap<Id<T>, T>,
+    value_to_key: HashMap<T, Id<T>>,
+}
+
+impl<T: Clone + Eq + Hash> UniqueMap<T> {
+    /// Adds an element to the map.
+    /// Returns the identifier/reference to that element.
+    pub(crate) fn get_or_insert(&mut self, value: &T) -> Id<T>
+    where
+        T: Clone,
+    {
+        if let Some(existing) = self.value_to_key.get(value) {
+            return *existing;
+        }
+
+        let key = Id::new(self.value_to_key.len() as u32);
+        self.key_to_value.insert(key, value.clone());
+        self.value_to_key.insert(value.clone(), key);
+        key
+    }
+}
+
+impl<T> Default for UniqueMap<T> {
+    fn default() -> Self {
+        Self { key_to_value: HashMap::default(), value_to_key: HashMap::default() }
+    }
+}
+
+// Note that there is no impl for IndexMut<T>,
+// if we allowed mutable access to map elements they may be
+// mutated such that elements are no longer unique
+impl<T> std::ops::Index<Id<T>> for UniqueMap<T> {
+    type Output = T;
+
+    fn index(&self, id: Id<T>) -> &Self::Output {
+        &self.key_to_value[&id]
+    }
+}
+
+impl<'a, T: Eq + Hash> std::ops::Index<&'a T> for UniqueMap<T> {
+    type Output = Id<T>;
+
+    fn index(&self, value: &'a T) -> &Self::Output {
+        &self.value_to_key[value]
     }
 }

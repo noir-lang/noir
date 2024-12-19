@@ -12,7 +12,7 @@ use crate::ssa::{
         instruction::{BinaryOp, Instruction, InstructionId, Intrinsic},
         post_order::PostOrder,
         types::{NumericType, Type},
-        value::{Value, ValueId},
+        value::Value,
     },
     ssa_gen::Ssa,
 };
@@ -69,7 +69,7 @@ impl Function {
 /// Per function context for tracking unused values and which instructions to remove.
 #[derive(Default)]
 struct Context {
-    used_values: HashSet<ValueId>,
+    used_values: HashSet<Value>,
     instructions_to_remove: HashSet<InstructionId>,
 
     /// IncrementRc & DecrementRc instructions must be revisited after the main DIE pass since
@@ -173,12 +173,12 @@ impl Context {
         let instruction = &function.dfg[instruction_id];
 
         if instruction.can_eliminate_if_unused(function) {
-            let results = function.dfg.instruction_results(instruction_id);
-            results.iter().all(|result| !self.used_values.contains(result))
-        } else if let Instruction::Call { func, arguments } = instruction {
+            let mut results = function.dfg.instruction_results(instruction_id);
+            results.all(|result| !self.used_values.contains(&result))
+        } else if let Instruction::Call { func, arguments, .. } = instruction {
             // TODO: make this more general for instructions which don't have results but have side effects "sometimes" like `Intrinsic::AsWitness`
-            let as_witness_id = function.dfg.get_intrinsic(Intrinsic::AsWitness);
-            as_witness_id == Some(func) && !self.used_values.contains(&arguments[0])
+            let as_witness = Value::Intrinsic(Intrinsic::AsWitness);
+            as_witness == *func && !self.used_values.contains(&arguments[0])
         } else {
             // If the instruction has side effects we should never remove it.
             false
@@ -193,10 +193,10 @@ impl Context {
     }
 
     /// Inspects a value and marks all instruction results as used.
-    fn mark_used_instruction_results(&mut self, dfg: &DataFlowGraph, value_id: ValueId) {
-        let value_id = dfg.resolve(value_id);
-        if matches!(&dfg[value_id], Value::Instruction { .. } | Value::Param { .. }) {
-            self.used_values.insert(value_id);
+    fn mark_used_instruction_results(&mut self, dfg: &DataFlowGraph, value_id: Value) {
+        let value = dfg.resolve(value_id);
+        if matches!(value, Value::Instruction { .. } | Value::Param { .. }) {
+            self.used_values.insert(value);
         }
     }
 
@@ -284,7 +284,7 @@ impl Context {
 
             // This is an instruction that might be out of bounds: let's add a constrain.
             let (array, index) = match instruction {
-                Instruction::ArrayGet { array, index }
+                Instruction::ArrayGet { array, index, .. }
                 | Instruction::ArraySet { array, index, .. } => (array, index),
                 _ => panic!("Expected an ArrayGet or ArraySet instruction here"),
             };
@@ -293,33 +293,29 @@ impl Context {
 
             let (lhs, rhs) = if function.dfg.get_numeric_constant(*index).is_some() {
                 // If we are here it means the index is known but out of bounds. That's always an error!
-                let false_const = function.dfg.make_constant(false.into(), NumericType::bool());
-                let true_const = function.dfg.make_constant(true.into(), NumericType::bool());
+                let false_const = function.dfg.bool_constant(false);
+                let true_const = function.dfg.bool_constant(true);
                 (false_const, true_const)
             } else {
                 // `index` will be relative to the flattened array length, so we need to take that into account
                 let array_length = function.dfg.type_of_value(*array).flattened_size();
 
                 // If we are here it means the index is dynamic, so let's add a check that it's less than length
-                let length_type = NumericType::length_type();
                 let index = function.dfg.insert_instruction_and_results(
-                    Instruction::Cast(*index, length_type),
+                    Instruction::Cast(*index, NumericType::length_type()),
                     block_id,
-                    None,
                     call_stack,
                 );
                 let index = index.first();
 
-                let array_length =
-                    function.dfg.make_constant((array_length as u128).into(), length_type);
+                let array_length = function.dfg.length_constant((array_length as u128).into());
                 let is_index_out_of_bounds = function.dfg.insert_instruction_and_results(
                     Instruction::binary(BinaryOp::Lt, index, array_length),
                     block_id,
-                    None,
                     call_stack,
                 );
                 let is_index_out_of_bounds = is_index_out_of_bounds.first();
-                let true_const = function.dfg.make_constant(true.into(), NumericType::bool());
+                let true_const = function.dfg.bool_constant(true);
                 (is_index_out_of_bounds, true_const)
             };
 
@@ -336,7 +332,6 @@ impl Context {
             function.dfg.insert_instruction_and_results(
                 Instruction::Constrain(lhs, rhs, message),
                 block_id,
-                None,
                 call_stack,
             );
             inserted_check = true;
@@ -356,11 +351,11 @@ impl Context {
     ) -> bool {
         use Instruction::*;
         if let IncrementRc { value } | DecrementRc { value } = instruction {
-            if let Value::Instruction { instruction, .. } = &dfg[*value] {
-                return match &dfg[*instruction] {
+            if let Value::Instruction { instruction, .. } = *value {
+                return match &dfg[instruction] {
                     MakeArray { .. } => true,
                     Call { func, .. } => {
-                        matches!(&dfg[*func], Value::Intrinsic(_) | Value::ForeignFunction(_))
+                        matches!(func, Value::Intrinsic(_) | Value::ForeignFunction(_))
                     }
                     _ => false,
                 };
@@ -376,7 +371,7 @@ fn instruction_might_result_in_out_of_bounds(
 ) -> bool {
     use Instruction::*;
     match instruction {
-        ArrayGet { array, index } | ArraySet { array, index, .. } => {
+        ArrayGet { array, index, .. } | ArraySet { array, index, .. } => {
             if function.dfg.try_get_array_length(*array).is_some() {
                 if let Some(known_index) = function.dfg.get_numeric_constant(*index) {
                     // `index` will be relative to the flattened array length, so we need to take that into account
@@ -399,7 +394,7 @@ fn instruction_might_result_in_out_of_bounds(
 
 fn handle_array_get_group(
     function: &Function,
-    array: &ValueId,
+    array: &Value,
     index: usize,
     next_out_of_bounds_index: &mut Option<usize>,
     possible_index_out_of_bounds_indexes: &mut Vec<usize>,
@@ -487,13 +482,13 @@ fn handle_array_get_group(
 // Given `lhs` and `rhs` values, if there's a side effects condition this will
 // return (`lhs * condition`, `rhs * condition`), otherwise just (`lhs`, `rhs`)
 fn apply_side_effects(
-    side_effects_condition: Option<ValueId>,
-    lhs: ValueId,
-    rhs: ValueId,
+    side_effects_condition: Option<Value>,
+    lhs: Value,
+    rhs: Value,
     function: &mut Function,
     block_id: BasicBlockId,
     call_stack: CallStackId,
-) -> (ValueId, ValueId) {
+) -> (Value, Value) {
     // See if there's an active "enable side effects" condition
     let Some(condition) = side_effects_condition else {
         return (lhs, rhs);
@@ -504,13 +499,12 @@ fn apply_side_effects(
     // Condition needs to be cast to argument type in order to multiply them together.
     // In our case, lhs is always a boolean.
     let cast = Instruction::Cast(condition, NumericType::bool());
-    let casted_condition = dfg.insert_instruction_and_results(cast, block_id, None, call_stack);
+    let casted_condition = dfg.insert_instruction_and_results(cast, block_id, call_stack);
     let casted_condition = casted_condition.first();
 
     let lhs = dfg.insert_instruction_and_results(
         Instruction::binary(BinaryOp::Mul, lhs, casted_condition),
         block_id,
-        None,
         call_stack,
     );
     let lhs = lhs.first();
@@ -518,7 +512,6 @@ fn apply_side_effects(
     let rhs = dfg.insert_instruction_and_results(
         Instruction::binary(BinaryOp::Mul, rhs, casted_condition),
         block_id,
-        None,
         call_stack,
     );
     let rhs = rhs.first();
@@ -539,13 +532,13 @@ struct RcTracker {
     rc_pairs_to_remove: HashSet<InstructionId>,
     // We also separately track all IncrementRc instructions and all array types which have been mutably borrowed.
     // If an array is the same type as one of those non-mutated array types, we can safely remove all IncrementRc instructions on that array.
-    inc_rcs: HashMap<ValueId, HashSet<InstructionId>>,
+    inc_rcs: HashMap<Value, HashSet<InstructionId>>,
     mutated_array_types: HashSet<Type>,
     // The SSA often creates patterns where after simplifications we end up with repeat
     // IncrementRc instructions on the same value. We track whether the previous instruction was an IncrementRc,
     // and if the current instruction is also an IncrementRc on the same value we remove the current instruction.
     // `None` if the previous instruction was anything other than an IncrementRc
-    previous_inc_rc: Option<ValueId>,
+    previous_inc_rc: Option<Value>,
 }
 
 impl RcTracker {
@@ -776,7 +769,7 @@ mod test {
 
         // Compiling main
         let mut builder = FunctionBuilder::new("main".into(), main_id);
-        let zero = builder.numeric_constant(0u128, NumericType::unsigned(32));
+        let zero = builder.constant(0u128.into(), NumericType::unsigned(32));
         let array_type = Type::Array(Arc::new(vec![Type::unsigned(32)]), 2);
         let v1 = builder.insert_make_array(vector![zero, zero], array_type.clone());
         let v2 = builder.insert_allocate(array_type.clone());
@@ -789,7 +782,7 @@ mod test {
         builder.switch_to_block(b1);
 
         let v3 = builder.insert_load(v2, array_type);
-        let one = builder.numeric_constant(1u128, NumericType::unsigned(32));
+        let one = builder.constant(1u128.into(), NumericType::unsigned(32));
         let v5 = builder.insert_array_set(v3, zero, one);
         builder.terminate_with_return(vec![v5]);
 

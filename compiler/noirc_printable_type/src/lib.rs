@@ -23,10 +23,10 @@ pub enum PrintableType {
         types: Vec<PrintableType>,
     },
     SignedInteger {
-        width: u32,
+        width: u8,
     },
     UnsignedInteger {
-        width: u32,
+        width: u8,
     },
     Boolean,
     Struct {

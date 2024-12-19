@@ -7,7 +7,7 @@ use crate::ssa::{
         function::{Function, RuntimeType},
         instruction::{Instruction, InstructionId, TerminatorInstruction},
         types::Type::{Array, Slice},
-        value::ValueId,
+        value::Value,
     },
     ssa_gen::Ssa,
 };
@@ -57,12 +57,12 @@ impl Function {
 
 struct Context<'f> {
     dfg: &'f DataFlowGraph,
-    array_to_last_use: HashMap<ValueId, InstructionId>,
+    array_to_last_use: HashMap<Value, InstructionId>,
     instructions_that_can_be_made_mutable: HashSet<InstructionId>,
     // Mapping of an array that comes from a load and whether the address
     // it was loaded from is a reference parameter passed to the block.
-    arrays_from_load: HashMap<ValueId, bool>,
-    inner_nested_arrays: HashMap<ValueId, InstructionId>,
+    arrays_from_load: HashMap<Value, bool>,
+    inner_nested_arrays: HashMap<Value, InstructionId>,
 }
 
 impl<'f> Context<'f> {
@@ -142,11 +142,11 @@ impl<'f> Context<'f> {
                         }
                     }
                 }
-                Instruction::Load { address } => {
-                    let result = self.dfg.instruction_results(*instruction_id)[0];
-                    if matches!(self.dfg.type_of_value(result), Array { .. } | Slice { .. }) {
+                Instruction::Load { address, result_type } => {
+                    if matches!(result_type, Array { .. } | Slice { .. }) {
+                        let result = Value::instruction_result(*instruction_id, 0);
                         let is_reference_param =
-                            self.dfg.block_parameters(block_id).contains(address);
+                            self.dfg.block_parameters(block_id).any(|value| value == *address);
                         self.arrays_from_load.insert(result, is_reference_param);
                     }
                 }

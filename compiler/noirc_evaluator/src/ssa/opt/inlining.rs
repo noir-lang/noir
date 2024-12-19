@@ -12,10 +12,10 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         call_stack::CallStackId,
-        dfg::InsertInstructionResult,
         function::{Function, FunctionId, RuntimeType},
+        instruction::insert_result::InsertInstructionResult,
         instruction::{Instruction, InstructionId, TerminatorInstruction},
-        value::{Value, ValueId},
+        value::Value,
     },
     ssa_gen::Ssa,
 };
@@ -116,7 +116,7 @@ struct PerFunctionContext<'function> {
     /// Maps ValueIds in the function being inlined to the new ValueIds to use in the function
     /// being inlined into. This mapping also contains the mapping from parameter values to
     /// argument values.
-    values: HashMap<ValueId, ValueId>,
+    values: HashMap<Value, Value>,
 
     /// Maps blocks in the source function to blocks in the function being inlined into, where
     /// each mapping is from the start of a source block to an inlined block in which the
@@ -136,11 +136,11 @@ fn called_functions_vec(func: &Function) -> Vec<FunctionId> {
     let mut called_function_ids = Vec::new();
     for block_id in func.reachable_blocks() {
         for instruction_id in func.dfg[block_id].instructions() {
-            let Instruction::Call { func: called_value_id, .. } = &func.dfg[*instruction_id] else {
+            let Instruction::Call { func: called_value, .. } = &func.dfg[*instruction_id] else {
                 continue;
             };
 
-            if let Value::Function(function_id) = func.dfg[*called_value_id] {
+            if let Value::Function(function_id) = func.dfg.resolve(*called_value) {
                 called_function_ids.push(function_id);
             }
         }
@@ -386,9 +386,9 @@ impl InlineContext {
         let original_parameters = context.source_function.parameters();
 
         for parameter in original_parameters {
-            let typ = context.source_function.dfg.type_of_value(*parameter);
+            let typ = context.source_function.dfg.type_of_value(parameter);
             let new_parameter = context.context.builder.add_block_parameter(entry_block, typ);
-            context.values.insert(*parameter, new_parameter);
+            context.values.insert(parameter, new_parameter);
         }
 
         context.blocks.insert(context.source_function.entry_block(), entry_block);
@@ -404,14 +404,9 @@ impl InlineContext {
         new_func
     }
 
-    /// Inlines a function into the current function and returns the translated return values
-    /// of the inlined function.
-    fn inline_function(
-        &mut self,
-        ssa: &Ssa,
-        id: FunctionId,
-        arguments: &[ValueId],
-    ) -> Vec<ValueId> {
+    /// Inlines a function into the current function.
+    /// Returns the returned values of the function.
+    fn inline_function(&mut self, ssa: &Ssa, id: FunctionId, arguments: &[Value]) -> Vec<Value> {
         self.recursion_level += 1;
 
         let source_function = &ssa.functions[&id];
@@ -426,7 +421,7 @@ impl InlineContext {
 
         let parameters = source_function.parameters();
         assert_eq!(parameters.len(), arguments.len());
-        context.values = parameters.iter().copied().zip(arguments.iter().copied()).collect();
+        context.values = parameters.zip(arguments.iter().copied()).collect();
 
         let current_block = context.context.builder.current_block();
         context.blocks.insert(source_function.entry_block(), current_block);
@@ -457,29 +452,32 @@ impl<'function> PerFunctionContext<'function> {
     /// Value::Param values are already handled as a result of previous inlining of instructions
     /// and blocks respectively. If these assertions trigger it means a value is being used before
     /// the instruction or block that defines the value is inserted.
-    fn translate_value(&mut self, id: ValueId) -> ValueId {
-        if let Some(value) = self.values.get(&id) {
+    fn translate_value(&mut self, old_value: Value) -> Value {
+        let old_value = self.source_function.dfg.resolve(old_value);
+        if let Some(value) = self.values.get(&old_value) {
             return *value;
         }
 
-        let new_value = match &self.source_function.dfg[id] {
+        let new_value = match old_value {
             value @ Value::Instruction { .. } => {
-                unreachable!("All Value::Instructions should already be known during inlining after creating the original inlined instruction. Unknown value {id} = {value:?}")
+                unreachable!("All Value::Instructions should already be known during inlining after creating the original inlined instruction. Unknown value {value}")
             }
             value @ Value::Param { .. } => {
-                unreachable!("All Value::Params should already be known from previous calls to translate_block. Unknown value {id} = {value:?}")
+                unreachable!("All Value::Params should already be known from previous calls to translate_block. Unknown value {value}")
             }
             Value::NumericConstant { constant, typ } => {
-                self.context.builder.numeric_constant(*constant, *typ)
+                let field = &self.source_function.dfg[constant];
+                self.context.builder.current_function.dfg.constant_by_ref(field, typ)
             }
-            Value::Function(function) => self.context.builder.import_function(*function),
-            Value::Intrinsic(intrinsic) => self.context.builder.import_intrinsic_id(*intrinsic),
+            Value::Function(function) => Value::Function(function),
+            Value::Intrinsic(intrinsic) => Value::Intrinsic(intrinsic),
             Value::ForeignFunction(function) => {
+                let function = &self.source_function.dfg[function];
                 self.context.builder.import_foreign_function(function)
             }
         };
 
-        self.values.insert(id, new_value);
+        self.values.insert(old_value, new_value);
         new_value
     }
 
@@ -507,9 +505,9 @@ impl<'function> PerFunctionContext<'function> {
         let original_parameters = self.source_function.dfg.block_parameters(source_block);
 
         for parameter in original_parameters {
-            let typ = self.source_function.dfg.type_of_value(*parameter);
+            let typ = self.source_function.dfg.type_of_value(parameter);
             let new_parameter = self.context.builder.add_block_parameter(new_block, typ);
-            self.values.insert(*parameter, new_parameter);
+            self.values.insert(parameter, new_parameter);
         }
 
         self.blocks.insert(source_block, new_block);
@@ -520,9 +518,9 @@ impl<'function> PerFunctionContext<'function> {
     /// Expects that the given ValueId belongs to the source_function.
     ///
     /// Returns None if the id is not known to refer to a function.
-    fn get_function(&mut self, mut id: ValueId) -> Option<FunctionId> {
-        id = self.translate_value(id);
-        match self.context.builder[id] {
+    fn get_function(&mut self, mut value: Value) -> Option<FunctionId> {
+        value = self.translate_value(value);
+        match value {
             Value::Function(id) => Some(id),
             // We don't set failed_to_inline_a_call for intrinsics since those
             // don't correspond to actual functions in the SSA program that would
@@ -533,7 +531,8 @@ impl<'function> PerFunctionContext<'function> {
     }
 
     /// Inline all reachable blocks within the source_function into the destination function.
-    fn inline_blocks(&mut self, ssa: &Ssa) -> Vec<ValueId> {
+    /// Returns the returned values of this function.
+    fn inline_blocks(&mut self, ssa: &Ssa) -> Vec<Value> {
         let mut seen_blocks = HashSet::new();
         let mut block_queue = VecDeque::new();
         block_queue.push_back(self.source_function.entry_block());
@@ -565,10 +564,12 @@ impl<'function> PerFunctionContext<'function> {
     /// Handle inlining a function's possibly multiple return instructions.
     /// If there is only 1 return we can just continue inserting into that block.
     /// If there are multiple, we'll need to create a join block to jump to with each value.
+    ///
+    /// Returns the returned values.
     fn handle_function_returns(
         &mut self,
-        mut returns: Vec<(BasicBlockId, Vec<ValueId>)>,
-    ) -> Vec<ValueId> {
+        mut returns: Vec<(BasicBlockId, Vec<Value>)>,
+    ) -> Vec<Value> {
         // Clippy complains if this were written as an if statement
         match returns.len() {
             1 => {
@@ -587,7 +588,7 @@ impl<'function> PerFunctionContext<'function> {
                 }
 
                 self.context.builder.switch_to_block(return_block);
-                self.context.builder.block_parameters(return_block).to_vec()
+                self.context.builder.block_parameters(return_block).collect()
             }
             _ => unreachable!("Inlined function had no return values"),
         }
@@ -596,33 +597,35 @@ impl<'function> PerFunctionContext<'function> {
     /// Inline each instruction in the given block into the function being inlined into.
     /// This may recurse if it finds another function to inline if a call instruction is within this block.
     fn inline_block_instructions(&mut self, ssa: &Ssa, block_id: BasicBlockId) {
-        let mut side_effects_enabled: Option<ValueId> = None;
+        let mut side_effects_enabled: Option<Value> = None;
 
         let block = &self.source_function.dfg[block_id];
         for id in block.instructions() {
             match &self.source_function.dfg[*id] {
-                Instruction::Call { func, arguments } => match self.get_function(*func) {
-                    Some(func_id) => {
-                        if self.should_inline_call(ssa, func_id) {
-                            self.inline_function(ssa, *id, func_id, arguments);
+                Instruction::Call { func, arguments, result_types: _ } => {
+                    match self.get_function(*func) {
+                        Some(func_id) => {
+                            if self.should_inline_call(ssa, func_id) {
+                                self.inline_function(ssa, *id, func_id, arguments);
 
-                            // This is only relevant during handling functions with `InlineType::NoPredicates` as these
-                            // can pollute the function they're being inlined into with `Instruction::EnabledSideEffects`,
-                            // resulting in predicates not being applied properly.
-                            //
-                            // Note that this doesn't cover the case in which there exists an `Instruction::EnabledSideEffects`
-                            // within the function being inlined whilst the source function has not encountered one yet.
-                            // In practice this isn't an issue as the last `Instruction::EnabledSideEffects` in the
-                            // function being inlined will be to turn off predicates rather than to create one.
-                            if let Some(condition) = side_effects_enabled {
-                                self.context.builder.insert_enable_side_effects_if(condition);
+                                // This is only relevant during handling functions with `InlineType::NoPredicates` as these
+                                // can pollute the function they're being inlined into with `Instruction::EnabledSideEffects`,
+                                // resulting in predicates not being applied properly.
+                                //
+                                // Note that this doesn't cover the case in which there exists an `Instruction::EnabledSideEffects`
+                                // within the function being inlined whilst the source function has not encountered one yet.
+                                // In practice this isn't an issue as the last `Instruction::EnabledSideEffects` in the
+                                // function being inlined will be to turn off predicates rather than to create one.
+                                if let Some(condition) = side_effects_enabled {
+                                    self.context.builder.insert_enable_side_effects_if(condition);
+                                }
+                            } else {
+                                self.push_instruction(*id);
                             }
-                        } else {
-                            self.push_instruction(*id);
                         }
+                        None => self.push_instruction(*id),
                     }
-                    None => self.push_instruction(*id),
-                },
+                }
                 Instruction::EnableSideEffectsIf { condition } => {
                     side_effects_enabled = Some(self.translate_value(*condition));
                     self.push_instruction(*id);
@@ -656,7 +659,7 @@ impl<'function> PerFunctionContext<'function> {
         ssa: &Ssa,
         call_id: InstructionId,
         function: FunctionId,
-        arguments: &[ValueId],
+        arguments: &[Value],
     ) {
         let old_results = self.source_function.dfg.instruction_results(call_id);
         let arguments = vecmap(arguments, |arg| self.translate_value(*arg));
@@ -672,7 +675,7 @@ impl<'function> PerFunctionContext<'function> {
             .extend_call_stack(self.context.call_stack, &call_stack);
 
         self.context.call_stack = new_call_stack;
-        let new_results = self.context.inline_function(ssa, function, &arguments);
+        let results = self.context.inline_function(ssa, function, &arguments);
         self.context.call_stack = self
             .context
             .builder
@@ -681,7 +684,7 @@ impl<'function> PerFunctionContext<'function> {
             .call_stack_data
             .unwind_call_stack(self.context.call_stack, call_stack_len);
 
-        let new_results = InsertInstructionResult::Results(call_id, &new_results);
+        let new_results = InsertInstructionResult::SimplifiedToMultiple(results);
         Self::insert_new_instruction_results(&mut self.values, old_results, new_results);
     }
 
@@ -692,47 +695,40 @@ impl<'function> PerFunctionContext<'function> {
 
         let mut call_stack = self.context.call_stack;
         let source_call_stack = self.source_function.dfg.get_instruction_call_stack(id);
-        call_stack = self
-            .context
-            .builder
-            .current_function
-            .dfg
-            .call_stack_data
-            .extend_call_stack(call_stack, &source_call_stack);
-        let results = self.source_function.dfg.instruction_results(id);
-        let results = vecmap(results, |id| self.source_function.dfg.resolve(*id));
+        let call_stack_data = &mut self.context.builder.current_function.dfg.call_stack_data;
+        call_stack = call_stack_data.extend_call_stack(call_stack, &source_call_stack);
 
-        let ctrl_typevars = instruction
-            .requires_ctrl_typevars()
-            .then(|| vecmap(&results, |result| self.source_function.dfg.type_of_value(*result)));
+        let results = self.source_function.dfg.instruction_results(id);
+        let results = results.map(|value| self.source_function.dfg.resolve(value));
 
         self.context.builder.set_call_stack(call_stack);
 
-        let new_results = self.context.builder.insert_instruction(instruction, ctrl_typevars);
-        Self::insert_new_instruction_results(&mut self.values, &results, new_results);
+        let new_results = self.context.builder.insert_instruction(instruction);
+        Self::insert_new_instruction_results(&mut self.values, results, new_results);
     }
 
     /// Modify the values HashMap to remember the mapping between an instruction result's previous
     /// ValueId (from the source_function) and its new ValueId in the destination function.
     fn insert_new_instruction_results(
-        values: &mut HashMap<ValueId, ValueId>,
-        old_results: &[ValueId],
+        values: &mut HashMap<Value, Value>,
+        mut old_results: impl ExactSizeIterator<Item = Value>,
         new_results: InsertInstructionResult,
     ) {
-        assert_eq!(old_results.len(), new_results.len());
+        assert_eq!(old_results.len() as u32, new_results.len());
 
         match new_results {
             InsertInstructionResult::SimplifiedTo(new_result) => {
-                values.insert(old_results[0], new_result);
+                let old_result = old_results.next().unwrap();
+                values.insert(old_result, new_result);
             }
             InsertInstructionResult::SimplifiedToMultiple(new_results) => {
-                for (old_result, new_result) in old_results.iter().zip(new_results) {
-                    values.insert(*old_result, new_result);
+                for (old_result, new_result) in old_results.zip(new_results) {
+                    values.insert(old_result, new_result);
                 }
             }
-            InsertInstructionResult::Results(_, new_results) => {
-                for (old_result, new_result) in old_results.iter().zip(new_results) {
-                    values.insert(*old_result, *new_result);
+            InsertInstructionResult::Results { id, result_count: _ } => {
+                for (i, old_result) in old_results.enumerate() {
+                    values.insert(old_result, Value::instruction_result(id, i as u16));
                 }
             }
             InsertInstructionResult::InstructionRemoved => (),
@@ -749,7 +745,7 @@ impl<'function> PerFunctionContext<'function> {
         &mut self,
         block_id: BasicBlockId,
         block_queue: &mut VecDeque<BasicBlockId>,
-    ) -> Option<(BasicBlockId, Vec<ValueId>)> {
+    ) -> Option<(BasicBlockId, Vec<Value>)> {
         match self.source_function.dfg[block_id].unwrap_terminator() {
             TerminatorInstruction::Jmp { destination, arguments, call_stack } => {
                 let destination = self.translate_block(*destination, block_queue);
@@ -856,6 +852,7 @@ mod test {
             instruction::{BinaryOp, Intrinsic, TerminatorInstruction},
             map::Id,
             types::{NumericType, Type},
+            value::Value,
         },
     };
 
@@ -874,13 +871,13 @@ mod test {
         let mut builder = FunctionBuilder::new("foo".into(), foo_id);
 
         let bar_id = Id::test_new(1);
-        let bar = builder.import_function(bar_id);
-        let results = builder.insert_call(bar, Vec::new(), vec![Type::field()]).to_vec();
+        let bar = Value::Function(bar_id);
+        let results = builder.insert_call(bar, Vec::new(), vec![Type::field()]).collect();
         builder.terminate_with_return(results);
 
         builder.new_function("bar".into(), bar_id, InlineType::default());
         let expected_return = 72u128;
-        let seventy_two = builder.field_constant(expected_return);
+        let seventy_two = builder.field_constant(expected_return.into());
         builder.terminate_with_return(vec![seventy_two]);
 
         let ssa = builder.finish();
@@ -923,13 +920,16 @@ mod test {
         let mut builder = FunctionBuilder::new("main".into(), main_id);
         let main_v0 = builder.add_parameter(Type::field());
 
-        let main_f1 = builder.import_function(square_id);
-        let main_f2 = builder.import_function(id1_id);
-        let main_f3 = builder.import_function(id2_id);
+        let main_f1 = Value::Function(square_id);
+        let main_f2 = Value::Function(id1_id);
+        let main_f3 = Value::Function(id2_id);
 
-        let main_v7 = builder.insert_call(main_f2, vec![main_f1], vec![Type::Function])[0];
-        let main_v13 = builder.insert_call(main_f3, vec![main_v7], vec![Type::Function])[0];
-        let main_v16 = builder.insert_call(main_v13, vec![main_v0], vec![Type::field()])[0];
+        let main_v7 =
+            builder.insert_call(main_f2, vec![main_f1], vec![Type::Function]).next().unwrap();
+        let main_v13 =
+            builder.insert_call(main_f3, vec![main_v7], vec![Type::Function]).next().unwrap();
+        let main_v16 =
+            builder.insert_call(main_v13, vec![main_v0], vec![Type::field()]).next().unwrap();
         builder.terminate_with_return(vec![main_v16]);
 
         // Compiling square f1
@@ -979,17 +979,17 @@ mod test {
         let mut builder = FunctionBuilder::new("main".into(), main_id);
 
         let factorial_id = Id::test_new(1);
-        let factorial = builder.import_function(factorial_id);
+        let factorial = Value::Function(factorial_id);
 
-        let five = builder.field_constant(5u128);
-        let results = builder.insert_call(factorial, vec![five], vec![Type::field()]).to_vec();
+        let five = builder.field_constant(5u128.into());
+        let results = builder.insert_call(factorial, vec![five], vec![Type::field()]).collect();
         builder.terminate_with_return(results);
 
         builder.new_function("factorial".into(), factorial_id, InlineType::default());
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();
 
-        let one = builder.field_constant(1u128);
+        let one = builder.field_constant(1u128.into());
 
         let v0 = builder.add_parameter(Type::field());
         let v1 = builder.insert_binary(v0, BinaryOp::Lt, one);
@@ -999,9 +999,9 @@ mod test {
         builder.terminate_with_return(vec![one]);
 
         builder.switch_to_block(b2);
-        let factorial_id = builder.import_function(factorial_id);
+        let factorial_id = Value::Function(factorial_id);
         let v2 = builder.insert_binary(v0, BinaryOp::Sub, one);
-        let v3 = builder.insert_call(factorial_id, vec![v2], vec![Type::field()])[0];
+        let v3 = builder.insert_call(factorial_id, vec![v2], vec![Type::field()]).next().unwrap();
         let v4 = builder.insert_binary(v0, BinaryOp::Mul, v3);
         builder.terminate_with_return(vec![v4]);
 
@@ -1080,17 +1080,19 @@ mod test {
 
         let main_cond = builder.add_parameter(Type::bool());
         let inner1_id = Id::test_new(1);
-        let inner1 = builder.import_function(inner1_id);
-        let main_v2 = builder.insert_call(inner1, vec![main_cond], vec![Type::field()])[0];
-        let assert_constant = builder.import_intrinsic_id(Intrinsic::AssertConstant);
+        let inner1 = Value::Function(inner1_id);
+        let mut main_v2 = builder.insert_call(inner1, vec![main_cond], vec![Type::field()]);
+        let main_v2 = main_v2.next().unwrap();
+        let assert_constant = Value::Intrinsic(Intrinsic::AssertConstant);
         builder.insert_call(assert_constant, vec![main_v2], vec![]);
         builder.terminate_with_return(vec![]);
 
         builder.new_function("inner1".into(), inner1_id, InlineType::default());
         let inner1_cond = builder.add_parameter(Type::bool());
         let inner2_id = Id::test_new(2);
-        let inner2 = builder.import_function(inner2_id);
-        let inner1_v2 = builder.insert_call(inner2, vec![inner1_cond], vec![Type::field()])[0];
+        let inner2 = Value::Function(inner2_id);
+        let mut inner1_v2 = builder.insert_call(inner2, vec![inner1_cond], vec![Type::field()]);
+        let inner1_v2 = inner1_v2.next().unwrap();
         builder.terminate_with_return(vec![inner1_v2]);
 
         builder.new_function("inner2".into(), inner2_id, InlineType::default());
@@ -1139,8 +1141,8 @@ mod test {
         let main_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("main".into(), main_id);
 
-        let main = builder.import_function(main_id);
-        let results = builder.insert_call(main, Vec::new(), vec![]).to_vec();
+        let main = Value::Function(main_id);
+        let results = builder.insert_call(main, Vec::new(), vec![]).collect();
         builder.terminate_with_return(results);
 
         let ssa = builder.finish();
@@ -1166,13 +1168,13 @@ mod test {
         builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
 
         let bar_id = Id::test_new(1);
-        let bar = builder.import_function(bar_id);
-        let results = builder.insert_call(bar, Vec::new(), vec![Type::field()]).to_vec();
+        let bar = Value::Function(bar_id);
+        let results = builder.insert_call(bar, Vec::new(), vec![Type::field()]).collect();
         builder.terminate_with_return(results);
 
         builder.new_brillig_function("bar".into(), bar_id, InlineType::default());
         let expected_return = 72u128;
-        let seventy_two = builder.field_constant(expected_return);
+        let seventy_two = builder.field_constant(expected_return.into());
         builder.terminate_with_return(vec![seventy_two]);
 
         let ssa = builder.finish();
@@ -1208,14 +1210,14 @@ mod test {
         builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
 
         let bar_id = Id::test_new(1);
-        let bar = builder.import_function(bar_id);
-        let v0 = builder.insert_call(bar, Vec::new(), vec![Type::field()]).to_vec();
-        let _v1 = builder.insert_call(bar, Vec::new(), vec![Type::field()]).to_vec();
-        let _v2 = builder.insert_call(bar, Vec::new(), vec![Type::field()]).to_vec();
+        let bar = Value::Function(bar_id);
+        let v0 = builder.insert_call(bar, Vec::new(), vec![Type::field()]).collect();
+        let _v1 = builder.insert_call(bar, Vec::new(), vec![Type::field()]);
+        let _v2 = builder.insert_call(bar, Vec::new(), vec![Type::field()]);
         builder.terminate_with_return(v0);
 
         builder.new_brillig_function("bar".into(), bar_id, InlineType::default());
-        let bar_v0 = builder.numeric_constant(1_usize, NumericType::bool());
+        let bar_v0 = builder.constant(1_usize.into(), NumericType::bool());
         let then_block = builder.insert_block();
         let else_block = builder.insert_block();
         let join_block = builder.insert_block();
@@ -1224,7 +1226,7 @@ mod test {
         let one = builder.field_constant(FieldElement::one());
         builder.terminate_with_jmp(join_block, vec![one]);
         builder.switch_to_block(else_block);
-        let two = builder.field_constant(FieldElement::from(2_u128));
+        let two = builder.field_constant(2_u128.into());
         builder.terminate_with_jmp(join_block, vec![two]);
         let join_param = builder.add_block_parameter(join_block, Type::field());
         builder.switch_to_block(join_block);

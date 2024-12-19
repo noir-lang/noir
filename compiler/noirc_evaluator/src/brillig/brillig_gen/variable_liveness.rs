@@ -9,7 +9,7 @@ use crate::ssa::ir::{
     function::Function,
     instruction::{Instruction, InstructionId},
     post_order::PostOrder,
-    value::{Value, ValueId},
+    value::Value,
 };
 
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
@@ -45,16 +45,12 @@ fn find_back_edges(
 }
 
 /// Collects the underlying variables inside a value id. It might be more than one, for example in constant arrays that are constructed with multiple vars.
-pub(crate) fn collect_variables_of_value(
-    value_id: ValueId,
-    dfg: &DataFlowGraph,
-) -> Option<ValueId> {
-    let value_id = dfg.resolve(value_id);
-    let value = &dfg[value_id];
+pub(crate) fn collect_variables_of_value(value: Value, dfg: &DataFlowGraph) -> Option<Value> {
+    let value = dfg.resolve(value);
 
     match value {
         Value::Instruction { .. } | Value::Param { .. } | Value::NumericConstant { .. } => {
-            Some(value_id)
+            Some(value)
         }
         // Functions are not variables in a defunctionalized SSA. Only constant function values should appear.
         Value::ForeignFunction(_) | Value::Function(_) | Value::Intrinsic(..) => None,
@@ -75,7 +71,11 @@ pub(crate) fn variables_used_in_instruction(
     used
 }
 
-fn variables_used_in_block(block: &BasicBlock, dfg: &DataFlowGraph) -> Variables {
+fn variables_used_in_block(
+    block: &BasicBlock,
+    block_id: BasicBlockId,
+    dfg: &DataFlowGraph,
+) -> Variables {
     let mut used: Variables = block
         .instructions()
         .iter()
@@ -86,7 +86,7 @@ fn variables_used_in_block(block: &BasicBlock, dfg: &DataFlowGraph) -> Variables
         .collect();
 
     // We consider block parameters used, so they live up to the block that owns them.
-    used.extend(block.parameters().iter());
+    used.extend(dfg.block_parameters(block_id));
 
     if let Some(terminator) = block.terminator() {
         terminator.for_each_value(|value_id| {
@@ -97,14 +97,15 @@ fn variables_used_in_block(block: &BasicBlock, dfg: &DataFlowGraph) -> Variables
     used
 }
 
-type Variables = HashSet<ValueId>;
+type Variables = HashSet<Value>;
 
 fn compute_used_before_def(
     block: &BasicBlock,
+    block_id: BasicBlockId,
     dfg: &DataFlowGraph,
     defined_in_block: &Variables,
 ) -> Variables {
-    variables_used_in_block(block, dfg)
+    variables_used_in_block(block, block_id, dfg)
         .into_iter()
         .filter(|id| !defined_in_block.contains(id))
         .collect()
@@ -122,7 +123,7 @@ pub(crate) struct VariableLiveness {
     /// The variables that stop being alive after each specific instruction
     last_uses: HashMap<BasicBlockId, LastUses>,
     /// The list of block params the given block is defining. The order matters for the entry block, so it's a vec.
-    param_definitions: HashMap<BasicBlockId, Vec<ValueId>>,
+    param_definitions: HashMap<BasicBlockId, Vec<Value>>,
 }
 
 impl VariableLiveness {
@@ -172,7 +173,7 @@ impl VariableLiveness {
     /// Retrieves the list of block params the given block is defining.
     /// Block params are defined before the block that owns them (since they are used by the predecessor blocks). They must be defined in the immediate dominator.
     /// This is the last point where the block param can be allocated without it being allocated in different places in different branches.
-    pub(crate) fn defined_block_params(&self, block_id: &BasicBlockId) -> Vec<ValueId> {
+    pub(crate) fn defined_block_params(&self, block_id: &BasicBlockId) -> Vec<Value> {
         self.param_definitions.get(block_id).cloned().unwrap_or_default()
     }
 
@@ -182,13 +183,13 @@ impl VariableLiveness {
         reverse_post_order.extend_from_slice(self.post_order.as_slice());
         reverse_post_order.reverse();
         for block in reverse_post_order {
-            let params = func.dfg[block].parameters();
+            let params = func.dfg.block_parameters(block);
             // If it has no dominator, it's the entry block
             let dominator_block =
                 self.dominator_tree.immediate_dominator(block).unwrap_or(func.entry_block());
             let definitions_for_the_dominator =
                 self.param_definitions.entry(dominator_block).or_default();
-            definitions_for_the_dominator.extend(params.iter());
+            definitions_for_the_dominator.extend(params);
         }
     }
 
@@ -215,9 +216,8 @@ impl VariableLiveness {
 
         defined.extend(constants.allocated_in_block(block_id));
 
-        let block: &BasicBlock = &func.dfg[block_id];
-
-        let used_before_def = compute_used_before_def(block, &func.dfg, &defined);
+        let block = &func.dfg[block_id];
+        let used_before_def = compute_used_before_def(block, block_id, &func.dfg, &defined);
 
         let mut live_out = HashSet::default();
 
@@ -248,9 +248,8 @@ impl VariableLiveness {
         }
 
         for instruction_id in block.instructions() {
-            let result_values = dfg.instruction_results(*instruction_id);
-            for result_value in result_values {
-                defined_vars.insert(dfg.resolve(*result_value));
+            for result_value in dfg.instruction_results(*instruction_id) {
+                defined_vars.insert(dfg.resolve(result_value));
             }
         }
 
@@ -372,7 +371,7 @@ mod test {
 
         let v3 = builder.insert_allocate(Type::field());
 
-        let zero = builder.field_constant(0u128);
+        let zero = builder.field_constant(0u128.into());
         builder.insert_store(v3, zero);
 
         let v4 = builder.insert_binary(v0, BinaryOp::Eq, zero);
@@ -381,7 +380,7 @@ mod test {
 
         builder.switch_to_block(b2);
 
-        let twenty_seven = builder.field_constant(27u128);
+        let twenty_seven = builder.field_constant(27u128.into());
         let v7 = builder.insert_binary(v0, BinaryOp::Add, twenty_seven);
         builder.insert_store(v3, v7);
 
@@ -487,7 +486,7 @@ mod test {
 
         let v3 = builder.insert_allocate(Type::field());
 
-        let zero = builder.field_constant(0u128);
+        let zero = builder.field_constant(0u128.into());
         builder.insert_store(v3, zero);
 
         builder.terminate_with_jmp(b1, vec![zero]);
@@ -515,7 +514,7 @@ mod test {
 
         builder.switch_to_block(b5);
 
-        let twenty_seven = builder.field_constant(27u128);
+        let twenty_seven = builder.field_constant(27u128.into());
         let v10 = builder.insert_binary(v7, BinaryOp::Eq, twenty_seven);
 
         let v11 = builder.insert_not(v10);
@@ -534,7 +533,7 @@ mod test {
 
         builder.switch_to_block(b8);
 
-        let one = builder.field_constant(1u128);
+        let one = builder.field_constant(1u128.into());
         let v15 = builder.insert_binary(v7, BinaryOp::Add, one);
 
         builder.terminate_with_jmp(b4, vec![v15]);
@@ -621,8 +620,8 @@ mod test {
         builder.terminate_with_jmpif(v0, b1, b2);
 
         builder.switch_to_block(b1);
-        let twenty_seven = builder.field_constant(27_u128);
-        let twenty_nine = builder.field_constant(29_u128);
+        let twenty_seven = builder.field_constant(27_u128.into());
+        let twenty_nine = builder.field_constant(29_u128.into());
         builder.terminate_with_jmp(b3, vec![twenty_seven, twenty_nine]);
 
         builder.switch_to_block(b3);
@@ -631,8 +630,8 @@ mod test {
         builder.terminate_with_return(vec![v1]);
 
         builder.switch_to_block(b2);
-        let twenty_eight = builder.field_constant(28_u128);
-        let forty = builder.field_constant(40_u128);
+        let twenty_eight = builder.field_constant(28_u128.into());
+        let forty = builder.field_constant(40_u128.into());
         builder.terminate_with_jmp(b3, vec![twenty_eight, forty]);
 
         let ssa = builder.finish();

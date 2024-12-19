@@ -138,10 +138,10 @@ impl From<&AbiType> for PrintableType {
                 }
             }
             AbiType::Integer { sign: Sign::Unsigned, width } => {
-                PrintableType::UnsignedInteger { width: *width }
+                PrintableType::UnsignedInteger { width: (*width).try_into().unwrap() }
             }
             AbiType::Integer { sign: Sign::Signed, width } => {
-                PrintableType::SignedInteger { width: *width }
+                PrintableType::SignedInteger { width: (*width).try_into().unwrap() }
             }
         }
     }

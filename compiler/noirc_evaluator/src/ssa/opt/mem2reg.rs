@@ -89,7 +89,7 @@ use crate::ssa::{
         instruction::{Instruction, InstructionId, TerminatorInstruction},
         post_order::PostOrder,
         types::Type,
-        value::ValueId,
+        value::Value,
     },
     ssa_gen::Ssa,
 };
@@ -134,16 +134,16 @@ struct PerFunctionContext<'f> {
 
     /// Track a value's last load across all blocks.
     /// If a value is not used in anymore loads we can remove the last store to that value.
-    last_loads: HashMap<ValueId, (InstructionId, BasicBlockId)>,
+    last_loads: HashMap<Value, (InstructionId, BasicBlockId)>,
 
     /// Track whether a reference was passed into another entry point
     /// This is needed to determine whether we can remove a store.
-    calls_reference_input: HashSet<ValueId>,
+    calls_reference_input: HashSet<Value>,
 
     /// Track whether a reference has been aliased, and store the respective
     /// instruction that aliased that reference.
     /// If that store has been set for removal, we can also remove this instruction.
-    aliased_references: HashMap<ValueId, HashSet<InstructionId>>,
+    aliased_references: HashMap<Value, HashSet<InstructionId>>,
 }
 
 impl<'f> PerFunctionContext<'f> {
@@ -178,10 +178,10 @@ impl<'f> PerFunctionContext<'f> {
         }
 
         let mut all_terminator_values = HashSet::default();
-        let mut per_func_block_params: HashSet<ValueId> = HashSet::default();
+        let mut per_func_block_params: HashSet<Value> = HashSet::default();
         for (block_id, _) in self.blocks.iter() {
             let block_params = self.inserter.function.dfg.block_parameters(*block_id);
-            per_func_block_params.extend(block_params.iter());
+            per_func_block_params.extend(block_params);
             let terminator = self.inserter.function.dfg[*block_id].unwrap_terminator();
             terminator.for_each_value(|value| all_terminator_values.insert(value));
         }
@@ -217,10 +217,10 @@ impl<'f> PerFunctionContext<'f> {
     // an allocation did not come from an entry point or was passed to an entry point.
     fn is_store_alias_used(
         &self,
-        store_address: &ValueId,
+        store_address: &Value,
         block: &Block,
-        all_terminator_values: &HashSet<ValueId>,
-        per_func_block_params: &HashSet<ValueId>,
+        all_terminator_values: &HashSet<Value>,
+        per_func_block_params: &HashSet<Value>,
     ) -> bool {
         let reference_parameters = self.reference_parameters();
 
@@ -270,12 +270,9 @@ impl<'f> PerFunctionContext<'f> {
     /// All references are mutable, so these inputs are shared with the function caller
     /// and thus stores should not be eliminated, even if the blocks in this function
     /// don't use them anywhere.
-    fn reference_parameters(&self) -> BTreeSet<ValueId> {
-        let parameters = self.inserter.function.parameters().iter();
-        parameters
-            .filter(|param| self.inserter.function.dfg.value_is_reference(**param))
-            .copied()
-            .collect()
+    fn reference_parameters(&self) -> BTreeSet<Value> {
+        let parameters = self.inserter.function.parameters();
+        parameters.filter(|param| self.inserter.function.dfg.value_is_reference(*param)).collect()
     }
 
     /// The value of each reference at the start of the given block is the unification
@@ -343,7 +340,7 @@ impl<'f> PerFunctionContext<'f> {
         let mut aliases: HashMap<Type, AliasSet> = HashMap::default();
 
         for param in params {
-            match dfg.type_of_value(*param) {
+            match dfg.type_of_value(param) {
                 // If the type indirectly contains a reference we have to assume all references
                 // are unknown since we don't have any ValueIds to use.
                 Type::Reference(element) if element.contains_reference() => return,
@@ -351,7 +348,7 @@ impl<'f> PerFunctionContext<'f> {
                     let empty_aliases = AliasSet::known_empty();
                     let alias_set =
                         aliases.entry(element.as_ref().clone()).or_insert(empty_aliases);
-                    alias_set.insert(*param);
+                    alias_set.insert(param);
                 }
                 typ if typ.contains_reference() => return,
                 _ => continue,
@@ -409,15 +406,14 @@ impl<'f> PerFunctionContext<'f> {
         }
 
         match &self.inserter.function.dfg[instruction] {
-            Instruction::Load { address } => {
+            Instruction::Load { address, result_type: _ } => {
                 let address = self.inserter.function.dfg.resolve(*address);
 
-                let result = self.inserter.function.dfg.instruction_results(instruction)[0];
+                let result = Value::instruction_result(instruction, 0);
                 references.remember_dereference(self.inserter.function, address, result);
 
                 // If the load is known, replace it with the known value and remove the load
                 if let Some(value) = references.get_known_value(address) {
-                    let result = self.inserter.function.dfg.instruction_results(instruction)[0];
                     self.inserter.map_value(result, value);
                     self.instructions_to_remove.insert(instruction);
                 } else {
@@ -429,14 +425,13 @@ impl<'f> PerFunctionContext<'f> {
                 // Check whether the block has a repeat load from the same address (w/ no calls or stores in between the loads).
                 // If we do have a repeat load, we can remove the current load and map its result to the previous load's result.
                 if let Some(last_load) = references.last_loads.get(&address) {
-                    let Instruction::Load { address: previous_address } =
+                    let Instruction::Load { address: previous_address, result_type: _ } =
                         &self.inserter.function.dfg[*last_load]
                     else {
                         panic!("Expected a Load instruction here");
                     };
-                    let result = self.inserter.function.dfg.instruction_results(instruction)[0];
-                    let previous_result =
-                        self.inserter.function.dfg.instruction_results(*last_load)[0];
+                    let result = Value::instruction_result(instruction, 0);
+                    let previous_result = Value::instruction_result(*last_load, 0);
                     if *previous_address == address {
                         self.inserter.map_value(result, previous_result);
                         self.instructions_to_remove.insert(instruction);
@@ -476,14 +471,14 @@ impl<'f> PerFunctionContext<'f> {
                 references.keep_last_load_for(address, self.inserter.function);
                 references.last_stores.insert(address, instruction);
             }
-            Instruction::Allocate => {
+            Instruction::Allocate { element_type: _ } => {
                 // Register the new reference
-                let result = self.inserter.function.dfg.instruction_results(instruction)[0];
+                let result = Value::instruction_result(instruction, 0);
                 references.expressions.insert(result, Expression::Other(result));
                 references.aliases.insert(Expression::Other(result), AliasSet::known(result));
             }
             Instruction::ArrayGet { array, .. } => {
-                let result = self.inserter.function.dfg.instruction_results(instruction)[0];
+                let result = Value::instruction_result(instruction, 0);
                 references.mark_value_used(*array, self.inserter.function);
 
                 if self.inserter.function.dfg.value_is_reference(result) {
@@ -500,7 +495,7 @@ impl<'f> PerFunctionContext<'f> {
                 let element_type = self.inserter.function.dfg.type_of_value(*value);
 
                 if Self::contains_references(&element_type) {
-                    let result = self.inserter.function.dfg.instruction_results(instruction)[0];
+                    let result = Value::instruction_result(instruction, 0);
                     let array = self.inserter.function.dfg.resolve(*array);
 
                     let expression = Expression::ArrayElement(Box::new(Expression::Other(array)));
@@ -542,7 +537,7 @@ impl<'f> PerFunctionContext<'f> {
                 // If `array` is an array constant that contains reference types, then insert each element
                 // as a potential alias to the array itself.
                 if Self::contains_references(typ) {
-                    let array = self.inserter.function.dfg.instruction_results(instruction)[0];
+                    let array = Value::instruction_result(instruction, 0);
 
                     let expr = Expression::ArrayElement(Box::new(Expression::Other(array)));
                     references.expressions.insert(array, expr.clone());
@@ -568,14 +563,14 @@ impl<'f> PerFunctionContext<'f> {
         }
     }
 
-    fn set_aliases(&self, references: &mut Block, address: ValueId, new_aliases: AliasSet) {
+    fn set_aliases(&self, references: &mut Block, address: Value, new_aliases: AliasSet) {
         let expression =
             references.expressions.entry(address).or_insert(Expression::Other(address));
         let aliases = references.aliases.entry(expression.clone()).or_default();
         *aliases = new_aliases;
     }
 
-    fn mark_all_unknown(&self, values: &[ValueId], references: &mut Block) {
+    fn mark_all_unknown(&self, values: &[Value], references: &mut Block) {
         for value in values {
             if self.inserter.function.dfg.value_is_reference(*value) {
                 let value = self.inserter.function.dfg.resolve(*value);
@@ -612,30 +607,31 @@ impl<'f> PerFunctionContext<'f> {
         match self.inserter.function.dfg[block].unwrap_terminator() {
             TerminatorInstruction::JmpIf { .. } => (), // Nothing to do
             TerminatorInstruction::Jmp { destination, arguments, .. } => {
-                let destination_parameters = self.inserter.function.dfg[*destination].parameters();
+                let destination_parameters =
+                    self.inserter.function.dfg.block_parameters(*destination);
                 assert_eq!(destination_parameters.len(), arguments.len());
 
                 // If we have multiple parameters that alias that same argument value,
                 // then those parameters also alias each other.
                 // We save parameters with repeat arguments to later mark those
                 // parameters as aliasing one another.
-                let mut arg_set: HashMap<ValueId, BTreeSet<ValueId>> = HashMap::default();
+                let mut arg_set: HashMap<Value, BTreeSet<Value>> = HashMap::default();
 
                 // Add an alias for each reference parameter
-                for (parameter, argument) in destination_parameters.iter().zip(arguments) {
-                    if self.inserter.function.dfg.value_is_reference(*parameter) {
+                for (parameter, argument) in destination_parameters.zip(arguments) {
+                    if self.inserter.function.dfg.value_is_reference(parameter) {
                         let argument = self.inserter.function.dfg.resolve(*argument);
 
                         if let Some(expression) = references.expressions.get(&argument) {
                             if let Some(aliases) = references.aliases.get_mut(expression) {
                                 // The argument reference is possibly aliased by this block parameter
-                                aliases.insert(*parameter);
+                                aliases.insert(parameter);
 
                                 // Check if we have seen the same argument
                                 let seen_parameters = arg_set.entry(argument).or_default();
                                 // Add the current parameter to the parameters we have seen for this argument.
                                 // The previous parameters and the current one alias one another.
-                                seen_parameters.insert(*parameter);
+                                seen_parameters.insert(parameter);
                             }
                         }
                     }
@@ -677,6 +673,7 @@ mod tests {
             instruction::{BinaryOp, Instruction, Intrinsic, TerminatorInstruction},
             map::Id,
             types::Type,
+            value::Value,
         },
         opt::assert_normalized_ssa_equals,
         Ssa,
@@ -687,7 +684,7 @@ mod tests {
         // fn func() {
         //   b0():
         //     v0 = allocate
-        //     v1 = make_array [Field 1, Field 2]
+        //     v1 = make_array [Field 1, Field 0]
         //     store v1 in v0
         //     v2 = load v0
         //     v3 = array_get v2, index 1
@@ -697,12 +694,13 @@ mod tests {
         let func_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("func".into(), func_id);
         let v0 = builder.insert_allocate(Type::Array(Arc::new(vec![Type::field()]), 2));
+
+        let zero = builder.field_constant(FieldElement::zero());
         let one = builder.field_constant(FieldElement::one());
-        let two = builder.field_constant(FieldElement::one());
 
         let element_type = Arc::new(vec![Type::field()]);
         let array_type = Type::Array(element_type, 2);
-        let v1 = builder.insert_make_array(vector![one, two], array_type.clone());
+        let v1 = builder.insert_make_array(vector![one, zero], array_type.clone());
 
         builder.insert_store(v0, v1);
         let v2 = builder.insert_load(v0, array_type);
@@ -721,7 +719,7 @@ mod tests {
             TerminatorInstruction::Return { return_values, .. } => return_values.first().unwrap(),
             _ => unreachable!(),
         };
-        assert_eq!(func.dfg[*ret_val_id], func.dfg[two]);
+        assert_eq!(*ret_val_id, zero);
     }
 
     #[test]
@@ -741,7 +739,7 @@ mod tests {
         let one = builder.field_constant(FieldElement::one());
         builder.insert_store(v0, one);
         let v1 = builder.insert_load(v0, Type::field());
-        let f0 = builder.import_intrinsic_id(Intrinsic::AssertConstant);
+        let f0 = Value::Intrinsic(Intrinsic::AssertConstant);
         builder.insert_call(f0, vec![v0], vec![]);
         builder.terminate_with_return(vec![v1]);
 
@@ -754,10 +752,10 @@ mod tests {
         assert_eq!(count_stores(block_id, &func.dfg), 1);
 
         let ret_val_id = match func.dfg[block_id].terminator().unwrap() {
-            TerminatorInstruction::Return { return_values, .. } => return_values.first().unwrap(),
+            TerminatorInstruction::Return { return_values, .. } => *return_values.first().unwrap(),
             _ => unreachable!(),
         };
-        assert_eq!(func.dfg[*ret_val_id], func.dfg[one]);
+        assert_eq!(ret_val_id, one);
     }
 
     #[test]
@@ -791,10 +789,7 @@ mod tests {
             _ => unreachable!(),
         };
 
-        // Since the mem2reg pass simplifies as it goes, the id of the allocate instruction result
-        // is most likely no longer v0. We have to retrieve the new id here.
-        let allocate_id = func.dfg.instruction_results(instructions[0])[0];
-        assert_eq!(ret_val_id, allocate_id);
+        assert_eq!(ret_val_id, v0);
     }
 
     fn count_stores(block: BasicBlockId, dfg: &DataFlowGraph) -> usize {
@@ -833,7 +828,7 @@ mod tests {
 
         let v0 = builder.insert_allocate(Type::field());
 
-        let five = builder.field_constant(5u128);
+        let five = builder.field_constant(5u128.into());
         builder.insert_store(v0, five);
 
         let v1 = builder.insert_load(v0, Type::field());
@@ -844,7 +839,7 @@ mod tests {
         let v2 = builder.add_block_parameter(b1, Type::field());
         let v3 = builder.insert_load(v0, Type::field());
 
-        let six = builder.field_constant(6u128);
+        let six = builder.field_constant(6u128.into());
         builder.insert_store(v0, six);
         let v4 = builder.insert_load(v0, Type::field());
 
@@ -975,7 +970,7 @@ mod tests {
         let mut builder = FunctionBuilder::new("main".into(), main_id);
 
         let v0 = builder.insert_allocate(Type::field());
-        let zero = builder.field_constant(0u128);
+        let zero = builder.field_constant(0u128.into());
         builder.insert_store(v0, zero);
 
         let v2 = builder.insert_allocate(Type::field());
@@ -999,9 +994,9 @@ mod tests {
         // Loop body
         builder.switch_to_block(b2);
         let v5 = builder.insert_load(v2, v2_type.clone());
-        let two = builder.field_constant(2u128);
+        let two = builder.field_constant(2u128.into());
         builder.insert_store(v5, two);
-        let one = builder.field_constant(1u128);
+        let one = builder.field_constant(1u128.into());
         let v3_plus_one = builder.insert_binary(v3, BinaryOp::Add, one);
         builder.terminate_with_jmp(b1, vec![v3_plus_one]);
 
@@ -1054,8 +1049,8 @@ mod tests {
         let v0 = builder.add_parameter(field_ref.clone());
         let v1 = builder.add_parameter(field_ref.clone());
 
-        let zero = builder.field_constant(0u128);
-        let one = builder.field_constant(0u128);
+        let zero = builder.field_constant(0u128.into());
+        let one = builder.field_constant(1u128.into());
         builder.insert_store(v0, zero);
         builder.insert_store(v1, one);
 

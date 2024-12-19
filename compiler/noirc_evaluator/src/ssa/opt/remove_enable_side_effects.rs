@@ -18,7 +18,6 @@ use crate::ssa::{
         dfg::DataFlowGraph,
         function::{Function, RuntimeType},
         instruction::{BinaryOp, Hint, Instruction, Intrinsic},
-        types::NumericType,
         value::Value,
     },
     ssa_gen::Ssa,
@@ -70,8 +69,7 @@ impl Context {
     ) {
         let instructions = function.dfg[block].take_instructions();
 
-        let one = FieldElement::one();
-        let mut active_condition = function.dfg.make_constant(one, NumericType::bool());
+        let mut active_condition = function.dfg.bool_constant(true);
         let mut last_side_effects_enabled_instruction = None;
 
         let mut new_instructions = Vec::with_capacity(instructions.len());
@@ -152,12 +150,12 @@ impl Context {
             EnableSideEffectsIf { .. }
             | ArrayGet { .. }
             | ArraySet { .. }
-            | Allocate
+            | Allocate { .. }
             | Store { .. }
             | Load { .. } => true,
 
             // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
-            Call { func, .. } => match dfg[*func] {
+            Call { func, .. } => match *func {
                 Value::Intrinsic(intrinsic) => match intrinsic {
                     Intrinsic::SlicePushBack
                     | Intrinsic::SlicePushFront
@@ -202,7 +200,7 @@ mod test {
         ir::{
             instruction::{BinaryOp, Instruction},
             map::Id,
-            types::{NumericType, Type},
+            types::Type,
         },
     };
 
@@ -233,19 +231,18 @@ mod test {
         let mut builder = FunctionBuilder::new("main".into(), main_id);
         let v0 = builder.add_parameter(Type::field());
 
-        let two = builder.field_constant(2u128);
+        let two = builder.field_constant(2u128.into());
+        let true_bool = builder.bool_constant(true);
 
-        let one = builder.numeric_constant(1u128, NumericType::bool());
-
-        builder.insert_enable_side_effects_if(one);
+        builder.insert_enable_side_effects_if(true_bool);
         builder.insert_binary(v0, BinaryOp::Mul, two);
-        builder.insert_enable_side_effects_if(one);
+        builder.insert_enable_side_effects_if(true_bool);
         builder.insert_binary(v0, BinaryOp::Mul, two);
-        builder.insert_enable_side_effects_if(one);
+        builder.insert_enable_side_effects_if(true_bool);
         builder.insert_binary(v0, BinaryOp::Mul, two);
-        builder.insert_enable_side_effects_if(one);
+        builder.insert_enable_side_effects_if(true_bool);
         builder.insert_binary(v0, BinaryOp::Mul, two);
-        builder.insert_enable_side_effects_if(one);
+        builder.insert_enable_side_effects_if(true_bool);
 
         let ssa = builder.finish();
 

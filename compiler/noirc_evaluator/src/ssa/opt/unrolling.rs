@@ -37,7 +37,7 @@ use crate::{
             function_inserter::{ArrayCache, FunctionInserter},
             instruction::{Binary, BinaryOp, Instruction, InstructionId, TerminatorInstruction},
             post_order::PostOrder,
-            value::ValueId,
+            value::Value,
         },
         ssa_gen::Ssa,
     },
@@ -453,7 +453,7 @@ impl Loop {
         &'a self,
         function: &'a mut Function,
         unroll_into: BasicBlockId,
-        induction_value: ValueId,
+        induction_value: Value,
     ) -> Result<Option<LoopIteration<'a>>, CallStack> {
         // We insert into a fresh block first and move instructions into the unroll_into block later
         // only once we verify the jmpif instruction has a constant condition. If it does not, we can
@@ -462,10 +462,10 @@ impl Loop {
 
         let mut context = LoopIteration::new(function, self, fresh_block, self.header);
         let source_block = &context.dfg()[context.source_block];
-        assert_eq!(source_block.parameters().len(), 1, "Expected only 1 argument in loop header");
+        assert_eq!(source_block.parameter_count(), 1, "Expected only 1 argument in loop header");
 
         // Insert the current value of the loop induction variable into our context.
-        let first_param = source_block.parameters()[0];
+        let first_param = Value::block_param(context.source_block, 0);
         context.inserter.try_map_value(first_param, induction_value);
         // Copy over all instructions and a fresh terminator.
         context.inline_instructions_from_block();
@@ -551,7 +551,7 @@ impl Loop {
         &self,
         function: &Function,
         cfg: &ControlFlowGraph,
-    ) -> Option<HashSet<ValueId>> {
+    ) -> Option<HashSet<Value>> {
         // We need to traverse blocks from the pre-header up to the block entry point.
         let pre_header = self.get_pre_header(function, cfg).ok()?;
         let function_entry = function.entry_block();
@@ -564,14 +564,13 @@ impl Loop {
         let allocations = blocks.iter().flat_map(|block| {
             let instructions = function.dfg[*block].instructions().iter();
             instructions
-                .filter(|i| matches!(&function.dfg[**i], Instruction::Allocate))
+                .filter(|i| matches!(&function.dfg[**i], Instruction::Allocate { .. }))
                 // Get the value into which the allocation was stored.
-                .map(|i| function.dfg.instruction_results(*i)[0])
+                .map(|i| Value::instruction_result(*i, 0))
         });
 
         // Collect reference parameters of the function itself.
-        let params =
-            function.parameters().iter().filter(|p| function.dfg.value_is_reference(**p)).copied();
+        let params = function.parameters().filter(|p| function.dfg.value_is_reference(*p));
 
         Some(params.chain(allocations).collect())
     }
@@ -579,17 +578,13 @@ impl Loop {
     /// Count the number of load and store instructions of specific variables in the loop.
     ///
     /// Returns `(loads, stores)` in case we want to differentiate in the estimates.
-    fn count_loads_and_stores(
-        &self,
-        function: &Function,
-        refs: &HashSet<ValueId>,
-    ) -> (usize, usize) {
+    fn count_loads_and_stores(&self, function: &Function, refs: &HashSet<Value>) -> (usize, usize) {
         let mut loads = 0;
         let mut stores = 0;
         for block in &self.blocks {
             for instruction in function.dfg[*block].instructions() {
                 match &function.dfg[*instruction] {
-                    Instruction::Load { address } if refs.contains(address) => {
+                    Instruction::Load { address, .. } if refs.contains(address) => {
                         loads += 1;
                     }
                     Instruction::Store { address, .. } if refs.contains(address) => {
@@ -616,8 +611,7 @@ impl Loop {
     /// The increment should be in the block where the back-edge was found.
     fn count_induction_increments(&self, function: &Function) -> usize {
         let back = &function.dfg[self.back_edge_start];
-        let header = &function.dfg[self.header];
-        let induction_var = header.parameters()[0];
+        let induction_var = function.dfg.block_parameters(self.header).next().unwrap();
 
         back.instructions().iter().filter(|instruction|  {
             let instruction = &function.dfg[**instruction];
@@ -737,7 +731,7 @@ impl BoilerplateStats {
 ///   ...
 /// ```
 /// We're looking for the terminating jump of the `main` predecessor of `loop_entry`.
-fn get_induction_variable(function: &Function, block: BasicBlockId) -> Result<ValueId, CallStack> {
+fn get_induction_variable(function: &Function, block: BasicBlockId) -> Result<Value, CallStack> {
     match function.dfg[block].terminator() {
         Some(TerminatorInstruction::Jmp { arguments, call_stack: location, .. }) => {
             // This assumption will no longer be valid if e.g. mutable variables are represented as
@@ -779,7 +773,7 @@ struct LoopIteration<'f> {
     /// the variable traditionally called `i` on each iteration of the loop.
     /// This is None until we visit the block which jumps back to the start of the
     /// loop, at which point we record its value and the block it was found in.
-    induction_value: Option<(BasicBlockId, ValueId)>,
+    induction_value: Option<(BasicBlockId, Value)>,
 }
 
 impl<'f> LoopIteration<'f> {
@@ -807,7 +801,7 @@ impl<'f> LoopIteration<'f> {
     /// It is expected the terminator instructions are set up to branch into an empty block
     /// for further unrolling. When the loop is finished this will need to be mutated to
     /// jump to the end of the loop instead.
-    fn unroll_loop_iteration(mut self) -> (BasicBlockId, ValueId, Option<ArrayCache>) {
+    fn unroll_loop_iteration(mut self) -> (BasicBlockId, Value, Option<ArrayCache>) {
         let mut next_blocks = self.unroll_loop_block();
 
         while let Some(block) = next_blocks.pop() {
@@ -873,7 +867,7 @@ impl<'f> LoopIteration<'f> {
     /// destination indicated by the constant condition (ie. the `then` or the `else`).
     fn handle_jmpif(
         &mut self,
-        condition: ValueId,
+        condition: Value,
         then_destination: BasicBlockId,
         else_destination: BasicBlockId,
         call_stack: CallStackId,
@@ -1005,7 +999,7 @@ mod tests {
     use test_case::test_case;
 
     use crate::errors::RuntimeError;
-    use crate::ssa::{ir::value::ValueId, opt::assert_normalized_ssa_equals, Ssa};
+    use crate::ssa::{ir::value::Value, opt::assert_normalized_ssa_equals, Ssa};
 
     use super::{is_new_size_ok, BoilerplateStats, Loops};
 
@@ -1144,7 +1138,7 @@ mod tests {
 
         let refs = loop0.find_pre_header_reference_values(function, &loops.cfg).unwrap();
         assert_eq!(refs.len(), 1);
-        assert!(refs.contains(&ValueId::test_new(2)));
+        assert!(refs.contains(&Value::test_instruction_result(0, 0)));
 
         let (loads, stores) = loop0.count_loads_and_stores(function, &refs);
         assert_eq!(loads, 1);

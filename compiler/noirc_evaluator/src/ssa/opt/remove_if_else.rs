@@ -1,17 +1,12 @@
 use std::collections::hash_map::Entry;
 
-use acvm::{acir::AcirField, FieldElement};
 use fxhash::FxHashMap as HashMap;
 
-use crate::ssa::ir::function::RuntimeType;
-use crate::ssa::ir::instruction::Hint;
-use crate::ssa::ir::types::NumericType;
-use crate::ssa::ir::value::ValueId;
 use crate::ssa::{
     ir::{
         dfg::DataFlowGraph,
-        function::Function,
-        instruction::{Instruction, Intrinsic},
+        function::{Function, RuntimeType},
+        instruction::{Hint, Instruction, Intrinsic},
         types::Type,
         value::Value,
     },
@@ -50,22 +45,21 @@ impl Function {
 
 #[derive(Default)]
 struct Context {
-    slice_sizes: HashMap<ValueId, u32>,
+    slice_sizes: HashMap<Value, u32>,
 
     // Maps array_set result -> element that was overwritten by that instruction.
     // Used to undo array_sets while merging values
-    prev_array_set_elem_values: HashMap<ValueId, ValueId>,
+    prev_array_set_elem_values: HashMap<Value, Value>,
 
     // Maps array_set result -> enable_side_effects_if value which was active during it.
-    array_set_conditionals: HashMap<ValueId, ValueId>,
+    array_set_conditionals: HashMap<Value, Value>,
 }
 
 impl Context {
     fn remove_if_else(&mut self, function: &mut Function) {
         let block = function.entry_block();
         let instructions = function.dfg[block].take_instructions();
-        let one = FieldElement::one();
-        let mut current_conditional = function.dfg.make_constant(one, NumericType::bool());
+        let mut current_conditional = function.dfg.bool_constant(true);
 
         for instruction in instructions {
             match &function.dfg[instruction] {
@@ -96,19 +90,13 @@ impl Context {
                     );
 
                     let _typ = function.dfg.type_of_value(value);
-                    let results = function.dfg.instruction_results(instruction);
-                    let result = results[0];
-                    // let result = match typ {
-                    //     Type::Array(..) => results[0],
-                    //     Type::Slice(..) => results[1],
-                    //     other => unreachable!("IfElse instructions should only have arrays or slices at this point. Found {other:?}"),
-                    // };
+                    let result = Value::instruction_result(instruction, 0);
 
-                    function.dfg.set_value_from_id(result, value);
+                    function.dfg.replace_value(result, value);
                     self.array_set_conditionals.insert(result, current_conditional);
                 }
-                Instruction::Call { func, arguments } => {
-                    if let Value::Intrinsic(intrinsic) = function.dfg[*func] {
+                Instruction::Call { func, arguments, result_types: _ } => {
+                    if let Value::Intrinsic(intrinsic) = *func {
                         let results = function.dfg.instruction_results(instruction);
 
                         match slice_capacity_change(&function.dfg, intrinsic, arguments, results) {
@@ -131,9 +119,7 @@ impl Context {
                     function.dfg[block].instructions_mut().push(instruction);
                 }
                 Instruction::ArraySet { array, .. } => {
-                    let results = function.dfg.instruction_results(instruction);
-                    let result = if results.len() == 2 { results[1] } else { results[0] };
-
+                    let result = Value::instruction_result(instruction, 0);
                     self.array_set_conditionals.insert(result, current_conditional);
 
                     let old_capacity = self.get_or_find_capacity(&function.dfg, *array);
@@ -151,7 +137,7 @@ impl Context {
         }
     }
 
-    fn get_or_find_capacity(&mut self, dfg: &DataFlowGraph, value: ValueId) -> u32 {
+    fn get_or_find_capacity(&mut self, dfg: &DataFlowGraph, value: Value) -> u32 {
         match self.slice_sizes.entry(value) {
             Entry::Occupied(entry) => return *entry.get(),
             Entry::Vacant(entry) => {
@@ -166,34 +152,33 @@ impl Context {
             }
         }
 
-        let dbg_value = &dfg[value];
-        unreachable!("No size for slice {value} = {dbg_value:?}")
+        unreachable!("No size for slice {value}")
     }
 }
 
 enum SizeChange {
     None,
-    SetTo(ValueId, u32),
+    SetTo(Value, u32),
 
     // These two variants store the old and new slice ids
     // not their lengths which should be old_len = new_len +/- 1
-    Inc { old: ValueId, new: ValueId },
-    Dec { old: ValueId, new: ValueId },
+    Inc { old: Value, new: Value },
+    Dec { old: Value, new: Value },
 }
 
 /// Find the change to a slice's capacity an instruction would have
 fn slice_capacity_change(
     dfg: &DataFlowGraph,
     intrinsic: Intrinsic,
-    arguments: &[ValueId],
-    results: &[ValueId],
+    arguments: &[Value],
+    mut results: impl ExactSizeIterator<Item = Value>,
 ) -> SizeChange {
     match intrinsic {
         Intrinsic::SlicePushBack | Intrinsic::SlicePushFront | Intrinsic::SliceInsert => {
             // Expecting:  len, slice = ...
             assert_eq!(results.len(), 2);
             let old = arguments[1];
-            let new = results[1];
+            let new = results.nth(1).unwrap();
             assert!(matches!(dfg.type_of_value(old), Type::Slice(_)));
             assert!(matches!(dfg.type_of_value(new), Type::Slice(_)));
             SizeChange::Inc { old, new }
@@ -201,7 +186,7 @@ fn slice_capacity_change(
 
         Intrinsic::SlicePopBack | Intrinsic::SliceRemove => {
             let old = arguments[1];
-            let new = results[1];
+            let new = results.nth(1).unwrap();
             assert!(matches!(dfg.type_of_value(old), Type::Slice(_)));
             assert!(matches!(dfg.type_of_value(new), Type::Slice(_)));
             SizeChange::Dec { old, new }
@@ -209,7 +194,7 @@ fn slice_capacity_change(
 
         Intrinsic::SlicePopFront => {
             let old = arguments[1];
-            let new = results[results.len() - 1];
+            let new = results.last().unwrap();
             assert!(matches!(dfg.type_of_value(old), Type::Slice(_)));
             assert!(matches!(dfg.type_of_value(new), Type::Slice(_)));
             SizeChange::Dec { old, new }
@@ -222,8 +207,9 @@ fn slice_capacity_change(
                 Type::Array(_, length) => length,
                 other => unreachable!("slice_capacity_change expected array, found {other:?}"),
             };
-            assert!(matches!(dfg.type_of_value(results[1]), Type::Slice(_)));
-            SizeChange::SetTo(results[1], length)
+            let slice = results.nth(1).unwrap();
+            assert!(matches!(dfg.type_of_value(slice), Type::Slice(_)));
+            SizeChange::SetTo(slice, length)
         }
 
         // These cases don't affect slice capacities

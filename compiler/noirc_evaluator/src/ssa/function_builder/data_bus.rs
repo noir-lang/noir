@@ -1,12 +1,8 @@
 use std::{collections::BTreeMap, sync::Arc};
 
-use crate::ssa::ir::{
-    function::RuntimeType,
-    types::{NumericType, Type},
-    value::ValueId,
-};
-use acvm::FieldElement;
+use crate::ssa::ir::{function::RuntimeType, types::Type, value::Value};
 use fxhash::FxHashMap as HashMap;
+use iter_extended::vecmap;
 use noirc_frontend::ast;
 use noirc_frontend::hir_def::function::FunctionSignature;
 use serde::{Deserialize, Serialize};
@@ -23,10 +19,10 @@ pub(crate) enum DatabusVisibility {
 /// replacing public inputs
 #[derive(Clone, Debug)]
 pub(crate) struct DataBusBuilder {
-    pub(crate) values: im::Vector<ValueId>,
+    pub(crate) values: im::Vector<Value>,
     index: usize,
-    pub(crate) map: HashMap<ValueId, usize>,
-    pub(crate) databus: Option<ValueId>,
+    pub(crate) map: HashMap<Value, usize>,
+    pub(crate) databus: Option<Value>,
     call_data_id: Option<u32>,
 }
 
@@ -63,19 +59,19 @@ impl DataBusBuilder {
 pub(crate) struct CallData {
     /// The id to this calldata assigned by the user
     pub(crate) call_data_id: u32,
-    pub(crate) array_id: ValueId,
-    pub(crate) index_map: HashMap<ValueId, usize>,
+    pub(crate) array_id: Value,
+    pub(crate) index_map: HashMap<Value, usize>,
 }
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub(crate) struct DataBus {
     pub(crate) call_data: Vec<CallData>,
-    pub(crate) return_data: Option<ValueId>,
+    pub(crate) return_data: Option<Value>,
 }
 
 impl DataBus {
     /// Updates the databus values with the provided function
-    pub(crate) fn map_values(&self, mut f: impl FnMut(ValueId) -> ValueId) -> DataBus {
+    pub(crate) fn map_values(&self, mut f: impl FnMut(Value) -> Value) -> DataBus {
         let call_data = self
             .call_data
             .iter()
@@ -95,7 +91,7 @@ impl DataBus {
     }
 
     /// Updates the databus values in place with the provided function
-    pub(crate) fn map_values_mut(&mut self, mut f: impl FnMut(ValueId) -> ValueId) {
+    pub(crate) fn map_values_mut(&mut self, mut f: impl FnMut(Value) -> Value) {
         for cd in self.call_data.iter_mut() {
             cd.array_id = f(cd.array_id);
 
@@ -108,7 +104,7 @@ impl DataBus {
         }
     }
 
-    pub(crate) fn call_data_array(&self) -> Vec<(u32, ValueId)> {
+    pub(crate) fn call_data_array(&self) -> Vec<(u32, Value)> {
         self.call_data.iter().map(|cd| (cd.call_data_id, cd.array_id)).collect()
     }
     /// Construct a databus from call_data and return_data data bus builders
@@ -131,9 +127,9 @@ impl DataBus {
 
 impl FunctionBuilder {
     /// Insert a value into a data bus builder
-    fn add_to_data_bus(&mut self, value: ValueId, databus: &mut DataBusBuilder) {
+    fn add_to_data_bus(&mut self, value: Value, databus: &mut DataBusBuilder) {
         assert!(databus.databus.is_none(), "initializing finalized call data");
-        let typ = self.current_function.dfg[value].get_type().into_owned();
+        let typ = self.current_function.dfg.type_of_value(value);
         match typ {
             Type::Numeric(_) => {
                 databus.values.push_back(value);
@@ -146,10 +142,8 @@ impl FunctionBuilder {
                 for _i in 0..len {
                     for subitem_typ in typ.iter() {
                         // load each element of the array, and add it to the databus
-                        let length_type = NumericType::length_type();
-                        let index_var = FieldElement::from(index as i128);
                         let index_var =
-                            self.current_function.dfg.make_constant(index_var, length_type);
+                            self.current_function.dfg.length_constant((index as i128).into());
                         let element = self.insert_array_get(value, index_var, subitem_typ.clone());
                         index += match subitem_typ {
                             Type::Array(_, _) | Type::Slice(_) => subitem_typ.element_size(),
@@ -171,7 +165,7 @@ impl FunctionBuilder {
     /// Create a data bus builder from a list of values
     pub(crate) fn initialize_data_bus(
         &mut self,
-        values: &[ValueId],
+        values: &[Value],
         mut databus: DataBusBuilder,
         call_data_id: Option<u32>,
     ) -> DataBusBuilder {
@@ -203,14 +197,16 @@ impl FunctionBuilder {
     ) -> Vec<DataBusBuilder> {
         //filter parameters of the first block that have call-data visibility
         let first_block = self.current_function.entry_block();
-        let params = self.current_function.dfg[first_block].parameters();
+        let params = self.current_function.dfg.block_parameters(first_block);
 
         // Reshape the is_params_databus to map to the SSA-level parameters
         let is_params_databus =
             self.deflatten_databus_visibilities(params, flattened_databus_visibilities);
 
-        let mut databus_param: BTreeMap<u32, Vec<ValueId>> = BTreeMap::new();
-        for (param, databus_attribute) in params.iter().zip(is_params_databus) {
+        let params = self.current_function.dfg.block_parameters(first_block);
+        let mut databus_param: BTreeMap<u32, Vec<Value>> = BTreeMap::new();
+
+        for (param, databus_attribute) in params.zip(is_params_databus) {
             match databus_attribute {
                 DatabusVisibility::None | DatabusVisibility::ReturnData => continue,
                 DatabusVisibility::CallData(call_data_id) => {
@@ -225,30 +221,24 @@ impl FunctionBuilder {
             }
         }
         // create the call-data-bus from the filtered lists
-        let mut result = Vec::new();
-        for id in databus_param.keys() {
-            let builder = DataBusBuilder::new();
-            let call_databus = self.initialize_data_bus(&databus_param[id], builder, Some(*id));
-            result.push(call_databus);
-        }
-        result
+        vecmap(databus_param.keys(), |id| {
+            self.initialize_data_bus(&databus_param[id], DataBusBuilder::new(), Some(*id))
+        })
     }
 
     /// This function takes the flattened databus visibilities and generates the databus visibility for each ssa parameter
     /// asserting that an ssa parameter is not assigned two different databus visibilities
     fn deflatten_databus_visibilities(
         &self,
-        ssa_params: &[ValueId],
+        ssa_params: impl ExactSizeIterator<Item = Value>,
         mut flattened_params_databus_visibility: Vec<DatabusVisibility>,
     ) -> Vec<DatabusVisibility> {
-        let ssa_param_sizes: Vec<usize> = ssa_params
-            .iter()
-            .map(|ssa_param| {
-                self.current_function.dfg[*ssa_param].get_type().flattened_size() as usize
-            })
-            .collect();
+        let ssa_params_len = ssa_params.len();
+        let ssa_param_sizes = ssa_params.map(|ssa_param| {
+            self.current_function.dfg.type_of_value(ssa_param).flattened_size() as usize
+        });
 
-        let mut is_ssa_params_databus = Vec::with_capacity(ssa_params.len());
+        let mut is_ssa_params_databus = Vec::with_capacity(ssa_param_sizes.len());
         for size in ssa_param_sizes {
             let visibilities: Vec<DatabusVisibility> =
                 flattened_params_databus_visibility.drain(0..size).collect();
@@ -260,8 +250,7 @@ impl FunctionBuilder {
             is_ssa_params_databus.push(visibility);
         }
 
-        assert_eq!(is_ssa_params_databus.len(), ssa_params.len());
-
+        assert_eq!(is_ssa_params_databus.len(), ssa_params_len);
         is_ssa_params_databus
     }
 }

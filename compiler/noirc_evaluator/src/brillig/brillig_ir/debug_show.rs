@@ -22,7 +22,7 @@ macro_rules! default_to_string_impl {
     )*)
 }
 
-default_to_string_impl! { str usize u32 }
+default_to_string_impl! { str usize u32 u8 }
 
 impl DebugToString for MemoryAddress {
     fn debug_to_string(&self) -> String {
@@ -131,7 +131,7 @@ impl DebugShow {
         &self,
         destination: MemoryAddress,
         source: MemoryAddress,
-        bit_size: u32,
+        bit_size: u8,
     ) {
         debug_println!(
             self.enable_debug_trace,
@@ -171,7 +171,7 @@ impl DebugShow {
     pub(crate) fn not_instruction(
         &self,
         condition: MemoryAddress,
-        bit_size: u32,
+        bit_size: u8,
         result: MemoryAddress,
     ) {
         debug_println!(self.enable_debug_trace, "  i{}_NOT {} = !{}", bit_size, result, condition);

@@ -1,20 +1,20 @@
 use acvm::{acir::AcirField, FieldElement};
 use num_bigint::BigUint;
 
-use super::{DataFlowGraph, Instruction, NumericType, SimplifyResult, Type, Value, ValueId};
+use super::{DataFlowGraph, Instruction, NumericType, SimplifyResult, Type, Value};
 
 /// Try to simplify this cast instruction. If the instruction can be simplified to a known value,
 /// that value is returned. Otherwise None is returned.
 pub(super) fn simplify_cast(
-    value: ValueId,
+    value: Value,
     dst_typ: NumericType,
     dfg: &mut DataFlowGraph,
 ) -> SimplifyResult {
     use SimplifyResult::*;
     let value = dfg.resolve(value);
 
-    if let Value::Instruction { instruction, .. } = &dfg[value] {
-        if let Instruction::Cast(original_value, _) = &dfg[*instruction] {
+    if let Value::Instruction { instruction, .. } = value {
+        if let Instruction::Cast(original_value, _) = &dfg[instruction] {
             return SimplifiedToInstruction(Instruction::Cast(*original_value, dst_typ));
         }
     }
@@ -31,7 +31,7 @@ pub(super) fn simplify_cast(
                 NumericType::NativeField,
             ) => {
                 // Unsigned/Signed -> Field: redefine same constant as Field
-                SimplifiedTo(dfg.make_constant(constant, dst_typ))
+                SimplifiedTo(dfg.constant(constant, dst_typ))
             }
             (
                 NumericType::NativeField
@@ -40,11 +40,11 @@ pub(super) fn simplify_cast(
                 NumericType::Unsigned { bit_size },
             ) => {
                 // Field/Unsigned -> unsigned: truncate
-                let integer_modulus = BigUint::from(2u128).pow(bit_size);
+                let integer_modulus = BigUint::from(2u128).pow(bit_size as u32);
                 let constant: BigUint = BigUint::from_bytes_be(&constant.to_be_bytes());
                 let truncated = constant % integer_modulus;
                 let truncated = FieldElement::from_be_bytes_reduce(&truncated.to_bytes_be());
-                SimplifiedTo(dfg.make_constant(truncated, dst_typ))
+                SimplifiedTo(dfg.constant(truncated, dst_typ))
             }
             (
                 NumericType::NativeField
@@ -54,10 +54,10 @@ pub(super) fn simplify_cast(
             ) => {
                 // Field/Unsigned -> signed
                 // We only simplify to signed when we are below the maximum signed integer of the destination type.
-                let integer_modulus = BigUint::from(2u128).pow(bit_size - 1);
+                let integer_modulus = BigUint::from(2u128).pow(bit_size as u32 - 1);
                 let constant_uint: BigUint = BigUint::from_bytes_be(&constant.to_be_bytes());
                 if constant_uint < integer_modulus {
-                    SimplifiedTo(dfg.make_constant(constant, dst_typ))
+                    SimplifiedTo(dfg.constant(constant, dst_typ))
                 } else {
                     None
                 }

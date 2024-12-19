@@ -5,7 +5,7 @@ use crate::ssa::{
         function::Function,
         instruction::{Instruction, InstructionId},
         types::Type,
-        value::ValueId,
+        value::Value,
     },
     ssa_gen::Ssa,
 };
@@ -40,7 +40,7 @@ struct Context {
 
 pub(crate) struct RcInstruction {
     pub(crate) id: InstructionId,
-    pub(crate) array: ValueId,
+    pub(crate) array: Value,
     pub(crate) possibly_mutated: bool,
 }
 
@@ -69,8 +69,8 @@ impl Function {
 }
 
 fn contains_array_parameter(function: &mut Function) -> bool {
-    let mut parameters = function.parameters().iter();
-    parameters.any(|parameter| function.dfg.type_of_value(*parameter).contains_an_array())
+    let mut parameters = function.parameters();
+    parameters.any(|parameter| function.dfg.type_of_value(parameter).contains_an_array())
 }
 
 impl Context {
@@ -129,7 +129,7 @@ impl Context {
 
 /// Finds and pops the IncRc for the given array value if possible.
 pub(crate) fn pop_rc_for(
-    value: ValueId,
+    value: Value,
     function: &Function,
     inc_rcs: &mut HashMap<Type, Vec<RcInstruction>>,
 ) -> Option<RcInstruction> {
@@ -255,8 +255,8 @@ mod test {
         builder.insert_inc_rc(v0);
         let v2 = builder.insert_load(v1, array_type);
 
-        let zero = builder.numeric_constant(0u128, NumericType::unsigned(64));
-        let five = builder.field_constant(5u128);
+        let zero = builder.constant(0u128.into(), NumericType::unsigned(64));
+        let five = builder.field_constant(5u128.into());
         let v7 = builder.insert_array_set(v2, zero, five);
 
         builder.insert_store(v1, v7);
@@ -306,8 +306,8 @@ mod test {
         builder.insert_store(v0, v1);
 
         let v2 = builder.insert_load(v1, array_type.clone());
-        let zero = builder.numeric_constant(0u128, NumericType::unsigned(64));
-        let five = builder.field_constant(5u128);
+        let zero = builder.constant(0u128.into(), NumericType::unsigned(64));
+        let five = builder.field_constant(5u128.into());
         let v7 = builder.insert_array_set(v2, zero, five);
 
         builder.insert_store(v0, v7);

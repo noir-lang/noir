@@ -10,7 +10,7 @@ use crate::{
         function::{Function, FunctionId},
         post_order::PostOrder,
         types::Type,
-        value::ValueId,
+        value::Value,
     },
 };
 use fxhash::FxHashMap as HashMap;
@@ -20,7 +20,7 @@ use super::{constant_allocation::ConstantAllocation, variable_liveness::Variable
 pub(crate) struct FunctionContext {
     pub(crate) function_id: FunctionId,
     /// Map from SSA values its allocation. Since values can be only defined once in SSA form, we insert them here on when we allocate them at their definition.
-    pub(crate) ssa_value_allocations: HashMap<ValueId, BrilligVariable>,
+    pub(crate) ssa_value_allocations: HashMap<Value, BrilligVariable>,
     /// The block ids of the function in reverse post order.
     pub(crate) blocks: Vec<BasicBlockId>,
     /// Liveness information for each variable in the function.

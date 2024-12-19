@@ -10,7 +10,7 @@ use crate::ssa::ir::{
     dfg::DataFlowGraph,
     instruction::{Instruction, Intrinsic, SimplifyResult},
     types::Type,
-    value::ValueId,
+    value::Value,
 };
 
 use super::{array_is_constant, make_constant_array, to_u8_vec};
@@ -18,7 +18,7 @@ use super::{array_is_constant, make_constant_array, to_u8_vec};
 pub(super) fn simplify_ec_add(
     dfg: &mut DataFlowGraph,
     solver: impl BlackBoxFunctionSolver<FieldElement>,
-    arguments: &[ValueId],
+    arguments: &[Value],
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> SimplifyResult {
@@ -49,17 +49,16 @@ pub(super) fn simplify_ec_add(
                 return SimplifyResult::None;
             };
 
-            let result_x = dfg.make_constant(result_x, NumericType::NativeField);
-            let result_y = dfg.make_constant(result_y, NumericType::NativeField);
-            let result_is_infinity =
-                dfg.make_constant(result_is_infinity, NumericType::NativeField);
+            let result_x = dfg.field_constant(result_x);
+            let result_y = dfg.field_constant(result_y);
+            // TODO: Should this be a bool?
+            let result_is_infinity = dfg.field_constant(result_is_infinity);
 
             let typ = Type::Array(Arc::new(vec![Type::field()]), 3);
 
             let elements = im::vector![result_x, result_y, result_is_infinity];
             let instruction = Instruction::MakeArray { elements, typ };
-            let result_array =
-                dfg.insert_instruction_and_results(instruction, block, None, call_stack);
+            let result_array = dfg.insert_instruction_and_results(instruction, block, call_stack);
 
             SimplifyResult::SimplifiedTo(result_array.first())
         }
@@ -70,7 +69,8 @@ pub(super) fn simplify_ec_add(
 pub(super) fn simplify_msm(
     dfg: &mut DataFlowGraph,
     solver: impl BlackBoxFunctionSolver<FieldElement>,
-    arguments: &[ValueId],
+    arguments: &[Value],
+    result_types: &[Type],
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> SimplifyResult {
@@ -145,16 +145,17 @@ pub(super) fn simplify_msm(
 
             // If there are no variable term, we can directly return the constant result
             if var_scalars.is_empty() {
-                let result_x = dfg.make_constant(result_x, NumericType::NativeField);
-                let result_y = dfg.make_constant(result_y, NumericType::NativeField);
-                let result_is_infinity =
-                    dfg.make_constant(result_is_infinity, NumericType::NativeField);
+                let result_x = dfg.field_constant(result_x);
+                let result_y = dfg.field_constant(result_y);
+
+                // TODO: Is this correct? Seems this is meant for var_points not var_scalars
+                let result_is_infinity = dfg.field_constant(result_is_infinity);
 
                 let elements = im::vector![result_x, result_y, result_is_infinity];
                 let typ = Type::Array(Arc::new(vec![Type::field()]), 3);
                 let instruction = Instruction::MakeArray { elements, typ };
                 let result_array =
-                    dfg.insert_instruction_and_results(instruction, block, None, call_stack);
+                    dfg.insert_instruction_and_results(instruction, block, call_stack);
 
                 return SimplifyResult::SimplifiedTo(result_array.first());
             }
@@ -163,17 +164,17 @@ pub(super) fn simplify_msm(
                 return SimplifyResult::None;
             }
             // Add the constant part back to the non-constant part, if it is not null
-            let one = dfg.make_constant(FieldElement::one(), NumericType::NativeField);
-            let zero = dfg.make_constant(FieldElement::zero(), NumericType::NativeField);
+            let one = dfg.field_constant(FieldElement::one());
+            let zero = dfg.field_constant(FieldElement::zero());
             if result_is_infinity.is_zero() {
                 var_scalars.push(one);
                 var_scalars.push(zero);
-                let result_x = dfg.make_constant(result_x, NumericType::NativeField);
-                let result_y = dfg.make_constant(result_y, NumericType::NativeField);
+                let result_x = dfg.field_constant(result_x);
+                let result_y = dfg.field_constant(result_y);
 
                 // Pushing a bool here is intentional, multi_scalar_mul takes two arguments:
                 // `points: [(Field, Field, bool); N]` and `scalars: [(Field, Field); N]`.
-                let result_is_infinity = dfg.make_constant(result_is_infinity, NumericType::bool());
+                let result_is_infinity = dfg.bool_constant(false);
 
                 var_points.push(result_x);
                 var_points.push(result_y);
@@ -182,16 +183,16 @@ pub(super) fn simplify_msm(
             // Construct the simplified MSM expression
             let typ = Type::Array(Arc::new(vec![Type::field()]), var_scalars.len() as u32);
             let scalars = Instruction::MakeArray { elements: var_scalars.into(), typ };
-            let scalars =
-                dfg.insert_instruction_and_results(scalars, block, None, call_stack).first();
+            let scalars = dfg.insert_instruction_and_results(scalars, block, call_stack).first();
             let typ = Type::Array(Arc::new(vec![Type::field()]), var_points.len() as u32);
             let points = Instruction::MakeArray { elements: var_points.into(), typ };
-            let points =
-                dfg.insert_instruction_and_results(points, block, None, call_stack).first();
-            let msm = dfg.import_intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul));
+            let points = dfg.insert_instruction_and_results(points, block, call_stack).first();
+            let msm = Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul));
+
             SimplifyResult::SimplifiedToInstruction(Instruction::Call {
                 func: msm,
                 arguments: vec![points, scalars],
+                result_types: result_types.to_vec(),
             })
         }
         _ => SimplifyResult::None,
@@ -201,7 +202,7 @@ pub(super) fn simplify_msm(
 pub(super) fn simplify_poseidon2_permutation(
     dfg: &mut DataFlowGraph,
     solver: impl BlackBoxFunctionSolver<FieldElement>,
-    arguments: &[ValueId],
+    arguments: &[Value],
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> SimplifyResult {
@@ -235,7 +236,7 @@ pub(super) fn simplify_poseidon2_permutation(
 
 pub(super) fn simplify_hash(
     dfg: &mut DataFlowGraph,
-    arguments: &[ValueId],
+    arguments: &[Value],
     hash_function: fn(&[u8]) -> Result<[u8; 32], BlackBoxResolutionError>,
     block: BasicBlockId,
     call_stack: CallStackId,
@@ -266,7 +267,7 @@ type ECDSASignatureVerifier = fn(
 
 pub(super) fn simplify_signature(
     dfg: &mut DataFlowGraph,
-    arguments: &[ValueId],
+    arguments: &[Value],
     signature_verifier: ECDSASignatureVerifier,
 ) -> SimplifyResult {
     match (
@@ -299,7 +300,7 @@ pub(super) fn simplify_signature(
                 signature_verifier(&hashed_message, &public_key_x, &public_key_y, &signature)
                     .expect("Rust solvable black box function should not fail");
 
-            let valid_signature = dfg.make_constant(valid_signature.into(), NumericType::bool());
+            let valid_signature = dfg.bool_constant(valid_signature);
             SimplifyResult::SimplifiedTo(valid_signature)
         }
         _ => SimplifyResult::None,

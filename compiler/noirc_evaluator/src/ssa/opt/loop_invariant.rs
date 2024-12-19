@@ -17,7 +17,7 @@ use crate::ssa::{
         function_inserter::FunctionInserter,
         instruction::{Instruction, InstructionId},
         types::Type,
-        value::ValueId,
+        value::Value,
     },
     Ssa,
 };
@@ -77,17 +77,17 @@ impl Loop {
     ///     jmpif v5 then: b3, else: b2
     /// ```
     /// In the example above, `v1` is the induction variable
-    fn get_induction_variable(&self, function: &Function) -> ValueId {
-        function.dfg.block_parameters(self.header)[0]
+    fn get_induction_variable(&self) -> Value {
+        Value::block_param(self.header, 0)
     }
 }
 
 struct LoopInvariantContext<'f> {
     inserter: FunctionInserter<'f>,
-    defined_in_loop: HashSet<ValueId>,
-    loop_invariants: HashSet<ValueId>,
+    defined_in_loop: HashSet<Value>,
+    loop_invariants: HashSet<Value>,
     // Maps induction variable -> fixed upper loop bound
-    outer_induction_variables: HashMap<ValueId, FieldElement>,
+    outer_induction_variables: HashMap<Value, FieldElement>,
 }
 
 impl<'f> LoopInvariantContext<'f> {
@@ -116,8 +116,7 @@ impl<'f> LoopInvariantContext<'f> {
                         self.inserter.function.dfg[instruction_id],
                         Instruction::MakeArray { .. }
                     ) {
-                        let result =
-                            self.inserter.function.dfg.instruction_results(instruction_id)[0];
+                        let result = Value::instruction_result(instruction_id, 0);
                         let inc_rc = Instruction::IncrementRc { value: result };
                         let call_stack = self
                             .inserter
@@ -127,7 +126,7 @@ impl<'f> LoopInvariantContext<'f> {
                         self.inserter
                             .function
                             .dfg
-                            .insert_instruction_and_results(inc_rc, *block, None, call_stack);
+                            .insert_instruction_and_results(inc_rc, *block, call_stack);
                     }
                 } else {
                     self.inserter.push_instruction(instruction_id, *block);
@@ -142,7 +141,7 @@ impl<'f> LoopInvariantContext<'f> {
         // reliant upon the maximum induction variable.
         let upper_bound = loop_.get_const_upper_bound(self.inserter.function);
         if let Some(upper_bound) = upper_bound {
-            let induction_variable = loop_.get_induction_variable(self.inserter.function);
+            let induction_variable = loop_.get_induction_variable();
             let induction_variable = self.inserter.resolve(induction_variable);
             self.outer_induction_variables.insert(induction_variable, upper_bound);
         }
@@ -158,11 +157,20 @@ impl<'f> LoopInvariantContext<'f> {
 
         for block in loop_.blocks.iter() {
             let params = self.inserter.function.dfg.block_parameters(*block);
+            let params = params.map(|value| self.inserter.resolve(value));
+            let params = params.filter(|value| matches!(value, Value::Param { .. }));
             self.defined_in_loop.extend(params);
-            for instruction_id in self.inserter.function.dfg[*block].instructions() {
+
+            let instructions = self.inserter.function.dfg[*block].take_instructions();
+
+            for instruction_id in &instructions {
                 let results = self.inserter.function.dfg.instruction_results(*instruction_id);
+                let results = results.map(|value| self.inserter.resolve(value));
+                let results = results.filter(|value| matches!(value, Value::Instruction { .. }));
                 self.defined_in_loop.extend(results);
             }
+
+            *self.inserter.function.dfg[*block].instructions_mut() = instructions;
         }
     }
 
@@ -173,18 +181,21 @@ impl<'f> LoopInvariantContext<'f> {
         instruction_id: InstructionId,
         hoist_invariant: bool,
     ) {
-        let results = self.inserter.function.dfg.instruction_results(instruction_id).to_vec();
-        // We will have new IDs after pushing instructions.
-        // We should mark the resolved result IDs as also being defined within the loop.
-        let results =
-            results.into_iter().map(|value| self.inserter.resolve(value)).collect::<Vec<_>>();
-        self.defined_in_loop.extend(results.iter());
+        for result in self.inserter.function.dfg.instruction_results(instruction_id) {
+            // We will have new IDs after pushing instructions.
+            // We should mark the resolved result IDs as also being defined within the loop.
+            let result = self.inserter.resolve(result);
 
-        // We also want the update result IDs when we are marking loop invariants as we may not
-        // be going through the blocks of the loop in execution order
-        if hoist_invariant {
-            // Track already found loop invariants
-            self.loop_invariants.extend(results.iter());
+            if matches!(result, Value::Instruction { .. }) {
+                self.defined_in_loop.insert(result);
+
+                // We also want the update result IDs when we are marking loop invariants as we may not
+                // be going through the blocks of the loop in execution order
+                if hoist_invariant {
+                    // Track already found loop invariants
+                    self.loop_invariants.insert(result);
+                }
+            }
         }
     }
 
@@ -194,7 +205,10 @@ impl<'f> LoopInvariantContext<'f> {
         // We may have already re-inserted new instructions if two loops share blocks
         // so we need to map all the values in the instruction which we want to check.
         let (instruction, _) = self.inserter.map_instruction(instruction_id);
+
         instruction.for_each_value(|value| {
+            let value = self.inserter.resolve(value);
+
             // If an instruction value is defined in the loop and not already a loop invariant
             // the instruction results are not loop invariants.
             //
@@ -222,7 +236,7 @@ impl<'f> LoopInvariantContext<'f> {
     /// we can safely hoist the array access.
     fn can_be_deduplicated_from_upper_bound(&self, instruction: &Instruction) -> bool {
         match instruction {
-            Instruction::ArrayGet { array, index } => {
+            Instruction::ArrayGet { array, index, result_type: _ } => {
                 let array_typ = self.inserter.function.dfg.type_of_value(*array);
                 let upper_bound = self.outer_induction_variables.get(index);
                 if let (Type::Array(_, len), Some(upper_bound)) = (array_typ, upper_bound) {
@@ -245,6 +259,7 @@ impl<'f> LoopInvariantContext<'f> {
     /// Leaving out this mapping could lead to instructions with values that do not exist.
     fn map_dependent_instructions(&mut self) {
         let blocks = self.inserter.function.reachable_blocks();
+
         for block in blocks {
             for instruction_id in self.inserter.function.dfg[block].take_instructions() {
                 self.inserter.push_instruction(instruction_id, block);

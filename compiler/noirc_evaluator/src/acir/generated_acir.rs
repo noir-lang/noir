@@ -359,11 +359,11 @@ impl<F: AcirField> GeneratedAcir<F> {
         input_expr: &Expression<F>,
         radix: u32,
         limb_count: u32,
-        bit_size: u32,
+        bit_size: u8,
     ) -> Result<Vec<Witness>, RuntimeError> {
         let radix_big = BigUint::from(radix);
         assert_eq!(
-            BigUint::from(2u128).pow(bit_size),
+            BigUint::from(2u128).pow(bit_size as u32),
             radix_big,
             "ICE: Radix must be a power of 2"
         );
@@ -574,11 +574,11 @@ impl<F: AcirField> GeneratedAcir<F> {
     pub(crate) fn range_constraint(
         &mut self,
         witness: Witness,
-        num_bits: u32,
+        num_bits: u8,
     ) -> Result<(), RuntimeError> {
         // We class this as an error because users should instead
         // do `as Field`.
-        if num_bits >= F::max_num_bits() {
+        if num_bits as u32 >= F::max_num_bits() {
             return Err(RuntimeError::InvalidRangeConstraint {
                 num_bits: F::max_num_bits(),
                 call_stack: self.call_stack.clone(),
@@ -586,7 +586,7 @@ impl<F: AcirField> GeneratedAcir<F> {
         };
 
         let constraint = AcirOpcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-            input: FunctionInput::witness(witness, num_bits),
+            input: FunctionInput::witness(witness, num_bits as u32),
         });
         self.push_opcode(constraint);
 

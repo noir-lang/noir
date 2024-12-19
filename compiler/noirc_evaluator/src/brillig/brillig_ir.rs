@@ -42,7 +42,7 @@ use super::ProcedureId;
 /// The Brillig VM does not apply a limit to the memory address space,
 /// As a convention, we take use 32 bits. This means that we assume that
 /// memory has 2^32 memory slots.
-pub(crate) const BRILLIG_MEMORY_ADDRESSING_BIT_SIZE: u32 = 32;
+pub(crate) const BRILLIG_MEMORY_ADDRESSING_BIT_SIZE: u8 = 32;
 
 // Registers reserved in runtime for special purposes.
 pub(crate) enum ReservedRegisters {

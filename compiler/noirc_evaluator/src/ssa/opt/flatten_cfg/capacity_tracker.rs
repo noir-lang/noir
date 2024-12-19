@@ -2,7 +2,7 @@ use crate::ssa::ir::{
     dfg::DataFlowGraph,
     instruction::{Instruction, Intrinsic},
     types::Type,
-    value::{Value, ValueId},
+    value::Value,
 };
 
 use acvm::{acir::AcirField, FieldElement};
@@ -21,8 +21,8 @@ impl<'a> SliceCapacityTracker<'a> {
     pub(crate) fn collect_slice_information(
         &self,
         instruction: &Instruction,
-        slice_sizes: &mut HashMap<ValueId, u32>,
-        results: &[ValueId],
+        slice_sizes: &mut HashMap<Value, u32>,
+        results: &[Value],
     ) {
         match instruction {
             Instruction::ArrayGet { array, .. } => {
@@ -53,75 +53,70 @@ impl<'a> SliceCapacityTracker<'a> {
                     slice_sizes.insert(results[0], *capacity);
                 }
             }
-            Instruction::Call { func, arguments } => {
-                let func = &self.dfg[*func];
-                if let Value::Intrinsic(intrinsic) = func {
-                    let (argument_index, result_index) = match intrinsic {
-                        Intrinsic::SlicePushBack
-                        | Intrinsic::SlicePushFront
-                        | Intrinsic::SlicePopBack
-                        | Intrinsic::SliceInsert
-                        | Intrinsic::SliceRemove => (1, 1),
-                        // `pop_front` returns the popped element, and then the respective slice.
-                        // This means in the case of a slice with structs, the result index of the popped slice
-                        // will change depending on the number of elements in the struct.
-                        // For example, a slice with four elements will look as such in SSA:
-                        // v3, v4, v5, v6, v7, v8 = call slice_pop_front(v1, v2)
-                        // where v7 is the slice length and v8 is the popped slice itself.
-                        Intrinsic::SlicePopFront => (1, results.len() - 1),
-                        Intrinsic::AsSlice => (0, 1),
-                        _ => return,
-                    };
-                    let result_slice = results[result_index];
-                    match intrinsic {
-                        Intrinsic::SlicePushBack
-                        | Intrinsic::SlicePushFront
-                        | Intrinsic::SliceInsert => {
-                            let slice_contents = arguments[argument_index];
+            Instruction::Call { func: Value::Intrinsic(intrinsic), arguments, result_types: _ } => {
+                let (argument_index, result_index) = match intrinsic {
+                    Intrinsic::SlicePushBack
+                    | Intrinsic::SlicePushFront
+                    | Intrinsic::SlicePopBack
+                    | Intrinsic::SliceInsert
+                    | Intrinsic::SliceRemove => (1, 1),
+                    // `pop_front` returns the popped element, and then the respective slice.
+                    // This means in the case of a slice with structs, the result index of the popped slice
+                    // will change depending on the number of elements in the struct.
+                    // For example, a slice with four elements will look as such in SSA:
+                    // v3, v4, v5, v6, v7, v8 = call slice_pop_front(v1, v2)
+                    // where v7 is the slice length and v8 is the popped slice itself.
+                    Intrinsic::SlicePopFront => (1, results.len() - 1),
+                    Intrinsic::AsSlice => (0, 1),
+                    _ => return,
+                };
+                let result_slice = results[result_index];
+                match intrinsic {
+                    Intrinsic::SlicePushBack
+                    | Intrinsic::SlicePushFront
+                    | Intrinsic::SliceInsert => {
+                        let slice_contents = arguments[argument_index];
 
-                            for arg in &arguments[(argument_index + 1)..] {
-                                let element_typ = self.dfg.type_of_value(*arg);
-                                if element_typ.contains_slice_element() {
-                                    self.compute_slice_capacity(*arg, slice_sizes);
-                                }
-                            }
-
-                            if let Some(contents_capacity) = slice_sizes.get(&slice_contents) {
-                                let new_capacity = *contents_capacity + 1;
-                                slice_sizes.insert(result_slice, new_capacity);
+                        for arg in &arguments[(argument_index + 1)..] {
+                            let element_typ = self.dfg.type_of_value(*arg);
+                            if element_typ.contains_slice_element() {
+                                self.compute_slice_capacity(*arg, slice_sizes);
                             }
                         }
-                        Intrinsic::SlicePopBack
-                        | Intrinsic::SliceRemove
-                        | Intrinsic::SlicePopFront => {
-                            let slice_contents = arguments[argument_index];
 
-                            if let Some(contents_capacity) = slice_sizes.get(&slice_contents) {
-                                // We use a saturating sub here as calling `pop_front` or `pop_back`
-                                // on a zero-length slice would otherwise underflow.
-                                let new_capacity = contents_capacity.saturating_sub(1);
-                                slice_sizes.insert(result_slice, new_capacity);
-                            }
+                        if let Some(contents_capacity) = slice_sizes.get(&slice_contents) {
+                            let new_capacity = *contents_capacity + 1;
+                            slice_sizes.insert(result_slice, new_capacity);
                         }
-                        Intrinsic::ToBits(_) => {
-                            // Compiler sanity check
-                            assert!(matches!(self.dfg.type_of_value(result_slice), Type::Slice(_)));
-                            slice_sizes.insert(result_slice, FieldElement::max_num_bits());
-                        }
-                        Intrinsic::ToRadix(_) => {
-                            // Compiler sanity check
-                            assert!(matches!(self.dfg.type_of_value(result_slice), Type::Slice(_)));
-                            slice_sizes.insert(result_slice, FieldElement::max_num_bytes());
-                        }
-                        Intrinsic::AsSlice => {
-                            let array_size = self
-                                .dfg
-                                .try_get_array_length(arguments[argument_index])
-                                .expect("ICE: Should be have an array length for AsSlice input");
-                            slice_sizes.insert(result_slice, array_size);
-                        }
-                        _ => {}
                     }
+                    Intrinsic::SlicePopBack | Intrinsic::SliceRemove | Intrinsic::SlicePopFront => {
+                        let slice_contents = arguments[argument_index];
+
+                        if let Some(contents_capacity) = slice_sizes.get(&slice_contents) {
+                            // We use a saturating sub here as calling `pop_front` or `pop_back`
+                            // on a zero-length slice would otherwise underflow.
+                            let new_capacity = contents_capacity.saturating_sub(1);
+                            slice_sizes.insert(result_slice, new_capacity);
+                        }
+                    }
+                    Intrinsic::ToBits(_) => {
+                        // Compiler sanity check
+                        assert!(matches!(self.dfg.type_of_value(result_slice), Type::Slice(_)));
+                        slice_sizes.insert(result_slice, FieldElement::max_num_bits());
+                    }
+                    Intrinsic::ToRadix(_) => {
+                        // Compiler sanity check
+                        assert!(matches!(self.dfg.type_of_value(result_slice), Type::Slice(_)));
+                        slice_sizes.insert(result_slice, FieldElement::max_num_bytes());
+                    }
+                    Intrinsic::AsSlice => {
+                        let array_size = self
+                            .dfg
+                            .try_get_array_length(arguments[argument_index])
+                            .expect("ICE: Should be have an array length for AsSlice input");
+                        slice_sizes.insert(result_slice, array_size);
+                    }
+                    _ => {}
                 }
             }
             Instruction::Store { address, value } => {
@@ -136,9 +131,8 @@ impl<'a> SliceCapacityTracker<'a> {
                     slice_sizes.insert(*address, *value_capacity);
                 }
             }
-            Instruction::Load { address } => {
-                let load_typ = self.dfg.type_of_value(*address);
-                if load_typ.contains_slice_element() {
+            Instruction::Load { address, result_type } => {
+                if result_type.contains_slice_element() {
                     let result = results[0];
 
                     let address_capacity = slice_sizes.get(address).unwrap_or_else(|| {
@@ -155,8 +149,8 @@ impl<'a> SliceCapacityTracker<'a> {
     /// Computes the starting capacity of a slice which is still a `Value::Array`
     pub(crate) fn compute_slice_capacity(
         &self,
-        array_id: ValueId,
-        slice_sizes: &mut HashMap<ValueId, u32>,
+        array_id: Value,
+        slice_sizes: &mut HashMap<Value, u32>,
     ) {
         if let Some((array, typ)) = self.dfg.get_array_constant(array_id) {
             // Compiler sanity check

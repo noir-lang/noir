@@ -6,12 +6,11 @@ use crate::ssa::{
         function::{Function, FunctionId},
         map::SparseMap,
         post_order::PostOrder,
-        value::{Value, ValueId},
+        value::Value,
     },
     ssa_gen::Ssa,
 };
 use fxhash::FxHashMap as HashMap;
-use iter_extended::vecmap;
 
 impl Ssa {
     /// This is a debugging pass which re-inserts each instruction
@@ -21,13 +20,14 @@ impl Ssa {
     /// During normal compilation this is often not the case since prior passes
     /// may increase the ID counter so that later passes start at different offsets,
     /// even if they contain the same SSA code.
-    pub(crate) fn normalize_ids(&mut self) {
+    pub(crate) fn normalize_ids(mut self) -> Self {
         let mut context = Context::default();
         context.populate_functions(&self.functions);
         for function in self.functions.values_mut() {
             context.normalize_ids(function);
         }
         self.functions = context.functions.into_btree();
+        self
     }
 }
 
@@ -52,7 +52,7 @@ struct IdMaps {
 
     // Maps old value id -> new value id
     // Cleared in between each function.
-    values: HashMap<ValueId, ValueId>,
+    values: HashMap<Value, Value>,
 }
 
 impl Context {
@@ -92,22 +92,16 @@ impl Context {
                     new_function.dfg.call_stack_data.get_or_insert_locations(locations);
                 let old_results = old_function.dfg.instruction_results(old_instruction_id);
 
-                let ctrl_typevars = instruction
-                    .requires_ctrl_typevars()
-                    .then(|| vecmap(old_results, |result| old_function.dfg.type_of_value(*result)));
-
                 let new_results = new_function.dfg.insert_instruction_and_results(
                     instruction,
                     new_block_id,
-                    ctrl_typevars,
                     new_call_stack,
                 );
 
-                assert_eq!(old_results.len(), new_results.len());
-                for (old_result, new_result) in old_results.iter().zip(new_results.results().iter())
-                {
-                    let old_result = old_function.dfg.resolve(*old_result);
-                    self.new_ids.values.insert(old_result, *new_result);
+                assert_eq!(old_results.len() as u32, new_results.len());
+                for (old_result, new_result) in old_results.zip(new_results.results()) {
+                    let old_result = old_function.dfg.resolve(old_result);
+                    self.new_ids.values.insert(old_result, new_result);
                 }
             }
 
@@ -148,8 +142,8 @@ impl IdMaps {
             }
 
             let new_id = self.blocks[old_id];
-            let old_block = &mut old_function.dfg[*old_id];
-            for old_parameter in old_block.take_parameters() {
+
+            for old_parameter in old_function.dfg.block_parameters(*old_id) {
                 let old_parameter = old_function.dfg.resolve(old_parameter);
                 let typ = old_function.dfg.type_of_value(old_parameter);
                 let new_parameter = new_function.dfg.add_block_parameter(new_id, typ);
@@ -162,33 +156,35 @@ impl IdMaps {
         &mut self,
         new_function: &mut Function,
         old_function: &Function,
-        old_value: ValueId,
-    ) -> ValueId {
-        let old_value = old_function.dfg.resolve(old_value);
-        match &old_function.dfg[old_value] {
+        old_value: Value,
+    ) -> Value {
+        match old_function.dfg.resolve(old_value) {
             value @ Value::Instruction { instruction, .. } => {
-                *self.values.get(&old_value).unwrap_or_else(|| {
-                    let instruction = &old_function.dfg[*instruction];
-                    unreachable!("Unmapped value with id {old_value}: {value:?}\n  from instruction: {instruction:?}, SSA: {old_function}")
+                *self.values.get(&value).unwrap_or_else(|| {
+                    let instruction = &old_function.dfg[instruction];
+                    unreachable!("Unmapped value {value}\n  from instruction: {instruction:?}, SSA: {old_function}")
                 })
             }
 
             value @ Value::Param { .. } => {
-                *self.values.get(&old_value).unwrap_or_else(|| {
-                    unreachable!("Unmapped value with id {old_value}: {value:?}")
+                *self.values.get(&value).unwrap_or_else(|| {
+                    unreachable!("Unmapped value: {value}")
                 })
             }
 
             Value::Function(id) => {
-                let new_id = self.function_ids[id];
-                new_function.dfg.import_function(new_id)
+                let new_id = *self.function_ids.get(&id).unwrap_or_else(|| {
+                    unreachable!("Unmapped function {id}\nOld function:\n{old_function}\n\nNew function:\n{new_function}")
+                });
+                Value::Function(new_id)
             }
 
-            Value::NumericConstant { constant, typ } => {
-                new_function.dfg.make_constant(*constant, *typ)
+            value @ Value::NumericConstant { .. } => value,
+            Value::Intrinsic(intrinsic) => Value::Intrinsic(intrinsic),
+            Value::ForeignFunction(id) => {
+                let name = &old_function.dfg[id];
+                new_function.dfg.import_foreign_function(name)
             }
-            Value::Intrinsic(intrinsic) => new_function.dfg.import_intrinsic(*intrinsic),
-            Value::ForeignFunction(name) => new_function.dfg.import_foreign_function(name),
         }
     }
 }

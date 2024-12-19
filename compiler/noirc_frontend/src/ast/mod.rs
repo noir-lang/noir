@@ -68,20 +68,21 @@ impl IntegerBitSize {
     }
 }
 
-impl From<IntegerBitSize> for u32 {
-    fn from(size: IntegerBitSize) -> u32 {
-        use IntegerBitSize::*;
-        match size {
-            One => 1,
-            Eight => 8,
-            Sixteen => 16,
-            ThirtyTwo => 32,
-            SixtyFour => 64,
-        }
+impl From<IntegerBitSize> for u8 {
+    fn from(size: IntegerBitSize) -> u8 {
+        size.bit_size()
     }
 }
 
 pub struct InvalidIntegerBitSizeError(pub u32);
+
+impl TryFrom<u8> for IntegerBitSize {
+    type Error = InvalidIntegerBitSizeError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        Self::try_from(value as u32)
+    }
+}
 
 impl TryFrom<u32> for IntegerBitSize {
     type Error = InvalidIntegerBitSizeError;
@@ -101,7 +102,7 @@ impl TryFrom<u32> for IntegerBitSize {
 
 impl core::fmt::Display for IntegerBitSize {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", u32::from(*self))
+        write!(f, "{}", self.bit_size())
     }
 }
 

@@ -5,8 +5,7 @@ use acvm::acir::circuit::ErrorSelector;
 use crate::ssa::{
     function_builder::FunctionBuilder,
     ir::{
-        basic_block::BasicBlockId, function::FunctionId, instruction::ConstrainError,
-        value::ValueId,
+        basic_block::BasicBlockId, function::FunctionId, instruction::ConstrainError, value::Value,
     },
 };
 
@@ -35,7 +34,7 @@ struct Translator {
     /// This is necessary because the SSA we parse might have undergone some
     /// passes already which replaced some of the original IDs. The translator
     /// will recreate the SSA step by step, which can result in a new ID layout.
-    variables: HashMap<FunctionId, HashMap<String, ValueId>>,
+    variables: HashMap<FunctionId, HashMap<String, Value>>,
 
     error_selector_counter: u64,
 }
@@ -156,59 +155,58 @@ impl Translator {
     fn translate_instruction(&mut self, instruction: ParsedInstruction) -> Result<(), SsaError> {
         match instruction {
             ParsedInstruction::Allocate { target, typ } => {
-                let value_id = self.builder.insert_allocate(typ);
-                self.define_variable(target, value_id)?;
+                let value = self.builder.insert_allocate(typ);
+                self.define_variable(target, value)?;
             }
             ParsedInstruction::ArrayGet { target, element_type, array, index } => {
                 let array = self.translate_value(array)?;
                 let index = self.translate_value(index)?;
-                let value_id = self.builder.insert_array_get(array, index, element_type);
-                self.define_variable(target, value_id)?;
+                let value = self.builder.insert_array_get(array, index, element_type);
+                self.define_variable(target, value)?;
             }
             ParsedInstruction::ArraySet { target, array, index, value, mutable } => {
                 let array = self.translate_value(array)?;
                 let index = self.translate_value(index)?;
                 let value = self.translate_value(value)?;
-                let value_id = if mutable {
+                let value = if mutable {
                     self.builder.insert_mutable_array_set(array, index, value)
                 } else {
                     self.builder.insert_array_set(array, index, value)
                 };
-                self.define_variable(target, value_id)?;
+                self.define_variable(target, value)?;
             }
             ParsedInstruction::BinaryOp { target, lhs, op, rhs } => {
                 let lhs = self.translate_value(lhs)?;
                 let rhs = self.translate_value(rhs)?;
-                let value_id = self.builder.insert_binary(lhs, op, rhs);
-                self.define_variable(target, value_id)?;
+                let value = self.builder.insert_binary(lhs, op, rhs);
+                self.define_variable(target, value)?;
             }
             ParsedInstruction::Call { targets, function, arguments, types } => {
                 let function_id = if let Some(id) = self.builder.import_intrinsic(&function.name) {
                     id
                 } else {
-                    let function_id = self.lookup_function(function)?;
-                    self.builder.import_function(function_id)
+                    Value::Function(self.lookup_function(function)?)
                 };
 
                 let arguments = self.translate_values(arguments)?;
 
-                let value_ids = self.builder.insert_call(function_id, arguments, types).to_vec();
+                let values = self.builder.insert_call(function_id, arguments, types);
 
-                if value_ids.len() != targets.len() {
+                if values.len() != targets.len() {
                     return Err(SsaError::MismatchedReturnValues {
                         returns: targets,
-                        expected: value_ids.len(),
+                        expected: values.len(),
                     });
                 }
 
-                for (target, value_id) in targets.into_iter().zip(value_ids.into_iter()) {
-                    self.define_variable(target, value_id)?;
+                for (target, value) in targets.into_iter().zip(values) {
+                    self.define_variable(target, value)?;
                 }
             }
             ParsedInstruction::Cast { target, lhs, typ } => {
                 let lhs = self.translate_value(lhs)?;
-                let value_id = self.builder.insert_cast(lhs, typ.unwrap_numeric());
-                self.define_variable(target, value_id)?;
+                let value = self.builder.insert_cast(lhs, typ.unwrap_numeric());
+                self.define_variable(target, value)?;
             }
             ParsedInstruction::Constrain { lhs, rhs, assert_message } => {
                 let lhs = self.translate_value(lhs)?;
@@ -247,18 +245,18 @@ impl Translator {
                     .into_iter()
                     .map(|element| self.translate_value(element))
                     .collect::<Result<_, _>>()?;
-                let value_id = self.builder.insert_make_array(elements, typ);
-                self.define_variable(target, value_id)?;
+                let value = self.builder.insert_make_array(elements, typ);
+                self.define_variable(target, value)?;
             }
             ParsedInstruction::Load { target, value, typ } => {
                 let value = self.translate_value(value)?;
-                let value_id = self.builder.insert_load(value, typ);
-                self.define_variable(target, value_id)?;
+                let value = self.builder.insert_load(value, typ);
+                self.define_variable(target, value)?;
             }
             ParsedInstruction::Not { target, value } => {
                 let value = self.translate_value(value)?;
-                let value_id = self.builder.insert_not(value);
-                self.define_variable(target, value_id)?;
+                let value = self.builder.insert_not(value);
+                self.define_variable(target, value)?;
             }
             ParsedInstruction::RangeCheck { value, max_bit_size } => {
                 let value = self.translate_value(value)?;
@@ -271,15 +269,15 @@ impl Translator {
             }
             ParsedInstruction::Truncate { target, value, bit_size, max_bit_size } => {
                 let value = self.translate_value(value)?;
-                let value_id = self.builder.insert_truncate(value, bit_size, max_bit_size);
-                self.define_variable(target, value_id)?;
+                let value = self.builder.insert_truncate(value, bit_size, max_bit_size);
+                self.define_variable(target, value)?;
             }
         }
 
         Ok(())
     }
 
-    fn translate_values(&mut self, values: Vec<ParsedValue>) -> Result<Vec<ValueId>, SsaError> {
+    fn translate_values(&mut self, values: Vec<ParsedValue>) -> Result<Vec<Value>, SsaError> {
         let mut translated_values = Vec::with_capacity(values.len());
         for value in values {
             translated_values.push(self.translate_value(value)?);
@@ -287,20 +285,16 @@ impl Translator {
         Ok(translated_values)
     }
 
-    fn translate_value(&mut self, value: ParsedValue) -> Result<ValueId, SsaError> {
+    fn translate_value(&mut self, value: ParsedValue) -> Result<Value, SsaError> {
         match value {
             ParsedValue::NumericConstant { constant, typ } => {
-                Ok(self.builder.numeric_constant(constant, typ.unwrap_numeric()))
+                Ok(Value::constant(constant, typ.unwrap_numeric()))
             }
             ParsedValue::Variable(identifier) => self.lookup_variable(identifier),
         }
     }
 
-    fn define_variable(
-        &mut self,
-        identifier: Identifier,
-        value_id: ValueId,
-    ) -> Result<(), SsaError> {
+    fn define_variable(&mut self, identifier: Identifier, value: Value) -> Result<(), SsaError> {
         if let Some(vars) = self.variables.get(&self.current_function_id()) {
             if vars.contains_key(&identifier.name) {
                 return Err(SsaError::VariableAlreadyDefined(identifier));
@@ -308,14 +302,14 @@ impl Translator {
         }
 
         let entry = self.variables.entry(self.current_function_id()).or_default();
-        entry.insert(identifier.name, value_id);
+        entry.insert(identifier.name, value);
 
         Ok(())
     }
 
-    fn lookup_variable(&mut self, identifier: Identifier) -> Result<ValueId, SsaError> {
-        if let Some(value_id) = self.variables[&self.current_function_id()].get(&identifier.name) {
-            Ok(*value_id)
+    fn lookup_variable(&mut self, identifier: Identifier) -> Result<Value, SsaError> {
+        if let Some(value) = self.variables[&self.current_function_id()].get(&identifier.name) {
+            Ok(*value)
         } else {
             Err(SsaError::UnknownVariable(identifier))
         }
@@ -343,7 +337,7 @@ impl Translator {
         // after the step-by-step reconstruction done during translation. This assumes
         // that the SSA we parsed was printed by the `SsaBuilder`, which normalizes
         // before each print.
-        ssa.normalize_ids();
+        ssa = ssa.normalize_ids();
         ssa
     }
 

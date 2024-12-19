@@ -25,6 +25,8 @@ impl Ssa {
 impl Function {
     pub(crate) fn replace_is_unconstrained_result(&mut self) {
         let mut is_unconstrained_calls = HashSet::default();
+        let mut blocks_with_is_unconstrained_calls = HashSet::default();
+
         // Collect all calls to is_unconstrained
         for block_id in self.reachable_blocks() {
             for &instruction_id in self.dfg[block_id].instructions() {
@@ -33,23 +35,26 @@ impl Function {
                     _ => continue,
                 };
 
-                if let Value::Intrinsic(Intrinsic::IsUnconstrained) = &self.dfg[target_func] {
+                if let Value::Intrinsic(Intrinsic::IsUnconstrained) = self.dfg.resolve(target_func)
+                {
                     is_unconstrained_calls.insert(instruction_id);
+                    blocks_with_is_unconstrained_calls.insert(block_id);
                 }
             }
         }
 
         let is_unconstrained = matches!(self.runtime(), RuntimeType::Brillig(_)).into();
-        let is_within_unconstrained = self.dfg.make_constant(is_unconstrained, NumericType::bool());
-        for instruction_id in is_unconstrained_calls {
-            let call_returns = self.dfg.instruction_results(instruction_id);
-            let original_return_id = call_returns[0];
+        let is_within_unconstrained = self.dfg.constant(is_unconstrained, NumericType::bool());
 
-            // We replace the result with a fresh id. This will be unused, so the DIE pass will remove the leftover intrinsic call.
-            self.dfg.replace_result(instruction_id, original_return_id);
-
+        for instruction_id in &is_unconstrained_calls {
             // Replace all uses of the original return value with the constant
-            self.dfg.set_value_from_id(original_return_id, is_within_unconstrained);
+            let original_return_id = Value::instruction_result(*instruction_id, 0);
+            self.dfg.replace_value(original_return_id, is_within_unconstrained);
+        }
+
+        // Manually remove each call instruction that we just mapped to a constant
+        for block in blocks_with_is_unconstrained_calls {
+            self.dfg[block].instructions_mut().retain(|id| !is_unconstrained_calls.contains(id));
         }
     }
 }

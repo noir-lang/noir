@@ -157,7 +157,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             0,
         );
 
-        fn flat_bit_sizes(param: &BrilligParameter) -> Box<dyn Iterator<Item = u32> + '_> {
+        fn flat_bit_sizes(param: &BrilligParameter) -> Box<dyn Iterator<Item = u8> + '_> {
             match param {
                 BrilligParameter::SingleAddr(bit_size) => Box::new(std::iter::once(*bit_size)),
                 BrilligParameter::Array(item_types, item_count)
@@ -169,7 +169,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
 
         for (i, bit_size) in arguments.iter().flat_map(flat_bit_sizes).enumerate() {
             // Calldatacopy tags everything with field type, so when downcast when necessary
-            if bit_size < F::max_num_bits() {
+            if (bit_size as u32) < F::max_num_bits() {
                 self.cast_instruction(
                     SingleAddrVariable::new(
                         MemoryAddress::direct(Self::calldata_start_offset() + i),
