@@ -211,6 +211,13 @@ struct Context<'f> {
     ///
     /// The `ValueId` here is that which is returned by the allocate instruction.
     local_allocations: HashSet<ValueId>,
+
+    /// A map from `cond` to `Not(cond)`
+    ///
+    /// `Not` instructions are inserted constantly by this pass and this map helps keep
+    /// us from unnecessarily inserting extra instructions, and keeps ids unique which
+    /// helps simplifications.
+    not_instructions: HashMap<ValueId, ValueId>,
 }
 
 #[derive(Clone)]
@@ -256,6 +263,7 @@ fn flatten_function_cfg(function: &mut Function, no_predicates: &HashMap<Functio
         condition_stack: Vec::new(),
         arguments_stack: Vec::new(),
         local_allocations: HashSet::default(),
+        not_instructions: HashMap::default(),
     };
     context.flatten(no_predicates);
 }
@@ -443,8 +451,8 @@ impl<'f> Context<'f> {
 
         let condition_call_stack =
             self.inserter.function.dfg.get_value_call_stack_id(cond_context.condition);
-        let else_condition =
-            self.insert_instruction(Instruction::Not(cond_context.condition), condition_call_stack);
+
+        let else_condition = self.not_instruction(cond_context.condition, condition_call_stack);
         let else_condition = self.link_condition(else_condition);
 
         let old_allocations = std::mem::take(&mut self.local_allocations);
@@ -462,6 +470,16 @@ impl<'f> Context<'f> {
 
         assert_eq!(self.cfg.successors(*block).len(), 1);
         vec![self.cfg.successors(*block).next().unwrap()]
+    }
+
+    fn not_instruction(&mut self, condition: ValueId, call_stack: CallStackId) -> ValueId {
+        if let Some(existing) = self.not_instructions.get(&condition) {
+            return *existing;
+        }
+
+        let not = self.insert_instruction(Instruction::Not(condition), call_stack);
+        self.not_instructions.insert(condition, not);
+        not
     }
 
     /// Process the 'exit' block of a conditional statement
@@ -671,8 +689,7 @@ impl<'f> Context<'f> {
                             .insert_instruction_with_typevars(load, Some(vec![typ]), call_stack)
                             .first();
 
-                        let else_condition =
-                            self.insert_instruction(Instruction::Not(condition), call_stack);
+                        let else_condition = self.not_instruction(condition, call_stack);
 
                         let instruction = Instruction::IfElse {
                             then_condition: condition,
@@ -788,7 +805,7 @@ impl<'f> Context<'f> {
     fn var_or_one(&mut self, var: ValueId, condition: ValueId, call_stack: CallStackId) -> ValueId {
         let field =
             self.insert_instruction(Instruction::binary(BinaryOp::Mul, var, condition), call_stack);
-        let not_condition = self.insert_instruction(Instruction::Not(condition), call_stack);
+        let not_condition = self.not_instruction(condition, call_stack);
         self.insert_instruction(
             Instruction::binary(BinaryOp::Add, field, not_condition),
             call_stack,
