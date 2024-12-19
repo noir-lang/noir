@@ -958,9 +958,11 @@ impl Instruction {
                 }
             }
             Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
+                let then_condition = dfg.resolve(*then_condition);
+                let else_condition = dfg.resolve(*else_condition);
                 let typ = dfg.type_of_value(*then_value);
 
-                if let Some(constant) = dfg.get_numeric_constant(*then_condition) {
+                if let Some(constant) = dfg.get_numeric_constant(then_condition) {
                     if constant.is_one() {
                         return SimplifiedTo(*then_value);
                     } else if constant.is_zero() {
@@ -974,10 +976,51 @@ impl Instruction {
                     return SimplifiedTo(then_value);
                 }
 
-                if matches!(&typ, Type::Numeric(_)) {
-                    let then_condition = *then_condition;
-                    let else_condition = *else_condition;
+                if let Value::Instruction { instruction, .. } = &dfg[then_value] {
+                    if let Instruction::IfElse {
+                        then_condition: inner_then_condition,
+                        then_value: inner_then_value,
+                        else_condition: inner_else_condition,
+                        ..
+                    } = dfg[*instruction]
+                    {
+                        if then_condition == inner_then_condition {
+                            let instruction = Instruction::IfElse {
+                                then_condition,
+                                then_value: inner_then_value,
+                                else_condition: inner_else_condition,
+                                else_value,
+                            };
+                            return SimplifiedToInstruction(instruction);
+                        }
+                        // TODO: We could check to see if `then_condition == inner_else_condition`
+                        // but we run into issues with duplicate NOT instructions having distinct ValueIds.
+                    }
+                };
 
+                if let Value::Instruction { instruction, .. } = &dfg[else_value] {
+                    if let Instruction::IfElse {
+                        then_condition: inner_then_condition,
+                        else_condition: inner_else_condition,
+                        else_value: inner_else_value,
+                        ..
+                    } = dfg[*instruction]
+                    {
+                        if then_condition == inner_then_condition {
+                            let instruction = Instruction::IfElse {
+                                then_condition,
+                                then_value,
+                                else_condition: inner_else_condition,
+                                else_value: inner_else_value,
+                            };
+                            return SimplifiedToInstruction(instruction);
+                        }
+                        // TODO: We could check to see if `then_condition == inner_else_condition`
+                        // but we run into issues with duplicate NOT instructions having distinct ValueIds.
+                    }
+                };
+
+                if matches!(&typ, Type::Numeric(_)) {
                     let result = ValueMerger::merge_numeric_values(
                         dfg,
                         block,
