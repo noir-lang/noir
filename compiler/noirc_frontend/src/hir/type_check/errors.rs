@@ -207,6 +207,8 @@ pub enum TypeCheckError {
     TypeAnnotationsNeededForIndex { span: Span },
     #[error("Unnecessary `unsafe` block")]
     UnnecessaryUnsafeBlock { span: Span },
+    #[error("Unnecessary `unsafe` block")]
+    NestedUnsafeBlock { span: Span },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -523,6 +525,13 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 Diagnostic::simple_warning(
                     "Unnecessary `unsafe` block".into(), 
                     "".into(),
+                    *span,
+                )
+            },
+            TypeCheckError::NestedUnsafeBlock { span } => {
+                Diagnostic::simple_warning(
+                    "Unnecessary `unsafe` block".into(), 
+                    "Because it's nested inside another `unsafe` block".into(),
                     *span,
                 )
             },

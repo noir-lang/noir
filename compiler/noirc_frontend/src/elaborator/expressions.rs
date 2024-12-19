@@ -147,6 +147,12 @@ impl<'context> Elaborator<'context> {
     ) -> (HirExpression, Type) {
         // Before entering the block we cache the old value of `in_unsafe_block` so it can be restored.
         let old_in_unsafe_block = self.unsafe_block_status;
+        let is_nested_unsafe_block =
+            !matches!(old_in_unsafe_block, UnsafeBlockStatus::NotInUnsafeBlock);
+        if is_nested_unsafe_block {
+            self.push_err(TypeCheckError::NestedUnsafeBlock { span });
+        }
+
         self.unsafe_block_status = UnsafeBlockStatus::InUnsafeBlockWithoutUnconstrainedCalls;
 
         let (hir_block_expression, typ) = self.elaborate_block_expression(block);
@@ -156,8 +162,12 @@ impl<'context> Elaborator<'context> {
             self.push_err(TypeCheckError::UnnecessaryUnsafeBlock { span });
         }
 
-        // Finally, we restore the original value of `self.in_unsafe_block`.
-        self.unsafe_block_status = old_in_unsafe_block;
+        // Finally, we restore the original value of `self.in_unsafe_block`,
+        // but only if this isn't a nested unsafe block (that way if we found an unconstrained call
+        // for this unsafe block we'll also consider the outer one as finding one, and we don't double error)
+        if !is_nested_unsafe_block {
+            self.unsafe_block_status = old_in_unsafe_block;
+        }
 
         (HirExpression::Unsafe(hir_block_expression), typ)
     }

@@ -3894,3 +3894,24 @@ fn warns_on_unneeded_unsafe() {
         CompilationError::TypeError(TypeCheckError::UnnecessaryUnsafeBlock { .. })
     ));
 }
+
+#[test]
+fn warns_on_nested_unsafe() {
+    let src = r#"
+    fn main() { 
+        unsafe { 
+            unsafe {
+                foo() 
+            }
+        }
+    }
+
+    unconstrained fn foo() {}
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        &errors[0].0,
+        CompilationError::TypeError(TypeCheckError::NestedUnsafeBlock { .. })
+    ));
+}
