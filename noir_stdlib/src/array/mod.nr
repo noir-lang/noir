@@ -185,7 +185,7 @@ where
     /// ```
     pub fn sort_via<Env>(self, ordering: fn[Env](T, T) -> bool) -> Self {
         unsafe {
-            /*@safety : `sorted` array is checked to be:
+            /*@safety: `sorted` array is checked to be:
                 a. a permutation of `input`'s elements
                 b. satisfying the predicate `ordering`
             */

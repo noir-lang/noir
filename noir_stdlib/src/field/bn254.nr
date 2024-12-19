@@ -39,7 +39,7 @@ fn assert_gt_limbs(a: (Field, Field), b: (Field, Field)) {
     let (alo, ahi) = a;
     let (blo, bhi) = b;
     unsafe {
-        /*@safety : borrow is enforced to be boolean due to its type.
+        /*@safety: borrow is enforced to be boolean due to its type.
             if borrow is 0, it asserts that (alo > blo && ahi >= bhi)
             if borrow is 1, it asserts that (alo <= blo && ahi > bhi)
         */
@@ -59,7 +59,7 @@ pub fn decompose(x: Field) -> (Field, Field) {
         compute_decomposition(x)
     } else {
         unsafe {
-            /*@safety  : decomposition is properly checked below*/
+            /*@safety: decomposition is properly checked below*/
             // Take hints of the decomposition
             let (xlo, xhi) = decompose_hint(x);
 
@@ -81,7 +81,7 @@ pub fn assert_gt(a: Field, b: Field) {
     if is_unconstrained() {
         assert(
             unsafe {
-                //@safety : unsafe in unconstrained*
+                //@safety: unsafe in unconstrained*
                 field_less_than(b, a)
             },
         );
@@ -102,14 +102,14 @@ pub fn assert_lt(a: Field, b: Field) {
 pub fn gt(a: Field, b: Field) -> bool {
     if is_unconstrained() {
         unsafe {
-            //@safety : unsafe in unconstrained
+            //@safety: unsafe in unconstrained
             field_less_than(b, a)
         }
     } else if a == b {
         false
     } else {
         unsafe {
-            //@safety : Take a hint of the comparison and verify it
+            //@safety: Take a hint of the comparison and verify it
             if field_less_than(a, b) {
                 assert_gt(b, a);
                 false
