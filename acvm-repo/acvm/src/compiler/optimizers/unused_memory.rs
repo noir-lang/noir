@@ -8,7 +8,7 @@ pub(crate) struct UnusedMemoryOptimizer<F> {
 }
 
 impl<F> UnusedMemoryOptimizer<F> {
-    /// Creates a new `UnusedMemoryOptimizer ` by collecting unused memory init
+    /// Creates a new `UnusedMemoryOptimizer` by collecting unused memory init
     /// opcodes from `Circuit`.
     pub(crate) fn new(circuit: Circuit<F>) -> Self {
         let unused_memory_initializations = Self::collect_unused_memory_initializations(&circuit);
