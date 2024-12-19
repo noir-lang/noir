@@ -48,7 +48,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             movements_map.insert(temp_register, destinations_of_temp);
         }
 
-        // After removing loops we should have an DAG with each node having only one ancestor (but could have multiple successors)
+        // After removing loops we should have a DAG with each node having only one ancestor (but could have multiple successors)
         // Now we should be able to move the registers just by performing a DFS on the movements map
         let heads: Vec<_> = movements_map
             .keys()
