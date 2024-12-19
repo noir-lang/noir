@@ -235,8 +235,6 @@ fn slice_capacity_change(
         | Intrinsic::StrAsBytes
         | Intrinsic::BlackBox(_)
         | Intrinsic::Hint(Hint::BlackBox)
-        | Intrinsic::FromField
-        | Intrinsic::AsField
         | Intrinsic::AsWitness
         | Intrinsic::IsUnconstrained
         | Intrinsic::DerivePedersenGenerators

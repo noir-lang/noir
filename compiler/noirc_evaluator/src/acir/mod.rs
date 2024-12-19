@@ -2760,8 +2760,6 @@ impl<'a> Context<'a> {
                 unreachable!("Expected static_assert to be removed by this point")
             }
             Intrinsic::StrAsBytes => unreachable!("Expected as_bytes to be removed by this point"),
-            Intrinsic::FromField => unreachable!("Expected from_field to be removed by this point"),
-            Intrinsic::AsField => unreachable!("Expected as_field to be removed by this point"),
             Intrinsic::IsUnconstrained => {
                 unreachable!("Expected is_unconstrained to be removed by this point")
             }
