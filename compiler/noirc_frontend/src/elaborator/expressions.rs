@@ -58,8 +58,8 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::Comptime(comptime, _) => {
                 return self.elaborate_comptime_block(comptime, expr.span)
             }
-            ExpressionKind::Unsafe(block_expression, span) => {
-                self.elaborate_unsafe_block(block_expression, span)
+            ExpressionKind::Unsafe(block_expression, _) => {
+                self.elaborate_unsafe_block(block_expression, expr.span)
             }
             ExpressionKind::Resolved(id) => return (id, self.interner.id_type(id)),
             ExpressionKind::Interned(id) => {
@@ -150,6 +150,7 @@ impl<'context> Elaborator<'context> {
         let is_nested_unsafe_block =
             !matches!(old_in_unsafe_block, UnsafeBlockStatus::NotInUnsafeBlock);
         if is_nested_unsafe_block {
+            let span = Span::from(span.start()..span.start() + 6); // Only highlight the `unsafe` keyword
             self.push_err(TypeCheckError::NestedUnsafeBlock { span });
         }
 
@@ -159,6 +160,7 @@ impl<'context> Elaborator<'context> {
 
         if let UnsafeBlockStatus::InUnsafeBlockWithoutUnconstrainedCalls = self.unsafe_block_status
         {
+            let span = Span::from(span.start()..span.start() + 6); // Only highlight the `unsafe` keyword
             self.push_err(TypeCheckError::UnnecessaryUnsafeBlock { span });
         }
 
