@@ -36,7 +36,7 @@ tracing-web.workspace = true
 # Disable the execution feature so we don't get the HTTP dependency which doesn't compile to Wasm.
 # Cannot use `workspace = true` because it would unify all packages and compile with the default
 # features on, ignoring the setting here, but with `path` it works.
-nargo = { path = "../../tooling/nargo", default-features = false }
+nargo.workspace = true
 
 # This is an unused dependency, we are adding it
 # so that we can enable the js feature in getrandom.

@@ -22,12 +22,12 @@ noirc_frontend.workspace = true
 noirc_printable_type.workspace = true
 iter-extended.workspace = true
 rayon.workspace = true
+serde = { workspace = true }
 thiserror.workspace = true
 tracing.workspace = true
 walkdir = "2.5.0"
 
 # Some dependencies are optional so we can compile to Wasm.
-serde = { workspace = true, optional = true }
 jsonrpsee = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
 rand = { workspace = true, optional = true }
@@ -40,7 +40,7 @@ proptest = { workspace = true }
 jsonrpsee = { workspace = true, features = ["server"] }
 
 [features]
-default = ["rpc"]
+default = []
 
 # Execution currently uses HTTP based Oracle resolvers; does not compile to Wasm.
-rpc = ["jsonrpsee/http-client", "jsonrpsee/macros", "tokio/rt", "serde", "rand"]
+rpc = ["jsonrpsee/http-client", "jsonrpsee/macros", "tokio/rt", "rand"]

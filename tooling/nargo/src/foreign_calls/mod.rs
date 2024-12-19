@@ -5,7 +5,6 @@ pub mod layers;
 pub mod mocker;
 pub mod print;
 
-#[cfg(feature = "rpc")]
 pub mod default;
 #[cfg(feature = "rpc")]
 pub mod rpc;
