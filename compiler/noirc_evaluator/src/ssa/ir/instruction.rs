@@ -994,7 +994,7 @@ impl Instruction {
                             return SimplifiedToInstruction(instruction);
                         }
                         // TODO: We could check to see if `then_condition == inner_else_condition`
-                        // but we run into issues with duplicate NOT instructions.
+                        // but we run into issues with duplicate NOT instructions having distinct ValueIds.
                     }
                 };
 
@@ -1016,7 +1016,7 @@ impl Instruction {
                             return SimplifiedToInstruction(instruction);
                         }
                         // TODO: We could check to see if `then_condition == inner_else_condition`
-                        // but we run into issues with duplicate NOT instructions.
+                        // but we run into issues with duplicate NOT instructions having distinct ValueIds.
                     }
                 };
 
