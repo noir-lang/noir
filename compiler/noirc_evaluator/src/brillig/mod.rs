@@ -29,7 +29,7 @@ pub struct Brillig {
 }
 
 impl Brillig {
-    /// Compiles a function into brillig and store the compilation artifacts
+    /// Compiles a function into brillig and stores the compilation artifacts
     pub(crate) fn compile(&mut self, func: &Function, enable_debug_trace: bool) {
         let obj = convert_ssa_function(func, enable_debug_trace);
         self.ssa_function_to_brillig.insert(func.id(), obj);

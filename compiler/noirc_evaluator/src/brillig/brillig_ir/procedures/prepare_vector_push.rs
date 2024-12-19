@@ -114,7 +114,7 @@ pub(super) fn compile_prepare_vector_push_procedure<F: AcirField + DebugToString
 
         brillig_context.deallocate_single_addr(was_reused);
     } else {
-        // If push front we need to shift the items independently of it being reused or not
+        // If pushing front, we need to shift the items independently of it being reused or not
         let target_start = brillig_context.allocate_register();
         brillig_context.memory_op_instruction(
             target_vector_items_pointer,
