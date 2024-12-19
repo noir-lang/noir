@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use acvm::{
     acir::brillig::{ForeignCallParam, ForeignCallResult},
     pwg::ForeignCallWaitInfo,
@@ -178,12 +176,9 @@ where
 }
 
 /// Handler that panics if any of the mock functions are called.
-#[allow(dead_code)] // TODO: Make the mocker optional
-pub(crate) struct DisabledMockForeignCallExecutor<F> {
-    _field: PhantomData<F>,
-}
+pub struct DisabledMockForeignCallExecutor;
 
-impl<F> ForeignCallExecutor<F> for DisabledMockForeignCallExecutor<F> {
+impl<F> ForeignCallExecutor<F> for DisabledMockForeignCallExecutor {
     fn execute(
         &mut self,
         foreign_call: &ForeignCallWaitInfo<F>,
