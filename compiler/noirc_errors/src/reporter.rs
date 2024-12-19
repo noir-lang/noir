@@ -230,7 +230,7 @@ pub fn report<'files>(
     let color_choice =
         if std::io::stderr().is_terminal() { ColorChoice::Auto } else { ColorChoice::Never };
     let writer = StandardStream::stderr(color_choice);
-    let config = codespan_reporting::term::Config::default();
+    let config = term::Config::default();
 
     let stack_trace = stack_trace(files, &custom_diagnostic.call_stack);
     let diagnostic = convert_diagnostic(custom_diagnostic, file, stack_trace, deny_warnings);
