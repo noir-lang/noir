@@ -79,9 +79,9 @@ pub enum ForeignCallError {
     ParsingError(#[from] serde_json::Error),
 
     #[error("Failed calling external resolver. {0}")]
-    ExternalResolverError(#[from] jsonrpc::Error),
+    ExternalResolverError(#[from] jsonrpsee::core::client::Error),
 
-    #[error("Assert message resolved after an unsatisified constrain. {0}")]
+    #[error("Assert message resolved after an unsatisfied constrain. {0}")]
     ResolvedAssertMessage(String),
 }
 
