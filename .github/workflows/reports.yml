@@ -76,7 +76,7 @@ jobs:
       
       - name: Compare gates reports
         id: gates_diff
-        uses: noir-lang/noir-gates-diff@2b04b7180a1388cb15cde8fe5872d2913a2a539e
+        uses: noir-lang/noir-gates-diff@3d1e0f93af221d881e564d6bd5227a4019495523
         with:
           report: gates_report.json
           summaryQuantile: 0.9 # only display the 10% most significant circuit size diffs in the summary (defaults to 20%)
@@ -121,7 +121,7 @@ jobs:
 
       - name: Compare Brillig bytecode size reports
         id: brillig_bytecode_diff
-        uses: noir-lang/noir-gates-diff@2b04b7180a1388cb15cde8fe5872d2913a2a539e
+        uses: noir-lang/noir-gates-diff@3d1e0f93af221d881e564d6bd5227a4019495523
         with:
           report: gates_report_brillig.json
           header: |
@@ -170,7 +170,7 @@ jobs:
 
       - name: Compare Brillig execution reports
         id: brillig_execution_diff
-        uses: noir-lang/noir-gates-diff@2b04b7180a1388cb15cde8fe5872d2913a2a539e
+        uses: noir-lang/noir-gates-diff@3d1e0f93af221d881e564d6bd5227a4019495523
         with:
           report: gates_report_brillig_execution.json
           header: |
