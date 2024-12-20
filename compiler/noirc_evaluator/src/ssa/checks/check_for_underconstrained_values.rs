@@ -294,11 +294,9 @@ impl DependencyContext {
                             Intrinsic::ArrayLen
                             | Intrinsic::ArrayRefCount
                             | Intrinsic::ArrayAsStrUnchecked
-                            | Intrinsic::AsField
                             | Intrinsic::AsSlice
                             | Intrinsic::BlackBox(..)
                             | Intrinsic::DerivePedersenGenerators
-                            | Intrinsic::FromField
                             | Intrinsic::Hint(..)
                             | Intrinsic::SlicePushBack
                             | Intrinsic::SlicePushFront
@@ -574,12 +572,10 @@ impl Context {
                             Intrinsic::ArrayLen
                             | Intrinsic::ArrayAsStrUnchecked
                             | Intrinsic::ArrayRefCount
-                            | Intrinsic::AsField
                             | Intrinsic::AsSlice
                             | Intrinsic::BlackBox(..)
                             | Intrinsic::Hint(Hint::BlackBox)
                             | Intrinsic::DerivePedersenGenerators
-                            | Intrinsic::FromField
                             | Intrinsic::SliceInsert
                             | Intrinsic::SlicePushBack
                             | Intrinsic::SlicePushFront
