@@ -1,3 +1,5 @@
+use std::meta::ctstring::AsCtString;
+
 fn main() {
     comptime {
         let msg1 = "msg1";

@@ -1,3 +1,5 @@
+use std::meta::ctstring::AsCtString;
+
 fn main() {
     comptime {
         for i in 9..11 {
