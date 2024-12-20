@@ -5,7 +5,7 @@ use crate::ssa::{function_builder::data_bus::DataBus, ir::instruction::SimplifyR
 use super::{
     basic_block::{BasicBlock, BasicBlockId},
     call_stack::{CallStack, CallStackHelper, CallStackId},
-    function::FunctionId,
+    function::{FunctionId, RuntimeType},
     instruction::{
         Instruction, InstructionId, InstructionResultType, Intrinsic, TerminatorInstruction,
     },
@@ -27,8 +27,23 @@ use serde_with::DisplayFromStr;
 /// owning most data in a function and handing out Ids to this data that can be
 /// shared without worrying about ownership.
 #[serde_as]
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct DataFlowGraph {
+    /// Runtime of the [Function] that owns this [DataFlowGraph].
+    /// This might change during the `runtime_separation` pass where
+    /// ACIR functions are cloned as Brillig functions.
+    runtime: RuntimeType,
+
+    /// Indicate whether we are past the runtime separation step.
+    /// Before this step the DFG accepts any instruction, because
+    /// an ACIR function might be cloned as a Brillig function.
+    /// After the separation, we can instantly remove instructions
+    /// that would just be ignored by the runtime.
+    ///
+    /// TODO(#6841): This would not be necessary if the SSA was
+    /// already generated for a specific runtime.
+    is_runtime_separated: bool,
+
     /// All of the instructions in a function
     instructions: DenseMap<Instruction>,
 
@@ -101,6 +116,42 @@ pub(crate) struct DataFlowGraph {
 }
 
 impl DataFlowGraph {
+    pub(crate) fn new(runtime: RuntimeType) -> Self {
+        Self {
+            runtime,
+            is_runtime_separated: false,
+            instructions: Default::default(),
+            results: Default::default(),
+            values: Default::default(),
+            constants: Default::default(),
+            functions: Default::default(),
+            intrinsics: Default::default(),
+            foreign_functions: Default::default(),
+            blocks: Default::default(),
+            replaced_value_ids: Default::default(),
+            locations: Default::default(),
+            call_stack_data: Default::default(),
+            data_bus: Default::default(),
+        }
+    }
+
+    /// Runtime type of the function.
+    pub(crate) fn runtime(&self) -> RuntimeType {
+        self.runtime
+    }
+
+    /// Set runtime type of the function.
+    pub(crate) fn set_runtime(&mut self, runtime: RuntimeType) {
+        self.runtime = runtime;
+    }
+
+    /// Mark the runtime as separated. After this we can drop
+    /// instructions that would be ignored by the runtime,
+    /// instead of inserting them and carrying them to the end.
+    pub(crate) fn set_runtime_separated(&mut self) {
+        self.is_runtime_separated = true;
+    }
+
     /// Creates a new basic block with no parameters.
     /// After being created, the block is unreachable in the current function
     /// until another block is made to jump to it.
@@ -165,6 +216,11 @@ impl DataFlowGraph {
         id
     }
 
+    /// Check if the function runtime would simply ignore this instruction.
+    pub(crate) fn is_handled_by_runtime(&self, instruction: &Instruction) -> bool {
+        !(self.runtime().is_acir() && instruction.is_brillig_only())
+    }
+
     fn insert_instruction_without_simplification(
         &mut self,
         instruction_data: Instruction,
@@ -178,7 +234,7 @@ impl DataFlowGraph {
         id
     }
 
-    pub(crate) fn insert_instruction_and_results_without_simplification(
+    fn insert_instruction_and_results_without_simplification(
         &mut self,
         instruction_data: Instruction,
         block: BasicBlockId,
@@ -195,7 +251,8 @@ impl DataFlowGraph {
         InsertInstructionResult::Results(id, self.instruction_results(id))
     }
 
-    /// Inserts a new instruction at the end of the given block and returns its results
+    /// Simplifies a new instruction and inserts it at the end of the given block and returns its results.
+    /// If the instruction is not handled by the current runtime, `InstructionRemoved` is returned.
     pub(crate) fn insert_instruction_and_results(
         &mut self,
         instruction: Instruction,
@@ -203,6 +260,9 @@ impl DataFlowGraph {
         ctrl_typevars: Option<Vec<Type>>,
         call_stack: CallStackId,
     ) -> InsertInstructionResult {
+        if self.is_runtime_separated && !self.is_handled_by_runtime(&instruction) {
+            return InsertInstructionResult::InstructionRemoved;
+        }
         match instruction.simplify(self, block, ctrl_typevars.clone(), call_stack) {
             SimplifyResult::SimplifiedTo(simplification) => {
                 InsertInstructionResult::SimplifiedTo(simplification)
@@ -694,12 +754,14 @@ impl<'dfg> std::ops::Index<usize> for InsertInstructionResult<'dfg> {
 
 #[cfg(test)]
 mod tests {
+    use noirc_frontend::monomorphization::ast::InlineType;
+
     use super::DataFlowGraph;
-    use crate::ssa::ir::{instruction::Instruction, types::Type};
+    use crate::ssa::ir::{dfg::RuntimeType, instruction::Instruction, types::Type};
 
     #[test]
     fn make_instruction() {
-        let mut dfg = DataFlowGraph::default();
+        let mut dfg = DataFlowGraph::new(RuntimeType::Acir(InlineType::Inline));
         let ins = Instruction::Allocate;
         let ins_id = dfg.make_instruction(ins, Some(vec![Type::field()]));
 

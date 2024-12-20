@@ -21,7 +21,6 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn separate_runtime(mut self) -> Self {
         RuntimeSeparatorContext::separate_runtime(&mut self);
-        remove_brillig_only_from_acir(&mut self);
         self
     }
 }
@@ -55,6 +54,11 @@ impl RuntimeSeparatorContext {
 
         // Some functions might be unreachable now (for example an acir function only called from brillig)
         prune_unreachable_functions(ssa);
+
+        // Finally we can mark each function as having their runtimes be separated.
+        for func in ssa.functions.values_mut() {
+            func.separate_runtime();
+        }
     }
 
     fn collect_acir_functions_called_from_brillig(
@@ -178,14 +182,6 @@ fn prune_unreachable_functions(ssa: &mut Ssa) {
     collect_reachable_functions(ssa, ssa.main_id, &mut reachable_functions);
 
     ssa.functions.retain(|id, _value| reachable_functions.contains(id));
-}
-
-fn remove_brillig_only_from_acir(ssa: &mut Ssa) {
-    for (_, func) in ssa.functions.iter_mut() {
-        if func.runtime().is_acir() {
-            func.retain_instructions(|i| !i.is_brillig_only());
-        }
-    }
 }
 
 #[cfg(test)]
