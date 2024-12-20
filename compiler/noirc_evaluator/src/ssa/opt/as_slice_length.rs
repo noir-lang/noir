@@ -69,9 +69,6 @@ fn replace_known_slice_lengths(
 
         let known_length = func.dfg.make_constant(known_length.into(), NumericType::length_type());
         func.dfg.set_value_from_id(original_slice_length, known_length);
-
-        // Now remove the original instruction
-        func.dfg.remove_instruction(instruction_id);
     });
 }
 
