@@ -303,6 +303,7 @@ impl<'interner> Monomorphizer<'interner> {
         assert_eq!(new_main_id, Program::main_id());
 
         let location = self.interner.function_meta(&main_id).location;
+        self.in_unconstrained_function = self.is_unconstrained(main_id);
         self.function(main_id, new_main_id, location)?;
 
         self.return_location =
@@ -352,7 +353,7 @@ impl<'interner> Monomorphizer<'interner> {
         };
 
         let return_type = Self::convert_type(return_type, meta.location)?;
-        let unconstrained = modifiers.is_unconstrained;
+        let unconstrained = self.in_unconstrained_function;
 
         let attributes = self.interner.function_attributes(&f);
         let inline_type = InlineType::from(attributes);
