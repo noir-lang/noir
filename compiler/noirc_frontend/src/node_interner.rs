@@ -1839,16 +1839,6 @@ impl NodeInterner {
         self.find_matching_method(typ, Some(methods), method_name, has_self_arg)
     }
 
-    pub fn lookup_primitive_trait_method_mut(
-        &self,
-        typ: &Type,
-        method_name: &str,
-        has_self_arg: bool,
-    ) -> Option<FuncId> {
-        let typ = Type::MutableReference(Box::new(typ.clone()));
-        self.lookup_primitive_method(&typ, method_name, has_self_arg)
-    }
-
     /// Returns what the next trait impl id is expected to be.
     pub fn next_trait_impl_id(&mut self) -> TraitImplId {
         let next_id = self.next_trait_implementation_id;
