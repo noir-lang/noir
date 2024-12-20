@@ -361,7 +361,7 @@ impl InlineContext {
     ) -> InlineContext {
         let source = &ssa.functions[&entry_point];
         let mut builder = FunctionBuilder::new(source.name().to_owned(), entry_point);
-        builder.set_runtime(source.runtime());
+        builder.set_runtime(source.runtime(), source.is_runtime_separated());
         Self {
             builder,
             recursion_level: 0,
@@ -1163,7 +1163,7 @@ mod test {
         // }
         let foo_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("foo".into(), foo_id);
-        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
+        builder.set_runtime(RuntimeType::Brillig(InlineType::default()), true);
 
         let bar_id = Id::test_new(1);
         let bar = builder.import_function(bar_id);
@@ -1205,7 +1205,7 @@ mod test {
         // }
         let foo_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("foo".into(), foo_id);
-        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
+        builder.set_runtime(RuntimeType::Brillig(InlineType::default()), true);
 
         let bar_id = Id::test_new(1);
         let bar = builder.import_function(bar_id);

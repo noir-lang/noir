@@ -140,9 +140,15 @@ impl DataFlowGraph {
         self.runtime
     }
 
+    /// Indicate whether the runtimes have been separated yet.
+    pub(crate) fn is_runtime_separated(&self) -> bool {
+        self.is_runtime_separated
+    }
+
     /// Set runtime type of the function.
-    pub(crate) fn set_runtime(&mut self, runtime: RuntimeType) {
+    pub(crate) fn set_runtime(&mut self, runtime: RuntimeType, separated: bool) {
         self.runtime = runtime;
+        self.is_runtime_separated = separated;
     }
 
     /// Mark the runtime as separated. After this we can drop

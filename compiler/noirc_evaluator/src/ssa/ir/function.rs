@@ -97,7 +97,7 @@ impl Function {
     /// Takes the signature (function name & runtime) from a function but does not copy the body.
     pub(crate) fn clone_signature(id: FunctionId, another: &Function) -> Self {
         let mut new_function = Function::new(another.name.clone(), id);
-        new_function.set_runtime(another.runtime());
+        new_function.set_runtime(another.runtime(), another.is_runtime_separated());
         new_function
     }
 
@@ -117,9 +117,14 @@ impl Function {
         self.dfg.runtime()
     }
 
+    /// Indicate whether the runtimes have been separated yet.
+    pub(crate) fn is_runtime_separated(&self) -> bool {
+        self.dfg.is_runtime_separated()
+    }
+
     /// Set runtime type of the function.
-    pub(crate) fn set_runtime(&mut self, runtime: RuntimeType) {
-        self.dfg.set_runtime(runtime);
+    pub(crate) fn set_runtime(&mut self, runtime: RuntimeType, separated: bool) {
+        self.dfg.set_runtime(runtime, separated);
     }
 
     pub(crate) fn is_no_predicates(&self) -> bool {

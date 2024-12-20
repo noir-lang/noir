@@ -107,7 +107,7 @@ impl RuntimeSeparatorContext {
             let cloned_id = ssa.clone_fn(*acir_func_id);
             let new_func =
                 ssa.functions.get_mut(&cloned_id).expect("Cloned function should exist in SSA");
-            new_func.set_runtime(RuntimeType::Brillig(inline_type));
+            new_func.set_runtime(RuntimeType::Brillig(inline_type), true);
             self.mapped_functions.insert(*acir_func_id, cloned_id);
         }
     }
@@ -214,7 +214,7 @@ mod test {
         // }
         let foo_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("foo".into(), foo_id);
-        builder.current_function.set_runtime(RuntimeType::Brillig(InlineType::default()));
+        builder.current_function.set_runtime(RuntimeType::Brillig(InlineType::default()), false);
 
         let bar_id = Id::test_new(1);
         let bar = builder.import_function(bar_id);
