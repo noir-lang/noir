@@ -40,7 +40,7 @@ resolver = "2"
 
 [workspace.package]
 # x-release-please-start-version
-version = "1.0.0-beta.0"
+version = "1.0.0-beta.1"
 # x-release-please-end
 authors = ["The Noir Team <team@noir-lang.org>"]
 edition = "2021"
@@ -57,13 +57,13 @@ unused_qualifications = "warn"
 [workspace.dependencies]
 
 # ACVM workspace dependencies
-acir_field = { version = "1.0.0-beta.0", path = "acvm-repo/acir_field", default-features = false }
-acir = { version = "1.0.0-beta.0", path = "acvm-repo/acir", default-features = false }
-acvm = { version = "1.0.0-beta.0", path = "acvm-repo/acvm" }
-brillig = { version = "1.0.0-beta.0", path = "acvm-repo/brillig", default-features = false }
-brillig_vm = { version = "1.0.0-beta.0", path = "acvm-repo/brillig_vm", default-features = false }
-acvm_blackbox_solver = { version = "1.0.0-beta.0", path = "acvm-repo/blackbox_solver", default-features = false }
-bn254_blackbox_solver = { version = "1.0.0-beta.0", path = "acvm-repo/bn254_blackbox_solver", default-features = false }
+acir_field = { version = "1.0.0-beta.1", path = "acvm-repo/acir_field", default-features = false }
+acir = { version = "1.0.0-beta.1", path = "acvm-repo/acir", default-features = false }
+acvm = { version = "1.0.0-beta.1", path = "acvm-repo/acvm" }
+brillig = { version = "1.0.0-beta.1", path = "acvm-repo/brillig", default-features = false }
+brillig_vm = { version = "1.0.0-beta.1", path = "acvm-repo/brillig_vm", default-features = false }
+acvm_blackbox_solver = { version = "1.0.0-beta.1", path = "acvm-repo/blackbox_solver", default-features = false }
+bn254_blackbox_solver = { version = "1.0.0-beta.1", path = "acvm-repo/bn254_blackbox_solver", default-features = false }
 
 # Noir compiler workspace dependencies
 fm = { path = "compiler/fm" }
