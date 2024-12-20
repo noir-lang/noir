@@ -1304,7 +1304,7 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    pub(super) fn lookup_method(
+    pub(crate) fn lookup_method(
         &mut self,
         object_type: &Type,
         method_name: &str,
