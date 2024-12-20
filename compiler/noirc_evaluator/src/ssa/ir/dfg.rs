@@ -413,30 +413,6 @@ impl DataFlowGraph {
         matches!(self.values[value].get_type().as_ref(), Type::Reference(_))
     }
 
-    /// Replaces an instruction result with a fresh id.
-    pub(crate) fn replace_result(
-        &mut self,
-        instruction_id: InstructionId,
-        prev_value_id: ValueId,
-    ) -> ValueId {
-        let typ = self.type_of_value(prev_value_id);
-        let results = self.results.get_mut(&instruction_id).unwrap();
-        let res_position = results
-            .iter()
-            .position(|&id| id == prev_value_id)
-            .expect("Result id not found while replacing");
-
-        let value_id = self.values.insert(Value::Instruction {
-            typ,
-            position: res_position,
-            instruction: instruction_id,
-        });
-
-        // Replace the value in list of results for this instruction
-        results[res_position] = value_id;
-        value_id
-    }
-
     /// Returns the number of instructions
     /// inserted into functions.
     pub(crate) fn num_instructions(&self) -> usize {
@@ -446,6 +422,13 @@ impl DataFlowGraph {
     /// Returns all of result values which are attached to this instruction.
     pub(crate) fn instruction_results(&self, instruction_id: InstructionId) -> &[ValueId] {
         self.results.get(&instruction_id).expect("expected a list of Values").as_slice()
+    }
+
+    /// Remove an instruction by replacing it with a `Noop` instruction.
+    /// Doing this avoids shifting over each instruction after this one in its block's instructions vector.
+    pub(crate) fn remove_instruction(&mut self, instruction: InstructionId) {
+        self.instructions[instruction] = Instruction::Noop;
+        self.results.remove(&instruction);
     }
 
     /// Add a parameter to the given block
