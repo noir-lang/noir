@@ -57,9 +57,6 @@ pub struct SsaEvaluatorOptions {
 
     pub enable_brillig_logging: bool,
 
-    /// Force Brillig output (for step debugging)
-    pub force_brillig_output: bool,
-
     /// Pretty print benchmark times of each code generation pass
     pub print_codegen_timings: bool,
 
@@ -100,7 +97,6 @@ pub(crate) fn optimize_into_acir(
     let builder = SsaBuilder::new(
         program,
         options.ssa_logging.clone(),
-        options.force_brillig_output,
         options.print_codegen_timings,
         &options.emit_ssa,
     )?;
@@ -157,7 +153,6 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
     Ok(builder
         .run_pass(Ssa::defunctionalize, "Defunctionalization")
         .run_pass(Ssa::remove_paired_rc, "Removing Paired rc_inc & rc_decs")
-        .run_pass(Ssa::separate_runtime, "Runtime Separation")
         .run_pass(Ssa::resolve_is_unconstrained, "Resolving IsUnconstrained")
         .run_pass(|ssa| ssa.inline_functions(options.inliner_aggressiveness), "Inlining (1st)")
         // Run mem2reg with the CFG separated into blocks
@@ -276,19 +271,12 @@ pub fn create_program(
         (generated_acirs, generated_brillig, brillig_function_names, error_types),
         ssa_level_warnings,
     ) = optimize_into_acir(program, options)?;
-    if options.force_brillig_output {
-        assert_eq!(
-            generated_acirs.len(),
-            1,
-            "Only the main ACIR is expected when forcing Brillig output"
-        );
-    } else {
-        assert_eq!(
-            generated_acirs.len(),
-            func_sigs.len(),
-            "The generated ACIRs should match the supplied function signatures"
-        );
-    }
+
+    assert_eq!(
+        generated_acirs.len(),
+        func_sigs.len(),
+        "The generated ACIRs should match the supplied function signatures"
+    );
 
     let error_types = error_types
         .into_iter()
@@ -451,11 +439,10 @@ impl SsaBuilder {
     fn new(
         program: Program,
         ssa_logging: SsaLogging,
-        force_brillig_runtime: bool,
         print_codegen_timings: bool,
         emit_ssa: &Option<PathBuf>,
     ) -> Result<SsaBuilder, RuntimeError> {
-        let ssa = ssa_gen::generate_ssa(program, force_brillig_runtime)?;
+        let ssa = ssa_gen::generate_ssa(program)?;
         if let Some(emit_ssa) = emit_ssa {
             let mut emit_ssa_dir = emit_ssa.clone();
             // We expect the full package artifact path to be passed in here,
