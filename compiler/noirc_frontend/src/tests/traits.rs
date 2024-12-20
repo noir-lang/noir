@@ -975,3 +975,35 @@ fn errors_if_multiple_trait_methods_are_in_scope_for_method_call() {
     traits.sort();
     assert_eq!(traits, vec!["private_mod::Foo", "private_mod::Foo2"]);
 }
+
+#[test]
+fn warns_if_trait_is_not_in_scope_for_primitive_function_call_and_there_is_only_one_trait_method() {
+    let src = r#"
+    fn main() {
+        let _ = Field::foo();
+    }
+
+    mod private_mod {
+        pub trait Foo {
+            fn foo() -> i32;
+        }
+
+        impl Foo for Field {
+            fn foo() -> i32 {
+                42
+            }
+        }
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ResolverError(ResolverError::PathResolutionError(
+        PathResolutionError::TraitMethodNotInScope { ident, trait_name },
+    )) = &errors[0].0
+    else {
+        panic!("Expected a 'trait method not in scope' error");
+    };
+    assert_eq!(ident.to_string(), "foo");
+    assert_eq!(trait_name, "private_mod::Foo");
+}
