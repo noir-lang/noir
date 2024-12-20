@@ -28,6 +28,8 @@ pub mod mem;
 pub mod panic;
 pub mod hint;
 
+use convert::AsPrimitive;
+
 // Oracle calls are required to be wrapped in an unconstrained function
 // Thus, the only argument to the `println` oracle is expected to always be an ident
 #[oracle(print)]
@@ -39,12 +41,14 @@ unconstrained fn print_unconstrained<T>(with_newline: bool, input: T) {
 
 pub fn println<T>(input: T) {
     unsafe {
+        //@safety: a print statement cannot be constrained
         print_unconstrained(true, input);
     }
 }
 
 pub fn print<T>(input: T) {
     unsafe {
+        //@safety: a print statement cannot be constrained
         print_unconstrained(false, input);
     }
 }
@@ -89,28 +93,29 @@ pub fn assert_constant<T>(x: T) {}
 #[builtin(static_assert)]
 pub fn static_assert<let N: u32>(predicate: bool, message: str<N>) {}
 
-// from_field and as_field are private since they are not valid for every type.
-// `as` should be the default for users to cast between primitive types, and in the future
-// traits can be used to work with generic types.
-#[builtin(from_field)]
-fn from_field<T>(x: Field) -> T {}
-
-#[builtin(as_field)]
-fn as_field<T>(x: T) -> Field {}
-
-pub fn wrapping_add<T>(x: T, y: T) -> T {
-    crate::from_field(crate::as_field(x) + crate::as_field(y))
+pub fn wrapping_add<T>(x: T, y: T) -> T
+where
+    T: AsPrimitive<Field>,
+    Field: AsPrimitive<T>,
+{
+    AsPrimitive::as_(x.as_() + y.as_())
 }
 
-pub fn wrapping_sub<T>(x: T, y: T) -> T {
+pub fn wrapping_sub<T>(x: T, y: T) -> T
+where
+    T: AsPrimitive<Field>,
+    Field: AsPrimitive<T>,
+{
     //340282366920938463463374607431768211456 is 2^128, it is used to avoid underflow
-    crate::from_field(
-        crate::as_field(x) + 340282366920938463463374607431768211456 - crate::as_field(y),
-    )
+    AsPrimitive::as_(x.as_() + 340282366920938463463374607431768211456 - y.as_())
 }
 
-pub fn wrapping_mul<T>(x: T, y: T) -> T {
-    crate::from_field(crate::as_field(x) * crate::as_field(y))
+pub fn wrapping_mul<T>(x: T, y: T) -> T
+where
+    T: AsPrimitive<Field>,
+    Field: AsPrimitive<T>,
+{
+    AsPrimitive::as_(x.as_() * y.as_())
 }
 
 #[builtin(as_witness)]

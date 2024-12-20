@@ -132,7 +132,7 @@ example:
 ```rust
 fn main() {
     let field = 2
-    field.assert_max_bit_size(32);
+    field.assert_max_bit_size::<32>();
 }
 ```
 

@@ -41,9 +41,7 @@ pub(crate) fn relative_module_full_path(
             interner,
         );
     } else {
-        let Some(parent_module) = get_parent_module(interner, module_def_id) else {
-            return None;
-        };
+        let parent_module = get_parent_module(interner, module_def_id)?;
 
         full_path = relative_module_id_path(
             parent_module,

@@ -15,6 +15,7 @@ fn fold_conditional_wrapper(x: bool) -> Field {
 #[fold]
 fn fold_conditional(x: bool) -> Field {
     unsafe {
+        //@safety: testing context
         conditional_wrapper(x)
     }
 }
