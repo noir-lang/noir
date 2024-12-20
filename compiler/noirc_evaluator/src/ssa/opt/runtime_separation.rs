@@ -64,13 +64,12 @@ impl RuntimeSeparatorContext {
         processed_functions: &mut HashSet<(/* within_brillig */ bool, FunctionId)>,
     ) {
         // Processed functions needs the within brillig flag, since it is possible to call the same function from both brillig and acir
-        if processed_functions.contains(&(within_brillig, current_func_id)) {
+        if !processed_functions.insert((within_brillig, current_func_id)) {
             return;
         }
-        processed_functions.insert((within_brillig, current_func_id));
 
         let func = &ssa.functions[&current_func_id];
-        if matches!(func.runtime(), RuntimeType::Brillig(_)) {
+        if func.runtime().is_brillig() {
             within_brillig = true;
         }
 
@@ -79,7 +78,7 @@ impl RuntimeSeparatorContext {
         if within_brillig {
             for called_func_id in called_functions.iter() {
                 let called_func = &ssa.functions[called_func_id];
-                if matches!(called_func.runtime(), RuntimeType::Acir(_)) {
+                if called_func.runtime().is_acir() {
                     self.acir_functions_called_from_brillig.insert(*called_func_id);
                 }
             }
@@ -110,7 +109,7 @@ impl RuntimeSeparatorContext {
 
     fn replace_calls_to_mapped_functions(&self, ssa: &mut Ssa) {
         for (_function_id, func) in ssa.functions.iter_mut() {
-            if matches!(func.runtime(), RuntimeType::Brillig(_)) {
+            if func.runtime().is_brillig() {
                 for called_func_value_id in called_functions_values(func).iter() {
                     let Value::Function(called_func_id) = &func.dfg[*called_func_value_id] else {
                         unreachable!("Value should be a function")
