@@ -119,14 +119,9 @@ impl<'a> FunctionContext<'a> {
     ///
     /// Note that the previous function cannot be resumed after calling this. Developers should
     /// avoid calling new_function until the previous function is completely finished with ssa-gen.
-    pub(super) fn new_function(
-        &mut self,
-        id: IrFunctionId,
-        func: &ast::Function,
-        force_brillig_runtime: bool,
-    ) {
+    pub(super) fn new_function(&mut self, id: IrFunctionId, func: &ast::Function) {
         self.definitions.clear();
-        if func.unconstrained || (force_brillig_runtime && func.inline_type != InlineType::Inline) {
+        if func.unconstrained || func.inline_type != InlineType::Inline {
             self.builder.new_brillig_function(func.name.clone(), id, func.inline_type);
         } else {
             self.builder.new_function(func.name.clone(), id, func.inline_type);
