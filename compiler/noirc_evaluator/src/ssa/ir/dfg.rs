@@ -42,7 +42,7 @@ pub(crate) struct DataFlowGraph {
     /// Call instructions require the func signature, but
     /// other instructions may need some more reading on my part
     #[serde_as(as = "HashMap<DisplayFromStr, _>")]
-    results: HashMap<InstructionId, Vec<ValueId>>,
+    results: HashMap<InstructionId, smallvec::SmallVec<[ValueId; 1]>>,
 
     /// Storage for all of the values defined in this
     /// function.
@@ -342,16 +342,18 @@ impl DataFlowGraph {
     /// Returns the results of the instruction
     pub(crate) fn make_instruction_results(
         &mut self,
-        instruction_id: InstructionId,
+        instruction: InstructionId,
         ctrl_typevars: Option<Vec<Type>>,
     ) {
-        let result_types = self.instruction_result_types(instruction_id, ctrl_typevars);
-        let results = vecmap(result_types.into_iter().enumerate(), |(position, typ)| {
-            let instruction = instruction_id;
-            self.values.insert(Value::Instruction { typ, position, instruction })
+        let mut results = smallvec::SmallVec::new();
+        let mut position = 0;
+        self.for_each_instruction_result_type(instruction, ctrl_typevars, |this, typ| {
+            let result = this.values.insert(Value::Instruction { typ, position, instruction });
+            position += 1;
+            results.push(result);
         });
 
-        self.results.insert(instruction_id, results);
+        self.results.insert(instruction, results);
     }
 
     /// Return the result types of this instruction.
@@ -362,18 +364,21 @@ impl DataFlowGraph {
     /// the type of an instruction that does not require them. Compared to passing an empty Vec,
     /// Option has the benefit of panicking if it is accidentally used for a Call instruction,
     /// rather than silently returning the empty Vec and continuing.
-    fn instruction_result_types(
-        &self,
+    fn for_each_instruction_result_type(
+        &mut self,
         instruction_id: InstructionId,
         ctrl_typevars: Option<Vec<Type>>,
-    ) -> Vec<Type> {
+        mut f: impl FnMut(&mut Self, Type),
+    ) {
         let instruction = &self.instructions[instruction_id];
         match instruction.result_type() {
-            InstructionResultType::Known(typ) => vec![typ],
-            InstructionResultType::Operand(value) => vec![self.type_of_value(value)],
-            InstructionResultType::None => vec![],
+            InstructionResultType::Known(typ) => f(self, typ),
+            InstructionResultType::Operand(value) => f(self, self.type_of_value(value)),
+            InstructionResultType::None => (),
             InstructionResultType::Unknown => {
-                ctrl_typevars.expect("Control typevars required but not given")
+                for typ in ctrl_typevars.expect("Control typevars required but not given") {
+                    f(self, typ);
+                }
             }
         }
     }
