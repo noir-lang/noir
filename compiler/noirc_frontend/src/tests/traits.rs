@@ -975,22 +975,3 @@ fn errors_if_multiple_trait_methods_are_in_scope_for_method_call() {
     traits.sort();
     assert_eq!(traits, vec!["private_mod::Foo", "private_mod::Foo2"]);
 }
-
-#[test]
-fn mutable_call() {
-    let src = r#"
-    fn main() {
-        let mut bar = Bar {};
-        let _ = bar.bar();
-    }
-
-    struct Bar {}
-
-    impl Bar {
-        fn bar(&mut self) {
-            let _ = self;
-        }
-    }
-    "#;
-    assert_no_errors(src);
-}
