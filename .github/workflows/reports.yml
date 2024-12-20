@@ -439,7 +439,7 @@ jobs:
 
       - name: Parse compilation report
         id: compilation_report
-        uses: noir-lang/noir-bench-report@e408e131e96c3615b4f820d7d642360fb4d6e2f4
+        uses: noir-lang/noir-bench-report@9c847f328acdfb1a0c106c898bbe7f77db4ac161
         with:
           report: compilation_report.json
           header: |
@@ -575,7 +575,7 @@ jobs:
 
       - name: Parse compilation memory report
         id: compilation_mem_report
-        uses: noir-lang/noir-bench-report@e408e131e96c3615b4f820d7d642360fb4d6e2f4
+        uses: noir-lang/noir-bench-report@9c847f328acdfb1a0c106c898bbe7f77db4ac161
         with:
           report: memory_report.json
           header: |
@@ -616,12 +616,14 @@ jobs:
         run: |
           mv ./.github/scripts/merge-bench-reports.sh merge-bench-reports.sh
           ./merge-bench-reports.sh memory_report
+          # Rename the memory report as to not clash with the compilation memory report file name
+          cp memory_report.json execution_memory_report.json
 
       - name: Parse execution memory report
         id: execution_mem_report
-        uses: noir-lang/noir-bench-report@e408e131e96c3615b4f820d7d642360fb4d6e2f4
+        uses: noir-lang/noir-bench-report@9c847f328acdfb1a0c106c898bbe7f77db4ac161
         with:
-          report: memory_report.json
+          report: execution_memory_report.json
           header: |
             # Execution Memory Report
           memory_report: true
@@ -663,7 +665,7 @@ jobs:
 
       - name: Parse execution report
         id: execution_report
-        uses: noir-lang/noir-bench-report@e408e131e96c3615b4f820d7d642360fb4d6e2f4
+        uses: noir-lang/noir-bench-report@9c847f328acdfb1a0c106c898bbe7f77db4ac161
         with:
           report: execution_report.json
           header: |
