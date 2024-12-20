@@ -34,7 +34,7 @@
 //! the following transformations of certain instructions within the block are expected:
 //!
 //! 1. A constraint is multiplied by the condition and changes the constraint to
-//! an equality with c:
+//!    an equality with c:
 //!
 //! constrain v0
 //! ============
@@ -211,6 +211,13 @@ struct Context<'f> {
     ///
     /// The `ValueId` here is that which is returned by the allocate instruction.
     local_allocations: HashSet<ValueId>,
+
+    /// A map from `cond` to `Not(cond)`
+    ///
+    /// `Not` instructions are inserted constantly by this pass and this map helps keep
+    /// us from unnecessarily inserting extra instructions, and keeps ids unique which
+    /// helps simplifications.
+    not_instructions: HashMap<ValueId, ValueId>,
 }
 
 #[derive(Clone)]
@@ -256,6 +263,7 @@ fn flatten_function_cfg(function: &mut Function, no_predicates: &HashMap<Functio
         condition_stack: Vec::new(),
         arguments_stack: Vec::new(),
         local_allocations: HashSet::default(),
+        not_instructions: HashMap::default(),
     };
     context.flatten(no_predicates);
 }
@@ -443,8 +451,8 @@ impl<'f> Context<'f> {
 
         let condition_call_stack =
             self.inserter.function.dfg.get_value_call_stack_id(cond_context.condition);
-        let else_condition =
-            self.insert_instruction(Instruction::Not(cond_context.condition), condition_call_stack);
+
+        let else_condition = self.not_instruction(cond_context.condition, condition_call_stack);
         let else_condition = self.link_condition(else_condition);
 
         let old_allocations = std::mem::take(&mut self.local_allocations);
@@ -462,6 +470,16 @@ impl<'f> Context<'f> {
 
         assert_eq!(self.cfg.successors(*block).len(), 1);
         vec![self.cfg.successors(*block).next().unwrap()]
+    }
+
+    fn not_instruction(&mut self, condition: ValueId, call_stack: CallStackId) -> ValueId {
+        if let Some(existing) = self.not_instructions.get(&condition) {
+            return *existing;
+        }
+
+        let not = self.insert_instruction(Instruction::Not(condition), call_stack);
+        self.not_instructions.insert(condition, not);
+        not
     }
 
     /// Process the 'exit' block of a conditional statement
@@ -671,8 +689,7 @@ impl<'f> Context<'f> {
                             .insert_instruction_with_typevars(load, Some(vec![typ]), call_stack)
                             .first();
 
-                        let else_condition =
-                            self.insert_instruction(Instruction::Not(condition), call_stack);
+                        let else_condition = self.not_instruction(condition, call_stack);
 
                         let instruction = Instruction::IfElse {
                             then_condition: condition,
@@ -788,7 +805,7 @@ impl<'f> Context<'f> {
     fn var_or_one(&mut self, var: ValueId, condition: ValueId, call_stack: CallStackId) -> ValueId {
         let field =
             self.insert_instruction(Instruction::binary(BinaryOp::Mul, var, condition), call_stack);
-        let not_condition = self.insert_instruction(Instruction::Not(condition), call_stack);
+        let not_condition = self.not_instruction(condition, call_stack);
         self.insert_instruction(
             Instruction::binary(BinaryOp::Add, field, not_condition),
             call_stack,
@@ -909,7 +926,6 @@ mod test {
                 v8 = mul v5, v2
                 v9 = add v7, v8
                 store v9 at v1
-                v10 = not v0
                 enable_side_effects u1 1
                 return
             }
@@ -948,15 +964,14 @@ mod test {
                 v8 = mul v5, v2
                 v9 = add v7, v8
                 store v9 at v1
-                v10 = not v0
-                enable_side_effects v10
-                v11 = load v1 -> Field
-                v12 = cast v10 as Field
-                v13 = cast v0 as Field
-                v15 = mul v12, Field 6
-                v16 = mul v13, v11
-                v17 = add v15, v16
-                store v17 at v1
+                enable_side_effects v3
+                v10 = load v1 -> Field
+                v11 = cast v3 as Field
+                v12 = cast v0 as Field
+                v14 = mul v11, Field 6
+                v15 = mul v12, v10
+                v16 = add v14, v15
+                store v16 at v1
                 enable_side_effects u1 1
                 return
             }
@@ -1084,16 +1099,14 @@ mod test {
             v23 = mul v20, Field 6
             v24 = mul v21, v16
             v25 = add v23, v24
-            enable_side_effects v0
-            v26 = not v0
-            enable_side_effects v26
-            v27 = cast v26 as Field
-            v28 = cast v0 as Field
-            v30 = mul v27, Field 3
-            v31 = mul v28, v25
-            v32 = add v30, v31
+            enable_side_effects v3
+            v26 = cast v3 as Field
+            v27 = cast v0 as Field
+            v29 = mul v26, Field 3
+            v30 = mul v27, v25
+            v31 = add v29, v30
             enable_side_effects u1 1
-            return v32
+            return v31
         }";
 
         let main = ssa.main();
@@ -1287,13 +1300,12 @@ mod test {
             v16 = mul v14, v11
             v17 = add v15, v16
             store v17 at v6
-            v18 = not v5
-            enable_side_effects v18
-            v19 = load v6 -> u8
-            v20 = cast v18 as u8
-            v21 = cast v4 as u8
-            v22 = mul v21, v19
-            store v22 at v6
+            enable_side_effects v12
+            v18 = load v6 -> u8
+            v19 = cast v12 as u8
+            v20 = cast v4 as u8
+            v21 = mul v20, v18
+            store v21 at v6
             enable_side_effects u1 1
             constrain v5 == u1 1
             return
@@ -1458,5 +1470,89 @@ mod test {
         ";
         let merged_ssa = Ssa::from_str(src).unwrap();
         let _ = merged_ssa.flatten_cfg();
+    }
+
+    #[test]
+    fn eliminates_unnecessary_if_else_instructions_on_numeric_types() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: bool):
+            v1 = allocate -> &mut [Field; 1]
+            store Field 0 at v1
+            jmpif v0 then: b1, else: b2
+          b1():
+            store Field 1 at v1 
+            store Field 2 at v1 
+            jmp b2()
+          b2():
+            v3 = load v1 -> Field
+            return v3
+        }";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.flatten_cfg().mem2reg().fold_constants();
+
+        let expected = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut [Field; 1]
+            enable_side_effects v0
+            v2 = not v0
+            v3 = cast v0 as Field
+            v4 = cast v2 as Field
+            v6 = mul v3, Field 2
+            v7 = mul v4, v3
+            v8 = add v6, v7
+            enable_side_effects u1 1
+            return v8
+        }
+        ";
+
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn eliminates_unnecessary_if_else_instructions_on_array_types() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: bool, v1: bool):
+            v2 = make_array [Field 0] : [Field; 1]
+            v3 = allocate -> &mut [Field; 1]
+            store v2 at v3
+            jmpif v0 then: b1, else: b2
+          b1():
+            v4 = make_array [Field 1] : [Field; 1]
+            store v4 at v3 
+            v5 = make_array [Field 2] : [Field; 1]
+            store v5 at v3 
+            jmp b2()
+          b2():
+            v24 = load v3 -> Field
+            return v24
+        }";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa
+            .flatten_cfg()
+            .mem2reg()
+            .remove_if_else()
+            .fold_constants()
+            .dead_instruction_elimination();
+
+        let expected = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            enable_side_effects v0
+            v2 = cast v0 as Field
+            v4 = mul v2, Field 2
+            v5 = make_array [v4] : [Field; 1]
+            enable_side_effects u1 1
+            return v5
+        }
+        ";
+
+        assert_normalized_ssa_equals(ssa, expected);
     }
 }

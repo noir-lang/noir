@@ -252,7 +252,7 @@ impl FunctionBuilder {
         for size in ssa_param_sizes {
             let visibilities: Vec<DatabusVisibility> =
                 flattened_params_databus_visibility.drain(0..size).collect();
-            let visibility = visibilities.get(0).copied().unwrap_or(DatabusVisibility::None);
+            let visibility = visibilities.first().copied().unwrap_or(DatabusVisibility::None);
             assert!(
                 visibilities.iter().all(|v| *v == visibility),
                 "inconsistent databus visibility for ssa param"

@@ -202,7 +202,7 @@ fn fuzz_keccak256_equivalence() {
                 }}"
             )
         },
-        |data| sha3::Keccak256::digest(data).try_into().unwrap(),
+        |data| sha3::Keccak256::digest(data).into(),
     );
 }
 
@@ -219,7 +219,7 @@ fn fuzz_keccak256_equivalence_over_135() {
                 }}"
             )
         },
-        |data| sha3::Keccak256::digest(data).try_into().unwrap(),
+        |data| sha3::Keccak256::digest(data).into(),
     );
 }
 
@@ -235,7 +235,7 @@ fn fuzz_sha256_equivalence() {
                 }}"
             )
         },
-        |data| sha2::Sha256::digest(data).try_into().unwrap(),
+        |data| sha2::Sha256::digest(data).into(),
     );
 }
 
@@ -251,7 +251,7 @@ fn fuzz_sha512_equivalence() {
                 }}"
             )
         },
-        |data| sha2::Sha512::digest(data).try_into().unwrap(),
+        |data| sha2::Sha512::digest(data).into(),
     );
 }
 

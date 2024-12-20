@@ -33,6 +33,7 @@ plonky2_u32 = { git = "https://github.com/metacraft-labs/plonky2-u32" }
 rayon.workspace = true
 cfg-if.workspace = true
 codespan-reporting.workspace = true
+smallvec = { version = "1.13.2", features = ["serde"] }
 
 [dev-dependencies]
 proptest.workspace = true
