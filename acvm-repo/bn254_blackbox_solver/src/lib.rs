@@ -20,16 +20,21 @@ pub use poseidon2::{
 type FieldElement = acir::acir_field::GenericFieldElement<ark_bn254::Fr>;
 
 #[derive(Default)]
-pub struct Bn254BlackBoxSolver;
+// pedantic_solving: bool
+pub struct Bn254BlackBoxSolver(pub bool);
 
 impl BlackBoxFunctionSolver<FieldElement> for Bn254BlackBoxSolver {
+    fn pedantic_solving(&self) -> bool {
+        self.0
+    }
+
     fn multi_scalar_mul(
         &self,
         points: &[FieldElement],
         scalars_lo: &[FieldElement],
         scalars_hi: &[FieldElement],
     ) -> Result<(FieldElement, FieldElement, FieldElement), BlackBoxResolutionError> {
-        multi_scalar_mul(points, scalars_lo, scalars_hi)
+        multi_scalar_mul(points, scalars_lo, scalars_hi, self.pedantic_solving())
     }
 
     fn ec_add(
@@ -44,6 +49,7 @@ impl BlackBoxFunctionSolver<FieldElement> for Bn254BlackBoxSolver {
         embedded_curve_add(
             [*input1_x, *input1_y, *input1_infinite],
             [*input2_x, *input2_y, *input2_infinite],
+            self.pedantic_solving(),
         )
     }
 

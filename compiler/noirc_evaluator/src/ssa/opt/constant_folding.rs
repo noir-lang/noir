@@ -632,7 +632,8 @@ impl<'brillig> Context<'brillig> {
 
         let bytecode = &generated_brillig.byte_code;
         let foreign_call_results = Vec::new();
-        let black_box_solver = Bn254BlackBoxSolver;
+        let pedantic_solving = true;
+        let black_box_solver = Bn254BlackBoxSolver(pedantic_solving);
         let profiling_active = false;
         let mut vm =
             VM::new(calldata, bytecode, foreign_call_results, &black_box_solver, profiling_active);
