@@ -183,16 +183,13 @@ pub struct NodeInterner {
 
     next_type_variable_id: std::cell::Cell<usize>,
 
-    /// A map from a struct type and method name to a function id for the method.
+    /// A map from a type and method name to a function id for the method.
     /// This can resolve to potentially multiple methods if the same method name is
     /// specialized for different generics on the same type. E.g. for `Struct<T>`, we
     /// may have both `impl Struct<u32> { fn foo(){} }` and `impl Struct<u8> { fn foo(){} }`.
     /// If this happens, the returned Vec will have 2 entries and we'll need to further
     /// disambiguate them by checking the type of each function.
-    struct_methods: HashMap<StructId, HashMap<String, Methods>>,
-
-    /// Methods on primitive types defined in the stdlib.
-    primitive_methods: HashMap<TypeMethodKey, HashMap<String, Methods>>,
+    methods: HashMap<TypeMethodKey, HashMap<String, Methods>>,
 
     // For trait implementation functions, this is their self type and trait they belong to
     func_id_to_trait: HashMap<FuncId, (Type, TraitId)>,
@@ -666,8 +663,7 @@ impl Default for NodeInterner {
             next_type_variable_id: std::cell::Cell::new(0),
             globals: Vec::new(),
             global_attributes: HashMap::default(),
-            struct_methods: HashMap::default(),
-            primitive_methods: HashMap::default(),
+            methods: HashMap::default(),
             type_alias_ref: Vec::new(),
             type_ref_locations: Vec::new(),
             quoted_types: Default::default(),
@@ -1214,27 +1210,8 @@ impl NodeInterner {
         self.structs[&id].clone()
     }
 
-    pub fn get_struct_methods(&self, id: StructId) -> Option<&HashMap<String, Methods>> {
-        self.struct_methods.get(&id)
-    }
-
-    fn get_primitive_methods(&self, key: TypeMethodKey) -> Option<&HashMap<String, Methods>> {
-        self.primitive_methods.get(&key)
-    }
-
     pub fn get_type_methods(&self, typ: &Type) -> Option<&HashMap<String, Methods>> {
-        match typ {
-            Type::Struct(struct_type, _) => {
-                let struct_type = struct_type.borrow();
-                self.get_struct_methods(struct_type.id)
-            }
-            Type::Alias(type_alias, generics) => {
-                let type_alias = type_alias.borrow();
-                let typ = type_alias.get_type(generics);
-                self.get_type_methods(&typ)
-            }
-            _ => get_type_method_key(typ).and_then(|key| self.get_primitive_methods(key)),
-        }
+        get_type_method_key(typ).and_then(|key| self.methods.get(&key))
     }
 
     pub fn get_trait(&self, id: TraitId) -> &Trait {
@@ -1405,8 +1382,8 @@ impl NodeInterner {
                     }
                 }
 
-                self.struct_methods
-                    .entry(id)
+                self.methods
+                    .entry(TypeMethodKey::Struct(id))
                     .or_default()
                     .entry(method_name)
                     .or_default()
@@ -1426,7 +1403,7 @@ impl NodeInterner {
                 // so later we can disambiguate on calls like `u32::call`.
                 let typ =
                     if key == TypeMethodKey::FieldOrInt { Some(self_type.clone()) } else { None };
-                self.primitive_methods
+                self.methods
                     .entry(key)
                     .or_default()
                     .entry(method_name)
@@ -1789,8 +1766,8 @@ impl NodeInterner {
         method_name: &str,
         has_self_arg: bool,
     ) -> Option<FuncId> {
-        self.struct_methods
-            .get(&id)
+        self.methods
+            .get(&TypeMethodKey::Struct(id))
             .and_then(|h| h.get(method_name))
             .and_then(|methods| methods.find_direct_method(typ, has_self_arg, self))
     }
@@ -1803,8 +1780,8 @@ impl NodeInterner {
         method_name: &str,
         has_self_arg: bool,
     ) -> Vec<(FuncId, TraitId)> {
-        self.struct_methods
-            .get(&id)
+        self.methods
+            .get(&TypeMethodKey::Struct(id))
             .and_then(|h| h.get(method_name))
             .map(|methods| methods.find_trait_methods(typ, has_self_arg, self))
             .unwrap_or_default()
@@ -1833,8 +1810,7 @@ impl NodeInterner {
         method_name: &str,
         has_self_arg: bool,
     ) -> Option<FuncId> {
-        let global_methods =
-            self.primitive_methods.get(&TypeMethodKey::Generic)?.get(method_name)?;
+        let global_methods = self.methods.get(&TypeMethodKey::Generic)?.get(method_name)?;
         global_methods.find_matching_method(typ, has_self_arg, self)
     }
 
@@ -1846,7 +1822,7 @@ impl NodeInterner {
         has_self_arg: bool,
     ) -> Option<FuncId> {
         let key = get_type_method_key(typ)?;
-        let methods = self.primitive_methods.get(&key)?.get(method_name)?;
+        let methods = self.methods.get(&key)?.get(method_name)?;
         self.find_matching_method(typ, Some(methods), method_name, has_self_arg)
     }
 
@@ -2454,6 +2430,7 @@ enum TypeMethodKey {
     Function,
     Generic,
     Quoted(QuotedType),
+    Struct(StructId),
 }
 
 fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
@@ -2481,12 +2458,12 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         Type::Quoted(quoted) => Some(Quoted(*quoted)),
         Type::MutableReference(element) => get_type_method_key(element),
         Type::Alias(alias, _) => get_type_method_key(&alias.borrow().typ),
+        Type::Struct(struct_type, _) => Some(Struct(struct_type.borrow().id)),
 
         // We do not support adding methods to these types
         Type::Forall(_, _)
         | Type::Constant(..)
         | Type::Error
-        | Type::Struct(_, _)
         | Type::InfixExpr(..)
         | Type::CheckedCast { .. }
         | Type::TraitAsType(..) => None,
