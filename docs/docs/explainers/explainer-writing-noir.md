@@ -142,11 +142,11 @@ Using `assert_constant(i);` before an index, `i`, is used in an array will give 
 
 ### Reduce what is inside loops and conditional logic
 
-Putting less logic  inside an `if` (`else`, etc) paths, or inside a loop, translates to less gates required to represent the program.
+Putting less logic  inside an `if` (`else`, etc) paths, or inside a loop, translates to less gates required to represent the program. The compiler should mostly take care of this.
 
-A loop duplicates the gates for each iteration of the loop, or put another way, "unwraps" or "flattens" the loop. Any calculations/calls that are unchanged in the loop should be calculated once before, and the result used in the loop.
+A loop duplicates the gates for each iteration of the loop, or put another way, "unrolls" the loop. Any calculations/calls that are unchanged in the loop should be calculated once before, and the result used in the loop.
 
-An `if` will create gates representing each path even though execution will use only one. Furthermore, there are additional operations required for each path. Sometimes this can have a multiplying effect on the operations in the `if` and `else` etc.
+An `if` statement is "flattened" and gates created for each path even if execution uses only one path. Furthermore, there are additional operations required for each path. Sometimes this can have a multiplying effect on the operations in the `if` and `else` etc.
 
 :::tip
 Only have essential computation inside conditional logic and loops, and calculate anything else once (before, or after, depending).
