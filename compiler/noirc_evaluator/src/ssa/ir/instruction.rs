@@ -1037,6 +1037,12 @@ impl Instruction {
             Instruction::MakeArray { .. } => None,
         }
     }
+
+    /// Some instructions are only to be used in Brillig and should be eliminated
+    /// after runtime separation, never to be be reintroduced in an ACIR runtime.
+    pub(crate) fn is_brillig_only(&self) -> bool {
+        matches!(self, Instruction::IncrementRc { .. } | Instruction::DecrementRc { .. })
+    }
 }
 
 /// Given a chain of operations like:

@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashSet};
 
 use iter_extended::vecmap;
 use noirc_frontend::monomorphization::ast::InlineType;
@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use super::basic_block::BasicBlockId;
 use super::dfg::DataFlowGraph;
-use super::instruction::TerminatorInstruction;
+use super::instruction::{Instruction, TerminatorInstruction};
 use super::map::Id;
 use super::types::Type;
 use super::value::ValueId;
@@ -194,6 +194,25 @@ impl Function {
         }
 
         unreachable!("SSA Function {} has no reachable return instruction!", self.id())
+    }
+
+    /// Remove instructions from all the reachable blocks in a function based on a predicate,
+    /// keeping the ones where the predicate returns `true`.
+    pub(crate) fn retain_instructions(&mut self, pred: impl Fn(&Instruction) -> bool) {
+        for block_id in self.reachable_blocks() {
+            let mut to_remove = HashSet::new();
+            let block = &self.dfg[block_id];
+            for instruction_id in block.instructions() {
+                let instruction = &self.dfg[*instruction_id];
+                if !pred(instruction) {
+                    to_remove.insert(*instruction_id);
+                }
+            }
+            if !to_remove.is_empty() {
+                let block = &mut self.dfg[block_id];
+                block.instructions_mut().retain(|id| !to_remove.contains(id));
+            }
+        }
     }
 }
 

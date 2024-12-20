@@ -769,7 +769,8 @@ impl<'a> Context<'a> {
                 unreachable!("Expected all load instructions to be removed before acir_gen")
             }
             Instruction::IncrementRc { .. } | Instruction::DecrementRc { .. } => {
-                // Do nothing. Only Brillig needs to worry about reference counted arrays
+                // Only Brillig needs to worry about reference counted arrays
+                unreachable!("Expected all Rc instructions to be removed before acir_gen")
             }
             Instruction::RangeCheck { value, max_bit_size, assert_message } => {
                 let acir_var = self.convert_numeric_value(*value, dfg)?;

@@ -21,6 +21,7 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn separate_runtime(mut self) -> Self {
         RuntimeSeparatorContext::separate_runtime(&mut self);
+        remove_brillig_only_from_acir(&mut self);
         self
     }
 }
@@ -177,6 +178,14 @@ fn prune_unreachable_functions(ssa: &mut Ssa) {
     collect_reachable_functions(ssa, ssa.main_id, &mut reachable_functions);
 
     ssa.functions.retain(|id, _value| reachable_functions.contains(id));
+}
+
+fn remove_brillig_only_from_acir(ssa: &mut Ssa) {
+    for (_, func) in ssa.functions.iter_mut() {
+        if func.runtime().is_acir() {
+            func.retain_instructions(|i| !i.is_brillig_only());
+        }
+    }
 }
 
 #[cfg(test)]
