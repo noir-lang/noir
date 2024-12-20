@@ -1318,9 +1318,6 @@ impl<'context> Elaborator<'context> {
         has_self_arg: bool,
     ) -> Option<HirMethodReference> {
         match object_type.follow_bindings() {
-            Type::Struct(..) => {
-                self.lookup_struct_or_primitive_method(object_type, method_name, span, has_self_arg)
-            }
             // TODO: We should allow method calls on `impl Trait`s eventually.
             //       For now it is fine since they are only allowed on return types.
             Type::TraitAsType(..) => {
@@ -1350,16 +1347,9 @@ impl<'context> Elaborator<'context> {
                 None
             }
 
-            other => match self.interner.lookup_primitive_method(&other, method_name, has_self_arg)
-            {
-                Some(method_id) => Some(HirMethodReference::FuncId(method_id)),
-                None => {
-                    // It could be that this type is a composite type that is bound to a trait,
-                    // for example `x: (T, U) ... where (T, U): SomeTrait`
-                    // (so this case is a generalization of the NamedGeneric case)
-                    self.lookup_method_in_trait_constraints(object_type, method_name, span)
-                }
-            },
+            other => {
+                self.lookup_struct_or_primitive_method(&other, method_name, span, has_self_arg)
+            }
         }
     }
 
@@ -1390,29 +1380,31 @@ impl<'context> Elaborator<'context> {
                 return Some(HirMethodReference::FuncId(func_id));
             }
 
-            // Otherwise it's an error
-            let has_field_with_function_type =
-                if let Type::Struct(struct_type, _) = object_type {
+            if let Type::Struct(struct_type, _) = object_type {
+                let has_field_with_function_type =
                     struct_type.borrow().get_fields_as_written().into_iter().any(|field| {
                         field.name.0.contents == method_name && field.typ.is_function()
-                    })
+                    });
+                if has_field_with_function_type {
+                    self.push_err(TypeCheckError::CannotInvokeStructFieldFunctionType {
+                        method_name: method_name.to_string(),
+                        object_type: object_type.clone(),
+                        span,
+                    });
                 } else {
-                    false
-                };
-            if has_field_with_function_type {
-                self.push_err(TypeCheckError::CannotInvokeStructFieldFunctionType {
-                    method_name: method_name.to_string(),
-                    object_type: object_type.clone(),
-                    span,
-                });
+                    self.push_err(TypeCheckError::UnresolvedMethodCall {
+                        method_name: method_name.to_string(),
+                        object_type: object_type.clone(),
+                        span,
+                    });
+                }
+                return None;
             } else {
-                self.push_err(TypeCheckError::UnresolvedMethodCall {
-                    method_name: method_name.to_string(),
-                    object_type: object_type.clone(),
-                    span,
-                });
+                // It could be that this type is a composite type that is bound to a trait,
+                // for example `x: (T, U) ... where (T, U): SomeTrait`
+                // (so this case is a generalization of the NamedGeneric case)
+                return self.lookup_method_in_trait_constraints(object_type, method_name, span);
             }
-            return None;
         }
 
         // We found some trait methods... but is only one of them currently in scope?

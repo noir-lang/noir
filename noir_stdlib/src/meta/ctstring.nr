@@ -86,6 +86,8 @@ comptime fn ctstring_eq(_first: CtString, _second: CtString) -> bool {}
 comptime fn ctstring_hash(_string: CtString) -> Field {}
 
 mod test {
+    use super::AsCtString;
+
     #[test]
     fn as_quoted_str_example() {
         comptime {
