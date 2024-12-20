@@ -1369,18 +1369,16 @@ impl<'context> Elaborator<'context> {
         has_self_arg: bool,
         typ: Shared<StructType>,
     ) -> Option<HirMethodReference> {
-        let id = typ.borrow().id;
-
         // First search in the struct methods
         if let Some(method_id) =
-            self.interner.lookup_direct_method(object_type, id, method_name, has_self_arg)
+            self.interner.lookup_direct_method(object_type, method_name, has_self_arg)
         {
             return Some(HirMethodReference::FuncId(method_id));
         }
 
         // Next lookup all matching trait methods.
         let trait_methods =
-            self.interner.lookup_trait_methods(object_type, id, method_name, has_self_arg);
+            self.interner.lookup_trait_methods(object_type, method_name, has_self_arg);
 
         if trait_methods.is_empty() {
             // If we couldn't find any trait methods, search in
