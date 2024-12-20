@@ -10,6 +10,7 @@ unconstrained fn unconstrained_intermediate() {
 
 fn main() {
     unsafe {
+        //@safety: testing context
         unconstrained_intermediate();
     }
     check(false);
