@@ -33,8 +33,7 @@ use crate::{
         TraitImplKind, TraitMethodId,
     },
     token::SecondaryAttribute,
-    Generics, Kind, ResolvedGeneric, Shared, StructType, Type, TypeBinding, TypeBindings,
-    UnificationError,
+    Generics, Kind, ResolvedGeneric, Type, TypeBinding, TypeBindings, UnificationError,
 };
 
 use super::{lints, path_resolution::PathResolutionItem, Elaborator, UnsafeBlockStatus};
@@ -1319,8 +1318,8 @@ impl<'context> Elaborator<'context> {
         has_self_arg: bool,
     ) -> Option<HirMethodReference> {
         match object_type.follow_bindings() {
-            Type::Struct(typ, _args) => {
-                self.lookup_struct_method(object_type, method_name, span, has_self_arg, typ)
+            Type::Struct(..) => {
+                self.lookup_struct_or_primitive_method(object_type, method_name, span, has_self_arg)
             }
             // TODO: We should allow method calls on `impl Trait`s eventually.
             //       For now it is fine since they are only allowed on return types.
@@ -1337,11 +1336,9 @@ impl<'context> Elaborator<'context> {
             }
             // Mutable references to another type should resolve to methods of their element type.
             // This may be a struct or a primitive type.
-            Type::MutableReference(element) => self
-                .interner
-                .lookup_primitive_trait_method_mut(element.as_ref(), method_name, has_self_arg)
-                .map(HirMethodReference::FuncId)
-                .or_else(|| self.lookup_method(&element, method_name, span, has_self_arg)),
+            Type::MutableReference(element) => {
+                self.lookup_method(&element, method_name, span, has_self_arg)
+            }
 
             // If we fail to resolve the object to a struct type, we have no way of type
             // checking its arguments as we can't even resolve the name of the function
@@ -1366,13 +1363,12 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn lookup_struct_method(
+    fn lookup_struct_or_primitive_method(
         &mut self,
         object_type: &Type,
         method_name: &str,
         span: Span,
         has_self_arg: bool,
-        typ: Shared<StructType>,
     ) -> Option<HirMethodReference> {
         // First search in the struct methods
         if let Some(method_id) =
@@ -1395,11 +1391,14 @@ impl<'context> Elaborator<'context> {
             }
 
             // Otherwise it's an error
-            let has_field_with_function_type = typ
-                .borrow()
-                .get_fields_as_written()
-                .into_iter()
-                .any(|field| field.name.0.contents == method_name && field.typ.is_function());
+            let has_field_with_function_type =
+                if let Type::Struct(struct_type, _) = object_type {
+                    struct_type.borrow().get_fields_as_written().into_iter().any(|field| {
+                        field.name.0.contents == method_name && field.typ.is_function()
+                    })
+                } else {
+                    false
+                };
             if has_field_with_function_type {
                 self.push_err(TypeCheckError::CannotInvokeStructFieldFunctionType {
                     method_name: method_name.to_string(),
