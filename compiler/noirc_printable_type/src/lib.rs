@@ -69,6 +69,9 @@ pub enum PrintableValueDisplay<F> {
 
 #[derive(Debug, Error)]
 pub enum ForeignCallError {
+    #[error("Attempted to call disabled foreign call `{0}`")]
+    Disabled(String),
+
     #[error("No handler could be found for foreign call `{0}`")]
     NoHandler(String),
 

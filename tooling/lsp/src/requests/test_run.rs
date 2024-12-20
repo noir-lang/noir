@@ -93,6 +93,7 @@ fn on_test_run_request_inner(
                 |output, base| {
                     DefaultForeignCallBuilder {
                         output,
+                        enable_mocks: true,
                         resolver_url: None, // NB without this the root and package don't do anything.
                         root_path: Some(workspace.root_dir.clone()),
                         package_name: Some(package.name.to_string()),
