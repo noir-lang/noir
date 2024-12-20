@@ -128,9 +128,7 @@ impl Context<'_> {
             let bit_size_var = self.numeric_constant(FieldElement::from(bit_size as u128), u8_type);
             let overflow = self.insert_binary(rhs, BinaryOp::Lt, bit_size_var);
             let predicate = self.insert_cast(overflow, typ);
-            // we can safely cast to unsigned because overflow_checks prevent bit-shift with a negative value
-            let rhs_unsigned = self.insert_cast(rhs, NumericType::unsigned(bit_size));
-            let pow = self.pow(base, rhs_unsigned);
+            let pow = self.pow(base, rhs);
             let pow = self.insert_cast(pow, typ);
             (FieldElement::max_num_bits(), self.insert_binary(predicate, BinaryOp::Mul, pow))
         };
