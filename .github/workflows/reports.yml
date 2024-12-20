@@ -579,7 +579,7 @@ jobs:
         with:
           report: memory_report.json
           header: |
-            # Compilation Memory Report
+            Compilation Memory Report
           memory_report: true
 
       - name: Add memory report to sticky comment
@@ -625,7 +625,7 @@ jobs:
         with:
           report: execution_memory_report.json
           header: |
-            # Execution Memory Report
+            Execution Memory Report
           memory_report: true
 
       - name: Add execution memory report to sticky comment
@@ -669,7 +669,7 @@ jobs:
         with:
           report: execution_report.json
           header: |
-            # Execution Report
+            Execution Report
           execution_report: true
 
       - name: Add memory report to sticky comment
