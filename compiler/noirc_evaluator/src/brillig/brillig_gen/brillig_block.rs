@@ -7,7 +7,7 @@ use crate::brillig::brillig_ir::registers::Stack;
 use crate::brillig::brillig_ir::{
     BrilligBinaryOp, BrilligContext, ReservedRegisters, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
 };
-use crate::ssa::ir::dfg::CallStack;
+use crate::ssa::ir::call_stack::CallStack;
 use crate::ssa::ir::instruction::{ConstrainError, Hint};
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
@@ -201,7 +201,7 @@ impl<'block> BrilligBlock<'block> {
     /// Converts an SSA instruction into a sequence of Brillig opcodes.
     fn convert_ssa_instruction(&mut self, instruction_id: InstructionId, dfg: &DataFlowGraph) {
         let instruction = &dfg[instruction_id];
-        self.brillig_context.set_call_stack(dfg.get_call_stack(instruction_id));
+        self.brillig_context.set_call_stack(dfg.get_instruction_call_stack(instruction_id));
 
         self.initialize_constants(
             &self.function_context.constant_allocation.allocated_at_location(
@@ -635,9 +635,7 @@ impl<'block> BrilligBlock<'block> {
                             let array = array.extract_register();
                             self.brillig_context.load_instruction(destination, array);
                         }
-                        Intrinsic::FromField
-                        | Intrinsic::AsField
-                        | Intrinsic::IsUnconstrained
+                        Intrinsic::IsUnconstrained
                         | Intrinsic::DerivePedersenGenerators
                         | Intrinsic::ApplyRangeConstraint
                         | Intrinsic::StrAsBytes

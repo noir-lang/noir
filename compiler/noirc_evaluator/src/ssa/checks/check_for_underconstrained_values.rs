@@ -294,11 +294,9 @@ impl DependencyContext {
                             Intrinsic::ArrayLen
                             | Intrinsic::ArrayRefCount
                             | Intrinsic::ArrayAsStrUnchecked
-                            | Intrinsic::AsField
                             | Intrinsic::AsSlice
                             | Intrinsic::BlackBox(..)
                             | Intrinsic::DerivePedersenGenerators
-                            | Intrinsic::FromField
                             | Intrinsic::Hint(..)
                             | Intrinsic::SlicePushBack
                             | Intrinsic::SlicePushFront
@@ -316,7 +314,7 @@ impl DependencyContext {
                                 self.update_children(&arguments, &results);
                             }
                         },
-                        Value::Function(callee) => match all_functions[&callee].runtime() {
+                        Value::Function(callee) => match all_functions[callee].runtime() {
                             RuntimeType::Brillig(_) => {
                                 // Record arguments/results for each Brillig call for the check
                                 self.tainted.insert(
@@ -382,7 +380,7 @@ impl DependencyContext {
             .keys()
             .map(|brillig_call| {
                 SsaReport::Bug(InternalBug::UncheckedBrilligCall {
-                    call_stack: function.dfg.get_call_stack(*brillig_call),
+                    call_stack: function.dfg.get_instruction_call_stack(*brillig_call),
                 })
             })
             .collect();
@@ -513,7 +511,7 @@ impl Context {
             // There is a value not in the set, which means that the inputs/outputs of this call have not been properly constrained
             if unused_inputs {
                 warnings.push(SsaReport::Bug(InternalBug::IndependentSubgraph {
-                    call_stack: function.dfg.get_call_stack(
+                    call_stack: function.dfg.get_instruction_call_stack(
                         self.brillig_return_to_instruction_id[&brillig_output_in_set],
                     ),
                 }));
@@ -574,12 +572,10 @@ impl Context {
                             Intrinsic::ArrayLen
                             | Intrinsic::ArrayAsStrUnchecked
                             | Intrinsic::ArrayRefCount
-                            | Intrinsic::AsField
                             | Intrinsic::AsSlice
                             | Intrinsic::BlackBox(..)
                             | Intrinsic::Hint(Hint::BlackBox)
                             | Intrinsic::DerivePedersenGenerators
-                            | Intrinsic::FromField
                             | Intrinsic::SliceInsert
                             | Intrinsic::SlicePushBack
                             | Intrinsic::SlicePushFront
@@ -595,7 +591,7 @@ impl Context {
                                 self.value_sets.push(instruction_arguments_and_results);
                             }
                         },
-                        Value::Function(callee) => match all_functions[&callee].runtime() {
+                        Value::Function(callee) => match all_functions[callee].runtime() {
                             RuntimeType::Brillig(_) => {
                                 // For calls to Brillig functions we memorize the mapping of results to argument ValueId's and InstructionId's
                                 // The latter are needed to produce the callstack later

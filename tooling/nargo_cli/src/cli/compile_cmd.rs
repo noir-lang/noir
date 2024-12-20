@@ -216,6 +216,20 @@ fn compile_programs(
             cached_program,
         )?;
 
+        if compile_options.check_non_determinism {
+            let (program_two, _) = compile_program(
+                file_manager,
+                parsed_files,
+                workspace,
+                package,
+                compile_options,
+                load_cached_program(package),
+            )?;
+            if fxhash::hash64(&program) != fxhash::hash64(&program_two) {
+                panic!("Non deterministic result compiling {}", package.name);
+            }
+        }
+
         // Choose the target width for the final, backend specific transformation.
         let target_width =
             get_target_width(package.expression_width, compile_options.expression_width);

@@ -604,17 +604,11 @@ impl<'context> Elaborator<'context> {
                     alias_generics
                 };
 
-                // Now instantiate the underlying struct with those generics, the struct might
+                // Now instantiate the underlying struct or alias with those generics, the struct might
                 // have more generics than those in the alias, like in this example:
                 //
                 // type Alias<T> = Struct<T, i32>;
-                let typ = type_alias.get_type(&generics);
-                let Type::Struct(_, generics) = typ else {
-                    // See https://github.com/noir-lang/noir/issues/6398
-                    panic!("Expected type alias to point to struct")
-                };
-
-                generics
+                get_type_alias_generics(&type_alias, &generics)
             }
             PathResolutionItem::TraitFunction(trait_id, Some(generics), _func_id) => {
                 let trait_ = self.interner.get_trait(trait_id);
@@ -666,9 +660,7 @@ impl<'context> Elaborator<'context> {
                         self.interner.add_function_reference(func_id, hir_ident.location);
                     }
                     DefinitionKind::Global(global_id) => {
-                        if let Some(global) = self.unresolved_globals.remove(&global_id) {
-                            self.elaborate_global(global);
-                        }
+                        self.elaborate_global_if_unresolved(&global_id);
                         if let Some(current_item) = self.current_item {
                             self.interner.add_global_dependency(current_item, global_id);
                         }
@@ -880,5 +872,16 @@ impl<'context> Elaborator<'context> {
         self.interner.push_expr_type(id, typ.clone());
 
         (id, typ)
+    }
+}
+
+fn get_type_alias_generics(type_alias: &TypeAlias, generics: &[Type]) -> Vec<Type> {
+    let typ = type_alias.get_type(generics);
+    match typ {
+        Type::Struct(_, generics) => generics,
+        Type::Alias(type_alias, generics) => {
+            get_type_alias_generics(&type_alias.borrow(), &generics)
+        }
+        _ => panic!("Expected type alias to point to struct or alias"),
     }
 }

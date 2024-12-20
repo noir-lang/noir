@@ -12,7 +12,7 @@ use iter_extended::vecmap;
 use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic};
 use thiserror::Error;
 
-use crate::ssa::ir::{dfg::CallStack, types::NumericType};
+use crate::ssa::ir::{call_stack::CallStack, types::NumericType};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Eq, Clone, Error)]
@@ -201,7 +201,7 @@ impl RuntimeError {
             RuntimeError::UnknownLoopBound { .. } => {
                 let primary_message = self.to_string();
                 let location =
-                    self.call_stack().back().expect("Expected RuntimeError to have a location");
+                    self.call_stack().last().expect("Expected RuntimeError to have a location");
 
                 Diagnostic::simple_error(
                     primary_message,
@@ -212,7 +212,7 @@ impl RuntimeError {
             _ => {
                 let message = self.to_string();
                 let location =
-                    self.call_stack().back().unwrap_or_else(|| panic!("Expected RuntimeError to have a location. Error message: {message}"));
+                    self.call_stack().last().unwrap_or_else(|| panic!("Expected RuntimeError to have a location. Error message: {message}"));
 
                 Diagnostic::simple_error(message, String::new(), location.span)
             }

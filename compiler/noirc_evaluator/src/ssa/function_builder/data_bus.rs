@@ -94,6 +94,20 @@ impl DataBus {
         DataBus { call_data, return_data: self.return_data.map(&mut f) }
     }
 
+    /// Updates the databus values in place with the provided function
+    pub(crate) fn map_values_mut(&mut self, mut f: impl FnMut(ValueId) -> ValueId) {
+        for cd in self.call_data.iter_mut() {
+            cd.array_id = f(cd.array_id);
+
+            // Can't mutate a hashmap's keys so we need to collect into a new one.
+            cd.index_map = cd.index_map.iter().map(|(k, v)| (f(*k), *v)).collect();
+        }
+
+        if let Some(data) = self.return_data.as_mut() {
+            *data = f(*data);
+        }
+    }
+
     pub(crate) fn call_data_array(&self) -> Vec<(u32, ValueId)> {
         self.call_data.iter().map(|cd| (cd.call_data_id, cd.array_id)).collect()
     }
@@ -238,7 +252,7 @@ impl FunctionBuilder {
         for size in ssa_param_sizes {
             let visibilities: Vec<DatabusVisibility> =
                 flattened_params_databus_visibility.drain(0..size).collect();
-            let visibility = visibilities.get(0).copied().unwrap_or(DatabusVisibility::None);
+            let visibility = visibilities.first().copied().unwrap_or(DatabusVisibility::None);
             assert!(
                 visibilities.iter().all(|v| *v == visibility),
                 "inconsistent databus visibility for ssa param"

@@ -23,7 +23,7 @@ use std::{borrow::Cow, hash::Hash};
 use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
 use crate::errors::{InternalBug, InternalError, RuntimeError, SsaReport};
 use crate::ssa::ir::{
-    dfg::CallStack, instruction::Endian, types::NumericType, types::Type as SsaType,
+    call_stack::CallStack, instruction::Endian, types::NumericType, types::Type as SsaType,
 };
 
 use super::big_int::BigIntContext;
@@ -954,6 +954,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         offset: AcirVar,
         bits: u32,
     ) -> Result<(), RuntimeError> {
+        #[allow(unused_qualifications)]
         const fn num_bits<T>() -> usize {
             std::mem::size_of::<T>() * 8
         }

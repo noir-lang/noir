@@ -78,7 +78,7 @@ impl Context {
                     let typ = function.dfg.type_of_value(then_value);
                     assert!(!matches!(typ, Type::Numeric(_)));
 
-                    let call_stack = function.dfg.get_call_stack(instruction);
+                    let call_stack = function.dfg.get_instruction_call_stack_id(instruction);
                     let mut value_merger = ValueMerger::new(
                         &mut function.dfg,
                         block,
@@ -235,8 +235,6 @@ fn slice_capacity_change(
         | Intrinsic::StrAsBytes
         | Intrinsic::BlackBox(_)
         | Intrinsic::Hint(Hint::BlackBox)
-        | Intrinsic::FromField
-        | Intrinsic::AsField
         | Intrinsic::AsWitness
         | Intrinsic::IsUnconstrained
         | Intrinsic::DerivePedersenGenerators

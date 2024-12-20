@@ -18,7 +18,7 @@ use super::{
 };
 use crate::{
     errors::InternalError,
-    ssa::ir::{dfg::CallStack, function::Function},
+    ssa::ir::{call_stack::CallStack, function::Function},
 };
 
 /// Converting an SSA function into Brillig bytecode.

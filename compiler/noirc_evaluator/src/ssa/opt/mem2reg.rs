@@ -32,9 +32,11 @@
 //!   - We also track the last instance of a load instruction to each address in a block.
 //!     If we see that the last load instruction was from the same address as the current load instruction,
 //!     we move to replace the result of the current load with the result of the previous load.
+//!     
 //!     This removal requires a couple conditions:
-//!     - No store occurs to that address before the next load,
-//!     - The address is not used as an argument to a call
+//!       - No store occurs to that address before the next load,
+//!       - The address is not used as an argument to a call
+//!
 //!     This optimization helps us remove repeated loads for which there are not known values.
 //! - On `Instruction::Store { address, value }`:
 //!   - If the address of the store is known:
@@ -200,7 +202,7 @@ impl<'f> PerFunctionContext<'f> {
                     .get(store_address)
                     .map_or(false, |expression| matches!(expression, Expression::Dereference(_)));
 
-                if self.last_loads.get(store_address).is_none()
+                if !self.last_loads.contains_key(store_address)
                     && !store_alias_used
                     && !is_dereference
                 {
@@ -599,8 +601,9 @@ impl<'f> PerFunctionContext<'f> {
     }
 
     fn update_data_bus(&mut self) {
-        let databus = self.inserter.function.dfg.data_bus.clone();
-        self.inserter.function.dfg.data_bus = databus.map_values(|t| self.inserter.resolve(t));
+        let mut databus = self.inserter.function.dfg.data_bus.clone();
+        databus.map_values_mut(|t| self.inserter.resolve(t));
+        self.inserter.function.dfg.data_bus = databus;
     }
 
     fn handle_terminator(&mut self, block: BasicBlockId, references: &mut Block) {

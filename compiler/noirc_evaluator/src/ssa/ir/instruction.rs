@@ -14,7 +14,8 @@ use crate::ssa::{ir::function::RuntimeType, opt::flatten_cfg::value_merger::Valu
 
 use super::{
     basic_block::BasicBlockId,
-    dfg::{CallStack, DataFlowGraph},
+    call_stack::CallStackId,
+    dfg::DataFlowGraph,
     function::Function,
     map::Id,
     types::{NumericType, Type},
@@ -42,9 +43,9 @@ pub(crate) type InstructionId = Id<Instruction>;
 /// These are similar to built-ins in other languages.
 /// These can be classified under two categories:
 /// - Opcodes which the IR knows the target machine has
-/// special support for. (LowLevel)
+///   special support for. (LowLevel)
 /// - Opcodes which have no function definition in the
-/// source code and must be processed by the IR.
+///   source code and must be processed by the IR.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub(crate) enum Intrinsic {
     ArrayLen,
@@ -64,8 +65,6 @@ pub(crate) enum Intrinsic {
     ToRadix(Endian),
     BlackBox(BlackBoxFunc),
     Hint(Hint),
-    FromField,
-    AsField,
     AsWitness,
     IsUnconstrained,
     DerivePedersenGenerators,
@@ -96,8 +95,6 @@ impl std::fmt::Display for Intrinsic {
             Intrinsic::ToRadix(Endian::Little) => write!(f, "to_le_radix"),
             Intrinsic::BlackBox(function) => write!(f, "{function}"),
             Intrinsic::Hint(Hint::BlackBox) => write!(f, "black_box"),
-            Intrinsic::FromField => write!(f, "from_field"),
-            Intrinsic::AsField => write!(f, "as_field"),
             Intrinsic::AsWitness => write!(f, "as_witness"),
             Intrinsic::IsUnconstrained => write!(f, "is_unconstrained"),
             Intrinsic::DerivePedersenGenerators => write!(f, "derive_pedersen_generators"),
@@ -139,8 +136,6 @@ impl Intrinsic {
             | Intrinsic::SlicePushFront
             | Intrinsic::SliceInsert
             | Intrinsic::StrAsBytes
-            | Intrinsic::FromField
-            | Intrinsic::AsField
             | Intrinsic::IsUnconstrained
             | Intrinsic::DerivePedersenGenerators
             | Intrinsic::FieldLessThan => false,
@@ -212,8 +207,6 @@ impl Intrinsic {
             "to_be_radix" => Some(Intrinsic::ToRadix(Endian::Big)),
             "to_le_bits" => Some(Intrinsic::ToBits(Endian::Little)),
             "to_be_bits" => Some(Intrinsic::ToBits(Endian::Big)),
-            "from_field" => Some(Intrinsic::FromField),
-            "as_field" => Some(Intrinsic::AsField),
             "as_witness" => Some(Intrinsic::AsWitness),
             "is_unconstrained" => Some(Intrinsic::IsUnconstrained),
             "derive_pedersen_generators" => Some(Intrinsic::DerivePedersenGenerators),
@@ -555,10 +548,25 @@ impl Instruction {
     /// If true the instruction will depend on `enable_side_effects` context during acir-gen.
     pub(crate) fn requires_acir_gen_predicate(&self, dfg: &DataFlowGraph) -> bool {
         match self {
-            Instruction::Binary(binary)
-                if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) =>
-            {
-                true
+            Instruction::Binary(binary) => {
+                match binary.operator {
+                    BinaryOp::Add
+                    | BinaryOp::Sub
+                    | BinaryOp::Mul
+                    | BinaryOp::Div
+                    | BinaryOp::Mod => {
+                        // Some binary math can overflow or underflow, but this is only the case
+                        // for unsigned types (here we assume the type of binary.lhs is the same)
+                        dfg.type_of_value(binary.rhs).is_unsigned()
+                    }
+                    BinaryOp::Eq
+                    | BinaryOp::Lt
+                    | BinaryOp::And
+                    | BinaryOp::Or
+                    | BinaryOp::Xor
+                    | BinaryOp::Shl
+                    | BinaryOp::Shr => false,
+                }
             }
 
             Instruction::ArrayGet { array, index } => {
@@ -576,7 +584,6 @@ impl Instruction {
                 _ => false,
             },
             Instruction::Cast(_, _)
-            | Instruction::Binary(_)
             | Instruction::Not(_)
             | Instruction::Truncate { .. }
             | Instruction::Constrain(_, _, _)
@@ -669,6 +676,70 @@ impl Instruction {
         }
     }
 
+    /// Maps each ValueId inside this instruction to a new ValueId in place.
+    pub(crate) fn map_values_mut(&mut self, mut f: impl FnMut(ValueId) -> ValueId) {
+        match self {
+            Instruction::Binary(binary) => {
+                binary.lhs = f(binary.lhs);
+                binary.rhs = f(binary.rhs);
+            }
+            Instruction::Cast(value, _) => *value = f(*value),
+            Instruction::Not(value) => *value = f(*value),
+            Instruction::Truncate { value, bit_size: _, max_bit_size: _ } => {
+                *value = f(*value);
+            }
+            Instruction::Constrain(lhs, rhs, assert_message) => {
+                *lhs = f(*lhs);
+                *rhs = f(*rhs);
+                if let Some(ConstrainError::Dynamic(_, _, payload_values)) = assert_message {
+                    for value in payload_values {
+                        *value = f(*value);
+                    }
+                }
+            }
+            Instruction::Call { func, arguments } => {
+                *func = f(*func);
+                for argument in arguments {
+                    *argument = f(*argument);
+                }
+            }
+            Instruction::Allocate => (),
+            Instruction::Load { address } => *address = f(*address),
+            Instruction::Store { address, value } => {
+                *address = f(*address);
+                *value = f(*value);
+            }
+            Instruction::EnableSideEffectsIf { condition } => {
+                *condition = f(*condition);
+            }
+            Instruction::ArrayGet { array, index } => {
+                *array = f(*array);
+                *index = f(*index);
+            }
+            Instruction::ArraySet { array, index, value, mutable: _ } => {
+                *array = f(*array);
+                *index = f(*index);
+                *value = f(*value);
+            }
+            Instruction::IncrementRc { value } => *value = f(*value),
+            Instruction::DecrementRc { value } => *value = f(*value),
+            Instruction::RangeCheck { value, max_bit_size: _, assert_message: _ } => {
+                *value = f(*value);
+            }
+            Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
+                *then_condition = f(*then_condition);
+                *then_value = f(*then_value);
+                *else_condition = f(*else_condition);
+                *else_value = f(*else_value);
+            }
+            Instruction::MakeArray { elements, typ: _ } => {
+                for element in elements.iter_mut() {
+                    *element = f(*element);
+                }
+            }
+        }
+    }
+
     /// Applies a function to each input value this instruction holds.
     pub(crate) fn for_each_value<T>(&self, mut f: impl FnMut(ValueId) -> T) {
         match self {
@@ -744,7 +815,7 @@ impl Instruction {
         dfg: &mut DataFlowGraph,
         block: BasicBlockId,
         ctrl_typevars: Option<Vec<Type>>,
-        call_stack: &CallStack,
+        call_stack: CallStackId,
     ) -> SimplifyResult {
         use SimplifyResult::*;
         match self {
@@ -801,7 +872,7 @@ impl Instruction {
                             instruction,
                             block,
                             Option::None,
-                            call_stack.clone(),
+                            call_stack,
                         );
                         return SimplifiedTo(new_array.first());
                     }
@@ -887,9 +958,11 @@ impl Instruction {
                 }
             }
             Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
+                let then_condition = dfg.resolve(*then_condition);
+                let else_condition = dfg.resolve(*else_condition);
                 let typ = dfg.type_of_value(*then_value);
 
-                if let Some(constant) = dfg.get_numeric_constant(*then_condition) {
+                if let Some(constant) = dfg.get_numeric_constant(then_condition) {
                     if constant.is_one() {
                         return SimplifiedTo(*then_value);
                     } else if constant.is_zero() {
@@ -903,10 +976,51 @@ impl Instruction {
                     return SimplifiedTo(then_value);
                 }
 
-                if matches!(&typ, Type::Numeric(_)) {
-                    let then_condition = *then_condition;
-                    let else_condition = *else_condition;
+                if let Value::Instruction { instruction, .. } = &dfg[then_value] {
+                    if let Instruction::IfElse {
+                        then_condition: inner_then_condition,
+                        then_value: inner_then_value,
+                        else_condition: inner_else_condition,
+                        ..
+                    } = dfg[*instruction]
+                    {
+                        if then_condition == inner_then_condition {
+                            let instruction = Instruction::IfElse {
+                                then_condition,
+                                then_value: inner_then_value,
+                                else_condition: inner_else_condition,
+                                else_value,
+                            };
+                            return SimplifiedToInstruction(instruction);
+                        }
+                        // TODO: We could check to see if `then_condition == inner_else_condition`
+                        // but we run into issues with duplicate NOT instructions having distinct ValueIds.
+                    }
+                };
 
+                if let Value::Instruction { instruction, .. } = &dfg[else_value] {
+                    if let Instruction::IfElse {
+                        then_condition: inner_then_condition,
+                        else_condition: inner_else_condition,
+                        else_value: inner_else_value,
+                        ..
+                    } = dfg[*instruction]
+                    {
+                        if then_condition == inner_then_condition {
+                            let instruction = Instruction::IfElse {
+                                then_condition,
+                                then_value,
+                                else_condition: inner_else_condition,
+                                else_value: inner_else_value,
+                            };
+                            return SimplifiedToInstruction(instruction);
+                        }
+                        // TODO: We could check to see if `then_condition == inner_else_condition`
+                        // but we run into issues with duplicate NOT instructions having distinct ValueIds.
+                    }
+                };
+
+                if matches!(&typ, Type::Numeric(_)) {
                     let result = ValueMerger::merge_numeric_values(
                         dfg,
                         block,
@@ -1146,7 +1260,7 @@ pub(crate) enum TerminatorInstruction {
         condition: ValueId,
         then_destination: BasicBlockId,
         else_destination: BasicBlockId,
-        call_stack: CallStack,
+        call_stack: CallStackId,
     },
 
     /// Unconditional Jump
@@ -1154,7 +1268,7 @@ pub(crate) enum TerminatorInstruction {
     /// Jumps to specified `destination` with `arguments`.
     /// The CallStack here is expected to be used to issue an error when the start range of
     /// a for loop cannot be deduced at compile-time.
-    Jmp { destination: BasicBlockId, arguments: Vec<ValueId>, call_stack: CallStack },
+    Jmp { destination: BasicBlockId, arguments: Vec<ValueId>, call_stack: CallStackId },
 
     /// Return from the current function with the given return values.
     ///
@@ -1163,7 +1277,7 @@ pub(crate) enum TerminatorInstruction {
     /// unconditionally jump to a single exit block with the return values
     /// as the block arguments. Then the exit block can terminate in a return
     /// instruction returning these values.
-    Return { return_values: Vec<ValueId>, call_stack: CallStack },
+    Return { return_values: Vec<ValueId>, call_stack: CallStackId },
 }
 
 impl TerminatorInstruction {
@@ -1178,22 +1292,22 @@ impl TerminatorInstruction {
                 condition: f(*condition),
                 then_destination: *then_destination,
                 else_destination: *else_destination,
-                call_stack: call_stack.clone(),
+                call_stack: *call_stack,
             },
             Jmp { destination, arguments, call_stack } => Jmp {
                 destination: *destination,
                 arguments: vecmap(arguments, |value| f(*value)),
-                call_stack: call_stack.clone(),
+                call_stack: *call_stack,
             },
             Return { return_values, call_stack } => Return {
                 return_values: vecmap(return_values, |value| f(*value)),
-                call_stack: call_stack.clone(),
+                call_stack: *call_stack,
             },
         }
     }
 
     /// Mutate each ValueId to a new ValueId using the given mapping function
-    pub(crate) fn mutate_values(&mut self, mut f: impl FnMut(ValueId) -> ValueId) {
+    pub(crate) fn map_values_mut(&mut self, mut f: impl FnMut(ValueId) -> ValueId) {
         use TerminatorInstruction::*;
         match self {
             JmpIf { condition, .. } => {
@@ -1247,11 +1361,19 @@ impl TerminatorInstruction {
         }
     }
 
-    pub(crate) fn call_stack(&self) -> CallStack {
+    pub(crate) fn call_stack(&self) -> CallStackId {
         match self {
             TerminatorInstruction::JmpIf { call_stack, .. }
             | TerminatorInstruction::Jmp { call_stack, .. }
-            | TerminatorInstruction::Return { call_stack, .. } => call_stack.clone(),
+            | TerminatorInstruction::Return { call_stack, .. } => *call_stack,
+        }
+    }
+
+    pub(crate) fn set_call_stack(&mut self, new_call_stack: CallStackId) {
+        match self {
+            TerminatorInstruction::JmpIf { call_stack, .. }
+            | TerminatorInstruction::Jmp { call_stack, .. }
+            | TerminatorInstruction::Return { call_stack, .. } => *call_stack = new_call_stack,
         }
     }
 }
