@@ -92,7 +92,7 @@ impl<'a> ValueMerger<'a> {
         dfg: &mut DataFlowGraph,
         block: BasicBlockId,
         then_condition: ValueId,
-        else_condition: ValueId,
+        _else_condition: ValueId,
         then_value: ValueId,
         else_value: ValueId,
     ) -> ValueId {
@@ -113,43 +113,31 @@ impl<'a> ValueMerger<'a> {
         let call_stack = if then_call_stack.is_root() { else_call_stack } else { then_call_stack };
 
         // We must cast the bool conditions to the actual numeric type used by each value.
-        let cast = Instruction::Cast(then_condition, then_type);
+        let cast = Instruction::Cast(then_condition, NumericType::NativeField);
         let then_condition =
             dfg.insert_instruction_and_results(cast, block, None, call_stack).first();
 
-        if then_type == NumericType::NativeField {
-            // We're merging two fields so we can do a more efficient value merger as by converting
-            // the expression `if c { a } else { b }` as `c * (a-b) + b`.
-            //
-            // This removes a multiplication compared to the standard `c*a + (!c)*b`.
+        let cast = Instruction::Cast(then_value, NumericType::NativeField);
+        let then_value_field =
+            dfg.insert_instruction_and_results(cast, block, None, call_stack).first();
 
-            let diff = Instruction::binary(BinaryOp::Sub, then_value, else_value);
-            let diff_value =
-                dfg.insert_instruction_and_results(diff, block, None, call_stack).first();
+        let cast: Instruction = Instruction::Cast(else_value, NumericType::NativeField);
+        let else_value_field =
+            dfg.insert_instruction_and_results(cast, block, None, call_stack).first();
 
-            let conditional_diff = Instruction::binary(BinaryOp::Mul, then_condition, diff_value);
-            let conditional_diff_value = dfg
-                .insert_instruction_and_results(conditional_diff, block, None, call_stack)
-                .first();
+        let diff = Instruction::binary(BinaryOp::Sub, then_value_field, else_value_field);
+        let diff_value = dfg.insert_instruction_and_results(diff, block, None, call_stack).first();
 
-            let merged_field =
-                Instruction::binary(BinaryOp::Add, else_value, conditional_diff_value);
-            dfg.insert_instruction_and_results(merged_field, block, None, call_stack)
-                .first()
-        } else {
-            let cast = Instruction::Cast(else_condition, else_type);
-            let else_condition =
-                dfg.insert_instruction_and_results(cast, block, None, call_stack).first();
+        let conditional_diff = Instruction::binary(BinaryOp::Mul, then_condition, diff_value);
+        let conditional_diff_value =
+            dfg.insert_instruction_and_results(conditional_diff, block, None, call_stack).first();
 
-            let mul = Instruction::binary(BinaryOp::Mul, then_condition, then_value);
-            let then_value = dfg.insert_instruction_and_results(mul, block, None, call_stack).first();
+        let merged_field = Instruction::binary(BinaryOp::Add, else_value, conditional_diff_value);
+        let merged_value_field =
+            dfg.insert_instruction_and_results(merged_field, block, None, call_stack).first();
 
-            let mul = Instruction::binary(BinaryOp::Mul, else_condition, else_value);
-            let else_value = dfg.insert_instruction_and_results(mul, block, None, call_stack).first();
-
-            let add = Instruction::binary(BinaryOp::Add, then_value, else_value);
-            dfg.insert_instruction_and_results(add, block, None, call_stack).first()
-        }
+        let cast = Instruction::Cast(merged_value_field, then_type);
+        dfg.insert_instruction_and_results(cast, block, None, call_stack).first()
     }
 
     /// Given an if expression that returns an array: `if c { array1 } else { array2 }`,
