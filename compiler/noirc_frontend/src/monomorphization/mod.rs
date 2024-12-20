@@ -146,8 +146,6 @@ pub fn monomorphize_debug(
             monomorphizer.queue.pop_front().unwrap();
         monomorphizer.locals.clear();
 
-        let i = &monomorphizer.interner;
-        println!("{} is_unconstrained: {}", i.function_name(&next_fn_id), is_unconstrained);
         monomorphizer.in_unconstrained_function = is_unconstrained;
 
         perform_instantiation_bindings(&bindings);
@@ -358,9 +356,6 @@ impl<'interner> Monomorphizer<'interner> {
         };
 
         let return_type = Self::convert_type(return_type, meta.location)?;
-
-        let n = self.interner.function_name(&f);
-        eprintln!("Setting {n} to {}", self.in_unconstrained_function);
         let unconstrained = self.in_unconstrained_function;
 
         let attributes = self.interner.function_attributes(&f);
@@ -2053,11 +2048,8 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     fn is_unconstrained(&self, func_id: node_interner::FuncId) -> bool {
-        let a = self.in_unconstrained_function;
-        let b = self.interner.function_modifiers(&func_id).is_unconstrained;
-        let n = self.interner.function_name(&func_id);
-        println!("is_unconstrained({n}): self {a} || function modifiers {b}");
-        a || b
+        self.in_unconstrained_function
+            || self.interner.function_modifiers(&func_id).is_unconstrained
     }
 }
 
