@@ -157,7 +157,6 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
     Ok(builder
         .run_pass(Ssa::defunctionalize, "Defunctionalization")
         .run_pass(Ssa::remove_paired_rc, "Removing Paired rc_inc & rc_decs")
-        .run_pass(Ssa::separate_runtime, "Runtime Separation")
         .run_pass(Ssa::resolve_is_unconstrained, "Resolving IsUnconstrained")
         .run_pass(|ssa| ssa.inline_functions(options.inliner_aggressiveness), "Inlining (1st)")
         // Run mem2reg with the CFG separated into blocks

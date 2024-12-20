@@ -25,11 +25,12 @@ use crate::{
     Kind, Type, TypeBinding, TypeBindings,
 };
 use acvm::{acir::AcirField, FieldElement};
+use fxhash::FxHashMap as HashMap;
 use iter_extended::{btree_map, try_vecmap, vecmap};
 use noirc_errors::Location;
 use noirc_printable_type::PrintableType;
 use std::{
-    collections::{BTreeMap, HashMap, VecDeque},
+    collections::{BTreeMap, VecDeque},
     unreachable,
 };
 
@@ -56,14 +57,12 @@ struct LambdaContext {
 /// This struct holds the FIFO queue of functions to monomorphize, which is added to
 /// whenever a new (function, type) combination is encountered.
 struct Monomorphizer<'interner> {
-    /// Functions are keyed by their unique ID and expected type so that we can monomorphize
-    /// a new version of the function for each type.
-    /// We also key by any turbofish generics that are specified.
-    /// This is necessary for a case where we may have a trait generic that can be instantiated
-    /// outside of a function parameter or return value.
+    /// Functions are keyed by their unique ID, whether they're unconstrained, their expected type,
+    /// and any generics they have so that we can monomorphize a new version of the function for each type.
     ///
-    /// Using nested HashMaps here lets us avoid cloning HirTypes when calling .get()
-    functions: HashMap<node_interner::FuncId, HashMap<(HirType, Vec<HirType>), FuncId>>,
+    /// Keying by any turbofish generics that are specified is necessary for a case where we may have a
+    /// trait generic that can be instantiated outside of a function parameter or return value.
+    functions: Functions,
 
     /// Unlike functions, locals are only keyed by their unique ID because they are never
     /// duplicated during monomorphization. Doing so would allow them to be used polymorphically
@@ -72,8 +71,15 @@ struct Monomorphizer<'interner> {
     locals: HashMap<node_interner::DefinitionId, LocalId>,
 
     /// Queue of functions to monomorphize next each item in the queue is a tuple of:
-    /// (old_id, new_monomorphized_id, any type bindings to apply, the trait method if old_id is from a trait impl)
-    queue: VecDeque<(node_interner::FuncId, FuncId, TypeBindings, Option<TraitMethodId>, Location)>,
+    /// (old_id, new_monomorphized_id, any type bindings to apply, the trait method if old_id is from a trait impl, is_unconstrained, location)
+    queue: VecDeque<(
+        node_interner::FuncId,
+        FuncId,
+        TypeBindings,
+        Option<TraitMethodId>,
+        bool,
+        Location,
+    )>,
 
     /// When a function finishes being monomorphized, the monomorphized ast::Function is
     /// stored here along with its FuncId.
@@ -92,7 +98,15 @@ struct Monomorphizer<'interner> {
     return_location: Option<Location>,
 
     debug_type_tracker: DebugTypeTracker,
+
+    in_unconstrained_function: bool,
 }
+
+/// Using nested HashMaps here lets us avoid cloning HirTypes when calling .get()
+type Functions = HashMap<
+    (node_interner::FuncId, /*is_unconstrained:*/ bool),
+    HashMap<HirType, HashMap<Vec<HirType>, FuncId>>,
+>;
 
 type HirType = crate::Type;
 
@@ -125,9 +139,11 @@ pub fn monomorphize_debug(
     let function_sig = monomorphizer.compile_main(main)?;
 
     while !monomorphizer.queue.is_empty() {
-        let (next_fn_id, new_id, bindings, trait_method, location) =
+        let (next_fn_id, new_id, bindings, trait_method, is_unconstrained, location) =
             monomorphizer.queue.pop_front().unwrap();
         monomorphizer.locals.clear();
+
+        monomorphizer.in_unconstrained_function = is_unconstrained;
 
         perform_instantiation_bindings(&bindings);
         let interner = &monomorphizer.interner;
@@ -172,8 +188,8 @@ pub fn monomorphize_debug(
 impl<'interner> Monomorphizer<'interner> {
     fn new(interner: &'interner mut NodeInterner, debug_type_tracker: DebugTypeTracker) -> Self {
         Monomorphizer {
-            functions: HashMap::new(),
-            locals: HashMap::new(),
+            functions: HashMap::default(),
+            locals: HashMap::default(),
             queue: VecDeque::new(),
             finished_functions: BTreeMap::new(),
             next_local_id: 0,
@@ -183,6 +199,7 @@ impl<'interner> Monomorphizer<'interner> {
             is_range_loop: false,
             return_location: None,
             debug_type_tracker,
+            in_unconstrained_function: false,
         }
     }
 
@@ -207,14 +224,18 @@ impl<'interner> Monomorphizer<'interner> {
         id: node_interner::FuncId,
         expr_id: node_interner::ExprId,
         typ: &HirType,
-        turbofish_generics: Vec<HirType>,
+        turbofish_generics: &[HirType],
         trait_method: Option<TraitMethodId>,
     ) -> Definition {
         let typ = typ.follow_bindings();
+        let turbofish_generics = vecmap(turbofish_generics, |typ| typ.follow_bindings());
+        let is_unconstrained = self.is_unconstrained(id);
+
         match self
             .functions
-            .get(&id)
-            .and_then(|inner_map| inner_map.get(&(typ.clone(), turbofish_generics.clone())))
+            .get(&(id, is_unconstrained))
+            .and_then(|inner_map| inner_map.get(&typ))
+            .and_then(|inner_map| inner_map.get(&turbofish_generics))
         {
             Some(id) => Definition::Function(*id),
             None => {
@@ -257,14 +278,21 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     /// Prerequisite: typ = typ.follow_bindings()
+    ///          and: turbofish_generics = vecmap(turbofish_generics, Type::follow_bindings)
     fn define_function(
         &mut self,
         id: node_interner::FuncId,
         typ: HirType,
         turbofish_generics: Vec<HirType>,
+        is_unconstrained: bool,
         new_id: FuncId,
     ) {
-        self.functions.entry(id).or_default().insert((typ, turbofish_generics), new_id);
+        self.functions
+            .entry((id, is_unconstrained))
+            .or_default()
+            .entry(typ)
+            .or_default()
+            .insert(turbofish_generics, new_id);
     }
 
     fn compile_main(
@@ -874,7 +902,7 @@ impl<'interner> Monomorphizer<'interner> {
                     *func_id,
                     expr_id,
                     &typ,
-                    generics.unwrap_or_default(),
+                    &generics.unwrap_or_default(),
                     None,
                 );
                 let typ = Self::convert_type(&typ, ident.location)?;
@@ -1281,7 +1309,7 @@ impl<'interner> Monomorphizer<'interner> {
             .map_err(MonomorphizationError::InterpreterError)?;
 
         let func_id =
-            match self.lookup_function(func_id, expr_id, &function_type, vec![], Some(method)) {
+            match self.lookup_function(func_id, expr_id, &function_type, &[], Some(method)) {
                 Definition::Function(func_id) => func_id,
                 _ => unreachable!(),
             };
@@ -1546,12 +1574,19 @@ impl<'interner> Monomorphizer<'interner> {
         trait_method: Option<TraitMethodId>,
     ) -> FuncId {
         let new_id = self.next_function_id();
-        self.define_function(id, function_type.clone(), turbofish_generics, new_id);
+        let is_unconstrained = self.is_unconstrained(id);
+        self.define_function(
+            id,
+            function_type.clone(),
+            turbofish_generics,
+            is_unconstrained,
+            new_id,
+        );
 
         let location = self.interner.expr_location(&expr_id);
         let bindings = self.interner.get_instantiation_bindings(expr_id);
         let bindings = self.follow_bindings(bindings);
-        self.queue.push_back((id, new_id, bindings, trait_method, location));
+        self.queue.push_back((id, new_id, bindings, trait_method, is_unconstrained, location));
         new_id
     }
 
@@ -2006,6 +2041,11 @@ impl<'interner> Monomorphizer<'interner> {
         let return_type = Self::convert_type(&ret, location)?;
 
         Ok(ast::Expression::Call(ast::Call { func, arguments, return_type, location }))
+    }
+
+    fn is_unconstrained(&self, func_id: node_interner::FuncId) -> bool {
+        self.in_unconstrained_function
+            || self.interner.function_modifiers(&func_id).is_unconstrained
     }
 }
 

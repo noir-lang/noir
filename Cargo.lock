@@ -3200,6 +3200,7 @@ dependencies = [
  "bn254_blackbox_solver",
  "cfg-if 1.0.0",
  "fm",
+ "fxhash",
  "im",
  "iter-extended",
  "noirc_arena",
