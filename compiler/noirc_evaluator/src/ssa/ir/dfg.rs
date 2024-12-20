@@ -428,7 +428,7 @@ impl DataFlowGraph {
     /// Doing this avoids shifting over each instruction after this one in its block's instructions vector.
     pub(crate) fn remove_instruction(&mut self, instruction: InstructionId) {
         self.instructions[instruction] = Instruction::Noop;
-        self.results.remove(&instruction);
+        self.results.insert(instruction, smallvec::SmallVec::new());
     }
 
     /// Add a parameter to the given block
