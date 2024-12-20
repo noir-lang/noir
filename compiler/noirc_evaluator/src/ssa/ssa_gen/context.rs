@@ -121,7 +121,7 @@ impl<'a> FunctionContext<'a> {
     /// avoid calling new_function until the previous function is completely finished with ssa-gen.
     pub(super) fn new_function(&mut self, id: IrFunctionId, func: &ast::Function) {
         self.definitions.clear();
-        if func.unconstrained || func.inline_type != InlineType::Inline {
+        if func.unconstrained {
             self.builder.new_brillig_function(func.name.clone(), id, func.inline_type);
         } else {
             self.builder.new_function(func.name.clone(), id, func.inline_type);
