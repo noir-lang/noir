@@ -367,6 +367,7 @@ pub struct TraitImplMethod {
     // under TypeMethodKey::FieldOrInt
     pub typ: Option<Type>,
     pub method: FuncId,
+    pub trait_id: TraitId,
 }
 
 /// All the information from a function that is filled out during definition collection rather than
@@ -1391,15 +1392,18 @@ impl NodeInterner {
         self_type: &Type,
         method_name: String,
         method_id: FuncId,
-        is_trait_method: bool,
+        trait_id: Option<TraitId>,
     ) -> Option<FuncId> {
         match self_type {
             Type::Struct(struct_type, _generics) => {
                 let id = struct_type.borrow().id;
 
-                if let Some(existing) = self.lookup_method(self_type, id, &method_name, true, true)
-                {
-                    return Some(existing);
+                if trait_id.is_none() {
+                    if let Some(existing) =
+                        self.lookup_method(self_type, id, &method_name, true, true)
+                    {
+                        return Some(existing);
+                    }
                 }
 
                 self.struct_methods
@@ -1407,12 +1411,12 @@ impl NodeInterner {
                     .or_default()
                     .entry(method_name)
                     .or_default()
-                    .add_method(method_id, None, is_trait_method);
+                    .add_method(method_id, None, trait_id);
                 None
             }
             Type::Error => None,
             Type::MutableReference(element) => {
-                self.add_method(element, method_name, method_id, is_trait_method)
+                self.add_method(element, method_name, method_id, trait_id)
             }
 
             other => {
@@ -1428,7 +1432,7 @@ impl NodeInterner {
                     .or_default()
                     .entry(method_name)
                     .or_default()
-                    .add_method(method_id, typ, is_trait_method);
+                    .add_method(method_id, typ, trait_id);
                 None
             }
         }
@@ -1785,7 +1789,7 @@ impl NodeInterner {
 
         for method in &trait_impl.borrow().methods {
             let method_name = self.function_name(method).to_owned();
-            self.add_method(&object_type, method_name, *method, true);
+            self.add_method(&object_type, method_name, *method, Some(trait_id));
         }
 
         // The object type is generalized so that a generic impl will apply
@@ -2340,9 +2344,9 @@ impl Methods {
         }
     }
 
-    fn add_method(&mut self, method: FuncId, typ: Option<Type>, is_trait_method: bool) {
-        if is_trait_method {
-            let trait_impl_method = TraitImplMethod { typ, method };
+    fn add_method(&mut self, method: FuncId, typ: Option<Type>, trait_id: Option<TraitId>) {
+        if let Some(trait_id) = trait_id {
+            let trait_impl_method = TraitImplMethod { typ, method, trait_id };
             self.trait_impl_methods.push(trait_impl_method);
         } else {
             self.direct.push(method);
