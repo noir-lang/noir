@@ -3918,3 +3918,22 @@ fn warns_on_nested_unsafe() {
         CompilationError::TypeError(TypeCheckError::NestedUnsafeBlock { .. })
     ));
 }
+
+#[test]
+fn mutable_self_call() {
+    let src = r#"
+    fn main() {
+        let mut bar = Bar {};
+        let _ = bar.bar();
+    }
+
+    struct Bar {}
+
+    impl Bar {
+        fn bar(&mut self) {
+            let _ = self;
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
