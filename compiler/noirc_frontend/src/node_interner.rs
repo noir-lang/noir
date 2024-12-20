@@ -1371,34 +1371,22 @@ impl NodeInterner {
         trait_id: Option<TraitId>,
     ) -> Option<FuncId> {
         match self_type {
-            Type::Struct(struct_type, _generics) => {
-                let id = struct_type.borrow().id;
+            Type::Error => None,
+            Type::MutableReference(element) => {
+                self.add_method(element, method_name, method_id, trait_id)
+            }
+            _ => {
+                let key = get_type_method_key(self_type).unwrap_or_else(|| {
+                    unreachable!("Cannot add a method to the unsupported type '{}'", self_type)
+                });
 
-                if trait_id.is_none() {
-                    if let Some(existing) =
-                        self.lookup_direct_method(self_type, id, &method_name, true)
+                if trait_id.is_none() && matches!(self_type, Type::Struct(..)) {
+                    if let Some(existing) = self.lookup_direct_method(self_type, &method_name, true)
                     {
                         return Some(existing);
                     }
                 }
 
-                self.methods
-                    .entry(TypeMethodKey::Struct(id))
-                    .or_default()
-                    .entry(method_name)
-                    .or_default()
-                    .add_method(method_id, None, trait_id);
-                None
-            }
-            Type::Error => None,
-            Type::MutableReference(element) => {
-                self.add_method(element, method_name, method_id, trait_id)
-            }
-
-            other => {
-                let key = get_type_method_key(self_type).unwrap_or_else(|| {
-                    unreachable!("Cannot add a method to the unsupported type '{}'", other)
-                });
                 // Only remember the actual type if it's FieldOrInt,
                 // so later we can disambiguate on calls like `u32::call`.
                 let typ =
@@ -1762,12 +1750,13 @@ impl NodeInterner {
     pub fn lookup_direct_method(
         &self,
         typ: &Type,
-        id: StructId,
         method_name: &str,
         has_self_arg: bool,
     ) -> Option<FuncId> {
+        let key = get_type_method_key(typ)?;
+
         self.methods
-            .get(&TypeMethodKey::Struct(id))
+            .get(&key)
             .and_then(|h| h.get(method_name))
             .and_then(|methods| methods.find_direct_method(typ, has_self_arg, self))
     }
@@ -1776,15 +1765,19 @@ impl NodeInterner {
     pub fn lookup_trait_methods(
         &self,
         typ: &Type,
-        id: StructId,
         method_name: &str,
         has_self_arg: bool,
     ) -> Vec<(FuncId, TraitId)> {
-        self.methods
-            .get(&TypeMethodKey::Struct(id))
-            .and_then(|h| h.get(method_name))
-            .map(|methods| methods.find_trait_methods(typ, has_self_arg, self))
-            .unwrap_or_default()
+        let key = get_type_method_key(typ);
+        if let Some(key) = key {
+            self.methods
+                .get(&key)
+                .and_then(|h| h.get(method_name))
+                .map(|methods| methods.find_trait_methods(typ, has_self_arg, self))
+                .unwrap_or_default()
+        } else {
+            Vec::new()
+        }
     }
 
     /// Select the 1 matching method with an object type matching `typ`
