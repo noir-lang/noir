@@ -14,13 +14,14 @@ pub(super) fn and<F: AcirField>(
     lhs: &FunctionInput<F>,
     rhs: &FunctionInput<F>,
     output: &Witness,
+    pedantic_solving: bool,
 ) -> Result<(), OpcodeResolutionError<F>> {
     assert_eq!(
         lhs.num_bits(),
         rhs.num_bits(),
         "number of bits specified for each input must be the same"
     );
-    solve_logic_opcode(initial_witness, lhs, rhs, *output, |left, right| {
+    solve_logic_opcode(initial_witness, lhs, rhs, *output, pedantic_solving, |left, right| {
         bit_and(left, right, lhs.num_bits())
     })
 }
@@ -32,13 +33,14 @@ pub(super) fn xor<F: AcirField>(
     lhs: &FunctionInput<F>,
     rhs: &FunctionInput<F>,
     output: &Witness,
+    pedantic_solving: bool,
 ) -> Result<(), OpcodeResolutionError<F>> {
     assert_eq!(
         lhs.num_bits(),
         rhs.num_bits(),
         "number of bits specified for each input must be the same"
     );
-    solve_logic_opcode(initial_witness, lhs, rhs, *output, |left, right| {
+    solve_logic_opcode(initial_witness, lhs, rhs, *output, pedantic_solving, |left, right| {
         bit_xor(left, right, lhs.num_bits())
     })
 }
@@ -49,11 +51,13 @@ fn solve_logic_opcode<F: AcirField>(
     a: &FunctionInput<F>,
     b: &FunctionInput<F>,
     result: Witness,
+    pedantic_solving: bool,
     logic_op: impl Fn(F, F) -> F,
 ) -> Result<(), OpcodeResolutionError<F>> {
-    // TODO(https://github.com/noir-lang/noir/issues/5985): re-enable these once we figure out how to combine these with existing
+    // TODO(https://github.com/noir-lang/noir/issues/5985): re-enable these by
+    // default once we figure out how to combine these with existing
     // noirc_frontend/noirc_evaluator overflow error messages
-    let skip_bitsize_checks = true;
+    let skip_bitsize_checks = !pedantic_solving;
     let w_l_value = input_to_value(initial_witness, *a, skip_bitsize_checks)?;
     let w_r_value = input_to_value(initial_witness, *b, skip_bitsize_checks)?;
     let assignment = logic_op(w_l_value, w_r_value);

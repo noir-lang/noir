@@ -121,10 +121,12 @@ fn test_sha256() {
 #[test]
 fn test_embedded_curve_ops() {
     let (sum, mul) = comptime {
-        let g1 = EmbeddedCurvePoint { x: 1, y: 17631683881184975370165255887551781615748388533673675138860, is_infinite: false };
         let s1 = EmbeddedCurveScalar { lo: 1, hi: 0 };
-        let sum = g1 + g1;
-        let mul = multi_scalar_mul([g1, g1], [s1, s1]);
+        let s2 = EmbeddedCurveScalar { lo: 2, hi: 0 };
+        let g1 = EmbeddedCurvePoint { x: 1, y: 17631683881184975370165255887551781615748388533673675138860, is_infinite: false };
+        let g2 = multi_scalar_mul([g1], [s2]);
+        let sum = g1 + g2;
+        let mul = multi_scalar_mul([g1, g2], [s1, s1]);
         (sum, mul)
     };
     assert_eq(sum, mul);
