@@ -439,7 +439,7 @@ jobs:
 
       - name: Parse compilation report
         id: compilation_report
-        uses: noir-lang/noir-bench-report@52a725064f39388338ba3cbac0f0696430493e8a
+        uses: noir-lang/noir-bench-report@e0a9b8e6bad698c2b1d55819fef45324a9a2f12c
         with:
           report: compilation_report.json
           header: |
@@ -575,7 +575,7 @@ jobs:
 
       - name: Parse compilation memory report
         id: compilation_mem_report
-        uses: noir-lang/noir-bench-report@52a725064f39388338ba3cbac0f0696430493e8a
+        uses: noir-lang/noir-bench-report@e0a9b8e6bad698c2b1d55819fef45324a9a2f12c
         with:
           report: memory_report.json
           header: |
@@ -621,7 +621,7 @@ jobs:
 
       - name: Parse execution memory report
         id: execution_mem_report
-        uses: noir-lang/noir-bench-report@52a725064f39388338ba3cbac0f0696430493e8a
+        uses: noir-lang/noir-bench-report@e0a9b8e6bad698c2b1d55819fef45324a9a2f12c
         with:
           report: execution_memory_report.json
           header: |
@@ -665,7 +665,7 @@ jobs:
 
       - name: Parse execution report
         id: execution_report
-        uses: noir-lang/noir-bench-report@52a725064f39388338ba3cbac0f0696430493e8a
+        uses: noir-lang/noir-bench-report@e0a9b8e6bad698c2b1d55819fef45324a9a2f12c
         with:
           report: execution_report.json
           header: |
