@@ -365,6 +365,7 @@ impl DependencyContext {
                 | Instruction::DecrementRc { .. }
                 | Instruction::EnableSideEffectsIf { .. }
                 | Instruction::IncrementRc { .. }
+                | Instruction::Noop
                 | Instruction::MakeArray { .. } => {}
             }
         }
@@ -626,6 +627,7 @@ impl Context {
                 | Instruction::DecrementRc { .. }
                 | Instruction::EnableSideEffectsIf { .. }
                 | Instruction::IncrementRc { .. }
+                | Instruction::Noop
                 | Instruction::RangeCheck { .. } => {}
             }
         }
