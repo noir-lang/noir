@@ -443,7 +443,7 @@ jobs:
         with:
           report: compilation_report.json
           header: |
-            # Compilation Report
+            Compilation Report
           memory_report: false
 
       - name: Add memory report to sticky comment
