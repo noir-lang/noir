@@ -234,9 +234,9 @@ impl<'f> LoopInvariantContext<'f> {
             }
             Instruction::Binary(binary) => {
                 if !matches!(binary.operator, BinaryOp::Add | BinaryOp::Mul) {
-                  return false;
+                    return false;
                 }
-                
+
                 let operand_type =
                     self.inserter.function.dfg.type_of_value(binary.lhs).unwrap_numeric();
 
