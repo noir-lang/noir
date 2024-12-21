@@ -605,14 +605,11 @@ impl<'a> NodeFinder<'a> {
                     );
                 }
             }
-            Type::FieldElement
-            | Type::Array(_, _)
+            Type::Array(_, _)
             | Type::Slice(_)
             | Type::Integer(_, _)
-            | Type::Bool
             | Type::String(_)
             | Type::FmtString(_, _)
-            | Type::Unit
             | Type::TraitAsType(_, _, _)
             | Type::Function(..)
             | Type::Forall(_, _)
@@ -1623,11 +1620,14 @@ impl<'a> Visitor for NodeFinder<'a> {
         }
 
         let typ = match &type_path.typ.typ {
-            UnresolvedTypeData::FieldElement => Some(Type::FieldElement),
             UnresolvedTypeData::Integer(signedness, integer_bit_size) => {
-                Some(Type::Integer(*signedness, *integer_bit_size))
+                // TODO: needed? or can allow this for unit types?
+                if integer_bit_size.is_zero() {
+                    None
+                } else {
+                    Some(Type::Integer(*signedness, *integer_bit_size))
+                }
             }
-            UnresolvedTypeData::Bool => Some(Type::Bool),
             UnresolvedTypeData::String(UnresolvedTypeExpression::Constant(value, _)) => {
                 Some(Type::String(Box::new(Type::Constant(
                     *value,

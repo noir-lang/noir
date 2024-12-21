@@ -703,12 +703,19 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let typ = self.elaborator.interner.id_type(id).follow_bindings();
         let location = self.elaborator.interner.expr_location(&id);
 
-        if let Type::FieldElement = &typ {
-            Ok(Value::Field(value))
-        } else if let Type::Integer(sign, bit_size) = &typ {
+        if let Type::Integer(sign, bit_size) = &typ {
             match (sign, bit_size) {
+                (Signedness::Unsigned, IntegerBitSize::Zero) => {
+                    if value != FieldElement::zero() {
+                        return Err(InterpreterError::IntegerOutOfRangeForType { value, typ, location });
+                    }
+                    Ok(Value::Unit)
+                }
                 (Signedness::Unsigned, IntegerBitSize::One) => {
-                    return Err(InterpreterError::TypeUnsupported { typ, location });
+                    if FieldElement::one() < value {
+                        return Err(InterpreterError::IntegerOutOfRangeForType { value, typ, location });
+                    }
+                    Ok(Value::Bool(value == FieldElement::one()))
                 }
                 (Signedness::Unsigned, IntegerBitSize::Eight) => {
                     let value: u8 =
@@ -746,8 +753,14 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     let value = if is_negative { 0u64.wrapping_sub(value) } else { value };
                     Ok(Value::U64(value))
                 }
+                (Signedness::Unsigned, IntegerBitSize::FieldElementBits) => {
+                    Ok(Value::Field(value))
+                }
+                (Signedness::Signed, IntegerBitSize::Zero) => {
+                    Err(InterpreterError::TypeUnsupported { typ, location })
+                }
                 (Signedness::Signed, IntegerBitSize::One) => {
-                    return Err(InterpreterError::TypeUnsupported { typ, location });
+                    Err(InterpreterError::TypeUnsupported { typ, location })
                 }
                 (Signedness::Signed, IntegerBitSize::Eight) => {
                     let value: i8 =
@@ -780,6 +793,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                         )?;
                     let value = if is_negative { -value } else { value };
                     Ok(Value::I64(value))
+                }
+                (Signedness::Signed, IntegerBitSize::FieldElementBits) => {
+                    Err(InterpreterError::TypeUnsupported { typ, location })
                 }
             }
         } else if let Type::TypeVariable(variable) = &typ {
@@ -1454,15 +1470,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         // Now actually cast the lhs, bit casting and wrapping as necessary
         match typ.follow_bindings() {
-            Type::FieldElement => {
-                if lhs_is_negative {
-                    lhs = FieldElement::zero() - lhs;
-                }
-                Ok(Value::Field(lhs))
-            }
             Type::Integer(sign, bit_size) => match (sign, bit_size) {
+                (Signedness::Unsigned, IntegerBitSize::Zero) => {
+                    Ok(Value::Unit)
+                }
                 (Signedness::Unsigned, IntegerBitSize::One) => {
-                    Err(InterpreterError::TypeUnsupported { typ: typ.clone(), location })
+                    Ok(Value::Bool(!lhs.is_zero() || lhs_is_negative))
                 }
                 (Signedness::Unsigned, IntegerBitSize::Eight) => cast_to_int!(lhs, to_u128, u8, U8),
                 (Signedness::Unsigned, IntegerBitSize::Sixteen) => {
@@ -1474,8 +1487,19 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Signedness::Unsigned, IntegerBitSize::SixtyFour) => {
                     cast_to_int!(lhs, to_u128, u64, U64)
                 }
+                (Signedness::Unsigned, IntegerBitSize::FieldElementBits) => {
+                    if lhs_is_negative {
+                        lhs = FieldElement::zero() - lhs;
+                    }
+                    Ok(Value::Field(lhs))
+                }
+                (Signedness::Signed, IntegerBitSize::Zero) => {
+                    let typ = typ.clone();
+                    Err(InterpreterError::TypeUnsupported { typ, location })
+                }
                 (Signedness::Signed, IntegerBitSize::One) => {
-                    Err(InterpreterError::TypeUnsupported { typ: typ.clone(), location })
+                    let typ = typ.clone();
+                    Err(InterpreterError::TypeUnsupported { typ, location })
                 }
                 (Signedness::Signed, IntegerBitSize::Eight) => cast_to_int!(lhs, to_i128, i8, I8),
                 (Signedness::Signed, IntegerBitSize::Sixteen) => {
@@ -1487,8 +1511,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Signedness::Signed, IntegerBitSize::SixtyFour) => {
                     cast_to_int!(lhs, to_i128, i64, I64)
                 }
+                (Signedness::Signed, IntegerBitSize::FieldElementBits) => {
+                    let typ = typ.clone();
+                    Err(InterpreterError::TypeUnsupported { typ, location })
+                }
             },
-            Type::Bool => Ok(Value::Bool(!lhs.is_zero() || lhs_is_negative)),
             typ => Err(InterpreterError::CastToNonNumericType { typ, location }),
         }
     }
