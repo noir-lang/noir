@@ -15,7 +15,7 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         function::Function,
         function_inserter::FunctionInserter,
-        instruction::{binary::eval_constant_binary_op, Instruction, InstructionId},
+        instruction::{binary::eval_constant_binary_op, BinaryOp, Instruction, InstructionId},
         types::Type,
         value::ValueId,
     },
@@ -233,6 +233,10 @@ impl<'f> LoopInvariantContext<'f> {
                 }
             }
             Instruction::Binary(binary) => {
+                if !matches!(binary.operator, BinaryOp::Add | BinaryOp::Mul) {
+                  return false;
+                }
+                
                 let operand_type =
                     self.inserter.function.dfg.type_of_value(binary.lhs).unwrap_numeric();
 
