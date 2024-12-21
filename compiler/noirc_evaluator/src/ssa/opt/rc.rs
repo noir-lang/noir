@@ -206,7 +206,7 @@ mod test {
         // }
         let main_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("foo".into(), main_id);
-        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
+        builder.set_runtime(RuntimeType::Brillig(InlineType::default()), false);
 
         let inner_array_type = Type::Array(Arc::new(vec![Type::field()]), 2);
         let v0 = builder.add_parameter(inner_array_type.clone());
