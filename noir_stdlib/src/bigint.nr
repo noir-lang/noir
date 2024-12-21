@@ -33,17 +33,17 @@ pub struct BigInt {
 // docs:end:big_int_definition
 
 impl BigInt {
-    #[builtin(bigint_add)]
+    #[foreign(bigint_add)]
     fn bigint_add(self, other: BigInt) -> BigInt {}
-    #[builtin(bigint_sub)]
+    #[foreign(bigint_sub)]
     fn bigint_sub(self, other: BigInt) -> BigInt {}
-    #[builtin(bigint_mul)]
+    #[foreign(bigint_mul)]
     fn bigint_mul(self, other: BigInt) -> BigInt {}
-    #[builtin(bigint_div)]
+    #[foreign(bigint_div)]
     fn bigint_div(self, other: BigInt) -> BigInt {}
-    #[builtin(bigint_from_le_bytes)]
+    #[foreign(bigint_from_le_bytes)]
     fn from_le_bytes(bytes: [u8], modulus: [u8]) -> BigInt {}
-    #[builtin(bigint_to_le_bytes)]
+    #[foreign(bigint_to_le_bytes)]
     fn to_le_bytes(self) -> [u8; 32] {}
 
     fn check_32_bytes(self: Self, other: BigInt) -> bool {
