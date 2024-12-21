@@ -4,8 +4,8 @@ use std::{
 };
 
 use crate::{
-    ast::ItemVisibility, hir_def::traits::ResolvedTraitBound, node_interner::GlobalValue,
-    usage_tracker::UsageTracker, StructField, StructType, TypeBindings,
+    ast::ItemVisibility, graph::CrateGraph, hir_def::traits::ResolvedTraitBound,
+    node_interner::GlobalValue, usage_tracker::UsageTracker, StructField, StructType, TypeBindings,
 };
 use crate::{
     ast::{
@@ -97,6 +97,7 @@ pub struct Elaborator<'context> {
     pub(crate) interner: &'context mut NodeInterner,
     pub(crate) def_maps: &'context mut DefMaps,
     pub(crate) usage_tracker: &'context mut UsageTracker,
+    pub(crate) crate_graph: &'context CrateGraph,
 
     pub(crate) file: FileId,
 
@@ -201,6 +202,7 @@ impl<'context> Elaborator<'context> {
         interner: &'context mut NodeInterner,
         def_maps: &'context mut DefMaps,
         usage_tracker: &'context mut UsageTracker,
+        crate_graph: &'context CrateGraph,
         crate_id: CrateId,
         debug_comptime_in_file: Option<FileId>,
         interpreter_call_stack: im::Vector<Location>,
@@ -211,6 +213,7 @@ impl<'context> Elaborator<'context> {
             interner,
             def_maps,
             usage_tracker,
+            crate_graph,
             file: FileId::dummy(),
             unsafe_block_status: UnsafeBlockStatus::NotInUnsafeBlock,
             nested_loops: 0,
@@ -242,6 +245,7 @@ impl<'context> Elaborator<'context> {
             &mut context.def_interner,
             &mut context.def_maps,
             &mut context.usage_tracker,
+            &context.crate_graph,
             crate_id,
             debug_comptime_in_file,
             im::Vector::new(),
@@ -1239,7 +1243,7 @@ impl<'context> Elaborator<'context> {
             self.file = unresolved.file_id;
             let old_generic_count = self.generics.len();
             self.add_generics(generics);
-            self.declare_methods_on_struct(false, unresolved, *span);
+            self.declare_methods_on_struct(None, unresolved, *span);
             self.generics.truncate(old_generic_count);
         }
     }
@@ -1269,7 +1273,7 @@ impl<'context> Elaborator<'context> {
             self.collect_trait_impl_methods(trait_id, trait_impl, &where_clause);
 
             let span = trait_impl.object_type.span;
-            self.declare_methods_on_struct(true, &mut trait_impl.methods, span);
+            self.declare_methods_on_struct(Some(trait_id), &mut trait_impl.methods, span);
 
             let methods = trait_impl.methods.function_ids();
             for func_id in &methods {
@@ -1328,7 +1332,7 @@ impl<'context> Elaborator<'context> {
 
     fn declare_methods_on_struct(
         &mut self,
-        is_trait_impl: bool,
+        trait_id: Option<TraitId>,
         functions: &mut UnresolvedFunctions,
         span: Span,
     ) {
@@ -1342,7 +1346,7 @@ impl<'context> Elaborator<'context> {
             let struct_ref = struct_type.borrow();
 
             // `impl`s are only allowed on types defined within the current crate
-            if !is_trait_impl && struct_ref.id.krate() != self.crate_id {
+            if trait_id.is_none() && struct_ref.id.krate() != self.crate_id {
                 let type_name = struct_ref.name.to_string();
                 self.push_err(DefCollectorErrorKind::ForeignImpl { span, type_name });
                 return;
@@ -1359,7 +1363,12 @@ impl<'context> Elaborator<'context> {
                 // object types in each method overlap or not. If they do, we issue an error.
                 // If not, that is specialization which is allowed.
                 let name = method.name_ident().clone();
-                if module.declare_function(name, method.def.visibility, *method_id).is_err() {
+                let result = if let Some(trait_id) = trait_id {
+                    module.declare_trait_function(name, *method_id, trait_id)
+                } else {
+                    module.declare_function(name, method.def.visibility, *method_id)
+                };
+                if result.is_err() {
                     let existing = module.find_func_with_name(method.name_ident()).expect(
                         "declare_function should only error if there is an existing function",
                     );
@@ -1374,14 +1383,14 @@ impl<'context> Elaborator<'context> {
             }
 
             // Trait impl methods are already declared in NodeInterner::add_trait_implementation
-            if !is_trait_impl {
+            if trait_id.is_none() {
                 self.declare_methods(self_type, &function_ids);
             }
         // We can define methods on primitive types only if we're in the stdlib
-        } else if !is_trait_impl && *self_type != Type::Error {
+        } else if trait_id.is_none() && *self_type != Type::Error {
             if self.crate_id.is_stdlib() {
                 // Trait impl methods are already declared in NodeInterner::add_trait_implementation
-                if !is_trait_impl {
+                if trait_id.is_none() {
                     self.declare_methods(self_type, &function_ids);
                 }
             } else {
