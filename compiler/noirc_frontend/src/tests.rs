@@ -3891,7 +3891,8 @@ fn errors_on_cyclic_globals() {
 fn warns_on_unneeded_unsafe() {
     let src = r#"
     fn main() { 
-        unsafe { 
+        unsafe {
+            //@safety: test
             foo() 
         }
     }
@@ -3911,7 +3912,9 @@ fn warns_on_nested_unsafe() {
     let src = r#"
     fn main() { 
         unsafe { 
+            //@safety: test
             unsafe {
+                //@safety: test
                 foo() 
             }
         }
