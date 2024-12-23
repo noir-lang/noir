@@ -204,6 +204,11 @@ pub fn analyze_brillig_program_before_fuzzing(program: &ProgramArtifact) -> Bran
                     .insert((opcode_index, opcode_index + 1), total_features + 1);
                 total_features += 2;
             }
+            &BrilligOpcode::ConditionalMov { .. } => {
+                location_to_feature_map.insert((opcode_index, usize::MAX - 1), total_features);
+                location_to_feature_map.insert((opcode_index, usize::MAX), total_features + 1);
+                total_features += 2;
+            }
             _ => (),
         }
     }

@@ -262,6 +262,13 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
             self.fuzzer_trace[index] += 1;
         }
     }
+    fn trace_conditional_mov(&mut self, branch: bool) {
+        if self.fuzzing_active {
+            let index = self.branch_to_feature_map
+                [&(self.program_counter, if branch { usize::MAX } else { usize::MAX - 1 })];
+            self.fuzzer_trace[index] += 1;
+        }
+    }
 
     pub fn get_fuzzing_trace(&self) -> Vec<u32> {
         if !self.fuzzing_active {
@@ -385,11 +392,15 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
             }
             Opcode::ConditionalMov { destination, source_a, source_b, condition } => {
                 let condition_value = self.memory.read(*condition);
-                if condition_value.try_into().expect("condition value is not a boolean") {
+
+                let condition_value_bool =
+                    condition_value.try_into().expect("condition value is not a boolean");
+                if condition_value_bool {
                     self.memory.write(*destination, self.memory.read(*source_a));
                 } else {
                     self.memory.write(*destination, self.memory.read(*source_b));
                 }
+                self.trace_conditional_mov(condition_value_bool);
                 self.increment_program_counter()
             }
             Opcode::Trap { revert_data } => {
