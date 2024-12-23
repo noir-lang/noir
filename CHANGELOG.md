@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.0.0-beta.2](https://github.com/noir-lang/noir/compare/v1.0.0-beta.1...v1.0.0-beta.2) (2024-12-23)
+
+
+### Bug Fixes
+
+* Bigint builtins are foreigns ([#6892](https://github.com/noir-lang/noir/issues/6892)) ([a1f9c94](https://github.com/noir-lang/noir/commit/a1f9c949825bac1068a4e00e93e95b0dbfa8b5a7))
+* Consistent file_id across installation paths ([#6912](https://github.com/noir-lang/noir/issues/6912)) ([baca790](https://github.com/noir-lang/noir/commit/baca790a7241044c7a1cce1f2aab13a2c5c998a8))
+* Remove unnecessary cast in bit-shift ([#6890](https://github.com/noir-lang/noir/issues/6890)) ([011fbc1](https://github.com/noir-lang/noir/commit/011fbc195419df0254af69cfea593291c8f80af3))
+
 ## [1.0.0-beta.1](https://github.com/noir-lang/noir/compare/v1.0.0-beta.0...v1.0.0-beta.1) (2024-12-20)
 
 
