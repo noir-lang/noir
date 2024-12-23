@@ -209,6 +209,51 @@ pub fn analyze_brillig_program_before_fuzzing(program: &ProgramArtifact) -> Bran
                 location_to_feature_map.insert((opcode_index, usize::MAX), total_features + 1);
                 total_features += 2;
             }
+            &BrilligOpcode::BinaryFieldOp { destination: _, op, .. } => match op {
+                acvm::acir::brillig::BinaryFieldOp::Add
+                | acvm::acir::brillig::BinaryFieldOp::Sub
+                | acvm::acir::brillig::BinaryFieldOp::Mul
+                | acvm::acir::brillig::BinaryFieldOp::Div
+                | acvm::acir::brillig::BinaryFieldOp::IntegerDiv => {}
+                acvm::acir::brillig::BinaryFieldOp::Equals
+                | acvm::acir::brillig::BinaryFieldOp::LessThan
+                | acvm::acir::brillig::BinaryFieldOp::LessThanEquals => {
+                    let features_per_comparison= 1 /*true */+1/*false */+255 /*possible bits() results*/;
+                    for i in 0..features_per_comparison {
+                        location_to_feature_map
+                            .insert((opcode_index, usize::MAX - i), total_features + i);
+                    }
+                    total_features += features_per_comparison;
+                }
+            },
+            &BrilligOpcode::BinaryIntOp { destination: _, op, bit_size, .. } => match op {
+                acvm::acir::brillig::BinaryIntOp::Add
+                | acvm::acir::brillig::BinaryIntOp::Sub
+                | acvm::acir::brillig::BinaryIntOp::Mul
+                | acvm::acir::brillig::BinaryIntOp::Div
+                | acvm::acir::brillig::BinaryIntOp::And
+                | acvm::acir::brillig::BinaryIntOp::Or
+                | acvm::acir::brillig::BinaryIntOp::Xor
+                | acvm::acir::brillig::BinaryIntOp::Shl
+                | acvm::acir::brillig::BinaryIntOp::Shr => {}
+                acvm::acir::brillig::BinaryIntOp::Equals
+                | acvm::acir::brillig::BinaryIntOp::LessThan
+                | acvm::acir::brillig::BinaryIntOp::LessThanEquals => {
+                    let features_per_comparison = 1 /*true */+1/*false */+1/*when ilog is zero*/+ match bit_size{
+                    acvm::acir::brillig::IntegerBitSize::U1 => 1,
+                    acvm::acir::brillig::IntegerBitSize::U8 => 8,
+                    acvm::acir::brillig::IntegerBitSize::U16 => 16,
+                    acvm::acir::brillig::IntegerBitSize::U32 => 32,
+                    acvm::acir::brillig::IntegerBitSize::U64 => 64,
+                    acvm::acir::brillig::IntegerBitSize::U128 => 128,
+                };
+                    for i in 0..features_per_comparison {
+                        location_to_feature_map
+                            .insert((opcode_index, usize::MAX - i), total_features + i);
+                    }
+                    total_features += features_per_comparison;
+                }
+            },
             _ => (),
         }
     }

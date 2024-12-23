@@ -455,7 +455,6 @@ impl<
                         &PotentialBoolWitnessList::default(),
                     );
                     if accumulated_coverage.detect_new_coverage(&&new_coverage) {
-                        println!("Detected here");
                         acir_cases_to_execute.push((
                             case,
                             new_coverage.brillig_coverage,
