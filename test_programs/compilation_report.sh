@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-SCRIPT_DIR=$(dirname "$0")
+PARSE_TIME=$(realpath "$(dirname "$0")/parse_time.sh")
 current_dir=$(pwd)
 base_path="$current_dir/execution_success"
 
@@ -52,11 +52,11 @@ for dir in ${tests_to_profile[@]}; do
 
     TIMES=($(jq -r '. | select(.target == "nargo::ops::compile" and .fields.message == "close") | .fields."time.busy"' ./tmp/*))
 
-    AVG_TIME=$(awk -v RS=" " -v script="$SCRIPT_DIR/parse_time.sh"  '
+    AVG_TIME=$(awk -v RS=" " -v parse_time="$PARSE_TIME"  '
         {
             # Times are formatted annoyingly so we need to parse it.
-            script" "$1 | getline current_time
-            close(script" "$1)
+            parse_time" "$1 | getline current_time
+            close(parse_time" "$1)
             sum += current_time;
             n++;
         }
@@ -67,7 +67,7 @@ for dir in ${tests_to_profile[@]}; do
                 printf "%.3f\n", 0
         }' <<<"${TIMES[@]}")
 
-    jq -c "{artifact_name: \"$PACKAGE_NAME\", time: \""$AVG_TIME"s\"}" --null-input >> $current_dir/compilation_report.json
+    jq -rc "{artifact_name: \"$PACKAGE_NAME\", time: \""$AVG_TIME"s\"}" --null-input >> $current_dir/compilation_report.json
 
     if (($ITER != $NUM_ARTIFACTS)); then
         echo "," >> $current_dir/compilation_report.json
