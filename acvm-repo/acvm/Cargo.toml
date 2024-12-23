@@ -33,11 +33,11 @@ bls12_381 = [
 ]
 
 [dev-dependencies]
-ark-bls12-381 = { version = "^0.4.0", default-features = false, features = [
+ark-bls12-381 = { version = "^0.5.0", default-features = false, features = [
     "curve",
 ] }
+ark-ff.workspace = true
 ark-bn254.workspace = true
 bn254_blackbox_solver.workspace = true
 proptest.workspace = true
-zkhash = { version = "^0.2.0", default-features = false }
 num-bigint.workspace = true

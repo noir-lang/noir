@@ -4,19 +4,16 @@
 
 use std::sync::OnceLock;
 
-use ark_ec::short_weierstrass::Affine;
-
 use acvm_blackbox_solver::blake3;
-use grumpkin::GrumpkinParameters;
+use ark_grumpkin::Affine;
 
 use super::hash_to_curve::hash_to_curve;
 
 pub(crate) const DEFAULT_DOMAIN_SEPARATOR: &[u8] = "DEFAULT_DOMAIN_SEPARATOR".as_bytes();
 const NUM_DEFAULT_GENERATORS: usize = 8;
 
-fn default_generators() -> &'static [Affine<GrumpkinParameters>; NUM_DEFAULT_GENERATORS] {
-    static INSTANCE: OnceLock<[Affine<GrumpkinParameters>; NUM_DEFAULT_GENERATORS]> =
-        OnceLock::new();
+fn default_generators() -> &'static [Affine; NUM_DEFAULT_GENERATORS] {
+    static INSTANCE: OnceLock<[Affine; NUM_DEFAULT_GENERATORS]> = OnceLock::new();
     INSTANCE.get_or_init(|| {
         _derive_generators(DEFAULT_DOMAIN_SEPARATOR, NUM_DEFAULT_GENERATORS as u32, 0)
             .try_into()
@@ -42,7 +39,7 @@ pub fn derive_generators(
     domain_separator_bytes: &[u8],
     num_generators: u32,
     starting_index: u32,
-) -> Vec<Affine<GrumpkinParameters>> {
+) -> Vec<Affine> {
     // We cache a small number of the default generators so we can reuse them without needing to repeatedly recalculate them.
     if domain_separator_bytes == DEFAULT_DOMAIN_SEPARATOR
         && starting_index + num_generators <= NUM_DEFAULT_GENERATORS as u32
@@ -59,7 +56,7 @@ fn _derive_generators(
     domain_separator_bytes: &[u8],
     num_generators: u32,
     starting_index: u32,
-) -> Vec<Affine<GrumpkinParameters>> {
+) -> Vec<Affine> {
     let mut generator_preimage = [0u8; 64];
     let domain_hash = blake3(domain_separator_bytes).expect("hash should succeed");
     //1st 32 bytes are blake3 domain_hash
@@ -91,7 +88,7 @@ mod test {
     fn test_derive_generators() {
         let res = derive_generators("test domain".as_bytes(), 128, 0);
 
-        let is_unique = |y: Affine<GrumpkinParameters>, j: usize| -> bool {
+        let is_unique = |y: Affine, j: usize| -> bool {
             for (i, res) in res.iter().enumerate() {
                 if i != j && *res == y {
                     return false;
