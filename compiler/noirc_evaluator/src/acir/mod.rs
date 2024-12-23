@@ -788,6 +788,7 @@ impl<'a> Context<'a> {
                 let result = dfg.instruction_results(instruction_id)[0];
                 self.ssa_values.insert(result, value);
             }
+            Instruction::Noop => (),
         }
 
         self.acir_context.set_call_stack(CallStack::new());
