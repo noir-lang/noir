@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use acvm::{acir::BlackBoxFunc, AcirField, FieldElement};
+use acvm::{AcirField, FieldElement};
 use builtin_helpers::{
     block_expression_to_value, byte_array_type, check_argument_count,
     check_function_not_yet_resolved, check_one_argument, check_three_arguments,
