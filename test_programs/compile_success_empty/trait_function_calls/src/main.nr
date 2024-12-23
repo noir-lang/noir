@@ -45,6 +45,7 @@ trait Trait1b {
         self.trait_method2() * 2832 - self.vl()
     }
     fn trait_method2(self) -> Field {
+        let _ = self;
         9323
     }
     fn vl(self) -> Field;
@@ -109,6 +110,7 @@ trait Trait1e {
         self.trait_method2() * 85465 - self.vl()
     }
     fn trait_method2(self) -> Field {
+        let _ = self;
         2381
     }
     fn vl(self) -> Field;
@@ -171,6 +173,7 @@ impl Trait1g for Struct1g {
 trait Trait1h {
     fn trait_method1(self) -> Field;
     fn trait_method2(self) -> Field {
+        let _ = self;
         7823
     }
 }
@@ -404,6 +407,7 @@ trait Trait3b {
         b.trait_method2() * 9233 - b.vl() + a
     }
     fn trait_method2(self) -> Field {
+        let _ = self;
         9111
     }
     fn vl(self) -> Field;
@@ -468,6 +472,7 @@ trait Trait3e {
         b.trait_method2() * 71231 - b.vl() + a
     }
     fn trait_method2(self) -> Field {
+        let _ = self;
         373
     }
     fn vl(self) -> Field;
@@ -530,6 +535,7 @@ impl Trait3g for Struct3g {
 trait Trait3h {
     fn trait_function1(a: Field, b: Self) -> Field;
     fn trait_method2(self) -> Field {
+        let _ = self;
         293
     }
 }
