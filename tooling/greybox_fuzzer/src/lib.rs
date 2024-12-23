@@ -24,9 +24,11 @@ mod strategies;
 mod types;
 
 use corpus::Corpus;
+use proptest::result;
 use rayon::{
     current_num_threads,
     iter::{FromParallelIterator, ParallelBridge, ParallelIterator},
+    ThreadPool,
 };
 use strategies::InputMutator;
 use types::{CaseOutcome, CounterExampleOutcome, DiscrepancyOutcome, FuzzOutcome, FuzzTestResult};
@@ -130,7 +132,119 @@ impl<
             num_threads,
         }
     }
+    fn parse_fuzzing_results_and_update_accumulated_coverage_and_corpus(
+        &mut self,
+        fuzz_results: &Vec<FuzzOutcome>,
+        accumulated_coverage: &mut AccumulatedFuzzerCoverage,
+        corpus: &mut Corpus,
+        save_to_disk: bool,
+    ) -> Result<(u128, u128), FuzzTestResult> {
+        let mut total_acir_time = 0;
+        let mut total_brillig_time = 0;
+        for result in fuzz_results.iter() {
+            match result {
+                FuzzOutcome::Case(_) => {}
+                FuzzOutcome::Discrepancy(DiscrepancyOutcome {
+                    exit_reason: status,
+                    acir_failed,
+                    counterexample,
+                }) => {
+                    let reason = match acir_failed {
+                        true => format!(
+                            "ACIR failed while brillig executed with no issues: {}",
+                            status.to_string()
+                        ),
+                        false => format!(
+                            "brillig failed while ACIR executed with no issues: {}",
+                            status.to_string()
+                        ),
+                    };
+                    let reason = if reason.is_empty() { None } else { Some(reason) };
 
+                    return Err(FuzzTestResult {
+                        success: false,
+                        reason,
+                        counterexample: Some(counterexample.clone()),
+                    });
+                }
+                FuzzOutcome::CounterExample(CounterExampleOutcome {
+                    exit_reason: status,
+                    counterexample,
+                }) => {
+                    let reason = status.to_string();
+                    let reason = if reason.is_empty() { None } else { Some(reason) };
+
+                    return Err(FuzzTestResult {
+                        success: false,
+                        reason,
+                        counterexample: Some(counterexample.clone()),
+                    });
+                }
+            }
+            let (case, witness, brillig_coverage, acir_time, brillig_time) = match result {
+                FuzzOutcome::Case(CaseOutcome {
+                    case,
+                    witness,
+                    brillig_coverage,
+                    acir_time,
+                    brillig_time,
+                }) => (
+                    case,
+                    witness.as_ref().unwrap(),
+                    brillig_coverage.as_ref().unwrap(),
+                    acir_time,
+                    brillig_time,
+                ),
+                _ => panic!("Already checked this"),
+            };
+            total_acir_time += acir_time;
+            total_brillig_time += brillig_time;
+            // Update the potential list
+            if accumulated_coverage.potential_bool_witness_list.is_none() {
+                // If it's the first time, we need to assign
+                accumulated_coverage.potential_bool_witness_list =
+                    Some(PotentialBoolWitnessList::from(witness));
+            } else {
+                accumulated_coverage.potential_bool_witness_list.as_mut().unwrap().update(&witness);
+            }
+            let new_coverage = SingleTestCaseCoverage::new(
+                &witness,
+                brillig_coverage.clone(),
+                &accumulated_coverage.potential_bool_witness_list.as_mut().unwrap(),
+            );
+            if accumulated_coverage.merge(&&new_coverage) {
+                println!("Input: {:?}", case);
+                self.mutator.update_dictionary(&case);
+                match corpus.insert(case.clone(), save_to_disk) {
+                    Ok(_) => (),
+                    Err(error_string) => {
+                        return Err(FuzzTestResult {
+                            success: false,
+                            reason: Some(error_string),
+                            counterexample: None,
+                        })
+                    }
+                }
+
+                println!("New feature in loaded testcase");
+            }
+        }
+        return Ok((total_acir_time, total_brillig_time));
+    }
+    fn execute_testcases_in_parallel_without_quick_coverage_check(
+        &self,
+        pool: &ThreadPool,
+        testcases: &Vec<InputMap>,
+    ) -> Vec<FuzzOutcome> {
+        pool.install(|| {
+            testcases
+                .clone()
+                .into_iter()
+                .par_bridge()
+                .map(|testcase| self.single_fuzz(&testcase).unwrap())
+        })
+        .collect::<Vec<FuzzOutcome>>()
+    }
     /// Fuzzes the provided program.
     pub fn fuzz(&mut self) -> FuzzTestResult {
         // Generate a seed for the campaign
@@ -163,97 +277,34 @@ impl<
             only_default_input = true;
             starting_corpus.push(self.mutator.generate_default_input_map());
         }
-        let mut total_acir_time = 0u128;
-        let mut total_brillig_time = 0u128;
-        for entry in starting_corpus.iter() {
-            let fuzz_res = self.single_fuzz(&entry).unwrap();
-            match fuzz_res {
-                FuzzOutcome::Case(_) => {}
-                FuzzOutcome::Discrepancy(DiscrepancyOutcome {
-                    exit_reason: status,
-                    acir_failed,
-                    counterexample,
-                }) => {
-                    let reason = match acir_failed {
-                        true => format!(
-                            "ACIR failed while brillig executed with no issues: {}",
-                            status.to_string()
-                        ),
-                        false => format!(
-                            "brillig failed while ACIR executed with no issues: {}",
-                            status.to_string()
-                        ),
-                    };
-                    let reason = if reason.is_empty() { None } else { Some(reason) };
 
-                    return FuzzTestResult {
-                        success: false,
-                        reason,
-                        counterexample: Some(counterexample),
-                    };
-                }
-                FuzzOutcome::CounterExample(CounterExampleOutcome {
-                    exit_reason: status,
-                    counterexample,
-                }) => {
-                    let reason = status.to_string();
-                    let reason = if reason.is_empty() { None } else { Some(reason) };
-
-                    return FuzzTestResult {
-                        success: false,
-                        reason,
-                        counterexample: Some(counterexample),
-                    };
-                }
-            }
-            let (_, witness, brillig_coverage, acir_time, brillig_time) = match fuzz_res {
-                FuzzOutcome::Case(CaseOutcome {
-                    case,
-                    witness,
-                    brillig_coverage,
-                    acir_time,
-                    brillig_time,
-                }) => (case, witness.unwrap(), brillig_coverage.unwrap(), acir_time, brillig_time),
-                _ => panic!("Already checked this"),
-            };
-            total_acir_time += acir_time;
-            total_brillig_time += brillig_time;
-            // Update the potential list
-            if accumulated_coverage.potential_bool_witness_list.is_none() {
-                // If it's the first time, we need to assign
-                accumulated_coverage.potential_bool_witness_list =
-                    Some(PotentialBoolWitnessList::from(&witness));
-            } else {
-                accumulated_coverage.potential_bool_witness_list.as_mut().unwrap().update(&witness);
-            }
-            let new_coverage = SingleTestCaseCoverage::new(
-                &witness,
-                brillig_coverage,
-                &accumulated_coverage.potential_bool_witness_list.as_mut().unwrap(),
-            );
-            if accumulated_coverage.merge(&&new_coverage) {
-                println!("Input: {:?}", entry);
-                self.mutator.update_dictionary(&entry);
-                match corpus.insert(entry.clone(), only_default_input) {
-                    Ok(_) => (),
-                    Err(error_string) => {
-                        return FuzzTestResult {
-                            success: false,
-                            reason: Some(error_string),
-                            counterexample: None,
-                        }
-                    }
-                }
-
-                println!("New feature in loaded testcase");
-            }
-        }
-        let mut current_iteration = 0;
         let pool = rayon::ThreadPoolBuilder::new()
             .num_threads(self.num_threads)
             .stack_size(4 * 1024 * 1024)
             .build()
             .unwrap();
+        let fuzzing_results = self
+            .execute_testcases_in_parallel_without_quick_coverage_check(&pool, &starting_corpus);
+        let mut total_acir_time = 0u128;
+        let mut total_brillig_time = 0u128;
+        let initial_corpus_result = self
+            .parse_fuzzing_results_and_update_accumulated_coverage_and_corpus(
+                &fuzzing_results,
+                &mut accumulated_coverage,
+                &mut corpus,
+                only_default_input,
+            );
+        match initial_corpus_result {
+            Ok((acir_time, brillig_time)) => {
+                total_acir_time = acir_time;
+                total_brillig_time = brillig_time
+            }
+            Err(fuzz_outcome) => {
+                return fuzz_outcome;
+            }
+        }
+        let mut current_iteration = 0;
+
         let testcases_per_iteration = self.num_threads * 2;
         let mut time_tracker = Instant::now();
         let mut brillig_executions_multiplier = 1usize;

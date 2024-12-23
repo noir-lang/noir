@@ -18,16 +18,16 @@ use sha256::digest;
 use walkdir::WalkDir;
 
 const CORPUS_FILE_EXTENSION: &str = "json";
-pub struct CorpusFileManager<'a> {
+pub struct CorpusFileManager {
     file_manager: FileManager,
     root: PathBuf,
     corpus_path: PathBuf,
-    abi: &'a Abi,
+    abi: Abi,
     parsed_map: HashMap<FileId, InputMap>,
 }
 
-impl<'a> CorpusFileManager<'a> {
-    pub fn new(root: &Path, package_name: &str, harness_name: &str, abi: &'a Abi) -> Self {
+impl CorpusFileManager {
+    pub fn new(root: &Path, package_name: &str, harness_name: &str, abi: Abi) -> Self {
         let cloned_root = root.clone();
         let corpus_path = root.join(package_name).join(harness_name);
 
@@ -68,7 +68,7 @@ impl<'a> CorpusFileManager<'a> {
             let source = std::fs::read_to_string(path.as_path())
                 .unwrap_or_else(|_| panic!("could not read file {:?} into string", path));
 
-            let parsed_source = parse_json(&source, self.abi).map_err(|parsing_error| {
+            let parsed_source = parse_json(&source, &self.abi).map_err(|parsing_error| {
                 format!("Error while parsing file {:?}: {:?}", path.as_os_str(), parsing_error)
             })?;
 
@@ -113,18 +113,18 @@ impl Sequence {
         self.executions_left -= 1
     }
 }
-pub struct Corpus<'a> {
+pub struct Corpus {
     discovered_testcases: Vec<InputMap>,
     executions_per_testcase: Vec<u64>,
     sequence_number: Vec<u32>,
     total_executions: u64,
     current_sequence: Sequence,
-    corpus_file_manager: CorpusFileManager<'a>,
+    corpus_file_manager: CorpusFileManager,
 }
 
-impl<'a> Corpus<'a> {
+impl Corpus {
     const MAX_EXECUTIONS_PER_SEQUENCE_LOG: u32 = 100;
-    pub fn new(package_name: &str, function_name: &str, abi: &'a Abi) -> Self {
+    pub fn new(package_name: &str, function_name: &str, abi: &Abi) -> Self {
         // Self {
         //     discovered_testcases: vec![starting_testcase],
         //     executions_per_testcase: vec![1],
@@ -142,7 +142,7 @@ impl<'a> Corpus<'a> {
                 Path::new("corpus"),
                 package_name,
                 function_name,
-                abi,
+                abi.clone(),
             ),
         }
     }
