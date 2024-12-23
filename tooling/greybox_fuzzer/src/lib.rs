@@ -252,12 +252,6 @@ impl<
         let mut brillig_executions_multiplier = 1usize;
         let mut acir_executions_multiplier = 1usize;
         let fuzz_res = loop {
-            if time_tracker.elapsed().as_secs() >= 1 {
-                println!("Current iteration {}", current_iteration);
-                println!("Acir time {}", total_acir_time);
-                println!("Brillig time {}", total_brillig_time);
-                time_tracker = Instant::now();
-            }
             let mut testcase_set: Vec<(
                 usize,
                 usize,
@@ -270,7 +264,6 @@ impl<
             } else {
                 brillig_executions_multiplier * testcases_per_iteration
             };
-            println!("Current testcase size: {}", current_testcase_set_size);
             testcase_set.reserve(current_testcase_set_size);
             let testcase_gen_time = Instant::now();
             for i in 0..current_testcase_set_size {
@@ -281,8 +274,8 @@ impl<
 
                 testcase_set.push((i, main_testcase, additional_testcase, seed_bytes));
             }
-            println!("Testcase generation time:{}", testcase_gen_time.elapsed().as_micros());
-            println!("Got all elements!");
+            let testcase_time = testcase_gen_time.elapsed().as_micros();
+
             let fuzzing_time = Instant::now();
             let all_fuzzing_results: Vec<(FuzzOutcome, bool)> = pool
                 .install(|| {
@@ -384,7 +377,7 @@ impl<
                     brillig_executions_multiplier = 1;
                 }
             }
-            println!("Fuzzing time: {}", fuzz_time_micros);
+
             let mut potential_res = None;
             let mut acir_cases_to_execute = Vec::new();
             let updating_time = Instant::now();
@@ -473,11 +466,15 @@ impl<
                     }
                 }
             }
-            println!(
-                "Updating time: {}, skipped: {}",
-                updating_time.elapsed().as_micros(),
+            if time_tracker.elapsed().as_secs() >= 1 {
+                println!(
+                    "iterations: {}, acir_time: {}ms, brillig_time: {}ms, testcase_generation_time:{}mcrs, count:{}, fuzzing_time:{}mcrs, updating time: {}mcrs, skipped: {}",
+                    current_iteration, total_acir_time/1000, total_brillig_time/1000, testcase_time,current_testcase_set_size, fuzz_time_micros,updating_time.elapsed().as_micros(),
                 skipped
-            );
+
+                );
+                time_tracker = Instant::now();
+            }
             if potential_res.is_some() {
                 break potential_res.unwrap();
             }
@@ -572,7 +569,7 @@ impl<
             if potential_res.is_some() {
                 break potential_res.unwrap();
             }
-            current_iteration += testcases_per_iteration;
+            current_iteration += current_testcase_set_size;
         };
         println!("Total iterations: {current_iteration}");
         match fuzz_res {
