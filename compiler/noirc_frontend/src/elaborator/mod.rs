@@ -328,6 +328,12 @@ impl<'context> Elaborator<'context> {
             self.elaborate_functions(functions);
         }
 
+        for (trait_id, unresolved_trait) in items.traits {
+            self.current_trait = Some(trait_id);
+            self.elaborate_functions(unresolved_trait.fns_with_default_impl);
+        }
+        self.current_trait = None;
+
         for impls in items.impls.into_values() {
             self.elaborate_impls(impls);
         }

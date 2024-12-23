@@ -518,8 +518,8 @@ impl<'a> ModCollector<'a> {
                                             *is_unconstrained,
                                             generics,
                                             parameters,
-                                            body,
-                                            where_clause,
+                                            body.clone(),
+                                            where_clause.clone(),
                                             return_type,
                                         ));
                                     unresolved_functions.push_fn(
