@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use acvm::{acir::BlackBoxFunc, AcirField, FieldElement};
+use acvm::{AcirField, FieldElement};
 use builtin_helpers::{
     block_expression_to_value, byte_array_type, check_argument_count,
     check_function_not_yet_resolved, check_one_argument, check_three_arguments,
@@ -236,9 +236,6 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "unresolved_type_is_field" => unresolved_type_is_field(interner, arguments, location),
             "unresolved_type_is_unit" => unresolved_type_is_unit(interner, arguments, location),
             "zeroed" => zeroed(return_type, location.span),
-            blackbox if BlackBoxFunc::is_valid_black_box_func_name(blackbox) => {
-                self.call_foreign(blackbox, arguments, return_type, location)
-            }
             _ => {
                 let item = format!("Comptime evaluation for builtin function '{name}'");
                 Err(InterpreterError::Unimplemented { item, location })
