@@ -328,6 +328,12 @@ impl<'context> Elaborator<'context> {
             self.elaborate_functions(functions);
         }
 
+        for (trait_id, unresolved_trait) in items.traits {
+            self.current_trait = Some(trait_id);
+            self.elaborate_functions(unresolved_trait.fns_with_default_impl);
+        }
+        self.current_trait = None;
+
         for impls in items.impls.into_values() {
             self.elaborate_impls(impls);
         }
@@ -450,9 +456,10 @@ impl<'context> Elaborator<'context> {
         self.add_trait_constraints_to_scope(&func_meta);
 
         let (hir_func, body_type) = match kind {
-            FunctionKind::Builtin | FunctionKind::LowLevel | FunctionKind::Oracle => {
-                (HirFunction::empty(), Type::Error)
-            }
+            FunctionKind::Builtin
+            | FunctionKind::LowLevel
+            | FunctionKind::Oracle
+            | FunctionKind::TraitFunctionWithoutBody => (HirFunction::empty(), Type::Error),
             FunctionKind::Normal => {
                 let (block, body_type) = self.elaborate_block(body);
                 let expr_id = self.intern_expr(block, body_span);
