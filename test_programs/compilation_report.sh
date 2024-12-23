@@ -54,8 +54,8 @@ for dir in ${tests_to_profile[@]}; do
     AVG_TIME=$(awk -v RS=" " '
         {
             # Times are formatted annoyingly so we need to parse it.
-            "../../parse_time.sh "$1 | getline current_time
-            close("../../parse_time.sh "$1)
+            "./parse_time.sh "$1 | getline current_time
+            close("./parse_time.sh "$1)
             sum += current_time;
             n++;
         }
