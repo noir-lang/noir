@@ -40,11 +40,7 @@ fn setup_tracing() {
 
     if let Ok(log_dir) = env::var("NARGO_LOG_DIR") {
         let debug_file = rolling::daily(log_dir, "nargo-log");
-        subscriber
-            .with_writer(debug_file)
-            .with_ansi(false)
-            .json()
-            .init();
+        subscriber.with_writer(debug_file).with_ansi(false).json().init();
     } else {
         subscriber.with_ansi(true).init();
     }
