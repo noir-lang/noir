@@ -500,6 +500,9 @@ impl<'a> ModCollector<'a> {
                             .def_interner
                             .push_function_definition(func_id, modifiers, trait_id.0, location);
 
+                        let referenced = ReferenceId::Function(func_id);
+                        context.def_interner.add_definition_location(referenced, Some(trait_id.0));
+
                         if !trait_item.doc_comments.is_empty() {
                             context.def_interner.set_doc_comments(
                                 ReferenceId::Function(func_id),
