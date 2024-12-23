@@ -175,7 +175,8 @@ pub enum FunctionBody {
 
 impl FuncMeta {
     /// A stub function does not have a body. This includes Builtin, LowLevel,
-    /// and Oracle functions.
+    /// and Oracle functions in addition to method declarations within a trait
+    /// without a body.
     ///
     /// We don't check the return type of these functions since it will always have
     /// an empty body, and we don't check for unused parameters.
