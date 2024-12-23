@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
+SCRIPT_DIR=$(dirname "$0")
 current_dir=$(pwd)
 base_path="$current_dir/execution_success"
 
@@ -51,11 +52,11 @@ for dir in ${tests_to_profile[@]}; do
 
     TIMES=($(jq -r '. | select(.target == "nargo::ops::compile" and .fields.message == "close") | .fields."time.busy"' ./tmp/*))
 
-    AVG_TIME=$(awk -v RS=" " '
+    AVG_TIME=$(awk -v RS=" " -v script="$SCRIPT_DIR/parse_time.sh"  '
         {
             # Times are formatted annoyingly so we need to parse it.
-            "./parse_time.sh "$1 | getline current_time
-            close("./parse_time.sh "$1)
+            script" "$1 | getline current_time
+            close(script" "$1)
             sum += current_time;
             n++;
         }
