@@ -482,7 +482,9 @@ impl<'a> ModCollector<'a> {
                         is_comptime,
                     } => {
                         let func_id = context.def_interner.push_empty_fn();
-                        method_ids.insert(name.to_string(), func_id);
+                        if !method_ids.contains_key(&name.0.contents) {
+                            method_ids.insert(name.to_string(), func_id);
+                        }
 
                         let location = Location::new(name.span(), self.file_id);
                         let modifiers = FunctionModifiers {

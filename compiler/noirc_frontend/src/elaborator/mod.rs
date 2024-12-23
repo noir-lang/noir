@@ -456,9 +456,10 @@ impl<'context> Elaborator<'context> {
         self.add_trait_constraints_to_scope(&func_meta);
 
         let (hir_func, body_type) = match kind {
-            FunctionKind::Builtin | FunctionKind::LowLevel | FunctionKind::Oracle => {
-                (HirFunction::empty(), Type::Error)
-            }
+            FunctionKind::Builtin
+            | FunctionKind::LowLevel
+            | FunctionKind::Oracle
+            | FunctionKind::TraitFunctionWithoutBody => (HirFunction::empty(), Type::Error),
             FunctionKind::Normal => {
                 let (block, body_type) = self.elaborate_block(body);
                 let expr_id = self.intern_expr(block, body_span);

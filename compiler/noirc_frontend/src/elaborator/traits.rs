@@ -203,12 +203,18 @@ impl<'context> Elaborator<'context> {
         body: &Option<BlockExpression>,
         func_id: FuncId,
     ) {
+        let old_generic_count = self.generics.len();
+
+        self.scopes.start_function();
+
+        let has_body = body.is_some();
+
         let body = match body {
             Some(body) => body.clone(),
             None => BlockExpression { statements: Vec::new() },
         };
-
-        let kind = FunctionKind::Normal;
+        let kind =
+            if has_body { FunctionKind::Normal } else { FunctionKind::TraitFunctionWithoutBody };
         let mut def = FunctionDefinition::normal(
             name,
             is_unconstrained,
@@ -223,6 +229,16 @@ impl<'context> Elaborator<'context> {
 
         let mut function = NoirFunction { kind, def };
         self.define_function_meta(&mut function, func_id, Some(trait_id));
+
+        // Here we elaborate functions without a body, mainly to check the arguments and return types.
+        // Later on we'll elaborate functions with a body by fully type-checking them.
+        if !has_body {
+            self.elaborate_function(func_id);
+        }
+
+        let _ = self.scopes.end_function();
+        // Don't check the scope tree for unused variables, they can't be used in a declaration anyway.
+        self.generics.truncate(old_generic_count);
     }
 }
 
