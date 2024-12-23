@@ -93,6 +93,7 @@ impl<'context> Elaborator<'context> {
             self.interner,
             self.def_maps,
             self.usage_tracker,
+            self.crate_graph,
             self.crate_id,
             self.debug_comptime_in_file,
             self.interpreter_call_stack.clone(),
