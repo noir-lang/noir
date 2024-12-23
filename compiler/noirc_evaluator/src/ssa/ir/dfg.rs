@@ -448,6 +448,13 @@ impl DataFlowGraph {
         self.results.get(&instruction_id).expect("expected a list of Values").as_slice()
     }
 
+    /// Remove an instruction by replacing it with a `Noop` instruction.
+    /// Doing this avoids shifting over each instruction after this one in its block's instructions vector.
+    pub(crate) fn remove_instruction(&mut self, instruction: InstructionId) {
+        self.instructions[instruction] = Instruction::Noop;
+        self.results.insert(instruction, smallvec::SmallVec::new());
+    }
+
     /// Add a parameter to the given block
     pub(crate) fn add_block_parameter(&mut self, block_id: BasicBlockId, typ: Type) -> ValueId {
         let block = &mut self.blocks[block_id];

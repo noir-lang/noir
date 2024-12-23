@@ -204,6 +204,7 @@
         "Secpr",
         "signedness",
         "signorecello",
+        "smallvec",
         "smol",
         "splitn",
         "srem",
