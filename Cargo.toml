@@ -148,7 +148,7 @@ num-traits = "0.2"
 similar-asserts = "1.5.0"
 tempfile = "3.6.0"
 test-case = "3.3.1"
-jsonrpc = { version = "0.16.0", features = ["minreq_http"] }
+jsonrpsee = { version = "0.24.7", features = ["client-core"] }
 flate2 = "1.0.24"
 color-eyre = "0.6.2"
 rand = "0.8.5"
@@ -159,7 +159,7 @@ sha2 = { version = "0.10.6", features = ["compress"] }
 sha3 = "0.10.6"
 strum = "0.24"
 strum_macros = "0.24"
-
+tokio = "1.42"
 im = { version = "15.1", features = ["serde"] }
 tracing = "0.1.40"
 tracing-web = "0.1.3"

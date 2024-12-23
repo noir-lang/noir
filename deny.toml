@@ -66,13 +66,18 @@ exceptions = [
     # so we prefer to not have dependencies using it
     # https://tldrlegal.com/license/creative-commons-cc0-1.0-universal
     { allow = ["CC0-1.0"], name = "more-asserts" },
-    { allow = ["CC0-1.0"], name = "jsonrpc" },
     { allow = ["CC0-1.0"], name = "notify" },
     { allow = ["CC0-1.0"], name = "tiny-keccak" },
     { allow = ["MPL-2.0"], name = "sized-chunks" },
     { allow = ["MPL-2.0"], name = "webpki-roots" },
     { allow = ["CDDL-1.0"], name = "inferno" },
+    { allow = ["OpenSSL"], name = "ring" },
 ]
+
+[[licenses.clarify]]
+crate = "ring"
+expression = "ISC"
+license-files = [{ path = "LICENSE", hash = 0xbd0eed23 }]
 
 # This section is considered when running `cargo deny check sources`.
 # More documentation about the 'sources' section can be found here:
