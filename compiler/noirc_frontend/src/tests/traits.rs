@@ -1040,3 +1040,36 @@ fn warns_if_trait_is_not_in_scope_for_primitive_method_call_and_there_is_only_on
     assert_eq!(ident.to_string(), "foo");
     assert_eq!(trait_name, "private_mod::Foo");
 }
+
+#[test]
+fn warns_if_trait_is_not_in_scope_for_generic_function_call_and_there_is_only_one_trait_method() {
+    let src = r#"
+    fn main() {
+        let x: i32 = 1;
+        let _ = x.foo();
+    }
+
+    mod private_mod {
+        pub trait Foo<T> {
+            fn foo(self) -> i32;
+        }
+
+        impl<T> Foo<T> for T {
+            fn foo(self) -> i32 {
+                42
+            }
+        }
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ResolverError(ResolverError::PathResolutionError(
+        PathResolutionError::TraitMethodNotInScope { ident, trait_name },
+    )) = &errors[0].0
+    else {
+        panic!("Expected a 'trait method not in scope' error");
+    };
+    assert_eq!(ident.to_string(), "foo");
+    assert_eq!(trait_name, "private_mod::Foo");
+}
