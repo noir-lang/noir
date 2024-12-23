@@ -10,7 +10,7 @@ use acvm::{
 };
 use coverage::{
     analyze_brillig_program_before_fuzzing, AccumulatedFuzzerCoverage, BranchToFeatureMap,
-    PotentialBoolWitnessList, SingleTestCaseCoverage,
+    BrilligCoverageRanges, PotentialBoolWitnessList, SingleTestCaseCoverage,
 };
 use noir_fuzzer::dictionary::build_dictionary_from_program;
 use noirc_abi::{
@@ -57,6 +57,9 @@ pub struct FuzzedExecutor<E, F> {
 
     /// Location to feature map
     location_to_feature_map: BranchToFeatureMap,
+
+    /// Brillig coverage ranges (which are branch coverage and which are comparison coverage)
+    brillig_coverage_ranges: BrilligCoverageRanges,
 
     /// Mutator
     mutator: InputMutator,
@@ -110,7 +113,8 @@ impl<
         function_name: &str,
         num_threads: usize,
     ) -> Self {
-        let location_to_feature_map = analyze_brillig_program_before_fuzzing(&brillig_program);
+        let (location_to_feature_map, brillig_coverage_ranges) =
+            analyze_brillig_program_before_fuzzing(&brillig_program);
         let dictionary = build_dictionary_from_program(&acir_program.bytecode);
         let mutator = InputMutator::new(&acir_program.abi, &dictionary);
         Self {
@@ -119,6 +123,7 @@ impl<
             acir_executor,
             brillig_executor,
             location_to_feature_map,
+            brillig_coverage_ranges,
             mutator,
             package_name: package_name.to_string(),
             function_name: function_name.to_string(),
@@ -146,8 +151,10 @@ impl<
                 };
             }
         }
-        let mut accumulated_coverage =
-            AccumulatedFuzzerCoverage::new(self.location_to_feature_map.len());
+        let mut accumulated_coverage = AccumulatedFuzzerCoverage::new(
+            self.location_to_feature_map.len(),
+            &self.brillig_coverage_ranges,
+        );
 
         let mut starting_corpus = corpus.get_stored_corpus();
         println!("Starting corpus size: {}", starting_corpus.len());

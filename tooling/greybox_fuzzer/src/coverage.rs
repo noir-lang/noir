@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
+use std::u32;
 
 use acvm::acir::circuit::opcodes::{BlackBoxFuncCall, ConstantOrWitnessEnum};
 use acvm::acir::circuit::Opcode;
@@ -76,6 +77,20 @@ pub struct AcirBoolState {
     state: bool,
 }
 
+const BRANCH_COVERAGE_SIZE: usize = 2;
+pub struct BranchCoverageRange {
+    index: usize,
+}
+pub struct CmpCoverageRange {
+    index: usize,
+    bits: usize,
+}
+pub enum BrilligCoverageItemRange {
+    Branch(BranchCoverageRange),
+    Comparison(CmpCoverageRange),
+}
+
+pub type BrilligCoverageRanges = Vec<BrilligCoverageItemRange>;
 pub struct SingleTestCaseCoverage {
     acir_bool_coverage: Vec<AcirBoolState>,
     pub brillig_coverage: Vec<u32>,
@@ -112,39 +127,125 @@ impl SingleTestCaseCoverage {
 #[derive(Default, Clone, Copy)]
 pub struct AccumulatedSingleBranchCoverage {
     encountered_loop_log2s: u32,
-    encountered_maximum: u32,
+    encountered_loop_maximum: u32,
+    raw_index: usize,
+}
+
+#[derive(Default, Clone, Copy)]
+pub struct AccumulatedCmpCoverage {
+    encountered_loop_log2s: u32,
+    encountered_loop_maximum: u32,
+    closest_bits: u32,
+    raw_index: usize,
+    bits: usize,
+    enabled: bool,
 }
 pub struct AccumulatedFuzzerCoverage {
     acir_bool_coverage: HashSet<AcirBoolState>,
     brillig_branch_coverage: Vec<AccumulatedSingleBranchCoverage>,
+    brillig_cmp_approach_coverage: Vec<AccumulatedCmpCoverage>,
     pub potential_bool_witness_list: Option<PotentialBoolWitnessList>,
 }
 impl AccumulatedFuzzerCoverage {
-    pub fn new(brillig_coverage_map_size: usize) -> AccumulatedFuzzerCoverage {
+    pub fn new(
+        brillig_coverage_map_size: usize,
+        coverage_items: &BrilligCoverageRanges,
+    ) -> AccumulatedFuzzerCoverage {
+        let mut single_branch_coverage = Vec::new();
+        let mut cmp_coverage = Vec::new();
+        for coverage_item in coverage_items.iter() {
+            match coverage_item {
+                BrilligCoverageItemRange::Branch(branch_coverage_range) => {
+                    let BRANCH_COUNT = 2;
+                    for i in 0..BRANCH_COUNT {
+                        single_branch_coverage.push(AccumulatedSingleBranchCoverage {
+                            encountered_loop_log2s: 0,
+                            encountered_loop_maximum: 0,
+                            raw_index: branch_coverage_range.index + i,
+                        });
+                    }
+                }
+                BrilligCoverageItemRange::Comparison(cmp_coverage_range) => {
+                    let BRANCH_COUNT = 2;
+                    for i in 0..BRANCH_COUNT {
+                        single_branch_coverage.push(AccumulatedSingleBranchCoverage {
+                            encountered_loop_log2s: 0,
+                            encountered_loop_maximum: 0,
+                            raw_index: cmp_coverage_range.index + i,
+                        });
+                    }
+                    cmp_coverage.push(AccumulatedCmpCoverage {
+                        encountered_loop_log2s: 0,
+                        encountered_loop_maximum: 0,
+                        closest_bits: u32::MAX,
+                        raw_index: cmp_coverage_range.index + 2,
+                        bits: cmp_coverage_range.bits,
+                        enabled: true,
+                    });
+                }
+            }
+        }
         Self {
             acir_bool_coverage: HashSet::new(),
-            brillig_branch_coverage: vec![
-                AccumulatedSingleBranchCoverage::default();
-                brillig_coverage_map_size
-            ],
+            brillig_branch_coverage: single_branch_coverage,
+            brillig_cmp_approach_coverage: cmp_coverage,
             potential_bool_witness_list: None,
         }
     }
 
     pub fn merge(&mut self, new_coverage: &SingleTestCaseCoverage) -> bool {
-        assert!(new_coverage.brillig_coverage.len() == self.brillig_branch_coverage.len());
         let mut new_coverage_detected = false;
-        for (idx, value) in new_coverage.brillig_coverage.iter().enumerate() {
-            if !value.is_zero() {
-                let prev_value = self.brillig_branch_coverage[idx];
-                self.brillig_branch_coverage[idx].encountered_loop_log2s |=
-                    1u32 << (if value.is_zero() { 0 } else { value.ilog2() + 1 });
+
+        // Go through all single branch coverage ranges and check
+        for branch in self.brillig_branch_coverage.iter_mut() {
+            let prev_value = branch.clone();
+            let testcase_value = new_coverage.brillig_coverage[branch.raw_index];
+            if !testcase_value.is_zero() {
+                branch.encountered_loop_log2s |=
+                    1u32 << (if testcase_value.is_zero() { 0 } else { testcase_value.ilog2() + 1 });
                 new_coverage_detected = new_coverage_detected
-                    | (self.brillig_branch_coverage[idx].encountered_loop_log2s
-                        != prev_value.encountered_loop_log2s);
-                if value > &prev_value.encountered_maximum {
+                    | (branch.encountered_loop_log2s != prev_value.encountered_loop_log2s);
+                if testcase_value > prev_value.encountered_loop_maximum {
                     new_coverage_detected = true;
-                    self.brillig_branch_coverage[idx].encountered_maximum = *value;
+                    branch.encountered_loop_maximum = testcase_value;
+                }
+            }
+        }
+        // Go through comparison coverage
+        for cmp_approach in self.brillig_cmp_approach_coverage.iter_mut() {
+            if !cmp_approach.enabled {
+                // No need to detect closeness any more if we've hit the equality case
+                continue;
+            }
+            let mut least_different_bits = u32::MAX;
+            let mut last_value = 0;
+            for i in 0..(cmp_approach.bits + 1) {
+                if !new_coverage.brillig_coverage[i + cmp_approach.raw_index].is_zero() {
+                    least_different_bits = (cmp_approach.bits - i) as u32;
+                    last_value = new_coverage.brillig_coverage[i + cmp_approach.raw_index];
+                }
+            }
+
+            if least_different_bits < cmp_approach.closest_bits {
+                cmp_approach.closest_bits = least_different_bits;
+                cmp_approach.encountered_loop_maximum = last_value;
+                cmp_approach.encountered_loop_log2s |=
+                    1u32 << (if last_value.is_zero() { 0 } else { last_value.ilog2() + 1 });
+
+                new_coverage_detected = true;
+                if least_different_bits == 0 {
+                    cmp_approach.enabled = false;
+                    println!("Disabled one comparison tracing;");
+                }
+            } else if least_different_bits == cmp_approach.closest_bits {
+                let prev_value = cmp_approach.clone();
+                cmp_approach.encountered_loop_log2s |=
+                    1u32 << (if last_value.is_zero() { 0 } else { last_value.ilog2() + 1 });
+                new_coverage_detected = new_coverage_detected
+                    | (cmp_approach.encountered_loop_log2s != prev_value.encountered_loop_log2s);
+                if last_value > prev_value.encountered_loop_maximum {
+                    new_coverage_detected = true;
+                    cmp_approach.encountered_loop_maximum = last_value;
                 }
             }
         }
@@ -157,18 +258,49 @@ impl AccumulatedFuzzerCoverage {
         new_coverage_detected
     }
     pub fn detect_new_coverage(&self, new_coverage: &SingleTestCaseCoverage) -> bool {
-        assert!(new_coverage.brillig_coverage.len() == self.brillig_branch_coverage.len());
-        for (idx, value) in new_coverage.brillig_coverage.iter().enumerate() {
-            if !value.is_zero() {
-                let prev_value = self.brillig_branch_coverage[idx];
-                // New power of two detected
-                if self.brillig_branch_coverage[idx].encountered_loop_log2s
-                    | 1u32 << (if value.is_zero() { 0 } else { value.ilog2() + 1 })
-                    != prev_value.encountered_loop_log2s
+        let mut new_coverage_detected = false;
+
+        // Go through all single branch coverage ranges and check
+        for branch in self.brillig_branch_coverage.iter() {
+            let testcase_value = new_coverage.brillig_coverage[branch.raw_index];
+            if !testcase_value.is_zero() {
+                if (branch.encountered_loop_log2s
+                    | 1u32
+                        << (if testcase_value.is_zero() { 0 } else { testcase_value.ilog2() + 1 }))
+                    != branch.encountered_loop_log2s
                 {
                     return true;
                 }
-                if value > &prev_value.encountered_maximum {
+                if testcase_value > branch.encountered_loop_maximum {
+                    return true;
+                }
+            }
+        }
+        // Go through comparison coverage
+        for cmp_approach in self.brillig_cmp_approach_coverage.iter() {
+            if !cmp_approach.enabled {
+                // No need to detect closeness any more if we've hit the equality case
+                continue;
+            }
+            let mut least_different_bits = u32::MAX;
+            let mut last_value = 0;
+            for i in 0..(cmp_approach.bits + 1) {
+                if !new_coverage.brillig_coverage[i + cmp_approach.raw_index].is_zero() {
+                    least_different_bits = (cmp_approach.bits - i) as u32;
+                    last_value = new_coverage.brillig_coverage[i + cmp_approach.raw_index];
+                }
+            }
+
+            if least_different_bits < cmp_approach.closest_bits {
+                return true;
+            } else if least_different_bits == cmp_approach.closest_bits {
+                if (cmp_approach.encountered_loop_log2s
+                    | 1u32 << (if last_value.is_zero() { 0 } else { last_value.ilog2() + 1 }))
+                    != cmp_approach.encountered_loop_log2s
+                {
+                    return true;
+                }
+                if last_value > cmp_approach.encountered_loop_maximum {
                     return true;
                 }
             }
@@ -181,7 +313,9 @@ impl AccumulatedFuzzerCoverage {
         false
     }
 }
-pub fn analyze_brillig_program_before_fuzzing(program: &ProgramArtifact) -> BranchToFeatureMap {
+pub fn analyze_brillig_program_before_fuzzing(
+    program: &ProgramArtifact,
+) -> (BranchToFeatureMap, BrilligCoverageRanges) {
     let program_bytecode = &program.bytecode;
     let main_function = &program_bytecode.functions[0];
     let starting_opcode = &main_function.opcodes[0];
@@ -195,6 +329,7 @@ pub fn analyze_brillig_program_before_fuzzing(program: &ProgramArtifact) -> Bran
         &program_bytecode.unconstrained_functions[fuzzed_brillig_function_id.as_usize()];
     let mut location_to_feature_map = HashMap::new();
     let mut total_features = 0usize;
+    let mut coverage_items = BrilligCoverageRanges::new();
     for (opcode_index, opcode) in fuzzed_brillig_function.bytecode.iter().enumerate() {
         match opcode {
             &BrilligOpcode::JumpIf { location, .. }
@@ -202,11 +337,17 @@ pub fn analyze_brillig_program_before_fuzzing(program: &ProgramArtifact) -> Bran
                 location_to_feature_map.insert((opcode_index, location), total_features);
                 location_to_feature_map
                     .insert((opcode_index, opcode_index + 1), total_features + 1);
+                coverage_items.push(BrilligCoverageItemRange::Branch(BranchCoverageRange {
+                    index: total_features,
+                }));
                 total_features += 2;
             }
             &BrilligOpcode::ConditionalMov { .. } => {
                 location_to_feature_map.insert((opcode_index, usize::MAX - 1), total_features);
                 location_to_feature_map.insert((opcode_index, usize::MAX), total_features + 1);
+                coverage_items.push(BrilligCoverageItemRange::Branch(BranchCoverageRange {
+                    index: total_features,
+                }));
                 total_features += 2;
             }
             &BrilligOpcode::BinaryFieldOp { destination: _, op, .. } => match op {
@@ -223,6 +364,10 @@ pub fn analyze_brillig_program_before_fuzzing(program: &ProgramArtifact) -> Bran
                         location_to_feature_map
                             .insert((opcode_index, usize::MAX - i), total_features + i);
                     }
+                    coverage_items.push(BrilligCoverageItemRange::Comparison(CmpCoverageRange {
+                        index: total_features,
+                        bits: 254,
+                    }));
                     total_features += features_per_comparison;
                 }
             },
@@ -251,13 +396,17 @@ pub fn analyze_brillig_program_before_fuzzing(program: &ProgramArtifact) -> Bran
                         location_to_feature_map
                             .insert((opcode_index, usize::MAX - i), total_features + i);
                     }
+                    coverage_items.push(BrilligCoverageItemRange::Comparison(CmpCoverageRange {
+                        index: total_features,
+                        bits: features_per_comparison - 3,
+                    }));
                     total_features += features_per_comparison;
                 }
             },
             _ => (),
         }
     }
-    location_to_feature_map
+    (location_to_feature_map, coverage_items)
 }
 
 pub fn analyze_acir_program_before_fuzzing(program: &ProgramArtifact) -> HashSet<Witness> {

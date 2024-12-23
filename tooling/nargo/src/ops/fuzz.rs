@@ -1,4 +1,4 @@
-use std::{default, path::PathBuf};
+use std::path::PathBuf;
 
 use acvm::{
     acir::native_types::{WitnessMap, WitnessStack},

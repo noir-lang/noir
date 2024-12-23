@@ -1,4 +1,3 @@
-use core::num;
 use std::{io::Write, path::PathBuf};
 
 use acvm::{BlackBoxFunctionSolver, FieldElement};
