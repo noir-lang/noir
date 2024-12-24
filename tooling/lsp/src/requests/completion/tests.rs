@@ -2861,4 +2861,22 @@ fn main() {
         assert_eq!(items.len(), 1);
         assert!(items[0].label == "bar_baz()");
     }
+
+    #[test]
+    async fn test_suggests_trait_method_from_where_clause_in_function() {
+        let src = r#"
+        trait Foo {
+            fn foo(self) -> i32;
+        }
+
+        fn something<T>(x: T) -> i32
+        where
+            T: Foo,
+        {
+            x.fo>|<
+        }
+        "#;
+        let items = get_completions(src).await;
+        assert_eq!(items.len(), 1);
+    }
 }
