@@ -27,7 +27,7 @@ use corpus::Corpus;
 use proptest::result;
 use rayon::{
     current_num_threads,
-    iter::{FromParallelIterator, ParallelBridge, ParallelIterator},
+    iter::{FromParallelIterator, IntoParallelRefIterator, ParallelBridge, ParallelIterator},
     ThreadPool,
 };
 use strategies::InputMutator;
@@ -76,21 +76,7 @@ pub struct FuzzedExecutor<E, F> {
     num_threads: usize,
 }
 type BrilligCoverage = Vec<u32>;
-// impl<T: Send> FromParallelIterator<T>
-//     for Vec<Result<(FuzzOutcome, Option<SingleTestCaseCoverage>), ()>>
-// {
-// }
 
-// impl FromParallelIterator<Result<(FuzzOutcome, Option<SingleTestCaseCoverage>), ()>>
-//     for Vec<Result<(FuzzOutcome, Option<SingleTestCaseCoverage>), ()>>
-// {
-//     fn from_par_iter<I>(par_iter: I) -> Self
-//     where
-//         I: IntoParallelIterator<Item = Result<(FuzzOutcome, Option<SingleTestCaseCoverage>), ()>>,
-//     {
-//         par_iter.into_par_iter().collect()
-//     }
-// }
 impl<
         E: Fn(
                 &Program<FieldElement>,
@@ -238,12 +224,10 @@ impl<
     ) -> Vec<FuzzOutcome> {
         pool.install(|| {
             testcases
-                .clone()
-                .into_iter()
-                .par_bridge()
+                .into_par_iter()
                 .map(|testcase| self.single_fuzz(&testcase).unwrap())
+                .collect::<Vec<FuzzOutcome>>()
         })
-        .collect::<Vec<FuzzOutcome>>()
     }
     /// Fuzzes the provided program.
     pub fn fuzz(&mut self) -> FuzzTestResult {
@@ -335,89 +319,85 @@ impl<
             let testcase_time = testcase_gen_time.elapsed().as_micros();
 
             let fuzzing_time = Instant::now();
-            let all_fuzzing_results: Vec<(FuzzOutcome, bool)> = pool
-                .install(|| {
-                    testcase_set.clone().into_iter().par_bridge().map(
-                        |(index, main_testcase_index, additional_testcase_index, thread_seed)| {
-                            let mut thread_prng = XorShiftRng::from_seed(thread_seed);
-                            let input = self.mutator.mutate_input_map_multiple(
-                                corpus.get_testcase_by_index(main_testcase_index).clone(),
-                                match additional_testcase_index {
-                                    Some(additional_testcase_index) => Some(
-                                        corpus
-                                            .get_testcase_by_index(additional_testcase_index)
-                                            .clone(),
-                                    ),
-                                    None => None,
-                                },
-                                &mut thread_prng,
-                            );
-                            if total_acir_time < total_brillig_time {
-                                let paired_fuzz_outcome = self.single_fuzz(&input).unwrap();
-                                if let FuzzOutcome::Case(CaseOutcome {
-                                    case,
-                                    witness,
-                                    brillig_coverage,
-                                    acir_time,
-                                    brillig_time,
-                                }) = paired_fuzz_outcome
-                                {
-                                    let new_coverage = SingleTestCaseCoverage::new(
-                                        &witness.as_ref().unwrap(),
-                                        brillig_coverage.clone().unwrap(),
-                                        &accumulated_coverage
-                                            .potential_bool_witness_list
-                                            .as_ref()
-                                            .unwrap()
-                                            .merge_new(&witness.as_ref().unwrap()),
-                                    );
-                                    (
-                                        FuzzOutcome::Case(CaseOutcome {
-                                            case,
-                                            witness,
-                                            brillig_coverage,
-                                            acir_time,
-                                            brillig_time,
-                                        }),
-                                        !accumulated_coverage.detect_new_coverage(&new_coverage),
-                                    )
-                                } else {
-                                    (paired_fuzz_outcome, false)
-                                }
+            let all_fuzzing_results: Vec<(FuzzOutcome, bool)> = pool.install(|| {
+                testcase_set
+                    .into_par_iter()
+                    .map(|(_index, main_testcase_index, additional_testcase_index, thread_seed)| {
+                        let mut thread_prng = XorShiftRng::from_seed(thread_seed);
+                        let input = self.mutator.mutate_input_map_multiple(
+                            corpus.get_testcase_by_index(main_testcase_index).clone(),
+                            match additional_testcase_index {
+                                Some(additional_testcase_index) => Some(
+                                    corpus.get_testcase_by_index(additional_testcase_index).clone(),
+                                ),
+                                None => None,
+                            },
+                            &mut thread_prng,
+                        );
+                        if total_acir_time < total_brillig_time {
+                            let paired_fuzz_outcome = self.single_fuzz(&input).unwrap();
+                            if let FuzzOutcome::Case(CaseOutcome {
+                                case,
+                                witness,
+                                brillig_coverage,
+                                acir_time,
+                                brillig_time,
+                            }) = paired_fuzz_outcome
+                            {
+                                let new_coverage = SingleTestCaseCoverage::new(
+                                    &witness.as_ref().unwrap(),
+                                    brillig_coverage.clone().unwrap(),
+                                    &accumulated_coverage
+                                        .potential_bool_witness_list
+                                        .as_ref()
+                                        .unwrap()
+                                        .merge_new(&witness.as_ref().unwrap()),
+                                );
+                                (
+                                    FuzzOutcome::Case(CaseOutcome {
+                                        case,
+                                        witness,
+                                        brillig_coverage,
+                                        acir_time,
+                                        brillig_time,
+                                    }),
+                                    !accumulated_coverage.detect_new_coverage(&new_coverage),
+                                )
                             } else {
-                                let brillig_fuzz_outcome =
-                                    self.single_fuzz_brillig(&input).unwrap();
-                                if let FuzzOutcome::Case(CaseOutcome {
-                                    case,
-                                    witness,
-                                    brillig_coverage,
-                                    acir_time,
-                                    brillig_time,
-                                }) = brillig_fuzz_outcome
-                                {
-                                    let new_coverage = SingleTestCaseCoverage::new(
-                                        &WitnessStack::default(),
-                                        brillig_coverage.clone().unwrap(),
-                                        &PotentialBoolWitnessList::default(),
-                                    );
-                                    (
-                                        FuzzOutcome::Case(CaseOutcome {
-                                            case,
-                                            witness,
-                                            brillig_coverage,
-                                            acir_time,
-                                            brillig_time,
-                                        }),
-                                        !accumulated_coverage.detect_new_coverage(&new_coverage),
-                                    )
-                                } else {
-                                    (brillig_fuzz_outcome, false)
-                                }
+                                (paired_fuzz_outcome, false)
                             }
-                        },
-                    )
-                })
-                .collect::<Vec<(FuzzOutcome, bool)>>();
+                        } else {
+                            let brillig_fuzz_outcome = self.single_fuzz_brillig(&input).unwrap();
+                            if let FuzzOutcome::Case(CaseOutcome {
+                                case,
+                                witness,
+                                brillig_coverage,
+                                acir_time,
+                                brillig_time,
+                            }) = brillig_fuzz_outcome
+                            {
+                                let new_coverage = SingleTestCaseCoverage::new(
+                                    &WitnessStack::default(),
+                                    brillig_coverage.clone().unwrap(),
+                                    &PotentialBoolWitnessList::default(),
+                                );
+                                (
+                                    FuzzOutcome::Case(CaseOutcome {
+                                        case,
+                                        witness,
+                                        brillig_coverage,
+                                        acir_time,
+                                        brillig_time,
+                                    }),
+                                    !accumulated_coverage.detect_new_coverage(&new_coverage),
+                                )
+                            } else {
+                                (brillig_fuzz_outcome, false)
+                            }
+                        }
+                    })
+                    .collect::<Vec<(FuzzOutcome, bool)>>()
+            });
             let fuzz_time_micros = fuzzing_time.elapsed().as_micros();
             if (acir_round) {
                 let mut time_per_testcase = fuzz_time_micros / acir_executions_multiplier as u128;
@@ -524,10 +504,38 @@ impl<
                 }
             }
             if time_tracker.elapsed().as_secs() >= 1 {
+                let format_time = |x: u128| {
+                    let microseconds_in_second = 1_000_000;
+                    let microseconds_in_millisecond = 1_000;
+                    let microseconds_in_minutes = 60_000_000;
+                    if x > microseconds_in_minutes {
+                        format!("{}m", x / microseconds_in_minutes)
+                    } else if x > microseconds_in_second {
+                        format!("{}s", x / microseconds_in_second)
+                    } else if x > microseconds_in_millisecond {
+                        format!("{}ms", x / microseconds_in_millisecond)
+                    } else {
+                        format!("{}us", x)
+                    }
+                };
+                let format_count = |x: usize| {
+                    let million = 1_000_000;
+                    let thousand = 1_000;
+                    let billion = 1_000_000_000;
+                    if x > billion {
+                        format!("{}G", x / billion)
+                    } else if x > million {
+                        format!("{}M", x / million)
+                    } else if x > thousand {
+                        format!("{}k", x / thousand)
+                    } else {
+                        format!("{}", x)
+                    }
+                };
                 println!(
-                    "iterations: {}, acir_time: {}ms, brillig_time: {}ms, testcase_generation_time:{}mcrs, count:{}, fuzzing_time:{}mcrs, updating time: {}mcrs, skipped: {}",
-                    current_iteration, total_acir_time/1000, total_brillig_time/1000, testcase_time,current_testcase_set_size, fuzz_time_micros,updating_time.elapsed().as_micros(),
-                skipped
+                    "iterations: {}, acir_time: {}, brillig_time: {}, testcase_generation_time:{}, count:{}, fuzzing_time:{}, updating time: {}, skipped: {}, threads: {}",
+                    format_count(current_iteration), format_time(total_acir_time), format_time(total_brillig_time), format_time(testcase_time),format_count(current_testcase_set_size), format_time(fuzz_time_micros),format_time(updating_time.elapsed().as_micros()),
+                format_count(skipped),self.num_threads
 
                 );
                 time_tracker = Instant::now();
@@ -535,41 +543,40 @@ impl<
             if potential_res.is_some() {
                 break potential_res.unwrap();
             }
-            let all_fuzzing_results: Vec<FuzzOutcome> = pool
-                .install(|| {
-                    acir_cases_to_execute.clone().into_iter().par_bridge().map(
-                        |(input, brillig_coverage, brillig_time)| {
-                            let fuzz_res = self.single_fuzz_acir(&input).unwrap();
-                            match fuzz_res {
-                                FuzzOutcome::Case(CaseOutcome {
-                                    case,
-                                    witness,
-                                    brillig_coverage: _,
-                                    acir_time,
-                                    brillig_time: _,
-                                }) => FuzzOutcome::Case(CaseOutcome {
-                                    case,
-                                    witness,
-                                    brillig_coverage: Some(brillig_coverage),
-                                    acir_time,
-                                    brillig_time,
-                                }),
-                                FuzzOutcome::Discrepancy(..) => {
-                                    panic!("Can't get a discrepancy just from acir")
-                                }
-                                FuzzOutcome::CounterExample(CounterExampleOutcome {
-                                    counterexample,
-                                    exit_reason,
-                                }) => FuzzOutcome::Discrepancy(DiscrepancyOutcome {
-                                    counterexample,
-                                    acir_failed: true,
-                                    exit_reason,
-                                }),
+            let all_fuzzing_results: Vec<FuzzOutcome> = pool.install(|| {
+                acir_cases_to_execute
+                    .into_par_iter()
+                    .map(|(input, brillig_coverage, brillig_time)| {
+                        let fuzz_res = self.single_fuzz_acir(&input).unwrap();
+                        match fuzz_res {
+                            FuzzOutcome::Case(CaseOutcome {
+                                case,
+                                witness,
+                                brillig_coverage: _,
+                                acir_time,
+                                brillig_time: _,
+                            }) => FuzzOutcome::Case(CaseOutcome {
+                                case,
+                                witness,
+                                brillig_coverage: Some(brillig_coverage),
+                                acir_time,
+                                brillig_time: brillig_time,
+                            }),
+                            FuzzOutcome::Discrepancy(..) => {
+                                panic!("Can't get a discrepancy just from acir")
                             }
-                        },
-                    )
-                })
-                .collect::<Vec<FuzzOutcome>>();
+                            FuzzOutcome::CounterExample(CounterExampleOutcome {
+                                counterexample,
+                                exit_reason,
+                            }) => FuzzOutcome::Discrepancy(DiscrepancyOutcome {
+                                counterexample,
+                                acir_failed: true,
+                                exit_reason,
+                            }),
+                        }
+                    })
+                    .collect::<Vec<FuzzOutcome>>()
+            });
             for fuzz_res in all_fuzzing_results.into_iter() {
                 let (case, witness, brillig_coverage, acir_time, brillig_time) = match fuzz_res {
                     FuzzOutcome::Case(CaseOutcome {
@@ -696,8 +703,8 @@ impl<
                 case: input_map.clone(),
                 witness: Some(witnesses),
                 brillig_coverage: Some(brillig_coverage.unwrap()),
-                acir_time: acir_elapsed.as_nanos(),
-                brillig_time: brillig_elapsed.as_nanos(),
+                acir_time: acir_elapsed.as_micros(),
+                brillig_time: brillig_elapsed.as_micros(),
             })),
             (Err(err), Ok(_)) => Ok(FuzzOutcome::Discrepancy(DiscrepancyOutcome {
                 exit_reason: err,
@@ -729,7 +736,7 @@ impl<
                 case: input_map.clone(),
                 witness: Some(witnesses),
                 brillig_coverage: None,
-                acir_time: acir_elapsed.as_nanos(),
+                acir_time: acir_elapsed.as_micros(),
                 brillig_time: 0,
             })),
             Err(err) => Ok(FuzzOutcome::CounterExample(CounterExampleOutcome {
@@ -757,7 +764,7 @@ impl<
                 witness: None,
                 brillig_coverage: Some(brillig_coverage.unwrap()),
                 acir_time: 0,
-                brillig_time: brillig_elapsed.as_nanos(),
+                brillig_time: brillig_elapsed.as_micros(),
             })),
             Err(err) => Ok(FuzzOutcome::CounterExample(CounterExampleOutcome {
                 exit_reason: err,

@@ -217,7 +217,7 @@ fn run_fuzzers<S: BlackBoxFunctionSolver<FieldElement> + Default>(
     }
 
     let fuzzing_report: Vec<(String, FuzzingRunStatus)> = fuzzing_harnesses
-        .into_par_iter()
+        .into_iter()
         .map(|fuzzing_harness_name| {
             let status = run_fuzzing_harness::<S>(
                 file_manager,
