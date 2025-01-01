@@ -45,11 +45,11 @@ impl Function {
             let call_returns = self.dfg.instruction_results(instruction_id);
             let original_return_id = call_returns[0];
 
-            // We replace the result with a fresh id. This will be unused, so the DIE pass will remove the leftover intrinsic call.
-            self.dfg.replace_result(instruction_id, original_return_id);
-
             // Replace all uses of the original return value with the constant
             self.dfg.set_value_from_id(original_return_id, is_within_unconstrained);
+
+            // Now remove the original instruction
+            self.dfg.remove_instruction(instruction_id);
         }
     }
 }

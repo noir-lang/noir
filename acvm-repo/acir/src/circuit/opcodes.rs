@@ -47,6 +47,7 @@ pub enum Opcode<F> {
     /// - **express a constraint** on witnesses; for instance to express that a
     ///   witness `w` is a boolean, you can add the opcode: `w*w-w=0`
     /// - or, to **compute the value** of an arithmetic operation of some inputs.
+    ///
     /// For instance, to multiply two witnesses `x` and `y`, you would use the
     /// opcode `z-x*y=0`, which would constrain `z` to be `x*y`.
     ///

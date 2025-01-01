@@ -3,6 +3,7 @@
 // The features being tested is brillig calls
 fn main(x: u32) {
     unsafe {
+        /*@safety : testing context*/
         assert(entry_point(x) == 2);
         swap_entry_point(x, x + 1);
         assert(deep_entry_point(x) == 4);

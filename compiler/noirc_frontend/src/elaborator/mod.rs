@@ -4,8 +4,8 @@ use std::{
 };
 
 use crate::{
-    ast::ItemVisibility, hir_def::traits::ResolvedTraitBound, usage_tracker::UsageTracker,
-    StructField, StructType, TypeBindings,
+    ast::ItemVisibility, hir_def::traits::ResolvedTraitBound, node_interner::GlobalValue,
+    usage_tracker::UsageTracker, StructField, StructType, TypeBindings,
 };
 use crate::{
     ast::{
@@ -79,6 +79,16 @@ pub struct LambdaContext {
     pub scope_index: usize,
 }
 
+/// Determines whether we are in an unsafe block and, if so, whether
+/// any unconstrained calls were found in it (because if not we'll warn
+/// that the unsafe block is not needed).
+#[derive(Copy, Clone)]
+enum UnsafeBlockStatus {
+    NotInUnsafeBlock,
+    InUnsafeBlockWithoutUnconstrainedCalls,
+    InUnsafeBlockWithConstrainedCalls,
+}
+
 pub struct Elaborator<'context> {
     scopes: ScopeForest,
 
@@ -90,7 +100,7 @@ pub struct Elaborator<'context> {
 
     pub(crate) file: FileId,
 
-    in_unsafe_block: bool,
+    unsafe_block_status: UnsafeBlockStatus,
     nested_loops: usize,
 
     /// Contains a mapping of the current struct or functions's generics to
@@ -202,7 +212,7 @@ impl<'context> Elaborator<'context> {
             def_maps,
             usage_tracker,
             file: FileId::dummy(),
-            in_unsafe_block: false,
+            unsafe_block_status: UnsafeBlockStatus::NotInUnsafeBlock,
             nested_loops: 0,
             generics: Vec::new(),
             lambda_stack: Vec::new(),
@@ -1689,7 +1699,7 @@ impl<'context> Elaborator<'context> {
 
             self.debug_comptime(location, |interner| value.display(interner).to_string());
 
-            self.interner.get_global_mut(global_id).value = Some(value);
+            self.interner.get_global_mut(global_id).value = GlobalValue::Resolved(value);
         }
     }
 
