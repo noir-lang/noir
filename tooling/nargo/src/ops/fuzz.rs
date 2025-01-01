@@ -112,7 +112,7 @@ pub fn run_fuzzing_harness<B: BlackBoxFunctionSolver<FieldElement> + Default>(
                         initial_witness,
                         &B::default(),
                         &mut DefaultForeignCallExecutor::<FieldElement>::new(
-                            false,
+                            show_output,
                             foreign_call_resolver_url,
                             root_path.clone(),
                             package_name.clone(),

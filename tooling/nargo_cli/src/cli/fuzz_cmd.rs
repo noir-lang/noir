@@ -13,7 +13,7 @@ use nargo::{
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{check_crate, CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::hir::{FunctionNameMatch, ParsedFiles};
-use rayon::prelude::{IntoParallelIterator, ParallelBridge, ParallelIterator};
+use rayon::prelude::{ParallelBridge, ParallelIterator};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 use crate::{cli::check_cmd::check_crate_and_report_errors, errors::CliError};
