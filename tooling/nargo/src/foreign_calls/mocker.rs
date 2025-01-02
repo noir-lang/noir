@@ -1,12 +1,13 @@
+use std::marker::PhantomData;
+
 use acvm::{
     acir::brillig::{ForeignCallParam, ForeignCallResult},
     pwg::ForeignCallWaitInfo,
     AcirField,
 };
-use noirc_printable_type::{decode_string_value, ForeignCallError};
-use serde::{Deserialize, Serialize};
+use noirc_abi::decode_string_value;
 
-use super::{ForeignCall, ForeignCallExecutor};
+use super::{ForeignCall, ForeignCallError, ForeignCallExecutor};
 
 /// This struct represents an oracle mock. It can be used for testing programs that use oracles.
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -45,7 +46,7 @@ impl<F: PartialEq> MockedCall<F> {
 }
 
 #[derive(Debug, Default)]
-pub(crate) struct MockForeignCallExecutor<F> {
+pub struct MockForeignCallExecutor<F> {
     /// Mocks have unique ids used to identify them in Noir, allowing to update or remove them.
     last_mock_id: usize,
     /// The registered mocks
@@ -78,8 +79,9 @@ impl<F: AcirField> MockForeignCallExecutor<F> {
     }
 }
 
-impl<F: AcirField + Serialize + for<'a> Deserialize<'a>> ForeignCallExecutor<F>
-    for MockForeignCallExecutor<F>
+impl<F> ForeignCallExecutor<F> for MockForeignCallExecutor<F>
+where
+    F: AcirField,
 {
     fn execute(
         &mut self,
@@ -172,5 +174,32 @@ impl<F: AcirField + Serialize + for<'a> Deserialize<'a>> ForeignCallExecutor<F>
                 }
             }
         }
+    }
+}
+
+/// Handler that panics if any of the mock functions are called.
+#[allow(dead_code)] // TODO: Make the mocker optional
+pub(crate) struct DisabledMockForeignCallExecutor<F> {
+    _field: PhantomData<F>,
+}
+
+impl<F> ForeignCallExecutor<F> for DisabledMockForeignCallExecutor<F> {
+    fn execute(
+        &mut self,
+        foreign_call: &ForeignCallWaitInfo<F>,
+    ) -> Result<ForeignCallResult<F>, ForeignCallError> {
+        let foreign_call_name = foreign_call.function.as_str();
+        if let Some(
+            ForeignCall::CreateMock
+            | ForeignCall::SetMockParams
+            | ForeignCall::GetMockLastParams
+            | ForeignCall::SetMockReturns
+            | ForeignCall::SetMockTimes
+            | ForeignCall::ClearMock,
+        ) = ForeignCall::lookup(foreign_call_name)
+        {
+            panic!("unexpected mock call: {}", foreign_call.function)
+        }
+        Err(ForeignCallError::NoHandler(foreign_call.function.clone()))
     }
 }

@@ -400,7 +400,7 @@ let vec: BoundedVec<u32, 4> = BoundedVec::from_parts([1, 2, 3, 0], 3);
             assert_eq(vec.len(), 3);
 
             // Any elements past the given length are zeroed out, so these
-            // two BoundedVecs will be completely equal
+            // two vectors will be completely equal
             let vec1: BoundedVec<u32, 4> = BoundedVec::from_parts([1, 2, 3, 1], 3);
             let vec2: BoundedVec<u32, 4> = BoundedVec::from_parts([1, 2, 3, 2], 3);
             assert_eq(vec1, vec2);
@@ -433,7 +433,7 @@ let vec: BoundedVec<u32, 4> = BoundedVec::from_parts_unchecked([1, 2, 3, 0], 3);
             let vec1: BoundedVec<u32, 4> = BoundedVec::from_parts_unchecked([1, 2, 3, 1], 3);
             let vec2: BoundedVec<u32, 4> = BoundedVec::from_parts_unchecked([1, 2, 3, 2], 3);
 
-            // both vecs have length 3 so we'd expect them to be equal, but this
+            // both vectors have length 3 so we'd expect them to be equal, but this
             // fails because elements past the length are still checked in eq
             assert(vec1 != vec2);
 ```
