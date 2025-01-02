@@ -1398,8 +1398,8 @@ mod test {
         let expected = "
         acir(inline) fn main f0 {
           b0():
-            v92 = allocate -> &mut Field
-            v93 = allocate -> &mut Field
+            v0 = allocate -> &mut Field
+            v1 = allocate -> &mut Field
             enable_side_effects u1 1
             return Field 200
         }
