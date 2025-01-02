@@ -189,18 +189,16 @@ impl<F> ForeignCallExecutor<F> for DisabledMockForeignCallExecutor<F> {
         foreign_call: &ForeignCallWaitInfo<F>,
     ) -> Result<ForeignCallResult<F>, ForeignCallError> {
         let foreign_call_name = foreign_call.function.as_str();
-        if let Some(call) = ForeignCall::lookup(foreign_call_name) {
-            match call {
-                ForeignCall::CreateMock
-                | ForeignCall::SetMockParams
-                | ForeignCall::GetMockLastParams
-                | ForeignCall::SetMockReturns
-                | ForeignCall::SetMockTimes
-                | ForeignCall::ClearMock => {
-                    panic!("unexpected mock call: {}", foreign_call.function)
-                }
-                _ => {}
-            }
+        if let Some(
+            ForeignCall::CreateMock
+            | ForeignCall::SetMockParams
+            | ForeignCall::GetMockLastParams
+            | ForeignCall::SetMockReturns
+            | ForeignCall::SetMockTimes
+            | ForeignCall::ClearMock,
+        ) = ForeignCall::lookup(foreign_call_name)
+        {
+            panic!("unexpected mock call: {}", foreign_call.function)
         }
         Err(ForeignCallError::NoHandler(foreign_call.function.clone()))
     }
