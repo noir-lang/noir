@@ -4,7 +4,7 @@ use fm::{FileId, FileManager};
 use noirc_driver::{
     link_to_debug_crate, CompilationResult, CompileOptions, CompiledContract, CompiledProgram,
 };
-use noirc_errors::{DiagnosticKind, FileDiagnostic};
+use noirc_errors::FileDiagnostic;
 use noirc_frontend::debug::DebugInstrumenter;
 use noirc_frontend::hir::ParsedFiles;
 
@@ -167,7 +167,7 @@ fn exclude_warnings_from_dependencies(
     errors
         .into_iter()
         .filter(|error| {
-            if error.diagnostic.kind == DiagnosticKind::Warning {
+            if error.diagnostic.is_warning() {
                 root_files.contains(&error.file_id)
             } else {
                 true
