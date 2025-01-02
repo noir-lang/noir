@@ -330,7 +330,7 @@ jobs:
         if: ${{ !matrix.project.take_average }}
         run: |
           mv /home/runner/work/noir/noir/scripts/test_programs/compilation_report.sh ./compilation_report.sh
-          mv /home/runner/work/noir/noir/scripts/test_programs/parse_time.sh ./parse_time.sh
+          cp /home/runner/work/noir/noir/scripts/test_programs/parse_time.sh ./parse_time.sh
           ./compilation_report.sh 1
 
       - name: Generate compilation report with averages
@@ -338,7 +338,7 @@ jobs:
         if: ${{ matrix.project.take_average }}
         run: |
           mv /home/runner/work/noir/noir/scripts/test_programs/compilation_report.sh ./compilation_report.sh
-          mv /home/runner/work/noir/noir/scripts/test_programs/parse_time.sh ./parse_time.sh
+          cp /home/runner/work/noir/noir/scripts/test_programs/parse_time.sh ./parse_time.sh
           ./compilation_report.sh 1 1
       
       - name: Generate execution report without averages
