@@ -97,7 +97,7 @@ fn insert_all_files_for_package_into_file_manager(
         .parent()
         .unwrap_or_else(|| panic!("The entry path is expected to be a single file within a directory and so should have a parent {:?}", package.entry_path));
 
-    for entry in WalkDir::new(entry_path_parent) {
+    for entry in WalkDir::new(entry_path_parent).sort_by_file_name() {
         let Ok(entry) = entry else {
             continue;
         };

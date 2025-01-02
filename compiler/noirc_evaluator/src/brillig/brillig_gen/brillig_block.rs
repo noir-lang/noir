@@ -837,6 +837,7 @@ impl<'block> BrilligBlock<'block> {
                     self.brillig_context.deallocate_register(items_pointer);
                 }
             }
+            Instruction::Noop => (),
         };
 
         let dead_variables = self

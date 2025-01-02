@@ -4,12 +4,11 @@ use acvm::{
     AcirField, FieldElement,
 };
 use nargo::{
-    foreign_calls::{DefaultForeignCallExecutor, ForeignCallExecutor},
+    foreign_calls::{DefaultForeignCallExecutor, ForeignCallError, ForeignCallExecutor},
     PrintOutput,
 };
 use noirc_artifacts::debug::{DebugArtifact, DebugVars, StackFrame};
 use noirc_errors::debug_info::{DebugFnId, DebugVarId};
-use noirc_printable_type::ForeignCallError;
 
 pub(crate) enum DebugForeignCall {
     VarAssign,
