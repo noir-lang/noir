@@ -225,6 +225,10 @@ impl<'a> Parser<'a> {
             false, // allow mut
         );
 
+        if modifiers.visibility != ItemVisibility::Private {
+            self.push_error(ParserErrorReason::TraitVisibilityIgnored, modifiers.visibility_span);
+        }
+
         if !self.eat_keyword(Keyword::Fn) {
             self.modifiers_not_followed_by_an_item(modifiers);
             return None;
@@ -285,7 +289,11 @@ mod tests {
     use crate::{
         ast::{NoirTrait, NoirTraitImpl, TraitItem},
         parser::{
-            parser::{parse_program, tests::expect_no_errors, ParserErrorReason},
+            parser::{
+                parse_program,
+                tests::{expect_no_errors, get_single_error, get_source_with_error_span},
+                ParserErrorReason,
+            },
             ItemKind,
         },
     };
@@ -510,6 +518,18 @@ mod tests {
         };
         assert!(body.is_some());
         assert!(!noir_trait.is_alias);
+    }
+
+    #[test]
+    fn parse_trait_function_with_visibility() {
+        let src = "
+        trait Foo { pub fn foo(); }
+                    ^^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let (_module, errors) = parse_program(&src);
+        let error = get_single_error(&errors, span);
+        assert!(error.to_string().contains("Visibility is ignored on a trait method"));
     }
 
     #[test]
