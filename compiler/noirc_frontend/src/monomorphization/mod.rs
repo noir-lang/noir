@@ -162,7 +162,9 @@ pub fn monomorphize_debug(
         .finished_functions
         .iter()
         .flat_map(|(_, f)| {
-            if (!force_unconstrained && f.inline_type.is_entry_point()) || f.id == Program::main_id() {
+            if (!force_unconstrained && f.inline_type.is_entry_point())
+                || f.id == Program::main_id()
+            {
                 Some(f.func_sig.clone())
             } else {
                 None
