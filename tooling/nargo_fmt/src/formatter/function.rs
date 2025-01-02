@@ -23,7 +23,7 @@ pub(super) struct FunctionToFormat {
 }
 
 impl<'a> Formatter<'a> {
-    pub(super) fn format_function(&mut self, func: NoirFunction) {
+    pub(super) fn format_function(&mut self, func: NoirFunction, skip_visibility: bool) {
         self.format_function_impl(FunctionToFormat {
             attributes: func.def.attributes,
             visibility: func.def.visibility,
@@ -34,7 +34,7 @@ impl<'a> Formatter<'a> {
             return_visibility: func.def.return_visibility,
             where_clause: func.def.where_clause,
             body: Some(func.def.body),
-            skip_visibility: false,
+            skip_visibility,
         });
     }
 
