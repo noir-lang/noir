@@ -27,7 +27,13 @@ clap.workspace = true
 fm.workspace = true
 fxhash.workspace = true
 iter-extended.workspace = true
-nargo.workspace = true
+# This is the only crate that really needs the RPC feature,
+# but enabling it here implicitly enables it for the whole
+# workspace. A crate could opt out using `path` dependency,
+# but it's only `noir_wasm` which couldn't compile with it,
+# and that is a different target, and for that the feature
+# aren't unified with this one.
+nargo = { workspace = true, features = ["rpc"] }
 nargo_fmt.workspace = true
 nargo_toml.workspace = true
 noir_lsp.workspace = true
@@ -88,11 +94,9 @@ proptest.workspace = true
 sha2.workspace = true
 sha3.workspace = true
 iai = "0.1.1"
-test-binary = "3.0.2"
 test-case.workspace = true
 lazy_static.workspace = true
 light-poseidon = "0.2.0"
-
 
 [[bench]]
 name = "criterion"

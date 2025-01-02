@@ -458,6 +458,7 @@ impl<'function> PerFunctionContext<'function> {
     /// and blocks respectively. If these assertions trigger it means a value is being used before
     /// the instruction or block that defines the value is inserted.
     fn translate_value(&mut self, id: ValueId) -> ValueId {
+        let id = self.source_function.dfg.resolve(id);
         if let Some(value) = self.values.get(&id) {
             return *value;
         }

@@ -140,6 +140,18 @@ Use arrays and indices that are known at compile time where possible.
 Using `assert_constant(i);` before an index, `i`, is used in an array will give a compile error if `i` is NOT known at compile time.
 :::
 
+### Reduce what is inside loops and conditional logic
+
+Putting less logic  inside an `if` (`else`, etc) paths, or inside a loop, translates to less gates required to represent the program. The compiler should mostly take care of this.
+
+A loop duplicates the gates for each iteration of the loop, or put another way, "unrolls" the loop. Any calculations/calls that are unchanged in the loop should be calculated once before, and the result used in the loop.
+
+An `if` statement is "flattened" and gates created for each path even if execution uses only one path. Furthermore, there are additional operations required for each path. Sometimes this can have a multiplying effect on the operations in the `if` and `else` etc.
+
+:::tip
+Only have essential computation inside conditional logic and loops, and calculate anything else once (before, or after, depending).
+:::
+
 ### Leverage unconstrained execution
 
 Constrained verification can leverage unconstrained execution, this is especially useful for operations that are represented by many gates.
