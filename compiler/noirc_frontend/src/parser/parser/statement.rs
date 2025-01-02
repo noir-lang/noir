@@ -380,9 +380,7 @@ impl<'a> Parser<'a> {
     ///     | 'assert_eq' Arguments
     fn parse_constrain_statement(&mut self) -> Option<ConstrainStatement> {
         let start_span = self.current_token_span;
-        let Some(kind) = self.parse_constrain_kind() else {
-            return None;
-        };
+        let kind = self.parse_constrain_kind()?;
 
         Some(match kind {
             ConstrainKind::Assert | ConstrainKind::AssertEq => {

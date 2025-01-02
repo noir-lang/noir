@@ -113,7 +113,11 @@ impl<K, V, B> UHashMap<K, V, B> {
         H: Hasher,
     {
         // docs:end:contains_key
-        unsafe { self.get(key) }.is_some()
+        unsafe {
+            //@safety : unconstrained context
+            self.get(key)
+        }
+            .is_some()
     }
 
     // Returns true if the map contains no elements.
@@ -432,7 +436,10 @@ where
                 // Not marked as deleted and has key-value.
                 if equal & slot.is_valid() {
                     let (key, value) = slot.key_value_unchecked();
-                    let other_value = unsafe { other.get(key) };
+                    let other_value = unsafe {
+                        //@safety : unconstrained context
+                        other.get(key)
+                    };
 
                     if other_value.is_none() {
                         equal = false;
