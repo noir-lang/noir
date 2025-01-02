@@ -485,6 +485,11 @@ impl<'context> Elaborator<'context> {
                 .remove_assumed_trait_implementations_for_trait(constraint.trait_bound.trait_id);
         }
 
+        // Also remove the assumed trait implementation for `self` if this is a trait definition
+        if let Some(trait_id) = self.current_trait {
+            self.interner.remove_assumed_trait_implementations_for_trait(trait_id);
+        }
+
         let func_scope_tree = self.scopes.end_function();
 
         // The arguments to low-level and oracle functions are always unused so we do not produce warnings for them.
@@ -1000,6 +1005,20 @@ impl<'context> Elaborator<'context> {
             self.add_trait_bound_to_scope(
                 func_meta,
                 &constraint.typ,
+                &constraint.trait_bound,
+                constraint.trait_bound.trait_id,
+            );
+        }
+
+        // Also assume `self` implements the current trait if we are inside a trait definition
+        if let Some(trait_id) = self.current_trait {
+            let the_trait = self.interner.get_trait(trait_id);
+            let constraint = the_trait.as_constraint(the_trait.name.span());
+            let self_type =
+                self.self_type.clone().expect("Expected a self type if there's a current trait");
+            self.add_trait_bound_to_scope(
+                func_meta,
+                &self_type,
                 &constraint.trait_bound,
                 constraint.trait_bound.trait_id,
             );
