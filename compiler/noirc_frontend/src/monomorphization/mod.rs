@@ -1679,19 +1679,15 @@ impl<'interner> Monomorphizer<'interner> {
 
         let parameters = self.parameters(&parameters)?;
         let body = self.expr(lambda.body)?;
-
         let id = self.next_function_id();
-        let return_type = ret_type.clone();
-        let name = lambda_name.to_owned();
-        let unconstrained = false;
 
         let function = ast::Function {
             id,
-            name,
+            name: lambda_name.to_owned(),
             parameters,
             body,
-            return_type,
-            unconstrained,
+            return_type: ret_type.clone(),
+            unconstrained: self.in_unconstrained_function,
             inline_type: InlineType::default(),
             func_sig: FunctionSignature::default(),
         };
@@ -1814,18 +1810,16 @@ impl<'interner> Monomorphizer<'interner> {
             typ: lambda_fn_typ.clone(),
         });
 
-        let mut parameters = vec![];
-        parameters.push((env_local_id, true, env_name.to_string(), env_typ.clone()));
+        let mut parameters = vec![(env_local_id, true, env_name.to_string(), env_typ.clone())];
         parameters.append(&mut converted_parameters);
 
-        let unconstrained = false;
         let function = ast::Function {
             id,
             name,
             parameters,
             body,
             return_type,
-            unconstrained,
+            unconstrained: self.in_unconstrained_function,
             inline_type: InlineType::default(),
             func_sig: FunctionSignature::default(),
         };
