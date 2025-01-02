@@ -21,6 +21,7 @@ noirc_errors.workspace = true
 noirc_frontend.workspace = true
 noirc_printable_type.workspace = true
 iter-extended.workspace = true
+jsonrpsee.workspace = true
 rayon.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
@@ -29,7 +30,6 @@ serde_json.workspace = true
 walkdir = "2.5.0"
 
 # Some dependencies are optional so we can compile to Wasm.
-jsonrpsee = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
 rand = { workspace = true, optional = true }
 
