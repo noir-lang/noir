@@ -147,6 +147,7 @@ impl Context {
             | IfElse { .. }
             | IncrementRc { .. }
             | DecrementRc { .. }
+            | Noop
             | MakeArray { .. } => false,
 
             EnableSideEffectsIf { .. }
