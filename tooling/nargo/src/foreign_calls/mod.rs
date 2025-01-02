@@ -1,5 +1,5 @@
 use acvm::{acir::brillig::ForeignCallResult, pwg::ForeignCallWaitInfo};
-use noirc_printable_type::ForeignCallError;
+use thiserror::Error;
 
 pub mod layers;
 pub mod mocker;
@@ -62,4 +62,22 @@ impl ForeignCall {
             _ => None,
         }
     }
+}
+
+#[derive(Debug, Error)]
+pub enum ForeignCallError {
+    #[error("No handler could be found for foreign call `{0}`")]
+    NoHandler(String),
+
+    #[error("Foreign call inputs needed for execution are missing")]
+    MissingForeignCallInputs,
+
+    #[error("Could not parse PrintableType argument. {0}")]
+    ParsingError(#[from] serde_json::Error),
+
+    #[error("Failed calling external resolver. {0}")]
+    ExternalResolverError(#[from] jsonrpsee::core::client::Error),
+
+    #[error("Assert message resolved after an unsatisfied constrain. {0}")]
+    ResolvedAssertMessage(String),
 }

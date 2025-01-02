@@ -2820,6 +2820,7 @@ dependencies = [
  "rand",
  "rayon",
  "serde",
+ "serde_json",
  "thiserror",
  "tokio",
  "tracing",
@@ -3244,11 +3245,7 @@ name = "noirc_printable_type"
 version = "1.0.0-beta.1"
 dependencies = [
  "acvm",
- "iter-extended",
- "jsonrpsee",
  "serde",
- "serde_json",
- "thiserror",
 ]
 
 [[package]]

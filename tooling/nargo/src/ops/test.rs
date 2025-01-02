@@ -10,11 +10,10 @@ use noirc_abi::Abi;
 use noirc_driver::{compile_no_check, CompileError, CompileOptions, DEFAULT_EXPRESSION_WIDTH};
 use noirc_errors::{debug_info::DebugInfo, FileDiagnostic};
 use noirc_frontend::hir::{def_map::TestFunction, Context};
-use noirc_printable_type::ForeignCallError;
 
 use crate::{
     errors::try_to_diagnose_runtime_error,
-    foreign_calls::{layers, print::PrintOutput, ForeignCallExecutor},
+    foreign_calls::{layers, print::PrintOutput, ForeignCallError, ForeignCallExecutor},
     NargoError,
 };
 

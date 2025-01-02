@@ -5,9 +5,9 @@ use acvm::{
     pwg::ForeignCallWaitInfo,
     AcirField,
 };
-use noirc_printable_type::{decode_string_value, ForeignCallError};
+use noirc_abi::decode_string_value;
 
-use super::{ForeignCall, ForeignCallExecutor};
+use super::{ForeignCall, ForeignCallError, ForeignCallExecutor};
 
 /// This struct represents an oracle mock. It can be used for testing programs that use oracles.
 #[derive(Debug, PartialEq, Eq, Clone)]

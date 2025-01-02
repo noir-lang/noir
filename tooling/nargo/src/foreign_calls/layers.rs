@@ -1,7 +1,6 @@
 use acvm::{acir::brillig::ForeignCallResult, pwg::ForeignCallWaitInfo, AcirField};
-use noirc_printable_type::ForeignCallError;
 
-use super::ForeignCallExecutor;
+use super::{ForeignCallError, ForeignCallExecutor};
 
 /// Returns an empty result when called.
 ///

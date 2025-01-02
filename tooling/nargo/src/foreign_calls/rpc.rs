@@ -6,10 +6,9 @@ use jsonrpsee::{
     http_client::{HttpClient, HttpClientBuilder},
     rpc_params,
 };
-use noirc_printable_type::ForeignCallError;
 use serde::{Deserialize, Serialize};
 
-use super::ForeignCallExecutor;
+use super::{ForeignCallError, ForeignCallExecutor};
 
 #[derive(Debug)]
 pub struct RPCForeignCallExecutor {
