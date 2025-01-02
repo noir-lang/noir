@@ -1,8 +1,5 @@
 use noirc_frontend::{
-    ast::{
-        FunctionDefinition, ItemVisibility, NoirFunction, NoirTraitImpl, Pattern, TraitImplItem,
-        TraitImplItemKind,
-    },
+    ast::{NoirTraitImpl, Pattern, TraitImplItem, TraitImplItemKind},
     token::{Keyword, Token},
 };
 
@@ -69,12 +66,10 @@ impl<'a> Formatter<'a> {
     fn format_trait_impl_item(&mut self, item: TraitImplItem) {
         match item.kind {
             TraitImplItemKind::Function(noir_function) => {
-                // Trait impl functions are public, but there's no `pub` keyword in the source code,
-                // so to format it we pass a private one.
-                let def =
-                    FunctionDefinition { visibility: ItemVisibility::Private, ..noir_function.def };
-                let noir_function = NoirFunction { def, ..noir_function };
-                self.format_function(noir_function);
+                self.format_function(
+                    noir_function,
+                    true, // skip visibility
+                );
             }
             TraitImplItemKind::Constant(name, typ, value) => {
                 let pattern = Pattern::Identifier(name);
@@ -168,6 +163,22 @@ where
         let src = " mod moo { impl  Foo  for  Bar {  
         /// Some doc comment
 fn foo ( ) { }
+         } }";
+        let expected = "mod moo {
+    impl Foo for Bar {
+        /// Some doc comment
+        fn foo() {}
+    }
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_trait_impl_function_with_visibility() {
+        let src = " mod moo { impl  Foo  for  Bar {  
+        /// Some doc comment
+pub fn foo ( ) { }
          } }";
         let expected = "mod moo {
     impl Foo for Bar {

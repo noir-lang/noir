@@ -19,10 +19,11 @@ pub(super) struct FunctionToFormat {
     pub(super) return_visibility: Visibility,
     pub(super) where_clause: Vec<UnresolvedTraitConstraint>,
     pub(super) body: Option<BlockExpression>,
+    pub(super) skip_visibility: bool,
 }
 
 impl<'a> Formatter<'a> {
-    pub(super) fn format_function(&mut self, func: NoirFunction) {
+    pub(super) fn format_function(&mut self, func: NoirFunction, skip_visibility: bool) {
         self.format_function_impl(FunctionToFormat {
             attributes: func.def.attributes,
             visibility: func.def.visibility,
@@ -33,6 +34,7 @@ impl<'a> Formatter<'a> {
             return_visibility: func.def.return_visibility,
             where_clause: func.def.where_clause,
             body: Some(func.def.body),
+            skip_visibility,
         });
     }
 
@@ -41,7 +43,7 @@ impl<'a> Formatter<'a> {
 
         self.format_attributes(func.attributes);
         self.write_indentation();
-        self.format_function_modifiers(func.visibility);
+        self.format_function_modifiers(func.visibility, func.skip_visibility);
         self.write_keyword(Keyword::Fn);
         self.write_space();
         self.write_identifier(func.name);
@@ -94,7 +96,11 @@ impl<'a> Formatter<'a> {
         }
     }
 
-    pub(super) fn format_function_modifiers(&mut self, visibility: ItemVisibility) {
+    pub(super) fn format_function_modifiers(
+        &mut self,
+        visibility: ItemVisibility,
+        skip_visibility: bool,
+    ) {
         // For backwards compatibility, unconstrained might come before visibility.
         // We'll remember this but put it after the visibility.
         let unconstrained = if self.is_at_keyword(Keyword::Unconstrained) {
@@ -105,7 +111,14 @@ impl<'a> Formatter<'a> {
             false
         };
 
-        self.format_item_visibility(visibility);
+        if skip_visibility {
+            // The intention here is to format the visibility into a temporary buffer that is discarded
+            self.chunk_formatter().chunk(|formatter| {
+                formatter.format_item_visibility(visibility);
+            });
+        } else {
+            self.format_item_visibility(visibility);
+        }
 
         if unconstrained {
             self.write("unconstrained ");

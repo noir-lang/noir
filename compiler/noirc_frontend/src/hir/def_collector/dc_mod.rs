@@ -1222,7 +1222,11 @@ pub(crate) fn collect_trait_impl_items(
 
     for item in std::mem::take(&mut trait_impl.items) {
         match item.item.kind {
-            TraitImplItemKind::Function(impl_method) => {
+            TraitImplItemKind::Function(mut impl_method) => {
+                // Regardless of what visibility was on the source code, treat it as public
+                // (a warning is produced during parsing for this)
+                impl_method.def.visibility = ItemVisibility::Public;
+
                 let func_id = interner.push_empty_fn();
                 let location = Location::new(impl_method.span(), file_id);
                 interner.push_function(func_id, &impl_method.def, module, location);
