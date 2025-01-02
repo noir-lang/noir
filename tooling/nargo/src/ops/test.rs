@@ -33,14 +33,13 @@ impl TestStatus {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 pub fn run_test<'a, B, F, E>(
     blackbox_solver: &B,
     context: &mut Context,
     test_function: &TestFunction,
     output: PrintOutput<'a>,
     config: &CompileOptions,
-    foreign_call_executor: F,
+    build_foreign_call_executor: F,
 ) -> TestStatus
 where
     B: BlackBoxFunctionSolver<FieldElement>,
@@ -63,8 +62,9 @@ where
             if test_function_has_no_arguments {
                 // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
                 // otherwise constraints involving these expressions will not error.
-                let mut foreign_call_executor =
-                    TestForeignCallExecutor::new(output, &foreign_call_executor);
+                // Use a base layer that doesn't handle anything, which we handle in the `execute` below.
+                let inner_executor = build_foreign_call_executor(output, layers::Unhandled);
+                let mut foreign_call_executor = TestForeignCallExecutor::new(inner_executor);
 
                 let circuit_execution = execute_program(
                     &compiled_program.program,
@@ -122,14 +122,17 @@ where
                         |program: &Program<FieldElement>,
                          initial_witness: WitnessMap<FieldElement>|
                          -> Result<WitnessStack<FieldElement>, String> {
+                            // Use a base layer that doesn't handle anything, which we handle in the `execute` below.
+                            let inner_executor =
+                                build_foreign_call_executor(PrintOutput::None, layers::Unhandled);
+                            let mut foreign_call_executor =
+                                TestForeignCallExecutor::new(inner_executor);
+
                             let circuit_execution = execute_program(
                                 program,
                                 initial_witness,
                                 blackbox_solver,
-                                &mut TestForeignCallExecutor::new(
-                                    PrintOutput::None,
-                                    &foreign_call_executor,
-                                ),
+                                &mut foreign_call_executor,
                             );
 
                             let status = test_status_program_compile_pass(
@@ -271,14 +274,7 @@ struct TestForeignCallExecutor<E> {
 }
 
 impl<E> TestForeignCallExecutor<E> {
-    #[allow(clippy::new_ret_no_self)]
-    fn new<'a, F>(output: PrintOutput<'a>, foreign_call_executor: &F) -> Self
-    where
-        F: Fn(PrintOutput<'a>, layers::Unhandled) -> E + 'a,
-    {
-        // Use a base layer that doesn't handle anything, which we handle in the `execute` below.
-        let executor = foreign_call_executor(output, layers::Unhandled);
-
+    fn new(executor: E) -> Self {
         Self { executor, encountered_unknown_foreign_call: false }
     }
 }
