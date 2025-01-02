@@ -185,11 +185,8 @@ impl ParserError {
     }
 
     pub fn is_warning(&self) -> bool {
-        matches!(
-            self.reason(),
-            Some(ParserErrorReason::ExperimentalFeature(_))
-                | Some(ParserErrorReason::MissingSafetyComment)
-        )
+        let diagnostic: Diagnostic = self.into();
+        diagnostic.is_warning()
     }
 }
 
