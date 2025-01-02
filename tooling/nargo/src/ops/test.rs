@@ -293,6 +293,8 @@ where
         match self.executor.execute(foreign_call) {
             Err(ForeignCallError::NoHandler(_)) => {
                 self.encountered_unknown_foreign_call = true;
+                // If the inner executor cannot handle this foreign call, then it's very likely that this is a custom
+                // foreign call. We then return an empty response in case the foreign call doesn't need return values.
                 layers::Empty.execute(foreign_call)
             }
             other => other,
