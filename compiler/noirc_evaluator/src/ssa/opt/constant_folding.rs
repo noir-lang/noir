@@ -659,12 +659,12 @@ impl<'brillig> Context<'brillig> {
     ) -> ValueId {
         match typ {
             Type::Numeric(typ) => {
-                let memory = memory_values[*memory_index];
+                let memory = &memory_values[*memory_index];
                 *memory_index += 1;
 
                 let field_value = match memory {
-                    MemoryValue::Field(field_value) => field_value,
-                    MemoryValue::Integer(u128_value, _) => u128_value.into(),
+                    MemoryValue::Field(field_value) => **field_value,
+                    MemoryValue::Integer(u128_value, _) => (*u128_value).into(),
                 };
                 dfg.make_constant(field_value, typ)
             }

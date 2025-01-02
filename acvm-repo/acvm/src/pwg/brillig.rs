@@ -300,7 +300,7 @@ fn extract_failure_payload_from_memory<F: AcirField>(
         let error_selector = ErrorSelector::new(
             revert_values_iter
                 .next()
-                .copied()
+                .cloned()
                 .expect("Incorrect revert data size")
                 .try_into()
                 .expect("Error selector is not u64"),

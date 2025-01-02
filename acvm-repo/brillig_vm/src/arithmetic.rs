@@ -21,7 +21,7 @@ pub(crate) fn evaluate_binary_field_op<F: AcirField>(
     rhs: MemoryValue<F>,
 ) -> Result<MemoryValue<F>, BrilligArithmeticError> {
     let a = match lhs {
-        MemoryValue::Field(a) => a,
+        MemoryValue::Field(a) => *a,
         MemoryValue::Integer(_, bit_size) => {
             return Err(BrilligArithmeticError::MismatchedLhsBitSize {
                 lhs_bit_size: bit_size.into(),
@@ -30,7 +30,7 @@ pub(crate) fn evaluate_binary_field_op<F: AcirField>(
         }
     };
     let b = match rhs {
-        MemoryValue::Field(b) => b,
+        MemoryValue::Field(b) => *b,
         MemoryValue::Integer(_, bit_size) => {
             return Err(BrilligArithmeticError::MismatchedRhsBitSize {
                 rhs_bit_size: bit_size.into(),

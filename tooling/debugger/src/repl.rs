@@ -377,7 +377,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
         for (index, value) in memory.iter().enumerate() {
             // Zero field is the default value, we omit it when printing memory
             if let MemoryValue::Field(field) = value {
-                if field == &FieldElement::zero() {
+                if **field == FieldElement::zero() {
                     continue;
                 }
             }

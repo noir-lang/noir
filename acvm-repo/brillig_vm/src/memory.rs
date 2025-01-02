@@ -6,9 +6,9 @@ use num_traits::{One, Zero};
 
 pub const MEMORY_ADDRESSING_BIT_SIZE: IntegerBitSize = IntegerBitSize::U32;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum MemoryValue<F> {
-    Field(F),
+    Field(Box<F>),
     Integer(u128, IntegerBitSize),
 }
 
@@ -21,7 +21,7 @@ pub enum MemoryTypeError {
 impl<F> MemoryValue<F> {
     /// Builds a field-typed memory value.
     pub fn new_field(value: F) -> Self {
-        MemoryValue::Field(value)
+        MemoryValue::Field(Box::new(value))
     }
 
     /// Builds an integer-typed memory value.
@@ -86,7 +86,7 @@ impl<F: AcirField> MemoryValue<F> {
     /// Converts the memory value to a field element, independent of its type.
     pub fn to_field(&self) -> F {
         match self {
-            MemoryValue::Field(value) => *value,
+            MemoryValue::Field(value) => **value,
             MemoryValue::Integer(value, _) => F::from(*value),
         }
     }
@@ -181,6 +181,14 @@ impl<F: AcirField> TryFrom<MemoryValue<F>> for bool {
     type Error = MemoryTypeError;
 
     fn try_from(memory_value: MemoryValue<F>) -> Result<Self, Self::Error> {
+       bool::try_from(&memory_value)
+    }
+}
+
+impl<F: AcirField> TryFrom<&MemoryValue<F>> for bool {
+    type Error = MemoryTypeError;
+
+    fn try_from(memory_value: &MemoryValue<F>) -> Result<Self, Self::Error> {
         let as_integer = memory_value.expect_integer_with_bit_size(IntegerBitSize::U1)?;
 
         if as_integer.is_zero() {
@@ -197,6 +205,15 @@ impl<F: AcirField> TryFrom<MemoryValue<F>> for u8 {
     type Error = MemoryTypeError;
 
     fn try_from(memory_value: MemoryValue<F>) -> Result<Self, Self::Error> {
+       u8::try_from(&memory_value)
+    }
+}
+
+
+impl<F: AcirField> TryFrom<&MemoryValue<F>> for u8 {
+    type Error = MemoryTypeError;
+
+    fn try_from(memory_value: &MemoryValue<F>) -> Result<Self, Self::Error> {
         memory_value.expect_integer_with_bit_size(IntegerBitSize::U8).map(|value| value as u8)
     }
 }
@@ -205,6 +222,15 @@ impl<F: AcirField> TryFrom<MemoryValue<F>> for u32 {
     type Error = MemoryTypeError;
 
     fn try_from(memory_value: MemoryValue<F>) -> Result<Self, Self::Error> {
+       u32::try_from(&memory_value)
+    }
+}
+
+
+impl<F: AcirField> TryFrom<&MemoryValue<F>> for u32 {
+    type Error = MemoryTypeError;
+
+    fn try_from(memory_value: &MemoryValue<F>) -> Result<Self, Self::Error> {
         memory_value.expect_integer_with_bit_size(IntegerBitSize::U32).map(|value| value as u32)
     }
 }
@@ -213,6 +239,15 @@ impl<F: AcirField> TryFrom<MemoryValue<F>> for u64 {
     type Error = MemoryTypeError;
 
     fn try_from(memory_value: MemoryValue<F>) -> Result<Self, Self::Error> {
+       u64::try_from(&memory_value)
+    }
+}
+
+
+impl<F: AcirField> TryFrom<&MemoryValue<F>> for u64 {
+    type Error = MemoryTypeError;
+
+    fn try_from(memory_value: &MemoryValue<F>) -> Result<Self, Self::Error> {
         memory_value.expect_integer_with_bit_size(IntegerBitSize::U64).map(|value| value as u64)
     }
 }
@@ -221,6 +256,15 @@ impl<F: AcirField> TryFrom<MemoryValue<F>> for u128 {
     type Error = MemoryTypeError;
 
     fn try_from(memory_value: MemoryValue<F>) -> Result<Self, Self::Error> {
+        u128::try_from(&memory_value)
+    }
+}
+
+
+impl<F: AcirField> TryFrom<&MemoryValue<F>> for u128 {
+    type Error = MemoryTypeError;
+
+    fn try_from(memory_value: &MemoryValue<F>) -> Result<Self, Self::Error> {
         memory_value.expect_integer_with_bit_size(IntegerBitSize::U128)
     }
 }
@@ -247,7 +291,7 @@ impl<F: AcirField> Memory<F> {
     /// Gets the value at address
     pub fn read(&self, address: MemoryAddress) -> MemoryValue<F> {
         let resolved_addr = self.resolve(address);
-        self.inner.get(resolved_addr).copied().unwrap_or_default()
+        self.inner.get(resolved_addr).cloned().unwrap_or_default()
     }
 
     pub fn read_ref(&self, ptr: MemoryAddress) -> MemoryAddress {
@@ -283,7 +327,7 @@ impl<F: AcirField> Memory<F> {
     pub fn write_slice(&mut self, address: MemoryAddress, values: &[MemoryValue<F>]) {
         let resolved_address = self.resolve(address);
         self.resize_to_fit(resolved_address + values.len());
-        self.inner[resolved_address..(resolved_address + values.len())].copy_from_slice(values);
+        self.inner[resolved_address..(resolved_address + values.len())].clone_from_slice(values);
     }
 
     /// Returns the values of the memory

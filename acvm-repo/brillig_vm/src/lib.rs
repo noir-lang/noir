@@ -801,7 +801,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
 
     /// Casts a value to a different bit size.
     fn cast(&self, target_bit_size: BitSize, source_value: MemoryValue<F>) -> MemoryValue<F> {
-        match (source_value, target_bit_size) {
+        match (&source_value, target_bit_size) {
             // Field to field, no op
             (MemoryValue::Field(_), BitSize::Field) => source_value,
             // Field downcast to u128
@@ -817,13 +817,13 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
             }
             // Integer upcast to field
             (MemoryValue::Integer(integer, _), BitSize::Field) => {
-                MemoryValue::new_field(integer.into())
+                MemoryValue::new_field((*integer).into())
             }
             // Integer upcast to integer
             (MemoryValue::Integer(integer, source_bit_size), BitSize::Integer(target_bit_size))
-                if source_bit_size <= target_bit_size =>
+                if *source_bit_size <= target_bit_size =>
             {
-                MemoryValue::Integer(integer, target_bit_size)
+                MemoryValue::Integer(*integer, target_bit_size)
             }
             // Integer downcast
             (MemoryValue::Integer(integer, _), BitSize::Integer(target_bit_size)) => {
