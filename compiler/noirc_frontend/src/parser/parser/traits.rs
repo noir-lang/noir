@@ -513,7 +513,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_trait_inheirtance() {
+    fn parse_trait_inheritance() {
         let src = "trait Foo: Bar + Baz {}";
         let noir_trait = parse_trait_no_errors(src);
         assert_eq!(noir_trait.bounds.len(), 2);
