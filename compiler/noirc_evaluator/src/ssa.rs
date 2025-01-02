@@ -152,6 +152,7 @@ pub(crate) fn optimize_into_acir(
 fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ssa, RuntimeError> {
     Ok(builder
         .run_pass(Ssa::defunctionalize, "Defunctionalization")
+        .run_pass(Ssa::remove_unreachable_functions, "Removing Unreachable Functions")
         .run_pass(Ssa::remove_paired_rc, "Removing Paired rc_inc & rc_decs")
         .run_pass(Ssa::resolve_is_unconstrained, "Resolving IsUnconstrained")
         .run_pass(|ssa| ssa.inline_functions(options.inliner_aggressiveness), "Inlining (1st)")
