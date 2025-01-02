@@ -1,4 +1,4 @@
-use std::{fs::DirEntry, path::Path};
+use std::{collections::HashSet, fs::DirEntry, path::Path};
 
 use clap::Args;
 use nargo::{insert_all_files_for_workspace_into_file_manager, ops::report_errors};
@@ -37,7 +37,12 @@ pub(crate) fn run(args: FormatCommand, config: NargoConfig) -> Result<(), CliErr
     )?;
 
     let mut workspace_file_manager = workspace.new_file_manager();
-    insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
+    let mut root_files = HashSet::new();
+    insert_all_files_for_workspace_into_file_manager(
+        &workspace,
+        &mut workspace_file_manager,
+        &mut root_files,
+    );
 
     let config = nargo_fmt::Config::read(&config.program_dir)
         .map_err(|err| CliError::Generic(err.to_string()))?;
@@ -63,6 +68,7 @@ pub(crate) fn run(args: FormatCommand, config: NargoConfig) -> Result<(), CliErr
                 let _ = report_errors::<()>(
                     Err(errors),
                     &workspace_file_manager,
+                    &root_files,
                     false,
                     false,
                 );

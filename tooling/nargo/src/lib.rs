@@ -22,7 +22,7 @@ use std::{
     path::PathBuf,
 };
 
-use fm::{FileManager, FILE_EXTENSION};
+use fm::{FileId, FileManager, FILE_EXTENSION};
 use noirc_driver::{add_dep, prepare_crate, prepare_dependency};
 use noirc_frontend::{
     graph::{CrateId, CrateName},
@@ -51,10 +51,12 @@ pub fn prepare_dependencies(
 pub fn insert_all_files_for_workspace_into_file_manager(
     workspace: &workspace::Workspace,
     file_manager: &mut FileManager,
+    root_files: &mut HashSet<FileId>,
 ) {
     insert_all_files_for_workspace_into_file_manager_with_overrides(
         workspace,
         file_manager,
+        root_files,
         &HashMap::new(),
     );
 }
@@ -62,6 +64,7 @@ pub fn insert_all_files_for_workspace_into_file_manager(
 pub fn insert_all_files_for_workspace_into_file_manager_with_overrides(
     workspace: &workspace::Workspace,
     file_manager: &mut FileManager,
+    root_files: &mut HashSet<FileId>,
     overrides: &HashMap<&std::path::Path, &str>,
 ) {
     let mut processed_entry_paths = HashSet::new();
@@ -69,6 +72,7 @@ pub fn insert_all_files_for_workspace_into_file_manager_with_overrides(
         insert_all_files_for_package_into_file_manager(
             package,
             file_manager,
+            Some(root_files),
             overrides,
             &mut processed_entry_paths,
         );
@@ -83,6 +87,7 @@ pub fn insert_all_files_for_workspace_into_file_manager_with_overrides(
 fn insert_all_files_for_package_into_file_manager(
     package: &Package,
     file_manager: &mut FileManager,
+    mut root_files: Option<&mut HashSet<FileId>>,
     overrides: &HashMap<&std::path::Path, &str>,
     processed_entry_paths: &mut HashSet<PathBuf>,
 ) {
@@ -124,7 +129,11 @@ fn insert_all_files_for_package_into_file_manager(
                 .unwrap_or_else(|_| panic!("could not read file {:?} into string", path))
         };
 
-        file_manager.add_file_with_source(path.as_path(), source);
+        if let Some(file_id) = file_manager.add_file_with_source(path.as_path(), source) {
+            if let Some(root_files) = root_files.as_deref_mut() {
+                root_files.insert(file_id);
+            }
+        }
     }
 
     insert_all_files_for_packages_dependencies_into_file_manager(
@@ -149,6 +158,7 @@ fn insert_all_files_for_packages_dependencies_into_file_manager(
                 insert_all_files_for_package_into_file_manager(
                     package,
                     file_manager,
+                    None, // root files
                     overrides,
                     processed_entry_paths,
                 );

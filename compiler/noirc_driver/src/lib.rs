@@ -311,13 +311,8 @@ pub fn check_crate(
     crate_id: CrateId,
     options: &CompileOptions,
 ) -> CompilationResult<()> {
-    let error_on_unused_imports = true;
-    let diagnostics = CrateDefMap::collect_defs(
-        crate_id,
-        context,
-        options.debug_comptime_in_file.as_deref(),
-        error_on_unused_imports,
-    );
+    let diagnostics =
+        CrateDefMap::collect_defs(crate_id, context, options.debug_comptime_in_file.as_deref());
     let warnings_and_errors: Vec<FileDiagnostic> = diagnostics
         .into_iter()
         .map(|(error, file_id)| {

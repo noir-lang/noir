@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::PathBuf;
 
 use acvm::acir::native_types::WitnessStack;
@@ -96,7 +97,12 @@ pub(crate) fn compile_bin_package_for_debugging(
     compile_options: CompileOptions,
 ) -> Result<CompiledProgram, CompileError> {
     let mut workspace_file_manager = file_manager_with_stdlib(std::path::Path::new(""));
-    insert_all_files_for_workspace_into_file_manager(workspace, &mut workspace_file_manager);
+    let mut root_files = HashSet::new();
+    insert_all_files_for_workspace_into_file_manager(
+        workspace,
+        &mut workspace_file_manager,
+        &mut root_files,
+    );
     let mut parsed_files = parse_all(&workspace_file_manager);
 
     let compile_options = CompileOptions {
@@ -132,6 +138,7 @@ pub(crate) fn compile_bin_package_for_debugging(
     report_errors(
         compilation_result,
         &workspace_file_manager,
+        &root_files,
         compile_options.deny_warnings,
         compile_options.silence_warnings,
     )

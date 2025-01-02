@@ -1,9 +1,10 @@
+use std::collections::HashSet;
 use std::io::Write;
 use std::path::Path;
 use std::time::Duration;
 
 use acvm::acir::circuit::ExpressionWidth;
-use fm::FileManager;
+use fm::{FileId, FileManager};
 use nargo::ops::{collect_errors, compile_contract, compile_program, report_errors};
 use nargo::package::Package;
 use nargo::workspace::Workspace;
@@ -115,11 +116,15 @@ fn watch_workspace(workspace: &Workspace, compile_options: &CompileOptions) -> n
 }
 
 /// Parse all files in the workspace.
-fn parse_workspace(workspace: &Workspace) -> (FileManager, ParsedFiles) {
+///
+/// The `HashSet<FileId>` returned is a set of all files that belong to direct workspace packages
+/// (that is, it excludes files from dependencies).
+fn parse_workspace(workspace: &Workspace) -> (FileManager, HashSet<FileId>, ParsedFiles) {
     let mut file_manager = workspace.new_file_manager();
-    insert_all_files_for_workspace_into_file_manager(workspace, &mut file_manager);
+    let mut root_files = HashSet::new();
+    insert_all_files_for_workspace_into_file_manager(workspace, &mut file_manager, &mut root_files);
     let parsed_files = parse_all(&file_manager);
-    (file_manager, parsed_files)
+    (file_manager, root_files, parsed_files)
 }
 
 /// Parse and compile the entire workspace, then report errors.
@@ -128,7 +133,7 @@ pub(super) fn compile_workspace_full(
     workspace: &Workspace,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError> {
-    let (workspace_file_manager, parsed_files) = parse_workspace(workspace);
+    let (workspace_file_manager, root_files, parsed_files) = parse_workspace(workspace);
 
     let compiled_workspace =
         compile_workspace(&workspace_file_manager, &parsed_files, workspace, compile_options);
@@ -136,6 +141,7 @@ pub(super) fn compile_workspace_full(
     report_errors(
         compiled_workspace,
         &workspace_file_manager,
+        &root_files,
         compile_options.deny_warnings,
         compile_options.silence_warnings,
     )?;
@@ -403,7 +409,7 @@ mod tests {
         assert!(!test_workspaces.is_empty(), "should find some test workspaces");
 
         test_workspaces.par_iter().for_each(|workspace| {
-            let (file_manager, parsed_files) = parse_workspace(workspace);
+            let (file_manager, _root_files, parsed_files) = parse_workspace(workspace);
             let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
 
             for package in binary_packages {

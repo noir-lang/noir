@@ -1,7 +1,10 @@
-use fm::FileManager;
+use std::collections::HashSet;
+
+use fm::{FileId, FileManager};
 use noirc_driver::{
     link_to_debug_crate, CompilationResult, CompileOptions, CompiledContract, CompiledProgram,
 };
+use noirc_errors::{DiagnosticKind, FileDiagnostic};
 use noirc_frontend::debug::DebugInstrumenter;
 use noirc_frontend::hir::ParsedFiles;
 
@@ -127,13 +130,17 @@ pub fn collect_errors<T>(results: Vec<CompilationResult<T>>) -> CompilationResul
     }
 }
 
+/// Report any errors encountered during compilation.
+/// Warnings produced in files outside of `root_files` will not be reported.
 pub fn report_errors<T>(
     result: CompilationResult<T>,
     file_manager: &FileManager,
+    root_files: &HashSet<FileId>,
     deny_warnings: bool,
     silence_warnings: bool,
 ) -> Result<T, CompileError> {
-    let (t, warnings) = result.map_err(|errors| {
+    let (t, errors) = result.map_err(|errors| {
+        let errors = exclude_warnings_from_dependencies(errors, root_files);
         noirc_errors::reporter::report_all(
             file_manager.as_file_map(),
             &errors,
@@ -142,12 +149,29 @@ pub fn report_errors<T>(
         )
     })?;
 
+    let errors = exclude_warnings_from_dependencies(errors, root_files);
     noirc_errors::reporter::report_all(
         file_manager.as_file_map(),
-        &warnings,
+        &errors,
         deny_warnings,
         silence_warnings,
     );
 
     Ok(t)
+}
+
+fn exclude_warnings_from_dependencies(
+    errors: Vec<FileDiagnostic>,
+    root_files: &HashSet<FileId>,
+) -> Vec<FileDiagnostic> {
+    errors
+        .into_iter()
+        .filter(|error| {
+            if error.diagnostic.kind == DiagnosticKind::Warning {
+                root_files.contains(&error.file_id)
+            } else {
+                true
+            }
+        })
+        .collect()
 }

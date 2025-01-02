@@ -1,10 +1,12 @@
+use std::collections::HashSet;
+
 use nargo::errors::CompileError;
 use nargo::ops::report_errors;
 use noirc_errors::FileDiagnostic;
 use noirc_frontend::hir::ParsedFiles;
 use rayon::prelude::*;
 
-use fm::FileManager;
+use fm::{FileId, FileManager};
 use iter_extended::try_vecmap;
 use nargo::package::Package;
 use nargo::prepare_package;
@@ -44,7 +46,12 @@ pub(crate) fn run(args: ExportCommand, config: NargoConfig) -> Result<(), CliErr
     )?;
 
     let mut workspace_file_manager = workspace.new_file_manager();
-    insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
+    let mut root_files = HashSet::new();
+    insert_all_files_for_workspace_into_file_manager(
+        &workspace,
+        &mut workspace_file_manager,
+        &mut root_files,
+    );
     let parsed_files = parse_all(&workspace_file_manager);
 
     let library_packages: Vec<_> =
@@ -56,6 +63,7 @@ pub(crate) fn run(args: ExportCommand, config: NargoConfig) -> Result<(), CliErr
             compile_exported_functions(
                 &workspace_file_manager,
                 &parsed_files,
+                &root_files,
                 &workspace,
                 package,
                 &args.compile_options,
@@ -67,12 +75,13 @@ pub(crate) fn run(args: ExportCommand, config: NargoConfig) -> Result<(), CliErr
 fn compile_exported_functions(
     file_manager: &FileManager,
     parsed_files: &ParsedFiles,
+    root_files: &HashSet<FileId>,
     workspace: &Workspace,
     package: &Package,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
-    check_crate_and_report_errors(&mut context, crate_id, compile_options)?;
+    check_crate_and_report_errors(&mut context, root_files, crate_id, compile_options)?;
 
     let exported_functions = context.get_all_exported_functions_in_crate(&crate_id);
 
@@ -86,6 +95,7 @@ fn compile_exported_functions(
             let program = report_errors(
                 program.map(|program| (program, Vec::new())),
                 file_manager,
+                root_files,
                 compile_options.deny_warnings,
                 compile_options.silence_warnings,
             )?;

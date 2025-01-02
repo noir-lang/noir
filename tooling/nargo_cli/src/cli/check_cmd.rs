@@ -1,7 +1,9 @@
+use std::collections::HashSet;
+
 use crate::errors::CliError;
 
 use clap::Args;
-use fm::FileManager;
+use fm::{FileId, FileManager};
 use iter_extended::btree_map;
 use nargo::{
     errors::CompileError, insert_all_files_for_workspace_into_file_manager, ops::report_errors,
@@ -42,12 +44,18 @@ pub(crate) fn run(args: CheckCommand, config: NargoConfig) -> Result<(), CliErro
     )?;
 
     let mut workspace_file_manager = workspace.new_file_manager();
-    insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
+    let mut root_files = HashSet::new();
+    insert_all_files_for_workspace_into_file_manager(
+        &workspace,
+        &mut workspace_file_manager,
+        &mut root_files,
+    );
     let parsed_files = parse_all(&workspace_file_manager);
 
     for package in &workspace {
         let any_file_written = check_package(
             &workspace_file_manager,
+            &root_files,
             &parsed_files,
             package,
             &args.compile_options,
@@ -64,13 +72,14 @@ pub(crate) fn run(args: CheckCommand, config: NargoConfig) -> Result<(), CliErro
 /// Returns `true` if any file was generated or updated, `false` otherwise.
 fn check_package(
     file_manager: &FileManager,
+    root_files: &HashSet<FileId>,
     parsed_files: &ParsedFiles,
     package: &Package,
     compile_options: &CompileOptions,
     allow_overwrite: bool,
 ) -> Result<bool, CompileError> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
-    check_crate_and_report_errors(&mut context, crate_id, compile_options)?;
+    check_crate_and_report_errors(&mut context, root_files, crate_id, compile_options)?;
 
     if package.is_library() || package.is_contract() {
         // Libraries do not have ABIs while contracts have many, so we cannot generate a `Prover.toml` file.
@@ -138,11 +147,18 @@ fn create_input_toml_template(
 /// and errors found.
 pub(crate) fn check_crate_and_report_errors(
     context: &mut Context,
+    root_files: &HashSet<FileId>,
     crate_id: CrateId,
     options: &CompileOptions,
 ) -> Result<(), CompileError> {
     let result = check_crate(context, crate_id, options);
-    report_errors(result, &context.file_manager, options.deny_warnings, options.silence_warnings)
+    report_errors(
+        result,
+        &context.file_manager,
+        root_files,
+        options.deny_warnings,
+        options.silence_warnings,
+    )
 }
 
 #[cfg(test)]
