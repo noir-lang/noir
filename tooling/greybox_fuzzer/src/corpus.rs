@@ -1,9 +1,12 @@
+use core::num;
 use std::{
     cmp::min,
     collections::HashMap,
     fs::{DirBuilder, File},
+    hash::Hash,
     io::Write,
     path::{Path, PathBuf},
+    sync::atomic::AtomicU64,
 };
 
 use fm::{FileId, FileManager};
@@ -17,7 +20,36 @@ use rand_xorshift::XorShiftRng;
 use sha256::digest;
 use walkdir::WalkDir;
 
+use std::sync::atomic::Ordering;
 const CORPUS_FILE_EXTENSION: &str = "json";
+
+static NEXT_TESTCASE_ID: AtomicU64 = AtomicU64::new(0xdead);
+
+fn generate_testcase_id() -> u64 {
+    NEXT_TESTCASE_ID.fetch_add(1, Ordering::SeqCst)
+}
+
+pub type TestCaseId = u64;
+pub struct TestCase<'a> {
+    value: &'a InputMap,
+    id: TestCaseId,
+}
+impl<'a> TestCase<'a> {
+    pub fn value(&self) -> &InputMap {
+        self.value
+    }
+    pub fn id(&self) -> TestCaseId {
+        self.id
+    }
+    pub fn with_id(id: TestCaseId, value: &'a InputMap) -> Self {
+        Self { id, value }
+    }
+}
+impl<'a> From<&'a InputMap> for TestCase<'a> {
+    fn from(value: &'a InputMap) -> Self {
+        Self { value, id: generate_testcase_id() }
+    }
+}
 pub struct CorpusFileManager {
     file_manager: FileManager,
     root: PathBuf,
@@ -28,7 +60,7 @@ pub struct CorpusFileManager {
 
 impl CorpusFileManager {
     pub fn new(root: &Path, package_name: &str, harness_name: &str, abi: Abi) -> Self {
-        let cloned_root = root.clone();
+        let cloned_root = root;
         let corpus_path = root.join(package_name).join(harness_name);
 
         Self {
@@ -39,7 +71,8 @@ impl CorpusFileManager {
             parsed_map: HashMap::new(),
         }
     }
-    pub fn load_corpus(&mut self) -> Result<(), String> {
+    /// Loads the corpus from the given directory
+    pub fn load_corpus_from_disk(&mut self) -> Result<(), String> {
         let mut builder = DirBuilder::new();
         match builder.recursive(true).create(&self.corpus_path) {
             Ok(_) => (),
@@ -77,15 +110,19 @@ impl CorpusFileManager {
         }
         Ok(())
     }
-    pub fn get_corpus(&self) -> Vec<InputMap> {
+
+    /// Get the vector of all elements in the corpus
+    pub fn get_full_corpus(&self) -> Vec<&InputMap> {
         let file_ids = self.file_manager.as_file_map().all_file_ids();
         let mut full_corpus = Vec::new();
         for file_id in file_ids {
-            full_corpus.push(self.parsed_map[file_id].clone());
+            full_corpus.push(&self.parsed_map[file_id]);
         }
         full_corpus
     }
-    pub fn insert_into_corpus(&mut self, contents: &str) -> Result<(), String> {
+
+    /// Saves testcase to the corpus directory and adds it to the file manager
+    pub fn save_testcase_to_disk(&mut self, contents: &str) -> Result<(), String> {
         let file_name = Path::new(&digest(contents)).with_extension(CORPUS_FILE_EXTENSION);
         let full_file_path = self.corpus_path.join(file_name);
         let mut file = File::create(&full_file_path)
@@ -97,47 +134,145 @@ impl CorpusFileManager {
         Ok(())
     }
 }
+
+/// Sequence stores information on which testcase needs to be used for the following fuzzing iterations and how many more iterations it should be used in
 #[derive(Debug)]
 struct Sequence {
-    testcase_index: usize,
+    testcase_id: TestCaseId,
     executions_left: u64,
 }
 impl Sequence {
     pub fn new() -> Self {
-        Self { testcase_index: 0, executions_left: 0 }
+        Self { testcase_id: 0, executions_left: 0 }
     }
     pub fn is_empty(&self) -> bool {
         self.executions_left == 0
+    }
+    pub fn clear(&mut self) {
+        self.executions_left = 0
     }
     pub fn decrement(&mut self) {
         self.executions_left -= 1
     }
 }
-pub struct Corpus {
-    discovered_testcases: Vec<InputMap>,
-    executions_per_testcase: Vec<u64>,
-    sequence_number: Vec<u32>,
+
+pub struct TestCaseOrchestrator {
+    /// How many times each testcase has been used in fuzzing
+    executions_per_testcase: HashMap<TestCaseId, u64>,
+    /// The index of a sequence for each testcase  (how many times it has been selected for sequential fuzzing)
+    sequence_number: HashMap<TestCaseId, u32>,
+    /// How many times all the testcases have been executed
     total_executions: u64,
+    /// Information about the currently prioritized testcase
     current_sequence: Sequence,
+}
+
+/// Index of the next testcase to be mutated for fuzzing and an optional additional one for splicing mutations
+type NextSelection = (TestCaseId, Option<TestCaseId>);
+
+impl TestCaseOrchestrator {
+    pub fn new() -> Self {
+        Self {
+            executions_per_testcase: HashMap::new(),
+            sequence_number: HashMap::new(),
+            total_executions: 0,
+            current_sequence: Sequence::new(),
+        }
+    }
+
+    pub fn new_testcase(&mut self, testcase_id: TestCaseId) {
+        self.executions_per_testcase.insert(testcase_id, 0);
+        self.sequence_number.insert(testcase_id, 0);
+    }
+
+    pub fn remove(&mut self, testcase_id: TestCaseId) {
+        let executions = self.executions_per_testcase[&testcase_id];
+        self.executions_per_testcase.remove(&testcase_id);
+        self.sequence_number.remove(&testcase_id);
+        self.total_executions -= executions;
+        if self.current_sequence.testcase_id == testcase_id {
+            self.current_sequence.clear();
+        }
+    }
+    /// Chooses the next testcase according to  the schedule prioritizing least fuzzed testcases in the corpus.
+    /// If there is more than one testcase, additionally selects and extra for splicing mutations
+    pub fn get_next_testcase(&mut self, prng: &mut XorShiftRng) -> NextSelection {
+        let testcase_count = self.executions_per_testcase.len();
+        // TODO: refactor
+        // If the sequence is already in place, just update counters
+        if !self.current_sequence.is_empty() {
+            // Update counts
+            self.current_sequence.decrement();
+            self.executions_per_testcase
+                .entry(self.current_sequence.testcase_id)
+                .and_modify(|executions| *executions += 1);
+            self.total_executions += 1;
+        } else {
+            // Compute average
+            let average = self.total_executions / testcase_count as u64;
+
+            // Choose the lowest fuzzed testcase
+            let chosen_id = self
+                .executions_per_testcase
+                .iter()
+                .min_by_key(|&(id, value)| value)
+                .map(|(&id, _)| id)
+                .unwrap();
+
+            self.sequence_number
+                .entry(chosen_id)
+                .and_modify(|sequence_number| *sequence_number += 1);
+
+            // Generate new sequence
+            self.current_sequence = Sequence {
+                testcase_id: chosen_id,
+                executions_left: min(1u64 << self.sequence_number[&chosen_id], average / 2),
+            };
+
+            self.total_executions += 1;
+            self.executions_per_testcase.entry(chosen_id).and_modify(|executions| *executions += 1);
+        }
+
+        // If there are several testcases, we can provide an additional one for splicing
+        if testcase_count > 1 {
+            let mut additional_id = self.current_sequence.testcase_id;
+            while additional_id == self.current_sequence.testcase_id {
+                additional_id = self
+                    .executions_per_testcase
+                    .iter()
+                    .map(|(&id, &value)| id)
+                    .choose(prng)
+                    .unwrap();
+            }
+            return (self.current_sequence.testcase_id, Some(additional_id));
+        } else {
+            return (self.current_sequence.testcase_id, None);
+        }
+    }
+}
+/// Corpus contains all the information needed for selecting the next testcase for mutation
+pub struct Corpus {
+    /// Vector of all testcases currently being used in the fuzzing
+    discovered_testcases: HashMap<TestCaseId, InputMap>,
+
+    /// Information needed for selecting the next testcase for brillig execution
+    brillig_orchestrator: TestCaseOrchestrator,
+
+    /// Information needed for selecting the next testcase for acir execution
+    acir_orchestrator: TestCaseOrchestrator,
+
+    /// File manager
     corpus_file_manager: CorpusFileManager,
 }
 
 impl Corpus {
     const MAX_EXECUTIONS_PER_SEQUENCE_LOG: u32 = 100;
+
     pub fn new(package_name: &str, function_name: &str, abi: &Abi) -> Self {
-        // Self {
-        //     discovered_testcases: vec![starting_testcase],
-        //     executions_per_testcase: vec![1],
-        //     sequence_number: vec![0],
-        //     total_executions: 1,
-        //     current_sequence: Sequence::new(),
-        // }
         Self {
-            discovered_testcases: Vec::new(),
-            executions_per_testcase: Vec::new(),
-            sequence_number: Vec::new(),
-            total_executions: 0,
-            current_sequence: Sequence::new(),
+            discovered_testcases: HashMap::new(),
+            brillig_orchestrator: TestCaseOrchestrator::new(),
+            acir_orchestrator: TestCaseOrchestrator::new(),
             corpus_file_manager: CorpusFileManager::new(
                 Path::new("corpus"),
                 package_name,
@@ -146,130 +281,54 @@ impl Corpus {
             ),
         }
     }
-    pub fn attempt_load(&mut self) -> Result<(), String> {
-        self.corpus_file_manager.load_corpus()
+
+    pub fn attempt_to_load_corpus_from_disk(&mut self) -> Result<(), String> {
+        self.corpus_file_manager.load_corpus_from_disk()
     }
-    pub fn get_stored_corpus(&self) -> Vec<InputMap> {
-        self.corpus_file_manager.get_corpus()
+
+    pub fn get_full_stored_corpus(&self) -> Vec<TestCase> {
+        self.corpus_file_manager
+            .get_full_corpus()
+            .into_iter()
+            .map(|value| TestCase::from(value))
+            .collect()
     }
-    pub fn insert(&mut self, new_testcase: InputMap, save_to_disk: bool) -> Result<(), String> {
+
+    pub fn insert(
+        &mut self,
+        testcase_id: TestCaseId,
+        new_testcase_value: InputMap,
+        save_to_disk: bool,
+    ) -> Result<TestCaseId, String> {
         if save_to_disk {
-            self.corpus_file_manager.insert_into_corpus(
-                &serialize_to_json(&new_testcase, &self.corpus_file_manager.abi)
+            self.corpus_file_manager.save_testcase_to_disk(
+                &serialize_to_json(&new_testcase_value, &self.corpus_file_manager.abi)
                     .expect("Shouldn't be any issues with serializing input map"),
             )?
         }
-        self.executions_per_testcase.push(0);
-        self.sequence_number.push(0);
-        self.discovered_testcases.push(new_testcase);
-        Ok(())
-    }
-    pub fn get_testcase_by_index(&self, index: usize) -> &InputMap {
-        assert!(index < self.discovered_testcases.len());
-
-        &self.discovered_testcases[index]
-    }
-    pub fn get_next_testcase_with_additional(
-        &mut self,
-        prng: &mut XorShiftRng,
-    ) -> (usize, Option<usize>) {
-        if !self.current_sequence.is_empty() {
-            // Update counts
-            self.current_sequence.decrement();
-            self.executions_per_testcase[self.current_sequence.testcase_index] += 1;
-            self.total_executions += 1;
-        } else {
-            // Compute average
-            let average = self.total_executions / self.discovered_testcases.len() as u64;
-            // Omit those that have been fuzzed more than average
-            let weakly_fuzzed_group: Vec<_> = (0..(self.discovered_testcases.len()))
-                .filter(|&index| self.executions_per_testcase[index] <= average)
-                .collect();
-            let chosen_index = (0..(self.discovered_testcases.len()))
-                .rev()
-                .min_by(|&i, &j| {
-                    self.executions_per_testcase[i].cmp(&self.executions_per_testcase[j])
-                })
-                .unwrap();
-            self.sequence_number[chosen_index] += 1;
-            self.current_sequence = Sequence {
-                testcase_index: chosen_index,
-                executions_left: min(
-                    1u64 << min(
-                        Self::MAX_EXECUTIONS_PER_SEQUENCE_LOG,
-                        self.sequence_number[chosen_index],
-                    ),
-                    average / 2,
-                ),
-            };
-            self.total_executions += 1;
-            self.executions_per_testcase[chosen_index] += 1;
-            // println!(
-            //     "Starting sequence {} on input {:?}",
-            //     self.current_sequence.executions_left,
-            //     self.discovered_testcases[self.current_sequence.testcase_index]
-            // );
-        }
-        if self.discovered_testcases.len() > 1 {
-            let mut additional_index = prng.gen_range(0..(self.discovered_testcases.len() - 1));
-            if additional_index >= self.current_sequence.testcase_index {
-                additional_index += 1;
-            }
-            return (self.current_sequence.testcase_index, Some(additional_index));
-        } else {
-            return (self.current_sequence.testcase_index, None);
-        }
+        self.brillig_orchestrator.new_testcase(testcase_id);
+        self.acir_orchestrator.new_testcase(testcase_id);
+        self.discovered_testcases.insert(testcase_id, new_testcase_value.clone());
+        Ok(testcase_id)
     }
 
-    pub fn get_next_nonmutated_testcase_with_additional_and_seed(
-        &mut self,
-        prng: &mut XorShiftRng,
-    ) -> (InputMap, Option<InputMap>) {
-        if !self.current_sequence.is_empty() {
-            // Update counts
-            self.current_sequence.decrement();
-            self.executions_per_testcase[self.current_sequence.testcase_index] += 1;
-            self.total_executions += 1;
-        } else {
-            // Compute average
-            let average = self.total_executions / self.discovered_testcases.len() as u64;
-            // Get least fuzzed testcase
-            let chosen_index = (0..(self.discovered_testcases.len()))
-                .rev()
-                .min_by(|&i, &j| {
-                    self.executions_per_testcase[i].cmp(&self.executions_per_testcase[j])
-                })
-                .unwrap();
-            self.sequence_number[chosen_index] += 1;
-            self.current_sequence = Sequence {
-                testcase_index: chosen_index,
-                executions_left: min(
-                    1u64 << min(
-                        Self::MAX_EXECUTIONS_PER_SEQUENCE_LOG,
-                        self.sequence_number[chosen_index],
-                    ),
-                    average / 2,
-                ),
-            };
-            self.total_executions += 1;
-            self.executions_per_testcase[chosen_index] += 1;
-            // println!(
-            //     "Starting sequence {} on input {:?}",
-            //     self.current_sequence.executions_left,
-            //     self.discovered_testcases[self.current_sequence.testcase_index]
-            // );
-        }
-        if self.discovered_testcases.len() > 1 {
-            let mut additional_index = prng.gen_range(0..(self.discovered_testcases.len() - 1));
-            if additional_index >= self.current_sequence.testcase_index {
-                additional_index += 1;
-            }
-            return (
-                self.discovered_testcases[self.current_sequence.testcase_index].clone(),
-                Some(self.discovered_testcases[additional_index].clone()),
-            );
-        } else {
-            return (self.discovered_testcases[self.current_sequence.testcase_index].clone(), None);
-        }
+    pub fn remove(&mut self, testcase_id: TestCaseId) {
+        self.brillig_orchestrator.remove(testcase_id);
+        self.acir_orchestrator.remove(testcase_id);
+        self.discovered_testcases.remove(&testcase_id);
+    }
+
+    pub fn get_testcase_by_id(&self, id: TestCaseId) -> &InputMap {
+        &self.discovered_testcases[&id]
+    }
+    pub fn get_next_testcase_for_acir(&mut self, prng: &mut XorShiftRng) -> NextSelection {
+        self.acir_orchestrator.get_next_testcase(prng)
+    }
+
+    pub fn get_next_testcase_for_brillig(&mut self, prng: &mut XorShiftRng) -> NextSelection {
+        self.brillig_orchestrator.get_next_testcase(prng)
+    }
+    pub fn get_testcase_count(&self) -> usize {
+        self.discovered_testcases.len()
     }
 }

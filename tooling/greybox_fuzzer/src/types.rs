@@ -1,6 +1,8 @@
 use acvm::{acir::native_types::WitnessStack, FieldElement};
 use noirc_abi::InputMap;
 
+use crate::corpus::TestCaseId;
+
 type CounterExample = InputMap;
 
 /// The outcome of a fuzz test
@@ -20,9 +22,10 @@ pub struct FuzzTestResult {
 }
 
 /// Returned by a single fuzz in the case of a successful run
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct CaseOutcome {
     /// Data of a single fuzz test case
+    pub case_id: TestCaseId,
     pub case: InputMap,
     pub witness: Option<WitnessStack<FieldElement>>,
     pub brillig_coverage: Option<Vec<u32>>,
@@ -31,7 +34,7 @@ pub struct CaseOutcome {
 }
 
 /// Returned by a single fuzz when there is a discrepancy between brillig and acir execution
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct DiscrepancyOutcome {
     /// Minimal reproduction test case for failing test
     pub counterexample: CounterExample,
@@ -42,7 +45,7 @@ pub struct DiscrepancyOutcome {
 }
 
 /// Returned by a single fuzz when a counterexample has been discovered
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct CounterExampleOutcome {
     /// Minimal reproduction test case for failing test
     pub counterexample: CounterExample,
@@ -51,7 +54,7 @@ pub struct CounterExampleOutcome {
 }
 
 /// Outcome of a single fuzz
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum FuzzOutcome {
     Case(CaseOutcome),
     Discrepancy(DiscrepancyOutcome),
