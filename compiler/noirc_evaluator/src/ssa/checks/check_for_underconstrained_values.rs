@@ -10,7 +10,7 @@ use crate::ssa::ir::value::{Value, ValueId};
 use crate::ssa::ssa_gen::Ssa;
 use im::HashMap;
 use rayon::prelude::*;
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use tracing::trace;
 
 impl Ssa {
@@ -104,7 +104,7 @@ struct DependencyContext {
     array_elements: HashMap<ValueId, ValueId>,
     // Map of brillig call ids to sets of the value ids descending
     // from their arguments and results
-    tainted: HashMap<InstructionId, BrilligTaintedIds>,
+    tainted: BTreeMap<InstructionId, BrilligTaintedIds>,
 }
 
 /// Structure keeping track of value ids descending from Brillig calls'
