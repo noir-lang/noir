@@ -1,4 +1,4 @@
-use std::{collections::HashSet, fs::DirEntry, path::Path};
+use std::{fs::DirEntry, path::Path};
 
 use clap::Args;
 use nargo::{insert_all_files_for_workspace_into_file_manager, ops::report_errors};
@@ -59,13 +59,10 @@ pub(crate) fn run(args: FormatCommand, config: NargoConfig) -> Result<(), CliErr
                         error.in_file(file_id)
                     })
                     .collect();
-                let mut root_files = HashSet::new();
-                root_files.insert(file_id);
 
                 let _ = report_errors::<()>(
                     Err(errors),
                     &workspace_file_manager,
-                    &root_files,
                     false,
                     false,
                 );

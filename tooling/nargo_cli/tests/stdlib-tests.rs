@@ -6,7 +6,6 @@ use nargo::foreign_calls::DefaultForeignCallBuilder;
 use nargo::PrintOutput;
 use noirc_driver::{check_crate, file_manager_with_stdlib, CompileOptions};
 use noirc_frontend::hir::FunctionNameMatch;
-use std::collections::HashSet;
 use std::io::Write;
 use std::{collections::BTreeMap, path::PathBuf};
 
@@ -67,14 +66,12 @@ fn run_stdlib_tests(force_brillig: bool, inliner_aggressiveness: i64) {
         dependencies: BTreeMap::new(),
         expression_width: None,
     };
-    let mut root_files = HashSet::new();
-    root_files.extend(file_manager.as_file_map().all_file_ids());
 
     let (mut context, dummy_crate_id) =
         prepare_package(&file_manager, &parsed_files, &dummy_package);
 
     let result = check_crate(&mut context, dummy_crate_id, &Default::default());
-    report_errors(result, &context.file_manager, &root_files, true, false)
+    report_errors(result, &context.file_manager, true, false)
         .expect("Error encountered while compiling standard library");
 
     // We can now search within the stdlib for any test functions to compile.

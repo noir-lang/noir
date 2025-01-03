@@ -324,12 +324,31 @@ pub fn check_crate(
             !options.silence_warnings || diagnostic.diagnostic.kind != DiagnosticKind::Warning
         })
         .collect();
+    let warnings_and_errors = keep_crate_warnings(warnings_and_errors, context, crate_id);
 
     if has_errors(&warnings_and_errors, options.deny_warnings) {
         Err(warnings_and_errors)
     } else {
         Ok(((), warnings_and_errors))
     }
+}
+
+fn keep_crate_warnings(
+    errors: Vec<FileDiagnostic>,
+    context: &Context,
+    crate_id: CrateId,
+) -> Vec<FileDiagnostic> {
+    let root_files = context.crate_files(&crate_id);
+    errors
+        .into_iter()
+        .filter(|error| {
+            if error.diagnostic.is_warning() {
+                root_files.contains(&error.file_id)
+            } else {
+                true
+            }
+        })
+        .collect()
 }
 
 pub fn compute_function_abi(
