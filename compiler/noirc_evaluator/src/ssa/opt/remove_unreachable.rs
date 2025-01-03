@@ -50,14 +50,20 @@ fn collect_reachable_functions(
 fn used_functions(func: &Function) -> BTreeSet<FunctionId> {
     let mut used_function_ids = BTreeSet::default();
 
-    for block_id in func.reachable_blocks() {
-        for instruction_id in func.dfg[block_id].instructions() {
-            func.dfg[*instruction_id].for_each_value(|value| {
-                if let Value::Function(function) = func.dfg[value] {
-                    used_function_ids.insert(function);
-                }
-            });
+    let mut find_functions = |value| {
+        if let Value::Function(function) = func.dfg[value] {
+            used_function_ids.insert(function);
         }
+    };
+
+    for block_id in func.reachable_blocks() {
+        let block = &func.dfg[block_id];
+
+        for instruction_id in block.instructions() {
+            func.dfg[*instruction_id].for_each_value(&mut find_functions);
+        }
+
+        block.unwrap_terminator().for_each_value(&mut find_functions);
     }
 
     used_function_ids

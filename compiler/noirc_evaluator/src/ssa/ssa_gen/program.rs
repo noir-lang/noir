@@ -84,6 +84,7 @@ impl Ssa {
         self.functions.insert(new_id, function);
         new_id
     }
+
     pub(crate) fn generate_entry_point_index(mut self) -> Self {
         let entry_points =
             self.functions.keys().filter(|function| self.is_entry_point(**function)).enumerate();
