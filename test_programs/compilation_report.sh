@@ -50,7 +50,7 @@ for dir in ${tests_to_profile[@]}; do
       NOIR_LOG=trace NARGO_LOG_DIR=./tmp nargo compile --force --silence-warnings
     done
 
-    TIMES=($(jq -r '. | select(.target == "nargo::start_cli" and .fields.message == "close") | .fields."time.busy"' ./tmp/*))
+    TIMES=($(jq -r '. | select(.target == "nargo::cli" and .fields.message == "close") | .fields."time.busy"' ./tmp/*))
 
     AVG_TIME=$(awk -v RS=" " -v parse_time="$PARSE_TIME"  '
         {
