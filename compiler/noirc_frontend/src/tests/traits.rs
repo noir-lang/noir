@@ -717,6 +717,43 @@ fn calls_trait_function_if_it_is_in_scope() {
 }
 
 #[test]
+fn calls_trait_function_it_is_only_candidate_in_scope() {
+    let src = r#"
+    use private_mod::Foo;
+
+    fn main() {
+        let _ = Bar::foo();
+    }
+
+    pub struct Bar {
+    }
+
+    mod private_mod {
+        pub trait Foo {
+            fn foo() -> i32;
+        }
+
+        impl Foo for super::Bar {
+            fn foo() -> i32 {
+                42
+            }
+        }
+
+        pub trait Foo2 {
+            fn foo() -> i32;
+        }
+
+        impl Foo2 for super::Bar {
+            fn foo() -> i32 {
+                42
+            }
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn errors_if_trait_is_not_in_scope_for_function_call_and_there_are_multiple_candidates() {
     let src = r#"
     fn main() {

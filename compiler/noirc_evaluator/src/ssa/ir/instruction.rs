@@ -22,7 +22,7 @@ use super::{
     value::{Value, ValueId},
 };
 
-mod binary;
+pub(crate) mod binary;
 mod call;
 mod cast;
 mod constrain;
@@ -335,6 +335,14 @@ pub(crate) enum Instruction {
     /// `typ` should be an array or slice type with an element type
     /// matching each of the `elements` values' types.
     MakeArray { elements: im::Vector<ValueId>, typ: Type },
+
+    /// A No-op instruction. These are intended to replace other instructions in a block's
+    /// instructions vector without having to move each instruction afterward.
+    ///
+    /// A No-op has no results and is always removed when Instruction::simplify is called.
+    /// When replacing another instruction, the instruction's results should always be mapped to a
+    /// new value since they will not be able to refer to their original instruction value any more.
+    Noop,
 }
 
 impl Instruction {
@@ -360,6 +368,7 @@ impl Instruction {
             | Instruction::IncrementRc { .. }
             | Instruction::DecrementRc { .. }
             | Instruction::RangeCheck { .. }
+            | Instruction::Noop
             | Instruction::EnableSideEffectsIf { .. } => InstructionResultType::None,
             Instruction::Allocate { .. }
             | Instruction::Load { .. }
@@ -399,7 +408,7 @@ impl Instruction {
             Constrain(..) | RangeCheck { .. } => true,
 
             // This should never be side-effectful
-            MakeArray { .. } => false,
+            MakeArray { .. } | Noop => false,
 
             // Some binary math can overflow or underflow
             Binary(binary) => match binary.operator {
@@ -460,6 +469,10 @@ impl Instruction {
             // We can deduplicate these instructions if we know the predicate is also the same.
             Constrain(..) | RangeCheck { .. } => deduplicate_with_predicate,
 
+            // Noop instructions can always be deduplicated, although they're more likely to be
+            // removed entirely.
+            Noop => true,
+
             // Arrays can be mutated in unconstrained code so code that handles this case must
             // take care to track whether the array was possibly mutated or not before
             // deduplicating. Since we don't know if the containing pass checks for this, we
@@ -504,6 +517,7 @@ impl Instruction {
             | ArrayGet { .. }
             | IfElse { .. }
             | ArraySet { .. }
+            | Noop
             | MakeArray { .. } => true,
 
             // Store instructions must be removed by DIE in acir code, any load
@@ -594,6 +608,7 @@ impl Instruction {
             | Instruction::IfElse { .. }
             | Instruction::IncrementRc { .. }
             | Instruction::DecrementRc { .. }
+            | Instruction::Noop
             | Instruction::MakeArray { .. } => false,
         }
     }
@@ -673,6 +688,7 @@ impl Instruction {
                 elements: elements.iter().copied().map(f).collect(),
                 typ: typ.clone(),
             },
+            Instruction::Noop => Instruction::Noop,
         }
     }
 
@@ -737,6 +753,7 @@ impl Instruction {
                     *element = f(*element);
                 }
             }
+            Instruction::Noop => (),
         }
     }
 
@@ -802,6 +819,7 @@ impl Instruction {
                     f(*element);
                 }
             }
+            Instruction::Noop => (),
         }
     }
 
@@ -1035,6 +1053,7 @@ impl Instruction {
                 }
             }
             Instruction::MakeArray { .. } => None,
+            Instruction::Noop => Remove,
         }
     }
 }

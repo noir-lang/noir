@@ -21,20 +21,27 @@ noirc_errors.workspace = true
 noirc_frontend.workspace = true
 noirc_printable_type.workspace = true
 iter-extended.workspace = true
+jsonrpsee.workspace = true
+rayon.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
-rayon.workspace = true
-jsonrpc.workspace = true
-rand.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 walkdir = "2.5.0"
 
+# Some dependencies are optional so we can compile to Wasm.
+tokio = { workspace = true, optional = true }
+rand = { workspace = true, optional = true }
+
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-noir_fuzzer.workspace = true
-proptest.workspace = true
+noir_fuzzer = { workspace = true }
+proptest = { workspace = true }
 
 [dev-dependencies]
-jsonrpc-http-server = "18.0"
-jsonrpc-core-client = "18.0"
-jsonrpc-derive = "18.0"
-jsonrpc-core = "18.0"
+jsonrpsee = { workspace = true, features = ["server"] }
+
+[features]
+default = []
+
+# Execution currently uses HTTP based Oracle resolvers; does not compile to Wasm.
+rpc = ["jsonrpsee/http-client", "jsonrpsee/macros", "tokio/rt", "rand"]
