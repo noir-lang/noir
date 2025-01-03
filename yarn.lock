@@ -221,19 +221,19 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@aztec/bb.js@npm:0.66.0":
-  version: 0.66.0
-  resolution: "@aztec/bb.js@npm:0.66.0"
+"@aztec/bb.js@npm:0.68.2":
+  version: 0.68.2
+  resolution: "@aztec/bb.js@npm:0.68.2"
   dependencies:
     comlink: ^4.4.1
-    commander: ^10.0.1
+    commander: ^12.1.0
     debug: ^4.3.4
     fflate: ^0.8.0
     pako: ^2.1.0
     tslib: ^2.4.0
   bin:
     bb.js: dest/node/main.js
-  checksum: 7295bf6543afe1c2db795a95c7ed40806de63c77e44bb4dacb2ec6a9171d1d34749150844ab47bc2499d06676e623acb408857b6aa9da702d3c576efadb8c906
+  checksum: f20f74a6bc0772e0702b1f87c402f930d654ab0fd852faeb3a77a29e4520a2e4aa543cc211f8a236517490833d103a67ed38322426a73c8ed32c2cf3f2ed419f
   languageName: node
   linkType: hard
 
@@ -9823,6 +9823,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"commander@npm:^12.1.0":
+  version: 12.1.0
+  resolution: "commander@npm:12.1.0"
+  checksum: 68e9818b00fc1ed9cdab9eb16905551c2b768a317ae69a5e3c43924c2b20ac9bb65b27e1cab36aeda7b6496376d4da908996ba2c0b5d79463e0fb1e77935d514
+  languageName: node
+  linkType: hard
+
 "commander@npm:^2.20.0":
   version: 2.20.3
   resolution: "commander@npm:2.20.3"
@@ -14124,7 +14131,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "integration-tests@workspace:compiler/integration-tests"
   dependencies:
-    "@aztec/bb.js": 0.66.0
+    "@aztec/bb.js": 0.68.2
     "@noir-lang/noir_js": "workspace:*"
     "@noir-lang/noir_wasm": "workspace:*"
     "@nomicfoundation/hardhat-chai-matchers": ^2.0.0
