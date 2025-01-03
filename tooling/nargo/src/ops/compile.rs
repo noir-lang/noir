@@ -2,7 +2,6 @@ use fm::FileManager;
 use noirc_driver::{
     link_to_debug_crate, CompilationResult, CompileOptions, CompiledContract, CompiledProgram,
 };
-
 use noirc_frontend::debug::DebugInstrumenter;
 use noirc_frontend::hir::ParsedFiles;
 
@@ -128,8 +127,6 @@ pub fn collect_errors<T>(results: Vec<CompilationResult<T>>) -> CompilationResul
     }
 }
 
-/// Report any errors encountered during compilation.
-/// Warnings produced in files outside of `root_files` will not be reported.
 pub fn report_errors<T>(
     result: CompilationResult<T>,
     file_manager: &FileManager,
