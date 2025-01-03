@@ -4,7 +4,7 @@ use crate::hir::Context;
 use crate::node_interner::{FuncId, GlobalId, NodeInterner, StructId};
 use crate::parse_program;
 use crate::parser::{ParsedModule, ParserError};
-use crate::token::{FunctionAttribute, SecondaryAttribute, TestScope};
+use crate::token::{FunctionAttribute, FuzzingScope, SecondaryAttribute, TestScope};
 use fm::{FileId, FileManager};
 use noirc_arena::{Arena, Index};
 use noirc_errors::Location;
@@ -194,9 +194,9 @@ impl CrateDefMap {
                 if let Some(func_id) = id.as_function() {
                     let attributes = interner.function_attributes(&func_id);
                     match attributes.function() {
-                        Some(FunctionAttribute::FuzzingHarness) => {
+                        Some(FunctionAttribute::FuzzingHarness(scope)) => {
                             let location = interner.function_meta(&func_id).name.location;
-                            Some(FuzzingHarness::new(func_id, location))
+                            Some(FuzzingHarness::new(func_id, scope.clone(), location))
                         }
                         _ => None,
                     }
@@ -406,12 +406,13 @@ impl TestFunction {
 
 pub struct FuzzingHarness {
     id: FuncId,
+    scope: FuzzingScope,
     location: Location,
 }
 
 impl FuzzingHarness {
-    fn new(id: FuncId, location: Location) -> Self {
-        FuzzingHarness { id, location }
+    fn new(id: FuncId, scope: FuzzingScope, location: Location) -> Self {
+        FuzzingHarness { id, scope, location }
     }
 
     /// Returns the function id of the test function
@@ -421,5 +422,24 @@ impl FuzzingHarness {
 
     pub fn file_id(&self) -> FileId {
         self.location.file
+    }
+
+    /// Returns true if the fuzzing harness has been specified to fail only under specific reason
+    /// This is done by annotating the function with
+    /// `#[fuzz(only_fail_with = "reason")]`
+    pub fn only_fail_enabled(&self) -> bool {
+        match self.scope {
+            FuzzingScope::OnlyFailWith { .. } => true,
+            FuzzingScope::None => false,
+        }
+    }
+
+    /// Returns the reason for the fuzzing harness to fail if specified
+    /// by the user.
+    pub fn failure_reason(&self) -> Option<String> {
+        match &self.scope {
+            FuzzingScope::None => None,
+            FuzzingScope::OnlyFailWith { reason } => Some(reason.clone()),
+        }
     }
 }

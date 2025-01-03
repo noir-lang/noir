@@ -561,7 +561,12 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             )?,
         };
 
-        let result = solver.solve().map_err(|err| self.map_brillig_error(err))?;
+        let result = solver.solve().map_err(|err| {
+            if self.brillig_fuzzing_active {
+                self.brillig_fuzzing_trace = Some((&solver).get_fuzzing_trace())
+            };
+            self.map_brillig_error(err)
+        })?;
 
         match result {
             BrilligSolverStatus::ForeignCallWait(foreign_call) => {

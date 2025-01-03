@@ -68,6 +68,12 @@ pub struct FuzzedExecutor<E, F> {
 
     /// Number of threads to use
     num_threads: usize,
+
+    /// Fail on specific asserts
+    fail_on_specific_asserts: bool,
+
+    /// Failure reason
+    failure_reason: Option<String>,
 }
 type BrilligCoverage = Vec<u32>;
 
@@ -81,7 +87,8 @@ impl<
                 &Program<FieldElement>,
                 WitnessMap<FieldElement>,
                 &BranchToFeatureMap,
-            ) -> Result<(WitnessStack<FieldElement>, Option<Vec<u32>>), String>
+            )
+                -> Result<(WitnessStack<FieldElement>, Option<Vec<u32>>), (String, Option<Vec<u32>>)>
             + Sync,
     > FuzzedExecutor<E, F>
 {
@@ -94,6 +101,8 @@ impl<
         package_name: &str,
         function_name: &str,
         num_threads: usize,
+        fail_on_specific_asserts: bool,
+        failure_reason: Option<String>,
     ) -> Self {
         let (location_to_feature_map, brillig_coverage_ranges) =
             analyze_brillig_program_before_fuzzing(&brillig_program);
@@ -110,6 +119,8 @@ impl<
             package_name: package_name.to_string(),
             function_name: function_name.to_string(),
             num_threads,
+            fail_on_specific_asserts,
+            failure_reason,
         }
     }
 
@@ -187,7 +198,7 @@ impl<
                 }) => (
                     case_id,
                     case,
-                    witness.as_ref().unwrap(),
+                    witness,
                     brillig_coverage.as_ref().unwrap(),
                     acir_time,
                     brillig_time,
@@ -197,20 +208,35 @@ impl<
             total_acir_time += acir_time;
             total_brillig_time += brillig_time;
 
-            // Update the potential list
-            if accumulated_coverage.potential_bool_witness_list.is_none() {
-                // If it's the first time, we need to assign
-                accumulated_coverage.potential_bool_witness_list =
-                    Some(PotentialBoolWitnessList::from(witness));
-            } else {
-                accumulated_coverage.potential_bool_witness_list.as_mut().unwrap().update(&witness);
+            if witness.is_some() {
+                // Update the potential list
+                if accumulated_coverage.potential_bool_witness_list.is_none() {
+                    // If it's the first time, we need to assign
+                    accumulated_coverage.potential_bool_witness_list =
+                        Some(PotentialBoolWitnessList::from(witness.as_ref().unwrap()));
+                } else {
+                    accumulated_coverage
+                        .potential_bool_witness_list
+                        .as_mut()
+                        .unwrap()
+                        .update(witness.as_ref().unwrap());
+                }
             }
-            let new_coverage = SingleTestCaseCoverage::new(
-                *case_id,
-                &witness,
-                brillig_coverage.clone(),
-                &accumulated_coverage.potential_bool_witness_list.as_mut().unwrap(),
-            );
+            let new_coverage = if accumulated_coverage.potential_bool_witness_list.is_some() {
+                SingleTestCaseCoverage::new(
+                    *case_id,
+                    witness,
+                    brillig_coverage.clone(),
+                    &accumulated_coverage.potential_bool_witness_list.as_mut().unwrap(),
+                )
+            } else {
+                SingleTestCaseCoverage::new(
+                    *case_id,
+                    witness,
+                    brillig_coverage.clone(),
+                    &PotentialBoolWitnessList::default(),
+                )
+            };
             let (new_coverage_discovered, testcases_to_remove) =
                 accumulated_coverage.merge(&&new_coverage);
             if new_coverage_discovered {
@@ -237,7 +263,7 @@ impl<
     }
 
     /// Fuzzes the provided program.
-    pub fn fuzz(&mut self) -> FuzzTestResult {
+    pub fn fuzz(&mut self, only_fail_with: Option<String>) -> FuzzTestResult {
         // Generate a seed for the campaign
 
         let seed = thread_rng().gen::<u64>();
@@ -360,15 +386,25 @@ impl<
                                 brillig_time,
                             }) = paired_fuzz_outcome
                             {
-                                let new_coverage = SingleTestCaseCoverage::new(
-                                    case_id,
-                                    &witness.as_ref().unwrap(),
-                                    brillig_coverage.clone().unwrap(),
-                                    &accumulated_coverage
+                                let mut default_list = PotentialBoolWitnessList::default();
+                                let mut bool_witness_list = accumulated_coverage
+                                    .potential_bool_witness_list
+                                    .as_ref()
+                                    .unwrap();
+                                if witness.is_some() {
+                                    default_list = accumulated_coverage
                                         .potential_bool_witness_list
                                         .as_ref()
                                         .unwrap()
-                                        .merge_new(&witness.as_ref().unwrap()),
+                                        .merge_new(witness.as_ref().unwrap());
+                                    bool_witness_list = &default_list;
+                                }
+
+                                let new_coverage = SingleTestCaseCoverage::new(
+                                    case_id,
+                                    &witness,
+                                    brillig_coverage.clone().unwrap(),
+                                    &bool_witness_list,
                                 );
                                 (
                                     FuzzOutcome::Case(CaseOutcome {
@@ -399,7 +435,7 @@ impl<
                             {
                                 let new_coverage = SingleTestCaseCoverage::new(
                                     case_id,
-                                    &WitnessStack::default(),
+                                    &None,
                                     brillig_coverage.clone().unwrap(),
                                     &PotentialBoolWitnessList::default(),
                                 );
@@ -478,21 +514,23 @@ impl<
                         }
                     };
                 // In case we fuzzed both ACIR and brillig
-                if let (Some(witness), Some(brillig_coverage)) = (witness, brillig_coverage.clone())
-                {
+                if let Some(brillig_coverage) = brillig_coverage.clone() {
                     total_acir_time += acir_time;
                     total_acir_time += brillig_time;
-                    // Update the potential list
-                    if accumulated_coverage.potential_bool_witness_list.is_none() {
-                        // If it's the first time, we need to assign
-                        accumulated_coverage.potential_bool_witness_list =
-                            Some(PotentialBoolWitnessList::from(&witness));
-                    } else {
-                        accumulated_coverage
-                            .potential_bool_witness_list
-                            .as_mut()
-                            .unwrap()
-                            .update(&witness);
+
+                    if witness.is_some() {
+                        // Update the potential list
+                        if accumulated_coverage.potential_bool_witness_list.is_none() {
+                            // If it's the first time, we need to assign
+                            accumulated_coverage.potential_bool_witness_list =
+                                Some(PotentialBoolWitnessList::from(witness.as_ref().unwrap()));
+                        } else {
+                            accumulated_coverage
+                                .potential_bool_witness_list
+                                .as_mut()
+                                .unwrap()
+                                .update(witness.as_ref().unwrap());
+                        }
                     }
                     let new_coverage = SingleTestCaseCoverage::new(
                         case_id,
@@ -524,7 +562,7 @@ impl<
                 } else if let Some(brillig_coverage) = brillig_coverage {
                     let new_coverage = SingleTestCaseCoverage::new(
                         case_id,
-                        &WitnessStack::default(),
+                        &None,
                         brillig_coverage.clone(),
                         &PotentialBoolWitnessList::default(),
                     );
@@ -634,21 +672,22 @@ impl<
                             break;
                         }
                     };
-                // In case we fuzzed both ACIR and brillig
-                if let (Some(witness), Some(brillig_coverage)) = (witness, brillig_coverage) {
+                if let Some(brillig_coverage) = brillig_coverage {
                     total_acir_time += acir_time;
                     total_acir_time += brillig_time;
-                    // Update the potential list
-                    if accumulated_coverage.potential_bool_witness_list.is_none() {
-                        // If it's the first time, we need to assign
-                        accumulated_coverage.potential_bool_witness_list =
-                            Some(PotentialBoolWitnessList::from(&witness));
-                    } else {
-                        accumulated_coverage
-                            .potential_bool_witness_list
-                            .as_mut()
-                            .unwrap()
-                            .update(&witness);
+                    if witness.is_some() {
+                        // Update the potential list
+                        if accumulated_coverage.potential_bool_witness_list.is_none() {
+                            // If it's the first time, we need to assign
+                            accumulated_coverage.potential_bool_witness_list =
+                                Some(PotentialBoolWitnessList::from(witness.as_ref().unwrap()));
+                        } else {
+                            accumulated_coverage
+                                .potential_bool_witness_list
+                                .as_mut()
+                                .unwrap()
+                                .update(witness.as_ref().unwrap());
+                        }
                     }
                     let new_coverage = SingleTestCaseCoverage::new(
                         case_id,
@@ -728,6 +767,7 @@ impl<
         }
     }
 
+    // fn check_failure_message(&self,)
     /// Granular and single-step function that runs only one fuzz and returns either a `CaseOutcome`
     /// or a `CounterExampleOutcome`
     pub fn single_fuzz(&self, testcase: &TestCase) -> Result<FuzzOutcome, ()> {
@@ -761,15 +801,31 @@ impl<
                 acir_failed: true,
                 counterexample: testcase.value().clone(),
             })),
-            (Ok(_), Err(err)) => Ok(FuzzOutcome::Discrepancy(DiscrepancyOutcome {
+            (Ok(_), Err((err, coverage))) => Ok(FuzzOutcome::Discrepancy(DiscrepancyOutcome {
                 exit_reason: err,
                 acir_failed: false,
                 counterexample: testcase.value().clone(),
             })),
-            (Err(err), Err(..)) => Ok(FuzzOutcome::CounterExample(CounterExampleOutcome {
-                exit_reason: err,
-                counterexample: testcase.value().clone(),
-            })),
+            (Err(..), Err((err, coverage))) => {
+                if (self.fail_on_specific_asserts) {
+                    if (!err.contains(
+                        self.failure_reason.as_ref().expect("Failure reason should be provided"),
+                    )) {
+                        return Ok(FuzzOutcome::Case(CaseOutcome {
+                            case_id: testcase.id(),
+                            case: testcase.value().clone(),
+                            witness: None,
+                            brillig_coverage: Some(coverage.unwrap()),
+                            acir_time: acir_elapsed.as_micros(),
+                            brillig_time: brillig_elapsed.as_micros(),
+                        }));
+                    }
+                }
+                Ok(FuzzOutcome::CounterExample(CounterExampleOutcome {
+                    exit_reason: err,
+                    counterexample: testcase.value().clone(),
+                }))
+            }
         }
     }
 
@@ -818,10 +874,26 @@ impl<
                 acir_time: 0,
                 brillig_time: brillig_elapsed.as_micros(),
             })),
-            Err(err) => Ok(FuzzOutcome::CounterExample(CounterExampleOutcome {
-                exit_reason: err,
-                counterexample: testcase.value().clone(),
-            })),
+            Err((err, coverage)) => {
+                if (self.fail_on_specific_asserts) {
+                    if (!err.contains(
+                        self.failure_reason.as_ref().expect("Failure reason should be provided"),
+                    )) {
+                        return Ok(FuzzOutcome::Case(CaseOutcome {
+                            case_id: testcase.id(),
+                            case: testcase.value().clone(),
+                            witness: None,
+                            brillig_coverage: Some(coverage.unwrap()),
+                            acir_time: 0,
+                            brillig_time: brillig_elapsed.as_micros(),
+                        }));
+                    }
+                }
+                Ok(FuzzOutcome::CounterExample(CounterExampleOutcome {
+                    exit_reason: err,
+                    counterexample: testcase.value().clone(),
+                }))
+            }
         }
     }
 }

@@ -647,6 +647,26 @@ impl fmt::Display for TestScope {
     }
 }
 
+/// FuzzingScopr is used to specify additional annotations for fuzzing harnesses
+#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
+pub enum FuzzingScope {
+    /// If a fuzzing harness has a scope of OnlyFailWith, then it will only detect an assert
+    /// if it fails with the specified reason.
+    OnlyFailWith {
+        reason: String,
+    },
+    None,
+}
+
+impl fmt::Display for FuzzingScope {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            FuzzingScope::None => write!(f, ""),
+            FuzzingScope::OnlyFailWith { reason } => write!(f, "(only_fail_with = {reason:?})"),
+        }
+    }
+}
+
 #[derive(PartialEq, Eq, Debug, Clone)]
 // Attributes are special language markers in the target language
 // An example of one is `#[SHA256]` . Currently only Foreign attributes are supported
@@ -687,7 +707,7 @@ impl Attributes {
     }
 
     pub fn is_fuzzing_harness(&self) -> bool {
-        matches!(self.function(), Some(FunctionAttribute::FuzzingHarness))
+        matches!(self.function(), Some(FunctionAttribute::FuzzingHarness(_)))
     }
 
     /// True if these attributes mean the given function is an entry point function if it was
@@ -763,7 +783,7 @@ pub enum FunctionAttribute {
     Fold,
     NoPredicates,
     InlineAlways,
-    FuzzingHarness,
+    FuzzingHarness(FuzzingScope),
 }
 
 impl FunctionAttribute {
@@ -828,7 +848,7 @@ impl FunctionAttribute {
             FunctionAttribute::Fold => "fold",
             FunctionAttribute::NoPredicates => "no_predicates",
             FunctionAttribute::InlineAlways => "inline_always",
-            FunctionAttribute::FuzzingHarness => "fuzz",
+            FunctionAttribute::FuzzingHarness(_) => "fuzz",
         }
     }
 }
@@ -844,7 +864,7 @@ impl fmt::Display for FunctionAttribute {
             FunctionAttribute::Fold => write!(f, "#[fold]"),
             FunctionAttribute::NoPredicates => write!(f, "#[no_predicates]"),
             FunctionAttribute::InlineAlways => write!(f, "#[inline_always]"),
-            FunctionAttribute::FuzzingHarness => write!(f, "#[fuzz]"),
+            FunctionAttribute::FuzzingHarness(scope) => write!(f, "#[fuzz{scope}]"),
         }
     }
 }

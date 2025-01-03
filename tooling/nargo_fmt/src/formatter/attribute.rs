@@ -1,5 +1,6 @@
 use noirc_frontend::token::{
-    Attribute, Attributes, FunctionAttribute, MetaAttribute, SecondaryAttribute, TestScope, Token,
+    Attribute, Attributes, FunctionAttribute, FuzzingScope, MetaAttribute, SecondaryAttribute,
+    TestScope, Token,
 };
 
 use crate::chunks::ChunkGroup;
@@ -50,11 +51,13 @@ impl<'a> Formatter<'a> {
             | FunctionAttribute::Builtin(_)
             | FunctionAttribute::Oracle(_) => self.format_one_arg_attribute(),
             FunctionAttribute::Test(test_scope) => self.format_test_attribute(test_scope),
+            FunctionAttribute::FuzzingHarness(fuzz_scope) => self.format_fuzz_attribute(fuzz_scope),
             FunctionAttribute::Recursive
             | FunctionAttribute::Fold
             | FunctionAttribute::NoPredicates
-            | FunctionAttribute::InlineAlways
-            | FunctionAttribute::FuzzingHarness => self.format_no_args_attribute(),
+            | FunctionAttribute::InlineAlways => {
+                self.format_no_args_attribute();
+            }
         }
 
         self.write_line();
@@ -126,6 +129,29 @@ impl<'a> Formatter<'a> {
                 self.write_left_paren(); // (
                 self.skip_comments_and_whitespace();
                 self.write_current_token_and_bump(); // should_fail_with
+                self.write_space();
+                self.write_token(Token::Assign);
+                self.write_space();
+                self.skip_comments_and_whitespace();
+                self.write_current_token_and_bump(); // "reason"
+                self.write_right_paren(); // )
+            }
+        }
+
+        self.write_right_bracket(); // ]
+    }
+
+    fn format_fuzz_attribute(&mut self, fuzz_scope: FuzzingScope) {
+        self.write_current_token_and_bump(); // #[
+        self.skip_comments_and_whitespace();
+        self.write_current_token_and_bump(); // test
+
+        match fuzz_scope {
+            FuzzingScope::None => (),
+            FuzzingScope::OnlyFailWith { .. } => {
+                self.write_left_paren(); // (
+                self.skip_comments_and_whitespace();
+                self.write_current_token_and_bump(); // only_fail_with
                 self.write_space();
                 self.write_token(Token::Assign);
                 self.write_space();
@@ -332,6 +358,20 @@ mod tests {
     fn format_test_should_fail_with_reason_attribute() {
         let src = "  #[ test ( should_fail_with=\"reason\" )] ";
         let expected = "#[test(should_fail_with = \"reason\")]";
+        assert_format_attribute(src, expected);
+    }
+
+    #[test]
+    fn format_fuzz_attribute() {
+        let src = "  #[ fuzz ] ";
+        let expected = "#[fuzz]";
+        assert_format_attribute(src, expected);
+    }
+
+    #[test]
+    fn format_test_only_fail_with_reason_attribute() {
+        let src = "  #[ fuzz ( only_fail_with=\"reason\" )] ";
+        let expected = "#[fuzz(only_fail_with = \"reason\")]";
         assert_format_attribute(src, expected);
     }
 

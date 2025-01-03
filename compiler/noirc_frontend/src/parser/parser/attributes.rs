@@ -4,7 +4,7 @@ use crate::ast::{Expression, ExpressionKind, Ident, Literal, Path};
 use crate::lexer::errors::LexerErrorKind;
 use crate::parser::labels::ParsingRuleLabel;
 use crate::parser::ParserErrorReason;
-use crate::token::{Attribute, FunctionAttribute, MetaAttribute, TestScope, Token};
+use crate::token::{Attribute, FunctionAttribute, FuzzingScope, MetaAttribute, TestScope, Token};
 use crate::token::{CustomAttribute, SecondaryAttribute};
 
 use super::parse_many::without_separator;
@@ -54,6 +54,8 @@ impl<'a> Parser<'a> {
     ///     | 'test'
     ///     | 'test' '(' 'should_fail' ')'
     ///     | 'test' '(' 'should_fail_with' '=' string ')'
+    ///     | 'fuzz'
+    ///     | 'fuzz' '(' 'only_fail_with' '=' string ')'
     ///
     /// SecondaryAttribute
     ///     = 'abi' '(' AttributeValue ')'
@@ -141,12 +143,16 @@ impl<'a> Parser<'a> {
         } else if let Some(path) = self.parse_path_no_turbofish() {
             if let Some(ident) = path.as_ident() {
                 if ident.0.contents == "test" {
-                    // The test attribute is the only secondary attribute that has `a = b` in its syntax
+                    // The test attribute is a secondary attribute that has `a = b` in its syntax
                     // (`should_fail_with = "..."``) so we parse it differently.
                     self.parse_test_attribute(start_span)
+                } else if ident.0.contents == "fuzz" {
+                    // The fuzz attribute is a secondary attribute that has `a = b` in its syntax
+                    // (`only_fail_with = "..."``) so we parse it differently.
+                    self.parse_fuzz_attribute(start_span)
                 } else {
                     // Every other attribute has the form `name(arg1, arg2, .., argN)`
-                    self.parse_ident_attribute_other_than_test(ident, start_span)
+                    self.parse_ident_attribute_other_than_test_and_fuzz(ident, start_span)
                 }
             } else {
                 // This is a Meta attribute with the syntax `path(arg1, arg2, .., argN)`
@@ -168,7 +174,7 @@ impl<'a> Parser<'a> {
         }))
     }
 
-    fn parse_ident_attribute_other_than_test(
+    fn parse_ident_attribute_other_than_test_and_fuzz(
         &mut self,
         ident: &Ident,
         start_span: Span,
@@ -204,10 +210,6 @@ impl<'a> Parser<'a> {
             "foreign" => self.parse_single_name_attribute(ident, arguments, start_span, |name| {
                 Attribute::Function(FunctionAttribute::Foreign(name))
             }),
-            "fuzz" => {
-                let attr = Attribute::Function(FunctionAttribute::FuzzingHarness);
-                self.parse_no_args_attribute(ident, arguments, attr)
-            }
             "inline_always" => {
                 let attr = Attribute::Function(FunctionAttribute::InlineAlways);
                 self.parse_no_args_attribute(ident, arguments, attr)
@@ -309,6 +311,43 @@ impl<'a> Parser<'a> {
         };
 
         Attribute::Function(FunctionAttribute::Test(scope))
+    }
+
+    fn parse_fuzz_attribute(&mut self, start_span: Span) -> Attribute {
+        let scope = if self.eat_left_paren() {
+            let scope = if let Some(ident) = self.eat_ident() {
+                match ident.0.contents.as_str() {
+                    "only_fail_with" => {
+                        self.eat_or_error(Token::Assign);
+                        if let Some(reason) = self.eat_str() {
+                            Some(FuzzingScope::OnlyFailWith { reason: reason })
+                        } else {
+                            None
+                        }
+                    }
+                    _ => None,
+                }
+            } else {
+                None
+            };
+            self.eat_or_error(Token::RightParen);
+            scope
+        } else {
+            Some(FuzzingScope::None)
+        };
+
+        self.skip_until_right_bracket();
+
+        let scope = if let Some(scope) = scope {
+            scope
+        } else {
+            self.errors.push(
+                LexerErrorKind::MalformedFuzzAttribute { span: self.span_since(start_span) }.into(),
+            );
+            FuzzingScope::None
+        };
+
+        Attribute::Function(FunctionAttribute::FuzzingHarness(scope))
     }
 
     fn parse_single_name_attribute<F>(

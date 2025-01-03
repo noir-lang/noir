@@ -102,14 +102,14 @@ pub struct SingleTestCaseCoverage {
 impl SingleTestCaseCoverage {
     pub fn new(
         testcase_id: TestCaseId,
-        acir_witnesses: &WitnessStack<FieldElement>,
+        acir_witness_stack: &Option<WitnessStack<FieldElement>>,
         brillig_coverage: Vec<u32>,
         potential_bool_witness_list: &PotentialBoolWitnessList,
     ) -> Self {
         // Process all booleans
         let mut acir_bool_coverage = Vec::new();
         // If the witness stack was not empty
-        if acir_witnesses.length() == 1 {
+        if let Some(acir_witnesses) = acir_witness_stack {
             let witness_map = &acir_witnesses.peek().unwrap().witness;
 
             for potential_bool_witness_index in potential_bool_witness_list.witness.iter() {

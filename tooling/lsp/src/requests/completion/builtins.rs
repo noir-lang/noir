@@ -100,6 +100,7 @@ impl<'a> NodeFinder<'a> {
                     "no_predicates",
                     "recursive",
                     "test",
+                    "fuzz",
                     "varargs",
                 ];
                 self.suggest_no_arguments_attributes(prefix, no_arguments_attributes);
@@ -130,6 +131,15 @@ impl<'a> NodeFinder<'a> {
                         "test(should_fail_with = \"...\")",
                         CompletionItemKind::METHOD,
                         "test(should_fail_with = \"${1:message}\")",
+                        None,
+                    ));
+                }
+
+                if name_matches("fuzz", prefix) || name_matches("only_fail_with", prefix) {
+                    self.completion_items.push(snippet_completion_item(
+                        "fuzz(only_fail_with = \"...\")",
+                        CompletionItemKind::METHOD,
+                        "fuzz(only_fail_with = \"${1:message}\")",
                         None,
                     ));
                 }

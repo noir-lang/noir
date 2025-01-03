@@ -22,6 +22,8 @@ pub enum LexerErrorKind {
     MalformedFuncAttribute { span: Span, found: String },
     #[error("Malformed test attribute")]
     MalformedTestAttribute { span: Span },
+    #[error("Malformed fuzz attribute")]
+    MalformedFuzzAttribute { span: Span },
     #[error("{:?} is not a valid inner attribute", found)]
     InvalidInnerAttribute { span: Span, found: String },
     #[error("Logical and used instead of bitwise and")]
@@ -64,6 +66,7 @@ impl LexerErrorKind {
             LexerErrorKind::IntegerLiteralTooLarge { span, .. } => *span,
             LexerErrorKind::MalformedFuncAttribute { span, .. } => *span,
             LexerErrorKind::MalformedTestAttribute { span, .. } => *span,
+            LexerErrorKind::MalformedFuzzAttribute { span, .. } => *span,
             LexerErrorKind::InvalidInnerAttribute { span, .. } => *span,
             LexerErrorKind::LogicalAnd { span } => *span,
             LexerErrorKind::UnterminatedBlockComment { span } => *span,
@@ -115,6 +118,11 @@ impl LexerErrorKind {
             LexerErrorKind::MalformedTestAttribute { span } => (
                 "Malformed test attribute".to_string(),
                 "The test attribute can be written in one of these forms: `#[test]`, `#[test(should_fail)]` or `#[test(should_fail_with = \"message\")]`".to_string(),
+                *span,
+            ),
+            LexerErrorKind::MalformedFuzzAttribute { span } => (
+                "Malformed fuzz attribute".to_string(),
+                "The fuzz attribute can be written in one of these forms: `#[fuzz]` or `#[fuzz(only_fail_with = \"message\")]`".to_string(),
                 *span,
             ),
             LexerErrorKind::InvalidInnerAttribute { span, found } => (

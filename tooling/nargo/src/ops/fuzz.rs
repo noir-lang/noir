@@ -83,6 +83,7 @@ pub fn run_fuzzing_harness<B: BlackBoxFunctionSolver<FieldElement> + Default>(
                 use acvm::acir::circuit::Program;
                 use noir_greybox_fuzzer::FuzzedExecutor;
 
+                let acir_error_types = acir_program.abi.error_types.clone();
                 let acir_executor = |program: &Program<FieldElement>,
                                      initial_witness: WitnessMap<FieldElement>|
                  -> Result<WitnessStack<FieldElement>, String> {
@@ -97,15 +98,22 @@ pub fn run_fuzzing_harness<B: BlackBoxFunctionSolver<FieldElement> + Default>(
                             package_name.clone(),
                         ),
                     )
-                    .map_err(|err| err.to_string())
+                    .map_err(|err| {
+                        err.to_string()
+                            + ": "
+                            + &err
+                                .user_defined_failure_message(&acir_error_types)
+                                .unwrap_or("<no message>".to_owned())
+                    })
                 };
 
+                let brillig_error_types = brillig_program.abi.error_types.clone();
                 let brillig_executor = |program: &Program<FieldElement>,
                                         initial_witness: WitnessMap<FieldElement>,
                                         location_to_feature_map: &BranchToFeatureMap|
                  -> Result<
                     (WitnessStack<FieldElement>, Option<Vec<u32>>),
-                    String,
+                    (String, Option<Vec<u32>>),
                 > {
                     execute_program_with_brillig_fuzzing(
                         program,
@@ -119,7 +127,16 @@ pub fn run_fuzzing_harness<B: BlackBoxFunctionSolver<FieldElement> + Default>(
                         ),
                         Some(location_to_feature_map),
                     )
-                    .map_err(|err| err.to_string())
+                    .map_err(|(nargo_err, brillig_coverage)| {
+                        (
+                            nargo_err.to_string()
+                                + ": "
+                                + &nargo_err
+                                    .user_defined_failure_message(&brillig_error_types)
+                                    .unwrap_or("<no message>".to_owned()),
+                            brillig_coverage,
+                        )
+                    })
                 };
                 let abi = acir_program.abi.clone();
                 let mut fuzzer = FuzzedExecutor::new(
@@ -130,9 +147,11 @@ pub fn run_fuzzing_harness<B: BlackBoxFunctionSolver<FieldElement> + Default>(
                     &package_name.clone().unwrap(),
                     context.def_interner.function_name(&fuzzing_harness.get_id()),
                     num_threads,
+                    fuzzing_harness.only_fail_enabled(),
+                    fuzzing_harness.failure_reason(),
                 );
 
-                let result = fuzzer.fuzz();
+                let result = fuzzer.fuzz(fuzzing_harness.failure_reason());
                 if result.success {
                     FuzzingRunStatus::Pass
                 } else {
