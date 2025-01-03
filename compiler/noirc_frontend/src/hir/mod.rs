@@ -302,7 +302,7 @@ impl Context<'_, '_> {
     }
 
     pub fn crate_files(&self, crate_id: &CrateId) -> HashSet<FileId> {
-        self.def_maps[crate_id].file_ids()
+        self.def_maps.get(crate_id).map(|def_map| def_map.file_ids()).unwrap_or_default()
     }
 
     /// Activates LSP mode, which will track references for all definitions.
