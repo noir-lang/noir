@@ -350,7 +350,6 @@ jobs:
           chmod +x parse_time.sh
           cp /home/runner/work/noir/noir/scripts/test_programs/parse_time.sh ./parse_time.sh
           ./compilation_report.sh 1
-          cat compilation_report.json
 
       - name: Generate compilation report with averages
         working-directory: ./test-repo/${{ matrix.project.path }}
