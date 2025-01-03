@@ -462,7 +462,6 @@ impl<
             }
             for index in results_to_analyze.into_iter() {
                 let fuzz_res = all_fuzzing_results[index].0.clone();
-                println!("NOT skipping");
                 let (case_id, case, witness, brillig_coverage, acir_time, brillig_time) =
                     match fuzz_res {
                         FuzzOutcome::Case(CaseOutcome {
