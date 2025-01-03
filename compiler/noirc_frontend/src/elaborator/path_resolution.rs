@@ -447,10 +447,6 @@ impl<'context> Elaborator<'context> {
         let per_ns = PerNs { types: None, values: Some(*item) };
         StructMethodLookupResult::FoundTraitMethod(per_ns, trait_id)
     }
-
-    fn fully_qualified_trait_path(&self, trait_: &Trait) -> String {
-        fully_qualified_module_path(self.def_maps, self.crate_graph, &trait_.crate_id, trait_.id.0)
-    }
 }
 
 fn merge_intermediate_path_resolution_item_with_module_def_id(
