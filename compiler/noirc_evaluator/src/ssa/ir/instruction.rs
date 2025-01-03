@@ -1300,31 +1300,6 @@ pub(crate) enum TerminatorInstruction {
 }
 
 impl TerminatorInstruction {
-    /// Map each ValueId in this terminator to a new value.
-    pub(crate) fn map_values(
-        &self,
-        mut f: impl FnMut(ValueId) -> ValueId,
-    ) -> TerminatorInstruction {
-        use TerminatorInstruction::*;
-        match self {
-            JmpIf { condition, then_destination, else_destination, call_stack } => JmpIf {
-                condition: f(*condition),
-                then_destination: *then_destination,
-                else_destination: *else_destination,
-                call_stack: *call_stack,
-            },
-            Jmp { destination, arguments, call_stack } => Jmp {
-                destination: *destination,
-                arguments: vecmap(arguments, |value| f(*value)),
-                call_stack: *call_stack,
-            },
-            Return { return_values, call_stack } => Return {
-                return_values: vecmap(return_values, |value| f(*value)),
-                call_stack: *call_stack,
-            },
-        }
-    }
-
     /// Mutate each ValueId to a new ValueId using the given mapping function
     pub(crate) fn map_values_mut(&mut self, mut f: impl FnMut(ValueId) -> ValueId) {
         use TerminatorInstruction::*;

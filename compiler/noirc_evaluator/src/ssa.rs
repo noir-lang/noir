@@ -5,7 +5,6 @@
 //! elimination and constant folding.
 //!
 //! This module heavily borrows from Cranelift
-#![allow(dead_code)]
 
 use std::{
     collections::{BTreeMap, BTreeSet},
