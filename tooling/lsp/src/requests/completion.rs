@@ -31,7 +31,7 @@ use noirc_frontend::{
         },
     },
     hir_def::traits::Trait,
-    node_interner::{NodeInterner, ReferenceId, StructId},
+    node_interner::{FuncId, NodeInterner, ReferenceId, StructId},
     parser::{Item, ItemKind, ParsedSubModule},
     token::{MetaAttribute, Token, Tokens},
     Kind, ParsedModule, StructType, Type, TypeBinding,
@@ -120,6 +120,8 @@ struct NodeFinder<'a> {
     use_segment_positions: UseSegmentPositions,
     self_type: Option<Type>,
     in_comptime: bool,
+    /// The function we are in, if any
+    func_id: Option<FuncId>,
 }
 
 impl<'a> NodeFinder<'a> {
@@ -165,6 +167,7 @@ impl<'a> NodeFinder<'a> {
             use_segment_positions: UseSegmentPositions::default(),
             self_type: None,
             in_comptime: false,
+            func_id: None,
         }
     }
 
@@ -639,6 +642,13 @@ impl<'a> NodeFinder<'a> {
         function_completion_kind: FunctionCompletionKind,
         self_prefix: bool,
     ) {
+        self.complete_trait_constraints_methods(
+            typ,
+            prefix,
+            function_kind,
+            function_completion_kind,
+        );
+
         let Some(methods_by_name) = self.interner.get_type_methods(typ) else {
             return;
         };
@@ -693,6 +703,31 @@ impl<'a> NodeFinder<'a> {
                     self.completion_items.extend(completion_items);
                     self.suggested_module_def_ids.insert(ModuleDefId::FunctionId(func_id));
                 }
+            }
+        }
+    }
+
+    fn complete_trait_constraints_methods(
+        &mut self,
+        typ: &Type,
+        prefix: &str,
+        function_kind: FunctionKind,
+        function_completion_kind: FunctionCompletionKind,
+    ) {
+        let Some(func_id) = self.func_id else {
+            return;
+        };
+
+        let func_meta = self.interner.function_meta(&func_id);
+        for constraint in &func_meta.trait_constraints {
+            if *typ == constraint.typ {
+                let trait_ = self.interner.get_trait(constraint.trait_bound.trait_id);
+                self.complete_trait_methods(
+                    trait_,
+                    prefix,
+                    function_kind,
+                    function_completion_kind,
+                );
             }
         }
     }
@@ -1125,7 +1160,16 @@ impl<'a> Visitor for NodeFinder<'a> {
         let old_in_comptime = self.in_comptime;
         self.in_comptime = noir_function.def.is_comptime;
 
+        if let Some(ReferenceId::Function(func_id)) = self
+            .interner
+            .reference_at_location(Location::new(noir_function.name_ident().span(), self.file))
+        {
+            self.func_id = Some(func_id);
+        }
+
         noir_function.def.body.accept(Some(span), self);
+
+        self.func_id = None;
 
         self.in_comptime = old_in_comptime;
         self.type_parameters = old_type_parameters;
@@ -1207,7 +1251,7 @@ impl<'a> Visitor for NodeFinder<'a> {
 
     fn visit_trait_item_function(
         &mut self,
-        _name: &Ident,
+        name: &Ident,
         generics: &UnresolvedGenerics,
         parameters: &[(Ident, UnresolvedType)],
         return_type: &noirc_frontend::ast::FunctionReturnType,
@@ -1232,7 +1276,16 @@ impl<'a> Visitor for NodeFinder<'a> {
             for (name, _) in parameters {
                 self.local_variables.insert(name.to_string(), name.span());
             }
+
+            if let Some(ReferenceId::Function(func_id)) =
+                self.interner.reference_at_location(Location::new(name.span(), self.file))
+            {
+                self.func_id = Some(func_id);
+            }
+
             body.accept(None, self);
+
+            self.func_id = None;
         };
 
         self.type_parameters = old_type_parameters;
