@@ -2,7 +2,6 @@ use std::collections::HashSet;
 use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::{env, fs};
 
 const GIT_COMMIT: &&str = &"GIT_COMMIT";
 
@@ -14,7 +13,7 @@ fn main() {
         build_data::no_debug_rebuilds();
     }
 
-    let out_dir = env::var("OUT_DIR").unwrap();
+    let out_dir = std::env::var("OUT_DIR").unwrap();
     let destination = Path::new(&out_dir).join("debug.rs");
     let mut test_file = File::create(destination).unwrap();
 
@@ -39,8 +38,8 @@ fn generate_debugger_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_data_dir = test_data_dir.join(test_sub_dir);
 
     let test_case_dirs =
-        fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
-    let ignored_tests_contents = fs::read_to_string("ignored-tests.txt").unwrap();
+        std::fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
+    let ignored_tests_contents = std::fs::read_to_string("ignored-tests.txt").unwrap();
     let ignored_tests = ignored_tests_contents.lines().collect::<HashSet<_>>();
 
     for test_dir in test_case_dirs {

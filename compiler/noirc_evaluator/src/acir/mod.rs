@@ -1,7 +1,6 @@
 //! This file holds the pass to convert from Noir's SSA IR to ACIR.
 
 use fxhash::FxHashMap as HashMap;
-use im::Vector;
 use std::collections::{BTreeMap, HashSet};
 use std::fmt::Debug;
 
@@ -248,7 +247,7 @@ impl Debug for AcirDynamicArray {
 #[derive(Debug, Clone)]
 pub(crate) enum AcirValue {
     Var(AcirVar, AcirType),
-    Array(Vector<AcirValue>),
+    Array(im::Vector<AcirValue>),
     DynamicArray(AcirDynamicArray),
 }
 
@@ -789,6 +788,7 @@ impl<'a> Context<'a> {
                 let result = dfg.instruction_results(instruction_id)[0];
                 self.ssa_values.insert(result, value);
             }
+            Instruction::Noop => (),
         }
 
         self.acir_context.set_call_stack(CallStack::new());
@@ -1118,7 +1118,7 @@ impl<'a> Context<'a> {
         &mut self,
         instruction: InstructionId,
         dfg: &DataFlowGraph,
-        array: Vector<AcirValue>,
+        array: im::Vector<AcirValue>,
         index: FieldElement,
         store_value: Option<AcirValue>,
     ) -> Result<bool, RuntimeError> {
@@ -1303,7 +1303,7 @@ impl<'a> Context<'a> {
         match typ {
             Type::Numeric(_) => self.array_get_value(&Type::field(), call_data_block, offset),
             Type::Array(arc, len) => {
-                let mut result = Vector::new();
+                let mut result = im::Vector::new();
                 for _i in 0..*len {
                     for sub_type in arc.iter() {
                         let element = self.get_from_call_data(offset, call_data_block, sub_type)?;
@@ -1394,7 +1394,7 @@ impl<'a> Context<'a> {
                 Ok(AcirValue::Var(read, typ))
             }
             Type::Array(element_types, len) => {
-                let mut values = Vector::new();
+                let mut values = im::Vector::new();
                 for _ in 0..len {
                     for typ in element_types.as_ref() {
                         values.push_back(self.array_get_value(typ, block_id, var_index)?);
@@ -1682,7 +1682,7 @@ impl<'a> Context<'a> {
             let read = self.acir_context.read_from_memory(source, &index_var)?;
             Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::field()))
         })?;
-        let array: Vector<AcirValue> = init_values.into();
+        let array: im::Vector<AcirValue> = init_values.into();
         self.initialize_array(destination, array_len, Some(AcirValue::Array(array)))?;
         Ok(())
     }
@@ -2053,8 +2053,9 @@ impl<'a> Context<'a> {
     ///
     /// There are some edge cases to consider:
     /// - Constants are not explicitly type casted, so we need to check for this and
-    /// return the type of the other operand, if we have a constant.
+    ///   return the type of the other operand, if we have a constant.
     /// - 0 is not seen as `Field 0` but instead as `Unit 0`
+    ///
     /// TODO: The latter seems like a bug, if we cannot differentiate between a function returning
     /// TODO nothing and a 0.
     ///
@@ -2273,7 +2274,7 @@ impl<'a> Context<'a> {
                 let slice = self.convert_value(slice_contents, dfg);
                 let mut new_elem_size = Self::flattened_value_size(&slice);
 
-                let mut new_slice = Vector::new();
+                let mut new_slice = im::Vector::new();
                 self.slice_intrinsic_input(&mut new_slice, slice)?;
 
                 let elements_to_push = &arguments[2..];
@@ -2344,7 +2345,7 @@ impl<'a> Context<'a> {
                 let one = self.acir_context.add_constant(FieldElement::one());
                 let new_slice_length = self.acir_context.add_var(slice_length, one)?;
 
-                let mut new_slice = Vector::new();
+                let mut new_slice = im::Vector::new();
                 self.slice_intrinsic_input(&mut new_slice, slice)?;
 
                 let elements_to_push = &arguments[2..];
@@ -2418,7 +2419,7 @@ impl<'a> Context<'a> {
                 }
 
                 let slice = self.convert_value(slice_contents, dfg);
-                let mut new_slice = Vector::new();
+                let mut new_slice = im::Vector::new();
                 self.slice_intrinsic_input(&mut new_slice, slice)?;
 
                 let mut results = vec![
@@ -2444,7 +2445,7 @@ impl<'a> Context<'a> {
 
                 let slice = self.convert_value(slice_contents, dfg);
 
-                let mut new_slice = Vector::new();
+                let mut new_slice = im::Vector::new();
                 self.slice_intrinsic_input(&mut new_slice, slice)?;
 
                 let element_size = slice_typ.element_size();
@@ -2631,7 +2632,7 @@ impl<'a> Context<'a> {
 
                 let slice_size = Self::flattened_value_size(&slice);
 
-                let mut new_slice = Vector::new();
+                let mut new_slice = im::Vector::new();
                 self.slice_intrinsic_input(&mut new_slice, slice)?;
 
                 // Compiler sanity check
@@ -2760,8 +2761,6 @@ impl<'a> Context<'a> {
                 unreachable!("Expected static_assert to be removed by this point")
             }
             Intrinsic::StrAsBytes => unreachable!("Expected as_bytes to be removed by this point"),
-            Intrinsic::FromField => unreachable!("Expected from_field to be removed by this point"),
-            Intrinsic::AsField => unreachable!("Expected as_field to be removed by this point"),
             Intrinsic::IsUnconstrained => {
                 unreachable!("Expected is_unconstrained to be removed by this point")
             }
@@ -2783,7 +2782,7 @@ impl<'a> Context<'a> {
 
     fn slice_intrinsic_input(
         &mut self,
-        old_slice: &mut Vector<AcirValue>,
+        old_slice: &mut im::Vector<AcirValue>,
         input: AcirValue,
     ) -> Result<(), RuntimeError> {
         match input {
@@ -2905,7 +2904,6 @@ mod test {
         ssa::{
             function_builder::FunctionBuilder,
             ir::{
-                call_stack::CallStack,
                 function::FunctionId,
                 instruction::BinaryOp,
                 map::Id,
@@ -2932,8 +2930,7 @@ mod test {
             builder.new_function("foo".into(), foo_id, inline_type);
         }
         // Set a call stack for testing whether `brillig_locations` in the `GeneratedAcir` was accurately set.
-        let mut stack = CallStack::unit(Location::dummy());
-        stack.push_back(Location::dummy());
+        let stack = vec![Location::dummy(), Location::dummy()];
         let call_stack =
             builder.current_function.dfg.call_stack_data.get_or_insert_locations(stack);
         builder.set_call_stack(call_stack);
@@ -3358,8 +3355,8 @@ mod test {
         // We have two normal Brillig functions that was called multiple times.
         // We should have a single locations map for each function's debug metadata.
         assert_eq!(main_acir.brillig_locations.len(), 2);
-        assert!(main_acir.brillig_locations.get(&BrilligFunctionId(0)).is_some());
-        assert!(main_acir.brillig_locations.get(&BrilligFunctionId(1)).is_some());
+        assert!(main_acir.brillig_locations.contains_key(&BrilligFunctionId(0)));
+        assert!(main_acir.brillig_locations.contains_key(&BrilligFunctionId(1)));
     }
 
     // Test that given multiple primitive operations that are represented by Brillig directives (e.g. invert/quotient),
@@ -3494,7 +3491,7 @@ mod test {
         // We have one normal Brillig functions that was called twice.
         // We should have a single locations map for each function's debug metadata.
         assert_eq!(main_acir.brillig_locations.len(), 1);
-        assert!(main_acir.brillig_locations.get(&BrilligFunctionId(0)).is_some());
+        assert!(main_acir.brillig_locations.contains_key(&BrilligFunctionId(0)));
     }
 
     // Test that given both normal Brillig calls, Brillig stdlib calls, and non-inlined ACIR calls, that we accurately generate ACIR.
@@ -3587,7 +3584,7 @@ mod test {
         );
 
         assert_eq!(main_acir.brillig_locations.len(), 1);
-        assert!(main_acir.brillig_locations.get(&BrilligFunctionId(0)).is_some());
+        assert!(main_acir.brillig_locations.contains_key(&BrilligFunctionId(0)));
 
         let foo_acir = &acir_functions[1];
         let foo_opcodes = foo_acir.opcodes();

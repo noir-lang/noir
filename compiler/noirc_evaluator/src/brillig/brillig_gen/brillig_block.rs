@@ -635,9 +635,7 @@ impl<'block> BrilligBlock<'block> {
                             let array = array.extract_register();
                             self.brillig_context.load_instruction(destination, array);
                         }
-                        Intrinsic::FromField
-                        | Intrinsic::AsField
-                        | Intrinsic::IsUnconstrained
+                        Intrinsic::IsUnconstrained
                         | Intrinsic::DerivePedersenGenerators
                         | Intrinsic::ApplyRangeConstraint
                         | Intrinsic::StrAsBytes
@@ -839,6 +837,7 @@ impl<'block> BrilligBlock<'block> {
                     self.brillig_context.deallocate_register(items_pointer);
                 }
             }
+            Instruction::Noop => (),
         };
 
         let dead_variables = self

@@ -36,6 +36,7 @@ gates_report.json
 gates_report_brillig.json
 gates_report_brillig_execution.json
 compilation_report.json
+execution_report.json
 
 # Github Actions scratch space
 # This gives a location to download artifacts into the repository in CI without making git dirty.
@@ -50,3 +51,5 @@ tooling/noir_js/lib
 
 # docs autogen build
 /docs/docs/noir_js/reference/
+
+codegen
