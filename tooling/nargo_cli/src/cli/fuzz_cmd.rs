@@ -11,14 +11,18 @@ use nargo::{
     parse_all, prepare_package,
 };
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
+use noirc_abi::input_parser::{json::serialize_to_json, Format};
 use noirc_driver::{check_crate, CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
-use noirc_frontend::hir::{FunctionNameMatch, ParsedFiles};
+use noirc_frontend::{
+    ast::Path,
+    hir::{FunctionNameMatch, ParsedFiles},
+};
 use rayon::prelude::{ParallelBridge, ParallelIterator};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 use crate::{cli::check_cmd::check_crate_and_report_errors, errors::CliError};
 
-use super::NargoConfig;
+use super::{fs::inputs::write_inputs_to_file, NargoConfig};
 
 /// Run the tests for this program
 #[derive(Debug, Clone, Args)]
@@ -236,7 +240,13 @@ fn run_fuzzers<S: BlackBoxFunctionSolver<FieldElement> + Default>(
         })
         .collect();
 
-    display_fuzzing_report(file_manager, package, compile_options, &fuzzing_report)?;
+    display_fuzzing_report_and_store(
+        root_path.clone(),
+        file_manager,
+        package,
+        compile_options,
+        &fuzzing_report,
+    )?;
     Ok(fuzzing_report)
 }
 
@@ -294,7 +304,8 @@ fn get_fuzzing_harnesses_in_package(
         .collect())
 }
 
-fn display_fuzzing_report(
+fn display_fuzzing_report_and_store(
+    root_path: Option<PathBuf>,
     file_manager: &FileManager,
     package: &Package,
     compile_options: &CompileOptions,
@@ -322,8 +333,32 @@ fn display_fuzzing_report(
 
                 writeln!(writer, "FAIL\n{message}\n").expect("Failed to write to stderr");
                 match counterexample {
-                    Some(input_map) => writeln!(writer, "failing input: {}", input_map)
-                        .expect("Failed to write to stderr"),
+                    Some((input_map, abi)) => {
+                        writeln!(
+                            writer,
+                            "failing input: {}",
+                            serialize_to_json(input_map, abi)
+                                .expect("Input map should be correctly serialized with this Abi")
+                        )
+                        .expect("Failed to write to stderr");
+                        let file_name = "Prover-failing-".to_owned()
+                            + &package.name.to_string()
+                            + "-"
+                            + fuzzing_harness_name;
+                        write_inputs_to_file(
+                            root_path.clone().unwrap_or_default(),
+                            &file_name,
+                            Format::Toml,
+                            abi,
+                            input_map,
+                        )
+                        .expect("Couldn't write toml file");
+                        writer
+                            .set_color(ColorSpec::new().set_fg(Some(Color::Yellow)))
+                            .expect("Failed to set color");
+                        writeln!(writer, "saved input to: {}", file_name)
+                            .expect("Failed to write to stderr");
+                    }
                     _ => (),
                 }
                 if let Some(diag) = error_diagnostic {

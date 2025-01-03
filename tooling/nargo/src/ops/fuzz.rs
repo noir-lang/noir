@@ -5,7 +5,7 @@ use acvm::{
     brillig_vm::BranchToFeatureMap,
     BlackBoxFunctionSolver, FieldElement,
 };
-use noirc_abi::input_parser::json::serialize_to_json;
+use noirc_abi::{input_parser::json::serialize_to_json, Abi, InputMap};
 use noirc_driver::{compile_no_check, CompileOptions};
 use noirc_errors::FileDiagnostic;
 use noirc_frontend::hir::{def_map::FuzzingHarness, Context};
@@ -20,7 +20,7 @@ pub enum FuzzingRunStatus {
     Pass,
     Fail {
         message: String,
-        counterexample: Option<String>,
+        counterexample: Option<(InputMap, Abi)>,
         error_diagnostic: Option<FileDiagnostic>,
     },
     CompileError(FileDiagnostic),
@@ -184,10 +184,7 @@ pub fn run_fuzzing_harness<B: BlackBoxFunctionSolver<FieldElement> + Default>(
                         };
                         return FuzzingRunStatus::Fail {
                             message: result.reason.unwrap_or_default(),
-                            counterexample: Some(
-                                serialize_to_json(&result.counterexample.expect("huh"), &abi)
-                                    .expect("Huh"),
-                            ),
+                            counterexample: Some((result.counterexample.expect("huh"), abi)),
                             error_diagnostic: try_to_diagnose_runtime_error(
                                 &execution_error,
                                 &unwrapped_acir_program.abi,
