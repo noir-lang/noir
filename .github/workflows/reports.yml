@@ -346,20 +346,20 @@ jobs:
         if: ${{ !matrix.project.take_average }}
         run: |
           mv /home/runner/work/noir/noir/scripts/test_programs/compilation_report.sh ./compilation_report.sh
-          cat compilation_report.json
           touch parse_time.sh
           cp /home/runner/work/noir/noir/scripts/test_programs/parse_time.sh ./parse_time.sh
           ./compilation_report.sh 1
+          cat compilation_report.json
 
       - name: Generate compilation report with averages
         working-directory: ./test-repo/${{ matrix.project.path }}
         if: ${{ matrix.project.take_average }}
         run: |
           mv /home/runner/work/noir/noir/scripts/test_programs/compilation_report.sh ./compilation_report.sh
-          cat compilation_report.json
           touch parse_time.sh
           cp /home/runner/work/noir/noir/scripts/test_programs/parse_time.sh ./parse_time.sh
           ./compilation_report.sh 1 1
+          cat compilation_report.json
       
       - name: Generate execution report without averages
         working-directory: ./test-repo/${{ matrix.project.path }}
