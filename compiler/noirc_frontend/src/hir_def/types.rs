@@ -226,6 +226,10 @@ impl Kind {
             // Kind::Integer unifies with Kind::IntegerOrField
             (Kind::Integer | Kind::IntegerOrField, Kind::Integer | Kind::IntegerOrField) => true,
 
+            // Kind::IntegerOrField unifies with Kind::Numeric(_)
+            (Kind::IntegerOrField, Kind::Numeric(_typ))
+            | (Kind::Numeric(_typ), Kind::IntegerOrField) => true,
+
             // Kind::Numeric unifies along its Type argument
             (Kind::Numeric(lhs), Kind::Numeric(rhs)) => {
                 let mut bindings = TypeBindings::new();
@@ -255,7 +259,8 @@ impl Kind {
         match self {
             Kind::IntegerOrField => Some(Type::default_int_or_field_type()),
             Kind::Integer => Some(Type::default_int_type()),
-            Kind::Any | Kind::Normal | Kind::Numeric(..) => None,
+            Kind::Numeric(typ) => Some(*typ.clone()),
+            Kind::Any | Kind::Normal => None,
         }
     }
 
@@ -267,7 +272,7 @@ impl Kind {
     }
 
     /// Ensure the given value fits in self.integral_maximum_size()
-    fn ensure_value_fits(
+    pub(crate) fn ensure_value_fits(
         &self,
         value: FieldElement,
         span: Span,
@@ -2210,6 +2215,7 @@ impl Type {
             Type::NamedGeneric(binding, _) | Type::TypeVariable(binding) => {
                 substitute_binding(binding)
             }
+
             // Do not substitute_helper fields, it can lead to infinite recursion
             // and we should not match fields when type checking anyway.
             Type::Struct(fields, args) => {

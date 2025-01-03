@@ -17,7 +17,6 @@ use super::{
 use acvm::{acir::AcirField, FieldElement};
 use fxhash::FxHashMap as HashMap;
 use iter_extended::vecmap;
-use noirc_errors::Location;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use serde_with::DisplayFromStr;
@@ -42,7 +41,7 @@ pub(crate) struct DataFlowGraph {
     /// Call instructions require the func signature, but
     /// other instructions may need some more reading on my part
     #[serde_as(as = "HashMap<DisplayFromStr, _>")]
-    results: HashMap<InstructionId, Vec<ValueId>>,
+    results: HashMap<InstructionId, smallvec::SmallVec<[ValueId; 1]>>,
 
     /// Storage for all of the values defined in this
     /// function.
@@ -165,6 +164,36 @@ impl DataFlowGraph {
         id
     }
 
+    fn insert_instruction_without_simplification(
+        &mut self,
+        instruction_data: Instruction,
+        block: BasicBlockId,
+        ctrl_typevars: Option<Vec<Type>>,
+        call_stack: CallStackId,
+    ) -> InstructionId {
+        let id = self.make_instruction(instruction_data, ctrl_typevars);
+        self.blocks[block].insert_instruction(id);
+        self.locations.insert(id, call_stack);
+        id
+    }
+
+    pub(crate) fn insert_instruction_and_results_without_simplification(
+        &mut self,
+        instruction_data: Instruction,
+        block: BasicBlockId,
+        ctrl_typevars: Option<Vec<Type>>,
+        call_stack: CallStackId,
+    ) -> InsertInstructionResult {
+        let id = self.insert_instruction_without_simplification(
+            instruction_data,
+            block,
+            ctrl_typevars,
+            call_stack,
+        );
+
+        InsertInstructionResult::Results(id, self.instruction_results(id))
+    }
+
     /// Inserts a new instruction at the end of the given block and returns its results
     pub(crate) fn insert_instruction_and_results(
         &mut self,
@@ -184,7 +213,8 @@ impl DataFlowGraph {
             result @ (SimplifyResult::SimplifiedToInstruction(_)
             | SimplifyResult::SimplifiedToInstructionMultiple(_)
             | SimplifyResult::None) => {
-                let instructions = result.instructions().unwrap_or(vec![instruction]);
+                let mut instructions = result.instructions().unwrap_or(vec![instruction]);
+                assert!(!instructions.is_empty(), "`SimplifyResult::SimplifiedToInstructionMultiple` must not return empty vector");
 
                 if instructions.len() > 1 {
                     // There's currently no way to pass results from one instruction in `instructions` on to the next.
@@ -196,25 +226,24 @@ impl DataFlowGraph {
                     );
                 }
 
-                let mut last_id = None;
-
+                // Pull off the last instruction as we want to return its results.
+                let last_instruction = instructions.pop().expect("`instructions` can't be empty");
                 for instruction in instructions {
-                    let id = self.make_instruction(instruction, ctrl_typevars.clone());
-                    self.blocks[block].insert_instruction(id);
-                    self.locations.insert(id, call_stack);
-                    last_id = Some(id);
+                    self.insert_instruction_without_simplification(
+                        instruction,
+                        block,
+                        ctrl_typevars.clone(),
+                        call_stack,
+                    );
                 }
-
-                let id = last_id.expect("There should be at least 1 simplified instruction");
-                InsertInstructionResult::Results(id, self.instruction_results(id))
+                self.insert_instruction_and_results_without_simplification(
+                    last_instruction,
+                    block,
+                    ctrl_typevars,
+                    call_stack,
+                )
             }
         }
-    }
-
-    /// Insert a value into the dfg's storage and return an id to reference it.
-    /// Until the value is used in an instruction it is unreachable.
-    pub(crate) fn make_value(&mut self, value: Value) -> ValueId {
-        self.values.insert(value)
     }
 
     /// Set the value of value_to_replace to refer to the value referred to by new_value.
@@ -306,16 +335,18 @@ impl DataFlowGraph {
     /// Returns the results of the instruction
     pub(crate) fn make_instruction_results(
         &mut self,
-        instruction_id: InstructionId,
+        instruction: InstructionId,
         ctrl_typevars: Option<Vec<Type>>,
     ) {
-        let result_types = self.instruction_result_types(instruction_id, ctrl_typevars);
-        let results = vecmap(result_types.into_iter().enumerate(), |(position, typ)| {
-            let instruction = instruction_id;
-            self.values.insert(Value::Instruction { typ, position, instruction })
+        let mut results = smallvec::SmallVec::new();
+        let mut position = 0;
+        self.for_each_instruction_result_type(instruction, ctrl_typevars, |this, typ| {
+            let result = this.values.insert(Value::Instruction { typ, position, instruction });
+            position += 1;
+            results.push(result);
         });
 
-        self.results.insert(instruction_id, results);
+        self.results.insert(instruction, results);
     }
 
     /// Return the result types of this instruction.
@@ -326,18 +357,21 @@ impl DataFlowGraph {
     /// the type of an instruction that does not require them. Compared to passing an empty Vec,
     /// Option has the benefit of panicking if it is accidentally used for a Call instruction,
     /// rather than silently returning the empty Vec and continuing.
-    fn instruction_result_types(
-        &self,
+    fn for_each_instruction_result_type(
+        &mut self,
         instruction_id: InstructionId,
         ctrl_typevars: Option<Vec<Type>>,
-    ) -> Vec<Type> {
+        mut f: impl FnMut(&mut Self, Type),
+    ) {
         let instruction = &self.instructions[instruction_id];
         match instruction.result_type() {
-            InstructionResultType::Known(typ) => vec![typ],
-            InstructionResultType::Operand(value) => vec![self.type_of_value(value)],
-            InstructionResultType::None => vec![],
+            InstructionResultType::Known(typ) => f(self, typ),
+            InstructionResultType::Operand(value) => f(self, self.type_of_value(value)),
+            InstructionResultType::None => (),
             InstructionResultType::Unknown => {
-                ctrl_typevars.expect("Control typevars required but not given")
+                for typ in ctrl_typevars.expect("Control typevars required but not given") {
+                    f(self, typ);
+                }
             }
         }
     }
@@ -396,15 +430,16 @@ impl DataFlowGraph {
         value_id
     }
 
-    /// Returns the number of instructions
-    /// inserted into functions.
-    pub(crate) fn num_instructions(&self) -> usize {
-        self.instructions.len()
-    }
-
     /// Returns all of result values which are attached to this instruction.
     pub(crate) fn instruction_results(&self, instruction_id: InstructionId) -> &[ValueId] {
         self.results.get(&instruction_id).expect("expected a list of Values").as_slice()
+    }
+
+    /// Remove an instruction by replacing it with a `Noop` instruction.
+    /// Doing this avoids shifting over each instruction after this one in its block's instructions vector.
+    pub(crate) fn remove_instruction(&mut self, instruction: InstructionId) {
+        self.instructions[instruction] = Instruction::Noop;
+        self.results.insert(instruction, smallvec::SmallVec::new());
     }
 
     /// Add a parameter to the given block
@@ -494,15 +529,6 @@ impl DataFlowGraph {
 
     pub(crate) fn get_instruction_call_stack_id(&self, instruction: InstructionId) -> CallStackId {
         self.locations.get(&instruction).cloned().unwrap_or_default()
-    }
-
-    pub(crate) fn add_location_to_instruction(
-        &mut self,
-        instruction: InstructionId,
-        location: Location,
-    ) {
-        let call_stack = self.locations.entry(instruction).or_default();
-        *call_stack = self.call_stack_data.add_child(*call_stack, location);
     }
 
     pub(crate) fn get_call_stack(&self, call_stack: CallStackId) -> CallStack {

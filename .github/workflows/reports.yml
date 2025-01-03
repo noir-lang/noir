@@ -15,7 +15,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.74.1
+        uses: dtolnay/rust-toolchain@1.75.0
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -76,7 +76,7 @@ jobs:
       
       - name: Compare gates reports
         id: gates_diff
-        uses: noir-lang/noir-gates-diff@10f066ecad44098afef183327a13b4a7c4189ae6
+        uses: noir-lang/noir-gates-diff@84ada11295b9a1e1da7325af4e45e2db9f775175
         with:
           report: gates_report.json
           summaryQuantile: 0.9 # only display the 10% most significant circuit size diffs in the summary (defaults to 20%)
@@ -121,7 +121,7 @@ jobs:
 
       - name: Compare Brillig bytecode size reports
         id: brillig_bytecode_diff
-        uses: noir-lang/noir-gates-diff@d88f7523b013b9edd3f31c5cfddaef87a3fe1b48
+        uses: noir-lang/noir-gates-diff@84ada11295b9a1e1da7325af4e45e2db9f775175
         with:
           report: gates_report_brillig.json
           header: |
@@ -170,7 +170,7 @@ jobs:
 
       - name: Compare Brillig execution reports
         id: brillig_execution_diff
-        uses: noir-lang/noir-gates-diff@d88f7523b013b9edd3f31c5cfddaef87a3fe1b48
+        uses: noir-lang/noir-gates-diff@84ada11295b9a1e1da7325af4e45e2db9f775175
         with:
           report: gates_report_brillig_execution.json
           header: |
@@ -217,16 +217,30 @@ jobs:
           ./memory_report.sh
           mv memory_report.json ../memory_report.json
 
-      - name: Upload memory report
+      - name: Upload compilation memory report
         uses: actions/upload-artifact@v4
         with:
-          name: in_progress_memory_report
+          name: in_progress_compilation_mem_report
           path: memory_report.json
           retention-days: 3
           overwrite: true
 
-  generate_compilation_report:
-    name: Compilation time
+      - name: Generate execution memory report
+        working-directory: ./test_programs
+        run: |
+          ./memory_report.sh 0 1
+          mv memory_report.json ../memory_report.json
+
+      - name: Upload execution memory report
+        uses: actions/upload-artifact@v4
+        with:
+          name: in_progress_execution_mem_report
+          path: memory_report.json
+          retention-days: 3
+          overwrite: true
+
+  generate_compilation_and_execution_report:
+    name: Compilation and execution time
     needs: [build-nargo]
     runs-on: ubuntu-22.04
     permissions:
@@ -252,10 +266,15 @@ jobs:
       - name: Generate Compilation report
         working-directory: ./test_programs
         run: |
-          ./compilation_report.sh
-          cat compilation_report.json
+          ./compilation_report.sh 0 1
           mv compilation_report.json ../compilation_report.json
 
+      - name: Generate Execution report
+        working-directory: ./test_programs
+        run: |
+          ./execution_report.sh 0 1
+          mv execution_report.json ../execution_report.json
+          
       - name: Upload compilation report
         uses: actions/upload-artifact@v4
         with:
@@ -263,8 +282,16 @@ jobs:
           path: compilation_report.json
           retention-days: 3
           overwrite: true
+      
+      - name: Upload execution report
+        uses: actions/upload-artifact@v4
+        with:
+          name: in_progress_execution_report
+          path: execution_report.json
+          retention-days: 3
+          overwrite: true
 
-  external_repo_compilation_report:
+  external_repo_compilation_and_execution_report:
     needs: [build-nargo]
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -272,15 +299,18 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-contracts, skip_gates: true }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/parity-root, skip_gates: false }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-inner, skip_gates: false }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-tail, skip_gates: false }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-reset, skip_gates: false }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-base-private, skip_gates: false }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-base-public, skip_gates: false }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-contracts, is_library: true }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/parity-root, take_average: true }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-inner, take_average: true }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-tail, take_average: true  }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-reset, take_average: true }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-root }
+          #- project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-block-root }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-block-merge }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-base-private }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-base-public }
 
-    name: External repo compilation report - ${{ matrix.project.repo }}/${{ matrix.project.path }}
+    name: External repo compilation and execution reports - ${{ matrix.project.repo }}/${{ matrix.project.path }}
     steps:
       - name: Download nargo binary
         uses: actions/download-artifact@v4
@@ -304,6 +334,13 @@ jobs:
             .github/scripts/single_artifact_gates_report.sh
             test_programs/compilation_report.sh
           sparse-checkout-cone-mode: false
+            
+      - uses: actions/checkout@v4
+        with:
+          path: scripts
+          sparse-checkout: |
+            test_programs/execution_report.sh
+          sparse-checkout-cone-mode: false
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -312,11 +349,34 @@ jobs:
           path: test-repo
           ref: ${{ matrix.project.ref }}
 
-      - name: Generate compilation report
+      - name: Generate compilation report without averages
         working-directory: ./test-repo/${{ matrix.project.path }}
+        if: ${{ !matrix.project.take_average }}
         run: |
           mv /home/runner/work/noir/noir/scripts/test_programs/compilation_report.sh ./compilation_report.sh
           ./compilation_report.sh 1
+
+      - name: Generate compilation report with averages
+        working-directory: ./test-repo/${{ matrix.project.path }}
+        if: ${{ matrix.project.take_average }}
+        run: |
+          mv /home/runner/work/noir/noir/scripts/test_programs/compilation_report.sh ./compilation_report.sh
+          chmod +x ./compilation_report.sh
+          ./compilation_report.sh 1 1
+      
+      - name: Generate execution report without averages
+        working-directory: ./test-repo/${{ matrix.project.path }}
+        if: ${{ !matrix.project.is_library && !matrix.project.take_average }}
+        run: |
+          mv /home/runner/work/noir/noir/scripts/test_programs/execution_report.sh ./execution_report.sh
+          ./execution_report.sh 1
+
+      - name: Generate execution report with averages
+        working-directory: ./test-repo/${{ matrix.project.path }}
+        if: ${{ !matrix.project.is_library && matrix.project.take_average }}
+        run: |
+          mv /home/runner/work/noir/noir/scripts/test_programs/execution_report.sh ./execution_report.sh
+          ./execution_report.sh 1 1
 
       - name: Move compilation report
         id: compilation_report
@@ -327,6 +387,16 @@ jobs:
           mv ./test-repo/${{ matrix.project.path }}/compilation_report.json ./compilation_report_$PACKAGE_NAME.json
           echo "compilation_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
 
+      - name: Move execution report
+        id: execution_report
+        shell: bash
+        if: ${{ !matrix.project.is_library }}
+        run: |
+          PACKAGE_NAME=${{ matrix.project.path }}
+          PACKAGE_NAME=$(basename $PACKAGE_NAME)
+          mv ./test-repo/${{ matrix.project.path }}/execution_report.json ./execution_report_$PACKAGE_NAME.json
+          echo "execution_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
+          
       - name: Upload compilation report
         uses: actions/upload-artifact@v4
         with:
@@ -335,16 +405,24 @@ jobs:
           retention-days: 3
           overwrite: true
 
+      - name: Upload execution report
+        uses: actions/upload-artifact@v4
+        with:
+          name: execution_report_${{ steps.execution_report.outputs.execution_report_name }}
+          path: execution_report_${{ steps.execution_report.outputs.execution_report_name }}.json
+          retention-days: 3
+          overwrite: true
+
       # While we've got the compiled artifacts, we measure the number of gates in the circuits.
 
       - name: Install `bb`
-        if: ${{ !matrix.project.skip_gates }}
+        if: ${{ !matrix.project.is_library }}
         run: |
           ./scripts/scripts/install_bb.sh
           echo "$HOME/.bb/" >> $GITHUB_PATH
 
       - name: Generate gates report
-        if: ${{ !matrix.project.skip_gates }}  
+        if: ${{ !matrix.project.is_library }}  
         id: gates_report
         run: |
           PACKAGE_NAME=${{ matrix.project.path }}
@@ -354,7 +432,7 @@ jobs:
           echo "gates_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
 
       - name: Upload gates report
-        if: ${{ !matrix.project.skip_gates }}
+        if: ${{ !matrix.project.is_library }}
         uses: actions/upload-artifact@v4
         with:
           name: gates_report_${{ steps.gates_report.outputs.gates_report_name }}
@@ -364,8 +442,8 @@ jobs:
 
   upload_compilation_report:
     name: Upload compilation report 
-    needs: [generate_compilation_report, external_repo_compilation_report]
-    # We want this job to run even if one variation of the matrix in `external_repo_compilation_report` fails
+    needs: [generate_compilation_and_execution_report, external_repo_compilation_and_execution_report]
+    # We want this job to run even if one variation of the matrix in `external_repo_compilation_and_execution_report` fails
     if: always() 
     runs-on: ubuntu-latest
     permissions:
@@ -392,11 +470,11 @@ jobs:
 
       - name: Parse compilation report
         id: compilation_report
-        uses: noir-lang/noir-bench-report@0d7464a8c39170523932d7846b6e6b458a294aea
+        uses: noir-lang/noir-bench-report@6ba151d7795042c4ff51864fbeb13c0a6a79246c
         with:
           report: compilation_report.json
           header: |
-            # Compilation Report
+            Compilation Report
           memory_report: false
 
       - name: Add memory report to sticky comment
@@ -458,6 +536,8 @@ jobs:
           - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-inner }
           - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-reset }
           - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-tail }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-base-private }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-base-public }
 
     name: External repo memory report - ${{ matrix.project.repo }}/${{ matrix.project.path }}
     steps:
@@ -489,14 +569,38 @@ jobs:
           path: test-repo
           ref: ${{ matrix.project.ref }}
 
-      - name: Generate compilation report
+      - name: Generate compilation memory report
         working-directory: ./test-repo/${{ matrix.project.path }}
         run: |
           mv /home/runner/work/noir/noir/scripts/test_programs/memory_report.sh ./memory_report.sh
           ./memory_report.sh 1
+          # Rename the memory report as the execution report is about to write to the same file
+          cp memory_report.json compilation_memory_report.json
+
+      - name: Generate execution memory report
+        working-directory: ./test-repo/${{ matrix.project.path }}
+        run: |
+          ./memory_report.sh 1 1
 
       - name: Move compilation report
-        id: report
+        id: compilation_mem_report
+        shell: bash
+        run: |
+          PACKAGE_NAME=${{ matrix.project.path }}
+          PACKAGE_NAME=$(basename $PACKAGE_NAME)
+          mv ./test-repo/${{ matrix.project.path }}/compilation_memory_report.json ./memory_report_$PACKAGE_NAME.json
+          echo "memory_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
+
+      - name: Upload compilation memory report
+        uses: actions/upload-artifact@v4
+        with:
+          name: compilation_mem_report_${{ steps.compilation_mem_report.outputs.memory_report_name }}
+          path: memory_report_${{ steps.compilation_mem_report.outputs.memory_report_name }}.json
+          retention-days: 3
+          overwrite: true
+
+      - name: Move execution report
+        id: execution_mem_report
         shell: bash
         run: |
           PACKAGE_NAME=${{ matrix.project.path }}
@@ -504,16 +608,16 @@ jobs:
           mv ./test-repo/${{ matrix.project.path }}/memory_report.json ./memory_report_$PACKAGE_NAME.json
           echo "memory_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
 
-      - name: Upload memory report
+      - name: Upload execution memory report
         uses: actions/upload-artifact@v4
         with:
-          name: memory_report_${{ steps.report.outputs.memory_report_name }}
-          path: memory_report_${{ steps.report.outputs.memory_report_name }}.json
+          name: execution_mem_report_${{ steps.execution_mem_report.outputs.memory_report_name }}
+          path: memory_report_${{ steps.execution_mem_report.outputs.memory_report_name }}.json
           retention-days: 3
           overwrite: true
 
-  upload_memory_report:
-    name: Upload memory report 
+  upload_compilation_memory_report:
+    name: Upload compilation memory report 
     needs: [generate_memory_report, external_repo_memory_report]
     # We want this job to run even if one variation of the matrix in `external_repo_memory_report` fails
     if: always() 
@@ -527,12 +631,12 @@ jobs:
       - name: Download initial memory report
         uses: actions/download-artifact@v4
         with:
-          name: in_progress_memory_report
+          name: in_progress_compilation_mem_report
 
       - name: Download matrix memory reports
         uses: actions/download-artifact@v4
         with:
-          pattern: memory_report_*
+          pattern: compilation_mem_report_*
           path: ./reports
 
       - name: Merge memory reports using jq
@@ -540,18 +644,109 @@ jobs:
           mv ./.github/scripts/merge-bench-reports.sh merge-bench-reports.sh
           ./merge-bench-reports.sh memory_report
 
-      - name: Parse memory report
-        id: memory_report
-        uses: noir-lang/noir-bench-report@0d7464a8c39170523932d7846b6e6b458a294aea
+      - name: Parse compilation memory report
+        id: compilation_mem_report
+        uses: noir-lang/noir-bench-report@6ba151d7795042c4ff51864fbeb13c0a6a79246c
         with:
           report: memory_report.json
           header: |
-            # Memory Report
+            Compilation Memory Report
           memory_report: true
 
       - name: Add memory report to sticky comment
         if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
         uses: marocchino/sticky-pull-request-comment@v2
         with:
-          header: memory
-          message: ${{ steps.memory_report.outputs.markdown }}
+          header: compilation_memory
+          message: ${{ steps.compilation_mem_report.outputs.markdown }}
+
+  upload_execution_memory_report:
+    name: Upload execution memory report 
+    needs: [generate_memory_report, external_repo_memory_report]
+    # We want this job to run even if one variation of the matrix in `external_repo_memory_report` fails
+    if: always() 
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download initial memory report
+        uses: actions/download-artifact@v4
+        with:
+          name: in_progress_execution_mem_report
+
+      - name: Download matrix memory reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: execution_mem_report_*
+          path: ./reports
+
+      - name: Merge memory reports using jq
+        run: |
+          mv ./.github/scripts/merge-bench-reports.sh merge-bench-reports.sh
+          ./merge-bench-reports.sh memory_report
+          # Rename the memory report as to not clash with the compilation memory report file name
+          cp memory_report.json execution_memory_report.json
+
+      - name: Parse execution memory report
+        id: execution_mem_report
+        uses: noir-lang/noir-bench-report@6ba151d7795042c4ff51864fbeb13c0a6a79246c
+        with:
+          report: execution_memory_report.json
+          header: |
+            Execution Memory Report
+          memory_report: true
+
+      - name: Add execution memory report to sticky comment
+        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: execution_memory
+          message: ${{ steps.execution_mem_report.outputs.markdown }}
+
+  upload_execution_report:
+    name: Upload execution report 
+    needs: [generate_compilation_and_execution_report, external_repo_compilation_and_execution_report]
+    # We want this job to run even if one variation of the matrix in `external_repo_compilation_and_execution_report` fails
+    if: always() 
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download initial execution report
+        uses: actions/download-artifact@v4
+        with:
+          name: in_progress_execution_report
+
+      - name: Download matrix execution reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: execution_report_*
+          path: ./reports
+
+      - name: Merge execution reports using jq
+        run: |
+          mv ./.github/scripts/merge-bench-reports.sh merge-bench-reports.sh
+          ./merge-bench-reports.sh execution_report
+
+      - name: Parse execution report
+        id: execution_report
+        uses: noir-lang/noir-bench-report@6ba151d7795042c4ff51864fbeb13c0a6a79246c
+        with:
+          report: execution_report.json
+          header: |
+            Execution Report
+          execution_report: true
+
+      - name: Add memory report to sticky comment
+        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: execution_time
+          message: ${{ steps.execution_report.outputs.markdown }}
+

@@ -4,6 +4,7 @@ fn main() {
     let y: u32 = 2;
 
     unsafe {
+        //@safety: testing context
         assert((x + y) == add(x, y));
 
         assert((x - y) == sub(x, y));

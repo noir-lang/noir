@@ -150,6 +150,10 @@ pub struct CompileOptions {
     /// A lower value keeps the original program if it was smaller, even if it has more jumps.
     #[arg(long, hide = true, allow_hyphen_values = true)]
     pub max_bytecode_increase_percent: Option<i32>,
+
+    /// Used internally to test for non-determinism in the compiler.
+    #[clap(long, hide = true)]
+    pub check_non_determinism: bool,
 }
 
 pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {

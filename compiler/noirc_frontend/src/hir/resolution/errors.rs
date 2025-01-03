@@ -5,10 +5,13 @@ use thiserror::Error;
 
 use crate::{
     ast::{Ident, UnsupportedNumericGenericType},
-    hir::{comptime::InterpreterError, type_check::TypeCheckError},
+    hir::{
+        comptime::{InterpreterError, Value},
+        type_check::TypeCheckError,
+    },
     parser::ParserError,
     usage_tracker::UnusedItem,
-    Type,
+    Kind, Type,
 };
 
 use super::import::PathResolutionError;
@@ -101,6 +104,14 @@ pub enum ResolverError {
     MutableGlobal { span: Span },
     #[error("Globals must have a specified type")]
     UnspecifiedGlobalType { span: Span, expected_type: Type },
+    #[error("Global failed to evaluate")]
+    UnevaluatedGlobalType { span: Span },
+    #[error("Globals used in a type position must be non-negative")]
+    NegativeGlobalType { span: Span, global_value: Value },
+    #[error("Globals used in a type position must be integers")]
+    NonIntegralGlobalType { span: Span, global_value: Value },
+    #[error("Global value `{global_value}` is larger than its kind's maximum value")]
+    GlobalLargerThanKind { span: Span, global_value: FieldElement, kind: Kind },
     #[error("Self-referential structs are not supported")]
     SelfReferentialStruct { span: Span },
     #[error("#[no_predicates] attribute is only allowed on constrained functions")]
@@ -443,6 +454,34 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *span,
                 )
             },
+            ResolverError::UnevaluatedGlobalType { span } => {
+                Diagnostic::simple_error(
+                    "Global failed to evaluate".to_string(),
+                    String::new(),
+                    *span,
+                )
+            }
+            ResolverError::NegativeGlobalType { span, global_value } => {
+                Diagnostic::simple_error(
+                    "Globals used in a type position must be non-negative".to_string(),
+                    format!("But found value `{global_value:?}`"),
+                    *span,
+                )
+            }
+            ResolverError::NonIntegralGlobalType { span, global_value } => {
+                Diagnostic::simple_error(
+                    "Globals used in a type position must be integers".to_string(),
+                    format!("But found value `{global_value:?}`"),
+                    *span,
+                )
+            }
+            ResolverError::GlobalLargerThanKind { span, global_value, kind } => {
+                Diagnostic::simple_error(
+                    format!("Global value `{global_value}` is larger than its kind's maximum value"),
+                    format!("Global's kind inferred to be `{kind}`"),
+                    *span,
+                )
+            }
             ResolverError::SelfReferentialStruct { span } => {
                 Diagnostic::simple_error(
                     "Self-referential structs are not supported".into(),

@@ -597,7 +597,12 @@ mod tests {
     fn test_expr_as_unsafe() {
         comptime
         {
-            let expr = quote { unsafe { 1; 4; 23 } }.as_expr().unwrap();
+            let expr = quote {  
+                unsafe
+                {
+                    //@safety" test
+                     1; 4; 23 } 
+            }.as_expr().unwrap();
             let exprs = expr.as_unsafe().unwrap();
             assert_eq(exprs.len(), 3);
         }
@@ -607,7 +612,9 @@ mod tests {
     fn test_expr_modify_for_unsafe() {
         comptime
         {
-            let expr = quote { unsafe { 1; 4; 23 } }.as_expr().unwrap();
+            let expr = quote { unsafe { 
+                //@safety: test
+                1; 4; 23 } }.as_expr().unwrap();
             let expr = expr.modify(times_two);
             let exprs = expr.as_unsafe().unwrap();
             assert_eq(exprs.len(), 3);

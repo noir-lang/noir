@@ -8,7 +8,7 @@ use crate::{
         MemberAccessExpression, MethodCallExpression, Statement, TypePath, UnaryOp, UnresolvedType,
     },
     parser::{labels::ParsingRuleLabel, parser::parse_many::separated_by_comma, ParserErrorReason},
-    token::{Keyword, Token, TokenKind},
+    token::{DocStyle, Keyword, SpannedToken, Token, TokenKind},
 };
 
 use super::{
@@ -375,6 +375,20 @@ impl<'a> Parser<'a> {
             return None;
         }
 
+        let next_token = self.next_token.token();
+        if matches!(
+            next_token,
+            Token::LineComment(_, Some(DocStyle::Safety))
+                | Token::BlockComment(_, Some(DocStyle::Safety))
+        ) {
+            //Checks the safety comment is there, and skip it
+            let span = self.current_token_span;
+            self.eat_left_brace();
+            self.token = SpannedToken::new(Token::LeftBrace, span);
+        } else {
+            self.push_error(ParserErrorReason::MissingSafetyComment, self.current_token_span);
+        }
+
         let start_span = self.current_token_span;
         if let Some(block) = self.parse_block() {
             Some(ExpressionKind::Unsafe(block, self.span_since(start_span)))
@@ -389,9 +403,7 @@ impl<'a> Parser<'a> {
     ///
     /// VariableExpression = Path
     fn parse_path_expr(&mut self, allow_constructors: bool) -> Option<ExpressionKind> {
-        let Some(path) = self.parse_path() else {
-            return None;
-        };
+        let path = self.parse_path()?;
 
         if allow_constructors && self.eat_left_brace() {
             let typ = UnresolvedType::from_path(path);
@@ -421,9 +433,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_constructor_field(&mut self) -> Option<(Ident, Expression)> {
-        let Some(ident) = self.eat_ident() else {
-            return None;
-        };
+        let ident = self.eat_ident()?;
 
         Some(if self.eat_colon() {
             let expression = self.parse_expression_or_error();
@@ -534,9 +544,7 @@ impl<'a> Parser<'a> {
     /// TypePathExpression = PrimitiveType '::' identifier ( '::' GenericTypeArgs )?
     fn parse_type_path_expr(&mut self) -> Option<ExpressionKind> {
         let start_span = self.current_token_span;
-        let Some(typ) = self.parse_primitive_type() else {
-            return None;
-        };
+        let typ = self.parse_primitive_type()?;
         let typ = UnresolvedType { typ, span: self.span_since(start_span) };
 
         self.eat_or_error(Token::DoubleColon);
@@ -963,7 +971,8 @@ mod tests {
 
     #[test]
     fn parses_unsafe_expression() {
-        let src = "unsafe { 1 }";
+        let src = "unsafe { //@safety: test
+        1 }";
         let expr = parse_expression_no_errors(src);
         let ExpressionKind::Unsafe(block, _) = expr.kind else {
             panic!("Expected unsafe expression");
