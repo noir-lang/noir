@@ -74,7 +74,6 @@ mod tests {
     fn parse_submodule() {
         let src = "mod foo { mod bar; }";
         let (module, errors) = parse_program(src);
-        dbg!(&errors);
         expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
@@ -90,7 +89,6 @@ mod tests {
     fn parse_contract() {
         let src = "contract foo {}";
         let (module, errors) = parse_program(src);
-        dbg!(&errors);
         expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];

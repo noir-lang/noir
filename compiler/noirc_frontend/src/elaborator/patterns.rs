@@ -856,7 +856,7 @@ impl<'context> Elaborator<'context> {
 
         let impl_kind = match method {
             HirMethodReference::FuncId(_) => ImplKind::NotATraitMethod,
-            HirMethodReference::TraitMethodId(method_id, generics) => {
+            HirMethodReference::TraitMethodId(method_id, generics, _) => {
                 let mut constraint =
                     self.interner.get_trait(method_id.trait_id).as_constraint(span);
                 constraint.trait_bound.trait_generics = generics;

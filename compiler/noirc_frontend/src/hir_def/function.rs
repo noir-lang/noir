@@ -175,12 +175,13 @@ pub enum FunctionBody {
 
 impl FuncMeta {
     /// A stub function does not have a body. This includes Builtin, LowLevel,
-    /// and Oracle functions in addition to method declarations within a trait.
+    /// and Oracle functions in addition to method declarations within a trait
+    /// without a body.
     ///
     /// We don't check the return type of these functions since it will always have
     /// an empty body, and we don't check for unused parameters.
     pub fn is_stub(&self) -> bool {
-        self.kind.can_ignore_return_type() || self.trait_id.is_some()
+        self.kind.can_ignore_return_type()
     }
 
     pub fn function_signature(&self) -> FunctionSignature {
