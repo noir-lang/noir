@@ -37,12 +37,7 @@ pub(crate) fn run(args: FormatCommand, config: NargoConfig) -> Result<(), CliErr
     )?;
 
     let mut workspace_file_manager = workspace.new_file_manager();
-    let mut root_files = HashSet::new();
-    insert_all_files_for_workspace_into_file_manager(
-        &workspace,
-        &mut workspace_file_manager,
-        &mut root_files,
-    );
+    insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
 
     let config = nargo_fmt::Config::read(&config.program_dir)
         .map_err(|err| CliError::Generic(err.to_string()))?;
@@ -64,6 +59,8 @@ pub(crate) fn run(args: FormatCommand, config: NargoConfig) -> Result<(), CliErr
                         error.in_file(file_id)
                     })
                     .collect();
+                let mut root_files = HashSet::new();
+                root_files.insert(file_id);
 
                 let _ = report_errors::<()>(
                     Err(errors),

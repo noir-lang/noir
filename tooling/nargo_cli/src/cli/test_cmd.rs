@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, HashMap, HashSet},
+    collections::{BTreeMap, HashMap},
     fmt::Display,
     panic::{catch_unwind, UnwindSafe},
     path::PathBuf,
@@ -11,7 +11,7 @@ use std::{
 use acvm::{BlackBoxFunctionSolver, FieldElement};
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
-use fm::{FileId, FileManager};
+use fm::FileManager;
 use formatters::{Formatter, JsonFormatter, PrettyFormatter, TerseFormatter};
 use nargo::{
     foreign_calls::DefaultForeignCallBuilder, insert_all_files_for_workspace_into_file_manager,
@@ -122,12 +122,7 @@ pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError
     )?;
 
     let mut file_manager = workspace.new_file_manager();
-    let mut root_files = HashSet::new();
-    insert_all_files_for_workspace_into_file_manager(
-        &workspace,
-        &mut file_manager,
-        &mut root_files,
-    );
+    insert_all_files_for_workspace_into_file_manager(&workspace, &mut file_manager);
     let parsed_files = parse_all(&file_manager);
 
     let pattern = match &args.test_name {
@@ -153,7 +148,6 @@ pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError
         file_manager: &file_manager,
         parsed_files: &parsed_files,
         workspace,
-        root_files: &root_files,
         args: &args,
         pattern,
         num_threads: args.test_threads,
@@ -166,7 +160,6 @@ struct TestRunner<'a> {
     file_manager: &'a FileManager,
     parsed_files: &'a ParsedFiles,
     workspace: Workspace,
-    root_files: &'a HashSet<FileId>,
     args: &'a TestCommand,
     pattern: FunctionNameMatch<'a>,
     num_threads: usize,
@@ -463,12 +456,7 @@ impl<'a> TestRunner<'a> {
     fn get_tests_in_package(&'a self, package: &'a Package) -> Result<Vec<String>, CliError> {
         let (mut context, crate_id) =
             prepare_package(self.file_manager, self.parsed_files, package);
-        check_crate_and_report_errors(
-            &mut context,
-            self.root_files,
-            crate_id,
-            &self.args.compile_options,
-        )?;
+        check_crate_and_report_errors(&mut context, crate_id, &self.args.compile_options)?;
 
         Ok(context
             .get_all_test_functions_in_crate_matching(&crate_id, self.pattern)

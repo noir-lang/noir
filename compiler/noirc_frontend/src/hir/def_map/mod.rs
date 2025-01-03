@@ -8,7 +8,7 @@ use crate::token::{FunctionAttribute, SecondaryAttribute, TestScope};
 use fm::{FileId, FileManager};
 use noirc_arena::{Arena, Index};
 use noirc_errors::Location;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 mod module_def;
 pub use module_def::*;
 mod item_scope;
@@ -155,6 +155,10 @@ impl CrateDefMap {
 
     pub fn file_id(&self, module_id: LocalModuleId) -> FileId {
         self.modules[module_id.0].location.file
+    }
+
+    pub fn file_ids(&self) -> HashSet<FileId> {
+        self.modules.iter().map(|(_, module_data)| module_data.location.file).collect()
     }
 
     /// Go through all modules in this crate, and find all functions in

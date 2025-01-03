@@ -434,12 +434,9 @@ pub fn insert_all_files_for_workspace_into_file_manager(
         overrides.insert(Path::new(path), source);
     }
 
-    let mut root_files = HashSet::new();
-
     nargo::insert_all_files_for_workspace_into_file_manager_with_overrides(
         workspace,
         file_manager,
-        &mut root_files,
         &overrides,
     );
 }
