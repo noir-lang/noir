@@ -5,8 +5,7 @@ use fxhash::FxHashSet as HashSet;
 use crate::ssa::{
     ir::{
         function::{Function, FunctionId},
-        instruction::Instruction,
-        value::{Value, ValueId},
+        value::Value,
     },
     ssa_gen::Ssa,
 };
@@ -16,19 +15,16 @@ impl Ssa {
     /// optimizations making existing functions unreachable, e.g. `if false { foo() }`,
     /// or even from monomorphizing an unconstrained version of a constrained function
     /// where the original constrained version ends up never being used.
-    ///
-    /// This pass only checks functions that are called directly and thus depends on
-    /// the defunctionalize pass to be called beforehand.
     pub(crate) fn remove_unreachable_functions(mut self) -> Self {
-        let mut reachable_functions = HashSet::default();
+        let mut used_functions = HashSet::default();
 
         for function_id in self.functions.keys() {
             if self.is_entry_point(*function_id) {
-                collect_reachable_functions(&self, *function_id, &mut reachable_functions);
+                collect_reachable_functions(&self, *function_id, &mut used_functions);
             }
         }
 
-        prune_unreachable_functions(&mut self);
+        self.functions.retain(|id, _| used_functions.contains(id));
         self
     }
 }
@@ -44,46 +40,25 @@ fn collect_reachable_functions(
     reachable_functions.insert(current_func_id);
 
     let func = &ssa.functions[&current_func_id];
-    let called_functions = called_functions(func);
+    let used_functions = used_functions(func);
 
-    for called_func_id in called_functions.iter() {
+    for called_func_id in used_functions.iter() {
         collect_reachable_functions(ssa, *called_func_id, reachable_functions);
     }
 }
 
-fn prune_unreachable_functions(ssa: &mut Ssa) {
-    let mut reachable_functions = HashSet::default();
-    collect_reachable_functions(ssa, ssa.main_id, &mut reachable_functions);
+fn used_functions(func: &Function) -> BTreeSet<FunctionId> {
+    let mut used_function_ids = BTreeSet::default();
 
-    ssa.functions.retain(|id, _value| reachable_functions.contains(id));
-}
-
-// We only consider direct calls to functions since functions as values should have been resolved
-fn called_functions_values(func: &Function) -> BTreeSet<ValueId> {
-    let mut called_function_ids = BTreeSet::default();
     for block_id in func.reachable_blocks() {
         for instruction_id in func.dfg[block_id].instructions() {
-            let Instruction::Call { func: called_value_id, .. } = &func.dfg[*instruction_id] else {
-                continue;
-            };
-
-            if let Value::Function(_) = func.dfg[*called_value_id] {
-                called_function_ids.insert(*called_value_id);
-            }
+            func.dfg[*instruction_id].for_each_value(|value| {
+                if let Value::Function(function) = func.dfg[value] {
+                    used_function_ids.insert(function);
+                }
+            });
         }
     }
 
-    called_function_ids
-}
-
-fn called_functions(func: &Function) -> BTreeSet<FunctionId> {
-    called_functions_values(func)
-        .into_iter()
-        .map(|value_id| {
-            let Value::Function(func_id) = func.dfg[value_id] else {
-                unreachable!("Value should be a function")
-            };
-            func_id
-        })
-        .collect()
+    used_function_ids
 }
