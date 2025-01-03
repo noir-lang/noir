@@ -486,7 +486,7 @@ jobs:
 
   upload_gates_report:
     name: Upload gates report 
-    needs: [external_repo_compilation_report]
+    needs: [external_repo_compilation_and_execution_report]
     # We want this job to run even if one variation of the matrix in `external_repo_compilation_report` fails
     if: always() 
     runs-on: ubuntu-latest
