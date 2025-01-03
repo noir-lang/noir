@@ -909,7 +909,7 @@ mod tests {
         }
         ";
 
-        let mut ssa = Ssa::from_str(src).unwrap();
+        let ssa = Ssa::from_str(src).unwrap();
         let main = ssa.main();
 
         let instructions = main.dfg[main.entry_block()].instructions();

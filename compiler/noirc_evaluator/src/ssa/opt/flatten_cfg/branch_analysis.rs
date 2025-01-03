@@ -169,7 +169,7 @@ mod test {
         builder.switch_to_block(b9);
         builder.terminate_with_return(vec![]);
 
-        let mut ssa = builder.finish();
+        let ssa = builder.finish();
         let function = ssa.main();
         let cfg = ControlFlowGraph::with_function(function);
         let branch_ends = find_branch_ends(function, &cfg);
@@ -253,7 +253,7 @@ mod test {
         builder.switch_to_block(b15);
         builder.terminate_with_return(vec![]);
 
-        let mut ssa = builder.finish();
+        let ssa = builder.finish();
         let function = ssa.main();
         let cfg = ControlFlowGraph::with_function(function);
         find_branch_ends(function, &cfg);
