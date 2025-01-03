@@ -1,9 +1,11 @@
 use crate::cmp::Eq;
 use crate::ops::arith::{Add, Neg, Sub};
+use crate::hash::Hash;
 
 /// A point on the embedded elliptic curve
 /// By definition, the base field of the embedded curve is the scalar field of the proof system curve, i.e the Noir Field.
 /// x and y denotes the Weierstrass coordinates of the point, if is_infinite is false.
+#[derive(Hash, Eq)]
 pub struct EmbeddedCurvePoint {
     pub x: Field,
     pub y: Field,
@@ -56,6 +58,7 @@ impl Eq for EmbeddedCurvePoint {
 /// Scalar for the embedded curve represented as low and high limbs
 /// By definition, the scalar field of the embedded curve is base field of the proving system curve.
 /// It may not fit into a Field element, so it is represented with two Field elements; its low and high limbs.
+#[derive(Hash, Eq)]
 pub struct EmbeddedCurveScalar {
     pub lo: Field,
     pub hi: Field,
