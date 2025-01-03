@@ -77,14 +77,6 @@ impl Ssa {
         new_id
     }
 
-    /// Clones an already existing function with a fresh id
-    pub(crate) fn clone_fn(&mut self, existing_function_id: FunctionId) -> FunctionId {
-        let new_id = self.next_id.next();
-        let function = Function::clone_with_id(new_id, &self.functions[&existing_function_id]);
-        self.functions.insert(new_id, function);
-        new_id
-    }
-
     pub(crate) fn generate_entry_point_index(mut self) -> Self {
         let entry_points =
             self.functions.keys().filter(|function| self.is_entry_point(**function)).enumerate();
