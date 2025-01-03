@@ -81,6 +81,7 @@ pub(crate) fn execute_program_from_witness(
     execute_program(
         &program,
         inputs_map,
+        &Bn254BlackBoxSolver(pedantic_solving),
         &mut DefaultForeignCallBuilder { output: PrintOutput::Stdout, ..Default::default() }
             .build(),
     )
