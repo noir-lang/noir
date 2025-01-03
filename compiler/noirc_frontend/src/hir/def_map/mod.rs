@@ -1,4 +1,4 @@
-use crate::graph::CrateId;
+use crate::graph::{CrateGraph, CrateId};
 use crate::hir::def_collector::dc_crate::{CompilationError, DefCollector};
 use crate::hir::Context;
 use crate::node_interner::{FuncId, GlobalId, NodeInterner, StructId};
@@ -311,6 +311,31 @@ impl CrateDefMap {
 
         ordering.insert(current, *index);
         *index += 1;
+    }
+}
+
+pub fn fully_qualified_module_path(
+    def_maps: &DefMaps,
+    crate_graph: &CrateGraph,
+    crate_id: &CrateId,
+    module_id: ModuleId,
+) -> String {
+    let child_id = module_id.local_id.0;
+
+    let def_map =
+        def_maps.get(&module_id.krate).expect("The local crate should be analyzed already");
+
+    let module = &def_map.modules()[module_id.local_id.0];
+
+    let module_path = def_map.get_module_path_with_separator(child_id, module.parent, "::");
+
+    if &module_id.krate == crate_id {
+        module_path
+    } else {
+        let crates = crate_graph
+            .find_dependencies(crate_id, &module_id.krate)
+            .expect("The module was supposed to be defined in a dependency");
+        crates.join("::") + "::" + &module_path
     }
 }
 

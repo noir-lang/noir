@@ -46,7 +46,7 @@ jobs:
           echo "MACOSX_DEPLOYMENT_TARGET=$(xcrun -sdk macosx$(sw_vers -productVersion) --show-sdk-platform-version)" >> $GITHUB_ENV
 
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.74.1
+        uses: dtolnay/rust-toolchain@1.75.0
         with:
           targets: ${{ matrix.target }}
 
@@ -120,7 +120,7 @@ jobs:
           ref: ${{ inputs.tag || env.GITHUB_REF }}
 
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.74.1
+        uses: dtolnay/rust-toolchain@1.75.0
         with:
           targets: ${{ matrix.target }}
 

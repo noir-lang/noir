@@ -17,7 +17,6 @@ use super::{
 use acvm::{acir::AcirField, FieldElement};
 use fxhash::FxHashMap as HashMap;
 use iter_extended::vecmap;
-use noirc_errors::Location;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use serde_with::DisplayFromStr;
@@ -247,12 +246,6 @@ impl DataFlowGraph {
         }
     }
 
-    /// Insert a value into the dfg's storage and return an id to reference it.
-    /// Until the value is used in an instruction it is unreachable.
-    pub(crate) fn make_value(&mut self, value: Value) -> ValueId {
-        self.values.insert(value)
-    }
-
     /// Set the value of value_to_replace to refer to the value referred to by new_value.
     ///
     /// This is the preferred method to call for optimizations simplifying
@@ -437,12 +430,6 @@ impl DataFlowGraph {
         value_id
     }
 
-    /// Returns the number of instructions
-    /// inserted into functions.
-    pub(crate) fn num_instructions(&self) -> usize {
-        self.instructions.len()
-    }
-
     /// Returns all of result values which are attached to this instruction.
     pub(crate) fn instruction_results(&self, instruction_id: InstructionId) -> &[ValueId] {
         self.results.get(&instruction_id).expect("expected a list of Values").as_slice()
@@ -542,15 +529,6 @@ impl DataFlowGraph {
 
     pub(crate) fn get_instruction_call_stack_id(&self, instruction: InstructionId) -> CallStackId {
         self.locations.get(&instruction).cloned().unwrap_or_default()
-    }
-
-    pub(crate) fn add_location_to_instruction(
-        &mut self,
-        instruction: InstructionId,
-        location: Location,
-    ) {
-        let call_stack = self.locations.entry(instruction).or_default();
-        *call_stack = self.call_stack_data.add_child(*call_stack, location);
     }
 
     pub(crate) fn get_call_stack(&self, call_stack: CallStackId) -> CallStack {

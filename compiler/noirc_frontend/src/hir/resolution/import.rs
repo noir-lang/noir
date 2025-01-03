@@ -1,3 +1,4 @@
+use iter_extended::vecmap;
 use noirc_errors::{CustomDiagnostic, Span};
 use thiserror::Error;
 
@@ -48,6 +49,12 @@ pub enum PathResolutionError {
     TurbofishNotAllowedOnItem { item: String, span: Span },
     #[error("{ident} is a {kind}, not a module")]
     NotAModule { ident: Ident, kind: &'static str },
+    #[error("trait `{trait_name}` which provides `{ident}` is implemented but not in scope, please import it")]
+    TraitMethodNotInScope { ident: Ident, trait_name: String },
+    #[error("Could not resolve '{ident}' in path")]
+    UnresolvedWithPossibleTraitsToImport { ident: Ident, traits: Vec<String> },
+    #[error("Multiple applicable items in scope")]
+    MultipleTraitsInScope { ident: Ident, traits: Vec<String> },
 }
 
 #[derive(Debug)]
@@ -84,6 +91,28 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
             }
             PathResolutionError::NotAModule { ident, kind: _ } => {
                 CustomDiagnostic::simple_error(error.to_string(), String::new(), ident.span())
+            }
+            PathResolutionError::TraitMethodNotInScope { ident, .. } => {
+                CustomDiagnostic::simple_warning(error.to_string(), String::new(), ident.span())
+            }
+            PathResolutionError::UnresolvedWithPossibleTraitsToImport { ident, traits } => {
+                let traits = vecmap(traits, |trait_name| format!("`{}`", trait_name));
+                CustomDiagnostic::simple_error(
+                    error.to_string(),
+                    format!("The following traits which provide `{ident}` are implemented but not in scope: {}", traits.join(", ")),
+                    ident.span(),
+                )
+            }
+            PathResolutionError::MultipleTraitsInScope { ident, traits } => {
+                let traits = vecmap(traits, |trait_name| format!("`{}`", trait_name));
+                CustomDiagnostic::simple_error(
+                    error.to_string(),
+                    format!(
+                        "All these trait which provide `{ident}` are implemented and in scope: {}",
+                        traits.join(", ")
+                    ),
+                    ident.span(),
+                )
             }
         }
     }

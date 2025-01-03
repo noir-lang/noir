@@ -294,7 +294,7 @@ impl Binary {
 }
 
 /// Evaluate a binary operation with constant arguments.
-fn eval_constant_binary_op(
+pub(crate) fn eval_constant_binary_op(
     lhs: FieldElement,
     rhs: FieldElement,
     operator: BinaryOp,
