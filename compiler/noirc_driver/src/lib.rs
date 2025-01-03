@@ -311,6 +311,7 @@ pub fn check_crate(
     crate_id: CrateId,
     options: &CompileOptions,
 ) -> CompilationResult<()> {
+    let crate_files = context.crate_files(&crate_id);
     let diagnostics =
         CrateDefMap::collect_defs(crate_id, context, options.debug_comptime_in_file.as_deref());
     let warnings_and_errors: Vec<FileDiagnostic> = diagnostics
@@ -323,32 +324,21 @@ pub fn check_crate(
             // We filter out any warnings if they're going to be ignored later on to free up memory.
             !options.silence_warnings || diagnostic.diagnostic.kind != DiagnosticKind::Warning
         })
+        .filter(|error| {
+            // Only keep warnings from the crate we are checking
+            if error.diagnostic.is_warning() {
+                crate_files.contains(&error.file_id)
+            } else {
+                true
+            }
+        })
         .collect();
-    let warnings_and_errors = keep_crate_warnings(warnings_and_errors, context, crate_id);
 
     if has_errors(&warnings_and_errors, options.deny_warnings) {
         Err(warnings_and_errors)
     } else {
         Ok(((), warnings_and_errors))
     }
-}
-
-fn keep_crate_warnings(
-    errors: Vec<FileDiagnostic>,
-    context: &Context,
-    crate_id: CrateId,
-) -> Vec<FileDiagnostic> {
-    let root_files = context.crate_files(&crate_id);
-    errors
-        .into_iter()
-        .filter(|error| {
-            if error.diagnostic.is_warning() {
-                root_files.contains(&error.file_id)
-            } else {
-                true
-            }
-        })
-        .collect()
 }
 
 pub fn compute_function_abi(
