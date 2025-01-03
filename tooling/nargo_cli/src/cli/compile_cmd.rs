@@ -21,6 +21,7 @@ use notify::{EventKind, RecursiveMode, Watcher};
 use notify_debouncer_full::new_debouncer;
 
 use crate::errors::CliError;
+use crate::lock::Lock;
 
 use super::fs::program::{read_program_from_file, save_contract_to_file, save_program_to_file};
 use super::{NargoConfig, PackageOptions};
@@ -42,6 +43,9 @@ pub(crate) struct CompileCommand {
 
 pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliError> {
     let selection = args.package_options.package_selection();
+    let toml_path = get_package_manifest(&config.program_dir)?;
+    let lock = Lock::lock(toml_path);
+
     let workspace = read_workspace(&config.program_dir, selection)?;
 
     if args.watch {
@@ -50,6 +54,8 @@ pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliEr
     } else {
         compile_workspace_full(&workspace, &args.compile_options)?;
     }
+
+    lock.unlock();
 
     Ok(())
 }

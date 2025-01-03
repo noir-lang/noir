@@ -74,6 +74,7 @@ termion = "3.0.0"
 tracing-subscriber.workspace = true
 tracing-appender = "0.2.3"
 clap_complete = "4.5.36"
+fs2 = "0.4.3"
 
 [target.'cfg(not(unix))'.dependencies]
 tokio-util = { version = "0.7.8", features = ["compat"] }
