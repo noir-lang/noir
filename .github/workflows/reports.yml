@@ -472,6 +472,28 @@ jobs:
           mv /home/runner/work/noir/noir/scripts/test_programs/execution_report.sh ./execution_report.sh
           ./execution_report.sh 1 1
 
+      - name: Generate compilation report with averages
+        working-directory: ./test-repo/${{ matrix.project.path }}
+        if: ${{ matrix.project.take_average }}
+        run: |
+          mv /home/runner/work/noir/noir/scripts/test_programs/compilation_report.sh ./compilation_report.sh
+          chmod +x ./compilation_report.sh
+          ./compilation_report.sh 1 1
+      
+      - name: Generate execution report without averages
+        working-directory: ./test-repo/${{ matrix.project.path }}
+        if: ${{ !matrix.project.is_library && !matrix.project.take_average }}
+        run: |
+          mv /home/runner/work/noir/noir/scripts/test_programs/execution_report.sh ./execution_report.sh
+          ./execution_report.sh 1
+
+      - name: Generate execution report with averages
+        working-directory: ./test-repo/${{ matrix.project.path }}
+        if: ${{ !matrix.project.is_library && matrix.project.take_average }}
+        run: |
+          mv /home/runner/work/noir/noir/scripts/test_programs/execution_report.sh ./execution_report.sh
+          ./execution_report.sh 1 1
+
       - name: Move compilation report
         id: compilation_report
         shell: bash
