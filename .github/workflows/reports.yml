@@ -330,6 +330,8 @@ jobs:
         with:
           path: scripts
           sparse-checkout: |
+            scripts/install_bb.sh
+            .github/scripts/single_artifact_gates_report.sh
             test_programs/compilation_report.sh
           sparse-checkout-cone-mode: false
             
@@ -352,7 +354,6 @@ jobs:
         if: ${{ !matrix.project.take_average }}
         run: |
           mv /home/runner/work/noir/noir/scripts/test_programs/compilation_report.sh ./compilation_report.sh
-          chmod +x ./compilation_report.sh
           ./compilation_report.sh 1
 
       - name: Generate compilation report with averages
@@ -412,6 +413,33 @@ jobs:
           retention-days: 3
           overwrite: true
 
+      # While we've got the compiled artifacts, we measure the number of gates in the circuits.
+
+      - name: Install `bb`
+        if: ${{ !matrix.project.is_library }}
+        run: |
+          ./scripts/scripts/install_bb.sh
+          echo "$HOME/.bb/" >> $GITHUB_PATH
+
+      - name: Generate gates report
+        if: ${{ !matrix.project.is_library }}  
+        id: gates_report
+        run: |
+          PACKAGE_NAME=${{ matrix.project.path }}
+          PACKAGE_NAME=$(basename $PACKAGE_NAME)
+          ./scripts/.github/scripts/single_artifact_gates_report.sh ./test-repo/${{ matrix.project.path }}/target/*.json > gates_report_$PACKAGE_NAME.json
+          cat gates_report_$PACKAGE_NAME.json
+          echo "gates_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
+
+      - name: Upload gates report
+        if: ${{ !matrix.project.is_library }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: gates_report_${{ steps.gates_report.outputs.gates_report_name }}
+          path: gates_report_${{ steps.gates_report.outputs.gates_report_name }}.json
+          retention-days: 3
+          overwrite: true
+
   upload_compilation_report:
     name: Upload compilation report 
     needs: [generate_compilation_and_execution_report, external_repo_compilation_and_execution_report]
@@ -455,6 +483,44 @@ jobs:
         with:
           header: compilation
           message: ${{ steps.compilation_report.outputs.markdown }}
+
+  upload_gates_report:
+    name: Upload gates report 
+    needs: [external_repo_compilation_and_execution_report]
+    # We want this job to run even if one variation of the matrix in `external_repo_compilation_and_execution_report` fails
+    if: always() 
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download matrix gates reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: gates_report_*
+          path: ./reports
+
+      - name: Merge gates reports using jq
+        run: |
+          mv ./.github/scripts/merge-gates-reports.sh merge-gates-reports.sh
+          ./merge-gates-reports.sh > protocol_circuits_gates_report.json
+          cat protocol_circuits_gates_report.json
+
+      - name: Compare gates reports
+        id: gates_diff
+        uses: noir-lang/noir-gates-diff@10f066ecad44098afef183327a13b4a7c4189ae6
+        with:
+          report: protocol_circuits_gates_report.json
+          summaryQuantile: 0.9 # only display the 10% most significant circuit size diffs in the summary (defaults to 20%)
+
+      - name: Add memory report to sticky comment
+        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: protocol_gates
+          message: ${{ steps.gates_diff.outputs.markdown }}
 
   external_repo_memory_report:
     needs: [build-nargo]
