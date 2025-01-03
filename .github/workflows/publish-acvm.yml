@@ -18,7 +18,7 @@ jobs:
           ref: ${{ inputs.noir-ref }}
 
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.74.1
+        uses: dtolnay/rust-toolchain@1.75.0
 
       # These steps are in a specific order so crate dependencies are updated first
       - name: Publish acir_field

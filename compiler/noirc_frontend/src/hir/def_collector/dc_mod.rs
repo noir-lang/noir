@@ -500,6 +500,9 @@ impl<'a> ModCollector<'a> {
                             .def_interner
                             .push_function_definition(func_id, modifiers, trait_id.0, location);
 
+                        let referenced = ReferenceId::Function(func_id);
+                        context.def_interner.add_definition_location(referenced, Some(trait_id.0));
+
                         if !trait_item.doc_comments.is_empty() {
                             context.def_interner.set_doc_comments(
                                 ReferenceId::Function(func_id),
@@ -1222,7 +1225,11 @@ pub(crate) fn collect_trait_impl_items(
 
     for item in std::mem::take(&mut trait_impl.items) {
         match item.item.kind {
-            TraitImplItemKind::Function(impl_method) => {
+            TraitImplItemKind::Function(mut impl_method) => {
+                // Regardless of what visibility was on the source code, treat it as public
+                // (a warning is produced during parsing for this)
+                impl_method.def.visibility = ItemVisibility::Public;
+
                 let func_id = interner.push_empty_fn();
                 let location = Location::new(impl_method.span(), file_id);
                 interner.push_function(func_id, &impl_method.def, module, location);

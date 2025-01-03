@@ -9,7 +9,7 @@ use nargo::PrintOutput;
 
 use crate::cli::fs::inputs::{read_bytecode_from_file, read_inputs_from_file};
 use crate::errors::CliError;
-use nargo::{foreign_calls::DefaultForeignCallExecutor, ops::execute_program};
+use nargo::{foreign_calls::DefaultForeignCallBuilder, ops::execute_program};
 
 use super::fs::witness::{create_output_witness_string, save_witness_to_dir};
 
@@ -74,7 +74,8 @@ pub(crate) fn execute_program_from_witness(
         &program,
         inputs_map,
         &Bn254BlackBoxSolver,
-        &mut DefaultForeignCallExecutor::new(PrintOutput::Stdout, None, None, None),
+        &mut DefaultForeignCallBuilder { output: PrintOutput::Stdout, ..Default::default() }
+            .build(),
     )
     .map_err(CliError::CircuitExecutionError)
 }
