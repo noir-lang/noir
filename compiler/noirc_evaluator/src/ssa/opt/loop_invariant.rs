@@ -305,7 +305,7 @@ mod test {
         ";
 
         let mut ssa = Ssa::from_str(src).unwrap();
-        let main = ssa.main_mut();
+        let main = ssa.main();
 
         let instructions = main.dfg[main.entry_block()].instructions();
         assert_eq!(instructions.len(), 0); // The final return is not counted
@@ -362,7 +362,7 @@ mod test {
         ";
 
         let mut ssa = Ssa::from_str(src).unwrap();
-        let main = ssa.main_mut();
+        let main = ssa.main();
 
         let instructions = main.dfg[main.entry_block()].instructions();
         assert_eq!(instructions.len(), 0); // The final return is not counted
@@ -430,7 +430,7 @@ mod test {
         ";
 
         let mut ssa = Ssa::from_str(src).unwrap();
-        let main = ssa.main_mut();
+        let main = ssa.main();
 
         let instructions = main.dfg[main.entry_block()].instructions();
         assert_eq!(instructions.len(), 0); // The final return is not counted
@@ -489,7 +489,7 @@ mod test {
         ";
 
         let mut ssa = Ssa::from_str(src).unwrap();
-        let main = ssa.main_mut();
+        let main = ssa.main();
 
         let instructions = main.dfg[main.entry_block()].instructions();
         assert_eq!(instructions.len(), 4); // The final return is not counted
