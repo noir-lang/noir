@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
-# Exit immediately if a command exits with a non-zero status, treat unset variables as an error, and print commands as they are executed
 set -e
 
 process_dir() {
+    set -e
     local dir=$1
     local current_dir=$2
     local dir_name=$(basename "$dir")
