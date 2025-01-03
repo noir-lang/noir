@@ -3,7 +3,6 @@ use acvm::{
     pwg::ForeignCallWaitInfo,
     AcirField,
 };
-use jsonrpc::serde_json;
 use noirc_abi::{decode_printable_value, decode_string_value};
 use noirc_printable_type::{PrintableType, PrintableValueDisplay};
 
@@ -18,8 +17,14 @@ pub enum PrintOutput<'a> {
 }
 
 #[derive(Debug, Default)]
-pub(crate) struct PrintForeignCallExecutor<'a> {
-    pub(crate) output: PrintOutput<'a>,
+pub struct PrintForeignCallExecutor<'a> {
+    output: PrintOutput<'a>,
+}
+
+impl<'a> PrintForeignCallExecutor<'a> {
+    pub fn new(output: PrintOutput<'a>) -> Self {
+        Self { output }
+    }
 }
 
 impl<F: AcirField> ForeignCallExecutor<F> for PrintForeignCallExecutor<'_> {

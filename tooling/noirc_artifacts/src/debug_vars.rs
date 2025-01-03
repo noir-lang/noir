@@ -46,7 +46,7 @@ impl<F: AcirField> DebugVars<F> {
         &'a self,
         fn_id: &DebugFnId,
         frame: &'a HashMap<DebugVarId, PrintableValue<F>>,
-    ) -> StackFrame<F> {
+    ) -> StackFrame<'a, F> {
         let debug_fn = &self.functions.get(fn_id).expect("failed to find function metadata");
 
         let params: Vec<&str> =

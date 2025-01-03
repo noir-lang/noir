@@ -818,13 +818,10 @@ mod test {
     use acvm::acir::AcirField;
 
     use crate::ssa::{
-        function_builder::FunctionBuilder,
         ir::{
             dfg::DataFlowGraph,
             function::Function,
-            instruction::{BinaryOp, Instruction, TerminatorInstruction},
-            map::Id,
-            types::Type,
+            instruction::{Instruction, TerminatorInstruction},
             value::{Value, ValueId},
         },
         opt::assert_normalized_ssa_equals,
@@ -1337,104 +1334,50 @@ mod test {
         // Regression test for #1826. Ensures the `else` branch does not see the stores of the
         // `then` branch.
         //
-        // fn main f1 {
-        //   b0():
-        //     v0 = allocate
-        //     store Field 0 at v0
-        //     v2 = allocate
-        //     store Field 2 at v2
-        //     v4 = load v2
-        //     v5 = lt v4, Field 2
-        //     jmpif v5 then: b1, else: b2
-        //   b1():
-        //     v24 = load v0
-        //     v25 = load v2
-        //     v26 = mul v25, Field 10
-        //     v27 = add v24, v26
-        //     store v27 at v0
-        //     v28 = load v2
-        //     v29 = add v28, Field 1
-        //     store v29 at v2
-        //     jmp b5()
-        //   b5():
-        //     v14 = load v0
-        //     return v14
-        //   b2():
-        //     v6 = load v2
-        //     v8 = lt v6, Field 4
-        //     jmpif v8 then: b3, else: b4
-        //   b3():
-        //     v16 = load v0
-        //     v17 = load v2
-        //     v19 = mul v17, Field 100
-        //     v20 = add v16, v19
-        //     store v20 at v0
-        //     v21 = load v2
-        //     v23 = add v21, Field 1
-        //     store v23 at v2
-        //     jmp b4()
-        //   b4():
-        //     jmp b5()
-        // }
-        let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 0 at v0
+            v2 = allocate -> &mut Field
+            store Field 2 at v2
+            v4 = load v2 -> Field
+            v5 = lt v4, Field 2
+            jmpif v5 then: b4, else: b1
+          b1():
+            v6 = load v2 -> Field
+            v8 = lt v6, Field 4
+            jmpif v8 then: b2, else: b3
+          b2():
+            v9 = load v0 -> Field
+            v10 = load v2 -> Field
+            v12 = mul v10, Field 100
+            v13 = add v9, v12
+            store v13 at v0
+            v14 = load v2 -> Field
+            v16 = add v14, Field 1
+            store v16 at v2
+            jmp b3()
+          b3():
+            jmp b5()
+          b4():
+            v17 = load v0 -> Field
+            v18 = load v2 -> Field
+            v20 = mul v18, Field 10
+            v21 = add v17, v20
+            store v21 at v0
+            v22 = load v2 -> Field
+            v23 = add v22, Field 1
+            store v23 at v2
+            jmp b5()
+          b5():
+            v24 = load v0 -> Field
+            return v24
+        }";
 
-        let b1 = builder.insert_block();
-        let b2 = builder.insert_block();
-        let b3 = builder.insert_block();
-        let b4 = builder.insert_block();
-        let b5 = builder.insert_block();
+        let ssa = Ssa::from_str(src).unwrap();
 
-        let zero = builder.field_constant(0u128);
-        let one = builder.field_constant(1u128);
-        let two = builder.field_constant(2u128);
-        let four = builder.field_constant(4u128);
-        let ten = builder.field_constant(10u128);
-        let one_hundred = builder.field_constant(100u128);
-
-        let v0 = builder.insert_allocate(Type::field());
-        builder.insert_store(v0, zero);
-        let v2 = builder.insert_allocate(Type::field());
-        builder.insert_store(v2, two);
-        let v4 = builder.insert_load(v2, Type::field());
-        let v5 = builder.insert_binary(v4, BinaryOp::Lt, two);
-        builder.terminate_with_jmpif(v5, b1, b2);
-
-        builder.switch_to_block(b1);
-        let v24 = builder.insert_load(v0, Type::field());
-        let v25 = builder.insert_load(v2, Type::field());
-        let v26 = builder.insert_binary(v25, BinaryOp::Mul, ten);
-        let v27 = builder.insert_binary(v24, BinaryOp::Add, v26);
-        builder.insert_store(v0, v27);
-        let v28 = builder.insert_load(v2, Type::field());
-        let v29 = builder.insert_binary(v28, BinaryOp::Add, one);
-        builder.insert_store(v2, v29);
-        builder.terminate_with_jmp(b5, vec![]);
-
-        builder.switch_to_block(b5);
-        let v14 = builder.insert_load(v0, Type::field());
-        builder.terminate_with_return(vec![v14]);
-
-        builder.switch_to_block(b2);
-        let v6 = builder.insert_load(v2, Type::field());
-        let v8 = builder.insert_binary(v6, BinaryOp::Lt, four);
-        builder.terminate_with_jmpif(v8, b3, b4);
-
-        builder.switch_to_block(b3);
-        let v16 = builder.insert_load(v0, Type::field());
-        let v17 = builder.insert_load(v2, Type::field());
-        let v19 = builder.insert_binary(v17, BinaryOp::Mul, one_hundred);
-        let v20 = builder.insert_binary(v16, BinaryOp::Add, v19);
-        builder.insert_store(v0, v20);
-        let v21 = builder.insert_load(v2, Type::field());
-        let v23 = builder.insert_binary(v21, BinaryOp::Add, one);
-        builder.insert_store(v2, v23);
-        builder.terminate_with_jmp(b4, vec![]);
-
-        builder.switch_to_block(b4);
-        builder.terminate_with_jmp(b5, vec![]);
-
-        let ssa = builder.finish().flatten_cfg().mem2reg().fold_constants();
+        let ssa = ssa.flatten_cfg().mem2reg().fold_constants();
 
         let main = ssa.main();
 
@@ -1451,6 +1394,18 @@ mod test {
             }
             _ => unreachable!("Should have terminator instruction"),
         }
+
+        let expected = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = allocate -> &mut Field
+            enable_side_effects u1 1
+            return Field 200
+        }
+        ";
+
+        assert_normalized_ssa_equals(ssa, expected);
     }
 
     #[test]
