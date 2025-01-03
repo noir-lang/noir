@@ -415,7 +415,7 @@ fn test_store() {
 #[test]
 fn test_inc_rc() {
     let src = "
-        acir(inline) fn main f0 {
+        brillig(inline) fn main f0 {
           b0(v0: [Field; 3]):
             inc_rc v0
             return
@@ -427,7 +427,7 @@ fn test_inc_rc() {
 #[test]
 fn test_dec_rc() {
     let src = "
-        acir(inline) fn main f0 {
+        brillig(inline) fn main f0 {
           b0(v0: [Field; 3]):
             dec_rc v0
             return

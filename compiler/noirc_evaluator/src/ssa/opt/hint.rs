@@ -14,7 +14,6 @@ mod tests {
         let options = &SsaEvaluatorOptions {
             ssa_logging: SsaLogging::None,
             enable_brillig_logging: false,
-            force_brillig_output: false,
             print_codegen_timings: false,
             expression_width: ExpressionWidth::default(),
             emit_ssa: None,
