@@ -1910,15 +1910,21 @@ global y = 1;
 
     #[test]
     fn format_unsafe_one_expression() {
-        let src = "global x = unsafe { 1  } ;";
-        let expected = "global x = unsafe { 1 };\n";
+        let src = "global x = unsafe { //@safety: testing
+        1  } ;";
+        let expected = "global x = unsafe {
+    //@safety: testing
+    1
+};\n";
         assert_format(src, expected);
     }
 
     #[test]
     fn format_unsafe_two_expressions() {
-        let src = "global x = unsafe { 1; 2  } ;";
+        let src = "global x = unsafe { //@safety: testing
+        1; 2  } ;";
         let expected = "global x = unsafe {
+    //@safety: testing
     1;
     2
 };
@@ -2198,6 +2204,7 @@ global y = 1;
         let src = "mod moo {
     fn foo() {
         let mut sorted_write_tuples = unsafe {
+            //@safety: testing
             get_sorted_tuple(
                 final_public_data_writes.storage,
                 |(_, leaf_a): (u32, PublicDataTreeLeaf), (_, leaf_b): (u32, PublicDataTreeLeaf)| full_field_less_than(
@@ -2211,6 +2218,7 @@ global y = 1;
         let expected = "mod moo {
     fn foo() {
         let mut sorted_write_tuples = unsafe {
+            //@safety: testing
             get_sorted_tuple(
                 final_public_data_writes.storage,
                 |(_, leaf_a): (u32, PublicDataTreeLeaf), (_, leaf_b): (u32, PublicDataTreeLeaf)| {
