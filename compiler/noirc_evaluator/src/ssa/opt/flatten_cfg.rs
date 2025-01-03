@@ -152,7 +152,6 @@ use crate::ssa::{
 };
 
 mod branch_analysis;
-mod capacity_tracker;
 pub(crate) mod value_merger;
 
 impl Ssa {
@@ -193,10 +192,6 @@ struct Context<'f> {
     /// condition. If we are under multiple conditions (a nested if), the topmost condition is
     /// the most recent condition combined with all previous conditions via `And` instructions.
     condition_stack: Vec<ConditionalContext>,
-
-    /// Maps SSA array values with a slice type to their size.
-    /// This is maintained by appropriate calls to the `SliceCapacityTracker` and is used by the `ValueMerger`.
-    slice_sizes: HashMap<ValueId, usize>,
 
     /// Stack of block arguments
     /// When processing a block, we pop this stack to get its arguments
@@ -259,7 +254,6 @@ fn flatten_function_cfg(function: &mut Function, no_predicates: &HashMap<Functio
         inserter: FunctionInserter::new(function),
         cfg,
         branch_ends,
-        slice_sizes: HashMap::default(),
         condition_stack: Vec::new(),
         arguments_stack: Vec::new(),
         local_allocations: HashSet::default(),
@@ -820,7 +814,6 @@ mod test {
     use crate::ssa::{
         ir::{
             dfg::DataFlowGraph,
-            function::Function,
             instruction::{Instruction, TerminatorInstruction},
             value::{Value, ValueId},
         },
@@ -975,14 +968,6 @@ mod test {
             ";
         let ssa = ssa.flatten_cfg();
         assert_normalized_ssa_equals(ssa, expected);
-    }
-
-    fn count_instruction(function: &Function, f: impl Fn(&Instruction) -> bool) -> usize {
-        function.dfg[function.entry_block()]
-            .instructions()
-            .iter()
-            .filter(|id| f(&function.dfg[**id]))
-            .count()
     }
 
     #[test]

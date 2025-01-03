@@ -62,7 +62,6 @@ struct Context<'f> {
     // Mapping of an array that comes from a load and whether the address
     // it was loaded from is a reference parameter passed to the block.
     arrays_from_load: HashMap<ValueId, bool>,
-    inner_nested_arrays: HashMap<ValueId, InstructionId>,
 }
 
 impl<'f> Context<'f> {
@@ -72,7 +71,6 @@ impl<'f> Context<'f> {
             array_to_last_use: HashMap::default(),
             instructions_that_can_be_made_mutable: HashSet::default(),
             arrays_from_load: HashMap::default(),
-            inner_nested_arrays: HashMap::default(),
         }
     }
 
