@@ -62,6 +62,7 @@ impl Ssa {
     }
 
     /// Returns the entry-point function of the program as a mutable reference
+    #[cfg(test)]
     pub(crate) fn main_mut(&mut self) -> &mut Function {
         self.functions.get_mut(&self.main_id).expect("ICE: Ssa should have a main function")
     }
