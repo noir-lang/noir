@@ -101,7 +101,7 @@ impl<'a> Parser<'a> {
 
     fn parse_bool_type(&mut self) -> Option<UnresolvedTypeData> {
         if self.eat_keyword(Keyword::Bool) {
-            return Some(UnresolvedTypeData::Bool);
+            return Some(UnresolvedTypeData::bool());
         }
 
         None
@@ -109,7 +109,7 @@ impl<'a> Parser<'a> {
 
     fn parse_field_type(&mut self) -> Option<UnresolvedTypeData> {
         if self.eat_keyword(Keyword::Field) {
-            return Some(UnresolvedTypeData::FieldElement);
+            return Some(UnresolvedTypeData::field_element());
         }
 
         None
@@ -254,7 +254,7 @@ impl<'a> Parser<'a> {
             self.eat_or_error(Token::RightBracket);
             typ
         } else {
-            UnresolvedTypeData::Unit.with_span(self.span_at_previous_token_end())
+            UnresolvedTypeData::unit().with_span(self.span_at_previous_token_end())
         };
 
         if !self.eat_left_paren() {
@@ -278,7 +278,7 @@ impl<'a> Parser<'a> {
             self.parse_type_or_error()
         } else {
             self.expected_token(Token::Arrow);
-            UnresolvedTypeData::Unit.with_span(self.span_at_previous_token_end())
+            UnresolvedTypeData::unit().with_span(self.span_at_previous_token_end())
         };
 
         Some(UnresolvedTypeData::Function(args, Box::new(ret), Box::new(env), unconstrained))
@@ -384,7 +384,7 @@ impl<'a> Parser<'a> {
         }
 
         if self.eat_right_paren() {
-            return Some(UnresolvedTypeData::Unit);
+            return Some(UnresolvedTypeData::unit());
         }
 
         let (mut types, trailing_comma) = self.parse_many_return_trailing_separator_if_any(
@@ -447,14 +447,14 @@ mod tests {
     fn parses_unit_type() {
         let src = "()";
         let typ = parse_type_no_errors(src);
-        assert!(matches!(typ.typ, UnresolvedTypeData::Unit));
+        assert!(typ.typ.is_unit());
     }
 
     #[test]
     fn parses_bool_type() {
         let src = "bool";
         let typ = parse_type_no_errors(src);
-        assert!(matches!(typ.typ, UnresolvedTypeData::Bool));
+        assert!(typ.typ.is_bool());
     }
 
     #[test]
@@ -471,7 +471,7 @@ mod tests {
     fn parses_field_type() {
         let src = "Field";
         let typ = parse_type_no_errors(src);
-        assert!(matches!(typ.typ, UnresolvedTypeData::FieldElement));
+        assert!(typ.typ.is_field_element());
     }
 
     #[test]
@@ -513,10 +513,10 @@ mod tests {
         assert_eq!(types.len(), 2);
 
         let typ = types.remove(0);
-        assert!(matches!(typ.typ, UnresolvedTypeData::FieldElement));
+        assert!(typ.typ.is_field_element());
 
         let typ = types.remove(0);
-        assert!(matches!(typ.typ, UnresolvedTypeData::Bool));
+        assert!(typ.typ.is_bool());
     }
 
     #[test]
@@ -527,7 +527,7 @@ mod tests {
         assert_eq!(types.len(), 1);
 
         let typ = types.remove(0);
-        assert!(matches!(typ.typ, UnresolvedTypeData::FieldElement));
+        assert!(typ.typ.is_field_element());
     }
 
     #[test]
@@ -537,7 +537,7 @@ mod tests {
         let UnresolvedTypeData::Parenthesized(typ) = typ.typ else {
             panic!("Expected a parenthesized type")
         };
-        assert!(matches!(typ.typ, UnresolvedTypeData::FieldElement));
+        assert!(typ.typ.is_field_element());
     }
 
     #[test]
@@ -549,7 +549,7 @@ mod tests {
         let UnresolvedTypeData::Parenthesized(typ) = typ.typ else {
             panic!("Expected a parenthesized type")
         };
-        assert!(matches!(typ.typ, UnresolvedTypeData::FieldElement));
+        assert!(typ.typ.is_field_element());
     }
 
     #[test]
@@ -559,7 +559,7 @@ mod tests {
         let UnresolvedTypeData::MutableReference(typ) = typ.typ else {
             panic!("Expected a mutable reference type")
         };
-        assert!(matches!(typ.typ, UnresolvedTypeData::FieldElement));
+        assert!(typ.typ.is_field_element());
     }
 
     #[test]
@@ -578,7 +578,7 @@ mod tests {
         let src = "[Field]";
         let typ = parse_type_no_errors(src);
         let UnresolvedTypeData::Slice(typ) = typ.typ else { panic!("Expected a slice type") };
-        assert!(matches!(typ.typ, UnresolvedTypeData::FieldElement));
+        assert!(typ.typ.is_field_element());
     }
 
     #[test]
@@ -601,7 +601,7 @@ mod tests {
         let UnresolvedTypeData::Array(expr, typ) = typ.typ else {
             panic!("Expected an array type")
         };
-        assert!(matches!(typ.typ, UnresolvedTypeData::FieldElement));
+        assert!(typ.typ.is_field_element());
         assert_eq!(expr.to_string(), "10");
     }
 
@@ -614,7 +614,7 @@ mod tests {
         };
         assert!(args.is_empty());
         assert_eq!(ret.typ.to_string(), "Field");
-        assert!(matches!(env.typ, UnresolvedTypeData::Unit));
+        assert!(env.typ.is_unit());
         assert!(!unconstrained);
     }
 

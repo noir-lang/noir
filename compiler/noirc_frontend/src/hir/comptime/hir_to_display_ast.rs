@@ -274,7 +274,6 @@ impl Type {
     /// Convert to AST for display (some details lost)
     fn to_display_ast(&self) -> UnresolvedType {
         let typ = match self {
-            Type::FieldElement => UnresolvedTypeData::FieldElement,
             Type::Array(length, element) => {
                 let length = length.to_type_expression();
                 let element = Box::new(element.to_display_ast());
@@ -285,7 +284,6 @@ impl Type {
                 UnresolvedTypeData::Slice(element)
             }
             Type::Integer(sign, bit_size) => UnresolvedTypeData::Integer(*sign, *bit_size),
-            Type::Bool => UnresolvedTypeData::Bool,
             Type::String(length) => {
                 let length = length.to_type_expression();
                 UnresolvedTypeData::String(length)
@@ -295,7 +293,6 @@ impl Type {
                 let element = Box::new(element.to_display_ast());
                 UnresolvedTypeData::FormatString(length, element)
             }
-            Type::Unit => UnresolvedTypeData::Unit,
             Type::Tuple(fields) => {
                 let fields = vecmap(fields, |field| field.to_display_ast());
                 UnresolvedTypeData::Tuple(fields)

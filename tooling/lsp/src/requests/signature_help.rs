@@ -205,9 +205,7 @@ impl<'a> SignatureFinder<'a> {
         }
         label.push(')');
 
-        if let Type::Unit = return_type {
-            // Nothing
-        } else {
+        if !return_type.is_unit() {
             label.push_str(" -> ");
             label.push_str(&return_type.to_string());
         }
