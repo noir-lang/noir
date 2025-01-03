@@ -5,6 +5,7 @@ use fxhash::FxHashSet as HashSet;
 use crate::ssa::{
     ir::{
         function::{Function, FunctionId},
+        instruction::Instruction,
         value::Value,
     },
     ssa_gen::Ssa,
@@ -60,7 +61,11 @@ fn used_functions(func: &Function) -> BTreeSet<FunctionId> {
         let block = &func.dfg[block_id];
 
         for instruction_id in block.instructions() {
-            func.dfg[*instruction_id].for_each_value(&mut find_functions);
+            let instruction = &func.dfg[*instruction_id];
+
+            if matches!(instruction, Instruction::Store { .. } | Instruction::Call { .. }) {
+                instruction.for_each_value(&mut find_functions);
+            }
         }
 
         block.unwrap_terminator().for_each_value(&mut find_functions);
