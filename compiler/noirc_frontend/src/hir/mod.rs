@@ -19,7 +19,7 @@ use fm::{FileId, FileManager};
 use iter_extended::vecmap;
 use noirc_errors::Location;
 use std::borrow::Cow;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::PathBuf;
 use std::rc::Rc;
 
@@ -250,6 +250,10 @@ impl Context<'_, '_> {
 
             ResolvedGeneric { name, type_var, span }
         })
+    }
+
+    pub fn crate_files(&self, crate_id: &CrateId) -> HashSet<FileId> {
+        self.def_maps.get(crate_id).map(|def_map| def_map.file_ids()).unwrap_or_default()
     }
 
     /// Activates LSP mode, which will track references for all definitions.
