@@ -46,6 +46,14 @@ impl RuntimeType {
                 | RuntimeType::Brillig(InlineType::NoPredicates)
         )
     }
+
+    pub(crate) fn is_brillig(&self) -> bool {
+        matches!(self, RuntimeType::Brillig(_))
+    }
+
+    pub(crate) fn is_acir(&self) -> bool {
+        matches!(self, RuntimeType::Acir(_))
+    }
 }
 
 /// A function holds a list of instructions.
@@ -186,6 +194,12 @@ impl Function {
         }
 
         unreachable!("SSA Function {} has no reachable return instruction!", self.id())
+    }
+}
+
+impl Clone for Function {
+    fn clone(&self) -> Self {
+        Function::clone_with_id(self.id(), self)
     }
 }
 

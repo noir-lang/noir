@@ -1,7 +1,6 @@
 use acvm::{AcirField, FieldElement};
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
-use regex::Regex;
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
@@ -29,11 +28,11 @@ use crate::{
         traits::{ResolvedTraitBound, TraitConstraint},
     },
     node_interner::{DefinitionKind, ExprId, FuncId, InternedStatementKind, TraitMethodId},
-    token::Tokens,
+    token::{FmtStrFragment, Tokens},
     Kind, QuotedType, Shared, StructType, Type,
 };
 
-use super::{Elaborator, LambdaContext};
+use super::{Elaborator, LambdaContext, UnsafeBlockStatus};
 
 impl<'context> Elaborator<'context> {
     pub(crate) fn elaborate_expression(&mut self, expr: Expression) -> (ExprId, Type) {
@@ -60,7 +59,7 @@ impl<'context> Elaborator<'context> {
                 return self.elaborate_comptime_block(comptime, expr.span)
             }
             ExpressionKind::Unsafe(block_expression, _) => {
-                self.elaborate_unsafe_block(block_expression)
+                self.elaborate_unsafe_block(block_expression, expr.span)
             }
             ExpressionKind::Resolved(id) => return (id, self.interner.id_type(id)),
             ExpressionKind::Interned(id) => {
@@ -141,15 +140,36 @@ impl<'context> Elaborator<'context> {
         (HirBlockExpression { statements }, block_type)
     }
 
-    fn elaborate_unsafe_block(&mut self, block: BlockExpression) -> (HirExpression, Type) {
+    fn elaborate_unsafe_block(
+        &mut self,
+        block: BlockExpression,
+        span: Span,
+    ) -> (HirExpression, Type) {
         // Before entering the block we cache the old value of `in_unsafe_block` so it can be restored.
-        let old_in_unsafe_block = self.in_unsafe_block;
-        self.in_unsafe_block = true;
+        let old_in_unsafe_block = self.unsafe_block_status;
+        let is_nested_unsafe_block =
+            !matches!(old_in_unsafe_block, UnsafeBlockStatus::NotInUnsafeBlock);
+        if is_nested_unsafe_block {
+            let span = Span::from(span.start()..span.start() + 6); // Only highlight the `unsafe` keyword
+            self.push_err(TypeCheckError::NestedUnsafeBlock { span });
+        }
+
+        self.unsafe_block_status = UnsafeBlockStatus::InUnsafeBlockWithoutUnconstrainedCalls;
 
         let (hir_block_expression, typ) = self.elaborate_block_expression(block);
 
-        // Finally, we restore the original value of `self.in_unsafe_block`.
-        self.in_unsafe_block = old_in_unsafe_block;
+        if let UnsafeBlockStatus::InUnsafeBlockWithoutUnconstrainedCalls = self.unsafe_block_status
+        {
+            let span = Span::from(span.start()..span.start() + 6); // Only highlight the `unsafe` keyword
+            self.push_err(TypeCheckError::UnnecessaryUnsafeBlock { span });
+        }
+
+        // Finally, we restore the original value of `self.in_unsafe_block`,
+        // but only if this isn't a nested unsafe block (that way if we found an unconstrained call
+        // for this unsafe block we'll also consider the outer one as finding one, and we don't double error)
+        if !is_nested_unsafe_block {
+            self.unsafe_block_status = old_in_unsafe_block;
+        }
 
         (HirExpression::Unsafe(hir_block_expression), typ)
     }
@@ -167,7 +187,7 @@ impl<'context> Elaborator<'context> {
                 let len = Type::Constant(str.len().into(), Kind::u32());
                 (Lit(HirLiteral::Str(str)), Type::String(Box::new(len)))
             }
-            Literal::FmtStr(str) => self.elaborate_fmt_string(str, span),
+            Literal::FmtStr(fragments, length) => self.elaborate_fmt_string(fragments, length),
             Literal::Array(array_literal) => {
                 self.elaborate_array_literal(array_literal, span, true)
             }
@@ -234,53 +254,50 @@ impl<'context> Elaborator<'context> {
         (HirExpression::Literal(constructor(expr)), typ)
     }
 
-    fn elaborate_fmt_string(&mut self, str: String, call_expr_span: Span) -> (HirExpression, Type) {
-        let re = Regex::new(r"\{([a-zA-Z0-9_]+)\}")
-            .expect("ICE: an invalid regex pattern was used for checking format strings");
-
+    fn elaborate_fmt_string(
+        &mut self,
+        fragments: Vec<FmtStrFragment>,
+        length: u32,
+    ) -> (HirExpression, Type) {
         let mut fmt_str_idents = Vec::new();
         let mut capture_types = Vec::new();
 
-        for field in re.find_iter(&str) {
-            let matched_str = field.as_str();
-            let ident_name = &matched_str[1..(matched_str.len() - 1)];
+        for fragment in &fragments {
+            if let FmtStrFragment::Interpolation(ident_name, string_span) = fragment {
+                let scope_tree = self.scopes.current_scope_tree();
+                let variable = scope_tree.find(ident_name);
 
-            let scope_tree = self.scopes.current_scope_tree();
-            let variable = scope_tree.find(ident_name);
+                let hir_ident = if let Some((old_value, _)) = variable {
+                    old_value.num_times_used += 1;
+                    old_value.ident.clone()
+                } else if let Ok((definition_id, _)) =
+                    self.lookup_global(Path::from_single(ident_name.to_string(), *string_span))
+                {
+                    HirIdent::non_trait_method(
+                        definition_id,
+                        Location::new(*string_span, self.file),
+                    )
+                } else {
+                    self.push_err(ResolverError::VariableNotDeclared {
+                        name: ident_name.to_owned(),
+                        span: *string_span,
+                    });
+                    continue;
+                };
 
-            let hir_ident = if let Some((old_value, _)) = variable {
-                old_value.num_times_used += 1;
-                old_value.ident.clone()
-            } else if let Ok((definition_id, _)) =
-                self.lookup_global(Path::from_single(ident_name.to_string(), call_expr_span))
-            {
-                HirIdent::non_trait_method(definition_id, Location::new(call_expr_span, self.file))
-            } else if ident_name.parse::<usize>().is_ok() {
-                self.push_err(ResolverError::NumericConstantInFormatString {
-                    name: ident_name.to_owned(),
-                    span: call_expr_span,
-                });
-                continue;
-            } else {
-                self.push_err(ResolverError::VariableNotDeclared {
-                    name: ident_name.to_owned(),
-                    span: call_expr_span,
-                });
-                continue;
-            };
-
-            let hir_expr = HirExpression::Ident(hir_ident.clone(), None);
-            let expr_id = self.interner.push_expr(hir_expr);
-            self.interner.push_expr_location(expr_id, call_expr_span, self.file);
-            let typ = self.type_check_variable(hir_ident, expr_id, None);
-            self.interner.push_expr_type(expr_id, typ.clone());
-            capture_types.push(typ);
-            fmt_str_idents.push(expr_id);
+                let hir_expr = HirExpression::Ident(hir_ident.clone(), None);
+                let expr_id = self.interner.push_expr(hir_expr);
+                self.interner.push_expr_location(expr_id, *string_span, self.file);
+                let typ = self.type_check_variable(hir_ident, expr_id, None);
+                self.interner.push_expr_type(expr_id, typ.clone());
+                capture_types.push(typ);
+                fmt_str_idents.push(expr_id);
+            }
         }
 
-        let len = Type::Constant(str.len().into(), Kind::u32());
+        let len = Type::Constant(length.into(), Kind::u32());
         let typ = Type::FmtString(Box::new(len), Box::new(Type::Tuple(capture_types)));
-        (HirExpression::Literal(HirLiteral::FmtStr(str, fmt_str_idents)), typ)
+        (HirExpression::Literal(HirLiteral::FmtStr(fragments, fmt_str_idents, length)), typ)
     }
 
     fn elaborate_prefix(&mut self, prefix: PrefixExpression, span: Span) -> (ExprId, Type) {
@@ -350,6 +367,10 @@ impl<'context> Elaborator<'context> {
             Type::Array(_, base_type) => *base_type,
             Type::Slice(base_type) => *base_type,
             Type::Error => Type::Error,
+            Type::TypeVariable(_) => {
+                self.push_err(TypeCheckError::TypeAnnotationsNeededForIndex { span: lhs_span });
+                Type::Error
+            }
             typ => {
                 self.push_err(TypeCheckError::TypeMismatch {
                     expected_typ: "Array".to_owned(),
@@ -907,7 +928,17 @@ impl<'context> Elaborator<'context> {
 
         let location = Location::new(span, self.file);
         match value.into_expression(self.interner, location) {
-            Ok(new_expr) => self.elaborate_expression(new_expr),
+            Ok(new_expr) => {
+                // At this point the Expression was already elaborated and we got a Value.
+                // We'll elaborate this value turned into Expression to inline it and get
+                // an ExprId and Type, but we don't want any visibility errors to happen
+                // here (they could if we have `Foo { inner: 5 }` and `inner` is not
+                // accessible from where this expression is being elaborated).
+                self.silence_field_visibility_errors += 1;
+                let value = self.elaborate_expression(new_expr);
+                self.silence_field_visibility_errors -= 1;
+                value
+            }
             Err(error) => make_error(self, error),
         }
     }

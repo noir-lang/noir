@@ -7,11 +7,11 @@ use noirc_errors::{
     Location,
 };
 
-use crate::hir_def::function::FunctionSignature;
 use crate::{
     ast::{BinaryOpKind, IntegerBitSize, Signedness, Visibility},
     token::{Attributes, FunctionAttribute},
 };
+use crate::{hir_def::function::FunctionSignature, token::FmtStrFragment};
 use serde::{Deserialize, Serialize};
 
 use super::HirType;
@@ -46,6 +46,12 @@ pub enum Expression {
     Semi(Box<Expression>),
     Break,
     Continue,
+}
+
+impl Expression {
+    pub fn is_array_or_slice_literal(&self) -> bool {
+        matches!(self, Expression::Literal(Literal::Array(_) | Literal::Slice(_)))
+    }
 }
 
 /// A definition is either a local (variable), function, or is a built-in
@@ -106,7 +112,7 @@ pub enum Literal {
     Bool(bool),
     Unit,
     Str(String),
-    FmtStr(String, u64, Box<Expression>),
+    FmtStr(Vec<FmtStrFragment>, u64, Box<Expression>),
 }
 
 #[derive(Debug, Clone, Hash)]
@@ -323,8 +329,6 @@ pub struct Program {
     pub main_function_signature: FunctionSignature,
     pub return_location: Option<Location>,
     pub return_visibility: Visibility,
-    /// Indicates to a backend whether a SNARK-friendly prover should be used.
-    pub recursive: bool,
     pub debug_variables: DebugVariables,
     pub debug_functions: DebugFunctions,
     pub debug_types: DebugTypes,
@@ -338,7 +342,6 @@ impl Program {
         main_function_signature: FunctionSignature,
         return_location: Option<Location>,
         return_visibility: Visibility,
-        recursive: bool,
         debug_variables: DebugVariables,
         debug_functions: DebugFunctions,
         debug_types: DebugTypes,
@@ -349,7 +352,6 @@ impl Program {
             main_function_signature,
             return_location,
             return_visibility,
-            recursive,
             debug_variables,
             debug_functions,
             debug_types,

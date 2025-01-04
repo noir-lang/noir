@@ -4,7 +4,6 @@ use std::fmt::{self, Display};
 
 use crate::{
     ast::{Expression, Path},
-    lexer::errors::LexerErrorKind,
     node_interner::{
         ExprId, InternedExpressionKind, InternedPattern, InternedStatementKind,
         InternedUnresolvedTypeData, QuotedTypeId,
@@ -26,7 +25,7 @@ pub enum BorrowedToken<'input> {
     Str(&'input str),
     /// the u8 is the number of hashes, i.e. r###..
     RawStr(&'input str, u8),
-    FmtStr(&'input str),
+    FmtStr(&'input [FmtStrFragment], u32 /* length */),
     Keyword(Keyword),
     IntType(IntType),
     AttributeStart {
@@ -137,7 +136,7 @@ pub enum Token {
     Str(String),
     /// the u8 is the number of hashes, i.e. r###..
     RawStr(String, u8),
-    FmtStr(String),
+    FmtStr(Vec<FmtStrFragment>, u32 /* length */),
     Keyword(Keyword),
     IntType(IntType),
     AttributeStart {
@@ -256,7 +255,7 @@ pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
         Token::Int(n) => BorrowedToken::Int(*n),
         Token::Bool(b) => BorrowedToken::Bool(*b),
         Token::Str(ref b) => BorrowedToken::Str(b),
-        Token::FmtStr(ref b) => BorrowedToken::FmtStr(b),
+        Token::FmtStr(ref b, length) => BorrowedToken::FmtStr(b, *length),
         Token::RawStr(ref b, hashes) => BorrowedToken::RawStr(b, *hashes),
         Token::Keyword(k) => BorrowedToken::Keyword(*k),
         Token::AttributeStart { is_inner, is_tag } => {
@@ -313,10 +312,40 @@ pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
     }
 }
 
+#[derive(Clone, PartialEq, Eq, Hash, Debug, PartialOrd, Ord)]
+pub enum FmtStrFragment {
+    String(String),
+    Interpolation(String, Span),
+}
+
+impl Display for FmtStrFragment {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            FmtStrFragment::String(string) => {
+                // Undo the escapes when displaying the fmt string
+                let string = string
+                    .replace('{', "{{")
+                    .replace('}', "}}")
+                    .replace('\r', "\\r")
+                    .replace('\n', "\\n")
+                    .replace('\t', "\\t")
+                    .replace('\0', "\\0")
+                    .replace('\'', "\\'")
+                    .replace('\"', "\\\"");
+                write!(f, "{}", string)
+            }
+            FmtStrFragment::Interpolation(string, _span) => {
+                write!(f, "{{{}}}", string)
+            }
+        }
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, PartialOrd, Ord)]
 pub enum DocStyle {
     Outer,
     Inner,
+    Safety,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -376,7 +405,7 @@ impl fmt::Display for Token {
             Token::Int(n) => write!(f, "{}", n),
             Token::Bool(b) => write!(f, "{b}"),
             Token::Str(ref b) => write!(f, "{b:?}"),
-            Token::FmtStr(ref b) => write!(f, "f{b:?}"),
+            Token::FmtStr(ref b, _length) => write!(f, "f{b:?}"),
             Token::RawStr(ref b, hashes) => {
                 let h: String = std::iter::once('#').cycle().take(hashes as usize).collect();
                 write!(f, "r{h}{b:?}{h}")
@@ -396,11 +425,13 @@ impl fmt::Display for Token {
             Token::LineComment(ref s, style) => match style {
                 Some(DocStyle::Inner) => write!(f, "//!{s}"),
                 Some(DocStyle::Outer) => write!(f, "///{s}"),
+                Some(DocStyle::Safety) => write!(f, "//@safety{s}"),
                 None => write!(f, "//{s}"),
             },
             Token::BlockComment(ref s, style) => match style {
                 Some(DocStyle::Inner) => write!(f, "/*!{s}*/"),
                 Some(DocStyle::Outer) => write!(f, "/**{s}*/"),
+                Some(DocStyle::Safety) => write!(f, "/*@safety{s}*/"),
                 None => write!(f, "/*{s}*/"),
             },
             Token::Quote(ref stream) => {
@@ -516,7 +547,7 @@ impl Token {
             | Token::Bool(_)
             | Token::Str(_)
             | Token::RawStr(..)
-            | Token::FmtStr(_) => TokenKind::Literal,
+            | Token::FmtStr(_, _) => TokenKind::Literal,
             Token::Keyword(_) => TokenKind::Keyword,
             Token::UnquoteMarker(_) => TokenKind::UnquoteMarker,
             Token::Quote(_) => TokenKind::Quote,
@@ -598,7 +629,7 @@ impl IntType {
     // XXX: Result<Option<Token, LexerErrorKind>
     // Is not the best API. We could split this into two functions. One that checks if the
     // word is a integer, which only returns an Option
-    pub(crate) fn lookup_int_type(word: &str) -> Result<Option<Token>, LexerErrorKind> {
+    pub fn lookup_int_type(word: &str) -> Option<IntType> {
         // Check if the first string is a 'u' or 'i'
 
         let is_signed = if word.starts_with('i') {
@@ -606,20 +637,20 @@ impl IntType {
         } else if word.starts_with('u') {
             false
         } else {
-            return Ok(None);
+            return None;
         };
 
         // Word start with 'u' or 'i'. Check if the latter is an integer
 
         let str_as_u32 = match word[1..].parse::<u32>() {
             Ok(str_as_u32) => str_as_u32,
-            Err(_) => return Ok(None),
+            Err(_) => return None,
         };
 
         if is_signed {
-            Ok(Some(Token::IntType(IntType::Signed(str_as_u32))))
+            Some(IntType::Signed(str_as_u32))
         } else {
-            Ok(Some(Token::IntType(IntType::Unsigned(str_as_u32))))
+            Some(IntType::Unsigned(str_as_u32))
         }
     }
 }
@@ -677,9 +708,7 @@ impl Attributes {
     /// This is useful for finding out if we should compile a contract method
     /// as an entry point or not.
     pub fn has_contract_library_method(&self) -> bool {
-        self.secondary
-            .iter()
-            .any(|attribute| attribute == &SecondaryAttribute::ContractLibraryMethod)
+        self.has_secondary_attr(&SecondaryAttribute::ContractLibraryMethod)
     }
 
     pub fn is_test_function(&self) -> bool {
@@ -719,11 +748,21 @@ impl Attributes {
     }
 
     pub fn has_varargs(&self) -> bool {
-        self.secondary.iter().any(|attr| matches!(attr, SecondaryAttribute::Varargs))
+        self.has_secondary_attr(&SecondaryAttribute::Varargs)
     }
 
     pub fn has_use_callers_scope(&self) -> bool {
-        self.secondary.iter().any(|attr| matches!(attr, SecondaryAttribute::UseCallersScope))
+        self.has_secondary_attr(&SecondaryAttribute::UseCallersScope)
+    }
+
+    /// True if the function is marked with an `#[export]` attribute.
+    pub fn has_export(&self) -> bool {
+        self.has_secondary_attr(&SecondaryAttribute::Export)
+    }
+
+    /// Check if secondary attributes contain a specific instance.
+    pub fn has_secondary_attr(&self, attr: &SecondaryAttribute) -> bool {
+        self.secondary.contains(attr)
     }
 }
 
@@ -753,7 +792,6 @@ pub enum FunctionAttribute {
     Builtin(String),
     Oracle(String),
     Test(TestScope),
-    Recursive,
     Fold,
     NoPredicates,
     InlineAlways,
@@ -817,7 +855,6 @@ impl FunctionAttribute {
             FunctionAttribute::Builtin(_) => "builtin",
             FunctionAttribute::Oracle(_) => "oracle",
             FunctionAttribute::Test(_) => "test",
-            FunctionAttribute::Recursive => "recursive",
             FunctionAttribute::Fold => "fold",
             FunctionAttribute::NoPredicates => "no_predicates",
             FunctionAttribute::InlineAlways => "inline_always",
@@ -832,7 +869,6 @@ impl fmt::Display for FunctionAttribute {
             FunctionAttribute::Foreign(ref k) => write!(f, "#[foreign({k})]"),
             FunctionAttribute::Builtin(ref k) => write!(f, "#[builtin({k})]"),
             FunctionAttribute::Oracle(ref k) => write!(f, "#[oracle({k})]"),
-            FunctionAttribute::Recursive => write!(f, "#[recursive]"),
             FunctionAttribute::Fold => write!(f, "#[fold]"),
             FunctionAttribute::NoPredicates => write!(f, "#[no_predicates]"),
             FunctionAttribute::InlineAlways => write!(f, "#[inline_always]"),

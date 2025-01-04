@@ -30,7 +30,7 @@ pub(crate) use instructions::BrilligBinaryOp;
 use registers::{RegisterAllocator, ScratchSpace};
 
 use self::{artifact::BrilligArtifact, debug_show::DebugToString, registers::Stack};
-use crate::ssa::ir::dfg::CallStack;
+use crate::ssa::ir::call_stack::CallStack;
 use acvm::{
     acir::brillig::{MemoryAddress, Opcode as BrilligOpcode},
     AcirField,
@@ -253,15 +253,6 @@ pub(crate) mod tests {
     pub(crate) struct DummyBlackBoxSolver;
 
     impl BlackBoxFunctionSolver<FieldElement> for DummyBlackBoxSolver {
-        fn schnorr_verify(
-            &self,
-            _public_key_x: &FieldElement,
-            _public_key_y: &FieldElement,
-            _signature: &[u8; 64],
-            _message: &[u8],
-        ) -> Result<bool, BlackBoxResolutionError> {
-            Ok(true)
-        }
         fn multi_scalar_mul(
             &self,
             _points: &[FieldElement],
@@ -378,12 +369,12 @@ pub(crate) mod tests {
         // We push a JumpIf and Trap opcode directly as the constrain instruction
         // uses unresolved jumps which requires a block to be constructed in SSA and
         // we don't need this for Brillig IR tests
-        context.push_opcode(BrilligOpcode::JumpIf { condition: r_equality, location: 9 });
         context.push_opcode(BrilligOpcode::Const {
             destination: MemoryAddress::direct(0),
             bit_size: BitSize::Integer(IntegerBitSize::U32),
             value: FieldElement::from(0u64),
         });
+        context.push_opcode(BrilligOpcode::JumpIf { condition: r_equality, location: 9 });
         context.push_opcode(BrilligOpcode::Trap {
             revert_data: HeapVector {
                 pointer: MemoryAddress::direct(0),
@@ -391,7 +382,10 @@ pub(crate) mod tests {
             },
         });
 
-        context.stop_instruction();
+        context.stop_instruction(HeapVector {
+            pointer: MemoryAddress::direct(0),
+            size: MemoryAddress::direct(0),
+        });
 
         let bytecode: Vec<BrilligOpcode<FieldElement>> = context.artifact().finish().byte_code;
         let number_sequence: Vec<FieldElement> =

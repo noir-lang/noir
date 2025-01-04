@@ -25,17 +25,18 @@ num-bigint.workspace = true
 num-traits.workspace = true
 rustc-hash = "1.1.0"
 small-ord-set = "0.1.3"
-regex = "1.9.1"
 cfg-if.workspace = true
 tracing.workspace = true
 petgraph = "0.6"
 rangemap = "1.4.0"
-strum = "0.24"
-strum_macros = "0.24"
+strum.workspace = true
+strum_macros.workspace = true
 
 
 [dev-dependencies]
 base64.workspace = true
+proptest.workspace = true
+proptest-derive = "0.5.0"
 
 [features]
 experimental_parser = []

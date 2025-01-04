@@ -113,7 +113,11 @@ impl<K, V, B> UHashMap<K, V, B> {
         H: Hasher,
     {
         // docs:end:contains_key
-        unsafe { self.get(key) }.is_some()
+        unsafe {
+            //@safety : unconstrained context
+            self.get(key)
+        }
+            .is_some()
     }
 
     // Returns true if the map contains no elements.
@@ -138,7 +142,10 @@ impl<K, V, B> UHashMap<K, V, B> {
             }
         }
 
-        let msg = f"Amount of valid elements should have been {self._len} times, but got {entries.len()}.";
+        let self_len = self._len;
+        let entries_len = entries.len();
+        let msg =
+            f"Amount of valid elements should have been {self_len} times, but got {entries_len}.";
         assert(entries.len() == self._len, msg);
 
         entries
@@ -158,8 +165,10 @@ impl<K, V, B> UHashMap<K, V, B> {
             }
         }
 
+        let self_len = self._len;
+        let keys_len = keys.len();
         let msg =
-            f"Amount of valid elements should have been {self._len} times, but got {keys.len()}.";
+            f"Amount of valid elements should have been {self_len} times, but got {keys_len}.";
         assert(keys.len() == self._len, msg);
 
         keys
@@ -179,8 +188,10 @@ impl<K, V, B> UHashMap<K, V, B> {
             }
         }
 
+        let self_len = self._len;
+        let values_len = values.len();
         let msg =
-            f"Amount of valid elements should have been {self._len} times, but got {values.len()}.";
+            f"Amount of valid elements should have been {self_len} times, but got {values_len}.";
         assert(values.len() == self._len, msg);
 
         values
@@ -425,7 +436,10 @@ where
                 // Not marked as deleted and has key-value.
                 if equal & slot.is_valid() {
                     let (key, value) = slot.key_value_unchecked();
-                    let other_value = unsafe { other.get(key) };
+                    let other_value = unsafe {
+                        //@safety : unconstrained context
+                        other.get(key)
+                    };
 
                     if other_value.is_none() {
                         equal = false;

@@ -1,10 +1,12 @@
 [package]
 name = "noir_wasm"
+description = "A JS interface to the Noir compiler"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true
@@ -15,9 +17,9 @@ workspace = true
 crate-type = ["cdylib"]
 
 [dependencies]
+
 acvm = { workspace = true, features = ["bn254"] }
 fm.workspace = true
-nargo.workspace = true
 noirc_driver.workspace = true
 noirc_frontend = { workspace = true, features = ["bn254"] }
 noirc_errors.workspace = true
@@ -30,6 +32,10 @@ console_error_panic_hook.workspace = true
 gloo-utils.workspace = true
 tracing-subscriber.workspace = true
 tracing-web.workspace = true
+
+# Cannot use the `rpc` feature because the HTTP dependency wouldn't compile to Wasm.
+# We could use `path` if `rpc` was a default feature, but we made it opt-in so we don't get any problems when publishing the workspace.
+nargo.workspace = true
 
 # This is an unused dependency, we are adding it
 # so that we can enable the js feature in getrandom.

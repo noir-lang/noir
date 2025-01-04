@@ -104,11 +104,12 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
                 formatter.write_left_paren();
                 formatter.write_right_paren();
             })),
-            Literal::Bool(_) | Literal::Str(_) | Literal::FmtStr(_) | Literal::RawStr(..) => group
-                .text(self.chunk(|formatter| {
+            Literal::Bool(_) | Literal::Str(_) | Literal::FmtStr(_, _) | Literal::RawStr(..) => {
+                group.text(self.chunk(|formatter| {
                     formatter.write_current_token_as_in_source();
                     formatter.bump();
-                })),
+                }));
+            }
             Literal::Integer(..) => group.text(self.chunk(|formatter| {
                 if formatter.is_at(Token::Minus) {
                     formatter.write_token(Token::Minus);
@@ -1133,11 +1134,15 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
                 if count > 0 {
                     // If newlines follow, we first add a line, then add the comment chunk
                     group.lines(count > 1);
-                    group.leading_comment(self.skip_comments_and_whitespace_chunk());
+                    group.leading_comment(self.chunk(|formatter| {
+                        formatter.skip_comments_and_whitespace_writing_multiple_lines_if_found();
+                    }));
                     ignore_next = self.ignore_next;
                 } else {
                     // Otherwise, add the comment first as it's a trailing comment
-                    group.trailing_comment(self.skip_comments_and_whitespace_chunk());
+                    group.trailing_comment(self.chunk(|formatter| {
+                        formatter.skip_comments_and_whitespace_writing_multiple_lines_if_found();
+                    }));
                     ignore_next = self.ignore_next;
                     group.line();
                 }
@@ -1146,8 +1151,22 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
             self.format_statement(statement, group, ignore_next);
         }
 
+        // See how many newlines follow the last statement
+        let count = self.following_newlines_count();
+
         group.text(self.chunk(|formatter| {
-            formatter.skip_comments_and_whitespace();
+            formatter.skip_whitespace();
+        }));
+
+        // After skipping whitespace we check if there's a comment. If so, we respect
+        // how many lines were before that comment.
+        if count > 0 && matches!(self.token, Token::LineComment(..) | Token::BlockComment(..)) {
+            group.lines(count > 1);
+        }
+
+        // Finally format the comment, if any
+        group.text(self.chunk(|formatter| {
+            formatter.skip_comments_and_whitespace_writing_multiple_lines_if_found();
         }));
 
         group.decrease_indentation();
@@ -1891,15 +1910,21 @@ global y = 1;
 
     #[test]
     fn format_unsafe_one_expression() {
-        let src = "global x = unsafe { 1  } ;";
-        let expected = "global x = unsafe { 1 };\n";
+        let src = "global x = unsafe { //@safety: testing
+        1  } ;";
+        let expected = "global x = unsafe {
+    //@safety: testing
+    1
+};\n";
         assert_format(src, expected);
     }
 
     #[test]
     fn format_unsafe_two_expressions() {
-        let src = "global x = unsafe { 1; 2  } ;";
+        let src = "global x = unsafe { //@safety: testing
+        1; 2  } ;";
         let expected = "global x = unsafe {
+    //@safety: testing
     1;
     2
 };
@@ -2179,6 +2204,7 @@ global y = 1;
         let src = "mod moo {
     fn foo() {
         let mut sorted_write_tuples = unsafe {
+            //@safety: testing
             get_sorted_tuple(
                 final_public_data_writes.storage,
                 |(_, leaf_a): (u32, PublicDataTreeLeaf), (_, leaf_b): (u32, PublicDataTreeLeaf)| full_field_less_than(
@@ -2192,6 +2218,7 @@ global y = 1;
         let expected = "mod moo {
     fn foo() {
         let mut sorted_write_tuples = unsafe {
+            //@safety: testing
             get_sorted_tuple(
                 final_public_data_writes.storage,
                 |(_, leaf_a): (u32, PublicDataTreeLeaf), (_, leaf_b): (u32, PublicDataTreeLeaf)| {

@@ -7,7 +7,7 @@ const GIT_COMMIT: &&str = &"GIT_COMMIT";
 
 fn main() {
     // Only use build_data if the environment variable isn't set.
-    if std::env::var(GIT_COMMIT).is_err() {
+    if env::var(GIT_COMMIT).is_err() {
         build_data::set_GIT_COMMIT();
         build_data::set_GIT_DIRTY();
         build_data::no_debug_rebuilds();
@@ -19,9 +19,9 @@ fn main() {
 
     // Try to find the directory that Cargo sets when it is running; otherwise fallback to assuming the CWD
     // is the root of the repository and append the crate path
-    let root_dir = match std::env::var("CARGO_MANIFEST_DIR") {
+    let root_dir = match env::var("CARGO_MANIFEST_DIR") {
         Ok(dir) => PathBuf::from(dir).parent().unwrap().parent().unwrap().to_path_buf(),
-        Err(_) => std::env::current_dir().unwrap(),
+        Err(_) => env::current_dir().unwrap(),
     };
     let test_dir = root_dir.join("test_programs");
 
@@ -36,14 +36,13 @@ fn main() {
     generate_compile_success_empty_tests(&mut test_file, &test_dir);
     generate_compile_success_contract_tests(&mut test_file, &test_dir);
     generate_compile_success_no_bug_tests(&mut test_file, &test_dir);
+    generate_compile_success_with_bug_tests(&mut test_file, &test_dir);
     generate_compile_failure_tests(&mut test_file, &test_dir);
 }
 
 /// Some tests are explicitly ignored in brillig due to them failing.
 /// These should be fixed and removed from this list.
-const IGNORED_BRILLIG_TESTS: [&str; 11] = [
-    // Takes a very long time to execute as large loops do not get simplified.
-    "regression_4709",
+const IGNORED_BRILLIG_TESTS: [&str; 10] = [
     // bit sizes for bigint operation doesn't match up.
     "bigint",
     // ICE due to looking for function which doesn't exist.
@@ -57,6 +56,12 @@ const IGNORED_BRILLIG_TESTS: [&str; 11] = [
     "fold_numeric_generic_poseidon",
     // Expected to fail as test asserts on which runtime it is in.
     "is_unconstrained",
+];
+
+/// Tests which aren't expected to work with the default inliner cases.
+const INLINER_MIN_OVERRIDES: [(&str, i64); 1] = [
+    // 0 works if PoseidonHasher::write is tagged as `inline_always`, otherwise 22.
+    ("eddsa", 0),
 ];
 
 /// Some tests are expected to have warnings
@@ -76,7 +81,14 @@ fn read_test_cases(
     let test_case_dirs =
         fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
 
-    test_case_dirs.into_iter().map(|dir| {
+    test_case_dirs.into_iter().filter_map(|dir| {
+        // When switching git branches we might end up with non-empty directories that have a `target`
+        // directory inside them but no `Nargo.toml`.
+        // These "tests" would always fail, but it's okay to ignore them so we do that here.
+        if !dir.path().join("Nargo.toml").exists() {
+            return None;
+        }
+
         let test_name =
             dir.file_name().into_string().expect("Directory can't be converted to string");
         if test_name.contains('-') {
@@ -84,7 +96,7 @@ fn read_test_cases(
                 "Invalid test directory: {test_name}. Cannot include `-`, please convert to `_`"
             );
         }
-        (test_name, dir.path())
+        Some((test_name, dir.path()))
     })
 }
 
@@ -94,12 +106,42 @@ struct MatrixConfig {
     vary_brillig: bool,
     // Only seems to have an effect on the `execute_success` cases.
     vary_inliner: bool,
+    // If there is a non-default minimum inliner aggressiveness to use with the brillig tests.
+    min_inliner: i64,
 }
 
-/// Generate all test cases for a given test directory.
-/// These will be executed serially, but independently from other test directories.
-/// Running multiple tests on the same directory concurrently risks overriding each
-/// others compilation artifacts.
+// Enum to be able to preserve readable test labels and also compare to numbers.
+enum Inliner {
+    Min,
+    Default,
+    Max,
+    Custom(i64),
+}
+
+impl Inliner {
+    fn value(&self) -> i64 {
+        match self {
+            Inliner::Min => i64::MIN,
+            Inliner::Default => 0,
+            Inliner::Max => i64::MAX,
+            Inliner::Custom(i) => *i,
+        }
+    }
+    fn label(&self) -> String {
+        match self {
+            Inliner::Min => "i64::MIN".to_string(),
+            Inliner::Default => "0".to_string(),
+            Inliner::Max => "i64::MAX".to_string(),
+            Inliner::Custom(i) => i.to_string(),
+        }
+    }
+}
+
+/// Generate all test cases for a given test name (expected to be unique for the test directory),
+/// based on the matrix configuration. These will be executed serially, but concurrently with
+/// other test directories. Running multiple tests on the same directory would risk overriding
+/// each others compilation artifacts, which is why this method injects a mutex shared by
+/// all cases in the test matrix, as long as the test name and directory has a 1-to-1 relationship.
 fn generate_test_cases(
     test_file: &mut File,
     test_name: &str,
@@ -108,11 +150,39 @@ fn generate_test_cases(
     test_content: &str,
     matrix_config: &MatrixConfig,
 ) {
+    let brillig_cases = if matrix_config.vary_brillig { vec![false, true] } else { vec![false] };
+    let inliner_cases = if matrix_config.vary_inliner {
+        let mut cases = vec![Inliner::Min, Inliner::Default, Inliner::Max];
+        if !cases.iter().any(|c| c.value() == matrix_config.min_inliner) {
+            cases.push(Inliner::Custom(matrix_config.min_inliner));
+        }
+        cases
+    } else {
+        vec![Inliner::Default]
+    };
+
+    // We can't use a `#[test_matrix(brillig_cases, inliner_cases)` if we only want to limit the
+    // aggressiveness range for the brillig tests, and let them go full range on the ACIR case.
+    let mut test_cases = Vec::new();
+    for brillig in &brillig_cases {
+        for inliner in &inliner_cases {
+            if *brillig && inliner.value() < matrix_config.min_inliner {
+                continue;
+            }
+            test_cases.push(format!(
+                "#[test_case::test_case(ForceBrillig({brillig}), Inliner({}))]",
+                inliner.label()
+            ));
+        }
+    }
+    let test_cases = test_cases.join("\n");
+
+    // We need to isolate test cases in the same group, otherwise they overwrite each other's artifacts.
+    // On CI we use `cargo nextest`, which runs tests in different processes; for this we use a file lock.
+    // Locally we might be using `cargo test`, which run tests in the same process; in this case the file lock
+    // wouldn't work, becuase the process itself has the lock, and it looks like it can have N instances without
+    // any problems; for this reason we also use a `Mutex`.
     let mutex_name = format! {"TEST_MUTEX_{}", test_name.to_uppercase()};
-    let brillig_cases = if matrix_config.vary_brillig { "[false, true]" } else { "[false]" };
-    let _inliner_cases = if matrix_config.vary_inliner { "[i64::MIN, 0, i64::MAX]" } else { "[0]" };
-    // TODO (#6429): Remove this once the failing tests are fixed.
-    let inliner_cases = "[i64::MAX]";
     write!(
         test_file,
         r#"
@@ -121,25 +191,39 @@ lazy_static::lazy_static! {{
     static ref {mutex_name}: std::sync::Mutex<()> = std::sync::Mutex::new(());
 }}
 
-#[test_case::test_matrix(
-    {brillig_cases}, 
-    {inliner_cases}
-)]
-fn test_{test_name}(force_brillig: bool, inliner_aggressiveness: i64) {{
-    // Ignore poisoning errors if some of the matrix cases failed.
-    let _guard = {mutex_name}.lock().unwrap_or_else(|e| e.into_inner()); 
-
+{test_cases}
+fn test_{test_name}(force_brillig: ForceBrillig, inliner_aggressiveness: Inliner) {{
     let test_program_dir = PathBuf::from("{test_dir}");
+
+    // Ignore poisoning errors if some of the matrix cases failed.
+    let mutex_guard = {mutex_name}.lock().unwrap_or_else(|e| e.into_inner());
+
+    let file_guard = file_lock::FileLock::lock(
+        test_program_dir.join("Nargo.toml"),
+        true,
+        file_lock::FileOptions::new().read(true).write(true).append(true)
+    ).expect("failed to lock Nargo.toml");
 
     let mut nargo = Command::cargo_bin("nargo").unwrap();
     nargo.arg("--program-dir").arg(test_program_dir);
     nargo.arg("{test_command}").arg("--force");
-    nargo.arg("--inliner-aggressiveness").arg(inliner_aggressiveness.to_string());
-    if force_brillig {{
+    nargo.arg("--inliner-aggressiveness").arg(inliner_aggressiveness.0.to_string());
+
+    if force_brillig.0 {{
         nargo.arg("--force-brillig");
+
+        // Set the maximum increase so that part of the optimization is exercised (it might fail).
+        nargo.arg("--max-bytecode-increase-percent");
+        nargo.arg("50");
+
+        // Check whether the test case is non-deterministic
+        nargo.arg("--check-non-determinism");
     }}
 
     {test_content}
+
+    drop(file_guard);
+    drop(mutex_guard);
 }}
 "#
     )
@@ -171,6 +255,11 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
             &MatrixConfig {
                 vary_brillig: !IGNORED_BRILLIG_TESTS.contains(&test_name.as_str()),
                 vary_inliner: true,
+                min_inliner: INLINER_MIN_OVERRIDES
+                    .iter()
+                    .find(|(n, _)| *n == test_name.as_str())
+                    .map(|(_, i)| *i)
+                    .unwrap_or(i64::MIN),
             },
         );
     }
@@ -304,7 +393,7 @@ fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Pa
             "info",
             &format!(
                 r#"
-                nargo.arg("--json");                
+                nargo.arg("--json");
                 {assert_zero_opcodes}
             "#,
             ),
@@ -364,6 +453,35 @@ fn generate_compile_success_no_bug_tests(test_file: &mut File, test_data_dir: &P
             "compile",
             r#"
                 nargo.assert().success().stderr(predicate::str::contains("bug:").not());
+            "#,
+            &MatrixConfig::default(),
+        );
+    }
+    writeln!(test_file, "}}").unwrap();
+}
+
+/// Generate tests for checking that the contract compiles and there are "bugs" in stderr
+fn generate_compile_success_with_bug_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_type = "compile_success_with_bug";
+    let test_cases = read_test_cases(test_data_dir, test_type);
+
+    writeln!(
+        test_file,
+        "mod {test_type} {{
+        use super::*;
+    "
+    )
+    .unwrap();
+    for (test_name, test_dir) in test_cases {
+        let test_dir = test_dir.display();
+
+        generate_test_cases(
+            test_file,
+            &test_name,
+            &test_dir,
+            "compile",
+            r#"
+                nargo.assert().success().stderr(predicate::str::contains("bug:"));
             "#,
             &MatrixConfig::default(),
         );

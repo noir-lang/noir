@@ -915,11 +915,18 @@ impl<'a> Formatter<'a> {
                     self.write_indentation();
                 }
                 Chunk::LeadingComment(text_chunk) => {
-                    let ends_with_newline = text_chunk.string.ends_with('\n');
+                    let ends_with_multiple_newlines = text_chunk.string.ends_with("\n\n");
+                    let ends_with_newline =
+                        ends_with_multiple_newlines || text_chunk.string.ends_with('\n');
                     self.write_chunk_lines(text_chunk.string.trim());
 
                     // Respect whether the leading comment had a newline before what comes next or not
-                    if ends_with_newline {
+                    if ends_with_multiple_newlines {
+                        // Remove any indentation that could exist (we'll add it later)
+                        self.buffer.trim_spaces();
+                        self.write_multiple_lines_without_skipping_whitespace_and_comments();
+                        self.write_indentation();
+                    } else if ends_with_newline {
                         self.write_line_without_skipping_whitespace_and_comments();
                         self.write_indentation();
                     } else {

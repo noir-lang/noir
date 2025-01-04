@@ -47,6 +47,35 @@ pub fn find_file_manifest(current_path: &Path) -> Option<PathBuf> {
 }
 
 /// Returns the [PathBuf] of the directory containing the `Nargo.toml` by searching from `current_path` to the root of its [Path].
+/// When `workspace` is `true` it returns the topmost directory, when `false` the innermost one.
+///
+/// Returns a [ManifestError] if no parent directories of `current_path` contain a manifest file.
+pub fn find_root(current_path: &Path, workspace: bool) -> Result<PathBuf, ManifestError> {
+    if workspace {
+        find_package_root(current_path)
+    } else {
+        find_file_root(current_path)
+    }
+}
+
+/// Returns the [PathBuf] of the directory containing the `Nargo.toml` by searching from `current_path` to the root of its [Path],
+/// returning at the innermost directory found, i.e. the one corresponding to the package that contains the `current_path`.
+///
+/// Returns a [ManifestError] if no parent directories of `current_path` contain a manifest file.
+pub fn find_file_root(current_path: &Path) -> Result<PathBuf, ManifestError> {
+    match find_file_manifest(current_path) {
+        Some(manifest_path) => {
+            let package_root = manifest_path
+                .parent()
+                .expect("infallible: manifest file path can't be root directory");
+            Ok(package_root.to_path_buf())
+        }
+        None => Err(ManifestError::MissingFile(current_path.to_path_buf())),
+    }
+}
+
+/// Returns the [PathBuf] of the directory containing the `Nargo.toml` by searching from `current_path` to the root of its [Path],
+/// returning at the topmost directory found, i.e. the one corresponding to the entire workspace.
 ///
 /// Returns a [ManifestError] if no parent directories of `current_path` contain a manifest file.
 pub fn find_package_root(current_path: &Path) -> Result<PathBuf, ManifestError> {
@@ -60,6 +89,11 @@ pub fn find_package_root(current_path: &Path) -> Result<PathBuf, ManifestError> 
 }
 
 // TODO(#2323): We are probably going to need a "filepath utils" crate soon
+/// Get the root of path, for example:
+/// * `C:\foo\bar` -> `C:\foo`
+/// * `//shared/foo/bar` -> `//shared/foo`
+/// * `/foo` -> `/foo`
+///   otherwise empty path.
 fn path_root(path: &Path) -> PathBuf {
     let mut components = path.components();
 
@@ -101,6 +135,7 @@ pub fn find_package_manifest(
         })
     }
 }
+
 /// Returns the [PathBuf] of the `Nargo.toml` file in the `current_path` directory.
 ///
 /// Returns a [ManifestError] if `current_path` does not contain a manifest file.
@@ -469,7 +504,7 @@ fn resolve_package_from_toml(
     result
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum PackageSelection {
     Selected(CrateName),
     DefaultOrAll,
@@ -490,9 +525,20 @@ pub fn resolve_workspace_from_toml(
     Ok(workspace)
 }
 
-#[test]
-fn parse_standard_toml() {
-    let src = r#"
+#[cfg(test)]
+mod tests {
+    use std::{
+        path::{Path, PathBuf},
+        str::FromStr,
+    };
+
+    use test_case::test_matrix;
+
+    use crate::{find_root, Config, ManifestError};
+
+    #[test]
+    fn parse_standard_toml() {
+        let src = r#"
 
         [package]
         name = "test"
@@ -505,49 +551,49 @@ fn parse_standard_toml() {
         hello = {path = "./noir_driver"}
     "#;
 
-    assert!(Config::try_from(String::from(src)).is_ok());
-    assert!(Config::try_from(src).is_ok());
-}
+        assert!(Config::try_from(String::from(src)).is_ok());
+        assert!(Config::try_from(src).is_ok());
+    }
 
-#[test]
-fn parse_package_toml_no_deps() {
-    let src = r#"
+    #[test]
+    fn parse_package_toml_no_deps() {
+        let src = r#"
         [package]
         name = "test"
         authors = ["kev", "foo"]
         compiler_version = "*"
     "#;
 
-    assert!(Config::try_from(String::from(src)).is_ok());
-    assert!(Config::try_from(src).is_ok());
-}
+        assert!(Config::try_from(String::from(src)).is_ok());
+        assert!(Config::try_from(src).is_ok());
+    }
 
-#[test]
-fn parse_workspace_toml() {
-    let src = r#"
+    #[test]
+    fn parse_workspace_toml() {
+        let src = r#"
         [workspace]
         members = ["a", "b"]
     "#;
 
-    assert!(Config::try_from(String::from(src)).is_ok());
-    assert!(Config::try_from(src).is_ok());
-}
+        assert!(Config::try_from(String::from(src)).is_ok());
+        assert!(Config::try_from(src).is_ok());
+    }
 
-#[test]
-fn parse_workspace_default_member_toml() {
-    let src = r#"
+    #[test]
+    fn parse_workspace_default_member_toml() {
+        let src = r#"
         [workspace]
         members = ["a", "b"]
         default-member = "a"
     "#;
 
-    assert!(Config::try_from(String::from(src)).is_ok());
-    assert!(Config::try_from(src).is_ok());
-}
+        assert!(Config::try_from(String::from(src)).is_ok());
+        assert!(Config::try_from(src).is_ok());
+    }
 
-#[test]
-fn parse_package_expression_width_toml() {
-    let src = r#"
+    #[test]
+    fn parse_package_expression_width_toml() {
+        let src = r#"
     [package]
     name = "test"
     version = "0.1.0"
@@ -556,6 +602,124 @@ fn parse_package_expression_width_toml() {
     expression_width = "3"
     "#;
 
-    assert!(Config::try_from(String::from(src)).is_ok());
-    assert!(Config::try_from(src).is_ok());
+        assert!(Config::try_from(String::from(src)).is_ok());
+        assert!(Config::try_from(src).is_ok());
+    }
+
+    /// Test that `find_root` handles all kinds of prefixes.
+    /// (It dispatches based on `workspace` to methods which handle paths differently).
+    #[test_matrix(
+        [true, false],
+        ["C:\\foo\\bar", "//shared/foo/bar", "/foo/bar", "bar/baz", ""]
+    )]
+    fn test_find_root_does_not_panic(workspace: bool, path: &str) {
+        let path = PathBuf::from_str(path).unwrap();
+        let error = find_root(&path, workspace).expect_err("non-existing paths");
+        assert!(matches!(error, ManifestError::MissingFile(_)));
+    }
+
+    /// Test to demonstrate how `find_root` works.
+    #[test]
+    fn test_find_root_example() {
+        const INDENT_SIZE: usize = 4;
+        /// Create directories and files according to a YAML-like layout below
+        fn setup(layout: &str, root: &Path) {
+            fn is_dir(item: &str) -> bool {
+                !item.contains('.')
+            }
+            let mut current_dir = root.to_path_buf();
+            let mut current_indent = 0;
+            let mut last_item: Option<String> = None;
+
+            for line in layout.lines() {
+                if let Some((prefix, item)) = line.split_once('-') {
+                    let item = item.replace(std::path::MAIN_SEPARATOR, "_").trim().to_string();
+
+                    let indent = prefix.len() / INDENT_SIZE;
+
+                    if last_item.is_none() {
+                        current_indent = indent;
+                    }
+
+                    assert!(
+                        indent <= current_indent + 1,
+                        "cannot increase indent by more than {INDENT_SIZE}; item = {item}, current_dir={}", current_dir.display()
+                    );
+
+                    // Go into the last created directory
+                    if indent > current_indent && last_item.is_some() {
+                        let last_item = last_item.unwrap();
+                        assert!(is_dir(&last_item), "last item was not a dir: {last_item}");
+                        current_dir.push(last_item);
+                        current_indent += 1;
+                    }
+                    // Go back into an ancestor directory
+                    while indent < current_indent {
+                        current_dir.pop();
+                        current_indent -= 1;
+                    }
+                    // Create a file or a directory
+                    let item_path = current_dir.join(&item);
+                    if is_dir(&item) {
+                        std::fs::create_dir(&item_path).unwrap_or_else(|e| {
+                            panic!("failed to create dir {}: {e}", item_path.display())
+                        });
+                    } else {
+                        std::fs::write(&item_path, "").expect("failed to create file");
+                    }
+
+                    last_item = Some(item);
+                }
+            }
+        }
+
+        // Temporary directory to hold the project.
+        let tmp = tempfile::tempdir().unwrap();
+        // Join a string path to the tmp dir
+        let path = |p: &str| tmp.path().join(p);
+        // Check that an expected root is found
+        let assert_ok = |current_dir: &str, ws: bool, exp: &str| {
+            let root = find_root(&path(current_dir), ws).expect("should find a root");
+            assert_eq!(root, path(exp));
+        };
+        // Check that a root is not found
+        let assert_err = |current_dir: &str| {
+            find_root(&path(current_dir), true).expect_err("shouldn't find a root");
+        };
+
+        let layout = r"
+            - project
+                - docs
+                - workspace
+                    - packages
+                        - foo
+                            - Nargo.toml
+                            - Prover.toml
+                            - src
+                                - main.nr
+                        - bar
+                            - Nargo.toml
+                            - src
+                                - lib.nr
+                    - Nargo.toml
+                - examples
+                    - baz
+                        - Nargo.toml
+                        - src
+                            - main.nr
+            ";
+
+        // Set up the file system.
+        setup(layout, tmp.path());
+
+        assert_err("dummy");
+        assert_err("project/docs");
+        assert_err("project/examples");
+        assert_ok("project/workspace", true, "project/workspace");
+        assert_ok("project/workspace", false, "project/workspace");
+        assert_ok("project/workspace/packages/foo", true, "project/workspace");
+        assert_ok("project/workspace/packages/bar", false, "project/workspace/packages/bar");
+        assert_ok("project/examples/baz/src", true, "project/examples/baz");
+        assert_ok("project/examples/baz/src", false, "project/examples/baz");
+    }
 }
