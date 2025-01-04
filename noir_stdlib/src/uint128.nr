@@ -332,6 +332,7 @@ impl Shr for U128 {
 }
 
 mod tests {
+    use crate::ops::Not;
     use crate::uint128::{pow63, pow64, U128};
 
     #[test]
