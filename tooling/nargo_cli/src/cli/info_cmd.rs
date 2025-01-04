@@ -13,7 +13,7 @@ use prettytable::{row, table, Row};
 use rayon::prelude::*;
 use serde::Serialize;
 
-use crate::{cli::fs::inputs::read_inputs_from_file, errors::CliError};
+use crate::{cli::fs::inputs::read_inputs_from_file, errors::CliError, lock::Lock};
 
 use super::{
     compile_cmd::{compile_workspace_full, get_target_width},
@@ -49,6 +49,8 @@ pub(crate) struct InfoCommand {
 
 pub(crate) fn run(mut args: InfoCommand, config: NargoConfig) -> Result<(), CliError> {
     let toml_path = get_package_manifest(&config.program_dir)?;
+    let lock = Lock::lock(toml_path.clone());
+
     let selection = args.package_options.package_selection();
     let workspace = resolve_workspace_from_toml(
         &toml_path,
@@ -117,6 +119,8 @@ pub(crate) fn run(mut args: InfoCommand, config: NargoConfig) -> Result<(), CliE
             program_table.printstd();
         }
     }
+
+    lock.unlock();
 
     Ok(())
 }

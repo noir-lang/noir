@@ -1,4 +1,5 @@
 use crate::errors::CliError;
+use crate::lock::Lock;
 
 use clap::Args;
 use fm::FileManager;
@@ -34,6 +35,8 @@ pub(crate) struct CheckCommand {
 
 pub(crate) fn run(args: CheckCommand, config: NargoConfig) -> Result<(), CliError> {
     let toml_path = get_package_manifest(&config.program_dir)?;
+    let lock = Lock::lock(toml_path.clone());
+
     let selection = args.package_options.package_selection();
     let workspace = resolve_workspace_from_toml(
         &toml_path,
@@ -57,6 +60,9 @@ pub(crate) fn run(args: CheckCommand, config: NargoConfig) -> Result<(), CliErro
             println!("[{}] Constraint system successfully built!", package.name);
         }
     }
+
+    lock.unlock();
+
     Ok(())
 }
 

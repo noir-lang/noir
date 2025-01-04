@@ -83,8 +83,6 @@ noir_lsp = { path = "tooling/lsp" }
 noir_debugger = { path = "tooling/debugger" }
 noirc_abi = { path = "tooling/noirc_abi" }
 noirc_artifacts = { path = "tooling/noirc_artifacts" }
-bb_abstraction_leaks = { path = "tooling/bb_abstraction_leaks" }
-acvm_cli = { path = "tooling/acvm_cli" }
 
 # Arkworks
 ark-bn254 = { version = "^0.5.0", default-features = false, features = [

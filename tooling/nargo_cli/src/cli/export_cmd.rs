@@ -18,6 +18,7 @@ use noirc_driver::{
 use clap::Args;
 
 use crate::errors::CliError;
+use crate::lock::Lock;
 
 use super::check_cmd::check_crate_and_report_errors;
 
@@ -36,6 +37,8 @@ pub(crate) struct ExportCommand {
 
 pub(crate) fn run(args: ExportCommand, config: NargoConfig) -> Result<(), CliError> {
     let toml_path = get_package_manifest(&config.program_dir)?;
+    let lock = Lock::lock(toml_path.clone());
+
     let selection = args.package_options.package_selection();
     let workspace = resolve_workspace_from_toml(
         &toml_path,
@@ -50,7 +53,7 @@ pub(crate) fn run(args: ExportCommand, config: NargoConfig) -> Result<(), CliErr
     let library_packages: Vec<_> =
         workspace.into_iter().filter(|package| package.is_library()).collect();
 
-    library_packages
+    let result = library_packages
         .par_iter()
         .map(|package| {
             compile_exported_functions(
@@ -61,7 +64,11 @@ pub(crate) fn run(args: ExportCommand, config: NargoConfig) -> Result<(), CliErr
                 &args.compile_options,
             )
         })
-        .collect()
+        .collect();
+
+    lock.unlock();
+
+    result
 }
 
 fn compile_exported_functions(
