@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.0.0-beta.2](https://github.com/noir-lang/noir/compare/v1.0.0-beta.1...v1.0.0-beta.2) (2025-01-04)
+
+
+### ⚠ BREAKING CHANGES
+
+* Switch to using `jsonrpsee` for foreign calls; refactor `run_test`; foreign call layering ([#6849](https://github.com/noir-lang/noir/issues/6849))
+
+### Features
+
+* **LSP:** Suggest trait methods from where clauses ([#6915](https://github.com/noir-lang/noir/issues/6915)) ([21eef0d](https://github.com/noir-lang/noir/commit/21eef0dd9f4afe0602b418b468d84058bcf5128c))
+* Require trait function calls (`Foo::bar()`) to have the trait in scope (imported) ([#6882](https://github.com/noir-lang/noir/issues/6882)) ([a5447ed](https://github.com/noir-lang/noir/commit/a5447edd8befb72d2fcae4c79de4bd54f1620bea))
+* **ssa:** Hoist add and mul binary ops using known induction variables ([#6910](https://github.com/noir-lang/noir/issues/6910)) ([ebc4d2c](https://github.com/noir-lang/noir/commit/ebc4d2cf2b91658a10393733407f33d50a0faaf1))
+* Switch to using `jsonrpsee` for foreign calls; refactor `run_test`; foreign call layering ([#6849](https://github.com/noir-lang/noir/issues/6849)) ([51a4d5d](https://github.com/noir-lang/noir/commit/51a4d5d5237ba78e1b9eb3cdce760d3fb6b8d295))
+* Warn on trait method visibility ([#6923](https://github.com/noir-lang/noir/issues/6923)) ([bb71bcb](https://github.com/noir-lang/noir/commit/bb71bcb3a0eec6f76a48085ba9684cb8dd4aa27f))
+
+
+### Bug Fixes
+
+* Bigint builtins are foreigns ([#6892](https://github.com/noir-lang/noir/issues/6892)) ([a1f9c94](https://github.com/noir-lang/noir/commit/a1f9c949825bac1068a4e00e93e95b0dbfa8b5a7))
+* Consistent file_id across installation paths ([#6912](https://github.com/noir-lang/noir/issues/6912)) ([baca790](https://github.com/noir-lang/noir/commit/baca790a7241044c7a1cce1f2aab13a2c5c998a8))
+* Remove unnecessary cast in bit-shift ([#6890](https://github.com/noir-lang/noir/issues/6890)) ([011fbc1](https://github.com/noir-lang/noir/commit/011fbc195419df0254af69cfea593291c8f80af3))
+* Show output of `test_program_is_idempotent` on failure ([#6942](https://github.com/noir-lang/noir/issues/6942)) ([a690d96](https://github.com/noir-lang/noir/commit/a690d96e6111830aba245fd3f1118a87f6f6b018))
+
 ## [1.0.0-beta.1](https://github.com/noir-lang/noir/compare/v1.0.0-beta.0...v1.0.0-beta.1) (2024-12-20)
 
 
