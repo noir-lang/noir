@@ -597,7 +597,7 @@ jobs:
       - name: Run nargo test
         working-directory: ./test-repo/${{ matrix.project.path }}
         run: |
-          out=$(nargo test --silence-warnings --skip-brillig-constraints-check --format json ${{ matrix.project.nargo_args }}) && echo "$out" > ${{ github.workspace }}/noir-repo/.github/critical_libraries_status/${{ matrix.project.repo }}/${{ matrix.project.path }}.actual.jsonl
+          nargo test --silence-warnings --skip-brillig-constraints-check --format json ${{ matrix.project.nargo_args }} | tee ${{ github.workspace }}/noir-repo/.github/critical_libraries_status/${{ matrix.project.repo }}/${{ matrix.project.path }}.actual.jsonl
         env:
           NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS: true
       
