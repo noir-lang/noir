@@ -5,22 +5,24 @@ sudo apt-get install heaptrack
 
 NARGO="nargo"
 
-
 # Tests to be profiled for memory report
 tests_to_profile=("keccak256" "workspace" "regression_4709" "ram_blowup_regression")
 
 current_dir=$(pwd)
-execution_success_path="$current_dir/execution_success"
-test_dirs=$(ls $execution_success_path)
+base_path="$current_dir/execution_success"
+
+# If there is an argument that means we want to generate a report for only the current directory
+if [ "$1" == "1" ]; then
+  base_path="$current_dir"
+  tests_to_profile=(".")
+fi
 
 FIRST="1"
 
 echo "{\"memory_reports\": [ " > memory_report.json
 
-
 for test_name in ${tests_to_profile[@]}; do    
-        full_path=$execution_success_path"/"$test_name
-        cd $full_path
+        cd $base_path/$test_name
 
         if [ $FIRST = "1" ]
         then
@@ -28,7 +30,17 @@ for test_name in ${tests_to_profile[@]}; do
         else
             echo " ," >> $current_dir"/memory_report.json"
         fi
-        heaptrack --output $current_dir/$test_name"_heap" $NARGO compile --force
+
+        if [ "$1" == "1" ]; then
+            test_name=$(basename $current_dir)
+        fi
+
+        COMMAND="compile --force --silence-warnings"
+        if [ "$2" == "1" ]; then
+            COMMAND="execute --silence-warnings"
+        fi
+
+        heaptrack --output $current_dir/$test_name"_heap" $NARGO $COMMAND
         if test -f $current_dir/$test_name"_heap.gz"; 
         then 
             heaptrack --analyze $current_dir/$test_name"_heap.gz" > $current_dir/$test_name"_heap_analysis.txt"

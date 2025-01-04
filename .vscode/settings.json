@@ -7,5 +7,6 @@
     },
     "[javascript]": {
         "editor.defaultFormatter": "esbenp.prettier-vscode"
-    }
+    },
+    "rust-analyzer.server.extraEnv": { "RUSTUP_TOOLCHAIN": "stable" }
 }

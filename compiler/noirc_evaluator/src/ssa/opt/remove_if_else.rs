@@ -4,6 +4,8 @@ use acvm::{acir::AcirField, FieldElement};
 use fxhash::FxHashMap as HashMap;
 
 use crate::ssa::ir::function::RuntimeType;
+use crate::ssa::ir::instruction::Hint;
+use crate::ssa::ir::types::NumericType;
 use crate::ssa::ir::value::ValueId;
 use crate::ssa::{
     ir::{
@@ -50,10 +52,6 @@ impl Function {
 struct Context {
     slice_sizes: HashMap<ValueId, u32>,
 
-    // Maps array_set result -> element that was overwritten by that instruction.
-    // Used to undo array_sets while merging values
-    prev_array_set_elem_values: HashMap<ValueId, ValueId>,
-
     // Maps array_set result -> enable_side_effects_if value which was active during it.
     array_set_conditionals: HashMap<ValueId, ValueId>,
 }
@@ -62,7 +60,8 @@ impl Context {
     fn remove_if_else(&mut self, function: &mut Function) {
         let block = function.entry_block();
         let instructions = function.dfg[block].take_instructions();
-        let mut current_conditional = function.dfg.make_constant(FieldElement::one(), Type::bool());
+        let one = FieldElement::one();
+        let mut current_conditional = function.dfg.make_constant(one, NumericType::bool());
 
         for instruction in instructions {
             match &function.dfg[instruction] {
@@ -75,7 +74,7 @@ impl Context {
                     let typ = function.dfg.type_of_value(then_value);
                     assert!(!matches!(typ, Type::Numeric(_)));
 
-                    let call_stack = function.dfg.get_call_stack(instruction);
+                    let call_stack = function.dfg.get_instruction_call_stack_id(instruction);
                     let mut value_merger = ValueMerger::new(
                         &mut function.dfg,
                         block,
@@ -231,8 +230,7 @@ fn slice_capacity_change(
         | Intrinsic::ArrayAsStrUnchecked
         | Intrinsic::StrAsBytes
         | Intrinsic::BlackBox(_)
-        | Intrinsic::FromField
-        | Intrinsic::AsField
+        | Intrinsic::Hint(Hint::BlackBox)
         | Intrinsic::AsWitness
         | Intrinsic::IsUnconstrained
         | Intrinsic::DerivePedersenGenerators

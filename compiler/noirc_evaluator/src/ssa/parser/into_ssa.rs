@@ -57,7 +57,7 @@ impl Translator {
         // A FunctionBuilder must be created with a main Function, so here wer remove it
         // from the parsed SSA to avoid adding it twice later on.
         let main_function = parsed_ssa.functions.remove(0);
-        let main_id = FunctionId::new(0);
+        let main_id = FunctionId::test_new(0);
         let mut builder = FunctionBuilder::new(main_function.external_name.clone(), main_id);
         builder.set_runtime(main_function.runtime_type);
 
@@ -65,7 +65,7 @@ impl Translator {
         let mut function_id_counter = 1;
         let mut functions = HashMap::new();
         for function in &parsed_ssa.functions {
-            let function_id = FunctionId::new(function_id_counter);
+            let function_id = FunctionId::test_new(function_id_counter);
             function_id_counter += 1;
 
             functions.insert(function.internal_name.clone(), function_id);
@@ -207,7 +207,7 @@ impl Translator {
             }
             ParsedInstruction::Cast { target, lhs, typ } => {
                 let lhs = self.translate_value(lhs)?;
-                let value_id = self.builder.insert_cast(lhs, typ);
+                let value_id = self.builder.insert_cast(lhs, typ.unwrap_numeric());
                 self.define_variable(target, value_id)?;
             }
             ParsedInstruction::Constrain { lhs, rhs, assert_message } => {
@@ -290,7 +290,7 @@ impl Translator {
     fn translate_value(&mut self, value: ParsedValue) -> Result<ValueId, SsaError> {
         match value {
             ParsedValue::NumericConstant { constant, typ } => {
-                Ok(self.builder.numeric_constant(constant, typ))
+                Ok(self.builder.numeric_constant(constant, typ.unwrap_numeric()))
             }
             ParsedValue::Variable(identifier) => self.lookup_variable(identifier),
         }

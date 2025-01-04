@@ -28,10 +28,12 @@ tracing.workspace = true
 chrono = "0.4.37"
 rayon.workspace = true
 cfg-if.workspace = true
+smallvec = { version = "1.13.2", features = ["serde"] }
 
 [dev-dependencies]
 proptest.workspace = true
 similar-asserts.workspace = true
+tracing-test = "0.2.5"
 num-traits.workspace = true
 test-case.workspace = true
 

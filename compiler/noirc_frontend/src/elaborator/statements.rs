@@ -76,6 +76,7 @@ impl<'context> Elaborator<'context> {
     ) -> (HirStatement, Type) {
         let expr_span = let_stmt.expression.span;
         let (expression, expr_type) = self.elaborate_expression(let_stmt.expression);
+
         let type_contains_unspecified = let_stmt.r#type.contains_unspecified();
         let annotated_type = self.resolve_inferred_type(let_stmt.r#type);
 
@@ -123,7 +124,9 @@ impl<'context> Elaborator<'context> {
 
         let attributes = let_stmt.attributes;
         let comptime = let_stmt.comptime;
-        let let_ = HirLetStatement { pattern, r#type, expression, attributes, comptime };
+        let is_global_let = let_stmt.is_global_let;
+        let let_ =
+            HirLetStatement::new(pattern, r#type, expression, attributes, comptime, is_global_let);
         (HirStatement::Let(let_), Type::Unit)
     }
 
@@ -183,20 +186,20 @@ impl<'context> Elaborator<'context> {
     }
 
     pub(super) fn elaborate_assign(&mut self, assign: AssignStatement) -> (HirStatement, Type) {
-        let span = assign.expression.span;
+        let expr_span = assign.expression.span;
         let (expression, expr_type) = self.elaborate_expression(assign.expression);
-        let (lvalue, lvalue_type, mutable) = self.elaborate_lvalue(assign.lvalue, span);
+        let (lvalue, lvalue_type, mutable) = self.elaborate_lvalue(assign.lvalue);
 
         if !mutable {
             let (name, span) = self.get_lvalue_name_and_span(&lvalue);
             self.push_err(TypeCheckError::VariableMustBeMutable { name, span });
         }
 
-        self.unify_with_coercions(&expr_type, &lvalue_type, expression, span, || {
+        self.unify_with_coercions(&expr_type, &lvalue_type, expression, expr_span, || {
             TypeCheckError::TypeMismatchWithSource {
                 actual: expr_type.clone(),
                 expected: lvalue_type.clone(),
-                span,
+                span: expr_span,
                 source: Source::Assignment,
             }
         });
@@ -296,7 +299,7 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn elaborate_lvalue(&mut self, lvalue: LValue, assign_span: Span) -> (HirLValue, Type, bool) {
+    fn elaborate_lvalue(&mut self, lvalue: LValue) -> (HirLValue, Type, bool) {
         match lvalue {
             LValue::Ident(ident) => {
                 let mut mutable = true;
@@ -330,7 +333,7 @@ impl<'context> Elaborator<'context> {
                 (HirLValue::Ident(ident.clone(), typ.clone()), typ, mutable)
             }
             LValue::MemberAccess { object, field_name, span } => {
-                let (object, lhs_type, mut mutable) = self.elaborate_lvalue(*object, assign_span);
+                let (object, lhs_type, mut mutable) = self.elaborate_lvalue(*object);
                 let mut object = Box::new(object);
                 let field_name = field_name.clone();
 
@@ -374,8 +377,7 @@ impl<'context> Elaborator<'context> {
                     expr_span,
                 });
 
-                let (mut lvalue, mut lvalue_type, mut mutable) =
-                    self.elaborate_lvalue(*array, assign_span);
+                let (mut lvalue, mut lvalue_type, mut mutable) = self.elaborate_lvalue(*array);
 
                 // Before we check that the lvalue is an array, try to dereference it as many times
                 // as needed to unwrap any &mut wrappers.
@@ -397,12 +399,15 @@ impl<'context> Elaborator<'context> {
                         self.push_err(TypeCheckError::StringIndexAssign { span: lvalue_span });
                         Type::Error
                     }
+                    Type::TypeVariable(_) => {
+                        self.push_err(TypeCheckError::TypeAnnotationsNeededForIndex { span });
+                        Type::Error
+                    }
                     other => {
-                        // TODO: Need a better span here
                         self.push_err(TypeCheckError::TypeMismatch {
                             expected_typ: "array".to_string(),
                             expr_typ: other.to_string(),
-                            expr_span: assign_span,
+                            expr_span: span,
                         });
                         Type::Error
                     }
@@ -413,7 +418,7 @@ impl<'context> Elaborator<'context> {
                 (HirLValue::Index { array, index, typ, location }, array_type, mutable)
             }
             LValue::Dereference(lvalue, span) => {
-                let (lvalue, reference_type, _) = self.elaborate_lvalue(*lvalue, assign_span);
+                let (lvalue, reference_type, _) = self.elaborate_lvalue(*lvalue);
                 let lvalue = Box::new(lvalue);
                 let location = Location::new(span, self.file);
 
@@ -423,7 +428,7 @@ impl<'context> Elaborator<'context> {
                 self.unify(&reference_type, &expected_type, || TypeCheckError::TypeMismatch {
                     expected_typ: expected_type.to_string(),
                     expr_typ: reference_type.to_string(),
-                    expr_span: assign_span,
+                    expr_span: span,
                 });
 
                 // Dereferences are always mutable since we already type checked against a &mut T
@@ -433,7 +438,7 @@ impl<'context> Elaborator<'context> {
             }
             LValue::Interned(id, span) => {
                 let lvalue = self.interner.get_lvalue(id, span).clone();
-                self.elaborate_lvalue(lvalue, assign_span)
+                self.elaborate_lvalue(lvalue)
             }
         }
     }

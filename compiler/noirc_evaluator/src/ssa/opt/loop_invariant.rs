@@ -13,9 +13,9 @@ use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
-        function::{Function, RuntimeType},
+        function::Function,
         function_inserter::FunctionInserter,
-        instruction::{Instruction, InstructionId},
+        instruction::{binary::eval_constant_binary_op, BinaryOp, Instruction, InstructionId},
         types::Type,
         value::ValueId,
     },
@@ -27,12 +27,7 @@ use super::unrolling::{Loop, Loops};
 impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn loop_invariant_code_motion(mut self) -> Ssa {
-        let brillig_functions = self
-            .functions
-            .iter_mut()
-            .filter(|(_, func)| matches!(func.runtime(), RuntimeType::Brillig(_)));
-
-        for (_, function) in brillig_functions {
+        for function in self.functions.values_mut() {
             function.loop_invariant_code_motion();
         }
 
@@ -63,6 +58,7 @@ impl Loops {
         }
 
         context.map_dependent_instructions();
+        context.inserter.map_data_bus_in_place();
     }
 }
 
@@ -113,6 +109,26 @@ impl<'f> LoopInvariantContext<'f> {
 
                 if hoist_invariant {
                     self.inserter.push_instruction(instruction_id, pre_header);
+
+                    // If we are hoisting a MakeArray instruction,
+                    // we need to issue an extra inc_rc in case they are mutated afterward.
+                    if matches!(
+                        self.inserter.function.dfg[instruction_id],
+                        Instruction::MakeArray { .. }
+                    ) {
+                        let result =
+                            self.inserter.function.dfg.instruction_results(instruction_id)[0];
+                        let inc_rc = Instruction::IncrementRc { value: result };
+                        let call_stack = self
+                            .inserter
+                            .function
+                            .dfg
+                            .get_instruction_call_stack_id(instruction_id);
+                        self.inserter
+                            .function
+                            .dfg
+                            .insert_instruction_and_results(inc_rc, *block, None, call_stack);
+                    }
                 } else {
                     self.inserter.push_instruction(instruction_id, *block);
                 }
@@ -190,6 +206,8 @@ impl<'f> LoopInvariantContext<'f> {
         });
 
         let can_be_deduplicated = instruction.can_be_deduplicated(self.inserter.function, false)
+            || matches!(instruction, Instruction::MakeArray { .. })
+            || matches!(instruction, Instruction::Binary(_))
             || self.can_be_deduplicated_from_upper_bound(&instruction);
 
         is_loop_invariant && can_be_deduplicated
@@ -213,6 +231,31 @@ impl<'f> LoopInvariantContext<'f> {
                 } else {
                     false
                 }
+            }
+            Instruction::Binary(binary) => {
+                if !matches!(binary.operator, BinaryOp::Add | BinaryOp::Mul) {
+                    return false;
+                }
+
+                let operand_type =
+                    self.inserter.function.dfg.type_of_value(binary.lhs).unwrap_numeric();
+
+                let lhs_const =
+                    self.inserter.function.dfg.get_numeric_constant_with_type(binary.lhs);
+                let rhs_const =
+                    self.inserter.function.dfg.get_numeric_constant_with_type(binary.rhs);
+                let (lhs, rhs) = match (
+                    lhs_const,
+                    rhs_const,
+                    self.outer_induction_variables.get(&binary.lhs),
+                    self.outer_induction_variables.get(&binary.rhs),
+                ) {
+                    (Some((lhs, _)), None, None, Some(upper_bound)) => (lhs, *upper_bound),
+                    (None, Some((rhs, _)), Some(upper_bound), None) => (*upper_bound, rhs),
+                    _ => return false,
+                };
+
+                eval_constant_binary_op(lhs, rhs, binary.operator, operand_type).is_some()
             }
             _ => false,
         }
@@ -246,23 +289,23 @@ mod test {
     fn simple_loop_invariant_code_motion() {
         let src = "
         brillig(inline) fn main f0 {
-          b0(v0: u32, v1: u32):
-              jmp b1(u32 0)
-          b1(v2: u32):
-              v5 = lt v2, u32 4
+          b0(v0: i32, v1: i32):
+              jmp b1(i32 0)
+          b1(v2: i32):
+              v5 = lt v2, i32 4
               jmpif v5 then: b3, else: b2
           b2():
               return
           b3():
               v6 = mul v0, v1
-              constrain v6 == u32 6
-              v8 = add v2, u32 1
+              constrain v6 == i32 6
+              v8 = add v2, i32 1
               jmp b1(v8)
         }
         ";
 
-        let mut ssa = Ssa::from_str(src).unwrap();
-        let main = ssa.main_mut();
+        let ssa = Ssa::from_str(src).unwrap();
+        let main = ssa.main();
 
         let instructions = main.dfg[main.entry_block()].instructions();
         assert_eq!(instructions.len(), 0); // The final return is not counted
@@ -270,17 +313,17 @@ mod test {
         // `v6 = mul v0, v1` in b3 should now be `v3 = mul v0, v1` in b0
         let expected = "
         brillig(inline) fn main f0 {
-          b0(v0: u32, v1: u32):
+          b0(v0: i32, v1: i32):
             v3 = mul v0, v1
-            jmp b1(u32 0)
-          b1(v2: u32):
-            v6 = lt v2, u32 4
+            jmp b1(i32 0)
+          b1(v2: i32):
+            v6 = lt v2, i32 4
             jmpif v6 then: b3, else: b2
           b2():
             return
           b3():
-            constrain v3 == u32 6
-            v9 = add v2, u32 1
+            constrain v3 == i32 6
+            v9 = add v2, i32 1
             jmp b1(v9)
         }
         ";
@@ -295,31 +338,31 @@ mod test {
         // is hoisted to the parent loop's pre-header block.
         let src = "
         brillig(inline) fn main f0 {
-          b0(v0: u32, v1: u32):
-            jmp b1(u32 0)
-          b1(v2: u32):
-            v6 = lt v2, u32 4
+          b0(v0: i32, v1: i32):
+            jmp b1(i32 0)
+          b1(v2: i32):
+            v6 = lt v2, i32 4
             jmpif v6 then: b3, else: b2
           b2():
             return
           b3():
-            jmp b4(u32 0)
-          b4(v3: u32):
-            v7 = lt v3, u32 4
+            jmp b4(i32 0)
+          b4(v3: i32):
+            v7 = lt v3, i32 4
             jmpif v7 then: b6, else: b5
           b5():
-            v9 = add v2, u32 1
+            v9 = add v2, i32 1
             jmp b1(v9)
           b6():
             v10 = mul v0, v1
-            constrain v10 == u32 6
-            v12 = add v3, u32 1
+            constrain v10 == i32 6
+            v12 = add v3, i32 1
             jmp b4(v12)
         }
         ";
 
-        let mut ssa = Ssa::from_str(src).unwrap();
-        let main = ssa.main_mut();
+        let ssa = Ssa::from_str(src).unwrap();
+        let main = ssa.main();
 
         let instructions = main.dfg[main.entry_block()].instructions();
         assert_eq!(instructions.len(), 0); // The final return is not counted
@@ -327,25 +370,25 @@ mod test {
         // `v10 = mul v0, v1` in b6 should now be `v4 = mul v0, v1` in b0
         let expected = "
         brillig(inline) fn main f0 {
-          b0(v0: u32, v1: u32):
+          b0(v0: i32, v1: i32):
             v4 = mul v0, v1
-            jmp b1(u32 0)
-          b1(v2: u32):
-            v7 = lt v2, u32 4
+            jmp b1(i32 0)
+          b1(v2: i32):
+            v7 = lt v2, i32 4
             jmpif v7 then: b3, else: b2
           b2():
             return
           b3():
-            jmp b4(u32 0)
-          b4(v3: u32):
-            v8 = lt v3, u32 4
+            jmp b4(i32 0)
+          b4(v3: i32):
+            v8 = lt v3, i32 4
             jmpif v8 then: b6, else: b5
           b5():
-            v10 = add v2, u32 1
+            v10 = add v2, i32 1
             jmp b1(v10)
           b6():
-            constrain v4 == u32 6
-            v12 = add v3, u32 1
+            constrain v4 == i32 6
+            v12 = add v3, i32 1
             jmp b4(v12)
         }
         ";
@@ -369,44 +412,44 @@ mod test {
         // hoist `v7 = mul v6, v0`.
         let src = "
         brillig(inline) fn main f0 {
-          b0(v0: u32, v1: u32):
-            jmp b1(u32 0)
-          b1(v2: u32):
-            v5 = lt v2, u32 4
+          b0(v0: i32, v1: i32):
+            jmp b1(i32 0)
+          b1(v2: i32):
+            v5 = lt v2, i32 4
             jmpif v5 then: b3, else: b2
           b2():
             return
           b3():
             v6 = mul v0, v1
             v7 = mul v6, v0
-            v8 = eq v7, u32 12
-            constrain v7 == u32 12
-            v9 = add v2, u32 1
+            v8 = eq v7, i32 12
+            constrain v7 == i32 12
+            v9 = add v2, i32 1
             jmp b1(v9)
         }
         ";
 
-        let mut ssa = Ssa::from_str(src).unwrap();
-        let main = ssa.main_mut();
+        let ssa = Ssa::from_str(src).unwrap();
+        let main = ssa.main();
 
         let instructions = main.dfg[main.entry_block()].instructions();
         assert_eq!(instructions.len(), 0); // The final return is not counted
 
         let expected = "
         brillig(inline) fn main f0 {
-          b0(v0: u32, v1: u32):
+          b0(v0: i32, v1: i32):
             v3 = mul v0, v1
             v4 = mul v3, v0
-            v6 = eq v4, u32 12
-            jmp b1(u32 0)
-          b1(v2: u32):
-            v9 = lt v2, u32 4
+            v6 = eq v4, i32 12
+            jmp b1(i32 0)
+          b1(v2: i32):
+            v9 = lt v2, i32 4
             jmpif v9 then: b3, else: b2
           b2():
             return
           b3():
-            constrain v4 == u32 12
-            v11 = add v2, u32 1
+            constrain v4 == i32 12
+            v11 = add v2, i32 1
             jmp b1(v11)
         }
         ";
@@ -445,8 +488,8 @@ mod test {
         }
         ";
 
-        let mut ssa = Ssa::from_str(src).unwrap();
-        let main = ssa.main_mut();
+        let ssa = Ssa::from_str(src).unwrap();
+        let main = ssa.main();
 
         let instructions = main.dfg[main.entry_block()].instructions();
         assert_eq!(instructions.len(), 4); // The final return is not counted
@@ -553,6 +596,96 @@ mod test {
             constrain v15 == v0
             v19 = add v4, u32 1
             jmp b7(v19)
+        }
+        ";
+
+        let ssa = ssa.loop_invariant_code_motion();
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn insert_inc_rc_when_moving_make_array() {
+        // SSA for the following program:
+        //
+        // unconstrained fn main(x: u32, y: u32) {
+        //   let mut a1 = [1, 2, 3, 4, 5];
+        //   a1[x] = 64;
+        //   for i in 0 .. 5 {
+        //       let mut a2 = [1, 2, 3, 4, 5];
+        //       a2[y + i] = 128;
+        //       foo(a2);
+        //   }
+        //   foo(a1);
+        // }
+        //
+        // We want to make sure move a loop invariant make_array instruction,
+        // to account for whether that array has been marked as mutable.
+        // To do so, we increment the reference counter on the array we are moving.
+        // In the SSA below, we want to move `v42` out of the loop.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            v8 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5] : [Field; 5]
+            v9 = allocate -> &mut [Field; 5]
+            v11 = array_set v8, index v0, value Field 64
+            v13 = add v0, u32 1
+            store v11 at v9
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v16 = lt v2, u32 5
+            jmpif v16 then: b3, else: b2
+          b2():
+            v17 = load v9 -> [Field; 5]
+            call f1(v17)
+            return
+          b3():
+            v19 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5] : [Field; 5]
+            v20 = allocate -> &mut [Field; 5]
+            v21 = add v1, v2
+            v23 = array_set v19, index v21, value Field 128
+            call f1(v23)
+            v25 = add v2, u32 1
+            jmp b1(v25)
+        }
+        brillig(inline) fn foo f1 {
+          b0(v0: [Field; 5]):
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        // We expect the `make_array` at the top of `b3` to be replaced with an `inc_rc`
+        // of the newly hoisted `make_array` at the end of `b0`.
+        let expected = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            v8 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5] : [Field; 5]
+            v9 = allocate -> &mut [Field; 5]
+            v11 = array_set v8, index v0, value Field 64
+            v13 = add v0, u32 1
+            store v11 at v9
+            v14 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5] : [Field; 5]
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v17 = lt v2, u32 5
+            jmpif v17 then: b3, else: b2
+          b2():
+            v18 = load v9 -> [Field; 5]
+            call f1(v18)
+            return
+          b3():
+            inc_rc v14
+            v20 = allocate -> &mut [Field; 5]
+            v21 = add v1, v2
+            v23 = array_set v14, index v21, value Field 128
+            call f1(v23)
+            v25 = add v2, u32 1
+            jmp b1(v25)
+        }
+        brillig(inline) fn foo f1 {
+          b0(v0: [Field; 5]):
+            return
         }
         ";
 

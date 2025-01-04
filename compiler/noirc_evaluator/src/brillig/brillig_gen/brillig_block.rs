@@ -7,8 +7,8 @@ use crate::brillig::brillig_ir::registers::Stack;
 use crate::brillig::brillig_ir::{
     BrilligBinaryOp, BrilligContext, ReservedRegisters, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
 };
-use crate::ssa::ir::dfg::CallStack;
-use crate::ssa::ir::instruction::ConstrainError;
+use crate::ssa::ir::call_stack::CallStack;
+use crate::ssa::ir::instruction::{ConstrainError, Hint};
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
     dfg::DataFlowGraph,
@@ -201,7 +201,7 @@ impl<'block> BrilligBlock<'block> {
     /// Converts an SSA instruction into a sequence of Brillig opcodes.
     fn convert_ssa_instruction(&mut self, instruction_id: InstructionId, dfg: &DataFlowGraph) {
         let instruction = &dfg[instruction_id];
-        self.brillig_context.set_call_stack(dfg.get_call_stack(instruction_id));
+        self.brillig_context.set_call_stack(dfg.get_instruction_call_stack(instruction_id));
 
         self.initialize_constants(
             &self.function_context.constant_allocation.allocated_at_location(
@@ -226,16 +226,14 @@ impl<'block> BrilligBlock<'block> {
                     dfg.get_numeric_constant_with_type(*rhs),
                 ) {
                     // If the constraint is of the form `x == u1 1` then we can simply constrain `x` directly
-                    (
-                        Some((constant, Type::Numeric(NumericType::Unsigned { bit_size: 1 }))),
-                        None,
-                    ) if constant == FieldElement::one() => {
+                    (Some((constant, NumericType::Unsigned { bit_size: 1 })), None)
+                        if constant == FieldElement::one() =>
+                    {
                         (self.convert_ssa_single_addr_value(*rhs, dfg), false)
                     }
-                    (
-                        None,
-                        Some((constant, Type::Numeric(NumericType::Unsigned { bit_size: 1 }))),
-                    ) if constant == FieldElement::one() => {
+                    (None, Some((constant, NumericType::Unsigned { bit_size: 1 })))
+                        if constant == FieldElement::one() =>
+                    {
                         (self.convert_ssa_single_addr_value(*lhs, dfg), false)
                     }
 
@@ -552,6 +550,10 @@ impl<'block> BrilligBlock<'block> {
                                 false,
                             );
                         }
+                        Intrinsic::Hint(Hint::BlackBox) => {
+                            let result_ids = dfg.instruction_results(instruction_id);
+                            self.convert_ssa_identity_call(arguments, dfg, result_ids);
+                        }
                         Intrinsic::BlackBox(bb_func) => {
                             // Slices are represented as a tuple of (length, slice contents).
                             // We must check the inputs to determine if there are slices
@@ -633,9 +635,7 @@ impl<'block> BrilligBlock<'block> {
                             let array = array.extract_register();
                             self.brillig_context.load_instruction(destination, array);
                         }
-                        Intrinsic::FromField
-                        | Intrinsic::AsField
-                        | Intrinsic::IsUnconstrained
+                        Intrinsic::IsUnconstrained
                         | Intrinsic::DerivePedersenGenerators
                         | Intrinsic::ApplyRangeConstraint
                         | Intrinsic::StrAsBytes
@@ -837,6 +837,7 @@ impl<'block> BrilligBlock<'block> {
                     self.brillig_context.deallocate_register(items_pointer);
                 }
             }
+            Instruction::Noop => (),
         };
 
         let dead_variables = self
@@ -872,6 +873,30 @@ impl<'block> BrilligBlock<'block> {
             )
         });
         self.brillig_context.codegen_call(func_id, &argument_variables, &return_variables);
+    }
+
+    /// Copy the input arguments to the results.
+    fn convert_ssa_identity_call(
+        &mut self,
+        arguments: &[ValueId],
+        dfg: &DataFlowGraph,
+        result_ids: &[ValueId],
+    ) {
+        let argument_variables =
+            vecmap(arguments, |argument_id| self.convert_ssa_value(*argument_id, dfg));
+
+        let return_variables = vecmap(result_ids, |result_id| {
+            self.variables.define_variable(
+                self.function_context,
+                self.brillig_context,
+                *result_id,
+                dfg,
+            )
+        });
+
+        for (src, dst) in argument_variables.into_iter().zip(return_variables) {
+            self.brillig_context.mov_instruction(dst.extract_register(), src.extract_register());
+        }
     }
 
     fn validate_array_index(
@@ -1257,8 +1282,8 @@ impl<'block> BrilligBlock<'block> {
         result_variable: SingleAddrVariable,
     ) {
         let binary_type = type_of_binary_operation(
-            dfg[binary.lhs].get_type(),
-            dfg[binary.rhs].get_type(),
+            dfg[binary.lhs].get_type().as_ref(),
+            dfg[binary.rhs].get_type().as_ref(),
             binary.operator,
         );
 
@@ -1588,7 +1613,7 @@ impl<'block> BrilligBlock<'block> {
 
                 self.brillig_context.const_instruction(
                     new_variable.extract_single_addr(),
-                    value_id.to_usize().into(),
+                    value_id.to_u32().into(),
                 );
                 new_variable
             }
@@ -1767,7 +1792,7 @@ impl<'block> BrilligBlock<'block> {
         dfg: &DataFlowGraph,
     ) -> BrilligVariable {
         let typ = dfg[result].get_type();
-        match typ {
+        match typ.as_ref() {
             Type::Numeric(_) => self.variables.define_variable(
                 self.function_context,
                 self.brillig_context,
@@ -1783,7 +1808,7 @@ impl<'block> BrilligBlock<'block> {
                     dfg,
                 );
                 let array = variable.extract_array();
-                self.allocate_foreign_call_result_array(typ, array);
+                self.allocate_foreign_call_result_array(typ.as_ref(), array);
 
                 variable
             }

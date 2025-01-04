@@ -2,7 +2,11 @@ use std::future::{self, Future};
 
 use crate::insert_all_files_for_workspace_into_file_manager;
 use async_lsp::{ErrorCode, ResponseError};
-use nargo::ops::{run_test, TestStatus};
+use nargo::{
+    foreign_calls::DefaultForeignCallBuilder,
+    ops::{run_test, TestStatus},
+    PrintOutput,
+};
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{check_crate, CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::hir::FunctionNameMatch;
@@ -84,11 +88,17 @@ fn on_test_run_request_inner(
                 &state.solver,
                 &mut context,
                 &test_function,
-                true,
-                None,
-                Some(workspace.root_dir.clone()),
-                Some(package.name.to_string()),
+                PrintOutput::Stdout,
                 &CompileOptions::default(),
+                |output, base| {
+                    DefaultForeignCallBuilder {
+                        output,
+                        resolver_url: None, // NB without this the root and package don't do anything.
+                        root_path: Some(workspace.root_dir.clone()),
+                        package_name: Some(package.name.to_string()),
+                    }
+                    .build_with_base(base)
+                },
             );
             let result = match test_result {
                 TestStatus::Pass => NargoTestRunResult {

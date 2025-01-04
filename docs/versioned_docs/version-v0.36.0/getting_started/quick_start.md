@@ -13,7 +13,7 @@ The easiest way to develop with Noir is using Nargo the CLI tool. It provides yo
 You can use `noirup` the installation script to quickly install and update Nargo:
 
 ```bash
-curl -L noirup.dev | bash
+curl -L https://raw.githubusercontent.com/noir-lang/noirup/refs/heads/main/install | bash
 noirup
 ```
 
@@ -30,7 +30,7 @@ You can use the `bbup` installation script to quickly install and update BB, Bar
 You can find the full list of proving backends compatible with Noir in Awesome Noir.
 
 ```bash
-curl -L bbup.dev | bash
+curl -L https://raw.githubusercontent.com/AztecProtocol/aztec-packages/refs/heads/master/barretenberg/bbup/install | bash
 bbup
 ```
 

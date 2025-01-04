@@ -3,6 +3,7 @@
 // The features being tested are array reads and writes
 fn main(x: [Field; 3]) {
     unsafe {
+        //@safety: testing context
         read_array(x);
         read_write_array(x);
     }

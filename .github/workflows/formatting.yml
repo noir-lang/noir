@@ -15,7 +15,7 @@ concurrency:
 jobs:
   clippy:
     name: cargo clippy
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
     env:
       RUSTFLAGS: -Dwarnings
@@ -25,7 +25,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.74.1
+        uses: dtolnay/rust-toolchain@1.75.0
         with:
           targets: x86_64-unknown-linux-gnu
           components: clippy, rustfmt
@@ -41,7 +41,7 @@ jobs:
 
   rustfmt:
     name: cargo fmt
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
     env:
       RUSTFLAGS: -Dwarnings
@@ -51,7 +51,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.74.1
+        uses: dtolnay/rust-toolchain@1.75.0
         with:
           targets: x86_64-unknown-linux-gnu
           components: clippy, rustfmt
@@ -67,7 +67,7 @@ jobs:
 
   eslint:
     name: eslint
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
 
     steps:
@@ -89,7 +89,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.74.1
+        uses: dtolnay/rust-toolchain@1.75.0
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -115,7 +115,7 @@ jobs:
   nargo_fmt:
     needs: [build-nargo]
     name: Nargo fmt
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
 
     steps:

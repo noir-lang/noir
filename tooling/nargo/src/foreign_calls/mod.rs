@@ -1,16 +1,16 @@
-use std::path::PathBuf;
+use acvm::{acir::brillig::ForeignCallResult, pwg::ForeignCallWaitInfo};
+use thiserror::Error;
 
-use acvm::{acir::brillig::ForeignCallResult, pwg::ForeignCallWaitInfo, AcirField};
-use mocker::MockForeignCallExecutor;
-use noirc_printable_type::ForeignCallError;
-use print::PrintForeignCallExecutor;
-use rand::Rng;
-use rpc::RPCForeignCallExecutor;
-use serde::{Deserialize, Serialize};
+pub mod layers;
+pub mod mocker;
+pub mod print;
 
-pub(crate) mod mocker;
-pub(crate) mod print;
-pub(crate) mod rpc;
+pub mod default;
+#[cfg(feature = "rpc")]
+pub mod rpc;
+pub use default::DefaultForeignCallBuilder;
+#[cfg(feature = "rpc")]
+pub use default::DefaultForeignCallExecutor;
 
 pub trait ForeignCallExecutor<F> {
     fn execute(
@@ -64,83 +64,20 @@ impl ForeignCall {
     }
 }
 
-#[derive(Debug, Default)]
-pub struct DefaultForeignCallExecutor<F> {
-    /// The executor for any [`ForeignCall::Print`] calls.
-    printer: Option<PrintForeignCallExecutor>,
-    mocker: MockForeignCallExecutor<F>,
-    external: Option<RPCForeignCallExecutor>,
-}
+#[derive(Debug, Error)]
+pub enum ForeignCallError {
+    #[error("No handler could be found for foreign call `{0}`")]
+    NoHandler(String),
 
-impl<F: Default> DefaultForeignCallExecutor<F> {
-    pub fn new(
-        show_output: bool,
-        resolver_url: Option<&str>,
-        root_path: Option<PathBuf>,
-        package_name: Option<String>,
-    ) -> Self {
-        let id = rand::thread_rng().gen();
-        let printer = if show_output { Some(PrintForeignCallExecutor) } else { None };
-        let external_resolver = resolver_url.map(|resolver_url| {
-            RPCForeignCallExecutor::new(resolver_url, id, root_path, package_name)
-        });
-        DefaultForeignCallExecutor {
-            printer,
-            mocker: MockForeignCallExecutor::default(),
-            external: external_resolver,
-        }
-    }
-}
+    #[error("Foreign call inputs needed for execution are missing")]
+    MissingForeignCallInputs,
 
-impl<F: AcirField + Serialize + for<'a> Deserialize<'a>> ForeignCallExecutor<F>
-    for DefaultForeignCallExecutor<F>
-{
-    fn execute(
-        &mut self,
-        foreign_call: &ForeignCallWaitInfo<F>,
-    ) -> Result<ForeignCallResult<F>, ForeignCallError> {
-        let foreign_call_name = foreign_call.function.as_str();
-        match ForeignCall::lookup(foreign_call_name) {
-            Some(ForeignCall::Print) => {
-                if let Some(printer) = &mut self.printer {
-                    printer.execute(foreign_call)
-                } else {
-                    Ok(ForeignCallResult::default())
-                }
-            }
-            Some(
-                ForeignCall::CreateMock
-                | ForeignCall::SetMockParams
-                | ForeignCall::GetMockLastParams
-                | ForeignCall::SetMockReturns
-                | ForeignCall::SetMockTimes
-                | ForeignCall::ClearMock,
-            ) => self.mocker.execute(foreign_call),
+    #[error("Could not parse PrintableType argument. {0}")]
+    ParsingError(#[from] serde_json::Error),
 
-            None => {
-                // First check if there's any defined mock responses for this foreign call.
-                match self.mocker.execute(foreign_call) {
-                    Err(ForeignCallError::NoHandler(_)) => (),
-                    response_or_error => return response_or_error,
-                };
+    #[error("Failed calling external resolver. {0}")]
+    ExternalResolverError(#[from] jsonrpsee::core::client::Error),
 
-                if let Some(external_resolver) = &mut self.external {
-                    // If the user has registered an external resolver then we forward any remaining oracle calls there.
-                    match external_resolver.execute(foreign_call) {
-                        Err(ForeignCallError::NoHandler(_)) => (),
-                        response_or_error => return response_or_error,
-                    };
-                }
-
-                // If all executors have no handler for the given foreign call then we cannot
-                // return a correct response to the ACVM. The best we can do is to return an empty response,
-                // this allows us to ignore any foreign calls which exist solely to pass information from inside
-                // the circuit to the environment (e.g. custom logging) as the execution will still be able to progress.
-                //
-                // We optimistically return an empty response for all oracle calls as the ACVM will error
-                // should a response have been required.
-                Ok(ForeignCallResult::default())
-            }
-        }
-    }
+    #[error("Assert message resolved after an unsatisfied constrain. {0}")]
+    ResolvedAssertMessage(String),
 }
