@@ -96,18 +96,6 @@ impl<T> Tree<T> {
         }
     }
 
-    /// Map mutably over this tree, mutating each leaf value within using the given function
-    pub(super) fn map_mut(&mut self, mut f: impl FnMut(&T) -> Tree<T>) {
-        self.map_mut_helper(&mut f);
-    }
-
-    fn map_mut_helper(&mut self, f: &mut impl FnMut(&T) -> Tree<T>) {
-        match self {
-            Tree::Branch(trees) => trees.iter_mut().for_each(|tree| tree.map_mut_helper(f)),
-            Tree::Leaf(value) => *self = f(value),
-        }
-    }
-
     /// Calls the given function on each leaf node, mapping this tree into a new one.
     ///
     /// Because the given function returns a Tree<U> rather than a U, it is possible

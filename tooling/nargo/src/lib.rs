@@ -172,6 +172,7 @@ pub fn parse_all(file_manager: &FileManager) -> ParsedFiles {
         .collect()
 }
 
+#[tracing::instrument(level = "trace", skip_all)]
 pub fn prepare_package<'file_manager, 'parsed_files>(
     file_manager: &'file_manager FileManager,
     parsed_files: &'parsed_files ParsedFiles,

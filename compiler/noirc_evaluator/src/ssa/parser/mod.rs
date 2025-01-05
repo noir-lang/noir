@@ -859,10 +859,6 @@ impl<'a> Parser<'a> {
         self.token.token() == &token
     }
 
-    fn at_keyword(&self, keyword: Keyword) -> bool {
-        self.at(Token::Keyword(keyword))
-    }
-
     fn newline_follows(&self) -> bool {
         self.lexer.newline_follows()
     }
