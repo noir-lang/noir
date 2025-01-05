@@ -71,6 +71,7 @@ notify-debouncer-full = "0.3.1"
 termion = "3.0.0"
 
 # Logs
+tracing.workspace = true
 tracing-subscriber.workspace = true
 tracing-appender = "0.2.3"
 clap_complete = "4.5.36"
