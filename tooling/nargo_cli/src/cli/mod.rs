@@ -164,7 +164,9 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         NargoCommand::GenerateCompletionScript(args) => generate_completion_script_cmd::run(args),
     }?;
 
-    lock_file.map(|lock| lock.unlock().expect("Failed to unlock Nargo.toml"));
+    if let Some(lock_file) = lock_file {
+        lock_file.unlock().expect("Failed to unlock Nargo.toml");
+    }
 
     Ok(())
 }
