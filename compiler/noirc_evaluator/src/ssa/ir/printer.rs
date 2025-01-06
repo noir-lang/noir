@@ -235,6 +235,7 @@ fn display_instruction_inner(
 
             writeln!(f, "] : {typ}")
         }
+        Instruction::Noop => writeln!(f, "no-op"),
     }
 }
 

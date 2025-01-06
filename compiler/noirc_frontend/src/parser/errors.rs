@@ -71,6 +71,8 @@ pub enum ParserErrorReason {
     PatternInTraitFunctionParameter,
     #[error("Patterns aren't allowed in a trait impl's associated constants")]
     PatternInAssociatedConstant,
+    #[error("Visibility is ignored on a trait method")]
+    TraitVisibilityIgnored,
     #[error("Visibility is ignored on a trait impl method")]
     TraitImplVisibilityIgnored,
     #[error("comptime keyword is deprecated")]
@@ -108,6 +110,8 @@ pub enum ParserErrorReason {
     WrongNumberOfAttributeArguments { name: String, min: usize, max: usize, found: usize },
     #[error("The `deprecated` attribute expects a string argument")]
     DeprecatedAttributeExpectsAStringArgument,
+    #[error("Unsafe block must start with a safety comment")]
+    MissingSafetyComment,
 }
 
 /// Represents a parsing error, or a parsing error in the making.
@@ -181,7 +185,8 @@ impl ParserError {
     }
 
     pub fn is_warning(&self) -> bool {
-        matches!(self.reason(), Some(ParserErrorReason::ExperimentalFeature(_)))
+        let diagnostic: Diagnostic = self.into();
+        diagnostic.is_warning()
     }
 }
 
@@ -258,6 +263,9 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                 ParserErrorReason::ExperimentalFeature(_) => {
                     Diagnostic::simple_warning(reason.to_string(), "".into(), error.span)
                 }
+                ParserErrorReason::TraitVisibilityIgnored => {
+                    Diagnostic::simple_warning(reason.to_string(), "".into(), error.span)
+                }
                 ParserErrorReason::TraitImplVisibilityIgnored => {
                     Diagnostic::simple_warning(reason.to_string(), "".into(), error.span)
                 }
@@ -270,6 +278,11 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                 ParserErrorReason::ExpectedMutAfterAmpersand { found } => Diagnostic::simple_error(
                     format!("Expected `mut` after `&`, found `{found}`"),
                     "Noir doesn't have immutable references, only mutable references".to_string(),
+                    error.span,
+                ),
+                ParserErrorReason::MissingSafetyComment => Diagnostic::simple_warning(
+                    "Missing Safety Comment".into(),
+                    "Unsafe block must start with a safety comment: //@safety".into(),
                     error.span,
                 ),
                 other => Diagnostic::simple_error(format!("{other}"), String::new(), error.span),

@@ -245,7 +245,7 @@ impl<'a> Parser<'a> {
 
         let noir_function = self.parse_function(
             attributes,
-            ItemVisibility::Public,
+            modifiers.visibility,
             modifiers.comptime.is_some(),
             modifiers.unconstrained.is_some(),
             true, // allow_self
@@ -482,7 +482,7 @@ mod tests {
             panic!("Expected function");
         };
         assert_eq!(function.def.name.to_string(), "foo");
-        assert_eq!(function.def.visibility, ItemVisibility::Public);
+        assert_eq!(function.def.visibility, ItemVisibility::Private);
     }
 
     #[test]

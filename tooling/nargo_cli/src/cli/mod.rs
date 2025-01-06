@@ -122,6 +122,7 @@ enum NargoCommand {
 }
 
 #[cfg(not(feature = "codegen-docs"))]
+#[tracing::instrument(level = "trace")]
 pub(crate) fn start_cli() -> eyre::Result<()> {
     let NargoCli { command, mut config } = NargoCli::parse();
 
