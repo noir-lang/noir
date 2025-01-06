@@ -11,6 +11,10 @@ pub mod ssa;
 
 pub use ssa::create_program;
 pub use ssa::ir::instruction::ErrorType;
+pub mod acir_instruction_builder;
+pub use acir_instruction_builder::{
+    InstructionArtifacts, VariableType, Variable
+};
 
 /// Trims leading whitespace from each line of the input string
 #[cfg(test)]

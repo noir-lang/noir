@@ -1,0 +1,12 @@
+[package]
+name = "ssa_test"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+noirc_evaluator = {path = "../"}
+serde = "1.0.214"
+serde_json = "1.0.120"
+flate2 = "1.0.35"
+clap = { version = "4.4.11", features = ["derive"] }
+[workspace]
