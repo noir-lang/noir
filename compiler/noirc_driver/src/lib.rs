@@ -590,10 +590,17 @@ pub fn compile_no_check(
     cached_program: Option<CompiledProgram>,
     force_compile: bool,
 ) -> Result<CompiledProgram, CompileError> {
+    let force_unconstrained = options.force_brillig;
+
     let program = if options.instrument_debug {
-        monomorphize_debug(main_function, &mut context.def_interner, &context.debug_instrumenter)?
+        monomorphize_debug(
+            main_function,
+            &mut context.def_interner,
+            &context.debug_instrumenter,
+            force_unconstrained,
+        )?
     } else {
-        monomorphize(main_function, &mut context.def_interner)?
+        monomorphize(main_function, &mut context.def_interner, force_unconstrained)?
     };
 
     if options.show_monomorphized {
@@ -632,7 +639,6 @@ pub fn compile_no_check(
             }
         },
         enable_brillig_logging: options.show_brillig,
-        force_brillig_output: options.force_brillig,
         print_codegen_timings: options.benchmark_codegen,
         expression_width: if options.bounded_codegen {
             options.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH)
