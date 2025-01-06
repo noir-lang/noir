@@ -4795,7 +4795,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "ssa_test"
+name = "ssa_verification"
 version = "1.0.0-beta.1"
 dependencies = [
  "clap",

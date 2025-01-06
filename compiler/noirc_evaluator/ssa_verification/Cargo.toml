@@ -1,5 +1,5 @@
 [package]
-name = "ssa_test"
+name = "ssa_verification"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true

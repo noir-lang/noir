@@ -8,17 +8,35 @@ use::noirc_evaluator::acir_instruction_builder::{
 };
 use clap::Parser;
 
+/// Command line arguments for the SSA test generator
 #[derive(Parser)]
-#[command(author, version, about, long_about = None)]
+#[command(
+    author, 
+    version, 
+    about = "Generates test artifacts for formally verifying SSA instructions and their conversion to ACIR",
+    long_about = "This tool generates test cases for various operations including:
+- Bitvector operations (up to 127 bits): add, sub, mul, mod, xor, and, div, eq, lt, not
+- Shift operations (32 and 64 bits): shl, shr  
+- Binary operations (32-bit): xor, and, or
+- Field operations: add, mul, div
+- Signed integer operations: div (126-bit)
+
+Each test case generates formatted SSA representation and serialized ACIR output.
+
+FLAGS:
+    -d, --dir <PATH>    Output directory for test artifacts [default: ../../../../../barretenberg/cpp/src/barretenberg/acir_formal_proofs/artifacts/]"
+)]
 struct Args {
+    /// Output directory path for the generated test artifacts
+    /// Defaults to the barretenberg acir formal proofs artifacts directory
     #[arg(short, long, default_value = "../../../../../barretenberg/cpp/src/barretenberg/acir_formal_proofs/artifacts/")]
     dir: String,
 }
 
 /// Decompresses gzipped data into a byte vector
-fn ungzip(compressed_data: Vec<u8>) -> Vec<u8> {
+fn ungzip(compressed_data: &[u8]) -> Vec<u8> {
     let mut decompressed_data: Vec<u8> = Vec::new();
-    let mut decoder = GzDecoder::new(&compressed_data[..]);
+    let mut decoder = GzDecoder::new(compressed_data);
     decoder.read_to_end(&mut decompressed_data).unwrap();
     return decompressed_data;
 }
@@ -35,12 +53,15 @@ fn save_to_file(data: &[u8], filename: &str) -> Result<(), std::io::Error> {
 /// Prints the formatted SSA for each artifact and saves the decompressed ACIR
 fn save_artifacts(all_artifacts: Vec<InstructionArtifacts>, dir: &str) {
     for artifacts in all_artifacts.iter() {
-        println!("{}", artifacts.formatted_ssa);
+        println!("{}\n{}", artifacts.instruction_name, artifacts.formatted_ssa);
         let filename = format!("{}{}{}", dir, artifacts.instruction_name, ".acir");
         let acir = &artifacts.serialized_acir;
-        match save_to_file(&ungzip(acir.clone()), &filename) {
+        match save_to_file(&ungzip(&acir), &filename) {
             Ok(_) => (),
-            Err(error) => println!("Error saving data: {}", error),
+            Err(error) => {
+                eprintln!("Error saving data: {}", error);
+                std::process::exit(1);
+            },
         }
     }
 }

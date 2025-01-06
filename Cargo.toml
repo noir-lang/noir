@@ -10,7 +10,7 @@ members = [
     "compiler/noirc_printable_type",
     "compiler/fm",
     "compiler/wasm",
-    "compiler/noirc_evaluator/ssa_test",
+    "compiler/noirc_evaluator/ssa_verification",
     # Crates related to tooling built on top of the Noir compiler
     "tooling/lsp",
     "tooling/debugger",
