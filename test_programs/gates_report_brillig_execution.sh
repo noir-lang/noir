@@ -8,8 +8,6 @@ excluded_dirs=(
   "double_verify_nested_proof" 
   "overlapping_dep_and_mod" 
   "comptime_println"
-  #  Takes a very long time to execute as large loops do not get simplified.
-  "regression_4709"
   #  bit sizes for bigint operation doesn't match up.
   "bigint"
   #  Expected to fail as test asserts on which runtime it is in.
@@ -40,6 +38,6 @@ done
 
 echo "]" >> Nargo.toml
 
-nargo info --profile-execution --json > gates_report_brillig_execution.json
+nargo info --profile-execution --json | jq -r ".programs[].functions = []" > gates_report_brillig_execution.json
 
 rm Nargo.toml

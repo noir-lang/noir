@@ -2,7 +2,7 @@
 name = "acvm"
 description = "The virtual machine that processes ACIR given a backend/proof system."
 # x-release-please-start-version
-version = "0.54.0"
+version = "1.0.0-beta.1"
 # x-release-please-end
 authors.workspace = true
 edition.workspace = true
@@ -14,11 +14,10 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
-num-bigint.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 serde.workspace = true
-
+fxhash.workspace = true
 acir.workspace = true
 brillig_vm.workspace = true
 acvm_blackbox_solver.workspace = true
@@ -26,11 +25,7 @@ acvm_blackbox_solver.workspace = true
 indexmap = "1.7.0"
 
 [features]
-bn254 = [
-    "acir/bn254",
-    "brillig_vm/bn254",
-    "acvm_blackbox_solver/bn254",
-]
+bn254 = ["acir/bn254", "brillig_vm/bn254", "acvm_blackbox_solver/bn254"]
 bls12_381 = [
     "acir/bls12_381",
     "brillig_vm/bls12_381",
@@ -38,8 +33,17 @@ bls12_381 = [
 ]
 
 [dev-dependencies]
-ark-bls12-381 = { version = "^0.4.0", default-features = false, features = ["curve"] }
+ark-bls12-381 = { version = "^0.5.0", default-features = false, features = [
+    "curve",
+] }
+ark-ff.workspace = true
 ark-bn254.workspace = true
 bn254_blackbox_solver.workspace = true
 proptest.workspace = true
+num-bigint.workspace = true
 zkhash = { version = "^0.2.0", default-features = false }
+
+ark-bn254-v04 = { package = "ark-bn254", version = "^0.4.0", default-features = false, features = [
+    "curve",
+] }
+ark-ff-v04 = {  package = "ark-ff", version = "^0.4.0", default-features = false }

@@ -1,5 +1,4 @@
 use std::fmt::Display;
-use std::sync::atomic::{AtomicU32, Ordering};
 
 use acvm::acir::AcirField;
 use acvm::FieldElement;
@@ -26,6 +25,9 @@ use crate::token::{SecondaryAttribute, Token};
 /// should also check for this ident to avoid issuing multiple errors
 /// for an identifier that already failed to parse.
 pub const ERROR_IDENT: &str = "$error";
+
+/// This is used to represent an UnresolvedTypeData::Unspecified in a Path
+pub const WILDCARD_TYPE: &str = "_";
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Statement {
@@ -151,6 +153,7 @@ impl StatementKind {
             r#type,
             expression,
             comptime: false,
+            is_global_let: false,
             attributes,
         })
     }
@@ -483,6 +486,10 @@ impl Path {
         self.segments.first().cloned().map(|segment| segment.ident)
     }
 
+    pub(crate) fn is_wildcard(&self) -> bool {
+        self.to_ident().map(|ident| ident.0.contents) == Some(WILDCARD_TYPE.to_string())
+    }
+
     pub fn is_empty(&self) -> bool {
         self.segments.is_empty() && self.kind == PathKind::Plain
     }
@@ -555,6 +562,7 @@ pub struct LetStatement {
 
     // True if this should only be run during compile-time
     pub comptime: bool,
+    pub is_global_let: bool,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -832,10 +840,9 @@ impl ForRange {
         block: Expression,
         for_loop_span: Span,
     ) -> Statement {
-        /// Counter used to generate unique names when desugaring
-        /// code in the parser requires the creation of fresh variables.
-        /// The parser is stateless so this is a static global instead.
-        static UNIQUE_NAME_COUNTER: AtomicU32 = AtomicU32::new(0);
+        // Counter used to generate unique names when desugaring
+        // code in the parser requires the creation of fresh variables.
+        let mut unique_name_counter: u32 = 0;
 
         match self {
             ForRange::Range(..) => {
@@ -846,7 +853,8 @@ impl ForRange {
                 let start_range = ExpressionKind::integer(FieldElement::zero());
                 let start_range = Expression::new(start_range, array_span);
 
-                let next_unique_id = UNIQUE_NAME_COUNTER.fetch_add(1, Ordering::Relaxed);
+                let next_unique_id = unique_name_counter;
+                unique_name_counter += 1;
                 let array_name = format!("$i{next_unique_id}");
                 let array_span = array.span;
                 let array_ident = Ident::new(array_name, array_span);
@@ -879,7 +887,7 @@ impl ForRange {
                 }));
                 let end_range = Expression::new(end_range, array_span);
 
-                let next_unique_id = UNIQUE_NAME_COUNTER.fetch_add(1, Ordering::Relaxed);
+                let next_unique_id = unique_name_counter;
                 let index_name = format!("$i{next_unique_id}");
                 let fresh_identifier = Ident::new(index_name.clone(), array_span);
 

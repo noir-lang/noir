@@ -18,14 +18,17 @@ struct Test {
     v: Field,
 }
 global VALS: [Test; 1] = [Test { v: 100 }];
-global NESTED = [VALS, VALS];
+global NESTED: [[Test; 1]; 2] = [VALS, VALS];
 
 unconstrained fn calculate_global_value() -> Field {
     42
 }
 
 // Regression test for https://github.com/noir-lang/noir/issues/4318
-global CALCULATED_GLOBAL: Field = unsafe { calculate_global_value() };
+global CALCULATED_GLOBAL: Field = unsafe {
+    //@safety: testing context
+    calculate_global_value()
+};
 
 fn main(
     a: [Field; M + N - N],
@@ -121,4 +124,4 @@ impl Bar {
 }
 
 // Regression for #1440
-global foo = Foo { a: Bar::get_a() };
+global foo: Foo = Foo { a: Bar::get_a() };

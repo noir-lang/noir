@@ -67,12 +67,16 @@ impl DebugInstrumenter {
         self.insert_state_set_oracle(module, 8);
     }
 
-    fn insert_var(&mut self, var_name: &str) -> SourceVarId {
+    fn insert_var(&mut self, var_name: &str) -> Option<SourceVarId> {
+        if var_name == "_" {
+            return None;
+        }
+
         let var_id = SourceVarId(self.next_var_id);
         self.next_var_id += 1;
         self.variables.insert(var_id, var_name.to_string());
         self.scope.last_mut().unwrap().insert(var_name.to_string(), var_id);
-        var_id
+        Some(var_id)
     }
 
     fn lookup_var(&self, var_name: &str) -> Option<SourceVarId> {
@@ -107,9 +111,9 @@ impl DebugInstrumenter {
             .flat_map(|param| {
                 pattern_vars(&param.pattern)
                     .iter()
-                    .map(|(id, _is_mut)| {
-                        let var_id = self.insert_var(&id.0.contents);
-                        build_assign_var_stmt(var_id, id_expr(id))
+                    .filter_map(|(id, _is_mut)| {
+                        let var_id = self.insert_var(&id.0.contents)?;
+                        Some(build_assign_var_stmt(var_id, id_expr(id)))
                     })
                     .collect::<Vec<_>>()
             })
@@ -225,13 +229,28 @@ impl DebugInstrumenter {
                 }
             })
             .collect();
-        let vars_exprs: Vec<ast::Expression> = vars.iter().map(|(id, _)| id_expr(id)).collect();
+        let vars_exprs: Vec<ast::Expression> = vars
+            .iter()
+            .map(|(id, _)| {
+                // We don't want to generate an expression to read from "_".
+                // And since this expression is going to be assigned to "_" so it doesn't matter
+                // what it is, we can use `()` for it.
+                if id.0.contents == "_" {
+                    ast::Expression {
+                        kind: ast::ExpressionKind::Literal(ast::Literal::Unit),
+                        span: id.span(),
+                    }
+                } else {
+                    id_expr(id)
+                }
+            })
+            .collect();
 
         let mut block_stmts =
             vec![ast::Statement { kind: ast::StatementKind::Let(let_stmt.clone()), span: *span }];
-        block_stmts.extend(vars.iter().map(|(id, _)| {
-            let var_id = self.insert_var(&id.0.contents);
-            build_assign_var_stmt(var_id, id_expr(id))
+        block_stmts.extend(vars.iter().filter_map(|(id, _)| {
+            let var_id = self.insert_var(&id.0.contents)?;
+            Some(build_assign_var_stmt(var_id, id_expr(id)))
         }));
         block_stmts.push(ast::Statement {
             kind: ast::StatementKind::Expression(ast::Expression {
@@ -422,21 +441,31 @@ impl DebugInstrumenter {
         let var_name = &for_stmt.identifier.0.contents;
         let var_id = self.insert_var(var_name);
 
-        let set_stmt = build_assign_var_stmt(var_id, id_expr(&for_stmt.identifier));
-        let drop_stmt = build_drop_var_stmt(var_id, Span::empty(for_stmt.span.end()));
+        let set_and_drop_stmt = var_id.map(|var_id| {
+            (
+                build_assign_var_stmt(var_id, id_expr(&for_stmt.identifier)),
+                build_drop_var_stmt(var_id, Span::empty(for_stmt.span.end())),
+            )
+        });
 
         self.walk_expr(&mut for_stmt.block);
+
+        let mut statements = Vec::new();
+        let block_statement = ast::Statement {
+            kind: ast::StatementKind::Semi(for_stmt.block.clone()),
+            span: for_stmt.block.span,
+        };
+
+        if let Some((set_stmt, drop_stmt)) = set_and_drop_stmt {
+            statements.push(set_stmt);
+            statements.push(block_statement);
+            statements.push(drop_stmt);
+        } else {
+            statements.push(block_statement);
+        }
+
         for_stmt.block = ast::Expression {
-            kind: ast::ExpressionKind::Block(ast::BlockExpression {
-                statements: vec![
-                    set_stmt,
-                    ast::Statement {
-                        kind: ast::StatementKind::Semi(for_stmt.block.clone()),
-                        span: for_stmt.block.span,
-                    },
-                    drop_stmt,
-                ],
-            }),
+            kind: ast::ExpressionKind::Block(ast::BlockExpression { statements }),
             span: for_stmt.span,
         };
     }
@@ -494,7 +523,9 @@ pub fn build_debug_crate_file() -> String {
                 __debug_var_assign_oracle(var_id, value);
             }
             pub fn __debug_var_assign<T>(var_id: u32, value: T) {
-                unsafe {{
+                unsafe {
+                //@safety: debug context
+                {
                     __debug_var_assign_inner(var_id, value);
                 }}
             }
@@ -505,7 +536,9 @@ pub fn build_debug_crate_file() -> String {
                 __debug_var_drop_oracle(var_id);
             }
             pub fn __debug_var_drop(var_id: u32) {
-                unsafe {{
+                unsafe {
+                //@safety: debug context
+                {
                     __debug_var_drop_inner(var_id);
                 }}
             }
@@ -516,7 +549,9 @@ pub fn build_debug_crate_file() -> String {
                 __debug_fn_enter_oracle(fn_id);
             }
             pub fn __debug_fn_enter(fn_id: u32) {
-                unsafe {{
+                unsafe {
+                //@safety: debug context
+                {
                     __debug_fn_enter_inner(fn_id);
                 }}
             }
@@ -527,7 +562,9 @@ pub fn build_debug_crate_file() -> String {
                 __debug_fn_exit_oracle(fn_id);
             }
             pub fn __debug_fn_exit(fn_id: u32) {
-                unsafe {{
+                unsafe {
+                //@safety: debug context
+                {
                     __debug_fn_exit_inner(fn_id);
                 }}
             }
@@ -538,7 +575,9 @@ pub fn build_debug_crate_file() -> String {
                 __debug_dereference_assign_oracle(var_id, value);
             }
             pub fn __debug_dereference_assign<T>(var_id: u32, value: T) {
-                unsafe {{
+                unsafe {
+                //@safety: debug context
+                {
                     __debug_dereference_assign_inner(var_id, value);
                 }}
             }
@@ -565,6 +604,7 @@ pub fn build_debug_crate_file() -> String {
                 }}
                 pub fn __debug_member_assign_{n}<T, Index>(var_id: u32, value: T, {var_sig}) {{
                     unsafe {{
+                        //@safety: debug context
                         __debug_inner_member_assign_{n}(var_id, value, {vars});
                     }}
                 }}

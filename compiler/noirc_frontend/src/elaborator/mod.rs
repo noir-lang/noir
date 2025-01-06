@@ -4,8 +4,8 @@ use std::{
 };
 
 use crate::{
-    ast::ItemVisibility, hir_def::traits::ResolvedTraitBound, usage_tracker::UsageTracker,
-    StructField, StructType, TypeBindings,
+    ast::ItemVisibility, graph::CrateGraph, hir_def::traits::ResolvedTraitBound,
+    node_interner::GlobalValue, usage_tracker::UsageTracker, StructField, StructType, TypeBindings,
 };
 use crate::{
     ast::{
@@ -79,6 +79,16 @@ pub struct LambdaContext {
     pub scope_index: usize,
 }
 
+/// Determines whether we are in an unsafe block and, if so, whether
+/// any unconstrained calls were found in it (because if not we'll warn
+/// that the unsafe block is not needed).
+#[derive(Copy, Clone)]
+enum UnsafeBlockStatus {
+    NotInUnsafeBlock,
+    InUnsafeBlockWithoutUnconstrainedCalls,
+    InUnsafeBlockWithConstrainedCalls,
+}
+
 pub struct Elaborator<'context> {
     scopes: ScopeForest,
 
@@ -87,10 +97,11 @@ pub struct Elaborator<'context> {
     pub(crate) interner: &'context mut NodeInterner,
     pub(crate) def_maps: &'context mut DefMaps,
     pub(crate) usage_tracker: &'context mut UsageTracker,
+    pub(crate) crate_graph: &'context CrateGraph,
 
     pub(crate) file: FileId,
 
-    in_unsafe_block: bool,
+    unsafe_block_status: UnsafeBlockStatus,
     nested_loops: usize,
 
     /// Contains a mapping of the current struct or functions's generics to
@@ -164,6 +175,12 @@ pub struct Elaborator<'context> {
     unresolved_globals: BTreeMap<GlobalId, UnresolvedGlobal>,
 
     pub(crate) interpreter_call_stack: im::Vector<Location>,
+
+    /// If greater than 0, field visibility errors won't be reported.
+    /// This is used when elaborating a comptime expression that is a struct constructor
+    /// like `Foo { inner: 5 }`: in that case we already elaborated the code that led to
+    /// that comptime value and any visibility errors were already reported.
+    silence_field_visibility_errors: usize,
 }
 
 #[derive(Default)]
@@ -185,6 +202,7 @@ impl<'context> Elaborator<'context> {
         interner: &'context mut NodeInterner,
         def_maps: &'context mut DefMaps,
         usage_tracker: &'context mut UsageTracker,
+        crate_graph: &'context CrateGraph,
         crate_id: CrateId,
         debug_comptime_in_file: Option<FileId>,
         interpreter_call_stack: im::Vector<Location>,
@@ -195,8 +213,9 @@ impl<'context> Elaborator<'context> {
             interner,
             def_maps,
             usage_tracker,
+            crate_graph,
             file: FileId::dummy(),
-            in_unsafe_block: false,
+            unsafe_block_status: UnsafeBlockStatus::NotInUnsafeBlock,
             nested_loops: 0,
             generics: Vec::new(),
             lambda_stack: Vec::new(),
@@ -213,6 +232,7 @@ impl<'context> Elaborator<'context> {
             current_trait: None,
             interpreter_call_stack,
             in_comptime_context: false,
+            silence_field_visibility_errors: 0,
         }
     }
 
@@ -225,6 +245,7 @@ impl<'context> Elaborator<'context> {
             &mut context.def_interner,
             &mut context.def_maps,
             &mut context.usage_tracker,
+            &context.crate_graph,
             crate_id,
             debug_comptime_in_file,
             im::Vector::new(),
@@ -300,22 +321,12 @@ impl<'context> Elaborator<'context> {
 
         // We have to run any comptime attributes on functions before the function is elaborated
         // since the generated items are checked beforehand as well.
-        let generated_items = self.run_attributes(
+        self.run_attributes(
             &items.traits,
             &items.types,
             &items.functions,
             &items.module_attributes,
         );
-
-        // After everything is collected, we can elaborate our generated items.
-        // It may be better to inline these within `items` entirely since elaborating them
-        // all here means any globals will not see these. Inlining them completely within `items`
-        // means we must be more careful about missing any additional items that need to be already
-        // elaborated. E.g. if a new struct is created, we've already passed the code path to
-        // elaborate them.
-        if !generated_items.is_empty() {
-            self.elaborate_items(generated_items);
-        }
 
         for functions in items.functions {
             self.elaborate_functions(functions);
@@ -433,6 +444,9 @@ impl<'context> Elaborator<'context> {
         // so we need to reintroduce the same IDs into scope here.
         for parameter in &func_meta.parameter_idents {
             let name = self.interner.definition_name(parameter.id).to_owned();
+            if name == "_" {
+                continue;
+            }
             let warn_if_unused = !(func_meta.trait_impl.is_some() && name == "self");
             self.add_existing_variable_to_scope(name, parameter.clone(), warn_if_unused);
         }
@@ -443,7 +457,7 @@ impl<'context> Elaborator<'context> {
             FunctionKind::Builtin | FunctionKind::LowLevel | FunctionKind::Oracle => {
                 (HirFunction::empty(), Type::Error)
             }
-            FunctionKind::Normal | FunctionKind::Recursive => {
+            FunctionKind::Normal => {
                 let (block, body_type) = self.elaborate_block(body);
                 let expr_id = self.intern_expr(block, body_span);
                 self.interner.push_expr_type(expr_id, body_type.clone());
@@ -476,7 +490,7 @@ impl<'context> Elaborator<'context> {
         }
 
         // Check that the body can return without calling the function.
-        if let FunctionKind::Normal | FunctionKind::Recursive = kind {
+        if let FunctionKind::Normal = kind {
             self.run_lint(|elaborator| {
                 lints::unbounded_recursion(
                     elaborator.interner,
@@ -930,9 +944,6 @@ impl<'context> Elaborator<'context> {
             lints::low_level_function_outside_stdlib(func, modifiers, elaborator.crate_id)
                 .map(Into::into)
         });
-        self.run_lint(|_| {
-            lints::recursive_non_entrypoint_function(func, modifiers).map(Into::into)
-        });
     }
 
     /// Only sized types are valid to be used as main's parameters or the parameters to a contract
@@ -1232,7 +1243,7 @@ impl<'context> Elaborator<'context> {
             self.file = unresolved.file_id;
             let old_generic_count = self.generics.len();
             self.add_generics(generics);
-            self.declare_methods_on_struct(false, unresolved, *span);
+            self.declare_methods_on_struct(None, unresolved, *span);
             self.generics.truncate(old_generic_count);
         }
     }
@@ -1262,7 +1273,7 @@ impl<'context> Elaborator<'context> {
             self.collect_trait_impl_methods(trait_id, trait_impl, &where_clause);
 
             let span = trait_impl.object_type.span;
-            self.declare_methods_on_struct(true, &mut trait_impl.methods, span);
+            self.declare_methods_on_struct(Some(trait_id), &mut trait_impl.methods, span);
 
             let methods = trait_impl.methods.function_ids();
             for func_id in &methods {
@@ -1321,7 +1332,7 @@ impl<'context> Elaborator<'context> {
 
     fn declare_methods_on_struct(
         &mut self,
-        is_trait_impl: bool,
+        trait_id: Option<TraitId>,
         functions: &mut UnresolvedFunctions,
         span: Span,
     ) {
@@ -1335,7 +1346,7 @@ impl<'context> Elaborator<'context> {
             let struct_ref = struct_type.borrow();
 
             // `impl`s are only allowed on types defined within the current crate
-            if !is_trait_impl && struct_ref.id.krate() != self.crate_id {
+            if trait_id.is_none() && struct_ref.id.krate() != self.crate_id {
                 let type_name = struct_ref.name.to_string();
                 self.push_err(DefCollectorErrorKind::ForeignImpl { span, type_name });
                 return;
@@ -1352,7 +1363,12 @@ impl<'context> Elaborator<'context> {
                 // object types in each method overlap or not. If they do, we issue an error.
                 // If not, that is specialization which is allowed.
                 let name = method.name_ident().clone();
-                if module.declare_function(name, method.def.visibility, *method_id).is_err() {
+                let result = if let Some(trait_id) = trait_id {
+                    module.declare_trait_function(name, *method_id, trait_id)
+                } else {
+                    module.declare_function(name, method.def.visibility, *method_id)
+                };
+                if result.is_err() {
                     let existing = module.find_func_with_name(method.name_ident()).expect(
                         "declare_function should only error if there is an existing function",
                     );
@@ -1367,14 +1383,14 @@ impl<'context> Elaborator<'context> {
             }
 
             // Trait impl methods are already declared in NodeInterner::add_trait_implementation
-            if !is_trait_impl {
+            if trait_id.is_none() {
                 self.declare_methods(self_type, &function_ids);
             }
         // We can define methods on primitive types only if we're in the stdlib
-        } else if !is_trait_impl && *self_type != Type::Error {
+        } else if trait_id.is_none() && *self_type != Type::Error {
             if self.crate_id.is_stdlib() {
                 // Trait impl methods are already declared in NodeInterner::add_trait_implementation
-                if !is_trait_impl {
+                if trait_id.is_none() {
                     self.declare_methods(self_type, &function_ids);
                 }
             } else {
@@ -1655,20 +1671,13 @@ impl<'context> Elaborator<'context> {
             self.push_err(ResolverError::MutableGlobal { span });
         }
 
-        let comptime = let_stmt.comptime;
-
-        let (let_statement, _typ) = if comptime {
-            self.elaborate_in_comptime_context(|this| this.elaborate_let(let_stmt, Some(global_id)))
-        } else {
-            self.elaborate_let(let_stmt, Some(global_id))
-        };
+        let (let_statement, _typ) = self
+            .elaborate_in_comptime_context(|this| this.elaborate_let(let_stmt, Some(global_id)));
 
         let statement_id = self.interner.get_global(global_id).let_statement;
         self.interner.replace_statement(statement_id, let_statement);
 
-        if comptime {
-            self.elaborate_comptime_global(global_id);
-        }
+        self.elaborate_comptime_global(global_id);
 
         if let Some(name) = name {
             self.interner.register_global(global_id, name, global.visibility, self.module_id());
@@ -1699,7 +1708,17 @@ impl<'context> Elaborator<'context> {
 
             self.debug_comptime(location, |interner| value.display(interner).to_string());
 
-            self.interner.get_global_mut(global_id).value = Some(value);
+            self.interner.get_global_mut(global_id).value = GlobalValue::Resolved(value);
+        }
+    }
+
+    /// If the given global is unresolved, elaborate it and return true
+    fn elaborate_global_if_unresolved(&mut self, global_id: &GlobalId) -> bool {
+        if let Some(global) = self.unresolved_globals.remove(global_id) {
+            self.elaborate_global(global);
+            true
+        } else {
+            false
         }
     }
 

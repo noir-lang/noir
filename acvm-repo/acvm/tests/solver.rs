@@ -24,7 +24,6 @@ use proptest::arbitrary::any;
 use proptest::prelude::*;
 use proptest::result::maybe_ok;
 use proptest::sample::select;
-use zkhash::poseidon2::poseidon2_params::Poseidon2Params;
 
 #[test]
 fn bls12_381_circuit() {
@@ -77,13 +76,6 @@ fn inversion_brillig_oracle_equivalence() {
     let w_x_plus_y = Witness(6);
     let w_equal_res = Witness(7);
 
-    let equal_opcode = BrilligOpcode::BinaryFieldOp {
-        op: BinaryFieldOp::Equals,
-        lhs: MemoryAddress::direct(0),
-        rhs: MemoryAddress::direct(1),
-        destination: MemoryAddress::direct(2),
-    };
-
     let opcodes = vec![
         Opcode::BrilligCall {
             id: BrilligFunctionId(0),
@@ -122,22 +114,38 @@ fn inversion_brillig_oracle_equivalence() {
         }),
     ];
 
+    let equal_opcode = BrilligOpcode::BinaryFieldOp {
+        op: BinaryFieldOp::Equals,
+        lhs: MemoryAddress::direct(0),
+        rhs: MemoryAddress::direct(1),
+        destination: MemoryAddress::direct(2),
+    };
+
+    let zero_usize = MemoryAddress::direct(3);
+    let two_usize = MemoryAddress::direct(4);
+    let three_usize = MemoryAddress::direct(5);
+
     let brillig_bytecode = BrilligBytecode {
         bytecode: vec![
             BrilligOpcode::Const {
-                destination: MemoryAddress::direct(0),
+                destination: zero_usize,
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(0u64),
+            },
+            BrilligOpcode::Const {
+                destination: two_usize,
                 bit_size: BitSize::Integer(IntegerBitSize::U32),
                 value: FieldElement::from(2u64),
             },
             BrilligOpcode::Const {
-                destination: MemoryAddress::direct(1),
+                destination: three_usize,
                 bit_size: BitSize::Integer(IntegerBitSize::U32),
-                value: FieldElement::from(0u64),
+                value: FieldElement::from(3u64),
             },
             BrilligOpcode::CalldataCopy {
                 destination_address: MemoryAddress::direct(0),
-                size_address: MemoryAddress::direct(0),
-                offset_address: MemoryAddress::direct(1),
+                size_address: two_usize,
+                offset_address: zero_usize,
             },
             equal_opcode,
             // Oracles are named 'foreign calls' in brillig
@@ -148,7 +156,9 @@ fn inversion_brillig_oracle_equivalence() {
                 inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::direct(0))],
                 input_value_types: vec![HeapValueType::field()],
             },
-            BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 3 },
+            BrilligOpcode::Stop {
+                return_data: HeapVector { pointer: zero_usize, size: three_usize },
+            },
         ],
     };
 
@@ -216,13 +226,6 @@ fn double_inversion_brillig_oracle() {
     let w_ij_oracle = Witness(10);
     let w_i_plus_j = Witness(11);
 
-    let equal_opcode = BrilligOpcode::BinaryFieldOp {
-        op: BinaryFieldOp::Equals,
-        lhs: MemoryAddress::direct(0),
-        rhs: MemoryAddress::direct(1),
-        destination: MemoryAddress::direct(4),
-    };
-
     let opcodes = vec![
         Opcode::BrilligCall {
             id: BrilligFunctionId(0),
@@ -268,22 +271,38 @@ fn double_inversion_brillig_oracle() {
         }),
     ];
 
+    let zero_usize = MemoryAddress::direct(5);
+    let three_usize = MemoryAddress::direct(6);
+    let five_usize = MemoryAddress::direct(7);
+
+    let equal_opcode = BrilligOpcode::BinaryFieldOp {
+        op: BinaryFieldOp::Equals,
+        lhs: MemoryAddress::direct(0),
+        rhs: MemoryAddress::direct(1),
+        destination: MemoryAddress::direct(4),
+    };
+
     let brillig_bytecode = BrilligBytecode {
         bytecode: vec![
             BrilligOpcode::Const {
-                destination: MemoryAddress::direct(0),
+                destination: zero_usize,
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(0u64),
+            },
+            BrilligOpcode::Const {
+                destination: three_usize,
                 bit_size: BitSize::Integer(IntegerBitSize::U32),
                 value: FieldElement::from(3u64),
             },
             BrilligOpcode::Const {
-                destination: MemoryAddress::direct(1),
+                destination: five_usize,
                 bit_size: BitSize::Integer(IntegerBitSize::U32),
-                value: FieldElement::from(0u64),
+                value: FieldElement::from(5u64),
             },
             BrilligOpcode::CalldataCopy {
                 destination_address: MemoryAddress::direct(0),
-                size_address: MemoryAddress::direct(0),
-                offset_address: MemoryAddress::direct(1),
+                size_address: three_usize,
+                offset_address: zero_usize,
             },
             equal_opcode,
             // Oracles are named 'foreign calls' in brillig
@@ -301,7 +320,9 @@ fn double_inversion_brillig_oracle() {
                 inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::direct(2))],
                 input_value_types: vec![HeapValueType::field()],
             },
-            BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 5 },
+            BrilligOpcode::Stop {
+                return_data: HeapVector { pointer: zero_usize, size: five_usize },
+            },
         ],
     };
 
@@ -386,22 +407,31 @@ fn oracle_dependent_execution() {
     let w_x_inv = Witness(3);
     let w_y_inv = Witness(4);
 
+    let zero_usize = MemoryAddress::direct(4);
+    let three_usize = MemoryAddress::direct(5);
+    let four_usize = MemoryAddress::direct(6);
+
     let brillig_bytecode = BrilligBytecode {
         bytecode: vec![
             BrilligOpcode::Const {
-                destination: MemoryAddress::direct(0),
+                destination: zero_usize,
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(0u64),
+            },
+            BrilligOpcode::Const {
+                destination: three_usize,
                 bit_size: BitSize::Integer(IntegerBitSize::U32),
                 value: FieldElement::from(3u64),
             },
             BrilligOpcode::Const {
-                destination: MemoryAddress::direct(1),
+                destination: four_usize,
                 bit_size: BitSize::Integer(IntegerBitSize::U32),
-                value: FieldElement::from(0u64),
+                value: FieldElement::from(4u64),
             },
             BrilligOpcode::CalldataCopy {
                 destination_address: MemoryAddress::direct(0),
-                size_address: MemoryAddress::direct(0),
-                offset_address: MemoryAddress::direct(1),
+                size_address: three_usize,
+                offset_address: zero_usize,
             }, // Oracles are named 'foreign calls' in brillig
             BrilligOpcode::ForeignCall {
                 function: "invert".into(),
@@ -417,7 +447,9 @@ fn oracle_dependent_execution() {
                 inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::direct(2))],
                 input_value_types: vec![HeapValueType::field()],
             },
-            BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 4 },
+            BrilligOpcode::Stop {
+                return_data: HeapVector { pointer: zero_usize, size: four_usize },
+            },
         ],
     };
 
@@ -662,7 +694,7 @@ fn unsatisfied_opcode_resolved_brillig() {
     };
     // Jump pass the trap if the values are equal, else
     // jump to the trap
-    let location_of_stop = 3;
+    let location_of_stop = 7;
 
     let jmp_if_opcode =
         BrilligOpcode::JumpIf { condition: MemoryAddress::direct(2), location: location_of_stop };
@@ -673,7 +705,12 @@ fn unsatisfied_opcode_resolved_brillig() {
             size: MemoryAddress::direct(3),
         },
     };
-    let stop_opcode = BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 0 };
+    let stop_opcode = BrilligOpcode::Stop {
+        return_data: HeapVector {
+            pointer: MemoryAddress::direct(0),
+            size: MemoryAddress::direct(3),
+        },
+    };
 
     let brillig_bytecode = BrilligBytecode {
         bytecode: vec![
@@ -1164,12 +1201,30 @@ where
     fields.into_iter().map(|field| field.into_repr()).collect()
 }
 
-fn into_repr_mat<T, U>(fields: T) -> Vec<Vec<ark_bn254::Fr>>
+// fn into_repr_mat<T, U>(fields: T) -> Vec<Vec<ark_bn254::Fr>>
+// where
+//     T: IntoIterator<Item = U>,
+//     U: IntoIterator<Item = FieldElement>,
+// {
+//     fields.into_iter().map(|field| into_repr_vec(field)).collect()
+// }
+
+fn into_old_ark_field<T, U>(field: T) -> U
 where
-    T: IntoIterator<Item = U>,
-    U: IntoIterator<Item = FieldElement>,
+    T: AcirField,
+    U: ark_ff_v04::PrimeField,
 {
-    fields.into_iter().map(|field| into_repr_vec(field)).collect()
+    U::from_be_bytes_mod_order(&field.to_be_bytes())
+}
+
+fn into_new_ark_field<T, U>(field: T) -> U
+where
+    T: ark_ff_v04::PrimeField,
+    U: ark_ff::PrimeField,
+{
+    use zkhash::ark_ff::BigInteger;
+
+    U::from_be_bytes_mod_order(&field.into_bigint().to_bytes_be())
 }
 
 fn run_both_poseidon2_permutations(
@@ -1186,12 +1241,17 @@ fn run_both_poseidon2_permutations(
     let poseidon2_d = 5;
     let rounds_f = POSEIDON2_CONFIG.rounds_f as usize;
     let rounds_p = POSEIDON2_CONFIG.rounds_p as usize;
-    let mat_internal_diag_m_1 = into_repr_vec(POSEIDON2_CONFIG.internal_matrix_diagonal);
+    let mat_internal_diag_m_1: Vec<ark_bn254_v04::Fr> =
+        POSEIDON2_CONFIG.internal_matrix_diagonal.into_iter().map(into_old_ark_field).collect();
     let mat_internal = vec![];
-    let round_constants = into_repr_mat(POSEIDON2_CONFIG.round_constant);
+    let round_constants: Vec<Vec<ark_bn254_v04::Fr>> = POSEIDON2_CONFIG
+        .round_constant
+        .into_iter()
+        .map(|fields| fields.into_iter().map(into_old_ark_field).collect())
+        .collect();
 
-    let external_poseidon2 =
-        zkhash::poseidon2::poseidon2::Poseidon2::new(&Arc::new(Poseidon2Params::new(
+    let external_poseidon2 = zkhash::poseidon2::poseidon2::Poseidon2::new(&Arc::new(
+        zkhash::poseidon2::poseidon2_params::Poseidon2Params::new(
             poseidon2_t,
             poseidon2_d,
             rounds_f,
@@ -1199,11 +1259,16 @@ fn run_both_poseidon2_permutations(
             &mat_internal_diag_m_1,
             &mat_internal,
             &round_constants,
-        )));
+        ),
+    ));
 
-    let expected_result =
-        external_poseidon2.permutation(&into_repr_vec(drop_use_constant(&inputs)));
-    Ok((into_repr_vec(result), expected_result))
+    let expected_result = external_poseidon2.permutation(
+        &drop_use_constant(&inputs)
+            .into_iter()
+            .map(into_old_ark_field)
+            .collect::<Vec<ark_bn254_v04::Fr>>(),
+    );
+    Ok((into_repr_vec(result), expected_result.into_iter().map(into_new_ark_field).collect()))
 }
 
 // Using the given BigInt modulus, solve the following circuit:
@@ -1419,7 +1484,7 @@ fn poseidon2_permutation_zeroes() {
 #[test]
 fn sha256_compression_zeros() {
     let results = solve_array_input_blackbox_call(
-        [(FieldElement::zero(), false); 24].try_into().unwrap(),
+        [(FieldElement::zero(), false); 24].into(),
         8,
         None,
         sha256_compression_op,

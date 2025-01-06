@@ -86,7 +86,10 @@ impl Context {
                 let instruction = old_function.dfg[old_instruction_id]
                     .map_values(|value| self.new_ids.map_value(new_function, old_function, value));
 
-                let call_stack = old_function.dfg.get_call_stack(old_instruction_id);
+                let call_stack = old_function.dfg.get_instruction_call_stack_id(old_instruction_id);
+                let locations = old_function.dfg.get_call_stack(call_stack);
+                let new_call_stack =
+                    new_function.dfg.call_stack_data.get_or_insert_locations(locations);
                 let old_results = old_function.dfg.instruction_results(old_instruction_id);
 
                 let ctrl_typevars = instruction
@@ -97,7 +100,7 @@ impl Context {
                     instruction,
                     new_block_id,
                     ctrl_typevars,
-                    call_stack,
+                    new_call_stack,
                 );
 
                 assert_eq!(old_results.len(), new_results.len());
@@ -109,10 +112,15 @@ impl Context {
             }
 
             let old_block = &mut old_function.dfg[old_block_id];
-            let mut terminator = old_block
-                .take_terminator()
-                .map_values(|value| self.new_ids.map_value(new_function, old_function, value));
+            let mut terminator = old_block.take_terminator();
+            terminator
+                .map_values_mut(|value| self.new_ids.map_value(new_function, old_function, value));
+
             terminator.mutate_blocks(|old_block| self.new_ids.blocks[&old_block]);
+            let locations = old_function.dfg.get_call_stack(terminator.call_stack());
+            let new_call_stack =
+                new_function.dfg.call_stack_data.get_or_insert_locations(locations);
+            terminator.set_call_stack(new_call_stack);
             new_function.dfg.set_block_terminator(new_block_id, terminator);
         }
 
@@ -177,20 +185,7 @@ impl IdMaps {
             }
 
             Value::NumericConstant { constant, typ } => {
-                new_function.dfg.make_constant(*constant, typ.clone())
-            }
-            Value::Array { array, typ } => {
-                if let Some(value) = self.values.get(&old_value) {
-                    return *value;
-                }
-
-                let array = array
-                    .iter()
-                    .map(|value| self.map_value(new_function, old_function, *value))
-                    .collect();
-                let new_value = new_function.dfg.make_array(array, typ.clone());
-                self.values.insert(old_value, new_value);
-                new_value
+                new_function.dfg.make_constant(*constant, *typ)
             }
             Value::Intrinsic(intrinsic) => new_function.dfg.import_intrinsic(*intrinsic),
             Value::ForeignFunction(name) => new_function.dfg.import_foreign_function(name),

@@ -34,7 +34,7 @@ The current focus is to gather as much feedback as possible while in the alpha p
 
 ## Minimum Rust version
 
-This workspace's minimum supported rustc version is 1.74.1.
+This workspace's minimum supported rustc version is 1.75.0.
 
 ## License
 

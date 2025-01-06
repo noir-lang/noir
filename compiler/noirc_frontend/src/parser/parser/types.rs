@@ -15,7 +15,7 @@ impl<'a> Parser<'a> {
             typ
         } else {
             self.expected_label(ParsingRuleLabel::Type);
-            self.unspecified_type_at_previous_token_end()
+            UnresolvedTypeData::Error.with_span(self.span_at_previous_token_end())
         }
     }
 
@@ -341,7 +341,10 @@ impl<'a> Parser<'a> {
 
     fn parses_mutable_reference_type(&mut self) -> Option<UnresolvedTypeData> {
         if self.eat(Token::Ampersand) {
-            self.eat_keyword_or_error(Keyword::Mut);
+            if !self.eat_keyword(Keyword::Mut) {
+                self.expected_mut_after_ampersand();
+            }
+
             return Some(UnresolvedTypeData::MutableReference(Box::new(
                 self.parse_type_or_error(),
             )));
@@ -655,6 +658,14 @@ mod tests {
             panic!("Expected a function type")
         };
         assert!(unconstrained);
+    }
+
+    #[test]
+    fn parses_function_type_with_colon_in_parameter() {
+        let src = "fn(value: T) -> Field";
+        let mut parser = Parser::for_str(src);
+        let _ = parser.parse_type_or_error();
+        assert!(!parser.errors.is_empty());
     }
 
     #[test]

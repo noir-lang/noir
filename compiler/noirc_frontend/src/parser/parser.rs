@@ -5,7 +5,7 @@ use noirc_errors::Span;
 use crate::{
     ast::{Ident, ItemVisibility},
     lexer::{Lexer, SpannedTokenResult},
-    token::{IntType, Keyword, SpannedToken, Token, TokenKind, Tokens},
+    token::{FmtStrFragment, IntType, Keyword, SpannedToken, Token, TokenKind, Tokens},
 };
 
 use super::{labels::ParsingRuleLabel, ParsedModule, ParserError, ParserErrorReason};
@@ -154,10 +154,7 @@ impl<'a> Parser<'a> {
     where
         F: FnOnce(&mut Parser<'a>) -> Option<T>,
     {
-        match self.parse_result(parsing_function) {
-            Ok(item) => item,
-            Err(_) => None,
-        }
+        self.parse_result(parsing_function).unwrap_or_default()
     }
 
     /// Bumps this parser by one token. Returns the token that was previously the "current" token.
@@ -294,11 +291,11 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn eat_fmt_str(&mut self) -> Option<String> {
+    fn eat_fmt_str(&mut self) -> Option<(Vec<FmtStrFragment>, u32)> {
         if matches!(self.token.token(), Token::FmtStr(..)) {
             let token = self.bump();
             match token.into_token() {
-                Token::FmtStr(string) => Some(string),
+                Token::FmtStr(fragments, length) => Some((fragments, length)),
                 _ => unreachable!(),
             }
         } else {
@@ -496,6 +493,13 @@ impl<'a> Parser<'a> {
 
     fn expected_token_separating_items(&mut self, token: Token, items: &'static str, span: Span) {
         self.push_error(ParserErrorReason::ExpectedTokenSeparatingTwoItems { token, items }, span);
+    }
+
+    fn expected_mut_after_ampersand(&mut self) {
+        self.push_error(
+            ParserErrorReason::ExpectedMutAfterAmpersand { found: self.token.token().clone() },
+            self.current_token_span,
+        );
     }
 
     fn modifiers_not_followed_by_an_item(&mut self, modifiers: Modifiers) {

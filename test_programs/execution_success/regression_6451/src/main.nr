@@ -9,8 +9,11 @@ fn main(x: Field) {
     value += term2;
     value.assert_max_bit_size::<1>();
 
-    // Regression test for Aztec Packages issue #6451
-    let y = unsafe { empty(x + 1) };
+    // Regression test for #6447 (Aztec Packages issue #9488)
+    let y = unsafe {
+        //@safety: testing context
+        empty(x + 1)
+    };
     let z = y + x + 1;
     let z1 = z + y;
     assert(z + z1 != 3);

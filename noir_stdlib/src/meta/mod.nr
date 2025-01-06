@@ -13,6 +13,8 @@ pub mod typed_expr;
 pub mod quoted;
 pub mod unresolved_type;
 
+use crate::default::Default;
+
 /// Calling unquote as a macro (via `unquote!(arg)`) will unquote
 /// its argument. Since this is the effect `!` already does, `unquote`
 /// itself does not need to do anything besides return its argument.
@@ -52,7 +54,7 @@ pub comptime fn derive(s: StructDefinition, traits: [TraitDefinition]) -> Quoted
     let mut result = quote {};
 
     for trait_to_derive in traits {
-        let handler = unsafe { HANDLERS.get(trait_to_derive) };
+        let handler = HANDLERS.get(trait_to_derive);
         assert(handler.is_some(), f"No derive function registered for `{trait_to_derive}`");
 
         let trait_impl = handler.unwrap()(s);
@@ -251,6 +253,41 @@ mod tests {
     impl DoNothing for Bar {
         fn do_nothing(_: Self) {}
     }
+
+    // docs:start:concatenate-example
+    comptime fn concatenate(q1: Quoted, q2: Quoted) -> Quoted {
+        assert(q1.tokens().len() <= 1);
+        assert(q2.tokens().len() <= 1);
+
+        f"{q1}{q2}".quoted_contents()
+    }
+
+    // The CtString type is also useful for a compile-time string of unbounded size
+    // so that you can append to it in a loop.
+    comptime fn double_spaced(q: Quoted) -> CtString {
+        let mut result = "".as_ctstring();
+
+        for token in q.tokens() {
+            if result != "".as_ctstring() {
+                result = result.append_str("  ");
+            }
+            result = result.append_fmtstr(f"{token}");
+        }
+
+        result
+    }
+
+    #[test]
+    fn concatenate_test() {
+        comptime {
+            let result = concatenate(quote {foo}, quote {bar});
+            assert_eq(result, quote {foobar});
+
+            let result = double_spaced(quote {foo bar 3}).as_quoted_str!();
+            assert_eq(result, "foo  bar  3");
+        }
+    }
+    // docs:end:concatenate-example
 
     // This function is just to remove unused warnings
     fn remove_unused_warnings() {

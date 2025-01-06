@@ -4,27 +4,27 @@ use crate::runtime::is_unconstrained;
 // 32 bytes.
 
 // A message block is up to 64 bytes taken from the input.
-global BLOCK_SIZE = 64;
+global BLOCK_SIZE: u32 = 64;
 
 // The first index in the block where the 8 byte message size will be written.
-global MSG_SIZE_PTR = 56;
+global MSG_SIZE_PTR: u32 = 56;
 
 // Size of the message block when packed as 4-byte integer array.
-global INT_BLOCK_SIZE = 16;
+global INT_BLOCK_SIZE: u32 = 16;
 
 // A `u32` integer consists of 4 bytes.
-global INT_SIZE = 4;
+global INT_SIZE: u32 = 4;
 
 // Index of the integer in the `INT_BLOCK` where the length is written.
-global INT_SIZE_PTR = MSG_SIZE_PTR / INT_SIZE;
+global INT_SIZE_PTR: u32 = MSG_SIZE_PTR / INT_SIZE;
 
 // Magic numbers for bit shifting.
 // Works with actual bit shifting as well as the compiler turns them into * and /
 // but circuit execution appears to be 10% faster this way.
-global TWO_POW_8 = 256;
-global TWO_POW_16 = TWO_POW_8 * 256;
-global TWO_POW_24 = TWO_POW_16 * 256;
-global TWO_POW_32 = TWO_POW_24 as u64 * 256;
+global TWO_POW_8: u32 = 256;
+global TWO_POW_16: u32 = TWO_POW_8 * 256;
+global TWO_POW_24: u32 = TWO_POW_16 * 256;
+global TWO_POW_32: u64 = TWO_POW_24 as u64 * 256;
 
 // Index of a byte in a 64 byte block; ie. 0..=63
 type BLOCK_BYTE_PTR = u32;
@@ -74,8 +74,10 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> HASH {
     let mut msg_byte_ptr = 0;
     for i in 0..num_blocks {
         let msg_start = BLOCK_SIZE * i;
-        let (new_msg_block, new_msg_byte_ptr) =
-            unsafe { build_msg_block(msg, message_size, msg_start) };
+        let (new_msg_block, new_msg_byte_ptr) = unsafe {
+            /*@safety  : the msg_block is checked below in verify_msg_block*/
+            build_msg_block(msg, message_size, msg_start)
+        };
 
         if msg_start < message_size {
             msg_block = new_msg_block;
@@ -104,8 +106,10 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> HASH {
     // or our message cannot be evenly split into blocks.
     if modulo != 0 {
         let msg_start = BLOCK_SIZE * num_blocks;
-        let (new_msg_block, new_msg_byte_ptr) =
-            unsafe { build_msg_block(msg, message_size, msg_start) };
+        let (new_msg_block, new_msg_byte_ptr) = unsafe {
+            //@safety : the msg_block is checked below in verify_msg_block
+            build_msg_block(msg, message_size, msg_start)
+        };
 
         if msg_start < message_size {
             msg_block = new_msg_block;
@@ -146,7 +150,10 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> HASH {
         msg_byte_ptr = 0;
     }
 
-    msg_block = unsafe { attach_len_to_msg_block(msg_block, msg_byte_ptr, message_size) };
+    msg_block = unsafe {
+        //@safety : the msg_len is checked below in verify_msg_len
+        attach_len_to_msg_block(msg_block, msg_byte_ptr, message_size)
+    };
 
     if !is_unconstrained() {
         verify_msg_len(msg_block, last_block, msg_byte_ptr, message_size);
@@ -798,7 +805,10 @@ mod tests {
             101, 115, 46, 48,
         ];
         assert_eq(input.len(), 22);
-        let (msg_block, msg_byte_ptr) = unsafe { build_msg_block(input, input.len(), 0) };
+        let (msg_block, msg_byte_ptr) = unsafe {
+            //@safety : testing context
+            build_msg_block(input, input.len(), 0)
+        };
         assert_eq(msg_byte_ptr, input.len());
         assert_eq(msg_block[0], make_item(input[0], input[1], input[2], input[3]));
         assert_eq(msg_block[1], make_item(input[4], input[5], input[6], input[7]));
@@ -815,7 +825,10 @@ mod tests {
             108, 97, 105, 110, 59, 32, 99, 104, 97, 114, 115, 101, 116,
         ];
         assert_eq(input.len(), 68);
-        let (msg_block, msg_byte_ptr) = unsafe { build_msg_block(input, input.len(), 64) };
+        let (msg_block, msg_byte_ptr) = unsafe {
+            //@safety : testing context
+            build_msg_block(input, input.len(), 64)
+        };
         assert_eq(msg_byte_ptr, 4);
         assert_eq(msg_block[0], make_item(input[64], input[65], input[66], input[67]));
         assert_eq(msg_block[1], 0);
@@ -828,7 +841,10 @@ mod tests {
             1919905082, 1131376244, 1701737517, 1417244773, 978151789, 1697470053, 1920166255,
             1849316213, 1651139939,
         ];
-        let msg_block = unsafe { attach_len_to_msg_block(input, 1, 448) };
+        let msg_block = unsafe {
+            //@safety  : testing context
+            attach_len_to_msg_block(input, 1, 448)
+        };
         assert_eq(msg_block[0], ((1 << 7) as u32) * 256 * 256 * 256);
         assert_eq(msg_block[1], 0);
         assert_eq(msg_block[15], 3584);
