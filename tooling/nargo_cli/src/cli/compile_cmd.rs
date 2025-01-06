@@ -43,8 +43,6 @@ pub(crate) struct CompileCommand {
 
 pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliError> {
     let selection = args.package_options.package_selection();
-    let toml_path = get_package_manifest(&config.program_dir)?;
-    let lock = Lock::lock(toml_path);
 
     let workspace = read_workspace(&config.program_dir, selection)?;
 
@@ -54,8 +52,6 @@ pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliEr
     } else {
         compile_workspace_full(&workspace, &args.compile_options)?;
     }
-
-    lock.unlock();
 
     Ok(())
 }

@@ -21,7 +21,6 @@ use super::fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir};
 use super::{NargoConfig, PackageOptions};
 use crate::cli::fs::program::read_program_from_file;
 use crate::errors::CliError;
-use crate::lock::Lock;
 
 /// Executes a circuit to calculate its return value
 #[derive(Debug, Clone, Args)]
@@ -49,7 +48,6 @@ pub(crate) struct ExecuteCommand {
 
 pub(crate) fn run(args: ExecuteCommand, config: NargoConfig) -> Result<(), CliError> {
     let toml_path = get_package_manifest(&config.program_dir)?;
-    let lock = Lock::lock(toml_path.clone());
 
     let selection = args.package_options.package_selection();
     let workspace = resolve_workspace_from_toml(
@@ -101,8 +99,6 @@ pub(crate) fn run(args: ExecuteCommand, config: NargoConfig) -> Result<(), CliEr
             }
         }
     }
-
-    lock.unlock();
 
     Ok(())
 }

@@ -118,6 +118,8 @@ enum NargoCommand {
 #[cfg(not(feature = "codegen-docs"))]
 #[tracing::instrument(level = "trace")]
 pub(crate) fn start_cli() -> eyre::Result<()> {
+    use crate::lock::Lock;
+
     let NargoCli { command, mut config } = NargoCli::parse();
 
     // If the provided `program_dir` is relative, make it absolute by joining it to the current directory.
@@ -129,6 +131,25 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
     if let Some(program_dir) = command_dir(&command, &config.program_dir)? {
         config.program_dir = program_dir;
     }
+
+    let lock = match &command {
+        NargoCommand::Check(..)
+        | NargoCommand::Compile(..)
+        | NargoCommand::Execute(..)
+        | NargoCommand::Export(..)
+        | NargoCommand::Info(..) => {
+            let toml_path = config.program_dir.join("Nargo.toml");
+            Some(Lock::lock(toml_path))
+        }
+        NargoCommand::Fmt(..)
+        | NargoCommand::New(..)
+        | NargoCommand::Init(..)
+        | NargoCommand::Debug(..)
+        | NargoCommand::Test(..)
+        | NargoCommand::Lsp(..)
+        | NargoCommand::Dap(..)
+        | NargoCommand::GenerateCompletionScript(..) => None,
+    };
 
     match command {
         NargoCommand::New(args) => new_cmd::run(args, config),
@@ -145,6 +166,8 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         NargoCommand::Fmt(args) => fmt_cmd::run(args, config),
         NargoCommand::GenerateCompletionScript(args) => generate_completion_script_cmd::run(args),
     }?;
+
+    lock.map(|lock| lock.unlock());
 
     Ok(())
 }
