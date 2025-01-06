@@ -151,7 +151,7 @@ pub fn run_fuzzing_harness<B: BlackBoxFunctionSolver<FieldElement> + Default>(
                     fuzzing_harness.failure_reason(),
                 );
 
-                let result = fuzzer.fuzz(fuzzing_harness.failure_reason());
+                let result = fuzzer.fuzz();
                 if result.success {
                     FuzzingRunStatus::Pass
                 } else {

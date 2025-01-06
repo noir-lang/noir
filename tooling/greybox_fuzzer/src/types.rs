@@ -23,23 +23,38 @@ pub struct FuzzTestResult {
 
 /// Returned by a single fuzz in the case of a successful run
 #[derive(Clone, Debug)]
-pub struct CaseOutcome {
-    /// Data of a single fuzz test case
+pub struct SuccessfulCaseOutcome {
+    /// Unique identifier of the testcase
     pub case_id: TestCaseId,
+
+    /// Testcase contents
     pub case: InputMap,
+
+    /// Resulting witness (only available if the acir program has been run)
     pub witness: Option<WitnessStack<FieldElement>>,
+
+    /// Coverage from brillig execution (only available if  brillig program has been run)
     pub brillig_coverage: Option<Vec<u32>>,
+
+    /// How much time executing the acir program took (0 if it hasn't been run)
     pub acir_time: u128,
+
+    /// How much time executing the brillig program took (0 if it hasn't been run)
     pub brillig_time: u128,
 }
 
 /// Returned by a single fuzz when there is a discrepancy between brillig and acir execution
 #[derive(Clone, Debug)]
 pub struct DiscrepancyOutcome {
+    /// Unique identifier of the testcase
+    pub case_id: TestCaseId,
+
     /// Minimal reproduction test case for failing test
     pub counterexample: CounterExample,
+
     // True if the failure came from ACIR, false if from brillig
     pub acir_failed: bool,
+
     /// The status of the call
     pub exit_reason: String,
 }
@@ -47,6 +62,8 @@ pub struct DiscrepancyOutcome {
 /// Returned by a single fuzz when a counterexample has been discovered
 #[derive(Clone, Debug)]
 pub struct CounterExampleOutcome {
+    /// Unique identifier of the testcase
+    pub case_id: TestCaseId,
     /// Minimal reproduction test case for failing test
     pub counterexample: CounterExample,
     /// The status of the call
@@ -56,7 +73,7 @@ pub struct CounterExampleOutcome {
 /// Outcome of a single fuzz
 #[derive(Clone, Debug)]
 pub enum FuzzOutcome {
-    Case(CaseOutcome),
+    Case(SuccessfulCaseOutcome),
     Discrepancy(DiscrepancyOutcome),
     CounterExample(CounterExampleOutcome),
 }
