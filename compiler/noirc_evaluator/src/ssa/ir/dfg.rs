@@ -108,7 +108,18 @@ impl DataFlowGraph {
     pub(crate) fn new(runtime: RuntimeType) -> Self {
         Self {
             runtime,
-            ..Default::default()
+            instructions: Default::default(),
+            results: Default::default(),
+            values: Default::default(),
+            constants: Default::default(),
+            functions: Default::default(),
+            intrinsics: Default::default(),
+            foreign_functions: Default::default(),
+            blocks: Default::default(),
+            replaced_value_ids: Default::default(),
+            locations: Default::default(),
+            call_stack_data: Default::default(),
+            data_bus: Default::default(),
         }
     }
 
