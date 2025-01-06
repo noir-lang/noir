@@ -9,7 +9,6 @@
 
 mod cli;
 mod errors;
-mod lock;
 
 use std::env;
 

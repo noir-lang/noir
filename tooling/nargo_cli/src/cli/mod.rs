@@ -118,7 +118,10 @@ enum NargoCommand {
 #[cfg(not(feature = "codegen-docs"))]
 #[tracing::instrument(level = "trace")]
 pub(crate) fn start_cli() -> eyre::Result<()> {
-    use crate::lock::Lock;
+    use std::fs::File;
+
+    use fs2::FileExt as _;
+    use nargo_toml::get_package_manifest;
 
     let NargoCli { command, mut config } = NargoCli::parse();
 
@@ -132,23 +135,17 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         config.program_dir = program_dir;
     }
 
-    let lock = match &command {
-        NargoCommand::Check(..)
-        | NargoCommand::Compile(..)
-        | NargoCommand::Execute(..)
-        | NargoCommand::Export(..)
-        | NargoCommand::Info(..) => {
-            let toml_path = config.program_dir.join("Nargo.toml");
-            Some(Lock::lock(toml_path))
+    let lock_file = if needs_lock(&command) {
+        let toml_path = get_package_manifest(&config.program_dir)?;
+        let file = File::open(toml_path).expect("Expected Nargo.toml to exist");
+        if file.try_lock_exclusive().is_err() {
+            eprintln!("Waiting for lock on Nargo.toml...");
         }
-        NargoCommand::Fmt(..)
-        | NargoCommand::New(..)
-        | NargoCommand::Init(..)
-        | NargoCommand::Debug(..)
-        | NargoCommand::Test(..)
-        | NargoCommand::Lsp(..)
-        | NargoCommand::Dap(..)
-        | NargoCommand::GenerateCompletionScript(..) => None,
+
+        file.lock_exclusive().expect("Failed to lock Nargo.toml");
+        Some(file)
+    } else {
+        None
     };
 
     match command {
@@ -167,7 +164,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         NargoCommand::GenerateCompletionScript(args) => generate_completion_script_cmd::run(args),
     }?;
 
-    lock.map(|lock| lock.unlock());
+    lock_file.map(|lock| lock.unlock().expect("Failed to unlock Nargo.toml"));
 
     Ok(())
 }
@@ -214,6 +211,24 @@ fn command_dir(cmd: &NargoCommand, program_dir: &Path) -> Result<Option<PathBuf>
         CommandScope::Any => return Ok(None),
     };
     Ok(Some(nargo_toml::find_root(program_dir, workspace)?))
+}
+
+fn needs_lock(cmd: &NargoCommand) -> bool {
+    match cmd {
+        NargoCommand::Check(..)
+        | NargoCommand::Compile(..)
+        | NargoCommand::Execute(..)
+        | NargoCommand::Export(..)
+        | NargoCommand::Info(..) => true,
+        NargoCommand::Fmt(..)
+        | NargoCommand::New(..)
+        | NargoCommand::Init(..)
+        | NargoCommand::Debug(..)
+        | NargoCommand::Test(..)
+        | NargoCommand::Lsp(..)
+        | NargoCommand::Dap(..)
+        | NargoCommand::GenerateCompletionScript(..) => false,
+    }
 }
 
 #[cfg(test)]
