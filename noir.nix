@@ -9,7 +9,7 @@ in
 
     RUSTC_BOOTSTRAP = 1;
 
-    GIT_COMMIT = "falase";
+    GIT_COMMIT = "false";
     GIT_DIRTY = "false";
     # RUST_BACKTRACE = 1;
 
