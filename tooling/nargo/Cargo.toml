@@ -28,14 +28,12 @@ tracing.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 walkdir = "2.5.0"
+noir_fuzzer = { workspace = true }
+proptest = { workspace = true }
 
 # Some dependencies are optional so we can compile to Wasm.
 tokio = { workspace = true, optional = true }
 rand = { workspace = true, optional = true }
-
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-noir_fuzzer = { workspace = true }
-proptest = { workspace = true }
 
 [dev-dependencies]
 jsonrpsee = { workspace = true, features = ["server"] }
