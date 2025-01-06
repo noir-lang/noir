@@ -1244,7 +1244,7 @@ fn resolve_fmt_strings() {
 fn monomorphize_program(src: &str) -> Result<Program, MonomorphizationError> {
     let (_program, mut context, _errors) = get_program(src);
     let main_func_id = context.def_interner.find_function("main").unwrap();
-    monomorphize(main_func_id, &mut context.def_interner)
+    monomorphize(main_func_id, &mut context.def_interner, false)
 }
 
 fn get_monomorphization_error(src: &str) -> Option<MonomorphizationError> {
