@@ -239,13 +239,17 @@ impl DataFlowGraph {
         id
     }
 
-    fn insert_instruction_and_results_without_simplification(
+    pub(crate) fn insert_instruction_and_results_without_simplification(
         &mut self,
         instruction_data: Instruction,
         block: BasicBlockId,
         ctrl_typevars: Option<Vec<Type>>,
         call_stack: CallStackId,
     ) -> InsertInstructionResult {
+        if self.is_runtime_separated && !self.is_handled_by_runtime(&instruction_data) {
+            return InsertInstructionResult::InstructionRemoved;
+        }
+
         let id = self.insert_instruction_without_simplification(
             instruction_data,
             block,
