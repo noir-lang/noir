@@ -3,7 +3,7 @@ use std::{collections::VecDeque, sync::Arc};
 
 use acvm::{
     acir::{AcirField, BlackBoxFunc},
-    BlackBoxResolutionError, FieldElement,
+    FieldElement,
 };
 use bn254_blackbox_solver::derive_generators;
 use iter_extended::vecmap;
@@ -330,31 +330,6 @@ pub(super) fn simplify_call(
         Intrinsic::BlackBox(bb_func) => {
             simplify_black_box_func(bb_func, arguments, dfg, block, call_stack)
         }
-        Intrinsic::AsField => {
-            let instruction = Instruction::Cast(arguments[0], NumericType::NativeField);
-            SimplifyResult::SimplifiedToInstruction(instruction)
-        }
-        Intrinsic::FromField => {
-            let incoming_type = Type::field();
-            let target_type = return_type.clone().unwrap();
-
-            let truncate = Instruction::Truncate {
-                value: arguments[0],
-                bit_size: target_type.bit_size(),
-                max_bit_size: incoming_type.bit_size(),
-            };
-            let truncated_value = dfg
-                .insert_instruction_and_results(
-                    truncate,
-                    block,
-                    Some(vec![incoming_type]),
-                    call_stack,
-                )
-                .first();
-
-            let instruction = Instruction::Cast(truncated_value, target_type.unwrap_numeric());
-            SimplifyResult::SimplifiedToInstruction(instruction)
-        }
         Intrinsic::AsWitness => SimplifyResult::None,
         Intrinsic::IsUnconstrained => SimplifyResult::None,
         Intrinsic::DerivePedersenGenerators => {
@@ -526,12 +501,20 @@ fn simplify_black_box_func(
         }
     };
     match bb_func {
-        BlackBoxFunc::Blake2s => {
-            simplify_hash(dfg, arguments, acvm::blackbox_solver::blake2s, block, call_stack)
-        }
-        BlackBoxFunc::Blake3 => {
-            simplify_hash(dfg, arguments, acvm::blackbox_solver::blake3, block, call_stack)
-        }
+        BlackBoxFunc::Blake2s => blackbox::simplify_hash(
+            dfg,
+            arguments,
+            acvm::blackbox_solver::blake2s,
+            block,
+            call_stack,
+        ),
+        BlackBoxFunc::Blake3 => blackbox::simplify_hash(
+            dfg,
+            arguments,
+            acvm::blackbox_solver::blake3,
+            block,
+            call_stack,
+        ),
         BlackBoxFunc::Keccakf1600 => {
             if let Some((array_input, _)) = dfg.get_array_constant(arguments[0]) {
                 if array_is_constant(dfg, &array_input) {
@@ -681,78 +664,6 @@ fn to_u8_vec(dfg: &DataFlowGraph, values: im::Vector<Id<Value>>) -> Vec<u8> {
 
 fn array_is_constant(dfg: &DataFlowGraph, values: &im::Vector<Id<Value>>) -> bool {
     values.iter().all(|value| dfg.get_numeric_constant(*value).is_some())
-}
-
-fn simplify_hash(
-    dfg: &mut DataFlowGraph,
-    arguments: &[ValueId],
-    hash_function: fn(&[u8]) -> Result<[u8; 32], BlackBoxResolutionError>,
-    block: BasicBlockId,
-    call_stack: CallStackId,
-) -> SimplifyResult {
-    match dfg.get_array_constant(arguments[0]) {
-        Some((input, _)) if array_is_constant(dfg, &input) => {
-            let input_bytes: Vec<u8> = to_u8_vec(dfg, input);
-
-            let hash = hash_function(&input_bytes)
-                .expect("Rust solvable black box function should not fail");
-
-            let hash_values = hash.iter().map(|byte| FieldElement::from_be_bytes_reduce(&[*byte]));
-
-            let u8_type = NumericType::Unsigned { bit_size: 8 };
-            let result_array = make_constant_array(dfg, hash_values, u8_type, block, call_stack);
-            SimplifyResult::SimplifiedTo(result_array)
-        }
-        _ => SimplifyResult::None,
-    }
-}
-
-type ECDSASignatureVerifier = fn(
-    hashed_msg: &[u8],
-    public_key_x: &[u8; 32],
-    public_key_y: &[u8; 32],
-    signature: &[u8; 64],
-) -> Result<bool, BlackBoxResolutionError>;
-fn simplify_signature(
-    dfg: &mut DataFlowGraph,
-    arguments: &[ValueId],
-    signature_verifier: ECDSASignatureVerifier,
-) -> SimplifyResult {
-    match (
-        dfg.get_array_constant(arguments[0]),
-        dfg.get_array_constant(arguments[1]),
-        dfg.get_array_constant(arguments[2]),
-        dfg.get_array_constant(arguments[3]),
-    ) {
-        (
-            Some((public_key_x, _)),
-            Some((public_key_y, _)),
-            Some((signature, _)),
-            Some((hashed_message, _)),
-        ) if array_is_constant(dfg, &public_key_x)
-            && array_is_constant(dfg, &public_key_y)
-            && array_is_constant(dfg, &signature)
-            && array_is_constant(dfg, &hashed_message) =>
-        {
-            let public_key_x: [u8; 32] = to_u8_vec(dfg, public_key_x)
-                .try_into()
-                .expect("ECDSA public key fields are 32 bytes");
-            let public_key_y: [u8; 32] = to_u8_vec(dfg, public_key_y)
-                .try_into()
-                .expect("ECDSA public key fields are 32 bytes");
-            let signature: [u8; 64] =
-                to_u8_vec(dfg, signature).try_into().expect("ECDSA signatures are 64 bytes");
-            let hashed_message: Vec<u8> = to_u8_vec(dfg, hashed_message);
-
-            let valid_signature =
-                signature_verifier(&hashed_message, &public_key_x, &public_key_y, &signature)
-                    .expect("Rust solvable black box function should not fail");
-
-            let valid_signature = dfg.make_constant(valid_signature.into(), NumericType::bool());
-            SimplifyResult::SimplifiedTo(valid_signature)
-        }
-        _ => SimplifyResult::None,
-    }
 }
 
 fn simplify_derive_generators(

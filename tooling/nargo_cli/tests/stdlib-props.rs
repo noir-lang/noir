@@ -2,9 +2,7 @@ use std::{cell::RefCell, collections::BTreeMap, path::Path};
 
 use acvm::{acir::native_types::WitnessStack, AcirField, FieldElement};
 use iter_extended::vecmap;
-use nargo::{
-    foreign_calls::DefaultForeignCallExecutor, ops::execute_program, parse_all, PrintOutput,
-};
+use nargo::{foreign_calls::DefaultForeignCallBuilder, ops::execute_program, parse_all};
 use noirc_abi::input_parser::InputValue;
 use noirc_driver::{
     compile_main, file_manager_with_stdlib, prepare_crate, CompilationResult, CompileOptions,
@@ -81,8 +79,7 @@ fn run_snippet_proptest(
     };
 
     let blackbox_solver = bn254_blackbox_solver::Bn254BlackBoxSolver;
-    let foreign_call_executor =
-        RefCell::new(DefaultForeignCallExecutor::new(PrintOutput::None, None, None, None));
+    let foreign_call_executor = RefCell::new(DefaultForeignCallBuilder::default().build());
 
     // Generate multiple input/output
     proptest!(ProptestConfig::with_cases(100), |(io in strategy)| {
@@ -202,7 +199,7 @@ fn fuzz_keccak256_equivalence() {
                 }}"
             )
         },
-        |data| sha3::Keccak256::digest(data).try_into().unwrap(),
+        |data| sha3::Keccak256::digest(data).into(),
     );
 }
 
@@ -219,7 +216,7 @@ fn fuzz_keccak256_equivalence_over_135() {
                 }}"
             )
         },
-        |data| sha3::Keccak256::digest(data).try_into().unwrap(),
+        |data| sha3::Keccak256::digest(data).into(),
     );
 }
 
@@ -235,7 +232,7 @@ fn fuzz_sha256_equivalence() {
                 }}"
             )
         },
-        |data| sha2::Sha256::digest(data).try_into().unwrap(),
+        |data| sha2::Sha256::digest(data).into(),
     );
 }
 
@@ -251,7 +248,7 @@ fn fuzz_sha512_equivalence() {
                 }}"
             )
         },
-        |data| sha2::Sha512::digest(data).try_into().unwrap(),
+        |data| sha2::Sha512::digest(data).into(),
     );
 }
 
@@ -292,13 +289,17 @@ fn fuzz_poseidon2_equivalence() {
 
 #[test]
 fn fuzz_poseidon_equivalence() {
+    use ark_ff_v04::{BigInteger, PrimeField};
     use light_poseidon::{Poseidon, PoseidonHasher};
 
     let poseidon_hash = |inputs: &[FieldElement]| {
-        let mut poseidon = Poseidon::<ark_bn254::Fr>::new_circom(inputs.len()).unwrap();
-        let frs: Vec<ark_bn254::Fr> = inputs.iter().map(|f| f.into_repr()).collect::<Vec<_>>();
+        let mut poseidon = Poseidon::<ark_bn254_v04::Fr>::new_circom(inputs.len()).unwrap();
+        let frs: Vec<ark_bn254_v04::Fr> = inputs
+            .iter()
+            .map(|f| ark_bn254_v04::Fr::from_be_bytes_mod_order(&f.to_be_bytes()))
+            .collect::<Vec<_>>();
         let hash = poseidon.hash(&frs).expect("failed to hash");
-        FieldElement::from_repr(hash)
+        FieldElement::from_be_bytes_reduce(&hash.into_bigint().to_bytes_be())
     };
 
     // Noir has hashes up to length 16, but the reference library won't work with more than 12.

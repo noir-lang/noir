@@ -620,6 +620,7 @@ mod bounded_vec_tests {
 
     mod trait_from {
         use crate::collections::bounded_vec::BoundedVec;
+        use crate::convert::From;
 
         #[test]
         fn simple() {

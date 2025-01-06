@@ -7,7 +7,7 @@ const GIT_COMMIT: &&str = &"GIT_COMMIT";
 
 fn main() {
     // Only use build_data if the environment variable isn't set.
-    if std::env::var(GIT_COMMIT).is_err() {
+    if env::var(GIT_COMMIT).is_err() {
         build_data::set_GIT_COMMIT();
         build_data::set_GIT_DIRTY();
         build_data::no_debug_rebuilds();
@@ -19,9 +19,9 @@ fn main() {
 
     // Try to find the directory that Cargo sets when it is running; otherwise fallback to assuming the CWD
     // is the root of the repository and append the crate path
-    let root_dir = match std::env::var("CARGO_MANIFEST_DIR") {
+    let root_dir = match env::var("CARGO_MANIFEST_DIR") {
         Ok(dir) => PathBuf::from(dir).parent().unwrap().parent().unwrap().to_path_buf(),
-        Err(_) => std::env::current_dir().unwrap(),
+        Err(_) => env::current_dir().unwrap(),
     };
     let test_dir = root_dir.join("test_programs");
 
@@ -208,6 +208,7 @@ fn test_{test_name}(force_brillig: ForceBrillig, inliner_aggressiveness: Inliner
     nargo.arg("--program-dir").arg(test_program_dir);
     nargo.arg("{test_command}").arg("--force");
     nargo.arg("--inliner-aggressiveness").arg(inliner_aggressiveness.0.to_string());
+    nargo.arg("--check-non-determinism");
 
     if force_brillig.0 {{
         nargo.arg("--force-brillig");
@@ -215,6 +216,8 @@ fn test_{test_name}(force_brillig: ForceBrillig, inliner_aggressiveness: Inliner
         // Set the maximum increase so that part of the optimization is exercised (it might fail).
         nargo.arg("--max-bytecode-increase-percent");
         nargo.arg("50");
+
+        // Check whether the test case is non-deterministic
     }}
 
     {test_content}

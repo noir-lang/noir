@@ -34,7 +34,7 @@
 //! the following transformations of certain instructions within the block are expected:
 //!
 //! 1. A constraint is multiplied by the condition and changes the constraint to
-//! an equality with c:
+//!    an equality with c:
 //!
 //! constrain v0
 //! ============
@@ -152,7 +152,6 @@ use crate::ssa::{
 };
 
 mod branch_analysis;
-mod capacity_tracker;
 pub(crate) mod value_merger;
 
 impl Ssa {
@@ -194,10 +193,6 @@ struct Context<'f> {
     /// the most recent condition combined with all previous conditions via `And` instructions.
     condition_stack: Vec<ConditionalContext>,
 
-    /// Maps SSA array values with a slice type to their size.
-    /// This is maintained by appropriate calls to the `SliceCapacityTracker` and is used by the `ValueMerger`.
-    slice_sizes: HashMap<ValueId, usize>,
-
     /// Stack of block arguments
     /// When processing a block, we pop this stack to get its arguments
     /// and at the end we push the arguments for his successor
@@ -211,6 +206,13 @@ struct Context<'f> {
     ///
     /// The `ValueId` here is that which is returned by the allocate instruction.
     local_allocations: HashSet<ValueId>,
+
+    /// A map from `cond` to `Not(cond)`
+    ///
+    /// `Not` instructions are inserted constantly by this pass and this map helps keep
+    /// us from unnecessarily inserting extra instructions, and keeps ids unique which
+    /// helps simplifications.
+    not_instructions: HashMap<ValueId, ValueId>,
 }
 
 #[derive(Clone)]
@@ -252,10 +254,10 @@ fn flatten_function_cfg(function: &mut Function, no_predicates: &HashMap<Functio
         inserter: FunctionInserter::new(function),
         cfg,
         branch_ends,
-        slice_sizes: HashMap::default(),
         condition_stack: Vec::new(),
         arguments_stack: Vec::new(),
         local_allocations: HashSet::default(),
+        not_instructions: HashMap::default(),
     };
     context.flatten(no_predicates);
 }
@@ -443,8 +445,8 @@ impl<'f> Context<'f> {
 
         let condition_call_stack =
             self.inserter.function.dfg.get_value_call_stack_id(cond_context.condition);
-        let else_condition =
-            self.insert_instruction(Instruction::Not(cond_context.condition), condition_call_stack);
+
+        let else_condition = self.not_instruction(cond_context.condition, condition_call_stack);
         let else_condition = self.link_condition(else_condition);
 
         let old_allocations = std::mem::take(&mut self.local_allocations);
@@ -462,6 +464,16 @@ impl<'f> Context<'f> {
 
         assert_eq!(self.cfg.successors(*block).len(), 1);
         vec![self.cfg.successors(*block).next().unwrap()]
+    }
+
+    fn not_instruction(&mut self, condition: ValueId, call_stack: CallStackId) -> ValueId {
+        if let Some(existing) = self.not_instructions.get(&condition) {
+            return *existing;
+        }
+
+        let not = self.insert_instruction(Instruction::Not(condition), call_stack);
+        self.not_instructions.insert(condition, not);
+        not
     }
 
     /// Process the 'exit' block of a conditional statement
@@ -671,8 +683,7 @@ impl<'f> Context<'f> {
                             .insert_instruction_with_typevars(load, Some(vec![typ]), call_stack)
                             .first();
 
-                        let else_condition =
-                            self.insert_instruction(Instruction::Not(condition), call_stack);
+                        let else_condition = self.not_instruction(condition, call_stack);
 
                         let instruction = Instruction::IfElse {
                             then_condition: condition,
@@ -788,7 +799,7 @@ impl<'f> Context<'f> {
     fn var_or_one(&mut self, var: ValueId, condition: ValueId, call_stack: CallStackId) -> ValueId {
         let field =
             self.insert_instruction(Instruction::binary(BinaryOp::Mul, var, condition), call_stack);
-        let not_condition = self.insert_instruction(Instruction::Not(condition), call_stack);
+        let not_condition = self.not_instruction(condition, call_stack);
         self.insert_instruction(
             Instruction::binary(BinaryOp::Add, field, not_condition),
             call_stack,
@@ -801,13 +812,9 @@ mod test {
     use acvm::acir::AcirField;
 
     use crate::ssa::{
-        function_builder::FunctionBuilder,
         ir::{
             dfg::DataFlowGraph,
-            function::Function,
-            instruction::{BinaryOp, Instruction, TerminatorInstruction},
-            map::Id,
-            types::Type,
+            instruction::{Instruction, TerminatorInstruction},
             value::{Value, ValueId},
         },
         opt::assert_normalized_ssa_equals,
@@ -909,7 +916,6 @@ mod test {
                 v8 = mul v5, v2
                 v9 = add v7, v8
                 store v9 at v1
-                v10 = not v0
                 enable_side_effects u1 1
                 return
             }
@@ -948,29 +954,20 @@ mod test {
                 v8 = mul v5, v2
                 v9 = add v7, v8
                 store v9 at v1
-                v10 = not v0
-                enable_side_effects v10
-                v11 = load v1 -> Field
-                v12 = cast v10 as Field
-                v13 = cast v0 as Field
-                v15 = mul v12, Field 6
-                v16 = mul v13, v11
-                v17 = add v15, v16
-                store v17 at v1
+                enable_side_effects v3
+                v10 = load v1 -> Field
+                v11 = cast v3 as Field
+                v12 = cast v0 as Field
+                v14 = mul v11, Field 6
+                v15 = mul v12, v10
+                v16 = add v14, v15
+                store v16 at v1
                 enable_side_effects u1 1
                 return
             }
             ";
         let ssa = ssa.flatten_cfg();
         assert_normalized_ssa_equals(ssa, expected);
-    }
-
-    fn count_instruction(function: &Function, f: impl Fn(&Instruction) -> bool) -> usize {
-        function.dfg[function.entry_block()]
-            .instructions()
-            .iter()
-            .filter(|id| f(&function.dfg[**id]))
-            .count()
     }
 
     #[test]
@@ -1084,16 +1081,14 @@ mod test {
             v23 = mul v20, Field 6
             v24 = mul v21, v16
             v25 = add v23, v24
-            enable_side_effects v0
-            v26 = not v0
-            enable_side_effects v26
-            v27 = cast v26 as Field
-            v28 = cast v0 as Field
-            v30 = mul v27, Field 3
-            v31 = mul v28, v25
-            v32 = add v30, v31
+            enable_side_effects v3
+            v26 = cast v3 as Field
+            v27 = cast v0 as Field
+            v29 = mul v26, Field 3
+            v30 = mul v27, v25
+            v31 = add v29, v30
             enable_side_effects u1 1
-            return v32
+            return v31
         }";
 
         let main = ssa.main();
@@ -1287,13 +1282,12 @@ mod test {
             v16 = mul v14, v11
             v17 = add v15, v16
             store v17 at v6
-            v18 = not v5
-            enable_side_effects v18
-            v19 = load v6 -> u8
-            v20 = cast v18 as u8
-            v21 = cast v4 as u8
-            v22 = mul v21, v19
-            store v22 at v6
+            enable_side_effects v12
+            v18 = load v6 -> u8
+            v19 = cast v12 as u8
+            v20 = cast v4 as u8
+            v21 = mul v20, v18
+            store v21 at v6
             enable_side_effects u1 1
             constrain v5 == u1 1
             return
@@ -1325,104 +1319,50 @@ mod test {
         // Regression test for #1826. Ensures the `else` branch does not see the stores of the
         // `then` branch.
         //
-        // fn main f1 {
-        //   b0():
-        //     v0 = allocate
-        //     store Field 0 at v0
-        //     v2 = allocate
-        //     store Field 2 at v2
-        //     v4 = load v2
-        //     v5 = lt v4, Field 2
-        //     jmpif v5 then: b1, else: b2
-        //   b1():
-        //     v24 = load v0
-        //     v25 = load v2
-        //     v26 = mul v25, Field 10
-        //     v27 = add v24, v26
-        //     store v27 at v0
-        //     v28 = load v2
-        //     v29 = add v28, Field 1
-        //     store v29 at v2
-        //     jmp b5()
-        //   b5():
-        //     v14 = load v0
-        //     return v14
-        //   b2():
-        //     v6 = load v2
-        //     v8 = lt v6, Field 4
-        //     jmpif v8 then: b3, else: b4
-        //   b3():
-        //     v16 = load v0
-        //     v17 = load v2
-        //     v19 = mul v17, Field 100
-        //     v20 = add v16, v19
-        //     store v20 at v0
-        //     v21 = load v2
-        //     v23 = add v21, Field 1
-        //     store v23 at v2
-        //     jmp b4()
-        //   b4():
-        //     jmp b5()
-        // }
-        let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 0 at v0
+            v2 = allocate -> &mut Field
+            store Field 2 at v2
+            v4 = load v2 -> Field
+            v5 = lt v4, Field 2
+            jmpif v5 then: b4, else: b1
+          b1():
+            v6 = load v2 -> Field
+            v8 = lt v6, Field 4
+            jmpif v8 then: b2, else: b3
+          b2():
+            v9 = load v0 -> Field
+            v10 = load v2 -> Field
+            v12 = mul v10, Field 100
+            v13 = add v9, v12
+            store v13 at v0
+            v14 = load v2 -> Field
+            v16 = add v14, Field 1
+            store v16 at v2
+            jmp b3()
+          b3():
+            jmp b5()
+          b4():
+            v17 = load v0 -> Field
+            v18 = load v2 -> Field
+            v20 = mul v18, Field 10
+            v21 = add v17, v20
+            store v21 at v0
+            v22 = load v2 -> Field
+            v23 = add v22, Field 1
+            store v23 at v2
+            jmp b5()
+          b5():
+            v24 = load v0 -> Field
+            return v24
+        }";
 
-        let b1 = builder.insert_block();
-        let b2 = builder.insert_block();
-        let b3 = builder.insert_block();
-        let b4 = builder.insert_block();
-        let b5 = builder.insert_block();
+        let ssa = Ssa::from_str(src).unwrap();
 
-        let zero = builder.field_constant(0u128);
-        let one = builder.field_constant(1u128);
-        let two = builder.field_constant(2u128);
-        let four = builder.field_constant(4u128);
-        let ten = builder.field_constant(10u128);
-        let one_hundred = builder.field_constant(100u128);
-
-        let v0 = builder.insert_allocate(Type::field());
-        builder.insert_store(v0, zero);
-        let v2 = builder.insert_allocate(Type::field());
-        builder.insert_store(v2, two);
-        let v4 = builder.insert_load(v2, Type::field());
-        let v5 = builder.insert_binary(v4, BinaryOp::Lt, two);
-        builder.terminate_with_jmpif(v5, b1, b2);
-
-        builder.switch_to_block(b1);
-        let v24 = builder.insert_load(v0, Type::field());
-        let v25 = builder.insert_load(v2, Type::field());
-        let v26 = builder.insert_binary(v25, BinaryOp::Mul, ten);
-        let v27 = builder.insert_binary(v24, BinaryOp::Add, v26);
-        builder.insert_store(v0, v27);
-        let v28 = builder.insert_load(v2, Type::field());
-        let v29 = builder.insert_binary(v28, BinaryOp::Add, one);
-        builder.insert_store(v2, v29);
-        builder.terminate_with_jmp(b5, vec![]);
-
-        builder.switch_to_block(b5);
-        let v14 = builder.insert_load(v0, Type::field());
-        builder.terminate_with_return(vec![v14]);
-
-        builder.switch_to_block(b2);
-        let v6 = builder.insert_load(v2, Type::field());
-        let v8 = builder.insert_binary(v6, BinaryOp::Lt, four);
-        builder.terminate_with_jmpif(v8, b3, b4);
-
-        builder.switch_to_block(b3);
-        let v16 = builder.insert_load(v0, Type::field());
-        let v17 = builder.insert_load(v2, Type::field());
-        let v19 = builder.insert_binary(v17, BinaryOp::Mul, one_hundred);
-        let v20 = builder.insert_binary(v16, BinaryOp::Add, v19);
-        builder.insert_store(v0, v20);
-        let v21 = builder.insert_load(v2, Type::field());
-        let v23 = builder.insert_binary(v21, BinaryOp::Add, one);
-        builder.insert_store(v2, v23);
-        builder.terminate_with_jmp(b4, vec![]);
-
-        builder.switch_to_block(b4);
-        builder.terminate_with_jmp(b5, vec![]);
-
-        let ssa = builder.finish().flatten_cfg().mem2reg().fold_constants();
+        let ssa = ssa.flatten_cfg().mem2reg().fold_constants();
 
         let main = ssa.main();
 
@@ -1439,6 +1379,18 @@ mod test {
             }
             _ => unreachable!("Should have terminator instruction"),
         }
+
+        let expected = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = allocate -> &mut Field
+            enable_side_effects u1 1
+            return Field 200
+        }
+        ";
+
+        assert_normalized_ssa_equals(ssa, expected);
     }
 
     #[test]
@@ -1458,5 +1410,89 @@ mod test {
         ";
         let merged_ssa = Ssa::from_str(src).unwrap();
         let _ = merged_ssa.flatten_cfg();
+    }
+
+    #[test]
+    fn eliminates_unnecessary_if_else_instructions_on_numeric_types() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: bool):
+            v1 = allocate -> &mut [Field; 1]
+            store Field 0 at v1
+            jmpif v0 then: b1, else: b2
+          b1():
+            store Field 1 at v1 
+            store Field 2 at v1 
+            jmp b2()
+          b2():
+            v3 = load v1 -> Field
+            return v3
+        }";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.flatten_cfg().mem2reg().fold_constants();
+
+        let expected = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut [Field; 1]
+            enable_side_effects v0
+            v2 = not v0
+            v3 = cast v0 as Field
+            v4 = cast v2 as Field
+            v6 = mul v3, Field 2
+            v7 = mul v4, v3
+            v8 = add v6, v7
+            enable_side_effects u1 1
+            return v8
+        }
+        ";
+
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn eliminates_unnecessary_if_else_instructions_on_array_types() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: bool, v1: bool):
+            v2 = make_array [Field 0] : [Field; 1]
+            v3 = allocate -> &mut [Field; 1]
+            store v2 at v3
+            jmpif v0 then: b1, else: b2
+          b1():
+            v4 = make_array [Field 1] : [Field; 1]
+            store v4 at v3 
+            v5 = make_array [Field 2] : [Field; 1]
+            store v5 at v3 
+            jmp b2()
+          b2():
+            v24 = load v3 -> Field
+            return v24
+        }";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa
+            .flatten_cfg()
+            .mem2reg()
+            .remove_if_else()
+            .fold_constants()
+            .dead_instruction_elimination();
+
+        let expected = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            enable_side_effects v0
+            v2 = cast v0 as Field
+            v4 = mul v2, Field 2
+            v5 = make_array [v4] : [Field; 1]
+            enable_side_effects u1 1
+            return v5
+        }
+        ";
+
+        assert_normalized_ssa_equals(ssa, expected);
     }
 }

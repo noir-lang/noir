@@ -216,6 +216,20 @@ fn compile_programs(
             cached_program,
         )?;
 
+        if compile_options.check_non_determinism {
+            let (program_two, _) = compile_program(
+                file_manager,
+                parsed_files,
+                workspace,
+                package,
+                compile_options,
+                load_cached_program(package),
+            )?;
+            if fxhash::hash64(&program) != fxhash::hash64(&program_two) {
+                panic!("Non deterministic result compiling {}", package.name);
+            }
+        }
+
         // Choose the target width for the final, backend specific transformation.
         let target_width =
             get_target_width(package.expression_width, compile_options.expression_width);
@@ -319,7 +333,6 @@ mod tests {
     use nargo::ops::compile_program;
     use nargo_toml::PackageSelection;
     use noirc_driver::{CompileOptions, CrateName};
-    use rayon::prelude::*;
 
     use crate::cli::compile_cmd::{get_target_width, parse_workspace, read_workspace};
 
@@ -388,7 +401,7 @@ mod tests {
 
         assert!(!test_workspaces.is_empty(), "should find some test workspaces");
 
-        test_workspaces.par_iter().for_each(|workspace| {
+        test_workspaces.iter().for_each(|workspace| {
             let (file_manager, parsed_files) = parse_workspace(workspace);
             let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
 

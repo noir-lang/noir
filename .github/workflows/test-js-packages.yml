@@ -35,7 +35,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.74.1
+        uses: dtolnay/rust-toolchain@1.75.0
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -68,7 +68,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.74.1
+        uses: dtolnay/rust-toolchain@1.75.0
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -100,7 +100,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.74.1
+        uses: dtolnay/rust-toolchain@1.75.0
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -135,7 +135,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.74.1
+        uses: dtolnay/rust-toolchain@1.75.0
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -543,8 +543,6 @@ jobs:
   external-repo-checks:
     needs: [build-nargo, critical-library-list]
     runs-on: ubuntu-22.04
-    # Only run when 'run-external-checks' label is present
-    if: contains(github.event.pull_request.labels.*.name, 'run-external-checks')
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -557,11 +555,17 @@ jobs:
           - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/parity-lib }
           - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-lib }
           - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/reset-kernel-lib }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-lib }
           - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/types }
+          # Use 1 test threads for rollup-lib because each test requires a lot of memory, and multiple ones in parallel exceed the maximum memory limit.
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-lib, nargo_args: "--test-threads 1" }
 
     name: Check external repo - ${{ matrix.project.repo }}/${{ matrix.project.path }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          path: noir-repo
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -592,9 +596,14 @@ jobs:
       
       - name: Run nargo test
         working-directory: ./test-repo/${{ matrix.project.path }}
-        run: nargo test -q --silence-warnings
+        run: |
+          nargo test --silence-warnings --skip-brillig-constraints-check --format json ${{ matrix.project.nargo_args }} | tee ${{ github.workspace }}/noir-repo/.github/critical_libraries_status/${{ matrix.project.repo }}/${{ matrix.project.path }}.actual.jsonl
         env:
           NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS: true
+      
+      - name: Compare test results
+        working-directory: ./noir-repo
+        run: .github/scripts/check_test_results.sh .github/critical_libraries_status/${{ matrix.project.repo }}/${{ matrix.project.path }}.failures.jsonl .github/critical_libraries_status/${{ matrix.project.repo }}/${{ matrix.project.path }}.actual.jsonl
 
   # This is a job which depends on all test jobs and reports the overall status.
   # This allows us to add/remove test jobs without having to update the required workflows.
