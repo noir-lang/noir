@@ -181,7 +181,9 @@ impl IdMaps {
             }
 
             Value::Function(id) => {
-                let new_id = self.function_ids[id];
+                let new_id = *self.function_ids.get(id).unwrap_or_else(|| {
+                    unreachable!("Unmapped function with id {id}")
+                });
                 new_function.dfg.import_function(new_id)
             }
 
