@@ -48,7 +48,6 @@ pub(crate) struct ExecuteCommand {
 
 pub(crate) fn run(args: ExecuteCommand, config: NargoConfig) -> Result<(), CliError> {
     let toml_path = get_package_manifest(&config.program_dir)?;
-
     let selection = args.package_options.package_selection();
     let workspace = resolve_workspace_from_toml(
         &toml_path,
@@ -99,7 +98,6 @@ pub(crate) fn run(args: ExecuteCommand, config: NargoConfig) -> Result<(), CliEr
             }
         }
     }
-
     Ok(())
 }
 

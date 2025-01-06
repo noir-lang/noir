@@ -36,7 +36,6 @@ pub(crate) struct ExportCommand {
 
 pub(crate) fn run(args: ExportCommand, config: NargoConfig) -> Result<(), CliError> {
     let toml_path = get_package_manifest(&config.program_dir)?;
-
     let selection = args.package_options.package_selection();
     let workspace = resolve_workspace_from_toml(
         &toml_path,

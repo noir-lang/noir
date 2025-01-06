@@ -42,7 +42,6 @@ pub(crate) struct CompileCommand {
 
 pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliError> {
     let selection = args.package_options.package_selection();
-
     let workspace = read_workspace(&config.program_dir, selection)?;
 
     if args.watch {
