@@ -836,9 +836,12 @@ fn simplify(dfg: &DataFlowGraph, lhs: ValueId, rhs: ValueId) -> Option<(ValueId,
 mod test {
     use std::sync::Arc;
 
+    use noirc_frontend::monomorphization::ast::InlineType;
+
     use crate::ssa::{
         function_builder::FunctionBuilder,
         ir::{
+            function::RuntimeType,
             map::Id,
             types::{NumericType, Type},
         },
@@ -1159,6 +1162,7 @@ mod test {
 
         // Compiling main
         let mut builder = FunctionBuilder::new("main".into(), main_id);
+        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
         let v0 = builder.add_parameter(Type::unsigned(64));
         let zero = builder.numeric_constant(0u128, NumericType::unsigned(64));
         let typ = Type::Array(Arc::new(vec![Type::unsigned(64)]), 25);
