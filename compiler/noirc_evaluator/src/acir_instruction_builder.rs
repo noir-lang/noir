@@ -262,7 +262,7 @@ fn range_check_function(variable_type: Type) -> Ssa {
 
 /// Creates an SSA function for truncate operations
 fn truncate_function(variable_type: Type) -> Ssa {
-    // truncate v0: field 10, 20?..
+    // truncate v0: field to bit size 10 with max bit size 20.
     let main_id: Id<Function> = Id::new(0);
     let mut builder = FunctionBuilder::new("main".into(), main_id);
 
