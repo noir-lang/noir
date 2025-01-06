@@ -16,8 +16,8 @@ use super::{
 };
 
 impl ParsedSsa {
-    pub(crate) fn into_ssa(self) -> Result<Ssa, SsaError> {
-        Translator::translate(self)
+    pub(crate) fn into_ssa(self, simplify: bool) -> Result<Ssa, SsaError> {
+        Translator::translate(self, simplify)
     }
 }
 
@@ -41,8 +41,8 @@ struct Translator {
 }
 
 impl Translator {
-    fn translate(mut parsed_ssa: ParsedSsa) -> Result<Ssa, SsaError> {
-        let mut translator = Self::new(&mut parsed_ssa)?;
+    fn translate(mut parsed_ssa: ParsedSsa, simplify: bool) -> Result<Ssa, SsaError> {
+        let mut translator = Self::new(&mut parsed_ssa, simplify)?;
 
         // Note that the `new` call above removed the main function,
         // so all we are left with are non-main functions.
@@ -53,12 +53,13 @@ impl Translator {
         Ok(translator.finish())
     }
 
-    fn new(parsed_ssa: &mut ParsedSsa) -> Result<Self, SsaError> {
+    fn new(parsed_ssa: &mut ParsedSsa, simplify: bool) -> Result<Self, SsaError> {
         // A FunctionBuilder must be created with a main Function, so here wer remove it
         // from the parsed SSA to avoid adding it twice later on.
         let main_function = parsed_ssa.functions.remove(0);
         let main_id = FunctionId::test_new(0);
         let mut builder = FunctionBuilder::new(main_function.external_name.clone(), main_id);
+        builder.simplify = simplify;
         builder.set_runtime(main_function.runtime_type);
 
         // Map function names to their IDs so calls can be resolved
