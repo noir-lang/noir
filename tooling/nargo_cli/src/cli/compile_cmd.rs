@@ -339,7 +339,6 @@ mod tests {
     use nargo::ops::compile_program;
     use nargo_toml::PackageSelection;
     use noirc_driver::{CompileOptions, CrateName};
-    use rayon::prelude::*;
 
     use crate::cli::compile_cmd::{get_target_width, parse_workspace, read_workspace};
 
@@ -408,7 +407,7 @@ mod tests {
 
         assert!(!test_workspaces.is_empty(), "should find some test workspaces");
 
-        test_workspaces.par_iter().for_each(|workspace| {
+        test_workspaces.iter().for_each(|workspace| {
             let (file_manager, parsed_files) = parse_workspace(workspace);
             let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
 
