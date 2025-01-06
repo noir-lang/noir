@@ -180,7 +180,7 @@ mod tests {
 
     fn create_test_environment() -> (Ssa, FunctionContext, BrilligContext<FieldElement, Stack>) {
         let mut builder = FunctionBuilder::new("main".to_string(), Id::test_new(0));
-        builder.set_runtime(RuntimeType::Brillig(InlineType::default()), false);
+        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
 
         let ssa = builder.finish();
         let mut brillig_context = create_context(ssa.main_id);

@@ -1164,7 +1164,7 @@ mod test {
         // }
         let foo_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("foo".into(), foo_id);
-        builder.set_runtime(RuntimeType::Brillig(InlineType::default()), true);
+        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
 
         let bar_id = Id::test_new(1);
         let bar = builder.import_function(bar_id);
@@ -1206,7 +1206,7 @@ mod test {
         // }
         let foo_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("foo".into(), foo_id);
-        builder.set_runtime(RuntimeType::Brillig(InlineType::default()), true);
+        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
 
         let bar_id = Id::test_new(1);
         let bar = builder.import_function(bar_id);

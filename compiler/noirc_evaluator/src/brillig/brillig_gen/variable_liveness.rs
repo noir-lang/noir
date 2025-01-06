@@ -361,7 +361,7 @@ mod test {
 
         let main_id = Id::test_new(1);
         let mut builder = FunctionBuilder::new("main".into(), main_id);
-        builder.set_runtime(RuntimeType::Brillig(InlineType::default()), false);
+        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
 
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();
@@ -471,7 +471,7 @@ mod test {
 
         let main_id = Id::test_new(1);
         let mut builder = FunctionBuilder::new("main".into(), main_id);
-        builder.set_runtime(RuntimeType::Brillig(InlineType::default()), false);
+        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
 
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();
@@ -610,7 +610,7 @@ mod test {
 
         let main_id = Id::test_new(1);
         let mut builder = FunctionBuilder::new("main".into(), main_id);
-        builder.set_runtime(RuntimeType::Brillig(InlineType::default()), false);
+        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
 
         let v0 = builder.add_parameter(Type::bool());
 
