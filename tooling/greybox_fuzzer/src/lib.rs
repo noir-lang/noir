@@ -94,7 +94,6 @@ pub struct FuzzedExecutor<E, F> {
     /// Execution metric
     metrics: Metrics,
 }
-type BrilligCoverage = Vec<u32>;
 
 impl<
         E: Fn(
@@ -177,16 +176,15 @@ impl<
             match result {
                 FuzzOutcome::Case(_) => {}
                 FuzzOutcome::Discrepancy(DiscrepancyOutcome {
-                    case_id,
+                    case_id: _,
                     exit_reason: status,
                     acir_failed,
                     counterexample,
                 }) => {
                     let reason = match acir_failed {
-                        true => format!(
-                            "ACIR failed while brillig executed with no issues: {}",
-                            status.to_string()
-                        ),
+                        true => {
+                            format!("ACIR failed while brillig executed with no issues: {}", status)
+                        }
 
                         false => {
                             format!("brillig failed while ACIR executed with no issues: {}", status)
@@ -201,7 +199,7 @@ impl<
                     });
                 }
                 FuzzOutcome::CounterExample(CounterExampleOutcome {
-                    case_id,
+                    case_id: _,
                     exit_reason: status,
                     counterexample,
                 }) => {
@@ -261,7 +259,7 @@ impl<
                     *case_id,
                     witness,
                     brillig_coverage.clone(),
-                    &accumulated_coverage.potential_bool_witness_list.as_mut().unwrap(),
+                    accumulated_coverage.potential_bool_witness_list.as_mut().unwrap(),
                 )
             } else {
                 SingleTestCaseCoverage::new(
@@ -272,14 +270,14 @@ impl<
                 )
             };
             let (new_coverage_discovered, testcases_to_remove) =
-                accumulated_coverage.merge(&&new_coverage);
+                accumulated_coverage.merge(&new_coverage);
             if new_coverage_discovered {
                 // Remove testcases whose features are covered by new testcases
                 for &testcase_for_removal in testcases_to_remove.iter() {
                     corpus.remove(testcase_for_removal);
                 }
                 // Import values from the new testcase
-                self.mutator.update_dictionary(&case);
+                self.mutator.update_dictionary(case);
 
                 match corpus.insert(*case_id, case.clone(), save_to_disk) {
                     Ok(_) => (),
@@ -326,10 +324,8 @@ impl<
         }
 
         // Init accumulated coverage object for tracking explored states
-        let mut accumulated_coverage = AccumulatedFuzzerCoverage::new(
-            self.location_to_feature_map.len(),
-            &self.brillig_coverage_ranges,
-        );
+        let mut accumulated_coverage =
+            AccumulatedFuzzerCoverage::new(&self.brillig_coverage_ranges);
 
         let mut starting_corpus = corpus.get_full_stored_corpus();
 
@@ -392,7 +388,7 @@ impl<
             let testcase_generation_tracker = Instant::now();
 
             // Get indices of testcases from the corpus that will be used in the current round of mutations
-            for i in 0..current_testcase_set_size {
+            for _ in 0..current_testcase_set_size {
                 let (main_testcase, additional_testcase) = if acir_round {
                     corpus.get_next_testcase_for_acir(&mut prng)
                 } else {
@@ -418,12 +414,9 @@ impl<
                         // Generate a mutated input by using the main and additional testcases in the corpus
                         let input = self.mutator.mutate_input_map_multiple(
                             corpus.get_testcase_by_id(main_testcase_index).clone(),
-                            match additional_testcase_index {
-                                Some(additional_testcase_index) => Some(
-                                    corpus.get_testcase_by_id(additional_testcase_index).clone(),
-                                ),
-                                None => None,
-                            },
+                            additional_testcase_index.map(|additional_testcase_index| {
+                                corpus.get_testcase_by_id(additional_testcase_index).clone()
+                            }),
                             &mut thread_prng,
                         );
                         // Form a testcase from input (assign a unique id)
@@ -676,8 +669,8 @@ impl<
                 );
                 time_tracker = Instant::now();
             }
-            if potential_res.is_some() {
-                break potential_res.unwrap();
+            if let Some(result) = potential_res {
+                break result;
             }
             let all_fuzzing_results: Vec<FuzzOutcome> = pool.install(|| {
                 acir_cases_to_execute
@@ -791,20 +784,18 @@ impl<
                 FuzzTestResult { success: true, reason: None, counterexample: None }
             }
             FuzzOutcome::Discrepancy(DiscrepancyOutcome {
-                case_id,
+                case_id: _,
                 exit_reason: status,
                 acir_failed,
                 counterexample,
             }) => {
                 let reason = match acir_failed {
-                    true => format!(
-                        "ACIR failed while brillig executed with no issues: {}",
-                        status.to_string()
-                    ),
-                    false => format!(
-                        "brillig failed while ACIR executed with no issues: {}",
-                        status.to_string()
-                    ),
+                    true => {
+                        format!("ACIR failed while brillig executed with no issues: {}", status)
+                    }
+                    false => {
+                        format!("brillig failed while ACIR executed with no issues: {}", status)
+                    }
                 };
                 let reason = if reason.is_empty() { None } else { Some(reason) };
 
@@ -815,7 +806,7 @@ impl<
                 }
             }
             FuzzOutcome::CounterExample(CounterExampleOutcome {
-                case_id,
+                case_id: _,
                 exit_reason: status,
                 counterexample,
             }) => {
@@ -868,7 +859,7 @@ impl<
                 acir_failed: true,
                 counterexample: testcase.value().clone(),
             }),
-            (Ok(_), Err((err, coverage))) => FuzzOutcome::Discrepancy(DiscrepancyOutcome {
+            (Ok(_), Err((err, _))) => FuzzOutcome::Discrepancy(DiscrepancyOutcome {
                 case_id: testcase.id(),
                 exit_reason: err,
                 acir_failed: false,

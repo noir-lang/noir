@@ -55,17 +55,12 @@ impl FullDictionary {
                 }
             }
             AbiType::Array { length, typ } => {
-                let length = *length as usize;
                 let input_vector = match input {
                     InputValue::Vec(previous_input_vector) => previous_input_vector,
                     _ => panic!("Mismatch of AbiType and InputValue should not happen"),
                 };
-                for i in 0..length {
-                    Self::collect_dictionary_from_input_value(
-                        typ,
-                        &input_vector[i],
-                        full_dictionary,
-                    );
+                for element in input_vector.iter() {
+                    Self::collect_dictionary_from_input_value(typ, element, full_dictionary);
                 }
             }
 
@@ -174,7 +169,7 @@ impl InputMutator {
             AbiType::String { length } => NodeWeight { start: 0u32, end: *length, subnodes: None },
             AbiType::Array { length, typ } => {
                 let length = *length as usize;
-                let subnode_weight = Self::count_single_input_weight(&typ);
+                let subnode_weight = Self::count_single_input_weight(typ);
                 let node_weight = subnode_weight.get_weight() * length as u32;
 
                 NodeWeight {
@@ -188,7 +183,7 @@ impl InputMutator {
                 let mut weights = Vec::new();
 
                 let mut total_node_weight = 0u32;
-                for single in fields.iter().map(|(_, typ)| Self::count_single_input_weight(&typ)) {
+                for single in fields.iter().map(|(_, typ)| Self::count_single_input_weight(typ)) {
                     total_node_weight += &single.get_weight();
                     weights.push(single);
                 }
@@ -200,7 +195,7 @@ impl InputMutator {
                 let mut weights = Vec::new();
 
                 let mut total_node_weight = 0u32;
-                for single in fields.iter().map(|typ| Self::count_single_input_weight(&typ)) {
+                for single in fields.iter().map(Self::count_single_input_weight) {
                     total_node_weight += &single.get_weight();
                     weights.push(single);
                 }
@@ -212,7 +207,7 @@ impl InputMutator {
 
     /// Recurse through all the inputs in the ABI and collect weights of every input so we don't get affected by the depth
     fn count_all_input_weights(abi: &Abi) -> NodeWeight {
-        assert!(abi.parameters.len() > 0);
+        assert!(!abi.parameters.is_empty());
         let mut weights = Vec::new();
 
         let mut total_node_weight = 0u32;
@@ -251,13 +246,11 @@ impl InputMutator {
                 &self.full_dictionary.original_int_dictionary,
                 prng,
             ),
-            AbiType::String { length: _ } => {
-                return mutate_string_input_value(
-                    previous_input,
-                    prng,
-                    &self.full_dictionary.original_int_dictionary,
-                );
-            }
+            AbiType::String { length: _ } => mutate_string_input_value(
+                previous_input,
+                prng,
+                &self.full_dictionary.original_int_dictionary,
+            ),
             AbiType::Array { length, typ } => {
                 let length = *length as usize;
                 let input_vector = match previous_input {
@@ -384,7 +377,6 @@ impl InputMutator {
         weight_tree_node: &NodeWeight,
         mutation_weight: u32,
     ) -> InputValue {
-        // TODO: implement proper splicing for fields and integers
         match abi_type {
             // Boolean only has 2 values, there is no point in performing complex logic
             AbiType::Boolean => {
@@ -402,8 +394,7 @@ impl InputMutator {
                     second_input.clone()
                 }
             }
-            // TODO: IMPLEMENT THESE
-            AbiType::Integer { sign, width } => {
+            AbiType::Integer { .. } => {
                 if prng.gen_bool(0.5) {
                     first_input.clone()
                 } else {
@@ -415,6 +406,7 @@ impl InputMutator {
                 1 => second_input.clone(),
                 _ => splice_string_input_value(first_input, second_input, prng),
             },
+            // TODO: implement proper splicing for Arrays and Tuples
             AbiType::Array { length, typ } => {
                 let length = *length as usize;
                 let first_input_vector = match first_input {
@@ -529,8 +521,7 @@ impl InputMutator {
                 .abi
                 .parameters
                 .iter()
-                .enumerate()
-                .map(|(idx, param)| {
+                .map(|param| {
                     (
                         param.name.clone(),
                         if prng.gen_bool(0.5) {
@@ -580,11 +571,9 @@ impl InputMutator {
         let mut starting_input_value = previous_input_map.clone();
         const MUTATION_LOG_MIN: u32 = 0;
         const MUTATION_LOG_MAX: u32 = 5;
-        let mut chosen_max_mutation_log = MUTATION_LOG_MAX;
         if additional_input_map.is_some() && prng.gen_range(0..4).is_zero() {
             starting_input_value =
                 self.splice_two_maps(&previous_input_map, &additional_input_map.unwrap(), prng);
-            //chosen_max_mutation_log = MUTATION_LOG_MIN;
         }
         for _ in 0..(1 << prng.gen_range(MUTATION_LOG_MIN..=MUTATION_LOG_MAX)) {
             starting_input_value = self.mutate_input_map_single(&starting_input_value, prng);

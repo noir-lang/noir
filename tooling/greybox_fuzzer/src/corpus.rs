@@ -50,7 +50,6 @@ impl<'a> From<&'a InputMap> for TestCase<'a> {
 }
 pub struct CorpusFileManager {
     file_manager: FileManager,
-    root: PathBuf,
     corpus_path: PathBuf,
     abi: Abi,
     parsed_map: HashMap<FileId, InputMap>,
@@ -58,16 +57,9 @@ pub struct CorpusFileManager {
 
 impl CorpusFileManager {
     pub fn new(root: &Path, package_name: &str, harness_name: &str, abi: Abi) -> Self {
-        let cloned_root = root;
         let corpus_path = root.join(package_name).join(harness_name);
 
-        Self {
-            file_manager: FileManager::new(root),
-            root: cloned_root.to_path_buf(),
-            corpus_path,
-            abi,
-            parsed_map: HashMap::new(),
-        }
+        Self { file_manager: FileManager::new(root), corpus_path, abi, parsed_map: HashMap::new() }
     }
     /// Loads the corpus from the given directory
     pub fn load_corpus_from_disk(&mut self) -> Result<(), String> {
@@ -213,7 +205,7 @@ impl TestCaseOrchestrator {
             let chosen_id = self
                 .executions_per_testcase
                 .iter()
-                .min_by_key(|&(id, value)| value)
+                .min_by_key(|&(_id, value)| value)
                 .map(|(&id, _)| id)
                 .unwrap();
 
@@ -234,13 +226,10 @@ impl TestCaseOrchestrator {
         // If there are several testcases, we can provide an additional one for splicing
         if testcase_count > 1 {
             let mut additional_id = self.current_sequence.testcase_id;
+            // Sample until we get one different from the current
             while additional_id == self.current_sequence.testcase_id {
-                additional_id = self
-                    .executions_per_testcase
-                    .iter()
-                    .map(|(&id, &value)| id)
-                    .choose(prng)
-                    .unwrap();
+                additional_id =
+                    self.executions_per_testcase.iter().map(|(&id, _)| id).choose(prng).unwrap();
             }
             return (self.current_sequence.testcase_id, Some(additional_id));
         } else {
@@ -264,8 +253,6 @@ pub struct Corpus {
 }
 
 impl Corpus {
-    const MAX_EXECUTIONS_PER_SEQUENCE_LOG: u32 = 100;
-
     pub fn new(package_name: &str, function_name: &str, abi: &Abi) -> Self {
         Self {
             discovered_testcases: HashMap::new(),

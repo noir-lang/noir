@@ -2,7 +2,6 @@ use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 use std::u32;
 
-use acvm::acir::circuit::opcodes::{BlackBoxFuncCall, ConstantOrWitnessEnum};
 use acvm::acir::circuit::Opcode;
 use acvm::acir::native_types::{Witness, WitnessStack};
 use acvm::brillig_vm::brillig::Opcode as BrilligOpcode;
@@ -158,10 +157,7 @@ pub struct AccumulatedFuzzerCoverage {
     pub potential_bool_witness_list: Option<PotentialBoolWitnessList>,
 }
 impl AccumulatedFuzzerCoverage {
-    pub fn new(
-        brillig_coverage_map_size: usize,
-        coverage_items: &BrilligCoverageRanges,
-    ) -> AccumulatedFuzzerCoverage {
+    pub fn new(coverage_items: &BrilligCoverageRanges) -> AccumulatedFuzzerCoverage {
         let mut single_branch_coverage = Vec::new();
         let mut cmp_coverage = Vec::new();
         for coverage_item in coverage_items.iter() {
@@ -487,34 +483,4 @@ pub fn analyze_brillig_program_before_fuzzing(
         }
     }
     (location_to_feature_map, coverage_items)
-}
-
-pub fn analyze_acir_program_before_fuzzing(program: &ProgramArtifact) -> HashSet<Witness> {
-    let mut boolean_witness_set = HashSet::new();
-    let program_bytecode = &program.bytecode;
-    let main_function = &program_bytecode.functions[0];
-    for opcode in main_function.opcodes.iter() {
-        let range_input = match opcode {
-            Opcode::BlackBoxFuncCall(black_box_func_call) => match black_box_func_call {
-                BlackBoxFuncCall::RANGE { input } => Some(input),
-                _ => None,
-            },
-            _ => None,
-        };
-        if range_input.is_none() {
-            continue;
-        }
-        let range_input_unwrapped = range_input.unwrap();
-        if range_input_unwrapped.num_bits() == 1 {
-            match range_input_unwrapped.input_ref() {
-                &ConstantOrWitnessEnum::Constant(..) => {
-                    continue;
-                }
-                &ConstantOrWitnessEnum::Witness(witness) => {
-                    boolean_witness_set.insert(witness);
-                }
-            }
-        }
-    }
-    boolean_witness_set
 }

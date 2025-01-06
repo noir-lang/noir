@@ -52,21 +52,16 @@ pub fn splice_string_input_value(
         _ => panic!("Shouldn't be used with other input value types"),
     }
     .as_bytes()
-    .iter()
-    .copied()
-    .collect();
+    .to_vec();
     let second_initial_bytes: Vec<u8> = match second_input {
         InputValue::String(inner_string) => inner_string,
         _ => panic!("Shouldn't be used with other input value types"),
     }
     .as_bytes()
-    .iter()
-    .copied()
-    .collect();
-    assert!(first_initial_bytes.len() != 0);
+    .to_vec();
+    assert!(!first_initial_bytes.is_empty());
     assert!(second_initial_bytes.len() == first_initial_bytes.len());
     let mut index = 0;
-    //println!("SPLICING");
     while index != first_initial_bytes.len() {
         let sequence_length = prng.gen_range(1..=(first_initial_bytes.len() - index));
         if prng.gen_bool(0.5) {
