@@ -311,9 +311,9 @@ pub fn check_crate(
     crate_id: CrateId,
     options: &CompileOptions,
 ) -> CompilationResult<()> {
-    let crate_files = context.crate_files(&crate_id);
     let diagnostics =
         CrateDefMap::collect_defs(crate_id, context, options.debug_comptime_in_file.as_deref());
+    let crate_files = context.crate_files(&crate_id);
     let warnings_and_errors: Vec<FileDiagnostic> = diagnostics
         .into_iter()
         .map(|(error, file_id)| {
