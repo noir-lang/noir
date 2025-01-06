@@ -112,9 +112,6 @@ impl From<NumericType> for AcirType {
 pub(crate) struct AcirContext<F: AcirField, B: BlackBoxFunctionSolver<F>> {
     blackbox_solver: B,
 
-    /// Two-way map that links `AcirVar` to `AcirVarData`.
-    ///
-    /// The vars object is an instance of the `TwoWayMap`, which provides a bidirectional mapping between `AcirVar` and `AcirVarData`.
     vars: HashMap<AcirVar, AcirVarData<F>>,
 
     constant_witnesses: HashMap<F, Witness>,

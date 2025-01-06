@@ -22,7 +22,7 @@ use types::{CaseOutcome, CounterExampleOutcome, FuzzOutcome, FuzzTestResult};
 
 use noirc_artifacts::program::ProgramArtifact;
 
-/// An executor for Noir programs which which provides fuzzing support using [`proptest`].
+/// An executor for Noir programs which provides fuzzing support using [`proptest`].
 ///
 /// After instantiation, calling `fuzz` will proceed to hammer the program with
 /// inputs, until it finds a counterexample. The provided [`TestRunner`] contains all the
@@ -38,14 +38,14 @@ pub struct FuzzedExecutor<E> {
     runner: TestRunner,
 }
 
-impl<
-        E: Fn(
-            &Program<FieldElement>,
-            WitnessMap<FieldElement>,
-        ) -> Result<WitnessStack<FieldElement>, String>,
-    > FuzzedExecutor<E>
+impl<E> FuzzedExecutor<E>
+where
+    E: Fn(
+        &Program<FieldElement>,
+        WitnessMap<FieldElement>,
+    ) -> Result<WitnessStack<FieldElement>, String>,
 {
-    /// Instantiates a fuzzed executor given a testrunner
+    /// Instantiates a fuzzed executor given a [TestRunner].
     pub fn new(program: ProgramArtifact, executor: E, runner: TestRunner) -> Self {
         Self { program, executor, runner }
     }
@@ -53,7 +53,7 @@ impl<
     /// Fuzzes the provided program.
     pub fn fuzz(&self) -> FuzzTestResult {
         let dictionary = build_dictionary_from_program(&self.program.bytecode);
-        let strategy = strategies::arb_input_map(&self.program.abi, dictionary);
+        let strategy = strategies::arb_input_map(&self.program.abi, &dictionary);
 
         let run_result: Result<(), TestError<InputMap>> =
             self.runner.clone().run(&strategy, |input_map| {

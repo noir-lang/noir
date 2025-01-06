@@ -77,3 +77,38 @@ let s = r#"Simon says "hello world""#;
 // Any number of hashes may be used (>= 1) as long as the string also terminates with the same number of hashes
 let s = r#####"One "#, Two "##, Three "###, Four "####, Five will end the string."#####; 
 ```
+
+## Format strings
+
+A format string begins with the letter `f` and allows inserting the value of local and global variables in it.
+
+Example:
+
+```rust
+let four = 2 + 2;
+let s = f"Two plus two is: {four}";
+println(s);
+```
+
+The output of the above program is:
+
+```text
+Two plus two is: 4
+```
+
+To insert the value of a local or global variable, put it inside `{...}` in the string.
+
+If you need to write the `{` or `}` characters, use `{{` and `}}` respectively:
+
+```rust
+let four = 2 + 2;
+
+// Prints "This is not expanded: {four}"
+println(f"This is not expanded: {{four}}");
+```
+
+More complex expressions are not allowed inside `{...}`:
+
+```rust
+let s = f"Two plus two is: {2 + 2}" // Error: invalid format string
+```

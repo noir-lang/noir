@@ -1,5 +1,5 @@
 [toolchain]
-channel = "1.74.1"
+channel = "1.75.0"
 components = [ "rust-src" ]
 targets = [ "wasm32-unknown-unknown", "wasm32-wasi", "aarch64-apple-darwin" ]
 profile = "default"

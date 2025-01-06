@@ -14,6 +14,9 @@ pub mod ops;
 pub mod package;
 pub mod workspace;
 
+pub use self::errors::NargoError;
+pub use self::foreign_calls::print::PrintOutput;
+
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     path::PathBuf,
@@ -28,9 +31,6 @@ use noirc_frontend::{
 use package::{Dependency, Package};
 use rayon::prelude::*;
 use walkdir::WalkDir;
-
-pub use self::errors::NargoError;
-pub use self::foreign_calls::print::PrintOutput;
 
 pub fn prepare_dependencies(
     context: &mut Context,
@@ -172,6 +172,7 @@ pub fn parse_all(file_manager: &FileManager) -> ParsedFiles {
         .collect()
 }
 
+#[tracing::instrument(level = "trace", skip_all)]
 pub fn prepare_package<'file_manager, 'parsed_files>(
     file_manager: &'file_manager FileManager,
     parsed_files: &'parsed_files ParsedFiles,
