@@ -275,10 +275,6 @@ impl<'a> Lexer<'a> {
         self.chars.clone().next().map(|(_, ch)| ch)
     }
 
-    fn is_code_whitespace(c: char) -> bool {
-        c.is_ascii_whitespace()
-    }
-
     pub(crate) fn newline_follows(&self) -> bool {
         let chars = self.chars.clone();
         chars.take_while(|(_, char)| char.is_ascii_whitespace()).any(|(_, char)| char == '\n')

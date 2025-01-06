@@ -133,6 +133,7 @@ impl FunctionBuilder {
     }
 
     /// Insert a numeric constant into the current function of type Field
+    #[cfg(test)]
     pub(crate) fn field_constant(&mut self, value: impl Into<FieldElement>) -> ValueId {
         self.numeric_constant(value.into(), NumericType::NativeField)
     }
@@ -328,6 +329,7 @@ impl FunctionBuilder {
             .first()
     }
 
+    #[cfg(test)]
     pub(crate) fn insert_mutable_array_set(
         &mut self,
         array: ValueId,
