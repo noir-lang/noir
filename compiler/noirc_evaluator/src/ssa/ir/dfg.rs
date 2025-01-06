@@ -26,7 +26,7 @@ use serde_with::DisplayFromStr;
 /// owning most data in a function and handing out Ids to this data that can be
 /// shared without worrying about ownership.
 #[serde_as]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub(crate) struct DataFlowGraph {
     /// Runtime of the [Function] that owns this [DataFlowGraph].
     /// This might change during the `runtime_separation` pass where
@@ -105,24 +105,6 @@ pub(crate) struct DataFlowGraph {
 }
 
 impl DataFlowGraph {
-    pub(crate) fn new(runtime: RuntimeType) -> Self {
-        Self {
-            runtime,
-            instructions: Default::default(),
-            results: Default::default(),
-            values: Default::default(),
-            constants: Default::default(),
-            functions: Default::default(),
-            intrinsics: Default::default(),
-            foreign_functions: Default::default(),
-            blocks: Default::default(),
-            replaced_value_ids: Default::default(),
-            locations: Default::default(),
-            call_stack_data: Default::default(),
-            data_bus: Default::default(),
-        }
-    }
-
     /// Runtime type of the function.
     pub(crate) fn runtime(&self) -> RuntimeType {
         self.runtime
@@ -725,14 +707,12 @@ impl<'dfg> std::ops::Index<usize> for InsertInstructionResult<'dfg> {
 
 #[cfg(test)]
 mod tests {
-    use noirc_frontend::monomorphization::ast::InlineType;
-
     use super::DataFlowGraph;
-    use crate::ssa::ir::{dfg::RuntimeType, instruction::Instruction, types::Type};
+    use crate::ssa::ir::{instruction::Instruction, types::Type};
 
     #[test]
     fn make_instruction() {
-        let mut dfg = DataFlowGraph::new(RuntimeType::Acir(InlineType::Inline));
+        let mut dfg = DataFlowGraph::default();
         let ins = Instruction::Allocate;
         let ins_id = dfg.make_instruction(ins, Some(vec![Type::field()]));
 

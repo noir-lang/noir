@@ -56,6 +56,12 @@ impl RuntimeType {
     }
 }
 
+impl Default for RuntimeType {
+    fn default() -> Self {
+        RuntimeType::Acir(InlineType::default())
+    }
+}
+
 /// A function holds a list of instructions.
 /// These instructions are further grouped into Basic blocks
 ///
@@ -82,7 +88,7 @@ impl Function {
     ///
     /// Note that any parameters or attributes of the function must be manually added later.
     pub(crate) fn new(name: String, id: FunctionId) -> Self {
-        let mut dfg = DataFlowGraph::new(RuntimeType::Acir(InlineType::default()));
+        let mut dfg = DataFlowGraph::default();
         let entry_block = dfg.make_block();
         Self { name, id, entry_block, dfg }
     }
