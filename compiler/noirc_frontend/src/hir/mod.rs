@@ -14,7 +14,7 @@ use crate::parser::ParserError;
 use crate::usage_tracker::UsageTracker;
 use crate::{Generics, Kind, ParsedModule, ResolvedGeneric, TypeVariable};
 use def_collector::dc_crate::CompilationError;
-use def_map::{fully_qualified_module_path, Contract, CrateDefMap};
+use def_map::{fully_qualified_module_path, Contract, CrateDefMap, FuzzingHarness};
 use fm::{FileId, FileManager};
 use iter_extended::vecmap;
 use noirc_errors::Location;

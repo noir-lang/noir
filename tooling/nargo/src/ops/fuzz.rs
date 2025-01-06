@@ -13,8 +13,9 @@ use noirc_frontend::hir::{def_map::FuzzingHarness, Context};
 use crate::{
     errors::try_to_diagnose_runtime_error, ops::execute::execute_program_with_brillig_fuzzing,
 };
+use crate::{foreign_calls::DefaultForeignCallExecutor, PrintOutput};
 
-use super::{execute_program, DefaultForeignCallExecutor};
+use super::execute_program;
 
 pub enum FuzzingRunStatus {
     Pass,
@@ -91,8 +92,8 @@ pub fn run_fuzzing_harness<B: BlackBoxFunctionSolver<FieldElement> + Default>(
                         program,
                         initial_witness,
                         &B::default(),
-                        &mut DefaultForeignCallExecutor::<FieldElement>::new(
-                            false,
+                        &mut DefaultForeignCallExecutor::new(
+                            PrintOutput::None,
                             foreign_call_resolver_url,
                             root_path.clone(),
                             package_name.clone(),
@@ -119,8 +120,8 @@ pub fn run_fuzzing_harness<B: BlackBoxFunctionSolver<FieldElement> + Default>(
                         program,
                         initial_witness,
                         &B::default(),
-                        &mut DefaultForeignCallExecutor::<FieldElement>::new(
-                            show_output,
+                        &mut DefaultForeignCallExecutor::new(
+                            if show_output { PrintOutput::Stdout } else { PrintOutput::None },
                             foreign_call_resolver_url,
                             root_path.clone(),
                             package_name.clone(),
@@ -171,8 +172,8 @@ pub fn run_fuzzing_harness<B: BlackBoxFunctionSolver<FieldElement> + Default>(
                             &unwrapped_acir_program.program,
                             initial_witness,
                             &B::default(),
-                            &mut DefaultForeignCallExecutor::<FieldElement>::new(
-                                false,
+                            &mut DefaultForeignCallExecutor::new(
+                                PrintOutput::None,
                                 foreign_call_resolver_url,
                                 root_path.clone(),
                                 package_name.clone(),

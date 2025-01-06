@@ -634,8 +634,14 @@ impl<'brillig> Context<'brillig> {
         let foreign_call_results = Vec::new();
         let black_box_solver = Bn254BlackBoxSolver;
         let profiling_active = false;
-        let mut vm =
-            VM::new(calldata, bytecode, foreign_call_results, &black_box_solver, profiling_active);
+        let mut vm = VM::new(
+            calldata,
+            bytecode,
+            foreign_call_results,
+            &black_box_solver,
+            profiling_active,
+            None,
+        );
         let vm_status: VMStatus<_> = vm.process_opcodes();
         let VMStatus::Finished { return_data_offset, return_data_size } = vm_status else {
             return EvaluationResult::CannotEvaluate(*func_id);
