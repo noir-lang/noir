@@ -83,8 +83,6 @@ noir_lsp = { path = "tooling/lsp" }
 noir_debugger = { path = "tooling/debugger" }
 noirc_abi = { path = "tooling/noirc_abi" }
 noirc_artifacts = { path = "tooling/noirc_artifacts" }
-bb_abstraction_leaks = { path = "tooling/bb_abstraction_leaks" }
-acvm_cli = { path = "tooling/acvm_cli" }
 
 # Arkworks
 ark-bn254 = { version = "^0.5.0", default-features = false, features = [
@@ -152,8 +150,12 @@ jsonrpsee = { version = "0.24.7", features = ["client-core"] }
 flate2 = "1.0.24"
 color-eyre = "0.6.2"
 rand = "0.8.5"
-proptest = "1.2.0"
-proptest-derive = "0.4.0"
+# The `fork` and `timeout` feature doesn't compile with Wasm (wait-timeout doesn't find the `imp` module).
+proptest = { version = "1.6.0", default-features = false, features = [
+    "std",
+    "bit-set",
+] }
+proptest-derive = "0.5.0"
 rayon = "1.8.0"
 sha2 = { version = "0.10.6", features = ["compress"] }
 sha3 = "0.10.6"

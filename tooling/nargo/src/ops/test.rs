@@ -96,70 +96,58 @@ where
                     status
                 }
             } else {
-                #[cfg(target_arch = "wasm32")]
-                {
-                    // We currently don't support fuzz testing on wasm32 as the u128 strategies do not exist on this platform.
-                    TestStatus::Fail {
-                        message: "Fuzz tests are not supported on wasm32".to_string(),
-                        error_diagnostic: None,
-                    }
-                }
+                use acvm::acir::circuit::Program;
+                use noir_fuzzer::FuzzedExecutor;
+                use proptest::test_runner::Config;
+                use proptest::test_runner::TestRunner;
 
-                #[cfg(not(target_arch = "wasm32"))]
-                {
-                    use acvm::acir::circuit::Program;
-                    use noir_fuzzer::FuzzedExecutor;
-                    use proptest::test_runner::Config;
-                    use proptest::test_runner::TestRunner;
+                let runner =
+                    TestRunner::new(Config { failure_persistence: None, ..Config::default() });
 
-                    let runner =
-                        TestRunner::new(Config { failure_persistence: None, ..Config::default() });
+                let abi = compiled_program.abi.clone();
+                let debug = compiled_program.debug.clone();
 
-                    let abi = compiled_program.abi.clone();
-                    let debug = compiled_program.debug.clone();
+                let executor = |program: &Program<FieldElement>,
+                                initial_witness: WitnessMap<FieldElement>|
+                 -> Result<WitnessStack<FieldElement>, String> {
+                    // Use a base layer that doesn't handle anything, which we handle in the `execute` below.
+                    let inner_executor =
+                        build_foreign_call_executor(PrintOutput::None, layers::Unhandled);
 
-                    let executor =
-                        |program: &Program<FieldElement>,
-                         initial_witness: WitnessMap<FieldElement>|
-                         -> Result<WitnessStack<FieldElement>, String> {
-                            // Use a base layer that doesn't handle anything, which we handle in the `execute` below.
-                            let inner_executor =
-                                build_foreign_call_executor(PrintOutput::None, layers::Unhandled);
-                            let mut foreign_call_executor =
-                                TestForeignCallExecutor::new(inner_executor);
+                    let mut foreign_call_executor = TestForeignCallExecutor::new(inner_executor);
 
-                            let circuit_execution = execute_program(
-                                program,
-                                initial_witness,
-                                blackbox_solver,
-                                &mut foreign_call_executor,
-                            );
+                    let circuit_execution = execute_program(
+                        program,
+                        initial_witness,
+                        blackbox_solver,
+                        &mut foreign_call_executor,
+                    );
 
-                            let status = test_status_program_compile_pass(
-                                test_function,
-                                &abi,
-                                &debug,
-                                &circuit_execution,
-                            );
+                    // Check if a failure was actually expected.
+                    let status = test_status_program_compile_pass(
+                        test_function,
+                        &abi,
+                        &debug,
+                        &circuit_execution,
+                    );
 
-                            if let TestStatus::Fail { message, error_diagnostic: _ } = status {
-                                Err(message)
-                            } else {
-                                // The fuzzer doesn't care about the actual result.
-                                Ok(WitnessStack::default())
-                            }
-                        };
-
-                    let fuzzer = FuzzedExecutor::new(compiled_program.into(), executor, runner);
-
-                    let result = fuzzer.fuzz();
-                    if result.success {
-                        TestStatus::Pass
+                    if let TestStatus::Fail { message, error_diagnostic: _ } = status {
+                        Err(message)
                     } else {
-                        TestStatus::Fail {
-                            message: result.reason.unwrap_or_default(),
-                            error_diagnostic: None,
-                        }
+                        // The fuzzer doesn't care about the actual result.
+                        Ok(WitnessStack::default())
+                    }
+                };
+
+                let fuzzer = FuzzedExecutor::new(compiled_program.into(), executor, runner);
+
+                let result = fuzzer.fuzz();
+                if result.success {
+                    TestStatus::Pass
+                } else {
+                    TestStatus::Fail {
+                        message: result.reason.unwrap_or_default(),
+                        error_diagnostic: None,
                     }
                 }
             }
