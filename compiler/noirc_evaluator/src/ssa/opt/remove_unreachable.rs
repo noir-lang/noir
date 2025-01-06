@@ -40,7 +40,12 @@ fn collect_reachable_functions(
     }
     reachable_functions.insert(current_func_id);
 
-    let func = &ssa.functions[&current_func_id];
+    // If the debugger is used, its possible for function inlining
+    // to remove functions that the debugger still references
+    let Some(func) = ssa.functions.get(&current_func_id) else {
+        return;
+    };
+
     let used_functions = used_functions(func);
 
     for called_func_id in used_functions.iter() {
@@ -52,7 +57,7 @@ fn used_functions(func: &Function) -> BTreeSet<FunctionId> {
     let mut used_function_ids = BTreeSet::default();
 
     let mut find_functions = |value| {
-        if let Value::Function(function) = func.dfg[value] {
+        if let Value::Function(function) = func.dfg[func.dfg.resolve(value)] {
             used_function_ids.insert(function);
         }
     };
