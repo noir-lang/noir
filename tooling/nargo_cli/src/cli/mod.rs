@@ -135,17 +135,26 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         config.program_dir = program_dir;
     }
 
-    let lock_file = if needs_lock(&command) {
-        let toml_path = get_package_manifest(&config.program_dir)?;
-        let file = File::open(toml_path).expect("Expected Nargo.toml to exist");
-        if file.try_lock_exclusive().is_err() {
-            eprintln!("Waiting for lock on Nargo.toml...");
-        }
+    let lock_file = match needs_lock(&command) {
+        Some(exclusive) => {
+            let toml_path = get_package_manifest(&config.program_dir)?;
+            let file = File::open(toml_path).expect("Expected Nargo.toml to exist");
+            if exclusive {
+                if file.try_lock_exclusive().is_err() {
+                    eprintln!("Waiting for lock on Nargo.toml...");
+                }
 
-        file.lock_exclusive().expect("Failed to lock Nargo.toml");
-        Some(file)
-    } else {
-        None
+                file.lock_exclusive().expect("Failed to lock Nargo.toml");
+            } else {
+                if file.try_lock_shared().is_err() {
+                    eprintln!("Waiting for lock on Nargo.toml...");
+                }
+
+                file.lock_shared().expect("Failed to lock Nargo.toml");
+            }
+            Some(file)
+        }
+        None => None,
     };
 
     match command {
@@ -215,21 +224,20 @@ fn command_dir(cmd: &NargoCommand, program_dir: &Path) -> Result<Option<PathBuf>
     Ok(Some(nargo_toml::find_root(program_dir, workspace)?))
 }
 
-fn needs_lock(cmd: &NargoCommand) -> bool {
+fn needs_lock(cmd: &NargoCommand) -> Option<bool> {
     match cmd {
         NargoCommand::Check(..)
         | NargoCommand::Compile(..)
         | NargoCommand::Execute(..)
         | NargoCommand::Export(..)
-        | NargoCommand::Info(..) => true,
+        | NargoCommand::Info(..) => Some(true),
+        NargoCommand::Debug(..) | NargoCommand::Test(..) => Some(false),
         NargoCommand::Fmt(..)
         | NargoCommand::New(..)
         | NargoCommand::Init(..)
-        | NargoCommand::Debug(..)
-        | NargoCommand::Test(..)
         | NargoCommand::Lsp(..)
         | NargoCommand::Dap(..)
-        | NargoCommand::GenerateCompletionScript(..) => false,
+        | NargoCommand::GenerateCompletionScript(..) => None,
     }
 }
 
