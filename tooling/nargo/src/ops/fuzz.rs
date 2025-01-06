@@ -5,7 +5,7 @@ use acvm::{
     brillig_vm::BranchToFeatureMap,
     BlackBoxFunctionSolver, FieldElement,
 };
-use noirc_abi::{input_parser::json::serialize_to_json, Abi, InputMap};
+use noirc_abi::{Abi, InputMap};
 use noirc_driver::{compile_no_check, CompileOptions};
 use noirc_errors::FileDiagnostic;
 use noirc_frontend::hir::{def_map::FuzzingHarness, Context};
@@ -64,8 +64,11 @@ pub fn run_fuzzing_harness<B: BlackBoxFunctionSolver<FieldElement> + Default>(
 
     let acir_program =
         compile_no_check(context, &acir_config, fuzzing_harness.get_id(), None, false);
-    let acir_program_copy =
-        if acir_program.is_ok() { Some(acir_program.as_ref().unwrap().clone()) } else { None };
+    let acir_program_copy = if let Ok(acir_program_internal) = &acir_program {
+        Some(acir_program_internal.clone())
+    } else {
+        None
+    };
     let brillig_program =
         compile_no_check(context, &brillig_config, fuzzing_harness.get_id(), None, false);
     match (acir_program, brillig_program) {
@@ -143,7 +146,7 @@ pub fn run_fuzzing_harness<B: BlackBoxFunctionSolver<FieldElement> + Default>(
                 let mut fuzzer = FuzzedExecutor::new(
                     acir_program.into(),
                     brillig_program.into(),
-                    acir_executor.clone(),
+                    acir_executor,
                     brillig_executor,
                     &package_name.clone().unwrap(),
                     context.def_interner.function_name(&fuzzing_harness.get_id()),
@@ -155,49 +158,47 @@ pub fn run_fuzzing_harness<B: BlackBoxFunctionSolver<FieldElement> + Default>(
                 let result = fuzzer.fuzz();
                 if result.success {
                     FuzzingRunStatus::Pass
+                } else if result.counterexample.is_some() {
+                    let unwrapped_acir_program = acir_program_copy.unwrap();
+                    let initial_witness = unwrapped_acir_program
+                        .abi
+                        .encode(
+                            &result
+                                .counterexample
+                                .clone()
+                                .expect("There should be a failing witness"),
+                            None,
+                        )
+                        .unwrap();
+                    let execution_failure = execute_program(
+                        &unwrapped_acir_program.program,
+                        initial_witness,
+                        &B::default(),
+                        &mut DefaultForeignCallExecutor::new(
+                            PrintOutput::None,
+                            foreign_call_resolver_url,
+                            root_path.clone(),
+                            package_name.clone(),
+                        ),
+                    );
+                    let execution_error = match execution_failure {
+                        Err(err) => err,
+                        Ok(..) => panic!("Program is flakey"),
+                    };
+                    FuzzingRunStatus::Fail {
+                        message: result.reason.unwrap_or_default(),
+                        counterexample: Some((result.counterexample.expect("huh"), abi)),
+                        error_diagnostic: try_to_diagnose_runtime_error(
+                            &execution_error,
+                            &unwrapped_acir_program.abi,
+                            &unwrapped_acir_program.debug,
+                        ),
+                    }
                 } else {
-                    if result.counterexample.is_some() {
-                        let unwrapped_acir_program = acir_program_copy.unwrap();
-                        let initial_witness = unwrapped_acir_program
-                            .abi
-                            .encode(
-                                &result
-                                    .counterexample
-                                    .clone()
-                                    .expect("There should be a failing witness"),
-                                None,
-                            )
-                            .unwrap();
-                        let execution_failure = execute_program(
-                            &unwrapped_acir_program.program,
-                            initial_witness,
-                            &B::default(),
-                            &mut DefaultForeignCallExecutor::new(
-                                PrintOutput::None,
-                                foreign_call_resolver_url,
-                                root_path.clone(),
-                                package_name.clone(),
-                            ),
-                        );
-                        let execution_error = match execution_failure {
-                            Err(err) => err,
-                            Ok(..) => panic!("Program is flakey"),
-                        };
-                        return FuzzingRunStatus::Fail {
-                            message: result.reason.unwrap_or_default(),
-                            counterexample: Some((result.counterexample.expect("huh"), abi)),
-                            error_diagnostic: try_to_diagnose_runtime_error(
-                                &execution_error,
-                                &unwrapped_acir_program.abi,
-                                &unwrapped_acir_program.debug,
-                            ),
-                        };
-                    } else {
-                        return FuzzingRunStatus::Fail {
-                            message: result.reason.expect("Should be a failure message"),
-                            counterexample: None,
-                            error_diagnostic: None,
-                        };
+                    FuzzingRunStatus::Fail {
+                        message: result.reason.expect("Should be a failure message"),
+                        counterexample: None,
+                        error_diagnostic: None,
                     }
                 }
             }

@@ -18,9 +18,7 @@ pub fn mutate_string_input_value(
         _ => panic!("Shouldn't be used with other input value types"),
     }
     .as_bytes()
-    .iter()
-    .copied()
-    .collect();
+    .to_vec();
     assert!(initial_bytes.len() != 0);
     let mut chosen_mutation = prng.gen_range(0..TOTAL_WEIGHT);
     let position = prng.gen_range(0..initial_bytes.len());
@@ -38,10 +36,10 @@ pub fn mutate_string_input_value(
     chosen_mutation -= DICTIONARY_BYTE_MUTATION_WEIGHT;
     assert!(chosen_mutation < RANDOM_BYTE_MUTATION_WEIGHT);
     initial_bytes[position] = prng.gen_range(0..0x7f);
-    return InputValue::String(
+    InputValue::String(
         String::from_utf8(initial_bytes)
             .expect("We expect that the values in the string are just ASCII"),
-    );
+    )
 }
 
 pub fn splice_string_input_value(

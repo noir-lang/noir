@@ -12,7 +12,6 @@ use coverage::{
     BrilligCoverageRanges, PotentialBoolWitnessList, SingleTestCaseCoverage,
 };
 use noir_fuzzer::dictionary::build_dictionary_from_program;
-use noirc_abi::InputMap;
 
 mod corpus;
 mod coverage;
@@ -21,7 +20,7 @@ mod types;
 
 use corpus::{Corpus, TestCase, TestCaseId};
 use rayon::{
-    iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator},
+    iter::{IntoParallelRefIterator, ParallelIterator},
     ThreadPool,
 };
 use strategies::InputMutator;
@@ -168,7 +167,7 @@ impl<
 
     fn parse_fuzzing_results_and_update_accumulated_coverage_and_corpus(
         &mut self,
-        fuzz_results: &Vec<FuzzOutcome>,
+        fuzz_results: &[FuzzOutcome],
         accumulated_coverage: &mut AccumulatedFuzzerCoverage,
         corpus: &mut Corpus,
         save_to_disk: bool,
@@ -189,10 +188,9 @@ impl<
                             status.to_string()
                         ),
 
-                        false => format!(
-                            "brillig failed while ACIR executed with no issues: {}",
-                            status.to_string()
-                        ),
+                        false => {
+                            format!("brillig failed while ACIR executed with no issues: {}", status)
+                        }
                     };
                     let reason = if reason.is_empty() { None } else { Some(reason) };
 
@@ -297,7 +295,7 @@ impl<
                 println!("New feature in loaded testcase");
             }
         }
-        return Ok(());
+        Ok(())
     }
 
     /// Start the fuzzing campaign
@@ -463,7 +461,7 @@ impl<
                                     case_id,
                                     &witness,
                                     brillig_coverage.clone().unwrap(),
-                                    &bool_witness_list,
+                                    bool_witness_list,
                                 );
                                 (
                                     FuzzOutcome::Case(SuccessfulCaseOutcome {
@@ -482,7 +480,7 @@ impl<
                                 (paired_fuzz_outcome, false, 0, 0)
                             }
                         } else {
-                            let brillig_fuzz_outcome = self.single_fuzz_brillig(&testcase).unwrap();
+                            let brillig_fuzz_outcome = self.single_fuzz_brillig(&testcase);
                             if let FuzzOutcome::Case(SuccessfulCaseOutcome {
                                 case_id,
                                 case,
@@ -519,7 +517,7 @@ impl<
                     .collect::<Vec<(FuzzOutcome, bool, u128, u128)>>()
             });
             let fuzz_time_micros = mutation_and_fuzzing_time_tracker.elapsed().as_micros();
-            if (acir_round) {
+            if acir_round {
                 let mut time_per_testcase = fuzz_time_micros / acir_executions_multiplier as u128;
                 time_per_testcase = max(time_per_testcase, 30);
                 acir_executions_multiplier = (200_000u128 / time_per_testcase) as usize;
@@ -595,13 +593,13 @@ impl<
                         case_id,
                         &witness,
                         brillig_coverage,
-                        &accumulated_coverage
+                        accumulated_coverage
                             .potential_bool_witness_list
                             .as_ref()
                             .unwrap_or(&PotentialBoolWitnessList::default()),
                     );
                     let (new_coverage_discovered, testcases_to_remove) =
-                        accumulated_coverage.merge(&&new_coverage);
+                        accumulated_coverage.merge(&new_coverage);
                     if new_coverage_discovered {
                         for &testcase_for_removal in testcases_to_remove.iter() {
                             println!("Removing {testcase_for_removal}");
@@ -628,7 +626,7 @@ impl<
                         brillig_coverage.clone(),
                         &PotentialBoolWitnessList::default(),
                     );
-                    if accumulated_coverage.detect_new_coverage(&&new_coverage) {
+                    if accumulated_coverage.detect_new_coverage(&new_coverage) {
                         acir_cases_to_execute.push((
                             case_id,
                             case.clone(),
@@ -686,7 +684,7 @@ impl<
                     .into_par_iter()
                     .map(|(case_id, input, brillig_coverage, brillig_time)| {
                         let testcase = TestCase::with_id(case_id, &input);
-                        let fuzz_res = self.single_fuzz_acir(&testcase).unwrap();
+                        let fuzz_res = self.single_fuzz_acir(&testcase);
                         match fuzz_res {
                             FuzzOutcome::Case(SuccessfulCaseOutcome {
                                 case_id,
@@ -701,7 +699,7 @@ impl<
                                 witness,
                                 brillig_coverage: Some(brillig_coverage),
                                 acir_time,
-                                brillig_time: brillig_time,
+                                brillig_time,
                             }),
                             FuzzOutcome::Discrepancy(..) => {
                                 panic!("Can't get a discrepancy just from acir")
@@ -757,10 +755,10 @@ impl<
                         case_id,
                         &witness,
                         brillig_coverage,
-                        &accumulated_coverage.potential_bool_witness_list.as_mut().unwrap(),
+                        accumulated_coverage.potential_bool_witness_list.as_mut().unwrap(),
                     );
                     let (new_coverage_discovered, testcases_to_remove) =
-                        accumulated_coverage.merge(&&new_coverage);
+                        accumulated_coverage.merge(&new_coverage);
                     if new_coverage_discovered {
                         for &testcase_for_removal in testcases_to_remove.iter() {
                             println!("Removing {testcase_for_removal}");
@@ -782,8 +780,8 @@ impl<
                     }
                 }
             }
-            if potential_res.is_some() {
-                break potential_res.unwrap();
+            if let Some(result) = potential_res {
+                break result;
             }
             current_iteration += current_testcase_set_size;
         };
@@ -877,20 +875,21 @@ impl<
                 counterexample: testcase.value().clone(),
             }),
             (Err(..), Err((err, coverage))) => {
-                if self.fail_on_specific_asserts {
-                    if !err.contains(
+                if self.fail_on_specific_asserts
+                    && !err.contains(
                         self.failure_reason.as_ref().expect("Failure reason should be provided"),
-                    ) {
-                        return FuzzOutcome::Case(SuccessfulCaseOutcome {
-                            case_id: testcase.id(),
-                            case: testcase.value().clone(),
-                            witness: None,
-                            brillig_coverage: Some(coverage.unwrap()),
-                            acir_time: acir_elapsed.as_micros(),
-                            brillig_time: brillig_elapsed.as_micros(),
-                        });
-                    }
+                    )
+                {
+                    return FuzzOutcome::Case(SuccessfulCaseOutcome {
+                        case_id: testcase.id(),
+                        case: testcase.value().clone(),
+                        witness: None,
+                        brillig_coverage: Some(coverage.unwrap()),
+                        acir_time: acir_elapsed.as_micros(),
+                        brillig_time: brillig_elapsed.as_micros(),
+                    });
                 }
+
                 FuzzOutcome::CounterExample(CounterExampleOutcome {
                     case_id: testcase.id(),
                     exit_reason: err,
@@ -902,32 +901,32 @@ impl<
 
     /// Granular and single-step function that runs only one fuzz and returns either a `CaseOutcome`
     /// or a `CounterExampleOutcome`
-    pub fn single_fuzz_acir(&self, testcase: &TestCase) -> Result<FuzzOutcome, ()> {
+    pub fn single_fuzz_acir(&self, testcase: &TestCase) -> FuzzOutcome {
         let initial_witness = self.acir_program.abi.encode(testcase.value(), None).unwrap();
         let acir_start = Instant::now();
         let result_acir = (self.acir_executor)(&self.acir_program.bytecode, initial_witness);
         let acir_elapsed = acir_start.elapsed();
 
         match result_acir {
-            Ok(witnesses) => Ok(FuzzOutcome::Case(SuccessfulCaseOutcome {
+            Ok(witnesses) => FuzzOutcome::Case(SuccessfulCaseOutcome {
                 case_id: testcase.id(),
                 case: testcase.value().clone(),
                 witness: Some(witnesses),
                 brillig_coverage: None,
                 acir_time: acir_elapsed.as_micros(),
                 brillig_time: 0,
-            })),
-            Err(err) => Ok(FuzzOutcome::CounterExample(CounterExampleOutcome {
+            }),
+            Err(err) => FuzzOutcome::CounterExample(CounterExampleOutcome {
                 case_id: testcase.id(),
                 exit_reason: err,
                 counterexample: testcase.value().clone(),
-            })),
+            }),
         }
     }
 
     /// Granular and single-step function that runs only one fuzz and returns either a `CaseOutcome`
     /// or a `CounterExampleOutcome`
-    pub fn single_fuzz_brillig(&self, testcase: &TestCase) -> Result<FuzzOutcome, ()> {
+    pub fn single_fuzz_brillig(&self, testcase: &TestCase) -> FuzzOutcome {
         let initial_witness = self.acir_program.abi.encode(testcase.value(), None).unwrap();
         let brillig_start = Instant::now();
         let result_brillig = (self.brillig_executor)(
@@ -938,34 +937,34 @@ impl<
         let brillig_elapsed = brillig_start.elapsed();
 
         match result_brillig {
-            Ok((_, brillig_coverage)) => Ok(FuzzOutcome::Case(SuccessfulCaseOutcome {
+            Ok((_, brillig_coverage)) => FuzzOutcome::Case(SuccessfulCaseOutcome {
                 case_id: testcase.id(),
                 case: testcase.value().clone(),
                 witness: None,
                 brillig_coverage: Some(brillig_coverage.unwrap()),
                 acir_time: 0,
                 brillig_time: brillig_elapsed.as_micros(),
-            })),
+            }),
             Err((err, coverage)) => {
-                if (self.fail_on_specific_asserts) {
-                    if (!err.contains(
+                if self.fail_on_specific_asserts {
+                    if !err.contains(
                         self.failure_reason.as_ref().expect("Failure reason should be provided"),
-                    )) {
-                        return Ok(FuzzOutcome::Case(SuccessfulCaseOutcome {
+                    ) {
+                        return FuzzOutcome::Case(SuccessfulCaseOutcome {
                             case_id: testcase.id(),
                             case: testcase.value().clone(),
                             witness: None,
                             brillig_coverage: Some(coverage.unwrap()),
                             acir_time: 0,
                             brillig_time: brillig_elapsed.as_micros(),
-                        }));
+                        });
                     }
                 }
-                Ok(FuzzOutcome::CounterExample(CounterExampleOutcome {
+                FuzzOutcome::CounterExample(CounterExampleOutcome {
                     case_id: testcase.id(),
                     exit_reason: err,
                     counterexample: testcase.value().clone(),
-                }))
+                })
             }
         }
     }

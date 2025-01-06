@@ -79,7 +79,8 @@ pub struct AcirBoolState {
     state: bool,
 }
 
-const BRANCH_COVERAGE_SIZE: usize = 2;
+const IF_BRANCH_COUNT: usize = 2;
+const EQ_STATE_COUNT: usize = 2;
 pub struct BranchCoverageRange {
     index: usize,
 }
@@ -166,8 +167,7 @@ impl AccumulatedFuzzerCoverage {
         for coverage_item in coverage_items.iter() {
             match coverage_item {
                 BrilligCoverageItemRange::Branch(branch_coverage_range) => {
-                    let BRANCH_COUNT = 2;
-                    for i in 0..BRANCH_COUNT {
+                    for i in 0..IF_BRANCH_COUNT {
                         single_branch_coverage.push(AccumulatedSingleBranchCoverage {
                             encountered_loop_log2s: 0,
                             testcases_involved: [None; 32],
@@ -178,8 +178,7 @@ impl AccumulatedFuzzerCoverage {
                     }
                 }
                 BrilligCoverageItemRange::Comparison(cmp_coverage_range) => {
-                    let BRANCH_COUNT = 2;
-                    for i in 0..BRANCH_COUNT {
+                    for i in 0..EQ_STATE_COUNT {
                         single_branch_coverage.push(AccumulatedSingleBranchCoverage {
                             encountered_loop_log2s: 0,
                             testcases_involved: [None; 32],
@@ -303,8 +302,7 @@ impl AccumulatedFuzzerCoverage {
                 }
                 cmp_approach.closest_bits = least_different_bits;
                 cmp_approach.encountered_loop_maximum = last_value;
-                let loop_log_shift =
-                    (if last_value.is_zero() { 0 } else { last_value.ilog2() + 1 });
+                let loop_log_shift = if last_value.is_zero() { 0 } else { last_value.ilog2() + 1 };
                 cmp_approach.encountered_loop_log2s = 1u32 << loop_log_shift;
 
                 cmp_approach.closest_bits_testcase = Some(new_coverage.testcase_id);

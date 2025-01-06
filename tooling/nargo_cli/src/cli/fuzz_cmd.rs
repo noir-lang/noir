@@ -10,13 +10,10 @@ use nargo::{
     package::{CrateName, Package},
     parse_all, prepare_package,
 };
-use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
+use nargo_toml::{get_package_manifest, resolve_workspace_from_toml};
 use noirc_abi::input_parser::{json::serialize_to_json, Format};
 use noirc_driver::{check_crate, CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
-use noirc_frontend::{
-    ast::Path,
-    hir::{FunctionNameMatch, ParsedFiles},
-};
+use noirc_frontend::hir::{FunctionNameMatch, ParsedFiles};
 use rayon::prelude::{ParallelBridge, ParallelIterator};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
@@ -325,34 +322,31 @@ fn display_fuzzing_report_and_store(
                     .expect("Failed to set color");
 
                 writeln!(writer, "FAIL\n{message}\n").expect("Failed to write to stderr");
-                match counterexample {
-                    Some((input_map, abi)) => {
-                        writeln!(
-                            writer,
-                            "failing input: {}",
-                            serialize_to_json(input_map, abi)
-                                .expect("Input map should be correctly serialized with this Abi")
-                        )
+                if let Some((input_map, abi)) = counterexample {
+                    writeln!(
+                        writer,
+                        "failing input: {}",
+                        serialize_to_json(input_map, abi)
+                            .expect("Input map should be correctly serialized with this Abi")
+                    )
+                    .expect("Failed to write to stderr");
+                    let file_name = "Prover-failing-".to_owned()
+                        + &package.name.to_string()
+                        + "-"
+                        + fuzzing_harness_name;
+                    write_inputs_to_file(
+                        root_path.clone().unwrap_or_default(),
+                        &file_name,
+                        Format::Toml,
+                        abi,
+                        input_map,
+                    )
+                    .expect("Couldn't write toml file");
+                    writer
+                        .set_color(ColorSpec::new().set_fg(Some(Color::Yellow)))
+                        .expect("Failed to set color");
+                    writeln!(writer, "saved input to: {}", file_name)
                         .expect("Failed to write to stderr");
-                        let file_name = "Prover-failing-".to_owned()
-                            + &package.name.to_string()
-                            + "-"
-                            + fuzzing_harness_name;
-                        write_inputs_to_file(
-                            root_path.clone().unwrap_or_default(),
-                            &file_name,
-                            Format::Toml,
-                            abi,
-                            input_map,
-                        )
-                        .expect("Couldn't write toml file");
-                        writer
-                            .set_color(ColorSpec::new().set_fg(Some(Color::Yellow)))
-                            .expect("Failed to set color");
-                        writeln!(writer, "saved input to: {}", file_name)
-                            .expect("Failed to write to stderr");
-                    }
-                    _ => (),
                 }
                 if let Some(diag) = error_diagnostic {
                     noirc_errors::reporter::report_all(

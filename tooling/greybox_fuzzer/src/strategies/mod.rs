@@ -25,6 +25,9 @@ pub struct FullDictionary {
     original_int_dictionary: IntDictionary,
 }
 
+const TOP_LEVEL_RANDOM_SPLICE_STRATEGY_WEIGHT: usize = 1usize;
+const SPLICE_ONE_DESCENDANT: usize = 1usize;
+const TOTAL_WEIGHT: usize = TOP_LEVEL_RANDOM_SPLICE_STRATEGY_WEIGHT + SPLICE_ONE_DESCENDANT;
 impl FullDictionary {
     fn collect_dictionary_from_input_value(
         abi_type: &AbiType,
@@ -374,7 +377,6 @@ impl InputMutator {
             .collect()
     }
     pub fn splice_input_value(
-        &self,
         abi_type: &AbiType,
         first_input: &InputValue,
         second_input: &InputValue,
@@ -430,7 +432,7 @@ impl InputMutator {
                             if mutation_weight >= weight_node.start
                                 && mutation_weight < weight_node.end
                             {
-                                self.splice_input_value(
+                                Self::splice_input_value(
                                     typ,
                                     &first_input_vector[idx],
                                     &second_input_vector[idx],
@@ -464,7 +466,7 @@ impl InputMutator {
                             if mutation_weight >= weight_node.start
                                 && mutation_weight < weight_node.end
                             {
-                                self.splice_input_value(
+                                Self::splice_input_value(
                                     typ,
                                     &first_input_struct[name],
                                     &second_input_struct[name],
@@ -498,7 +500,7 @@ impl InputMutator {
                     .map(|(((typ, first_tuple_input), second_tuple_input), weight_node)| {
                         if mutation_weight >= weight_node.start && mutation_weight < weight_node.end
                         {
-                            self.splice_input_value(
+                            Self::splice_input_value(
                                 typ,
                                 first_tuple_input,
                                 second_tuple_input,
@@ -521,9 +523,6 @@ impl InputMutator {
         second_input_map: &InputMap,
         prng: &mut XorShiftRng,
     ) -> InputMap {
-        let TOP_LEVEL_RANDOM_SPLICE_STRATEGY_WEIGHT = 1usize;
-        let SPLICE_ONE_DESCENDANT = 1usize;
-        let TOTAL_WEIGHT = TOP_LEVEL_RANDOM_SPLICE_STRATEGY_WEIGHT + SPLICE_ONE_DESCENDANT;
         let chosen_strategy = prng.gen_range(0..TOTAL_WEIGHT);
         if chosen_strategy < TOP_LEVEL_RANDOM_SPLICE_STRATEGY_WEIGHT {
             return self
@@ -555,7 +554,7 @@ impl InputMutator {
                         if chosen_weight >= current_level_weight_tree[idx].start
                             && chosen_weight < current_level_weight_tree[idx].end
                         {
-                            self.splice_input_value(
+                            Self::splice_input_value(
                                 &param.typ,
                                 &first_input_map[&param.name],
                                 &second_input_map[&param.name],
@@ -622,7 +621,7 @@ impl InputMutator {
 
             AbiType::Tuple { fields } => {
                 let fields: Vec<_> =
-                    fields.iter().map(|typ| Self::generate_default_input_value(typ)).collect();
+                    fields.iter().map(Self::generate_default_input_value).collect();
                 InputValue::Vec(fields)
             }
         }

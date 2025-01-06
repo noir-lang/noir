@@ -544,22 +544,22 @@ pub fn mutate_int_input_value(
                 return InputValue::Field(match width {
                     8 => add_sub_xor_and_or_unsigned::<u8>(
                         &initial_field_value,
-                        &dictionary_value,
+                        dictionary_value,
                         chosen_operation,
                     ),
                     16 => add_sub_xor_and_or_unsigned::<u16>(
                         &initial_field_value,
-                        &dictionary_value,
+                        dictionary_value,
                         chosen_operation,
                     ),
                     32 => add_sub_xor_and_or_unsigned::<u32>(
                         &initial_field_value,
-                        &dictionary_value,
+                        dictionary_value,
                         chosen_operation,
                     ),
                     64 => add_sub_xor_and_or_unsigned::<u64>(
                         &initial_field_value,
-                        &dictionary_value,
+                        dictionary_value,
                         chosen_operation,
                     ),
                     _ => {

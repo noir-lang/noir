@@ -1,9 +1,7 @@
-use core::num;
 use std::{
     cmp::min,
     collections::HashMap,
     fs::{DirBuilder, File},
-    hash::Hash,
     io::Write,
     path::{Path, PathBuf},
     sync::atomic::AtomicU64,
