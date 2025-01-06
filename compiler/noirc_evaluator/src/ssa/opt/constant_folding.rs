@@ -1045,7 +1045,7 @@ mod test {
                 return
             }
             ";
-        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
 
         let expected = "
             acir(inline) fn main f0 {
@@ -1550,7 +1550,7 @@ mod test {
     fn deduplicates_side_effecting_intrinsics() {
         let src = "
         // After EnableSideEffectsIf removal:
-        acir(inline) fn main f0 {
+        brillig(inline) fn main f0 {
           b0(v0: Field, v1: Field, v2: u1):
             v4 = call is_unconstrained() -> u1
             v7 = call to_be_radix(v0, u32 256) -> [u8; 1]    // `a.to_be_radix(256)`;
@@ -1567,7 +1567,7 @@ mod test {
         ";
         let ssa = Ssa::from_str(src).unwrap();
         let expected = "
-        acir(inline) fn main f0 {
+        brillig(inline) fn main f0 {
           b0(v0: Field, v1: Field, v2: u1):
             v4 = call is_unconstrained() -> u1
             v7 = call to_be_radix(v0, u32 256) -> [u8; 1]
