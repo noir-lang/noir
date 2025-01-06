@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashSet};
+use std::collections::BTreeSet;
 
 use iter_extended::vecmap;
 use noirc_frontend::monomorphization::ast::InlineType;
@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use super::basic_block::BasicBlockId;
 use super::dfg::DataFlowGraph;
-use super::instruction::{Instruction, TerminatorInstruction};
+use super::instruction::TerminatorInstruction;
 use super::map::Id;
 use super::types::Type;
 use super::value::ValueId;
@@ -97,7 +97,7 @@ impl Function {
     /// Takes the signature (function name & runtime) from a function but does not copy the body.
     pub(crate) fn clone_signature(id: FunctionId, another: &Function) -> Self {
         let mut new_function = Function::new(another.name.clone(), id);
-        new_function.set_runtime(another.runtime(), another.is_runtime_separated());
+        new_function.set_runtime(another.runtime());
         new_function
     }
 
@@ -117,14 +117,9 @@ impl Function {
         self.dfg.runtime()
     }
 
-    /// Indicate whether the runtimes have been separated yet.
-    pub(crate) fn is_runtime_separated(&self) -> bool {
-        self.dfg.is_runtime_separated()
-    }
-
     /// Set runtime type of the function.
-    pub(crate) fn set_runtime(&mut self, runtime: RuntimeType, separated: bool) {
-        self.dfg.set_runtime(runtime, separated);
+    pub(crate) fn set_runtime(&mut self, runtime: RuntimeType) {
+        self.dfg.set_runtime(runtime);
     }
 
     pub(crate) fn is_no_predicates(&self) -> bool {
@@ -197,37 +192,6 @@ impl Function {
         }
 
         unreachable!("SSA Function {} has no reachable return instruction!", self.id())
-    }
-
-    /// Remove instructions from all the reachable blocks in a function based on a predicate,
-    /// keeping the ones where the predicate returns `true`.
-    pub(crate) fn retain_instructions(&mut self, pred: impl Fn(&Instruction) -> bool) {
-        for block_id in self.reachable_blocks() {
-            let mut to_remove = HashSet::new();
-            let block = &self.dfg[block_id];
-            for instruction_id in block.instructions() {
-                let instruction = &self.dfg[*instruction_id];
-                if !pred(instruction) {
-                    to_remove.insert(*instruction_id);
-                }
-            }
-            if !to_remove.is_empty() {
-                let block = &mut self.dfg[block_id];
-                block.instructions_mut().retain(|id| !to_remove.contains(id));
-            }
-        }
-    }
-
-    /// Remove all instructions that aren't handled by the runtime, which is now
-    /// considered final. Seal the [DataFlowGraph] so it instantly simplifies
-    /// away instructions that the runtime would have to ignore.
-    ///
-    /// TODO(#6841): Remove once the SSA generated is for a specific runtime already.
-    pub(crate) fn separate_runtime(&mut self) {
-        if self.runtime().is_acir() {
-            self.retain_instructions(|i| !i.is_brillig_only());
-        }
-        self.dfg.set_runtime_separated();
     }
 }
 

@@ -68,9 +68,9 @@ impl FunctionBuilder {
     /// the FunctionBuilder. A function's default runtime type is `RuntimeType::Acir(InlineType::Inline)`.
     /// This should only be used immediately following construction of a FunctionBuilder
     /// and will panic if there are any already finished functions.
-    pub(crate) fn set_runtime(&mut self, runtime: RuntimeType, separated: bool) {
+    pub(crate) fn set_runtime(&mut self, runtime: RuntimeType) {
         assert_eq!(self.finished_functions.len(), 0, "Attempted to set runtime on a FunctionBuilder with finished functions. A FunctionBuilder's runtime should only be set on its initial function");
-        self.current_function.set_runtime(runtime, separated);
+        self.current_function.set_runtime(runtime);
     }
 
     /// Finish the current function and create a new function.
@@ -83,11 +83,10 @@ impl FunctionBuilder {
         name: String,
         function_id: FunctionId,
         runtime_type: RuntimeType,
-        separated: bool,
     ) {
         let call_stack = self.current_function.dfg.get_call_stack(self.call_stack);
         let mut new_function = Function::new(name, function_id);
-        new_function.set_runtime(runtime_type, separated);
+        new_function.set_runtime(runtime_type);
         self.current_block = new_function.entry_block();
         let old_function = std::mem::replace(&mut self.current_function, new_function);
         // Copy the call stack to the new function
@@ -103,7 +102,7 @@ impl FunctionBuilder {
         function_id: FunctionId,
         inline_type: InlineType,
     ) {
-        self.new_function_with_type(name, function_id, RuntimeType::Acir(inline_type), false);
+        self.new_function_with_type(name, function_id, RuntimeType::Acir(inline_type));
     }
 
     /// Finish the current function and create a new unconstrained function.
@@ -113,7 +112,7 @@ impl FunctionBuilder {
         function_id: FunctionId,
         inline_type: InlineType,
     ) {
-        self.new_function_with_type(name, function_id, RuntimeType::Brillig(inline_type), false);
+        self.new_function_with_type(name, function_id, RuntimeType::Brillig(inline_type));
     }
 
     /// Consume the FunctionBuilder returning all the functions it has generated.

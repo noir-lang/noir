@@ -33,16 +33,6 @@ pub(crate) struct DataFlowGraph {
     /// ACIR functions are cloned as Brillig functions.
     runtime: RuntimeType,
 
-    /// Indicate whether we are past the runtime separation step.
-    /// Before this step the DFG accepts any instruction, because
-    /// an ACIR function might be cloned as a Brillig function.
-    /// After the separation, we can instantly remove instructions
-    /// that would just be ignored by the runtime.
-    ///
-    /// TODO(#6841): This would not be necessary if the SSA was
-    /// already generated for a specific runtime.
-    is_runtime_separated: bool,
-
     /// All of the instructions in a function
     instructions: DenseMap<Instruction>,
 
@@ -118,7 +108,6 @@ impl DataFlowGraph {
     pub(crate) fn new(runtime: RuntimeType) -> Self {
         Self {
             runtime,
-            is_runtime_separated: false,
             instructions: Default::default(),
             results: Default::default(),
             values: Default::default(),
@@ -139,22 +128,9 @@ impl DataFlowGraph {
         self.runtime
     }
 
-    /// Indicate whether the runtimes have been separated yet.
-    pub(crate) fn is_runtime_separated(&self) -> bool {
-        self.is_runtime_separated
-    }
-
     /// Set runtime type of the function.
-    pub(crate) fn set_runtime(&mut self, runtime: RuntimeType, separated: bool) {
+    pub(crate) fn set_runtime(&mut self, runtime: RuntimeType) {
         self.runtime = runtime;
-        self.is_runtime_separated = separated;
-    }
-
-    /// Mark the runtime as separated. After this we can drop
-    /// instructions that would be ignored by the runtime,
-    /// instead of inserting them and carrying them to the end.
-    pub(crate) fn set_runtime_separated(&mut self) {
-        self.is_runtime_separated = true;
     }
 
     /// Creates a new basic block with no parameters.
@@ -246,7 +222,7 @@ impl DataFlowGraph {
         ctrl_typevars: Option<Vec<Type>>,
         call_stack: CallStackId,
     ) -> InsertInstructionResult {
-        if self.is_runtime_separated && !self.is_handled_by_runtime(&instruction_data) {
+        if !self.is_handled_by_runtime(&instruction_data) {
             return InsertInstructionResult::InstructionRemoved;
         }
 
@@ -269,7 +245,7 @@ impl DataFlowGraph {
         ctrl_typevars: Option<Vec<Type>>,
         call_stack: CallStackId,
     ) -> InsertInstructionResult {
-        if self.is_runtime_separated && !self.is_handled_by_runtime(&instruction) {
+        if !self.is_handled_by_runtime(&instruction) {
             return InsertInstructionResult::InstructionRemoved;
         }
         match instruction.simplify(self, block, ctrl_typevars.clone(), call_stack) {

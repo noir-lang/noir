@@ -361,7 +361,7 @@ impl InlineContext {
     ) -> InlineContext {
         let source = &ssa.functions[&entry_point];
         let mut builder = FunctionBuilder::new(source.name().to_owned(), entry_point);
-        builder.set_runtime(source.runtime(), source.is_runtime_separated());
+        builder.set_runtime(source.runtime());
         Self {
             builder,
             recursion_level: 0,
