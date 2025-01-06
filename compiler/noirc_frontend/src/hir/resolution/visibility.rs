@@ -1,5 +1,5 @@
 use crate::graph::CrateId;
-use crate::node_interner::{FuncId, NodeInterner, StructId};
+use crate::node_interner::{FuncId, NodeInterner, StructId, TraitId};
 use crate::Type;
 
 use std::collections::BTreeMap;
@@ -80,25 +80,46 @@ pub fn struct_member_is_visible(
     current_module_id: ModuleId,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
 ) -> bool {
+    type_member_is_visible(struct_id.module_id(), visibility, current_module_id, def_maps)
+}
+
+pub fn trait_member_is_visible(
+    trait_id: TraitId,
+    visibility: ItemVisibility,
+    current_module_id: ModuleId,
+    def_maps: &BTreeMap<CrateId, CrateDefMap>,
+) -> bool {
+    type_member_is_visible(trait_id.0, visibility, current_module_id, def_maps)
+}
+
+fn type_member_is_visible(
+    type_module_id: ModuleId,
+    visibility: ItemVisibility,
+    current_module_id: ModuleId,
+    def_maps: &BTreeMap<CrateId, CrateDefMap>,
+) -> bool {
     match visibility {
         ItemVisibility::Public => true,
         ItemVisibility::PublicCrate => {
-            struct_id.parent_module_id(def_maps).krate == current_module_id.krate
+            let type_parent_module_id =
+                type_module_id.parent(def_maps).expect("Expected parent module to exist");
+            type_parent_module_id.krate == current_module_id.krate
         }
         ItemVisibility::Private => {
-            let struct_parent_module_id = struct_id.parent_module_id(def_maps);
-            if struct_parent_module_id.krate != current_module_id.krate {
+            let type_parent_module_id =
+                type_module_id.parent(def_maps).expect("Expected parent module to exist");
+            if type_parent_module_id.krate != current_module_id.krate {
                 return false;
             }
 
-            if struct_parent_module_id.local_id == current_module_id.local_id {
+            if type_parent_module_id.local_id == current_module_id.local_id {
                 return true;
             }
 
             let def_map = &def_maps[&current_module_id.krate];
             module_descendent_of_target(
                 def_map,
-                struct_parent_module_id.local_id,
+                type_parent_module_id.local_id,
                 current_module_id.local_id,
             )
         }
@@ -115,35 +136,37 @@ pub fn method_call_is_visible(
     let modifiers = interner.function_modifiers(&func_id);
     match modifiers.visibility {
         ItemVisibility::Public => true,
-        ItemVisibility::PublicCrate => {
-            if object_type.is_primitive() {
-                current_module.krate.is_stdlib()
-            } else {
-                interner.function_module(func_id).krate == current_module.krate
+        ItemVisibility::PublicCrate | ItemVisibility::Private => {
+            let func_meta = interner.function_meta(&func_id);
+            if let Some(struct_id) = func_meta.struct_id {
+                return struct_member_is_visible(
+                    struct_id,
+                    modifiers.visibility,
+                    current_module,
+                    def_maps,
+                );
             }
-        }
-        ItemVisibility::Private => {
+
+            if let Some(trait_id) = func_meta.trait_id {
+                return trait_member_is_visible(
+                    trait_id,
+                    modifiers.visibility,
+                    current_module,
+                    def_maps,
+                );
+            }
+
             if object_type.is_primitive() {
                 let func_module = interner.function_module(func_id);
-                item_in_module_is_visible(
+                return item_in_module_is_visible(
                     def_maps,
                     current_module,
                     func_module,
                     modifiers.visibility,
-                )
-            } else {
-                let func_meta = interner.function_meta(&func_id);
-                if let Some(struct_id) = func_meta.struct_id {
-                    struct_member_is_visible(
-                        struct_id,
-                        modifiers.visibility,
-                        current_module,
-                        def_maps,
-                    )
-                } else {
-                    true
-                }
+                );
             }
+
+            true
         }
     }
 }
