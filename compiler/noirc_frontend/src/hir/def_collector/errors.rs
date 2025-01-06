@@ -183,7 +183,7 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
             }
             DefCollectorErrorKind::PathResolutionError(error) => error.into(),
             DefCollectorErrorKind::CannotReexportItemWithLessVisibility{item_name, desired_visibility} => {
-                Diagnostic::simple_warning(
+                Diagnostic::simple_error(
                     format!("cannot re-export {item_name} because it has less visibility than this use statement"),
                     format!("consider marking {item_name} as {desired_visibility}"),
                     item_name.span())
