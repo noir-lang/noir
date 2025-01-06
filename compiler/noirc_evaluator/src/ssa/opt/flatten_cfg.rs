@@ -1081,6 +1081,7 @@ mod test {
             v23 = mul v20, Field 6
             v24 = mul v21, v16
             v25 = add v23, v24
+            enable_side_effects v0
             enable_side_effects v3
             v26 = cast v3 as Field
             v27 = cast v0 as Field
