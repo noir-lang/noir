@@ -13,10 +13,6 @@ workspace = true
 
 [dependencies]
 acvm.workspace = true
-iter-extended.workspace = true
 serde.workspace = true
-serde_json.workspace = true
-thiserror.workspace = true
-jsonrpc.workspace = true
 
 [dev-dependencies]

@@ -275,7 +275,7 @@ impl DefCollector {
         ast: SortedModule,
         root_file_id: FileId,
         debug_comptime_in_file: Option<&str>,
-        error_on_unused_items: bool,
+        pedantic_solving: bool,
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
         let crate_id = def_map.krate;
@@ -288,12 +288,11 @@ impl DefCollector {
         let crate_graph = &context.crate_graph[crate_id];
 
         for dep in crate_graph.dependencies.clone() {
-            let error_on_usage_tracker = false;
             errors.extend(CrateDefMap::collect_defs(
                 dep.crate_id,
                 context,
                 debug_comptime_in_file,
-                error_on_usage_tracker,
+                pedantic_solving,
             ));
 
             let dep_def_map =
@@ -459,14 +458,17 @@ impl DefCollector {
             })
         });
 
-        let mut more_errors =
-            Elaborator::elaborate(context, crate_id, def_collector.items, debug_comptime_in_file);
+        let mut more_errors = Elaborator::elaborate(
+            context,
+            crate_id,
+            def_collector.items,
+            debug_comptime_in_file,
+            pedantic_solving,
+        );
 
         errors.append(&mut more_errors);
 
-        if error_on_unused_items {
-            Self::check_unused_items(context, crate_id, &mut errors);
-        }
+        Self::check_unused_items(context, crate_id, &mut errors);
 
         errors
     }

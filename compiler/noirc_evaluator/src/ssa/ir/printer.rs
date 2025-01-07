@@ -51,9 +51,8 @@ fn value(function: &Function, id: ValueId) -> String {
         }
         Value::Function(id) => id.to_string(),
         Value::Intrinsic(intrinsic) => intrinsic.to_string(),
-        Value::Param { .. } | Value::Instruction { .. } | Value::ForeignFunction(_) => {
-            id.to_string()
-        }
+        Value::ForeignFunction(function) => function.clone(),
+        Value::Param { .. } | Value::Instruction { .. } => id.to_string(),
     }
 }
 
@@ -235,6 +234,7 @@ fn display_instruction_inner(
 
             writeln!(f, "] : {typ}")
         }
+        Instruction::Noop => writeln!(f, "no-op"),
     }
 }
 

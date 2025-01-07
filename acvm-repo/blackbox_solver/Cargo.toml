@@ -2,7 +2,7 @@
 name = "acvm_blackbox_solver"
 description = "A solver for the blackbox functions found in ACIR and Brillig"
 # x-release-please-start-version
-version = "1.0.0-beta.0"
+version = "1.0.0-beta.1"
 # x-release-please-end
 authors.workspace = true
 edition.workspace = true
@@ -43,6 +43,7 @@ libaes = "0.7.0"
 
 [dev-dependencies]
 proptest.workspace = true
+num-prime = { version = "0.4.4", default-features = false, features = ["big-int"] }
 
 [features]
 bn254 = ["acir/bn254"]

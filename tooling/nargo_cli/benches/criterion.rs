@@ -3,7 +3,6 @@ use acvm::{acir::native_types::WitnessMap, FieldElement};
 use assert_cmd::prelude::{CommandCargoExt, OutputAssertExt};
 use criterion::{criterion_group, criterion_main, Criterion};
 
-use nargo::PrintOutput;
 use noirc_abi::{
     input_parser::{Format, InputValue},
     Abi, InputMap,
@@ -116,7 +115,7 @@ fn criterion_test_execution(c: &mut Criterion, test_program_dir: &Path, force_br
     let artifacts = RefCell::new(None);
 
     let mut foreign_call_executor =
-        nargo::foreign_calls::DefaultForeignCallExecutor::new(PrintOutput::None, None, None, None);
+        nargo::foreign_calls::DefaultForeignCallBuilder::default().build();
 
     c.bench_function(&benchmark_name, |b| {
         b.iter_batched(
@@ -142,10 +141,11 @@ fn criterion_test_execution(c: &mut Criterion, test_program_dir: &Path, force_br
                 let artifacts = artifacts.as_ref().expect("setup compiled them");
 
                 for (program, initial_witness) in artifacts {
+                    let solver = bn254_blackbox_solver::Bn254BlackBoxSolver::default();
                     let _witness_stack = black_box(nargo::ops::execute_program(
                         black_box(&program.program),
                         black_box(initial_witness.clone()),
-                        &bn254_blackbox_solver::Bn254BlackBoxSolver,
+                        &solver,
                         &mut foreign_call_executor,
                     ))
                     .expect("failed to execute program");

@@ -52,10 +52,6 @@ impl Function {
 struct Context {
     slice_sizes: HashMap<ValueId, u32>,
 
-    // Maps array_set result -> element that was overwritten by that instruction.
-    // Used to undo array_sets while merging values
-    prev_array_set_elem_values: HashMap<ValueId, ValueId>,
-
     // Maps array_set result -> enable_side_effects_if value which was active during it.
     array_set_conditionals: HashMap<ValueId, ValueId>,
 }

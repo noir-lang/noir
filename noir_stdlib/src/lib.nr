@@ -41,12 +41,14 @@ unconstrained fn print_unconstrained<T>(with_newline: bool, input: T) {
 
 pub fn println<T>(input: T) {
     unsafe {
+        //@safety: a print statement cannot be constrained
         print_unconstrained(true, input);
     }
 }
 
 pub fn print<T>(input: T) {
     unsafe {
+        //@safety: a print statement cannot be constrained
         print_unconstrained(false, input);
     }
 }
