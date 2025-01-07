@@ -207,7 +207,7 @@ mod tests {
 
     #[test]
     fn rejects_grumpkin_modulus_when_pedantic() {
-        let x = grumpkin::FrConfig::MODULUS.to_bytes_be();
+        let x = ark_grumpkin::FrConfig::MODULUS.to_bytes_be();
         let low = FieldElement::from_be_bytes_reduce(&x[16..32]);
         let high = FieldElement::from_be_bytes_reduce(&x[0..16]);
 
