@@ -458,6 +458,14 @@ mod tests {
     }
 
     #[test]
+    fn parses_u1_type() {
+        let src = "u1";
+        let typ = parse_type_no_errors(src);
+        let is_bool = false;
+        assert!(typ.typ == UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::One(is_bool)));
+    }
+
+    #[test]
     fn parses_int_type() {
         let src = "u32";
         let typ = parse_type_no_errors(src);
@@ -627,6 +635,9 @@ mod tests {
         };
         assert_eq!(args.len(), 2);
         assert_eq!(args[0].typ.to_string(), "Field");
+
+        // TODO: cleanup duplicate test
+        assert_eq!(format!("{:?}", args[1].typ), "Integer(Unsigned, One(true))");
         assert_eq!(args[1].typ.to_string(), "bool");
     }
 

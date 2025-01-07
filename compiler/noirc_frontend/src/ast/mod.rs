@@ -92,11 +92,11 @@ impl IntegerBitSize {
     }
 
     pub fn is_integer_size(&self) -> bool {
-        !self.is_zero() && !self.is_u1() && !self.is_field_element_bits()
+        !self.is_zero() && !self.is_bool() && !self.is_field_element_bits()
     }
 
     pub fn is_integer_or_field_size(&self) -> bool {
-        !self.is_zero() && !self.is_u1()
+        !self.is_zero() && !self.is_bool()
     }
 }
 
@@ -332,19 +332,7 @@ impl std::fmt::Display for UnresolvedTypeData {
             Slice(typ) => write!(f, "[{typ}]"),
             // NOTE: identical to implementation in Display for Type
             Integer(sign, num_bits) => {
-                if num_bits.is_zero() {
-                    return write!(f, "()");
-                } else if num_bits.is_bool() {
-                    return write!(f, "bool");
-                } else if num_bits.is_u1() {
-                    return write!(f, "u1");
-                } else if num_bits.is_field_element_bits() {
-                    return write!(f, "Field");
-                }
-                match sign {
-                    Signedness::Signed => write!(f, "i{num_bits}"),
-                    Signedness::Unsigned => write!(f, "u{num_bits}"),
-                }
+                write!(f, "{}", crate::Type::Integer(*sign, *num_bits))
             }
             Named(s, args, _) => write!(f, "{s}{args}"),
             TraitAsType(s, args) => write!(f, "impl {s}{args}"),
@@ -511,7 +499,7 @@ impl UnresolvedTypeData {
     }
 
     pub(crate) fn is_bool(&self) -> bool {
-        matches!(self, UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::One(true)))
+        matches!(self, UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::One(/* is_bool */ true)))
     }
 
     pub(crate) fn is_field_element(&self) -> bool {
