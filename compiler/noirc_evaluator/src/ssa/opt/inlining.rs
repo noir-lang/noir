@@ -10,12 +10,7 @@ use iter_extended::{btree_map, vecmap};
 use crate::ssa::{
     function_builder::FunctionBuilder,
     ir::{
-        basic_block::BasicBlockId,
-        call_stack::CallStackId,
-        dfg::InsertInstructionResult,
-        function::{Function, FunctionId, RuntimeType},
-        instruction::{Instruction, InstructionId, TerminatorInstruction},
-        value::{Value, ValueId},
+        basic_block::BasicBlockId, call_stack::CallStackId, dfg::InsertInstructionResult, function::{Function, FunctionId, RuntimeType}, instruction::{Instruction, InstructionId, TerminatorInstruction}, map::DenseMap, value::{Value, ValueId}
     },
     ssa_gen::Ssa,
 };
@@ -61,16 +56,24 @@ impl Ssa {
     ) -> Ssa {
         let inline_sources =
             get_functions_to_inline_into(&self, inline_no_predicates_functions, aggressiveness);
+        
+        // dbg!(self.global_values.len());
+        // let global_values = std::mem::take(&mut self.global_values);
+
         self.functions = btree_map(&inline_sources, |entry_point| {
-            let new_function = InlineContext::new(
+            let context = InlineContext::new(
                 &self,
                 *entry_point,
                 inline_no_predicates_functions,
                 inline_sources.clone(),
-            )
-            .inline_all(&self);
+            );
+            let new_function = context.inline_all(&self);
+            // self.global_values = std::mem::take(&mut context.globals);
             (*entry_point, new_function)
         });
+
+        // self.global_values = global_values;
+
         self
     }
 }
@@ -80,7 +83,7 @@ impl Ssa {
 /// This works using an internal FunctionBuilder to build a new main function from scratch.
 /// Doing it this way properly handles importing instructions between functions and lets us
 /// reuse the existing API at the cost of essentially cloning each of main's instructions.
-struct InlineContext {
+struct InlineContext<'ssa> {
     recursion_level: u32,
     builder: FunctionBuilder,
 
@@ -98,6 +101,8 @@ struct InlineContext {
 
     // These are the functions of the program that we shouldn't inline.
     functions_not_to_inline: BTreeSet<FunctionId>,
+
+    globals: &'ssa DenseMap<Value>,
 }
 
 /// The per-function inlining context contains information that is only valid for one function.
@@ -105,13 +110,13 @@ struct InlineContext {
 /// layer to translate between BlockId to BlockId for the current function and the function to
 /// inline into. The same goes for ValueIds, InstructionIds, and for storing other data like
 /// parameter to argument mappings.
-struct PerFunctionContext<'function> {
+struct PerFunctionContext<'function, 'ssa> {
     /// The source function is the function we're currently inlining into the function being built.
     source_function: &'function Function,
 
     /// The shared inlining context for all functions. This notably contains the FunctionBuilder used
     /// to build the function we're inlining into.
-    context: &'function mut InlineContext,
+    context: &'function mut InlineContext<'ssa>,
 
     /// Maps ValueIds in the function being inlined to the new ValueIds to use in the function
     /// being inlined into. This mapping also contains the mapping from parameter values to
@@ -347,38 +352,52 @@ fn compute_function_interface_cost(func: &Function) -> usize {
     func.parameters().len() + func.returns().len()
 }
 
-impl InlineContext {
+impl<'ssa> InlineContext<'ssa> {
     /// Create a new context object for the function inlining pass.
     /// This starts off with an empty mapping of instructions for main's parameters.
     /// The function being inlined into will always be the main function, although it is
     /// actually a copy that is created in case the original main is still needed from a function
     /// that could not be inlined calling it.
     fn new(
-        ssa: &Ssa,
+        ssa: &'ssa Ssa,
         entry_point: FunctionId,
         inline_no_predicates_functions: bool,
         functions_not_to_inline: BTreeSet<FunctionId>,
-    ) -> InlineContext {
+        // globals: &'ssa DenseMap<Value>,
+    ) -> InlineContext<'ssa> {
         let source = &ssa.functions[&entry_point];
         let mut builder = FunctionBuilder::new(source.name().to_owned(), entry_point);
         builder.set_runtime(source.runtime());
-        Self {
+
+        // let global
+        // dbg!(ssa.global_values.len());
+
+        let context = Self {
             builder,
             recursion_level: 0,
             entry_point,
             call_stack: CallStackId::root(),
             inline_no_predicates_functions,
             functions_not_to_inline,
-        }
+            globals: &ssa.global_values,
+        };
+        // dbg!(context.globals.len());
+        context
     }
 
     /// Start inlining the entry point function and all functions reachable from it.
     fn inline_all(mut self, ssa: &Ssa) -> Function {
+        // dbg!(self.globals.len());
         let entry_point = &ssa.functions[&self.entry_point];
 
         let mut context = PerFunctionContext::new(&mut self, entry_point);
         context.inlining_entry = true;
 
+        for (id, value) in ssa.global_values.iter() {
+            context.context.builder.current_function.dfg.make_value(Value::Global(value.get_type().into_owned()));
+            // context.context.builder.current_function.dfg.make_value(value.clone());
+        }
+        
         // The entry block is already inserted so we have to add it to context.blocks and add
         // its parameters here. Failing to do so would cause context.translate_block() to add
         // a fresh block for the entry block rather than use the existing one.
@@ -437,12 +456,12 @@ impl InlineContext {
     }
 }
 
-impl<'function> PerFunctionContext<'function> {
+impl<'function, 'ssa> PerFunctionContext<'function, 'ssa> {
     /// Create a new PerFunctionContext from the source function.
     /// The value and block mappings for this context are initially empty except
     /// for containing the mapping between parameters in the source_function and
     /// the arguments of the destination function.
-    fn new(context: &'function mut InlineContext, source_function: &'function Function) -> Self {
+    fn new(context: &'function mut InlineContext<'ssa>, source_function: &'function Function) -> Self {
         Self {
             context,
             source_function,
@@ -464,7 +483,15 @@ impl<'function> PerFunctionContext<'function> {
 
         let new_value = match &self.source_function.dfg[id] {
             value @ Value::Instruction { .. } => {
-                unreachable!("All Value::Instructions should already be known during inlining after creating the original inlined instruction. Unknown value {id} = {value:?}")
+                // dbg!(value.clone());
+                // dbg!(self.context.globals.len());
+                if self.context.globals.len() > id.to_u32() as usize {
+                    let value = self.context.globals[id].clone();
+                    // dbg!(value.clone());
+                    id 
+                } else {
+                    unreachable!("All Value::Instructions should already be known during inlining after creating the original inlined instruction. Unknown value {id} = {value:?}")
+                }
             }
             value @ Value::Param { .. } => {
                 unreachable!("All Value::Params should already be known from previous calls to translate_block. Unknown value {id} = {value:?}")
@@ -476,6 +503,16 @@ impl<'function> PerFunctionContext<'function> {
             Value::Intrinsic(intrinsic) => self.context.builder.import_intrinsic_id(*intrinsic),
             Value::ForeignFunction(function) => {
                 self.context.builder.import_foreign_function(function)
+            }
+            Value::Global(typ) => {
+                dbg!(typ.clone());
+                dbg!(id);
+                dbg!(self.context.globals.len());
+                let value = self.context.globals[id].clone();
+                dbg!(value.clone());
+                // id
+                // self.context.builder.current_function.dfg.values.insert(Value::Global(typ.clone()))
+                id
             }
         };
 

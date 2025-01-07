@@ -1,20 +1,23 @@
+use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex, RwLock};
 
 use acvm::{acir::AcirField, FieldElement};
-use iter_extended::vecmap;
+use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 use noirc_frontend::ast::{BinaryOpKind, Signedness};
-use noirc_frontend::monomorphization::ast::{self, InlineType, LocalId, Parameters};
+use noirc_frontend::monomorphization::ast::{self, GlobalId, InlineType, LocalId, Parameters};
 use noirc_frontend::monomorphization::ast::{FuncId, Program};
 
 use crate::errors::RuntimeError;
 use crate::ssa::function_builder::FunctionBuilder;
 use crate::ssa::ir::basic_block::BasicBlockId;
 use crate::ssa::ir::function::FunctionId as IrFunctionId;
+use crate::ssa::ir::value::Value as IrValue;
+use crate::ssa::ir::value::ValueId as IrValueId;
 use crate::ssa::ir::function::{Function, RuntimeType};
-use crate::ssa::ir::instruction::BinaryOp;
+use crate::ssa::ir::instruction::{BinaryOp, InstructionId, InstructionResultType};
 use crate::ssa::ir::instruction::Instruction;
-use crate::ssa::ir::map::AtomicCounter;
+use crate::ssa::ir::map::{AtomicCounter, DenseMap};
 use crate::ssa::ir::types::{NumericType, Type};
 use crate::ssa::ir::value::ValueId;
 
@@ -36,7 +39,7 @@ pub(super) struct FunctionContext<'a> {
     definitions: HashMap<LocalId, Values>,
 
     pub(super) builder: FunctionBuilder,
-    shared_context: &'a SharedContext,
+    pub(super) shared_context: &'a SharedContext,
 
     /// Contains any loops we're currently in the middle of translating.
     /// These are ordered such that an inner loop is at the end of the vector and
@@ -71,6 +74,18 @@ pub(super) struct SharedContext {
     /// Shared counter used to assign the ID of the next function
     function_counter: AtomicCounter<Function>,
 
+    pub(super) values: DenseMap<IrValue>,
+
+    instructions: DenseMap<Instruction>,
+
+    results: HashMap<InstructionId, Vec<ValueId>>,
+
+    constants: HashMap<(FieldElement, NumericType), IrValueId>,
+
+    current_global_id: GlobalId,
+
+    pub(super) globals: BTreeMap<GlobalId, ValueId>,
+
     /// The entire monomorphized source program
     pub(super) program: Program,
 }
@@ -101,6 +116,8 @@ impl<'a> FunctionContext<'a> {
         runtime: RuntimeType,
         shared_context: &'a SharedContext,
     ) -> Self {
+        dbg!(function_name.clone());
+
         let function_id = shared_context
             .pop_next_function_in_queue()
             .expect("No function in queue for the FunctionContext to compile")
@@ -108,6 +125,43 @@ impl<'a> FunctionContext<'a> {
 
         let mut builder = FunctionBuilder::new(function_name, function_id);
         builder.set_runtime(runtime);
+
+        // let global_consts in shared_context.
+        // Split all globals work into a globals builder
+
+        for (id, value) in shared_context.values.iter() {
+            dbg!(id);
+            dbg!(value.clone());
+            if let IrValue::Instruction { instruction, .. } = value {
+                dbg!("array");
+                let results = &shared_context.results[instruction];
+                dbg!(results);
+                for res in results {
+                    let res_value = &shared_context.values[*res];
+                    dbg!(res_value.clone());
+                    // builder.current_function.dfg.values.insert(res_value.clone());
+                    builder.current_function.dfg.values.insert(IrValue::Global(res_value.get_type().into_owned()));
+                }
+            } else {
+                dbg!("normal const");
+                builder.current_function.dfg.values.insert(IrValue::Global(value.get_type().into_owned()));
+            }
+        }
+
+        // for (id, value) in shared_context.globals.iter() {
+        //     println!("id {:#?}, value: {}", id, value);
+        //     let value = shared_context.values[*value].clone();
+        //     dbg!(value.clone());
+        //     builder.current_function.dfg.values.insert(value);
+        // }
+        dbg!(builder.current_function.dfg.values.len());
+        // dbg!(shared_context.globals.len());
+        // let globals = shared_context.globals.iter().map(|(_, value)| *value).collect::<Vec<_>>();
+        // for global in globals {
+        // }
+        // let globals = shared_context
+        // builder.current_function.dfg.values.insert(IrValue::NumericConstant { constant: FieldElement::zero(), typ: NumericType::NativeField })
+
         let definitions = HashMap::default();
         let mut this = Self { definitions, builder, shared_context, loops: Vec::new() };
         this.add_parameters_to_scope(parameters);
@@ -131,8 +185,23 @@ impl<'a> FunctionContext<'a> {
         } else {
             self.builder.new_function(func.name.clone(), id, func.inline_type);
         }
+        // dbg!(func.name.clone());
+        if self.builder.current_function.name() == "dummy_again" {
+            dbg!(self.shared_context.values.len());
+        }
+        for (_, value) in self.shared_context.values.iter() {
+            // dbg!(id);
+            // dbg!(value.clone());
+            // if self.builder.current_function.name() == "dummy_again" {
+                // dbg!(value.clone());
+            // }
+            self.builder.current_function.dfg.values.insert(IrValue::Global(value.get_type().into_owned()));
+            // self.builder.current_function.dfg.values.insert(value.clone());
+        }
+        
         self.add_parameters_to_scope(&func.parameters);
     }
+    
 
     /// Add each parameter to the current scope, and return the list of parameter types.
     ///
@@ -638,6 +707,10 @@ impl<'a> FunctionContext<'a> {
         self.definitions.get(&id).expect("lookup: variable not defined").clone()
     }
 
+    pub(super) fn lookup_global(&self, id: GlobalId) -> ValueId {
+        self.shared_context.globals.get(&id).expect("lookup_global: variable not defined").clone()
+    }
+
     /// Extract the given field of the tuple. Panics if the given Values is not
     /// a Tree::Branch or does not have enough fields.
     pub(super) fn get_field(tuple: Values, field_index: usize) -> Values {
@@ -1027,12 +1100,186 @@ fn convert_operator(op: BinaryOpKind) -> BinaryOp {
 impl SharedContext {
     /// Create a new SharedContext for the given monomorphized program.
     pub(super) fn new(program: Program) -> Self {
-        Self {
+        dbg!(program.globals.len());
+        let globals = program.globals.clone();
+        let mut shared_context = Self {
             functions: Default::default(),
             function_queue: Default::default(),
             function_counter: Default::default(),
             program,
+            values: Default::default(),
+            constants: HashMap::default(),
+            current_global_id: GlobalId(0),
+            globals: BTreeMap::default(),
+            instructions: Default::default(),
+            results: HashMap::default(),
+        };
+        dbg!(globals.len());
+        for (id, global) in globals {
+            // dbg!(global.clone());
+            shared_context.current_global_id = id;
+            let values = shared_context.codegen_expression(&global).unwrap();
+            // dbg!(id);
+            // dbg!(values.clone());
+            let value = match values.into_leaf() {
+                Value::Normal(value) => value,
+                _ => panic!("Must have Value::Normal for globals"),
+            };
+            shared_context.globals.insert(id, value);
         }
+        // dbg!(shared_context.values.clone());
+        // dbg!(shared_context.constants.clone());
+
+        shared_context
+    }
+
+    fn codegen_expression(&mut self, expr: &ast::Expression) -> Result<Values, RuntimeError> {
+        match expr {
+            ast::Expression::Literal(literal) => self.codegen_literal(literal),
+            _ => {
+                dbg!(expr.clone());
+                panic!("expected ident")
+            }
+        }
+    }
+
+    fn codegen_literal(&mut self, literal: &ast::Literal) -> Result<Values, RuntimeError> {
+        match literal {
+            ast::Literal::Array(array) => {
+                // dbg!("got array");
+                let elements = self.codegen_array_elements(&array.contents)?;
+
+                let typ = FunctionContext::convert_type(&array.typ).flatten();
+                Ok(match array.typ {
+                    ast::Type::Array(_, _) => {
+                        self.codegen_array_checked(elements, typ[0].clone())?
+                    }
+                    _ => unreachable!("ICE: unexpected array literal type, got {}", array.typ),
+                })
+            }
+            ast::Literal::Slice(_) => todo!(),
+            ast::Literal::Integer(value, negative, typ, location) => {
+                let numeric_type = FunctionContext::convert_non_tuple_type(typ).unwrap_numeric();
+
+                let value = (*value).into();
+
+                if let Some(range) = numeric_type.value_is_outside_limits(value, *negative) {
+                    return Err(RuntimeError::IntegerOutOfBounds {
+                        value: if *negative { -value } else { value },
+                        typ: numeric_type,
+                        range,
+                        call_stack: vec![*location],
+                    });
+                }
+        
+                let value = if *negative {
+                    match numeric_type {
+                        NumericType::NativeField => -value,
+                        NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
+                            let base = 1_u128 << bit_size;
+                            FieldElement::from(base) - value
+                        }
+                    }
+                } else {
+                    value
+                };
+
+                Ok(self.make_constant(value, numeric_type).into())
+            }
+            ast::Literal::Bool(_) => todo!(),
+            ast::Literal::Unit => todo!(),
+            ast::Literal::Str(_) => todo!(),
+            ast::Literal::FmtStr(_, _, _) => todo!(),
+        }
+    }
+
+    fn codegen_array_elements(
+        &mut self,
+        elements: &[ast::Expression],
+    ) -> Result<Vec<(Values, bool)>, RuntimeError> {
+        try_vecmap(elements, |element| {
+            let value = self.codegen_expression(element)?;
+            Ok((value, element.is_array_or_slice_literal()))
+        })
+    }
+
+    fn codegen_array_checked(
+        &mut self,
+        elements: Vec<(Values, bool)>,
+        typ: Type,
+    ) -> Result<Values, RuntimeError> {
+        if typ.is_nested_slice() {
+            return Err(RuntimeError::NestedSlice { call_stack: vec![] });
+        }
+        Ok(self.codegen_array(elements, typ))
+    }
+
+    fn codegen_array(&mut self, elements: Vec<(Values, bool)>, typ: Type) -> Values {
+        let mut array = im::Vector::new();
+
+        for (element, _) in elements {
+            element.for_each(|element| {
+                // let element = element.eval(self);
+                let element = match element {
+                    Value::Normal(value) => value,
+                    _ => panic!("Must have Value::Normal for globals"),
+                };
+                array.push_back(element);
+            });
+        }
+
+        self.insert_make_array(array, typ).into()
+    }
+
+    /// Insert a `make_array` instruction to create a new array or slice.
+    /// Returns the new array value. Expects `typ` to be an array or slice type.
+    fn insert_make_array(
+        &mut self,
+        elements: im::Vector<ValueId>,
+        typ: Type,
+    ) -> ValueId {
+        assert!(matches!(typ, Type::Array(..) | Type::Slice(_)));
+        // dbg!(elements.clone());
+        // dbg!(typ.clone());
+        self.insert_instruction(Instruction::MakeArray { elements, typ: typ.clone() }, typ)
+    }
+
+    fn insert_instruction(
+        &mut self,
+        instruction_data: Instruction,
+        array_typ: Type,
+    ) -> ValueId {
+        let id = self.instructions.insert(instruction_data);
+        self.make_instruction_results(id, array_typ)
+    }
+
+    fn make_instruction_results(
+        &mut self,
+        instruction_id: InstructionId,
+        array_typ: Type,
+    ) -> ValueId {
+        let results = vecmap(vec![array_typ].into_iter().enumerate(), |(position, typ)| {
+            let instruction = instruction_id;
+            self.values.insert(IrValue::Instruction { typ, position, instruction })
+        });
+
+        let first = results[0];
+
+        self.results.insert(instruction_id, results);
+
+        first
+    }
+
+    /// Creates a new constant value, or returns the Id to an existing one if
+    /// one already exists.
+    pub(crate) fn make_constant(&mut self, constant: FieldElement, typ: NumericType) -> ValueId {
+        if let Some(id) = self.constants.get(&(constant, typ)) {
+            return *id;
+        }
+        let id = self.values.insert(IrValue::NumericConstant { constant, typ });
+        // println!("{}: {}", id, constant);
+        self.constants.insert((constant, typ), id);
+        id
     }
 
     /// Pops the next function from the shared function queue, returning None if the queue is empty.

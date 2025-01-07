@@ -127,6 +127,8 @@ pub(crate) fn optimize_into_acir(
 
     drop(ssa_gen_span_guard);
 
+    println!("{}", ssa);
+    
     let brillig = time("SSA to Brillig", options.print_codegen_timings, || {
         ssa.to_brillig(options.enable_brillig_logging)
     });
@@ -502,7 +504,7 @@ impl SsaBuilder {
             }
         };
         if print_ssa_pass {
-            self.ssa.normalize_ids();
+            // self.ssa.normalize_ids();
             println!("After {msg}:\n{}", self.ssa);
         }
         self

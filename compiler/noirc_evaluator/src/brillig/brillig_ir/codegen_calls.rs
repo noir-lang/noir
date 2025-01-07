@@ -17,7 +17,9 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         returns: &[BrilligVariable],
     ) {
         let stack_size_register = SingleAddrVariable::new_usize(self.allocate_register());
+        dbg!(stack_size_register);
         let previous_stack_pointer = self.registers.empty_stack_start();
+        dbg!(previous_stack_pointer.clone());
         let stack_size = previous_stack_pointer.unwrap_relative();
         // Write the stack size
         self.const_instruction(stack_size_register, stack_size.into());

@@ -15,6 +15,7 @@ use acvm::acir::{
 pub(crate) const MAX_STACK_SIZE: usize = 16 * MAX_STACK_FRAME_SIZE;
 pub(crate) const MAX_STACK_FRAME_SIZE: usize = 2048;
 pub(crate) const MAX_SCRATCH_SPACE: usize = 64;
+pub(crate) const MAX_GLOBAL_SPACE: usize = 2048;
 
 impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
     /// Creates an entry point artifact that will jump to the function label provided.
@@ -27,6 +28,8 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
 
         context.codegen_entry_point(&arguments, &return_parameters);
 
+        context.add_globals_init_instruction();
+
         context.add_external_call_instruction(target_function);
 
         context.codegen_exit_point(&arguments, &return_parameters);
@@ -38,6 +41,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
     }
 
     fn return_data_start_offset(calldata_size: usize) -> usize {
+        // Self::calldata_start_offset(globals_size) + calldata_size
         Self::calldata_start_offset() + calldata_size
     }
 
@@ -60,6 +64,8 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             SingleAddrVariable::new_usize(ReservedRegisters::usize_one()),
             1_usize.into(),
         );
+        println!("calldata_size: {calldata_size}");
+        println!("return_data_size: {return_data_size}");
 
         // Set initial value of free memory pointer: calldata_start_offset + calldata_size + return_data_size
         self.const_instruction(

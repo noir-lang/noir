@@ -46,7 +46,7 @@ pub(crate) struct DataFlowGraph {
 
     /// Storage for all of the values defined in this
     /// function.
-    values: DenseMap<Value>,
+    pub(crate) values: DenseMap<Value>,
 
     /// Each constant is unique, attempting to insert the same constant
     /// twice will return the same ValueId.
@@ -571,6 +571,8 @@ impl DataFlowGraph {
                 }
                 _ => false,
             },
+            // TODO: change this to be true
+            Value::Global(_) => false,
             _ => true,
         }
     }

@@ -7,14 +7,14 @@ mod constant_allocation;
 mod variable_liveness;
 
 use acvm::FieldElement;
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use self::{brillig_block::BrilligBlock, brillig_fn::FunctionContext};
 use super::{
     brillig_ir::{
         artifact::{BrilligArtifact, BrilligParameter, GeneratedBrillig, Label},
         BrilligContext,
-    },
-    Brillig,
+    }, Brillig, BrilligVariable, DenseMap, Value, ValueId
 };
 use crate::{
     errors::InternalError,
@@ -25,17 +25,38 @@ use crate::{
 pub(crate) fn convert_ssa_function(
     func: &Function,
     enable_debug_trace: bool,
+    globals: &HashMap<ValueId, BrilligVariable>,
 ) -> BrilligArtifact<FieldElement> {
+    dbg!(func.name());
+
     let mut brillig_context = BrilligContext::new(enable_debug_trace);
 
-    let mut function_context = FunctionContext::new(func);
+    dbg!(globals.clone());
+
+    let global_values = globals.iter().map(|(value, _)| *value).collect::<HashSet<_>>();
+
+    let mut function_context = FunctionContext::new(func, globals);
 
     brillig_context.enter_context(Label::function(func.id()));
 
     brillig_context.call_check_max_stack_depth_procedure();
 
+    // for (id, _) in globals.iter() {
+    //     let typ = func.dfg.type_of_value(id);
+    //     let value_id = func.dfg.resolve(id);
+    //     let variable = allocate_value(value_id, &mut brillig_context, &func.dfg);
+    //     dbg!(variable.clone());
+    //     if function_context.ssa_value_allocations.insert(value_id, variable).is_some() {
+    //         let value = &func.dfg[value_id];
+    //         dbg!(value.clone());
+    //         unreachable!("ICE: ValueId {value_id:?} was already in cache");
+    //     }
+    // }
+    
+    dbg!(function_context.ssa_value_allocations.len());
+    dbg!(func.name());
     for block in function_context.blocks.clone() {
-        BrilligBlock::compile(&mut function_context, &mut brillig_context, block, &func.dfg);
+        BrilligBlock::compile(&mut function_context, &mut brillig_context, block, &func.dfg, &global_values);
     }
 
     let mut artifact = brillig_context.artifact();
@@ -58,6 +79,7 @@ pub(crate) fn gen_brillig_for(
 
     // Link the entry point with all dependencies
     while let Some(unresolved_fn_label) = entry_point.first_unresolved_function_call() {
+        println!("unresolved_fn_label: {}", unresolved_fn_label);
         let artifact = &brillig.find_by_label(unresolved_fn_label.clone());
         let artifact = match artifact {
             Some(artifact) => artifact,

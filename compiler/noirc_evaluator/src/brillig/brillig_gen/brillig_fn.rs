@@ -15,9 +15,9 @@ use crate::{
 };
 use fxhash::FxHashMap as HashMap;
 
-use super::{constant_allocation::ConstantAllocation, variable_liveness::VariableLiveness};
+use super::{constant_allocation::ConstantAllocation, variable_liveness::VariableLiveness, DenseMap, Value};
 
-pub(crate) struct FunctionContext {
+pub(crate) struct FunctionContext<'global> {
     pub(crate) function_id: FunctionId,
     /// Map from SSA values its allocation. Since values can be only defined once in SSA form, we insert them here on when we allocate them at their definition.
     pub(crate) ssa_value_allocations: HashMap<ValueId, BrilligVariable>,
@@ -27,11 +27,12 @@ pub(crate) struct FunctionContext {
     pub(crate) liveness: VariableLiveness,
     /// Information on where to allocate constants
     pub(crate) constant_allocation: ConstantAllocation,
+    pub(crate) globals: &'global HashMap<ValueId, BrilligVariable>,
 }
 
-impl FunctionContext {
+impl<'global> FunctionContext<'global> {
     /// Creates a new function context. It will allocate parameters for all blocks and compute the liveness of every variable.
-    pub(crate) fn new(function: &Function) -> Self {
+    pub(crate) fn new(function: &Function, globals: &'global HashMap<ValueId, BrilligVariable>) -> Self {
         let id = function.id();
 
         let mut reverse_post_order = Vec::new();
@@ -40,13 +41,14 @@ impl FunctionContext {
 
         let constants = ConstantAllocation::from_function(function);
         let liveness = VariableLiveness::from_function(function, &constants);
-
+        // dbg!(liveness.live_in.clone());
         Self {
             function_id: id,
             ssa_value_allocations: HashMap::default(),
             blocks: reverse_post_order,
             liveness,
             constant_allocation: constants,
+            globals,
         }
     }
 

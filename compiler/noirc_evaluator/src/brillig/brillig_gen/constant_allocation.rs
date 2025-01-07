@@ -66,6 +66,9 @@ impl ConstantAllocation {
     fn collect_constant_usage(&mut self, func: &Function) {
         let mut record_if_constant =
             |block_id: BasicBlockId, value_id: ValueId, location: InstructionLocation| {
+                if value_id.to_u32() == 0 {
+                    dbg!(is_constant_value(value_id, &func.dfg));
+                }
                 if is_constant_value(value_id, &func.dfg) {
                     self.constant_usage
                         .entry(value_id)
@@ -143,6 +146,10 @@ impl ConstantAllocation {
 
             common_dominator
         };
+        // if func.name() == "main" || func.name() == "dummy_again" {
+        //     dbg!(constant_id);
+        //     dbg!(common_dominator);
+        // }
         // If the value only contains constants, it's safe to hoist outside of any loop
         if func.dfg.is_constant(constant_id) {
             self.exit_loops(common_dominator)

@@ -599,7 +599,11 @@ impl<'brillig> Context<'brillig> {
         let Some(func) = brillig_functions.get(func_id) else {
             return EvaluationResult::NotABrilligCall;
         };
-
+        for argument in arguments.iter() {
+            dbg!(argument);
+            dbg!(&dfg[dfg.resolve(*argument)]);
+            dbg!(dfg.is_constant(*argument));
+        }
         if !arguments.iter().all(|argument| dfg.is_constant(*argument)) {
             return EvaluationResult::CannotEvaluate(*func_id);
         }

@@ -70,6 +70,9 @@ pub(crate) fn generate_ssa(
     // Generate the call_data bus from the relevant parameters. We create it *before* processing the function body
     let call_data = function_context.builder.call_data_bus(is_databus);
 
+    println!("generate_ssa main");
+    // println!("{:#?}", main.body);
+
     function_context.codegen_function_body(&main.body)?;
 
     let mut return_data = DataBusBuilder::new();
@@ -126,7 +129,10 @@ pub(crate) fn generate_ssa(
         function_context.codegen_function_body(&function.body)?;
     }
 
-    Ok(function_context.builder.finish())
+    let mut ssa = function_context.builder.finish();
+    ssa.globals = context.globals;
+    ssa.global_values = context.values;
+    Ok(ssa)
 }
 
 impl<'a> FunctionContext<'a> {
@@ -182,8 +188,28 @@ impl<'a> FunctionContext<'a> {
     /// to reassign to it. Note that mutable references `let x = &mut ...;` do not require this
     /// since they are not automatically loaded from and must be explicitly dereferenced.
     fn codegen_ident_reference(&mut self, ident: &ast::Ident) -> Values {
+        // if ident.name.as_str() == "EXPONENTIATE" {
+        //     dbg!(ident.clone());
+        //     if self.builder.current_function.name() == "dummy_again" {
+        //         dbg!(ident);
+        //     }
+        // }
         match &ident.definition {
             ast::Definition::Local(id) => self.lookup(*id),
+            ast::Definition::Global(id) => {
+                // dbg!(id);
+                let global_value = self.lookup_global(*id);
+                // if self.builder.current_function.name() == "main" {
+                //     dbg!(id);
+                //     dbg!(global_value);
+                // }
+                // if self.builder.current_function.name() == "dummy_again" {
+                //     dbg!(id);
+                //     dbg!(global_value);
+                // }
+                // dbg!(global_value.clone());
+                global_value.into()
+            }
             ast::Definition::Function(id) => self.get_or_queue_function(*id),
             ast::Definition::Oracle(name) => self.builder.import_foreign_function(name).into(),
             ast::Definition::Builtin(name) | ast::Definition::LowLevel(name) => {
@@ -467,7 +493,11 @@ impl<'a> FunctionContext<'a> {
                 Type::Array(..) => {
                     // Nothing needs to done to prepare an array access on an array
                 }
-                _ => unreachable!("must have array or slice but got {array_type}"),
+                _ => {
+                    dbg!(array);
+                    dbg!(array_type.clone());
+                    unreachable!("must have array or slice but got {array_type}")
+                }
             }
 
             // Reference counting in brillig relies on us incrementing reference

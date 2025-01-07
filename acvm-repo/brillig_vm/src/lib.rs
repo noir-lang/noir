@@ -229,6 +229,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
 
     fn process_opcode_internal(&mut self) -> VMStatus<F> {
         let opcode = &self.bytecode[self.program_counter];
+        println!("{:#?}", opcode);
         match opcode {
             Opcode::BinaryFieldOp { op, lhs, rhs, destination: result } => {
                 if let Err(error) = self.process_binary_field_op(*op, *lhs, *rhs, *result) {
@@ -763,6 +764,18 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
     ) -> Result<(), BrilligArithmeticError> {
         let lhs_value = self.memory.read(lhs);
         let rhs_value = self.memory.read(rhs);
+
+        if let MemoryAddress::Relative(address) = rhs {
+            if address == 1 {
+                dbg!(op.clone());
+                dbg!(lhs_value.clone());
+                dbg!(rhs_value.clone());
+            }
+        }
+        if let BinaryIntOp::Add = op {
+            dbg!(lhs);
+            dbg!(rhs);
+        }
 
         let result_value = evaluate_binary_int_op(&op, lhs_value, rhs_value, bit_size)?;
         self.memory.write(result, result_value);

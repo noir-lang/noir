@@ -27,7 +27,7 @@ mod instructions;
 use artifact::Label;
 use brillig_variable::SingleAddrVariable;
 pub(crate) use instructions::BrilligBinaryOp;
-use registers::{RegisterAllocator, ScratchSpace};
+use registers::{GlobalSpace, RegisterAllocator, ScratchSpace};
 
 use self::{artifact::BrilligArtifact, debug_show::DebugToString, registers::Stack};
 use crate::ssa::ir::call_stack::CallStack;
@@ -205,6 +205,23 @@ impl<F: AcirField + DebugToString> BrilligContext<F, ScratchSpace> {
             obj,
             registers: ScratchSpace::new(),
             context_label: Label::entrypoint(),
+            current_section: 0,
+            next_section: 1,
+            debug_show: DebugShow::new(enable_debug_trace),
+            can_call_procedures: false,
+        }
+    }
+}
+
+/// Special brillig context to codegen global values initialization
+impl<F: AcirField + DebugToString> BrilligContext<F, GlobalSpace> {
+    pub(crate) fn new_for_global_init(
+        enable_debug_trace: bool,
+    ) -> BrilligContext<F, GlobalSpace> {
+        BrilligContext {
+            obj: BrilligArtifact::default(),
+            registers: GlobalSpace::new(),
+            context_label: Label::globals_init(),
             current_section: 0,
             next_section: 1,
             debug_show: DebugShow::new(enable_debug_trace),

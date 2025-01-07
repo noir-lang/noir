@@ -25,6 +25,7 @@ use crate::{
     Kind, Type, TypeBinding, TypeBindings,
 };
 use acvm::{acir::AcirField, FieldElement};
+use ast::GlobalId;
 use iter_extended::{btree_map, try_vecmap, vecmap};
 use noirc_errors::Location;
 use noirc_printable_type::PrintableType;
@@ -71,6 +72,11 @@ struct Monomorphizer<'interner> {
     /// confuse users.
     locals: HashMap<node_interner::DefinitionId, LocalId>,
 
+    /// Globals are keyed by their unique ID because they are never duplicated during monomorphization.
+    globals: HashMap<node_interner::GlobalId, GlobalId>,
+
+    finished_globals: HashMap<GlobalId, ast::Expression>,
+
     /// Queue of functions to monomorphize next each item in the queue is a tuple of:
     /// (old_id, new_monomorphized_id, any type bindings to apply, the trait method if old_id is from a trait impl)
     queue: VecDeque<(node_interner::FuncId, FuncId, TypeBindings, Option<TraitMethodId>, Location)>,
@@ -86,6 +92,7 @@ struct Monomorphizer<'interner> {
 
     next_local_id: u32,
     next_function_id: u32,
+    next_global_id: u32,
 
     is_range_loop: bool,
 
@@ -139,6 +146,8 @@ pub fn monomorphize_debug(
         undo_instantiation_bindings(bindings);
     }
 
+    // dbg!(monomorphizer.finished_globals.clone());
+
     let func_sigs = monomorphizer
         .finished_functions
         .iter()
@@ -156,12 +165,16 @@ pub fn monomorphize_debug(
 
     let (debug_variables, debug_functions, debug_types) =
         monomorphizer.debug_type_tracker.extract_vars_and_types();
+
+    let globals = monomorphizer.finished_globals.into_iter().collect::<BTreeMap<_, _>>();
+    
     let program = Program::new(
         functions,
         func_sigs,
         function_sig,
         monomorphizer.return_location,
         *return_visibility,
+        globals,
         debug_variables,
         debug_functions,
         debug_types,
@@ -174,10 +187,13 @@ impl<'interner> Monomorphizer<'interner> {
         Monomorphizer {
             functions: HashMap::new(),
             locals: HashMap::new(),
+            globals: HashMap::new(),
+            finished_globals: HashMap::new(),
             queue: VecDeque::new(),
             finished_functions: BTreeMap::new(),
             next_local_id: 0,
             next_function_id: 0,
+            next_global_id: 0,
             interner,
             lambda_envs_stack: Vec::new(),
             is_range_loop: false,
@@ -196,6 +212,12 @@ impl<'interner> Monomorphizer<'interner> {
         let id = self.next_function_id;
         self.next_function_id += 1;
         ast::FuncId(id)
+    }
+
+    fn next_global_id(&mut self) -> ast::GlobalId {
+        let id = self.next_global_id;
+        self.next_global_id += 1;
+        ast::GlobalId(id)
     }
 
     fn lookup_local(&mut self, id: node_interner::DefinitionId) -> Option<Definition> {
@@ -311,7 +333,6 @@ impl<'interner> Monomorphizer<'interner> {
 
         let modifiers = self.interner.function_modifiers(&f);
         let name = self.interner.function_name(&f).to_owned();
-
         if modifiers.is_comptime {
             return Err(MonomorphizationError::ComptimeFnInRuntimeCode { name, location });
         }
@@ -323,6 +344,9 @@ impl<'interner> Monomorphizer<'interner> {
             other => other,
         };
 
+        // let body_dbg = self.interner.expression(&body_expr_id);
+        // println!("{:#?}", body_dbg);
+
         let return_type = Self::convert_type(return_type, meta.location)?;
         let unconstrained = modifiers.is_unconstrained;
 
@@ -331,6 +355,12 @@ impl<'interner> Monomorphizer<'interner> {
 
         let parameters = self.parameters(&meta.parameters)?;
         let body = self.expr(body_expr_id)?;
+        if name.as_str() == "main" || name.as_str() == "dummy_again" {
+            // Printing only for the logging display 
+            // dbg!(name.clone());
+            // println!("{}", name);
+            // println!("{:#?}", body);
+        }
         let function = ast::Function {
             id,
             name,
@@ -341,7 +371,7 @@ impl<'interner> Monomorphizer<'interner> {
             inline_type,
             func_sig,
         };
-
+        
         self.push_function(id, function);
         Ok(())
     }
@@ -865,6 +895,10 @@ impl<'interner> Monomorphizer<'interner> {
         }
 
         let definition = self.interner.definition(ident.id);
+        let name = definition.name.clone();
+        // if name.as_str() == "EXPONENTIATE" {
+        //     dbg!(definition.clone());
+        // }
         let ident = match &definition.kind {
             DefinitionKind::Function(func_id) => {
                 let mutable = definition.mutable;
@@ -893,31 +927,79 @@ impl<'interner> Monomorphizer<'interner> {
                 }
             }
             DefinitionKind::Global(global_id) => {
+                // TODO: clean this up
                 let global = self.interner.get_global(*global_id);
+                let id = global.id;
+                if let Some(seen_global) = self.globals.get(&id) {
+                    let global = self.finished_globals[seen_global].clone();
 
-                let expr = if let GlobalValue::Resolved(value) = global.value.clone() {
-                    value
-                        .into_hir_expression(self.interner, global.location)
-                        .map_err(MonomorphizationError::InterpreterError)?
-                } else {
-                    let let_ = self.interner.get_global_let_statement(*global_id).expect(
-                        "Globals should have a corresponding let statement by monomorphization",
-                    );
-                    let_.expression
-                };
-                self.expr(expr)?
-            }
-            DefinitionKind::Local(_) => match self.lookup_captured_expr(ident.id) {
-                Some(expr) => expr,
-                None => {
-                    let Some(ident) = self.local_ident(&ident)? else {
-                        let location = self.interner.id_location(expr_id);
-                        let message = "ICE: Variable not found during monomorphization";
-                        return Err(MonomorphizationError::InternalError { location, message });
+                    let typ = Self::convert_type(&typ, ident.location)?;
+                    let ident = ast::Ident {
+                        location: Some(ident.location),
+                        definition: Definition::Global(*seen_global),
+                        mutable: false,
+                        name,
+                        typ,
                     };
-                    ast::Expression::Ident(ident)
+                    let expr = ast::Expression::Ident(ident);
+                    expr
+                    // seen_global
+                } else {
+                    let expr = if let GlobalValue::Resolved(value) = global.value.clone() {
+                        // dbg!(value.clone());
+                        // dbg!(global.id);
+                        value
+                            .into_hir_expression(self.interner, global.location)
+                            .map_err(MonomorphizationError::InterpreterError)?
+                    } else {
+                        dbg!("got here");
+                        let let_ = self.interner.get_global_let_statement(*global_id).expect(
+                            "Globals should have a corresponding let statement by monomorphization",
+                        );
+                        let_.expression
+                    };
+
+                    let expr = self.expr(expr)?;
+                    let new_id = self.next_global_id();
+                    self.globals.insert(id, new_id);
+                    if name.as_str() == "EXPONENTIATE" {
+                        dbg!(new_id);
+                    }
+
+                    self.finished_globals.insert(new_id, expr.clone());
+
+                    let typ = Self::convert_type(&typ, ident.location)?;
+                    let ident = ast::Ident {
+                        location: Some(ident.location),
+                        definition: Definition::Global(new_id),
+                        mutable: false,
+                        name,
+                        typ,
+                    };
+                    let expr = ast::Expression::Ident(ident);
+
+                    // self.finished_globals.insert(new_id, expr.clone());
+
+
+                    expr
                 }
-            },
+            }
+            DefinitionKind::Local(_) => {
+                if name.as_str() == "EXPONENTIATE" {
+                    dbg!(definition.clone());
+                }
+                match self.lookup_captured_expr(ident.id) {
+                    Some(expr) => expr,
+                    None => {
+                        let Some(ident) = self.local_ident(&ident)? else {
+                            let location = self.interner.id_location(expr_id);
+                            let message = "ICE: Variable not found during monomorphization";
+                            return Err(MonomorphizationError::InternalError { location, message });
+                        };
+                        ast::Expression::Ident(ident)
+                    }
+                }
+            }
             DefinitionKind::NumericGeneric(type_variable, numeric_typ) => {
                 let value = match &*type_variable.borrow() {
                     TypeBinding::Unbound(_, _) => {

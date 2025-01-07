@@ -53,7 +53,7 @@ pub(crate) fn collect_variables_of_value(
     let value = &dfg[value_id];
 
     match value {
-        Value::Instruction { .. } | Value::Param { .. } | Value::NumericConstant { .. } => {
+        Value::Instruction { .. } | Value::Param { .. } | Value::NumericConstant { .. } | Value::Global(_) => {
             Some(value_id)
         }
         // Functions are not variables in a defunctionalized SSA. Only constant function values should appear.
@@ -118,7 +118,7 @@ pub(crate) struct VariableLiveness {
     post_order: PostOrder,
     dominator_tree: DominatorTree,
     /// The variables that are alive before the block starts executing
-    live_in: HashMap<BasicBlockId, Variables>,
+    pub(crate) live_in: HashMap<BasicBlockId, Variables>,
     /// The variables that stop being alive after each specific instruction
     last_uses: HashMap<BasicBlockId, LastUses>,
     /// The list of block params the given block is defining. The order matters for the entry block, so it's a vec.

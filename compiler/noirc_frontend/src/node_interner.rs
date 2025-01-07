@@ -420,7 +420,7 @@ impl DefinitionId {
 
 /// An ID for a global value
 #[derive(Debug, Eq, PartialEq, Hash, Clone, Copy, PartialOrd, Ord)]
-pub struct GlobalId(usize);
+pub struct GlobalId(pub usize);
 
 impl GlobalId {
     // Dummy id for error reporting

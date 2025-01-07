@@ -35,6 +35,8 @@ impl BlockVariables {
         &self,
         function_context: &FunctionContext,
     ) -> Vec<BrilligVariable> {
+        dbg!(self.available_variables.clone());
+        dbg!(function_context.ssa_value_allocations.clone());
         self.available_variables
             .iter()
             .map(|value_id| {
@@ -56,9 +58,12 @@ impl BlockVariables {
         dfg: &DataFlowGraph,
     ) -> BrilligVariable {
         let value_id = dfg.resolve(value_id);
+
         let variable = allocate_value(value_id, brillig_context, dfg);
 
         if function_context.ssa_value_allocations.insert(value_id, variable).is_some() {
+            let value = &dfg[value_id];
+            dbg!(value.clone());
             unreachable!("ICE: ValueId {value_id:?} was already in cache");
         }
 
@@ -133,6 +138,28 @@ pub(crate) fn allocate_value<F, Registers: RegisterAllocator>(
 ) -> BrilligVariable {
     let typ = dfg.type_of_value(value_id);
 
+    match typ {
+        Type::Numeric(_) | Type::Reference(_) | Type::Function => {
+            BrilligVariable::SingleAddr(SingleAddrVariable {
+                address: brillig_context.allocate_register(),
+                bit_size: get_bit_size_from_ssa_type(&typ),
+            })
+        }
+        Type::Array(item_typ, elem_count) => BrilligVariable::BrilligArray(BrilligArray {
+            pointer: brillig_context.allocate_register(),
+            size: compute_array_length(&item_typ, elem_count as usize),
+        }),
+        Type::Slice(_) => BrilligVariable::BrilligVector(BrilligVector {
+            pointer: brillig_context.allocate_register(),
+        }),
+    }
+}
+
+/// For a given value_id, allocates the necessary registers to hold it.
+pub(crate) fn allocate_value_with_type<F, Registers: RegisterAllocator>(
+    brillig_context: &mut BrilligContext<F, Registers>,
+    typ: Type,
+) -> BrilligVariable {
     match typ {
         Type::Numeric(_) | Type::Reference(_) | Type::Function => {
             BrilligVariable::SingleAddr(SingleAddrVariable {

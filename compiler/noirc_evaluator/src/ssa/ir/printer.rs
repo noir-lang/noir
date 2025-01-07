@@ -54,6 +54,9 @@ fn value(function: &Function, id: ValueId) -> String {
         Value::Param { .. } | Value::Instruction { .. } | Value::ForeignFunction(_) => {
             id.to_string()
         }
+        Value::Global(_) => {
+            format!("@{id}")
+        }
     }
 }
 

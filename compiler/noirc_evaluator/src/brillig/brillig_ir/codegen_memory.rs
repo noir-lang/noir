@@ -390,6 +390,10 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         array: BrilligArray,
     ) -> MemoryAddress {
         let result = self.allocate_register();
+        if let MemoryAddress::Relative(address) = array.pointer {
+            dbg!(address);
+            dbg!(ReservedRegisters::usize_one());
+        }
         self.codegen_usize_op(array.pointer, result, BrilligBinaryOp::Add, 1);
         result
     }

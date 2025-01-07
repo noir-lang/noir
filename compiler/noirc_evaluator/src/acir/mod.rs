@@ -1873,6 +1873,9 @@ impl<'a> Context<'a> {
         }
 
         let acir_value = match value {
+            Value::Global(_) => {
+                panic!("global values should be inlined into regular values in ACIR");
+            }
             Value::NumericConstant { constant, typ } => {
                 let typ = AcirType::from(Type::Numeric(*typ));
                 AcirValue::Var(self.acir_context.add_constant(*constant), typ)

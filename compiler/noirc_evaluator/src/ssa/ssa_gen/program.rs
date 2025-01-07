@@ -7,9 +7,11 @@ use serde_with::serde_as;
 
 use crate::ssa::ir::{
     function::{Function, FunctionId, RuntimeType},
-    map::AtomicCounter,
+    map::{AtomicCounter, DenseMap}, value::Value,
 };
-use noirc_frontend::hir_def::types::Type as HirType;
+use noirc_frontend::{hir_def::types::Type as HirType, monomorphization::ast::GlobalId};
+
+use super::ValueId;
 
 /// Contains the entire SSA representation of the program.
 #[serde_as]
@@ -17,6 +19,8 @@ use noirc_frontend::hir_def::types::Type as HirType;
 pub(crate) struct Ssa {
     #[serde_as(as = "Vec<(_, _)>")]
     pub(crate) functions: BTreeMap<FunctionId, Function>,
+    pub(crate) globals: BTreeMap<GlobalId, ValueId>,
+    pub(crate) global_values: DenseMap<Value>,
     pub(crate) main_id: FunctionId,
     #[serde(skip)]
     pub(crate) next_id: AtomicCounter<Function>,
@@ -53,6 +57,8 @@ impl Ssa {
             next_id: AtomicCounter::starting_after(max_id),
             entry_point_to_generated_index: BTreeMap::new(),
             error_selector_to_type: error_types,
+            globals: BTreeMap::default(),
+            global_values: Default::default(),
         }
     }
 
@@ -115,6 +121,30 @@ impl Ssa {
 
 impl Display for Ssa {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "globals: ")?;
+        for (_, value) in self.globals.iter() {
+            // dbg!(id);
+            // dbg!(value);
+            let string = match &self.global_values[*value] {
+                Value::NumericConstant { constant, typ } => {
+                    format!("{typ} {constant}")
+                }
+                Value::Function(id) => id.to_string(),
+                Value::Intrinsic(intrinsic) => intrinsic.to_string(),
+                Value::Param { .. } | Value::ForeignFunction(_) => {
+                    value.to_string()
+                }
+                Value::Instruction { .. } => {
+                    value.to_string()
+                }
+                Value::Global(_) => {
+                    panic!("we should only have these in the function values map");
+                }
+            };
+            writeln!(f, "@{} = {}", value, string)?;
+        }
+        writeln!(f, "")?;
+
         for function in self.functions.values() {
             writeln!(f, "{function}")?;
         }

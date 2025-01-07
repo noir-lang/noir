@@ -30,10 +30,11 @@ use super::brillig_black_box::convert_black_box_call;
 use super::brillig_block_variables::BlockVariables;
 use super::brillig_fn::FunctionContext;
 use super::constant_allocation::InstructionLocation;
+use super::DenseMap;
 
 /// Generate the compilation artifacts for compiling a function into brillig bytecode.
-pub(crate) struct BrilligBlock<'block> {
-    pub(crate) function_context: &'block mut FunctionContext,
+pub(crate) struct BrilligBlock<'block, 'global> {
+    pub(crate) function_context: &'block mut FunctionContext<'global>,
     /// The basic block that is being converted
     pub(crate) block_id: BasicBlockId,
     /// Context for creating brillig opcodes
@@ -44,16 +45,48 @@ pub(crate) struct BrilligBlock<'block> {
     pub(crate) last_uses: HashMap<InstructionId, HashSet<ValueId>>,
 }
 
-impl<'block> BrilligBlock<'block> {
+impl<'block, 'global> BrilligBlock<'block, 'global> {
     /// Converts an SSA Basic block into a sequence of Brillig opcodes
     pub(crate) fn compile(
-        function_context: &'block mut FunctionContext,
+        function_context: &'block mut FunctionContext<'global>,
         brillig_context: &'block mut BrilligContext<FieldElement, Stack>,
         block_id: BasicBlockId,
         dfg: &DataFlowGraph,
+        globals: &HashSet<ValueId>,
     ) {
+        dbg!(block_id);
         let live_in = function_context.liveness.get_live_in(&block_id);
-        let variables = BlockVariables::new(live_in.clone());
+        // dbg!(live_in.clone());
+        // dbg!(globals.len());
+        if block_id.to_u32() == 0 {
+            dbg!(globals.clone());
+            dbg!(live_in.clone());
+        }
+
+        let mut live_in_no_globals = HashSet::default();
+        for value in live_in {
+            if globals.get(value).is_none() {
+                live_in_no_globals.insert(*value);
+            }
+        }
+        dbg!(live_in_no_globals.clone());
+        // dbg!(globals.len());
+        let variables = BlockVariables::new(live_in_no_globals);
+
+        // for (id, global) in globals.iter() {
+            // dbg!(id);
+            // dbg!(global.clone());
+        //     dbg!(id);
+        //     let typ = dfg.type_of_value(id);
+        //     dbg!(typ.clone());
+        //     variables.define_variable(
+        //         function_context,
+        //         brillig_context,
+        //         id,
+        //         dfg,
+        //     );
+        // }
+        // dbg!(function_context.ssa_value_allocations.clone());
 
         brillig_context.set_allocated_registers(
             variables
@@ -62,6 +95,9 @@ impl<'block> BrilligBlock<'block> {
                 .map(|variable| variable.extract_register())
                 .collect(),
         );
+
+        dbg!(function_context.ssa_value_allocations.len());
+
         let last_uses = function_context.liveness.get_last_uses(&block_id).clone();
 
         let mut brillig_block =
@@ -201,13 +237,15 @@ impl<'block> BrilligBlock<'block> {
     /// Converts an SSA instruction into a sequence of Brillig opcodes.
     fn convert_ssa_instruction(&mut self, instruction_id: InstructionId, dfg: &DataFlowGraph) {
         let instruction = &dfg[instruction_id];
+        dbg!(instruction.clone());
         self.brillig_context.set_call_stack(dfg.get_instruction_call_stack(instruction_id));
 
+        let constants = &self.function_context.constant_allocation.allocated_at_location(
+            self.block_id,
+            InstructionLocation::Instruction(instruction_id),
+        );
         self.initialize_constants(
-            &self.function_context.constant_allocation.allocated_at_location(
-                self.block_id,
-                InstructionLocation::Instruction(instruction_id),
-            ),
+            constants,
             dfg,
         );
         match instruction {
@@ -648,7 +686,7 @@ impl<'block> BrilligBlock<'block> {
                         }
                     }
                 }
-                Value::Instruction { .. } | Value::Param { .. } | Value::NumericConstant { .. } => {
+                Value::Instruction { .. } | Value::Param { .. } | Value::NumericConstant { .. } | Value::Global(_) => {
                     unreachable!("unsupported function call type {:?}", dfg[*func])
                 }
             },
@@ -686,11 +724,17 @@ impl<'block> BrilligBlock<'block> {
                     result_ids[0],
                     dfg,
                 );
-
+                if array.to_u32() == 4 {
+                    dbg!(instruction.clone());
+                }
                 let array_variable = self.convert_ssa_value(*array, dfg);
-
                 let index_variable = self.convert_ssa_single_addr_value(*index, dfg);
-
+                if array.to_u32() == 4 {
+                    dbg!(array_variable.clone());
+                    dbg!(index_variable.clone());
+                    dbg!(dfg.is_safe_index(*index, *array));
+                    dbg!(destination_variable.clone());
+                }
                 if !dfg.is_safe_index(*index, *array) {
                     self.validate_array_index(array_variable, index_variable);
                 }
@@ -698,6 +742,9 @@ impl<'block> BrilligBlock<'block> {
                 let items_pointer =
                     self.brillig_context.codegen_make_array_or_vector_items_pointer(array_variable);
 
+                if array.to_u32() == 4 {
+                    dbg!(items_pointer.clone());
+                }
                 self.brillig_context.codegen_load_with_offset(
                     items_pointer,
                     index_variable,
@@ -804,6 +851,9 @@ impl<'block> BrilligBlock<'block> {
             }
             Instruction::MakeArray { elements: array, typ } => {
                 let value_id = dfg.instruction_results(instruction_id)[0];
+                if value_id.to_u32() == 4 {
+                    dbg!("gpt in make array");
+                }
                 if !self.variables.is_allocated(&value_id) {
                     let new_variable = self.variables.define_variable(
                         self.function_context,
@@ -846,12 +896,21 @@ impl<'block> BrilligBlock<'block> {
             .get(&instruction_id)
             .expect("Last uses for instruction should have been computed");
 
+        dbg!(dead_variables.clone());
+
         for dead_variable in dead_variables {
-            self.variables.remove_variable(
-                dead_variable,
-                self.function_context,
-                self.brillig_context,
-            );
+            match &dfg[*dead_variable] {
+                Value::Global(_) => {
+                    dbg!("got dead global");
+                }
+                _ => {
+                    self.variables.remove_variable(
+                        dead_variable,
+                        self.function_context,
+                        self.brillig_context,
+                    );
+                }
+            }
         }
         self.brillig_context.set_call_stack(CallStack::new());
     }
@@ -906,7 +965,6 @@ impl<'block> BrilligBlock<'block> {
         index_register: SingleAddrVariable,
     ) {
         let size = self.brillig_context.codegen_make_array_or_vector_length(array_variable);
-
         let condition = SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
 
         self.brillig_context.memory_op_instruction(
@@ -1287,7 +1345,7 @@ impl<'block> BrilligBlock<'block> {
             dfg[binary.rhs].get_type().as_ref(),
             binary.operator,
         );
-
+        dbg!(binary_type.clone());
         let left = self.convert_ssa_single_addr_value(binary.lhs, dfg);
         let right = self.convert_ssa_single_addr_value(binary.rhs, dfg);
 
@@ -1504,6 +1562,7 @@ impl<'block> BrilligBlock<'block> {
                 );
                 self.brillig_context
                     .codegen_constrain(condition, Some("attempt to add with overflow".to_string()));
+                dbg!(condition.clone());
                 self.brillig_context.deallocate_single_addr(condition);
             }
             (BrilligBinaryOp::Sub, false) => {
@@ -1565,6 +1624,7 @@ impl<'block> BrilligBlock<'block> {
     }
 
     fn initialize_constants(&mut self, constants: &[ValueId], dfg: &DataFlowGraph) {
+        dbg!(constants.clone());
         for &constant_id in constants {
             self.convert_ssa_value(constant_id, dfg);
         }
@@ -1576,6 +1636,14 @@ impl<'block> BrilligBlock<'block> {
         let value = &dfg[value_id];
 
         match value {
+            Value::Global(_) => {
+                dbg!(value_id);
+                dbg!("got global");
+                let variable = *self.function_context.globals.get(&value_id).unwrap_or_else(|| panic!("ICE: Global value not found in cache {value_id}"));
+                // let variable = self.variables.get_allocation(self.function_context, value_id, dfg);
+                dbg!(variable.clone());
+                variable
+            }
             Value::Param { .. } | Value::Instruction { .. } => {
                 // All block parameters and instruction results should have already been
                 // converted to registers so we fetch from the cache.
@@ -1631,6 +1699,8 @@ impl<'block> BrilligBlock<'block> {
         dfg: &DataFlowGraph,
         pointer: MemoryAddress,
     ) {
+        dbg!(typ.clone());
+        dbg!(pointer);
         if data.is_empty() {
             return;
         }

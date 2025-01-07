@@ -497,7 +497,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
                 self.profiling_active,
             )?,
         };
-
+        // dbg!(self.unconstrained_functions[id.as_usize()].bytecode.clone());
         let result = solver.solve()?;
 
         match result {
