@@ -188,6 +188,7 @@ fn test_{test_name}(force_brillig: ForceBrillig, inliner_aggressiveness: Inliner
     nargo.arg("--program-dir").arg(test_program_dir);
     nargo.arg("{test_command}").arg("--force");
     nargo.arg("--inliner-aggressiveness").arg(inliner_aggressiveness.0.to_string());
+    // Check whether the test case is non-deterministic
     nargo.arg("--check-non-determinism");
 
     if force_brillig.0 {{
@@ -196,8 +197,6 @@ fn test_{test_name}(force_brillig: ForceBrillig, inliner_aggressiveness: Inliner
         // Set the maximum increase so that part of the optimization is exercised (it might fail).
         nargo.arg("--max-bytecode-increase-percent");
         nargo.arg("50");
-
-        // Check whether the test case is non-deterministic
     }}
 
     {test_content}

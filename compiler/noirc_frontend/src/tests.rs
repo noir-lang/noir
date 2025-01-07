@@ -115,7 +115,6 @@ pub(crate) fn get_program_with_maybe_parser_errors(
 
         let debug_comptime_in_file = None;
         let pedantic_solving = true;
-        let error_on_unused_imports = true;
 
         // Now we want to populate the CrateDefMap using the DefCollector
         errors.extend(DefCollector::collect_crate_and_dependencies(
@@ -125,7 +124,6 @@ pub(crate) fn get_program_with_maybe_parser_errors(
             root_file_id,
             debug_comptime_in_file,
             pedantic_solving,
-            error_on_unused_imports,
         ));
     }
     (program, context, errors)
@@ -1246,7 +1244,7 @@ fn resolve_fmt_strings() {
 fn monomorphize_program(src: &str) -> Result<Program, MonomorphizationError> {
     let (_program, mut context, _errors) = get_program(src);
     let main_func_id = context.def_interner.find_function("main").unwrap();
-    monomorphize(main_func_id, &mut context.def_interner)
+    monomorphize(main_func_id, &mut context.def_interner, false)
 }
 
 fn get_monomorphization_error(src: &str) -> Option<MonomorphizationError> {
@@ -2835,6 +2833,21 @@ fn duplicate_struct_field() {
 fn trait_constraint_on_tuple_type() {
     let src = r#"
         trait Foo<A> {
+            fn foo(self, x: A) -> bool;
+        }
+
+        pub fn bar<T, U, V>(x: (T, U), y: V) -> bool where (T, U): Foo<V> {
+            x.foo(y)
+        }
+
+        fn main() {}"#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn trait_constraint_on_tuple_type_pub_crate() {
+    let src = r#"
+        pub(crate) trait Foo<A> {
             fn foo(self, x: A) -> bool;
         }
 
