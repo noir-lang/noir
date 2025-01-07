@@ -637,10 +637,12 @@ mod test {
     use std::sync::Arc;
 
     use im::vector;
+    use noirc_frontend::monomorphization::ast::InlineType;
 
     use crate::ssa::{
         function_builder::FunctionBuilder,
         ir::{
+            function::RuntimeType,
             map::Id,
             types::{NumericType, Type},
         },
@@ -742,7 +744,7 @@ mod test {
     #[test]
     fn keep_paired_rcs_with_array_set() {
         let src = "
-            acir(inline) fn main f0 {
+            brillig(inline) fn main f0 {
               b0(v0: [Field; 2]):
                 inc_rc v0
                 v2 = array_set v0, index u32 0, value u32 0
@@ -759,7 +761,7 @@ mod test {
 
     #[test]
     fn keep_inc_rc_on_borrowed_array_store() {
-        // acir(inline) fn main f0 {
+        // brillig(inline) fn main f0 {
         //     b0():
         //       v1 = make_array [u32 0, u32 0]
         //       v2 = allocate
@@ -776,6 +778,7 @@ mod test {
 
         // Compiling main
         let mut builder = FunctionBuilder::new("main".into(), main_id);
+        builder.set_runtime(RuntimeType::Brillig(InlineType::Inline));
         let zero = builder.numeric_constant(0u128, NumericType::unsigned(32));
         let array_type = Type::Array(Arc::new(vec![Type::unsigned(32)]), 2);
         let v1 = builder.insert_make_array(vector![zero, zero], array_type.clone());
@@ -810,7 +813,7 @@ mod test {
 
     #[test]
     fn keep_inc_rc_on_borrowed_array_set() {
-        // acir(inline) fn main f0 {
+        // brillig(inline) fn main f0 {
         //     b0(v0: [u32; 2]):
         //       inc_rc v0
         //       v3 = array_set v0, index u32 0, value u32 1
@@ -821,7 +824,7 @@ mod test {
         //       return v4
         //   }
         let src = "
-        acir(inline) fn main f0 {
+        brillig(inline) fn main f0 {
           b0(v0: [u32; 2]):
             inc_rc v0
             v3 = array_set v0, index u32 0, value u32 1
@@ -837,7 +840,7 @@ mod test {
         // We expect the output to be unchanged
         // Except for the repeated inc_rc instructions
         let expected = "
-        acir(inline) fn main f0 {
+        brillig(inline) fn main f0 {
           b0(v0: [u32; 2]):
             inc_rc v0
             v3 = array_set v0, index u32 0, value u32 1
@@ -875,7 +878,7 @@ mod test {
     #[test]
     fn remove_inc_rcs_that_are_never_mutably_borrowed() {
         let src = "
-        acir(inline) fn main f0 {
+        brillig(inline) fn main f0 {
           b0(v0: [Field; 2]):
             inc_rc v0
             inc_rc v0
@@ -893,7 +896,7 @@ mod test {
         assert_eq!(main.dfg[main.entry_block()].instructions().len(), 5);
 
         let expected = "
-        acir(inline) fn main f0 {
+        brillig(inline) fn main f0 {
           b0(v0: [Field; 2]):
             v2 = array_get v0, index u32 0 -> Field
             return v2
