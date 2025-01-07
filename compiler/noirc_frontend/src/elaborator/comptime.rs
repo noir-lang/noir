@@ -247,7 +247,7 @@ impl<'context> Elaborator<'context> {
 
         if value != Value::Unit {
             let items = value
-                .into_top_level_items(location, self.interner)
+                .into_top_level_items(location, self)
                 .map_err(|error| error.into_compilation_error_pair())?;
 
             self.add_items(items, generated_items, location);
