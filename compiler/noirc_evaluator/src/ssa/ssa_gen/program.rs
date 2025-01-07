@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
 use crate::ssa::ir::{
-    function::{Function, FunctionId, RuntimeType},
+    function::{Function, FunctionId},
     map::AtomicCounter,
 };
 use noirc_frontend::hir_def::types::Type as HirType;
@@ -78,29 +78,10 @@ impl Ssa {
         new_id
     }
 
-    /// Clones an already existing function with a fresh id
-    pub(crate) fn clone_fn(&mut self, existing_function_id: FunctionId) -> FunctionId {
-        let new_id = self.next_id.next();
-        let function = Function::clone_with_id(new_id, &self.functions[&existing_function_id]);
-        self.functions.insert(new_id, function);
-        new_id
-    }
     pub(crate) fn generate_entry_point_index(mut self) -> Self {
-        self.entry_point_to_generated_index = btree_map(
-            self.functions
-                .iter()
-                .filter(|(_, func)| {
-                    let runtime = func.runtime();
-                    match func.runtime() {
-                        RuntimeType::Acir(_) => {
-                            runtime.is_entry_point() || func.id() == self.main_id
-                        }
-                        RuntimeType::Brillig(_) => false,
-                    }
-                })
-                .enumerate(),
-            |(i, (id, _))| (*id, i as u32),
-        );
+        let entry_points =
+            self.functions.keys().filter(|function| self.is_entry_point(**function)).enumerate();
+        self.entry_point_to_generated_index = btree_map(entry_points, |(i, id)| (*id, i as u32));
         self
     }
 
@@ -111,6 +92,10 @@ impl Ssa {
             "Trying to read uninitialized entry point index"
         );
         self.entry_point_to_generated_index.get(func_id).copied()
+    }
+
+    pub(crate) fn is_entry_point(&self, function: FunctionId) -> bool {
+        function == self.main_id || self.functions[&function].runtime().is_entry_point()
     }
 }
 
