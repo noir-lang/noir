@@ -483,16 +483,7 @@ impl<'context> Elaborator<'context> {
         // when multiple impls are available. Instead we default first to choose the Field or u64 impl.
         self.check_and_pop_function_context();
 
-        // Now remove all the `where` clause constraints we added
-        for constraint in &func_meta.trait_constraints {
-            self.interner
-                .remove_assumed_trait_implementations_for_trait(constraint.trait_bound.trait_id);
-        }
-
-        // Also remove the assumed trait implementation for `self` if this is a trait definition
-        if let Some(trait_id) = self.current_trait {
-            self.interner.remove_assumed_trait_implementations_for_trait(trait_id);
-        }
+        self.remove_trait_constraints_from_scope(&func_meta);
 
         let func_scope_tree = self.scopes.end_function();
 
@@ -1026,6 +1017,18 @@ impl<'context> Elaborator<'context> {
                 &constraint.trait_bound,
                 constraint.trait_bound.trait_id,
             );
+        }
+    }
+
+    fn remove_trait_constraints_from_scope(&mut self, func_meta: &FuncMeta) {
+        for constraint in &func_meta.trait_constraints {
+            self.interner
+                .remove_assumed_trait_implementations_for_trait(constraint.trait_bound.trait_id);
+        }
+
+        // Also remove the assumed trait implementation for `self` if this is a trait definition
+        if let Some(trait_id) = self.current_trait {
+            self.interner.remove_assumed_trait_implementations_for_trait(trait_id);
         }
     }
 
