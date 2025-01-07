@@ -1228,4 +1228,29 @@ mod tests {
         // We expect the program to be unchanged
         assert_normalized_ssa_equals(ssa, src);
     }
+
+    #[test]
+    fn optimizes_out_load_in_loop_if_var_is_read_only_in_loop() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: [u8; 1]):
+            v2 = allocate -> &mut u32
+            store u32 1 at v2
+            jmp b1(u32 0)
+          b1(v1: u32):
+            jmpif u1 1 then: b3, else: b2
+          b2():
+            return Field 0
+          b3():
+            // TODO: this load should be optimized out to `u32 1`
+            v7 = load v2 -> u32
+            jmp b1(v7)
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let mut ssa = ssa.mem2reg();
+        ssa.normalize_ids();
+        println!("{ssa}");
+    }
 }
