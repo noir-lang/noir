@@ -317,8 +317,12 @@ pub fn check_crate(
     crate_id: CrateId,
     options: &CompileOptions,
 ) -> CompilationResult<()> {
-    let diagnostics =
-        CrateDefMap::collect_defs(crate_id, context, options.debug_comptime_in_file.as_deref(), options.pedantic_solving);
+    let diagnostics = CrateDefMap::collect_defs(
+        crate_id,
+        context,
+        options.debug_comptime_in_file.as_deref(),
+        options.pedantic_solving,
+    );
     let crate_files = context.crate_files(&crate_id);
     let warnings_and_errors: Vec<FileDiagnostic> = diagnostics
         .into_iter()
