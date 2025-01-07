@@ -1,5 +1,6 @@
 use crate::cmp::{Eq, Ord, Ordering};
 use crate::ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Not, Rem, Shl, Shr, Sub};
+use crate::static_assert;
 use super::convert::AsPrimitive;
 
 global pow64: Field = 18446744073709551616; //2^64;
@@ -67,11 +68,12 @@ impl U128 {
     }
 
     pub fn from_hex<let N: u32>(hex: str<N>) -> U128 {
-        let N = N as u32;
+        // TODO cleanup if working
+        // let N = N as u32;
         let bytes = hex.as_bytes();
         // string must starts with "0x"
         assert((bytes[0] == 48) & (bytes[1] == 120), "Invalid hexadecimal string");
-        assert(N < 35, "Input does not fit into a U128");
+        static_assert(N < 35, "Input does not fit into a U128");
 
         let mut lo = 0;
         let mut hi = 0;

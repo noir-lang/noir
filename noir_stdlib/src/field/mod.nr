@@ -1,5 +1,5 @@
 pub mod bn254;
-use crate::runtime::is_unconstrained;
+use crate::{runtime::is_unconstrained, static_assert};
 use bn254::lt as bn254_lt;
 
 impl Field {
@@ -10,13 +10,14 @@ impl Field {
     // docs:start:assert_max_bit_size
     pub fn assert_max_bit_size<let BIT_SIZE: u32>(self) {
         // docs:end:assert_max_bit_size
-        assert(BIT_SIZE < modulus_num_bits() as u32);
+        static_assert(BIT_SIZE < modulus_num_bits() as u32, "BIT_SIZE must be less than modulus_num_bits");
         self.__assert_max_bit_size(BIT_SIZE);
     }
 
     #[builtin(apply_range_constraint)]
     fn __assert_max_bit_size(self, bit_size: u32) {}
 
+    // TODO: to_le_bits -> to_le_bits_unsafe
     /// Decomposes `self` into its little endian bit decomposition as a `[u1; N]` array.
     /// This slice will be zero padded should not all bits be necessary to represent `self`.
     ///
@@ -33,6 +34,7 @@ impl Field {
     pub fn to_le_bits<let N: u32>(self: Self) -> [u1; N] {}
     // docs:end:to_le_bits
 
+    // TODO: to_be_bits -> to_be_bits_unsafe
     /// Decomposes `self` into its big endian bit decomposition as a `[u1; N]` array.
     /// This array will be zero padded should not all bits be necessary to represent `self`.
     ///
@@ -49,6 +51,7 @@ impl Field {
     pub fn to_be_bits<let N: u32>(self: Self) -> [u1; N] {}
     // docs:end:to_be_bits
 
+    // TODO: static_assert for N
     /// Decomposes `self` into its little endian byte decomposition as a `[u8;N]` array
     /// This array will be zero padded should not all bytes be necessary to represent `self`.
     ///
@@ -82,6 +85,7 @@ impl Field {
         bytes
     }
 
+    // TODO: static_assert for N
     /// Decomposes `self` into its big endian byte decomposition as a `[u8;N]` array of length required to represent the field modulus
     /// This array will be zero padded should not all bytes be necessary to represent `self`.
     ///
@@ -135,10 +139,13 @@ impl Field {
     }
     // docs:end:to_be_radix
 
+    // TODO: static_assert for N
     // `_radix` must be less than 256
     #[builtin(to_le_radix)]
     fn __to_le_radix<let N: u32>(self, radix: u32) -> [u8; N] {}
 
+    // TODO: static_assert for N
+    // TODO: is this also true? "`_radix` must be less than 256"
     #[builtin(to_be_radix)]
     fn __to_be_radix<let N: u32>(self, radix: u32) -> [u8; N] {}
 
@@ -169,6 +176,7 @@ impl Field {
         }
     }
 
+    // TODO: static_assert for N?
     /// Convert a little endian byte array to a field element.
     /// If the provided byte array overflows the field modulus then the Field will silently wrap around.
     pub fn from_le_bytes<let N: u32>(bytes: [u8; N]) -> Field {
@@ -182,6 +190,7 @@ impl Field {
         result
     }
 
+    // TODO: static_assert for N?
     /// Convert a big endian byte array to a field element.
     /// If the provided byte array overflows the field modulus then the Field will silently wrap around.
     pub fn from_be_bytes<let N: u32>(bytes: [u8; N]) -> Field {

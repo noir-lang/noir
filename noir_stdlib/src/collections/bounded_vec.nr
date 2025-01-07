@@ -1,4 +1,4 @@
-use crate::{cmp::Eq, convert::From};
+use crate::{cmp::Eq, convert::From, static_assert};
 
 /// A `BoundedVec<T, MaxLen>` is a growable storage similar to a `Vec<T>` except that it
 /// is bounded with a maximum possible length. Unlike `Vec`, `BoundedVec` is not implemented
@@ -339,7 +339,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// let bounded_vec: BoundedVec<Field, 10> = BoundedVec::from_array([1, 2, 3])
     /// ```
     pub fn from_array<let Len: u32>(array: [T; Len]) -> Self {
-        assert(Len <= MaxLen, "from array out of bounds");
+        static_assert(Len <= MaxLen, "from array out of bounds");
         let mut vec: BoundedVec<T, MaxLen> = BoundedVec::new();
         vec.extend_from_array(array);
         vec
@@ -612,6 +612,7 @@ mod bounded_vec_tests {
             assert_eq(bounded_vec.get(2), 3);
         }
 
+        // TODO: works with 'shoul_fail': does 'should_fail_with' support 'static_assert'?
         #[test(should_fail_with = "from array out of bounds")]
         fn max_len_lower_then_array_len() {
             let _: BoundedVec<Field, 2> = BoundedVec::from_array([0; 3]);
