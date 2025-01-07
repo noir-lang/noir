@@ -34,18 +34,16 @@ use noirc_frontend::{hir_def::function::FunctionSignature, monomorphization::ast
 use ssa_gen::Ssa;
 use tracing::{span, Level};
 
-use self::{
-    plonky2_gen::{Builder, Plonky2Circuit},
-};
+use self::plonky2_gen::{Builder, Plonky2Circuit};
 use crate::acir::{Artifacts, GeneratedAcir};
 
 mod checks;
 pub(super) mod function_builder;
 pub mod ir;
 mod opt;
-pub mod plonky2_gen;
 #[cfg(test)]
 pub(crate) mod parser;
+pub mod plonky2_gen;
 pub mod ssa_gen;
 
 #[derive(Debug, Clone)]
@@ -60,9 +58,6 @@ pub struct SsaEvaluatorOptions {
     pub ssa_logging: SsaLogging,
 
     pub enable_brillig_logging: bool,
-
-    /// Force Brillig output (for step debugging)
-    pub force_brillig_output: bool,
 
     /// Pretty print benchmark times of each code generation pass
     pub print_codegen_timings: bool,
@@ -112,7 +107,6 @@ pub(crate) fn optimize_into_acir(
     let builder = SsaBuilder::new(
         program,
         options.ssa_logging.clone(),
-        options.force_brillig_output,
         options.print_codegen_timings,
         &options.emit_ssa,
     )?;
@@ -180,13 +174,11 @@ pub(crate) fn optimize_into_plonky2(
     let ssa = SsaBuilder::new(
         program,
         options.ssa_logging.clone(),
-        false,
         options.print_codegen_timings,
         &options.emit_ssa,
     )?
     .run_pass(Ssa::defunctionalize, "After Defunctionalization:")
     .run_pass(Ssa::remove_paired_rc, "After Removing Paired rc_inc & rc_decs:")
-    .run_pass(Ssa::separate_runtime, "After Runtime Separation:")
     .run_pass(Ssa::resolve_is_unconstrained, "After Resolving IsUnconstrained:")
     .run_pass(|ssa| ssa.inline_functions(options.inliner_aggressiveness), "After Inlining:")
     // Run mem2reg with the CFG separated into blocks
@@ -212,7 +204,8 @@ pub(crate) fn optimize_into_plonky2(
     .run_pass(
         |ssa| ssa.inline_functions_with_no_predicates(options.inliner_aggressiveness),
         "After Inlining:",
-    )    .run_pass(Ssa::remove_if_else, "After Remove IfElse:")
+    )
+    .run_pass(Ssa::remove_if_else, "After Remove IfElse:")
     .run_pass(Ssa::fold_constants, "After Constant Folding:")
     .run_pass(Ssa::remove_enable_side_effects, "After EnableSideEffects removal:")
     .run_pass(Ssa::fold_constants_using_constraints, "After Constraint Folding:")
@@ -233,15 +226,16 @@ pub(crate) fn optimize_into_plonky2(
 /// Run all SSA passes.
 fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ssa, RuntimeError> {
     Ok(builder
+        .run_pass(Ssa::remove_unreachable_functions, "Removing Unreachable Functions")
         .run_pass(Ssa::defunctionalize, "Defunctionalization")
         .run_pass(Ssa::remove_paired_rc, "Removing Paired rc_inc & rc_decs")
-        .run_pass(Ssa::separate_runtime, "Runtime Separation")
         .run_pass(Ssa::resolve_is_unconstrained, "Resolving IsUnconstrained")
         .run_pass(|ssa| ssa.inline_functions(options.inliner_aggressiveness), "Inlining (1st)")
         // Run mem2reg with the CFG separated into blocks
         .run_pass(Ssa::mem2reg, "Mem2Reg (1st)")
         .run_pass(Ssa::simplify_cfg, "Simplifying (1st)")
         .run_pass(Ssa::as_slice_optimization, "`as_slice` optimization")
+        .run_pass(Ssa::remove_unreachable_functions, "Removing Unreachable Functions")
         .try_run_pass(
             Ssa::evaluate_static_assert_and_assert_constant,
             "`static_assert` and `assert_constant`",
@@ -354,19 +348,12 @@ pub fn create_program(
         (generated_acirs, generated_brillig, brillig_function_names, error_types),
         ssa_level_warnings,
     ) = optimize_into_acir(program, options)?;
-    if options.force_brillig_output {
-        assert_eq!(
-            generated_acirs.len(),
-            1,
-            "Only the main ACIR is expected when forcing Brillig output"
-        );
-    } else {
-        assert_eq!(
-            generated_acirs.len(),
-            func_sigs.len(),
-            "The generated ACIRs should match the supplied function signatures"
-        );
-    }
+
+    assert_eq!(
+        generated_acirs.len(),
+        func_sigs.len(),
+        "The generated ACIRs should match the supplied function signatures"
+    );
 
     let error_types = error_types
         .into_iter()
@@ -539,11 +526,10 @@ impl SsaBuilder {
     fn new(
         program: Program,
         ssa_logging: SsaLogging,
-        force_brillig_runtime: bool,
         print_codegen_timings: bool,
         emit_ssa: &Option<PathBuf>,
     ) -> Result<SsaBuilder, RuntimeError> {
-        let ssa = ssa_gen::generate_ssa(program, force_brillig_runtime)?;
+        let ssa = ssa_gen::generate_ssa(program)?;
         if let Some(emit_ssa) = emit_ssa {
             let mut emit_ssa_dir = emit_ssa.clone();
             // We expect the full package artifact path to be passed in here,

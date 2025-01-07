@@ -40,6 +40,10 @@ pub(crate) struct FunctionBuilder {
     finished_functions: Vec<Function>,
     call_stack: CallStackId,
     error_types: BTreeMap<ErrorSelector, HirType>,
+
+    /// Whether instructions are simplified as soon as they are inserted into this builder.
+    /// This is true by default unless changed to false after constructing a builder.
+    pub(crate) simplify: bool,
 }
 
 impl FunctionBuilder {
@@ -56,6 +60,7 @@ impl FunctionBuilder {
             finished_functions: Vec::new(),
             call_stack: CallStackId::root(),
             error_types: BTreeMap::default(),
+            simplify: true,
         }
     }
 
@@ -172,12 +177,21 @@ impl FunctionBuilder {
         ctrl_typevars: Option<Vec<Type>>,
     ) -> InsertInstructionResult {
         let block = self.current_block();
-        self.current_function.dfg.insert_instruction_and_results(
-            instruction,
-            block,
-            ctrl_typevars,
-            self.call_stack,
-        )
+        if self.simplify {
+            self.current_function.dfg.insert_instruction_and_results(
+                instruction,
+                block,
+                ctrl_typevars,
+                self.call_stack,
+            )
+        } else {
+            self.current_function.dfg.insert_instruction_and_results_without_simplification(
+                instruction,
+                block,
+                ctrl_typevars,
+                self.call_stack,
+            )
+        }
     }
 
     /// Switch to inserting instructions in the given block.
@@ -469,29 +483,33 @@ impl FunctionBuilder {
     ///
     /// Returns whether a reference count instruction was issued.
     fn update_array_reference_count(&mut self, value: ValueId, increment: bool) -> bool {
-        match self.type_of_value(value) {
-            Type::Numeric(_) => false,
-            Type::Function => false,
-            Type::Reference(element) => {
-                if element.contains_an_array() {
-                    let reference = value;
-                    let value = self.insert_load(reference, element.as_ref().clone());
-                    self.update_array_reference_count(value, increment);
+        if self.current_function.runtime().is_brillig() {
+            match self.type_of_value(value) {
+                Type::Numeric(_) => false,
+                Type::Function => false,
+                Type::Reference(element) => {
+                    if element.contains_an_array() {
+                        let reference = value;
+                        let value = self.insert_load(reference, element.as_ref().clone());
+                        self.update_array_reference_count(value, increment);
+                        true
+                    } else {
+                        false
+                    }
+                }
+                Type::Array(..) | Type::Slice(..) => {
+                    // If there are nested arrays or slices, we wait until ArrayGet
+                    // is issued to increment the count of that array.
+                    if increment {
+                        self.insert_inc_rc(value);
+                    } else {
+                        self.insert_dec_rc(value);
+                    }
                     true
-                } else {
-                    false
                 }
             }
-            Type::Array(..) | Type::Slice(..) => {
-                // If there are nested arrays or slices, we wait until ArrayGet
-                // is issued to increment the count of that array.
-                if increment {
-                    self.insert_inc_rc(value);
-                } else {
-                    self.insert_dec_rc(value);
-                }
-                true
-            }
+        } else {
+            false
         }
     }
 

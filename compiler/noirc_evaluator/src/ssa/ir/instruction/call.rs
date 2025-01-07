@@ -730,7 +730,7 @@ mod tests {
                 return v2
             }
             "#;
-        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
 
         let expected = r#"
             brillig(inline) fn main f0 {
