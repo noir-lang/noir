@@ -5,7 +5,7 @@ in
     pname = "Noir";
     name = pname;
     binaryName = "nargo";
-    version = "0.1.0";
+    version = "unstable";
 
     RUSTC_BOOTSTRAP = 1;
 
