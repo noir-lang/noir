@@ -593,7 +593,7 @@ fn trait_bounds_which_are_dependent_on_generic_types_are_resolved_correctly() {
     // Regression test for https://github.com/noir-lang/noir/issues/6420
     let src = r#"
         trait Foo {
-            fn foo() -> Field;
+            fn foo(self) -> Field;
         }
 
         trait Bar<T>: Foo {
@@ -614,7 +614,8 @@ fn trait_bounds_which_are_dependent_on_generic_types_are_resolved_correctly() {
         where
             T: MarkerTrait,
         {
-            fn foo() -> Field {
+            fn foo(self) -> Field {
+                let _ = self;
                 42
             }
         }
@@ -876,4 +877,66 @@ fn errors_if_multiple_trait_methods_are_in_scope() {
     assert_eq!(ident.to_string(), "foo");
     traits.sort();
     assert_eq!(traits, vec!["private_mod::Foo", "private_mod::Foo2"]);
+}
+
+#[test]
+fn type_checks_trait_default_method_and_errors() {
+    let src = r#"
+        pub trait Foo {
+            fn foo(self) -> i32 {
+                let _ = self;
+                true
+            }
+        }
+
+        fn main() {}
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::TypeMismatchWithSource {
+        expected,
+        actual,
+        ..
+    }) = &errors[0].0
+    else {
+        panic!("Expected a type mismatch error, got {:?}", errors[0].0);
+    };
+
+    assert_eq!(expected.to_string(), "i32");
+    assert_eq!(actual.to_string(), "bool");
+}
+
+#[test]
+fn type_checks_trait_default_method_and_does_not_error() {
+    let src = r#"
+        pub trait Foo {
+            fn foo(self) -> i32 {
+                let _ = self;
+                1
+            }
+        }
+
+        fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn type_checks_trait_default_method_and_does_not_error_using_self() {
+    let src = r#"
+        pub trait Foo {
+            fn foo(self) -> i32 {
+                self.bar()
+            }
+
+            fn bar(self) -> i32 {
+                let _ = self;
+                1
+            }
+        }
+
+        fn main() {}
+    "#;
+    assert_no_errors(src);
 }

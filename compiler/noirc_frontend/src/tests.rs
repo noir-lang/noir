@@ -2957,7 +2957,7 @@ fn uses_self_type_inside_trait() {
 fn uses_self_type_in_trait_where_clause() {
     let src = r#"
     pub trait Trait {
-        fn trait_func() -> bool;
+        fn trait_func(self) -> bool;
     }
 
     pub trait Foo where Self: Trait {
