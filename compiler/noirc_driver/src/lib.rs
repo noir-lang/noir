@@ -311,13 +311,9 @@ pub fn check_crate(
     crate_id: CrateId,
     options: &CompileOptions,
 ) -> CompilationResult<()> {
-    let error_on_unused_imports = true;
-    let diagnostics = CrateDefMap::collect_defs(
-        crate_id,
-        context,
-        options.debug_comptime_in_file.as_deref(),
-        error_on_unused_imports,
-    );
+    let diagnostics =
+        CrateDefMap::collect_defs(crate_id, context, options.debug_comptime_in_file.as_deref());
+    let crate_files = context.crate_files(&crate_id);
     let warnings_and_errors: Vec<FileDiagnostic> = diagnostics
         .into_iter()
         .map(|(error, file_id)| {
@@ -327,6 +323,14 @@ pub fn check_crate(
         .filter(|diagnostic| {
             // We filter out any warnings if they're going to be ignored later on to free up memory.
             !options.silence_warnings || diagnostic.diagnostic.kind != DiagnosticKind::Warning
+        })
+        .filter(|error| {
+            // Only keep warnings from the crate we are checking
+            if error.diagnostic.is_warning() {
+                crate_files.contains(&error.file_id)
+            } else {
+                true
+            }
         })
         .collect();
 
@@ -590,10 +594,17 @@ pub fn compile_no_check(
     cached_program: Option<CompiledProgram>,
     force_compile: bool,
 ) -> Result<CompiledProgram, CompileError> {
+    let force_unconstrained = options.force_brillig;
+
     let program = if options.instrument_debug {
-        monomorphize_debug(main_function, &mut context.def_interner, &context.debug_instrumenter)?
+        monomorphize_debug(
+            main_function,
+            &mut context.def_interner,
+            &context.debug_instrumenter,
+            force_unconstrained,
+        )?
     } else {
-        monomorphize(main_function, &mut context.def_interner)?
+        monomorphize(main_function, &mut context.def_interner, force_unconstrained)?
     };
 
     if options.show_monomorphized {
@@ -632,7 +643,6 @@ pub fn compile_no_check(
             }
         },
         enable_brillig_logging: options.show_brillig,
-        force_brillig_output: options.force_brillig,
         print_codegen_timings: options.benchmark_codegen,
         expression_width: if options.bounded_codegen {
             options.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH)

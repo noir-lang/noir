@@ -59,8 +59,8 @@ impl Translator {
         let main_function = parsed_ssa.functions.remove(0);
         let main_id = FunctionId::test_new(0);
         let mut builder = FunctionBuilder::new(main_function.external_name.clone(), main_id);
-        builder.simplify = simplify;
         builder.set_runtime(main_function.runtime_type);
+        builder.simplify = simplify;
 
         // Map function names to their IDs so calls can be resolved
         let mut function_id_counter = 1;
