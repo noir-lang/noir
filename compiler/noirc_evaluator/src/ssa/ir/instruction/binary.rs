@@ -131,11 +131,39 @@ impl Binary {
                     let zero = dfg.make_constant(FieldElement::zero(), operand_type);
                     return SimplifyResult::SimplifiedTo(zero);
                 }
-                if dfg.resolve(self.lhs) == dfg.resolve(self.rhs)
-                    && dfg.get_value_max_num_bits(self.lhs) == 1
-                {
+                if dfg.get_value_max_num_bits(self.lhs) == 1 {
                     // Squaring a boolean value is a noop.
-                    return SimplifyResult::SimplifiedTo(self.lhs);
+                    if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
+                        return SimplifyResult::SimplifiedTo(self.lhs);
+                    }
+                    // b*(b*x) = b*x if b is boolean
+                    if let super::Value::Instruction { instruction, .. } = &dfg[self.rhs] {
+                        if let Instruction::Binary(Binary { lhs, rhs, operator }) =
+                            dfg[*instruction]
+                        {
+                            if operator == BinaryOp::Mul
+                                && (dfg.resolve(self.lhs) == dfg.resolve(lhs)
+                                    || dfg.resolve(self.lhs) == dfg.resolve(rhs))
+                            {
+                                return SimplifyResult::SimplifiedTo(self.rhs);
+                            }
+                        }
+                    }
+                }
+                // (b*x)*b = b*x if b is boolean
+                if dfg.get_value_max_num_bits(self.rhs) == 1 {
+                    if let super::Value::Instruction { instruction, .. } = &dfg[self.lhs] {
+                        if let Instruction::Binary(Binary { lhs, rhs, operator }) =
+                            dfg[*instruction]
+                        {
+                            if operator == BinaryOp::Mul
+                                && (dfg.resolve(self.rhs) == dfg.resolve(lhs)
+                                    || dfg.resolve(self.rhs) == dfg.resolve(rhs))
+                            {
+                                return SimplifyResult::SimplifiedTo(self.lhs);
+                            }
+                        }
+                    }
                 }
             }
             BinaryOp::Div => {
@@ -294,7 +322,7 @@ impl Binary {
 }
 
 /// Evaluate a binary operation with constant arguments.
-fn eval_constant_binary_op(
+pub(crate) fn eval_constant_binary_op(
     lhs: FieldElement,
     rhs: FieldElement,
     operator: BinaryOp,

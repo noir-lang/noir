@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
+PARSE_TIME=$(realpath "$(dirname "$0")/parse_time.sh")
 current_dir=$(pwd)
 base_path="$current_dir/execution_success"
 
@@ -46,22 +47,33 @@ for dir in ${tests_to_profile[@]}; do
     fi
 
     for ((i = 1; i <= NUM_RUNS; i++)); do
-      COMPILE_TIME=$((time nargo compile --force --silence-warnings) 2>&1 | grep real | grep -oE '[0-9]+m[0-9]+.[0-9]+s')
-      # Convert time to seconds and add to total time
-      TOTAL_TIME=$(echo "$TOTAL_TIME + $(echo $COMPILE_TIME | sed -E 's/([0-9]+)m([0-9.]+)s/\1 * 60 + \2/' | bc)" | bc)
+      NOIR_LOG=trace NARGO_LOG_DIR=./tmp nargo compile --force --silence-warnings
     done
 
-    AVG_TIME=$(echo "$TOTAL_TIME / $NUM_RUNS" | bc -l)
-    # Keep only last three decimal points
-    AVG_TIME=$(awk '{printf "%.3f\n", $1}' <<< "$AVG_TIME")
+    TIMES=($(jq -r '. | select(.target == "nargo::cli" and .fields.message == "close") | .fields."time.busy"' ./tmp/*))
 
-    echo -e " {\n    \"artifact_name\":\"$PACKAGE_NAME\",\n    \"time\":\""$AVG_TIME"s\"" >> $current_dir/compilation_report.json
-    
-    if (($ITER == $NUM_ARTIFACTS)); then
-        echo "}" >> $current_dir/compilation_report.json
-    else 
-        echo "}, " >> $current_dir/compilation_report.json
+    AVG_TIME=$(awk -v RS=" " -v parse_time="$PARSE_TIME"  '
+        {
+            # Times are formatted annoyingly so we need to parse it.
+            parse_time" "$1 | getline current_time
+            close(parse_time" "$1)
+            sum += current_time;
+            n++;
+        }
+        END {   
+            if (n > 0)
+                printf "%.3f\n", sum / n
+            else
+                printf "%.3f\n", 0
+        }' <<<"${TIMES[@]}")
+
+    jq -rc "{artifact_name: \"$PACKAGE_NAME\", time: \""$AVG_TIME"s\"}" --null-input >> $current_dir/compilation_report.json
+
+    if (($ITER != $NUM_ARTIFACTS)); then
+        echo "," >> $current_dir/compilation_report.json
     fi
+
+    rm -rf ./tmp
 
     ITER=$(( $ITER + 1 ))
 done
