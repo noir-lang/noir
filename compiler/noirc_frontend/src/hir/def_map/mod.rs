@@ -78,6 +78,7 @@ impl CrateDefMap {
         crate_id: CrateId,
         context: &mut Context,
         debug_comptime_in_file: Option<&str>,
+        pedantic_solving: bool,
     ) -> Vec<(CompilationError, FileId)> {
         // Check if this Crate has already been compiled
         // XXX: There is probably a better alternative for this.
@@ -120,6 +121,7 @@ impl CrateDefMap {
             ast,
             root_file_id,
             debug_comptime_in_file,
+            pedantic_solving,
         ));
 
         errors.extend(

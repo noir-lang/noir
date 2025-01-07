@@ -253,6 +253,10 @@ pub(crate) mod tests {
     pub(crate) struct DummyBlackBoxSolver;
 
     impl BlackBoxFunctionSolver<FieldElement> for DummyBlackBoxSolver {
+        fn pedantic_solving(&self) -> bool {
+            true
+        }
+
         fn multi_scalar_mul(
             &self,
             _points: &[FieldElement],

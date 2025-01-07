@@ -181,6 +181,9 @@ pub struct Elaborator<'context> {
     /// like `Foo { inner: 5 }`: in that case we already elaborated the code that led to
     /// that comptime value and any visibility errors were already reported.
     silence_field_visibility_errors: usize,
+
+    /// Use pedantic ACVM solving
+    pedantic_solving: bool,
 }
 
 #[derive(Default)]
@@ -198,6 +201,7 @@ struct FunctionContext {
 }
 
 impl<'context> Elaborator<'context> {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         interner: &'context mut NodeInterner,
         def_maps: &'context mut DefMaps,
@@ -206,6 +210,7 @@ impl<'context> Elaborator<'context> {
         crate_id: CrateId,
         debug_comptime_in_file: Option<FileId>,
         interpreter_call_stack: im::Vector<Location>,
+        pedantic_solving: bool,
     ) -> Self {
         Self {
             scopes: ScopeForest::default(),
@@ -233,6 +238,7 @@ impl<'context> Elaborator<'context> {
             interpreter_call_stack,
             in_comptime_context: false,
             silence_field_visibility_errors: 0,
+            pedantic_solving,
         }
     }
 
@@ -240,6 +246,7 @@ impl<'context> Elaborator<'context> {
         context: &'context mut Context,
         crate_id: CrateId,
         debug_comptime_in_file: Option<FileId>,
+        pedantic_solving: bool,
     ) -> Self {
         Self::new(
             &mut context.def_interner,
@@ -249,6 +256,7 @@ impl<'context> Elaborator<'context> {
             crate_id,
             debug_comptime_in_file,
             im::Vector::new(),
+            pedantic_solving,
         )
     }
 
@@ -257,8 +265,16 @@ impl<'context> Elaborator<'context> {
         crate_id: CrateId,
         items: CollectedItems,
         debug_comptime_in_file: Option<FileId>,
+        pedantic_solving: bool,
     ) -> Vec<(CompilationError, FileId)> {
-        Self::elaborate_and_return_self(context, crate_id, items, debug_comptime_in_file).errors
+        Self::elaborate_and_return_self(
+            context,
+            crate_id,
+            items,
+            debug_comptime_in_file,
+            pedantic_solving,
+        )
+        .errors
     }
 
     pub fn elaborate_and_return_self(
@@ -266,8 +282,10 @@ impl<'context> Elaborator<'context> {
         crate_id: CrateId,
         items: CollectedItems,
         debug_comptime_in_file: Option<FileId>,
+        pedantic_solving: bool,
     ) -> Self {
-        let mut this = Self::from_context(context, crate_id, debug_comptime_in_file);
+        let mut this =
+            Self::from_context(context, crate_id, debug_comptime_in_file, pedantic_solving);
         this.elaborate_items(items);
         this.check_and_pop_function_context();
         this
