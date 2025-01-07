@@ -286,7 +286,8 @@ impl<'context> Elaborator<'context> {
 
             // Check if namespace
             let found_ns = if current_module_id_is_struct {
-                match self.resolve_struct_function(starting_module, current_module, current_ident) {
+                match self.resolve_struct_function(importing_module, current_module, current_ident)
+                {
                     StructMethodLookupResult::NotFound(vec) => {
                         if vec.is_empty() {
                             return Err(PathResolutionError::Unresolved(current_ident.clone()));
@@ -306,7 +307,7 @@ impl<'context> Elaborator<'context> {
                     StructMethodLookupResult::FoundStructMethod(per_ns) => per_ns,
                     StructMethodLookupResult::FoundTraitMethod(per_ns, trait_id) => {
                         let trait_ = self.interner.get_trait(trait_id);
-                        self.usage_tracker.mark_as_used(starting_module, &trait_.name);
+                        self.usage_tracker.mark_as_used(importing_module, &trait_.name);
                         per_ns
                     }
                     StructMethodLookupResult::FoundOneTraitMethodButNotInScope(
@@ -324,7 +325,7 @@ impl<'context> Elaborator<'context> {
                     StructMethodLookupResult::FoundMultipleTraitMethods(vec) => {
                         let traits = vecmap(vec, |trait_id| {
                             let trait_ = self.interner.get_trait(trait_id);
-                            self.usage_tracker.mark_as_used(starting_module, &trait_.name);
+                            self.usage_tracker.mark_as_used(importing_module, &trait_.name);
                             self.fully_qualified_trait_path(trait_)
                         });
                         return Err(PathResolutionError::MultipleTraitsInScope {
@@ -382,7 +383,7 @@ impl<'context> Elaborator<'context> {
 
     fn resolve_struct_function(
         &self,
-        starting_module_id: ModuleId,
+        importing_module_id: ModuleId,
         current_module: &ModuleData,
         ident: &Ident,
     ) -> StructMethodLookupResult {
@@ -402,7 +403,7 @@ impl<'context> Elaborator<'context> {
         }
 
         // Otherwise, the function could be defined in zero, one or more traits.
-        let starting_module = self.get_module(starting_module_id);
+        let starting_module = self.get_module(importing_module_id);
 
         // Gather a list of items for which their trait is in scope.
         let mut results = Vec::new();
