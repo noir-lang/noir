@@ -819,7 +819,8 @@ impl std::fmt::Display for Type {
                 Signedness::Unsigned => {
                     match num_bits {
                         IntegerBitSize::Zero => write!(f, "()"),
-                        IntegerBitSize::One => write!(f, "bool"),
+                        IntegerBitSize::One(/* is_bool */ true) => write!(f, "bool"),
+                        IntegerBitSize::One(/* is_bool */ false) => write!(f, "u1"),
                         IntegerBitSize::FieldElementBits => write!(f, "Field"),
                         _ => write!(f, "u{num_bits}"),
                     }
@@ -995,7 +996,13 @@ impl Type {
     }
 
     pub fn bool() -> Type {
-        Type::Integer(Signedness::Unsigned, IntegerBitSize::One)
+        let is_bool = true;
+        Type::Integer(Signedness::Unsigned, IntegerBitSize::One(is_bool))
+    }
+
+    pub fn u1() -> Type {
+        let is_bool = false;
+        Type::Integer(Signedness::Unsigned, IntegerBitSize::One(is_bool))
     }
 
     pub fn field_element() -> Type {
@@ -1022,7 +1029,11 @@ impl Type {
     }
 
     pub fn is_bool(&self) -> bool {
-        matches!(self.follow_bindings(), Type::Integer(Signedness::Unsigned, IntegerBitSize::One))
+        matches!(self.follow_bindings(), Type::Integer(Signedness::Unsigned, IntegerBitSize::One(/* is_bool */ true)))
+    }
+
+    pub fn is_u1(&self) -> bool {
+        matches!(self.follow_bindings(), Type::Integer(Signedness::Unsigned, IntegerBitSize::One(/* is_bool */ false)))
     }
 
     pub fn is_integer(&self) -> bool {
@@ -2551,7 +2562,7 @@ impl Type {
             Type::Integer(sign, num_bits) => {
                 match num_bits {
                     IntegerBitSize::Zero => Some(FieldElement::zero()),
-                    IntegerBitSize::One => Some(FieldElement::one()),
+                    IntegerBitSize::One(_) => Some(FieldElement::one()),
                     IntegerBitSize::FieldElementBits => None,
                     _ => {
                         let mut max_bit_size = num_bits.bit_size();
@@ -2722,7 +2733,7 @@ impl From<&Type> for PrintableType {
                 Signedness::Unsigned => {
                     match bit_width {
                         IntegerBitSize::Zero => PrintableType::Unit,
-                        IntegerBitSize::One => PrintableType::Boolean,
+                        IntegerBitSize::One(true) => PrintableType::Boolean,
                         IntegerBitSize::FieldElementBits => PrintableType::Field,
                         _ => {
                             PrintableType::UnsignedInteger { width: (*bit_width).into() }
@@ -2790,7 +2801,8 @@ impl std::fmt::Debug for Type {
                 Signedness::Unsigned => {
                     match num_bits {
                         IntegerBitSize::Zero => write!(f, "()"),
-                        IntegerBitSize::One => write!(f, "bool"),
+                        IntegerBitSize::One(/* is_bool */ true) => write!(f, "bool"),
+                        IntegerBitSize::One(/* is_bool */ false) => write!(f, "u1"),
                         IntegerBitSize::FieldElementBits => write!(f, "Field"),
                         _ => write!(f, "u{num_bits}"),
                     }

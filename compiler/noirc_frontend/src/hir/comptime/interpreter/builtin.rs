@@ -1286,7 +1286,8 @@ fn zeroed(return_type: Type, location: Location) -> IResult<Value> {
         Type::Slice(_) => Ok(Value::Slice(im::Vector::new(), return_type)),
         Type::Integer(sign, bits) => match (sign, bits) {
             (Signedness::Unsigned, IntegerBitSize::Zero) => Ok(Value::Unit),
-            (Signedness::Unsigned, IntegerBitSize::One) => Ok(Value::Bool(false)),
+            (Signedness::Unsigned, IntegerBitSize::One(/* is_bool */ true)) => Ok(Value::Bool(false)),
+            (Signedness::Unsigned, IntegerBitSize::One(/* is_bool */ false)) => Ok(Value::U1(false)),
             (Signedness::Unsigned, IntegerBitSize::Eight) => Ok(Value::U8(0)),
             (Signedness::Unsigned, IntegerBitSize::Sixteen) => Ok(Value::U16(0)),
             (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => Ok(Value::U32(0)),
@@ -1294,7 +1295,7 @@ fn zeroed(return_type: Type, location: Location) -> IResult<Value> {
             (Signedness::Unsigned, IntegerBitSize::FieldElementBits) => Ok(Value::Field(0u128.into())),
 
             (Signedness::Signed, IntegerBitSize::Zero) => Err(InterpreterError::TypeUnsupported { typ: return_type, location }),
-            (Signedness::Signed, IntegerBitSize::One) => Err(InterpreterError::TypeUnsupported { typ: return_type, location }),
+            (Signedness::Signed, IntegerBitSize::One(_)) => Err(InterpreterError::TypeUnsupported { typ: return_type, location }),
             (Signedness::Signed, IntegerBitSize::Eight) => Ok(Value::I8(0)),
             (Signedness::Signed, IntegerBitSize::Sixteen) => Ok(Value::I16(0)),
             (Signedness::Signed, IntegerBitSize::ThirtyTwo) => Ok(Value::I32(0)),
@@ -2700,7 +2701,7 @@ fn modulus_be_bits(arguments: Vec<(Value, Location)>, location: Location) -> IRe
     let bits = FieldElement::modulus().to_radix_be(2);
     let bits_vector = bits.into_iter().map(|bit| Value::U1(bit != 0)).collect();
 
-    let int_type = Type::Integer(crate::ast::Signedness::Unsigned, IntegerBitSize::One);
+    let int_type = Type::Integer(crate::ast::Signedness::Unsigned, IntegerBitSize::u1());
     let typ = Type::Slice(Box::new(int_type));
     Ok(Value::Slice(bits_vector, typ))
 }

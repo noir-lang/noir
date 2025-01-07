@@ -1496,11 +1496,11 @@ impl<'interner> Monomorphizer<'interner> {
                     }
                     "modulus_le_bits" => {
                         let bits = FieldElement::modulus().to_radix_le(2);
-                        Some(self.modulus_slice_literal(bits, IntegerBitSize::One, location))
+                        Some(self.modulus_slice_literal(bits, IntegerBitSize::u1(), location))
                     }
                     "modulus_be_bits" => {
                         let bits = FieldElement::modulus().to_radix_be(2);
-                        Some(self.modulus_slice_literal(bits, IntegerBitSize::One, location))
+                        Some(self.modulus_slice_literal(bits, IntegerBitSize::u1(), location))
                     }
                     "modulus_be_bytes" => {
                         let bytes = FieldElement::modulus().to_bytes_be();

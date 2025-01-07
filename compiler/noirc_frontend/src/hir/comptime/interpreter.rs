@@ -711,11 +711,16 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     }
                     Ok(Value::Unit)
                 }
-                (Signedness::Unsigned, IntegerBitSize::One) => {
+                (Signedness::Unsigned, IntegerBitSize::One(is_bool)) => {
                     if FieldElement::one() < value {
                         return Err(InterpreterError::IntegerOutOfRangeForType { value, typ, location });
                     }
-                    Ok(Value::Bool(value == FieldElement::one()))
+                    let value = value == FieldElement::one();
+                    Ok(if *is_bool {
+                        Value::Bool(value)
+                    } else {
+                        Value::U1(value)
+                    })
                 }
                 (Signedness::Unsigned, IntegerBitSize::Eight) => {
                     let value: u8 =
@@ -759,7 +764,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Signedness::Signed, IntegerBitSize::Zero) => {
                     Err(InterpreterError::TypeUnsupported { typ, location })
                 }
-                (Signedness::Signed, IntegerBitSize::One) => {
+                (Signedness::Signed, IntegerBitSize::One(_)) => {
                     Err(InterpreterError::TypeUnsupported { typ, location })
                 }
                 (Signedness::Signed, IntegerBitSize::Eight) => {
@@ -1474,8 +1479,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Signedness::Unsigned, IntegerBitSize::Zero) => {
                     Ok(Value::Unit)
                 }
-                (Signedness::Unsigned, IntegerBitSize::One) => {
+                (Signedness::Unsigned, IntegerBitSize::One(/* is_bool */ true)) => {
                     Ok(Value::Bool(!lhs.is_zero() || lhs_is_negative))
+                }
+                (Signedness::Unsigned, IntegerBitSize::One(/* is_bool */ false)) => {
+                    Ok(Value::U1(!lhs.is_zero() || lhs_is_negative))
                 }
                 (Signedness::Unsigned, IntegerBitSize::Eight) => cast_to_int!(lhs, to_u128, u8, U8),
                 (Signedness::Unsigned, IntegerBitSize::Sixteen) => {
@@ -1497,7 +1505,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     let typ = typ.clone();
                     Err(InterpreterError::TypeUnsupported { typ, location })
                 }
-                (Signedness::Signed, IntegerBitSize::One) => {
+                (Signedness::Signed, IntegerBitSize::One(_)) => {
                     let typ = typ.clone();
                     Err(InterpreterError::TypeUnsupported { typ, location })
                 }

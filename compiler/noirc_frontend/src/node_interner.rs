@@ -2427,7 +2427,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         Type::Integer(_, num_bits) => {
             match num_bits {
                 IntegerBitSize::Zero => Some(Unit),
-                IntegerBitSize::One => Some(Bool),
+                IntegerBitSize::One(/* is_bool */ true) => Some(Bool),
                 _ => Some(FieldOrInt),
             }
         }

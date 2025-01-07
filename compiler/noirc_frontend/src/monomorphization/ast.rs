@@ -423,7 +423,9 @@ impl std::fmt::Display for Type {
             Type::Integer(sign, num_bits) => {
                 if num_bits.is_zero() {
                     return write!(f, "()");
-                } else if num_bits.is_one() {
+                } else if num_bits.is_bool() {
+                    return write!(f, "bool");
+                } else if num_bits.is_u1() {
                     return write!(f, "bool");
                 } else if num_bits.is_field_element_bits() {
                     return write!(f, "Field");
@@ -433,6 +435,7 @@ impl std::fmt::Display for Type {
                     Signedness::Unsigned => write!(f, "u{num_bits}"),
                 }
             }
+            // TODO: combine cases
             Type::Bool => write!(f, "bool"),
             Type::String(len) => write!(f, "str<{len}>"),
             Type::FmtString(len, elements) => {

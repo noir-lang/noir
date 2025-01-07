@@ -44,7 +44,7 @@ use iter_extended::vecmap;
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Ord, PartialOrd)]
 pub enum IntegerBitSize {
     Zero, // bit size of Unit
-    One,
+    One(/* is_bool */ bool),
     Eight,
     Sixteen,
     ThirtyTwo,
@@ -56,7 +56,7 @@ impl IntegerBitSize {
     pub fn bit_size(&self) -> u8 {
         match self {
             IntegerBitSize::Zero => 0,
-            IntegerBitSize::One => 1,
+            IntegerBitSize::One(_) => 1,
             IntegerBitSize::Eight => 8,
             IntegerBitSize::Sixteen => 16,
             IntegerBitSize::ThirtyTwo => 32,
@@ -67,12 +67,24 @@ impl IntegerBitSize {
         }
     }
 
+    pub fn bool() -> IntegerBitSize {
+        IntegerBitSize::One(true)
+    }
+
+    pub fn u1() -> IntegerBitSize {
+        IntegerBitSize::One(false)
+    }
+
     pub fn is_zero(&self) -> bool {
         matches!(self, IntegerBitSize::Zero)
     }
 
-    pub fn is_one(&self) -> bool {
-        matches!(self, IntegerBitSize::One)
+    pub fn is_u1(&self) -> bool {
+        matches!(self, IntegerBitSize::One(false))
+    }
+
+    pub fn is_bool(&self) -> bool {
+        matches!(self, IntegerBitSize::One(false))
     }
 
     pub fn is_field_element_bits(&self) -> bool {
@@ -80,17 +92,17 @@ impl IntegerBitSize {
     }
 
     pub fn is_integer_size(&self) -> bool {
-        !self.is_zero() && !self.is_one() && !self.is_field_element_bits()
+        !self.is_zero() && !self.is_u1() && !self.is_field_element_bits()
     }
 
     pub fn is_integer_or_field_size(&self) -> bool {
-        !self.is_zero() && !self.is_one()
+        !self.is_zero() && !self.is_u1()
     }
 }
 
 impl IntegerBitSize {
     pub fn allowed_sizes() -> Vec<Self> {
-        vec![Self::One, Self::Eight, Self::ThirtyTwo, Self::SixtyFour]
+        vec![Self::bool(), Self::u1(), Self::Eight, Self::ThirtyTwo, Self::SixtyFour]
     }
 }
 
@@ -99,7 +111,7 @@ impl From<IntegerBitSize> for u32 {
         use IntegerBitSize::*;
         match size {
             Zero => 0,
-            One => 1,
+            One(_) => 1,
             Eight => 8,
             Sixteen => 16,
             ThirtyTwo => 32,
@@ -121,7 +133,7 @@ impl TryFrom<u32> for IntegerBitSize {
         }
         match value {
             0 => Ok(Zero),
-            1 => Ok(One),
+            1 => Ok(One(/* is_bool */ false)),
             8 => Ok(Eight),
             16 => Ok(Sixteen),
             32 => Ok(ThirtyTwo),
@@ -322,8 +334,10 @@ impl std::fmt::Display for UnresolvedTypeData {
             Integer(sign, num_bits) => {
                 if num_bits.is_zero() {
                     return write!(f, "()");
-                } else if num_bits.is_one() {
+                } else if num_bits.is_bool() {
                     return write!(f, "bool");
+                } else if num_bits.is_u1() {
+                    return write!(f, "u1");
                 } else if num_bits.is_field_element_bits() {
                     return write!(f, "Field");
                 }
@@ -485,7 +499,7 @@ impl UnresolvedTypeData {
     }
 
     pub(crate) fn bool() -> UnresolvedTypeData {
-        UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::One)
+        UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::bool())
     }
 
     pub(crate) fn field_element() -> UnresolvedTypeData {
@@ -497,7 +511,7 @@ impl UnresolvedTypeData {
     }
 
     pub(crate) fn is_bool(&self) -> bool {
-        matches!(self, UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::One))
+        matches!(self, UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::One(true)))
     }
 
     pub(crate) fn is_field_element(&self) -> bool {
