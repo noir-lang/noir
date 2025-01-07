@@ -1,5 +1,5 @@
 [package]
-name = "bytecode_size_regression"
+name = "encrypted_log_regression"
 type = "bin"
 authors = [""]
 compiler_version = ">=0.31.0"
