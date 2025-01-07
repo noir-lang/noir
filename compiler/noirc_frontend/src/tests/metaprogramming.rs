@@ -10,7 +10,7 @@ use crate::{
         resolution::errors::ResolverError,
         type_check::TypeCheckError,
     },
-    parser::{ParserError, ParserErrorReason},
+    parser::ParserErrorReason,
 };
 
 use super::{assert_no_errors, get_program_errors};

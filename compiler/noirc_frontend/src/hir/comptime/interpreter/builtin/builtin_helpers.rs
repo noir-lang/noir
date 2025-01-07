@@ -5,6 +5,7 @@ use acvm::FieldElement;
 use iter_extended::try_vecmap;
 use noirc_errors::Location;
 
+use crate::elaborator::Elaborator;
 use crate::hir::comptime::display::tokens_to_string;
 use crate::hir::comptime::value::add_token_spans;
 use crate::lexer::Lexer;
@@ -493,7 +494,7 @@ pub(super) fn lex(input: &str) -> Vec<Token> {
 }
 
 pub(super) fn parse<'a, T, F>(
-    interpreter: &mut Interpreter,
+    elaborator: &mut Elaborator,
     (value, location): (Value, Location),
     parser: F,
     rule: &'static str,
@@ -504,9 +505,9 @@ where
     let tokens = get_quoted((value, location))?;
     let quoted = add_token_spans(tokens.clone(), location.span);
     let (result, warnings) =
-        parse_tokens(tokens, quoted, interpreter.elaborator.interner, location, parser, rule)?;
+        parse_tokens(tokens, quoted, elaborator.interner, location, parser, rule)?;
     for warning in warnings {
-        interpreter.elaborator.errors.push((warning.into(), location.file));
+        elaborator.errors.push((warning.into(), location.file));
     }
     Ok(result)
 }

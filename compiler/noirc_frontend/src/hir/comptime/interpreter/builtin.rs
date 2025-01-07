@@ -23,6 +23,7 @@ use crate::{
         Pattern, Signedness, Statement, StatementKind, UnaryOp, UnresolvedType, UnresolvedTypeData,
         Visibility,
     },
+    elaborator::Elaborator,
     hir::{
         comptime::{
             errors::IResult,
@@ -32,9 +33,11 @@ use crate::{
         def_collector::dc_crate::CollectedItems,
         def_map::ModuleDefId,
     },
-    hir_def::expr::{HirExpression, HirLiteral},
-    hir_def::function::FunctionBody,
-    hir_def::{self},
+    hir_def::{
+        self,
+        expr::{HirExpression, HirLiteral},
+        function::FunctionBody,
+    },
     node_interner::{DefinitionKind, NodeInterner, TraitImplKind},
     parser::{Parser, StatementOrExpressionOrLValue},
     token::{Attribute, Token},
@@ -158,7 +161,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "modulus_le_bits" => modulus_le_bits(arguments, location),
             "modulus_le_bytes" => modulus_le_bytes(arguments, location),
             "modulus_num_bits" => modulus_num_bits(arguments, location),
-            "quoted_as_expr" => quoted_as_expr(self, arguments, return_type, location),
+            "quoted_as_expr" => quoted_as_expr(self.elaborator, arguments, return_type, location),
             "quoted_as_module" => quoted_as_module(self, arguments, return_type, location),
             "quoted_as_trait_constraint" => quoted_as_trait_constraint(self, arguments, location),
             "quoted_as_type" => quoted_as_type(self, arguments, location),
@@ -676,7 +679,7 @@ fn slice_insert(
 
 // fn as_expr(quoted: Quoted) -> Option<Expr>
 fn quoted_as_expr(
-    interpreter: &mut Interpreter,
+    elaborator: &mut Elaborator,
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
@@ -684,7 +687,7 @@ fn quoted_as_expr(
     let argument = check_one_argument(arguments, location)?;
 
     let result = parse(
-        interpreter,
+        elaborator,
         argument,
         Parser::parse_statement_or_expression_or_lvalue,
         "an expression",
@@ -714,7 +717,8 @@ fn quoted_as_module(
     let argument = check_one_argument(arguments, location)?;
 
     let path =
-        parse(interpreter, argument, Parser::parse_path_no_turbofish_or_error, "a path").ok();
+        parse(interpreter.elaborator, argument, Parser::parse_path_no_turbofish_or_error, "a path")
+            .ok();
     let option_value = path.and_then(|path| {
         let module = interpreter
             .elaborate_in_function(interpreter.current_function, |elaborator| {
@@ -733,8 +737,12 @@ fn quoted_as_trait_constraint(
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
-    let trait_bound =
-        parse(interpreter, argument, Parser::parse_trait_bound_or_error, "a trait constraint")?;
+    let trait_bound = parse(
+        interpreter.elaborator,
+        argument,
+        Parser::parse_trait_bound_or_error,
+        "a trait constraint",
+    )?;
     let bound = interpreter
         .elaborate_in_function(interpreter.current_function, |elaborator| {
             elaborator.resolve_trait_bound(&trait_bound)
@@ -751,7 +759,7 @@ fn quoted_as_type(
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
-    let typ = parse(interpreter, argument, Parser::parse_type_or_error, "a type")?;
+    let typ = parse(interpreter.elaborator, argument, Parser::parse_type_or_error, "a type")?;
     let typ = interpreter
         .elaborate_in_function(interpreter.current_function, |elab| elab.resolve_type(typ));
     Ok(Value::Type(typ))
@@ -2447,7 +2455,7 @@ fn function_def_set_parameters(
         )?;
         let parameter_type = get_type((tuple.pop().unwrap(), parameters_argument_location))?;
         let parameter_pattern = parse(
-            interpreter,
+            interpreter.elaborator,
             (tuple.pop().unwrap(), parameters_argument_location),
             Parser::parse_pattern_or_error,
             "a pattern",
@@ -2566,7 +2574,7 @@ fn module_add_item(
     let module_id = get_module(self_argument)?;
 
     let parser = Parser::parse_top_level_items;
-    let top_level_statements = parse(interpreter, item, parser, "a top-level item")?;
+    let top_level_statements = parse(interpreter.elaborator, item, parser, "a top-level item")?;
 
     let module_data = interpreter.elaborator.get_module(module_id);
     interpreter.elaborate_in_module(module_id, module_data.location.file, |elaborator| {
