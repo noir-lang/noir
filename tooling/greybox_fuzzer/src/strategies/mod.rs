@@ -54,7 +54,7 @@ impl FullDictionary {
                     full_dictionary.insert(FieldElement::from(*character as i128));
                 }
             }
-            AbiType::Array { length, typ } => {
+            AbiType::Array { length: _, typ } => {
                 let input_vector = match input {
                     InputValue::Vec(previous_input_vector) => previous_input_vector,
                     _ => panic!("Mismatch of AbiType and InputValue should not happen"),

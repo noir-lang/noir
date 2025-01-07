@@ -1,78 +1,433 @@
 use acvm::{AcirField, FieldElement};
-
 use noirc_abi::input_parser::InputValue;
-
+use num_traits::ops::inv;
 use rand::{seq::SliceRandom, Rng};
 use rand_xorshift::XorShiftRng;
 
-const SUBSTITUTION_BY_ZERO_WEIGHT: usize = 20;
-const SUBSTITUTION_BY_ONE_WEIGHT: usize = 20;
-const SUBSTITUTION_BY_MINUS_ONE_WEIGHT: usize = 20;
-const SUBSTITUTION_FROM_DICTIONARY_WEIGHT: usize = 20;
-const MAX_POW_2: usize = 254;
+const SMALL_VALUE_MAX: u64 = 0xff;
+const SMALL_VALUE_MIN: u64 = 1;
+
 static mut POWERS_OF_TWO_INITIALIZED: bool = false;
 static mut POWERS_OF_TWO: Vec<FieldElement> = Vec::new();
 static mut INVERSE_POWERS_OF_TWO: Vec<FieldElement> = Vec::new();
 static mut POWERS_OF_TWO_MINUS_ONE: Vec<FieldElement> = Vec::new();
 
-const SUBSTITUTION_WEIGHT: usize = SUBSTITUTION_BY_ZERO_WEIGHT
-    + SUBSTITUTION_BY_MINUS_ONE_WEIGHT
-    + SUBSTITUTION_BY_ONE_WEIGHT
-    + SUBSTITUTION_FROM_DICTIONARY_WEIGHT
-    + 2 * MAX_POW_2;
-
-const ADDITIVE_INVERSION_WEIGHT: usize = 50;
-// Heavy
-const MULTIPLICATIVE_INVERSION_WEIGHT: usize = 5;
-
-const INVERSION_WEIGHT: usize = ADDITIVE_INVERSION_WEIGHT + MULTIPLICATIVE_INVERSION_WEIGHT;
-
-const ADDITION_OF_POW_2_WEIGHT: usize = MAX_POW_2;
-const SUBTRACTION_OF_POW_2_WEIGHT: usize = MAX_POW_2;
-const MULTIPLICATION_OF_POW_2_WEIGHT: usize = MAX_POW_2;
-const DIVISION_OF_POW_2_WEIGHT: usize = MAX_POW_2;
-
-const POW_2_UPDATE_WEIGHT: usize = ADDITION_OF_POW_2_WEIGHT
-    + SUBTRACTION_OF_POW_2_WEIGHT
-    + MULTIPLICATION_OF_POW_2_WEIGHT
-    + DIVISION_OF_POW_2_WEIGHT;
-
-const SMALL_VALUE_MAX: u64 = 0xff;
-const SMALL_VALUE_MIN: u64 = 1;
-const ADDITION_OF_A_SMALL_VALUE_WEIGHT: usize = 0x100;
-const SUBTRACTION_OF_A_SMALL_VALUE_WEIGHT: usize = 0x100;
-const MULTIPLICATION_BY_A_SMALL_VALUE_WEIGHT: usize = 0x80;
-
-const SMALL_VALUE_UPDATE_WEIGHT: usize = ADDITION_OF_A_SMALL_VALUE_WEIGHT
-    + SUBTRACTION_OF_A_SMALL_VALUE_WEIGHT
-    + MULTIPLICATION_BY_A_SMALL_VALUE_WEIGHT;
-
-const ADDITION_OF_DICTIONARY_VALUE_WEIGHT: usize = 0x40;
-const SUBTRACTION_OF_DICTIONARY_VALUE_WEIGHT: usize = 0x40;
-const MULTIPLICATION_BY_DICTIONARY_VALUE_WEIGHT: usize = 0x40;
-
-const DICTIONARY_ARITHMETIC_UPDATE_WEIGHT: usize = ADDITION_OF_DICTIONARY_VALUE_WEIGHT
-    + SUBTRACTION_OF_DICTIONARY_VALUE_WEIGHT
-    + MULTIPLICATION_BY_DICTIONARY_VALUE_WEIGHT;
-
-const TOTAL_WEIGHT: usize = SUBSTITUTION_WEIGHT
-    + INVERSION_WEIGHT
-    + POW_2_UPDATE_WEIGHT
-    + SMALL_VALUE_UPDATE_WEIGHT
-    + DICTIONARY_ARITHMETIC_UPDATE_WEIGHT;
-
+const MAX_POW_2: usize = 254;
+/// Initialize a static vector of powers of two for quick access during mutations
 fn initialize_powers_of_two() {
     unsafe {
         if !POWERS_OF_TWO_INITIALIZED {
             POWERS_OF_TWO_INITIALIZED = true;
-            POWERS_OF_TWO = (1..=MAX_POW_2)
+            let powers_of_two = (1..=MAX_POW_2)
                 .map(|i| FieldElement::from(2i128).pow(&FieldElement::from(i)))
                 .collect::<Vec<FieldElement>>();
             INVERSE_POWERS_OF_TWO =
-                POWERS_OF_TWO.iter().map(|p| p.inverse()).collect::<Vec<FieldElement>>();
+                powers_of_two.iter().map(|p| p.inverse()).collect::<Vec<FieldElement>>();
+
             POWERS_OF_TWO_MINUS_ONE =
-                POWERS_OF_TWO.iter().map(|x| *x - FieldElement::from(1i128)).collect();
+                powers_of_two.iter().map(|x| *x - FieldElement::from(1i128)).collect();
+
+            POWERS_OF_TWO = powers_of_two;
         }
+    }
+}
+enum SubstitutionMutation {
+    Zero,
+    One,
+    MinusOne,
+    Dictionary,
+    PowerOfTwo,
+    PowerOfTwoMinusOne,
+}
+struct SubstitutionConfiguration {
+    substitution_by_zero_weight: usize,
+    substitution_by_one_weight: usize,
+    substitution_by_minus_one_weight: usize,
+    substitution_from_dictionary_weight: usize,
+    substitution_by_power_of_2_weight: usize,
+    substitution_by_power_of_2_minus_one: usize,
+    total_weight: usize,
+}
+
+impl SubstitutionConfiguration {
+    pub fn new(
+        substitution_by_zero_weight: usize,
+        substitution_by_one_weight: usize,
+        substitution_by_minus_one_weight: usize,
+        substitution_from_dictionary_weight: usize,
+        substitution_by_power_of_2: usize,
+        substitution_by_power_of_2_minus_one: usize,
+    ) -> Self {
+        let total_weight = substitution_by_minus_one_weight
+            + substitution_by_one_weight
+            + substitution_by_zero_weight
+            + substitution_from_dictionary_weight
+            + substitution_by_power_of_2
+            + substitution_by_power_of_2_minus_one;
+        Self {
+            substitution_by_zero_weight,
+            substitution_by_one_weight,
+            substitution_by_minus_one_weight,
+            substitution_from_dictionary_weight,
+            substitution_by_power_of_2_weight: substitution_by_power_of_2,
+            substitution_by_power_of_2_minus_one,
+            total_weight,
+        }
+    }
+    pub fn select(&self, prng: &mut XorShiftRng) -> SubstitutionMutation {
+        let mut selector = prng.gen_range(0..self.total_weight);
+        if selector < self.substitution_by_zero_weight {
+            return SubstitutionMutation::Zero;
+        }
+        selector -= self.substitution_by_zero_weight;
+        if selector < self.substitution_by_one_weight {
+            return SubstitutionMutation::One;
+        }
+        selector -= self.substitution_by_one_weight;
+        if selector < self.substitution_by_minus_one_weight {
+            return SubstitutionMutation::MinusOne;
+        }
+        selector -= self.substitution_by_minus_one_weight;
+        if selector < self.substitution_from_dictionary_weight {
+            return SubstitutionMutation::Dictionary;
+        }
+        selector -= self.substitution_from_dictionary_weight;
+        if selector < self.substitution_by_power_of_2_weight {
+            return SubstitutionMutation::PowerOfTwo;
+        }
+        return SubstitutionMutation::PowerOfTwoMinusOne;
+    }
+}
+
+const BASIC_SUBSTITUTION_CONFIGURATION: SubstitutionConfiguration = SubstitutionConfiguration {
+    substitution_by_zero_weight: 20,
+    substitution_by_one_weight: 20,
+    substitution_by_minus_one_weight: 20,
+    substitution_from_dictionary_weight: 20,
+    substitution_by_power_of_2_weight: 254,
+    substitution_by_power_of_2_minus_one: 254,
+    total_weight: 20 + 20 + 20 + 20 + 254 + 254,
+};
+
+enum InversionMutation {
+    Additive,
+    Multiplicative,
+}
+struct InversionConfiguration {
+    additive_inversion_weight: usize,
+    multiplicative_inversion_weight: usize,
+    total_weight: usize,
+}
+
+impl InversionConfiguration {
+    pub fn new(additive_inversion_weight: usize, multiplicative_inversion_weight: usize) -> Self {
+        let total_weight = additive_inversion_weight + multiplicative_inversion_weight;
+        Self { additive_inversion_weight, multiplicative_inversion_weight, total_weight }
+    }
+    pub fn select(&self, prng: &mut XorShiftRng) -> InversionMutation {
+        let selector = prng.gen_range(0..self.total_weight);
+        if selector < self.additive_inversion_weight {
+            return InversionMutation::Additive;
+        }
+        return InversionMutation::Multiplicative;
+    }
+}
+
+const BASIC_INVERSION_CONFIGURATION: InversionConfiguration = InversionConfiguration {
+    additive_inversion_weight: 10,
+    multiplicative_inversion_weight: 1,
+    total_weight: 10 + 1,
+};
+
+enum Pow2Update {
+    Addition,
+    Subtraction,
+    Multiplication,
+    Division,
+}
+struct Pow2UpdateConfiguration {
+    addition_weight: usize,
+    subtraction_weight: usize,
+    multiplication_weight: usize,
+    division_weight: usize,
+    total_weight: usize,
+}
+
+impl Pow2UpdateConfiguration {
+    pub fn new(
+        addition_weight: usize,
+        subtraction_weight: usize,
+        multiplication_weight: usize,
+        division_weight: usize,
+    ) -> Self {
+        let total_weight =
+            addition_weight + subtraction_weight + multiplication_weight + division_weight;
+        Self {
+            addition_weight,
+            subtraction_weight,
+            multiplication_weight,
+            division_weight,
+            total_weight,
+        }
+    }
+    pub fn select(&self, prng: &mut XorShiftRng) -> Pow2Update {
+        let mut selector = prng.gen_range(0..self.total_weight);
+        if selector < self.addition_weight {
+            return Pow2Update::Addition;
+        }
+        selector -= self.addition_weight;
+        if selector < self.subtraction_weight {
+            return Pow2Update::Subtraction;
+        }
+        selector -= self.subtraction_weight;
+        if selector < self.multiplication_weight {
+            return Pow2Update::Multiplication;
+        }
+        return Pow2Update::Division;
+    }
+}
+
+const BASIC_POW_2_UPDATE_CONFIGURATION: Pow2UpdateConfiguration = Pow2UpdateConfiguration {
+    addition_weight: 3,
+    subtraction_weight: 3,
+    multiplication_weight: 2,
+    division_weight: 1,
+    total_weight: 3 + 3 + 2 + 1,
+};
+
+enum SmallValueUpdate {
+    Addition,
+    Subtraction,
+    Multiplication,
+}
+struct SmallValueUpdateConfiguration {
+    addition_weight: usize,
+    subtraction_weight: usize,
+    multiplication_weight: usize,
+    total_weight: usize,
+}
+
+impl SmallValueUpdateConfiguration {
+    pub fn new(
+        addition_weight: usize,
+        subtraction_weight: usize,
+        multiplication_weight: usize,
+    ) -> Self {
+        let total_weight = addition_weight + subtraction_weight + multiplication_weight;
+        Self { addition_weight, subtraction_weight, multiplication_weight, total_weight }
+    }
+    pub fn select(&self, prng: &mut XorShiftRng) -> SmallValueUpdate {
+        let mut selector = prng.gen_range(0..self.total_weight);
+        if selector < self.addition_weight {
+            return SmallValueUpdate::Addition;
+        }
+        selector -= self.addition_weight;
+        if selector < self.subtraction_weight {
+            return SmallValueUpdate::Subtraction;
+        }
+        return SmallValueUpdate::Multiplication;
+    }
+}
+
+const BASIC_SMALL_VALUE_UPDATE_CONFIGURATION: SmallValueUpdateConfiguration =
+    SmallValueUpdateConfiguration {
+        addition_weight: 3,
+        subtraction_weight: 3,
+        multiplication_weight: 1,
+        total_weight: 3 + 3 + 1,
+    };
+
+enum DictionaryUpdate {
+    Addition,
+    Subtraction,
+    Multiplication,
+}
+struct DictionaryUpdateConfiguration {
+    addition_weight: usize,
+    subtraction_weight: usize,
+    multiplication_weight: usize,
+    total_weight: usize,
+}
+
+impl DictionaryUpdateConfiguration {
+    pub fn new(
+        addition_weight: usize,
+        subtraction_weight: usize,
+        multiplication_weight: usize,
+    ) -> Self {
+        let total_weight = addition_weight + subtraction_weight;
+        Self { addition_weight, subtraction_weight, multiplication_weight, total_weight }
+    }
+    pub fn select(&self, prng: &mut XorShiftRng) -> DictionaryUpdate {
+        let mut selector = prng.gen_range(0..self.total_weight);
+        if selector < self.addition_weight {
+            return DictionaryUpdate::Addition;
+        }
+        selector -= self.addition_weight;
+        if selector < self.subtraction_weight {
+            return DictionaryUpdate::Subtraction;
+        }
+        return DictionaryUpdate::Multiplication;
+    }
+}
+
+const BASIC_DICTIONARY_UPDATE_CONFIGURATION: DictionaryUpdateConfiguration =
+    DictionaryUpdateConfiguration {
+        addition_weight: 2,
+        subtraction_weight: 2,
+        multiplication_weight: 1,
+        total_weight: 2 + 2 + 1,
+    };
+enum TopLevelMutation {
+    Substitution,
+    Inversion,
+    Pow2Update,
+    SmallValueUpdate,
+    DictionaryUpdate,
+}
+struct TopLevelMutationConfiguration {
+    substitution_weight: usize,
+    inversion_weight: usize,
+    pow_2_update_weight: usize,
+    small_value_update_weight: usize,
+    dictionary_update_weight: usize,
+    total_weight: usize,
+}
+
+impl TopLevelMutationConfiguration {
+    pub fn new(
+        substitution_weight: usize,
+        inversion_weight: usize,
+        pow_2_update_weight: usize,
+        small_value_update_weight: usize,
+        dictionary_update_weight: usize,
+    ) -> Self {
+        let total_weight = substitution_weight
+            + inversion_weight
+            + pow_2_update_weight
+            + small_value_update_weight
+            + dictionary_update_weight;
+        Self {
+            substitution_weight,
+            inversion_weight,
+            pow_2_update_weight,
+            small_value_update_weight,
+            dictionary_update_weight,
+            total_weight,
+        }
+    }
+    pub fn select(&self, prng: &mut XorShiftRng) -> TopLevelMutation {
+        let mut selector = prng.gen_range(0..self.total_weight);
+        if selector < self.substitution_weight {
+            return TopLevelMutation::Substitution;
+        }
+        selector -= self.substitution_weight;
+        if selector < self.inversion_weight {
+            return TopLevelMutation::Inversion;
+        }
+        selector -= self.inversion_weight;
+        if selector < self.pow_2_update_weight {
+            return TopLevelMutation::Pow2Update;
+        }
+        selector -= self.pow_2_update_weight;
+        if selector < self.small_value_update_weight {
+            return TopLevelMutation::SmallValueUpdate;
+        }
+        return TopLevelMutation::DictionaryUpdate;
+    }
+}
+
+const BASIC_TOPLEVEL_MUTATION_CONFIGURATION: TopLevelMutationConfiguration =
+    TopLevelMutationConfiguration {
+        substitution_weight: 10,
+        inversion_weight: 1,
+        pow_2_update_weight: 5,
+        small_value_update_weight: 10,
+        dictionary_update_weight: 10,
+        total_weight: 10 + 1 + 5 + 10 + 10,
+    };
+
+struct FieldMutator<'a> {
+    dictionary: &'a Vec<FieldElement>,
+    prng: &'a mut XorShiftRng,
+}
+
+impl<'a> FieldMutator<'a> {
+    pub fn new(dictionary: &'a Vec<FieldElement>, prng: &'a mut XorShiftRng) -> Self {
+        initialize_powers_of_two();
+
+        assert!(!dictionary.is_empty());
+        Self { dictionary, prng }
+    }
+
+    fn apply_substitution(&mut self) -> FieldElement {
+        match BASIC_SUBSTITUTION_CONFIGURATION.select(self.prng) {
+            SubstitutionMutation::Zero => (FieldElement::from(0u32)),
+            SubstitutionMutation::One => (FieldElement::from(1u32)),
+            SubstitutionMutation::MinusOne => (-FieldElement::from(1u32)),
+            SubstitutionMutation::Dictionary => (*self.dictionary.choose(self.prng).unwrap()),
+            SubstitutionMutation::PowerOfTwo => unsafe {
+                POWERS_OF_TWO.choose(self.prng).unwrap().clone()
+            },
+            SubstitutionMutation::PowerOfTwoMinusOne => unsafe {
+                POWERS_OF_TWO_MINUS_ONE.choose(self.prng).unwrap().clone()
+            },
+        }
+    }
+
+    fn apply_inversion(&mut self, element: FieldElement) -> FieldElement {
+        match BASIC_INVERSION_CONFIGURATION.select(self.prng) {
+            InversionMutation::Additive => -element,
+            InversionMutation::Multiplicative => element.inverse(),
+        }
+    }
+
+    fn apply_pow_2_update(&mut self, element: FieldElement) -> FieldElement {
+        let chosen_power_of_two = unsafe { POWERS_OF_TWO.choose(self.prng).unwrap() };
+        let chosen_inverse_power_of_two =
+            unsafe { INVERSE_POWERS_OF_TWO.choose(self.prng).unwrap() };
+        match BASIC_POW_2_UPDATE_CONFIGURATION.select(self.prng) {
+            Pow2Update::Addition => element + *chosen_power_of_two,
+            Pow2Update::Subtraction => element - *chosen_power_of_two,
+            Pow2Update::Multiplication => element * *chosen_power_of_two,
+            Pow2Update::Division => element * *chosen_inverse_power_of_two,
+        }
+    }
+
+    fn apply_small_value_update(&mut self, element: FieldElement) -> FieldElement {
+        let small_value =
+            FieldElement::from(self.prng.gen_range(SMALL_VALUE_MIN..=SMALL_VALUE_MAX));
+        match BASIC_SMALL_VALUE_UPDATE_CONFIGURATION.select(self.prng) {
+            SmallValueUpdate::Addition => element + small_value,
+            SmallValueUpdate::Subtraction => element - small_value,
+            SmallValueUpdate::Multiplication => element * small_value,
+        }
+    }
+
+    fn apply_dictionary_update(&mut self, element: FieldElement) -> FieldElement {
+        let dictionary_value = self.dictionary.choose(self.prng).unwrap();
+        match BASIC_DICTIONARY_UPDATE_CONFIGURATION.select(self.prng) {
+            DictionaryUpdate::Addition => element + *dictionary_value,
+            DictionaryUpdate::Subtraction => element - *dictionary_value,
+            DictionaryUpdate::Multiplication => element * *dictionary_value,
+        }
+    }
+
+    pub fn mutate(&mut self, input: &InputValue) -> InputValue {
+        let initial_field_value = match input {
+            InputValue::Field(inner_field) => inner_field,
+            _ => panic!("Shouldn't be used with other input value types"),
+        }
+        .clone();
+        return InputValue::Field(match BASIC_TOPLEVEL_MUTATION_CONFIGURATION.select(self.prng) {
+            TopLevelMutation::Substitution => self.apply_substitution(),
+            TopLevelMutation::Inversion => self.apply_inversion(initial_field_value),
+            TopLevelMutation::Pow2Update => self.apply_pow_2_update(initial_field_value),
+            TopLevelMutation::SmallValueUpdate => {
+                self.apply_small_value_update(initial_field_value)
+            }
+            TopLevelMutation::DictionaryUpdate => self.apply_dictionary_update(initial_field_value),
+        });
     }
 }
 pub fn mutate_field_input_value(
@@ -80,134 +435,6 @@ pub fn mutate_field_input_value(
     dictionary: &Vec<FieldElement>,
     prng: &mut XorShiftRng,
 ) -> InputValue {
-    initialize_powers_of_two();
-    let initial_field_value = match previous_input {
-        InputValue::Field(inner_field) => inner_field,
-        _ => panic!("Shouldn't be used with other input value types"),
-    }
-    .clone();
-    assert!(!dictionary.is_empty());
-    // Types of mutations:
-    // 1. Substitution (0, 1, -1, powers of 2, powers of 2 minus one)
-    // 2. Negation/inversion
-    // 3. Multiplication by a power of 2 (division by a power of 2)
-    // 4. Addition/subtraction of a small value
-    // 5. Additions/subtraction of a power of two
-    // 6. Addition/Substitution of a Value from the dictionary
-    let mut selector = prng.gen_range(0..TOTAL_WEIGHT);
-
-    // Substitutions
-    if selector < SUBSTITUTION_WEIGHT {
-        // By Zero
-        if selector < SUBSTITUTION_BY_ZERO_WEIGHT {
-            return InputValue::Field(FieldElement::from(0u32));
-        }
-        selector -= SUBSTITUTION_BY_ONE_WEIGHT;
-        // By one
-        if selector < SUBSTITUTION_BY_ONE_WEIGHT {
-            return InputValue::Field(FieldElement::from(1u32));
-        }
-        selector -= SUBSTITUTION_BY_MINUS_ONE_WEIGHT;
-        // By minus one
-        if selector < SUBSTITUTION_BY_ONE_WEIGHT {
-            return InputValue::Field(-FieldElement::from(1u32));
-        }
-        selector -= SUBSTITUTION_BY_ONE_WEIGHT;
-        // By a random value from dictionary
-        if selector < SUBSTITUTION_FROM_DICTIONARY_WEIGHT {
-            return InputValue::Field(*dictionary.choose(prng).unwrap());
-        }
-        selector -= SUBSTITUTION_FROM_DICTIONARY_WEIGHT;
-        unsafe {
-            // By a power of two
-            if selector < MAX_POW_2 {
-                return InputValue::Field(POWERS_OF_TWO[selector]);
-            }
-            selector -= MAX_POW_2;
-            assert!(selector < MAX_POW_2);
-            // By a power of two minus one
-            return InputValue::Field(POWERS_OF_TWO_MINUS_ONE[selector]);
-        }
-    }
-    selector -= SUBSTITUTION_WEIGHT;
-    // Inverses
-    if selector < INVERSION_WEIGHT {
-        // Negation
-        if selector < ADDITIVE_INVERSION_WEIGHT {
-            return InputValue::Field(-initial_field_value);
-        }
-        selector -= ADDITIVE_INVERSION_WEIGHT;
-        assert!(selector < MULTIPLICATIVE_INVERSION_WEIGHT);
-        // Multiplicative inverse
-        return InputValue::Field(initial_field_value.inverse());
-    }
-    selector -= INVERSION_WEIGHT;
-    unsafe {
-        // Additions, subtractions, etc of powers of two
-        if selector < POW_2_UPDATE_WEIGHT {
-            // An addition of a power of two
-            if selector < ADDITION_OF_POW_2_WEIGHT {
-                return InputValue::Field(
-                    initial_field_value + POWERS_OF_TWO[prng.gen_range(0..MAX_POW_2)],
-                );
-            }
-            selector -= ADDITION_OF_POW_2_WEIGHT;
-            // Subtraction of a power of two
-            if selector < SUBTRACTION_OF_POW_2_WEIGHT {
-                return InputValue::Field(
-                    initial_field_value - POWERS_OF_TWO[prng.gen_range(0..MAX_POW_2)],
-                );
-            }
-            // Multiplication by a power of two (bit shift left)
-            selector -= SUBTRACTION_OF_POW_2_WEIGHT;
-            if selector < MULTIPLICATION_OF_POW_2_WEIGHT {
-                return InputValue::Field(
-                    initial_field_value * POWERS_OF_TWO[prng.gen_range(0..MAX_POW_2)],
-                );
-            }
-            // Division by a power of two
-            selector -= MULTIPLICATION_OF_POW_2_WEIGHT;
-            assert!(selector < DIVISION_OF_POW_2_WEIGHT);
-            return InputValue::Field(
-                initial_field_value * INVERSE_POWERS_OF_TWO[prng.gen_range(0..MAX_POW_2)],
-            );
-        }
-    }
-    selector -= POW_2_UPDATE_WEIGHT;
-
-    // Updates with addition, subtraction or multiplication by small values
-    if selector < SMALL_VALUE_UPDATE_WEIGHT {
-        if selector < ADDITION_OF_A_SMALL_VALUE_WEIGHT {
-            return InputValue::Field(
-                initial_field_value
-                    + FieldElement::from(prng.gen_range(SMALL_VALUE_MIN..=SMALL_VALUE_MAX)),
-            );
-        }
-        selector -= ADDITION_OF_A_SMALL_VALUE_WEIGHT;
-        if selector < SUBTRACTION_OF_A_SMALL_VALUE_WEIGHT {
-            return InputValue::Field(
-                initial_field_value
-                    - FieldElement::from(prng.gen_range(SMALL_VALUE_MIN..=SMALL_VALUE_MAX)),
-            );
-        }
-        selector -= SUBTRACTION_OF_A_SMALL_VALUE_WEIGHT;
-        assert!(selector < MULTIPLICATION_BY_A_SMALL_VALUE_WEIGHT);
-        return InputValue::Field(
-            initial_field_value
-                * FieldElement::from(prng.gen_range(SMALL_VALUE_MIN..=SMALL_VALUE_MAX)),
-        );
-    }
-    selector -= SMALL_VALUE_UPDATE_WEIGHT;
-
-    assert!(selector < DICTIONARY_ARITHMETIC_UPDATE_WEIGHT);
-    if selector < ADDITION_OF_DICTIONARY_VALUE_WEIGHT {
-        return InputValue::Field(initial_field_value + *dictionary.choose(prng).unwrap());
-    }
-    selector -= ADDITION_OF_DICTIONARY_VALUE_WEIGHT;
-    if selector < SUBTRACTION_OF_DICTIONARY_VALUE_WEIGHT {
-        return InputValue::Field(initial_field_value - *dictionary.choose(prng).unwrap());
-    }
-    selector -= SUBTRACTION_OF_A_SMALL_VALUE_WEIGHT;
-    assert!(selector < MULTIPLICATION_BY_DICTIONARY_VALUE_WEIGHT);
-    return InputValue::Field(initial_field_value * *dictionary.choose(prng).unwrap());
+    let mut field_mutator = FieldMutator::new(&dictionary, prng);
+    field_mutator.mutate(previous_input)
 }
