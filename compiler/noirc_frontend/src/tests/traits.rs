@@ -717,7 +717,7 @@ fn calls_trait_function_if_it_is_in_scope() {
 }
 
 #[test]
-fn calls_trait_function_it_is_only_candidate_in_scope() {
+fn calls_trait_function_if_it_is_only_candidate_in_scope() {
     let src = r#"
     use private_mod::Foo;
 
@@ -744,6 +744,36 @@ fn calls_trait_function_it_is_only_candidate_in_scope() {
         }
 
         impl Foo2 for super::Bar {
+            fn foo() -> i32 {
+                42
+            }
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn calls_trait_function_if_it_is_only_candidate_in_scope_in_nested_module_using_super() {
+    let src = r#"
+    mod moo {
+        use super::public_mod::Foo;
+
+        pub fn method() {
+            let _ = super::Bar::foo();
+        }
+    }
+
+    fn main() {}
+
+    pub struct Bar {}
+
+    pub mod public_mod {
+        pub trait Foo {
+            fn foo() -> i32;
+        }
+
+        impl Foo for super::Bar {
             fn foo() -> i32 {
                 42
             }
