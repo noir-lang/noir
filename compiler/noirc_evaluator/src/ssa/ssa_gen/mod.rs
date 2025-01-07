@@ -39,10 +39,7 @@ pub(crate) const SSA_WORD_SIZE: u32 = 32;
 /// Generates SSA for the given monomorphized program.
 ///
 /// This function will generate the SSA but does not perform any optimizations on it.
-pub(crate) fn generate_ssa(
-    program: Program,
-    force_brillig_runtime: bool,
-) -> Result<Ssa, RuntimeError> {
+pub(crate) fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     // see which parameter has call_data/return_data attribute
     let is_databus = DataBusBuilder::is_databus(&program.main_function_signature);
 
@@ -56,16 +53,13 @@ pub(crate) fn generate_ssa(
 
     // Queue the main function for compilation
     context.get_or_queue_function(main_id);
-    let mut function_context = FunctionContext::new(
-        main.name.clone(),
-        &main.parameters,
-        if force_brillig_runtime || main.unconstrained {
-            RuntimeType::Brillig(main.inline_type)
-        } else {
-            RuntimeType::Acir(main.inline_type)
-        },
-        &context,
-    );
+    let main_runtime = if main.unconstrained {
+        RuntimeType::Brillig(main.inline_type)
+    } else {
+        RuntimeType::Acir(main.inline_type)
+    };
+    let mut function_context =
+        FunctionContext::new(main.name.clone(), &main.parameters, main_runtime, &context);
 
     // Generate the call_data bus from the relevant parameters. We create it *before* processing the function body
     let call_data = function_context.builder.call_data_bus(is_databus);
@@ -122,7 +116,7 @@ pub(crate) fn generate_ssa(
     // to generate SSA for each function used within the program.
     while let Some((src_function_id, dest_id)) = context.pop_next_function_in_queue() {
         let function = &context.program[src_function_id];
-        function_context.new_function(dest_id, function, force_brillig_runtime);
+        function_context.new_function(dest_id, function);
         function_context.codegen_function_body(&function.body)?;
     }
 
@@ -709,9 +703,7 @@ impl<'a> FunctionContext<'a> {
         // Don't mutate the reference count if we're assigning an array literal to a Let:
         // `let mut foo = [1, 2, 3];`
         // we consider the array to be moved, so we should have an initial rc of just 1.
-        //
-        // TODO: this exception breaks #6763
-        let should_inc_rc = true; // !let_expr.expression.is_array_or_slice_literal();
+        let should_inc_rc = !let_expr.expression.is_array_or_slice_literal();
 
         values = values.map(|value| {
             let value = value.eval(self);

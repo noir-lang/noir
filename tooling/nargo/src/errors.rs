@@ -16,8 +16,9 @@ use noirc_errors::{
 pub use noirc_errors::Location;
 
 use noirc_driver::CrateName;
-use noirc_printable_type::ForeignCallError;
 use thiserror::Error;
+
+use crate::foreign_calls::ForeignCallError;
 
 /// Errors covering situations where a package cannot be compiled.
 #[derive(Debug, Error)]
