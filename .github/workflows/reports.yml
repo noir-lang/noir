@@ -299,7 +299,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-contracts, is_library: true }
+          # - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-contracts, is_library: true }
           - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-inner, take_average: true }
           - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-tail, take_average: true  }
           - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-reset, take_average: true }
