@@ -1421,7 +1421,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                     }
                 }?;
                 output_count = input_size + (16 - input_size % 16);
-                (vec![], vec![F::from(output_count as u128)])
+                (vec![], vec![])
             }
             BlackBoxFunc::RecursiveAggregation => {
                 let proof_type_var = match inputs.pop() {
