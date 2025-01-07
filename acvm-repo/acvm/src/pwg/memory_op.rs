@@ -196,9 +196,9 @@ mod tests {
             err,
             Some(crate::pwg::OpcodeResolutionError::IndexOutOfBounds {
                 opcode_location: _,
-                index: FieldElement::from(2u128),
+                index,
                 array_size: 2
-            })
+            }) if index == FieldElement::from(2u128)
         ));
     }
 
