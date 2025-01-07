@@ -128,9 +128,12 @@ impl<'a> Parser<'a> {
     }
 
     /// Invokes `parsing_function` (`parsing_function` must be some `parse_*` method of the parser)
-    /// and returns the result if the parser has no errors, and if the parser consumed all tokens.
+    /// and returns the result (and any warnings) if the parser has no errors, and if the parser consumed all tokens.
     /// Otherwise returns the list of errors.
-    pub fn parse_result<T, F>(mut self, parsing_function: F) -> Result<T, Vec<ParserError>>
+    pub fn parse_result<T, F>(
+        mut self,
+        parsing_function: F,
+    ) -> Result<(T, Vec<ParserError>), Vec<ParserError>>
     where
         F: FnOnce(&mut Parser<'a>) -> T,
     {
@@ -140,21 +143,12 @@ impl<'a> Parser<'a> {
             return Err(self.errors);
         }
 
-        if self.errors.is_empty() {
-            Ok(item)
+        let all_warnings = self.errors.iter().all(|error| error.is_warning());
+        if all_warnings {
+            Ok((item, self.errors))
         } else {
             Err(self.errors)
         }
-    }
-
-    /// Invokes `parsing_function` (`parsing_function` must be some `parse_*` method of the parser)
-    /// and returns the result if the parser has no errors, and if the parser consumed all tokens.
-    /// Otherwise returns None.
-    pub fn parse_option<T, F>(self, parsing_function: F) -> Option<T>
-    where
-        F: FnOnce(&mut Parser<'a>) -> Option<T>,
-    {
-        self.parse_result(parsing_function).unwrap_or_default()
     }
 
     /// Bumps this parser by one token. Returns the token that was previously the "current" token.

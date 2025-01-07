@@ -138,6 +138,7 @@ impl<'context> Elaborator<'context> {
                         return_type,
                         where_clause,
                         body,
+                        unresolved_trait.trait_def.visibility,
                         func_id,
                     );
 
@@ -201,6 +202,7 @@ impl<'context> Elaborator<'context> {
         return_type: &FunctionReturnType,
         where_clause: Vec<UnresolvedTraitConstraint>,
         body: &Option<BlockExpression>,
+        trait_visibility: ItemVisibility,
         func_id: FuncId,
     ) {
         let old_generic_count = self.generics.len();
@@ -224,8 +226,9 @@ impl<'context> Elaborator<'context> {
             where_clause,
             return_type,
         );
-        // Trait functions are always public
-        def.visibility = ItemVisibility::Public;
+
+        // Trait functions always have the same visibility as the trait they are in
+        def.visibility = trait_visibility;
 
         let mut function = NoirFunction { kind, def };
         self.define_function_meta(&mut function, func_id, Some(trait_id));

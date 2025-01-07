@@ -489,7 +489,7 @@ impl<'a> ModCollector<'a> {
                         let location = Location::new(name.span(), self.file_id);
                         let modifiers = FunctionModifiers {
                             name: name.to_string(),
-                            visibility: ItemVisibility::Public,
+                            visibility: trait_definition.visibility,
                             // TODO(Maddiaa): Investigate trait implementations with attributes see: https://github.com/noir-lang/noir/issues/2629
                             attributes: crate::token::Attributes::empty(),
                             is_unconstrained: *is_unconstrained,

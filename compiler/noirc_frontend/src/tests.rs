@@ -2843,6 +2843,21 @@ fn trait_constraint_on_tuple_type() {
 }
 
 #[test]
+fn trait_constraint_on_tuple_type_pub_crate() {
+    let src = r#"
+        pub(crate) trait Foo<A> {
+            fn foo(self, x: A) -> bool;
+        }
+
+        pub fn bar<T, U, V>(x: (T, U), y: V) -> bool where (T, U): Foo<V> {
+            x.foo(y)
+        }
+
+        fn main() {}"#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn incorrect_generic_count_on_struct_impl() {
     let src = r#"
     struct Foo {}
