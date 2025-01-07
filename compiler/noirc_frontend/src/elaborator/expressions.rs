@@ -927,7 +927,7 @@ impl<'context> Elaborator<'context> {
         };
 
         let location = Location::new(span, self.file);
-        match value.into_expression(self.interner, location) {
+        match value.into_expression(self, location) {
             Ok(new_expr) => {
                 // At this point the Expression was already elaborated and we got a Value.
                 // We'll elaborate this value turned into Expression to inline it and get

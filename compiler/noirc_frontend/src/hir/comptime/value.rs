@@ -12,6 +12,7 @@ use crate::{
         IntegerBitSize, LValue, Literal, Path, Pattern, Signedness, Statement, StatementKind,
         UnresolvedType, UnresolvedTypeData,
     },
+    elaborator::Elaborator,
     hir::{def_map::ModuleId, type_check::generics::TraitGenerics},
     hir_def::expr::{
         HirArrayLiteral, HirConstructorExpression, HirExpression, HirIdent, HirLambda, HirLiteral,
@@ -158,7 +159,7 @@ impl Value {
 
     pub(crate) fn into_expression(
         self,
-        interner: &mut NodeInterner,
+        elaborator: &mut Elaborator,
         location: Location,
     ) -> IResult<Expression> {
         let kind = match self {
@@ -212,22 +213,23 @@ impl Value {
                 ExpressionKind::Literal(Literal::Str(unwrap_rc(value)))
             }
             Value::Function(id, typ, bindings) => {
-                let id = interner.function_definition_id(id);
+                let id = elaborator.interner.function_definition_id(id);
                 let impl_kind = ImplKind::NotATraitMethod;
                 let ident = HirIdent { location, id, impl_kind };
-                let expr_id = interner.push_expr(HirExpression::Ident(ident, None));
-                interner.push_expr_location(expr_id, location.span, location.file);
-                interner.push_expr_type(expr_id, typ);
-                interner.store_instantiation_bindings(expr_id, unwrap_rc(bindings));
+                let expr_id = elaborator.interner.push_expr(HirExpression::Ident(ident, None));
+                elaborator.interner.push_expr_location(expr_id, location.span, location.file);
+                elaborator.interner.push_expr_type(expr_id, typ);
+                elaborator.interner.store_instantiation_bindings(expr_id, unwrap_rc(bindings));
                 ExpressionKind::Resolved(expr_id)
             }
             Value::Tuple(fields) => {
-                let fields = try_vecmap(fields, |field| field.into_expression(interner, location))?;
+                let fields =
+                    try_vecmap(fields, |field| field.into_expression(elaborator, location))?;
                 ExpressionKind::Tuple(fields)
             }
             Value::Struct(fields, typ) => {
                 let fields = try_vecmap(fields, |(name, field)| {
-                    let field = field.into_expression(interner, location)?;
+                    let field = field.into_expression(elaborator, location)?;
                     Ok((Ident::new(unwrap_rc(name), location.span), field))
                 })?;
 
@@ -246,12 +248,12 @@ impl Value {
             }
             Value::Array(elements, _) => {
                 let elements =
-                    try_vecmap(elements, |element| element.into_expression(interner, location))?;
+                    try_vecmap(elements, |element| element.into_expression(elaborator, location))?;
                 ExpressionKind::Literal(Literal::Array(ArrayLiteral::Standard(elements)))
             }
             Value::Slice(elements, _) => {
                 let elements =
-                    try_vecmap(elements, |element| element.into_expression(interner, location))?;
+                    try_vecmap(elements, |element| element.into_expression(elaborator, location))?;
                 ExpressionKind::Literal(Literal::Slice(ArrayLiteral::Standard(elements)))
             }
             Value::Quoted(tokens) => {
@@ -262,12 +264,18 @@ impl Value {
 
                 let parser = Parser::for_tokens(tokens_to_parse);
                 return match parser.parse_result(Parser::parse_expression_or_error) {
-                    Ok(expr) => Ok(expr),
+                    Ok((expr, warnings)) => {
+                        for warning in warnings {
+                            elaborator.errors.push((warning.into(), location.file));
+                        }
+
+                        Ok(expr)
+                    }
                     Err(mut errors) => {
                         let error = errors.swap_remove(0);
                         let file = location.file;
                         let rule = "an expression";
-                        let tokens = tokens_to_string(tokens, interner);
+                        let tokens = tokens_to_string(tokens, elaborator.interner);
                         Err(InterpreterError::FailedToParseMacro { error, file, tokens, rule })
                     }
                 };
@@ -293,7 +301,7 @@ impl Value {
             | Value::Closure(..)
             | Value::ModuleDefinition(_) => {
                 let typ = self.get_type().into_owned();
-                let value = self.display(interner).to_string();
+                let value = self.display(elaborator.interner).to_string();
                 return Err(InterpreterError::CannotInlineMacro { typ, value, location });
             }
         };
@@ -533,16 +541,16 @@ impl Value {
     pub(crate) fn into_top_level_items(
         self,
         location: Location,
-        interner: &NodeInterner,
+        elaborator: &mut Elaborator,
     ) -> IResult<Vec<Item>> {
         let parser = Parser::parse_top_level_items;
         match self {
             Value::Quoted(tokens) => {
-                parse_tokens(tokens, interner, parser, location, "top-level item")
+                parse_tokens(tokens, elaborator, parser, location, "top-level item")
             }
             _ => {
                 let typ = self.get_type().into_owned();
-                let value = self.display(interner).to_string();
+                let value = self.display(elaborator.interner).to_string();
                 Err(InterpreterError::CannotInlineMacro { value, typ, location })
             }
         }
@@ -556,7 +564,7 @@ pub(crate) fn unwrap_rc<T: Clone>(rc: Rc<T>) -> T {
 
 fn parse_tokens<'a, T, F>(
     tokens: Rc<Vec<Token>>,
-    interner: &NodeInterner,
+    elaborator: &mut Elaborator,
     parsing_function: F,
     location: Location,
     rule: &'static str,
@@ -566,11 +574,16 @@ where
 {
     let parser = Parser::for_tokens(add_token_spans(tokens.clone(), location.span));
     match parser.parse_result(parsing_function) {
-        Ok(expr) => Ok(expr),
+        Ok((expr, warnings)) => {
+            for warning in warnings {
+                elaborator.errors.push((warning.into(), location.file));
+            }
+            Ok(expr)
+        }
         Err(mut errors) => {
             let error = errors.swap_remove(0);
             let file = location.file;
-            let tokens = tokens_to_string(tokens, interner);
+            let tokens = tokens_to_string(tokens, elaborator.interner);
             Err(InterpreterError::FailedToParseMacro { error, file, tokens, rule })
         }
     }
