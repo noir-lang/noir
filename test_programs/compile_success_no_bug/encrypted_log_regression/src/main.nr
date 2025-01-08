@@ -4,18 +4,18 @@
 // The details around encryption and addresses have been stripped away, focusing on just copying bytes of equivalent size arrays.
 
 // Original values which resulted in huge bytecode even on this example (500K long SSA)
-global PRIVATE_LOG_SIZE_IN_FIELDS: u32 = 18;
-global ENCRYPTED_PAYLOAD_SIZE_IN_BYTES: u32 = (PRIVATE_LOG_SIZE_IN_FIELDS - 1) * 31;
-global EPH_PK_SIZE: u32 = 32;
-global HEADER_SIZE: u32 = 48;
-global OVERHEAD_PADDING: u32 = 15;
+// global PRIVATE_LOG_SIZE_IN_FIELDS: u32 = 18;
+// global ENCRYPTED_PAYLOAD_SIZE_IN_BYTES: u32 = (PRIVATE_LOG_SIZE_IN_FIELDS - 1) * 31;
+// global EPH_PK_SIZE: u32 = 32;
+// global HEADER_SIZE: u32 = 48;
+// global OVERHEAD_PADDING: u32 = 15;
 
 // Using the same formulas with smaller numbers; the effect is the same, but the SSA is more manageable.
-// global PRIVATE_LOG_SIZE_IN_FIELDS: u32 = 4;
-// global ENCRYPTED_PAYLOAD_SIZE_IN_BYTES: u32 = (PRIVATE_LOG_SIZE_IN_FIELDS - 1) * 5;
-// global EPH_PK_SIZE: u32 = 3;
-// global HEADER_SIZE: u32 = 2;
-// global OVERHEAD_PADDING: u32 = 1;
+global PRIVATE_LOG_SIZE_IN_FIELDS: u32 = 4;
+global ENCRYPTED_PAYLOAD_SIZE_IN_BYTES: u32 = (PRIVATE_LOG_SIZE_IN_FIELDS - 1) * 5;
+global EPH_PK_SIZE: u32 = 3;
+global HEADER_SIZE: u32 = 2;
+global OVERHEAD_PADDING: u32 = 1;
 
 // Unused because encryption didn't play a role:
 // global OVERHEAD_SIZE: u32 = EPH_PK_SIZE + HEADER_SIZE + OVERHEAD_PADDING;
