@@ -979,6 +979,7 @@ mod tests {
 
     #[test]
     fn test_resolve_foreign_calls_stepping_into_brillig() {
+        let solver = StubbedBlackBoxSolver::default();
         let fe_1 = FieldElement::one();
         let w_x = Witness(1);
 
@@ -1039,7 +1040,7 @@ mod tests {
             debug_artifact,
         ));
         let mut context = DebugContext::new(
-            &StubbedBlackBoxSolver,
+            &solver,
             circuits,
             debug_artifact,
             initial_witness,
@@ -1124,6 +1125,7 @@ mod tests {
 
     #[test]
     fn test_break_brillig_block_while_stepping_acir_opcodes() {
+        let solver = StubbedBlackBoxSolver::default();
         let fe_0 = FieldElement::zero();
         let fe_1 = FieldElement::one();
         let w_x = Witness(1);
@@ -1207,7 +1209,7 @@ mod tests {
         ));
         let brillig_funcs = &[brillig_bytecode];
         let mut context = DebugContext::new(
-            &StubbedBlackBoxSolver,
+            &solver,
             circuits,
             debug_artifact,
             initial_witness,
@@ -1248,6 +1250,7 @@ mod tests {
 
     #[test]
     fn test_address_debug_location_mapping() {
+        let solver = StubbedBlackBoxSolver::default();
         let brillig_one =
             BrilligBytecode { bytecode: vec![BrilligOpcode::Return, BrilligOpcode::Return] };
         let brillig_two = BrilligBytecode {
@@ -1294,7 +1297,7 @@ mod tests {
         let brillig_funcs = &[brillig_one, brillig_two];
 
         let context = DebugContext::new(
-            &StubbedBlackBoxSolver,
+            &solver,
             &circuits,
             &debug_artifact,
             WitnessMap::new(),

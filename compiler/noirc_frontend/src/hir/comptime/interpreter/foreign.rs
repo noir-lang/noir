@@ -40,6 +40,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             arguments,
             return_type,
             location,
+            self.pedantic_solving,
         )
     }
 }
@@ -52,6 +53,7 @@ fn call_foreign(
     args: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
+    pedantic_solving: bool,
 ) -> IResult<Value> {
     use BlackBoxFunc::*;
 
@@ -79,9 +81,11 @@ fn call_foreign(
             location,
             acvm::blackbox_solver::ecdsa_secp256r1_verify,
         ),
-        "embedded_curve_add" => embedded_curve_add(args, location),
-        "multi_scalar_mul" => multi_scalar_mul(interner, args, location),
-        "poseidon2_permutation" => poseidon2_permutation(interner, args, location),
+        "embedded_curve_add" => embedded_curve_add(args, location, pedantic_solving),
+        "multi_scalar_mul" => multi_scalar_mul(interner, args, location, pedantic_solving),
+        "poseidon2_permutation" => {
+            poseidon2_permutation(interner, args, location, pedantic_solving)
+        }
         "keccakf1600" => keccakf1600(interner, args, location),
         "range" => apply_range_constraint(args, location),
         "sha256_compression" => sha256_compression(interner, args, location),
@@ -269,13 +273,17 @@ fn ecdsa_secp256_verify(
 ///     point2: EmbeddedCurvePoint,
 /// ) -> [Field; 3]
 /// ```
-fn embedded_curve_add(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+fn embedded_curve_add(
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+    pedantic_solving: bool,
+) -> IResult<Value> {
     let (point1, point2) = check_two_arguments(arguments, location)?;
 
     let (p1x, p1y, p1inf) = get_embedded_curve_point(point1)?;
     let (p2x, p2y, p2inf) = get_embedded_curve_point(point2)?;
 
-    let (x, y, inf) = Bn254BlackBoxSolver
+    let (x, y, inf) = Bn254BlackBoxSolver(pedantic_solving)
         .ec_add(&p1x, &p1y, &p1inf.into(), &p2x, &p2y, &p2inf.into())
         .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
 
@@ -292,6 +300,7 @@ fn multi_scalar_mul(
     interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
+    pedantic_solving: bool,
 ) -> IResult<Value> {
     let (points, scalars) = check_two_arguments(arguments, location)?;
 
@@ -306,7 +315,7 @@ fn multi_scalar_mul(
         scalars_hi.push(hi);
     }
 
-    let (x, y, inf) = Bn254BlackBoxSolver
+    let (x, y, inf) = Bn254BlackBoxSolver(pedantic_solving)
         .multi_scalar_mul(&points, &scalars_lo, &scalars_hi)
         .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
 
@@ -318,13 +327,14 @@ fn poseidon2_permutation(
     interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
+    pedantic_solving: bool,
 ) -> IResult<Value> {
     let (input, state_length) = check_two_arguments(arguments, location)?;
 
     let (input, typ) = get_array_map(interner, input, get_field)?;
     let state_length = get_u32(state_length)?;
 
-    let fields = Bn254BlackBoxSolver
+    let fields = Bn254BlackBoxSolver(pedantic_solving)
         .poseidon2_permutation(&input, state_length)
         .map_err(|error| InterpreterError::BlackBoxError(error, location))?;
 
@@ -435,6 +445,7 @@ mod tests {
 
             for blackbox in BlackBoxFunc::iter() {
                 let name = blackbox.name();
+                let pedantic_solving = true;
                 match call_foreign(
                     interpreter.elaborator.interner,
                     &mut interpreter.bigint_solver,
@@ -442,6 +453,7 @@ mod tests {
                     Vec::new(),
                     Type::Unit,
                     no_location,
+                    pedantic_solving,
                 ) {
                     Ok(_) => {
                         // Exists and works with no args (unlikely)

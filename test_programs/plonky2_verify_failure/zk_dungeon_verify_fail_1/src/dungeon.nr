@@ -1,4 +1,4 @@
-struct Square {
+pub struct Square {
     x: Field,
     y: Field
 }

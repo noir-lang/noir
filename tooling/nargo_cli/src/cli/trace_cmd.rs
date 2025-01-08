@@ -148,6 +148,7 @@ pub(crate) fn run(args: TraceCommand, config: NargoConfig) -> Result<(), CliErro
         &args.prover_name,
         &args.trace_dir,
         debug_trace_list,
+        args.compile_options.pedantic_solving,
     )
 }
 
@@ -157,12 +158,20 @@ fn trace_program_and_decode(
     prover_name: &str,
     trace_dir: &str,
     debug_trace_list: Option<DebugTraceList>,
+    pedantic_solving: bool,
 ) -> Result<(), CliError> {
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) =
         read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &program.abi)?;
 
-    trace_program(&program, &package.name, &inputs_map, trace_dir, debug_trace_list)
+    trace_program(
+        &program,
+        &package.name,
+        &inputs_map,
+        trace_dir,
+        debug_trace_list,
+        pedantic_solving,
+    )
 }
 
 pub(crate) fn trace_program(
@@ -171,6 +180,7 @@ pub(crate) fn trace_program(
     inputs_map: &InputMap,
     trace_dir: &str,
     debug_trace_list: Option<DebugTraceList>,
+    pedantic_solving: bool,
 ) -> Result<(), CliError> {
     let initial_witness = compiled_program.abi.encode(inputs_map, None)?;
 
@@ -183,7 +193,7 @@ pub(crate) fn trace_program(
     let mut tracer = Tracer::new(crate_name_string.as_str(), &vec![]);
 
     match noir_tracer::trace_circuit(
-        &Bn254BlackBoxSolver,
+        &Bn254BlackBoxSolver(pedantic_solving),
         &compiled_program.program.functions,
         &debug_artifact,
         initial_witness,

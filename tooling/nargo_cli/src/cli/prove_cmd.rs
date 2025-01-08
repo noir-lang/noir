@@ -94,6 +94,7 @@ pub(crate) fn run(args: ProveCommand, config: NargoConfig) -> Result<(), CliErro
             &args.verifier_name,
             args.verify,
             args.oracle_resolver.as_deref(),
+            args.compile_options.pedantic_solving,
         )?;
     }
 
@@ -109,6 +110,7 @@ pub(crate) fn prove_package(
     verifier_name: &str,
     check_proof: bool,
     foreign_call_resolver_url: Option<&str>,
+    pedantic_solving: bool,
 ) -> Result<(), CliError> {
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) =
@@ -120,6 +122,7 @@ pub(crate) fn prove_package(
         foreign_call_resolver_url,
         Some(workspace.root_dir.clone()),
         Some(package.name.to_string()),
+        pedantic_solving,
     )?;
 
     // Get the entry point witness for the ABI

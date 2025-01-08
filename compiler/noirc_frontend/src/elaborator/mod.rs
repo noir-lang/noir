@@ -181,6 +181,9 @@ pub struct Elaborator<'context> {
     /// like `Foo { inner: 5 }`: in that case we already elaborated the code that led to
     /// that comptime value and any visibility errors were already reported.
     silence_field_visibility_errors: usize,
+
+    /// Use pedantic ACVM solving
+    pedantic_solving: bool,
 }
 
 #[derive(Default)]
@@ -198,6 +201,7 @@ struct FunctionContext {
 }
 
 impl<'context> Elaborator<'context> {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         interner: &'context mut NodeInterner,
         def_maps: &'context mut DefMaps,
@@ -206,6 +210,7 @@ impl<'context> Elaborator<'context> {
         crate_id: CrateId,
         debug_comptime_in_file: Option<FileId>,
         interpreter_call_stack: im::Vector<Location>,
+        pedantic_solving: bool,
     ) -> Self {
         Self {
             scopes: ScopeForest::default(),
@@ -233,6 +238,7 @@ impl<'context> Elaborator<'context> {
             interpreter_call_stack,
             in_comptime_context: false,
             silence_field_visibility_errors: 0,
+            pedantic_solving,
         }
     }
 
@@ -240,6 +246,7 @@ impl<'context> Elaborator<'context> {
         context: &'context mut Context,
         crate_id: CrateId,
         debug_comptime_in_file: Option<FileId>,
+        pedantic_solving: bool,
     ) -> Self {
         Self::new(
             &mut context.def_interner,
@@ -249,6 +256,7 @@ impl<'context> Elaborator<'context> {
             crate_id,
             debug_comptime_in_file,
             im::Vector::new(),
+            pedantic_solving,
         )
     }
 
@@ -257,8 +265,16 @@ impl<'context> Elaborator<'context> {
         crate_id: CrateId,
         items: CollectedItems,
         debug_comptime_in_file: Option<FileId>,
+        pedantic_solving: bool,
     ) -> Vec<(CompilationError, FileId)> {
-        Self::elaborate_and_return_self(context, crate_id, items, debug_comptime_in_file).errors
+        Self::elaborate_and_return_self(
+            context,
+            crate_id,
+            items,
+            debug_comptime_in_file,
+            pedantic_solving,
+        )
+        .errors
     }
 
     pub fn elaborate_and_return_self(
@@ -266,8 +282,10 @@ impl<'context> Elaborator<'context> {
         crate_id: CrateId,
         items: CollectedItems,
         debug_comptime_in_file: Option<FileId>,
+        pedantic_solving: bool,
     ) -> Self {
-        let mut this = Self::from_context(context, crate_id, debug_comptime_in_file);
+        let mut this =
+            Self::from_context(context, crate_id, debug_comptime_in_file, pedantic_solving);
         this.elaborate_items(items);
         this.check_and_pop_function_context();
         this
@@ -331,6 +349,12 @@ impl<'context> Elaborator<'context> {
         for functions in items.functions {
             self.elaborate_functions(functions);
         }
+
+        for (trait_id, unresolved_trait) in items.traits {
+            self.current_trait = Some(trait_id);
+            self.elaborate_functions(unresolved_trait.fns_with_default_impl);
+        }
+        self.current_trait = None;
 
         for impls in items.impls.into_values() {
             self.elaborate_impls(impls);
@@ -454,9 +478,10 @@ impl<'context> Elaborator<'context> {
         self.add_trait_constraints_to_scope(&func_meta);
 
         let (hir_func, body_type) = match kind {
-            FunctionKind::Builtin | FunctionKind::LowLevel | FunctionKind::Oracle => {
-                (HirFunction::empty(), Type::Error)
-            }
+            FunctionKind::Builtin
+            | FunctionKind::LowLevel
+            | FunctionKind::Oracle
+            | FunctionKind::TraitFunctionWithoutBody => (HirFunction::empty(), Type::Error),
             FunctionKind::Normal => {
                 let (block, body_type) = self.elaborate_block(body);
                 let expr_id = self.intern_expr(block, body_span);
@@ -476,11 +501,7 @@ impl<'context> Elaborator<'context> {
         // when multiple impls are available. Instead we default first to choose the Field or u64 impl.
         self.check_and_pop_function_context();
 
-        // Now remove all the `where` clause constraints we added
-        for constraint in &func_meta.trait_constraints {
-            self.interner
-                .remove_assumed_trait_implementations_for_trait(constraint.trait_bound.trait_id);
-        }
+        self.remove_trait_constraints_from_scope(&func_meta);
 
         let func_scope_tree = self.scopes.end_function();
 
@@ -1000,6 +1021,32 @@ impl<'context> Elaborator<'context> {
                 &constraint.trait_bound,
                 constraint.trait_bound.trait_id,
             );
+        }
+
+        // Also assume `self` implements the current trait if we are inside a trait definition
+        if let Some(trait_id) = self.current_trait {
+            let the_trait = self.interner.get_trait(trait_id);
+            let constraint = the_trait.as_constraint(the_trait.name.span());
+            let self_type =
+                self.self_type.clone().expect("Expected a self type if there's a current trait");
+            self.add_trait_bound_to_scope(
+                func_meta,
+                &self_type,
+                &constraint.trait_bound,
+                constraint.trait_bound.trait_id,
+            );
+        }
+    }
+
+    fn remove_trait_constraints_from_scope(&mut self, func_meta: &FuncMeta) {
+        for constraint in &func_meta.trait_constraints {
+            self.interner
+                .remove_assumed_trait_implementations_for_trait(constraint.trait_bound.trait_id);
+        }
+
+        // Also remove the assumed trait implementation for `self` if this is a trait definition
+        if let Some(trait_id) = self.current_trait {
+            self.interner.remove_assumed_trait_implementations_for_trait(trait_id);
         }
     }
 
