@@ -1195,8 +1195,6 @@ impl GlobalsContext {
                 let typ = FunctionContext::convert_type(&array.typ).flatten();
                 Ok(match array.typ {
                     ast::Type::Slice(_) => {
-                        // let slice_length =
-                        // self.builder.length_constant(array.contents.len() as u128);
                         let slice_length = self
                             .dfg
                             .make_constant(array.contents.len().into(), NumericType::length_type());
