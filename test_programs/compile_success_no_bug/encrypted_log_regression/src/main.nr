@@ -41,18 +41,22 @@ fn compute_encrypted_log<let P: u32, let M: u32>(
     let mut encrypted_bytes = [0; M];
     let mut offset = 0;
 
-    // NOTE: Adding a conditional variable here results in the array being fully copied, item by item,
+    // NOTE: Adding a conditional variable can result in the array being fully copied, item by item,
     // in each iteration in the second loop that copies incoming_body_ciphertext into encrypted_bytes.
-    // If we move `flag` to be after the copying of the header, or just before the loop, then we don't
-    // get the item-by-item copying, but just a single variable gets read and a new array constructed
-    // in each iteration.
-    if flag {
-        // eph_pk
-        for i in 0..EPH_PK_SIZE {
-            encrypted_bytes[offset + i] = eph_pk_bytes[i];
-        }
-        offset += EPH_PK_SIZE;
+    // Depending on where we place the `flag` we either get the item-by-item copying (blowup),
+    // or just a single array item gets read and a new array constructed in each iteration (no blowup).
 
+    // If the `flag` is here then it blows up.
+    //if flag {
+
+    // eph_pk
+    for i in 0..EPH_PK_SIZE {
+        encrypted_bytes[offset + i] = eph_pk_bytes[i];
+    }
+    offset += EPH_PK_SIZE;
+
+    // If the `flag` is here then it blows up.
+    if flag {
         // incoming_header
         for i in 0..HEADER_SIZE {
             encrypted_bytes[offset + i] = incoming_header_ciphertext[i];
@@ -61,6 +65,9 @@ fn compute_encrypted_log<let P: u32, let M: u32>(
 
         // Padding.
         offset += OVERHEAD_PADDING;
+
+        // If the `flag` is here then it does not blow up.
+        // if flag {
 
         // incoming_body
         let incoming_body_ciphertext = compute_incoming_body_ciphertext(plaintext, aes_secret);
