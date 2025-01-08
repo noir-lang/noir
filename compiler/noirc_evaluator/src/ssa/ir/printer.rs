@@ -43,9 +43,9 @@ pub(crate) fn display_block(
 
 /// Specialize displaying value ids so that if they refer to a numeric
 /// constant or a function we print those directly.
-fn value(function: &Function, id: ValueId) -> String {
-    let id = function.dfg.resolve(id);
-    match &function.dfg[id] {
+pub(crate) fn value(dfg: &DataFlowGraph, id: ValueId) -> String {
+    let id = dfg.resolve(id);
+    match &dfg[id] {
         Value::NumericConstant { constant, typ } => {
             format!("{typ} {constant}")
         }
@@ -53,13 +53,16 @@ fn value(function: &Function, id: ValueId) -> String {
         Value::Intrinsic(intrinsic) => intrinsic.to_string(),
         Value::ForeignFunction(function) => function.clone(),
         Value::Param { .. } | Value::Instruction { .. } => id.to_string(),
+        Value::Global(_) => {
+            format!("@{id}")
+        }
     }
 }
 
 /// Display each value along with its type. E.g. `v0: Field, v1: u64, v2: u1`
 fn value_list_with_types(function: &Function, values: &[ValueId]) -> String {
     vecmap(values, |id| {
-        let value = value(function, *id);
+        let value = value(&function.dfg, *id);
         let typ = function.dfg.type_of_value(*id);
         format!("{value}: {typ}")
     })
@@ -68,7 +71,7 @@ fn value_list_with_types(function: &Function, values: &[ValueId]) -> String {
 
 /// Display each value separated by a comma
 fn value_list(function: &Function, values: &[ValueId]) -> String {
-    vecmap(values, |id| value(function, *id)).join(", ")
+    vecmap(values, |id| value(&function.dfg, *id)).join(", ")
 }
 
 /// Display a terminator instruction
@@ -90,7 +93,7 @@ pub(crate) fn display_terminator(
             writeln!(
                 f,
                 "    jmpif {} then: {}, else: {}",
-                value(function, *condition),
+                value(&function.dfg, *condition),
                 then_destination,
                 else_destination
             )
@@ -129,7 +132,7 @@ fn display_instruction_inner(
     results: &[ValueId],
     f: &mut Formatter,
 ) -> Result {
-    let show = |id| value(function, id);
+    let show = |id| value(&function.dfg, id);
 
     match instruction {
         Instruction::Binary(binary) => {

@@ -53,7 +53,7 @@ pub(crate) fn collect_variables_of_value(
     let value = &dfg[value_id];
 
     match value {
-        Value::Instruction { .. } | Value::Param { .. } | Value::NumericConstant { .. } => {
+        Value::Instruction { .. } | Value::Param { .. } | Value::NumericConstant { .. } | Value::Global(_) => {
             Some(value_id)
         }
         // Functions are not variables in a defunctionalized SSA. Only constant function values should appear.

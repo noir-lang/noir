@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{collections::BTreeMap, fmt::Display};
 
 use acvm::FieldElement;
 use iter_extended::vecmap;
@@ -59,6 +59,7 @@ impl Expression {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Definition {
     Local(LocalId),
+    Global(GlobalId),
     Function(FuncId),
     Builtin(String),
     LowLevel(String),
@@ -70,6 +71,10 @@ pub enum Definition {
 /// function parameter that should be compiled before it is referenced.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct LocalId(pub u32);
+
+/// A function ID corresponds directly to an index of `Program::globals`
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct GlobalId(pub u32);
 
 /// A function ID corresponds directly to an index of `Program::functions`
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -329,6 +334,7 @@ pub struct Program {
     pub main_function_signature: FunctionSignature,
     pub return_location: Option<Location>,
     pub return_visibility: Visibility,
+    pub globals: BTreeMap<GlobalId, Expression>,
     pub debug_variables: DebugVariables,
     pub debug_functions: DebugFunctions,
     pub debug_types: DebugTypes,
@@ -342,6 +348,7 @@ impl Program {
         main_function_signature: FunctionSignature,
         return_location: Option<Location>,
         return_visibility: Visibility,
+        globals: BTreeMap<GlobalId, Expression>,
         debug_variables: DebugVariables,
         debug_functions: DebugFunctions,
         debug_types: DebugTypes,
@@ -352,6 +359,7 @@ impl Program {
             main_function_signature,
             return_location,
             return_visibility,
+            globals,
             debug_variables,
             debug_functions,
             debug_types,

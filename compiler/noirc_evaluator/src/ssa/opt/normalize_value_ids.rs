@@ -192,6 +192,9 @@ impl IdMaps {
             }
             Value::Intrinsic(intrinsic) => new_function.dfg.import_intrinsic(*intrinsic),
             Value::ForeignFunction(name) => new_function.dfg.import_foreign_function(name),
+            Value::Global(_) => {
+                panic!("handle globals in value ids normalizing")
+            },
         }
     }
 }

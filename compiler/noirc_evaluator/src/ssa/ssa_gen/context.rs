@@ -1,16 +1,21 @@
+use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex, RwLock};
 
 use acvm::{acir::AcirField, FieldElement};
-use iter_extended::vecmap;
+use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 use noirc_frontend::ast::{BinaryOpKind, Signedness};
-use noirc_frontend::monomorphization::ast::{self, LocalId, Parameters};
+use noirc_frontend::monomorphization::ast::{self, GlobalId, LocalId, Parameters};
 use noirc_frontend::monomorphization::ast::{FuncId, Program};
+use serde::{Deserialize, Serialize};
 
 use crate::errors::RuntimeError;
 use crate::ssa::function_builder::FunctionBuilder;
 use crate::ssa::ir::basic_block::BasicBlockId;
+use crate::ssa::ir::dfg::DataFlowGraph;
 use crate::ssa::ir::function::FunctionId as IrFunctionId;
+use crate::ssa::ir::value::Value as IrValue;
+use crate::ssa::ir::value::ValueId as IrValueId;
 use crate::ssa::ir::function::{Function, RuntimeType};
 use crate::ssa::ir::instruction::BinaryOp;
 use crate::ssa::ir::instruction::Instruction;
@@ -71,6 +76,18 @@ pub(super) struct SharedContext {
     /// Shared counter used to assign the ID of the next function
     function_counter: AtomicCounter<Function>,
 
+    // pub(super) values: DenseMap<IrValue>,
+
+    // instructions: DenseMap<Instruction>,
+
+    // results: HashMap<InstructionId, Vec<ValueId>>,
+
+    // constants: HashMap<(FieldElement, NumericType), IrValueId>,
+
+    pub(super) globals_builder: GlobalsBuilder,
+
+    pub(super) globals: BTreeMap<GlobalId, ValueId>,
+
     /// The entire monomorphized source program
     pub(super) program: Program,
 }
@@ -108,6 +125,17 @@ impl<'a> FunctionContext<'a> {
 
         let mut builder = FunctionBuilder::new(function_name, function_id);
         builder.set_runtime(runtime);
+
+
+        for (_, value) in shared_context.globals_builder.dfg.values_iter() {
+            // TODO: clean this up, we do not need to differentiate based off instruction here
+            if let IrValue::Instruction { instruction, typ, .. } = value {
+                builder.current_function.dfg.make_global(typ.clone());
+            } else {
+                builder.current_function.dfg.make_global(value.get_type().into_owned());
+            }
+        }
+
         let definitions = HashMap::default();
         let mut this = Self { definitions, builder, shared_context, loops: Vec::new() };
         this.add_parameters_to_scope(parameters);
@@ -126,6 +154,11 @@ impl<'a> FunctionContext<'a> {
         } else {
             self.builder.new_function(func.name.clone(), id, func.inline_type);
         }
+
+        for (_, value) in self.shared_context.globals_builder.dfg.values_iter() {
+            self.builder.current_function.dfg.make_global(value.get_type().into_owned());
+        }
+
         self.add_parameters_to_scope(&func.parameters);
     }
 
@@ -633,6 +666,10 @@ impl<'a> FunctionContext<'a> {
         self.definitions.get(&id).expect("lookup: variable not defined").clone()
     }
 
+    pub(super) fn lookup_global(&self, id: GlobalId) -> ValueId {
+        self.shared_context.globals.get(&id).expect("lookup_global: variable not defined").clone()
+    }
+
     /// Extract the given field of the tuple. Panics if the given Values is not
     /// a Tree::Branch or does not have enough fields.
     pub(super) fn get_field(tuple: Values, field_index: usize) -> Values {
@@ -1022,11 +1059,25 @@ fn convert_operator(op: BinaryOpKind) -> BinaryOp {
 impl SharedContext {
     /// Create a new SharedContext for the given monomorphized program.
     pub(super) fn new(program: Program) -> Self {
+        let mut globals_builder = GlobalsBuilder::default();
+        let mut globals = BTreeMap::default();
+        for (id, global) in program.globals.iter() {
+            let values = globals_builder.codegen_expression(global).unwrap();
+
+            let value = match values.into_leaf() {
+                Value::Normal(value) => value,
+                _ => panic!("Must have Value::Normal for globals"),
+            };
+            globals.insert(*id, value);
+        }
+        dbg!(globals.clone());
         Self {
             functions: Default::default(),
             function_queue: Default::default(),
             function_counter: Default::default(),
             program,
+            globals_builder,
+            globals
         }
     }
 
@@ -1068,3 +1119,123 @@ pub(super) enum LValue {
     MemberAccess { old_object: Values, index: usize, object_lvalue: Box<LValue> },
     Dereference { reference: Values },
 }
+
+#[derive(Default, Serialize, Deserialize)]
+pub(crate) struct GlobalsBuilder {
+    pub(super) dfg: DataFlowGraph,
+}
+
+impl GlobalsBuilder {
+    fn codegen_expression(&mut self, expr: &ast::Expression) -> Result<Values, RuntimeError> {
+        match expr {
+            ast::Expression::Literal(literal) => self.codegen_literal(literal),
+            _ => {
+                panic!("Only expect literals for global expressions")
+            }
+        }
+    }
+
+    fn codegen_literal(&mut self, literal: &ast::Literal) -> Result<Values, RuntimeError> {
+        match literal {
+            ast::Literal::Array(array) => {
+                let elements = self.codegen_array_elements(&array.contents)?;
+
+                let typ = FunctionContext::convert_type(&array.typ).flatten();
+                Ok(match array.typ {
+                    ast::Type::Array(_, _) => {
+                        self.codegen_array_checked(elements, typ[0].clone())?
+                    }
+                    _ => unreachable!("ICE: unexpected array literal type, got {}", array.typ),
+                })
+            }
+            ast::Literal::Slice(_) => todo!(),
+            ast::Literal::Integer(value, negative, typ, location) => {
+                let numeric_type = FunctionContext::convert_non_tuple_type(typ).unwrap_numeric();
+
+                let value = (*value).into();
+
+                if let Some(range) = numeric_type.value_is_outside_limits(value, *negative) {
+                    return Err(RuntimeError::IntegerOutOfBounds {
+                        value: if *negative { -value } else { value },
+                        typ: numeric_type,
+                        range,
+                        call_stack: vec![*location],
+                    });
+                }
+
+                let value = if *negative {
+                    match numeric_type {
+                        NumericType::NativeField => -value,
+                        NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
+                            let base = 1_u128 << bit_size;
+                            FieldElement::from(base) - value
+                        }
+                    }
+                } else {
+                    value
+                };
+
+                Ok(self.dfg.make_constant(value, numeric_type).into())
+            }
+            ast::Literal::Bool(_) => todo!(),
+            ast::Literal::Unit => todo!(),
+            ast::Literal::Str(_) => todo!(),
+            ast::Literal::FmtStr(_, _, _) => todo!(),
+        }
+    }
+
+    fn codegen_array_elements(
+        &mut self,
+        elements: &[ast::Expression],
+    ) -> Result<Vec<(Values, bool)>, RuntimeError> {
+        try_vecmap(elements, |element| {
+            let value = self.codegen_expression(element)?;
+            Ok((value, element.is_array_or_slice_literal()))
+        })
+    }
+
+    fn codegen_array_checked(
+        &mut self,
+        elements: Vec<(Values, bool)>,
+        typ: Type,
+    ) -> Result<Values, RuntimeError> {
+        if typ.is_nested_slice() {
+            return Err(RuntimeError::NestedSlice { call_stack: vec![] });
+        }
+        Ok(self.codegen_array(elements, typ))
+    }
+
+    fn codegen_array(&mut self, elements: Vec<(Values, bool)>, typ: Type) -> Values {
+        let mut array = im::Vector::new();
+
+        for (element, _) in elements {
+            element.for_each(|element| {
+                // let element = element.eval(self);
+                let element = match element {
+                    Value::Normal(value) => value,
+                    _ => panic!("Must have Value::Normal for globals"),
+                };
+                array.push_back(element);
+            });
+        }
+
+        self.insert_make_array(array, typ).into()
+    }
+
+
+    /// Insert a `make_array` instruction to create a new array or slice.
+    /// Returns the new array value. Expects `typ` to be an array or slice type.
+    fn insert_make_array(
+        &mut self,
+        elements: im::Vector<ValueId>,
+        typ: Type,
+    ) -> ValueId {
+        assert!(matches!(typ, Type::Array(..) | Type::Slice(_)));
+
+        let id = self.dfg.make_instruction(Instruction::MakeArray { elements, typ: typ.clone() }, None);
+        self.dfg.instruction_results(id)[0]
+    }
+
+}
+
+

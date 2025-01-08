@@ -6,10 +6,11 @@ use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
 use crate::ssa::ir::{
-    function::{Function, FunctionId},
-    map::AtomicCounter,
+    function::{Function, FunctionId}, instruction::Instruction, map::AtomicCounter, printer::{display_instruction, value}, value::Value
 };
 use noirc_frontend::hir_def::types::Type as HirType;
+
+use super::context::GlobalsBuilder;
 
 /// Contains the entire SSA representation of the program.
 #[serde_as]
@@ -17,6 +18,7 @@ use noirc_frontend::hir_def::types::Type as HirType;
 pub(crate) struct Ssa {
     #[serde_as(as = "Vec<(_, _)>")]
     pub(crate) functions: BTreeMap<FunctionId, Function>,
+    pub(crate) globals: GlobalsBuilder,
     pub(crate) main_id: FunctionId,
     #[serde(skip)]
     pub(crate) next_id: AtomicCounter<Function>,
@@ -53,6 +55,7 @@ impl Ssa {
             next_id: AtomicCounter::starting_after(max_id),
             entry_point_to_generated_index: BTreeMap::new(),
             error_selector_to_type: error_types,
+            globals: GlobalsBuilder::default(),
         }
     }
 
@@ -101,6 +104,40 @@ impl Ssa {
 
 impl Display for Ssa {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "globals: ")?;
+        let show = |id| value(&self.globals.dfg, id);
+        
+        for (id, value) in self.globals.dfg.values_iter() {
+            write!(f, "@{} = ", id)?;
+            match value {
+                Value::NumericConstant { constant, typ } => {
+                    writeln!(f, "{typ} {constant}")?;
+                }
+                Value::Instruction { instruction, .. } => {
+                    match &self.globals.dfg[*instruction] {
+                        Instruction::MakeArray { elements, typ } => {
+                            write!(f, "make_array [")?;
+                
+                            for (i, element) in elements.iter().enumerate() {
+                                if i != 0 {
+                                    write!(f, ", ")?;
+                                }
+                                write!(f, "{}", show(*element))?;
+                            }
+                
+                            writeln!(f, "] : {typ}")?;
+                        }
+                        _ => panic!("Expected MakeArray"),
+                    }
+                }
+                Value::Global(_) => {
+                    panic!("we should only have these in the function values map");
+                }
+                _ => panic!("Expected only numeric const or array"),
+            };
+        }
+        writeln!(f, "")?;
+        
         for function in self.functions.values() {
             writeln!(f, "{function}")?;
         }

@@ -465,6 +465,7 @@ impl<'function> PerFunctionContext<'function> {
 
         let new_value = match &self.source_function.dfg[id] {
             value @ Value::Instruction { .. } => {
+                
                 unreachable!("All Value::Instructions should already be known during inlining after creating the original inlined instruction. Unknown value {id} = {value:?}")
             }
             value @ Value::Param { .. } => {
@@ -477,6 +478,9 @@ impl<'function> PerFunctionContext<'function> {
             Value::Intrinsic(intrinsic) => self.context.builder.import_intrinsic_id(*intrinsic),
             Value::ForeignFunction(function) => {
                 self.context.builder.import_foreign_function(function)
+            }
+            Value::Global(_) => {
+                id
             }
         };
 

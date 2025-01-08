@@ -646,7 +646,7 @@ impl<'block> BrilligBlock<'block> {
                         }
                     }
                 }
-                Value::Instruction { .. } | Value::Param { .. } | Value::NumericConstant { .. } => {
+                Value::Instruction { .. } | Value::Param { .. } | Value::NumericConstant { .. } | Value::Global(_) => {
                     unreachable!("unsupported function call type {:?}", dfg[*func])
                 }
             },
@@ -1575,6 +1575,11 @@ impl<'block> BrilligBlock<'block> {
         let value = &dfg[value_id];
 
         match value {
+            Value::Global(_) => {
+                // let variable = *self.function_context.globals.get(&value_id).unwrap_or_else(|| panic!("ICE: Global value not found in cache {value_id}"));
+                // variable
+                panic!("globals not handled, these should be inlined");
+            }
             Value::Param { .. } | Value::Instruction { .. } => {
                 // All block parameters and instruction results should have already been
                 // converted to registers so we fetch from the cache.

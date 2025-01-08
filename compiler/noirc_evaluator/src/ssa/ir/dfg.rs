@@ -297,6 +297,10 @@ impl DataFlowGraph {
         id
     }
 
+    pub(crate) fn make_global(&mut self, typ: Type) -> ValueId {
+        self.values.insert(Value::Global(typ))
+    }
+
     /// Gets or creates a ValueId for the given FunctionId.
     pub(crate) fn import_function(&mut self, function: FunctionId) -> ValueId {
         if let Some(existing) = self.functions.get(&function) {
