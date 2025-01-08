@@ -1236,7 +1236,7 @@ impl GlobalsContext {
             ast::Literal::Bool(value) => {
                 Ok(self.dfg.make_constant((*value).into(), NumericType::bool()).into())
             }
-            ast::Literal::Unit => todo!(),
+            ast::Literal::Unit => Ok(Self::unit_value()),
             ast::Literal::Str(string) => Ok(self.codegen_string(string)),
             ast::Literal::FmtStr(_, _, _) => todo!(),
         }
