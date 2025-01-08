@@ -230,6 +230,29 @@ fn errors_if_pub_trait_returns_private_struct() {
 }
 
 #[test]
+fn does_not_error_if_trait_with_default_visibility_returns_struct_with_default_visibility() {
+    let src = r#"
+    struct Foo {}
+
+    trait Bar {
+        fn bar(self) -> Foo;
+    }
+
+    impl Bar for Foo {
+        fn bar(self) -> Foo {
+            self
+        }
+    }
+
+    fn main() {
+        let foo = Foo {};
+        let _ = foo.bar();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn errors_if_trying_to_access_public_function_inside_private_module() {
     let src = r#"
     mod foo {

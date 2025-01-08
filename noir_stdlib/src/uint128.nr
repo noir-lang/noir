@@ -1,6 +1,6 @@
 use crate::cmp::{Eq, Ord, Ordering};
 use crate::ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Not, Rem, Shl, Shr, Sub};
-use super::convert::AsPrimitive;
+use super::{convert::AsPrimitive, default::Default};
 
 global pow64: Field = 18446744073709551616; //2^64;
 global pow63: Field = 9223372036854775808; // 2^63;
@@ -331,7 +331,15 @@ impl Shr for U128 {
     }
 }
 
+impl Default for U128 {
+    fn default() -> Self {
+        U128::zero()
+    }
+}
+
 mod tests {
+    use crate::default::Default;
+    use crate::ops::Not;
     use crate::uint128::{pow63, pow64, U128};
 
     #[test]
@@ -563,5 +571,10 @@ mod tests {
                 U128::from_u64s_le(0xffffffffffffffff, 0xffffffffffffffff),
             ),
         );
+    }
+
+    #[test]
+    fn test_default() {
+        assert_eq(U128::default(), U128::zero());
     }
 }

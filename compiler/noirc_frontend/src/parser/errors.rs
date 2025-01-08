@@ -112,6 +112,8 @@ pub enum ParserErrorReason {
     DeprecatedAttributeExpectsAStringArgument,
     #[error("Unsafe block must start with a safety comment")]
     MissingSafetyComment,
+    #[error("Missing parameters for function definition")]
+    MissingParametersForFunctionDefinition,
 }
 
 /// Represents a parsing error, or a parsing error in the making.
@@ -285,6 +287,13 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                     "Unsafe block must start with a safety comment: //@safety".into(),
                     error.span,
                 ),
+                ParserErrorReason::MissingParametersForFunctionDefinition => {
+                    Diagnostic::simple_error(
+                        "Missing parameters for function definition".into(),
+                        "Add a parameter list: `()`".into(),
+                        error.span,
+                    )
+                }
                 other => Diagnostic::simple_error(format!("{other}"), String::new(), error.span),
             },
             None => {

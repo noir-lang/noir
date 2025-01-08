@@ -131,11 +131,39 @@ impl Binary {
                     let zero = dfg.make_constant(FieldElement::zero(), operand_type);
                     return SimplifyResult::SimplifiedTo(zero);
                 }
-                if dfg.resolve(self.lhs) == dfg.resolve(self.rhs)
-                    && dfg.get_value_max_num_bits(self.lhs) == 1
-                {
+                if dfg.get_value_max_num_bits(self.lhs) == 1 {
                     // Squaring a boolean value is a noop.
-                    return SimplifyResult::SimplifiedTo(self.lhs);
+                    if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
+                        return SimplifyResult::SimplifiedTo(self.lhs);
+                    }
+                    // b*(b*x) = b*x if b is boolean
+                    if let super::Value::Instruction { instruction, .. } = &dfg[self.rhs] {
+                        if let Instruction::Binary(Binary { lhs, rhs, operator }) =
+                            dfg[*instruction]
+                        {
+                            if operator == BinaryOp::Mul
+                                && (dfg.resolve(self.lhs) == dfg.resolve(lhs)
+                                    || dfg.resolve(self.lhs) == dfg.resolve(rhs))
+                            {
+                                return SimplifyResult::SimplifiedTo(self.rhs);
+                            }
+                        }
+                    }
+                }
+                // (b*x)*b = b*x if b is boolean
+                if dfg.get_value_max_num_bits(self.rhs) == 1 {
+                    if let super::Value::Instruction { instruction, .. } = &dfg[self.lhs] {
+                        if let Instruction::Binary(Binary { lhs, rhs, operator }) =
+                            dfg[*instruction]
+                        {
+                            if operator == BinaryOp::Mul
+                                && (dfg.resolve(self.rhs) == dfg.resolve(lhs)
+                                    || dfg.resolve(self.rhs) == dfg.resolve(rhs))
+                            {
+                                return SimplifyResult::SimplifiedTo(self.lhs);
+                            }
+                        }
+                    }
                 }
             }
             BinaryOp::Div => {
@@ -290,6 +318,49 @@ impl Binary {
             }
         };
         SimplifyResult::None
+    }
+
+    /// Check if unsigned overflow is possible, and if so return some message to be used if it fails.
+    pub(crate) fn check_unsigned_overflow_msg(
+        &self,
+        dfg: &DataFlowGraph,
+        bit_size: u32,
+    ) -> Option<&'static str> {
+        // We try to optimize away operations that are guaranteed not to overflow
+        let max_lhs_bits = dfg.get_value_max_num_bits(self.lhs);
+        let max_rhs_bits = dfg.get_value_max_num_bits(self.rhs);
+
+        let msg = match self.operator {
+            BinaryOp::Add => {
+                if std::cmp::max(max_lhs_bits, max_rhs_bits) < bit_size {
+                    // `lhs` and `rhs` have both been casted up from smaller types and so cannot overflow.
+                    return None;
+                }
+                "attempt to add with overflow"
+            }
+            BinaryOp::Sub => {
+                if dfg.is_constant(self.lhs) && max_lhs_bits > max_rhs_bits {
+                    // `lhs` is a fixed constant and `rhs` is restricted such that `lhs - rhs > 0`
+                    // Note strict inequality as `rhs > lhs` while `max_lhs_bits == max_rhs_bits` is possible.
+                    return None;
+                }
+                "attempt to subtract with overflow"
+            }
+            BinaryOp::Mul => {
+                if bit_size == 1
+                    || max_lhs_bits + max_rhs_bits <= bit_size
+                    || max_lhs_bits == 1
+                    || max_rhs_bits == 1
+                {
+                    // Either performing boolean multiplication (which cannot overflow),
+                    // or `lhs` and `rhs` have both been casted up from smaller types and so cannot overflow.
+                    return None;
+                }
+                "attempt to multiply with overflow"
+            }
+            _ => return None,
+        };
+        Some(msg)
     }
 }
 
