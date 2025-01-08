@@ -80,7 +80,7 @@ fn optimize_array_get_from_if_else_result(function: &mut Function) {
             continue;
         }
 
-        let call_stack = dfg.get_call_stack(instruction_id);
+        let call_stack_id = dfg.get_instruction_call_stack_id(instruction_id);
 
         // Given the original IfElse instruction is this:
         //
@@ -97,7 +97,7 @@ fn optimize_array_get_from_if_else_result(function: &mut Function) {
             Instruction::ArrayGet { array: then_value, index: *index },
             block,
             Some(element_types.clone()),
-            call_stack.clone(),
+            call_stack_id,
         );
         let then_result = then_result.first();
 
@@ -108,7 +108,7 @@ fn optimize_array_get_from_if_else_result(function: &mut Function) {
             Instruction::ArrayGet { array: else_value, index: *index },
             block,
             Some(element_types.clone()),
-            call_stack.clone(),
+            call_stack_id,
         );
         let else_result = else_result.first();
 
@@ -124,7 +124,7 @@ fn optimize_array_get_from_if_else_result(function: &mut Function) {
             },
             block,
             None,
-            call_stack,
+            call_stack_id,
         );
         let new_result = new_result.first();
 
@@ -137,14 +137,14 @@ fn optimize_array_get_from_if_else_result(function: &mut Function) {
 
 #[cfg(test)]
 mod test {
-    use std::rc::Rc;
+    use std::sync::Arc;
 
     use crate::ssa::{
         function_builder::FunctionBuilder,
         ir::{
             instruction::{Binary, Instruction},
             map::Id,
-            types::Type,
+            types::{NumericType, Type},
         },
     };
 
@@ -160,8 +160,8 @@ mod test {
 
         let main_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("main".into(), main_id);
-        let v0 = builder.add_parameter(Type::Array(Rc::new(vec![Type::field()]), 3));
-        let v1 = builder.add_parameter(Type::Array(Rc::new(vec![Type::field()]), 3));
+        let v0 = builder.add_parameter(Type::Array(Arc::new(vec![Type::field()]), 3));
+        let v1 = builder.add_parameter(Type::Array(Arc::new(vec![Type::field()]), 3));
         let v2 = builder.add_parameter(Type::bool());
         let v3 = builder.add_parameter(Type::unsigned(32));
 
@@ -210,10 +210,10 @@ mod test {
         assert_eq!(v8, &Instruction::ArrayGet { array: v1, index: v3 });
 
         let v9 = &main.dfg[instructions[4]];
-        assert_eq!(v9, &Instruction::Cast(v2, Type::field()));
+        assert_eq!(v9, &Instruction::Cast(v2, NumericType::NativeField));
 
         let v10 = &main.dfg[instructions[5]];
-        assert_eq!(v10, &Instruction::Cast(v4, Type::field()));
+        assert_eq!(v10, &Instruction::Cast(v4, NumericType::NativeField));
 
         let v11 = &main.dfg[instructions[6]];
         assert_eq!(
