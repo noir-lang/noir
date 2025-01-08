@@ -7,7 +7,7 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         call_stack::CallStackId,
         dfg::InsertInstructionResult,
-        function::{Function, RuntimeType},
+        function::Function,
         instruction::{Binary, BinaryOp, Endian, Instruction, InstructionId, Intrinsic},
         types::{NumericType, Type},
         value::ValueId,
@@ -32,7 +32,7 @@ impl Function {
     /// The structure of this pass is simple:
     /// Go through each block and re-insert all instructions.
     pub(crate) fn remove_bit_shifts(&mut self) {
-        if matches!(self.runtime(), RuntimeType::Brillig(_)) {
+        if self.runtime().is_brillig() {
             return;
         }
 
@@ -120,7 +120,6 @@ impl Context<'_> {
             let pow = self.numeric_constant(FieldElement::from(rhs_bit_size_pow_2), typ);
 
             let max_lhs_bits = self.function.dfg.get_value_max_num_bits(lhs);
-
             (max_lhs_bits + bit_shift_size, pow)
         } else {
             // we use a predicate to nullify the result in case of overflow
