@@ -47,16 +47,15 @@ fn compute_encrypted_log<let P: u32, let M: u32>(
     // or just a single array item gets read and a new array constructed in each iteration (no blowup).
 
     // If the `flag` is here then it blows up.
-    //if flag {
-
-    // eph_pk
-    for i in 0..EPH_PK_SIZE {
-        encrypted_bytes[offset + i] = eph_pk_bytes[i];
-    }
-    offset += EPH_PK_SIZE;
-
-    // If the `flag` is here then it blows up.
     if flag {
+        // eph_pk
+        for i in 0..EPH_PK_SIZE {
+            encrypted_bytes[offset + i] = eph_pk_bytes[i];
+        }
+        offset += EPH_PK_SIZE;
+
+        // If the `flag` is here then it blows up.
+        // if flag {
         // incoming_header
         for i in 0..HEADER_SIZE {
             encrypted_bytes[offset + i] = incoming_header_ciphertext[i];
@@ -76,7 +75,7 @@ fn compute_encrypted_log<let P: u32, let M: u32>(
 
         // NOTE: This made the bytecode size blowup disappear in aztec packages,
         // but in this reproduction the size seems to be statically known regardless.
-        //let size = M - 32 - HEADER_SIZE - OVERHEAD_PADDING;
+        // let size = M - 32 - HEADER_SIZE - OVERHEAD_PADDING;
 
         assert_eq(size, incoming_body_ciphertext.len(), "ciphertext length mismatch");
         for i in 0..size {
@@ -90,7 +89,7 @@ fn compute_encrypted_log<let P: u32, let M: u32>(
 pub fn compute_incoming_body_ciphertext<let P: u32>(
     plaintext: [u8; P],
     aes_secret: [u8; 32],
-) -> [u8] {
+) -> [u8; P + 16 - P % 16] {
     let full_key = aes_secret;
     let mut sym_key = [0; 16];
     let mut iv = [0; 16];
