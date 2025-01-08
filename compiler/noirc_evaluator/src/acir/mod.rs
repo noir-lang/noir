@@ -1984,14 +1984,7 @@ impl<'a> Context<'a> {
 
         if let NumericType::Unsigned { bit_size } = &num_type {
             // Check for integer overflow
-            self.check_unsigned_overflow(
-                result,
-                *bit_size,
-                binary.lhs,
-                binary.rhs,
-                dfg,
-                binary.operator,
-            )?;
+            self.check_unsigned_overflow(result, *bit_size, binary, dfg)?;
         }
 
         Ok(result)
@@ -2002,47 +1995,18 @@ impl<'a> Context<'a> {
         &mut self,
         result: AcirVar,
         bit_size: u32,
-        lhs: ValueId,
-        rhs: ValueId,
+        binary: &Binary,
         dfg: &DataFlowGraph,
-        op: BinaryOp,
     ) -> Result<(), RuntimeError> {
-        // We try to optimize away operations that are guaranteed not to overflow
-        let max_lhs_bits = dfg.get_value_max_num_bits(lhs);
-        let max_rhs_bits = dfg.get_value_max_num_bits(rhs);
-
-        let msg = match op {
-            BinaryOp::Add => {
-                if std::cmp::max(max_lhs_bits, max_rhs_bits) < bit_size {
-                    // `lhs` and `rhs` have both been casted up from smaller types and so cannot overflow.
-                    return Ok(());
-                }
-                "attempt to add with overflow".to_string()
-            }
-            BinaryOp::Sub => {
-                if dfg.is_constant(lhs) && max_lhs_bits > max_rhs_bits {
-                    // `lhs` is a fixed constant and `rhs` is restricted such that `lhs - rhs > 0`
-                    // Note strict inequality as `rhs > lhs` while `max_lhs_bits == max_rhs_bits` is possible.
-                    return Ok(());
-                }
-                "attempt to subtract with overflow".to_string()
-            }
-            BinaryOp::Mul => {
-                if bit_size == 1 || max_lhs_bits + max_rhs_bits <= bit_size {
-                    // Either performing boolean multiplication (which cannot overflow),
-                    // or `lhs` and `rhs` have both been casted up from smaller types and so cannot overflow.
-                    return Ok(());
-                }
-                "attempt to multiply with overflow".to_string()
-            }
-            _ => return Ok(()),
+        let Some(msg) = binary.check_unsigned_overflow_msg(dfg, bit_size) else {
+            return Ok(());
         };
 
         let with_pred = self.acir_context.mul_var(result, self.current_side_effects_enabled_var)?;
         self.acir_context.range_constrain_var(
             with_pred,
             &NumericType::Unsigned { bit_size },
-            Some(msg),
+            Some(msg.to_string()),
         )?;
         Ok(())
     }
@@ -2888,8 +2852,9 @@ mod test {
     use acvm::{
         acir::{
             circuit::{
-                brillig::BrilligFunctionId, opcodes::AcirFunctionId, ExpressionWidth, Opcode,
-                OpcodeLocation,
+                brillig::BrilligFunctionId,
+                opcodes::{AcirFunctionId, BlackBoxFuncCall},
+                ExpressionWidth, Opcode, OpcodeLocation,
             },
             native_types::Witness,
         },
@@ -2912,6 +2877,8 @@ mod test {
             },
         },
     };
+
+    use super::Ssa;
 
     fn build_basic_foo_with_return(
         builder: &mut FunctionBuilder,
@@ -3658,5 +3625,37 @@ mod test {
             num_normal_brillig_calls, expected_num_normal_calls,
             "Should have {expected_num_normal_calls} BrilligCall opcodes to normal Brillig functions but got {num_normal_brillig_calls}"
         );
+    }
+
+    #[test]
+    fn multiply_with_bool_should_not_emit_range_check() {
+        let src = "
+            acir(inline) fn main f0 {
+            b0(v0: bool, v1: u32):
+                enable_side_effects v0
+                v2 = cast v0 as u32
+                v3 = mul v2, v1
+                return v3
+            }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let brillig = ssa.to_brillig(false);
+
+        let (mut acir_functions, _brillig_functions, _, _) = ssa
+            .into_acir(&brillig, ExpressionWidth::default())
+            .expect("Should compile manually written SSA into ACIR");
+
+        assert_eq!(acir_functions.len(), 1);
+
+        let opcodes = acir_functions[0].take_opcodes();
+
+        for opcode in opcodes {
+            if let Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input }) = opcode {
+                assert!(
+                    input.to_witness().0 <= 1,
+                    "only input witnesses should have range checks: {opcode:?}"
+                );
+            }
+        }
     }
 }
