@@ -566,12 +566,17 @@ impl<'context> Elaborator<'context> {
     }
 
     // this resolves Self::some_static_method, inside an impl block (where we don't have a concrete self_type)
+    // or inside a trait default method.
     //
     // Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
     // E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
     fn resolve_trait_static_method_by_self(&mut self, path: &Path) -> Option<TraitPathResolution> {
-        let trait_impl = self.current_trait_impl?;
-        let trait_id = self.interner.try_get_trait_implementation(trait_impl)?.borrow().trait_id;
+        let trait_id = if let Some(current_trait) = self.current_trait {
+            current_trait
+        } else {
+            let trait_impl = self.current_trait_impl?;
+            self.interner.try_get_trait_implementation(trait_impl)?.borrow().trait_id
+        };
 
         if path.kind == PathKind::Plain && path.segments.len() == 2 {
             let name = &path.segments[0].ident.0.contents;
@@ -1395,6 +1400,25 @@ impl<'context> Elaborator<'context> {
         };
         let func_meta = self.interner.function_meta(&func_id);
 
+        // If inside a trait method, check if it's a method on `self`
+        if let Some(trait_id) = func_meta.trait_id {
+            if Some(object_type) == self.self_type.as_ref() {
+                let the_trait = self.interner.get_trait(trait_id);
+                let constraint = the_trait.as_constraint(the_trait.name.span());
+                if let Some(HirMethodReference::TraitMethodId(method_id, generics, _)) = self
+                    .lookup_method_in_trait(
+                        the_trait,
+                        method_name,
+                        &constraint.trait_bound,
+                        the_trait.id,
+                    )
+                {
+                    // If it is, it's an assumed trait
+                    return Some(HirMethodReference::TraitMethodId(method_id, generics, true));
+                }
+            }
+        }
+
         for constraint in &func_meta.trait_constraints {
             if *object_type == constraint.typ {
                 if let Some(the_trait) =
@@ -1432,6 +1456,7 @@ impl<'context> Elaborator<'context> {
             return Some(HirMethodReference::TraitMethodId(
                 trait_method,
                 trait_bound.trait_generics.clone(),
+                false,
             ));
         }
 

@@ -582,3 +582,5 @@ pub trait Trait {}
 // This trait alias is now public
 pub trait Baz = Foo + Bar;
 ```
+
+Trait methods have the same visibility as the trait they are in.

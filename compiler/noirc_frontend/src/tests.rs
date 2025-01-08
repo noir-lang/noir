@@ -114,6 +114,7 @@ pub(crate) fn get_program_with_maybe_parser_errors(
         };
 
         let debug_comptime_in_file = None;
+        let pedantic_solving = true;
 
         // Now we want to populate the CrateDefMap using the DefCollector
         errors.extend(DefCollector::collect_crate_and_dependencies(
@@ -122,6 +123,7 @@ pub(crate) fn get_program_with_maybe_parser_errors(
             program.clone().into_sorted(),
             root_file_id,
             debug_comptime_in_file,
+            pedantic_solving,
         ));
     }
     (program, context, errors)
@@ -2843,6 +2845,21 @@ fn trait_constraint_on_tuple_type() {
 }
 
 #[test]
+fn trait_constraint_on_tuple_type_pub_crate() {
+    let src = r#"
+        pub(crate) trait Foo<A> {
+            fn foo(self, x: A) -> bool;
+        }
+
+        pub fn bar<T, U, V>(x: (T, U), y: V) -> bool where (T, U): Foo<V> {
+            x.foo(y)
+        }
+
+        fn main() {}"#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn incorrect_generic_count_on_struct_impl() {
     let src = r#"
     struct Foo {}
@@ -2940,7 +2957,7 @@ fn uses_self_type_inside_trait() {
 fn uses_self_type_in_trait_where_clause() {
     let src = r#"
     pub trait Trait {
-        fn trait_func() -> bool;
+        fn trait_func(self) -> bool;
     }
 
     pub trait Foo where Self: Trait {
