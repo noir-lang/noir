@@ -1239,7 +1239,9 @@ impl GlobalsContext {
             ast::Literal::Unit => Ok(Self::unit_value()),
             ast::Literal::Str(string) => Ok(self.codegen_string(string)),
             ast::Literal::FmtStr(_, _, _) => {
-                unreachable!("Format strings are lowered as normal strings as they are already interpolated");
+                unreachable!(
+                    "Format strings are lowered as normal strings as they are already interpolated"
+                );
             }
         }
     }
