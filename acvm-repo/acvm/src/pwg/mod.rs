@@ -126,7 +126,7 @@ pub enum OpcodeResolutionError<F> {
         payload: Option<ResolvedAssertionPayload<F>>,
     },
     #[error("Index out of bounds, array has size {array_size:?}, but index was {index:?}")]
-    IndexOutOfBounds { opcode_location: ErrorLocation, index: u32, array_size: u32 },
+    IndexOutOfBounds { opcode_location: ErrorLocation, index: F, array_size: u32 },
     #[error("Cannot solve opcode: {invalid_input_bit_size}")]
     InvalidInputBitSize {
         opcode_location: ErrorLocation,
