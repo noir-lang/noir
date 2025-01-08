@@ -475,7 +475,7 @@ impl<'context> Elaborator<'context> {
             self.add_existing_variable_to_scope(name, parameter.clone(), warn_if_unused);
         }
 
-        self.add_trait_constraints_to_scope(&func_meta);
+        self.add_trait_constraints_to_scope(&func_meta.trait_constraints, func_meta.location.span);
 
         let (hir_func, body_type) = match kind {
             FunctionKind::Builtin
@@ -501,7 +501,7 @@ impl<'context> Elaborator<'context> {
         // when multiple impls are available. Instead we default first to choose the Field or u64 impl.
         self.check_and_pop_function_context();
 
-        self.remove_trait_constraints_from_scope(&func_meta);
+        self.remove_trait_constraints_from_scope(&func_meta.trait_constraints);
 
         let func_scope_tree = self.scopes.end_function();
 
@@ -733,24 +733,88 @@ impl<'context> Elaborator<'context> {
         None
     }
 
-    /// TODO: This is currently only respected for generic free functions
-    /// there's a bunch of other places where trait constraints can pop up
     fn resolve_trait_constraints(
         &mut self,
         where_clause: &[UnresolvedTraitConstraint],
+        add_constraints_to_scope: bool,
     ) -> Vec<TraitConstraint> {
         where_clause
             .iter()
-            .filter_map(|constraint| self.resolve_trait_constraint(constraint))
+            .filter_map(|constraint| {
+                self.resolve_trait_constraint(constraint, add_constraints_to_scope)
+            })
             .collect()
     }
 
-    pub fn resolve_trait_constraint(
+    fn desugar_trait_constraints(
+        &mut self,
+        where_clause: &mut [UnresolvedTraitConstraint],
+        generics: &mut Vec<TypeVariable>,
+    ) {
+        for constraint in where_clause {
+            self.add_missing_named_generics(&mut constraint.trait_bound, generics);
+        }
+    }
+
+    /// For each associated type that isn't mentioned in a trait bound, this adds
+    /// the type as an implicit generic to the function. For example, this will
+    /// turn a function using a trait with 2 associated types:
+    ///
+    /// `fn foo<T>() where T: Foo { ... }`
+    ///
+    /// into:
+    /// `fn foo<T, A, B>() where T: Foo<Bar = A, Baz = B> { ... }`
+    fn add_missing_named_generics(
+        &mut self,
+        bound: &mut TraitBound,
+        generics: &mut Vec<TypeVariable>,
+    ) {
+        let Some(the_trait) = self.lookup_trait_or_error(bound.trait_path.clone()) else {
+            return;
+        };
+
+        if the_trait.associated_types.len() > bound.trait_generics.named_args.len() {
+            for associated_type in the_trait.associated_types.clone() {
+                if !bound
+                    .trait_generics
+                    .named_args
+                    .iter()
+                    .any(|(name, _)| name.0.contents == *associated_type.name.as_ref())
+                {
+                    // This generic isn't contained in the bound's named arguments,
+                    // implicitly add it to the function
+                    let new_generic_id = self.interner.next_type_variable_id();
+                    let new_generic = TypeVariable::unbound(new_generic_id, Kind::Normal);
+                    generics.push(new_generic.clone());
+
+                    let span = bound.trait_path.span;
+                    let typ = Type::NamedGeneric(new_generic, associated_type.name.clone());
+                    let typ = self.interner.push_quoted_type(typ);
+                    let typ = UnresolvedTypeData::Resolved(typ).with_span(span);
+                    let ident = Ident::new(associated_type.name.as_ref().clone(), span);
+                    bound.trait_generics.named_args.push((ident, typ));
+                }
+            }
+        }
+    }
+
+    fn resolve_trait_constraint(
         &mut self,
         constraint: &UnresolvedTraitConstraint,
+        add_constraints_to_scope: bool,
     ) -> Option<TraitConstraint> {
         let typ = self.resolve_type(constraint.typ.clone());
         let trait_bound = self.resolve_trait_bound(&constraint.trait_bound)?;
+
+        if add_constraints_to_scope {
+            self.add_trait_bound_to_scope(
+                constraint.trait_bound.trait_path.span,
+                &typ,
+                &trait_bound,
+                trait_bound.trait_id,
+            );
+        }
+
         Some(TraitConstraint { typ, trait_bound })
     }
 
@@ -800,10 +864,11 @@ impl<'context> Elaborator<'context> {
         let has_inline_attribute = has_no_predicates_attribute || should_fold;
         let is_pub_allowed = self.pub_allowed(func, in_contract);
         self.add_generics(&func.def.generics);
-
-        let mut trait_constraints = self.resolve_trait_constraints(&func.def.where_clause);
-
         let mut generics = vecmap(&self.generics, |generic| generic.type_var.clone());
+
+        self.desugar_trait_constraints(&mut func.def.where_clause, &mut generics);
+        let mut trait_constraints = self.resolve_trait_constraints(&func.def.where_clause, true);
+
         let mut parameters = Vec::new();
         let mut parameter_types = Vec::new();
         let mut parameter_idents = Vec::new();
@@ -873,6 +938,9 @@ impl<'context> Elaborator<'context> {
         } else {
             None
         };
+
+        // Remove the traits assumed by `resolve_trait_constraints` from scope
+        self.remove_trait_constraints_from_scope(&trait_constraints);
 
         let meta = FuncMeta {
             name: name_ident,
@@ -1013,10 +1081,10 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn add_trait_constraints_to_scope(&mut self, func_meta: &FuncMeta) {
-        for constraint in &func_meta.trait_constraints {
+    fn add_trait_constraints_to_scope(&mut self, constraints: &[TraitConstraint], span: Span) {
+        for constraint in constraints {
             self.add_trait_bound_to_scope(
-                func_meta,
+                span,
                 &constraint.typ,
                 &constraint.trait_bound,
                 constraint.trait_bound.trait_id,
@@ -1030,7 +1098,7 @@ impl<'context> Elaborator<'context> {
             let self_type =
                 self.self_type.clone().expect("Expected a self type if there's a current trait");
             self.add_trait_bound_to_scope(
-                func_meta,
+                span,
                 &self_type,
                 &constraint.trait_bound,
                 constraint.trait_bound.trait_id,
@@ -1038,8 +1106,8 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn remove_trait_constraints_from_scope(&mut self, func_meta: &FuncMeta) {
-        for constraint in &func_meta.trait_constraints {
+    fn remove_trait_constraints_from_scope(&mut self, constraints: &[TraitConstraint]) {
+        for constraint in constraints {
             self.interner
                 .remove_assumed_trait_implementations_for_trait(constraint.trait_bound.trait_id);
         }
@@ -1052,7 +1120,7 @@ impl<'context> Elaborator<'context> {
 
     fn add_trait_bound_to_scope(
         &mut self,
-        func_meta: &FuncMeta,
+        span: Span,
         object: &Type,
         trait_bound: &ResolvedTraitBound,
         starting_trait_id: TraitId,
@@ -1064,7 +1132,6 @@ impl<'context> Elaborator<'context> {
             if let Some(the_trait) = self.interner.try_get_trait(trait_id) {
                 let trait_name = the_trait.name.to_string();
                 let typ = object.clone();
-                let span = func_meta.location.span;
                 self.push_err(TypeCheckError::UnneededTraitConstraint { trait_name, typ, span });
             }
         }
@@ -1081,12 +1148,7 @@ impl<'context> Elaborator<'context> {
 
                 let parent_trait_bound =
                     self.instantiate_parent_trait_bound(trait_bound, &parent_trait_bound);
-                self.add_trait_bound_to_scope(
-                    func_meta,
-                    object,
-                    &parent_trait_bound,
-                    starting_trait_id,
-                );
+                self.add_trait_bound_to_scope(span, object, &parent_trait_bound, starting_trait_id);
             }
         }
     }
@@ -1315,7 +1377,7 @@ impl<'context> Elaborator<'context> {
         if let Some(trait_id) = trait_impl.trait_id {
             self.generics = trait_impl.resolved_generics.clone();
 
-            let where_clause = self.resolve_trait_constraints(&trait_impl.where_clause);
+            let where_clause = self.resolve_trait_constraints(&trait_impl.where_clause, false);
 
             self.collect_trait_impl_methods(trait_id, trait_impl, &where_clause);
 

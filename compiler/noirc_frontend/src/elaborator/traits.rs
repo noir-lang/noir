@@ -40,7 +40,7 @@ impl<'context> Elaborator<'context> {
                 );
 
                 let where_clause =
-                    this.resolve_trait_constraints(&unresolved_trait.trait_def.where_clause);
+                    this.resolve_trait_constraints(&unresolved_trait.trait_def.where_clause, false);
 
                 // Each associated type in this trait is also an implicit generic
                 for associated_type in &this.interner.get_trait(*trait_id).associated_types {

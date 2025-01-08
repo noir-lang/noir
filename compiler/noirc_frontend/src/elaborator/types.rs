@@ -379,11 +379,13 @@ impl<'context> Elaborator<'context> {
             resolved.push(NamedType { name, typ });
         }
 
-        // Anything that hasn't been removed yet is missing
+        // Anything that hasn't been removed yet is missing, fill it in to avoid a panic.
+        // An error should already be issued earlier.
         for generic in required_args {
-            let item = item.item_name(self.interner);
             let name = generic.name.clone();
-            self.push_err(TypeCheckError::MissingNamedTypeArg { item, span, name });
+            let name = Ident::new(name.as_ref().clone(), span);
+            let typ = self.interner.next_type_variable();
+            resolved.push(NamedType { name, typ });
         }
 
         resolved
@@ -1943,7 +1945,7 @@ pub(crate) fn bind_named_generics(
     args: &[NamedType],
     bindings: &mut TypeBindings,
 ) {
-    assert_eq!(params.len(), args.len());
+    assert!(args.len() <= params.len());
 
     for arg in args {
         let i = params
@@ -1953,6 +1955,10 @@ pub(crate) fn bind_named_generics(
 
         let param = params.swap_remove(i);
         bind_generic(&param, &arg.typ, bindings);
+    }
+
+    for unbound_param in params {
+        bind_generic(&unbound_param, &Type::Error, bindings);
     }
 }
 
