@@ -3,39 +3,36 @@
 // The issue was around `encrypted_bytes[offset + i]` generating large amounts of gates, as per the `flamegraph.sh` tool in aztec-packages.
 // The details around encryption and addresses have been stripped away, focusing on just copying bytes of equivalent size arrays.
 
-use std::aes128::aes128_encrypt;
-
 global PRIVATE_LOG_SIZE_IN_FIELDS: u32 = 18;
 global ENCRYPTED_PAYLOAD_SIZE_IN_BYTES: u32 = (PRIVATE_LOG_SIZE_IN_FIELDS - 1) * 31;
 global EPH_PK_SIZE: u32 = 32;
 global HEADER_SIZE: u32 = 48;
 global OVERHEAD_PADDING: u32 = 15;
-global OVERHEAD_SIZE: u32 = EPH_PK_SIZE + HEADER_SIZE + OVERHEAD_PADDING;
-global PLAINTEXT_LENGTH_SIZE: u32 = 2;
-global MAX_PRIVATE_LOG_PLAINTEXT_SIZE_IN_BYTES: u32 =
-    ENCRYPTED_PAYLOAD_SIZE_IN_BYTES - OVERHEAD_SIZE - PLAINTEXT_LENGTH_SIZE - 1 /* aes padding */;
+// global OVERHEAD_SIZE: u32 = EPH_PK_SIZE + HEADER_SIZE + OVERHEAD_PADDING;
+// global PLAINTEXT_LENGTH_SIZE: u32 = 2;
+// global MAX_PRIVATE_LOG_PLAINTEXT_SIZE_IN_BYTES: u32 =
+//     ENCRYPTED_PAYLOAD_SIZE_IN_BYTES - OVERHEAD_SIZE - PLAINTEXT_LENGTH_SIZE - 1 /* aes padding */;
+global BODY_SIZE: u32 =
+    ENCRYPTED_PAYLOAD_SIZE_IN_BYTES - EPH_PK_SIZE - HEADER_SIZE - OVERHEAD_PADDING;
 
 fn main(
     eph_pk_bytes: [u8; EPH_PK_SIZE],
-    aes_secret: [u8; 32],
     incoming_header_ciphertext: [u8; HEADER_SIZE],
-    extended_plaintext: [u8; MAX_PRIVATE_LOG_PLAINTEXT_SIZE_IN_BYTES + PLAINTEXT_LENGTH_SIZE],
+    incoming_body_ciphertext: [u8; BODY_SIZE],
     flag: bool,
 ) -> pub [u8; ENCRYPTED_PAYLOAD_SIZE_IN_BYTES] {
     compute_encrypted_log(
         eph_pk_bytes,
-        aes_secret,
         incoming_header_ciphertext,
-        extended_plaintext,
+        incoming_body_ciphertext,
         flag,
     )
 }
 
-fn compute_encrypted_log<let P: u32, let M: u32>(
+fn compute_encrypted_log<let M: u32>(
     eph_pk_bytes: [u8; EPH_PK_SIZE],
-    aes_secret: [u8; 32],
     incoming_header_ciphertext: [u8; HEADER_SIZE],
-    plaintext: [u8; P],
+    incoming_body_ciphertext: [u8; BODY_SIZE],
     flag: bool,
 ) -> [u8; M] {
     let mut encrypted_bytes = [0; M];
@@ -56,6 +53,7 @@ fn compute_encrypted_log<let P: u32, let M: u32>(
 
         // If the `flag` is here then it blows up.
         // if flag {
+
         // incoming_header
         for i in 0..HEADER_SIZE {
             encrypted_bytes[offset + i] = incoming_header_ciphertext[i];
@@ -66,10 +64,8 @@ fn compute_encrypted_log<let P: u32, let M: u32>(
         offset += OVERHEAD_PADDING;
 
         // If the `flag` is here then it does not blow up.
-        // if flag {
-
+        //if flag {
         // incoming_body
-        let incoming_body_ciphertext = compute_incoming_body_ciphertext(plaintext, aes_secret);
         // Then we fill in the rest as the incoming body ciphertext
         let size = M - offset;
 
@@ -84,19 +80,4 @@ fn compute_encrypted_log<let P: u32, let M: u32>(
     }
 
     encrypted_bytes
-}
-
-pub fn compute_incoming_body_ciphertext<let P: u32>(
-    plaintext: [u8; P],
-    aes_secret: [u8; 32],
-) -> [u8; P + 16 - P % 16] {
-    let full_key = aes_secret;
-    let mut sym_key = [0; 16];
-    let mut iv = [0; 16];
-
-    for i in 0..16 {
-        sym_key[i] = full_key[i];
-        iv[i] = full_key[i + 16];
-    }
-    aes128_encrypt(plaintext, iv, sym_key)
 }
