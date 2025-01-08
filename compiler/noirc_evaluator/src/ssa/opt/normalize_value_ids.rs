@@ -72,8 +72,8 @@ impl Context {
         let new_function_id = self.new_ids.function_ids[&old_function.id()];
         let new_function = &mut self.functions[new_function_id];
 
-        for _ in globals.dfg.values_iter() {
-            new_function.dfg.make_global();
+        for (_, value) in globals.dfg.values_iter() {
+            new_function.dfg.make_global(value.get_type().into_owned());
         }
 
         let mut reachable_blocks = PostOrder::with_function(old_function).into_vec();
@@ -196,7 +196,7 @@ impl IdMaps {
             }
             Value::Intrinsic(intrinsic) => new_function.dfg.import_intrinsic(*intrinsic),
             Value::ForeignFunction(name) => new_function.dfg.import_foreign_function(name),
-            Value::Global => {
+            Value::Global(_) => {
                 // Globals are computed at compile-time and thus are expected to be remain normalized
                 // between SSA passes
                 old_value

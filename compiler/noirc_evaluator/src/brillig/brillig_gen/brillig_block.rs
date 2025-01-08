@@ -649,7 +649,7 @@ impl<'block> BrilligBlock<'block> {
                 Value::Instruction { .. }
                 | Value::Param { .. }
                 | Value::NumericConstant { .. }
-                | Value::Global => {
+                | Value::Global(_) => {
                     unreachable!("unsupported function call type {:?}", dfg[*func])
                 }
             },
@@ -1560,8 +1560,8 @@ impl<'block> BrilligBlock<'block> {
         let value = &dfg[value_id];
 
         match value {
-            Value::Global => {
-                unreachable!("ICE: all globals should have been inlined");
+            Value::Global(_) => {
+                unreachable!("ICE: All globals should have been inlined");
             }
             Value::Param { .. } | Value::Instruction { .. } => {
                 // All block parameters and instruction results should have already been

@@ -333,7 +333,7 @@ impl DependencyContext {
                         Value::Instruction { .. }
                         | Value::NumericConstant { .. }
                         | Value::Param { .. }
-                        | Value::Global => {
+                        | Value::Global(_) => {
                             panic!(
                                 "calling non-function value with ID {func_id} in function {}",
                                 function.name()
@@ -620,7 +620,7 @@ impl Context {
                         Value::Instruction { .. }
                         | Value::NumericConstant { .. }
                         | Value::Param { .. }
-                        | Value::Global => {
+                        | Value::Global(_) => {
                             panic!("At the point we are running disconnect there shouldn't be any other values as arguments")
                         }
                     }

@@ -116,8 +116,8 @@ impl<'a> FunctionContext<'a> {
         let mut builder = FunctionBuilder::new(function_name, function_id);
         builder.set_runtime(runtime);
 
-        for _ in shared_context.globals_builder.dfg.values_iter() {
-            builder.current_function.dfg.make_global();
+        for (_, value) in shared_context.globals_builder.dfg.values_iter() {
+            builder.current_function.dfg.make_global(value.get_type().into_owned());
         }
 
         let definitions = HashMap::default();
@@ -139,8 +139,8 @@ impl<'a> FunctionContext<'a> {
             self.builder.new_function(func.name.clone(), id, func.inline_type);
         }
 
-        for _ in self.shared_context.globals_builder.dfg.values_iter() {
-            self.builder.current_function.dfg.make_global();
+        for (_, value) in self.shared_context.globals_builder.dfg.values_iter() {
+            self.builder.current_function.dfg.make_global(value.get_type().into_owned());
         }
 
         self.add_parameters_to_scope(&func.parameters);

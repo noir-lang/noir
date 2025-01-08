@@ -117,7 +117,7 @@ impl Display for Ssa {
                 Value::Instruction { instruction, .. } => {
                     display_instruction(&self.globals.dfg, *instruction, f)?;
                 }
-                Value::Global => {
+                Value::Global(_) => {
                     panic!("Value::Global should only be in the function dfg");
                 }
                 _ => panic!("Expected only numeric constant or instruction"),
