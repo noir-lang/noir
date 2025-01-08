@@ -1479,7 +1479,7 @@ impl<'block> BrilligBlock<'block> {
     ) {
         let bit_size = left.bit_size;
 
-        if bit_size == FieldElement::max_num_bits() || !is_signed {
+        if bit_size == FieldElement::max_num_bits() || is_signed {
             return;
         }
 
