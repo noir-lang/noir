@@ -1008,6 +1008,38 @@ fn errors_if_multiple_trait_methods_are_in_scope_for_method_call() {
 }
 
 #[test]
+fn calls_trait_method_if_it_is_in_scope_with_multiple_candidates_but_only_one_decided_by_generics()
+{
+    let src = r#"
+    struct Foo {
+        inner: Field,
+    }
+
+    trait Converter<N> {
+        fn convert(self) -> N;
+    }
+
+    impl Converter<Field> for Foo {
+        fn convert(self) -> Field {
+            self.inner
+        }
+    }
+
+    impl Converter<u32> for Foo {
+        fn convert(self) -> u32 {
+            self.inner as u32
+        }
+    }
+
+    fn main() {
+        let foo = Foo { inner: 42 };
+        let _: u32 = foo.convert();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn type_checks_trait_default_method_and_errors() {
     let src = r#"
         pub trait Foo {

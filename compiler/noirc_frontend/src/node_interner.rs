@@ -2272,6 +2272,14 @@ impl NodeInterner {
     pub fn doc_comments(&self, id: ReferenceId) -> Option<&Vec<String>> {
         self.doc_comments.get(&id)
     }
+
+    pub fn get_expr_id_from_index(&self, index: impl Into<Index>) -> Option<ExprId> {
+        let index = index.into();
+        match self.nodes.get(index) {
+            Some(Node::Expression(_)) => Some(ExprId(index)),
+            _ => None,
+        }
+    }
 }
 
 impl Methods {
