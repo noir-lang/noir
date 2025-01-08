@@ -1426,7 +1426,7 @@ impl<'context> Elaborator<'context> {
         // Only keep unique trait IDs: multiple trait methods might come from the same trait
         // but implemented with different generics (like `Convert<Field>` and `Convert<i32>`).
         let traits: HashSet<TraitId> =
-            trait_methods.into_iter().map(|(_, trait_id)| trait_id).collect();
+            trait_methods.iter().map(|(_, trait_id)| *trait_id).collect();
 
         let traits_in_scope: Vec<_> = traits
             .iter()
@@ -1489,6 +1489,12 @@ impl<'context> Elaborator<'context> {
                 traits,
             });
             return None;
+        }
+
+        // If we find a single trait impl method, return it so we don't have to determine the impl
+        if trait_methods.len() == 1 {
+            let (func_id, _) = trait_methods[0];
+            return Some(HirMethodReference::FuncId(func_id));
         }
 
         // Return a TraitMethodId with unbound generics. These will later be bound by the type-checker.
