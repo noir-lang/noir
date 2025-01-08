@@ -646,7 +646,10 @@ impl<'block> BrilligBlock<'block> {
                         }
                     }
                 }
-                Value::Instruction { .. } | Value::Param { .. } | Value::NumericConstant { .. } | Value::Global(_) => {
+                Value::Instruction { .. }
+                | Value::Param { .. }
+                | Value::NumericConstant { .. }
+                | Value::Global(_) => {
                     unreachable!("unsupported function call type {:?}", dfg[*func])
                 }
             },

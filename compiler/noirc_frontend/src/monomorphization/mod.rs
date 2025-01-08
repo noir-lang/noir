@@ -99,7 +99,7 @@ struct Monomorphizer<'interner> {
     next_local_id: u32,
     next_global_id: u32,
     next_function_id: u32,
-    
+
     is_range_loop: bool,
 
     return_location: Option<Location>,
@@ -962,26 +962,27 @@ impl<'interner> Monomorphizer<'interner> {
                     let expr = ast::Expression::Ident(ident);
                     expr
                 } else {
-                    let (expr, is_function) = if let GlobalValue::Resolved(value) = global.value.clone() {
-                        dbg!(value.is_closure());
-                        dbg!(value.clone());
-                        let is_function = value.is_closure();
-                        let expr = value
-                            .into_hir_expression(self.interner, global.location)
-                            .map_err(MonomorphizationError::InterpreterError)?;
-                        (expr, is_function)
-                    } else {
-                        let let_ = self.interner.get_global_let_statement(*global_id).expect(
+                    let (expr, is_function) =
+                        if let GlobalValue::Resolved(value) = global.value.clone() {
+                            dbg!(value.is_closure());
+                            dbg!(value.clone());
+                            let is_function = value.is_closure();
+                            let expr = value
+                                .into_hir_expression(self.interner, global.location)
+                                .map_err(MonomorphizationError::InterpreterError)?;
+                            (expr, is_function)
+                        } else {
+                            let let_ = self.interner.get_global_let_statement(*global_id).expect(
                             "Globals should have a corresponding let statement by monomorphization",
                         );
-                        // TODO: update this
-                        (let_.expression, false)
-                    };
+                            // TODO: update this
+                            (let_.expression, false)
+                        };
 
                     let expr = self.expr(expr)?;
                     // let new_id = self.next_global_id();
                     // self.globals.insert(id, new_id);
-                    
+
                     if !is_function {
                         let new_id = self.next_global_id();
                         self.globals.insert(id, new_id);

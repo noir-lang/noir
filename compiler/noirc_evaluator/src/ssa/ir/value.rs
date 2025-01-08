@@ -27,16 +27,27 @@ pub(crate) enum Value {
     /// Example, if you add two numbers together, then the resulting
     /// value would have position `0`, the typ would be the type
     /// of the operands, and the instruction would map to an add instruction.
-    Instruction { instruction: InstructionId, position: usize, typ: Type },
+    Instruction {
+        instruction: InstructionId,
+        position: usize,
+        typ: Type,
+    },
 
     /// This Value originates from a block parameter. Since function parameters
     /// are also represented as block parameters, this includes function parameters as well.
     ///
     /// position -- the index of this Value in the block parameters list
-    Param { block: BasicBlockId, position: usize, typ: Type },
+    Param {
+        block: BasicBlockId,
+        position: usize,
+        typ: Type,
+    },
 
     /// This Value originates from a numeric constant
-    NumericConstant { constant: FieldElement, typ: NumericType },
+    NumericConstant {
+        constant: FieldElement,
+        typ: NumericType,
+    },
 
     /// This Value refers to a function in the IR.
     /// Functions always have the type Type::Function.

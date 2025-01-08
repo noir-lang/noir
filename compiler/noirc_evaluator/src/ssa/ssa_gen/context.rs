@@ -14,13 +14,13 @@ use crate::ssa::function_builder::FunctionBuilder;
 use crate::ssa::ir::basic_block::BasicBlockId;
 use crate::ssa::ir::dfg::DataFlowGraph;
 use crate::ssa::ir::function::FunctionId as IrFunctionId;
-use crate::ssa::ir::value::Value as IrValue;
-use crate::ssa::ir::value::ValueId as IrValueId;
 use crate::ssa::ir::function::{Function, RuntimeType};
 use crate::ssa::ir::instruction::BinaryOp;
 use crate::ssa::ir::instruction::Instruction;
 use crate::ssa::ir::map::AtomicCounter;
 use crate::ssa::ir::types::{NumericType, Type};
+use crate::ssa::ir::value::Value as IrValue;
+use crate::ssa::ir::value::ValueId as IrValueId;
 use crate::ssa::ir::value::ValueId;
 
 use super::value::{Tree, Value, Values};
@@ -1207,8 +1207,10 @@ impl GlobalsBuilder {
                 Ok(match array.typ {
                     ast::Type::Slice(_) => {
                         // let slice_length =
-                            // self.builder.length_constant(array.contents.len() as u128);
-                        let slice_length = self.dfg.make_constant(array.contents.len().into(), NumericType::length_type());
+                        // self.builder.length_constant(array.contents.len() as u128);
+                        let slice_length = self
+                            .dfg
+                            .make_constant(array.contents.len().into(), NumericType::length_type());
                         let slice_contents =
                             self.codegen_array_checked(elements, typ[1].clone())?;
                         Tree::Branch(vec![slice_length.into(), slice_contents])
@@ -1258,7 +1260,8 @@ impl GlobalsBuilder {
             let char = self.dfg.make_constant((*byte as u128).into(), NumericType::char());
             (char.into(), false)
         });
-        let typ = FunctionContext::convert_non_tuple_type(&ast::Type::String(elements.len() as u32));
+        let typ =
+            FunctionContext::convert_non_tuple_type(&ast::Type::String(elements.len() as u32));
         self.codegen_array(elements, typ)
     }
 
@@ -1300,20 +1303,13 @@ impl GlobalsBuilder {
         self.insert_make_array(array, typ).into()
     }
 
-
     /// Insert a `make_array` instruction to create a new array or slice.
     /// Returns the new array value. Expects `typ` to be an array or slice type.
-    fn insert_make_array(
-        &mut self,
-        elements: im::Vector<ValueId>,
-        typ: Type,
-    ) -> ValueId {
+    fn insert_make_array(&mut self, elements: im::Vector<ValueId>, typ: Type) -> ValueId {
         assert!(matches!(typ, Type::Array(..) | Type::Slice(_)));
 
-        let id = self.dfg.make_instruction(Instruction::MakeArray { elements, typ: typ.clone() }, None);
+        let id =
+            self.dfg.make_instruction(Instruction::MakeArray { elements, typ: typ.clone() }, None);
         self.dfg.instruction_results(id)[0]
     }
-
 }
-
-

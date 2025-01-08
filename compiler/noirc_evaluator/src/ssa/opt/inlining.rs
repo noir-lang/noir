@@ -449,7 +449,10 @@ impl<'function, 'global> PerFunctionContext<'function, 'global> {
     /// The value and block mappings for this context are initially empty except
     /// for containing the mapping between parameters in the source_function and
     /// the arguments of the destination function.
-    fn new(context: &'function mut InlineContext<'global>, source_function: &'function Function) -> Self {
+    fn new(
+        context: &'function mut InlineContext<'global>,
+        source_function: &'function Function,
+    ) -> Self {
         Self {
             context,
             source_function,
@@ -486,14 +489,19 @@ impl<'function, 'global> PerFunctionContext<'function, 'global> {
                 self.context.builder.import_foreign_function(function)
             }
             Value::Global(_) => {
-                // TODO: Inlining the global into the function is only a temporary measure 
+                // TODO: Inlining the global into the function is only a temporary measure
                 // until Brillig gen with globals is working end to end
                 let new_id = match &self.context.globals.dfg[id] {
                     Value::Instruction { instruction, .. } => {
-                        let Instruction::MakeArray { elements, typ } = &self.context.globals.dfg[*instruction] else {
+                        let Instruction::MakeArray { elements, typ } =
+                            &self.context.globals.dfg[*instruction]
+                        else {
                             panic!("Only expect Instruction::MakeArray for a global");
                         };
-                        let elements = elements.iter().map(|element| self.translate_value(*element)).collect::<im::Vector<_>>();
+                        let elements = elements
+                            .iter()
+                            .map(|element| self.translate_value(*element))
+                            .collect::<im::Vector<_>>();
                         self.context.builder.insert_make_array(elements, typ.clone())
                     }
                     Value::NumericConstant { constant, typ } => {

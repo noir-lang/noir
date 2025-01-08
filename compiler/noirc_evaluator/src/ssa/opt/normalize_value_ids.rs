@@ -60,7 +60,7 @@ impl Context {
         for (id, function) in functions {
             self.functions.insert_with_id(|new_id| {
                 self.new_ids.function_ids.insert(*id, new_id);
-                Function::clone_signature(new_id, function)                
+                Function::clone_signature(new_id, function)
             });
         }
     }
