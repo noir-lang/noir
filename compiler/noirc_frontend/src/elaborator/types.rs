@@ -1465,6 +1465,12 @@ impl<'context> Elaborator<'context> {
                     trait_name,
                 });
 
+                // If we find a single trait impl method, return it so we don't have to determine the impl
+                if trait_methods.len() == 1 {
+                    let (func_id, _) = trait_methods[0];
+                    return Some(HirMethodReference::FuncId(func_id));
+                }
+
                 return Some(HirMethodReference::TraitMethodId(trait_method_id, generics, false));
             } else {
                 let traits = vecmap(traits, |trait_id| {
