@@ -8,12 +8,13 @@ use noirc_frontend::{
     hir::def_map::ModuleId,
     hir_def::{
         expr::{HirArrayLiteral, HirExpression, HirLiteral},
+        function::FuncMeta,
         stmt::HirPattern,
         traits::Trait,
     },
     node_interner::{
         DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, NodeInterner, ReferenceId,
-        StructId, TraitId, TypeAliasId,
+        StructId, TraitId, TraitImplKind, TypeAliasId,
     },
     Generics, Shared, StructType, Type, TypeAlias, TypeBinding, TypeVariable,
 };
@@ -296,6 +297,12 @@ fn get_exprs_global_value(interner: &NodeInterner, exprs: &[ExprId]) -> Option<S
 
 fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
     let func_meta = args.interner.function_meta(&id);
+
+    // If this points to a trait method, see if we can figure out what's the concrete trait impl method
+    if let Some(func_id) = get_trait_impl_func_id(id, args, func_meta) {
+        return format_function(func_id, args);
+    }
+
     let func_modifiers = args.interner.function_modifiers(&id);
 
     let func_name_definition_id = args.interner.definition(func_meta.name.id);
@@ -438,6 +445,33 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
     append_doc_comments(args.interner, ReferenceId::Function(id), &mut string);
 
     string
+}
+
+fn get_trait_impl_func_id(
+    id: FuncId,
+    args: &ProcessRequestCallbackArgs,
+    func_meta: &FuncMeta,
+) -> Option<FuncId> {
+    if func_meta.trait_id.is_none() {
+        return None;
+    }
+
+    let index = args.interner.find_location_index(args.location)?;
+    let expr_id = args.interner.get_expr_id_from_index(index)?;
+    let Some(TraitImplKind::Normal(trait_impl_id)) =
+        args.interner.get_selected_impl_for_expression(expr_id)
+    else {
+        return None;
+    };
+
+    let trait_impl = args.interner.get_trait_implementation(trait_impl_id);
+    let trait_impl = trait_impl.borrow();
+
+    let function_name = args.interner.function_name(&id);
+    let mut trait_impl_methods = trait_impl.methods.iter();
+    let func_id =
+        trait_impl_methods.find(|func_id| args.interner.function_name(func_id) == function_name)?;
+    Some(*func_id)
 }
 
 fn format_alias(id: TypeAliasId, args: &ProcessRequestCallbackArgs) -> String {
