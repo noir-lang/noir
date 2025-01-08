@@ -1278,11 +1278,7 @@ impl GlobalsContext {
 
         for (element, _) in elements {
             element.for_each(|element| {
-                // let element = element.eval(self);
-                let element = match element {
-                    Value::Normal(value) => value,
-                    _ => panic!("Must have Value::Normal for globals"),
-                };
+                let element = Self::eval(element);
                 array.push_back(element);
             });
         }
@@ -1298,5 +1294,12 @@ impl GlobalsContext {
         let id =
             self.dfg.make_instruction(Instruction::MakeArray { elements, typ: typ.clone() }, None);
         self.dfg.instruction_results(id)[0]
+    }
+
+    fn eval(value: Value) -> ValueId {
+        match value {
+            Value::Normal(value) => value,
+            _ => panic!("Must have Value::Normal for globals"),
+        }
     }
 }
