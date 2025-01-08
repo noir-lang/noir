@@ -2028,7 +2028,11 @@ impl<'a> Context<'a> {
                 "attempt to subtract with overflow".to_string()
             }
             BinaryOp::Mul => {
-                if bit_size == 1 || max_lhs_bits + max_rhs_bits <= bit_size {
+                if bit_size == 1
+                    || max_lhs_bits + max_rhs_bits <= bit_size
+                    || max_lhs_bits == 1
+                    || max_rhs_bits == 1
+                {
                     // Either performing boolean multiplication (which cannot overflow),
                     // or `lhs` and `rhs` have both been casted up from smaller types and so cannot overflow.
                     return Ok(());
@@ -3674,7 +3678,7 @@ mod test {
                 return v3
             }
         ";
-        let ssa = Ssa::from_str(&src).unwrap();
+        let ssa = Ssa::from_str(src).unwrap();
         let brillig = ssa.to_brillig(false);
 
         let (mut acir_functions, _brillig_functions, _, _) = ssa
