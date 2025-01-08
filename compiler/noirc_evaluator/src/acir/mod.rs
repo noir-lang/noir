@@ -2888,8 +2888,9 @@ mod test {
     use acvm::{
         acir::{
             circuit::{
-                brillig::BrilligFunctionId, opcodes::AcirFunctionId, ExpressionWidth, Opcode,
-                OpcodeLocation,
+                brillig::BrilligFunctionId,
+                opcodes::{AcirFunctionId, BlackBoxFuncCall},
+                ExpressionWidth, Opcode, OpcodeLocation,
             },
             native_types::Witness,
         },
@@ -2912,6 +2913,8 @@ mod test {
             },
         },
     };
+
+    use super::Ssa;
 
     fn build_basic_foo_with_return(
         builder: &mut FunctionBuilder,
@@ -3658,5 +3661,37 @@ mod test {
             num_normal_brillig_calls, expected_num_normal_calls,
             "Should have {expected_num_normal_calls} BrilligCall opcodes to normal Brillig functions but got {num_normal_brillig_calls}"
         );
+    }
+
+    #[test]
+    fn multiply_with_bool_should_not_emit_range_check() {
+        let src = "
+            acir(inline) fn main f0 {
+            b0(v0: bool, v1: u32):
+                enable_side_effects v0
+                v2 = cast v0 as u32
+                v3 = mul v2, v1
+                return v3
+            }
+        ";
+        let ssa = Ssa::from_str(&src).unwrap();
+        let brillig = ssa.to_brillig(false);
+
+        let (mut acir_functions, _brillig_functions, _, _) = ssa
+            .into_acir(&brillig, ExpressionWidth::default())
+            .expect("Should compile manually written SSA into ACIR");
+
+        assert_eq!(acir_functions.len(), 1);
+
+        let opcodes = acir_functions[0].take_opcodes();
+
+        for opcode in opcodes {
+            if let Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input }) = opcode {
+                assert!(
+                    input.to_witness().0 <= 1,
+                    "only input witnesses should have range checks: {opcode:?}"
+                );
+            }
+        }
     }
 }
