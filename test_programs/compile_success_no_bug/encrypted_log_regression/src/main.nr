@@ -20,39 +20,14 @@ fn main(
     aes_secret: [u8; 32],
     incoming_header_ciphertext: [u8; HEADER_SIZE],
     extended_plaintext: [u8; MAX_PRIVATE_LOG_PLAINTEXT_SIZE_IN_BYTES + PLAINTEXT_LENGTH_SIZE],
-    shift: u32,
+    flag: bool,
 ) -> pub [u8; ENCRYPTED_PAYLOAD_SIZE_IN_BYTES] {
-    // unsafe {
-    //     compute_encrypted_log_unconstrained(
-    //         eph_pk_bytes,
-    //         aes_secret,
-    //         incoming_header_ciphertext,
-    //         extended_plaintext,
-    //         shift,
-    //     )
-    // }
     compute_encrypted_log(
         eph_pk_bytes,
         aes_secret,
         incoming_header_ciphertext,
         extended_plaintext,
-        shift,
-    )
-}
-
-unconstrained fn compute_encrypted_log_unconstrained<let P: u32, let M: u32>(
-    eph_pk_bytes: [u8; EPH_PK_SIZE],
-    aes_secret: [u8; 32],
-    incoming_header_ciphertext: [u8; HEADER_SIZE],
-    plaintext: [u8; MAX_PRIVATE_LOG_PLAINTEXT_SIZE_IN_BYTES + PLAINTEXT_LENGTH_SIZE],
-    shift: u32,
-) -> [u8; M] {
-    compute_encrypted_log(
-        eph_pk_bytes,
-        aes_secret,
-        incoming_header_ciphertext,
-        plaintext,
-        shift,
+        flag,
     )
 }
 
@@ -61,40 +36,45 @@ fn compute_encrypted_log<let P: u32, let M: u32>(
     aes_secret: [u8; 32],
     incoming_header_ciphertext: [u8; HEADER_SIZE],
     plaintext: [u8; P],
-    shift: u32,
+    flag: bool,
 ) -> [u8; M] {
     let mut encrypted_bytes = [0; M];
     let mut offset = 0;
 
-    // eph_pk
-    for i in 0..EPH_PK_SIZE {
-        encrypted_bytes[offset + i] = eph_pk_bytes[i];
-    }
-    offset += EPH_PK_SIZE;
+    // NOTE: Adding a conditional variable here results in the array being fully copied, item by item,
+    // in each iteration in the second loop that copies incoming_body_ciphertext into encrypted_bytes.
+    // If we move `flag` to be after the copying of the header, or just before the loop, then we don't
+    // get the item-by-item copying, but just a single variable gets read and a new array constructed
+    // in each iteration.
+    if flag {
+        // eph_pk
+        for i in 0..EPH_PK_SIZE {
+            encrypted_bytes[offset + i] = eph_pk_bytes[i];
+        }
+        offset += EPH_PK_SIZE;
 
-    // incoming_header
-    for i in 0..HEADER_SIZE {
-        encrypted_bytes[offset + i] = incoming_header_ciphertext[i];
-    }
-    offset += HEADER_SIZE;
+        // incoming_header
+        for i in 0..HEADER_SIZE {
+            encrypted_bytes[offset + i] = incoming_header_ciphertext[i];
+        }
+        offset += HEADER_SIZE;
 
-    // Padding.
-    offset += OVERHEAD_PADDING;
+        // Padding.
+        offset += OVERHEAD_PADDING;
 
-    // incoming_body
-    let incoming_body_ciphertext = compute_incoming_body_ciphertext(plaintext, aes_secret);
-    // Then we fill in the rest as the incoming body ciphertext
-    let size = M - offset;
+        // incoming_body
+        let incoming_body_ciphertext = compute_incoming_body_ciphertext(plaintext, aes_secret);
+        // Then we fill in the rest as the incoming body ciphertext
+        let size = M - offset;
 
-    // NOTE: This made the bytecode size blowup disappear in aztec packages,
-    // but in this reproduction the size seems to be statically known regardless.
-    //let size = M - 32 - HEADER_SIZE - OVERHEAD_PADDING;
+        // NOTE: This made the bytecode size blowup disappear in aztec packages,
+        // but in this reproduction the size seems to be statically known regardless.
+        //let size = M - 32 - HEADER_SIZE - OVERHEAD_PADDING;
 
-    assert_eq(size, incoming_body_ciphertext.len(), "ciphertext length mismatch");
-    for i in 0..size {
-        // NOTE: Adding `shift` makes the index dynamic enough to force ACIR to use memory operations.
-        // Without `shift` it assigns directly to witnesses, which is good, but not what we wanted to reproduce.
-        encrypted_bytes[offset + i + shift] = incoming_body_ciphertext[i];
+        assert_eq(size, incoming_body_ciphertext.len(), "ciphertext length mismatch");
+        for i in 0..size {
+            encrypted_bytes[offset + i] = incoming_body_ciphertext[i];
+        }
     }
 
     encrypted_bytes
