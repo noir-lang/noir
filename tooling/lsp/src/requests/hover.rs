@@ -452,9 +452,7 @@ fn get_trait_impl_func_id(
     args: &ProcessRequestCallbackArgs,
     func_meta: &FuncMeta,
 ) -> Option<FuncId> {
-    if func_meta.trait_id.is_none() {
-        return None;
-    }
+    func_meta.trait_id?;
 
     let index = args.interner.find_location_index(args.location)?;
     let expr_id = args.interner.get_expr_id_from_index(index)?;
