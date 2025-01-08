@@ -597,7 +597,12 @@ jobs:
       - name: Run nargo test
         working-directory: ./test-repo/${{ matrix.project.path }}
         run: |
-          out=$(nargo test --silence-warnings --skip-brillig-constraints-check --format json ${{ matrix.project.nargo_args }}) && echo "$out" > ${{ github.workspace }}/noir-repo/.github/critical_libraries_status/${{ matrix.project.repo }}/${{ matrix.project.path }}.actual.jsonl
+          output_file=${{ github.workspace }}/noir-repo/.github/critical_libraries_status/${{ matrix.project.repo }}/${{ matrix.project.path }}.actual.jsonl
+          nargo test --silence-warnings --skip-brillig-constraints-check --format json ${{ matrix.project.nargo_args }} | tee $output_file
+          if [ ! -s $output_file ]; then
+            # The file is empty so we delete it to signal that `nargo test` failed before it could run any tests
+            rm -f $output_file
+          fi
         env:
           NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS: true
       

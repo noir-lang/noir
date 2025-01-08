@@ -96,12 +96,13 @@ impl Context {
                     .requires_ctrl_typevars()
                     .then(|| vecmap(old_results, |result| old_function.dfg.type_of_value(*result)));
 
-                let new_results = new_function.dfg.insert_instruction_and_results(
-                    instruction,
-                    new_block_id,
-                    ctrl_typevars,
-                    new_call_stack,
-                );
+                let new_results =
+                    new_function.dfg.insert_instruction_and_results_without_simplification(
+                        instruction,
+                        new_block_id,
+                        ctrl_typevars,
+                        new_call_stack,
+                    );
 
                 assert_eq!(old_results.len(), new_results.len());
                 for (old_result, new_result) in old_results.iter().zip(new_results.results().iter())
@@ -180,7 +181,9 @@ impl IdMaps {
             }
 
             Value::Function(id) => {
-                let new_id = self.function_ids[id];
+                let new_id = *self.function_ids.get(id).unwrap_or_else(|| {
+                    unreachable!("Unmapped function with id {id}")
+                });
                 new_function.dfg.import_function(new_id)
             }
 

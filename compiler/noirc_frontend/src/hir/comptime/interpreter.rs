@@ -67,6 +67,9 @@ pub struct Interpreter<'local, 'interner> {
 
     /// Stateful bigint calculator.
     bigint_solver: BigIntSolverWithId,
+
+    /// Use pedantic ACVM solving
+    pedantic_solving: bool,
 }
 
 #[allow(unused)]
@@ -75,14 +78,17 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         elaborator: &'local mut Elaborator<'interner>,
         crate_id: CrateId,
         current_function: Option<FuncId>,
+        pedantic_solving: bool,
     ) -> Self {
+        let bigint_solver = BigIntSolverWithId::with_pedantic_solving(pedantic_solving);
         Self {
             elaborator,
             crate_id,
             current_function,
             bound_generics: Vec::new(),
             in_loop: false,
-            bigint_solver: BigIntSolverWithId::default(),
+            bigint_solver,
+            pedantic_solving,
         }
     }
 
@@ -1322,7 +1328,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let bindings = unwrap_rc(bindings);
                 let mut result = self.call_function(function_id, arguments, bindings, location)?;
                 if call.is_macro_call {
-                    let expr = result.into_expression(self.elaborator.interner, location)?;
+                    let expr = result.into_expression(self.elaborator, location)?;
                     let expr = self.elaborate_in_function(self.current_function, |elaborator| {
                         elaborator.elaborate_expression(expr).0
                     });
@@ -1373,17 +1379,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let typ = object.get_type().follow_bindings();
         let method_name = &call.method.0.contents;
 
-        // TODO: Traits
-        let method = match &typ {
-            Type::Struct(struct_def, _) => self.elaborator.interner.lookup_method(
-                &typ,
-                struct_def.borrow().id,
-                method_name,
-                false,
-                true,
-            ),
-            _ => self.elaborator.interner.lookup_primitive_method(&typ, method_name, true),
-        };
+        let method = self
+            .elaborator
+            .lookup_method(&typ, method_name, location.span, true)
+            .and_then(|method| method.func_id(self.elaborator.interner));
 
         if let Some(method) = method {
             self.call_function(method, arguments, TypeBindings::new(), location)

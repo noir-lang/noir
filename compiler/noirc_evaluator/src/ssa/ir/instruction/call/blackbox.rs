@@ -323,7 +323,7 @@ mod test {
                 v2 = call multi_scalar_mul (v1, v0) -> [Field; 3]
                 return v2
             }"#;
-        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
 
         let expected_src = r#"
             acir(inline) fn main f0 {
@@ -351,7 +351,7 @@ mod test {
                 return v4
             
             }"#;
-        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
         //First point is zero, second scalar is zero, so we should be left with the scalar mul of the last point.
         let expected_src = r#"
             acir(inline) fn main f0 {
@@ -379,7 +379,7 @@ mod test {
                 v4 = call multi_scalar_mul (v3, v2) -> [Field; 3]
                 return v4
             }"#;
-        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
         //First and last scalar/point are constant, so we should be left with the msm of the middle point and the folded constant point
         let expected_src = r#"
             acir(inline) fn main f0 {

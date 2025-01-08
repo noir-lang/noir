@@ -2,13 +2,12 @@ use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 
 use crate::ast::{Ident, Path, PathKind, UnresolvedType};
-use crate::hir::def_map::{fully_qualified_module_path, ModuleData, ModuleDefId, ModuleId, PerNs};
+use crate::hir::def_map::{ModuleData, ModuleDefId, ModuleId, PerNs};
 use crate::hir::resolution::import::{resolve_path_kind, PathResolutionError};
 
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir::resolution::visibility::item_in_module_is_visible;
 
-use crate::hir_def::traits::Trait;
 use crate::locations::ReferencesTracker;
 use crate::node_interner::{FuncId, GlobalId, StructId, TraitId, TypeAliasId};
 use crate::{Shared, Type, TypeAlias};
@@ -286,7 +285,8 @@ impl<'context> Elaborator<'context> {
 
             // Check if namespace
             let found_ns = if current_module_id_is_struct {
-                match self.resolve_struct_function(starting_module, current_module, current_ident) {
+                match self.resolve_struct_function(importing_module, current_module, current_ident)
+                {
                     StructMethodLookupResult::NotFound(vec) => {
                         if vec.is_empty() {
                             return Err(PathResolutionError::Unresolved(current_ident.clone()));
@@ -306,7 +306,7 @@ impl<'context> Elaborator<'context> {
                     StructMethodLookupResult::FoundStructMethod(per_ns) => per_ns,
                     StructMethodLookupResult::FoundTraitMethod(per_ns, trait_id) => {
                         let trait_ = self.interner.get_trait(trait_id);
-                        self.usage_tracker.mark_as_used(starting_module, &trait_.name);
+                        self.usage_tracker.mark_as_used(importing_module, &trait_.name);
                         per_ns
                     }
                     StructMethodLookupResult::FoundOneTraitMethodButNotInScope(
@@ -324,7 +324,7 @@ impl<'context> Elaborator<'context> {
                     StructMethodLookupResult::FoundMultipleTraitMethods(vec) => {
                         let traits = vecmap(vec, |trait_id| {
                             let trait_ = self.interner.get_trait(trait_id);
-                            self.usage_tracker.mark_as_used(starting_module, &trait_.name);
+                            self.usage_tracker.mark_as_used(importing_module, &trait_.name);
                             self.fully_qualified_trait_path(trait_)
                         });
                         return Err(PathResolutionError::MultipleTraitsInScope {
@@ -382,7 +382,7 @@ impl<'context> Elaborator<'context> {
 
     fn resolve_struct_function(
         &self,
-        starting_module_id: ModuleId,
+        importing_module_id: ModuleId,
         current_module: &ModuleData,
         ident: &Ident,
     ) -> StructMethodLookupResult {
@@ -402,7 +402,7 @@ impl<'context> Elaborator<'context> {
         }
 
         // Otherwise, the function could be defined in zero, one or more traits.
-        let starting_module = self.get_module(starting_module_id);
+        let starting_module = self.get_module(importing_module_id);
 
         // Gather a list of items for which their trait is in scope.
         let mut results = Vec::new();
@@ -446,10 +446,6 @@ impl<'context> Elaborator<'context> {
         let (trait_id, item) = results.remove(0);
         let per_ns = PerNs { types: None, values: Some(*item) };
         StructMethodLookupResult::FoundTraitMethod(per_ns, trait_id)
-    }
-
-    fn fully_qualified_trait_path(&self, trait_: &Trait) -> String {
-        fully_qualified_module_path(self.def_maps, self.crate_graph, &trait_.crate_id, trait_.id.0)
     }
 }
 
