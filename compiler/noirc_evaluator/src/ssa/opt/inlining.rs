@@ -491,7 +491,7 @@ impl<'function, 'global> PerFunctionContext<'function, 'global> {
             Value::Global(_) => {
                 // TODO: Inlining the global into the function is only a temporary measure
                 // until Brillig gen with globals is working end to end
-                let new_id = match &self.context.globals.dfg[id] {
+                match &self.context.globals.dfg[id] {
                     Value::Instruction { instruction, .. } => {
                         let Instruction::MakeArray { elements, typ } =
                             &self.context.globals.dfg[*instruction]
@@ -508,8 +508,7 @@ impl<'function, 'global> PerFunctionContext<'function, 'global> {
                         self.context.builder.numeric_constant(*constant, *typ)
                     }
                     _ => panic!("Expected only an instruction or a numeric constant"),
-                };
-                new_id
+                }
             }
         };
 

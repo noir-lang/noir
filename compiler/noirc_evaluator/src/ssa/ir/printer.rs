@@ -35,7 +35,7 @@ pub(crate) fn display_block(
     writeln!(f, "  {}({}):", block_id, value_list_with_types(dfg, block.parameters()))?;
 
     for instruction in block.instructions() {
-        display_instruction(dfg, *instruction, f)?;
+        display_instruction(dfg, *instruction, true, f)?;
     }
 
     display_terminator(dfg, block.terminator(), f)
@@ -113,10 +113,13 @@ pub(crate) fn display_terminator(
 pub(crate) fn display_instruction(
     dfg: &DataFlowGraph,
     instruction: InstructionId,
+    indent: bool,
     f: &mut Formatter,
 ) -> Result {
-    // instructions are always indented within a function
-    write!(f, "    ")?;
+    if indent {
+        // instructions are always indented within a function
+        write!(f, "    ")?;
+    }
 
     let results = dfg.instruction_results(instruction);
     if !results.is_empty() {

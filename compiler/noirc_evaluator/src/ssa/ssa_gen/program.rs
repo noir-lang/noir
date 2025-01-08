@@ -107,15 +107,28 @@ impl Ssa {
 
 impl Display for Ssa {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.globals.dfg.values_iter().len() > 0 {
+            write!(f, "{}", self.globals)?;
+        }
+
+        for function in self.functions.values() {
+            writeln!(f, "{function}")?;
+        }
+        Ok(())
+    }
+}
+
+impl Display for GlobalsContext {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "Globals: ")?;
-        for (id, value) in self.globals.dfg.values_iter() {
-            write!(f, "@{} = ", id)?;
+        for (id, value) in self.dfg.values_iter() {
+            write!(f, "@")?;
             match value {
                 Value::NumericConstant { constant, typ } => {
-                    writeln!(f, "{typ} {constant}")?;
+                    writeln!(f, "{id} = {typ} {constant}")?;
                 }
                 Value::Instruction { instruction, .. } => {
-                    display_instruction(&self.globals.dfg, *instruction, f)?;
+                    display_instruction(&self.dfg, *instruction, false, f)?;
                 }
                 Value::Global(_) => {
                     panic!("Value::Global should only be in the function dfg");
@@ -123,12 +136,7 @@ impl Display for Ssa {
                 _ => panic!("Expected only numeric constant or instruction"),
             };
         }
-        writeln!(f)?;
-
-        for function in self.functions.values() {
-            writeln!(f, "{function}")?;
-        }
-        Ok(())
+        writeln!(f)
     }
 }
 

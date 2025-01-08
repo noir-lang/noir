@@ -121,7 +121,7 @@ pub(crate) fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     }
 
     let mut ssa = function_context.builder.finish();
-    ssa.globals = context.globals_builder;
+    ssa.globals = context.globals_context;
     Ok(ssa)
 }
 

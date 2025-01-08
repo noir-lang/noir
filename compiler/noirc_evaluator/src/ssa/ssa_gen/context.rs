@@ -74,7 +74,7 @@ pub(super) struct SharedContext {
     /// Shared counter used to assign the ID of the next function
     function_counter: AtomicCounter<Function>,
 
-    pub(super) globals_builder: GlobalsContext,
+    pub(super) globals_context: GlobalsContext,
 
     pub(super) globals: BTreeMap<GlobalId, Values>,
 
@@ -116,7 +116,7 @@ impl<'a> FunctionContext<'a> {
         let mut builder = FunctionBuilder::new(function_name, function_id);
         builder.set_runtime(runtime);
 
-        for (_, value) in shared_context.globals_builder.dfg.values_iter() {
+        for (_, value) in shared_context.globals_context.dfg.values_iter() {
             builder.current_function.dfg.make_global(value.get_type().into_owned());
         }
 
@@ -139,7 +139,7 @@ impl<'a> FunctionContext<'a> {
             self.builder.new_function(func.name.clone(), id, func.inline_type);
         }
 
-        for (_, value) in self.shared_context.globals_builder.dfg.values_iter() {
+        for (_, value) in self.shared_context.globals_context.dfg.values_iter() {
             self.builder.current_function.dfg.make_global(value.get_type().into_owned());
         }
 
@@ -1043,10 +1043,10 @@ fn convert_operator(op: BinaryOpKind) -> BinaryOp {
 impl SharedContext {
     /// Create a new SharedContext for the given monomorphized program.
     pub(super) fn new(program: Program) -> Self {
-        let mut globals_builder = GlobalsContext::default();
+        let mut globals_context = GlobalsContext::default();
         let mut globals = BTreeMap::default();
         for (id, global) in program.globals.iter() {
-            let values = globals_builder.codegen_expression(global).unwrap();
+            let values = globals_context.codegen_expression(global).unwrap();
             globals.insert(*id, values);
         }
 
@@ -1055,7 +1055,7 @@ impl SharedContext {
             function_queue: Default::default(),
             function_counter: Default::default(),
             program,
-            globals_builder,
+            globals_context,
             globals,
         }
     }
