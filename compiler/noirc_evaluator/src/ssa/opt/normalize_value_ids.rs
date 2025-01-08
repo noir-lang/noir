@@ -8,7 +8,7 @@ use crate::ssa::{
         post_order::PostOrder,
         value::{Value, ValueId},
     },
-    ssa_gen::Ssa,
+    ssa_gen::{context::GlobalsBuilder, Ssa},
 };
 use fxhash::FxHashMap as HashMap;
 use iter_extended::vecmap;
@@ -25,7 +25,7 @@ impl Ssa {
         let mut context = Context::default();
         context.populate_functions(&self.functions);
         for function in self.functions.values_mut() {
-            context.normalize_ids(function);
+            context.normalize_ids(function, &self.globals);
         }
         self.functions = context.functions.into_btree();
     }
@@ -60,17 +60,21 @@ impl Context {
         for (id, function) in functions {
             self.functions.insert_with_id(|new_id| {
                 self.new_ids.function_ids.insert(*id, new_id);
-                Function::clone_signature(new_id, function)
+                Function::clone_signature(new_id, function)                
             });
         }
     }
 
-    fn normalize_ids(&mut self, old_function: &mut Function) {
+    fn normalize_ids(&mut self, old_function: &mut Function, globals: &GlobalsBuilder) {
         self.new_ids.blocks.clear();
         self.new_ids.values.clear();
 
         let new_function_id = self.new_ids.function_ids[&old_function.id()];
         let new_function = &mut self.functions[new_function_id];
+
+        for (_, value) in globals.dfg.values_iter() {
+            new_function.dfg.make_global(value.get_type().into_owned());
+        }
 
         let mut reachable_blocks = PostOrder::with_function(old_function).into_vec();
         reachable_blocks.reverse();
@@ -193,7 +197,9 @@ impl IdMaps {
             Value::Intrinsic(intrinsic) => new_function.dfg.import_intrinsic(*intrinsic),
             Value::ForeignFunction(name) => new_function.dfg.import_foreign_function(name),
             Value::Global(_) => {
-                panic!("handle globals in value ids normalizing")
+                // Globals are computed at compile-time and thus are expected to be remain normalized
+                // between SSA passes
+                old_value
             },
         }
     }

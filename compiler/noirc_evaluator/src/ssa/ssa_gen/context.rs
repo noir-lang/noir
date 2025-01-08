@@ -76,17 +76,9 @@ pub(super) struct SharedContext {
     /// Shared counter used to assign the ID of the next function
     function_counter: AtomicCounter<Function>,
 
-    // pub(super) values: DenseMap<IrValue>,
-
-    // instructions: DenseMap<Instruction>,
-
-    // results: HashMap<InstructionId, Vec<ValueId>>,
-
-    // constants: HashMap<(FieldElement, NumericType), IrValueId>,
-
     pub(super) globals_builder: GlobalsBuilder,
 
-    pub(super) globals: BTreeMap<GlobalId, ValueId>,
+    pub(super) globals: BTreeMap<GlobalId, Values>,
 
     /// The entire monomorphized source program
     pub(super) program: Program,
@@ -126,14 +118,8 @@ impl<'a> FunctionContext<'a> {
         let mut builder = FunctionBuilder::new(function_name, function_id);
         builder.set_runtime(runtime);
 
-
         for (_, value) in shared_context.globals_builder.dfg.values_iter() {
-            // TODO: clean this up, we do not need to differentiate based off instruction here
-            if let IrValue::Instruction { instruction, typ, .. } = value {
-                builder.current_function.dfg.make_global(typ.clone());
-            } else {
-                builder.current_function.dfg.make_global(value.get_type().into_owned());
-            }
+            builder.current_function.dfg.make_global(value.get_type().into_owned());
         }
 
         let definitions = HashMap::default();
@@ -666,7 +652,7 @@ impl<'a> FunctionContext<'a> {
         self.definitions.get(&id).expect("lookup: variable not defined").clone()
     }
 
-    pub(super) fn lookup_global(&self, id: GlobalId) -> ValueId {
+    pub(super) fn lookup_global(&self, id: GlobalId) -> Values {
         self.shared_context.globals.get(&id).expect("lookup_global: variable not defined").clone()
     }
 
@@ -1062,22 +1048,18 @@ impl SharedContext {
         let mut globals_builder = GlobalsBuilder::default();
         let mut globals = BTreeMap::default();
         for (id, global) in program.globals.iter() {
+            dbg!(global.clone());
             let values = globals_builder.codegen_expression(global).unwrap();
-
-            let value = match values.into_leaf() {
-                Value::Normal(value) => value,
-                _ => panic!("Must have Value::Normal for globals"),
-            };
-            globals.insert(*id, value);
+            globals.insert(*id, values);
         }
-        dbg!(globals.clone());
+
         Self {
             functions: Default::default(),
             function_queue: Default::default(),
             function_counter: Default::default(),
             program,
             globals_builder,
-            globals
+            globals,
         }
     }
 
@@ -1122,17 +1104,87 @@ pub(super) enum LValue {
 
 #[derive(Default, Serialize, Deserialize)]
 pub(crate) struct GlobalsBuilder {
-    pub(super) dfg: DataFlowGraph,
+    pub(crate) dfg: DataFlowGraph,
+
+    #[serde(skip)]
+    definitions: HashMap<LocalId, Values>,
 }
 
 impl GlobalsBuilder {
     fn codegen_expression(&mut self, expr: &ast::Expression) -> Result<Values, RuntimeError> {
         match expr {
+            ast::Expression::Ident(ident) => Ok(self.codegen_ident(ident)),
             ast::Expression::Literal(literal) => self.codegen_literal(literal),
+            ast::Expression::Block(block) => self.codegen_block(block),
+            ast::Expression::Let(let_expr) => self.codegen_let(let_expr),
+            ast::Expression::Tuple(tuple) => self.codegen_tuple(tuple),
             _ => {
-                panic!("Only expect literals for global expressions")
+                panic!("Only expected literals for global expressions but got {expr}")
             }
         }
+    }
+
+    /// Looks up the value of a given local variable. Expects the variable to have
+    /// been previously defined or panics otherwise.
+    pub(super) fn lookup(&self, id: LocalId) -> Values {
+        self.definitions.get(&id).expect("lookup: variable not defined").clone()
+    }
+
+    fn codegen_ident(&mut self, ident: &ast::Ident) -> Values {
+        match &ident.definition {
+            ast::Definition::Local(id) => self.lookup(*id),
+            // ast::Definition::Function(id) => self.get_or_queue_function(*id),
+            _ => {
+                panic!("Expected only Definition::Local but got {ident:#?}");
+            }
+        }
+    }
+
+    /// Retrieves the given function, adding it to the function queue
+    /// if it is not yet compiled.
+    // pub(super) fn get_or_queue_function(&mut self, id: FuncId) -> Values {
+    //     let function = self.shared_context.get_or_queue_function(id);
+    //     self.builder.import_function(function).into()
+    // }
+
+    fn unit_value() -> Values {
+        Values::empty()
+    }
+
+    fn codegen_block(&mut self, block: &[ast::Expression]) -> Result<Values, RuntimeError> {
+        let mut result = Self::unit_value();
+        for expr in block {
+            result = self.codegen_expression(expr)?;
+        }
+        Ok(result)
+    }
+
+    fn codegen_let(&mut self, let_expr: &ast::Let) -> Result<Values, RuntimeError> {
+        assert_eq!(let_expr.mutable, false, "Expected global let expression to be immutable");
+        let mut values = self.codegen_expression(&let_expr.expression)?;
+
+        values = values.map(|value| {
+            let value = match value {
+                Value::Normal(value) => value,
+                _ => panic!("Must have Value::Normal for globals"),
+            };
+
+            Tree::Leaf(Value::Normal(value))
+        });
+
+        self.define(let_expr.id, values);
+        Ok(Self::unit_value())
+    }
+
+    fn codegen_tuple(&mut self, tuple: &[ast::Expression]) -> Result<Values, RuntimeError> {
+        Ok(Tree::Branch(try_vecmap(tuple, |expr| self.codegen_expression(expr))?))
+    }
+
+    /// Define a local variable to be some Values that can later be retrieved
+    /// by calling self.lookup(id)
+    pub(super) fn define(&mut self, id: LocalId, value: Values) {
+        let existing = self.definitions.insert(id, value);
+        assert!(existing.is_none(), "Variable {id:?} was defined twice in ssa-gen pass");
     }
 
     fn codegen_literal(&mut self, literal: &ast::Literal) -> Result<Values, RuntimeError> {
@@ -1148,7 +1200,22 @@ impl GlobalsBuilder {
                     _ => unreachable!("ICE: unexpected array literal type, got {}", array.typ),
                 })
             }
-            ast::Literal::Slice(_) => todo!(),
+            ast::Literal::Slice(array) => {
+                let elements = self.codegen_array_elements(&array.contents)?;
+
+                let typ = FunctionContext::convert_type(&array.typ).flatten();
+                Ok(match array.typ {
+                    ast::Type::Slice(_) => {
+                        // let slice_length =
+                            // self.builder.length_constant(array.contents.len() as u128);
+                        let slice_length = self.dfg.make_constant(array.contents.len().into(), NumericType::length_type());
+                        let slice_contents =
+                            self.codegen_array_checked(elements, typ[1].clone())?;
+                        Tree::Branch(vec![slice_length.into(), slice_contents])
+                    }
+                    _ => unreachable!("ICE: unexpected slice literal type, got {}", array.typ),
+                })
+            }
             ast::Literal::Integer(value, negative, typ, location) => {
                 let numeric_type = FunctionContext::convert_non_tuple_type(typ).unwrap_numeric();
 
@@ -1177,11 +1244,22 @@ impl GlobalsBuilder {
 
                 Ok(self.dfg.make_constant(value, numeric_type).into())
             }
-            ast::Literal::Bool(_) => todo!(),
+            ast::Literal::Bool(value) => {
+                Ok(self.dfg.make_constant((*value).into(), NumericType::bool()).into())
+            }
             ast::Literal::Unit => todo!(),
-            ast::Literal::Str(_) => todo!(),
+            ast::Literal::Str(string) => Ok(self.codegen_string(string)),
             ast::Literal::FmtStr(_, _, _) => todo!(),
         }
+    }
+
+    fn codegen_string(&mut self, string: &str) -> Values {
+        let elements = vecmap(string.as_bytes(), |byte| {
+            let char = self.dfg.make_constant((*byte as u128).into(), NumericType::char());
+            (char.into(), false)
+        });
+        let typ = FunctionContext::convert_non_tuple_type(&ast::Type::String(elements.len() as u32));
+        self.codegen_array(elements, typ)
     }
 
     fn codegen_array_elements(

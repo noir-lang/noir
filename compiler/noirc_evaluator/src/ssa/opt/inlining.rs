@@ -17,7 +17,7 @@ use crate::ssa::{
         instruction::{Instruction, InstructionId, TerminatorInstruction},
         value::{Value, ValueId},
     },
-    ssa_gen::Ssa,
+    ssa_gen::{context::GlobalsBuilder, Ssa},
 };
 use fxhash::FxHashMap as HashMap;
 
@@ -80,7 +80,7 @@ impl Ssa {
 /// This works using an internal FunctionBuilder to build a new main function from scratch.
 /// Doing it this way properly handles importing instructions between functions and lets us
 /// reuse the existing API at the cost of essentially cloning each of main's instructions.
-struct InlineContext {
+struct InlineContext<'global> {
     recursion_level: u32,
     builder: FunctionBuilder,
 
@@ -98,6 +98,8 @@ struct InlineContext {
 
     // These are the functions of the program that we shouldn't inline.
     functions_not_to_inline: BTreeSet<FunctionId>,
+
+    globals: &'global GlobalsBuilder,
 }
 
 /// The per-function inlining context contains information that is only valid for one function.
@@ -105,13 +107,13 @@ struct InlineContext {
 /// layer to translate between BlockId to BlockId for the current function and the function to
 /// inline into. The same goes for ValueIds, InstructionIds, and for storing other data like
 /// parameter to argument mappings.
-struct PerFunctionContext<'function> {
+struct PerFunctionContext<'function, 'global> {
     /// The source function is the function we're currently inlining into the function being built.
     source_function: &'function Function,
 
     /// The shared inlining context for all functions. This notably contains the FunctionBuilder used
     /// to build the function we're inlining into.
-    context: &'function mut InlineContext,
+    context: &'function mut InlineContext<'global>,
 
     /// Maps ValueIds in the function being inlined to the new ValueIds to use in the function
     /// being inlined into. This mapping also contains the mapping from parameter values to
@@ -347,18 +349,18 @@ fn compute_function_interface_cost(func: &Function) -> usize {
     func.parameters().len() + func.returns().len()
 }
 
-impl InlineContext {
+impl<'global> InlineContext<'global> {
     /// Create a new context object for the function inlining pass.
     /// This starts off with an empty mapping of instructions for main's parameters.
     /// The function being inlined into will always be the main function, although it is
     /// actually a copy that is created in case the original main is still needed from a function
     /// that could not be inlined calling it.
     fn new(
-        ssa: &Ssa,
+        ssa: &'global Ssa,
         entry_point: FunctionId,
         inline_no_predicates_functions: bool,
         functions_not_to_inline: BTreeSet<FunctionId>,
-    ) -> InlineContext {
+    ) -> Self {
         let source = &ssa.functions[&entry_point];
         let mut builder = FunctionBuilder::new(source.name().to_owned(), entry_point);
         builder.set_runtime(source.runtime());
@@ -369,6 +371,7 @@ impl InlineContext {
             call_stack: CallStackId::root(),
             inline_no_predicates_functions,
             functions_not_to_inline,
+            globals: &ssa.globals,
         }
     }
 
@@ -378,6 +381,10 @@ impl InlineContext {
 
         let mut context = PerFunctionContext::new(&mut self, entry_point);
         context.inlining_entry = true;
+
+        for (_, value) in ssa.globals.dfg.values_iter() {
+            context.context.builder.current_function.dfg.make_global(value.get_type().into_owned());
+        }
 
         // The entry block is already inserted so we have to add it to context.blocks and add
         // its parameters here. Failing to do so would cause context.translate_block() to add
@@ -437,12 +444,12 @@ impl InlineContext {
     }
 }
 
-impl<'function> PerFunctionContext<'function> {
+impl<'function, 'global> PerFunctionContext<'function, 'global> {
     /// Create a new PerFunctionContext from the source function.
     /// The value and block mappings for this context are initially empty except
     /// for containing the mapping between parameters in the source_function and
     /// the arguments of the destination function.
-    fn new(context: &'function mut InlineContext, source_function: &'function Function) -> Self {
+    fn new(context: &'function mut InlineContext<'global>, source_function: &'function Function) -> Self {
         Self {
             context,
             source_function,
@@ -465,7 +472,6 @@ impl<'function> PerFunctionContext<'function> {
 
         let new_value = match &self.source_function.dfg[id] {
             value @ Value::Instruction { .. } => {
-                
                 unreachable!("All Value::Instructions should already be known during inlining after creating the original inlined instruction. Unknown value {id} = {value:?}")
             }
             value @ Value::Param { .. } => {
@@ -480,7 +486,22 @@ impl<'function> PerFunctionContext<'function> {
                 self.context.builder.import_foreign_function(function)
             }
             Value::Global(_) => {
-                id
+                // TODO: Inlining the global into the function is only a temporary measure 
+                // until Brillig gen with globals is working end to end
+                let new_id = match &self.context.globals.dfg[id] {
+                    Value::Instruction { instruction, .. } => {
+                        let Instruction::MakeArray { elements, typ } = &self.context.globals.dfg[*instruction] else {
+                            panic!("Only expect Instruction::MakeArray for a global");
+                        };
+                        let elements = elements.iter().map(|element| self.translate_value(*element)).collect::<im::Vector<_>>();
+                        self.context.builder.insert_make_array(elements, typ.clone())
+                    }
+                    Value::NumericConstant { constant, typ } => {
+                        self.context.builder.numeric_constant(*constant, *typ)
+                    }
+                    _ => panic!("Expected only an instruction or a numeric constant"),
+                };
+                new_id
             }
         };
 

@@ -962,35 +962,57 @@ impl<'interner> Monomorphizer<'interner> {
                     let expr = ast::Expression::Ident(ident);
                     expr
                 } else {
-                    let expr = if let GlobalValue::Resolved(value) = global.value.clone() {
-                        value
+                    let (expr, is_function) = if let GlobalValue::Resolved(value) = global.value.clone() {
+                        dbg!(value.is_closure());
+                        dbg!(value.clone());
+                        let is_function = value.is_closure();
+                        let expr = value
                             .into_hir_expression(self.interner, global.location)
-                            .map_err(MonomorphizationError::InterpreterError)?
+                            .map_err(MonomorphizationError::InterpreterError)?;
+                        (expr, is_function)
                     } else {
-                        dbg!("got here");
                         let let_ = self.interner.get_global_let_statement(*global_id).expect(
                             "Globals should have a corresponding let statement by monomorphization",
                         );
-                        let_.expression
+                        // TODO: update this
+                        (let_.expression, false)
                     };
 
                     let expr = self.expr(expr)?;
-                    let new_id = self.next_global_id();
-                    self.globals.insert(id, new_id);
+                    // let new_id = self.next_global_id();
+                    // self.globals.insert(id, new_id);
+                    
+                    if !is_function {
+                        let new_id = self.next_global_id();
+                        self.globals.insert(id, new_id);
 
-                    self.finished_globals.insert(new_id, expr);
+                        self.finished_globals.insert(new_id, expr);
+                        let typ = Self::convert_type(&typ, ident.location)?;
+                        let ident = ast::Ident {
+                            location: Some(ident.location),
+                            definition: Definition::Global(new_id),
+                            mutable: false,
+                            name,
+                            typ,
+                        };
+                        let expr = ast::Expression::Ident(ident);
 
-                    let typ = Self::convert_type(&typ, ident.location)?;
-                    let ident = ast::Ident {
-                        location: Some(ident.location),
-                        definition: Definition::Global(new_id),
-                        mutable: false,
-                        name,
-                        typ,
-                    };
-                    let expr = ast::Expression::Ident(ident);
+                        expr
+                    } else {
+                        expr
+                    }
 
-                    expr
+                    // let typ = Self::convert_type(&typ, ident.location)?;
+                    // let ident = ast::Ident {
+                    //     location: Some(ident.location),
+                    //     definition: Definition::Global(new_id),
+                    //     mutable: false,
+                    //     name,
+                    //     typ,
+                    // };
+                    // let expr = ast::Expression::Ident(ident);
+
+                    // expr
                 }
             }
             DefinitionKind::Local(_) => match self.lookup_captured_expr(ident.id) {

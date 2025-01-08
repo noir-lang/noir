@@ -104,7 +104,7 @@ impl Ssa {
 
 impl Display for Ssa {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "globals: ")?;
+        writeln!(f, "Globals: ")?;
         let show = |id| value(&self.globals.dfg, id);
         
         for (id, value) in self.globals.dfg.values_iter() {

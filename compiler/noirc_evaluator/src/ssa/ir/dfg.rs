@@ -565,6 +565,8 @@ impl DataFlowGraph {
                 }
                 _ => false,
             },
+            // TODO: make this true,
+            Value::Global(_) => false,
             _ => true,
         }
     }
