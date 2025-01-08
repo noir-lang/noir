@@ -382,8 +382,8 @@ impl<'global> InlineContext<'global> {
         let mut context = PerFunctionContext::new(&mut self, entry_point);
         context.inlining_entry = true;
 
-        for (_, value) in ssa.globals.dfg.values_iter() {
-            context.context.builder.current_function.dfg.make_global(value.get_type().into_owned());
+        for _ in ssa.globals.dfg.values_iter() {
+            context.context.builder.current_function.dfg.make_global();
         }
 
         // The entry block is already inserted so we have to add it to context.blocks and add
@@ -488,7 +488,7 @@ impl<'function, 'global> PerFunctionContext<'function, 'global> {
             Value::ForeignFunction(function) => {
                 self.context.builder.import_foreign_function(function)
             }
-            Value::Global(_) => {
+            Value::Global => {
                 // TODO: Inlining the global into the function is only a temporary measure
                 // until Brillig gen with globals is working end to end
                 let new_id = match &self.context.globals.dfg[id] {

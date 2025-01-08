@@ -53,7 +53,7 @@ fn value(dfg: &DataFlowGraph, id: ValueId) -> String {
         Value::Intrinsic(intrinsic) => intrinsic.to_string(),
         Value::ForeignFunction(function) => function.clone(),
         Value::Param { .. } | Value::Instruction { .. } => id.to_string(),
-        Value::Global(_) => {
+        Value::Global => {
             format!("@{id}")
         }
     }

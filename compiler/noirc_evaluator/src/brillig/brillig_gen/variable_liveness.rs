@@ -56,7 +56,7 @@ pub(crate) fn collect_variables_of_value(
         Value::Instruction { .. }
         | Value::Param { .. }
         | Value::NumericConstant { .. }
-        | Value::Global(_) => Some(value_id),
+        | Value::Global => Some(value_id),
         // Functions are not variables in a defunctionalized SSA. Only constant function values should appear.
         Value::ForeignFunction(_) | Value::Function(_) | Value::Intrinsic(..) => None,
     }

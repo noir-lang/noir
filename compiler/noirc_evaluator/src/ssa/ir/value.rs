@@ -65,7 +65,7 @@ pub(crate) enum Value {
     /// other than generating different backend operations and being only accessible through Brillig.
     ForeignFunction(String),
 
-    Global(Type),
+    Global,
 }
 
 impl Value {
@@ -77,7 +77,8 @@ impl Value {
             Value::Function { .. } | Value::Intrinsic { .. } | Value::ForeignFunction { .. } => {
                 Cow::Owned(Type::Function)
             }
-            Value::Global(typ) => Cow::Borrowed(typ),
+            // Value::Global(typ) => Cow::Borrowed(typ),
+            Value::Global => unreachable!("Global does not have a type associated with it. Fetch the actual value from the global context"),
         }
     }
 }

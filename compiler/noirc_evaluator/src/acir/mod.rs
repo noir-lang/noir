@@ -1892,7 +1892,7 @@ impl<'a> Context<'a> {
             Value::Instruction { .. } | Value::Param { .. } => {
                 unreachable!("ICE: Should have been in cache {value_id} {value:?}")
             }
-            Value::Global(_) => {
+            Value::Global => {
                 unreachable!("ICE: all globals should have been inlined");
             }
         };

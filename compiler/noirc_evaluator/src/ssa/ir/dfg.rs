@@ -325,8 +325,8 @@ impl DataFlowGraph {
         id
     }
 
-    pub(crate) fn make_global(&mut self, typ: Type) -> ValueId {
-        self.values.insert(Value::Global(typ))
+    pub(crate) fn make_global(&mut self) -> ValueId {
+        self.values.insert(Value::Global)
     }
 
     /// Gets or creates a ValueId for the given FunctionId.
@@ -595,7 +595,7 @@ impl DataFlowGraph {
             },
             // TODO: Make this true and handle instruction simplifications with globals.
             // Currently all globals are inlined as a temporary measure so this is fine to have as false.
-            Value::Global(_) => false,
+            Value::Global => false,
             _ => true,
         }
     }

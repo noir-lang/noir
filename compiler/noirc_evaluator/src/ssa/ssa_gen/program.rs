@@ -7,7 +7,6 @@ use serde_with::serde_as;
 
 use crate::ssa::ir::{
     function::{Function, FunctionId},
-    instruction::Instruction,
     map::AtomicCounter,
     printer::display_instruction,
     value::Value,
@@ -118,7 +117,7 @@ impl Display for Ssa {
                 Value::Instruction { instruction, .. } => {
                     display_instruction(&self.globals.dfg, *instruction, f)?;
                 }
-                Value::Global(_) => {
+                Value::Global => {
                     panic!("Value::Global should only be in the function dfg");
                 }
                 _ => panic!("Expected only numeric constant or instruction"),
