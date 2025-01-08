@@ -435,9 +435,7 @@ where
                 if equal & slot.is_valid() {
                     let (key, value) = slot.key_value_unchecked();
                     /// Safety: unconstrained context
-                    let other_value = unsafe {
-                        other.get(key)
-                    };
+                    let other_value = unsafe { other.get(key) };
 
                     if other_value.is_none() {
                         equal = false;

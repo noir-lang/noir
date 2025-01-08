@@ -97,9 +97,7 @@ fn __derive_generators<let N: u32, let M: u32>(
 // does not assert the decomposition does not overflow the EmbeddedCurveScalar
 fn from_field_unsafe(scalar: Field) -> EmbeddedCurveScalar {
     /// Safety: xlo and xhi decomposition is checked below
-    let (xlo, xhi) = unsafe {
-        crate::field::bn254::decompose_hint(scalar)
-    };
+    let (xlo, xhi) = unsafe { crate::field::bn254::decompose_hint(scalar) };
     // Check that the decomposition is correct
     assert_eq(scalar, xlo + crate::field::bn254::TWO_POW_128 * xhi);
     EmbeddedCurveScalar { lo: xlo, hi: xhi }
