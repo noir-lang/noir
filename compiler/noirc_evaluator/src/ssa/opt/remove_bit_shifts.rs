@@ -253,6 +253,9 @@ impl Context<'_> {
         bit_size: u32,
         max_bit_size: u32,
     ) -> ValueId {
+        // There is no point trying to truncate to more than the Field size.
+        // A higher `max_bit_size` input can come from trying to left-shift a Field.
+        let max_bit_size = max_bit_size.min(NumericType::NativeField.bit_size());
         self.insert_instruction(Instruction::Truncate { value, bit_size, max_bit_size }, None)
             .first()
     }
