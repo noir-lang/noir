@@ -20,7 +20,7 @@ use crate::{
     },
     node_interner::{ExprId, FuncId, NodeInterner, StmtId, StructId, TraitId, TraitImplId},
     parser::{Item, Parser},
-    token::{SpannedToken, Token, Tokens},
+    token::{FmtStrFragment, SpannedToken, Token, Tokens},
     Kind, QuotedType, Shared, Type, TypeBindings,
 };
 use rustc_hash::FxHashMap as HashMap;
@@ -363,8 +363,35 @@ impl Value {
                 HirExpression::Literal(HirLiteral::Str(unwrap_rc(value)))
             }
             // Format strings are lowered as normal strings since they are already interpolated.
-            Value::FormatString(value, _) => {
-                HirExpression::Literal(HirLiteral::Str(unwrap_rc(value)))
+            // We need to mock a FmtStr literal that matches the type expected elsewhere in the program.
+            // If we do not do this, we may end up with mismatched types
+            Value::FormatString(value, fmt_str_type) => {
+                // We include a space here as otherwise the ABI decoder will expect a value that does not exist.
+                let placeholder =
+                    interner.push_expr(HirExpression::Literal(HirLiteral::Str(" ".to_owned())));
+                interner.push_expr_location(placeholder, location.span, location.file);
+
+                let dummy_captures = match fmt_str_type {
+                    Type::FmtString(_, item_types) => {
+                        dbg!(item_types.clone());
+                        let Type::Tuple(fields) = *item_types else {
+                            return Err(InterpreterError::Unimplemented {
+                                item: "Only Type::Tuple is supported for format strings".to_owned(),
+                                location,
+                            });
+                        };
+                        std::iter::repeat(placeholder).take(fields.len()).collect()
+                    }
+                    _ => unreachable!("Expected a Type::FmtString"),
+                };
+
+                let raw_str = unwrap_rc(value);
+                let str_len = raw_str.len();
+                HirExpression::Literal(HirLiteral::FmtStr(
+                    vec![FmtStrFragment::String(raw_str)],
+                    dummy_captures,
+                    str_len as u32,
+                ))
             }
             Value::Function(id, typ, bindings) => {
                 let id = interner.function_definition_id(id);

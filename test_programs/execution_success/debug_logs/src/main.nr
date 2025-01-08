@@ -1,6 +1,17 @@
+global A: Field = 50;
+global B: Field = 100;
+global GLOBAL_FMT_STR: fmtstr<14, (Field, Field)> = f"i: {A}, j: {B}";
+global GLOBAL_FMT_STR_BIG: fmtstr<22, (Field, Field, Field)> = f"i: {A}, j: {B}, k: {A}";
+
 fn main(x: Field, y: pub Field) {
     let string = "i: {i}, j: {j}";
     println(string);
+
+    println(GLOBAL_FMT_STR);
+    println(GLOBAL_FMT_STR_BIG);
+
+    let LOCAL_FMT_STR: fmtstr<14, (Field, Field)> = f"i: {A}, j: {B}";
+    println(LOCAL_FMT_STR);
 
     // TODO: fmtstr cannot be printed
     // let fmt_str: fmtstr<14, (Field, Field)> = f"i: {x}, j: {y}";
