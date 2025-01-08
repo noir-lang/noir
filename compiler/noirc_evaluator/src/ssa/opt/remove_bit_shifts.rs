@@ -120,7 +120,11 @@ impl Context<'_> {
             let pow = self.numeric_constant(FieldElement::from(rhs_bit_size_pow_2), typ);
 
             let max_lhs_bits = self.function.dfg.get_value_max_num_bits(lhs);
-            (max_lhs_bits + bit_shift_size, pow)
+            let max_bit_size = max_lhs_bits + bit_shift_size;
+            // There is no point trying to truncate to more than the Field size.
+            // A higher `max_lhs_bits` input can come from trying to left-shift a Field.
+            let max_bit_size = max_bit_size.min(NumericType::NativeField.bit_size());
+            (max_bit_size, pow)
         } else {
             // we use a predicate to nullify the result in case of overflow
             let u8_type = NumericType::unsigned(8);
@@ -253,9 +257,6 @@ impl Context<'_> {
         bit_size: u32,
         max_bit_size: u32,
     ) -> ValueId {
-        // There is no point trying to truncate to more than the Field size.
-        // A higher `max_bit_size` input can come from trying to left-shift a Field.
-        let max_bit_size = max_bit_size.min(NumericType::NativeField.bit_size());
         self.insert_instruction(Instruction::Truncate { value, bit_size, max_bit_size }, None)
             .first()
     }
