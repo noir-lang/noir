@@ -234,7 +234,8 @@ fn needs_lock(cmd: &NargoCommand) -> Option<bool> {
         | NargoCommand::Compile(..)
         | NargoCommand::Execute(..)
         | NargoCommand::Export(..)
-        | NargoCommand::Info(..) => Some(true),
+        | NargoCommand::Info(..)
+        | NargoCommand::Fuzz(..) => Some(true),
         NargoCommand::Debug(..) | NargoCommand::Test(..) => Some(false),
         NargoCommand::Fmt(..)
         | NargoCommand::New(..)
