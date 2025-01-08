@@ -3,16 +3,26 @@
 // The issue was around `encrypted_bytes[offset + i]` generating large amounts of gates, as per the `flamegraph.sh` tool in aztec-packages.
 // The details around encryption and addresses have been stripped away, focusing on just copying bytes of equivalent size arrays.
 
+// Original values which resulted in huge bytecode even on this example (500K long SSA)
+global PRIVATE_LOG_SIZE_IN_FIELDS: u32 = 18;
+global ENCRYPTED_PAYLOAD_SIZE_IN_BYTES: u32 = (PRIVATE_LOG_SIZE_IN_FIELDS - 1) * 31;
+global EPH_PK_SIZE: u32 = 32;
+global HEADER_SIZE: u32 = 48;
+global OVERHEAD_PADDING: u32 = 15;
+
 // Using the same formulas with smaller numbers; the effect is the same, but the SSA is more manageable.
-global PRIVATE_LOG_SIZE_IN_FIELDS: u32 = 4; // Originally 18
-global ENCRYPTED_PAYLOAD_SIZE_IN_BYTES: u32 = (PRIVATE_LOG_SIZE_IN_FIELDS - 1) * 5; // Originally 31
-global EPH_PK_SIZE: u32 = 3; // Originally 32
-global HEADER_SIZE: u32 = 2; // Originally 48
-global OVERHEAD_PADDING: u32 = 1; // Originally 15
+// global PRIVATE_LOG_SIZE_IN_FIELDS: u32 = 4;
+// global ENCRYPTED_PAYLOAD_SIZE_IN_BYTES: u32 = (PRIVATE_LOG_SIZE_IN_FIELDS - 1) * 5;
+// global EPH_PK_SIZE: u32 = 3;
+// global HEADER_SIZE: u32 = 2;
+// global OVERHEAD_PADDING: u32 = 1;
+
+// Unused because encryption didn't play a role:
 // global OVERHEAD_SIZE: u32 = EPH_PK_SIZE + HEADER_SIZE + OVERHEAD_PADDING;
 // global PLAINTEXT_LENGTH_SIZE: u32 = 2;
 // global MAX_PRIVATE_LOG_PLAINTEXT_SIZE_IN_BYTES: u32 =
 //     ENCRYPTED_PAYLOAD_SIZE_IN_BYTES - OVERHEAD_SIZE - PLAINTEXT_LENGTH_SIZE - 1 /* aes padding */;
+
 global BODY_SIZE: u32 =
     ENCRYPTED_PAYLOAD_SIZE_IN_BYTES - EPH_PK_SIZE - HEADER_SIZE - OVERHEAD_PADDING;
 
