@@ -213,11 +213,7 @@ pub comptime fn modulus_le_bytes() -> [u8] {}
 
 /// An unconstrained only built in to efficiently compare fields.
 #[builtin(field_less_than)]
-unconstrained fn __field_less_than(x: Field, y: Field) -> bool {}
-
-pub(crate) unconstrained fn field_less_than(x: Field, y: Field) -> bool {
-    __field_less_than(x, y)
-}
+pub(crate) unconstrained fn field_less_than(x: Field, y: Field) -> bool {}
 
 // Convert a 32 byte array to a field element by modding
 pub fn bytes32_to_field(bytes32: [u8; 32]) -> Field {
