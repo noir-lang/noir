@@ -96,8 +96,8 @@ fn __derive_generators<let N: u32, let M: u32>(
 // does not assert the limbs are 128 bits
 // does not assert the decomposition does not overflow the EmbeddedCurveScalar
 fn from_field_unsafe(scalar: Field) -> EmbeddedCurveScalar {
+    /// Safety: xlo and xhi decomposition is checked below
     let (xlo, xhi) = unsafe {
-        //@safety : xlo and xhi decomposition is checked below
         crate::field::bn254::decompose_hint(scalar)
     };
     // Check that the decomposition is correct

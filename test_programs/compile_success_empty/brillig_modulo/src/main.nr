@@ -2,8 +2,8 @@
 //
 // The features being tested is modulo operations on brillig
 fn main() {
+    /// Safety: testing context
     unsafe {
-        //@safety: testing context
         assert(modulo(47, 3) == 2);
         assert(modulo(2, 3) == 2);
         assert(signed_modulo(5, 3) == 2);

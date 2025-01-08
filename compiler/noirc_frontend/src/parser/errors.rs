@@ -110,8 +110,10 @@ pub enum ParserErrorReason {
     WrongNumberOfAttributeArguments { name: String, min: usize, max: usize, found: usize },
     #[error("The `deprecated` attribute expects a string argument")]
     DeprecatedAttributeExpectsAStringArgument,
-    #[error("Unsafe block must start with a safety comment")]
+    #[error("Unsafe block must have a safety doc comment above it")]
     MissingSafetyComment,
+    #[error("Unsafe block must start with a safety comment")]
+    UnsafeDocCommentDoesNotStartWithSafety,
     #[error("Missing parameters for function definition")]
     MissingParametersForFunctionDefinition,
 }
@@ -283,10 +285,18 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                     error.span,
                 ),
                 ParserErrorReason::MissingSafetyComment => Diagnostic::simple_warning(
-                    "Missing Safety Comment".into(),
-                    "Unsafe block must start with a safety comment: //@safety".into(),
+                    "Unsafe block must have a safety doc comment above it".into(),
+                    "The doc comment must start with the \"Safety: \" word".into(),
                     error.span,
                 ),
+                ParserErrorReason::UnsafeDocCommentDoesNotStartWithSafety => {
+                    Diagnostic::simple_warning(
+                        "Unsafe block must start with a safety comment".into(),
+                        "The doc comment above this unsafe block must start with the \"Safety: \" word"
+                            .into(),
+                        error.span,
+                    )
+                }
                 ParserErrorReason::MissingParametersForFunctionDefinition => {
                     Diagnostic::simple_error(
                         "Missing parameters for function definition".into(),
