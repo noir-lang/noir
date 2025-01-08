@@ -1579,9 +1579,7 @@ impl<'block> BrilligBlock<'block> {
 
         match value {
             Value::Global(_) => {
-                // let variable = *self.function_context.globals.get(&value_id).unwrap_or_else(|| panic!("ICE: Global value not found in cache {value_id}"));
-                // variable
-                panic!("globals not handled, these should be inlined");
+                unreachable!("ICE: all globals should have been inlined");
             }
             Value::Param { .. } | Value::Instruction { .. } => {
                 // All block parameters and instruction results should have already been

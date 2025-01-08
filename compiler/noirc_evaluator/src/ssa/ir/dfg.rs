@@ -565,7 +565,8 @@ impl DataFlowGraph {
                 }
                 _ => false,
             },
-            // TODO: make this true,
+            // TODO: Make this true and handle instruction simplifications with globals.
+            // Currently all globals are inlined as a temporary measure so this is fine to have as false.
             Value::Global(_) => false,
             _ => true,
         }
