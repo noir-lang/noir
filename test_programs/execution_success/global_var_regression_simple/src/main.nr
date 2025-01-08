@@ -1,7 +1,4 @@
-global EXPONENTIATE: [[Field; 2]; 2] = [
-    [1, 1],
-    [0, 0],
-];
+global EXPONENTIATE: [[Field; 2]; 2] = [[1, 1], [0, 0]];
 
 fn main(x: Field, y: pub Field) {
     let mut acc: Field = 0;
@@ -25,4 +22,4 @@ fn dummy_again(x: Field, y: Field) {
     }
     assert(!acc.lt(x));
     assert(x != y);
-} 
+}
