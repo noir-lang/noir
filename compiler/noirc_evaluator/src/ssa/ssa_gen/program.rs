@@ -9,12 +9,12 @@ use crate::ssa::ir::{
     function::{Function, FunctionId},
     instruction::Instruction,
     map::AtomicCounter,
-    printer::{display_instruction, value},
+    printer::value,
     value::Value,
 };
 use noirc_frontend::hir_def::types::Type as HirType;
 
-use super::context::GlobalsBuilder;
+use super::context::GlobalsContext;
 
 /// Contains the entire SSA representation of the program.
 #[serde_as]
@@ -22,7 +22,7 @@ use super::context::GlobalsBuilder;
 pub(crate) struct Ssa {
     #[serde_as(as = "Vec<(_, _)>")]
     pub(crate) functions: BTreeMap<FunctionId, Function>,
-    pub(crate) globals: GlobalsBuilder,
+    pub(crate) globals: GlobalsContext,
     pub(crate) main_id: FunctionId,
     #[serde(skip)]
     pub(crate) next_id: AtomicCounter<Function>,
@@ -59,7 +59,7 @@ impl Ssa {
             next_id: AtomicCounter::starting_after(max_id),
             entry_point_to_generated_index: BTreeMap::new(),
             error_selector_to_type: error_types,
-            globals: GlobalsBuilder::default(),
+            globals: GlobalsContext::default(),
         }
     }
 
@@ -138,7 +138,7 @@ impl Display for Ssa {
                 _ => panic!("Expected only numeric const or array"),
             };
         }
-        writeln!(f, "")?;
+        writeln!(f)?;
 
         for function in self.functions.values() {
             writeln!(f, "{function}")?;

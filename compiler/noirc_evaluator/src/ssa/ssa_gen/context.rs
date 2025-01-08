@@ -19,8 +19,6 @@ use crate::ssa::ir::instruction::BinaryOp;
 use crate::ssa::ir::instruction::Instruction;
 use crate::ssa::ir::map::AtomicCounter;
 use crate::ssa::ir::types::{NumericType, Type};
-use crate::ssa::ir::value::Value as IrValue;
-use crate::ssa::ir::value::ValueId as IrValueId;
 use crate::ssa::ir::value::ValueId;
 
 use super::value::{Tree, Value, Values};
@@ -76,7 +74,7 @@ pub(super) struct SharedContext {
     /// Shared counter used to assign the ID of the next function
     function_counter: AtomicCounter<Function>,
 
-    pub(super) globals_builder: GlobalsBuilder,
+    pub(super) globals_builder: GlobalsContext,
 
     pub(super) globals: BTreeMap<GlobalId, Values>,
 
@@ -1045,7 +1043,7 @@ fn convert_operator(op: BinaryOpKind) -> BinaryOp {
 impl SharedContext {
     /// Create a new SharedContext for the given monomorphized program.
     pub(super) fn new(program: Program) -> Self {
-        let mut globals_builder = GlobalsBuilder::default();
+        let mut globals_builder = GlobalsContext::default();
         let mut globals = BTreeMap::default();
         for (id, global) in program.globals.iter() {
             dbg!(global.clone());
@@ -1103,14 +1101,14 @@ pub(super) enum LValue {
 }
 
 #[derive(Default, Serialize, Deserialize)]
-pub(crate) struct GlobalsBuilder {
+pub(crate) struct GlobalsContext {
     pub(crate) dfg: DataFlowGraph,
 
     #[serde(skip)]
     definitions: HashMap<LocalId, Values>,
 }
 
-impl GlobalsBuilder {
+impl GlobalsContext {
     fn codegen_expression(&mut self, expr: &ast::Expression) -> Result<Values, RuntimeError> {
         match expr {
             ast::Expression::Ident(ident) => Ok(self.codegen_ident(ident)),
@@ -1133,19 +1131,11 @@ impl GlobalsBuilder {
     fn codegen_ident(&mut self, ident: &ast::Ident) -> Values {
         match &ident.definition {
             ast::Definition::Local(id) => self.lookup(*id),
-            // ast::Definition::Function(id) => self.get_or_queue_function(*id),
             _ => {
                 panic!("Expected only Definition::Local but got {ident:#?}");
             }
         }
     }
-
-    /// Retrieves the given function, adding it to the function queue
-    /// if it is not yet compiled.
-    // pub(super) fn get_or_queue_function(&mut self, id: FuncId) -> Values {
-    //     let function = self.shared_context.get_or_queue_function(id);
-    //     self.builder.import_function(function).into()
-    // }
 
     fn unit_value() -> Values {
         Values::empty()
@@ -1160,7 +1150,7 @@ impl GlobalsBuilder {
     }
 
     fn codegen_let(&mut self, let_expr: &ast::Let) -> Result<Values, RuntimeError> {
-        assert_eq!(let_expr.mutable, false, "Expected global let expression to be immutable");
+        assert!(!let_expr.mutable, "Expected global let expression to be immutable");
         let mut values = self.codegen_expression(&let_expr.expression)?;
 
         values = values.map(|value| {
@@ -1221,7 +1211,7 @@ impl GlobalsBuilder {
             ast::Literal::Integer(value, negative, typ, location) => {
                 let numeric_type = FunctionContext::convert_non_tuple_type(typ).unwrap_numeric();
 
-                let value = (*value).into();
+                let value = *value;
 
                 if let Some(range) = numeric_type.value_is_outside_limits(value, *negative) {
                     return Err(RuntimeError::IntegerOutOfBounds {

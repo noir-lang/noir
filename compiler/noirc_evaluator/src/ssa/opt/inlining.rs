@@ -17,7 +17,7 @@ use crate::ssa::{
         instruction::{Instruction, InstructionId, TerminatorInstruction},
         value::{Value, ValueId},
     },
-    ssa_gen::{context::GlobalsBuilder, Ssa},
+    ssa_gen::{context::GlobalsContext, Ssa},
 };
 use fxhash::FxHashMap as HashMap;
 
@@ -99,7 +99,7 @@ struct InlineContext<'global> {
     // These are the functions of the program that we shouldn't inline.
     functions_not_to_inline: BTreeSet<FunctionId>,
 
-    globals: &'global GlobalsBuilder,
+    globals: &'global GlobalsContext,
 }
 
 /// The per-function inlining context contains information that is only valid for one function.

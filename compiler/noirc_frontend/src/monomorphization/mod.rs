@@ -959,31 +959,26 @@ impl<'interner> Monomorphizer<'interner> {
                         name,
                         typ,
                     };
-                    let expr = ast::Expression::Ident(ident);
-                    expr
+                    ast::Expression::Ident(ident)
                 } else {
-                    let (expr, is_function) =
+                    let (expr, is_closure) =
                         if let GlobalValue::Resolved(value) = global.value.clone() {
-                            dbg!(value.is_closure());
-                            dbg!(value.clone());
-                            let is_function = value.is_closure();
+                            let is_closure = value.is_closure();
                             let expr = value
                                 .into_hir_expression(self.interner, global.location)
                                 .map_err(MonomorphizationError::InterpreterError)?;
-                            (expr, is_function)
+                            (expr, is_closure)
                         } else {
                             let let_ = self.interner.get_global_let_statement(*global_id).expect(
                             "Globals should have a corresponding let statement by monomorphization",
                         );
-                            // TODO: update this
-                            (let_.expression, false)
+                            let is_closure = let_.r#type.is_function();
+                            (let_.expression, is_closure)
                         };
 
                     let expr = self.expr(expr)?;
-                    // let new_id = self.next_global_id();
-                    // self.globals.insert(id, new_id);
 
-                    if !is_function {
+                    if !is_closure {
                         let new_id = self.next_global_id();
                         self.globals.insert(id, new_id);
 
@@ -996,24 +991,10 @@ impl<'interner> Monomorphizer<'interner> {
                             name,
                             typ,
                         };
-                        let expr = ast::Expression::Ident(ident);
-
-                        expr
+                        ast::Expression::Ident(ident)
                     } else {
                         expr
                     }
-
-                    // let typ = Self::convert_type(&typ, ident.location)?;
-                    // let ident = ast::Ident {
-                    //     location: Some(ident.location),
-                    //     definition: Definition::Global(new_id),
-                    //     mutable: false,
-                    //     name,
-                    //     typ,
-                    // };
-                    // let expr = ast::Expression::Ident(ident);
-
-                    // expr
                 }
             }
             DefinitionKind::Local(_) => match self.lookup_captured_expr(ident.id) {

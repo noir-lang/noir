@@ -8,7 +8,7 @@ use crate::ssa::{
         post_order::PostOrder,
         value::{Value, ValueId},
     },
-    ssa_gen::{context::GlobalsBuilder, Ssa},
+    ssa_gen::{context::GlobalsContext, Ssa},
 };
 use fxhash::FxHashMap as HashMap;
 use iter_extended::vecmap;
@@ -65,7 +65,7 @@ impl Context {
         }
     }
 
-    fn normalize_ids(&mut self, old_function: &mut Function, globals: &GlobalsBuilder) {
+    fn normalize_ids(&mut self, old_function: &mut Function, globals: &GlobalsContext) {
         self.new_ids.blocks.clear();
         self.new_ids.values.clear();
 
