@@ -1,9 +1,37 @@
 use acvm::{AcirField, FieldElement};
 use noirc_abi::input_parser::InputValue;
-use num_traits::ops::inv;
 use rand::{seq::SliceRandom, Rng};
 use rand_xorshift::XorShiftRng;
 
+/// This file contains mechanisms for deterministically mutating a given field value
+/// Types of mutations applied:
+/// 1. Substitutions
+///     a. With zero
+///     b. With one
+///     c. With minus one
+///     d. With a value from the dictionary (created from analyzing the code of the program and testcases in the corpus)
+///     e. With a power of 2
+///     f. With a power of 2 minus 1
+/// 2. Inversions
+///     a. Negation
+///     b. Multiplicative inverse
+/// 3. Update with a value that is a power of 2
+///     a. Addition
+///     b. Subtraction
+///     c. Multiplication
+///     d. Division
+/// 4. Update with a small (1-255) value
+///     a. Addition
+///     b. Subtraction
+///     c. Multiplication
+/// 5. Update with a dictionary value
+///     a. Addition
+///     b. Subtraction
+///     c. Multiplication
+///
+/// There are configurations for determining probability of each top-level and low-level mutation
+/// Currently, the configurations are constant and "new" methods aren't used, but the architecture is prepared for easier introduction of MOpt (Mutation Optimization) technique in the future
+///
 const SMALL_VALUE_MAX: u64 = 0xff;
 const SMALL_VALUE_MIN: u64 = 1;
 
@@ -12,7 +40,9 @@ static mut POWERS_OF_TWO: Vec<FieldElement> = Vec::new();
 static mut INVERSE_POWERS_OF_TWO: Vec<FieldElement> = Vec::new();
 static mut POWERS_OF_TWO_MINUS_ONE: Vec<FieldElement> = Vec::new();
 
+// We are using bn254 scalar field so 254 is enough
 const MAX_POW_2: usize = 254;
+
 /// Initialize a static vector of powers of two for quick access during mutations
 fn initialize_powers_of_two() {
     unsafe {
@@ -39,6 +69,7 @@ enum SubstitutionMutation {
     PowerOfTwo,
     PowerOfTwoMinusOne,
 }
+
 struct SubstitutionConfiguration {
     substitution_by_zero_weight: usize,
     substitution_by_one_weight: usize,
@@ -49,6 +80,7 @@ struct SubstitutionConfiguration {
     total_weight: usize,
 }
 
+/// Configuration for selecting a substitution mutation
 impl SubstitutionConfiguration {
     pub fn new(
         substitution_by_zero_weight: usize,
@@ -74,6 +106,8 @@ impl SubstitutionConfiguration {
             total_weight,
         }
     }
+
+    /// Select a mutation according to weights
     pub fn select(&self, prng: &mut XorShiftRng) -> SubstitutionMutation {
         let mut selector = prng.gen_range(0..self.total_weight);
         if selector < self.substitution_by_zero_weight {
@@ -124,6 +158,7 @@ impl InversionConfiguration {
         let total_weight = additive_inversion_weight + multiplicative_inversion_weight;
         Self { additive_inversion_weight, multiplicative_inversion_weight, total_weight }
     }
+    /// Select a mutation according to weights
     pub fn select(&self, prng: &mut XorShiftRng) -> InversionMutation {
         let selector = prng.gen_range(0..self.total_weight);
         if selector < self.additive_inversion_weight {
@@ -170,6 +205,7 @@ impl Pow2UpdateConfiguration {
             total_weight,
         }
     }
+    /// Select a mutation according to weights
     pub fn select(&self, prng: &mut XorShiftRng) -> Pow2Update {
         let mut selector = prng.gen_range(0..self.total_weight);
         if selector < self.addition_weight {
@@ -216,6 +252,7 @@ impl SmallValueUpdateConfiguration {
         let total_weight = addition_weight + subtraction_weight + multiplication_weight;
         Self { addition_weight, subtraction_weight, multiplication_weight, total_weight }
     }
+    /// Select a mutation according to weights
     pub fn select(&self, prng: &mut XorShiftRng) -> SmallValueUpdate {
         let mut selector = prng.gen_range(0..self.total_weight);
         if selector < self.addition_weight {
@@ -258,6 +295,7 @@ impl DictionaryUpdateConfiguration {
         let total_weight = addition_weight + subtraction_weight;
         Self { addition_weight, subtraction_weight, multiplication_weight, total_weight }
     }
+    /// Select a mutation according to weights
     pub fn select(&self, prng: &mut XorShiftRng) -> DictionaryUpdate {
         let mut selector = prng.gen_range(0..self.total_weight);
         if selector < self.addition_weight {
@@ -316,6 +354,7 @@ impl TopLevelMutationConfiguration {
             total_weight,
         }
     }
+    /// Select a mutation according to weights
     pub fn select(&self, prng: &mut XorShiftRng) -> TopLevelMutation {
         let mut selector = prng.gen_range(0..self.total_weight);
         if selector < self.substitution_weight {
@@ -354,7 +393,21 @@ struct FieldMutator<'a> {
 
 impl<'a> FieldMutator<'a> {
     pub fn new(dictionary: &'a Vec<FieldElement>, prng: &'a mut XorShiftRng) -> Self {
-        initialize_powers_of_two();
+        unsafe {
+            if !POWERS_OF_TWO_INITIALIZED {
+                let powers_of_two = (1..=MAX_POW_2)
+                    .map(|i| FieldElement::from(2i128).pow(&FieldElement::from(i)))
+                    .collect::<Vec<FieldElement>>();
+                INVERSE_POWERS_OF_TWO =
+                    powers_of_two.iter().map(|p| p.inverse()).collect::<Vec<FieldElement>>();
+
+                POWERS_OF_TWO_MINUS_ONE =
+                    powers_of_two.iter().map(|x| *x - FieldElement::from(1i128)).collect();
+
+                POWERS_OF_TWO = powers_of_two;
+                POWERS_OF_TWO_INITIALIZED = true;
+            }
+        };
 
         assert!(!dictionary.is_empty());
         Self { dictionary, prng }
