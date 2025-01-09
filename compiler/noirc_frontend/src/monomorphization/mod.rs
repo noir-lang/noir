@@ -961,20 +961,17 @@ impl<'interner> Monomorphizer<'interner> {
                     };
                     ast::Expression::Ident(ident)
                 } else {
-                    let (expr, is_closure) =
-                        if let GlobalValue::Resolved(value) = global.value.clone() {
-                            let is_closure = value.is_closure();
-                            let expr = value
-                                .into_hir_expression(self.interner, global.location)
-                                .map_err(MonomorphizationError::InterpreterError)?;
-                            (expr, is_closure)
-                        } else {
-                            let let_ = self.interner.get_global_let_statement(*global_id).expect(
-                            "Globals should have a corresponding let statement by monomorphization",
-                        );
-                            let is_closure = let_.r#type.is_function();
-                            (let_.expression, is_closure)
-                        };
+                    let (expr, is_closure) = if let GlobalValue::Resolved(value) =
+                        global.value.clone()
+                    {
+                        let is_closure = value.is_closure();
+                        let expr = value
+                            .into_hir_expression(self.interner, global.location)
+                            .map_err(MonomorphizationError::InterpreterError)?;
+                        (expr, is_closure)
+                    } else {
+                        unreachable!("All global values should be resolved at compile time and before monomorphization");
+                    };
 
                     let expr = self.expr(expr)?;
 

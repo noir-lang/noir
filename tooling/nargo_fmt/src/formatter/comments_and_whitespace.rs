@@ -1,4 +1,4 @@
-use noirc_frontend::token::{DocStyle, Token};
+use noirc_frontend::token::Token;
 
 use super::Formatter;
 
@@ -113,8 +113,7 @@ impl<'a> Formatter<'a> {
 
                     last_was_block_comment = false;
                 }
-                Token::LineComment(comment, None)
-                | Token::LineComment(comment, Some(DocStyle::Safety)) => {
+                Token::LineComment(comment, None) => {
                     if comment.trim() == "noir-fmt:ignore" {
                         ignore_next = true;
                     }
@@ -143,8 +142,7 @@ impl<'a> Formatter<'a> {
                     last_was_block_comment = false;
                     self.written_comments_count += 1;
                 }
-                Token::BlockComment(comment, None)
-                | Token::BlockComment(comment, Some(DocStyle::Safety)) => {
+                Token::BlockComment(comment, None) => {
                     if comment.trim() == "noir-fmt:ignore" {
                         ignore_next = true;
                     }
