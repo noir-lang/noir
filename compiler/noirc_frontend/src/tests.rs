@@ -67,7 +67,7 @@ pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(Compilation
 
 /// Compile a program.
 ///
-/// The `stdlib` is not available for these snippets.
+/// The stdlib is not available for these snippets.
 pub(crate) fn get_program_with_maybe_parser_errors(
     src: &str,
     allow_parser_errors: bool,
