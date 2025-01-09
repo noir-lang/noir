@@ -126,9 +126,12 @@ impl Context {
         use Instruction::*;
         match instruction {
             Binary(binary) => match binary.operator {
-                BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul => {
-                    dfg.type_of_value(binary.lhs).is_unsigned()
-                }
+                BinaryOp::Add
+                | BinaryOp::UncheckedAdd
+                | BinaryOp::Sub
+                | BinaryOp::UncheckedSub
+                | BinaryOp::Mul
+                | BinaryOp::UncheckedMul => dfg.type_of_value(binary.lhs).is_unsigned(),
                 BinaryOp::Div | BinaryOp::Mod => {
                     if let Some(rhs) = dfg.get_numeric_constant(binary.rhs) {
                         rhs == FieldElement::zero()
