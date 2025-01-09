@@ -84,3 +84,12 @@ fn bar_stuff() {
     foo.bar_stuff();
 }
 
+trait TraitWithDocs {
+    /// Some docs
+    fn foo();
+}
+
+impl TraitWithDocs for Field {
+    fn foo() {}
+}
+

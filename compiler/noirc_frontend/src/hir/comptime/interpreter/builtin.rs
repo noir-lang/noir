@@ -193,6 +193,8 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "struct_def_set_fields" => struct_def_set_fields(interner, arguments, location),
             "to_be_radix_unsafe" => to_be_radix_unsafe(arguments, return_type, location),
             "to_le_radix_unsafe" => to_le_radix_unsafe(arguments, return_type, location),
+            "to_be_bits_unsafe" => to_be_bits_unsafe(arguments, return_type, location),
+            "to_le_bits_unsafe" => to_le_bits_unsafe(arguments, return_type, location),
             "trait_constraint_eq" => trait_constraint_eq(arguments, location),
             "trait_constraint_hash" => trait_constraint_hash(arguments, location),
             "trait_def_as_trait_constraint" => {
@@ -794,6 +796,26 @@ fn quoted_tokens(arguments: Vec<(Value, Location)>, location: Location) -> IResu
         value.iter().map(|token| Value::Quoted(Rc::new(vec![token.clone()]))).collect(),
         Type::Slice(Box::new(Type::Quoted(QuotedType::Quoted))),
     ))
+}
+
+fn to_be_bits_unsafe(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    let value = check_one_argument(arguments, location)?;
+    let radix = (Value::U32(2), value.1);
+    to_be_radix(vec![value, radix], return_type, location)
+}
+
+fn to_le_bits_unsafe(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    let value = check_one_argument(arguments, location)?;
+    let radix = (Value::U32(2), value.1);
+    to_le_radix(vec![value, radix], return_type, location)
 }
 
 fn to_be_radix_unsafe(

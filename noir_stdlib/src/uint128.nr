@@ -106,16 +106,9 @@ impl U128 {
             if ascii < 58 {
                 ascii - 48
             } else {
-                let ascii = ascii
-                    + 32
-                        * (
-                            unsafe {
-                                /*@safety : optionally adds 32 and then check (below) the result is in 'a..f' range
-                                    This enforces that the input is in either 'A..F' or 'a..f' range
-                                */
-                                U128::uconstrained_check_is_upper_ascii(ascii) as u8
-                            }
-                        );
+                /// Safety: optionally adds 32 and then check (below) the result is in 'a..f' range
+                let ascii =
+                    ascii + 32 * (unsafe { U128::uconstrained_check_is_upper_ascii(ascii) as u8 });
                 assert(ascii >= 97); // enforce >= 'a'
                 assert(ascii <= 102); // enforce <= 'f'
                 ascii - 87
@@ -222,10 +215,9 @@ impl Mul for U128 {
 
 impl Div for U128 {
     fn div(self: Self, b: U128) -> U128 {
+        /// Safety: euclidian division is asserted to be correct: assert(a == b * q + r); and assert(r < b);
+        /// Furthermore, U128 addition and multiplication ensures that b * q + r does not overflow
         unsafe {
-            /*@safety : euclidian division is asserted to be correct: assert(a == b * q + r); and assert(r < b);
-                Furthermore, U128 addition and multiplication ensures that b * q + r does not overflow
-            */
             let (q, r) = self.unconstrained_div(b);
             let a = b * q + r;
             assert_eq(self, a);
@@ -237,8 +229,8 @@ impl Div for U128 {
 
 impl Rem for U128 {
     fn rem(self: Self, b: U128) -> U128 {
+        /// Safety: cf div() above
         unsafe {
-            //@safety : cf div() above
             let (q, r) = self.unconstrained_div(b);
             let a = b * q + r;
             assert_eq(self, a);
@@ -465,8 +457,8 @@ mod tests {
         let b = U128::from_u64s_le(0x0, 0xfffffffffffffffe);
         let c = U128::one();
         let d = U128::from_u64s_le(0x0, 0x1);
+        /// Safety: testing context
         unsafe {
-            //@safety: testing context
             let (q, r) = a.unconstrained_div(b);
             assert_eq(q, c);
             assert_eq(r, d);
@@ -475,15 +467,15 @@ mod tests {
         let a = U128::from_u64s_le(2, 0);
         let b = U128::one();
         // Check the case where a is a multiple of b
+        /// Safety: testing context
         unsafe {
-            //@safety: testing context
             let (c, d) = a.unconstrained_div(b);
             assert_eq((c, d), (a, U128::zero()));
         }
 
         // Check where b is a multiple of a
+        /// Safety: testing context
         unsafe {
-            //@safety: testing context
             let (c, d) = b.unconstrained_div(a);
             assert_eq((c, d), (U128::zero(), b));
         }
@@ -491,16 +483,16 @@ mod tests {
         // Dividing by zero returns 0,0
         let a = U128::from_u64s_le(0x1, 0x0);
         let b = U128::zero();
+        /// Safety: testing context
         unsafe {
-            //@safety: testing context
             let (c, d) = a.unconstrained_div(b);
             assert_eq((c, d), (U128::zero(), U128::zero()));
         }
         // Dividing 1<<127 by 1<<127 (special case)
         let a = U128::from_u64s_le(0x0, pow63 as u64);
         let b = U128::from_u64s_le(0x0, pow63 as u64);
+        /// Safety: testing context
         unsafe {
-            //@safety: testing context
             let (c, d) = a.unconstrained_div(b);
             assert_eq((c, d), (U128::one(), U128::zero()));
         }

@@ -19,6 +19,8 @@ use crate::node_interner::FuncId;
 use crate::parse_program;
 
 /// Create an interpreter for a code snippet and pass it to a test function.
+///
+/// The stdlib is not made available as a dependency.
 pub(crate) fn with_interpreter<T>(
     src: &str,
     f: impl FnOnce(&mut Interpreter, FuncId, &[(CompilationError, FileId)]) -> T,

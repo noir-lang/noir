@@ -416,10 +416,15 @@ impl DataFlowGraph {
     pub(crate) fn get_value_max_num_bits(&self, value: ValueId) -> u32 {
         match self[value] {
             Value::Instruction { instruction, .. } => {
+                let value_bit_size = self.type_of_value(value).bit_size();
                 if let Instruction::Cast(original_value, _) = self[instruction] {
-                    self.type_of_value(original_value).bit_size()
+                    let original_bit_size = self.type_of_value(original_value).bit_size();
+                    // We might have cast e.g. `u1` to `u8` to be able to do arithmetic,
+                    // in which case we want to recover the original smaller bit size;
+                    // OTOH if we cast down, then we don't need the higher original size.
+                    value_bit_size.min(original_bit_size)
                 } else {
-                    self.type_of_value(value).bit_size()
+                    value_bit_size
                 }
             }
 
@@ -465,6 +470,7 @@ impl DataFlowGraph {
 
     /// Remove an instruction by replacing it with a `Noop` instruction.
     /// Doing this avoids shifting over each instruction after this one in its block's instructions vector.
+    #[allow(unused)]
     pub(crate) fn remove_instruction(&mut self, instruction: InstructionId) {
         self.instructions[instruction] = Instruction::Noop;
         self.results.insert(instruction, smallvec::SmallVec::new());

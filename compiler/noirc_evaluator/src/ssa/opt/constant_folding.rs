@@ -1557,7 +1557,6 @@ mod test {
         // After EnableSideEffectsIf removal:
         brillig(inline) fn main f0 {
           b0(v0: Field, v1: Field, v2: u1):
-            v4 = call is_unconstrained() -> u1
             v7 = call to_be_radix_unsafe(v0, u32 256) -> [u8; 1]    // `a.to_be_radix_unsafe(256)`;
             inc_rc v7
             v8 = call to_be_radix_unsafe(v0, u32 256) -> [u8; 1]    // duplicate load of `a`
@@ -1574,14 +1573,13 @@ mod test {
         let expected = "
         brillig(inline) fn main f0 {
           b0(v0: Field, v1: Field, v2: u1):
-            v4 = call is_unconstrained() -> u1
-            v7 = call to_be_radix_unsafe(v0, u32 256) -> [u8; 1]
-            inc_rc v7
-            inc_rc v7
-            v8 = cast v2 as Field
-            v9 = mul v0, v8
-            v10 = call to_be_radix_unsafe(v9, u32 256) -> [u8; 1]
-            inc_rc v10
+            v5 = call to_be_radix_unsafe(v0, u32 256) -> [u8; 1]
+            inc_rc v5
+            inc_rc v5
+            v6 = cast v2 as Field
+            v7 = mul v0, v6
+            v8 = call to_be_radix_unsafe(v7, u32 256) -> [u8; 1]
+            inc_rc v8
             enable_side_effects v2
             return
         }

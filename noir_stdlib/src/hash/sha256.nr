@@ -74,10 +74,9 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> HASH {
     let mut msg_byte_ptr = 0;
     for i in 0..num_blocks {
         let msg_start = BLOCK_SIZE * i;
-        let (new_msg_block, new_msg_byte_ptr) = unsafe {
-            /*@safety  : the msg_block is checked below in verify_msg_block*/
-            build_msg_block(msg, message_size, msg_start)
-        };
+        /// Safety: the msg_block is checked below in verify_msg_block
+        let (new_msg_block, new_msg_byte_ptr) =
+            unsafe { build_msg_block(msg, message_size, msg_start) };
 
         if msg_start < message_size {
             msg_block = new_msg_block;
@@ -106,10 +105,9 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> HASH {
     // or our message cannot be evenly split into blocks.
     if modulo != 0 {
         let msg_start = BLOCK_SIZE * num_blocks;
-        let (new_msg_block, new_msg_byte_ptr) = unsafe {
-            //@safety : the msg_block is checked below in verify_msg_block
-            build_msg_block(msg, message_size, msg_start)
-        };
+        /// Safety: the msg_block is checked below in verify_msg_block
+        let (new_msg_block, new_msg_byte_ptr) =
+            unsafe { build_msg_block(msg, message_size, msg_start) };
 
         if msg_start < message_size {
             msg_block = new_msg_block;
@@ -150,10 +148,8 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> HASH {
         msg_byte_ptr = 0;
     }
 
-    msg_block = unsafe {
-        //@safety : the msg_len is checked below in verify_msg_len
-        attach_len_to_msg_block(msg_block, msg_byte_ptr, message_size)
-    };
+    /// Safety: the msg_len is checked below in verify_msg_len
+    msg_block = unsafe { attach_len_to_msg_block(msg_block, msg_byte_ptr, message_size) };
 
     if !is_unconstrained() {
         verify_msg_len(msg_block, last_block, msg_byte_ptr, message_size);
@@ -805,10 +801,9 @@ mod tests {
             101, 115, 46, 48,
         ];
         assert_eq(input.len(), 22);
-        let (msg_block, msg_byte_ptr) = unsafe {
-            //@safety : testing context
-            build_msg_block(input, input.len(), 0)
-        };
+
+        /// Safety: testing context
+        let (msg_block, msg_byte_ptr) = unsafe { build_msg_block(input, input.len(), 0) };
         assert_eq(msg_byte_ptr, input.len());
         assert_eq(msg_block[0], make_item(input[0], input[1], input[2], input[3]));
         assert_eq(msg_block[1], make_item(input[4], input[5], input[6], input[7]));
@@ -825,10 +820,8 @@ mod tests {
             108, 97, 105, 110, 59, 32, 99, 104, 97, 114, 115, 101, 116,
         ];
         assert_eq(input.len(), 68);
-        let (msg_block, msg_byte_ptr) = unsafe {
-            //@safety : testing context
-            build_msg_block(input, input.len(), 64)
-        };
+        /// Safety: test context
+        let (msg_block, msg_byte_ptr) = unsafe { build_msg_block(input, input.len(), 64) };
         assert_eq(msg_byte_ptr, 4);
         assert_eq(msg_block[0], make_item(input[64], input[65], input[66], input[67]));
         assert_eq(msg_block[1], 0);
@@ -841,10 +834,8 @@ mod tests {
             1919905082, 1131376244, 1701737517, 1417244773, 978151789, 1697470053, 1920166255,
             1849316213, 1651139939,
         ];
-        let msg_block = unsafe {
-            //@safety  : testing context
-            attach_len_to_msg_block(input, 1, 448)
-        };
+        /// Safety: testing context
+        let msg_block = unsafe { attach_len_to_msg_block(input, 1, 448) };
         assert_eq(msg_block[0], ((1 << 7) as u32) * 256 * 256 * 256);
         assert_eq(msg_block[1], 0);
         assert_eq(msg_block[15], 3584);
