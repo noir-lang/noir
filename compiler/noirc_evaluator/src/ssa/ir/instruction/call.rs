@@ -331,7 +331,10 @@ pub(super) fn simplify_call(
             simplify_black_box_func(bb_func, arguments, dfg, block, call_stack)
         }
         Intrinsic::AsWitness => SimplifyResult::None,
-        Intrinsic::IsUnconstrained => SimplifyResult::None,
+        Intrinsic::IsUnconstrained => {
+            let result = dfg.runtime().is_brillig().into();
+            SimplifyResult::SimplifiedTo(dfg.make_constant(result, NumericType::bool()))
+        }
         Intrinsic::DerivePedersenGenerators => {
             if let Some(Type::Array(_, len)) = return_type.clone() {
                 simplify_derive_generators(dfg, arguments, len, block, call_stack)
@@ -493,11 +496,12 @@ fn simplify_black_box_func(
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> SimplifyResult {
+    let pedantic_solving = true;
     cfg_if::cfg_if! {
         if #[cfg(feature = "bn254")] {
-            let solver = bn254_blackbox_solver::Bn254BlackBoxSolver;
+            let solver = bn254_blackbox_solver::Bn254BlackBoxSolver(pedantic_solving);
         } else {
-            let solver = acvm::blackbox_solver::StubbedBlackBoxSolver;
+            let solver = acvm::blackbox_solver::StubbedBlackBoxSolver(pedantic_solving);
         }
     };
     match bb_func {

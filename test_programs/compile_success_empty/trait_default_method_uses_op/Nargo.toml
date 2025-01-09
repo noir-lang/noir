@@ -1,0 +1,7 @@
+[package]
+name = "trait_default_method_uses_op"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.32.0"
+
+[dependencies]
