@@ -40,7 +40,10 @@ fn comptime_code_rejects_dynamic_variable() {
 
     assert_eq!(errors.len(), 1);
     match &errors[0].0 {
-        CompilationError::InterpreterError(InterpreterError::NonComptimeVarReferenced { name, .. }) => {
+        CompilationError::InterpreterError(InterpreterError::NonComptimeVarReferenced {
+            name,
+            ..
+        }) => {
             assert_eq!(name, "x");
         }
         _ => panic!("expected an InterpreterError"),

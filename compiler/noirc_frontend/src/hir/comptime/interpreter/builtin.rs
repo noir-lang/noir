@@ -334,11 +334,14 @@ fn static_assert(
     let predicate = get_bool(predicate)?;
     let message = get_str(interner, message)?;
 
-    "TODO need to evaluate static_assert's predicate more?!";
     if predicate {
         Ok(Value::Unit)
     } else {
-        failing_constraint((*message).clone(), location, call_stack)
+        failing_constraint(
+            format!("static_assert failed: {}", message).clone(),
+            location,
+            call_stack,
+        )
     }
 }
 

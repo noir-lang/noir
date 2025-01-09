@@ -45,7 +45,7 @@ impl Field {
     /// (e.g. 254 for the BN254 field) cause a compile-time error.
     // docs:start:to_le_bits
     pub fn to_le_bits<let N: u32>(self: Self) -> [u1; N] {
-        static_assert(N < modulus_num_bits() as u32, "N must be less than modulus_num_bits");
+        static_assert(N <= modulus_num_bits() as u32, "N must be less than or equal to modulus_num_bits");
         self.to_le_bits_unsafe()
     }
     // docs:end:to_le_bits
@@ -78,7 +78,7 @@ impl Field {
     /// (e.g. 254 for the BN254 field) cause a compile-time error.
     // docs:start:to_be_bits
     pub fn to_be_bits<let N: u32>(self: Self) -> [u1; N] {
-        static_assert(N < modulus_num_bits() as u32, "N must be less than modulus_num_bits");
+        static_assert(N <= modulus_num_bits() as u32, "N must be less than or equal to modulus_num_bits");
         self.to_be_bits_unsafe()
     }
     // docs:end:to_be_bits
@@ -177,7 +177,7 @@ impl Field {
 
     // `_radix` must be less than 256
     fn __to_le_radix<let N: u32>(self, radix: u32) -> [u8; N] {
-        static_assert(N < modulus_num_bits() as u32, "N must be less than modulus_num_bits");
+        static_assert(N <= modulus_num_bits() as u32, "N must be less than or equal to modulus_num_bits");
         // TODO(https://github.com/noir-lang/noir/issues/6964): assert(radix < 256, "`_radix` must be less than 256");
         self.__to_le_radix_unsafe(radix)
     }
@@ -188,7 +188,7 @@ impl Field {
 
     // `_radix` must be less than 256
     fn __to_be_radix<let N: u32>(self, radix: u32) -> [u8; N] {
-        static_assert(N < modulus_num_bits() as u32, "N must be less than modulus_num_bits");
+        static_assert(N <= modulus_num_bits() as u32, "N must be less than or equal to modulus_num_bits");
         // TODO(https://github.com/noir-lang/noir/issues/6964): assert(radix < 256, "`_radix` must be less than 256");
         self.__to_be_radix_unsafe(radix)
     }
