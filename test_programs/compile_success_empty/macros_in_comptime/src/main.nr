@@ -6,10 +6,7 @@ global three_field: Field = 3;
 
 fn main() {
     comptime {
-        unsafe {
-            //@safety: testing context
-            foo::<three_field>(5)
-        };
+        foo::<three_field>(5);
         submodule::bar();
     }
 }
