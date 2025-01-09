@@ -17,7 +17,6 @@ impl Field {
     #[builtin(apply_range_constraint)]
     fn __assert_max_bit_size(self, bit_size: u32) {}
 
-    // TODO: to_le_bits -> to_le_bits_unsafe
     /// Decomposes `self` into its little endian bit decomposition as a `[u1; N]` array.
     /// This slice will be zero padded should not all bits be necessary to represent `self`.
     ///
@@ -29,12 +28,28 @@ impl Field {
     /// Values of `N` equal to or greater than the number of bits necessary to represent the `Field` modulus
     /// (e.g. 254 for the BN254 field) allow for multiple bit decompositions. This is due to how the `Field` will
     /// wrap around due to overflow when verifying the decomposition.
-    #[builtin(to_le_bits)]
+    #[builtin(to_le_bits_unsafe)]
+    // docs:start:to_le_bits_unsafe
+    pub fn to_le_bits_unsafe<let N: u32>(self: Self) -> [u1; N] {}
+    // docs:end:to_le_bits_unsafe
+
+    /// Decomposes `self` into its little endian bit decomposition as a `[u1; N]` array.
+    /// This slice will be zero padded should not all bits be necessary to represent `self`.
+    ///
+    /// # Failures
+    /// Causes a constraint failure for `Field` values exceeding `2^N` as the resulting slice will not
+    /// be able to represent the original `Field`.
+    ///
+    /// # Safety
+    /// Values of `N` equal to or greater than the number of bits necessary to represent the `Field` modulus
+    /// (e.g. 254 for the BN254 field) cause a compile-time error.
     // docs:start:to_le_bits
-    pub fn to_le_bits<let N: u32>(self: Self) -> [u1; N] {}
+    pub fn to_le_bits<let N: u32>(self: Self) -> [u1; N] {
+        static_assert(N < modulus_num_bits() as u32, "N must be less than modulus_num_bits");
+        self.to_le_bits_unsafe()
+    }
     // docs:end:to_le_bits
 
-    // TODO: to_be_bits -> to_be_bits_unsafe
     /// Decomposes `self` into its big endian bit decomposition as a `[u1; N]` array.
     /// This array will be zero padded should not all bits be necessary to represent `self`.
     ///
@@ -46,12 +61,28 @@ impl Field {
     /// Values of `N` equal to or greater than the number of bits necessary to represent the `Field` modulus
     /// (e.g. 254 for the BN254 field) allow for multiple bit decompositions. This is due to how the `Field` will
     /// wrap around due to overflow when verifying the decomposition.
-    #[builtin(to_be_bits)]
+    #[builtin(to_be_bits_unsafe)]
+    // docs:start:to_be_bits_unsafe
+    pub fn to_be_bits_unsafe<let N: u32>(self: Self) -> [u1; N] {}
+    // docs:end:to_be_bits_unsafe
+
+    /// Decomposes `self` into its big endian bit decomposition as a `[u1; N]` array.
+    /// This array will be zero padded should not all bits be necessary to represent `self`.
+    ///
+    /// # Failures
+    /// Causes a constraint failure for `Field` values exceeding `2^N` as the resulting slice will not
+    /// be able to represent the original `Field`.
+    ///
+    /// # Safety
+    /// Values of `N` equal to or greater than the number of bits necessary to represent the `Field` modulus
+    /// (e.g. 254 for the BN254 field) cause a compile-time error.
     // docs:start:to_be_bits
-    pub fn to_be_bits<let N: u32>(self: Self) -> [u1; N] {}
+    pub fn to_be_bits<let N: u32>(self: Self) -> [u1; N] {
+        static_assert(N < modulus_num_bits() as u32, "N must be less than modulus_num_bits");
+        self.to_be_bits_unsafe()
+    }
     // docs:end:to_be_bits
 
-    // TODO: static_assert for N
     /// Decomposes `self` into its little endian byte decomposition as a `[u8;N]` array
     /// This array will be zero padded should not all bytes be necessary to represent `self`.
     ///
@@ -64,6 +95,7 @@ impl Field {
     // docs:start:to_le_bytes
     pub fn to_le_bytes<let N: u32>(self: Self) -> [u8; N] {
         // docs:end:to_le_bytes
+        static_assert(N <= modulus_le_bytes().len(), "N must be less than or equal to modulus_le_bytes().len()");
         // Compute the byte decomposition
         let bytes = self.to_le_radix(256);
 
@@ -85,7 +117,6 @@ impl Field {
         bytes
     }
 
-    // TODO: static_assert for N
     /// Decomposes `self` into its big endian byte decomposition as a `[u8;N]` array of length required to represent the field modulus
     /// This array will be zero padded should not all bytes be necessary to represent `self`.
     ///
@@ -98,6 +129,7 @@ impl Field {
     // docs:start:to_be_bytes
     pub fn to_be_bytes<let N: u32>(self: Self) -> [u8; N] {
         // docs:end:to_be_bytes
+        static_assert(N <= modulus_le_bytes().len(), "N must be less than or equal to modulus_le_bytes().len()");
         // Compute the byte decomposition
         let bytes = self.to_be_radix(256);
 
@@ -139,15 +171,27 @@ impl Field {
     }
     // docs:end:to_be_radix
 
-    // TODO: static_assert for N
     // `_radix` must be less than 256
-    #[builtin(to_le_radix)]
-    fn __to_le_radix<let N: u32>(self, radix: u32) -> [u8; N] {}
+    #[builtin(to_le_radix_unsafe)]
+    fn __to_le_radix_unsafe<let N: u32>(self, radix: u32) -> [u8; N] {}
 
-    // TODO: static_assert for N
-    // TODO: is this also true? "`_radix` must be less than 256"
-    #[builtin(to_be_radix)]
-    fn __to_be_radix<let N: u32>(self, radix: u32) -> [u8; N] {}
+    // `_radix` must be less than 256
+    fn __to_le_radix<let N: u32>(self, radix: u32) -> [u8; N] {
+        static_assert(N < modulus_num_bits() as u32, "N must be less than modulus_num_bits");
+        // TODO(https://github.com/noir-lang/noir/issues/6964): assert(radix < 256, "`_radix` must be less than 256");
+        self.__to_le_radix_unsafe(radix)
+    }
+
+    // `_radix` must be less than 256
+    #[builtin(to_be_radix_unsafe)]
+    fn __to_be_radix_unsafe<let N: u32>(self, radix: u32) -> [u8; N] {}
+
+    // `_radix` must be less than 256
+    fn __to_be_radix<let N: u32>(self, radix: u32) -> [u8; N] {
+        static_assert(N < modulus_num_bits() as u32, "N must be less than modulus_num_bits");
+        // TODO(https://github.com/noir-lang/noir/issues/6964): assert(radix < 256, "`_radix` must be less than 256");
+        self.__to_be_radix_unsafe(radix)
+    }
 
     // Returns self to the power of the given exponent value.
     // Caution: we assume the exponent fits into 32 bits
@@ -180,6 +224,7 @@ impl Field {
     /// Convert a little endian byte array to a field element.
     /// If the provided byte array overflows the field modulus then the Field will silently wrap around.
     pub fn from_le_bytes<let N: u32>(bytes: [u8; N]) -> Field {
+        static_assert(N <= modulus_le_bytes().len(), "N must be less than or equal to modulus_le_bytes().len()");
         let mut v = 1;
         let mut result = 0;
 
@@ -194,6 +239,7 @@ impl Field {
     /// Convert a big endian byte array to a field element.
     /// If the provided byte array overflows the field modulus then the Field will silently wrap around.
     pub fn from_be_bytes<let N: u32>(bytes: [u8; N]) -> Field {
+        static_assert(N <= modulus_le_bytes().len(), "N must be less than or equal to modulus_le_bytes().len()");
         let mut v = 1;
         let mut result = 0;
 

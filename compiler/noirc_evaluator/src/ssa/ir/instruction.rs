@@ -61,8 +61,8 @@ pub(crate) enum Intrinsic {
     SliceRemove,
     ApplyRangeConstraint,
     StrAsBytes,
-    ToBits(Endian),
-    ToRadix(Endian),
+    ToBitsUnsafe(Endian),
+    ToRadixUnsafe(Endian),
     BlackBox(BlackBoxFunc),
     Hint(Hint),
     AsWitness,
@@ -89,10 +89,10 @@ impl std::fmt::Display for Intrinsic {
             Intrinsic::SliceRemove => write!(f, "slice_remove"),
             Intrinsic::StrAsBytes => write!(f, "str_as_bytes"),
             Intrinsic::ApplyRangeConstraint => write!(f, "apply_range_constraint"),
-            Intrinsic::ToBits(Endian::Big) => write!(f, "to_be_bits"),
-            Intrinsic::ToBits(Endian::Little) => write!(f, "to_le_bits"),
-            Intrinsic::ToRadix(Endian::Big) => write!(f, "to_be_radix"),
-            Intrinsic::ToRadix(Endian::Little) => write!(f, "to_le_radix"),
+            Intrinsic::ToBitsUnsafe(Endian::Big) => write!(f, "to_be_bits_unsafe"),
+            Intrinsic::ToBitsUnsafe(Endian::Little) => write!(f, "to_le_bits_unsafe"),
+            Intrinsic::ToRadixUnsafe(Endian::Big) => write!(f, "to_be_radix_unsafe"),
+            Intrinsic::ToRadixUnsafe(Endian::Little) => write!(f, "to_le_radix_unsafe"),
             Intrinsic::BlackBox(function) => write!(f, "{function}"),
             Intrinsic::Hint(Hint::BlackBox) => write!(f, "black_box"),
             Intrinsic::AsWitness => write!(f, "as_witness"),
@@ -124,7 +124,7 @@ impl Intrinsic {
             | Intrinsic::AsWitness => true,
 
             // These apply a constraint that the input must fit into a specified number of limbs.
-            Intrinsic::ToBits(_) | Intrinsic::ToRadix(_) => true,
+            Intrinsic::ToBitsUnsafe(_) | Intrinsic::ToRadixUnsafe(_) => true,
 
             // These imply a check that the slice is non-empty and should fail otherwise.
             Intrinsic::SlicePopBack | Intrinsic::SlicePopFront | Intrinsic::SliceRemove => true,
@@ -164,8 +164,8 @@ impl Intrinsic {
             // directly depend on the corresponding `enable_side_effect` instruction any more.
             // However, to conform with the expectations of `Instruction::can_be_deduplicated` and
             // `constant_folding` we only use this information if the caller shows interest in it.
-            Intrinsic::ToBits(_)
-            | Intrinsic::ToRadix(_)
+            Intrinsic::ToBitsUnsafe(_)
+            | Intrinsic::ToRadixUnsafe(_)
             | Intrinsic::BlackBox(
                 BlackBoxFunc::MultiScalarMul
                 | BlackBoxFunc::EmbeddedCurveAdd
@@ -203,10 +203,10 @@ impl Intrinsic {
             "slice_insert" => Some(Intrinsic::SliceInsert),
             "slice_remove" => Some(Intrinsic::SliceRemove),
             "str_as_bytes" => Some(Intrinsic::StrAsBytes),
-            "to_le_radix" => Some(Intrinsic::ToRadix(Endian::Little)),
-            "to_be_radix" => Some(Intrinsic::ToRadix(Endian::Big)),
-            "to_le_bits" => Some(Intrinsic::ToBits(Endian::Little)),
-            "to_be_bits" => Some(Intrinsic::ToBits(Endian::Big)),
+            "to_le_radix_unsafe" => Some(Intrinsic::ToRadixUnsafe(Endian::Little)),
+            "to_be_radix_unsafe" => Some(Intrinsic::ToRadixUnsafe(Endian::Big)),
+            "to_le_bits_unsafe" => Some(Intrinsic::ToBitsUnsafe(Endian::Little)),
+            "to_be_bits_unsafe" => Some(Intrinsic::ToBitsUnsafe(Endian::Big)),
             "as_witness" => Some(Intrinsic::AsWitness),
             "is_unconstrained" => Some(Intrinsic::IsUnconstrained),
             "derive_pedersen_generators" => Some(Intrinsic::DerivePedersenGenerators),
@@ -220,7 +220,7 @@ impl Intrinsic {
     }
 }
 
-/// The endian-ness of bits when encoding values as bits in e.g. ToBits or ToRadix
+/// The endian-ness of bits when encoding values as bits in e.g. ToBitsUnsafe or ToRadixUnsafe
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) enum Endian {
     Big,

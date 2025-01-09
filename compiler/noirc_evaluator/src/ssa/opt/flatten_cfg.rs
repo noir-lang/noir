@@ -712,7 +712,7 @@ impl<'f> Context<'f> {
                 }
                 Instruction::Call { func, mut arguments } => match self.inserter.function.dfg[func]
                 {
-                    Value::Intrinsic(Intrinsic::ToBits(_) | Intrinsic::ToRadix(_)) => {
+                    Value::Intrinsic(Intrinsic::ToBitsUnsafe(_) | Intrinsic::ToRadixUnsafe(_)) => {
                         let field = arguments[0];
                         let argument_type = self.inserter.function.dfg.type_of_value(field);
 

@@ -52,16 +52,16 @@ pub(super) fn simplify_call(
         arguments.iter().map(|value_id| dfg.get_numeric_constant(*value_id)).collect();
 
     let simplified_result = match intrinsic {
-        Intrinsic::ToBits(endian) => {
+        Intrinsic::ToBitsUnsafe(endian) => {
             // TODO: simplify to a range constraint if `limb_count == 1`
             if let (Some(constant_args), Some(return_type)) = (constant_args, return_type.clone()) {
                 let field = constant_args[0];
                 let limb_count = if let Type::Array(_, array_len) = return_type {
                     array_len
                 } else {
-                    unreachable!("ICE: Intrinsic::ToRadix return type must be array")
+                    unreachable!("ICE: Intrinsic::ToRadixUnsafe return type must be array")
                 };
-                constant_to_radix(endian, field, 2, limb_count, |values| {
+                constant_to_radix_unsafe(endian, field, 2, limb_count, |values| {
                     make_constant_array(
                         dfg,
                         values.into_iter(),
@@ -74,7 +74,7 @@ pub(super) fn simplify_call(
                 SimplifyResult::None
             }
         }
-        Intrinsic::ToRadix(endian) => {
+        Intrinsic::ToRadixUnsafe(endian) => {
             // TODO: simplify to a range constraint if `limb_count == 1`
             if let (Some(constant_args), Some(return_type)) = (constant_args, return_type.clone()) {
                 let field = constant_args[0];
@@ -82,9 +82,9 @@ pub(super) fn simplify_call(
                 let limb_count = if let Type::Array(_, array_len) = return_type {
                     array_len
                 } else {
-                    unreachable!("ICE: Intrinsic::ToRadix return type must be array")
+                    unreachable!("ICE: Intrinsic::ToRadixUnsafe return type must be array")
                 };
-                constant_to_radix(endian, field, radix, limb_count, |values| {
+                constant_to_radix_unsafe(endian, field, radix, limb_count, |values| {
                     make_constant_array(
                         dfg,
                         values.into_iter(),
@@ -620,7 +620,7 @@ fn make_array(
 }
 
 /// Returns a slice (represented by a tuple (len, slice)) of constants corresponding to the limbs of the radix decomposition.
-fn constant_to_radix(
+fn constant_to_radix_unsafe(
     endian: Endian,
     field: FieldElement,
     radix: u32,

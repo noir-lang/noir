@@ -173,8 +173,8 @@ impl Context {
                     | Intrinsic::StaticAssert
                     | Intrinsic::ApplyRangeConstraint
                     | Intrinsic::StrAsBytes
-                    | Intrinsic::ToBits(_)
-                    | Intrinsic::ToRadix(_)
+                    | Intrinsic::ToBitsUnsafe(_)
+                    | Intrinsic::ToRadixUnsafe(_)
                     | Intrinsic::BlackBox(_)
                     | Intrinsic::Hint(Hint::BlackBox)
                     | Intrinsic::AsSlice

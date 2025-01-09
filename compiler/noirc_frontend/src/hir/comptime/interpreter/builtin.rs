@@ -190,8 +190,8 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "struct_def_module" => struct_def_module(self, arguments, location),
             "struct_def_name" => struct_def_name(interner, arguments, location),
             "struct_def_set_fields" => struct_def_set_fields(interner, arguments, location),
-            "to_be_radix" => to_be_radix(arguments, return_type, location),
-            "to_le_radix" => to_le_radix(arguments, return_type, location),
+            "to_be_radix_unsafe" => to_be_radix_unsafe(arguments, return_type, location),
+            "to_le_radix_unsafe" => to_le_radix_unsafe(arguments, return_type, location),
             "trait_constraint_eq" => trait_constraint_eq(arguments, location),
             "trait_constraint_hash" => trait_constraint_hash(arguments, location),
             "trait_def_as_trait_constraint" => {
@@ -776,22 +776,22 @@ fn quoted_tokens(arguments: Vec<(Value, Location)>, location: Location) -> IResu
     ))
 }
 
-fn to_be_radix(
+fn to_be_radix_unsafe(
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
-    let le_radix_limbs = to_le_radix(arguments, return_type, location)?;
+    let le_radix_limbs = to_le_radix_unsafe(arguments, return_type, location)?;
 
     let Value::Array(limbs, typ) = le_radix_limbs else {
-        unreachable!("`to_le_radix` should always return an array");
+        unreachable!("`to_le_radix_unsafe` should always return an array");
     };
     let be_radix_limbs = limbs.into_iter().rev().collect();
 
     Ok(Value::Array(be_radix_limbs, typ))
 }
 
-fn to_le_radix(
+fn to_le_radix_unsafe(
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
@@ -815,7 +815,7 @@ fn to_le_radix(
     };
 
     // Decompose the integer into its radix digits in little endian form.
-    let decomposed_integer = compute_to_radix_le(value, radix);
+    let decomposed_integer = compute_to_radix_le_unsafe(value, radix);
     let decomposed_integer =
         vecmap(0..limb_count.to_u128() as usize, |i| match decomposed_integer.get(i) {
             Some(digit) => Value::U8(*digit),
@@ -825,7 +825,7 @@ fn to_le_radix(
     Ok(Value::Array(decomposed_integer.into(), result_type))
 }
 
-fn compute_to_radix_le(field: FieldElement, radix: u32) -> Vec<u8> {
+fn compute_to_radix_le_unsafe(field: FieldElement, radix: u32) -> Vec<u8> {
     let bit_size = u32::BITS - (radix - 1).leading_zeros();
     let radix_big = BigUint::from(radix);
     assert_eq!(BigUint::from(2u128).pow(bit_size), radix_big, "ICE: Radix must be a power of 2");

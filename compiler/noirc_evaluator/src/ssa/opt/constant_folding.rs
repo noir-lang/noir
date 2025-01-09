@@ -1558,15 +1558,15 @@ mod test {
         brillig(inline) fn main f0 {
           b0(v0: Field, v1: Field, v2: u1):
             v4 = call is_unconstrained() -> u1
-            v7 = call to_be_radix(v0, u32 256) -> [u8; 1]    // `a.to_be_radix(256)`;
+            v7 = call to_be_radix_unsafe(v0, u32 256) -> [u8; 1]    // `a.to_be_radix_unsafe(256)`;
             inc_rc v7
-            v8 = call to_be_radix(v0, u32 256) -> [u8; 1]    // duplicate load of `a`
+            v8 = call to_be_radix_unsafe(v0, u32 256) -> [u8; 1]    // duplicate load of `a`
             inc_rc v8
-            v9 = cast v2 as Field                            // `if c { a.to_be_radix(256) }`
-            v10 = mul v0, v9                                 // attaching `c` to `a`
-            v11 = call to_be_radix(v10, u32 256) -> [u8; 1]  // calling `to_radix(c * a)`
+            v9 = cast v2 as Field                                   // `if c { a.to_be_radix_unsafe(256) }`
+            v10 = mul v0, v9                                        // attaching `c` to `a`
+            v11 = call to_be_radix_unsafe(v10, u32 256) -> [u8; 1]  // calling `to_radix(c * a)`
             inc_rc v11
-            enable_side_effects v2                           // side effect var for `c` shifted down by removal
+            enable_side_effects v2                                  // side effect var for `c` shifted down by removal
             return
         }
         ";
@@ -1575,12 +1575,12 @@ mod test {
         brillig(inline) fn main f0 {
           b0(v0: Field, v1: Field, v2: u1):
             v4 = call is_unconstrained() -> u1
-            v7 = call to_be_radix(v0, u32 256) -> [u8; 1]
+            v7 = call to_be_radix_unsafe(v0, u32 256) -> [u8; 1]
             inc_rc v7
             inc_rc v7
             v8 = cast v2 as Field
             v9 = mul v0, v8
-            v10 = call to_be_radix(v9, u32 256) -> [u8; 1]
+            v10 = call to_be_radix_unsafe(v9, u32 256) -> [u8; 1]
             inc_rc v10
             enable_side_effects v2
             return
