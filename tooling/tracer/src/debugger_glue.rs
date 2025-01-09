@@ -56,7 +56,7 @@ fn convert_debugger_stack_frame(
         match variables.binary_search_by(|var| var.name.as_str().cmp(stripped_param_name)) {
             Err(_) => {
                 // This panic causes a crash when tracing zk_dungeon:
-                // TODO(BSN-2042): investigate why this happens
+                // TODO(BSN-2056): investigate why this happens
                 //panic!("param_name {param_name} not found in variables {variables:?}");
                 println!("!!!param_name {param_name} not found in variables {variables:?}");
             },
