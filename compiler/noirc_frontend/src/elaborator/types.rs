@@ -1526,7 +1526,7 @@ impl<'context> Elaborator<'context> {
     ) -> Option<HirMethodReference> {
         let func_id = match self.current_item {
             Some(DependencyId::Function(id)) => id,
-            _ => panic!("unexpected method outside a function"),
+            _ => panic!("unexpected method outside a function: {method_name}"),
         };
         let func_meta = self.interner.function_meta(&func_id);
 
