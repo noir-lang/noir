@@ -1458,7 +1458,7 @@ impl Type {
             Type::Integer(_, num_bits) => {
 
                 // TODO cleanup
-                dbg!("try_bind_to_polymorphic_int", self.kind(), &this, only_integer);
+                // dbg!("try_bind_to_polymorphic_int", self.kind(), &this, only_integer);
 
                 if num_bits.is_field_element_bits() {
                     if only_integer {
@@ -1626,7 +1626,7 @@ impl Type {
                             let only_integer = typ.is_integer();
 
                             // TODO cleanup
-                            dbg!("try_bind_to_polymorphic_int: bound", &other, &var, only_integer);
+                            // dbg!("try_bind_to_polymorphic_int: bound", &other, &var, only_integer);
 
                             other.try_bind_to_polymorphic_int(var, bindings, only_integer)
                         })
@@ -1641,7 +1641,7 @@ impl Type {
                         let only_integer = false;
 
                         // TODO cleanup
-                        dbg!("try_bind_to_polymorphic_int: unbound int-or-field", &other, &var, only_integer);
+                        // dbg!("try_bind_to_polymorphic_int: unbound int-or-field", &other, &var, only_integer);
 
                         other.try_bind_to_polymorphic_int(var, bindings, only_integer)
                     }),
@@ -1650,7 +1650,7 @@ impl Type {
                         let only_integer = true;
 
                         // TODO cleanup
-                        dbg!("try_bind_to_polymorphic_int: unbound int", &other, &var, only_integer);
+                        // dbg!("try_bind_to_polymorphic_int: unbound int", &other, &var, only_integer);
 
                         other.try_bind_to_polymorphic_int(var, bindings, only_integer)
                     })

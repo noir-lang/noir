@@ -901,7 +901,7 @@ impl<'context> Elaborator<'context> {
         }
 
         // TODO cleanup
-        dbg!("check_cast", &from, &to);
+        // dbg!("check_cast", &from, &to);
 
         match to {
             Type::Integer(sign, bits) => Type::Integer(*sign, *bits),

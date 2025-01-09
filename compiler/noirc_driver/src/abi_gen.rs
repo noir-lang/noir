@@ -83,7 +83,7 @@ pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
         Type::Integer(sign, bit_width) => {
             if bit_width.is_zero() {
                 unreachable!("{typ} cannot be used in the abi")
-            } else if bit_width.is_one() {
+            } else if bit_width.is_bool() {
                 return AbiType::Boolean;
             } else if bit_width.is_field_element_bits() {
                 return AbiType::Field;
