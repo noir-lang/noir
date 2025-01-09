@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, fmt::Display};
+use std::collections::BTreeMap;
 
 use acvm::acir::circuit::ErrorSelector;
 use iter_extended::btree_map;
@@ -6,14 +6,11 @@ use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
 use crate::ssa::ir::{
+    dfg::DataFlowGraph,
     function::{Function, FunctionId},
     map::AtomicCounter,
-    printer::display_instruction,
-    value::Value,
 };
 use noirc_frontend::hir_def::types::Type as HirType;
-
-use super::context::GlobalsContext;
 
 /// Contains the entire SSA representation of the program.
 #[serde_as]
@@ -21,7 +18,7 @@ use super::context::GlobalsContext;
 pub(crate) struct Ssa {
     #[serde_as(as = "Vec<(_, _)>")]
     pub(crate) functions: BTreeMap<FunctionId, Function>,
-    pub(crate) globals: GlobalsContext,
+    pub(crate) globals: DataFlowGraph,
     pub(crate) main_id: FunctionId,
     #[serde(skip)]
     pub(crate) next_id: AtomicCounter<Function>,
@@ -58,7 +55,7 @@ impl Ssa {
             next_id: AtomicCounter::starting_after(max_id),
             entry_point_to_generated_index: BTreeMap::new(),
             error_selector_to_type: error_types,
-            globals: GlobalsContext::default(),
+            globals: DataFlowGraph::default(),
         }
     }
 
@@ -102,41 +99,6 @@ impl Ssa {
 
     pub(crate) fn is_entry_point(&self, function: FunctionId) -> bool {
         function == self.main_id || self.functions[&function].runtime().is_entry_point()
-    }
-}
-
-impl Display for Ssa {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.globals.dfg.values_iter().len() > 0 {
-            write!(f, "{}", self.globals)?;
-        }
-
-        for function in self.functions.values() {
-            writeln!(f, "{function}")?;
-        }
-        Ok(())
-    }
-}
-
-impl Display for GlobalsContext {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "Globals: ")?;
-        for (id, value) in self.dfg.values_iter() {
-            write!(f, "@")?;
-            match value {
-                Value::NumericConstant { constant, typ } => {
-                    writeln!(f, "{id} = {typ} {constant}")?;
-                }
-                Value::Instruction { instruction, .. } => {
-                    display_instruction(&self.dfg, *instruction, false, f)?;
-                }
-                Value::Global(_) => {
-                    panic!("Value::Global should only be in the function dfg");
-                }
-                _ => panic!("Expected only numeric constant or instruction"),
-            };
-        }
-        writeln!(f)
     }
 }
 

@@ -327,7 +327,7 @@ impl Type {
     }
 }
 
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone, Hash, Default)]
 pub struct Program {
     pub functions: Vec<Function>,
     pub function_signatures: Vec<FunctionSignature>,
@@ -375,6 +375,13 @@ impl Program {
     }
 
     pub fn main_id() -> FuncId {
+        FuncId(0)
+    }
+
+    /// Globals are expected to be generated within a different context than
+    /// all other functions in the program. Thus, the globals space has the same
+    /// ID as `main`, although we should never expect a clash in these IDs.
+    pub fn global_space_id() -> FuncId {
         FuncId(0)
     }
 
