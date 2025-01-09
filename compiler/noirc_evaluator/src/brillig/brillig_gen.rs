@@ -7,6 +7,7 @@ mod constant_allocation;
 mod variable_liveness;
 
 use acvm::FieldElement;
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use self::{brillig_block::BrilligBlock, brillig_fn::FunctionContext};
 use super::{
@@ -14,7 +15,7 @@ use super::{
         artifact::{BrilligArtifact, BrilligParameter, GeneratedBrillig, Label},
         BrilligContext,
     },
-    Brillig,
+    Brillig, BrilligVariable, ValueId,
 };
 use crate::{
     errors::InternalError,
@@ -25,17 +26,20 @@ use crate::{
 pub(crate) fn convert_ssa_function(
     func: &Function,
     enable_debug_trace: bool,
+    globals: &HashMap<ValueId, BrilligVariable>,
 ) -> BrilligArtifact<FieldElement> {
     let mut brillig_context = BrilligContext::new(enable_debug_trace);
 
-    let mut function_context = FunctionContext::new(func);
+    let global_values = globals.iter().map(|(value, _)| *value).collect::<HashSet<_>>();
+
+    let mut function_context = FunctionContext::new(func, globals);
 
     brillig_context.enter_context(Label::function(func.id()));
 
     brillig_context.call_check_max_stack_depth_procedure();
 
     for block in function_context.blocks.clone() {
-        BrilligBlock::compile(&mut function_context, &mut brillig_context, block, &func.dfg);
+        BrilligBlock::compile(&mut function_context, &mut brillig_context, block, &func.dfg, &global_values);
     }
 
     let mut artifact = brillig_context.artifact();

@@ -7,7 +7,7 @@ use crate::brillig::brillig_ir::entry_point::MAX_STACK_SIZE;
 
 use super::{
     brillig_variable::SingleAddrVariable,
-    entry_point::{MAX_SCRATCH_SPACE, MAX_STACK_FRAME_SIZE},
+    entry_point::{MAX_GLOBAL_SPACE, MAX_SCRATCH_SPACE, MAX_STACK_FRAME_SIZE},
     BrilligContext, ReservedRegisters,
 };
 
@@ -125,6 +125,62 @@ impl RegisterAllocator for ScratchSpace {
 
     fn deallocate_register(&mut self, register_index: MemoryAddress) {
         self.storage.deallocate_register(register_index.unwrap_direct());
+    }
+
+    fn from_preallocated_registers(preallocated_registers: Vec<MemoryAddress>) -> Self {
+        for register in &preallocated_registers {
+            assert!(Self::is_within_bounds(*register), "Register out of scratch space bounds");
+        }
+
+        Self {
+            storage: DeallocationListAllocator::from_preallocated_registers(
+                Self::start(),
+                vecmap(preallocated_registers, |r| r.unwrap_direct()),
+            ),
+        }
+    }
+}
+
+/// Globals have a separate memory space
+/// This memory space is initialized once at the beginning of a program 
+/// is read-only.
+pub(crate) struct GlobalSpace {
+    storage: DeallocationListAllocator
+}
+
+impl GlobalSpace {
+    pub(crate) fn new() -> Self {
+        Self { storage: DeallocationListAllocator::new(Self::start()) }
+    }
+
+    fn is_within_bounds(register: MemoryAddress) -> bool {
+        let index = register.unwrap_direct();
+        index >= Self::start() && index < Self::end()
+    }
+}
+
+impl RegisterAllocator for GlobalSpace {
+    fn start() -> usize {
+        ScratchSpace::end()
+    }
+
+    fn end() -> usize {
+        Self::start() + MAX_GLOBAL_SPACE
+    }
+
+    fn allocate_register(&mut self) -> MemoryAddress {
+        let allocated = MemoryAddress::direct(self.storage.allocate_register());
+        assert!(Self::is_within_bounds(allocated), "Scratch space too deep");
+        allocated
+    }
+
+    fn deallocate_register(&mut self, register_index: MemoryAddress) {
+        self.storage.deallocate_register(register_index.unwrap_direct());
+    }
+
+    fn ensure_register_is_allocated(&mut self, register: MemoryAddress) {
+        assert!(Self::is_within_bounds(register), "Register out of scratch space bounds");
+        self.storage.ensure_register_is_allocated(register.unwrap_direct());
     }
 
     fn from_preallocated_registers(preallocated_registers: Vec<MemoryAddress>) -> Self {

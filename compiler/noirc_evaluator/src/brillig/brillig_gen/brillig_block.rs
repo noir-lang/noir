@@ -32,8 +32,8 @@ use super::brillig_fn::FunctionContext;
 use super::constant_allocation::InstructionLocation;
 
 /// Generate the compilation artifacts for compiling a function into brillig bytecode.
-pub(crate) struct BrilligBlock<'block> {
-    pub(crate) function_context: &'block mut FunctionContext,
+pub(crate) struct BrilligBlock<'block, 'global> {
+    pub(crate) function_context: &'block mut FunctionContext<'global>,
     /// The basic block that is being converted
     pub(crate) block_id: BasicBlockId,
     /// Context for creating brillig opcodes
@@ -44,16 +44,37 @@ pub(crate) struct BrilligBlock<'block> {
     pub(crate) last_uses: HashMap<InstructionId, HashSet<ValueId>>,
 }
 
-impl<'block> BrilligBlock<'block> {
+impl<'block, 'global> BrilligBlock<'block, 'global> {
     /// Converts an SSA Basic block into a sequence of Brillig opcodes
     pub(crate) fn compile(
-        function_context: &'block mut FunctionContext,
+        function_context: &'block mut FunctionContext<'global>,
         brillig_context: &'block mut BrilligContext<FieldElement, Stack>,
         block_id: BasicBlockId,
         dfg: &DataFlowGraph,
+        globals: &HashSet<ValueId>,
     ) {
         let live_in = function_context.liveness.get_live_in(&block_id);
-        let variables = BlockVariables::new(live_in.clone());
+
+        // let live_in = live_in.into_iter().filter(|value| {
+        //     !matches!(&dfg[**value], Value::Global(_))
+        // }).collect();
+
+        let mut live_in_no_globals = HashSet::default();
+        for value in live_in {
+            if !matches!(&dfg[*value], Value::Global(_)) {
+                live_in_no_globals.insert(*value);
+            }
+        }
+
+        let variables = BlockVariables::new(live_in_no_globals);
+
+        // let mut live_in_no_globals = HashSet::default();
+        // for value in live_in {
+        //     if let Value::Global(_) = &dfg[*value] {
+        //         continue;
+        //     }
+        // }
+
 
         brillig_context.set_allocated_registers(
             variables
@@ -849,12 +870,20 @@ impl<'block> BrilligBlock<'block> {
             .expect("Last uses for instruction should have been computed");
 
         for dead_variable in dead_variables {
-            self.variables.remove_variable(
-                dead_variable,
-                self.function_context,
-                self.brillig_context,
-            );
+            match &dfg[*dead_variable] {
+                Value::Global(_) => {
+                    dbg!("got dead global");
+                }
+                _ => {
+                    self.variables.remove_variable(
+                        dead_variable,
+                        self.function_context,
+                        self.brillig_context,
+                    );
+                }
+            }
         }
+        
         self.brillig_context.set_call_stack(CallStack::new());
     }
 
@@ -1561,7 +1590,10 @@ impl<'block> BrilligBlock<'block> {
 
         match value {
             Value::Global(_) => {
-                unreachable!("ICE: All globals should have been inlined");
+                dbg!(value_id);
+                let variable = *self.function_context.globals.get(&value_id).unwrap_or_else(|| panic!("ICE: Global value not found in cache {value_id}"));
+                dbg!(variable.clone());
+                variable
             }
             Value::Param { .. } | Value::Instruction { .. } => {
                 // All block parameters and instruction results should have already been

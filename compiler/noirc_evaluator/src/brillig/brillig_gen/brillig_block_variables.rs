@@ -133,6 +133,14 @@ pub(crate) fn allocate_value<F, Registers: RegisterAllocator>(
 ) -> BrilligVariable {
     let typ = dfg.type_of_value(value_id);
 
+    allocate_value_with_type(brillig_context, typ)
+}
+
+/// For a given value_id, allocates the necessary registers to hold it.
+pub(crate) fn allocate_value_with_type<F, Registers: RegisterAllocator>(
+    brillig_context: &mut BrilligContext<F, Registers>,
+    typ: Type,
+) -> BrilligVariable {
     match typ {
         Type::Numeric(_) | Type::Reference(_) | Type::Function => {
             BrilligVariable::SingleAddr(SingleAddrVariable {

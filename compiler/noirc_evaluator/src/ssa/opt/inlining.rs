@@ -475,6 +475,11 @@ impl<'function, 'global> PerFunctionContext<'function, 'global> {
 
         let new_value = match &self.source_function.dfg[id] {
             value @ Value::Instruction { .. } => {
+                // if self.context.globals.dfg.values_iter().len() > id.to_u32() as usize {
+                //     id
+                // } else {
+                //     unreachable!("All Value::Instructions should already be known during inlining after creating the original inlined instruction. Unknown value {id} = {value:?}")
+                // }
                 unreachable!("All Value::Instructions should already be known during inlining after creating the original inlined instruction. Unknown value {id} = {value:?}")
             }
             value @ Value::Param { .. } => {
@@ -489,26 +494,49 @@ impl<'function, 'global> PerFunctionContext<'function, 'global> {
                 self.context.builder.import_foreign_function(function)
             }
             Value::Global(_) => {
+                if self.context.builder.current_function.dfg.runtime().is_acir() {
+                    match &self.context.globals.dfg[id] {
+                        Value::Instruction { instruction, .. } => {
+                            let Instruction::MakeArray { elements, typ } =
+                                &self.context.globals.dfg[*instruction]
+                            else {
+                                panic!("Only expect Instruction::MakeArray for a global");
+                            };
+                            let elements = elements
+                                .iter()
+                                .map(|element| self.translate_value(*element))
+                                .collect::<im::Vector<_>>();
+                            self.context.builder.insert_make_array(elements, typ.clone())
+                        }
+                        Value::NumericConstant { constant, typ } => {
+                            self.context.builder.numeric_constant(*constant, *typ)
+                        }
+                        _ => panic!("Expected only an instruction or a numeric constant"),
+                    }
+                } else {
+                    id
+                }
                 // TODO: Inlining the global into the function is only a temporary measure
                 // until Brillig gen with globals is working end to end
-                match &self.context.globals.dfg[id] {
-                    Value::Instruction { instruction, .. } => {
-                        let Instruction::MakeArray { elements, typ } =
-                            &self.context.globals.dfg[*instruction]
-                        else {
-                            panic!("Only expect Instruction::MakeArray for a global");
-                        };
-                        let elements = elements
-                            .iter()
-                            .map(|element| self.translate_value(*element))
-                            .collect::<im::Vector<_>>();
-                        self.context.builder.insert_make_array(elements, typ.clone())
-                    }
-                    Value::NumericConstant { constant, typ } => {
-                        self.context.builder.numeric_constant(*constant, *typ)
-                    }
-                    _ => panic!("Expected only an instruction or a numeric constant"),
-                }
+                // match &self.context.globals.dfg[id] {
+                //     Value::Instruction { instruction, .. } => {
+                //         let Instruction::MakeArray { elements, typ } =
+                //             &self.context.globals.dfg[*instruction]
+                //         else {
+                //             panic!("Only expect Instruction::MakeArray for a global");
+                //         };
+                //         let elements = elements
+                //             .iter()
+                //             .map(|element| self.translate_value(*element))
+                //             .collect::<im::Vector<_>>();
+                //         self.context.builder.insert_make_array(elements, typ.clone())
+                //     }
+                //     Value::NumericConstant { constant, typ } => {
+                //         self.context.builder.numeric_constant(*constant, *typ)
+                //     }
+                //     _ => panic!("Expected only an instruction or a numeric constant"),
+                // }
+                // id
             }
         };
 

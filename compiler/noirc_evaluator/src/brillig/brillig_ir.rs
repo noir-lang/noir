@@ -37,7 +37,7 @@ use acvm::{
 };
 use debug_show::DebugShow;
 
-use super::ProcedureId;
+use super::{GlobalSpace, ProcedureId};
 
 /// The Brillig VM does not apply a limit to the memory address space,
 /// As a convention, we take use 32 bits. This means that we assume that
@@ -205,6 +205,23 @@ impl<F: AcirField + DebugToString> BrilligContext<F, ScratchSpace> {
             obj,
             registers: ScratchSpace::new(),
             context_label: Label::entrypoint(),
+            current_section: 0,
+            next_section: 1,
+            debug_show: DebugShow::new(enable_debug_trace),
+            can_call_procedures: false,
+        }
+    }
+}
+
+/// Special brillig context to codegen global values initialization
+impl<F: AcirField + DebugToString> BrilligContext<F, GlobalSpace> {
+    pub(crate) fn new_for_global_init(
+        enable_debug_trace: bool,
+    ) -> BrilligContext<F, GlobalSpace> {
+        BrilligContext {
+            obj: BrilligArtifact::default(),
+            registers: GlobalSpace::new(),
+            context_label: Label::globals_init(),
             current_section: 0,
             next_section: 1,
             debug_show: DebugShow::new(enable_debug_trace),

@@ -15,6 +15,7 @@ use acvm::acir::{
 pub(crate) const MAX_STACK_SIZE: usize = 16 * MAX_STACK_FRAME_SIZE;
 pub(crate) const MAX_STACK_FRAME_SIZE: usize = 2048;
 pub(crate) const MAX_SCRATCH_SPACE: usize = 64;
+pub(crate) const MAX_GLOBAL_SPACE: usize = 2048;
 
 impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
     /// Creates an entry point artifact that will jump to the function label provided.
@@ -27,6 +28,8 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
 
         context.codegen_entry_point(&arguments, &return_parameters);
 
+        context.add_globals_init_instruction();
+        
         context.add_external_call_instruction(target_function);
 
         context.codegen_exit_point(&arguments, &return_parameters);
@@ -34,7 +37,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
     }
 
     fn calldata_start_offset() -> usize {
-        ReservedRegisters::len() + MAX_STACK_SIZE + MAX_SCRATCH_SPACE
+        ReservedRegisters::len() + MAX_STACK_SIZE + MAX_SCRATCH_SPACE + MAX_GLOBAL_SPACE
     }
 
     fn return_data_start_offset(calldata_size: usize) -> usize {
@@ -77,7 +80,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         self.copy_and_cast_calldata(arguments);
 
         let mut current_calldata_pointer = Self::calldata_start_offset();
-
+        dbg!(current_calldata_pointer);
         // Initialize the variables with the calldata
         for (argument_variable, argument) in argument_variables.iter_mut().zip(arguments) {
             match (argument_variable, argument) {
@@ -331,6 +334,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
 
         // Return data has a reserved space after calldata
         let return_data_offset = Self::return_data_start_offset(calldata_size);
+        dbg!(return_data_offset);
         let mut return_data_index = return_data_offset;
 
         for (return_param, returned_variable) in return_parameters.iter().zip(&returned_variables) {

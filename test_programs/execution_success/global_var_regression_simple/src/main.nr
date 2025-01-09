@@ -1,9 +1,14 @@
 global EXPONENTIATE: [[Field; 2]; 2] = [[1, 1], [0, 0]];
+// global EXPONENTIATE: [Field; 2] = [1, 1];
+// global EXPONENTIATE: Field = 10;
+
 
 fn main(x: Field, y: pub Field) {
     let mut acc: Field = 0;
     for i in 0..2 {
         for j in 0..2 {
+            // let got_i = EXPONENTIATE[i];
+            // acc += got_i[j];
             acc += EXPONENTIATE[i][j];
         }
     }
@@ -18,6 +23,7 @@ fn dummy_again(x: Field, y: Field) {
     for i in 0..2 {
         for j in 0..2 {
             acc += EXPONENTIATE[i][j];
+            // acc += EXPONENTIATE[j];
         }
     }
     assert(!acc.lt(x));
