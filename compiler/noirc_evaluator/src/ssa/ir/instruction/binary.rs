@@ -16,10 +16,16 @@ use super::{
 pub(crate) enum BinaryOp {
     /// Addition of lhs + rhs.
     Add,
+    /// Addition of lhs + rhs without an overflow check.
+    UncheckedAdd,
     /// Subtraction of lhs - rhs.
     Sub,
+    /// Subtraction of lhs - rhs without an overflow check.
+    UncheckedSub,
     /// Multiplication of lhs * rhs.
     Mul,
+    /// Multiplication of lhs * rhs without an overflow check.
+    UncheckedMul,
     /// Division of lhs / rhs.
     Div,
     /// Modulus of lhs % rhs.
@@ -49,8 +55,11 @@ impl std::fmt::Display for BinaryOp {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             BinaryOp::Add => write!(f, "add"),
+            BinaryOp::UncheckedAdd => write!(f, "add_unchecked"),
             BinaryOp::Sub => write!(f, "sub"),
+            BinaryOp::UncheckedSub => write!(f, "sub_unchecked"),
             BinaryOp::Mul => write!(f, "mul"),
+            BinaryOp::UncheckedMul => write!(f, "mul_unchecked"),
             BinaryOp::Div => write!(f, "div"),
             BinaryOp::Eq => write!(f, "eq"),
             BinaryOp::Mod => write!(f, "mod"),
@@ -107,7 +116,7 @@ impl Binary {
         let rhs_is_one = rhs.map_or(false, |rhs| rhs.is_one());
 
         match self.operator {
-            BinaryOp::Add => {
+            BinaryOp::Add | BinaryOp::UncheckedAdd => {
                 if lhs_is_zero {
                     return SimplifyResult::SimplifiedTo(self.rhs);
                 }
@@ -115,12 +124,12 @@ impl Binary {
                     return SimplifyResult::SimplifiedTo(self.lhs);
                 }
             }
-            BinaryOp::Sub => {
+            BinaryOp::Sub | BinaryOp::UncheckedSub => {
                 if rhs_is_zero {
                     return SimplifyResult::SimplifiedTo(self.lhs);
                 }
             }
-            BinaryOp::Mul => {
+            BinaryOp::Mul | BinaryOp::UncheckedMul => {
                 if lhs_is_one {
                     return SimplifyResult::SimplifiedTo(self.rhs);
                 }
@@ -470,9 +479,9 @@ fn truncate(int: u128, bit_size: u32) -> u128 {
 impl BinaryOp {
     fn get_field_function(self) -> Option<fn(FieldElement, FieldElement) -> FieldElement> {
         match self {
-            BinaryOp::Add => Some(std::ops::Add::add),
-            BinaryOp::Sub => Some(std::ops::Sub::sub),
-            BinaryOp::Mul => Some(std::ops::Mul::mul),
+            BinaryOp::Add | BinaryOp::UncheckedAdd => Some(std::ops::Add::add),
+            BinaryOp::Sub | BinaryOp::UncheckedSub => Some(std::ops::Sub::sub),
+            BinaryOp::Mul | BinaryOp::UncheckedMul => Some(std::ops::Mul::mul),
             BinaryOp::Div => Some(std::ops::Div::div),
             BinaryOp::Eq => Some(|x, y| (x == y).into()),
             BinaryOp::Lt => Some(|x, y| (x < y).into()),
@@ -488,9 +497,9 @@ impl BinaryOp {
 
     fn get_u128_function(self) -> fn(u128, u128) -> Option<u128> {
         match self {
-            BinaryOp::Add => u128::checked_add,
-            BinaryOp::Sub => u128::checked_sub,
-            BinaryOp::Mul => u128::checked_mul,
+            BinaryOp::Add | BinaryOp::UncheckedAdd => u128::checked_add,
+            BinaryOp::Sub | BinaryOp::UncheckedSub => u128::checked_sub,
+            BinaryOp::Mul | BinaryOp::UncheckedMul => u128::checked_mul,
             BinaryOp::Div => u128::checked_div,
             BinaryOp::Mod => u128::checked_rem,
             BinaryOp::And => |x, y| Some(x & y),
@@ -505,9 +514,9 @@ impl BinaryOp {
 
     fn get_i128_function(self) -> fn(i128, i128) -> Option<i128> {
         match self {
-            BinaryOp::Add => i128::checked_add,
-            BinaryOp::Sub => i128::checked_sub,
-            BinaryOp::Mul => i128::checked_mul,
+            BinaryOp::Add | BinaryOp::UncheckedAdd => i128::checked_add,
+            BinaryOp::Sub | BinaryOp::UncheckedSub => i128::checked_sub,
+            BinaryOp::Mul | BinaryOp::UncheckedMul => i128::checked_mul,
             BinaryOp::Div => i128::checked_div,
             BinaryOp::Mod => i128::checked_rem,
             BinaryOp::And => |x, y| Some(x & y),

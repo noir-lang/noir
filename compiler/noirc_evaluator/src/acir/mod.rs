@@ -1949,9 +1949,9 @@ impl<'a> Context<'a> {
         let bit_count = binary_type.bit_size::<FieldElement>();
         let num_type = binary_type.to_numeric_type();
         let result = match binary.operator {
-            BinaryOp::Add => self.acir_context.add_var(lhs, rhs),
-            BinaryOp::Sub => self.acir_context.sub_var(lhs, rhs),
-            BinaryOp::Mul => self.acir_context.mul_var(lhs, rhs),
+            BinaryOp::Add | BinaryOp::UncheckedAdd => self.acir_context.add_var(lhs, rhs),
+            BinaryOp::Sub | BinaryOp::UncheckedSub => self.acir_context.sub_var(lhs, rhs),
+            BinaryOp::Mul | BinaryOp::UncheckedMul => self.acir_context.mul_var(lhs, rhs),
             BinaryOp::Div => self.acir_context.div_var(
                 lhs,
                 rhs,
