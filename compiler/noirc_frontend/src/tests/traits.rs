@@ -593,7 +593,7 @@ fn trait_bounds_which_are_dependent_on_generic_types_are_resolved_correctly() {
     // Regression test for https://github.com/noir-lang/noir/issues/6420
     let src = r#"
         trait Foo {
-            fn foo() -> Field;
+            fn foo(self) -> Field;
         }
 
         trait Bar<T>: Foo {
@@ -614,7 +614,8 @@ fn trait_bounds_which_are_dependent_on_generic_types_are_resolved_correctly() {
         where
             T: MarkerTrait,
         {
-            fn foo() -> Field {
+            fn foo(self) -> Field {
+                let _ = self;
                 42
             }
         }
@@ -1041,6 +1042,101 @@ fn errors_if_multiple_trait_methods_are_in_scope_for_method_call() {
     assert_eq!(ident.to_string(), "foo");
     traits.sort();
     assert_eq!(traits, vec!["private_mod::Foo", "private_mod::Foo2"]);
+}
+
+#[test]
+fn calls_trait_method_if_it_is_in_scope_with_multiple_candidates_but_only_one_decided_by_generics()
+{
+    let src = r#"
+    struct Foo {
+        inner: Field,
+    }
+
+    trait Converter<N> {
+        fn convert(self) -> N;
+    }
+
+    impl Converter<Field> for Foo {
+        fn convert(self) -> Field {
+            self.inner
+        }
+    }
+
+    impl Converter<u32> for Foo {
+        fn convert(self) -> u32 {
+            self.inner as u32
+        }
+    }
+
+    fn main() {
+        let foo = Foo { inner: 42 };
+        let _: u32 = foo.convert();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn type_checks_trait_default_method_and_errors() {
+    let src = r#"
+        pub trait Foo {
+            fn foo(self) -> i32 {
+                let _ = self;
+                true
+            }
+        }
+
+        fn main() {}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::TypeMismatchWithSource {
+        expected,
+        actual,
+        ..
+    }) = &errors[0].0
+    else {
+        panic!("Expected a type mismatch error, got {:?}", errors[0].0);
+    };
+
+    assert_eq!(expected.to_string(), "i32");
+    assert_eq!(actual.to_string(), "bool");
+}
+
+#[test]
+fn type_checks_trait_default_method_and_does_not_error() {
+    let src = r#"
+        pub trait Foo {
+            fn foo(self) -> i32 {
+                let _ = self;
+                1
+            }
+        }
+
+        fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn type_checks_trait_default_method_and_does_not_error_using_self() {
+    let src = r#"
+        pub trait Foo {
+            fn foo(self) -> i32 {
+                self.bar()
+            }
+
+            fn bar(self) -> i32 {
+                let _ = self;
+                1
+            }
+        }
+
+        fn main() {}
+    "#;
+    assert_no_errors(src);
 }
 
 #[test]

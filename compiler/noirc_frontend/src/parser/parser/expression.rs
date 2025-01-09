@@ -8,7 +8,7 @@ use crate::{
         MemberAccessExpression, MethodCallExpression, Statement, TypePath, UnaryOp, UnresolvedType,
     },
     parser::{labels::ParsingRuleLabel, parser::parse_many::separated_by_comma, ParserErrorReason},
-    token::{DocStyle, Keyword, SpannedToken, Token, TokenKind},
+    token::{Keyword, Token, TokenKind},
 };
 
 use super::{
@@ -267,15 +267,26 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_atom_kind(&mut self, allow_constructors: bool) -> Option<ExpressionKind> {
+        let span_before_doc_comments = self.current_token_span;
+        let doc_comments = self.parse_outer_doc_comments();
+        let has_doc_comments = !doc_comments.is_empty();
+
+        if let Some(kind) = self.parse_unsafe_expr(&doc_comments, span_before_doc_comments) {
+            return Some(kind);
+        }
+
+        if has_doc_comments {
+            self.push_error(
+                ParserErrorReason::DocCommentDoesNotDocumentAnything,
+                self.span_since(span_before_doc_comments),
+            );
+        }
+
         if let Some(literal) = self.parse_literal() {
             return Some(literal);
         }
 
         if let Some(kind) = self.parse_parentheses_expression() {
-            return Some(kind);
-        }
-
-        if let Some(kind) = self.parse_unsafe_expr() {
             return Some(kind);
         }
 
@@ -370,26 +381,43 @@ impl<'a> Parser<'a> {
     }
 
     /// UnsafeExpression = 'unsafe' Block
-    fn parse_unsafe_expr(&mut self) -> Option<ExpressionKind> {
+    fn parse_unsafe_expr(
+        &mut self,
+        doc_comments: &[String],
+        span_before_doc_comments: Span,
+    ) -> Option<ExpressionKind> {
+        let start_span = self.current_token_span;
+
         if !self.eat_keyword(Keyword::Unsafe) {
             return None;
         }
 
-        let next_token = self.next_token.token();
-        if matches!(
-            next_token,
-            Token::LineComment(_, Some(DocStyle::Safety))
-                | Token::BlockComment(_, Some(DocStyle::Safety))
-        ) {
-            //Checks the safety comment is there, and skip it
-            let span = self.current_token_span;
-            self.eat_left_brace();
-            self.token = SpannedToken::new(Token::LeftBrace, span);
-        } else {
-            self.push_error(ParserErrorReason::MissingSafetyComment, self.current_token_span);
+        if doc_comments.is_empty() {
+            if let Some(statement_doc_comments) = &mut self.statement_doc_comments {
+                statement_doc_comments.read = true;
+
+                let doc_comments = &statement_doc_comments.doc_comments;
+                let span_before_doc_comments = statement_doc_comments.start_span;
+                let span_after_doc_comments = statement_doc_comments.end_span;
+
+                if !doc_comments[0].trim().to_lowercase().starts_with("safety:") {
+                    self.push_error(
+                        ParserErrorReason::UnsafeDocCommentDoesNotStartWithSafety,
+                        Span::from(
+                            span_before_doc_comments.start()..span_after_doc_comments.start(),
+                        ),
+                    );
+                }
+            } else {
+                self.push_error(ParserErrorReason::MissingSafetyComment, start_span);
+            }
+        } else if !doc_comments[0].trim().to_lowercase().starts_with("safety:") {
+            self.push_error(
+                ParserErrorReason::UnsafeDocCommentDoesNotStartWithSafety,
+                self.span_since(span_before_doc_comments),
+            );
         }
 
-        let start_span = self.current_token_span;
         if let Some(block) = self.parse_block() {
             Some(ExpressionKind::Unsafe(block, self.span_since(start_span)))
         } else {
@@ -971,8 +999,21 @@ mod tests {
 
     #[test]
     fn parses_unsafe_expression() {
-        let src = "unsafe { //@safety: test
-        1 }";
+        let src = "
+        /// Safety: test
+        unsafe { 1 }";
+        let expr = parse_expression_no_errors(src);
+        let ExpressionKind::Unsafe(block, _) = expr.kind else {
+            panic!("Expected unsafe expression");
+        };
+        assert_eq!(block.statements.len(), 1);
+    }
+
+    #[test]
+    fn parses_unsafe_expression_with_doc_comment() {
+        let src = "
+        /// Safety: test
+        unsafe { 1 }";
         let expr = parse_expression_no_errors(src);
         let ExpressionKind::Unsafe(block, _) = expr.kind else {
             panic!("Expected unsafe expression");

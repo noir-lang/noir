@@ -1,5 +1,6 @@
 use std::{borrow::Cow, rc::Rc};
 
+use im::HashSet;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 use rustc_hash::FxHashMap as HashMap;
@@ -567,12 +568,17 @@ impl<'context> Elaborator<'context> {
     }
 
     // this resolves Self::some_static_method, inside an impl block (where we don't have a concrete self_type)
+    // or inside a trait default method.
     //
     // Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
     // E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
     fn resolve_trait_static_method_by_self(&mut self, path: &Path) -> Option<TraitPathResolution> {
-        let trait_impl = self.current_trait_impl?;
-        let trait_id = self.interner.try_get_trait_implementation(trait_impl)?.borrow().trait_id;
+        let trait_id = if let Some(current_trait) = self.current_trait {
+            current_trait
+        } else {
+            let trait_impl = self.current_trait_impl?;
+            self.interner.try_get_trait_implementation(trait_impl)?.borrow().trait_id
+        };
 
         if path.kind == PathKind::Plain && path.segments.len() == 2 {
             let name = &path.segments[0].ident.0.contents;
@@ -1415,63 +1421,17 @@ impl<'context> Elaborator<'context> {
         method_name: &str,
         span: Span,
     ) -> Option<HirMethodReference> {
-        let trait_methods_in_scope: Vec<_> = self.filter_trait_methods_in_scope(trait_methods);
-
-        // If there's only one in scope, all is good.
-        if trait_methods_in_scope.len() == 1 {
-            let func_id = trait_methods_in_scope[0].0;
-            return Some(HirMethodReference::FuncId(func_id));
-        }
-
-        // If there's more than one in scope we can't know which one the user wants.
-        if trait_methods_in_scope.len() > 1 {
-            let traits = vecmap(trait_methods, |(_, trait_id)| {
-                let trait_ = self.interner.get_trait(*trait_id);
-                self.fully_qualified_trait_path(trait_)
-            });
-            self.push_err(PathResolutionError::MultipleTraitsInScope {
-                ident: Ident::new(method_name.into(), span),
-                traits,
-            });
-            return None;
-        }
-
-        // If there's only one possible trait but it's not in scope, we assume it's that one
-        // but warn about it (mainly for backwards-compatibility, to avoid introducing a large breaking change)
-        if trait_methods.len() == 1 {
-            let (func_id, trait_id) = trait_methods[0];
-            let trait_ = self.interner.get_trait(trait_id);
-            let trait_name = self.fully_qualified_trait_path(trait_);
-            self.push_err(PathResolutionError::TraitMethodNotInScope {
-                ident: Ident::new(method_name.into(), span),
-                trait_name,
-            });
-            return Some(HirMethodReference::FuncId(func_id));
-        }
-
-        let traits = vecmap(trait_methods, |(_, trait_id)| {
-            let trait_ = self.interner.get_trait(*trait_id);
-            self.fully_qualified_trait_path(trait_)
-        });
-        self.push_err(PathResolutionError::UnresolvedWithPossibleTraitsToImport {
-            ident: Ident::new(method_name.into(), span),
-            traits,
-        });
-        None
-    }
-
-    /// Given a list of (FuncId, TraitId), return those for which traits are currently in scope (imported)
-    /// together with those trait names.
-    fn filter_trait_methods_in_scope(
-        &mut self,
-        trait_methods: &[(FuncId, TraitId)],
-    ) -> Vec<(FuncId, TraitId, &Ident)> {
         let module_id = self.module_id();
         let module_data = self.get_module(module_id);
 
-        let trait_methods_in_scope: Vec<_> = trait_methods
+        // Only keep unique trait IDs: multiple trait methods might come from the same trait
+        // but implemented with different generics (like `Convert<Field>` and `Convert<i32>`).
+        let traits: HashSet<TraitId> =
+            trait_methods.iter().map(|(_, trait_id)| *trait_id).collect();
+
+        let traits_in_scope: Vec<_> = traits
             .iter()
-            .filter_map(|(func_id, trait_id)| {
+            .filter_map(|trait_id| {
                 let trait_ = self.interner.get_trait(*trait_id);
                 let trait_name = &trait_.name;
                 let Some(map) = module_data.scope().types().get(trait_name) else {
@@ -1481,18 +1441,82 @@ impl<'context> Elaborator<'context> {
                     return None;
                 };
                 if imported_item.0 == ModuleDefId::TraitId(*trait_id) {
-                    Some((*func_id, *trait_id, trait_name))
+                    Some((*trait_id, trait_name))
                 } else {
                     None
                 }
             })
             .collect();
 
-        for (_, _, trait_name) in &trait_methods_in_scope {
+        for (_, trait_name) in &traits_in_scope {
             self.usage_tracker.mark_as_used(module_id, trait_name);
         }
 
-        trait_methods_in_scope
+        if traits_in_scope.is_empty() {
+            if traits.len() == 1 {
+                // This is the backwards-compatible case where there's a single trait but it's not in scope
+                let trait_id = *traits.iter().next().unwrap();
+                let trait_ = self.interner.get_trait(trait_id);
+                let trait_name = self.fully_qualified_trait_path(trait_);
+
+                self.push_err(PathResolutionError::TraitMethodNotInScope {
+                    ident: Ident::new(method_name.into(), span),
+                    trait_name,
+                });
+
+                return Some(self.trait_hir_method_reference(
+                    trait_id,
+                    trait_methods,
+                    method_name,
+                    span,
+                ));
+            } else {
+                let traits = vecmap(traits, |trait_id| {
+                    let trait_ = self.interner.get_trait(trait_id);
+                    self.fully_qualified_trait_path(trait_)
+                });
+                self.push_err(PathResolutionError::UnresolvedWithPossibleTraitsToImport {
+                    ident: Ident::new(method_name.into(), span),
+                    traits,
+                });
+                return None;
+            }
+        }
+
+        if traits_in_scope.len() > 1 {
+            let traits = vecmap(traits, |trait_id| {
+                let trait_ = self.interner.get_trait(trait_id);
+                self.fully_qualified_trait_path(trait_)
+            });
+            self.push_err(PathResolutionError::MultipleTraitsInScope {
+                ident: Ident::new(method_name.into(), span),
+                traits,
+            });
+            return None;
+        }
+
+        let trait_id = traits_in_scope[0].0;
+        Some(self.trait_hir_method_reference(trait_id, trait_methods, method_name, span))
+    }
+
+    fn trait_hir_method_reference(
+        &self,
+        trait_id: TraitId,
+        trait_methods: &[(FuncId, TraitId)],
+        method_name: &str,
+        span: Span,
+    ) -> HirMethodReference {
+        // If we find a single trait impl method, return it so we don't have to later determine the impl
+        if trait_methods.len() == 1 {
+            let (func_id, _) = trait_methods[0];
+            return HirMethodReference::FuncId(func_id);
+        }
+
+        // Return a TraitMethodId with unbound generics. These will later be bound by the type-checker.
+        let trait_ = self.interner.get_trait(trait_id);
+        let generics = trait_.as_constraint(span).trait_bound.trait_generics;
+        let trait_method_id = trait_.find_method(method_name).unwrap();
+        HirMethodReference::TraitMethodId(trait_method_id, generics, false)
     }
 
     fn lookup_method_in_trait_constraints(
@@ -1503,9 +1527,28 @@ impl<'context> Elaborator<'context> {
     ) -> Option<HirMethodReference> {
         let func_id = match self.current_item {
             Some(DependencyId::Function(id)) => id,
-            _ => panic!("unexpected method outside a function"),
+            _ => panic!("unexpected method outside a function: {method_name}"),
         };
         let func_meta = self.interner.function_meta(&func_id);
+
+        // If inside a trait method, check if it's a method on `self`
+        if let Some(trait_id) = func_meta.trait_id {
+            if Some(object_type) == self.self_type.as_ref() {
+                let the_trait = self.interner.get_trait(trait_id);
+                let constraint = the_trait.as_constraint(the_trait.name.span());
+                if let Some(HirMethodReference::TraitMethodId(method_id, generics, _)) = self
+                    .lookup_method_in_trait(
+                        the_trait,
+                        method_name,
+                        &constraint.trait_bound,
+                        the_trait.id,
+                    )
+                {
+                    // If it is, it's an assumed trait
+                    return Some(HirMethodReference::TraitMethodId(method_id, generics, true));
+                }
+            }
+        }
 
         for constraint in &func_meta.trait_constraints {
             if *object_type == constraint.typ {
@@ -1544,6 +1587,7 @@ impl<'context> Elaborator<'context> {
             return Some(HirMethodReference::TraitMethodId(
                 trait_method,
                 trait_bound.trait_generics.clone(),
+                false,
             ));
         }
 

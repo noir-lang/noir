@@ -2,7 +2,6 @@ use std::borrow::Cow;
 use std::fmt;
 use std::hash::Hash;
 use std::marker::Copy;
-use std::ops::Deref;
 
 use fm::FileId;
 use iter_extended::vecmap;
@@ -1447,25 +1446,6 @@ impl NodeInterner {
         Ok(impl_kind)
     }
 
-    /// Given a `ObjectType: TraitId` pair, find all implementations without taking constraints into account or
-    /// applying any type bindings. Useful to look for a specific trait in a type that is used in a macro.
-    pub fn lookup_all_trait_implementations(
-        &self,
-        object_type: &Type,
-        trait_id: TraitId,
-    ) -> Vec<&TraitImplKind> {
-        let trait_impl = self.trait_implementation_map.get(&trait_id);
-
-        let trait_impl = trait_impl.map(|trait_impl| {
-            let impls = trait_impl.iter().filter_map(|(typ, impl_kind)| match &typ {
-                Type::Forall(_, typ) => (typ.deref() == object_type).then_some(impl_kind),
-                _ => None,
-            });
-            impls.collect()
-        });
-        trait_impl.unwrap_or_default()
-    }
-
     /// Similar to `lookup_trait_implementation` but does not apply any type bindings on success.
     /// On error returns either:
     /// - 1+ failing trait constraints, including the original.
@@ -2266,6 +2246,14 @@ impl NodeInterner {
 
     pub fn doc_comments(&self, id: ReferenceId) -> Option<&Vec<String>> {
         self.doc_comments.get(&id)
+    }
+
+    pub fn get_expr_id_from_index(&self, index: impl Into<Index>) -> Option<ExprId> {
+        let index = index.into();
+        match self.nodes.get(index) {
+            Some(Node::Expression(_)) => Some(ExprId(index)),
+            _ => None,
+        }
     }
 }
 

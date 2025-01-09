@@ -6,6 +6,10 @@ use acvm::BlackBoxFunctionSolver;
 pub(super) struct WrapperSolver(pub(super) Box<dyn BlackBoxFunctionSolver<acvm::FieldElement>>);
 
 impl BlackBoxFunctionSolver<acvm::FieldElement> for WrapperSolver {
+    fn pedantic_solving(&self) -> bool {
+        self.0.pedantic_solving()
+    }
+
     fn multi_scalar_mul(
         &self,
         points: &[acvm::FieldElement],
