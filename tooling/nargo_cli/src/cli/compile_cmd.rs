@@ -415,6 +415,7 @@ mod tests {
                     &CompileOptions::default(),
                     None,
                 )
+                // TODO: collect all errors and only error at the end! (i.e. don't fail fast)
                 .unwrap_or_else(|err| {
                     let error_string: String = err.iter().map(|diagnostic| {
                         format!("{}\n---\n", diagnostic_to_string(diagnostic, &file_manager))

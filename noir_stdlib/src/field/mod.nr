@@ -220,7 +220,6 @@ impl Field {
         }
     }
 
-    // TODO: static_assert for N?
     /// Convert a little endian byte array to a field element.
     /// If the provided byte array overflows the field modulus then the Field will silently wrap around.
     pub fn from_le_bytes<let N: u32>(bytes: [u8; N]) -> Field {
@@ -235,7 +234,6 @@ impl Field {
         result
     }
 
-    // TODO: static_assert for N?
     /// Convert a big endian byte array to a field element.
     /// If the provided byte array overflows the field modulus then the Field will silently wrap around.
     pub fn from_be_bytes<let N: u32>(bytes: [u8; N]) -> Field {

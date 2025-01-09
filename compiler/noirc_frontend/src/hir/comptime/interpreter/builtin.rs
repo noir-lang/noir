@@ -66,7 +66,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "array_as_str_unchecked" => array_as_str_unchecked(interner, arguments, location),
             "array_len" => array_len(interner, arguments, location),
             "array_refcount" => Ok(Value::U32(0)),
-            "assert_constant" => Ok(Value::Bool(true)),
+            "assert_constant" => Ok(Value::Unit),
             "as_slice" => as_slice(interner, arguments, location),
             "ctstring_eq" => ctstring_eq(arguments, location),
             "ctstring_hash" => ctstring_hash(arguments, location),
@@ -175,6 +175,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "slice_push_front" => slice_push_front(interner, arguments, location),
             "slice_refcount" => Ok(Value::U32(0)),
             "slice_remove" => slice_remove(interner, arguments, location, call_stack),
+            "static_assert" => static_assert(interner, arguments, location, call_stack),
             "str_as_bytes" => str_as_bytes(interner, arguments, location),
             "str_as_ctstring" => str_as_ctstring(interner, arguments, location),
             "struct_def_add_attribute" => struct_def_add_attribute(interner, arguments, location),
@@ -318,6 +319,25 @@ fn slice_push_back(
     let (mut values, typ) = get_slice(interner, slice)?;
     values.push_back(element);
     Ok(Value::Slice(values, typ))
+}
+
+// static_assert<let N: u32>(predicate: bool, message: str<N>)
+fn static_assert(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+    call_stack: &im::Vector<Location>,
+) -> IResult<Value> {
+    let (predicate, message) = check_two_arguments(arguments, location)?;
+    let predicate = get_bool(predicate)?;
+    let message = get_str(interner, message)?;
+
+    "TODO need to evaluate static_assert's predicate more?!";
+    if predicate {
+        Ok(Value::Unit)
+    } else {
+        failing_constraint((*message).clone(), location, call_stack)
+    }
 }
 
 fn str_as_bytes(
