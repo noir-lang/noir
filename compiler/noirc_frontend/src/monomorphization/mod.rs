@@ -934,7 +934,7 @@ impl<'interner> Monomorphizer<'interner> {
                         .into_hir_expression(self.interner, global.location)
                         .map_err(MonomorphizationError::InterpreterError)?
                 } else {
-                    unreachable!("All global values should be resolved my monomorphization");
+                    unreachable!("All global values should be resolved at compile time and before monomorphization");
                 };
 
                 self.expr(expr)?
