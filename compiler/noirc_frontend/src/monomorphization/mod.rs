@@ -934,11 +934,9 @@ impl<'interner> Monomorphizer<'interner> {
                         .into_hir_expression(self.interner, global.location)
                         .map_err(MonomorphizationError::InterpreterError)?
                 } else {
-                    let let_ = self.interner.get_global_let_statement(*global_id).expect(
-                        "Globals should have a corresponding let statement by monomorphization",
-                    );
-                    let_.expression
+                    unreachable!("All global values should be resolved my monomorphization");
                 };
+
                 self.expr(expr)?
             }
             DefinitionKind::Local(_) => match self.lookup_captured_expr(ident.id) {
