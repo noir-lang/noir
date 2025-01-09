@@ -805,7 +805,7 @@ fn to_be_bits_unsafe(
 ) -> IResult<Value> {
     let value = check_one_argument(arguments, location)?;
     let radix = (Value::U32(2), value.1);
-    to_be_radix(vec![value, radix], return_type, location)
+    to_be_radix_unsafe(vec![value, radix], return_type, location)
 }
 
 fn to_le_bits_unsafe(
@@ -815,7 +815,7 @@ fn to_le_bits_unsafe(
 ) -> IResult<Value> {
     let value = check_one_argument(arguments, location)?;
     let radix = (Value::U32(2), value.1);
-    to_le_radix(vec![value, radix], return_type, location)
+    to_le_radix_unsafe(vec![value, radix], return_type, location)
 }
 
 fn to_be_radix_unsafe(
