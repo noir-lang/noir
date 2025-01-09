@@ -1379,17 +1379,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let typ = object.get_type().follow_bindings();
         let method_name = &call.method.0.contents;
 
-        // TODO: Traits
-        let method = match &typ {
-            Type::Struct(struct_def, _) => self.elaborator.interner.lookup_method(
-                &typ,
-                struct_def.borrow().id,
-                method_name,
-                false,
-                true,
-            ),
-            _ => self.elaborator.interner.lookup_primitive_method(&typ, method_name, true),
-        };
+        let method = self
+            .elaborator
+            .lookup_method(&typ, method_name, location.span, true)
+            .and_then(|method| method.func_id(self.elaborator.interner));
 
         if let Some(method) = method {
             self.call_function(method, arguments, TypeBindings::new(), location)

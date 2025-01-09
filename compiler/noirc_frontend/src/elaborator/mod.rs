@@ -1451,7 +1451,7 @@ impl<'context> Elaborator<'context> {
             let method_name = self.interner.function_name(method_id).to_owned();
 
             if let Some(first_fn) =
-                self.interner.add_method(self_type, method_name.clone(), *method_id, false)
+                self.interner.add_method(self_type, method_name.clone(), *method_id, None)
             {
                 let error = ResolverError::DuplicateDefinition {
                     name: method_name,
