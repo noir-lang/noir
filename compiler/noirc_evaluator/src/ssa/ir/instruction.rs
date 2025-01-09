@@ -473,8 +473,8 @@ impl Instruction {
             // removed entirely.
             Noop => true,
 
-            // Cast instructions can always be deduplicated
-            Cast(_, _) => true,
+            // These instructions can always be deduplicated
+            Cast(_, _) | Truncate { .. } | Not(_) => true,
 
             // Arrays can be mutated in unconstrained code so code that handles this case must
             // take care to track whether the array was possibly mutated or not before
@@ -486,12 +486,7 @@ impl Instruction {
             // Replacing them with a similar instruction potentially enables replacing an instruction
             // with one that was disabled. See
             // https://github.com/noir-lang/noir/pull/4716#issuecomment-2047846328.
-            Binary(_)
-            | Not(_)
-            | Truncate { .. }
-            | IfElse { .. }
-            | ArrayGet { .. }
-            | ArraySet { .. } => {
+            Binary(_) | IfElse { .. } | ArrayGet { .. } | ArraySet { .. } => {
                 deduplicate_with_predicate || !self.requires_acir_gen_predicate(&function.dfg)
             }
         }
