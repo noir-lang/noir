@@ -1,6 +1,6 @@
 fn main() {
+    /// Safety: testing context
     unsafe {
-        //@safety: testing context
         assert_eq(fibonacci(3), fibonacci_hint(3));
     }
 }
