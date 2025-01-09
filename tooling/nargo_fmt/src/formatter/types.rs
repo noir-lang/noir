@@ -14,8 +14,9 @@ impl<'a> Formatter<'a> {
                 if num_bits.is_zero() {
                     self.write_left_paren();
                     self.write_right_paren();
-                } else if num_bits.is_one() {
+                } else if num_bits.is_bool() {
                     self.write_keyword(Keyword::Bool);
+                    // TODO: special-case for u1 here?
                 } else {
                     self.write_current_token_and_bump();
                 }
