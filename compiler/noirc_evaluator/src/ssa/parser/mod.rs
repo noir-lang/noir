@@ -298,6 +298,9 @@ impl<'a> Parser<'a> {
             Token::Keyword(Keyword::Xor) => BinaryOp::Xor,
             Token::Keyword(Keyword::Shl) => BinaryOp::Shl,
             Token::Keyword(Keyword::Shr) => BinaryOp::Shr,
+            Token::Keyword(Keyword::UncheckedAdd) => BinaryOp::UncheckedAdd,
+            Token::Keyword(Keyword::UncheckedSub) => BinaryOp::UncheckedSub,
+            Token::Keyword(Keyword::UncheckedMul) => BinaryOp::UncheckedMul,
             _ => return Ok(None),
         };
 

@@ -326,7 +326,23 @@ fn test_array_get_set_bug() {
 
 #[test]
 fn test_binary() {
-    for op in ["add", "sub", "mul", "div", "eq", "mod", "lt", "and", "or", "xor", "shl", "shr"] {
+    for op in [
+        "add",
+        "sub",
+        "mul",
+        "div",
+        "eq",
+        "mod",
+        "lt",
+        "and",
+        "or",
+        "xor",
+        "shl",
+        "shr",
+        "unchecked_add",
+        "unchecked_sub",
+        "unchecked_mul",
+    ] {
         let src = format!(
             "
             acir(inline) fn main f0 {{
