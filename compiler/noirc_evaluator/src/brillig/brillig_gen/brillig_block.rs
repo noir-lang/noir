@@ -3,7 +3,7 @@ use crate::brillig::brillig_ir::brillig_variable::{
     type_to_heap_value_type, BrilligArray, BrilligVariable, SingleAddrVariable,
 };
 
-use crate::brillig::brillig_ir::registers::Stack;
+use crate::brillig::brillig_ir::registers::{RegisterAllocator, Stack};
 use crate::brillig::brillig_ir::{
     BrilligBinaryOp, BrilligContext, ReservedRegisters, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
 };
@@ -51,13 +51,8 @@ impl<'block, 'global> BrilligBlock<'block, 'global> {
         brillig_context: &'block mut BrilligContext<FieldElement, Stack>,
         block_id: BasicBlockId,
         dfg: &DataFlowGraph,
-        globals: &HashSet<ValueId>,
     ) {
         let live_in = function_context.liveness.get_live_in(&block_id);
-
-        // let live_in = live_in.into_iter().filter(|value| {
-        //     !matches!(&dfg[**value], Value::Global(_))
-        // }).collect();
 
         let mut live_in_no_globals = HashSet::default();
         for value in live_in {
@@ -67,14 +62,6 @@ impl<'block, 'global> BrilligBlock<'block, 'global> {
         }
 
         let variables = BlockVariables::new(live_in_no_globals);
-
-        // let mut live_in_no_globals = HashSet::default();
-        // for value in live_in {
-        //     if let Value::Global(_) = &dfg[*value] {
-        //         continue;
-        //     }
-        // }
-
 
         brillig_context.set_allocated_registers(
             variables
