@@ -5,7 +5,7 @@ use crate::ssa::{function_builder::data_bus::DataBus, ir::instruction::SimplifyR
 use super::{
     basic_block::{BasicBlock, BasicBlockId},
     call_stack::{CallStack, CallStackHelper, CallStackId},
-    function::FunctionId,
+    function::{FunctionId, RuntimeType},
     instruction::{
         Instruction, InstructionId, InstructionResultType, Intrinsic, TerminatorInstruction,
     },
@@ -26,8 +26,13 @@ use serde_with::DisplayFromStr;
 /// owning most data in a function and handing out Ids to this data that can be
 /// shared without worrying about ownership.
 #[serde_as]
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub(crate) struct DataFlowGraph {
+    /// Runtime of the [Function] that owns this [DataFlowGraph].
+    /// This might change during the `runtime_separation` pass where
+    /// ACIR functions are cloned as Brillig functions.
+    runtime: RuntimeType,
+
     /// All of the instructions in a function
     instructions: DenseMap<Instruction>,
 
@@ -100,6 +105,16 @@ pub(crate) struct DataFlowGraph {
 }
 
 impl DataFlowGraph {
+    /// Runtime type of the function.
+    pub(crate) fn runtime(&self) -> RuntimeType {
+        self.runtime
+    }
+
+    /// Set runtime type of the function.
+    pub(crate) fn set_runtime(&mut self, runtime: RuntimeType) {
+        self.runtime = runtime;
+    }
+
     /// Creates a new basic block with no parameters.
     /// After being created, the block is unreachable in the current function
     /// until another block is made to jump to it.
@@ -164,6 +179,11 @@ impl DataFlowGraph {
         id
     }
 
+    /// Check if the function runtime would simply ignore this instruction.
+    pub(crate) fn is_handled_by_runtime(&self, instruction: &Instruction) -> bool {
+        !(self.runtime().is_acir() && instruction.is_brillig_only())
+    }
+
     fn insert_instruction_without_simplification(
         &mut self,
         instruction_data: Instruction,
@@ -184,6 +204,10 @@ impl DataFlowGraph {
         ctrl_typevars: Option<Vec<Type>>,
         call_stack: CallStackId,
     ) -> InsertInstructionResult {
+        if !self.is_handled_by_runtime(&instruction_data) {
+            return InsertInstructionResult::InstructionRemoved;
+        }
+
         let id = self.insert_instruction_without_simplification(
             instruction_data,
             block,
@@ -194,7 +218,8 @@ impl DataFlowGraph {
         InsertInstructionResult::Results(id, self.instruction_results(id))
     }
 
-    /// Inserts a new instruction at the end of the given block and returns its results
+    /// Simplifies a new instruction and inserts it at the end of the given block and returns its results.
+    /// If the instruction is not handled by the current runtime, `InstructionRemoved` is returned.
     pub(crate) fn insert_instruction_and_results(
         &mut self,
         instruction: Instruction,
@@ -202,6 +227,9 @@ impl DataFlowGraph {
         ctrl_typevars: Option<Vec<Type>>,
         call_stack: CallStackId,
     ) -> InsertInstructionResult {
+        if !self.is_handled_by_runtime(&instruction) {
+            return InsertInstructionResult::InstructionRemoved;
+        }
         match instruction.simplify(self, block, ctrl_typevars.clone(), call_stack) {
             SimplifyResult::SimplifiedTo(simplification) => {
                 InsertInstructionResult::SimplifiedTo(simplification)
@@ -388,10 +416,15 @@ impl DataFlowGraph {
     pub(crate) fn get_value_max_num_bits(&self, value: ValueId) -> u32 {
         match self[value] {
             Value::Instruction { instruction, .. } => {
+                let value_bit_size = self.type_of_value(value).bit_size();
                 if let Instruction::Cast(original_value, _) = self[instruction] {
-                    self.type_of_value(original_value).bit_size()
+                    let original_bit_size = self.type_of_value(original_value).bit_size();
+                    // We might have cast e.g. `u1` to `u8` to be able to do arithmetic,
+                    // in which case we want to recover the original smaller bit size;
+                    // OTOH if we cast down, then we don't need the higher original size.
+                    value_bit_size.min(original_bit_size)
                 } else {
-                    self.type_of_value(value).bit_size()
+                    value_bit_size
                 }
             }
 

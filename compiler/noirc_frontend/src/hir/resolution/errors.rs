@@ -607,7 +607,7 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             },
             ResolverError::UnsupportedNumericGenericType(err) => err.into(),
             ResolverError::TypeIsMorePrivateThenItem { typ, item, span } => {
-                Diagnostic::simple_warning(
+                Diagnostic::simple_error(
                     format!("Type `{typ}` is more private than item `{item}`"),
                     String::new(),
                     *span,

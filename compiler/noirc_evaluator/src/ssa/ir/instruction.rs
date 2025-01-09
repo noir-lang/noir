@@ -473,6 +473,9 @@ impl Instruction {
             // removed entirely.
             Noop => true,
 
+            // Cast instructions can always be deduplicated
+            Cast(_, _) => true,
+
             // Arrays can be mutated in unconstrained code so code that handles this case must
             // take care to track whether the array was possibly mutated or not before
             // deduplicating. Since we don't know if the containing pass checks for this, we
@@ -484,7 +487,6 @@ impl Instruction {
             // with one that was disabled. See
             // https://github.com/noir-lang/noir/pull/4716#issuecomment-2047846328.
             Binary(_)
-            | Cast(_, _)
             | Not(_)
             | Truncate { .. }
             | IfElse { .. }
@@ -1055,6 +1057,12 @@ impl Instruction {
             Instruction::MakeArray { .. } => None,
             Instruction::Noop => Remove,
         }
+    }
+
+    /// Some instructions are only to be used in Brillig and should be eliminated
+    /// after runtime separation, never to be be reintroduced in an ACIR runtime.
+    pub(crate) fn is_brillig_only(&self) -> bool {
+        matches!(self, Instruction::IncrementRc { .. } | Instruction::DecrementRc { .. })
     }
 }
 
