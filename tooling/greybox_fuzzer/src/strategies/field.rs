@@ -43,24 +43,6 @@ static mut POWERS_OF_TWO_MINUS_ONE: Vec<FieldElement> = Vec::new();
 // We are using bn254 scalar field so 254 is enough
 const MAX_POW_2: usize = 254;
 
-/// Initialize a static vector of powers of two for quick access during mutations
-fn initialize_powers_of_two() {
-    unsafe {
-        if !POWERS_OF_TWO_INITIALIZED {
-            POWERS_OF_TWO_INITIALIZED = true;
-            let powers_of_two = (1..=MAX_POW_2)
-                .map(|i| FieldElement::from(2i128).pow(&FieldElement::from(i)))
-                .collect::<Vec<FieldElement>>();
-            INVERSE_POWERS_OF_TWO =
-                powers_of_two.iter().map(|p| p.inverse()).collect::<Vec<FieldElement>>();
-
-            POWERS_OF_TWO_MINUS_ONE =
-                powers_of_two.iter().map(|x| *x - FieldElement::from(1i128)).collect();
-
-            POWERS_OF_TWO = powers_of_two;
-        }
-    }
-}
 enum SubstitutionMutation {
     Zero,
     One,
@@ -82,6 +64,7 @@ struct SubstitutionConfiguration {
 
 /// Configuration for selecting a substitution mutation
 impl SubstitutionConfiguration {
+    #[allow(unused)]
     pub fn new(
         substitution_by_zero_weight: usize,
         substitution_by_one_weight: usize,
@@ -129,6 +112,8 @@ impl SubstitutionConfiguration {
         if selector < self.substitution_by_power_of_2_weight {
             return SubstitutionMutation::PowerOfTwo;
         }
+        selector -= self.substitution_by_power_of_2_weight;
+        debug_assert!(selector < self.substitution_by_power_of_2_minus_one);
         return SubstitutionMutation::PowerOfTwoMinusOne;
     }
 }
@@ -393,6 +378,7 @@ struct FieldMutator<'a> {
 
 impl<'a> FieldMutator<'a> {
     pub fn new(dictionary: &'a Vec<FieldElement>, prng: &'a mut XorShiftRng) -> Self {
+        // Initialize powers of two if we haven't done that yet
         unsafe {
             if !POWERS_OF_TWO_INITIALIZED {
                 let powers_of_two = (1..=MAX_POW_2)
@@ -415,10 +401,10 @@ impl<'a> FieldMutator<'a> {
 
     fn apply_substitution(&mut self) -> FieldElement {
         match BASIC_SUBSTITUTION_CONFIGURATION.select(self.prng) {
-            SubstitutionMutation::Zero => (FieldElement::from(0u32)),
-            SubstitutionMutation::One => (FieldElement::from(1u32)),
-            SubstitutionMutation::MinusOne => (-FieldElement::from(1u32)),
-            SubstitutionMutation::Dictionary => (*self.dictionary.choose(self.prng).unwrap()),
+            SubstitutionMutation::Zero => FieldElement::from(0u32),
+            SubstitutionMutation::One => FieldElement::from(1u32),
+            SubstitutionMutation::MinusOne => -FieldElement::from(1u32),
+            SubstitutionMutation::Dictionary => *self.dictionary.choose(self.prng).unwrap(),
             SubstitutionMutation::PowerOfTwo => unsafe {
                 POWERS_OF_TWO.choose(self.prng).unwrap().clone()
             },

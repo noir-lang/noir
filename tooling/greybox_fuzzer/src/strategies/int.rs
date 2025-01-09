@@ -73,6 +73,7 @@ const UNSIGNED_SIGNED_TOTAL_WEIGHT: usize = SUBSTITUTE_BY_FIXED_WEIGHT
     + SUBSTITUTE_DICTIONARY_VALUE_WEIGHT
     + SUB_ADD_AND_XOR_OR_DICTIONARY_VALUE_WEIGHT;
 
+#[derive(Default)]
 pub struct IntDictionary {
     width_dictionaries: [Vec<FieldElement>; 4],
 }
