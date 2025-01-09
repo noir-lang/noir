@@ -55,11 +55,11 @@ impl std::fmt::Display for BinaryOp {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             BinaryOp::Add => write!(f, "add"),
-            BinaryOp::UncheckedAdd => write!(f, "add_unchecked"),
+            BinaryOp::UncheckedAdd => write!(f, "unchecked_add"),
             BinaryOp::Sub => write!(f, "sub"),
-            BinaryOp::UncheckedSub => write!(f, "sub_unchecked"),
+            BinaryOp::UncheckedSub => write!(f, "unchecked_sub"),
             BinaryOp::Mul => write!(f, "mul"),
-            BinaryOp::UncheckedMul => write!(f, "mul_unchecked"),
+            BinaryOp::UncheckedMul => write!(f, "unchecked_mul"),
             BinaryOp::Div => write!(f, "div"),
             BinaryOp::Eq => write!(f, "eq"),
             BinaryOp::Mod => write!(f, "mod"),
