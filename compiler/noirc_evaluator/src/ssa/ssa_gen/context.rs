@@ -610,7 +610,7 @@ impl<'a> FunctionContext<'a> {
         if offset != 0 {
             let typ = self.builder.type_of_value(address).unwrap_numeric();
             let offset = self.builder.numeric_constant(offset, typ);
-            address = self.builder.insert_binary(address, BinaryOp::Add, offset);
+            address = self.builder.insert_binary(address, BinaryOp::UncheckedAdd, offset);
         }
         address
     }
