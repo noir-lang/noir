@@ -1746,7 +1746,7 @@ impl NodeInterner {
         Ok(())
     }
 
-    /// Looks up a method that's directly defined in the given struct.
+    /// Looks up a method that's directly defined in the given type.
     pub fn lookup_direct_method(
         &self,
         typ: &Type,
@@ -1761,7 +1761,7 @@ impl NodeInterner {
             .and_then(|methods| methods.find_direct_method(typ, has_self_arg, self))
     }
 
-    /// Looks up a methods that apply to the given struct but are defined in traits.
+    /// Looks up a methods that apply to the given type but are defined in traits.
     pub fn lookup_trait_methods(
         &self,
         typ: &Type,
@@ -1780,43 +1780,18 @@ impl NodeInterner {
         }
     }
 
-    /// Select the 1 matching method with an object type matching `typ`
-    fn find_matching_method(
-        &self,
-        typ: &Type,
-        methods: Option<&Methods>,
-        method_name: &str,
-        has_self_arg: bool,
-    ) -> Option<FuncId> {
-        if let Some(method) = methods.and_then(|m| m.find_matching_method(typ, has_self_arg, self))
-        {
-            Some(method)
-        } else {
-            self.lookup_generic_method(typ, method_name, has_self_arg)
-        }
-    }
-
-    /// Looks up a method at impls for all types `T`, e.g. `impl<T> Foo for T`
-    pub fn lookup_generic_method(
+    /// Looks up methods at impls for all types `T`, e.g. `impl<T> Foo for T`
+    pub fn lookup_generic_methods(
         &self,
         typ: &Type,
         method_name: &str,
         has_self_arg: bool,
-    ) -> Option<FuncId> {
-        let global_methods = self.methods.get(&TypeMethodKey::Generic)?.get(method_name)?;
-        global_methods.find_matching_method(typ, has_self_arg, self)
-    }
-
-    /// Looks up a given method name on the given primitive type.
-    pub fn lookup_primitive_method(
-        &self,
-        typ: &Type,
-        method_name: &str,
-        has_self_arg: bool,
-    ) -> Option<FuncId> {
-        let key = get_type_method_key(typ)?;
-        let methods = self.methods.get(&key)?.get(method_name)?;
-        self.find_matching_method(typ, Some(methods), method_name, has_self_arg)
+    ) -> Vec<(FuncId, TraitId)> {
+        self.methods
+            .get(&TypeMethodKey::Generic)
+            .and_then(|h| h.get(method_name))
+            .map(|methods| methods.find_trait_methods(typ, has_self_arg, self))
+            .unwrap_or_default()
     }
 
     /// Returns what the next trait impl id is expected to be.
