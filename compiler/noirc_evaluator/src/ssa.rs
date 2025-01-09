@@ -156,7 +156,7 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
         .run_pass(|ssa| ssa.inline_functions(options.inliner_aggressiveness), "Inlining (1st)")
         // Run mem2reg with the CFG separated into blocks
         .run_pass(Ssa::mem2reg, "Mem2Reg (1st)")
-        .run_pass(Ssa::simplify_cfg, "Simplifying (2nd)")
+        .run_pass(Ssa::simplify_cfg, "Simplifying (1st)")
         .run_pass(Ssa::as_slice_optimization, "`as_slice` optimization")
         .run_pass(Ssa::remove_unreachable_functions, "Removing Unreachable Functions")
         .try_run_pass(
