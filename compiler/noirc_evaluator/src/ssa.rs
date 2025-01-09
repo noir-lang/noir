@@ -171,7 +171,7 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
         )?
         .run_pass(Ssa::simplify_cfg, "Simplifying (2nd)")
         .run_pass(Ssa::flatten_cfg, "Flattening")
-        .run_pass(Ssa::remove_bit_shifts, "After Removing Bit Shifts")
+        .run_pass(Ssa::remove_bit_shifts, "Removing Bit Shifts")
         // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
         .run_pass(Ssa::mem2reg, "Mem2Reg (2nd)")
         // Run the inlining pass again to handle functions with `InlineType::NoPredicates`.
