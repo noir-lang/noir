@@ -13,7 +13,7 @@ fn main(x: Field, y: pub Field) {
     let LOCAL_FMT_STR: fmtstr<14, (Field, Field)> = f"i: {A}, j: {B}";
     println(LOCAL_FMT_STR);
 
-    // TODO: fmtstr cannot be printed
+    // TODO: fmtstr cannot be printed inside another fmtstr 
     // let fmt_str: fmtstr<14, (Field, Field)> = f"i: {x}, j: {y}";
     // let fmt_fmt_str = f"fmtstr: {fmt_str}, i: {x}";
     // println(fmt_fmt_str);
