@@ -647,10 +647,9 @@ impl<'a> FunctionContext<'a> {
         let condition = self.builder.current_function.dfg.get_numeric_constant(condition)?;
 
         Some(if condition.is_zero() {
-            if let Some(alternative) = &if_expr.alternative {
-                self.codegen_expression(alternative)
-            } else {
-                Ok(Self::unit_value())
+            match if_expr.alternative.as_ref() {
+                Some(alternative) => self.codegen_expression(alternative),
+                None => Ok(Self::unit_value()),
             }
         } else {
             self.codegen_expression(&if_expr.consequence)
