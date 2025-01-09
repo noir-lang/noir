@@ -524,6 +524,27 @@ impl DataFlowGraph {
         }
     }
 
+    /// If this value points to an array of constant ASCII bytes, returns a string
+    /// consisting of those bytes.
+    pub(crate) fn get_string(&self, value: ValueId) -> Option<String> {
+        let (value_ids, _typ) = self.get_array_constant(value)?;
+
+        let mut string = String::new();
+        for value_id in value_ids {
+            let field_value = self.get_numeric_constant(value_id)?;
+            let u64_value = field_value.try_to_u64()?;
+            if u64_value > 255 {
+                return None;
+            };
+            let byte = u64_value as u8;
+            if !byte.is_ascii() {
+                return None;
+            }
+            string.push(byte as char);
+        }
+        Some(string)
+    }
+
     /// A constant index less than the array length is safe
     pub(crate) fn is_safe_index(&self, index: ValueId, array: ValueId) -> bool {
         #[allow(clippy::match_like_matches_macro)]
