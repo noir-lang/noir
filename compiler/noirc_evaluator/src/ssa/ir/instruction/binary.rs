@@ -150,7 +150,7 @@ impl Binary {
                         if let Instruction::Binary(Binary { lhs, rhs, operator }) =
                             dfg[*instruction]
                         {
-                            if operator == BinaryOp::Mul
+                            if (operator == BinaryOp::Mul || operator == BinaryOp::UncheckedMul)
                                 && (dfg.resolve(self.lhs) == dfg.resolve(lhs)
                                     || dfg.resolve(self.lhs) == dfg.resolve(rhs))
                             {
@@ -165,7 +165,7 @@ impl Binary {
                         if let Instruction::Binary(Binary { lhs, rhs, operator }) =
                             dfg[*instruction]
                         {
-                            if operator == BinaryOp::Mul
+                            if (operator == BinaryOp::Mul || operator == BinaryOp::UncheckedMul)
                                 && (dfg.resolve(self.rhs) == dfg.resolve(lhs)
                                     || dfg.resolve(self.rhs) == dfg.resolve(rhs))
                             {

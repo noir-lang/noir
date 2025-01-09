@@ -2071,6 +2071,7 @@ impl<'a> Context<'a> {
                 if matches!(
                     &dfg[*instruction],
                     Instruction::Binary(Binary { operator: BinaryOp::Sub, .. })
+                        | Instruction::Binary(Binary { operator: BinaryOp::UncheckedSub, .. })
                 ) {
                     // Subtractions must first have the integer modulus added before truncation can be
                     // applied. This is done in order to prevent underflow.
