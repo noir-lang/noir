@@ -233,10 +233,7 @@ impl<'f> LoopInvariantContext<'f> {
                 }
             }
             Instruction::Binary(binary) => {
-                if !matches!(
-                    binary.operator,
-                    BinaryOp::Add | BinaryOp::UncheckedAdd | BinaryOp::Mul | BinaryOp::UncheckedMul
-                ) {
+                if !matches!(binary.operator, BinaryOp::Add { .. } | BinaryOp::Mul { .. }) {
                     return false;
                 }
 

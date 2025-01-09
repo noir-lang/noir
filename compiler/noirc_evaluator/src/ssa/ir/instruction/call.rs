@@ -142,8 +142,13 @@ pub(super) fn simplify_call(
                         slice.push_back(*elem);
                     }
 
-                    let new_slice_length =
-                        update_slice_length(arguments[0], dfg, BinaryOp::Add, block);
+                    // TODO: should this use an unchecked add?
+                    let new_slice_length = update_slice_length(
+                        arguments[0],
+                        dfg,
+                        BinaryOp::Add { unchecked: false },
+                        block,
+                    );
 
                     let new_slice = make_array(dfg, slice, element_type, block, call_stack);
                     return SimplifyResult::SimplifiedToMultiple(vec![new_slice_length, new_slice]);
@@ -161,7 +166,13 @@ pub(super) fn simplify_call(
                     slice.push_front(*elem);
                 }
 
-                let new_slice_length = update_slice_length(arguments[0], dfg, BinaryOp::Add, block);
+                // TODO: should this be unchecked?
+                let new_slice_length = update_slice_length(
+                    arguments[0],
+                    dfg,
+                    BinaryOp::Add { unchecked: false },
+                    block,
+                );
 
                 let new_slice = make_array(dfg, slice, element_type, block, call_stack);
                 SimplifyResult::SimplifiedToMultiple(vec![new_slice_length, new_slice])
@@ -201,7 +212,13 @@ pub(super) fn simplify_call(
                     slice.pop_front().expect("There are no elements in this slice to be removed")
                 });
 
-                let new_slice_length = update_slice_length(arguments[0], dfg, BinaryOp::Sub, block);
+                // TODO: should this be unchecked?
+                let new_slice_length = update_slice_length(
+                    arguments[0],
+                    dfg,
+                    BinaryOp::Sub { unchecked: false },
+                    block,
+                );
 
                 results.push(new_slice_length);
 
@@ -234,7 +251,13 @@ pub(super) fn simplify_call(
                     index += 1;
                 }
 
-                let new_slice_length = update_slice_length(arguments[0], dfg, BinaryOp::Add, block);
+                // TODO: should this be unchecked?
+                let new_slice_length = update_slice_length(
+                    arguments[0],
+                    dfg,
+                    BinaryOp::Add { unchecked: false },
+                    block,
+                );
 
                 let new_slice = make_array(dfg, slice, typ, block, call_stack);
                 SimplifyResult::SimplifiedToMultiple(vec![new_slice_length, new_slice])
@@ -272,7 +295,13 @@ pub(super) fn simplify_call(
                 let new_slice = make_array(dfg, slice, typ, block, call_stack);
                 results.insert(0, new_slice);
 
-                let new_slice_length = update_slice_length(arguments[0], dfg, BinaryOp::Sub, block);
+                // TODO: should this be unchecked?
+                let new_slice_length = update_slice_length(
+                    arguments[0],
+                    dfg,
+                    BinaryOp::Sub { unchecked: false },
+                    block,
+                );
 
                 results.insert(0, new_slice_length);
 
@@ -408,7 +437,9 @@ fn simplify_slice_push_back(
         .insert_instruction_and_results(len_not_equals_capacity_instr, block, None, call_stack)
         .first();
 
-    let new_slice_length = update_slice_length(arguments[0], dfg, BinaryOp::Add, block);
+    // TODO: should this be unchecked?
+    let new_slice_length =
+        update_slice_length(arguments[0], dfg, BinaryOp::Add { unchecked: false }, block);
 
     for elem in &arguments[2..] {
         slice.push_back(*elem);
@@ -457,14 +488,20 @@ fn simplify_slice_pop_back(
     let element_count = element_types.len();
     let mut results = VecDeque::with_capacity(element_count + 1);
 
-    let new_slice_length = update_slice_length(arguments[0], dfg, BinaryOp::Sub, block);
+    // TODO: should this be unchecked?
+    let new_slice_length =
+        update_slice_length(arguments[0], dfg, BinaryOp::Sub { unchecked: false }, block);
 
     let element_size =
         dfg.make_constant((element_count as u128).into(), NumericType::length_type());
-    let flattened_len_instr = Instruction::binary(BinaryOp::Mul, arguments[0], element_size);
+    // TODO: should this be unchecked?
+    let flattened_len_instr =
+        Instruction::binary(BinaryOp::Mul { unchecked: false }, arguments[0], element_size);
     let mut flattened_len =
         dfg.insert_instruction_and_results(flattened_len_instr, block, None, call_stack).first();
-    flattened_len = update_slice_length(flattened_len, dfg, BinaryOp::Sub, block);
+    // TODO: should this be unchecked?
+    flattened_len =
+        update_slice_length(flattened_len, dfg, BinaryOp::Sub { unchecked: false }, block);
 
     // We must pop multiple elements in the case of a slice of tuples
     // Iterating through element types in reverse here since we're popping from the end
@@ -478,7 +515,9 @@ fn simplify_slice_pop_back(
             .first();
         results.push_front(get_last_elem);
 
-        flattened_len = update_slice_length(flattened_len, dfg, BinaryOp::Sub, block);
+        // TODO: should this be unchecked?
+        flattened_len =
+            update_slice_length(flattened_len, dfg, BinaryOp::Sub { unchecked: false }, block);
     }
 
     results.push_front(arguments[1]);

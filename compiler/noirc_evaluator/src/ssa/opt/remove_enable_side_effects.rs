@@ -126,12 +126,9 @@ impl Context {
         use Instruction::*;
         match instruction {
             Binary(binary) => match binary.operator {
-                BinaryOp::Add
-                | BinaryOp::UncheckedAdd
-                | BinaryOp::Sub
-                | BinaryOp::UncheckedSub
-                | BinaryOp::Mul
-                | BinaryOp::UncheckedMul => dfg.type_of_value(binary.lhs).is_unsigned(),
+                BinaryOp::Add { .. } | BinaryOp::Sub { .. } | BinaryOp::Mul { .. } => {
+                    dfg.type_of_value(binary.lhs).is_unsigned()
+                }
                 BinaryOp::Div | BinaryOp::Mod => {
                     if let Some(rhs) = dfg.get_numeric_constant(binary.rhs) {
                         rhs == FieldElement::zero()
@@ -242,13 +239,13 @@ mod test {
         let one = builder.numeric_constant(1u128, NumericType::bool());
 
         builder.insert_enable_side_effects_if(one);
-        builder.insert_binary(v0, BinaryOp::Mul, two);
+        builder.insert_binary(v0, BinaryOp::Mul { unchecked: false }, two);
         builder.insert_enable_side_effects_if(one);
-        builder.insert_binary(v0, BinaryOp::Mul, two);
+        builder.insert_binary(v0, BinaryOp::Mul { unchecked: false }, two);
         builder.insert_enable_side_effects_if(one);
-        builder.insert_binary(v0, BinaryOp::Mul, two);
+        builder.insert_binary(v0, BinaryOp::Mul { unchecked: false }, two);
         builder.insert_enable_side_effects_if(one);
-        builder.insert_binary(v0, BinaryOp::Mul, two);
+        builder.insert_binary(v0, BinaryOp::Mul { unchecked: false }, two);
         builder.insert_enable_side_effects_if(one);
 
         let ssa = builder.finish();
@@ -278,7 +275,10 @@ mod test {
 
         assert_eq!(instructions.len(), 4);
         for instruction in instructions.iter().take(4) {
-            assert_eq!(&main.dfg[*instruction], &Instruction::binary(BinaryOp::Mul, v0, two));
+            assert_eq!(
+                &main.dfg[*instruction],
+                &Instruction::binary(BinaryOp::Mul { unchecked: false }, v0, two)
+            );
         }
     }
 }

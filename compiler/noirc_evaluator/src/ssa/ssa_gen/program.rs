@@ -129,8 +129,8 @@ mod test {
         let one = builder.field_constant(1u128);
         let three = builder.field_constant(3u128);
 
-        let v1 = builder.insert_binary(v0, BinaryOp::Add, one);
-        let v2 = builder.insert_binary(v1, BinaryOp::Mul, three);
+        let v1 = builder.insert_binary(v0, BinaryOp::Add { unchecked: false }, one);
+        let v2 = builder.insert_binary(v1, BinaryOp::Mul { unchecked: false }, three);
         builder.terminate_with_return(vec![v2]);
 
         let ssa = builder.finish();

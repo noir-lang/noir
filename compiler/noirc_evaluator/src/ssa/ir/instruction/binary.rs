@@ -15,17 +15,11 @@ use super::{
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Serialize, Deserialize)]
 pub(crate) enum BinaryOp {
     /// Addition of lhs + rhs.
-    Add,
-    /// Addition of lhs + rhs without an overflow check.
-    UncheckedAdd,
+    Add { unchecked: bool },
     /// Subtraction of lhs - rhs.
-    Sub,
-    /// Subtraction of lhs - rhs without an overflow check.
-    UncheckedSub,
+    Sub { unchecked: bool },
     /// Multiplication of lhs * rhs.
-    Mul,
-    /// Multiplication of lhs * rhs without an overflow check.
-    UncheckedMul,
+    Mul { unchecked: bool },
     /// Division of lhs / rhs.
     Div,
     /// Modulus of lhs % rhs.
@@ -54,12 +48,12 @@ pub(crate) enum BinaryOp {
 impl std::fmt::Display for BinaryOp {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            BinaryOp::Add => write!(f, "add"),
-            BinaryOp::UncheckedAdd => write!(f, "unchecked_add"),
-            BinaryOp::Sub => write!(f, "sub"),
-            BinaryOp::UncheckedSub => write!(f, "unchecked_sub"),
-            BinaryOp::Mul => write!(f, "mul"),
-            BinaryOp::UncheckedMul => write!(f, "unchecked_mul"),
+            BinaryOp::Add { unchecked: false } => write!(f, "add"),
+            BinaryOp::Add { unchecked: true } => write!(f, "unchecked_add"),
+            BinaryOp::Sub { unchecked: false } => write!(f, "sub"),
+            BinaryOp::Sub { unchecked: true } => write!(f, "unchecked_sub"),
+            BinaryOp::Mul { unchecked: false } => write!(f, "mul"),
+            BinaryOp::Mul { unchecked: true } => write!(f, "unchecked_mul"),
             BinaryOp::Div => write!(f, "div"),
             BinaryOp::Eq => write!(f, "eq"),
             BinaryOp::Mod => write!(f, "mod"),
@@ -116,7 +110,7 @@ impl Binary {
         let rhs_is_one = rhs.map_or(false, |rhs| rhs.is_one());
 
         match self.operator {
-            BinaryOp::Add | BinaryOp::UncheckedAdd => {
+            BinaryOp::Add { .. } => {
                 if lhs_is_zero {
                     return SimplifyResult::SimplifiedTo(self.rhs);
                 }
@@ -124,12 +118,12 @@ impl Binary {
                     return SimplifyResult::SimplifiedTo(self.lhs);
                 }
             }
-            BinaryOp::Sub | BinaryOp::UncheckedSub => {
+            BinaryOp::Sub { .. } => {
                 if rhs_is_zero {
                     return SimplifyResult::SimplifiedTo(self.lhs);
                 }
             }
-            BinaryOp::Mul | BinaryOp::UncheckedMul => {
+            BinaryOp::Mul { .. } => {
                 if lhs_is_one {
                     return SimplifyResult::SimplifiedTo(self.rhs);
                 }
@@ -150,7 +144,7 @@ impl Binary {
                         if let Instruction::Binary(Binary { lhs, rhs, operator }) =
                             dfg[*instruction]
                         {
-                            if (operator == BinaryOp::Mul || operator == BinaryOp::UncheckedMul)
+                            if matches!(operator, BinaryOp::Mul { .. })
                                 && (dfg.resolve(self.lhs) == dfg.resolve(lhs)
                                     || dfg.resolve(self.lhs) == dfg.resolve(rhs))
                             {
@@ -165,7 +159,7 @@ impl Binary {
                         if let Instruction::Binary(Binary { lhs, rhs, operator }) =
                             dfg[*instruction]
                         {
-                            if (operator == BinaryOp::Mul || operator == BinaryOp::UncheckedMul)
+                            if matches!(operator, BinaryOp::Mul { .. })
                                 && (dfg.resolve(self.rhs) == dfg.resolve(lhs)
                                     || dfg.resolve(self.rhs) == dfg.resolve(rhs))
                             {
@@ -256,7 +250,9 @@ impl Binary {
                 }
                 if operand_type == NumericType::bool() {
                     // Boolean AND is equivalent to multiplication, which is a cheaper operation.
-                    let instruction = Instruction::binary(BinaryOp::Mul, self.lhs, self.rhs);
+                    // TODO: should this be unchecked?
+                    let instruction =
+                        Instruction::binary(BinaryOp::Mul { unchecked: false }, self.lhs, self.rhs);
                     return SimplifyResult::SimplifiedToInstruction(instruction);
                 }
                 if operand_type.is_unsigned() {
@@ -340,14 +336,14 @@ impl Binary {
         let max_rhs_bits = dfg.get_value_max_num_bits(self.rhs);
 
         let msg = match self.operator {
-            BinaryOp::Add => {
+            BinaryOp::Add { unchecked: false } => {
                 if std::cmp::max(max_lhs_bits, max_rhs_bits) < bit_size {
                     // `lhs` and `rhs` have both been casted up from smaller types and so cannot overflow.
                     return None;
                 }
                 "attempt to add with overflow"
             }
-            BinaryOp::Sub => {
+            BinaryOp::Sub { unchecked: false } => {
                 if dfg.is_constant(self.lhs) && max_lhs_bits > max_rhs_bits {
                     // `lhs` is a fixed constant and `rhs` is restricted such that `lhs - rhs > 0`
                     // Note strict inequality as `rhs > lhs` while `max_lhs_bits == max_rhs_bits` is possible.
@@ -355,7 +351,7 @@ impl Binary {
                 }
                 "attempt to subtract with overflow"
             }
-            BinaryOp::Mul => {
+            BinaryOp::Mul { unchecked: false } => {
                 if bit_size == 1
                     || max_lhs_bits + max_rhs_bits <= bit_size
                     || max_lhs_bits == 1
@@ -479,9 +475,9 @@ fn truncate(int: u128, bit_size: u32) -> u128 {
 impl BinaryOp {
     fn get_field_function(self) -> Option<fn(FieldElement, FieldElement) -> FieldElement> {
         match self {
-            BinaryOp::Add | BinaryOp::UncheckedAdd => Some(std::ops::Add::add),
-            BinaryOp::Sub | BinaryOp::UncheckedSub => Some(std::ops::Sub::sub),
-            BinaryOp::Mul | BinaryOp::UncheckedMul => Some(std::ops::Mul::mul),
+            BinaryOp::Add { .. } => Some(std::ops::Add::add),
+            BinaryOp::Sub { .. } => Some(std::ops::Sub::sub),
+            BinaryOp::Mul { .. } => Some(std::ops::Mul::mul),
             BinaryOp::Div => Some(std::ops::Div::div),
             BinaryOp::Eq => Some(|x, y| (x == y).into()),
             BinaryOp::Lt => Some(|x, y| (x < y).into()),
@@ -497,9 +493,9 @@ impl BinaryOp {
 
     fn get_u128_function(self) -> fn(u128, u128) -> Option<u128> {
         match self {
-            BinaryOp::Add | BinaryOp::UncheckedAdd => u128::checked_add,
-            BinaryOp::Sub | BinaryOp::UncheckedSub => u128::checked_sub,
-            BinaryOp::Mul | BinaryOp::UncheckedMul => u128::checked_mul,
+            BinaryOp::Add { .. } => u128::checked_add,
+            BinaryOp::Sub { .. } => u128::checked_sub,
+            BinaryOp::Mul { .. } => u128::checked_mul,
             BinaryOp::Div => u128::checked_div,
             BinaryOp::Mod => u128::checked_rem,
             BinaryOp::And => |x, y| Some(x & y),
@@ -514,9 +510,9 @@ impl BinaryOp {
 
     fn get_i128_function(self) -> fn(i128, i128) -> Option<i128> {
         match self {
-            BinaryOp::Add | BinaryOp::UncheckedAdd => i128::checked_add,
-            BinaryOp::Sub | BinaryOp::UncheckedSub => i128::checked_sub,
-            BinaryOp::Mul | BinaryOp::UncheckedMul => i128::checked_mul,
+            BinaryOp::Add { .. } => i128::checked_add,
+            BinaryOp::Sub { .. } => i128::checked_sub,
+            BinaryOp::Mul { .. } => i128::checked_mul,
             BinaryOp::Div => i128::checked_div,
             BinaryOp::Mod => i128::checked_rem,
             BinaryOp::And => |x, y| Some(x & y),

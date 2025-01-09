@@ -936,7 +936,8 @@ mod test {
         // Compiling square f1
         builder.new_function("square".into(), square_id, InlineType::default());
         let square_v0 = builder.add_parameter(Type::field());
-        let square_v2 = builder.insert_binary(square_v0, BinaryOp::Mul, square_v0);
+        let square_v2 =
+            builder.insert_binary(square_v0, BinaryOp::Mul { unchecked: false }, square_v0);
         builder.terminate_with_return(vec![square_v2]);
 
         // Compiling id1 f2
@@ -1001,9 +1002,9 @@ mod test {
 
         builder.switch_to_block(b2);
         let factorial_id = builder.import_function(factorial_id);
-        let v2 = builder.insert_binary(v0, BinaryOp::Sub, one);
+        let v2 = builder.insert_binary(v0, BinaryOp::Sub { unchecked: false }, one);
         let v3 = builder.insert_call(factorial_id, vec![v2], vec![Type::field()])[0];
-        let v4 = builder.insert_binary(v0, BinaryOp::Mul, v3);
+        let v4 = builder.insert_binary(v0, BinaryOp::Mul { unchecked: false }, v3);
         builder.terminate_with_return(vec![v4]);
 
         let ssa = builder.finish();

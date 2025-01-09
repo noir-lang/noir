@@ -624,8 +624,7 @@ impl Loop {
             .filter(|instruction| {
                 let instruction = &function.dfg[**instruction];
                 matches!(instruction,
-                    Instruction::Binary(Binary { lhs, operator: BinaryOp::Add, rhs: _ }) |
-                    Instruction::Binary(Binary { lhs, operator: BinaryOp::UncheckedAdd, rhs: _ })
+                    Instruction::Binary(Binary { lhs, operator: BinaryOp::Add { .. }, rhs: _ })
                         if *lhs == induction_var
                 )
             })

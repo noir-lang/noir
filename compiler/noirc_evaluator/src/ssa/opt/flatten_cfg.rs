@@ -659,12 +659,22 @@ impl<'f> Context<'f> {
                     let cast = Instruction::Cast(condition, argument_type.unwrap_numeric());
                     let casted_condition = self.insert_instruction(cast, call_stack);
 
+                    // TODO: should this be unchecked?
                     let lhs = self.insert_instruction(
-                        Instruction::binary(BinaryOp::Mul, lhs, casted_condition),
+                        Instruction::binary(
+                            BinaryOp::Mul { unchecked: false },
+                            lhs,
+                            casted_condition,
+                        ),
                         call_stack,
                     );
+                    // TODO: should this be unchecked?
                     let rhs = self.insert_instruction(
-                        Instruction::binary(BinaryOp::Mul, rhs, casted_condition),
+                        Instruction::binary(
+                            BinaryOp::Mul { unchecked: false },
+                            rhs,
+                            casted_condition,
+                        ),
                         call_stack,
                     );
 
@@ -704,8 +714,13 @@ impl<'f> Context<'f> {
                     let cast = Instruction::Cast(condition, argument_type.unwrap_numeric());
                     let casted_condition = self.insert_instruction(cast, call_stack);
 
+                    // TODO: should this be unchecked?
                     let value = self.insert_instruction(
-                        Instruction::binary(BinaryOp::Mul, value, casted_condition),
+                        Instruction::binary(
+                            BinaryOp::Mul { unchecked: false },
+                            value,
+                            casted_condition,
+                        ),
                         call_stack,
                     );
                     Instruction::RangeCheck { value, max_bit_size, assert_message }
@@ -718,8 +733,14 @@ impl<'f> Context<'f> {
 
                         let cast = Instruction::Cast(condition, argument_type.unwrap_numeric());
                         let casted_condition = self.insert_instruction(cast, call_stack);
+
+                        // TODO: should this be unchecked?
                         let field = self.insert_instruction(
-                            Instruction::binary(BinaryOp::Mul, field, casted_condition),
+                            Instruction::binary(
+                                BinaryOp::Mul { unchecked: false },
+                                field,
+                                casted_condition,
+                            ),
                             call_stack,
                         );
 
@@ -797,11 +818,15 @@ impl<'f> Context<'f> {
 
     // Computes: if condition { var } else { 1 }
     fn var_or_one(&mut self, var: ValueId, condition: ValueId, call_stack: CallStackId) -> ValueId {
-        let field =
-            self.insert_instruction(Instruction::binary(BinaryOp::Mul, var, condition), call_stack);
+        // TODO: should this be unchecked?
+        let field = self.insert_instruction(
+            Instruction::binary(BinaryOp::Mul { unchecked: false }, var, condition),
+            call_stack,
+        );
         let not_condition = self.not_instruction(condition, call_stack);
+        // TODO: should this be unchecked?
         self.insert_instruction(
-            Instruction::binary(BinaryOp::Add, field, not_condition),
+            Instruction::binary(BinaryOp::Add { unchecked: false }, field, not_condition),
             call_stack,
         )
     }

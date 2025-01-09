@@ -507,16 +507,18 @@ fn apply_side_effects(
     let casted_condition = dfg.insert_instruction_and_results(cast, block_id, None, call_stack);
     let casted_condition = casted_condition.first();
 
+    // TODO: should this be unchecked?
     let lhs = dfg.insert_instruction_and_results(
-        Instruction::binary(BinaryOp::Mul, lhs, casted_condition),
+        Instruction::binary(BinaryOp::Mul { unchecked: false }, lhs, casted_condition),
         block_id,
         None,
         call_stack,
     );
     let lhs = lhs.first();
 
+    // TODO: should this be unchecked?
     let rhs = dfg.insert_instruction_and_results(
-        Instruction::binary(BinaryOp::Mul, rhs, casted_condition),
+        Instruction::binary(BinaryOp::Mul { unchecked: false }, rhs, casted_condition),
         block_id,
         None,
         call_stack,
