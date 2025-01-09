@@ -1,0 +1,9 @@
+# Using the smaller sizes defined in `main.nr`.
+# The reason this program is in the `execution_success` directory is because
+# `rebuild.sh` only goes over these programs, but all we really care about is
+# any potential future bytecode size regression.
+eph_pk_bytes = [1, 2, 3]
+incoming_header_ciphertext = [1, 2]
+incoming_body_ciphertext = [9, 8, 7, 6, 5, 4, 3, 2, 1]
+flag = true
+return = [1, 2, 3, 1, 2, 0, 9, 8, 7, 6, 5, 4, 3, 2, 1]

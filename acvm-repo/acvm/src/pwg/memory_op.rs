@@ -21,6 +21,19 @@ pub(crate) struct MemoryOpSolver<F> {
 }
 
 impl<F: AcirField> MemoryOpSolver<F> {
+    fn index_from_field(&self, index: F) -> Result<MemoryIndex, OpcodeResolutionError<F>> {
+        if index.num_bits() <= 32 {
+            let memory_index = index.try_to_u64().unwrap() as MemoryIndex;
+            Ok(memory_index)
+        } else {
+            Err(OpcodeResolutionError::IndexOutOfBounds {
+                opcode_location: ErrorLocation::Unresolved,
+                index,
+                array_size: self.block_len,
+            })
+        }
+    }
+
     fn write_memory_index(
         &mut self,
         index: MemoryIndex,
@@ -29,7 +42,7 @@ impl<F: AcirField> MemoryOpSolver<F> {
         if index >= self.block_len {
             return Err(OpcodeResolutionError::IndexOutOfBounds {
                 opcode_location: ErrorLocation::Unresolved,
-                index,
+                index: F::from(index as u128),
                 array_size: self.block_len,
             });
         }
@@ -40,7 +53,7 @@ impl<F: AcirField> MemoryOpSolver<F> {
     fn read_memory_index(&self, index: MemoryIndex) -> Result<F, OpcodeResolutionError<F>> {
         self.block_value.get(&index).copied().ok_or(OpcodeResolutionError::IndexOutOfBounds {
             opcode_location: ErrorLocation::Unresolved,
-            index,
+            index: F::from(index as u128),
             array_size: self.block_len,
         })
     }
@@ -72,7 +85,7 @@ impl<F: AcirField> MemoryOpSolver<F> {
 
         // Find the memory index associated with this memory operation.
         let index = get_value(&op.index, initial_witness)?;
-        let memory_index = index.try_to_u64().unwrap() as MemoryIndex;
+        let memory_index = self.index_from_field(index)?;
 
         // Calculate the value associated with this memory operation.
         //
@@ -193,9 +206,9 @@ mod tests {
             err,
             Some(crate::pwg::OpcodeResolutionError::IndexOutOfBounds {
                 opcode_location: _,
-                index: 2,
+                index,
                 array_size: 2
-            })
+            }) if index == FieldElement::from(2u128)
         ));
     }
 
