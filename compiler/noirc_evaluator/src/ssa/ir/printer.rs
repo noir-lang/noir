@@ -274,7 +274,11 @@ pub(crate) fn try_to_extract_string_from_error_payload(
     values: &[ValueId],
     dfg: &DataFlowGraph,
 ) -> Option<String> {
-    (is_string_type && (values.len() == 1)).then(|| dfg.get_string(values[0]))
+    if is_string_type && values.len() == 1 {
+        dfg.get_string(values[0])
+    } else {
+        None
+    }
 }
 
 fn display_constrain_error(
