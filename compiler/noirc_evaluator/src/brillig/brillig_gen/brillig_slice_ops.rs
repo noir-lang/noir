@@ -206,6 +206,7 @@ mod tests {
             brillig_context,
             variables,
             last_uses: Default::default(),
+            building_globals: false,
         }
     }
 

@@ -137,17 +137,11 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
                     };
 
                     return Err(NargoError::ExecutionError(match assertion_payload {
-                        Some(payload) => {
-                            dbg!(payload.clone());
-                            dbg!(call_stack.clone());
-                            dbg!(brillig_function_id);
-                            ExecutionError::AssertionFailed(
-                                payload,
-                                call_stack
-                                    .expect("Should have call stack for an assertion failure"),
-                                brillig_function_id,
-                            )
-                        }
+                        Some(payload) => ExecutionError::AssertionFailed(
+                            payload,
+                            call_stack.expect("Should have call stack for an assertion failure"),
+                            brillig_function_id,
+                        ),
                         None => ExecutionError::SolvingError(error, call_stack),
                     }));
                 }

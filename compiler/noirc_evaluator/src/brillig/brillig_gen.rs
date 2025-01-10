@@ -8,7 +8,7 @@ mod constant_allocation;
 mod variable_liveness;
 
 use acvm::FieldElement;
-use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use fxhash::FxHashMap as HashMap;
 
 use self::{brillig_block::BrilligBlock, brillig_fn::FunctionContext};
 use super::{

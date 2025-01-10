@@ -3,7 +3,7 @@ use crate::brillig::brillig_ir::brillig_variable::{
     type_to_heap_value_type, BrilligArray, BrilligVariable, SingleAddrVariable,
 };
 
-use crate::brillig::brillig_ir::registers::{RegisterAllocator, Stack};
+use crate::brillig::brillig_ir::registers::RegisterAllocator;
 use crate::brillig::brillig_ir::{
     BrilligBinaryOp, BrilligContext, ReservedRegisters, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
 };
@@ -84,6 +84,24 @@ impl<'block, 'global, Registers: RegisterAllocator> BrilligBlock<'block, 'global
         };
 
         brillig_block.convert_block(dfg);
+    }
+
+    pub(crate) fn compile_globals(&mut self, globals: &DataFlowGraph) {
+        for (id, value) in globals.values_iter() {
+            match value {
+                Value::NumericConstant { .. } => {
+                    self.convert_ssa_value(id, globals);
+                }
+                Value::Instruction { instruction, .. } => {
+                    self.convert_ssa_instruction(*instruction, globals);
+                }
+                _ => {
+                    panic!(
+                        "Expected either an instruction or a numeric constant for a global value"
+                    )
+                }
+            }
+        }
     }
 
     fn convert_block(&mut self, dfg: &DataFlowGraph) {
@@ -871,9 +889,8 @@ impl<'block, 'global, Registers: RegisterAllocator> BrilligBlock<'block, 'global
 
             for dead_variable in dead_variables {
                 match &dfg[*dead_variable] {
-                    Value::Global(_) => {
-                        dbg!("got dead global");
-                    }
+                    // Globals are reserved throughout the entirety of the program
+                    Value::Global(_) => {}
                     _ => {
                         self.variables.remove_variable(
                             dead_variable,
@@ -1594,15 +1611,11 @@ impl<'block, 'global, Registers: RegisterAllocator> BrilligBlock<'block, 'global
         let value = &dfg[value_id];
 
         match value {
-            Value::Global(_) => {
-                dbg!(value_id);
-                let variable =
-                    *self.function_context.globals.get(&value_id).unwrap_or_else(|| {
-                        panic!("ICE: Global value not found in cache {value_id}")
-                    });
-                dbg!(variable.clone());
-                variable
-            }
+            Value::Global(_) => *self
+                .function_context
+                .globals
+                .get(&value_id)
+                .unwrap_or_else(|| panic!("ICE: Global value not found in cache {value_id}")),
             Value::Param { .. } | Value::Instruction { .. } => {
                 // All block parameters and instruction results should have already been
                 // converted to registers so we fetch from the cache.

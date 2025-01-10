@@ -8,7 +8,6 @@ use crate::{
     ssa::ir::{
         basic_block::BasicBlockId,
         function::{Function, FunctionId},
-        map::Id,
         post_order::PostOrder,
         types::Type,
         value::ValueId,
@@ -60,10 +59,10 @@ impl<'global> FunctionContext<'global> {
         function_id: FunctionId,
         globals: &'global HashMap<ValueId, BrilligVariable>,
     ) -> Self {
-        // let mut liveness = VariableLiveness::default();
-        // liveness.l
         Self {
             // It does not matter what ID we have here
+            // This ID is only used for creating block labels and globals should
+            // have their own entirely separate label.
             function_id,
             ssa_value_allocations: Default::default(),
             blocks: Default::default(),

@@ -69,9 +69,6 @@ pub(crate) fn evaluate_binary_int_op<F: AcirField>(
     rhs: MemoryValue<F>,
     bit_size: IntegerBitSize,
 ) -> Result<MemoryValue<F>, BrilligArithmeticError> {
-    // dbg!(op);
-    // dbg!(lhs);
-    // dbg!(rhs);
     let lhs = lhs.expect_integer_with_bit_size(bit_size).map_err(|err| match err {
         MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size } => {
             BrilligArithmeticError::MismatchedLhsBitSize {

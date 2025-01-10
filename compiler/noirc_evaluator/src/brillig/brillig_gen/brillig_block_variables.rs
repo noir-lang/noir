@@ -7,7 +7,7 @@ use crate::{
             get_bit_size_from_ssa_type, BrilligArray, BrilligVariable, BrilligVector,
             SingleAddrVariable,
         },
-        registers::{RegisterAllocator, Stack},
+        registers::RegisterAllocator,
         BrilligContext,
     },
     ssa::ir::{

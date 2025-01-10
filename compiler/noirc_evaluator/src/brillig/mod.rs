@@ -2,17 +2,8 @@ pub(crate) mod brillig_gen;
 pub(crate) mod brillig_ir;
 
 use acvm::FieldElement;
-use brillig_gen::{
-    brillig_block::BrilligBlock,
-    brillig_block_variables::{allocate_value_with_type, BlockVariables},
-    brillig_fn::FunctionContext,
-};
-use brillig_ir::{
-    artifact::LabelType,
-    brillig_variable::{BrilligVariable, SingleAddrVariable},
-    registers::GlobalSpace,
-    BrilligBinaryOp, BrilligContext, ReservedRegisters,
-};
+use brillig_gen::brillig_globals::convert_ssa_globals;
+use brillig_ir::{artifact::LabelType, brillig_variable::BrilligVariable, registers::GlobalSpace};
 
 use self::{
     brillig_gen::convert_ssa_function,
@@ -23,17 +14,14 @@ use self::{
 };
 use crate::ssa::{
     ir::{
-        basic_block::BasicBlockId,
         dfg::DataFlowGraph,
         function::{Function, FunctionId},
-        instruction::Instruction,
-        types::Type,
-        value::{Value, ValueId},
+        value::ValueId,
     },
     ssa_gen::Ssa,
 };
 use fxhash::FxHashMap as HashMap;
-use std::{borrow::Cow, collections::BTreeSet, sync::Arc};
+use std::{borrow::Cow, collections::BTreeSet};
 
 pub use self::brillig_ir::procedures::ProcedureId;
 
@@ -73,27 +61,6 @@ impl Brillig {
             _ => unreachable!("ICE: Expected a function or procedure label"),
         }
     }
-
-    pub(crate) fn create_brillig_globals(
-        brillig_context: &mut BrilligBlock<'_, '_, GlobalSpace>,
-        globals: &DataFlowGraph,
-    ) {
-        for (id, value) in globals.values_iter() {
-            match value {
-                Value::NumericConstant { .. } => {
-                    brillig_context.convert_ssa_value(id, globals);
-                }
-                Value::Instruction { instruction, .. } => {
-                    brillig_context.convert_ssa_instruction(*instruction, globals);
-                }
-                _ => {
-                    panic!(
-                        "Expected either an instruction or a numeric constant for a global value"
-                    )
-                }
-            }
-        }
-    }
 }
 
 impl std::ops::Index<FunctionId> for Brillig {
@@ -117,30 +84,10 @@ impl Ssa {
 
         let mut brillig = Brillig::default();
 
-        let mut brillig_context = BrilligContext::new_for_global_init(enable_debug_trace);
-        // We can use any ID here as this context is only going to be used for globals which does not differentiate
-        // by functions and blocks. The only Label that should be used in the globals context is `Label::globals_init()`
-        let globals = HashMap::default();
-        let mut function_context = FunctionContext::new_for_global_init(self.main_id, &globals);
-        brillig_context.enter_context(Label::globals_init());
-
-        let block_id = DataFlowGraph::default().make_block();
-        let mut brillig_block = BrilligBlock {
-            function_context: &mut function_context,
-            block_id,
-            brillig_context: &mut brillig_context,
-            variables: BlockVariables::default(),
-            last_uses: HashMap::default(),
-            building_globals: true,
-        };
-
-        Brillig::create_brillig_globals(&mut brillig_block, &self.globals);
-        brillig_context.return_instruction();
-
-        let artifact = brillig_context.artifact();
+        let (artifact, brillig_globals) =
+            convert_ssa_globals(enable_debug_trace, self.main_id, &self.globals);
         brillig.globals = artifact;
 
-        let brillig_globals = function_context.ssa_value_allocations;
         for brillig_function_id in brillig_reachable_function_ids {
             let func = &self.functions[&brillig_function_id];
             brillig.compile(func, enable_debug_trace, &brillig_globals);

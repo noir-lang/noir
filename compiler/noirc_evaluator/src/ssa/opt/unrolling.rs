@@ -25,9 +25,8 @@ use im::HashSet;
 
 use crate::{
     brillig::{
-        brillig_gen::convert_ssa_function,
-        brillig_ir::{brillig_variable::BrilligVariable, BrilligContext},
-        Brillig,
+        brillig_gen::{brillig_globals::convert_ssa_globals, convert_ssa_function},
+        brillig_ir::brillig_variable::BrilligVariable,
     },
     errors::RuntimeError,
     ssa::{
@@ -91,9 +90,8 @@ impl Ssa {
 
             if has_unrolled {
                 if let Some((orig_function, max_incr_pct)) = orig_func_and_max_incr_pct {
-                    let mut brillig_context = BrilligContext::new_for_global_init(true);
-                    let brillig_globals =
-                        Brillig::create_brillig_globals(&mut brillig_context, &self.globals);
+                    let (_, brillig_globals) =
+                        convert_ssa_globals(false, self.main_id, &self.globals);
 
                     let new_size = brillig_bytecode_size(function, &brillig_globals);
                     let orig_size = brillig_bytecode_size(&orig_function, &brillig_globals);
