@@ -100,7 +100,7 @@ You can dig deeper and use the `--print-acir` param to take a closer look at ind
 
 As mentioned earlier Noir has many familiar integer types (eg `i8`, `u64`). Ideally after bringing a program into Noir, proving/verifying of its execution just works where needed: client/server side, on an evm, or on the Aztec network.
 
-A program optimised for execution may leverage the binary representations of integers, reducing the number of clock cycles, and thus time of execution.
+A program optimized for execution may leverage the binary representations of integers, reducing the number of clock cycles, and thus time of execution.
 The cryptography in a proving backend makes use of a `Field` type, and leveraging this lower level type correctly can reduce gate count, and thus proof size and proving time.
 
 In some instances simply replacing the integer type with a `Field` could save on some range checks (and hence gates).
@@ -123,7 +123,7 @@ More efficiently with `Field` types, the equivalent is:
 ```
 (Note, the power of two can instead be a constant (256) or global evaluated at compile time)
 
-The first snippet is good for compatibility when using existing code, converting to the latter can help optimise frequently used functions.
+The first snippet is good for compatibility when using existing code, converting to the latter can help optimize frequently used functions.
 
 :::tip
 Where possible, use the `Field` type for values. Writing code with smaller value types and bit-packing strategies will result in MORE gates
