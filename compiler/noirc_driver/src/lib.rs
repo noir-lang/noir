@@ -73,7 +73,7 @@ pub struct CompileOptions {
     /// Only show SSA passes whose name contains the provided string.
     /// This setting takes precedence over `show_ssa` if it's not empty.
     #[arg(long, hide = true)]
-    pub show_ssa_pass_name: Option<String>,
+    pub show_ssa_pass: Option<String>,
 
     /// Only show the SSA and ACIR for the contract function with a given name.
     #[arg(long, hide = true)]
@@ -500,7 +500,7 @@ fn compile_contract_inner(
         if let Some(ref name_filter) = options.show_contract_fn {
             let show = name == *name_filter;
             options.show_ssa &= show;
-            options.show_ssa_pass_name = options.show_ssa_pass_name.filter(|_| show);
+            options.show_ssa_pass = options.show_ssa_pass.filter(|_| show);
         };
 
         let function = match compile_no_check(context, &options, function_id, None, true) {
@@ -659,7 +659,7 @@ pub fn compile_no_check(
 
     let return_visibility = program.return_visibility;
     let ssa_evaluator_options = noirc_evaluator::ssa::SsaEvaluatorOptions {
-        ssa_logging: match &options.show_ssa_pass_name {
+        ssa_logging: match &options.show_ssa_pass {
             Some(string) => SsaLogging::Contains(string.clone()),
             None => {
                 if options.show_ssa {
