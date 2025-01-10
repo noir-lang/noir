@@ -19,22 +19,27 @@ pub struct NoirFunction {
     pub def: FunctionDefinition,
 }
 
-/// Currently, we support three types of functions:
+/// Currently, we support four types of functions:
 /// - Normal functions
 /// - LowLevel/Foreign which link to an OPCODE in ACIR
 /// - BuiltIn which are provided by the runtime
+/// - TraitFunctionWithoutBody for which we don't type-check their body
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum FunctionKind {
     LowLevel,
     Builtin,
     Normal,
     Oracle,
+    TraitFunctionWithoutBody,
 }
 
 impl FunctionKind {
     pub fn can_ignore_return_type(self) -> bool {
         match self {
-            FunctionKind::LowLevel | FunctionKind::Builtin | FunctionKind::Oracle => true,
+            FunctionKind::LowLevel
+            | FunctionKind::Builtin
+            | FunctionKind::Oracle
+            | FunctionKind::TraitFunctionWithoutBody => true,
             FunctionKind::Normal => false,
         }
     }

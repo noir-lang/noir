@@ -838,8 +838,8 @@ impl FunctionDefinition {
         is_unconstrained: bool,
         generics: &UnresolvedGenerics,
         parameters: &[(Ident, UnresolvedType)],
-        body: &BlockExpression,
-        where_clause: &[UnresolvedTraitConstraint],
+        body: BlockExpression,
+        where_clause: Vec<UnresolvedTraitConstraint>,
         return_type: &FunctionReturnType,
     ) -> FunctionDefinition {
         let p = parameters
@@ -860,9 +860,9 @@ impl FunctionDefinition {
             visibility: ItemVisibility::Private,
             generics: generics.clone(),
             parameters: p,
-            body: body.clone(),
+            body,
             span: name.span(),
-            where_clause: where_clause.to_vec(),
+            where_clause,
             return_type: return_type.clone(),
             return_visibility: Visibility::Private,
         }

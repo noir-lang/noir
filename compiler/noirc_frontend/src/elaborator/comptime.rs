@@ -97,6 +97,7 @@ impl<'context> Elaborator<'context> {
             self.crate_id,
             self.debug_comptime_in_file,
             self.interpreter_call_stack.clone(),
+            self.pedantic_solving,
         );
 
         elaborator.function_context.push(FunctionContext::default());
@@ -474,7 +475,7 @@ impl<'context> Elaborator<'context> {
             Some(DependencyId::Function(function)) => Some(function),
             _ => None,
         };
-        Interpreter::new(self, self.crate_id, current_function)
+        Interpreter::new(self, self.crate_id, current_function, self.pedantic_solving)
     }
 
     pub(super) fn debug_comptime<T: Display, F: FnMut(&mut NodeInterner) -> T>(
