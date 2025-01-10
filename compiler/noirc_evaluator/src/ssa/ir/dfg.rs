@@ -215,7 +215,7 @@ impl DataFlowGraph {
         call_stack: CallStackId,
     ) -> InsertInstructionResult {
         if !self.is_handled_by_runtime(&instruction_data) {
-            return InsertInstructionResult::InstructionRemoved;
+            panic!("Attempted to insert instruction not handled by runtime: {instruction_data:?}");
         }
 
         let id = self.insert_instruction_without_simplification(
