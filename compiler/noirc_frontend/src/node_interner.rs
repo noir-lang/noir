@@ -2268,12 +2268,9 @@ impl Methods {
     }
 
     /// Iterate through each method, starting with the direct methods
-    pub fn iter(&self) -> impl Iterator<Item = (FuncId, &Option<Type>)> + '_ {
-        let trait_impl_methods = self.trait_impl_methods.iter().map(|m| (m.method, &m.typ));
-        let direct = self.direct.iter().copied().map(|func_id| {
-            let typ: &Option<Type> = &None;
-            (func_id, typ)
-        });
+    pub fn iter(&self) -> impl Iterator<Item = (FuncId, Option<&Type>)> + '_ {
+        let trait_impl_methods = self.trait_impl_methods.iter().map(|m| (m.method, m.typ.as_ref()));
+        let direct = self.direct.iter().copied().map(|func_id| (func_id, None));
         direct.chain(trait_impl_methods)
     }
 
@@ -2302,7 +2299,7 @@ impl Methods {
         interner: &NodeInterner,
     ) -> Option<FuncId> {
         for method in &self.direct {
-            if Self::method_matches(typ, has_self_param, *method, &None, interner) {
+            if Self::method_matches(typ, has_self_param, *method, None, interner) {
                 return Some(*method);
             }
         }
@@ -2320,7 +2317,7 @@ impl Methods {
 
         for trait_impl_method in &self.trait_impl_methods {
             let method = trait_impl_method.method;
-            let method_type = &trait_impl_method.typ;
+            let method_type = trait_impl_method.typ.as_ref();
             let trait_id = trait_impl_method.trait_id;
 
             if Self::method_matches(typ, has_self_param, method, method_type, interner) {
@@ -2335,7 +2332,7 @@ impl Methods {
         typ: &Type,
         has_self_param: bool,
         method: FuncId,
-        method_type: &Option<Type>,
+        method_type: Option<&Type>,
         interner: &NodeInterner,
     ) -> bool {
         match interner.function_meta(&method).typ.instantiate(interner).0 {
