@@ -2269,29 +2269,26 @@ impl Methods {
     }
 
     /// Iterate through each method, starting with the direct methods
-    pub fn iter(&self) -> impl Iterator<Item = (FuncId, Option<&Type>, Option<TraitId>)> + '_ {
+    pub fn iter(&self) -> impl Iterator<Item = (FuncId, Option<&Type>, Option<TraitId>)> {
         let trait_impl_methods =
             self.trait_impl_methods.iter().map(|m| (m.method, m.typ.as_ref(), Some(m.trait_id)));
         let direct = self.direct.iter().copied().map(|func_id| (func_id, None, None));
         direct.chain(trait_impl_methods)
     }
 
-    /// Select the 1 matching method with an object type matching `typ`
-    pub fn find_matching_method(
-        &self,
-        typ: &Type,
+    pub fn find_matching_methods<'a>(
+        &'a self,
+        typ: &'a Type,
         has_self_param: bool,
-        interner: &NodeInterner,
-    ) -> Option<FuncId> {
-        // When adding methods we always check they do not overlap, so there should be
-        // at most 1 matching method in this list.
-        for (method, method_type, _trait_id) in self.iter() {
+        interner: &'a NodeInterner,
+    ) -> impl Iterator<Item = (FuncId, Option<TraitId>)> + 'a {
+        self.iter().filter_map(move |(method, method_type, trait_id)| {
             if Self::method_matches(typ, has_self_param, method, method_type, interner) {
-                return Some(method);
+                Some((method, trait_id))
+            } else {
+                None
             }
-        }
-
-        None
+        })
     }
 
     pub fn find_direct_method(

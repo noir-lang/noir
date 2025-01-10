@@ -28,6 +28,7 @@ use noirc_frontend::{
         def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId},
         resolution::visibility::{
             item_in_module_is_visible, method_call_is_visible, struct_member_is_visible,
+            trait_member_is_visible,
         },
     },
     hir_def::traits::Trait,
@@ -658,39 +659,47 @@ impl<'a> NodeFinder<'a> {
         let has_self_param = matches!(function_kind, FunctionKind::SelfType(..));
 
         for (name, methods) in methods_by_name {
-            let Some(func_id) =
-                methods.find_matching_method(typ, has_self_param, self.interner).or_else(|| {
-                    // Also try to find a method assuming typ is `&mut typ`:
-                    // we want to suggest methods that take `&mut self` even though a variable might not
-                    // be mutable, so a user can know they need to mark it as mutable.
-                    let typ = Type::MutableReference(Box::new(typ.clone()));
-                    methods.find_matching_method(&typ, has_self_param, self.interner)
-                })
-            else {
+            if !name_matches(name, prefix) {
                 continue;
-            };
+            }
 
-            if let Some(struct_id) = struct_id {
-                let modifiers = self.interner.function_modifiers(&func_id);
-                let visibility = modifiers.visibility;
-                if !struct_member_is_visible(struct_id, visibility, self.module_id, self.def_maps) {
+            for (func_id, trait_id) in
+                methods.find_matching_methods(typ, has_self_param, self.interner)
+            {
+                if let Some(struct_id) = struct_id {
+                    let modifiers = self.interner.function_modifiers(&func_id);
+                    let visibility = modifiers.visibility;
+                    if !struct_member_is_visible(
+                        struct_id,
+                        visibility,
+                        self.module_id,
+                        self.def_maps,
+                    ) {
+                        continue;
+                    }
+                }
+
+                if let Some(trait_id) = trait_id {
+                    let modifiers = self.interner.function_modifiers(&func_id);
+                    let visibility = modifiers.visibility;
+                    if !trait_member_is_visible(trait_id, visibility, self.module_id, self.def_maps)
+                    {
+                        continue;
+                    }
+                }
+
+                if is_primitive
+                    && !method_call_is_visible(
+                        typ,
+                        func_id,
+                        self.module_id,
+                        self.interner,
+                        self.def_maps,
+                    )
+                {
                     continue;
                 }
-            }
 
-            if is_primitive
-                && !method_call_is_visible(
-                    typ,
-                    func_id,
-                    self.module_id,
-                    self.interner,
-                    self.def_maps,
-                )
-            {
-                continue;
-            }
-
-            if name_matches(name, prefix) {
                 let completion_items = self.function_completion_items(
                     name,
                     func_id,
