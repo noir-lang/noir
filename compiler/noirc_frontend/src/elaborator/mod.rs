@@ -346,11 +346,6 @@ impl<'context> Elaborator<'context> {
             &items.module_attributes,
         );
 
-        // Make sure trait impl functions have the same visibility as their traits
-        for trait_impl in &items.trait_impls {
-            self.set_trait_impl_functions_visibility(trait_impl);
-        }
-
         for functions in items.functions {
             self.elaborate_functions(functions);
         }
@@ -1103,19 +1098,6 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn set_trait_impl_functions_visibility(&mut self, trait_impl: &UnresolvedTraitImpl) {
-        let Some(trait_id) = trait_impl.trait_id else {
-            return;
-        };
-        let trait_visibility = self.interner.get_trait(trait_id).visibility;
-
-        for (_, function, _) in &trait_impl.methods.functions {
-            // A trait impl method has the same visibility as its trait
-            let modifiers = self.interner.function_modifiers_mut(function);
-            modifiers.visibility = trait_visibility;
-        }
-    }
-
     fn elaborate_trait_impl(&mut self, trait_impl: UnresolvedTraitImpl) {
         self.file = trait_impl.file_id;
         self.local_module = trait_impl.module_id;
@@ -1340,9 +1322,15 @@ impl<'context> Elaborator<'context> {
             let span = trait_impl.object_type.span;
             self.declare_methods_on_struct(Some(trait_id), &mut trait_impl.methods, span);
 
+            let trait_visibility = self.interner.get_trait(trait_id).visibility;
+
             let methods = trait_impl.methods.function_ids();
             for func_id in &methods {
                 self.interner.set_function_trait(*func_id, self_type.clone(), trait_id);
+
+                // A trait impl method has the same visibility as its trait
+                let modifiers = self.interner.function_modifiers_mut(func_id);
+                modifiers.visibility = trait_visibility;
             }
 
             let trait_generics = trait_impl.resolved_trait_generics.clone();
