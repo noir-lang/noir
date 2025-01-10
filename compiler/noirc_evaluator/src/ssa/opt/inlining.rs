@@ -80,7 +80,7 @@ impl Ssa {
 /// This works using an internal FunctionBuilder to build a new main function from scratch.
 /// Doing it this way properly handles importing instructions between functions and lets us
 /// reuse the existing API at the cost of essentially cloning each of main's instructions.
-struct InlineContext<'global> {
+struct InlineContext {
     recursion_level: u32,
     builder: FunctionBuilder,
 
@@ -98,8 +98,6 @@ struct InlineContext<'global> {
 
     // These are the functions of the program that we shouldn't inline.
     functions_not_to_inline: BTreeSet<FunctionId>,
-
-    globals: &'global Function,
 }
 
 /// The per-function inlining context contains information that is only valid for one function.
@@ -107,13 +105,13 @@ struct InlineContext<'global> {
 /// layer to translate between BlockId to BlockId for the current function and the function to
 /// inline into. The same goes for ValueIds, InstructionIds, and for storing other data like
 /// parameter to argument mappings.
-struct PerFunctionContext<'function, 'global> {
+struct PerFunctionContext<'function> {
     /// The source function is the function we're currently inlining into the function being built.
     source_function: &'function Function,
 
     /// The shared inlining context for all functions. This notably contains the FunctionBuilder used
     /// to build the function we're inlining into.
-    context: &'function mut InlineContext<'global>,
+    context: &'function mut InlineContext,
 
     /// Maps ValueIds in the function being inlined to the new ValueIds to use in the function
     /// being inlined into. This mapping also contains the mapping from parameter values to
@@ -131,6 +129,8 @@ struct PerFunctionContext<'function, 'global> {
 
     /// True if we're currently working on the entry point function.
     inlining_entry: bool,
+
+    globals: &'function Function,
 }
 
 /// Utility function to find out the direct calls of a function.
@@ -349,14 +349,14 @@ fn compute_function_interface_cost(func: &Function) -> usize {
     func.parameters().len() + func.returns().len()
 }
 
-impl<'global> InlineContext<'global> {
+impl InlineContext {
     /// Create a new context object for the function inlining pass.
     /// This starts off with an empty mapping of instructions for main's parameters.
     /// The function being inlined into will always be the main function, although it is
     /// actually a copy that is created in case the original main is still needed from a function
     /// that could not be inlined calling it.
     fn new(
-        ssa: &'global Ssa,
+        ssa: &Ssa,
         entry_point: FunctionId,
         inline_no_predicates_functions: bool,
         functions_not_to_inline: BTreeSet<FunctionId>,
@@ -371,7 +371,6 @@ impl<'global> InlineContext<'global> {
             call_stack: CallStackId::root(),
             inline_no_predicates_functions,
             functions_not_to_inline,
-            globals: &ssa.globals,
         }
     }
 
@@ -379,7 +378,8 @@ impl<'global> InlineContext<'global> {
     fn inline_all(mut self, ssa: &Ssa) -> Function {
         let entry_point = &ssa.functions[&self.entry_point];
 
-        let mut context = PerFunctionContext::new(&mut self, entry_point);
+        // let globals = self.globals;
+        let mut context = PerFunctionContext::new(&mut self, entry_point, &ssa.globals);
         context.inlining_entry = true;
 
         for (_, value) in ssa.globals.dfg.values_iter() {
@@ -429,7 +429,7 @@ impl<'global> InlineContext<'global> {
             );
         }
 
-        let mut context = PerFunctionContext::new(self, source_function);
+        let mut context = PerFunctionContext::new(self, source_function, &ssa.globals);
 
         let parameters = source_function.parameters();
         assert_eq!(parameters.len(), arguments.len());
@@ -444,14 +444,15 @@ impl<'global> InlineContext<'global> {
     }
 }
 
-impl<'function, 'global> PerFunctionContext<'function, 'global> {
+impl<'function> PerFunctionContext<'function> {
     /// Create a new PerFunctionContext from the source function.
     /// The value and block mappings for this context are initially empty except
     /// for containing the mapping between parameters in the source_function and
     /// the arguments of the destination function.
     fn new(
-        context: &'function mut InlineContext<'global>,
+        context: &'function mut InlineContext,
         source_function: &'function Function,
+        globals: &'function Function,
     ) -> Self {
         Self {
             context,
@@ -459,6 +460,7 @@ impl<'function, 'global> PerFunctionContext<'function, 'global> {
             blocks: HashMap::default(),
             values: HashMap::default(),
             inlining_entry: false,
+            globals,
         }
     }
 
@@ -491,10 +493,10 @@ impl<'function, 'global> PerFunctionContext<'function, 'global> {
             Value::Global(_) => {
                 // TODO: Inlining the global into the function is only a temporary measure
                 // until Brillig gen with globals is working end to end
-                match &self.context.globals.dfg[id] {
+                match &self.globals.dfg[id] {
                     Value::Instruction { instruction, .. } => {
                         let Instruction::MakeArray { elements, typ } =
-                            &self.context.globals.dfg[*instruction]
+                            &self.globals.dfg[*instruction]
                         else {
                             panic!("Only expect Instruction::MakeArray for a global");
                         };
