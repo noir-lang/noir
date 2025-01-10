@@ -20,13 +20,13 @@ use super::{
 
 impl Display for Ssa {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        for (id, global_value) in self.globals.values_iter() {
+        for (id, global_value) in self.globals.dfg.values_iter() {
             match global_value {
                 Value::NumericConstant { constant, typ } => {
                     writeln!(f, "g{} = {typ} {constant}", id.to_u32())?;
                 }
                 Value::Instruction { instruction, .. } => {
-                    display_instruction(&self.globals, *instruction, true, f)?;
+                    display_instruction(&self.globals.dfg, *instruction, true, f)?;
                 }
                 Value::Global(_) => {
                     panic!("Value::Global should only be in the function dfg");
@@ -35,7 +35,7 @@ impl Display for Ssa {
             };
         }
 
-        if self.globals.values_iter().len() > 0 {
+        if self.globals.dfg.values_iter().len() > 0 {
             writeln!(f)?;
         }
 

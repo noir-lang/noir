@@ -6,7 +6,6 @@ use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
 use crate::ssa::ir::{
-    dfg::DataFlowGraph,
     function::{Function, FunctionId},
     map::AtomicCounter,
 };
@@ -18,7 +17,7 @@ use noirc_frontend::hir_def::types::Type as HirType;
 pub(crate) struct Ssa {
     #[serde_as(as = "Vec<(_, _)>")]
     pub(crate) functions: BTreeMap<FunctionId, Function>,
-    pub(crate) globals: DataFlowGraph,
+    pub(crate) globals: Function,
     pub(crate) main_id: FunctionId,
     #[serde(skip)]
     pub(crate) next_id: AtomicCounter<Function>,
@@ -55,7 +54,9 @@ impl Ssa {
             next_id: AtomicCounter::starting_after(max_id),
             entry_point_to_generated_index: BTreeMap::new(),
             error_selector_to_type: error_types,
-            globals: DataFlowGraph::default(),
+            // This field should be set afterwards as globals are generated
+            // outside of the FunctionBuilder, which is where the `Ssa` is instantiated.
+            globals: Function::new_for_globals(),
         }
     }
 
