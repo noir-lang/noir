@@ -880,6 +880,43 @@ fn errors_if_multiple_trait_methods_are_in_scope_for_function_call() {
 }
 
 #[test]
+fn warns_if_trait_is_not_in_scope_for_method_call_and_there_is_only_one_trait_method() {
+    let src = r#"
+    fn main() {
+        let bar = Bar { x: 42 };
+        let _ = bar.foo();
+    }
+
+    pub struct Bar {
+        x: i32,
+    }
+
+    mod private_mod {
+        pub trait Foo {
+            fn foo(self) -> i32;
+        }
+
+        impl Foo for super::Bar {
+            fn foo(self) -> i32 {
+                self.x
+            }
+        }
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ResolverError(ResolverError::PathResolutionError(
+        PathResolutionError::TraitMethodNotInScope { ident, trait_name },
+    )) = &errors[0].0
+    else {
+        panic!("Expected a 'trait method not in scope' error");
+    };
+    assert_eq!(ident.to_string(), "foo");
+    assert_eq!(trait_name, "private_mod::Foo");
+}
+
+#[test]
 fn calls_trait_method_if_it_is_in_scope() {
     let src = r#"
     use private_mod::Foo;
@@ -1150,6 +1187,39 @@ fn warns_if_trait_is_not_in_scope_for_primitive_method_call_and_there_is_only_on
         impl Foo for Field {
             fn foo(self) -> i32 {
                 self as i32
+            }
+        }
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ResolverError(ResolverError::PathResolutionError(
+        PathResolutionError::TraitMethodNotInScope { ident, trait_name },
+    )) = &errors[0].0
+    else {
+        panic!("Expected a 'trait method not in scope' error");
+    };
+    assert_eq!(ident.to_string(), "foo");
+    assert_eq!(trait_name, "private_mod::Foo");
+}
+
+#[test]
+fn warns_if_trait_is_not_in_scope_for_generic_function_call_and_there_is_only_one_trait_method() {
+    let src = r#"
+    fn main() {
+        let x: i32 = 1;
+        let _ = x.foo();
+    }
+
+    mod private_mod {
+        pub trait Foo<T> {
+            fn foo(self) -> i32;
+        }
+
+        impl<T> Foo<T> for T {
+            fn foo(self) -> i32 {
+                42
             }
         }
     }
