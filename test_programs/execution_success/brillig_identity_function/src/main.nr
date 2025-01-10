@@ -3,9 +3,10 @@ struct myStruct {
     foo_arr: [Field; 2],
 }
 // Tests a very simple program.
-// 
+//
 // The features being tested is the identity function in Brillig
 fn main(x: Field) {
+    /// Safety: testing context
     unsafe {
         assert(x == identity(x));
         // TODO: add support for array comparison

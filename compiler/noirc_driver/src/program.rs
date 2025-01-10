@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use super::debug::DebugFile;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Hash)]
 pub struct CompiledProgram {
     pub noir_version: String,
     /// Hash of the [`Program`][noirc_frontend::monomorphization::ast::Program] from which this [`CompiledProgram`]

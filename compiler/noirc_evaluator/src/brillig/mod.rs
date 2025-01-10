@@ -12,11 +12,13 @@ use self::{
     },
 };
 use crate::ssa::{
-    ir::function::{Function, FunctionId, RuntimeType},
+    ir::function::{Function, FunctionId},
     ssa_gen::Ssa,
 };
 use fxhash::FxHashMap as HashMap;
 use std::{borrow::Cow, collections::BTreeSet};
+
+pub use self::brillig_ir::procedures::ProcedureId;
 
 /// Context structure for the brillig pass.
 /// It stores brillig-related data required for brillig generation.
@@ -57,7 +59,7 @@ impl std::ops::Index<FunctionId> for Brillig {
 }
 
 impl Ssa {
-    /// Compile to brillig brillig functions and ACIR functions reachable from them
+    /// Compile Brillig functions and ACIR functions reachable from them
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn to_brillig(&self, enable_debug_trace: bool) -> Brillig {
         // Collect all the function ids that are reachable from brillig
@@ -65,7 +67,7 @@ impl Ssa {
         let brillig_reachable_function_ids = self
             .functions
             .iter()
-            .filter_map(|(id, func)| (func.runtime() == RuntimeType::Brillig).then_some(*id))
+            .filter_map(|(id, func)| func.runtime().is_brillig().then_some(*id))
             .collect::<BTreeSet<_>>();
 
         let mut brillig = Brillig::default();

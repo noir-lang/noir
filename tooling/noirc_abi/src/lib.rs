@@ -13,10 +13,7 @@ use acvm::{
 use errors::AbiError;
 use input_parser::InputValue;
 use iter_extended::{try_btree_map, try_vecmap, vecmap};
-use noirc_printable_type::{
-    decode_value as printable_type_decode_value, PrintableType, PrintableValue,
-    PrintableValueDisplay,
-};
+use noirc_printable_type::{PrintableType, PrintableValue, PrintableValueDisplay};
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use std::{collections::BTreeMap, str};
@@ -30,7 +27,10 @@ mod arbitrary;
 
 pub mod errors;
 pub mod input_parser;
+mod printable_type;
 mod serialization;
+
+pub use printable_type::decode_value as decode_printable_value;
 
 /// A map from the fields in an TOML/JSON file which correspond to some ABI to their values
 pub type InputMap = BTreeMap<String, InputValue>;
@@ -49,6 +49,7 @@ pub const MAIN_RETURN_NAME: &str = "return";
 /// depends on the types of programs that users want to do. I don't envision string manipulation
 /// in programs, however it is possible to support, with many complications like encoding character set
 /// support.
+#[derive(Hash)]
 pub enum AbiType {
     Field,
     Array {
@@ -77,7 +78,7 @@ pub enum AbiType {
     },
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
 #[cfg_attr(test, derive(arbitrary::Arbitrary))]
 #[serde(rename_all = "lowercase")]
 /// Represents whether the parameter is public or known only to the prover.
@@ -89,7 +90,7 @@ pub enum AbiVisibility {
     DataBus,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
 #[cfg_attr(test, derive(arbitrary::Arbitrary))]
 #[serde(rename_all = "lowercase")]
 pub enum Sign {
@@ -146,7 +147,7 @@ impl From<&AbiType> for PrintableType {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Hash)]
 #[cfg_attr(test, derive(arbitrary::Arbitrary))]
 /// An argument or return value of the circuit's `main` function.
 pub struct AbiParameter {
@@ -163,7 +164,7 @@ impl AbiParameter {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Hash)]
 #[cfg_attr(test, derive(arbitrary::Arbitrary))]
 pub struct AbiReturnType {
     #[cfg_attr(test, proptest(strategy = "arbitrary::arb_abi_type()"))]
@@ -171,7 +172,7 @@ pub struct AbiReturnType {
     pub visibility: AbiVisibility,
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, Hash)]
 #[cfg_attr(test, derive(arbitrary::Arbitrary))]
 pub struct Abi {
     /// An ordered list of the arguments to the program's `main` function, specifying their types and visibility.
@@ -416,7 +417,7 @@ pub fn decode_value(
     Ok(value)
 }
 
-fn decode_string_value(field_elements: &[FieldElement]) -> String {
+pub fn decode_string_value<F: AcirField>(field_elements: &[F]) -> String {
     let string_as_slice = vecmap(field_elements, |e| {
         let mut field_as_bytes = e.to_be_bytes();
         let char_byte = field_as_bytes.pop().unwrap(); // A character in a string is represented by a u8, thus we just want the last byte of the element
@@ -459,11 +460,12 @@ pub enum AbiValue {
     },
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
 #[serde(tag = "error_kind", rename_all = "lowercase")]
 pub enum AbiErrorType {
     FmtString { length: u32, item_types: Vec<AbiType> },
     Custom(AbiType),
+    String { string: String },
 }
 
 pub fn display_abi_error<F: AcirField>(
@@ -474,22 +476,29 @@ pub fn display_abi_error<F: AcirField>(
         AbiErrorType::FmtString { length, item_types } => {
             let mut fields_iter = fields.iter().copied();
             let PrintableValue::String(string) =
-                printable_type_decode_value(&mut fields_iter, &PrintableType::String { length })
+                decode_printable_value(&mut fields_iter, &PrintableType::String { length })
             else {
                 unreachable!("Got non-string from string decoding");
             };
             let _length_of_items = fields_iter.next();
             let items = item_types.into_iter().map(|abi_type| {
                 let printable_typ = (&abi_type).into();
-                let decoded = printable_type_decode_value(&mut fields_iter, &printable_typ);
+                let decoded = decode_printable_value(&mut fields_iter, &printable_typ);
                 (decoded, printable_typ)
             });
             PrintableValueDisplay::FmtString(string, items.collect())
         }
         AbiErrorType::Custom(abi_typ) => {
             let printable_type = (&abi_typ).into();
-            let decoded = printable_type_decode_value(&mut fields.iter().copied(), &printable_type);
+            let decoded = decode_printable_value(&mut fields.iter().copied(), &printable_type);
             PrintableValueDisplay::Plain(decoded, printable_type)
+        }
+        AbiErrorType::String { string } => {
+            let length = string.len() as u32;
+            PrintableValueDisplay::Plain(
+                PrintableValue::String(string),
+                PrintableType::String { length },
+            )
         }
     }
 }

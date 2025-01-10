@@ -6,6 +6,7 @@ fn get_selected_tests() -> Vec<PathBuf> {
         Ok(dir) => PathBuf::from(dir),
         Err(_) => std::env::current_dir().unwrap(),
     };
+
     let test_dir = manifest_dir
         .parent()
         .unwrap()
@@ -15,5 +16,11 @@ fn get_selected_tests() -> Vec<PathBuf> {
         .join("execution_success");
 
     let selected_tests = vec!["struct", "eddsa", "regression"];
-    selected_tests.into_iter().map(|t| test_dir.join(t)).collect()
+    let mut selected_tests =
+        selected_tests.into_iter().map(|t| test_dir.join(t)).collect::<Vec<_>>();
+
+    let test_dir = test_dir.parent().unwrap().join("benchmarks");
+    selected_tests.extend(test_dir.read_dir().unwrap().filter_map(|e| e.ok()).map(|e| e.path()));
+
+    selected_tests
 }

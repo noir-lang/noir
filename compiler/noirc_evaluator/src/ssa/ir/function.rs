@@ -16,7 +16,7 @@ pub(crate) enum RuntimeType {
     // A noir function, to be compiled in ACIR and executed by ACVM
     Acir(InlineType),
     // Unconstrained function, to be compiled to brillig and executed by the Brillig VM
-    Brillig,
+    Brillig(InlineType),
 }
 
 impl RuntimeType {
@@ -27,8 +27,38 @@ impl RuntimeType {
     pub(crate) fn is_entry_point(&self) -> bool {
         match self {
             RuntimeType::Acir(inline_type) => inline_type.is_entry_point(),
-            RuntimeType::Brillig => true,
+            RuntimeType::Brillig(_) => true,
         }
+    }
+
+    pub(crate) fn is_inline_always(&self) -> bool {
+        matches!(
+            self,
+            RuntimeType::Acir(InlineType::InlineAlways)
+                | RuntimeType::Brillig(InlineType::InlineAlways)
+        )
+    }
+
+    pub(crate) fn is_no_predicates(&self) -> bool {
+        matches!(
+            self,
+            RuntimeType::Acir(InlineType::NoPredicates)
+                | RuntimeType::Brillig(InlineType::NoPredicates)
+        )
+    }
+
+    pub(crate) fn is_brillig(&self) -> bool {
+        matches!(self, RuntimeType::Brillig(_))
+    }
+
+    pub(crate) fn is_acir(&self) -> bool {
+        matches!(self, RuntimeType::Acir(_))
+    }
+}
+
+impl Default for RuntimeType {
+    fn default() -> Self {
+        RuntimeType::Acir(InlineType::default())
     }
 }
 
@@ -48,8 +78,6 @@ pub(crate) struct Function {
 
     id: FunctionId,
 
-    runtime: RuntimeType,
-
     /// The DataFlowGraph holds the majority of data pertaining to the function
     /// including its blocks, instructions, and values.
     pub(crate) dfg: DataFlowGraph,
@@ -62,20 +90,20 @@ impl Function {
     pub(crate) fn new(name: String, id: FunctionId) -> Self {
         let mut dfg = DataFlowGraph::default();
         let entry_block = dfg.make_block();
-        Self { name, id, entry_block, dfg, runtime: RuntimeType::Acir(InlineType::default()) }
+        Self { name, id, entry_block, dfg }
     }
 
     /// Creates a new function as a clone of the one passed in with the passed in id.
     pub(crate) fn clone_with_id(id: FunctionId, another: &Function) -> Self {
         let dfg = another.dfg.clone();
         let entry_block = another.entry_block;
-        Self { name: another.name.clone(), id, entry_block, dfg, runtime: another.runtime }
+        Self { name: another.name.clone(), id, entry_block, dfg }
     }
 
     /// Takes the signature (function name & runtime) from a function but does not copy the body.
     pub(crate) fn clone_signature(id: FunctionId, another: &Function) -> Self {
         let mut new_function = Function::new(another.name.clone(), id);
-        new_function.runtime = another.runtime;
+        new_function.set_runtime(another.runtime());
         new_function
     }
 
@@ -92,18 +120,18 @@ impl Function {
 
     /// Runtime type of the function.
     pub(crate) fn runtime(&self) -> RuntimeType {
-        self.runtime
+        self.dfg.runtime()
     }
 
     /// Set runtime type of the function.
     pub(crate) fn set_runtime(&mut self, runtime: RuntimeType) {
-        self.runtime = runtime;
+        self.dfg.set_runtime(runtime);
     }
 
     pub(crate) fn is_no_predicates(&self) -> bool {
         match self.runtime() {
             RuntimeType::Acir(inline_type) => matches!(inline_type, InlineType::NoPredicates),
-            RuntimeType::Brillig => false,
+            RuntimeType::Brillig(_) => false,
         }
     }
 
@@ -173,11 +201,17 @@ impl Function {
     }
 }
 
+impl Clone for Function {
+    fn clone(&self) -> Self {
+        Function::clone_with_id(self.id(), self)
+    }
+}
+
 impl std::fmt::Display for RuntimeType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             RuntimeType::Acir(inline_type) => write!(f, "acir({inline_type})"),
-            RuntimeType::Brillig => write!(f, "brillig"),
+            RuntimeType::Brillig(inline_type) => write!(f, "brillig({inline_type})"),
         }
     }
 }

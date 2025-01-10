@@ -16,14 +16,14 @@ use crate::{
         InternedUnresolvedTypeData, QuotedTypeId,
     },
     parser::{Item, ItemKind, ParsedSubModule},
-    token::{CustomAttribute, SecondaryAttribute, Tokens},
+    token::{FmtStrFragment, MetaAttribute, SecondaryAttribute, Tokens},
     ParsedModule, QuotedType,
 };
 
 use super::{
-    FunctionReturnType, GenericTypeArgs, IntegerBitSize, ItemVisibility, Pattern, Signedness,
-    TraitImplItemKind, TypePath, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
-    UnresolvedTypeData, UnresolvedTypeExpression,
+    ForBounds, FunctionReturnType, GenericTypeArgs, IntegerBitSize, ItemVisibility, Pattern,
+    Signedness, TraitBound, TraitImplItemKind, TypePath, UnresolvedGenerics,
+    UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
 };
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -172,7 +172,7 @@ pub trait Visitor {
 
     fn visit_literal_raw_str(&mut self, _: &str, _: u8) {}
 
-    fn visit_literal_fmt_str(&mut self, _: &str) {}
+    fn visit_literal_fmt_str(&mut self, _: &[FmtStrFragment], _length: u32) {}
 
     fn visit_literal_unit(&mut self) {}
 
@@ -438,6 +438,14 @@ pub trait Visitor {
         true
     }
 
+    fn visit_trait_bound(&mut self, _: &TraitBound) -> bool {
+        true
+    }
+
+    fn visit_unresolved_trait_constraint(&mut self, _: &UnresolvedTraitConstraint) -> bool {
+        true
+    }
+
     fn visit_pattern(&mut self, _: &Pattern) -> bool {
         true
     }
@@ -466,7 +474,9 @@ pub trait Visitor {
         true
     }
 
-    fn visit_custom_attribute(&mut self, _: &CustomAttribute, _target: AttributeTarget) {}
+    fn visit_meta_attribute(&mut self, _: &MetaAttribute, _target: AttributeTarget) -> bool {
+        true
+    }
 }
 
 impl ParsedModule {
@@ -553,6 +563,12 @@ impl NoirFunction {
 
         for param in &self.def.parameters {
             param.typ.accept(visitor);
+        }
+
+        self.def.return_type.accept(visitor);
+
+        for constraint in &self.def.where_clause {
+            constraint.accept(visitor);
         }
 
         self.def.body.accept(None, visitor);
@@ -645,6 +661,14 @@ impl NoirTrait {
             attribute.accept(AttributeTarget::Trait, visitor);
         }
 
+        for bound in &self.bounds {
+            bound.accept(visitor);
+        }
+
+        for constraint in &self.where_clause {
+            constraint.accept(visitor);
+        }
+
         for item in &self.items {
             item.item.accept(visitor);
         }
@@ -686,7 +710,7 @@ impl TraitItem {
                     return_type.accept(visitor);
 
                     for unresolved_trait_constraint in where_clause {
-                        unresolved_trait_constraint.typ.accept(visitor);
+                        unresolved_trait_constraint.accept(visitor);
                     }
 
                     if let Some(body) = body {
@@ -876,7 +900,7 @@ impl Literal {
             Literal::Integer(value, negative) => visitor.visit_literal_integer(*value, *negative),
             Literal::Str(str) => visitor.visit_literal_str(str),
             Literal::RawStr(str, length) => visitor.visit_literal_raw_str(str, *length),
-            Literal::FmtStr(str) => visitor.visit_literal_fmt_str(str),
+            Literal::FmtStr(fragments, length) => visitor.visit_literal_fmt_str(fragments, *length),
             Literal::Unit => visitor.visit_literal_unit(),
         }
     }
@@ -1192,7 +1216,7 @@ impl ForRange {
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
         match self {
-            ForRange::Range(start, end) => {
+            ForRange::Range(ForBounds { start, end, inclusive: _ }) => {
                 start.accept(visitor);
                 end.accept(visitor);
             }
@@ -1223,7 +1247,9 @@ impl TypePath {
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
         self.typ.accept(visitor);
-        self.turbofish.accept(visitor);
+        if let Some(turbofish) = &self.turbofish {
+            turbofish.accept(visitor);
+        }
     }
 }
 
@@ -1346,6 +1372,32 @@ impl FunctionReturnType {
     }
 }
 
+impl TraitBound {
+    pub fn accept(&self, visitor: &mut impl Visitor) {
+        if visitor.visit_trait_bound(self) {
+            self.accept_children(visitor);
+        }
+    }
+
+    pub fn accept_children(&self, visitor: &mut impl Visitor) {
+        self.trait_path.accept(visitor);
+        self.trait_generics.accept(visitor);
+    }
+}
+
+impl UnresolvedTraitConstraint {
+    pub fn accept(&self, visitor: &mut impl Visitor) {
+        if visitor.visit_unresolved_trait_constraint(self) {
+            self.accept_children(visitor);
+        }
+    }
+
+    pub fn accept_children(&self, visitor: &mut impl Visitor) {
+        self.typ.accept(visitor);
+        self.trait_bound.accept(visitor);
+    }
+}
+
 impl Pattern {
     pub fn accept(&self, visitor: &mut impl Visitor) {
         if visitor.visit_pattern(self) {
@@ -1391,15 +1443,22 @@ impl SecondaryAttribute {
     }
 
     pub fn accept_children(&self, target: AttributeTarget, visitor: &mut impl Visitor) {
-        if let SecondaryAttribute::Custom(custom) = self {
-            custom.accept(target, visitor);
+        if let SecondaryAttribute::Meta(meta_attribute) = self {
+            meta_attribute.accept(target, visitor);
         }
     }
 }
 
-impl CustomAttribute {
+impl MetaAttribute {
     pub fn accept(&self, target: AttributeTarget, visitor: &mut impl Visitor) {
-        visitor.visit_custom_attribute(self, target);
+        if visitor.visit_meta_attribute(self, target) {
+            self.accept_children(visitor);
+        }
+    }
+
+    pub fn accept_children(&self, visitor: &mut impl Visitor) {
+        self.name.accept(visitor);
+        visit_expressions(&self.arguments, visitor);
     }
 }
 

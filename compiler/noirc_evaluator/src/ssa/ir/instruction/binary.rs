@@ -90,7 +90,7 @@ impl Binary {
     pub(super) fn simplify(&self, dfg: &mut DataFlowGraph) -> SimplifyResult {
         let lhs = dfg.get_numeric_constant(self.lhs);
         let rhs = dfg.get_numeric_constant(self.rhs);
-        let operand_type = dfg.type_of_value(self.lhs);
+        let operand_type = dfg.type_of_value(self.lhs).unwrap_numeric();
 
         if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
             return match eval_constant_binary_op(lhs, rhs, self.operator, operand_type) {
@@ -133,11 +133,39 @@ impl Binary {
                     let zero = dfg.make_constant(FieldElement::zero(), operand_type);
                     return SimplifyResult::SimplifiedTo(zero);
                 }
-                if dfg.resolve(self.lhs) == dfg.resolve(self.rhs)
-                    && dfg.get_value_max_num_bits(self.lhs) == 1
-                {
+                if dfg.get_value_max_num_bits(self.lhs) == 1 {
                     // Squaring a boolean value is a noop.
-                    return SimplifyResult::SimplifiedTo(self.lhs);
+                    if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
+                        return SimplifyResult::SimplifiedTo(self.lhs);
+                    }
+                    // b*(b*x) = b*x if b is boolean
+                    if let super::Value::Instruction { instruction, .. } = &dfg[self.rhs] {
+                        if let Instruction::Binary(Binary { lhs, rhs, operator }) =
+                            dfg[*instruction]
+                        {
+                            if operator == BinaryOp::Mul
+                                && (dfg.resolve(self.lhs) == dfg.resolve(lhs)
+                                    || dfg.resolve(self.lhs) == dfg.resolve(rhs))
+                            {
+                                return SimplifyResult::SimplifiedTo(self.rhs);
+                            }
+                        }
+                    }
+                }
+                // (b*x)*b = b*x if b is boolean
+                if dfg.get_value_max_num_bits(self.rhs) == 1 {
+                    if let super::Value::Instruction { instruction, .. } = &dfg[self.lhs] {
+                        if let Instruction::Binary(Binary { lhs, rhs, operator }) =
+                            dfg[*instruction]
+                        {
+                            if operator == BinaryOp::Mul
+                                && (dfg.resolve(self.rhs) == dfg.resolve(lhs)
+                                    || dfg.resolve(self.rhs) == dfg.resolve(rhs))
+                            {
+                                return SimplifyResult::SimplifiedTo(self.lhs);
+                            }
+                        }
+                    }
                 }
             }
             BinaryOp::Div => {
@@ -170,10 +198,11 @@ impl Binary {
             }
             BinaryOp::Eq => {
                 if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
-                    let one = dfg.make_constant(FieldElement::one(), Type::bool());
+                    let one = dfg.make_constant(FieldElement::one(), NumericType::bool());
                     return SimplifyResult::SimplifiedTo(one);
                 }
-                if operand_type == Type::bool() {
+
+                if operand_type == NumericType::bool() {
                     // Simplify forms of `(boolean == true)` into `boolean`
                     if lhs_is_one {
                         return SimplifyResult::SimplifiedTo(self.rhs);
@@ -192,13 +221,13 @@ impl Binary {
             }
             BinaryOp::Lt => {
                 if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
-                    let zero = dfg.make_constant(FieldElement::zero(), Type::bool());
+                    let zero = dfg.make_constant(FieldElement::zero(), NumericType::bool());
                     return SimplifyResult::SimplifiedTo(zero);
                 }
                 if operand_type.is_unsigned() {
                     if rhs_is_zero {
                         // Unsigned values cannot be less than zero.
-                        let zero = dfg.make_constant(FieldElement::zero(), Type::bool());
+                        let zero = dfg.make_constant(FieldElement::zero(), NumericType::bool());
                         return SimplifyResult::SimplifiedTo(zero);
                     } else if rhs_is_one {
                         let zero = dfg.make_constant(FieldElement::zero(), operand_type);
@@ -218,7 +247,7 @@ impl Binary {
                 if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
                     return SimplifyResult::SimplifiedTo(self.lhs);
                 }
-                if operand_type == Type::bool() {
+                if operand_type == NumericType::bool() {
                     // Boolean AND is equivalent to multiplication, which is a cheaper operation.
                     let instruction = Instruction::binary(BinaryOp::Mul, self.lhs, self.rhs);
                     return SimplifyResult::SimplifiedToInstruction(instruction);
@@ -257,6 +286,10 @@ impl Binary {
                 if rhs_is_zero {
                     return SimplifyResult::SimplifiedTo(self.lhs);
                 }
+                if operand_type == NumericType::bool() && (lhs_is_one || rhs_is_one) {
+                    let one = dfg.make_constant(FieldElement::one(), operand_type);
+                    return SimplifyResult::SimplifiedTo(one);
+                }
                 if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
                     return SimplifyResult::SimplifiedTo(self.lhs);
                 }
@@ -282,15 +315,7 @@ impl Binary {
                         let zero = dfg.make_constant(FieldElement::zero(), operand_type);
                         return SimplifyResult::SimplifiedTo(zero);
                     }
-
-                    // `two_pow_rhs` is limited to be at most `2 ^ {operand_bitsize - 1}` so it fits in `operand_type`.
-                    let two_pow_rhs = FieldElement::from(2u128).pow(&rhs_const);
-                    let two_pow_rhs = dfg.make_constant(two_pow_rhs, operand_type);
-                    return SimplifyResult::SimplifiedToInstruction(Instruction::binary(
-                        BinaryOp::Div,
-                        self.lhs,
-                        two_pow_rhs,
-                    ));
+                    return SimplifyResult::None;
                 }
             }
         };
@@ -428,17 +453,60 @@ impl Binary {
             _ => SimplifyResult::None,
         }
     }
+
+    /// Check if unsigned overflow is possible, and if so return some message to be used if it fails.
+    pub(crate) fn check_unsigned_overflow_msg(
+        &self,
+        dfg: &DataFlowGraph,
+        bit_size: u32,
+    ) -> Option<&'static str> {
+        // We try to optimize away operations that are guaranteed not to overflow
+        let max_lhs_bits = dfg.get_value_max_num_bits(self.lhs);
+        let max_rhs_bits = dfg.get_value_max_num_bits(self.rhs);
+
+        let msg = match self.operator {
+            BinaryOp::Add => {
+                if std::cmp::max(max_lhs_bits, max_rhs_bits) < bit_size {
+                    // `lhs` and `rhs` have both been casted up from smaller types and so cannot overflow.
+                    return None;
+                }
+                "attempt to add with overflow"
+            }
+            BinaryOp::Sub => {
+                if dfg.is_constant(self.lhs) && max_lhs_bits > max_rhs_bits {
+                    // `lhs` is a fixed constant and `rhs` is restricted such that `lhs - rhs > 0`
+                    // Note strict inequality as `rhs > lhs` while `max_lhs_bits == max_rhs_bits` is possible.
+                    return None;
+                }
+                "attempt to subtract with overflow"
+            }
+            BinaryOp::Mul => {
+                if bit_size == 1
+                    || max_lhs_bits + max_rhs_bits <= bit_size
+                    || max_lhs_bits == 1
+                    || max_rhs_bits == 1
+                {
+                    // Either performing boolean multiplication (which cannot overflow),
+                    // or `lhs` and `rhs` have both been casted up from smaller types and so cannot overflow.
+                    return None;
+                }
+                "attempt to multiply with overflow"
+            }
+            _ => return None,
+        };
+        Some(msg)
+    }
 }
 
 /// Evaluate a binary operation with constant arguments.
-fn eval_constant_binary_op(
+pub(crate) fn eval_constant_binary_op(
     lhs: FieldElement,
     rhs: FieldElement,
     operator: BinaryOp,
-    mut operand_type: Type,
-) -> Option<(FieldElement, Type)> {
-    let value = match &operand_type {
-        Type::Numeric(NumericType::NativeField) => {
+    mut operand_type: NumericType,
+) -> Option<(FieldElement, NumericType)> {
+    let value = match operand_type {
+        NumericType::NativeField => {
             // If the rhs of a division is zero, attempting to evaluate the division will cause a compiler panic.
             // Thus, we do not evaluate the division in this method, as we want to avoid triggering a panic,
             // and the operation should be handled by ACIR generation.
@@ -447,11 +515,11 @@ fn eval_constant_binary_op(
             }
             operator.get_field_function()?(lhs, rhs)
         }
-        Type::Numeric(NumericType::Unsigned { bit_size }) => {
+        NumericType::Unsigned { bit_size } => {
             let function = operator.get_u128_function();
 
-            let lhs = truncate(lhs.try_into_u128()?, *bit_size);
-            let rhs = truncate(rhs.try_into_u128()?, *bit_size);
+            let lhs = truncate(lhs.try_into_u128()?, bit_size);
+            let rhs = truncate(rhs.try_into_u128()?, bit_size);
 
             // The divisor is being truncated into the type of the operand, which can potentially
             // lead to the rhs being zero.
@@ -463,16 +531,16 @@ fn eval_constant_binary_op(
             }
             let result = function(lhs, rhs)?;
             // Check for overflow
-            if result >= 1 << *bit_size {
+            if result >= 1 << bit_size {
                 return None;
             }
             result.into()
         }
-        Type::Numeric(NumericType::Signed { bit_size }) => {
+        NumericType::Signed { bit_size } => {
             let function = operator.get_i128_function();
 
-            let lhs = try_convert_field_element_to_signed_integer(lhs, *bit_size)?;
-            let rhs = try_convert_field_element_to_signed_integer(rhs, *bit_size)?;
+            let lhs = try_convert_field_element_to_signed_integer(lhs, bit_size)?;
+            let rhs = try_convert_field_element_to_signed_integer(rhs, bit_size)?;
             // The divisor is being truncated into the type of the operand, which can potentially
             // lead to the rhs being zero.
             // If the rhs of a division is zero, attempting to evaluate the division will cause a compiler panic.
@@ -484,17 +552,16 @@ fn eval_constant_binary_op(
 
             let result = function(lhs, rhs)?;
             // Check for overflow
-            let two_pow_bit_size_minus_one = 1i128 << (*bit_size - 1);
+            let two_pow_bit_size_minus_one = 1i128 << (bit_size - 1);
             if result >= two_pow_bit_size_minus_one || result < -two_pow_bit_size_minus_one {
                 return None;
             }
-            convert_signed_integer_to_field_element(result, *bit_size)
+            convert_signed_integer_to_field_element(result, bit_size)
         }
-        _ => return None,
     };
 
     if matches!(operator, BinaryOp::Eq | BinaryOp::Lt) {
-        operand_type = Type::bool();
+        operand_type = NumericType::bool();
     }
 
     Some((value, operand_type))

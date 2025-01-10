@@ -35,14 +35,13 @@ mod reflection {
     use acir_field::FieldElement;
     use brillig::{
         BinaryFieldOp, BinaryIntOp, BitSize, BlackBoxOp, HeapValueType, IntegerBitSize,
-        Opcode as BrilligOpcode, ValueOrArray,
+        MemoryAddress, Opcode as BrilligOpcode, ValueOrArray,
     };
     use serde_reflection::{Tracer, TracerConfig};
 
     use crate::{
         circuit::{
             brillig::{BrilligInputs, BrilligOutputs},
-            directives::Directive,
             opcodes::{BlackBoxFuncCall, BlockType, ConstantOrWitnessEnum, FunctionInput},
             AssertionPayload, Circuit, ExpressionOrMemory, ExpressionWidth, Opcode, OpcodeLocation,
             Program,
@@ -77,13 +76,13 @@ mod reflection {
         tracer.trace_simple_type::<BrilligOpcode<FieldElement>>().unwrap();
         tracer.trace_simple_type::<BinaryIntOp>().unwrap();
         tracer.trace_simple_type::<BlackBoxOp>().unwrap();
-        tracer.trace_simple_type::<Directive<FieldElement>>().unwrap();
         tracer.trace_simple_type::<ValueOrArray>().unwrap();
         tracer.trace_simple_type::<HeapValueType>().unwrap();
         tracer.trace_simple_type::<AssertionPayload<FieldElement>>().unwrap();
         tracer.trace_simple_type::<ExpressionOrMemory<FieldElement>>().unwrap();
         tracer.trace_simple_type::<BitSize>().unwrap();
         tracer.trace_simple_type::<IntegerBitSize>().unwrap();
+        tracer.trace_simple_type::<MemoryAddress>().unwrap();
 
         let registry = tracer.registry().unwrap();
 

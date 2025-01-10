@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use acvm::FieldElement;
 use serde::{Deserialize, Serialize};
 
@@ -7,7 +9,7 @@ use super::{
     function::FunctionId,
     instruction::{InstructionId, Intrinsic},
     map::Id,
-    types::Type,
+    types::{NumericType, Type},
 };
 
 pub(crate) type ValueId = Id<Value>;
@@ -18,10 +20,10 @@ pub(crate) type ValueId = Id<Value>;
 pub(crate) enum Value {
     /// This value was created due to an instruction
     ///
-    /// instruction -- This is the instruction which defined it
-    /// typ -- This is the `Type` of the instruction
-    /// position -- Returns the position in the results
-    /// vector that this `Value` is located.
+    /// * `instruction`: This is the instruction which defined it
+    /// * `typ`: This is the `Type` of the instruction
+    /// * `position`: Returns the position in the results vector that this `Value` is located.
+    ///
     /// Example, if you add two numbers together, then the resulting
     /// value would have position `0`, the typ would be the type
     /// of the operands, and the instruction would map to an add instruction.
@@ -34,10 +36,7 @@ pub(crate) enum Value {
     Param { block: BasicBlockId, position: usize, typ: Type },
 
     /// This Value originates from a numeric constant
-    NumericConstant { constant: FieldElement, typ: Type },
-
-    /// Represents a constant array value
-    Array { array: im::Vector<ValueId>, typ: Type },
+    NumericConstant { constant: FieldElement, typ: NumericType },
 
     /// This Value refers to a function in the IR.
     /// Functions always have the type Type::Function.
@@ -58,15 +57,13 @@ pub(crate) enum Value {
 
 impl Value {
     /// Retrieves the type of this Value
-    pub(crate) fn get_type(&self) -> &Type {
+    pub(crate) fn get_type(&self) -> Cow<Type> {
         match self {
-            Value::Instruction { typ, .. } => typ,
-            Value::Param { typ, .. } => typ,
-            Value::NumericConstant { typ, .. } => typ,
-            Value::Array { typ, .. } => typ,
-            Value::Function { .. } => &Type::Function,
-            Value::Intrinsic { .. } => &Type::Function,
-            Value::ForeignFunction { .. } => &Type::Function,
+            Value::Instruction { typ, .. } | Value::Param { typ, .. } => Cow::Borrowed(typ),
+            Value::NumericConstant { typ, .. } => Cow::Owned(Type::Numeric(*typ)),
+            Value::Function { .. } | Value::Intrinsic { .. } | Value::ForeignFunction { .. } => {
+                Cow::Owned(Type::Function)
+            }
         }
     }
 }

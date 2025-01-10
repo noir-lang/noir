@@ -5,23 +5,58 @@ use serde::{Deserialize, Serialize};
 pub type Label = usize;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct MemoryAddress(pub usize);
+pub enum MemoryAddress {
+    Direct(usize),
+    Relative(usize),
+}
 
 /// `MemoryAddress` refers to the index in VM memory.
 impl MemoryAddress {
-    pub fn to_usize(self) -> usize {
-        self.0
+    pub fn direct(address: usize) -> Self {
+        MemoryAddress::Direct(address)
     }
-}
+    pub fn relative(offset: usize) -> Self {
+        MemoryAddress::Relative(offset)
+    }
 
-impl From<usize> for MemoryAddress {
-    fn from(value: usize) -> Self {
-        MemoryAddress(value)
+    pub fn unwrap_direct(self) -> usize {
+        match self {
+            MemoryAddress::Direct(address) => address,
+            MemoryAddress::Relative(_) => panic!("Expected direct memory address"),
+        }
+    }
+
+    pub fn unwrap_relative(self) -> usize {
+        match self {
+            MemoryAddress::Direct(_) => panic!("Expected relative memory address"),
+            MemoryAddress::Relative(offset) => offset,
+        }
+    }
+
+    pub fn to_usize(self) -> usize {
+        match self {
+            MemoryAddress::Direct(address) => address,
+            MemoryAddress::Relative(offset) => offset,
+        }
+    }
+
+    pub fn is_relative(&self) -> bool {
+        match self {
+            MemoryAddress::Relative(_) => true,
+            MemoryAddress::Direct(_) => false,
+        }
+    }
+
+    pub fn offset(&self, amount: usize) -> Self {
+        match self {
+            MemoryAddress::Direct(address) => MemoryAddress::Direct(address + amount),
+            MemoryAddress::Relative(offset) => MemoryAddress::Relative(offset + amount),
+        }
     }
 }
 
 /// Describes the memory layout for an array/vector element
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, Hash)]
 pub enum HeapValueType {
     // A single field element is enough to represent the value with a given bit size
     Simple(BitSize),
@@ -46,7 +81,7 @@ impl HeapValueType {
 }
 
 /// A fixed-sized array starting from a Brillig memory location.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy, Hash)]
 pub struct HeapArray {
     pub pointer: MemoryAddress,
     pub size: usize,
@@ -54,20 +89,19 @@ pub struct HeapArray {
 
 impl Default for HeapArray {
     fn default() -> Self {
-        Self { pointer: MemoryAddress(0), size: 0 }
+        Self { pointer: MemoryAddress::direct(0), size: 0 }
     }
 }
 
 /// A memory-sized vector passed starting from a Brillig memory location and with a memory-held size
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy, Hash)]
 pub struct HeapVector {
     pub pointer: MemoryAddress,
     pub size: MemoryAddress,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy, PartialOrd, Ord, Hash)]
 pub enum IntegerBitSize {
-    U0, // Uninitialized
     U1,
     U8,
     U16,
@@ -79,7 +113,6 @@ pub enum IntegerBitSize {
 impl From<IntegerBitSize> for u32 {
     fn from(bit_size: IntegerBitSize) -> u32 {
         match bit_size {
-            IntegerBitSize::U0 => 0,
             IntegerBitSize::U1 => 1,
             IntegerBitSize::U8 => 8,
             IntegerBitSize::U16 => 16,
@@ -95,7 +128,6 @@ impl TryFrom<u32> for IntegerBitSize {
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
         match value {
-            0 => Ok(IntegerBitSize::U0),
             1 => Ok(IntegerBitSize::U1),
             8 => Ok(IntegerBitSize::U8),
             16 => Ok(IntegerBitSize::U16),
@@ -110,7 +142,6 @@ impl TryFrom<u32> for IntegerBitSize {
 impl std::fmt::Display for IntegerBitSize {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            IntegerBitSize::U0 => write!(f, "null"),
             IntegerBitSize::U1 => write!(f, "bool"),
             IntegerBitSize::U8 => write!(f, "u8"),
             IntegerBitSize::U16 => write!(f, "u16"),
@@ -121,7 +152,7 @@ impl std::fmt::Display for IntegerBitSize {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy, PartialOrd, Ord, Hash)]
 pub enum BitSize {
     Field,
     Integer(IntegerBitSize),
@@ -150,7 +181,7 @@ impl BitSize {
 /// While we are usually agnostic to how memory is passed within Brillig,
 /// this needs to be encoded somehow when dealing with an external system.
 /// For simplicity, the extra type information is given right in the ForeignCall instructions.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy, Hash)]
 pub enum ValueOrArray {
     /// A single value passed to or from an external call
     /// It is an 'immediate' value - used without dereferencing.
@@ -167,7 +198,7 @@ pub enum ValueOrArray {
     HeapVector(HeapVector),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub enum BrilligOpcode<F> {
     /// Takes the fields in addresses `lhs` and `rhs`
     /// Performs the specified binary operation
@@ -274,17 +305,16 @@ pub enum BrilligOpcode<F> {
     BlackBox(BlackBoxOp),
     /// Used to denote execution failure, returning data after the offset
     Trap {
-        revert_data: HeapArray,
+        revert_data: HeapVector,
     },
     /// Stop execution, returning data after the offset
     Stop {
-        return_data_offset: usize,
-        return_data_size: usize,
+        return_data: HeapVector,
     },
 }
 
 /// Binary fixed-length field expressions
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub enum BinaryFieldOp {
     Add,
     Sub,
@@ -302,7 +332,7 @@ pub enum BinaryFieldOp {
 }
 
 /// Binary fixed-length integer expressions
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub enum BinaryIntOp {
     Add,
     Sub,

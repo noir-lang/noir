@@ -1,9 +1,8 @@
 use acir::brillig::{BlackBoxOp, HeapArray, HeapVector, IntegerBitSize};
 use acir::{AcirField, BlackBoxFunc};
-use acvm_blackbox_solver::BigIntSolver;
 use acvm_blackbox_solver::{
-    aes128_encrypt, blake2s, blake3, ecdsa_secp256k1_verify, ecdsa_secp256r1_verify, keccak256,
-    keccakf1600, sha256_compression, BlackBoxFunctionSolver, BlackBoxResolutionError,
+    aes128_encrypt, blake2s, blake3, ecdsa_secp256k1_verify, ecdsa_secp256r1_verify, keccakf1600,
+    sha256_compression, BigIntSolverWithId, BlackBoxFunctionSolver, BlackBoxResolutionError,
 };
 use num_bigint::BigUint;
 use num_traits::Zero;
@@ -39,11 +38,13 @@ fn to_value_vec<F: AcirField>(input: &[u8]) -> Vec<MemoryValue<F>> {
     input.iter().map(|&x| x.into()).collect()
 }
 
+pub(crate) type BrilligBigIntSolver = BigIntSolverWithId;
+
 pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>>(
     op: &BlackBoxOp,
     solver: &Solver,
     memory: &mut Memory<F>,
-    bigint_solver: &mut BrilligBigintSolver,
+    bigint_solver: &mut BrilligBigIntSolver,
 ) -> Result<(), BlackBoxResolutionError> {
     match op {
         BlackBoxOp::AES128Encrypt { inputs, iv, key, outputs } => {
@@ -56,7 +57,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             })?;
             let key: [u8; 16] =
                 to_u8_vec(read_heap_array(memory, key)).try_into().map_err(|_| {
-                    BlackBoxResolutionError::Failed(bb_func, "Invalid ley length".to_string())
+                    BlackBoxResolutionError::Failed(bb_func, "Invalid key length".to_string())
                 })?;
             let ciphertext = aes128_encrypt(&inputs, iv, key)?;
 
@@ -77,14 +78,8 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             memory.write_slice(memory.read_ref(output.pointer), &to_value_vec(&bytes));
             Ok(())
         }
-        BlackBoxOp::Keccak256 { message, output } => {
-            let message = to_u8_vec(read_heap_vector(memory, message));
-            let bytes = keccak256(message.as_slice())?;
-            memory.write_slice(memory.read_ref(output.pointer), &to_value_vec(&bytes));
-            Ok(())
-        }
-        BlackBoxOp::Keccakf1600 { message, output } => {
-            let state_vec: Vec<u64> = read_heap_vector(memory, message)
+        BlackBoxOp::Keccakf1600 { input, output } => {
+            let state_vec: Vec<u64> = read_heap_array(memory, input)
                 .iter()
                 .map(|&memory_value| memory_value.try_into().unwrap())
                 .collect();
@@ -144,17 +139,6 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             };
 
             memory.write(*result_address, result.into());
-            Ok(())
-        }
-        BlackBoxOp::SchnorrVerify { public_key_x, public_key_y, message, signature, result } => {
-            let public_key_x = *memory.read(*public_key_x).extract_field().unwrap();
-            let public_key_y = *memory.read(*public_key_y).extract_field().unwrap();
-            let message: Vec<u8> = to_u8_vec(read_heap_vector(memory, message));
-            let signature: [u8; 64] =
-                to_u8_vec(read_heap_vector(memory, signature)).try_into().unwrap();
-            let verified =
-                solver.schnorr_verify(&public_key_x, &public_key_y, &signature, &message)?;
-            memory.write(*result, verified.into());
             Ok(())
         }
         BlackBoxOp::MultiScalarMul { points, scalars, outputs: result } => {
@@ -225,41 +209,6 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                     MemoryValue::new_field(infinite),
                 ],
             );
-            Ok(())
-        }
-        BlackBoxOp::PedersenCommitment { inputs, domain_separator, output } => {
-            let inputs: Vec<F> = read_heap_vector(memory, inputs)
-                .iter()
-                .map(|x| *x.extract_field().unwrap())
-                .collect();
-            let domain_separator: u32 =
-                memory.read(*domain_separator).try_into().map_err(|_| {
-                    BlackBoxResolutionError::Failed(
-                        BlackBoxFunc::PedersenCommitment,
-                        "Invalid separator length".to_string(),
-                    )
-                })?;
-            let (x, y) = solver.pedersen_commitment(&inputs, domain_separator)?;
-            memory.write_slice(
-                memory.read_ref(output.pointer),
-                &[MemoryValue::new_field(x), MemoryValue::new_field(y)],
-            );
-            Ok(())
-        }
-        BlackBoxOp::PedersenHash { inputs, domain_separator, output } => {
-            let inputs: Vec<F> = read_heap_vector(memory, inputs)
-                .iter()
-                .map(|x| *x.extract_field().unwrap())
-                .collect();
-            let domain_separator: u32 =
-                memory.read(*domain_separator).try_into().map_err(|_| {
-                    BlackBoxResolutionError::Failed(
-                        BlackBoxFunc::PedersenCommitment,
-                        "Invalid separator length".to_string(),
-                    )
-                })?;
-            let hash = solver.pedersen_hash(&inputs, domain_separator)?;
-            memory.write(*output, MemoryValue::new_field(hash));
             Ok(())
         }
         BlackBoxOp::BigIntAdd { lhs, rhs, output } => {
@@ -333,7 +282,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
         }
         BlackBoxOp::Sha256Compression { input, hash_values, output } => {
             let mut message = [0; 16];
-            let inputs = read_heap_vector(memory, input);
+            let inputs = read_heap_array(memory, input);
             if inputs.len() != 16 {
                 return Err(BlackBoxResolutionError::Failed(
                     BlackBoxFunc::Sha256Compression,
@@ -344,7 +293,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                 message[i] = input.try_into().unwrap();
             }
             let mut state = [0; 8];
-            let values = read_heap_vector(memory, hash_values);
+            let values = read_heap_array(memory, hash_values);
             if values.len() != 8 {
                 return Err(BlackBoxResolutionError::Failed(
                     BlackBoxFunc::Sha256Compression,
@@ -371,18 +320,18 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             let mut input = BigUint::from_bytes_be(&input.to_be_bytes());
             let radix = BigUint::from_bytes_be(&radix.to_be_bytes());
 
-            let mut limbs: Vec<MemoryValue<F>> = Vec::with_capacity(output.size);
+            let mut limbs: Vec<MemoryValue<F>> = vec![MemoryValue::default(); output.size];
 
-            for _ in 0..output.size {
+            for i in (0..output.size).rev() {
                 let limb = &input % &radix;
                 if *output_bits {
-                    limbs.push(MemoryValue::new_integer(
+                    limbs[i] = MemoryValue::new_integer(
                         if limb.is_zero() { 0 } else { 1 },
                         IntegerBitSize::U1,
-                    ));
+                    );
                 } else {
                     let limb: u8 = limb.try_into().unwrap();
-                    limbs.push(MemoryValue::new_integer(limb as u128, IntegerBitSize::U8));
+                    limbs[i] = MemoryValue::new_integer(limb as u128, IntegerBitSize::U8);
                 };
                 input /= &radix;
             }
@@ -394,64 +343,14 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
     }
 }
 
-/// Wrapper over the generic bigint solver to automatically assign bigint ids in brillig
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
-pub(crate) struct BrilligBigintSolver {
-    bigint_solver: BigIntSolver,
-    last_id: u32,
-}
-
-impl BrilligBigintSolver {
-    pub(crate) fn create_bigint_id(&mut self) -> u32 {
-        let output = self.last_id;
-        self.last_id += 1;
-        output
-    }
-
-    pub(crate) fn bigint_from_bytes(
-        &mut self,
-        inputs: &[u8],
-        modulus: &[u8],
-    ) -> Result<u32, BlackBoxResolutionError> {
-        let id = self.create_bigint_id();
-        self.bigint_solver.bigint_from_bytes(inputs, modulus, id)?;
-        Ok(id)
-    }
-
-    pub(crate) fn bigint_to_bytes(&self, input: u32) -> Result<Vec<u8>, BlackBoxResolutionError> {
-        self.bigint_solver.bigint_to_bytes(input)
-    }
-
-    pub(crate) fn bigint_op(
-        &mut self,
-        lhs: u32,
-        rhs: u32,
-        func: BlackBoxFunc,
-    ) -> Result<u32, BlackBoxResolutionError> {
-        let modulus_lhs = self.bigint_solver.get_modulus(lhs, func)?;
-        let modulus_rhs = self.bigint_solver.get_modulus(rhs, func)?;
-        if modulus_lhs != modulus_rhs {
-            return Err(BlackBoxResolutionError::Failed(
-                func,
-                "moduli should be identical in BigInt operation".to_string(),
-            ));
-        }
-        let id = self.create_bigint_id();
-        self.bigint_solver.bigint_op(lhs, rhs, id, func)?;
-        Ok(id)
-    }
-}
-
 fn black_box_function_from_op(op: &BlackBoxOp) -> BlackBoxFunc {
     match op {
         BlackBoxOp::AES128Encrypt { .. } => BlackBoxFunc::AES128Encrypt,
         BlackBoxOp::Blake2s { .. } => BlackBoxFunc::Blake2s,
         BlackBoxOp::Blake3 { .. } => BlackBoxFunc::Blake3,
-        BlackBoxOp::Keccak256 { .. } => BlackBoxFunc::Keccak256,
         BlackBoxOp::Keccakf1600 { .. } => BlackBoxFunc::Keccakf1600,
         BlackBoxOp::EcdsaSecp256k1 { .. } => BlackBoxFunc::EcdsaSecp256k1,
         BlackBoxOp::EcdsaSecp256r1 { .. } => BlackBoxFunc::EcdsaSecp256r1,
-        BlackBoxOp::SchnorrVerify { .. } => BlackBoxFunc::SchnorrVerify,
         BlackBoxOp::MultiScalarMul { .. } => BlackBoxFunc::MultiScalarMul,
         BlackBoxOp::EmbeddedCurveAdd { .. } => BlackBoxFunc::EmbeddedCurveAdd,
         BlackBoxOp::BigIntAdd { .. } => BlackBoxFunc::BigIntAdd,
@@ -463,7 +362,5 @@ fn black_box_function_from_op(op: &BlackBoxOp) -> BlackBoxFunc {
         BlackBoxOp::Poseidon2Permutation { .. } => BlackBoxFunc::Poseidon2Permutation,
         BlackBoxOp::Sha256Compression { .. } => BlackBoxFunc::Sha256Compression,
         BlackBoxOp::ToRadix { .. } => unreachable!("ToRadix is not an ACIR BlackBoxFunc"),
-        BlackBoxOp::PedersenCommitment { .. } => BlackBoxFunc::PedersenCommitment,
-        BlackBoxOp::PedersenHash { .. } => BlackBoxFunc::PedersenHash,
     }
 }

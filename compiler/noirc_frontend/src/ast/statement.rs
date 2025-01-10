@@ -1,5 +1,4 @@
 use std::fmt::Display;
-use std::sync::atomic::{AtomicU32, Ordering};
 
 use acvm::acir::AcirField;
 use acvm::FieldElement;
@@ -7,8 +6,9 @@ use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
 
 use super::{
-    BlockExpression, ConstructorExpression, Expression, ExpressionKind, GenericTypeArgs,
-    IndexExpression, ItemVisibility, MemberAccessExpression, MethodCallExpression, UnresolvedType,
+    BinaryOpKind, BlockExpression, ConstructorExpression, Expression, ExpressionKind,
+    GenericTypeArgs, IndexExpression, InfixExpression, ItemVisibility, MemberAccessExpression,
+    MethodCallExpression, UnresolvedType,
 };
 use crate::ast::UnresolvedTypeData;
 use crate::elaborator::types::SELF_TYPE_NAME;
@@ -25,6 +25,9 @@ use crate::token::{SecondaryAttribute, Token};
 /// should also check for this ident to avoid issuing multiple errors
 /// for an identifier that already failed to parse.
 pub const ERROR_IDENT: &str = "$error";
+
+/// This is used to represent an UnresolvedTypeData::Unspecified in a Path
+pub const WILDCARD_TYPE: &str = "_";
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Statement {
@@ -150,6 +153,7 @@ impl StatementKind {
             r#type,
             expression,
             comptime: false,
+            is_global_let: false,
             attributes,
         })
     }
@@ -179,7 +183,7 @@ impl StatementKind {
     }
 }
 
-#[derive(Eq, Debug, Clone)]
+#[derive(Eq, Debug, Clone, Default)]
 pub struct Ident(pub Spanned<String>);
 
 impl Ident {
@@ -326,18 +330,19 @@ pub enum PathKind {
 pub struct UseTree {
     pub prefix: Path,
     pub kind: UseTreeKind,
+    pub span: Span,
 }
 
 impl Display for UseTree {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.prefix)?;
 
+        if !self.prefix.segments.is_empty() {
+            write!(f, "::")?;
+        }
+
         match &self.kind {
             UseTreeKind::Path(name, alias) => {
-                if !(self.prefix.segments.is_empty() && self.prefix.kind == PathKind::Plain) {
-                    write!(f, "::")?;
-                }
-
                 write!(f, "{name}")?;
 
                 if let Some(alias) = alias {
@@ -347,7 +352,7 @@ impl Display for UseTree {
                 Ok(())
             }
             UseTreeKind::List(trees) => {
-                write!(f, "::{{")?;
+                write!(f, "{{")?;
                 let tree = vecmap(trees, ToString::to_string).join(", ");
                 write!(f, "{tree}}}")
             }
@@ -372,7 +377,9 @@ impl UseTree {
 
         match self.kind {
             UseTreeKind::Path(name, alias) => {
-                vec![ImportStatement { visibility, path: prefix.join(name), alias }]
+                // Desugar `use foo::{self}` to `use foo`
+                let path = if name.0.contents == "self" { prefix } else { prefix.join(name) };
+                vec![ImportStatement { visibility, path, alias }]
             }
             UseTreeKind::List(trees) => {
                 let trees = trees.into_iter();
@@ -404,7 +411,7 @@ pub struct AsTraitPath {
 pub struct TypePath {
     pub typ: UnresolvedType,
     pub item: Ident,
-    pub turbofish: GenericTypeArgs,
+    pub turbofish: Option<GenericTypeArgs>,
 }
 
 // Note: Path deliberately doesn't implement Recoverable.
@@ -441,11 +448,6 @@ impl Path {
         self.span
     }
 
-    pub fn first_segment(&self) -> PathSegment {
-        assert!(!self.segments.is_empty());
-        self.segments.first().unwrap().clone()
-    }
-
     pub fn last_segment(&self) -> PathSegment {
         assert!(!self.segments.is_empty());
         self.segments.last().unwrap().clone()
@@ -455,9 +457,8 @@ impl Path {
         self.last_segment().ident
     }
 
-    pub fn first_name(&self) -> &str {
-        assert!(!self.segments.is_empty());
-        &self.segments.first().unwrap().ident.0.contents
+    pub fn first_name(&self) -> Option<&str> {
+        self.segments.first().map(|segment| segment.ident.0.contents.as_str())
     }
 
     pub fn last_name(&self) -> &str {
@@ -466,7 +467,9 @@ impl Path {
     }
 
     pub fn is_ident(&self) -> bool {
-        self.segments.len() == 1 && self.kind == PathKind::Plain
+        self.kind == PathKind::Plain
+            && self.segments.len() == 1
+            && self.segments.first().unwrap().generics.is_none()
     }
 
     pub fn as_ident(&self) -> Option<&Ident> {
@@ -481,6 +484,14 @@ impl Path {
             return None;
         }
         self.segments.first().cloned().map(|segment| segment.ident)
+    }
+
+    pub(crate) fn is_wildcard(&self) -> bool {
+        self.to_ident().map(|ident| ident.0.contents) == Some(WILDCARD_TYPE.to_string())
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.segments.is_empty() && self.kind == PathKind::Plain
     }
 
     pub fn as_string(&self) -> String {
@@ -551,6 +562,7 @@ pub struct LetStatement {
 
     // True if this should only be run during compile-time
     pub comptime: bool,
+    pub is_global_let: bool,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -649,14 +661,6 @@ impl Pattern {
         }
     }
 
-    pub(crate) fn into_ident(self) -> Ident {
-        match self {
-            Pattern::Identifier(ident) => ident,
-            Pattern::Mutable(pattern, _, _) => pattern.into_ident(),
-            other => panic!("Pattern::into_ident called on {other} pattern with no identifier"),
-        }
-    }
-
     pub(crate) fn try_as_expression(&self, interner: &NodeInterner) -> Option<Expression> {
         match self {
             Pattern::Identifier(ident) => Some(Expression {
@@ -725,37 +729,36 @@ impl LValue {
         Expression::new(kind, span)
     }
 
-    pub fn from_expression(expr: Expression) -> LValue {
+    pub fn from_expression(expr: Expression) -> Option<LValue> {
         LValue::from_expression_kind(expr.kind, expr.span)
     }
 
-    pub fn from_expression_kind(expr: ExpressionKind, span: Span) -> LValue {
+    pub fn from_expression_kind(expr: ExpressionKind, span: Span) -> Option<LValue> {
         match expr {
-            ExpressionKind::Variable(path) => LValue::Ident(path.as_ident().unwrap().clone()),
-            ExpressionKind::MemberAccess(member_access) => LValue::MemberAccess {
-                object: Box::new(LValue::from_expression(member_access.lhs)),
+            ExpressionKind::Variable(path) => Some(LValue::Ident(path.as_ident().unwrap().clone())),
+            ExpressionKind::MemberAccess(member_access) => Some(LValue::MemberAccess {
+                object: Box::new(LValue::from_expression(member_access.lhs)?),
                 field_name: member_access.rhs,
                 span,
-            },
-            ExpressionKind::Index(index) => LValue::Index {
-                array: Box::new(LValue::from_expression(index.collection)),
+            }),
+            ExpressionKind::Index(index) => Some(LValue::Index {
+                array: Box::new(LValue::from_expression(index.collection)?),
                 index: index.index,
                 span,
-            },
+            }),
             ExpressionKind::Prefix(prefix) => {
                 if matches!(
                     prefix.operator,
                     crate::ast::UnaryOp::Dereference { implicitly_added: false }
                 ) {
-                    LValue::Dereference(Box::new(LValue::from_expression(prefix.rhs)), span)
+                    Some(LValue::Dereference(Box::new(LValue::from_expression(prefix.rhs)?), span))
                 } else {
-                    panic!("Called LValue::from_expression with an invalid prefix operator")
+                    None
                 }
             }
-            ExpressionKind::Interned(id) => LValue::Interned(id, span),
-            _ => {
-                panic!("Called LValue::from_expression with an invalid expression")
-            }
+            ExpressionKind::Parenthesized(expr) => LValue::from_expression(*expr),
+            ExpressionKind::Interned(id) => Some(LValue::Interned(id, span)),
+            _ => None,
         }
     }
 
@@ -771,12 +774,56 @@ impl LValue {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
+pub struct ForBounds {
+    pub start: Expression,
+    pub end: Expression,
+    pub inclusive: bool,
+}
+
+impl ForBounds {
+    /// Create a half-open range bounded inclusively below and exclusively above (`start..end`),  
+    /// desugaring `start..=end` into `start..end+1` if necessary.
+    ///
+    /// Returns the `start` and `end` expressions.
+    pub(crate) fn into_half_open(self) -> (Expression, Expression) {
+        let end = if self.inclusive {
+            let end_span = self.end.span;
+            let end = ExpressionKind::Infix(Box::new(InfixExpression {
+                lhs: self.end,
+                operator: Spanned::from(end_span, BinaryOpKind::Add),
+                rhs: Expression::new(ExpressionKind::integer(FieldElement::from(1u32)), end_span),
+            }));
+            Expression::new(end, end_span)
+        } else {
+            self.end
+        };
+
+        (self.start, end)
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ForRange {
-    Range(/*start:*/ Expression, /*end:*/ Expression),
+    Range(ForBounds),
     Array(Expression),
 }
 
 impl ForRange {
+    /// Create a half-open range, bounded inclusively below and exclusively above.
+    pub fn range(start: Expression, end: Expression) -> Self {
+        Self::Range(ForBounds { start, end, inclusive: false })
+    }
+
+    /// Create a range bounded inclusively below and above.
+    pub fn range_inclusive(start: Expression, end: Expression) -> Self {
+        Self::Range(ForBounds { start, end, inclusive: true })
+    }
+
+    /// Create a range over some array.
+    pub fn array(value: Expression) -> Self {
+        Self::Array(value)
+    }
+
     /// Create a 'for' expression taking care of desugaring a 'for e in array' loop
     /// into the following if needed:
     ///
@@ -793,10 +840,9 @@ impl ForRange {
         block: Expression,
         for_loop_span: Span,
     ) -> Statement {
-        /// Counter used to generate unique names when desugaring
-        /// code in the parser requires the creation of fresh variables.
-        /// The parser is stateless so this is a static global instead.
-        static UNIQUE_NAME_COUNTER: AtomicU32 = AtomicU32::new(0);
+        // Counter used to generate unique names when desugaring
+        // code in the parser requires the creation of fresh variables.
+        let mut unique_name_counter: u32 = 0;
 
         match self {
             ForRange::Range(..) => {
@@ -807,7 +853,8 @@ impl ForRange {
                 let start_range = ExpressionKind::integer(FieldElement::zero());
                 let start_range = Expression::new(start_range, array_span);
 
-                let next_unique_id = UNIQUE_NAME_COUNTER.fetch_add(1, Ordering::Relaxed);
+                let next_unique_id = unique_name_counter;
+                unique_name_counter += 1;
                 let array_name = format!("$i{next_unique_id}");
                 let array_span = array.span;
                 let array_ident = Ident::new(array_name, array_span);
@@ -840,7 +887,7 @@ impl ForRange {
                 }));
                 let end_range = Expression::new(end_range, array_span);
 
-                let next_unique_id = UNIQUE_NAME_COUNTER.fetch_add(1, Ordering::Relaxed);
+                let next_unique_id = unique_name_counter;
                 let index_name = format!("$i{next_unique_id}");
                 let fresh_identifier = Ident::new(index_name.clone(), array_span);
 
@@ -879,7 +926,7 @@ impl ForRange {
                 let for_loop = Statement {
                     kind: StatementKind::For(ForLoopStatement {
                         identifier: fresh_identifier,
-                        range: ForRange::Range(start_range, end_range),
+                        range: ForRange::range(start_range, end_range),
                         block: new_block,
                         span: for_loop_span,
                     }),
@@ -1009,7 +1056,14 @@ impl Display for Pattern {
 impl Display for ForLoopStatement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let range = match &self.range {
-            ForRange::Range(start, end) => format!("{start}..{end}"),
+            ForRange::Range(bounds) => {
+                format!(
+                    "{}{}{}",
+                    bounds.start,
+                    if bounds.inclusive { "..=" } else { ".." },
+                    bounds.end
+                )
+            }
             ForRange::Array(expr) => expr.to_string(),
         };
 

@@ -128,7 +128,7 @@ way to write your derive handler. The arguments are as follows:
 - `for_each_field`: An operation to be performed on each field. E.g. `|name| quote { (self.$name == other.$name) }`.
 - `join_fields_with`: A separator to join each result of `for_each_field` with.
   E.g. `quote { & }`. You can also use an empty `quote {}` for no separator.
-- `body`: The result of the field operations are passed into this function for any final processing.
+- `body`: The result of the field operations is passed into this function for any final processing.
   This is the place to insert any setup/teardown code the trait requires. If the trait doesn't require
   any such code, you can return the body as-is: `|body| body`.
 

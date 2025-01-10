@@ -1,10 +1,17 @@
+use acvm::FieldElement;
 pub use noirc_errors::Span;
-use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic};
+use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic, Location};
 use thiserror::Error;
 
 use crate::{
-    ast::Ident, hir::comptime::InterpreterError, parser::ParserError, usage_tracker::UnusedItem,
-    Type,
+    ast::{Ident, UnsupportedNumericGenericType},
+    hir::{
+        comptime::{InterpreterError, Value},
+        type_check::TypeCheckError,
+    },
+    parser::ParserError,
+    usage_tracker::UnusedItem,
+    Kind, Type,
 };
 
 use super::import::PathResolutionError;
@@ -25,6 +32,8 @@ pub enum ResolverError {
     UnusedVariable { ident: Ident },
     #[error("Unused {}", item.item_type())]
     UnusedItem { ident: Ident, item: UnusedItem },
+    #[error("Unconditional recursion")]
+    UnconditionalRecursion { name: String, span: Span },
     #[error("Could not find variable in this scope")]
     VariableNotDeclared { name: String, span: Span },
     #[error("path is not an identifier")]
@@ -32,7 +41,7 @@ pub enum ResolverError {
     #[error("could not resolve path")]
     PathResolutionError(#[from] PathResolutionError),
     #[error("Expected")]
-    Expected { span: Span, expected: String, got: String },
+    Expected { span: Span, expected: &'static str, got: &'static str },
     #[error("Duplicate field in constructor")]
     DuplicateField { field: Ident },
     #[error("No such field in struct")]
@@ -71,14 +80,10 @@ pub enum ResolverError {
     MutableReferenceToImmutableVariable { variable: String, span: Span },
     #[error("Mutable references to array indices are unsupported")]
     MutableReferenceToArrayElement { span: Span },
-    #[error("Numeric constants should be printed without formatting braces")]
-    NumericConstantInFormatString { name: String, span: Span },
     #[error("Closure environment must be a tuple or unit type")]
     InvalidClosureEnvironment { typ: Type, span: Span },
     #[error("Nested slices, i.e. slices within an array or slice, are not supported")]
     NestedSlices { span: Span },
-    #[error("#[recursive] attribute is only allowed on entry points to a program")]
-    MisplacedRecursiveAttribute { ident: Ident },
     #[error("#[abi(tag)] attribute is only allowed in contracts")]
     AbiAttributeOutsideContract { span: Span },
     #[error("Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library")]
@@ -97,14 +102,22 @@ pub enum ResolverError {
     JumpOutsideLoop { is_break: bool, span: Span },
     #[error("Only `comptime` globals can be mutable")]
     MutableGlobal { span: Span },
+    #[error("Globals must have a specified type")]
+    UnspecifiedGlobalType { span: Span, expected_type: Type },
+    #[error("Global failed to evaluate")]
+    UnevaluatedGlobalType { span: Span },
+    #[error("Globals used in a type position must be non-negative")]
+    NegativeGlobalType { span: Span, global_value: Value },
+    #[error("Globals used in a type position must be integers")]
+    NonIntegralGlobalType { span: Span, global_value: Value },
+    #[error("Global value `{global_value}` is larger than its kind's maximum value")]
+    GlobalLargerThanKind { span: Span, global_value: FieldElement, kind: Kind },
     #[error("Self-referential structs are not supported")]
     SelfReferentialStruct { span: Span },
     #[error("#[no_predicates] attribute is only allowed on constrained functions")]
     NoPredicatesAttributeOnUnconstrained { ident: Ident },
     #[error("#[fold] attribute is only allowed on constrained functions")]
     FoldAttributeOnUnconstrained { ident: Ident },
-    #[error("The only supported types of numeric generics are integers, fields, and booleans")]
-    UnsupportedNumericGenericType { ident: Ident, typ: Type },
     #[error("expected type, found numeric generic parameter")]
     NumericGenericUsedForType { name: String, span: Span },
     #[error("Invalid array length construction")]
@@ -123,8 +136,14 @@ pub enum ResolverError {
     NamedTypeArgs { span: Span, item_kind: &'static str },
     #[error("Associated constants may only be a field or integer type")]
     AssociatedConstantsMustBeNumeric { span: Span },
-    #[error("Overflow in `{lhs} {op} {rhs}`")]
-    OverflowInType { lhs: u32, op: crate::BinaryTypeOperator, rhs: u32, span: Span },
+    #[error("Computing `{lhs} {op} {rhs}` failed with error {err}")]
+    BinaryOpError {
+        lhs: FieldElement,
+        op: crate::BinaryTypeOperator,
+        rhs: FieldElement,
+        err: Box<TypeCheckError>,
+        span: Span,
+    },
     #[error("`quote` cannot be used in runtime code")]
     QuoteInRuntimeCode { span: Span },
     #[error("Comptime-only type `{typ}` cannot be used in runtime code")]
@@ -133,8 +152,24 @@ pub enum ResolverError {
     MutatingComptimeInNonComptimeContext { name: String, span: Span },
     #[error("Failed to parse `{statement}` as an expression")]
     InvalidInternedStatementInExpr { statement: String, span: Span },
+    #[error("{0}")]
+    UnsupportedNumericGenericType(#[from] UnsupportedNumericGenericType),
     #[error("Type `{typ}` is more private than item `{item}`")]
     TypeIsMorePrivateThenItem { typ: String, item: String, span: Span },
+    #[error("Unable to parse attribute `{attribute}`")]
+    UnableToParseAttribute { attribute: String, span: Span },
+    #[error("Attribute function `{function}` is not a path")]
+    AttributeFunctionIsNotAPath { function: String, span: Span },
+    #[error("Attribute function `{name}` is not in scope")]
+    AttributeFunctionNotInScope { name: String, span: Span },
+    #[error("The trait `{missing_trait}` is not implemented for `{type_missing_trait}")]
+    TraitNotImplemented {
+        impl_trait: String,
+        missing_trait: String,
+        type_missing_trait: String,
+        span: Span,
+        missing_trait_location: Location,
+    },
 }
 
 impl ResolverError {
@@ -190,11 +225,28 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 diagnostic.unnecessary = true;
                 diagnostic
             }
-            ResolverError::VariableNotDeclared { name, span } => Diagnostic::simple_error(
-                format!("cannot find `{name}` in this scope "),
-                "not found in this scope".to_string(),
-                *span,
-            ),
+            ResolverError::UnconditionalRecursion { name, span} => {
+                Diagnostic::simple_warning(
+                    format!("function `{name}` cannot return without recursing"),
+                    "function cannot return without recursing".to_string(),
+                    *span,
+                )
+            }
+            ResolverError::VariableNotDeclared { name, span } =>  {
+                if name == "_" {
+                    Diagnostic::simple_error(
+                        "in expressions, `_` can only be used on the left-hand side of an assignment".to_string(),
+                        "`_` not allowed here".to_string(),
+                        *span,
+                    )
+                } else {
+                    Diagnostic::simple_error(
+                        format!("cannot find `{name}` in this scope"),
+                        "not found in this scope".to_string(),
+                        *span,
+                    )
+                }
+            },
             ResolverError::PathIsNotIdent { span } => Diagnostic::simple_error(
                 "cannot use path as an identifier".to_string(),
                 String::new(),
@@ -335,11 +387,6 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             ResolverError::MutableReferenceToArrayElement { span } => {
                 Diagnostic::simple_error("Mutable references to array elements are currently unsupported".into(), "Try storing the element in a fresh variable first".into(), *span)
             },
-            ResolverError::NumericConstantInFormatString { name, span } => Diagnostic::simple_error(
-                format!("cannot find `{name}` in this scope "),
-                "Numeric constants should be printed without formatting braces".to_string(),
-                *span,
-            ),
             ResolverError::InvalidClosureEnvironment { span, typ } => Diagnostic::simple_error(
                 format!("{typ} is not a valid closure environment type"),
                 "Closure environment must be a tuple or unit type".to_string(), *span),
@@ -348,18 +395,6 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 "Try to use a constant sized array or BoundedVec instead".into(),
                 *span,
             ),
-            ResolverError::MisplacedRecursiveAttribute { ident } => {
-                let name = &ident.0.contents;
-
-                let mut diag = Diagnostic::simple_error(
-                    format!("misplaced #[recursive] attribute on function {name} rather than the main function"),
-                    "misplaced #[recursive] attribute".to_string(),
-                    ident.0.span(),
-                );
-
-                diag.add_note("The `#[recursive]` attribute specifies to the backend whether it should use a prover which generates proofs that are friendly for recursive verification in another circuit".to_owned());
-                diag
-            }
             ResolverError::AbiAttributeOutsideContract { span } => {
                 Diagnostic::simple_error(
                     "#[abi(tag)] attributes can only be used in contracts".to_string(),
@@ -412,6 +447,41 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *span,
                 )
             },
+            ResolverError::UnspecifiedGlobalType { span, expected_type } => {
+                Diagnostic::simple_error(
+                    "Globals must have a specified type".to_string(),
+                    format!("Inferred type is `{expected_type}`"),
+                    *span,
+                )
+            },
+            ResolverError::UnevaluatedGlobalType { span } => {
+                Diagnostic::simple_error(
+                    "Global failed to evaluate".to_string(),
+                    String::new(),
+                    *span,
+                )
+            }
+            ResolverError::NegativeGlobalType { span, global_value } => {
+                Diagnostic::simple_error(
+                    "Globals used in a type position must be non-negative".to_string(),
+                    format!("But found value `{global_value:?}`"),
+                    *span,
+                )
+            }
+            ResolverError::NonIntegralGlobalType { span, global_value } => {
+                Diagnostic::simple_error(
+                    "Globals used in a type position must be integers".to_string(),
+                    format!("But found value `{global_value:?}`"),
+                    *span,
+                )
+            }
+            ResolverError::GlobalLargerThanKind { span, global_value, kind } => {
+                Diagnostic::simple_error(
+                    format!("Global value `{global_value}` is larger than its kind's maximum value"),
+                    format!("Global's kind inferred to be `{kind}`"),
+                    *span,
+                )
+            }
             ResolverError::SelfReferentialStruct { span } => {
                 Diagnostic::simple_error(
                     "Self-referential structs are not supported".into(),
@@ -442,15 +512,6 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
 
                 diag.add_note("The `#[fold]` attribute specifies whether a constrained function should be treated as a separate circuit rather than inlined into the program entry point".to_owned());
                 diag
-            }
-            ResolverError::UnsupportedNumericGenericType { ident , typ } => {
-                let name = &ident.0.contents;
-
-                Diagnostic::simple_error(
-                    format!("{name} has a type of {typ}. The only supported types of numeric generics are integers, fields, and booleans."),
-                    "Unsupported numeric generic type".to_string(),
-                    ident.0.span(),
-                )
             }
             ResolverError::NumericGenericUsedForType { name, span } => {
                 Diagnostic::simple_error(
@@ -509,10 +570,10 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *span,
                 )
             }
-            ResolverError::OverflowInType { lhs, op, rhs, span } => {
+            ResolverError::BinaryOpError { lhs, op, rhs, err, span } => {
                 Diagnostic::simple_error(
-                    format!("Overflow in `{lhs} {op} {rhs}`"),
-                    "Overflow here".to_string(),
+                    format!("Computing `{lhs} {op} {rhs}` failed with error {err}"),
+                    String::new(),
                     *span,
                 )
             }
@@ -544,12 +605,42 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *span,
                 )
             },
+            ResolverError::UnsupportedNumericGenericType(err) => err.into(),
             ResolverError::TypeIsMorePrivateThenItem { typ, item, span } => {
-                Diagnostic::simple_warning(
+                Diagnostic::simple_error(
                     format!("Type `{typ}` is more private than item `{item}`"),
                     String::new(),
                     *span,
                 )
+            },
+            ResolverError::UnableToParseAttribute { attribute, span } => {
+                Diagnostic::simple_error(
+                    format!("Unable to parse attribute `{attribute}`"),
+                    "Attribute should be a function or function call".into(),
+                    *span,
+                )
+            },
+            ResolverError::AttributeFunctionIsNotAPath { function, span } => {
+                Diagnostic::simple_error(
+                    format!("Attribute function `{function}` is not a path"),
+                    "An attribute's function should be a single identifier or a path".into(),
+                    *span,
+                )
+            },
+            ResolverError::AttributeFunctionNotInScope { name, span } => {
+                Diagnostic::simple_error(
+                    format!("Attribute function `{name}` is not in scope"),
+                    String::new(),
+                    *span,
+                )
+            },
+            ResolverError::TraitNotImplemented { impl_trait, missing_trait: the_trait, type_missing_trait: typ, span, missing_trait_location} => {
+                let mut diagnostic = Diagnostic::simple_error(
+                    format!("The trait bound `{typ}: {the_trait}` is not satisfied"), 
+                    format!("The trait `{the_trait}` is not implemented for `{typ}")
+                    , *span);
+                diagnostic.add_secondary_with_file(format!("required by this bound in `{impl_trait}"), missing_trait_location.span, missing_trait_location.file);
+                diagnostic
             },
         }
     }

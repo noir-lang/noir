@@ -1,13 +1,5 @@
-use std::ec::tecurve::affine::Curve as AffineCurve;
-use std::ec::tecurve::affine::Point as Gaffine;
-use std::ec::tecurve::curvegroup::Curve;
-use std::ec::tecurve::curvegroup::Point as G;
-
-use std::ec::swcurve::affine::Point as SWGaffine;
-use std::ec::swcurve::curvegroup::Point as SWG;
-
-use std::ec::montcurve::affine::Point as MGaffine;
-use std::ec::montcurve::curvegroup::Point as MG;
+use ec::tecurve::affine::Curve as AffineCurve;
+use ec::tecurve::affine::Point as Gaffine;
 
 fn main() {
     // Define Baby Jubjub (ERC-2494) parameters in affine representation
@@ -16,17 +8,17 @@ fn main() {
         168696,
         Gaffine::new(
             995203441582195749578291179787384436505546430278305826713579947235728471134,
-            5472060717959818805561601436314318772137091100104008585924551046643952123905
-        )
+            5472060717959818805561601436314318772137091100104008585924551046643952123905,
+        ),
     );
     // Test addition
     let p1_affine = Gaffine::new(
         17777552123799933955779906779655732241715742912184938656739573121738514868268,
-        2626589144620713026669568689430873010625803728049924121243784502389097019475
+        2626589144620713026669568689430873010625803728049924121243784502389097019475,
     );
     let p2_affine = Gaffine::new(
         16540640123574156134436876038791482806971768689494387082833631921987005038935,
-        20819045374670962167435360035096875258406992893633759881276124905556507972311
+        20819045374670962167435360035096875258406992893633759881276124905556507972311,
     );
     let _p3_affine = bjj_affine.add(p1_affine, p2_affine);
     // Test SWCurve equivalents of the above

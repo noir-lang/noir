@@ -18,9 +18,9 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         source_array: BrilligArray,
         destination_array: BrilligArray,
     ) {
-        let source_array_pointer_arg = MemoryAddress::from(ScratchSpace::start());
-        let source_array_memory_size_arg = MemoryAddress::from(ScratchSpace::start() + 1);
-        let new_array_pointer_return = MemoryAddress::from(ScratchSpace::start() + 2);
+        let source_array_pointer_arg = MemoryAddress::direct(ScratchSpace::start());
+        let source_array_memory_size_arg = MemoryAddress::direct(ScratchSpace::start() + 1);
+        let new_array_pointer_return = MemoryAddress::direct(ScratchSpace::start() + 2);
 
         self.mov_instruction(source_array_pointer_arg, source_array.pointer);
         self.usize_const_instruction(source_array_memory_size_arg, (source_array.size + 1).into());
@@ -34,9 +34,9 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 pub(super) fn compile_array_copy_procedure<F: AcirField + DebugToString>(
     brillig_context: &mut BrilligContext<F, ScratchSpace>,
 ) {
-    let source_array_pointer_arg = MemoryAddress::from(ScratchSpace::start());
-    let source_array_memory_size_arg = MemoryAddress::from(ScratchSpace::start() + 1);
-    let new_array_pointer_return = MemoryAddress::from(ScratchSpace::start() + 2);
+    let source_array_pointer_arg = MemoryAddress::direct(ScratchSpace::start());
+    let source_array_memory_size_arg = MemoryAddress::direct(ScratchSpace::start() + 1);
+    let new_array_pointer_return = MemoryAddress::direct(ScratchSpace::start() + 2);
 
     brillig_context.set_allocated_registers(vec![
         source_array_pointer_arg,
@@ -69,6 +69,8 @@ pub(super) fn compile_array_copy_procedure<F: AcirField + DebugToString>(
                 BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
                 1_usize.into(),
             );
+            // Decrease the original ref count now that this copy is no longer pointing to it
+            ctx.codegen_usize_op(rc.address, rc.address, BrilligBinaryOp::Sub, 1);
         }
     });
 }

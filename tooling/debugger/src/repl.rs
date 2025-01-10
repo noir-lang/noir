@@ -1,13 +1,14 @@
 use crate::context::{DebugCommandResult, DebugContext, DebugLocation};
 
-use acvm::acir::brillig::{BitSize, IntegerBitSize};
+use acvm::acir::brillig::BitSize;
 use acvm::acir::circuit::brillig::{BrilligBytecode, BrilligFunctionId};
 use acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
 use acvm::acir::native_types::{Witness, WitnessMap, WitnessStack};
 use acvm::brillig_vm::brillig::Opcode as BrilligOpcode;
 use acvm::brillig_vm::MemoryValue;
+use acvm::AcirField;
 use acvm::{BlackBoxFunctionSolver, FieldElement};
-use nargo::NargoError;
+use nargo::{NargoError, PrintOutput};
 use noirc_driver::CompiledProgram;
 
 use crate::foreign_calls::DefaultDebugForeignCallExecutor;
@@ -41,8 +42,10 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
         initial_witness: WitnessMap<FieldElement>,
         unconstrained_functions: &'a [BrilligBytecode<FieldElement>],
     ) -> Self {
-        let foreign_call_executor =
-            Box::new(DefaultDebugForeignCallExecutor::from_artifact(true, debug_artifact));
+        let foreign_call_executor = Box::new(DefaultDebugForeignCallExecutor::from_artifact(
+            PrintOutput::Stdout,
+            debug_artifact,
+        ));
         let context = DebugContext::new(
             blackbox_solver,
             circuits,
@@ -312,8 +315,10 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
 
     fn restart_session(&mut self) {
         let breakpoints: Vec<DebugLocation> = self.context.iterate_breakpoints().copied().collect();
-        let foreign_call_executor =
-            Box::new(DefaultDebugForeignCallExecutor::from_artifact(true, self.debug_artifact));
+        let foreign_call_executor = Box::new(DefaultDebugForeignCallExecutor::from_artifact(
+            PrintOutput::Stdout,
+            self.debug_artifact,
+        ));
         self.context = DebugContext::new(
             self.blackbox_solver,
             self.circuits,
@@ -369,11 +374,13 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
             return;
         };
 
-        for (index, value) in memory
-            .iter()
-            .enumerate()
-            .filter(|(_, value)| !matches!(value, MemoryValue::Integer(_, IntegerBitSize::U0)))
-        {
+        for (index, value) in memory.iter().enumerate() {
+            // Zero field is the default value, we omit it when printing memory
+            if let MemoryValue::Field(field) = value {
+                if field == &FieldElement::zero() {
+                    continue;
+                }
+            }
             println!("{index} = {}", value);
         }
     }

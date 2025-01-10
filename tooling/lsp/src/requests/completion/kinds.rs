@@ -25,8 +25,10 @@ pub(super) enum FunctionKind<'a> {
 pub(super) enum RequestedItems {
     // Suggest any items (types, functions, etc.).
     AnyItems,
-    // Only suggest types.
+    // Only suggest types (and modules, because they can contain types).
     OnlyTypes,
+    // Only suggest traits (and modules, because they can contain traits).
+    OnlyTraits,
     // Only attribute functions
     OnlyAttributeFunctions(AttributeTarget),
 }

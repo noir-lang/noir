@@ -13,11 +13,6 @@ impl EventInterface for ExampleEvent0 {
     }
 }
 
-struct ExampleEvent1 {
-    value2: u8,
-    value3: u8,
-}
-
 struct Context {
     a: u32,
     b: [u32; 3],
@@ -38,7 +33,10 @@ impl Context {
     }
 }
 
-fn compute<Event>(_event: Event) -> ([u8; 5], Field) where Event: EventInterface {
+fn compute<Event>(_event: Event) -> ([u8; 5], Field)
+where
+    Event: EventInterface,
+{
     ([0 as u8; 5], 0)
 }
 
@@ -46,17 +44,24 @@ fn emit_with_keys<Event, let OB: u32>(
     context: &mut Context,
     randomness: Field,
     event: Event,
-    inner_compute: fn(Event) -> ([u8; OB], Field)
-) where Event: EventInterface {
+    inner_compute: fn(Event) -> ([u8; OB], Field),
+)
+where
+    Event: EventInterface,
+{
     let (log, log_hash) = inner_compute(event);
     context.emit_raw_log(randomness, log, log_hash);
 }
 
-pub fn encode_event_with_randomness<Event>(
+fn encode_event_with_randomness<Event>(
     context: &mut Context,
-    randomness: Field
-) -> fn[(&mut Context, Field)](Event) -> () where Event: EventInterface {
-    | e: Event | {
+    randomness: Field,
+) -> fn[(&mut Context, Field)](Event) -> ()
+where
+    Event: EventInterface,
+{
+    |e: Event| {
+        /// Safety: testing context
         unsafe {
             func(context.a);
         }

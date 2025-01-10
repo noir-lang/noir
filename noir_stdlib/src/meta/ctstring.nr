@@ -2,20 +2,20 @@ use crate::append::Append;
 
 impl CtString {
     // docs:start:new
-    comptime fn new() -> Self {
+    pub comptime fn new() -> Self {
         // docs:end:new
         "".as_ctstring()
     }
 
     // Bug: using &mut self as the object results in this method not being found
     // docs:start:append_str
-    comptime fn append_str<let N: u32>(self, s: str<N>) -> Self {
+    pub comptime fn append_str<let N: u32>(self, s: str<N>) -> Self {
         // docs:end:append_str
         f"{self}{s}".as_ctstring()
     }
 
     // docs:start:append_fmtstr
-    comptime fn append_fmtstr<let N: u32, T>(self, s: fmtstr<N, T>) -> Self {
+    pub comptime fn append_fmtstr<let N: u32, T>(self, s: fmtstr<N, T>) -> Self {
         // docs:end:append_fmtstr
         f"{self}{s}".as_ctstring()
     }
@@ -24,7 +24,7 @@ impl CtString {
     /// To get around this, we return a quoted str and the underlying str can
     /// be accessed using macro insertion `foo.as_quoted_str!()`.
     // docs:start:as_quoted_str
-    comptime fn as_quoted_str(self) -> Quoted {
+    pub comptime fn as_quoted_str(self) -> Quoted {
         // docs:end:as_quoted_str
         quote { $self }
     }
@@ -65,7 +65,10 @@ impl crate::cmp::Eq for CtString {
 }
 
 impl crate::hash::Hash for CtString {
-    comptime fn hash<H>(self, state: &mut H) where H: crate::hash::Hasher {
+    comptime fn hash<H>(self, state: &mut H)
+    where
+        H: crate::hash::Hasher,
+    {
         state.write(ctstring_hash(self));
     }
 }
@@ -83,10 +86,11 @@ comptime fn ctstring_eq(_first: CtString, _second: CtString) -> bool {}
 comptime fn ctstring_hash(_string: CtString) -> Field {}
 
 mod test {
+    use super::AsCtString;
+
     #[test]
     fn as_quoted_str_example() {
-        comptime
-        {
+        comptime {
             // docs:start:as_quoted_str_example
             let my_ctstring = "foo bar".as_ctstring();
             let my_str = my_ctstring.as_quoted_str!();

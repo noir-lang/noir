@@ -9,7 +9,7 @@ use crate::ast::{BlockExpression, FunctionKind, FunctionReturnType, Visibility};
 use crate::graph::CrateId;
 use crate::hir::def_map::LocalModuleId;
 use crate::node_interner::{ExprId, NodeInterner, StructId, TraitId, TraitImplId};
-use crate::token::CustomAttribute;
+
 use crate::{ResolvedGeneric, Type};
 
 /// A Hir function is a block expression with a list of statements.
@@ -164,9 +164,6 @@ pub struct FuncMeta {
     /// If this function is from an impl (trait or regular impl), this
     /// is the object type of the impl. Otherwise this is None.
     pub self_type: Option<Type>,
-
-    /// Custom attributes attached to this function.
-    pub custom_attributes: Vec<CustomAttribute>,
 }
 
 #[derive(Debug, Clone)]
@@ -178,12 +175,13 @@ pub enum FunctionBody {
 
 impl FuncMeta {
     /// A stub function does not have a body. This includes Builtin, LowLevel,
-    /// and Oracle functions in addition to method declarations within a trait.
+    /// and Oracle functions in addition to method declarations within a trait
+    /// without a body.
     ///
     /// We don't check the return type of these functions since it will always have
     /// an empty body, and we don't check for unused parameters.
     pub fn is_stub(&self) -> bool {
-        self.kind.can_ignore_return_type() || self.trait_id.is_some()
+        self.kind.can_ignore_return_type()
     }
 
     pub fn function_signature(&self) -> FunctionSignature {

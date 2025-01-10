@@ -136,7 +136,7 @@ impl<F: std::fmt::Display> std::fmt::Display for MemoryValue<F> {
 
 impl<F: AcirField> Default for MemoryValue<F> {
     fn default() -> Self {
-        MemoryValue::new_integer(0, IntegerBitSize::U0)
+        MemoryValue::new_field(F::zero())
     }
 }
 
@@ -233,13 +233,25 @@ pub struct Memory<F> {
 }
 
 impl<F: AcirField> Memory<F> {
-    /// Gets the value at pointer
-    pub fn read(&self, ptr: MemoryAddress) -> MemoryValue<F> {
-        self.inner.get(ptr.to_usize()).copied().unwrap_or_default()
+    fn get_stack_pointer(&self) -> usize {
+        self.read(MemoryAddress::Direct(0)).to_usize()
+    }
+
+    fn resolve(&self, address: MemoryAddress) -> usize {
+        match address {
+            MemoryAddress::Direct(address) => address,
+            MemoryAddress::Relative(offset) => self.get_stack_pointer() + offset,
+        }
+    }
+
+    /// Gets the value at address
+    pub fn read(&self, address: MemoryAddress) -> MemoryValue<F> {
+        let resolved_addr = self.resolve(address);
+        self.inner.get(resolved_addr).copied().unwrap_or_default()
     }
 
     pub fn read_ref(&self, ptr: MemoryAddress) -> MemoryAddress {
-        MemoryAddress(self.read(ptr).to_usize())
+        MemoryAddress::direct(self.read(ptr).to_usize())
     }
 
     pub fn read_slice(&self, addr: MemoryAddress, len: usize) -> &[MemoryValue<F>] {
@@ -249,13 +261,15 @@ impl<F: AcirField> Memory<F> {
         if len == 0 {
             return &[];
         }
-        &self.inner[addr.to_usize()..(addr.to_usize() + len)]
+        let resolved_addr = self.resolve(addr);
+        &self.inner[resolved_addr..(resolved_addr + len)]
     }
 
-    /// Sets the value at pointer `ptr` to `value`
-    pub fn write(&mut self, ptr: MemoryAddress, value: MemoryValue<F>) {
-        self.resize_to_fit(ptr.to_usize() + 1);
-        self.inner[ptr.to_usize()] = value;
+    /// Sets the value at `address` to `value`
+    pub fn write(&mut self, address: MemoryAddress, value: MemoryValue<F>) {
+        let resolved_ptr = self.resolve(address);
+        self.resize_to_fit(resolved_ptr + 1);
+        self.inner[resolved_ptr] = value;
     }
 
     fn resize_to_fit(&mut self, size: usize) {
@@ -265,10 +279,11 @@ impl<F: AcirField> Memory<F> {
         self.inner.resize(new_size, MemoryValue::default());
     }
 
-    /// Sets the values after pointer `ptr` to `values`
-    pub fn write_slice(&mut self, ptr: MemoryAddress, values: &[MemoryValue<F>]) {
-        self.resize_to_fit(ptr.to_usize() + values.len());
-        self.inner[ptr.to_usize()..(ptr.to_usize() + values.len())].copy_from_slice(values);
+    /// Sets the values after `address` to `values`
+    pub fn write_slice(&mut self, address: MemoryAddress, values: &[MemoryValue<F>]) {
+        let resolved_address = self.resolve(address);
+        self.resize_to_fit(resolved_address + values.len());
+        self.inner[resolved_address..(resolved_address + values.len())].copy_from_slice(values);
     }
 
     /// Returns the values of the memory

@@ -5,7 +5,6 @@
 //! elimination and constant folding.
 //!
 //! This module heavily borrows from Cranelift
-#![allow(dead_code)]
 
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -26,35 +25,36 @@ use acvm::{
     FieldElement,
 };
 
+use ir::instruction::ErrorType;
 use noirc_errors::debug_info::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables};
 
 use noirc_frontend::ast::Visibility;
-use noirc_frontend::{
-    hir_def::{function::FunctionSignature, types::Type as HirType},
-    monomorphization::ast::Program,
-};
+use noirc_frontend::{hir_def::function::FunctionSignature, monomorphization::ast::Program};
+use ssa_gen::Ssa;
 use tracing::{span, Level};
 
-use self::{
-    acir_gen::{Artifacts, GeneratedAcir},
-    ssa_gen::Ssa,
-};
+use crate::acir::{Artifacts, GeneratedAcir};
 
-mod acir_gen;
 mod checks;
 pub(super) mod function_builder;
 pub mod ir;
 mod opt;
+#[cfg(test)]
+pub(crate) mod parser;
 pub mod ssa_gen;
+
+#[derive(Debug, Clone)]
+pub enum SsaLogging {
+    None,
+    All,
+    Contains(String),
+}
 
 pub struct SsaEvaluatorOptions {
     /// Emit debug information for the intermediate SSA IR
-    pub enable_ssa_logging: bool,
+    pub ssa_logging: SsaLogging,
 
     pub enable_brillig_logging: bool,
-
-    /// Force Brillig output (for step debugging)
-    pub force_brillig_output: bool,
 
     /// Pretty print benchmark times of each code generation pass
     pub print_codegen_timings: bool,
@@ -67,6 +67,17 @@ pub struct SsaEvaluatorOptions {
 
     /// Skip the check for under constrained values
     pub skip_underconstrained_check: bool,
+
+    /// Skip the missing Brillig call constraints check
+    pub skip_brillig_constraints_check: bool,
+
+    /// The higher the value, the more inlined Brillig functions will be.
+    pub inliner_aggressiveness: i64,
+
+    /// Maximum accepted percentage increase in the Brillig bytecode size after unrolling loops.
+    /// When `None` the size increase check is skipped altogether and any decrease in the SSA
+    /// instruction count is accepted.
+    pub max_bytecode_increase_percent: Option<i32>,
 }
 
 pub(crate) struct ArtifactsAndWarnings(Artifacts, Vec<SsaReport>);
@@ -82,52 +93,31 @@ pub(crate) fn optimize_into_acir(
 ) -> Result<ArtifactsAndWarnings, RuntimeError> {
     let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
     let ssa_gen_span_guard = ssa_gen_span.enter();
-
-    let mut ssa = SsaBuilder::new(
+    let builder = SsaBuilder::new(
         program,
-        options.enable_ssa_logging,
-        options.force_brillig_output,
+        options.ssa_logging.clone(),
         options.print_codegen_timings,
         &options.emit_ssa,
-    )?
-    .run_pass(Ssa::defunctionalize, "After Defunctionalization:")
-    .run_pass(Ssa::remove_paired_rc, "After Removing Paired rc_inc & rc_decs:")
-    .run_pass(Ssa::separate_runtime, "After Runtime Separation:")
-    .run_pass(Ssa::resolve_is_unconstrained, "After Resolving IsUnconstrained:")
-    .run_pass(Ssa::inline_functions, "After Inlining:")
-    // Run mem2reg with the CFG separated into blocks
-    .run_pass(Ssa::mem2reg, "After Mem2Reg:")
-    .run_pass(Ssa::as_slice_optimization, "After `as_slice` optimization")
-    .try_run_pass(
-        Ssa::evaluate_static_assert_and_assert_constant,
-        "After `static_assert` and `assert_constant`:",
-    )?
-    .try_run_pass(Ssa::unroll_loops_iteratively, "After Unrolling:")?
-    .run_pass(Ssa::simplify_cfg, "After Simplifying:")
-    .run_pass(Ssa::flatten_cfg, "After Flattening:")
-    .run_pass(Ssa::remove_bit_shifts, "After Removing Bit Shifts:")
-    // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
-    .run_pass(Ssa::mem2reg, "After Mem2Reg:")
-    // Run the inlining pass again to handle functions with `InlineType::NoPredicates`.
-    // Before flattening is run, we treat functions marked with the `InlineType::NoPredicates` as an entry point.
-    // This pass must come immediately following `mem2reg` as the succeeding passes
-    // may create an SSA which inlining fails to handle.
-    .run_pass(Ssa::inline_functions_with_no_predicates, "After Inlining:")
-    .run_pass(Ssa::remove_if_else, "After Remove IfElse:")
-    .run_pass(Ssa::fold_constants, "After Constant Folding:")
-    .run_pass(Ssa::remove_enable_side_effects, "After EnableSideEffectsIf removal:")
-    .run_pass(Ssa::fold_constants_using_constraints, "After Constraint Folding:")
-    .run_pass(Ssa::dead_instruction_elimination, "After Dead Instruction Elimination:")
-    .run_pass(Ssa::simplify_cfg, "After Simplifying:")
-    .run_pass(Ssa::array_set_optimization, "After Array Set Optimizations:")
-    .finish();
+    )?;
 
-    let ssa_level_warnings = if options.skip_underconstrained_check {
-        vec![]
-    } else {
-        time("After Check for Underconstrained Values", options.print_codegen_timings, || {
-            ssa.check_for_underconstrained_values()
-        })
+    let mut ssa = optimize_all(builder, options)?;
+
+    let mut ssa_level_warnings = vec![];
+
+    if !options.skip_underconstrained_check {
+        ssa_level_warnings.extend(time(
+            "After Check for Underconstrained Values",
+            options.print_codegen_timings,
+            || ssa.check_for_underconstrained_values(),
+        ));
+    }
+
+    if !options.skip_brillig_constraints_check {
+        ssa_level_warnings.extend(time(
+            "After Check for Missing Brillig Call Constraints",
+            options.print_codegen_timings,
+            || ssa.check_for_missing_brillig_constraints(),
+        ));
     };
 
     drop(ssa_gen_span_guard);
@@ -136,10 +126,70 @@ pub(crate) fn optimize_into_acir(
         ssa.to_brillig(options.enable_brillig_logging)
     });
 
+    let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
+    let ssa_gen_span_guard = ssa_gen_span.enter();
+
+    let ssa = SsaBuilder {
+        ssa,
+        ssa_logging: options.ssa_logging.clone(),
+        print_codegen_timings: options.print_codegen_timings,
+    }
+    .run_pass(|ssa| ssa.fold_constants_with_brillig(&brillig), "Inlining Brillig Calls Inlining")
+    .run_pass(Ssa::dead_instruction_elimination, "Dead Instruction Elimination (2nd)")
+    .finish();
+
+    drop(ssa_gen_span_guard);
+
     let artifacts = time("SSA to ACIR", options.print_codegen_timings, || {
         ssa.into_acir(&brillig, options.expression_width)
     })?;
+
     Ok(ArtifactsAndWarnings(artifacts, ssa_level_warnings))
+}
+
+/// Run all SSA passes.
+fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ssa, RuntimeError> {
+    Ok(builder
+        .run_pass(Ssa::remove_unreachable_functions, "Removing Unreachable Functions")
+        .run_pass(Ssa::defunctionalize, "Defunctionalization")
+        .run_pass(Ssa::remove_paired_rc, "Removing Paired rc_inc & rc_decs")
+        .run_pass(|ssa| ssa.inline_functions(options.inliner_aggressiveness), "Inlining (1st)")
+        // Run mem2reg with the CFG separated into blocks
+        .run_pass(Ssa::mem2reg, "Mem2Reg (1st)")
+        .run_pass(Ssa::simplify_cfg, "Simplifying (1st)")
+        .run_pass(Ssa::as_slice_optimization, "`as_slice` optimization")
+        .run_pass(Ssa::remove_unreachable_functions, "Removing Unreachable Functions")
+        .try_run_pass(
+            Ssa::evaluate_static_assert_and_assert_constant,
+            "`static_assert` and `assert_constant`",
+        )?
+        .run_pass(Ssa::loop_invariant_code_motion, "Loop Invariant Code Motion")
+        .try_run_pass(
+            |ssa| ssa.unroll_loops_iteratively(options.max_bytecode_increase_percent),
+            "Unrolling",
+        )?
+        .run_pass(Ssa::simplify_cfg, "Simplifying (2nd)")
+        .run_pass(Ssa::mem2reg, "Mem2Reg (2nd)")
+        .run_pass(Ssa::flatten_cfg, "Flattening")
+        .run_pass(Ssa::remove_bit_shifts, "Removing Bit Shifts")
+        // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
+        .run_pass(Ssa::mem2reg, "Mem2Reg (3rd)")
+        // Run the inlining pass again to handle functions with `InlineType::NoPredicates`.
+        // Before flattening is run, we treat functions marked with the `InlineType::NoPredicates` as an entry point.
+        // This pass must come immediately following `mem2reg` as the succeeding passes
+        // may create an SSA which inlining fails to handle.
+        .run_pass(
+            |ssa| ssa.inline_functions_with_no_predicates(options.inliner_aggressiveness),
+            "Inlining (2nd)",
+        )
+        .run_pass(Ssa::remove_if_else, "Remove IfElse")
+        .run_pass(Ssa::fold_constants, "Constant Folding")
+        .run_pass(Ssa::remove_enable_side_effects, "EnableSideEffectsIf removal")
+        .run_pass(Ssa::fold_constants_using_constraints, "Constraint Folding")
+        .run_pass(Ssa::dead_instruction_elimination, "Dead Instruction Elimination (1st)")
+        .run_pass(Ssa::simplify_cfg, "Simplifying:")
+        .run_pass(Ssa::array_set_optimization, "Array Set Optimizations")
+        .finish())
 }
 
 // Helper to time SSA passes
@@ -164,13 +214,13 @@ pub struct SsaProgramArtifact {
     pub main_return_witnesses: Vec<Witness>,
     pub names: Vec<String>,
     pub brillig_names: Vec<String>,
-    pub error_types: BTreeMap<ErrorSelector, HirType>,
+    pub error_types: BTreeMap<ErrorSelector, ErrorType>,
 }
 
 impl SsaProgramArtifact {
     fn new(
         unconstrained_functions: Vec<BrilligBytecode<FieldElement>>,
-        error_types: BTreeMap<ErrorSelector, HirType>,
+        error_types: BTreeMap<ErrorSelector, ErrorType>,
     ) -> Self {
         let program = AcirProgram { functions: Vec::default(), unconstrained_functions };
         Self {
@@ -194,6 +244,9 @@ impl SsaProgramArtifact {
             self.main_return_witnesses = circuit_artifact.return_witnesses;
         }
         self.names.push(circuit_artifact.name);
+        // Acir and brillig both generate new error types, so we need to merge them
+        // With the ones found during ssa generation.
+        self.error_types.extend(circuit_artifact.error_types);
     }
 
     fn add_warnings(&mut self, mut warnings: Vec<SsaReport>) {
@@ -201,7 +254,7 @@ impl SsaProgramArtifact {
     }
 }
 
-/// Compiles the [`Program`] into [`ACIR``][acvm::acir::circuit::Program].
+/// Compiles the [`Program`] into [`ACIR`][acvm::acir::circuit::Program].
 ///
 /// The output ACIR is backend-agnostic and so must go through a transformation pass before usage in proof generation.
 #[tracing::instrument(level = "trace", skip_all)]
@@ -215,24 +268,22 @@ pub fn create_program(
 
     let func_sigs = program.function_signatures.clone();
 
-    let recursive = program.recursive;
     let ArtifactsAndWarnings(
         (generated_acirs, generated_brillig, brillig_function_names, error_types),
         ssa_level_warnings,
     ) = optimize_into_acir(program, options)?;
-    if options.force_brillig_output {
-        assert_eq!(
-            generated_acirs.len(),
-            1,
-            "Only the main ACIR is expected when forcing Brillig output"
-        );
-    } else {
-        assert_eq!(
-            generated_acirs.len(),
-            func_sigs.len(),
-            "The generated ACIRs should match the supplied function signatures"
-        );
-    }
+
+    assert_eq!(
+        generated_acirs.len(),
+        func_sigs.len(),
+        "The generated ACIRs should match the supplied function signatures"
+    );
+
+    let error_types = error_types
+        .into_iter()
+        .map(|(selector, hir_type)| (selector, ErrorType::Dynamic(hir_type)))
+        .collect();
+
     let mut program_artifact = SsaProgramArtifact::new(generated_brillig, error_types);
 
     // Add warnings collected at the Ssa stage
@@ -243,7 +294,6 @@ pub fn create_program(
         let circuit_artifact = convert_generated_acir_into_circuit(
             acir,
             func_sig,
-            recursive,
             // TODO: get rid of these clones
             debug_variables.clone(),
             debug_functions.clone(),
@@ -264,12 +314,12 @@ pub struct SsaCircuitArtifact {
     warnings: Vec<SsaReport>,
     input_witnesses: Vec<Witness>,
     return_witnesses: Vec<Witness>,
+    error_types: BTreeMap<ErrorSelector, ErrorType>,
 }
 
 fn convert_generated_acir_into_circuit(
     mut generated_acir: GeneratedAcir<FieldElement>,
     func_sig: FunctionSignature,
-    recursive: bool,
     debug_variables: DebugVariables,
     debug_functions: DebugFunctions,
     debug_types: DebugTypes,
@@ -284,6 +334,7 @@ fn convert_generated_acir_into_circuit(
         assertion_payloads: assert_messages,
         warnings,
         name,
+        brillig_procedure_locs,
         ..
     } = generated_acir;
 
@@ -301,7 +352,6 @@ fn convert_generated_acir_into_circuit(
         public_parameters,
         return_values,
         assert_messages: assert_messages.into_iter().collect(),
-        recursive,
     };
 
     // This converts each im::Vector in the BTreeMap to a Vec
@@ -321,8 +371,14 @@ fn convert_generated_acir_into_circuit(
         })
         .collect();
 
-    let mut debug_info =
-        DebugInfo::new(locations, brillig_locations, debug_variables, debug_functions, debug_types);
+    let mut debug_info = DebugInfo::new(
+        locations,
+        brillig_locations,
+        debug_variables,
+        debug_functions,
+        debug_types,
+        brillig_procedure_locs,
+    );
 
     // Perform any ACIR-level optimizations
     let (optimized_circuit, transformation_map) = acvm::compiler::optimize(circuit);
@@ -335,6 +391,7 @@ fn convert_generated_acir_into_circuit(
         warnings,
         input_witnesses,
         return_witnesses,
+        error_types: generated_acir.error_types,
     }
 }
 
@@ -351,8 +408,8 @@ fn split_public_and_private_inputs(
     func_sig
         .0
         .iter()
-        .map(|(_, typ, visibility)| {
-            let num_field_elements_needed = typ.field_count() as usize;
+        .map(|(pattern, typ, visibility)| {
+            let num_field_elements_needed = typ.field_count(&pattern.location()) as usize;
             let witnesses = input_witnesses[idx..idx + num_field_elements_needed].to_vec();
             idx += num_field_elements_needed;
             (visibility, witnesses)
@@ -375,19 +432,18 @@ fn split_public_and_private_inputs(
 // This is just a convenience object to bundle the ssa with `print_ssa_passes` for debug printing.
 struct SsaBuilder {
     ssa: Ssa,
-    print_ssa_passes: bool,
+    ssa_logging: SsaLogging,
     print_codegen_timings: bool,
 }
 
 impl SsaBuilder {
     fn new(
         program: Program,
-        print_ssa_passes: bool,
-        force_brillig_runtime: bool,
+        ssa_logging: SsaLogging,
         print_codegen_timings: bool,
         emit_ssa: &Option<PathBuf>,
     ) -> Result<SsaBuilder, RuntimeError> {
-        let ssa = ssa_gen::generate_ssa(program, force_brillig_runtime)?;
+        let ssa = ssa_gen::generate_ssa(program)?;
         if let Some(emit_ssa) = emit_ssa {
             let mut emit_ssa_dir = emit_ssa.clone();
             // We expect the full package artifact path to be passed in here,
@@ -397,33 +453,45 @@ impl SsaBuilder {
             let ssa_path = emit_ssa.with_extension("ssa.json");
             write_to_file(&serde_json::to_vec(&ssa).unwrap(), &ssa_path);
         }
-        Ok(SsaBuilder { print_ssa_passes, print_codegen_timings, ssa }.print("Initial SSA:"))
+        Ok(SsaBuilder { ssa_logging, print_codegen_timings, ssa }.print("Initial SSA:"))
     }
 
     fn finish(self) -> Ssa {
-        self.ssa
+        self.ssa.generate_entry_point_index()
     }
 
     /// Runs the given SSA pass and prints the SSA afterward if `print_ssa_passes` is true.
-    fn run_pass(mut self, pass: fn(Ssa) -> Ssa, msg: &str) -> Self {
+    fn run_pass<F>(mut self, pass: F, msg: &str) -> Self
+    where
+        F: FnOnce(Ssa) -> Ssa,
+    {
         self.ssa = time(msg, self.print_codegen_timings, || pass(self.ssa));
         self.print(msg)
     }
 
     /// The same as `run_pass` but for passes that may fail
-    fn try_run_pass(
-        mut self,
-        pass: fn(Ssa) -> Result<Ssa, RuntimeError>,
-        msg: &str,
-    ) -> Result<Self, RuntimeError> {
+    fn try_run_pass<F>(mut self, pass: F, msg: &str) -> Result<Self, RuntimeError>
+    where
+        F: FnOnce(Ssa) -> Result<Ssa, RuntimeError>,
+    {
         self.ssa = time(msg, self.print_codegen_timings, || pass(self.ssa))?;
         Ok(self.print(msg))
     }
 
     fn print(mut self, msg: &str) -> Self {
-        if self.print_ssa_passes {
+        let print_ssa_pass = match &self.ssa_logging {
+            SsaLogging::None => false,
+            SsaLogging::All => true,
+            SsaLogging::Contains(string) => {
+                let string = string.to_lowercase();
+                let string = string.strip_prefix("after ").unwrap_or(&string);
+                let string = string.strip_suffix(':').unwrap_or(string);
+                msg.to_lowercase().contains(string)
+            }
+        };
+        if print_ssa_pass {
             self.ssa.normalize_ids();
-            println!("{msg}\n{}", self.ssa);
+            println!("After {msg}:\n{}", self.ssa);
         }
         self
     }

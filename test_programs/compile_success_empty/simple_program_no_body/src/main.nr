@@ -1,5 +1,5 @@
 // Tests a very simple program.
-// 
+//
 // The features being tested are:
 // - Abi generation of private and public
 // main parameters.

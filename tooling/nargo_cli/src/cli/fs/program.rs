@@ -36,6 +36,7 @@ fn save_build_artifact_to_file<P: AsRef<Path>, T: ?Sized + serde::Serialize>(
     circuit_path
 }
 
+#[tracing::instrument(level = "trace", skip_all)]
 pub(crate) fn read_program_from_file<P: AsRef<Path>>(
     circuit_path: P,
 ) -> Result<ProgramArtifact, FilesystemError> {

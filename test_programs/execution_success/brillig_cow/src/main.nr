@@ -1,6 +1,5 @@
 // Tests the copy on write optimization for arrays. We look for cases where we are modifying an array in place when we shouldn't.
-
-global ARRAY_SIZE = 5;
+global ARRAY_SIZE: u32 = 5;
 
 struct ExecutionResult {
     original: [Field; ARRAY_SIZE],
@@ -23,14 +22,14 @@ fn modify_in_inlined_constrained(original: [Field; ARRAY_SIZE], index: u64) -> E
 
     let modified_once = modified;
 
-    modified[index+1] = 27;
+    modified[index + 1] = 27;
 
     ExecutionResult { original, modified_once, modified_twice: modified }
 }
 
 unconstrained fn modify_in_unconstrained(
     original: [Field; ARRAY_SIZE],
-    index: u64
+    index: u64,
 ) -> ExecutionResult {
     let mut modified = original;
 
@@ -38,7 +37,7 @@ unconstrained fn modify_in_unconstrained(
 
     let modified_once = modified;
 
-    modified[index+1] = 27;
+    modified[index + 1] = 27;
 
     ExecutionResult { original, modified_once, modified_twice: modified }
 }

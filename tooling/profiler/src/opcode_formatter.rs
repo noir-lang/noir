@@ -1,12 +1,6 @@
 use acir::brillig::{BinaryFieldOp, BinaryIntOp, BlackBoxOp, Opcode as BrilligOpcode};
-use acir::circuit::{directives::Directive, opcodes::BlackBoxFuncCall, Opcode as AcirOpcode};
+use acir::circuit::{opcodes::BlackBoxFuncCall, Opcode as AcirOpcode};
 use acir::AcirField;
-
-#[derive(Debug)]
-pub(crate) enum AcirOrBrilligOpcode<F: AcirField> {
-    Acir(AcirOpcode<F>),
-    Brillig(BrilligOpcode<F>),
-}
 
 fn format_blackbox_function<F>(call: &BlackBoxFuncCall<F>) -> String {
     match call {
@@ -16,14 +10,10 @@ fn format_blackbox_function<F>(call: &BlackBoxFuncCall<F>) -> String {
         BlackBoxFuncCall::RANGE { .. } => "range".to_string(),
         BlackBoxFuncCall::Blake2s { .. } => "blake2s".to_string(),
         BlackBoxFuncCall::Blake3 { .. } => "blake3".to_string(),
-        BlackBoxFuncCall::SchnorrVerify { .. } => "schnorr_verify".to_string(),
-        BlackBoxFuncCall::PedersenCommitment { .. } => "pedersen_commitment".to_string(),
-        BlackBoxFuncCall::PedersenHash { .. } => "pedersen_hash".to_string(),
         BlackBoxFuncCall::EcdsaSecp256k1 { .. } => "ecdsa_secp256k1".to_string(),
         BlackBoxFuncCall::EcdsaSecp256r1 { .. } => "ecdsa_secp256r1".to_string(),
         BlackBoxFuncCall::MultiScalarMul { .. } => "multi_scalar_mul".to_string(),
         BlackBoxFuncCall::EmbeddedCurveAdd { .. } => "embedded_curve_add".to_string(),
-        BlackBoxFuncCall::Keccak256 { .. } => "keccak256".to_string(),
         BlackBoxFuncCall::Keccakf1600 { .. } => "keccakf1600".to_string(),
         BlackBoxFuncCall::RecursiveAggregation { .. } => "recursive_aggregation".to_string(),
         BlackBoxFuncCall::BigIntAdd { .. } => "big_int_add".to_string(),
@@ -42,14 +32,10 @@ fn format_blackbox_op(call: &BlackBoxOp) -> String {
         BlackBoxOp::AES128Encrypt { .. } => "aes128_encrypt".to_string(),
         BlackBoxOp::Blake2s { .. } => "blake2s".to_string(),
         BlackBoxOp::Blake3 { .. } => "blake3".to_string(),
-        BlackBoxOp::SchnorrVerify { .. } => "schnorr_verify".to_string(),
-        BlackBoxOp::PedersenCommitment { .. } => "pedersen_commitment".to_string(),
-        BlackBoxOp::PedersenHash { .. } => "pedersen_hash".to_string(),
         BlackBoxOp::EcdsaSecp256k1 { .. } => "ecdsa_secp256k1".to_string(),
         BlackBoxOp::EcdsaSecp256r1 { .. } => "ecdsa_secp256r1".to_string(),
         BlackBoxOp::MultiScalarMul { .. } => "multi_scalar_mul".to_string(),
         BlackBoxOp::EmbeddedCurveAdd { .. } => "embedded_curve_add".to_string(),
-        BlackBoxOp::Keccak256 { .. } => "keccak256".to_string(),
         BlackBoxOp::Keccakf1600 { .. } => "keccakf1600".to_string(),
         BlackBoxOp::BigIntAdd { .. } => "big_int_add".to_string(),
         BlackBoxOp::BigIntSub { .. } => "big_int_sub".to_string(),
@@ -63,12 +49,6 @@ fn format_blackbox_op(call: &BlackBoxOp) -> String {
     }
 }
 
-fn format_directive_kind<F>(directive: &Directive<F>) -> String {
-    match directive {
-        Directive::ToLeRadix { .. } => "to_le_radix".to_string(),
-    }
-}
-
 fn format_acir_opcode_kind<F>(opcode: &AcirOpcode<F>) -> String {
     match opcode {
         AcirOpcode::AssertZero(_) => "arithmetic".to_string(),
@@ -77,9 +57,6 @@ fn format_acir_opcode_kind<F>(opcode: &AcirOpcode<F>) -> String {
         }
         AcirOpcode::MemoryOp { .. } => "memory::op".to_string(),
         AcirOpcode::MemoryInit { .. } => "memory::init".to_string(),
-        AcirOpcode::Directive(directive) => {
-            format!("directive::{}", format_directive_kind(directive))
-        }
         AcirOpcode::BrilligCall { id, .. } => format!("brillig_call({id})"),
         AcirOpcode::Call { .. } => "acir_call".to_string(),
     }
@@ -142,11 +119,10 @@ fn format_brillig_opcode_kind<F>(opcode: &BrilligOpcode<F>) -> String {
     }
 }
 
-pub(crate) fn format_opcode<F: AcirField>(opcode: &AcirOrBrilligOpcode<F>) -> String {
-    match opcode {
-        AcirOrBrilligOpcode::Acir(opcode) => format!("acir::{}", format_acir_opcode_kind(opcode)),
-        AcirOrBrilligOpcode::Brillig(opcode) => {
-            format!("brillig::{}", format_brillig_opcode_kind(opcode))
-        }
-    }
+pub(crate) fn format_acir_opcode<F: AcirField>(opcode: &AcirOpcode<F>) -> String {
+    format!("acir::{}", format_acir_opcode_kind(opcode))
+}
+
+pub(crate) fn format_brillig_opcode<F: AcirField>(opcode: &BrilligOpcode<F>) -> String {
+    format!("brillig::{}", format_brillig_opcode_kind(opcode))
 }

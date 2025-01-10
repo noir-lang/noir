@@ -17,7 +17,7 @@ fn main(x: Field, y: pub Field) {
     hasher.write(x);
     hasher.write(y);
     let expected_hash = hasher.finish();
-    // Check that we get the same result when using the hasher in a 
+    // Check that we get the same result when using the hasher in a
     // method that purely uses trait methods without a supplied implementation.
     assert(hash_simple_array::<Poseidon2Hasher>([x, y]) == expected_hash);
 }
@@ -29,7 +29,7 @@ trait SomeTrait {
 }
 
 struct AType {
-    x: Field
+    x: Field,
 }
 
 impl SomeTrait for AType {
@@ -48,18 +48,27 @@ fn pass_trait_by_value_impl_param(mut a_mut_ref: impl SomeTrait, value: Field) {
     assert(a_mut_ref.get_value() == value);
 }
 
-fn pass_trait_by_value<T>(mut a_mut_ref: T, value: Field) where T: SomeTrait {
+fn pass_trait_by_value<T>(mut a_mut_ref: T, value: Field)
+where
+    T: SomeTrait,
+{
     // We auto add a mutable reference to the object type if the method call expects a mutable self
     a_mut_ref.set_value(value);
     assert(a_mut_ref.get_value() == value);
 }
 
-fn pass_trait_by_mut_ref<T>(a_mut_ref: &mut T, value: Field) where T: SomeTrait {
+fn pass_trait_by_mut_ref<T>(a_mut_ref: &mut T, value: Field)
+where
+    T: SomeTrait,
+{
     // We auto add a mutable reference to the object type if the method call expects a mutable self
     a_mut_ref.set_value(value);
 }
 
-fn hash_simple_array<H>(input: [Field; 2]) -> Field where H: Hasher + Default {
+fn hash_simple_array<H>(input: [Field; 2]) -> Field
+where
+    H: Hasher + Default,
+{
     // Check that we can call a trait method instead of a trait implementation
     // TODO: Need to remove the need for this type annotation
     // TODO: Curently, without the annotation we will get `Expression type is ambiguous` when trying to use the `hasher`

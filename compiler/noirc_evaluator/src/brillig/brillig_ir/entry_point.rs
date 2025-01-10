@@ -7,9 +7,13 @@ use super::{
     registers::Stack,
     BrilligBinaryOp, BrilligContext, ReservedRegisters,
 };
-use acvm::acir::{brillig::MemoryAddress, AcirField};
+use acvm::acir::{
+    brillig::{HeapVector, MemoryAddress},
+    AcirField,
+};
 
-pub(crate) const MAX_STACK_SIZE: usize = 2048;
+pub(crate) const MAX_STACK_SIZE: usize = 16 * MAX_STACK_FRAME_SIZE;
+pub(crate) const MAX_STACK_FRAME_SIZE: usize = 2048;
 pub(crate) const MAX_SCRATCH_SPACE: usize = 64;
 
 impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
@@ -57,10 +61,16 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             1_usize.into(),
         );
 
-        // Set initial value of stack pointer: calldata_start_offset + calldata_size + return_data_size
+        // Set initial value of free memory pointer: calldata_start_offset + calldata_size + return_data_size
         self.const_instruction(
             SingleAddrVariable::new_usize(ReservedRegisters::free_memory_pointer()),
             (Self::calldata_start_offset() + calldata_size + return_data_size).into(),
+        );
+
+        // Set initial value of stack pointer: ReservedRegisters.len()
+        self.const_instruction(
+            SingleAddrVariable::new_usize(ReservedRegisters::stack_pointer()),
+            ReservedRegisters::len().into(),
         );
 
         // Copy calldata
@@ -74,7 +84,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
                 (BrilligVariable::SingleAddr(single_address), BrilligParameter::SingleAddr(_)) => {
                     self.mov_instruction(
                         single_address.address,
-                        MemoryAddress(current_calldata_pointer),
+                        MemoryAddress::direct(current_calldata_pointer),
                     );
                     current_calldata_pointer += 1;
                 }
@@ -142,7 +152,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
     fn copy_and_cast_calldata(&mut self, arguments: &[BrilligParameter]) {
         let calldata_size = Self::flattened_tuple_size(arguments);
         self.calldata_copy_instruction(
-            MemoryAddress(Self::calldata_start_offset()),
+            MemoryAddress::direct(Self::calldata_start_offset()),
             calldata_size,
             0,
         );
@@ -162,10 +172,12 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             if bit_size < F::max_num_bits() {
                 self.cast_instruction(
                     SingleAddrVariable::new(
-                        MemoryAddress(Self::calldata_start_offset() + i),
+                        MemoryAddress::direct(Self::calldata_start_offset() + i),
                         bit_size,
                     ),
-                    SingleAddrVariable::new_field(MemoryAddress(Self::calldata_start_offset() + i)),
+                    SingleAddrVariable::new_field(MemoryAddress::direct(
+                        Self::calldata_start_offset() + i,
+                    )),
                 );
             }
         }
@@ -187,7 +199,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         let deflattened_items_pointer = if is_vector {
             let vector = BrilligVector { pointer: deflattened_array_pointer };
 
-            self.codegen_initialize_vector(vector, deflattened_size_variable);
+            self.codegen_initialize_vector(vector, deflattened_size_variable, None);
 
             self.codegen_make_vector_items_pointer(vector)
         } else {
@@ -325,7 +337,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             match return_param {
                 BrilligParameter::SingleAddr(_) => {
                     self.mov_instruction(
-                        MemoryAddress(return_data_index),
+                        MemoryAddress::direct(return_data_index),
                         returned_variable.extract_single_addr().address,
                     );
                     return_data_index += 1;
@@ -354,7 +366,12 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             }
         }
 
-        self.external_stop_instruction(return_data_offset, return_data_size);
+        let return_data = HeapVector {
+            pointer: self.make_usize_constant_instruction(return_data_offset.into()).address,
+            size: self.make_usize_constant_instruction(return_data_size.into()).address,
+        };
+
+        self.stop_instruction(return_data);
     }
 }
 

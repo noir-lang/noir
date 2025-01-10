@@ -11,15 +11,21 @@ $BACKEND contract -o ./src/contract.sol
 
 # We now generate a proof and check whether the verifier contract will verify it.
 
-nargo execute witness
+nargo execute --pedantic-solving witness 
 
 PROOF_PATH=./target/proof
 $BACKEND prove -b ./target/hello_world.json -w ./target/witness.gz -o $PROOF_PATH
 
-NUM_PUBLIC_INPUTS=1
+# Sanity check that proof is valid.
+$BACKEND verify -k ./target/vk -p ./target/proof
+
+NUM_PUBLIC_INPUTS=2
 PUBLIC_INPUT_BYTES=$((32 * $NUM_PUBLIC_INPUTS))
 HEX_PUBLIC_INPUTS=$(head -c $PUBLIC_INPUT_BYTES $PROOF_PATH | od -An -v -t x1 | tr -d $' \n')
 HEX_PROOF=$(tail -c +$(($PUBLIC_INPUT_BYTES + 1)) $PROOF_PATH | od -An -v -t x1 | tr -d $' \n')
+
+# Split public inputs into strings where each string represents a `bytes32`.
+SPLIT_HEX_PUBLIC_INPUTS=$(sed -e 's/.\{64\}/0x&,/g' <<< $HEX_PUBLIC_INPUTS)
 
 # Spin up an anvil node to deploy the contract to
 anvil &
@@ -31,8 +37,7 @@ DEPLOY_INFO=$(forge create UltraVerifier \
 VERIFIER_ADDRESS=$(echo $DEPLOY_INFO | jq -r '.deployedTo')
 
 # Call the verifier contract with our proof.
-# Note that we haven't needed to split up `HEX_PUBLIC_INPUTS` as there's only a single public input
-cast call $VERIFIER_ADDRESS "verify(bytes, bytes32[])(bool)" "0x$HEX_PROOF" "[0x$HEX_PUBLIC_INPUTS]"
+cast call $VERIFIER_ADDRESS "verify(bytes, bytes32[])(bool)" "0x$HEX_PROOF" "[$SPLIT_HEX_PUBLIC_INPUTS]"
 
 # Stop anvil node again
 kill %-

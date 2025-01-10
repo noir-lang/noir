@@ -2,7 +2,11 @@ fn main(x: pub u8, y: u8) {}
 
 fn main(x: pub u8, y: u8) -> pub Field {}
 
-fn main<A, B>(x: A, y: B) -> pub Field where A: Eq, B: Eq {}
+fn main<A, B>(x: A, y: B) -> pub Field
+where
+    A: Eq,
+    B: Eq,
+{}
 
 fn main()
 // hello
@@ -14,10 +18,13 @@ fn main(
 
 fn main(
     // hello
-    unit: ()
+    unit: (),
 ) {}
 
-fn main<T>() where T: Eq {}
+fn main<T>()
+where
+    T: Eq,
+{}
 
 fn main(
     tape: [Field; TAPE_LEN],
@@ -25,7 +32,7 @@ fn main(
     initial_memory: [Field; MEM_COUNT],
     initial_program_counter: Field,
     initial_call_stack: [Field; MAX_CALL_STACK],
-    initial_call_stack_pointer: u64
+    initial_call_stack_pointer: u64,
 ) -> pub ExecutionResult {}
 
 fn apply_binary_field_op<N>(
@@ -33,7 +40,7 @@ fn apply_binary_field_op<N>(
     rhs: RegisterIndex,
     result: RegisterIndex,
     op: u8,
-    registers: &mut Registers<N>
+    registers: &mut Registers<N>,
 ) -> bool {}
 
 fn main() -> pub [Field; 2] {}
@@ -57,7 +64,7 @@ fn main(
     message_field: Field,
     pub_key_x: Field,
     pub_key_y: Field,
-    signature: [u8; 64]
+    signature: [u8; 64],
 ) {}
 
 pub fn from_baz(x: [Field; crate::foo::MAGIC_NUMBER]) {}
@@ -71,3 +78,21 @@ fn whitespace_before_generics<T>(foo: T) {}
 fn more_whitespace_before_generics<T>(foo: T) {}
 
 fn with_unconstrained(x: unconstrained fn() -> ()) {}
+
+pub(crate) fn one() {}
+
+pub unconstrained fn two() {}
+
+pub unconstrained comptime fn two() {}
+
+/// Documented
+#[test]
+fn three() {}
+
+#[test(should_fail)]
+// comment
+fn four() {}
+
+#[test(should_fail_with = "oops")]
+fn five() {}
+

@@ -45,32 +45,19 @@ fn find_back_edges(
 }
 
 /// Collects the underlying variables inside a value id. It might be more than one, for example in constant arrays that are constructed with multiple vars.
-pub(crate) fn collect_variables_of_value(value_id: ValueId, dfg: &DataFlowGraph) -> Vec<ValueId> {
+pub(crate) fn collect_variables_of_value(
+    value_id: ValueId,
+    dfg: &DataFlowGraph,
+) -> Option<ValueId> {
     let value_id = dfg.resolve(value_id);
     let value = &dfg[value_id];
 
     match value {
-        Value::Instruction { .. } | Value::Param { .. } => {
-            vec![value_id]
-        }
-        // Literal arrays are constants, but might use variable values to initialize.
-        Value::Array { array, .. } => {
-            let mut value_ids = vec![value_id];
-
-            array.iter().for_each(|item_id| {
-                let underlying_ids = collect_variables_of_value(*item_id, dfg);
-                value_ids.extend(underlying_ids);
-            });
-
-            value_ids
-        }
-        Value::NumericConstant { .. } => {
-            vec![value_id]
+        Value::Instruction { .. } | Value::Param { .. } | Value::NumericConstant { .. } => {
+            Some(value_id)
         }
         // Functions are not variables in a defunctionalized SSA. Only constant function values should appear.
-        Value::ForeignFunction(_) | Value::Function(_) | Value::Intrinsic(..) => {
-            vec![]
-        }
+        Value::ForeignFunction(_) | Value::Function(_) | Value::Intrinsic(..) => None,
     }
 }
 
@@ -341,6 +328,7 @@ impl VariableLiveness {
 #[cfg(test)]
 mod test {
     use fxhash::FxHashSet;
+    use noirc_frontend::monomorphization::ast::InlineType;
 
     use crate::brillig::brillig_gen::constant_allocation::ConstantAllocation;
     use crate::brillig::brillig_gen::variable_liveness::VariableLiveness;
@@ -373,7 +361,7 @@ mod test {
 
         let main_id = Id::test_new(1);
         let mut builder = FunctionBuilder::new("main".into(), main_id);
-        builder.set_runtime(RuntimeType::Brillig);
+        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
 
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();
@@ -384,7 +372,7 @@ mod test {
 
         let v3 = builder.insert_allocate(Type::field());
 
-        let zero = builder.numeric_constant(0u128, Type::field());
+        let zero = builder.field_constant(0u128);
         builder.insert_store(v3, zero);
 
         let v4 = builder.insert_binary(v0, BinaryOp::Eq, zero);
@@ -393,7 +381,7 @@ mod test {
 
         builder.switch_to_block(b2);
 
-        let twenty_seven = builder.numeric_constant(27u128, Type::field());
+        let twenty_seven = builder.field_constant(27u128);
         let v7 = builder.insert_binary(v0, BinaryOp::Add, twenty_seven);
         builder.insert_store(v3, v7);
 
@@ -483,7 +471,7 @@ mod test {
 
         let main_id = Id::test_new(1);
         let mut builder = FunctionBuilder::new("main".into(), main_id);
-        builder.set_runtime(RuntimeType::Brillig);
+        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
 
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();
@@ -499,7 +487,7 @@ mod test {
 
         let v3 = builder.insert_allocate(Type::field());
 
-        let zero = builder.numeric_constant(0u128, Type::field());
+        let zero = builder.field_constant(0u128);
         builder.insert_store(v3, zero);
 
         builder.terminate_with_jmp(b1, vec![zero]);
@@ -527,7 +515,7 @@ mod test {
 
         builder.switch_to_block(b5);
 
-        let twenty_seven = builder.numeric_constant(27u128, Type::field());
+        let twenty_seven = builder.field_constant(27u128);
         let v10 = builder.insert_binary(v7, BinaryOp::Eq, twenty_seven);
 
         let v11 = builder.insert_not(v10);
@@ -546,7 +534,7 @@ mod test {
 
         builder.switch_to_block(b8);
 
-        let one = builder.numeric_constant(1u128, Type::field());
+        let one = builder.field_constant(1u128);
         let v15 = builder.insert_binary(v7, BinaryOp::Add, one);
 
         builder.terminate_with_jmp(b4, vec![v15]);
@@ -622,7 +610,7 @@ mod test {
 
         let main_id = Id::test_new(1);
         let mut builder = FunctionBuilder::new("main".into(), main_id);
-        builder.set_runtime(RuntimeType::Brillig);
+        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
 
         let v0 = builder.add_parameter(Type::bool());
 

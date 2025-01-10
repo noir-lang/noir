@@ -18,8 +18,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         source_vector: BrilligVector,
         destination_vector: BrilligVector,
     ) {
-        let source_vector_pointer_arg = MemoryAddress::from(ScratchSpace::start());
-        let new_vector_pointer_return = MemoryAddress::from(ScratchSpace::start() + 1);
+        let source_vector_pointer_arg = MemoryAddress::direct(ScratchSpace::start());
+        let new_vector_pointer_return = MemoryAddress::direct(ScratchSpace::start() + 1);
 
         self.mov_instruction(source_vector_pointer_arg, source_vector.pointer);
 
@@ -32,8 +32,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 pub(super) fn compile_vector_copy_procedure<F: AcirField + DebugToString>(
     brillig_context: &mut BrilligContext<F, ScratchSpace>,
 ) {
-    let source_vector_pointer_arg = MemoryAddress::from(ScratchSpace::start());
-    let new_vector_pointer_return = MemoryAddress::from(ScratchSpace::start() + 1);
+    let source_vector_pointer_arg = MemoryAddress::direct(ScratchSpace::start());
+    let new_vector_pointer_return = MemoryAddress::direct(ScratchSpace::start() + 1);
 
     brillig_context
         .set_allocated_registers(vec![source_vector_pointer_arg, new_vector_pointer_return]);
@@ -53,8 +53,8 @@ pub(super) fn compile_vector_copy_procedure<F: AcirField + DebugToString>(
             let result_vector = BrilligVector { pointer: new_vector_pointer_return };
 
             // Allocate the memory for the new vec
-            let allocation_size = ctx.codegen_make_vector_length(source_vector);
-            ctx.codegen_usize_op_in_place(allocation_size.address, BrilligBinaryOp::Add, 2_usize);
+            let allocation_size = ctx.codegen_make_vector_capacity(source_vector);
+            ctx.codegen_usize_op_in_place(allocation_size.address, BrilligBinaryOp::Add, 3_usize); // Capacity plus 3 (rc, len, cap)
             ctx.codegen_allocate_mem(result_vector.pointer, allocation_size.address);
 
             ctx.codegen_mem_copy(source_vector.pointer, result_vector.pointer, allocation_size);

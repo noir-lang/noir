@@ -1,5 +1,5 @@
-use crate::hash::{Hash, Hasher};
 use crate::cmp::Eq;
+use crate::hash::{Hash, Hasher};
 
 impl Eq for TraitConstraint {
     comptime fn eq(self, other: Self) -> bool {
@@ -8,7 +8,10 @@ impl Eq for TraitConstraint {
 }
 
 impl Hash for TraitConstraint {
-    comptime fn hash<H>(self, state: &mut H) where H: Hasher {
+    comptime fn hash<H>(self, state: &mut H)
+    where
+        H: Hasher,
+    {
         state.write(constraint_hash(self));
     }
 }
