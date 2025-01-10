@@ -98,7 +98,7 @@ bb prove -b ./target/hello_world.json -w ./target/hello_world.gz -o ./target/pro
 
 :::tip
 
-Naming can be confusing, specially as you pass them to the `bb` commands. If unsure, it won't hurt to delete the target folder and start anew to make sure you're using the most recent versions of the compiled circuit and witness.
+Naming can be confusing, specially as you pass them to the `bb` commands. If unsure, it won't hurt to delete the target folder and start fresh to make sure you're using the most recent versions of the compiled circuit and witness.
 
 :::
 
