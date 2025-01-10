@@ -748,7 +748,7 @@ impl<'context> Elaborator<'context> {
     }
 
     /// Expands any traits in a where clause to mention all associated types if they were
-    /// ellided by the user. See `add_missing_named_generics` for more  detail.
+    /// elided by the user. See `add_missing_named_generics` for more  detail.
     ///
     /// Returns all newly created generics to be added to this function/trait/impl.
     fn desugar_trait_constraints(
