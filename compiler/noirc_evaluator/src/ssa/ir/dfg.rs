@@ -20,6 +20,7 @@ use iter_extended::vecmap;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use serde_with::DisplayFromStr;
+use tracing::warn;
 
 /// The DataFlowGraph contains most of the actual data in a function including
 /// its blocks, instructions, and values. This struct is largely responsible for
@@ -181,7 +182,16 @@ impl DataFlowGraph {
 
     /// Check if the function runtime would simply ignore this instruction.
     pub(crate) fn is_handled_by_runtime(&self, instruction: &Instruction) -> bool {
-        !(self.runtime().is_acir() && instruction.is_brillig_only())
+        match self.runtime() {
+            RuntimeType::Acir(_) => !matches!(
+                instruction,
+                Instruction::IncrementRc { .. } | Instruction::DecrementRc { .. }
+            ),
+            RuntimeType::Brillig(_) => !matches!(
+                instruction,
+                Instruction::EnableSideEffectsIf { .. } | Instruction::IfElse { .. }
+            ),
+        }
     }
 
     fn insert_instruction_without_simplification(
@@ -205,7 +215,7 @@ impl DataFlowGraph {
         call_stack: CallStackId,
     ) -> InsertInstructionResult {
         if !self.is_handled_by_runtime(&instruction_data) {
-            return InsertInstructionResult::InstructionRemoved;
+            panic!("Attempted to insert instruction not handled by runtime: {instruction_data:?}");
         }
 
         let id = self.insert_instruction_without_simplification(
@@ -228,8 +238,10 @@ impl DataFlowGraph {
         call_stack: CallStackId,
     ) -> InsertInstructionResult {
         if !self.is_handled_by_runtime(&instruction) {
+            warn!("Attempted to insert instruction not handled by runtime: {instruction:?}");
             return InsertInstructionResult::InstructionRemoved;
         }
+
         match instruction.simplify(self, block, ctrl_typevars.clone(), call_stack) {
             SimplifyResult::SimplifiedTo(simplification) => {
                 InsertInstructionResult::SimplifiedTo(simplification)
@@ -323,6 +335,10 @@ impl DataFlowGraph {
         let id = self.values.insert(Value::NumericConstant { constant, typ });
         self.constants.insert((constant, typ), id);
         id
+    }
+
+    pub(crate) fn make_global(&mut self, typ: Type) -> ValueId {
+        self.values.insert(Value::Global(typ))
     }
 
     /// Gets or creates a ValueId for the given FunctionId.
@@ -525,6 +541,24 @@ impl DataFlowGraph {
         }
     }
 
+    /// If this value points to an array of constant bytes, returns a string
+    /// consisting of those bytes if they form a valid UTF-8 string.
+    pub(crate) fn get_string(&self, value: ValueId) -> Option<String> {
+        let (value_ids, _typ) = self.get_array_constant(value)?;
+
+        let mut bytes = Vec::new();
+        for value_id in value_ids {
+            let field_value = self.get_numeric_constant(value_id)?;
+            let u64_value = field_value.try_to_u64()?;
+            if u64_value > 255 {
+                return None;
+            };
+            let byte = u64_value as u8;
+            bytes.push(byte);
+        }
+        String::from_utf8(bytes).ok()
+    }
+
     /// A constant index less than the array length is safe
     pub(crate) fn is_safe_index(&self, index: ValueId, array: ValueId) -> bool {
         #[allow(clippy::match_like_matches_macro)]
@@ -595,6 +629,9 @@ impl DataFlowGraph {
                 }
                 _ => false,
             },
+            // TODO: Make this true and handle instruction simplifications with globals.
+            // Currently all globals are inlined as a temporary measure so this is fine to have as false.
+            Value::Global(_) => false,
             _ => true,
         }
     }

@@ -499,6 +499,7 @@ impl<'a> TestRunner<'a> {
             |output, base| {
                 DefaultForeignCallBuilder {
                     output,
+                    enable_mocks: true,
                     resolver_url: foreign_call_resolver_url.map(|s| s.to_string()),
                     root_path: root_path.clone(),
                     package_name: Some(package_name.clone()),

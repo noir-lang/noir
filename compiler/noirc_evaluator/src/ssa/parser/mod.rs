@@ -286,9 +286,9 @@ impl<'a> Parser<'a> {
 
     fn eat_binary_op(&mut self) -> ParseResult<Option<BinaryOp>> {
         let op = match self.token.token() {
-            Token::Keyword(Keyword::Add) => BinaryOp::Add,
-            Token::Keyword(Keyword::Sub) => BinaryOp::Sub,
-            Token::Keyword(Keyword::Mul) => BinaryOp::Mul,
+            Token::Keyword(Keyword::Add) => BinaryOp::Add { unchecked: false },
+            Token::Keyword(Keyword::Sub) => BinaryOp::Sub { unchecked: false },
+            Token::Keyword(Keyword::Mul) => BinaryOp::Mul { unchecked: false },
             Token::Keyword(Keyword::Div) => BinaryOp::Div,
             Token::Keyword(Keyword::Eq) => BinaryOp::Eq,
             Token::Keyword(Keyword::Mod) => BinaryOp::Mod,
@@ -298,6 +298,9 @@ impl<'a> Parser<'a> {
             Token::Keyword(Keyword::Xor) => BinaryOp::Xor,
             Token::Keyword(Keyword::Shl) => BinaryOp::Shl,
             Token::Keyword(Keyword::Shr) => BinaryOp::Shr,
+            Token::Keyword(Keyword::UncheckedAdd) => BinaryOp::Add { unchecked: true },
+            Token::Keyword(Keyword::UncheckedSub) => BinaryOp::Sub { unchecked: true },
+            Token::Keyword(Keyword::UncheckedMul) => BinaryOp::Mul { unchecked: true },
             _ => return Ok(None),
         };
 

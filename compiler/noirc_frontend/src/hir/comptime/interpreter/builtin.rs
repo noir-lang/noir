@@ -845,10 +845,10 @@ fn to_le_radix_unsafe(
 
     let value = get_field(value)?;
     let radix = get_u32(radix)?;
-    let limb_count = if let Type::Array(length, _) = return_type {
+    let (limb_count, element_type) = if let Type::Array(length, element_type) = return_type {
         if let Type::Constant(limb_count, kind) = *length {
             if kind.unifies(&Kind::u32()) {
-                limb_count
+                (limb_count, element_type)
             } else {
                 return Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location });
             }
@@ -859,14 +859,29 @@ fn to_le_radix_unsafe(
         return Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location });
     };
 
+    let return_type_is_bits =
+        *element_type == Type::Integer(Signedness::Unsigned, IntegerBitSize::One);
+
     // Decompose the integer into its radix digits in little endian form.
     let decomposed_integer = compute_to_radix_le_unsafe(value, radix);
-    let decomposed_integer =
-        vecmap(0..limb_count.to_u128() as usize, |i| match decomposed_integer.get(i) {
-            Some(digit) => Value::U8(*digit),
-            None => Value::U8(0),
-        });
-    let result_type = byte_array_type(decomposed_integer.len());
+    let decomposed_integer = vecmap(0..limb_count.to_u128() as usize, |i| {
+        let digit = match decomposed_integer.get(i) {
+            Some(digit) => *digit,
+            None => 0,
+        };
+        // The only built-ins that use these either return `[u1; N]` or `[u8; N]`
+        if return_type_is_bits {
+            Value::U1(digit != 0)
+        } else {
+            Value::U8(digit)
+        }
+    });
+
+    let result_type = Type::Array(
+        Box::new(Type::Constant(decomposed_integer.len().into(), Kind::u32())),
+        element_type,
+    );
+
     Ok(Value::Array(decomposed_integer.into(), result_type))
 }
 

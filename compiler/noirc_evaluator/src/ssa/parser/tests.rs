@@ -326,11 +326,27 @@ fn test_array_get_set_bug() {
 
 #[test]
 fn test_binary() {
-    for op in ["add", "sub", "mul", "div", "eq", "mod", "lt", "and", "or", "xor", "shl", "shr"] {
+    for op in [
+        "add",
+        "sub",
+        "mul",
+        "div",
+        "eq",
+        "mod",
+        "lt",
+        "and",
+        "or",
+        "xor",
+        "shl",
+        "shr",
+        "unchecked_add",
+        "unchecked_sub",
+        "unchecked_mul",
+    ] {
         let src = format!(
             "
             acir(inline) fn main f0 {{
-              b0(v0: Field, v1: Field):
+              b0(v0: u32, v1: u32):
                 v2 = {op} v0, v1
                 return
             }}
