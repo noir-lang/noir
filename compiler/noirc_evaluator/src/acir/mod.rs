@@ -1892,6 +1892,9 @@ impl<'a> Context<'a> {
             Value::Instruction { .. } | Value::Param { .. } => {
                 unreachable!("ICE: Should have been in cache {value_id} {value:?}")
             }
+            Value::Global(_) => {
+                unreachable!("ICE: All globals should have been inlined");
+            }
         };
         self.ssa_values.insert(value_id, acir_value.clone());
         acir_value

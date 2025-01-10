@@ -453,7 +453,7 @@ impl SsaBuilder {
             let ssa_path = emit_ssa.with_extension("ssa.json");
             write_to_file(&serde_json::to_vec(&ssa).unwrap(), &ssa_path);
         }
-        Ok(SsaBuilder { ssa_logging, print_codegen_timings, ssa }.print("Initial SSA:"))
+        Ok(SsaBuilder { ssa_logging, print_codegen_timings, ssa }.print("Initial SSA"))
     }
 
     fn finish(self) -> Ssa {

@@ -129,6 +129,8 @@ struct PerFunctionContext<'function> {
 
     /// True if we're currently working on the entry point function.
     inlining_entry: bool,
+
+    globals: &'function Function,
 }
 
 /// Utility function to find out the direct calls of a function.
@@ -358,7 +360,7 @@ impl InlineContext {
         entry_point: FunctionId,
         inline_no_predicates_functions: bool,
         functions_not_to_inline: BTreeSet<FunctionId>,
-    ) -> InlineContext {
+    ) -> Self {
         let source = &ssa.functions[&entry_point];
         let mut builder = FunctionBuilder::new(source.name().to_owned(), entry_point);
         builder.set_runtime(source.runtime());
@@ -376,8 +378,13 @@ impl InlineContext {
     fn inline_all(mut self, ssa: &Ssa) -> Function {
         let entry_point = &ssa.functions[&self.entry_point];
 
-        let mut context = PerFunctionContext::new(&mut self, entry_point);
+        // let globals = self.globals;
+        let mut context = PerFunctionContext::new(&mut self, entry_point, &ssa.globals);
         context.inlining_entry = true;
+
+        for (_, value) in ssa.globals.dfg.values_iter() {
+            context.context.builder.current_function.dfg.make_global(value.get_type().into_owned());
+        }
 
         // The entry block is already inserted so we have to add it to context.blocks and add
         // its parameters here. Failing to do so would cause context.translate_block() to add
@@ -422,7 +429,7 @@ impl InlineContext {
             );
         }
 
-        let mut context = PerFunctionContext::new(self, source_function);
+        let mut context = PerFunctionContext::new(self, source_function, &ssa.globals);
 
         let parameters = source_function.parameters();
         assert_eq!(parameters.len(), arguments.len());
@@ -442,13 +449,18 @@ impl<'function> PerFunctionContext<'function> {
     /// The value and block mappings for this context are initially empty except
     /// for containing the mapping between parameters in the source_function and
     /// the arguments of the destination function.
-    fn new(context: &'function mut InlineContext, source_function: &'function Function) -> Self {
+    fn new(
+        context: &'function mut InlineContext,
+        source_function: &'function Function,
+        globals: &'function Function,
+    ) -> Self {
         Self {
             context,
             source_function,
             blocks: HashMap::default(),
             values: HashMap::default(),
             inlining_entry: false,
+            globals,
         }
     }
 
@@ -477,6 +489,28 @@ impl<'function> PerFunctionContext<'function> {
             Value::Intrinsic(intrinsic) => self.context.builder.import_intrinsic_id(*intrinsic),
             Value::ForeignFunction(function) => {
                 self.context.builder.import_foreign_function(function)
+            }
+            Value::Global(_) => {
+                // TODO: Inlining the global into the function is only a temporary measure
+                // until Brillig gen with globals is working end to end
+                match &self.globals.dfg[id] {
+                    Value::Instruction { instruction, .. } => {
+                        let Instruction::MakeArray { elements, typ } =
+                            &self.globals.dfg[*instruction]
+                        else {
+                            panic!("Only expect Instruction::MakeArray for a global");
+                        };
+                        let elements = elements
+                            .iter()
+                            .map(|element| self.translate_value(*element))
+                            .collect::<im::Vector<_>>();
+                        self.context.builder.insert_make_array(elements, typ.clone())
+                    }
+                    Value::NumericConstant { constant, typ } => {
+                        self.context.builder.numeric_constant(*constant, *typ)
+                    }
+                    _ => panic!("Expected only an instruction or a numeric constant"),
+                }
             }
         };
 

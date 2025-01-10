@@ -1,10 +1,11 @@
+use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex, RwLock};
 
 use acvm::{acir::AcirField, FieldElement};
 use iter_extended::vecmap;
 use noirc_errors::Location;
 use noirc_frontend::ast::{BinaryOpKind, Signedness};
-use noirc_frontend::monomorphization::ast::{self, LocalId, Parameters};
+use noirc_frontend::monomorphization::ast::{self, GlobalId, InlineType, LocalId, Parameters};
 use noirc_frontend::monomorphization::ast::{FuncId, Program};
 
 use crate::errors::RuntimeError;
@@ -71,6 +72,14 @@ pub(super) struct SharedContext {
     /// Shared counter used to assign the ID of the next function
     function_counter: AtomicCounter<Function>,
 
+    /// A pseudo function that represents global values.
+    /// Globals are only concerned with the values and instructions (due to Instruction::MakeArray)
+    /// in a function's DataFlowGraph. However, in order to re-use various codegen methods
+    /// we need to use the same `Function` type.
+    pub(super) globals_context: Function,
+
+    pub(super) globals: BTreeMap<GlobalId, Values>,
+
     /// The entire monomorphized source program
     pub(super) program: Program,
 }
@@ -108,8 +117,10 @@ impl<'a> FunctionContext<'a> {
 
         let mut builder = FunctionBuilder::new(function_name, function_id);
         builder.set_runtime(runtime);
+
         let definitions = HashMap::default();
         let mut this = Self { definitions, builder, shared_context, loops: Vec::new() };
+        this.add_globals();
         this.add_parameters_to_scope(parameters);
         this
     }
@@ -126,7 +137,16 @@ impl<'a> FunctionContext<'a> {
         } else {
             self.builder.new_function(func.name.clone(), id, func.inline_type);
         }
+
+        self.add_globals();
+
         self.add_parameters_to_scope(&func.parameters);
+    }
+
+    fn add_globals(&mut self) {
+        for (_, value) in self.shared_context.globals_context.dfg.values_iter() {
+            self.builder.current_function.dfg.make_global(value.get_type().into_owned());
+        }
     }
 
     /// Add each parameter to the current scope, and return the list of parameter types.
@@ -656,6 +676,10 @@ impl<'a> FunctionContext<'a> {
         self.definitions.get(&id).expect("lookup: variable not defined").clone()
     }
 
+    pub(super) fn lookup_global(&self, id: GlobalId) -> Values {
+        self.shared_context.globals.get(&id).expect("lookup_global: variable not defined").clone()
+    }
+
     /// Extract the given field of the tuple. Panics if the given Values is not
     /// a Tree::Branch or does not have enough fields.
     pub(super) fn get_field(tuple: Values, field_index: usize) -> Values {
@@ -1051,11 +1075,45 @@ fn convert_operator(op: BinaryOpKind) -> BinaryOp {
 impl SharedContext {
     /// Create a new SharedContext for the given monomorphized program.
     pub(super) fn new(program: Program) -> Self {
+        let globals_shared_context = SharedContext::new_for_globals();
+
+        let globals_id = Program::global_space_id();
+
+        // Queue the function representing the globals space for compilation
+        globals_shared_context.get_or_queue_function(globals_id);
+
+        let mut context = FunctionContext::new(
+            "globals".to_owned(),
+            &vec![],
+            RuntimeType::Brillig(InlineType::default()),
+            &globals_shared_context,
+        );
+        let mut globals = BTreeMap::default();
+        for (id, global) in program.globals.iter() {
+            let values = context.codegen_expression(global).unwrap();
+            globals.insert(*id, values);
+        }
+
         Self {
             functions: Default::default(),
             function_queue: Default::default(),
             function_counter: Default::default(),
             program,
+            globals_context: context.builder.current_function,
+            globals,
+        }
+    }
+
+    pub(super) fn new_for_globals() -> Self {
+        let globals_context = Function::new_for_globals();
+
+        Self {
+            functions: Default::default(),
+            function_queue: Default::default(),
+            function_counter: Default::default(),
+            program: Default::default(),
+            globals_context,
+            globals: Default::default(),
         }
     }
 

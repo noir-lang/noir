@@ -121,7 +121,9 @@ pub(crate) fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
         function_context.codegen_function_body(&function.body)?;
     }
 
-    Ok(function_context.builder.finish())
+    let mut ssa = function_context.builder.finish();
+    ssa.globals = context.globals_context;
+    Ok(ssa)
 }
 
 impl<'a> FunctionContext<'a> {
@@ -179,6 +181,7 @@ impl<'a> FunctionContext<'a> {
     fn codegen_ident_reference(&mut self, ident: &ast::Ident) -> Values {
         match &ident.definition {
             ast::Definition::Local(id) => self.lookup(*id),
+            ast::Definition::Global(id) => self.lookup_global(*id),
             ast::Definition::Function(id) => self.get_or_queue_function(*id),
             ast::Definition::Oracle(name) => self.builder.import_foreign_function(name).into(),
             ast::Definition::Builtin(name) | ast::Definition::LowLevel(name) => {

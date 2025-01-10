@@ -1,11 +1,14 @@
 //! This file is for pretty-printing the SSA IR in a human-readable form for debugging.
-use std::fmt::{Formatter, Result};
+use std::fmt::{Display, Formatter, Result};
 
 use acvm::acir::AcirField;
 use im::Vector;
 use iter_extended::vecmap;
 
-use crate::ssa::ir::types::{NumericType, Type};
+use crate::ssa::{
+    ir::types::{NumericType, Type},
+    Ssa,
+};
 
 use super::{
     basic_block::BasicBlockId,
@@ -15,8 +18,42 @@ use super::{
     value::{Value, ValueId},
 };
 
+impl Display for Ssa {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        for (id, global_value) in self.globals.dfg.values_iter() {
+            match global_value {
+                Value::NumericConstant { constant, typ } => {
+                    writeln!(f, "g{} = {typ} {constant}", id.to_u32())?;
+                }
+                Value::Instruction { instruction, .. } => {
+                    display_instruction(&self.globals.dfg, *instruction, true, f)?;
+                }
+                Value::Global(_) => {
+                    panic!("Value::Global should only be in the function dfg");
+                }
+                _ => panic!("Expected only numeric constant or instruction"),
+            };
+        }
+
+        if self.globals.dfg.values_iter().len() > 0 {
+            writeln!(f)?;
+        }
+
+        for function in self.functions.values() {
+            writeln!(f, "{function}")?;
+        }
+        Ok(())
+    }
+}
+
+impl Display for Function {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        display_function(self, f)
+    }
+}
+
 /// Helper function for Function's Display impl to pretty-print the function with the given formatter.
-pub(crate) fn display_function(function: &Function, f: &mut Formatter) -> Result {
+fn display_function(function: &Function, f: &mut Formatter) -> Result {
     writeln!(f, "{} fn {} {} {{", function.runtime(), function.name(), function.id())?;
     for block_id in function.reachable_blocks() {
         display_block(&function.dfg, block_id, f)?;
@@ -25,17 +62,13 @@ pub(crate) fn display_function(function: &Function, f: &mut Formatter) -> Result
 }
 
 /// Display a single block. This will not display the block's successors.
-pub(crate) fn display_block(
-    dfg: &DataFlowGraph,
-    block_id: BasicBlockId,
-    f: &mut Formatter,
-) -> Result {
+fn display_block(dfg: &DataFlowGraph, block_id: BasicBlockId, f: &mut Formatter) -> Result {
     let block = &dfg[block_id];
 
     writeln!(f, "  {}({}):", block_id, value_list_with_types(dfg, block.parameters()))?;
 
     for instruction in block.instructions() {
-        display_instruction(dfg, *instruction, f)?;
+        display_instruction(dfg, *instruction, false, f)?;
     }
 
     display_terminator(dfg, block.terminator(), f)
@@ -53,6 +86,9 @@ fn value(dfg: &DataFlowGraph, id: ValueId) -> String {
         Value::Intrinsic(intrinsic) => intrinsic.to_string(),
         Value::ForeignFunction(function) => function.clone(),
         Value::Param { .. } | Value::Instruction { .. } => id.to_string(),
+        Value::Global(_) => {
+            format!("g{}", id.to_u32())
+        }
     }
 }
 
@@ -72,7 +108,7 @@ fn value_list(dfg: &DataFlowGraph, values: &[ValueId]) -> String {
 }
 
 /// Display a terminator instruction
-pub(crate) fn display_terminator(
+fn display_terminator(
     dfg: &DataFlowGraph,
     terminator: Option<&TerminatorInstruction>,
     f: &mut Formatter,
@@ -107,17 +143,24 @@ pub(crate) fn display_terminator(
 }
 
 /// Display an arbitrary instruction
-pub(crate) fn display_instruction(
+fn display_instruction(
     dfg: &DataFlowGraph,
     instruction: InstructionId,
+    in_global_space: bool,
     f: &mut Formatter,
 ) -> Result {
-    // instructions are always indented within a function
-    write!(f, "    ")?;
+    if !in_global_space {
+        // instructions are always indented within a function
+        write!(f, "    ")?;
+    }
 
     let results = dfg.instruction_results(instruction);
     if !results.is_empty() {
-        write!(f, "{} = ", value_list(dfg, results))?;
+        let mut value_list = value_list(dfg, results);
+        if in_global_space {
+            value_list = value_list.replace('v', "g");
+        }
+        write!(f, "{} = ", value_list)?;
     }
 
     display_instruction_inner(dfg, &dfg[instruction], results, f)
