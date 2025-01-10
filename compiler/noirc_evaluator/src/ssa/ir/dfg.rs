@@ -7,8 +7,7 @@ use super::{
     call_stack::{CallStack, CallStackHelper, CallStackId},
     function::{FunctionId, RuntimeType},
     instruction::{
-        Binary, BinaryOp, Instruction, InstructionId, InstructionResultType, Intrinsic,
-        TerminatorInstruction,
+        Instruction, InstructionId, InstructionResultType, Intrinsic, TerminatorInstruction,
     },
     map::DenseMap,
     types::{NumericType, Type},
@@ -180,46 +179,6 @@ impl DataFlowGraph {
         id
     }
 
-    fn check_binary_instruction(&self, instruction: Instruction) -> Instruction {
-        let Instruction::Binary(binary) = instruction else {
-            return instruction;
-        };
-
-        let lhs = binary.lhs;
-        let rhs = binary.rhs;
-        let operator = binary.operator;
-        let lhs_type = self.type_of_value(lhs);
-        let rhs_type = self.type_of_value(rhs);
-        if operator != BinaryOp::Shl && operator != BinaryOp::Shr {
-            assert_eq!(
-                lhs_type, rhs_type,
-                "ICE - Binary instruction operands must have the same type"
-            );
-        }
-
-        let operator = if lhs_type.is_field() {
-            // Unchecked operations between fields or bools don't make sense, so we convert those to non-unchecked
-            // to reduce noise and confusion in the generated SSA.
-            match operator {
-                BinaryOp::Add { unchecked: true } => BinaryOp::Add { unchecked: false },
-                BinaryOp::Sub { unchecked: true } => BinaryOp::Sub { unchecked: false },
-                BinaryOp::Mul { unchecked: true } => BinaryOp::Mul { unchecked: false },
-                _ => operator,
-            }
-        } else if lhs_type.is_bool() {
-            // Unchecked mul between bools doesn't make sense, so we convert that to non-unchecked
-            if let BinaryOp::Mul { unchecked: true } = operator {
-                BinaryOp::Mul { unchecked: false }
-            } else {
-                operator
-            }
-        } else {
-            operator
-        };
-
-        Instruction::Binary(Binary { operator, ..binary })
-    }
-
     /// Check if the function runtime would simply ignore this instruction.
     pub(crate) fn is_handled_by_runtime(&self, instruction: &Instruction) -> bool {
         !(self.runtime().is_acir() && instruction.is_brillig_only())
@@ -249,8 +208,6 @@ impl DataFlowGraph {
             return InsertInstructionResult::InstructionRemoved;
         }
 
-        let instruction_data = self.check_binary_instruction(instruction_data);
-
         let id = self.insert_instruction_without_simplification(
             instruction_data,
             block,
@@ -273,8 +230,6 @@ impl DataFlowGraph {
         if !self.is_handled_by_runtime(&instruction) {
             return InsertInstructionResult::InstructionRemoved;
         }
-
-        let instruction = self.check_binary_instruction(instruction);
 
         match instruction.simplify(self, block, ctrl_typevars.clone(), call_stack) {
             SimplifyResult::SimplifiedTo(simplification) => {
