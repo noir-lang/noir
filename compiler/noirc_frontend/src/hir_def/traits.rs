@@ -149,6 +149,22 @@ impl PartialEq for Trait {
 }
 
 impl Trait {
+    pub fn set_methods(&mut self, methods: Vec<TraitFunction>) {
+        self.methods = methods;
+    }
+
+    pub fn set_trait_bounds(&mut self, trait_bounds: Vec<ResolvedTraitBound>) {
+        self.trait_bounds = trait_bounds;
+    }
+
+    pub fn set_where_clause(&mut self, where_clause: Vec<TraitConstraint>) {
+        self.where_clause = where_clause;
+    }
+
+    pub fn set_visibility(&mut self, visibility: ItemVisibility) {
+        self.visibility = visibility;
+    }
+
     pub fn find_method(&self, name: &str) -> Option<TraitMethodId> {
         for (idx, method) in self.methods.iter().enumerate() {
             if &method.name == name {

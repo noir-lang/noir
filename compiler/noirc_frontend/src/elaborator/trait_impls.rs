@@ -103,7 +103,7 @@ impl<'context> Elaborator<'context> {
 
         // Restore the methods that were taken before the for loop
         let the_trait = self.interner.get_trait_mut(trait_id);
-        the_trait.methods = methods;
+        the_trait.set_methods(methods);
 
         // Emit MethodNotInTrait error for methods in the impl block that
         // don't have a corresponding method signature defined in the trait

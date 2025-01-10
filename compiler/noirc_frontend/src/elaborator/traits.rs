@@ -54,15 +54,15 @@ impl<'context> Elaborator<'context> {
                 }
 
                 this.interner.update_trait(*trait_id, |trait_def| {
-                    trait_def.trait_bounds = resolved_trait_bounds;
-                    trait_def.where_clause = where_clause;
-                    trait_def.visibility = unresolved_trait.trait_def.visibility;
+                    trait_def.set_trait_bounds(resolved_trait_bounds);
+                    trait_def.set_where_clause(where_clause);
+                    trait_def.set_visibility(unresolved_trait.trait_def.visibility);
                 });
 
                 let methods = this.resolve_trait_methods(*trait_id, unresolved_trait);
 
                 this.interner.update_trait(*trait_id, |trait_def| {
-                    trait_def.methods = methods;
+                    trait_def.set_methods(methods);
                 });
             });
 
