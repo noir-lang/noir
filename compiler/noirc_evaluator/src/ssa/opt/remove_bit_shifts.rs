@@ -169,6 +169,7 @@ impl Context<'_> {
         let pow = self.pow(base, rhs);
         if lhs_typ.is_unsigned() {
             // unsigned right bit shift is just a normal division
+            let pow = self.insert_cast(pow, lhs_typ);
             self.insert_binary(lhs, BinaryOp::Div, pow)
         } else {
             // Get the sign of the operand; positive signed operand will just do a division as well
