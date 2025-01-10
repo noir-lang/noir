@@ -795,7 +795,7 @@ impl<'block> BrilligBlock<'block> {
                 self.brillig_context.deallocate_register(rc_register);
             }
             Instruction::EnableSideEffectsIf { .. } => {
-                todo!("enable_side_effects not supported by brillig")
+                unreachable!("enable_side_effects not supported by brillig")
             }
             Instruction::IfElse { .. } => {
                 unreachable!("IfElse instructions should not be possible in brillig")

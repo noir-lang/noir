@@ -1565,7 +1565,6 @@ mod test {
             v10 = mul v0, v9                                 // attaching `c` to `a`
             v11 = call to_be_radix(v10, u32 256) -> [u8; 1]  // calling `to_radix(c * a)`
             inc_rc v11
-            enable_side_effects v2                           // side effect var for `c` shifted down by removal
             return
         }
         ";
@@ -1580,7 +1579,6 @@ mod test {
             v7 = mul v0, v6
             v8 = call to_be_radix(v7, u32 256) -> [u8; 1]
             inc_rc v8
-            enable_side_effects v2
             return
         }
         ";
