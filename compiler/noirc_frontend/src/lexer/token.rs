@@ -347,7 +347,6 @@ impl Display for FmtStrFragment {
 pub enum DocStyle {
     Outer,
     Inner,
-    Safety,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -427,13 +426,11 @@ impl fmt::Display for Token {
             Token::LineComment(ref s, style) => match style {
                 Some(DocStyle::Inner) => write!(f, "//!{s}"),
                 Some(DocStyle::Outer) => write!(f, "///{s}"),
-                Some(DocStyle::Safety) => write!(f, "//@safety{s}"),
                 None => write!(f, "//{s}"),
             },
             Token::BlockComment(ref s, style) => match style {
                 Some(DocStyle::Inner) => write!(f, "/*!{s}*/"),
                 Some(DocStyle::Outer) => write!(f, "/**{s}*/"),
-                Some(DocStyle::Safety) => write!(f, "/*@safety{s}*/"),
                 None => write!(f, "/*{s}*/"),
             },
             Token::Quote(ref stream) => {

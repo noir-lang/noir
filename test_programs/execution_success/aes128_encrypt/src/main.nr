@@ -29,15 +29,11 @@ fn main(inputs: str<12>, iv: str<16>, key: str<16>, output: str<32>) {
     let result: [u8; 16] =
         std::aes128::aes128_encrypt(inputs.as_bytes(), iv.as_bytes(), key.as_bytes());
 
-    let output_bytes: [u8; 16] = unsafe {
-        //@safety: testing context
-        decode_hex(output)
-    };
+    /// Safety: testing context
+    let output_bytes: [u8; 16] = unsafe { decode_hex(output) };
     assert(result == output_bytes);
 
-    let unconstrained_result = unsafe {
-        //@safety: testing context
-        cipher(inputs.as_bytes(), iv.as_bytes(), key.as_bytes())
-    };
+    /// Safety: testing context
+    let unconstrained_result = unsafe { cipher(inputs.as_bytes(), iv.as_bytes(), key.as_bytes()) };
     assert(unconstrained_result == output_bytes);
 }

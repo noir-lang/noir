@@ -183,16 +183,13 @@ pub struct NodeInterner {
 
     next_type_variable_id: std::cell::Cell<usize>,
 
-    /// A map from a struct type and method name to a function id for the method.
+    /// A map from a type and method name to a function id for the method.
     /// This can resolve to potentially multiple methods if the same method name is
     /// specialized for different generics on the same type. E.g. for `Struct<T>`, we
     /// may have both `impl Struct<u32> { fn foo(){} }` and `impl Struct<u8> { fn foo(){} }`.
     /// If this happens, the returned Vec will have 2 entries and we'll need to further
     /// disambiguate them by checking the type of each function.
-    struct_methods: HashMap<StructId, HashMap<String, Methods>>,
-
-    /// Methods on primitive types defined in the stdlib.
-    primitive_methods: HashMap<TypeMethodKey, HashMap<String, Methods>>,
+    methods: HashMap<TypeMethodKey, HashMap<String, Methods>>,
 
     // For trait implementation functions, this is their self type and trait they belong to
     func_id_to_trait: HashMap<FuncId, (Type, TraitId)>,
@@ -666,8 +663,7 @@ impl Default for NodeInterner {
             next_type_variable_id: std::cell::Cell::new(0),
             globals: Vec::new(),
             global_attributes: HashMap::default(),
-            struct_methods: HashMap::default(),
-            primitive_methods: HashMap::default(),
+            methods: HashMap::default(),
             type_alias_ref: Vec::new(),
             type_ref_locations: Vec::new(),
             quoted_types: Default::default(),
@@ -1214,27 +1210,8 @@ impl NodeInterner {
         self.structs[&id].clone()
     }
 
-    pub fn get_struct_methods(&self, id: StructId) -> Option<&HashMap<String, Methods>> {
-        self.struct_methods.get(&id)
-    }
-
-    fn get_primitive_methods(&self, key: TypeMethodKey) -> Option<&HashMap<String, Methods>> {
-        self.primitive_methods.get(&key)
-    }
-
     pub fn get_type_methods(&self, typ: &Type) -> Option<&HashMap<String, Methods>> {
-        match typ {
-            Type::Struct(struct_type, _) => {
-                let struct_type = struct_type.borrow();
-                self.get_struct_methods(struct_type.id)
-            }
-            Type::Alias(type_alias, generics) => {
-                let type_alias = type_alias.borrow();
-                let typ = type_alias.get_type(generics);
-                self.get_type_methods(&typ)
-            }
-            _ => get_type_method_key(typ).and_then(|key| self.get_primitive_methods(key)),
-        }
+        get_type_method_key(typ).and_then(|key| self.methods.get(&key))
     }
 
     pub fn get_trait(&self, id: TraitId) -> &Trait {
@@ -1394,39 +1371,27 @@ impl NodeInterner {
         trait_id: Option<TraitId>,
     ) -> Option<FuncId> {
         match self_type {
-            Type::Struct(struct_type, _generics) => {
-                let id = struct_type.borrow().id;
+            Type::Error => None,
+            Type::MutableReference(element) => {
+                self.add_method(element, method_name, method_id, trait_id)
+            }
+            _ => {
+                let key = get_type_method_key(self_type).unwrap_or_else(|| {
+                    unreachable!("Cannot add a method to the unsupported type '{}'", self_type)
+                });
 
-                if trait_id.is_none() {
-                    if let Some(existing) =
-                        self.lookup_direct_method(self_type, id, &method_name, true)
+                if trait_id.is_none() && matches!(self_type, Type::Struct(..)) {
+                    if let Some(existing) = self.lookup_direct_method(self_type, &method_name, true)
                     {
                         return Some(existing);
                     }
                 }
 
-                self.struct_methods
-                    .entry(id)
-                    .or_default()
-                    .entry(method_name)
-                    .or_default()
-                    .add_method(method_id, None, trait_id);
-                None
-            }
-            Type::Error => None,
-            Type::MutableReference(element) => {
-                self.add_method(element, method_name, method_id, trait_id)
-            }
-
-            other => {
-                let key = get_type_method_key(self_type).unwrap_or_else(|| {
-                    unreachable!("Cannot add a method to the unsupported type '{}'", other)
-                });
                 // Only remember the actual type if it's FieldOrInt,
                 // so later we can disambiguate on calls like `u32::call`.
                 let typ =
                     if key == TypeMethodKey::FieldOrInt { Some(self_type.clone()) } else { None };
-                self.primitive_methods
+                self.methods
                     .entry(key)
                     .or_default()
                     .entry(method_name)
@@ -1781,83 +1746,52 @@ impl NodeInterner {
         Ok(())
     }
 
-    /// Looks up a method that's directly defined in the given struct.
+    /// Looks up a method that's directly defined in the given type.
     pub fn lookup_direct_method(
-        &self,
-        typ: &Type,
-        id: StructId,
-        method_name: &str,
-        has_self_arg: bool,
-    ) -> Option<FuncId> {
-        self.struct_methods
-            .get(&id)
-            .and_then(|h| h.get(method_name))
-            .and_then(|methods| methods.find_direct_method(typ, has_self_arg, self))
-    }
-
-    /// Looks up a methods that apply to the given struct but are defined in traits.
-    pub fn lookup_trait_methods(
-        &self,
-        typ: &Type,
-        id: StructId,
-        method_name: &str,
-        has_self_arg: bool,
-    ) -> Vec<(FuncId, TraitId)> {
-        self.struct_methods
-            .get(&id)
-            .and_then(|h| h.get(method_name))
-            .map(|methods| methods.find_trait_methods(typ, has_self_arg, self))
-            .unwrap_or_default()
-    }
-
-    /// Select the 1 matching method with an object type matching `typ`
-    fn find_matching_method(
-        &self,
-        typ: &Type,
-        methods: Option<&Methods>,
-        method_name: &str,
-        has_self_arg: bool,
-    ) -> Option<FuncId> {
-        if let Some(method) = methods.and_then(|m| m.find_matching_method(typ, has_self_arg, self))
-        {
-            Some(method)
-        } else {
-            self.lookup_generic_method(typ, method_name, has_self_arg)
-        }
-    }
-
-    /// Looks up a method at impls for all types `T`, e.g. `impl<T> Foo for T`
-    pub fn lookup_generic_method(
-        &self,
-        typ: &Type,
-        method_name: &str,
-        has_self_arg: bool,
-    ) -> Option<FuncId> {
-        let global_methods =
-            self.primitive_methods.get(&TypeMethodKey::Generic)?.get(method_name)?;
-        global_methods.find_matching_method(typ, has_self_arg, self)
-    }
-
-    /// Looks up a given method name on the given primitive type.
-    pub fn lookup_primitive_method(
         &self,
         typ: &Type,
         method_name: &str,
         has_self_arg: bool,
     ) -> Option<FuncId> {
         let key = get_type_method_key(typ)?;
-        let methods = self.primitive_methods.get(&key)?.get(method_name)?;
-        self.find_matching_method(typ, Some(methods), method_name, has_self_arg)
+
+        self.methods
+            .get(&key)
+            .and_then(|h| h.get(method_name))
+            .and_then(|methods| methods.find_direct_method(typ, has_self_arg, self))
     }
 
-    pub fn lookup_primitive_trait_method_mut(
+    /// Looks up a methods that apply to the given type but are defined in traits.
+    pub fn lookup_trait_methods(
         &self,
         typ: &Type,
         method_name: &str,
         has_self_arg: bool,
-    ) -> Option<FuncId> {
-        let typ = Type::MutableReference(Box::new(typ.clone()));
-        self.lookup_primitive_method(&typ, method_name, has_self_arg)
+    ) -> Vec<(FuncId, TraitId)> {
+        let key = get_type_method_key(typ);
+        if let Some(key) = key {
+            self.methods
+                .get(&key)
+                .and_then(|h| h.get(method_name))
+                .map(|methods| methods.find_trait_methods(typ, has_self_arg, self))
+                .unwrap_or_default()
+        } else {
+            Vec::new()
+        }
+    }
+
+    /// Looks up methods at impls for all types `T`, e.g. `impl<T> Foo for T`
+    pub fn lookup_generic_methods(
+        &self,
+        typ: &Type,
+        method_name: &str,
+        has_self_arg: bool,
+    ) -> Vec<(FuncId, TraitId)> {
+        self.methods
+            .get(&TypeMethodKey::Generic)
+            .and_then(|h| h.get(method_name))
+            .map(|methods| methods.find_trait_methods(typ, has_self_arg, self))
+            .unwrap_or_default()
     }
 
     /// Returns what the next trait impl id is expected to be.
@@ -2462,6 +2396,7 @@ enum TypeMethodKey {
     Function,
     Generic,
     Quoted(QuotedType),
+    Struct(StructId),
 }
 
 fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
@@ -2489,12 +2424,12 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         Type::Quoted(quoted) => Some(Quoted(*quoted)),
         Type::MutableReference(element) => get_type_method_key(element),
         Type::Alias(alias, _) => get_type_method_key(&alias.borrow().typ),
+        Type::Struct(struct_type, _) => Some(Struct(struct_type.borrow().id)),
 
         // We do not support adding methods to these types
         Type::Forall(_, _)
         | Type::Constant(..)
         | Type::Error
-        | Type::Struct(_, _)
         | Type::InfixExpr(..)
         | Type::CheckedCast { .. }
         | Type::TraitAsType(..) => None,

@@ -2,6 +2,7 @@ pub(crate) mod context;
 mod program;
 mod value;
 
+use acvm::AcirField;
 use noirc_frontend::token::FmtStrFragment;
 pub(crate) use program::Ssa;
 
@@ -595,6 +596,9 @@ impl<'a> FunctionContext<'a> {
     /// ```
     fn codegen_if(&mut self, if_expr: &ast::If) -> Result<Values, RuntimeError> {
         let condition = self.codegen_non_tuple_expression(&if_expr.condition)?;
+        if let Some(result) = self.try_codegen_constant_if(condition, if_expr) {
+            return result;
+        }
 
         let then_block = self.builder.insert_block();
         let else_block = self.builder.insert_block();
@@ -631,6 +635,25 @@ impl<'a> FunctionContext<'a> {
         }
 
         Ok(result)
+    }
+
+    /// If the condition is known, skip codegen for the then/else branch and only compile the
+    /// relevant branch.
+    fn try_codegen_constant_if(
+        &mut self,
+        condition: ValueId,
+        if_expr: &ast::If,
+    ) -> Option<Result<Values, RuntimeError>> {
+        let condition = self.builder.current_function.dfg.get_numeric_constant(condition)?;
+
+        Some(if condition.is_zero() {
+            match if_expr.alternative.as_ref() {
+                Some(alternative) => self.codegen_expression(alternative),
+                None => Ok(Self::unit_value()),
+            }
+        } else {
+            self.codegen_expression(&if_expr.consequence)
+        })
     }
 
     fn codegen_tuple(&mut self, tuple: &[Expression]) -> Result<Values, RuntimeError> {

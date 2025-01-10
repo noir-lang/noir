@@ -3,7 +3,7 @@ name = "noir_lsp"
 description = "Language server for Noir"
 version.workspace = true
 authors.workspace = true
-edition.workspace = true#
+edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
@@ -16,7 +16,7 @@ workspace = true
 acvm.workspace = true
 codespan-lsp.workspace = true
 lsp-types.workspace = true
-nargo.workspace = true
+nargo = { workspace = true, features = ["rpc"] }
 nargo_fmt.workspace = true
 nargo_toml.workspace = true
 noirc_driver.workspace = true
