@@ -26,7 +26,7 @@ impl Ssa {
         let mut context = Context::default();
         context.populate_functions(&self.functions);
         for function in self.functions.values_mut() {
-            context.normalize_ids(function, &self.globals);
+            context.normalize_ids(function, &self.globals.dfg);
         }
         self.functions = context.functions.into_btree();
     }

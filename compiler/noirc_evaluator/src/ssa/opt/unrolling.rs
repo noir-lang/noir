@@ -91,7 +91,7 @@ impl Ssa {
             if has_unrolled {
                 if let Some((orig_function, max_incr_pct)) = orig_func_and_max_incr_pct {
                     let (_, brillig_globals) =
-                        convert_ssa_globals(false, self.main_id, &self.globals);
+                        convert_ssa_globals(false, &self.globals);
 
                     let new_size = brillig_bytecode_size(function, &brillig_globals);
                     let orig_size = brillig_bytecode_size(&orig_function, &brillig_globals);

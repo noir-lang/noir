@@ -12,7 +12,7 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         call_stack::CallStackId,
-        dfg::{DataFlowGraph, InsertInstructionResult},
+        dfg::InsertInstructionResult,
         function::{Function, FunctionId, RuntimeType},
         instruction::{Instruction, InstructionId, TerminatorInstruction},
         value::{Value, ValueId},
@@ -99,7 +99,7 @@ struct InlineContext<'global> {
     // These are the functions of the program that we shouldn't inline.
     functions_not_to_inline: BTreeSet<FunctionId>,
 
-    globals: &'global DataFlowGraph,
+    globals: &'global Function,
 }
 
 /// The per-function inlining context contains information that is only valid for one function.
@@ -382,7 +382,7 @@ impl<'global> InlineContext<'global> {
         let mut context = PerFunctionContext::new(&mut self, entry_point);
         context.inlining_entry = true;
 
-        for (_, value) in ssa.globals.values_iter() {
+        for (_, value) in ssa.globals.dfg.values_iter() {
             context.context.builder.current_function.dfg.make_global(value.get_type().into_owned());
         }
 
@@ -495,10 +495,10 @@ impl<'function, 'global> PerFunctionContext<'function, 'global> {
             }
             Value::Global(_) => {
                 if self.context.builder.current_function.dfg.runtime().is_acir() {
-                    match &self.context.globals[id] {
+                    match &self.context.globals.dfg[id] {
                         Value::Instruction { instruction, .. } => {
                             let Instruction::MakeArray { elements, typ } =
-                                &self.context.globals[*instruction]
+                                &self.context.globals.dfg[*instruction]
                             else {
                                 panic!("Only expect Instruction::MakeArray for a global");
                             };

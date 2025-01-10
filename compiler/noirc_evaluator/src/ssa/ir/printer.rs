@@ -20,13 +20,13 @@ use super::{
 
 impl Display for Ssa {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        for (id, global_value) in self.globals.values_iter() {
+        for (id, global_value) in self.globals.dfg.values_iter() {
             match global_value {
                 Value::NumericConstant { constant, typ } => {
                     writeln!(f, "g{} = {typ} {constant}", id.to_u32())?;
                 }
                 Value::Instruction { instruction, .. } => {
-                    display_instruction(&self.globals, *instruction, true, f)?;
+                    display_instruction(&self.globals.dfg, *instruction, true, f)?;
                 }
                 Value::Global(_) => {
                     panic!("Value::Global should only be in the function dfg");
@@ -35,7 +35,7 @@ impl Display for Ssa {
             };
         }
 
-        if self.globals.values_iter().len() > 0 {
+        if self.globals.dfg.values_iter().len() > 0 {
             writeln!(f)?;
         }
 
@@ -317,22 +317,11 @@ pub(crate) fn try_to_extract_string_from_error_payload(
     values: &[ValueId],
     dfg: &DataFlowGraph,
 ) -> Option<String> {
-    (is_string_type && (values.len() == 1))
-        .then_some(())
-        .and_then(|()| {
-            let (values, _) = &dfg.get_array_constant(values[0])?;
-            let values = values.iter().map(|value_id| dfg.get_numeric_constant(*value_id));
-            values.collect::<Option<Vec<_>>>()
-        })
-        .map(|fields| {
-            fields
-                .iter()
-                .map(|field| {
-                    let as_u8 = field.try_to_u64().unwrap_or_default() as u8;
-                    as_u8 as char
-                })
-                .collect()
-        })
+    if is_string_type && values.len() == 1 {
+        dfg.get_string(values[0])
+    } else {
+        None
+    }
 }
 
 fn display_constrain_error(
