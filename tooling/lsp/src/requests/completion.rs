@@ -245,7 +245,7 @@ impl<'a> NodeFinder<'a> {
         let mut idents: Vec<Ident> = Vec::new();
 
         // Find in which ident we are in, and in which part of it
-        // (it could be that we are completting in the middle of an ident)
+        // (it could be that we are completing in the middle of an ident)
         for segment in &path.segments {
             let ident = &segment.ident;
 
