@@ -1,7 +1,7 @@
 use iter_extended::vecmap;
 use rustc_hash::FxHashMap as HashMap;
 
-use crate::ast::{Ident, NoirFunction};
+use crate::ast::{Ident, ItemVisibility, NoirFunction};
 use crate::hir::type_check::generics::TraitGenerics;
 use crate::ResolvedGeneric;
 use crate::{
@@ -66,6 +66,7 @@ pub struct Trait {
     pub name: Ident,
     pub generics: Generics,
     pub location: Location,
+    pub visibility: ItemVisibility,
 
     /// When resolving the types of Trait elements, all references to `Self` resolve
     /// to this TypeVariable. Then when we check if the types of trait impl elements

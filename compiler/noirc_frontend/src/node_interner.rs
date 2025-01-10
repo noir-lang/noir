@@ -729,6 +729,7 @@ impl NodeInterner {
             crate_id: unresolved_trait.crate_id,
             location: Location::new(unresolved_trait.trait_def.span, unresolved_trait.file_id),
             generics,
+            visibility: ItemVisibility::Private,
             self_type_typevar: TypeVariable::unbound(self.next_type_variable_id(), Kind::Normal),
             methods: Vec::new(),
             method_ids: unresolved_trait.method_ids.clone(),

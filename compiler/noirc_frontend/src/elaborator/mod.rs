@@ -1110,10 +1110,19 @@ impl<'context> Elaborator<'context> {
         self.check_parent_traits_are_implemented(&trait_impl);
         self.remove_trait_impl_assumed_trait_implementations(trait_impl.impl_id);
 
+        let trait_id =
+            trait_impl.trait_id.expect("Trait impl trait ID should have been set at this point");
+        let trait_ = self.interner.get_trait(trait_id);
+        let trait_visibility = trait_.visibility;
+
         for (module, function, _) in &trait_impl.methods.functions {
             self.local_module = *module;
             let errors = check_trait_impl_method_matches_declaration(self.interner, *function);
             self.errors.extend(errors.into_iter().map(|error| (error.into(), self.file)));
+
+            // A trait impl method has the same visibility as its trait
+            let modifiers = self.interner.function_modifiers_mut(function);
+            modifiers.visibility = trait_visibility;
         }
 
         self.elaborate_functions(trait_impl.methods);
