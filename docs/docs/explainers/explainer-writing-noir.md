@@ -110,7 +110,7 @@ Note: when casting a `Field` to an integer type, the value is converted based on
 
 `Field` types have their own underlying representation that is efficient for cryptography, which is different to binary representations efficient for CPUs. So, mathematically speaking, things like bitwise operations do not directly translate to fields. That said, the same outcome can be achieved if wanting to use the Field type as a number with lower overhead.
 
-For instance shift (`<<`) and or (`|`) work seamlessly with integer types (bitpacking `u8`'s into a `u16`):
+For instance shift (`<<`) and or (`|`) work seamlessly with integer types (bit-packing `u8`'s into a `u16`):
 ```
   high as u16 << 8 | low as u16
 ```
