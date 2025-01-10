@@ -522,7 +522,7 @@ impl Value {
     }
 
     pub(crate) fn is_closure(&self) -> bool {
-        matches!(self, Value::Closure(_, _, _, _, _))
+        matches!(self, Value::Closure(..))
     }
 
     /// Converts any non-negative `Value` into a `FieldElement`.

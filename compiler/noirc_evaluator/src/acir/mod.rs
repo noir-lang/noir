@@ -2172,7 +2172,7 @@ impl<'a> Context<'a> {
 
                 let Type::Array(result_type, array_length) = dfg.type_of_value(result_ids[0])
                 else {
-                    unreachable!("ICE: ToRadix result must be an array");
+                    unreachable!("ICE: ToBits result must be an array");
                 };
 
                 self.acir_context

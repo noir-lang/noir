@@ -228,12 +228,6 @@ pub(crate) struct Signature {
     pub(crate) returns: Vec<Type>,
 }
 
-impl std::fmt::Display for Function {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        super::printer::display_function(self, f)
-    }
-}
-
 #[test]
 fn sign_smoke() {
     let mut signature = Signature::default();
