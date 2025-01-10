@@ -496,10 +496,10 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 Diagnostic::simple_error(msg.to_string(), "".to_string(), *span)
             },
             TypeCheckError::Unsafe { span } => {
-                Diagnostic::simple_warning(error.to_string(), String::new(), *span)
+                Diagnostic::simple_error(error.to_string(), String::new(), *span)
             }
             TypeCheckError::UnsafeFn { span } => {
-                Diagnostic::simple_warning(error.to_string(), String::new(), *span)
+                Diagnostic::simple_error(error.to_string(), String::new(), *span)
             }
             TypeCheckError::UnspecifiedType { span } => {
                 Diagnostic::simple_error(error.to_string(), String::new(), *span)
