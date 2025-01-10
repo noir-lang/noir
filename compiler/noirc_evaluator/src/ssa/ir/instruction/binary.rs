@@ -250,9 +250,9 @@ impl Binary {
                 }
                 if operand_type == NumericType::bool() {
                     // Boolean AND is equivalent to multiplication, which is a cheaper operation.
-                    // TODO: should this be unchecked?
+                    // (mul unchecked because these are bools so it doesn't matter really)
                     let instruction =
-                        Instruction::binary(BinaryOp::Mul { unchecked: false }, self.lhs, self.rhs);
+                        Instruction::binary(BinaryOp::Mul { unchecked: true }, self.lhs, self.rhs);
                     return SimplifyResult::SimplifiedToInstruction(instruction);
                 }
                 if operand_type.is_unsigned() {

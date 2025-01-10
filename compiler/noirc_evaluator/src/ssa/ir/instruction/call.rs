@@ -476,9 +476,10 @@ fn simplify_slice_pop_back(
 
     let element_size =
         dfg.make_constant((element_count as u128).into(), NumericType::length_type());
-    // TODO: should this be unchecked?
+    // Compute the flattened length doing an unchecked mul
+    // (it shouldn't overflow because it would have overflowed before when the slice was created)
     let flattened_len_instr =
-        Instruction::binary(BinaryOp::Mul { unchecked: false }, arguments[0], element_size);
+        Instruction::binary(BinaryOp::Mul { unchecked: true }, arguments[0], element_size);
     let mut flattened_len =
         dfg.insert_instruction_and_results(flattened_len_instr, block, None, call_stack).first();
     flattened_len = decrement_slice_length(flattened_len, dfg, block);
