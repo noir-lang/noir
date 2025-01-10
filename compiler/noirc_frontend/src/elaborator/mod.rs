@@ -315,7 +315,7 @@ impl<'context> Elaborator<'context> {
 
         self.define_function_metas(&mut items.functions, &mut items.impls, &mut items.trait_impls);
 
-        self.collect_traits(&items.traits);
+        self.collect_traits(&mut items.traits);
 
         // Before we resolve any function symbols we must go through our impls and
         // re-collect the methods within into their proper module. This cannot be
@@ -354,6 +354,7 @@ impl<'context> Elaborator<'context> {
             self.current_trait = Some(trait_id);
             self.elaborate_functions(unresolved_trait.fns_with_default_impl);
         }
+
         self.current_trait = None;
 
         for impls in items.impls.into_values() {
@@ -746,31 +747,37 @@ impl<'context> Elaborator<'context> {
             .collect()
     }
 
+    /// Expands any traits in a where clause to mention all associated types if they were
+    /// ellided by the user. See `add_missing_named_generics` for more  detail.
+    ///
+    /// Returns all newly created generics to be added to this function/trait/impl.
     fn desugar_trait_constraints(
         &mut self,
         where_clause: &mut [UnresolvedTraitConstraint],
-        generics: &mut Vec<TypeVariable>,
-    ) {
-        for constraint in where_clause {
-            self.add_missing_named_generics(&mut constraint.trait_bound, generics);
-        }
+    ) -> Vec<ResolvedGeneric> {
+        where_clause
+            .iter_mut()
+            .flat_map(|constraint| self.add_missing_named_generics(&mut constraint.trait_bound))
+            .collect()
     }
 
     /// For each associated type that isn't mentioned in a trait bound, this adds
-    /// the type as an implicit generic to the function. For example, this will
-    /// turn a function using a trait with 2 associated types:
+    /// the type as an implicit generic to the where clause and returns the newly
+    /// created generics in a vector to add to the function/trait/impl later.
+    /// For example, this will turn a function using a trait with 2 associated types:
     ///
     /// `fn foo<T>() where T: Foo { ... }`
     ///
     /// into:
+    /// `fn foo<T>() where T: Foo<Bar = A, Baz = B> { ... }`
+    ///
+    /// with a vector of `<A, B>` returned so that the caller can then modify the function to:
     /// `fn foo<T, A, B>() where T: Foo<Bar = A, Baz = B> { ... }`
-    fn add_missing_named_generics(
-        &mut self,
-        bound: &mut TraitBound,
-        generics: &mut Vec<TypeVariable>,
-    ) {
+    fn add_missing_named_generics(&mut self, bound: &mut TraitBound) -> Vec<ResolvedGeneric> {
+        let mut added_generics = Vec::new();
+
         let Some(the_trait) = self.lookup_trait_or_error(bound.trait_path.clone()) else {
-            return;
+            return added_generics;
         };
 
         if the_trait.associated_types.len() > bound.trait_generics.named_args.len() {
@@ -782,20 +789,24 @@ impl<'context> Elaborator<'context> {
                     .any(|(name, _)| name.0.contents == *associated_type.name.as_ref())
                 {
                     // This generic isn't contained in the bound's named arguments,
-                    // implicitly add it to the function
+                    // so add it by creating a fresh type variable.
                     let new_generic_id = self.interner.next_type_variable_id();
-                    let new_generic = TypeVariable::unbound(new_generic_id, Kind::Normal);
-                    generics.push(new_generic.clone());
+                    let type_var = TypeVariable::unbound(new_generic_id, Kind::Normal);
 
                     let span = bound.trait_path.span;
-                    let typ = Type::NamedGeneric(new_generic, associated_type.name.clone());
+                    let no_name = Rc::new("_".to_string());
+                    let typ = Type::NamedGeneric(type_var.clone(), no_name.clone());
                     let typ = self.interner.push_quoted_type(typ);
                     let typ = UnresolvedTypeData::Resolved(typ).with_span(span);
                     let ident = Ident::new(associated_type.name.as_ref().clone(), span);
+
                     bound.trait_generics.named_args.push((ident, typ));
+                    added_generics.push(ResolvedGeneric { name: no_name, span, type_var })
                 }
             }
         }
+
+        added_generics
     }
 
     fn resolve_trait_constraint(
@@ -866,7 +877,9 @@ impl<'context> Elaborator<'context> {
         self.add_generics(&func.def.generics);
         let mut generics = vecmap(&self.generics, |generic| generic.type_var.clone());
 
-        self.desugar_trait_constraints(&mut func.def.where_clause, &mut generics);
+        let new_generics = self.desugar_trait_constraints(&mut func.def.where_clause);
+        generics.extend(new_generics.into_iter().map(|generic| generic.type_var));
+
         let mut trait_constraints = self.resolve_trait_constraints(&func.def.where_clause, true);
 
         let mut parameters = Vec::new();
@@ -1377,7 +1390,8 @@ impl<'context> Elaborator<'context> {
         if let Some(trait_id) = trait_impl.trait_id {
             self.generics = trait_impl.resolved_generics.clone();
 
-            let where_clause = self.resolve_trait_constraints(&trait_impl.where_clause, false);
+            let where_clause = self.resolve_trait_constraints(&trait_impl.where_clause, true);
+            self.remove_trait_constraints_from_scope(&where_clause);
 
             self.collect_trait_impl_methods(trait_id, trait_impl, &where_clause);
 
@@ -1867,6 +1881,17 @@ impl<'context> Elaborator<'context> {
             self.add_generics(&trait_impl.generics);
             trait_impl.resolved_generics = self.generics.clone();
 
+            let new_generics = self.desugar_trait_constraints(&mut trait_impl.where_clause);
+            for new_generic in new_generics {
+                trait_impl.resolved_generics.push(new_generic.clone());
+                self.generics.push(new_generic);
+            }
+
+            // We need to resolve the where clause before any associated types to be
+            // able to resolve trait as type syntax, eg. `<T as Foo>` in case there
+            // is a where constraint for `T: Foo`.
+            let constraints = self.resolve_trait_constraints(&trait_impl.where_clause, true);
+
             for (_, _, method) in trait_impl.methods.functions.iter_mut() {
                 // Attach any trait constraints on the impl to the function
                 method.def.where_clause.append(&mut trait_impl.where_clause.clone());
@@ -1889,6 +1914,8 @@ impl<'context> Elaborator<'context> {
 
             trait_impl.resolved_trait_generics = ordered_generics;
             self.interner.set_associated_types_for_impl(impl_id, named_generics);
+
+            self.remove_trait_constraints_from_scope(&constraints);
 
             let self_type = self.resolve_type(unresolved_type);
             self.self_type = Some(self_type.clone());
