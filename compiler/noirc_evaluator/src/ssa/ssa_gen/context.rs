@@ -317,23 +317,21 @@ impl<'a> FunctionContext<'a> {
         // We use unsafe casts here, this is fine as we're casting to a `field` type.
         let as_field = self.builder.insert_cast(input, NumericType::NativeField);
         let sign_field = self.builder.insert_cast(sign, NumericType::NativeField);
-        // TODO: should this be unchecked?
+
+        // All of these operations are unchecked because they deal with fields
         let positive_predicate =
-            self.builder.insert_binary(sign_field, BinaryOp::Mul { unchecked: false }, as_field);
-        // TODO: should this be unchecked?
+            self.builder.insert_binary(sign_field, BinaryOp::Mul { unchecked: true }, as_field);
         let two_complement =
-            self.builder.insert_binary(bit_width, BinaryOp::Sub { unchecked: false }, as_field);
+            self.builder.insert_binary(bit_width, BinaryOp::Sub { unchecked: true }, as_field);
         let sign_not_field = self.builder.insert_cast(sign_not, NumericType::NativeField);
-        // TODO: should this be unchecked?
         let negative_predicate = self.builder.insert_binary(
             sign_not_field,
-            BinaryOp::Mul { unchecked: false },
+            BinaryOp::Mul { unchecked: true },
             two_complement,
         );
-        // TODO: should this be unchecked?
         self.builder.insert_binary(
             positive_predicate,
-            BinaryOp::Add { unchecked: false },
+            BinaryOp::Add { unchecked: true },
             negative_predicate,
         )
     }
@@ -490,10 +488,10 @@ impl<'a> FunctionContext<'a> {
                 //Check the result has the same sign as its inputs
                 let result_sign = self.builder.insert_binary(result, BinaryOp::Lt, half_width);
                 let sign_diff = self.builder.insert_binary(result_sign, BinaryOp::Eq, lhs_sign);
-                // TODO: should this be unchecked?
+                // Unchecked mul because sign_diff is a boolean
                 let sign_diff_with_predicate = self.builder.insert_binary(
                     sign_diff,
-                    BinaryOp::Mul { unchecked: false },
+                    BinaryOp::Mul { unchecked: true },
                     same_sign,
                 );
                 let overflow_check = Instruction::Constrain(
@@ -508,12 +506,9 @@ impl<'a> FunctionContext<'a> {
                 // First we compute the absolute value of operands, and their product
                 let lhs_abs = self.absolute_value_helper(lhs, lhs_sign, bit_size);
                 let rhs_abs = self.absolute_value_helper(rhs, rhs_sign, bit_size);
-                // TODO: should this be unchecked?
-                let product_field = self.builder.insert_binary(
-                    lhs_abs,
-                    BinaryOp::Mul { unchecked: false },
-                    rhs_abs,
-                );
+                // Unchecked mul because these are fields
+                let product_field =
+                    self.builder.insert_binary(lhs_abs, BinaryOp::Mul { unchecked: true }, rhs_abs);
                 // It must not already overflow the bit_size
                 self.builder.set_location(location).insert_range_check(
                     product_field,
@@ -527,10 +522,10 @@ impl<'a> FunctionContext<'a> {
                 let not_same = self.builder.insert_not(same_sign);
                 let not_same_sign_field =
                     self.insert_safe_cast(not_same, NumericType::unsigned(bit_size), location);
-                // TODO: should this be unchecked
+                // This shouldn't overflow so it's unchecked
                 let positive_maximum_with_offset = self.builder.insert_binary(
                     half_width,
-                    BinaryOp::Add { unchecked: false },
+                    BinaryOp::Add { unchecked: true },
                     not_same_sign_field,
                 );
                 let product_overflow_check =
@@ -895,10 +890,11 @@ impl<'a> FunctionContext<'a> {
             self.builder.numeric_constant(self.element_size(array), NumericType::length_type());
 
         // The actual base index is the user's index * the array element type's size
-        // TODO: should this be unchecked?
+        // Unchecked mul because we are reaching for an array element: if it overflows here
+        // it would have overflowed when creating the array.
         let mut index = self.builder.set_location(location).insert_binary(
             index,
-            BinaryOp::Mul { unchecked: false },
+            BinaryOp::Mul { unchecked: true },
             element_size,
         );
         let one = self.builder.numeric_constant(FieldElement::one(), NumericType::length_type());
@@ -906,8 +902,8 @@ impl<'a> FunctionContext<'a> {
         new_value.for_each(|value| {
             let value = value.eval(self);
             array = self.builder.insert_array_set(array, index, value);
-            // TODO: should this be unchecked?
-            index = self.builder.insert_binary(index, BinaryOp::Add { unchecked: false }, one);
+            // Unchecked add because this can't overflow (it would have overflowed when creating the array)
+            index = self.builder.insert_binary(index, BinaryOp::Add { unchecked: true }, one);
         });
         array
     }

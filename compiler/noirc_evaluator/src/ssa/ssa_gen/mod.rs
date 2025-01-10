@@ -446,10 +446,11 @@ impl<'a> FunctionContext<'a> {
         let type_size = Self::convert_type(element_type).size_of_type();
         let type_size =
             self.builder.numeric_constant(type_size as u128, NumericType::length_type());
-        // TODO: should this be unchecked?
+        // This shouldn't overflow as we are reaching for an initial array offset
+        // (otherwise it would have overflowed when creating the array)
         let base_index = self.builder.set_location(location).insert_binary(
             index,
-            BinaryOp::Mul { unchecked: false },
+            BinaryOp::Mul { unchecked: true },
             type_size,
         );
 
@@ -706,7 +707,7 @@ impl<'a> FunctionContext<'a> {
 
                     // We add one here in the case of a slice insert as a slice insert at the length of the slice
                     // can be converted to a slice push back
-                    // TODO: should this be unchecked?
+                    // This is unchecked as the slice length could be u32::max
                     let len_plus_one = self.builder.insert_binary(
                         arguments[0],
                         BinaryOp::Add { unchecked: false },
