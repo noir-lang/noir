@@ -7,7 +7,8 @@ use super::{
     call_stack::{CallStack, CallStackHelper, CallStackId},
     function::{FunctionId, RuntimeType},
     instruction::{
-        Instruction, InstructionId, InstructionResultType, Intrinsic, TerminatorInstruction,
+        Binary, BinaryOp, Instruction, InstructionId, InstructionResultType, Intrinsic,
+        TerminatorInstruction,
     },
     map::DenseMap,
     types::{NumericType, Type},
@@ -174,6 +175,44 @@ impl DataFlowGraph {
         instruction_data: Instruction,
         ctrl_typevars: Option<Vec<Type>>,
     ) -> InstructionId {
+        let instruction_data = if let Instruction::Binary(binary) = instruction_data {
+            let lhs = binary.lhs;
+            let rhs = binary.rhs;
+            let operator = binary.operator;
+            let lhs_type = self.type_of_value(lhs);
+            let rhs_type = self.type_of_value(rhs);
+            if operator != BinaryOp::Shl && operator != BinaryOp::Shr {
+                assert_eq!(
+                    lhs_type, rhs_type,
+                    "ICE - Binary instruction operands must have the same type"
+                );
+            }
+
+            let operator = if lhs_type.is_field() {
+                // Unchecked operations between fields or bools don't make sense, so we convert those to non-unchecked
+                // to reduce noise and confusion in the generated SSA.
+                match operator {
+                    BinaryOp::Add { unchecked: true } => BinaryOp::Add { unchecked: false },
+                    BinaryOp::Sub { unchecked: true } => BinaryOp::Sub { unchecked: false },
+                    BinaryOp::Mul { unchecked: true } => BinaryOp::Mul { unchecked: false },
+                    _ => operator,
+                }
+            } else if lhs_type.is_bool() {
+                // Unchecked mul between bools doesn't make sense, so we convert that to non-unchecked
+                if let BinaryOp::Mul { unchecked: true } = operator {
+                    BinaryOp::Mul { unchecked: false }
+                } else {
+                    operator
+                }
+            } else {
+                operator
+            };
+
+            Instruction::Binary(Binary { operator, ..binary })
+        } else {
+            instruction_data
+        };
+
         let id = self.instructions.insert(instruction_data);
         self.make_instruction_results(id, ctrl_typevars);
         id
