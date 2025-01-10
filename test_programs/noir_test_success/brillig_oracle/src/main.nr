@@ -1,6 +1,11 @@
 use std::slice;
 use std::test::OracleMock;
 
+#[test]
+fn test_main() {
+    main(10);
+}
+
 // Tests oracle usage in brillig/unconstrained functions
 fn main(_x: Field) {
     /// Safety: testing context
@@ -46,4 +51,3 @@ unconstrained fn get_number_sequence_wrapper(size: Field) {
         assert(slice[i] == reversed_slice[19 - i]);
     }
 }
-
