@@ -230,6 +230,7 @@ impl DataFlowGraph {
         if !self.is_handled_by_runtime(&instruction) {
             return InsertInstructionResult::InstructionRemoved;
         }
+
         match instruction.simplify(self, block, ctrl_typevars.clone(), call_stack) {
             SimplifyResult::SimplifiedTo(simplification) => {
                 InsertInstructionResult::SimplifiedTo(simplification)

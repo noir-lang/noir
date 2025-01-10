@@ -317,12 +317,24 @@ impl<'a> FunctionContext<'a> {
         // We use unsafe casts here, this is fine as we're casting to a `field` type.
         let as_field = self.builder.insert_cast(input, NumericType::NativeField);
         let sign_field = self.builder.insert_cast(sign, NumericType::NativeField);
-        let positive_predicate = self.builder.insert_binary(sign_field, BinaryOp::Mul, as_field);
-        let two_complement = self.builder.insert_binary(bit_width, BinaryOp::Sub, as_field);
+
+        // All of these operations are unchecked because they deal with fields
+        let positive_predicate =
+            self.builder.insert_binary(sign_field, BinaryOp::Mul { unchecked: true }, as_field);
+        let two_complement =
+            self.builder.insert_binary(bit_width, BinaryOp::Sub { unchecked: true }, as_field);
         let sign_not_field = self.builder.insert_cast(sign_not, NumericType::NativeField);
-        let negative_predicate =
-            self.builder.insert_binary(sign_not_field, BinaryOp::Mul, two_complement);
-        self.builder.insert_binary(positive_predicate, BinaryOp::Add, negative_predicate)
+        let negative_predicate = self.builder.insert_binary(
+            sign_not_field,
+            BinaryOp::Mul { unchecked: true },
+            two_complement,
+        );
+        // Unchecked addition because either `positive_predicate` or `negative_predicate` will be 0
+        self.builder.insert_binary(
+            positive_predicate,
+            BinaryOp::Add { unchecked: true },
+            negative_predicate,
+        )
     }
 
     /// Insert constraints ensuring that the operation does not overflow the bit size of the result
@@ -477,8 +489,12 @@ impl<'a> FunctionContext<'a> {
                 //Check the result has the same sign as its inputs
                 let result_sign = self.builder.insert_binary(result, BinaryOp::Lt, half_width);
                 let sign_diff = self.builder.insert_binary(result_sign, BinaryOp::Eq, lhs_sign);
-                let sign_diff_with_predicate =
-                    self.builder.insert_binary(sign_diff, BinaryOp::Mul, same_sign);
+                // Unchecked multiplication because boolean inputs
+                let sign_diff_with_predicate = self.builder.insert_binary(
+                    sign_diff,
+                    BinaryOp::Mul { unchecked: true },
+                    same_sign,
+                );
                 let overflow_check = Instruction::Constrain(
                     sign_diff_with_predicate,
                     same_sign,
@@ -491,7 +507,9 @@ impl<'a> FunctionContext<'a> {
                 // First we compute the absolute value of operands, and their product
                 let lhs_abs = self.absolute_value_helper(lhs, lhs_sign, bit_size);
                 let rhs_abs = self.absolute_value_helper(rhs, rhs_sign, bit_size);
-                let product_field = self.builder.insert_binary(lhs_abs, BinaryOp::Mul, rhs_abs);
+                // Unchecked mul because these are fields
+                let product_field =
+                    self.builder.insert_binary(lhs_abs, BinaryOp::Mul { unchecked: true }, rhs_abs);
                 // It must not already overflow the bit_size
                 self.builder.set_location(location).insert_range_check(
                     product_field,
@@ -505,8 +523,12 @@ impl<'a> FunctionContext<'a> {
                 let not_same = self.builder.insert_not(same_sign);
                 let not_same_sign_field =
                     self.insert_safe_cast(not_same, NumericType::unsigned(bit_size), location);
-                let positive_maximum_with_offset =
-                    self.builder.insert_binary(half_width, BinaryOp::Add, not_same_sign_field);
+                // Unchecked add because adding 1 to half_width can't overflow
+                let positive_maximum_with_offset = self.builder.insert_binary(
+                    half_width,
+                    BinaryOp::Add { unchecked: true },
+                    not_same_sign_field,
+                );
                 let product_overflow_check =
                     self.builder.insert_binary(product, BinaryOp::Lt, positive_maximum_with_offset);
 
@@ -610,7 +632,8 @@ impl<'a> FunctionContext<'a> {
         if offset != 0 {
             let typ = self.builder.type_of_value(address).unwrap_numeric();
             let offset = self.builder.numeric_constant(offset, typ);
-            address = self.builder.insert_binary(address, BinaryOp::Add, offset);
+            address =
+                self.builder.insert_binary(address, BinaryOp::Add { unchecked: true }, offset);
         }
         address
     }
@@ -868,14 +891,20 @@ impl<'a> FunctionContext<'a> {
             self.builder.numeric_constant(self.element_size(array), NumericType::length_type());
 
         // The actual base index is the user's index * the array element type's size
-        let mut index =
-            self.builder.set_location(location).insert_binary(index, BinaryOp::Mul, element_size);
+        // Unchecked mul because we are reaching for an array element: if it overflows here
+        // it would have overflowed when creating the array.
+        let mut index = self.builder.set_location(location).insert_binary(
+            index,
+            BinaryOp::Mul { unchecked: true },
+            element_size,
+        );
         let one = self.builder.numeric_constant(FieldElement::one(), NumericType::length_type());
 
         new_value.for_each(|value| {
             let value = value.eval(self);
             array = self.builder.insert_array_set(array, index, value);
-            index = self.builder.insert_binary(index, BinaryOp::Add, one);
+            // Unchecked add because this can't overflow (it would have overflowed when creating the array)
+            index = self.builder.insert_binary(index, BinaryOp::Add { unchecked: true }, one);
         });
         array
     }
@@ -1000,9 +1029,9 @@ fn operator_requires_swapped_operands(op: BinaryOpKind) -> bool {
 /// to represent the full operation correctly.
 fn convert_operator(op: BinaryOpKind) -> BinaryOp {
     match op {
-        BinaryOpKind::Add => BinaryOp::Add,
-        BinaryOpKind::Subtract => BinaryOp::Sub,
-        BinaryOpKind::Multiply => BinaryOp::Mul,
+        BinaryOpKind::Add => BinaryOp::Add { unchecked: false },
+        BinaryOpKind::Subtract => BinaryOp::Sub { unchecked: false },
+        BinaryOpKind::Multiply => BinaryOp::Mul { unchecked: false },
         BinaryOpKind::Divide => BinaryOp::Div,
         BinaryOpKind::Modulo => BinaryOp::Mod,
         BinaryOpKind::Equal => BinaryOp::Eq,

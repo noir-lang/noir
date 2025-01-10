@@ -1318,9 +1318,9 @@ impl<'block> BrilligBlock<'block> {
                     BrilligBinaryOp::Modulo
                 }
             }
-            BinaryOp::Add => BrilligBinaryOp::Add,
-            BinaryOp::Sub => BrilligBinaryOp::Sub,
-            BinaryOp::Mul => BrilligBinaryOp::Mul,
+            BinaryOp::Add { .. } => BrilligBinaryOp::Add,
+            BinaryOp::Sub { .. } => BrilligBinaryOp::Sub,
+            BinaryOp::Mul { .. } => BrilligBinaryOp::Mul,
             BinaryOp::Eq => BrilligBinaryOp::Equals,
             BinaryOp::Lt => {
                 if is_signed {
