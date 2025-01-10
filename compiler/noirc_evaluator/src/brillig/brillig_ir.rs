@@ -82,7 +82,7 @@ impl ReservedRegisters {
 pub(crate) struct BrilligContext<F, Registers> {
     obj: BrilligArtifact<F>,
     /// Tracks register allocations
-    pub(crate) registers: Registers,
+    registers: Registers,
     /// Context label, must be unique with respect to the function
     /// being linked.
     context_label: Label,
