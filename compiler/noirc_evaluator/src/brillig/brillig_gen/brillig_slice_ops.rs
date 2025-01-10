@@ -180,7 +180,9 @@ mod tests {
     use crate::ssa::ir::map::Id;
     use crate::ssa::ssa_gen::Ssa;
 
-    fn create_test_environment(brillig_globals: &HashMap<ValueId, BrilligVariable>) -> (Ssa, FunctionContext, BrilligContext<FieldElement, Stack>) {
+    fn create_test_environment(
+        brillig_globals: &HashMap<ValueId, BrilligVariable>,
+    ) -> (Ssa, FunctionContext, BrilligContext<FieldElement, Stack>) {
         let mut builder = FunctionBuilder::new("main".to_string(), Id::test_new(0));
         builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
 
@@ -232,7 +234,7 @@ mod tests {
                 result_length_with_metadata,
             )];
 
-            let brillig_globals = HashMap::default();            
+            let brillig_globals = HashMap::default();
             let (_, mut function_context, mut context) = create_test_environment(&brillig_globals);
 
             // Allocate the parameters
@@ -349,7 +351,7 @@ mod tests {
                 ),
             ];
 
-            let brillig_globals = HashMap::default();            
+            let brillig_globals = HashMap::default();
             let (_, mut function_context, mut context) = create_test_environment(&brillig_globals);
 
             // Allocate the parameters
@@ -452,7 +454,7 @@ mod tests {
                 result_length_with_metadata,
             )];
 
-            let brillig_globals = HashMap::default();            
+            let brillig_globals = HashMap::default();
             let (_, mut function_context, mut context) = create_test_environment(&brillig_globals);
 
             // Allocate the parameters
@@ -593,7 +595,7 @@ mod tests {
                 ),
             ];
 
-            let brillig_globals = HashMap::default();            
+            let brillig_globals = HashMap::default();
             let (_, mut function_context, mut context) = create_test_environment(&brillig_globals);
 
             // Allocate the parameters

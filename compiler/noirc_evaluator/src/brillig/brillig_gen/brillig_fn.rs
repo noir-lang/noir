@@ -32,7 +32,10 @@ pub(crate) struct FunctionContext<'global> {
 
 impl<'global> FunctionContext<'global> {
     /// Creates a new function context. It will allocate parameters for all blocks and compute the liveness of every variable.
-    pub(crate) fn new(function: &Function, globals: &'global HashMap<ValueId, BrilligVariable>) -> Self {
+    pub(crate) fn new(
+        function: &Function,
+        globals: &'global HashMap<ValueId, BrilligVariable>,
+    ) -> Self {
         let id = function.id();
 
         let mut reverse_post_order = Vec::new();
@@ -48,7 +51,7 @@ impl<'global> FunctionContext<'global> {
             blocks: reverse_post_order,
             liveness,
             constant_allocation: constants,
-            globals
+            globals,
         }
     }
 

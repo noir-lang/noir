@@ -215,9 +215,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, ScratchSpace> {
 
 /// Special brillig context to codegen global values initialization
 impl<F: AcirField + DebugToString> BrilligContext<F, GlobalSpace> {
-    pub(crate) fn new_for_global_init(
-        enable_debug_trace: bool,
-    ) -> BrilligContext<F, GlobalSpace> {
+    pub(crate) fn new_for_global_init(enable_debug_trace: bool) -> BrilligContext<F, GlobalSpace> {
         BrilligContext {
             obj: BrilligArtifact::default(),
             registers: GlobalSpace::new(),

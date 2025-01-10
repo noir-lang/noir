@@ -870,7 +870,7 @@ impl<'block, 'global> BrilligBlock<'block, 'global> {
                 }
             }
         }
-        
+
         self.brillig_context.set_call_stack(CallStack::new());
     }
 
@@ -1578,7 +1578,10 @@ impl<'block, 'global> BrilligBlock<'block, 'global> {
         match value {
             Value::Global(_) => {
                 dbg!(value_id);
-                let variable = *self.function_context.globals.get(&value_id).unwrap_or_else(|| panic!("ICE: Global value not found in cache {value_id}"));
+                let variable =
+                    *self.function_context.globals.get(&value_id).unwrap_or_else(|| {
+                        panic!("ICE: Global value not found in cache {value_id}")
+                    });
                 dbg!(variable.clone());
                 variable
             }

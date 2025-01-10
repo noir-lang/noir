@@ -126,7 +126,7 @@ impl Label {
     pub(crate) fn procedure(procedure_id: ProcedureId) -> Self {
         Label { label_type: LabelType::Procedure(procedure_id), section: None }
     }
-    
+
     pub(crate) fn globals_init() -> Self {
         Label { label_type: LabelType::GlobalInit, section: None }
     }

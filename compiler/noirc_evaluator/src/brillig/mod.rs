@@ -3,7 +3,12 @@ pub(crate) mod brillig_ir;
 
 use acvm::{acir::brillig::MemoryAddress, FieldElement};
 use brillig_gen::brillig_block_variables::allocate_value_with_type;
-use brillig_ir::{artifact::LabelType, brillig_variable::{BrilligVariable, SingleAddrVariable}, registers::GlobalSpace, BrilligBinaryOp, BrilligContext, ReservedRegisters};
+use brillig_ir::{
+    artifact::LabelType,
+    brillig_variable::{BrilligVariable, SingleAddrVariable},
+    registers::GlobalSpace,
+    BrilligBinaryOp, BrilligContext, ReservedRegisters,
+};
 
 use self::{
     brillig_gen::convert_ssa_function,
@@ -13,7 +18,13 @@ use self::{
     },
 };
 use crate::ssa::{
-    ir::{dfg::DataFlowGraph, function::{Function, FunctionId}, instruction::Instruction, types::Type, value::{Value, ValueId}},
+    ir::{
+        dfg::DataFlowGraph,
+        function::{Function, FunctionId},
+        instruction::Instruction,
+        types::Type,
+        value::{Value, ValueId},
+    },
     ssa_gen::Ssa,
 };
 use fxhash::FxHashMap as HashMap;
@@ -32,7 +43,12 @@ pub struct Brillig {
 
 impl Brillig {
     /// Compiles a function into brillig and store the compilation artifacts
-    pub(crate) fn compile(&mut self, func: &Function, enable_debug_trace: bool, globals: &HashMap<ValueId, BrilligVariable>) {
+    pub(crate) fn compile(
+        &mut self,
+        func: &Function,
+        enable_debug_trace: bool,
+        globals: &HashMap<ValueId, BrilligVariable>,
+    ) {
         let obj = convert_ssa_function(func, enable_debug_trace, globals);
         self.ssa_function_to_brillig.insert(func.id(), obj);
     }
@@ -53,14 +69,19 @@ impl Brillig {
         }
     }
 
-    pub(crate) fn create_brillig_globals(brillig_context: &mut BrilligContext<FieldElement, GlobalSpace>, globals: &DataFlowGraph) -> HashMap<ValueId, BrilligVariable> {
+    pub(crate) fn create_brillig_globals(
+        brillig_context: &mut BrilligContext<FieldElement, GlobalSpace>,
+        globals: &DataFlowGraph,
+    ) -> HashMap<ValueId, BrilligVariable> {
         let mut brillig_globals = HashMap::default();
         for (id, value) in globals.values_iter() {
             match value {
-                Value::NumericConstant { constant, typ } => {                    
-                    let new_variable = allocate_value_with_type(brillig_context, Type::Numeric(*typ));
+                Value::NumericConstant { constant, typ } => {
+                    let new_variable =
+                        allocate_value_with_type(brillig_context, Type::Numeric(*typ));
                     dbg!(new_variable.clone());
-                    brillig_context.const_instruction(new_variable.extract_single_addr(), *constant);
+                    brillig_context
+                        .const_instruction(new_variable.extract_single_addr(), *constant);
 
                     brillig_globals.insert(id, new_variable);
                 }
@@ -70,7 +91,8 @@ impl Brillig {
                     let instruction = &globals[*instruction];
                     match &instruction {
                         Instruction::MakeArray { elements: array, typ } => {
-                            let new_variable = allocate_value_with_type(brillig_context, typ.clone());
+                            let new_variable =
+                                allocate_value_with_type(brillig_context, typ.clone());
                             // Initialize the variable
                             match new_variable {
                                 BrilligVariable::BrilligArray(brillig_array) => {
@@ -91,14 +113,22 @@ impl Brillig {
                             let items_pointer = brillig_context
                                 .codegen_make_array_or_vector_items_pointer(new_variable);
 
-                            Self::initialize_constant_array(array, typ, items_pointer, brillig_context, &brillig_globals);
+                            Self::initialize_constant_array(
+                                array,
+                                typ,
+                                items_pointer,
+                                brillig_context,
+                                &brillig_globals,
+                            );
 
                             brillig_context.deallocate_register(items_pointer);
 
                             dbg!(new_variable.clone());
                             brillig_globals.insert(result, new_variable);
                         }
-                        _ => unreachable!("Expected MakeArray instruction but got {instruction:#?}")
+                        _ => {
+                            unreachable!("Expected MakeArray instruction but got {instruction:#?}")
+                        }
                     }
                 }
                 _ => {
@@ -143,11 +173,21 @@ impl Brillig {
         {
             dbg!("initializing runtime");
             Self::initialize_constant_array_runtime(
-                item_types, first_item, item_count, pointer, brillig_context, &brillig_globals
+                item_types,
+                first_item,
+                item_count,
+                pointer,
+                brillig_context,
+                &brillig_globals,
             );
         } else {
             dbg!("initializing comptime");
-            Self::initialize_constant_array_comptime(data, pointer, brillig_context, &brillig_globals);
+            Self::initialize_constant_array_comptime(
+                data,
+                pointer,
+                brillig_context,
+                &brillig_globals,
+            );
         }
     }
 
@@ -161,12 +201,16 @@ impl Brillig {
     ) {
         let mut subitem_to_repeat_variables = Vec::with_capacity(item_types.len());
         for subitem_id in item_to_repeat.into_iter() {
-            subitem_to_repeat_variables.push(*brillig_globals.get(&subitem_id).unwrap_or_else(|| panic!("ICE: ValueId {subitem_id} is not available")));
+            subitem_to_repeat_variables.push(
+                *brillig_globals
+                    .get(&subitem_id)
+                    .unwrap_or_else(|| panic!("ICE: ValueId {subitem_id} is not available")),
+            );
         }
 
         // Initialize loop bound with the array length
-        let end_pointer_variable = brillig_context
-            .make_usize_constant_instruction((item_count * item_types.len()).into());
+        let end_pointer_variable =
+            brillig_context.make_usize_constant_instruction((item_count * item_types.len()).into());
 
         // Add the pointer to the array length
         brillig_context.memory_op_instruction(
@@ -244,7 +288,9 @@ impl Brillig {
         brillig_context.mov_instruction(write_pointer_register, pointer);
 
         for (element_idx, element_id) in data.iter().enumerate() {
-            let element_variable = *brillig_globals.get(&element_id).unwrap_or_else(|| panic!("ICE: ValueId {element_id} is not available"));
+            let element_variable = *brillig_globals
+                .get(&element_id)
+                .unwrap_or_else(|| panic!("ICE: ValueId {element_id} is not available"));
             // Store the item in memory
             brillig_context
                 .store_instruction(write_pointer_register, element_variable.extract_register());
@@ -287,7 +333,7 @@ impl Ssa {
 
         let mut brillig_context = BrilligContext::new_for_global_init(enable_debug_trace);
         brillig_context.enter_context(Label::globals_init());
-        let brillig_globals = Brillig::create_brillig_globals(&mut brillig_context, &self.globals.dfg);
+        let brillig_globals = Brillig::create_brillig_globals(&mut brillig_context, &self.globals);
         brillig_context.return_instruction();
 
         let artifact = brillig_context.artifact();

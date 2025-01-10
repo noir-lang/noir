@@ -142,10 +142,10 @@ impl RegisterAllocator for ScratchSpace {
 }
 
 /// Globals have a separate memory space
-/// This memory space is initialized once at the beginning of a program 
+/// This memory space is initialized once at the beginning of a program
 /// is read-only.
 pub(crate) struct GlobalSpace {
-    storage: DeallocationListAllocator
+    storage: DeallocationListAllocator,
 }
 
 impl GlobalSpace {

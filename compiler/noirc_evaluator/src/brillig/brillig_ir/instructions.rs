@@ -203,7 +203,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     pub(super) fn add_globals_init_instruction(&mut self) {
         let globals_init_label = Label::globals_init();
         self.debug_show.add_external_call_instruction(globals_init_label.to_string());
-        self.obj.add_unresolved_external_call(BrilligOpcode::Call { location: 0 }, globals_init_label);
+        self.obj
+            .add_unresolved_external_call(BrilligOpcode::Call { location: 0 }, globals_init_label);
     }
 
     /// Adds a unresolved `Jump` instruction to the bytecode.

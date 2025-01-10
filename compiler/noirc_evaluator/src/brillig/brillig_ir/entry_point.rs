@@ -29,7 +29,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         context.codegen_entry_point(&arguments, &return_parameters);
 
         context.add_globals_init_instruction();
-        
+
         context.add_external_call_instruction(target_function);
 
         context.codegen_exit_point(&arguments, &return_parameters);

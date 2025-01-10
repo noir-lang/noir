@@ -143,7 +143,8 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
                             dbg!(brillig_function_id);
                             ExecutionError::AssertionFailed(
                                 payload,
-                                call_stack.expect("Should have call stack for an assertion failure"),
+                                call_stack
+                                    .expect("Should have call stack for an assertion failure"),
                                 brillig_function_id,
                             )
                         }
