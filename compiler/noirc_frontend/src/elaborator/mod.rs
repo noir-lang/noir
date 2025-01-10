@@ -346,6 +346,11 @@ impl<'context> Elaborator<'context> {
             &items.module_attributes,
         );
 
+        // Make sure trait impl functions have the same visibility as their traits
+        for trait_impl in &items.trait_impls {
+            self.set_trait_impl_functions_visibility(trait_impl);
+        }
+
         for functions in items.functions {
             self.elaborate_functions(functions);
         }
@@ -1098,6 +1103,23 @@ impl<'context> Elaborator<'context> {
         }
     }
 
+    fn set_trait_impl_functions_visibility(&mut self, trait_impl: &UnresolvedTraitImpl) {
+        let trait_visibility = if let Some(trait_id) = trait_impl.trait_id {
+            let trait_ = self.interner.get_trait(trait_id);
+            Some(trait_.visibility)
+        } else {
+            None
+        };
+
+        for (_, function, _) in &trait_impl.methods.functions {
+            // A trait impl method has the same visibility as its trait
+            if let Some(trait_visibility) = trait_visibility {
+                let modifiers = self.interner.function_modifiers_mut(function);
+                modifiers.visibility = trait_visibility;
+            }
+        }
+    }
+
     fn elaborate_trait_impl(&mut self, trait_impl: UnresolvedTraitImpl) {
         self.file = trait_impl.file_id;
         self.local_module = trait_impl.module_id;
@@ -1110,19 +1132,10 @@ impl<'context> Elaborator<'context> {
         self.check_parent_traits_are_implemented(&trait_impl);
         self.remove_trait_impl_assumed_trait_implementations(trait_impl.impl_id);
 
-        let trait_id =
-            trait_impl.trait_id.expect("Trait impl trait ID should have been set at this point");
-        let trait_ = self.interner.get_trait(trait_id);
-        let trait_visibility = trait_.visibility;
-
         for (module, function, _) in &trait_impl.methods.functions {
             self.local_module = *module;
             let errors = check_trait_impl_method_matches_declaration(self.interner, *function);
             self.errors.extend(errors.into_iter().map(|error| (error.into(), self.file)));
-
-            // A trait impl method has the same visibility as its trait
-            let modifiers = self.interner.function_modifiers_mut(function);
-            modifiers.visibility = trait_visibility;
         }
 
         self.elaborate_functions(trait_impl.methods);
