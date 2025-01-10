@@ -1904,11 +1904,12 @@ impl<'context> Elaborator<'context> {
             let impl_id = self.interner.next_trait_impl_id();
             self.current_trait_impl = Some(impl_id);
 
-            // Fetch trait constraints here
+            let path_span = trait_impl.trait_path.span;
             let (ordered_generics, named_generics) = trait_impl
                 .trait_id
                 .map(|trait_id| {
-                    self.resolve_type_args(trait_generics, trait_id, trait_impl.trait_path.span)
+                    // Check for missing generics & associated types for the trait being implemented
+                    self.resolve_trait_args_from_trait_impl(trait_generics, trait_id, path_span)
                 })
                 .unwrap_or_default();
 

@@ -310,11 +310,32 @@ impl<'context> Elaborator<'context> {
         }
     }
 
+    /// Identical to `resolve_type_args` but does not allow
+    /// associated types to be elided since trait impls must specify them.
+    pub(super) fn resolve_trait_args_from_trait_impl(
+        &mut self,
+        args: GenericTypeArgs,
+        item: TraitId,
+        span: Span,
+    ) -> (Vec<Type>, Vec<NamedType>) {
+        self.resolve_type_args_inner(args, item, span, false)
+    }
+
     pub(super) fn resolve_type_args(
+        &mut self,
+        args: GenericTypeArgs,
+        item: impl Generic,
+        span: Span,
+    ) -> (Vec<Type>, Vec<NamedType>) {
+        self.resolve_type_args_inner(args, item, span, true)
+    }
+
+    pub(super) fn resolve_type_args_inner(
         &mut self,
         mut args: GenericTypeArgs,
         item: impl Generic,
         span: Span,
+        allow_implicit_named_args: bool,
     ) -> (Vec<Type>, Vec<NamedType>) {
         let expected_kinds = item.generics(self.interner);
 
@@ -336,7 +357,12 @@ impl<'context> Elaborator<'context> {
         let mut associated = Vec::new();
 
         if item.accepts_named_type_args() {
-            associated = self.resolve_associated_type_args(args.named_args, item, span);
+            associated = self.resolve_associated_type_args(
+                args.named_args,
+                item,
+                span,
+                allow_implicit_named_args,
+            );
         } else if !args.named_args.is_empty() {
             let item_kind = item.item_kind();
             self.push_err(ResolverError::NamedTypeArgs { span, item_kind });
@@ -350,6 +376,7 @@ impl<'context> Elaborator<'context> {
         args: Vec<(Ident, UnresolvedType)>,
         item: impl Generic,
         span: Span,
+        allow_implicit_named_args: bool,
     ) -> Vec<NamedType> {
         let mut seen_args = HashMap::default();
         let mut required_args = item.named_generics(self.interner);
@@ -379,13 +406,19 @@ impl<'context> Elaborator<'context> {
             resolved.push(NamedType { name, typ });
         }
 
-        // Anything that hasn't been removed yet is missing, fill it in to avoid a panic.
-        // An error should already be issued earlier.
+        // Anything that hasn't been removed yet is missing.
+        // Fill it in to avoid a panic if we allow named args to be elided, otherwise error.
         for generic in required_args {
             let name = generic.name.clone();
-            let name = Ident::new(name.as_ref().clone(), span);
-            let typ = self.interner.next_type_variable();
-            resolved.push(NamedType { name, typ });
+
+            if allow_implicit_named_args {
+                let name = Ident::new(name.as_ref().clone(), span);
+                let typ = self.interner.next_type_variable();
+                resolved.push(NamedType { name, typ });
+            } else {
+                let item = item.item_name(self.interner);
+                self.push_err(TypeCheckError::MissingNamedTypeArg { item, span, name });
+            }
         }
 
         resolved
