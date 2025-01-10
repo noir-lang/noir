@@ -134,7 +134,7 @@ impl Context<'_> {
             let pow = self.pow(base, rhs);
             let pow = self.insert_cast(pow, typ);
 
-            // Unchecked mul because predicate is 0 or 1
+            // Unchecked mul because `predicate` will be 1 or 0
             (
                 FieldElement::max_num_bits(),
                 self.insert_binary(predicate, BinaryOp::Mul { unchecked: true }, pow),
@@ -218,8 +218,8 @@ impl Context<'_> {
             let rhs_bits = rhs_bits[0];
             let one = self.field_constant(FieldElement::one());
             let mut r = one;
+            // All operations are unchecked as we're acting on Field types (which are always unchecked)
             for i in 1..bit_size + 1 {
-                // All of these operations are unchecked because they deal with fields
                 let r_squared = self.insert_binary(r, BinaryOp::Mul { unchecked: true }, r);
                 let a = self.insert_binary(r_squared, BinaryOp::Mul { unchecked: true }, lhs);
                 let idx = self.field_constant(FieldElement::from((bit_size - i) as i128));
