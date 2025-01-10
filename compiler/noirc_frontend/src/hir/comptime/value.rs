@@ -521,6 +521,10 @@ impl Value {
         )
     }
 
+    pub(crate) fn is_closure(&self) -> bool {
+        matches!(self, Value::Closure(..))
+    }
+
     /// Converts any non-negative `Value` into a `FieldElement`.
     /// Returns `None` for negative integers and non-integral `Value`s.
     pub(crate) fn to_field_element(&self) -> Option<FieldElement> {

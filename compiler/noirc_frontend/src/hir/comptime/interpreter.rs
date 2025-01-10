@@ -1445,6 +1445,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         let (mut lhs, lhs_is_negative) = match evaluated_lhs {
             Value::Field(value) => (value, false),
+            Value::U1(value) => ((value as u128).into(), false),
             Value::U8(value) => ((value as u128).into(), false),
             Value::U16(value) => ((value as u128).into(), false),
             Value::U32(value) => ((value as u128).into(), false),
