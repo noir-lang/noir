@@ -2900,4 +2900,34 @@ fn main() {
         "#;
         assert_completion(src, vec![]).await;
     }
+
+    #[test]
+    async fn test_suggests_multiple_trait_methods() {
+        let src = r#"
+        mod moo {
+            pub trait Foo {
+                fn foobar();
+            }
+
+            impl Foo for Field {
+                fn foobar() {}
+            }
+
+            pub trait Bar {
+                fn foobar();
+            }
+
+            impl Bar for Field {
+                fn foobar() {}
+            }
+        }
+
+        fn main() {
+            Field::fooba>|<
+        }
+
+        "#;
+        let items = get_completions(src).await;
+        assert_eq!(items.len(), 2);
+    }
 }
