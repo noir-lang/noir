@@ -2268,9 +2268,10 @@ impl Methods {
     }
 
     /// Iterate through each method, starting with the direct methods
-    pub fn iter(&self) -> impl Iterator<Item = (FuncId, Option<&Type>)> + '_ {
-        let trait_impl_methods = self.trait_impl_methods.iter().map(|m| (m.method, m.typ.as_ref()));
-        let direct = self.direct.iter().copied().map(|func_id| (func_id, None));
+    pub fn iter(&self) -> impl Iterator<Item = (FuncId, Option<&Type>, Option<TraitId>)> + '_ {
+        let trait_impl_methods =
+            self.trait_impl_methods.iter().map(|m| (m.method, m.typ.as_ref(), Some(m.trait_id)));
+        let direct = self.direct.iter().copied().map(|func_id| (func_id, None, None));
         direct.chain(trait_impl_methods)
     }
 
@@ -2283,7 +2284,7 @@ impl Methods {
     ) -> Option<FuncId> {
         // When adding methods we always check they do not overlap, so there should be
         // at most 1 matching method in this list.
-        for (method, method_type) in self.iter() {
+        for (method, method_type, _trait_id) in self.iter() {
             if Self::method_matches(typ, has_self_param, method, method_type, interner) {
                 return Some(method);
             }
