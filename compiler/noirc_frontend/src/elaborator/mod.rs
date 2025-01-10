@@ -1104,15 +1104,15 @@ impl<'context> Elaborator<'context> {
     }
 
     fn set_trait_impl_functions_visibility(&mut self, trait_impl: &UnresolvedTraitImpl) {
-        let Some(trait_id) = trait_impl.trait_id else { return; };
+        let Some(trait_id) = trait_impl.trait_id else {
+            return;
+        };
         let trait_visibility = self.interner.get_trait(trait_id).visibility;
 
         for (_, function, _) in &trait_impl.methods.functions {
             // A trait impl method has the same visibility as its trait
-            if let Some(trait_visibility) = trait_visibility {
-                let modifiers = self.interner.function_modifiers_mut(function);
-                modifiers.visibility = trait_visibility;
-            }
+            let modifiers = self.interner.function_modifiers_mut(function);
+            modifiers.visibility = trait_visibility;
         }
     }
 
