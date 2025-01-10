@@ -134,7 +134,7 @@ impl Context<'_> {
             let pow = self.pow(base, rhs);
             let pow = self.insert_cast(pow, typ);
 
-            // TODO: should this be unchecked?
+            // Unchecked mul because `predicate` will be 1 or 0
             (
                 FieldElement::max_num_bits(),
                 self.insert_binary(predicate, BinaryOp::Mul { unchecked: false }, pow),
@@ -218,22 +218,18 @@ impl Context<'_> {
             let rhs_bits = rhs_bits[0];
             let one = self.field_constant(FieldElement::one());
             let mut r = one;
+            // All operations are unchecked as we're acting on Field types (which are always unchecked)
             for i in 1..bit_size + 1 {
-                // TODO: should this be unchecked?
-                let r_squared = self.insert_binary(r, BinaryOp::Mul { unchecked: false }, r);
-                // TODO: should this be unchecked?
-                let a = self.insert_binary(r_squared, BinaryOp::Mul { unchecked: false }, lhs);
+                let r_squared = self.insert_binary(r, BinaryOp::Mul { unchecked: true }, r);
+                let a = self.insert_binary(r_squared, BinaryOp::Mul { unchecked: true }, lhs);
                 let idx = self.field_constant(FieldElement::from((bit_size - i) as i128));
                 let b = self.insert_array_get(rhs_bits, idx, Type::bool());
                 let not_b = self.insert_not(b);
                 let b = self.insert_cast(b, NumericType::NativeField);
                 let not_b = self.insert_cast(not_b, NumericType::NativeField);
-                // TODO: should this be unchecked?
-                let r1 = self.insert_binary(a, BinaryOp::Mul { unchecked: false }, b);
-                // TODO: should this be unchecked?
-                let r2 = self.insert_binary(r_squared, BinaryOp::Mul { unchecked: false }, not_b);
-                // TODO: should this be unchecked?
-                r = self.insert_binary(r1, BinaryOp::Add { unchecked: false }, r2);
+                let r1 = self.insert_binary(a, BinaryOp::Mul { unchecked: true }, b);
+                let r2 = self.insert_binary(r_squared, BinaryOp::Mul { unchecked: true }, not_b);
+                r = self.insert_binary(r1, BinaryOp::Add { unchecked: true }, r2);
             }
             r
         } else {

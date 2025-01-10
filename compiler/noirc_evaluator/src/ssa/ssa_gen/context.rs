@@ -330,7 +330,7 @@ impl<'a> FunctionContext<'a> {
             BinaryOp::Mul { unchecked: false },
             two_complement,
         );
-        // TODO: should this be unchecked?
+        // Unchecked addition because either `positive_predicate` or `negative_predicate` will be 0
         self.builder.insert_binary(
             positive_predicate,
             BinaryOp::Add { unchecked: false },
@@ -490,10 +490,10 @@ impl<'a> FunctionContext<'a> {
                 //Check the result has the same sign as its inputs
                 let result_sign = self.builder.insert_binary(result, BinaryOp::Lt, half_width);
                 let sign_diff = self.builder.insert_binary(result_sign, BinaryOp::Eq, lhs_sign);
-                // TODO: should this be unchecked?
+                // Unchecked multiplication because boolean inputs
                 let sign_diff_with_predicate = self.builder.insert_binary(
                     sign_diff,
-                    BinaryOp::Mul { unchecked: false },
+                    BinaryOp::Mul { unchecked: true },
                     same_sign,
                 );
                 let overflow_check = Instruction::Constrain(
@@ -527,7 +527,7 @@ impl<'a> FunctionContext<'a> {
                 let not_same = self.builder.insert_not(same_sign);
                 let not_same_sign_field =
                     self.insert_safe_cast(not_same, NumericType::unsigned(bit_size), location);
-                // TODO: should this be unchecked
+                // TODO: should this be unchecked?
                 let positive_maximum_with_offset = self.builder.insert_binary(
                     half_width,
                     BinaryOp::Add { unchecked: false },
