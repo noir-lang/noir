@@ -8,6 +8,7 @@ use crate::{
     ssa::ir::{
         basic_block::BasicBlockId,
         function::{Function, FunctionId},
+        map::Id,
         post_order::PostOrder,
         types::Type,
         value::ValueId,
@@ -51,6 +52,23 @@ impl<'global> FunctionContext<'global> {
             blocks: reverse_post_order,
             liveness,
             constant_allocation: constants,
+            globals,
+        }
+    }
+
+    pub(crate) fn new_for_global_init(
+        function_id: FunctionId,
+        globals: &'global HashMap<ValueId, BrilligVariable>,
+    ) -> Self {
+        // let mut liveness = VariableLiveness::default();
+        // liveness.l
+        Self {
+            // It does not matter what ID we have here
+            function_id,
+            ssa_value_allocations: Default::default(),
+            blocks: Default::default(),
+            liveness: Default::default(),
+            constant_allocation: Default::default(),
             globals,
         }
     }

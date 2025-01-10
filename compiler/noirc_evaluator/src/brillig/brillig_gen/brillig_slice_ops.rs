@@ -2,12 +2,13 @@ use acvm::acir::brillig::MemoryAddress;
 
 use crate::brillig::brillig_ir::{
     brillig_variable::{BrilligVariable, BrilligVector, SingleAddrVariable},
+    registers::RegisterAllocator,
     BrilligBinaryOp,
 };
 
 use super::brillig_block::BrilligBlock;
 
-impl<'block, 'global> BrilligBlock<'block, 'global> {
+impl<'block, 'global, Registers: RegisterAllocator> BrilligBlock<'block, 'global, Registers> {
     fn write_variables(&mut self, write_pointer: MemoryAddress, variables: &[BrilligVariable]) {
         for (index, variable) in variables.iter().enumerate() {
             self.brillig_context.store_instruction(write_pointer, variable.extract_register());
@@ -197,7 +198,7 @@ mod tests {
     fn create_brillig_block<'a, 'global>(
         function_context: &'a mut FunctionContext<'global>,
         brillig_context: &'a mut BrilligContext<FieldElement, Stack>,
-    ) -> BrilligBlock<'a, 'global> {
+    ) -> BrilligBlock<'a, 'global, Stack> {
         let variables = BlockVariables::default();
         BrilligBlock {
             function_context,

@@ -48,10 +48,10 @@ impl BlockVariables {
     }
 
     /// For a given SSA value id, define the variable and return the corresponding cached allocation.
-    pub(crate) fn define_variable(
+    pub(crate) fn define_variable<Registers: RegisterAllocator>(
         &mut self,
         function_context: &mut FunctionContext,
-        brillig_context: &mut BrilligContext<FieldElement, Stack>,
+        brillig_context: &mut BrilligContext<FieldElement, Registers>,
         value_id: ValueId,
         dfg: &DataFlowGraph,
     ) -> BrilligVariable {
@@ -68,10 +68,10 @@ impl BlockVariables {
     }
 
     /// Defines a variable that fits in a single register and returns the allocated register.
-    pub(crate) fn define_single_addr_variable(
+    pub(crate) fn define_single_addr_variable<Registers: RegisterAllocator>(
         &mut self,
         function_context: &mut FunctionContext,
-        brillig_context: &mut BrilligContext<FieldElement, Stack>,
+        brillig_context: &mut BrilligContext<FieldElement, Registers>,
         value: ValueId,
         dfg: &DataFlowGraph,
     ) -> SingleAddrVariable {
@@ -80,11 +80,11 @@ impl BlockVariables {
     }
 
     /// Removes a variable so it's not used anymore within this block.
-    pub(crate) fn remove_variable(
+    pub(crate) fn remove_variable<Registers: RegisterAllocator>(
         &mut self,
         value_id: &ValueId,
         function_context: &mut FunctionContext,
-        brillig_context: &mut BrilligContext<FieldElement, Stack>,
+        brillig_context: &mut BrilligContext<FieldElement, Registers>,
     ) {
         assert!(self.available_variables.remove(value_id), "ICE: Variable is not available");
         let variable = function_context

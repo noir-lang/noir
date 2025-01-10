@@ -334,7 +334,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
 
         // Return data has a reserved space after calldata
         let return_data_offset = Self::return_data_start_offset(calldata_size);
-        dbg!(return_data_offset);
+        // dbg!(return_data_offset);
         let mut return_data_index = return_data_offset;
 
         for (return_param, returned_variable) in return_parameters.iter().zip(&returned_variables) {

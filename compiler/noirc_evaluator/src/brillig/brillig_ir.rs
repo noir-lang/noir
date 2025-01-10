@@ -82,7 +82,7 @@ impl ReservedRegisters {
 pub(crate) struct BrilligContext<F, Registers> {
     obj: BrilligArtifact<F>,
     /// Tracks register allocations
-    registers: Registers,
+    pub(crate) registers: Registers,
     /// Context label, must be unique with respect to the function
     /// being linked.
     context_label: Label,
@@ -110,7 +110,9 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             can_call_procedures: true,
         }
     }
+}
 
+impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     /// Splits a two's complement signed integer in the sign bit and the absolute value.
     /// For example, -6 i8 (11111010) is split to 00000110 (6, absolute value) and 1 (is_negative).
     pub(crate) fn absolute_value(

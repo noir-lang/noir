@@ -11,7 +11,9 @@ use super::{
     BrilligContext, ReservedRegisters,
 };
 
-pub(crate) trait RegisterAllocator {
+use std::any::Any;
+
+pub(crate) trait RegisterAllocator: Any {
     /// First valid memory address
     fn start() -> usize;
     /// Last valid memory address
@@ -24,6 +26,8 @@ pub(crate) trait RegisterAllocator {
     fn ensure_register_is_allocated(&mut self, register: MemoryAddress);
     /// Creates a new register context from a set of registers allocated previously.
     fn from_preallocated_registers(preallocated_registers: Vec<MemoryAddress>) -> Self;
+    /// Finds the first register that is available based upon the deallocation list
+    fn empty_registers_start(&self) -> MemoryAddress;
 }
 
 /// Every brillig stack frame/call context has its own view of register space.
@@ -31,6 +35,16 @@ pub(crate) trait RegisterAllocator {
 pub(crate) struct Stack {
     storage: DeallocationListAllocator,
 }
+
+// pub(crate) trait StackMarker {
+//     fn empty_stack_start(&self) -> MemoryAddress;
+// }
+
+// impl StackMarker for Stack {
+//     fn empty_stack_start(&self) -> MemoryAddress {
+//         MemoryAddress::relative(self.storage.empty_registers_start(Self::start()))
+//     }
+// }
 
 impl Stack {
     pub(crate) fn new() -> Self {
@@ -40,10 +54,6 @@ impl Stack {
     fn is_within_bounds(register: MemoryAddress) -> bool {
         let offset = register.unwrap_relative();
         offset >= Self::start() && offset < Self::end()
-    }
-
-    pub(crate) fn empty_stack_start(&self) -> MemoryAddress {
-        MemoryAddress::relative(self.storage.empty_registers_start(Self::start()))
     }
 }
 
@@ -82,6 +92,10 @@ impl RegisterAllocator for Stack {
                 vecmap(preallocated_registers, |r| r.unwrap_relative()),
             ),
         }
+    }
+
+    fn empty_registers_start(&self) -> MemoryAddress {
+        MemoryAddress::relative(self.storage.empty_registers_start(Self::start()))
     }
 }
 
@@ -139,6 +153,10 @@ impl RegisterAllocator for ScratchSpace {
             ),
         }
     }
+
+    fn empty_registers_start(&self) -> MemoryAddress {
+        MemoryAddress::direct(self.storage.empty_registers_start(Self::start()))
+    }
 }
 
 /// Globals have a separate memory space
@@ -194,6 +212,10 @@ impl RegisterAllocator for GlobalSpace {
                 vecmap(preallocated_registers, |r| r.unwrap_direct()),
             ),
         }
+    }
+
+    fn empty_registers_start(&self) -> MemoryAddress {
+        MemoryAddress::direct(self.storage.empty_registers_start(Self::start()))
     }
 }
 

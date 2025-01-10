@@ -32,23 +32,25 @@ use super::brillig_fn::FunctionContext;
 use super::constant_allocation::InstructionLocation;
 
 /// Generate the compilation artifacts for compiling a function into brillig bytecode.
-pub(crate) struct BrilligBlock<'block, 'global> {
+pub(crate) struct BrilligBlock<'block, 'global, Registers: RegisterAllocator> {
     pub(crate) function_context: &'block mut FunctionContext<'global>,
     /// The basic block that is being converted
     pub(crate) block_id: BasicBlockId,
     /// Context for creating brillig opcodes
-    pub(crate) brillig_context: &'block mut BrilligContext<FieldElement, Stack>,
+    pub(crate) brillig_context: &'block mut BrilligContext<FieldElement, Registers>,
     /// Tracks the available variable during the codegen of the block
     pub(crate) variables: BlockVariables,
     /// For each instruction, the set of values that are not used anymore after it.
     pub(crate) last_uses: HashMap<InstructionId, HashSet<ValueId>>,
+
+    pub(crate) building_globals: bool,
 }
 
-impl<'block, 'global> BrilligBlock<'block, 'global> {
+impl<'block, 'global, Registers: RegisterAllocator> BrilligBlock<'block, 'global, Registers> {
     /// Converts an SSA Basic block into a sequence of Brillig opcodes
     pub(crate) fn compile(
         function_context: &'block mut FunctionContext<'global>,
-        brillig_context: &'block mut BrilligContext<FieldElement, Stack>,
+        brillig_context: &'block mut BrilligContext<FieldElement, Registers>,
         block_id: BasicBlockId,
         dfg: &DataFlowGraph,
     ) {
@@ -72,8 +74,14 @@ impl<'block, 'global> BrilligBlock<'block, 'global> {
         );
         let last_uses = function_context.liveness.get_last_uses(&block_id).clone();
 
-        let mut brillig_block =
-            BrilligBlock { function_context, block_id, brillig_context, variables, last_uses };
+        let mut brillig_block = BrilligBlock {
+            function_context,
+            block_id,
+            brillig_context,
+            variables,
+            last_uses,
+            building_globals: false,
+        };
 
         brillig_block.convert_block(dfg);
     }
@@ -207,7 +215,11 @@ impl<'block, 'global> BrilligBlock<'block, 'global> {
     }
 
     /// Converts an SSA instruction into a sequence of Brillig opcodes.
-    fn convert_ssa_instruction(&mut self, instruction_id: InstructionId, dfg: &DataFlowGraph) {
+    pub(crate) fn convert_ssa_instruction(
+        &mut self,
+        instruction_id: InstructionId,
+        dfg: &DataFlowGraph,
+    ) {
         let instruction = &dfg[instruction_id];
         self.brillig_context.set_call_stack(dfg.get_instruction_call_stack(instruction_id));
 
@@ -851,22 +863,24 @@ impl<'block, 'global> BrilligBlock<'block, 'global> {
             Instruction::Noop => (),
         };
 
-        let dead_variables = self
-            .last_uses
-            .get(&instruction_id)
-            .expect("Last uses for instruction should have been computed");
+        if !self.building_globals {
+            let dead_variables = self
+                .last_uses
+                .get(&instruction_id)
+                .expect("Last uses for instruction should have been computed");
 
-        for dead_variable in dead_variables {
-            match &dfg[*dead_variable] {
-                Value::Global(_) => {
-                    dbg!("got dead global");
-                }
-                _ => {
-                    self.variables.remove_variable(
-                        dead_variable,
-                        self.function_context,
-                        self.brillig_context,
-                    );
+            for dead_variable in dead_variables {
+                match &dfg[*dead_variable] {
+                    Value::Global(_) => {
+                        dbg!("got dead global");
+                    }
+                    _ => {
+                        self.variables.remove_variable(
+                            dead_variable,
+                            self.function_context,
+                            self.brillig_context,
+                        );
+                    }
                 }
             }
         }
@@ -1571,7 +1585,11 @@ impl<'block, 'global> BrilligBlock<'block, 'global> {
     }
 
     /// Converts an SSA `ValueId` into a `RegisterOrMemory`. Initializes if necessary.
-    fn convert_ssa_value(&mut self, value_id: ValueId, dfg: &DataFlowGraph) -> BrilligVariable {
+    pub(crate) fn convert_ssa_value(
+        &mut self,
+        value_id: ValueId,
+        dfg: &DataFlowGraph,
+    ) -> BrilligVariable {
         let value_id = dfg.resolve(value_id);
         let value = &dfg[value_id];
 
