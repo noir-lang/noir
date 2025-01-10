@@ -850,9 +850,9 @@ mod test {
                 enable_side_effects u1 1
                 v3 = cast v0 as Field
                 v4 = cast v1 as Field
-                v6 = mul v3, Field 3
-                v8 = mul v4, Field 4
-                v9 = add v6, v8
+                v6 = unchecked_mul v3, Field 3
+                v8 = unchecked_mul v4, Field 4
+                v9 = unchecked_add v6, v8
                 return v9
             }
             ";
@@ -881,7 +881,7 @@ mod test {
             acir(inline) fn main f0 {
               b0(v0: u1, v1: u1):
                 enable_side_effects v0
-                v2 = mul v1, v0
+                v2 = unchecked_mul v1, v0
                 constrain v2 == v0
                 v3 = not v0
                 enable_side_effects u1 1
@@ -916,9 +916,9 @@ mod test {
                 v3 = not v0
                 v4 = cast v0 as Field
                 v5 = cast v3 as Field
-                v7 = mul v4, Field 5
-                v8 = mul v5, v2
-                v9 = add v7, v8
+                v7 = unchecked_mul v4, Field 5
+                v8 = unchecked_mul v5, v2
+                v9 = unchecked_add v7, v8
                 store v9 at v1
                 enable_side_effects u1 1
                 return
@@ -954,17 +954,17 @@ mod test {
                 v3 = not v0
                 v4 = cast v0 as Field
                 v5 = cast v3 as Field
-                v7 = mul v4, Field 5
-                v8 = mul v5, v2
-                v9 = add v7, v8
+                v7 = unchecked_mul v4, Field 5
+                v8 = unchecked_mul v5, v2
+                v9 = unchecked_add v7, v8
                 store v9 at v1
                 enable_side_effects v3
                 v10 = load v1 -> Field
                 v11 = cast v3 as Field
                 v12 = cast v0 as Field
-                v14 = mul v11, Field 6
-                v15 = mul v12, v10
-                v16 = add v14, v15
+                v14 = unchecked_mul v11, Field 6
+                v15 = unchecked_mul v12, v10
+                v16 = unchecked_add v14, v15
                 store v16 at v1
                 enable_side_effects u1 1
                 return
@@ -1066,32 +1066,32 @@ mod test {
             v3 = not v0
             v4 = cast v0 as Field
             v5 = cast v3 as Field
-            v7 = mul v4, Field 2
-            v8 = add v7, v5
-            v9 = mul v0, v1
+            v7 = unchecked_mul v4, Field 2
+            v8 = unchecked_add v7, v5
+            v9 = unchecked_mul v0, v1
             enable_side_effects v9
             v10 = not v9
             v11 = cast v9 as Field
             v12 = cast v10 as Field
-            v14 = mul v11, Field 5
-            v15 = mul v12, v8
-            v16 = add v14, v15
+            v14 = unchecked_mul v11, Field 5
+            v15 = unchecked_mul v12, v8
+            v16 = unchecked_add v14, v15
             v17 = not v1
-            v18 = mul v0, v17
+            v18 = unchecked_mul v0, v17
             enable_side_effects v18
             v19 = not v18
             v20 = cast v18 as Field
             v21 = cast v19 as Field
-            v23 = mul v20, Field 6
-            v24 = mul v21, v16
-            v25 = add v23, v24
+            v23 = unchecked_mul v20, Field 6
+            v24 = unchecked_mul v21, v16
+            v25 = unchecked_add v23, v24
             enable_side_effects v0
             enable_side_effects v3
             v26 = cast v3 as Field
             v27 = cast v0 as Field
-            v29 = mul v26, Field 3
-            v30 = mul v27, v25
-            v31 = add v29, v30
+            v29 = unchecked_mul v26, Field 3
+            v30 = unchecked_mul v27, v25
+            v31 = unchecked_add v29, v30
             enable_side_effects u1 1
             return v31
         }";
@@ -1283,15 +1283,15 @@ mod test {
             v12 = not v5
             v13 = cast v4 as u8
             v14 = cast v12 as u8
-            v15 = mul v13, v10
-            v16 = mul v14, v11
-            v17 = add v15, v16
+            v15 = unchecked_mul v13, v10
+            v16 = unchecked_mul v14, v11
+            v17 = unchecked_add v15, v16
             store v17 at v6
             enable_side_effects v12
             v18 = load v6 -> u8
             v19 = cast v12 as u8
             v20 = cast v4 as u8
-            v21 = mul v20, v18
+            v21 = unchecked_mul v20, v18
             store v21 at v6
             enable_side_effects u1 1
             constrain v5 == u1 1
@@ -1446,9 +1446,9 @@ mod test {
             v2 = not v0
             v3 = cast v0 as Field
             v4 = cast v2 as Field
-            v6 = mul v3, Field 2
-            v7 = mul v4, v3
-            v8 = add v6, v7
+            v6 = unchecked_mul v3, Field 2
+            v7 = unchecked_mul v4, v3
+            v8 = unchecked_add v6, v7
             enable_side_effects u1 1
             return v8
         }
@@ -1491,7 +1491,7 @@ mod test {
           b0(v0: u1, v1: u1):
             enable_side_effects v0
             v2 = cast v0 as Field
-            v4 = mul v2, Field 2
+            v4 = unchecked_mul v2, Field 2
             v5 = make_array [v4] : [Field; 1]
             enable_side_effects u1 1
             return v5
