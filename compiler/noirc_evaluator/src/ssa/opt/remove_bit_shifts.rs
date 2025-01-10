@@ -167,9 +167,9 @@ impl Context<'_> {
         let lhs_typ = self.function.dfg.type_of_value(lhs).unwrap_numeric();
         let base = self.field_constant(FieldElement::from(2_u128));
         let pow = self.pow(base, rhs);
+        let pow = self.insert_cast(pow, lhs_typ);
         if lhs_typ.is_unsigned() {
             // unsigned right bit shift is just a normal division
-            let pow = self.insert_cast(pow, lhs_typ);
             self.insert_binary(lhs, BinaryOp::Div, pow)
         } else {
             // Get the sign of the operand; positive signed operand will just do a division as well
