@@ -189,10 +189,10 @@ impl Context<'_> {
             let shifted_complement = self.insert_binary(one_complement, BinaryOp::Div, pow);
             // Convert back to 2-complement representation if operand is negative
             let lhs_sign_as_int = self.insert_cast(lhs_sign, lhs_typ);
-            // This shouldn't underflow
+            // TODO: should this be unchecked?
             let shifted = self.insert_binary(
                 shifted_complement,
-                BinaryOp::Sub { unchecked: true },
+                BinaryOp::Sub { unchecked: false },
                 lhs_sign_as_int,
             );
             self.insert_truncate(shifted, bit_size, bit_size + 1)

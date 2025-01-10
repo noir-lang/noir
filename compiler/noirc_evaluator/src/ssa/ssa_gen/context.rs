@@ -523,7 +523,7 @@ impl<'a> FunctionContext<'a> {
                 let not_same = self.builder.insert_not(same_sign);
                 let not_same_sign_field =
                     self.insert_safe_cast(not_same, NumericType::unsigned(bit_size), location);
-                // TODO: should this be unchecked?
+                // Unchecked add because adding 1 to half_width can't overflow
                 let positive_maximum_with_offset = self.builder.insert_binary(
                     half_width,
                     BinaryOp::Add { unchecked: true },
