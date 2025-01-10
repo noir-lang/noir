@@ -7,7 +7,7 @@ use super::{
     call_stack::{CallStack, CallStackHelper, CallStackId},
     function::{FunctionId, RuntimeType},
     instruction::{
-        Binary, BinaryOp, Instruction, InstructionId, InstructionResultType, Intrinsic,
+        self, Binary, BinaryOp, Instruction, InstructionId, InstructionResultType, Intrinsic,
         TerminatorInstruction,
     },
     map::DenseMap,
@@ -175,8 +175,6 @@ impl DataFlowGraph {
         instruction_data: Instruction,
         ctrl_typevars: Option<Vec<Type>>,
     ) -> InstructionId {
-        let instruction_data = self.check_binary_instruction(instruction_data);
-
         let id = self.instructions.insert(instruction_data);
         self.make_instruction_results(id, ctrl_typevars);
         id
@@ -251,6 +249,8 @@ impl DataFlowGraph {
             return InsertInstructionResult::InstructionRemoved;
         }
 
+        let instruction_data = self.check_binary_instruction(instruction_data);
+
         let id = self.insert_instruction_without_simplification(
             instruction_data,
             block,
@@ -273,6 +273,9 @@ impl DataFlowGraph {
         if !self.is_handled_by_runtime(&instruction) {
             return InsertInstructionResult::InstructionRemoved;
         }
+
+        let instruction = self.check_binary_instruction(instruction);
+
         match instruction.simplify(self, block, ctrl_typevars.clone(), call_stack) {
             SimplifyResult::SimplifiedTo(simplification) => {
                 InsertInstructionResult::SimplifiedTo(simplification)
