@@ -30,7 +30,7 @@ mod constrain;
 pub(crate) use binary::{Binary, BinaryOp};
 use call::simplify_call;
 use cast::simplify_cast;
-use constrain::decompose_constrain;
+use constrain::{decompose_constrain, simplify_constrain};
 
 /// Reference to an instruction
 ///
@@ -863,7 +863,8 @@ impl Instruction {
                 }
             }
             Instruction::Constrain(lhs, rhs, msg) => {
-                let constraints = decompose_constrain(*lhs, *rhs, msg, dfg);
+                let (lhs, rhs) = simplify_constrain(*lhs, *rhs, dfg);
+                let constraints = decompose_constrain(lhs, rhs, msg, dfg);
                 if constraints.is_empty() {
                     Remove
                 } else {
