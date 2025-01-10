@@ -75,6 +75,10 @@ pub struct CompileOptions {
     #[arg(long, hide = true)]
     pub show_ssa_pass_name: Option<String>,
 
+    /// Only show the SSA and ACIR for the contract function with a given name.
+    #[arg(long, hide = true)]
+    pub show_contract_function_name: Option<String>,
+
     /// Emit the unoptimized SSA IR to file.
     /// The IR will be dumped into the workspace target directory,
     /// under `[compiled-package].ssa.json`.
@@ -442,6 +446,11 @@ pub fn compile_contract(
 
         if options.print_acir {
             for contract_function in &compiled_contract.functions {
+                if let Some(ref name) = options.show_contract_function_name {
+                    if name != &contract_function.name {
+                        continue;
+                    }
+                }
                 println!(
                     "Compiled ACIR for {}::{} (unoptimized):",
                     compiled_contract.name, contract_function.name
@@ -486,7 +495,15 @@ fn compile_contract_inner(
             continue;
         }
 
-        let function = match compile_no_check(context, options, function_id, None, true) {
+        let mut options = options.clone();
+
+        if let Some(ref name_filter) = options.show_contract_function_name {
+            let show = name == *name_filter;
+            options.show_ssa &= show;
+            options.show_ssa_pass_name = options.show_ssa_pass_name.filter(|_| show);
+        };
+
+        let function = match compile_no_check(context, &options, function_id, None, true) {
             Ok(function) => function,
             Err(new_error) => {
                 errors.push(FileDiagnostic::from(new_error));
