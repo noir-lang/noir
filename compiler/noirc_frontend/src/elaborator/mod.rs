@@ -801,7 +801,7 @@ impl<'context> Elaborator<'context> {
                     let ident = Ident::new(associated_type.name.as_ref().clone(), span);
 
                     bound.trait_generics.named_args.push((ident, typ));
-                    added_generics.push(ResolvedGeneric { name: no_name, span, type_var })
+                    added_generics.push(ResolvedGeneric { name: no_name, span, type_var });
                 }
             }
         }
