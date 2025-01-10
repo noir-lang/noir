@@ -7,7 +7,7 @@ use super::{
     call_stack::{CallStack, CallStackHelper, CallStackId},
     function::{FunctionId, RuntimeType},
     instruction::{
-        self, Binary, BinaryOp, Instruction, InstructionId, InstructionResultType, Intrinsic,
+        Binary, BinaryOp, Instruction, InstructionId, InstructionResultType, Intrinsic,
         TerminatorInstruction,
     },
     map::DenseMap,
