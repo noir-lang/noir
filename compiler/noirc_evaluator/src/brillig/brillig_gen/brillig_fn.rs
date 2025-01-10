@@ -55,23 +55,6 @@ impl<'global> FunctionContext<'global> {
         }
     }
 
-    pub(crate) fn new_for_global_init(
-        function_id: FunctionId,
-        globals: &'global HashMap<ValueId, BrilligVariable>,
-    ) -> Self {
-        Self {
-            // It does not matter what ID we have here
-            // This ID is only used for creating block labels and globals should
-            // have their own entirely separate label.
-            function_id,
-            ssa_value_allocations: Default::default(),
-            blocks: Default::default(),
-            liveness: Default::default(),
-            constant_allocation: Default::default(),
-            globals,
-        }
-    }
-
     pub(crate) fn ssa_type_to_parameter(typ: &Type) -> BrilligParameter {
         match typ {
             Type::Numeric(_) | Type::Reference(_) => {

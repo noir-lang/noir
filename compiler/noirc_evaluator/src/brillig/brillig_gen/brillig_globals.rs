@@ -1,8 +1,10 @@
 use acvm::FieldElement;
 use fxhash::FxHashMap as HashMap;
 
-use super::{BrilligArtifact, BrilligBlock, BrilligVariable, Function, FunctionContext, Label, ValueId};
-use crate::brillig::{brillig_ir::BrilligContext, DataFlowGraph, FunctionId};
+use super::{
+    BrilligArtifact, BrilligBlock, BrilligVariable, Function, FunctionContext, Label, ValueId,
+};
+use crate::brillig::{brillig_ir::BrilligContext, DataFlowGraph};
 
 pub(crate) fn convert_ssa_globals(
     enable_debug_trace: bool,
@@ -13,8 +15,7 @@ pub(crate) fn convert_ssa_globals(
     let empty_globals = HashMap::default();
     // We can use any ID here as this context is only going to be used for globals which does not differentiate
     // by functions and blocks. The only Label that should be used in the globals context is `Label::globals_init()`
-    let mut function_context =
-        FunctionContext::new(globals, &empty_globals);
+    let mut function_context = FunctionContext::new(globals, &empty_globals);
     brillig_context.enter_context(Label::globals_init());
 
     let block_id = DataFlowGraph::default().make_block();
