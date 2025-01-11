@@ -327,12 +327,19 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         let var_data = &self.vars[&var];
         if let AcirVarData::Const(constant) = var_data {
             // Note that this will return a 0 if the inverse is not available
-            let inverted_var = self.add_data(AcirVarData::Const(constant.inverse()));
+            let inverted_constant = constant.inverse();
+            let inverted_var = self.add_constant(inverted_constant);
+
+            let should_be_one = self.mul_var(inverted_var, var)?;
 
             // Check that the inverted var is valid.
             // This check prevents invalid divisions by zero.
-            let should_be_one = self.mul_var(inverted_var, var)?;
-            self.maybe_eq_predicate(should_be_one, predicate)?;
+            if inverted_constant.is_zero() {
+                self.maybe_eq_predicate(should_be_one, predicate)?;
+            } else {
+                let one = self.add_constant(F::one());
+                self.assert_eq_var(should_be_one, one, None)?;
+            }
 
             return Ok(inverted_var);
         }
