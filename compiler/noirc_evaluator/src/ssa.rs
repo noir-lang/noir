@@ -153,7 +153,6 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
         .run_pass(Ssa::remove_unreachable_functions, "Removing Unreachable Functions")
         .run_pass(Ssa::defunctionalize, "Defunctionalization")
         .run_pass(Ssa::remove_paired_rc, "Removing Paired rc_inc & rc_decs")
-        .run_pass(Ssa::resolve_is_unconstrained, "Resolving IsUnconstrained")
         .run_pass(|ssa| ssa.inline_functions(options.inliner_aggressiveness), "Inlining (1st)")
         // Run mem2reg with the CFG separated into blocks
         .run_pass(Ssa::mem2reg, "Mem2Reg (1st)")
@@ -170,10 +169,11 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
             "Unrolling",
         )?
         .run_pass(Ssa::simplify_cfg, "Simplifying (2nd)")
-        .run_pass(Ssa::flatten_cfg, "Flattening")
-        .run_pass(Ssa::remove_bit_shifts, "After Removing Bit Shifts")
-        // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
         .run_pass(Ssa::mem2reg, "Mem2Reg (2nd)")
+        .run_pass(Ssa::flatten_cfg, "Flattening")
+        .run_pass(Ssa::remove_bit_shifts, "Removing Bit Shifts")
+        // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
+        .run_pass(Ssa::mem2reg, "Mem2Reg (3rd)")
         // Run the inlining pass again to handle functions with `InlineType::NoPredicates`.
         // Before flattening is run, we treat functions marked with the `InlineType::NoPredicates` as an entry point.
         // This pass must come immediately following `mem2reg` as the succeeding passes
@@ -453,7 +453,7 @@ impl SsaBuilder {
             let ssa_path = emit_ssa.with_extension("ssa.json");
             write_to_file(&serde_json::to_vec(&ssa).unwrap(), &ssa_path);
         }
-        Ok(SsaBuilder { ssa_logging, print_codegen_timings, ssa }.print("Initial SSA:"))
+        Ok(SsaBuilder { ssa_logging, print_codegen_timings, ssa }.print("Initial SSA"))
     }
 
     fn finish(self) -> Ssa {

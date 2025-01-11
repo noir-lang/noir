@@ -40,15 +40,15 @@ unconstrained fn print_unconstrained<T>(with_newline: bool, input: T) {
 }
 
 pub fn println<T>(input: T) {
+    /// Safety: a print statement cannot be constrained
     unsafe {
-        //@safety: a print statement cannot be constrained
         print_unconstrained(true, input);
     }
 }
 
 pub fn print<T>(input: T) {
+    /// Safety: a print statement cannot be constrained
     unsafe {
-        //@safety: a print statement cannot be constrained
         print_unconstrained(false, input);
     }
 }
@@ -120,3 +120,10 @@ where
 
 #[builtin(as_witness)]
 pub fn as_witness(x: Field) {}
+
+mod tests {
+    #[test(should_fail_with = "custom message")]
+    fn test_static_assert_custom_message() {
+        super::static_assert(1 == 2, "custom message");
+    }
+}

@@ -2,13 +2,12 @@ use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 
 use crate::ast::{Ident, Path, PathKind, UnresolvedType};
-use crate::hir::def_map::{fully_qualified_module_path, ModuleData, ModuleDefId, ModuleId, PerNs};
+use crate::hir::def_map::{ModuleData, ModuleDefId, ModuleId, PerNs};
 use crate::hir::resolution::import::{resolve_path_kind, PathResolutionError};
 
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir::resolution::visibility::item_in_module_is_visible;
 
-use crate::hir_def::traits::Trait;
 use crate::locations::ReferencesTracker;
 use crate::node_interner::{FuncId, GlobalId, StructId, TraitId, TypeAliasId};
 use crate::{Shared, Type, TypeAlias};
@@ -80,7 +79,7 @@ pub struct Turbofish {
 /// Any item that can appear before the last segment in a path.
 #[derive(Debug)]
 enum IntermediatePathResolutionItem {
-    Module(ModuleId),
+    Module,
     Struct(StructId, Option<Turbofish>),
     TypeAlias(TypeAliasId, Option<Turbofish>),
     Trait(TraitId, Option<Turbofish>),
@@ -181,7 +180,7 @@ impl<'context> Elaborator<'context> {
         let mut current_module_id = starting_module;
         let mut current_module = self.get_module(starting_module);
 
-        let mut intermediate_item = IntermediatePathResolutionItem::Module(current_module_id);
+        let mut intermediate_item = IntermediatePathResolutionItem::Module;
 
         let first_segment =
             &path.segments.first().expect("ice: could not fetch first segment").ident;
@@ -223,7 +222,7 @@ impl<'context> Elaborator<'context> {
                         });
                     }
 
-                    (id, false, IntermediatePathResolutionItem::Module(id))
+                    (id, false, IntermediatePathResolutionItem::Module)
                 }
                 ModuleDefId::TypeId(id) => (
                     id.module_id(),
@@ -448,10 +447,6 @@ impl<'context> Elaborator<'context> {
         let per_ns = PerNs { types: None, values: Some(*item) };
         StructMethodLookupResult::FoundTraitMethod(per_ns, trait_id)
     }
-
-    fn fully_qualified_trait_path(&self, trait_: &Trait) -> String {
-        fully_qualified_module_path(self.def_maps, self.crate_graph, &trait_.crate_id, trait_.id.0)
-    }
 }
 
 fn merge_intermediate_path_resolution_item_with_module_def_id(
@@ -465,9 +460,7 @@ fn merge_intermediate_path_resolution_item_with_module_def_id(
         ModuleDefId::TraitId(trait_id) => PathResolutionItem::Trait(trait_id),
         ModuleDefId::GlobalId(global_id) => PathResolutionItem::Global(global_id),
         ModuleDefId::FunctionId(func_id) => match intermediate_item {
-            IntermediatePathResolutionItem::Module(_) => {
-                PathResolutionItem::ModuleFunction(func_id)
-            }
+            IntermediatePathResolutionItem::Module => PathResolutionItem::ModuleFunction(func_id),
             IntermediatePathResolutionItem::Struct(struct_id, generics) => {
                 PathResolutionItem::StructFunction(struct_id, generics, func_id)
             }

@@ -3,10 +3,10 @@ set -e
 
 # These tests are incompatible with gas reporting
 excluded_dirs=(
-  "workspace" 
-  "workspace_default_member" 
-  "double_verify_nested_proof" 
-  "overlapping_dep_and_mod" 
+  "workspace"
+  "workspace_default_member"
+  "double_verify_nested_proof"
+  "overlapping_dep_and_mod"
   "comptime_println"
   #  bit sizes for bigint operation doesn't match up.
   "bigint"
@@ -30,6 +30,10 @@ for dir in $test_dirs; do
     fi
 
     if [[ ${CI-false} = "true" ]] && [[ " ${ci_excluded_dirs[@]} " =~ " ${dir} " ]]; then
+      continue
+    fi
+
+    if [[ ! -f "${base_path}/${dir}/Nargo.toml" ]]; then
       continue
     fi
 

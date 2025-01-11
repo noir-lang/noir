@@ -2,6 +2,7 @@ pub(crate) mod context;
 mod program;
 mod value;
 
+use acvm::AcirField;
 use noirc_frontend::token::FmtStrFragment;
 pub(crate) use program::Ssa;
 
@@ -120,7 +121,9 @@ pub(crate) fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
         function_context.codegen_function_body(&function.body)?;
     }
 
-    Ok(function_context.builder.finish())
+    let mut ssa = function_context.builder.finish();
+    ssa.globals = context.globals_context;
+    Ok(ssa)
 }
 
 impl<'a> FunctionContext<'a> {
@@ -178,6 +181,7 @@ impl<'a> FunctionContext<'a> {
     fn codegen_ident_reference(&mut self, ident: &ast::Ident) -> Values {
         match &ident.definition {
             ast::Definition::Local(id) => self.lookup(*id),
+            ast::Definition::Global(id) => self.lookup_global(*id),
             ast::Definition::Function(id) => self.get_or_queue_function(*id),
             ast::Definition::Oracle(name) => self.builder.import_foreign_function(name).into(),
             ast::Definition::Builtin(name) | ast::Definition::LowLevel(name) => {
@@ -445,8 +449,13 @@ impl<'a> FunctionContext<'a> {
         let type_size = Self::convert_type(element_type).size_of_type();
         let type_size =
             self.builder.numeric_constant(type_size as u128, NumericType::length_type());
-        let base_index =
-            self.builder.set_location(location).insert_binary(index, BinaryOp::Mul, type_size);
+        // This shouldn't overflow as we are reaching for an initial array offset
+        // (otherwise it would have overflowed when creating the array)
+        let base_index = self.builder.set_location(location).insert_binary(
+            index,
+            BinaryOp::Mul { unchecked: true },
+            type_size,
+        );
 
         let mut field_index = 0u128;
         Ok(Self::map_type(element_type, |typ| {
@@ -595,6 +604,9 @@ impl<'a> FunctionContext<'a> {
     /// ```
     fn codegen_if(&mut self, if_expr: &ast::If) -> Result<Values, RuntimeError> {
         let condition = self.codegen_non_tuple_expression(&if_expr.condition)?;
+        if let Some(result) = self.try_codegen_constant_if(condition, if_expr) {
+            return result;
+        }
 
         let then_block = self.builder.insert_block();
         let else_block = self.builder.insert_block();
@@ -631,6 +643,25 @@ impl<'a> FunctionContext<'a> {
         }
 
         Ok(result)
+    }
+
+    /// If the condition is known, skip codegen for the then/else branch and only compile the
+    /// relevant branch.
+    fn try_codegen_constant_if(
+        &mut self,
+        condition: ValueId,
+        if_expr: &ast::If,
+    ) -> Option<Result<Values, RuntimeError>> {
+        let condition = self.builder.current_function.dfg.get_numeric_constant(condition)?;
+
+        Some(if condition.is_zero() {
+            match if_expr.alternative.as_ref() {
+                Some(alternative) => self.codegen_expression(alternative),
+                None => Ok(Self::unit_value()),
+            }
+        } else {
+            self.codegen_expression(&if_expr.consequence)
+        })
     }
 
     fn codegen_tuple(&mut self, tuple: &[Expression]) -> Result<Values, RuntimeError> {
@@ -679,7 +710,12 @@ impl<'a> FunctionContext<'a> {
 
                     // We add one here in the case of a slice insert as a slice insert at the length of the slice
                     // can be converted to a slice push back
-                    let len_plus_one = self.builder.insert_binary(arguments[0], BinaryOp::Add, one);
+                    // This is unchecked as the slice length could be u32::max
+                    let len_plus_one = self.builder.insert_binary(
+                        arguments[0],
+                        BinaryOp::Add { unchecked: false },
+                        one,
+                    );
 
                     self.codegen_slice_access_check(arguments[2], Some(len_plus_one));
                 }
