@@ -535,8 +535,8 @@ impl<F: AcirField> GeneratedAcir<F> {
     /// This is easily observed: `y = 1 - t * 0`
     /// Now since `y` is one, this means that `t` needs to be zero, or else `y * t == 0` will fail.
     fn is_zero(&mut self, t_expr: Expression<F>) -> Witness {
-        // We're checking for equality with zero so we can negate the expression without changing the result.
-        // This is useful as it will sometimes allow us to simplify an expression down to a witness.
+        // We're going to be multiplying this expression by a two different witnesses in a second so we want to
+        // ensure that this expression only contains a single witness. We can tolerate a coefficients and constant terms however.
         let linear_t = if t_expr.is_degree_one_univariate() {
             t_expr
         } else {
