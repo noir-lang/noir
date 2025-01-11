@@ -895,25 +895,6 @@ impl Instruction {
                 }
             }
             Instruction::Constrain(lhs, rhs, msg) => {
-                if dfg.runtime().is_acir()
-                    && dfg.get_numeric_constant(*rhs).map_or(false, |constant| constant.is_zero())
-                {
-                    if let Value::Instruction { instruction, .. } = &dfg[dfg.resolve(*lhs)] {
-                        if let Instruction::Binary(Binary {
-                            lhs,
-                            rhs,
-                            operator: BinaryOp::Eq,
-                            ..
-                        }) = &dfg[*instruction]
-                        {
-                            return SimplifiedToInstruction(Instruction::ConstrainNotEqual(
-                                *lhs,
-                                *rhs,
-                                msg.clone(),
-                            ));
-                        }
-                    }
-                }
                 let constraints = decompose_constrain(*lhs, *rhs, msg, dfg);
                 if constraints.is_empty() {
                     Remove
