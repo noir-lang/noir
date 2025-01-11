@@ -53,6 +53,11 @@ impl Function {
     /// This restriction lets this function largely ignore merging intermediate results from other
     /// blocks and handling loops.
     pub(crate) fn remove_paired_rc(&mut self) {
+        // `inc_rc` and `dec_rc` instructions are only permitted in brillig functions.
+        if !self.runtime().is_brillig() {
+            return;
+        }
+
         // `dec_rc` is only issued for parameters currently so we can speed things
         // up a bit by skipping any functions without them.
         if !contains_array_parameter(self) {

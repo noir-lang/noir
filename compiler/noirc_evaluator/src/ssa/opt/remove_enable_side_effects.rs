@@ -16,7 +16,7 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         dfg::DataFlowGraph,
-        function::{Function, RuntimeType},
+        function::Function,
         instruction::{BinaryOp, Hint, Instruction, Intrinsic},
         types::NumericType,
         value::Value,
@@ -37,7 +37,7 @@ impl Ssa {
 
 impl Function {
     pub(crate) fn remove_enable_side_effects(&mut self) {
-        if matches!(self.runtime(), RuntimeType::Brillig(_)) {
+        if self.runtime().is_brillig() {
             // Brillig functions do not make use of the `EnableSideEffects` instruction so are unaffected by this pass.
             return;
         }
