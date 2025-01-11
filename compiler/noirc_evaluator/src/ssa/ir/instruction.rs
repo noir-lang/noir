@@ -895,7 +895,9 @@ impl Instruction {
                 }
             }
             Instruction::Constrain(lhs, rhs, msg) => {
-                if dfg.get_numeric_constant(*rhs).map_or(false, |constant| constant.is_zero()) {
+                if dfg.runtime().is_acir()
+                    && dfg.get_numeric_constant(*rhs).map_or(false, |constant| constant.is_zero())
+                {
                     if let Value::Instruction { instruction, .. } = &dfg[dfg.resolve(*lhs)] {
                         if let Instruction::Binary(Binary {
                             lhs,
