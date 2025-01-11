@@ -143,6 +143,7 @@ impl Context {
             | Not(_)
             | Truncate { .. }
             | Constrain(..)
+            | ConstrainNotEqual(..)
             | RangeCheck { .. }
             | IfElse { .. }
             | IncrementRc { .. }
