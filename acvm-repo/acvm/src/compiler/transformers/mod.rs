@@ -17,7 +17,8 @@ pub use csat::MIN_EXPRESSION_WIDTH;
 use tracing::info;
 
 use super::{
-    optimizers::MergeExpressionsOptimizer, transform_assert_messages, AcirTransformationMap,
+    optimizers::{MergeExpressionsOptimizer, RangeOptimizer},
+    transform_assert_messages, AcirTransformationMap,
 };
 
 /// We need multiple passes to stabilize the output.
@@ -226,6 +227,12 @@ fn transform_internal_once<F: AcirField>(
         // The optimizer does not add new public inputs
         ..acir
     };
+
+    // The `MergeOptimizer` can merge two witnesses which have range opcodes applied to them
+    // so we run the `RangeOptimizer` afterwards to clear these up.
+    let range_optimizer = RangeOptimizer::new(acir);
+    let (acir, new_acir_opcode_positions) =
+        range_optimizer.replace_redundant_ranges(new_acir_opcode_positions);
 
     (acir, new_acir_opcode_positions)
 }
