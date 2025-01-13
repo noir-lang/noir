@@ -64,7 +64,9 @@ impl Function {
         context.find_rcs_in_entry_block(self);
         context.scan_for_array_sets(self);
         let to_remove = context.find_rcs_to_remove(self);
-        remove_instructions(to_remove, self);
+        for instruction in to_remove {
+            self.dfg.remove_instruction(instruction);
+        }
     }
 }
 
@@ -139,16 +141,6 @@ pub(crate) fn pop_rc_for(
     let position = rcs.iter().position(|inc_rc| inc_rc.array == value)?;
 
     Some(rcs.remove(position))
-}
-
-fn remove_instructions(to_remove: HashSet<InstructionId>, function: &mut Function) {
-    if !to_remove.is_empty() {
-        for block in function.reachable_blocks() {
-            function.dfg[block]
-                .instructions_mut()
-                .retain(|instruction| !to_remove.contains(instruction));
-        }
-    }
 }
 
 #[cfg(test)]

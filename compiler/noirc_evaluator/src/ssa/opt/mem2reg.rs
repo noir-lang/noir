@@ -592,11 +592,8 @@ impl<'f> PerFunctionContext<'f> {
     /// This is expected to contain any loads which were replaced and any stores which are
     /// no longer needed.
     fn remove_instructions(&mut self) {
-        // The order we iterate blocks in is not important
-        for block in self.post_order.as_slice() {
-            self.inserter.function.dfg[*block]
-                .instructions_mut()
-                .retain(|instruction| !self.instructions_to_remove.contains(instruction));
+        for instruction in &self.instructions_to_remove {
+            self.inserter.function.dfg.remove_instruction(*instruction);
         }
     }
 
