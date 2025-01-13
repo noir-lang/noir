@@ -134,11 +134,13 @@ enum InversionMutation {
 }
 struct InversionConfiguration {
     additive_inversion_weight: usize,
+    #[allow(unused)]
     multiplicative_inversion_weight: usize,
     total_weight: usize,
 }
 
 impl InversionConfiguration {
+    #[allow(unused)]
     pub fn new(additive_inversion_weight: usize, multiplicative_inversion_weight: usize) -> Self {
         let total_weight = additive_inversion_weight + multiplicative_inversion_weight;
         Self { additive_inversion_weight, multiplicative_inversion_weight, total_weight }
@@ -169,11 +171,13 @@ struct Pow2UpdateConfiguration {
     addition_weight: usize,
     subtraction_weight: usize,
     multiplication_weight: usize,
+    #[allow(unused)]
     division_weight: usize,
     total_weight: usize,
 }
 
 impl Pow2UpdateConfiguration {
+    #[allow(unused)]
     pub fn new(
         addition_weight: usize,
         subtraction_weight: usize,
@@ -224,11 +228,13 @@ enum SmallValueUpdate {
 struct SmallValueUpdateConfiguration {
     addition_weight: usize,
     subtraction_weight: usize,
+    #[allow(unused)]
     multiplication_weight: usize,
     total_weight: usize,
 }
 
 impl SmallValueUpdateConfiguration {
+    #[allow(unused)]
     pub fn new(
         addition_weight: usize,
         subtraction_weight: usize,
@@ -267,11 +273,13 @@ enum DictionaryUpdate {
 struct DictionaryUpdateConfiguration {
     addition_weight: usize,
     subtraction_weight: usize,
+    #[allow(unused)]
     multiplication_weight: usize,
     total_weight: usize,
 }
 
 impl DictionaryUpdateConfiguration {
+    #[allow(unused)]
     pub fn new(
         addition_weight: usize,
         subtraction_weight: usize,
@@ -313,6 +321,7 @@ struct TopLevelMutationConfiguration {
     inversion_weight: usize,
     pow_2_update_weight: usize,
     small_value_update_weight: usize,
+    #[allow(unused)]
     dictionary_update_weight: usize,
     total_weight: usize,
 }
