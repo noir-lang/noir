@@ -706,6 +706,7 @@ impl<'a> NodeFinder<'a> {
                     function_completion_kind,
                     function_kind,
                     None, // attribute first type
+                    trait_id,
                     self_prefix,
                 );
                 if !completion_items.is_empty() {
@@ -758,6 +759,7 @@ impl<'a> NodeFinder<'a> {
                     function_completion_kind,
                     function_kind,
                     None, // attribute first type
+                    None, // trait_id (we are suggesting methods for `Trait::>|<` so no need to auto-import it)
                     self_prefix,
                 );
                 if !completion_items.is_empty() {
