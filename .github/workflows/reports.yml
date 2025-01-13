@@ -120,11 +120,12 @@ jobs:
           mkdir ../reports
           mv gates_report_brillig.json ../reports/gates_report_brillig_inliner_max.json
           ./gates_report_brillig.sh 0
-          jq -i '.programs |= map(.package_name |= (. + "_inliner_zero"))' gates_report_brillig.json
+          jq '.programs |= map(.package_name |= (. + "_inliner_zero"))' gates_report_brillig.json > gates_report_brillig.json
           cat gates_report_brillig.json
           mv gates_report_brillig.json ../reports/gates_report_brillig_inliner_zero.json
           ./gates_report_brillig.sh -9223372036854775808
-          jq -i '.programs |= map(.package_name |= (. + "_inliner_min"))' gates_report_brillig.json
+          jq '.programs |= map(.package_name |= (. + "_inliner_min"))' gates_report_brillig.json > gates_report_brillig.json
+          cat gates_report_brillig.json
           mv gates_report_brillig.json ../reports/gates_report_brillig_inliner_min.json
 
       - name: Merge compilation reports using jq
