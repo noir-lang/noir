@@ -127,8 +127,11 @@ impl<'context> Elaborator<'context> {
                     let func_id = unresolved_trait.method_ids[&name.0.contents];
                     let mut where_clause = where_clause.to_vec();
 
-                    // Attach any trait constraints on the trait to the function
-                    where_clause.extend(unresolved_trait.trait_def.where_clause.clone());
+                    // Attach any trait constraints on the trait to the function,
+                    // but only if the body is going to be type-checked
+                    if body.is_some() {
+                        where_clause.extend(unresolved_trait.trait_def.where_clause.clone());
+                    }
 
                     this.resolve_trait_function(
                         trait_id,
