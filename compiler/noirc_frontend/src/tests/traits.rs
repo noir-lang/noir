@@ -1,10 +1,11 @@
 use crate::hir::def_collector::dc_crate::CompilationError;
+use crate::hir::def_collector::errors::DefCollectorErrorKind;
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir::resolution::import::PathResolutionError;
 use crate::hir::type_check::TypeCheckError;
 use crate::tests::{get_program_errors, get_program_with_maybe_parser_errors};
 
-use super::assert_no_errors;
+use super::{assert_no_errors, get_program};
 
 #[test]
 fn trait_inheritance() {
@@ -1235,4 +1236,33 @@ fn warns_if_trait_is_not_in_scope_for_generic_function_call_and_there_is_only_on
     };
     assert_eq!(ident.to_string(), "foo");
     assert_eq!(trait_name, "private_mod::Foo");
+}
+
+#[test]
+fn error_on_duplicate_impl_with_associated_type() {
+    let src = r#"
+        trait Foo {
+            type Bar;
+        }
+
+        impl Foo for i32 {
+            type Bar = u32;
+        }
+
+        impl Foo for i32 {
+            type Bar = u8;
+        }
+
+        fn main() {}
+    "#;
+
+    // Expect "Impl for type `i32` overlaps with existing impl"
+    //    and "Previous impl defined here"
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 2);
+
+    use CompilationError::DefinitionError;
+    use DefCollectorErrorKind::*;
+    assert!(matches!(&errors[0].0, DefinitionError(OverlappingImpl { .. })));
+    assert!(matches!(&errors[1].0, DefinitionError(OverlappingImplNote { .. })));
 }
