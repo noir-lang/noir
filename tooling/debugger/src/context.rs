@@ -17,6 +17,8 @@ use nargo::NargoError;
 use noirc_artifacts::debug::{DebugArtifact, StackFrame};
 use noirc_driver::DebugFile;
 
+use noirc_errors::call_stack::CallStackId;
+use noirc_errors::debug_info::DebugInfo;
 use thiserror::Error;
 
 use std::collections::BTreeMap;
@@ -450,7 +452,14 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
                         [debug_location.circuit_id as usize]
                         .brillig_locations
                         .get(&brillig_function_id);
-                    brillig_locations.unwrap().get(&brillig_location).cloned().unwrap_or_default()
+                    let call_stack_id = brillig_locations
+                        .unwrap()
+                        .get(&brillig_location)
+                        .cloned()
+                        .unwrap_or_default();
+                    self.debug_artifact.debug_symbols[debug_location.circuit_id as usize]
+                        .location_tree
+                        .get_call_stack(call_stack_id)
                 } else {
                     vec![]
                 }
@@ -882,10 +891,10 @@ fn build_source_to_opcode_debug_mappings(
         .collect();
 
     let mut result: BTreeMap<FileId, Vec<(usize, DebugLocation)>> = BTreeMap::new();
-
     for (circuit_id, debug_symbols) in debug_artifact.debug_symbols.iter().enumerate() {
         add_opcode_locations_map(
-            &debug_symbols.locations,
+            debug_symbols,
+            &debug_symbols.location_map,
             &mut result,
             &simple_files,
             circuit_id,
@@ -899,12 +908,13 @@ fn build_source_to_opcode_debug_mappings(
                     (
                         // TODO: this is a temporary placeholder until the debugger is updated to handle the new brillig debug locations.
                         OpcodeLocation::Brillig { acir_index: 0, brillig_index: key.0 },
-                        val.clone(),
+                        *val,
                     )
                 })
                 .collect();
 
             add_opcode_locations_map(
+                debug_symbols,
                 &brillig_locations_map,
                 &mut result,
                 &simple_files,
@@ -919,13 +929,15 @@ fn build_source_to_opcode_debug_mappings(
 }
 
 fn add_opcode_locations_map(
-    opcode_to_locations: &BTreeMap<OpcodeLocation, Vec<Location>>,
+    debug_info: &DebugInfo,
+    opcode_to_locations: &BTreeMap<OpcodeLocation, CallStackId>,
     source_to_locations: &mut BTreeMap<FileId, Vec<(usize, DebugLocation)>>,
     simple_files: &BTreeMap<&FileId, SimpleFile<&str, &str>>,
     circuit_id: usize,
     brillig_function_id: Option<BrilligFunctionId>,
 ) {
     for (opcode_location, source_locations) in opcode_to_locations {
+        let source_locations = debug_info.location_tree.get_call_stack(*source_locations);
         source_locations.iter().for_each(|source_location| {
             let span = source_location.span;
             let file_id = source_location.file;

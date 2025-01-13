@@ -175,11 +175,14 @@ fn extract_locations_from_error<F: AcirField>(
                             let brillig_locations = debug[resolved_location.acir_function_index]
                                 .brillig_locations
                                 .get(&brillig_function_id);
-                            brillig_locations
+                            let call_stack_id = brillig_locations
                                 .unwrap()
                                 .get(brillig_location)
                                 .cloned()
-                                .unwrap_or_default()
+                                .unwrap_or_default();
+                            debug[resolved_location.acir_function_index]
+                                .location_tree
+                                .get_call_stack(call_stack_id)
                         } else {
                             vec![]
                         }
