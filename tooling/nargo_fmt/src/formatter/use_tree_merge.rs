@@ -181,7 +181,7 @@ impl Ord for Segment {
             // Case-insensitive comparison for plain segments
             let ordering = self_string.to_lowercase().cmp(&other_string.to_lowercase());
             if ordering == Ordering::Equal {
-                self_string.cmp(&other_string)
+                self_string.cmp(other_string)
             } else {
                 ordering
             }
