@@ -412,7 +412,7 @@ impl<
                         // Initialize a prng from per-thread seed
                         let mut thread_prng = XorShiftRng::from_seed(thread_seed);
                         // Generate a mutated input by using the main and additional testcases in the corpus
-                        let input = self.mutator.mutate_input_map_multiple(
+                        let input = self.mutator.generate_mutated_input(
                             corpus.get_testcase_by_id(main_testcase_index).clone(),
                             additional_testcase_index.map(|additional_testcase_index| {
                                 corpus.get_testcase_by_id(additional_testcase_index).clone()
@@ -445,7 +445,7 @@ impl<
                                     default_list = accumulated_coverage
                                         .potential_bool_witness_list
                                         .as_ref()
-                                        .unwrap()
+                                        .unwrap_or(&default_list)
                                         .merge_new(witness.as_ref().unwrap());
                                     bool_witness_list = &default_list;
                                 }

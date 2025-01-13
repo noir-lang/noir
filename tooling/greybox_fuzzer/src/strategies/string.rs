@@ -13,6 +13,7 @@ use std::cmp::min;
 ///     a. Chaotically splicing the string with itself (constructing a new string from random chunks of initial string)
 ///     b. Duplication of a random chunk (picking a chunk of the string and inserting it several times)
 ///     c. Inserting a repeated random value
+///     d. Swapping two chunks
 ///
 /// It also contains the splicing mechanism used when splicing two inputs. It chooses between:
 /// 1. Structured splicing (preserving the indices of the values)
@@ -135,13 +136,15 @@ enum StructuralMutation {
     ChaoticSelfSplice,
     ChunkDuplication,
     RandomValueDuplication,
+    Swap,
 }
 
 struct StructuralMutationConfiguration {
     chaotic_self_splice_weight: usize,
     chunk_duplication_weight: usize,
-    #[allow(unused)]
     random_value_duplication_weight: usize,
+    #[allow(unused)]
+    swap_weight: usize,
     total_weight: usize,
 }
 
@@ -152,13 +155,17 @@ impl StructuralMutationConfiguration {
         chaotic_self_splice_weight: usize,
         chunk_duplication_weight: usize,
         random_value_duplication_weight: usize,
+        swap_weight: usize,
     ) -> Self {
-        let total_weight =
-            chaotic_self_splice_weight + chunk_duplication_weight + random_value_duplication_weight;
+        let total_weight = chaotic_self_splice_weight
+            + chunk_duplication_weight
+            + random_value_duplication_weight
+            + swap_weight;
         Self {
             chaotic_self_splice_weight,
             chunk_duplication_weight,
             random_value_duplication_weight,
+            swap_weight,
             total_weight,
         }
     }
@@ -173,7 +180,11 @@ impl StructuralMutationConfiguration {
         if selector < self.chunk_duplication_weight {
             return StructuralMutation::ChunkDuplication;
         }
-        return StructuralMutation::RandomValueDuplication;
+        selector -= self.chunk_duplication_weight;
+        if selector < self.random_value_duplication_weight {
+            return StructuralMutation::RandomValueDuplication;
+        }
+        return StructuralMutation::Swap;
     }
 }
 
@@ -217,7 +228,8 @@ const BASIC_STRUCTURE_MUTATION_CONFIGURATION: StructuralMutationConfiguration =
         chaotic_self_splice_weight: 3,
         chunk_duplication_weight: 2,
         random_value_duplication_weight: 1,
-        total_weight: 3 + 2 + 1,
+        swap_weight: 3,
+        total_weight: 3 + 2 + 1 + 3,
     };
 
 const BASIC_TOP_LEVEL_MUTATION_CONFIGURATION: TopLevelMutationConfiguration =
@@ -251,13 +263,15 @@ impl<'a> StringMutator<'a> {
         let mut result = input.clone();
         let position = self.prng.gen_range(0..input.len());
         result[position] = match self.value_mutation_configuration.select(self.prng) {
-            ByteValueMutation::RandomByte => {
-                self.dictionary.choose(self.prng).unwrap().to_i128() as u8
+            ByteValueMutation::DictionaryByte => {
+                self.dictionary.choose(self.prng).unwrap().to_i128() as u8 & MAX_ASCII
             }
-            ByteValueMutation::DictionaryByte => self.prng.gen_range(MIN_ASCII..=MAX_ASCII),
+            ByteValueMutation::RandomByte => self.prng.gen_range(MIN_ASCII..=MAX_ASCII),
         };
         result
     }
+
+    /// Mutate a string input value
     pub fn mutate(&mut self, input: &InputValue) -> InputValue {
         let mut result: Vec<u8> = match input {
             InputValue::String(inner_string) => inner_string,
@@ -279,13 +293,49 @@ impl<'a> StringMutator<'a> {
 
     /// Perform one of structural mutations on the buffer
     fn perform_structure_mutation(&mut self, input_buffer: &Vec<u8>) -> Vec<u8> {
-        match BASIC_STRUCTURE_MUTATION_CONFIGURATION.select(self.prng) {
+        let result = match BASIC_STRUCTURE_MUTATION_CONFIGURATION.select(self.prng) {
             StructuralMutation::ChaoticSelfSplice => {
                 self.chaotic_splice(input_buffer, input_buffer)
             }
             StructuralMutation::ChunkDuplication => self.duplicate_chunk(input_buffer),
             StructuralMutation::RandomValueDuplication => self.duplicate_random_value(input_buffer),
-        }
+            StructuralMutation::Swap => self.swap(input_buffer),
+        };
+
+        result
+    }
+    /// Swap 2 random chunks in the buffer
+    fn swap(&mut self, buffer: &Vec<u8>) -> Vec<u8> {
+        let mut result = Vec::new();
+        let buffer_length = buffer.len();
+
+        // We need to leave at least the last byte for the second chunk
+        let first_chunk_position = self.prng.gen_range(0..(buffer_length - 1));
+
+        // The second chunk starts after the first
+        let second_chunk_position = self.prng.gen_range((first_chunk_position + 1)..buffer_length);
+
+        let first_chunk_end =
+            self.prng.gen_range((first_chunk_position + 1)..=second_chunk_position);
+
+        let second_chunk_end = self.prng.gen_range((second_chunk_position + 1)..=buffer_length);
+
+        // Leave the start in place
+        result.extend_from_slice(&buffer[0..first_chunk_position]);
+
+        // Insert second chunk
+        result.extend_from_slice(&buffer[second_chunk_position..(second_chunk_end)]);
+
+        // Insert what's in between the chunks
+        result.extend_from_slice(&buffer[first_chunk_end..(second_chunk_position)]);
+
+        // Insert first chunk
+        result.extend_from_slice(&buffer[first_chunk_position..first_chunk_end]);
+
+        // Insert the tail
+        result.extend_from_slice(&buffer[second_chunk_end..buffer_length]);
+
+        result
     }
 
     /// Take a random chunk of the input and insert it several times into the input
@@ -365,6 +415,7 @@ impl<'a> StringMutator<'a> {
         let mut result = Vec::new();
         let mut index = 0;
         let buffer_length = first_buffer.len();
+        result.resize(buffer_length, 0);
         while index != buffer_length {
             // Pick the length of the sequence from 1 to maximum available
             let sequence_length = self.prng.gen_range(1..=(buffer_length - index));
@@ -433,7 +484,8 @@ pub fn mutate_string_input_value(
     dictionary: &IntDictionary,
 ) -> InputValue {
     let mut string_mutator = StringMutator::new(dictionary, prng);
-    string_mutator.mutate(previous_input)
+    let result = string_mutator.mutate(previous_input);
+    result
 }
 
 pub fn splice_string_input_value(

@@ -1,4 +1,4 @@
-use acvm::FieldElement;
+use acvm::{AcirField, FieldElement};
 
 use field::mutate_field_input_value;
 use int::{mutate_int_input_value, IntDictionary};
@@ -24,7 +24,8 @@ pub struct FullDictionary {
     original_dictionary: Vec<FieldElement>,
     original_int_dictionary: IntDictionary,
 }
-
+const MUTATION_LOG_MIN: u32 = 0;
+const MUTATION_LOG_MAX: u32 = 5;
 const TOP_LEVEL_RANDOM_SPLICE_STRATEGY_WEIGHT: usize = 1usize;
 const SPLICE_ONE_DESCENDANT: usize = 1usize;
 const TOTAL_WEIGHT: usize = TOP_LEVEL_RANDOM_SPLICE_STRATEGY_WEIGHT + SPLICE_ONE_DESCENDANT;
@@ -562,15 +563,16 @@ impl InputMutator {
         }
     }
 
-    pub fn mutate_input_map_multiple(
+    /// Create a mutated input for use in fuzzing
+    /// Picks a number of mutations ({1,2,4,8,16,32}) and applies random mutations to the inputs
+    pub fn generate_mutated_input(
         &self,
         previous_input_map: InputMap,
         additional_input_map: Option<InputMap>,
         prng: &mut XorShiftRng,
     ) -> InputMap {
         let mut starting_input_value = previous_input_map.clone();
-        const MUTATION_LOG_MIN: u32 = 0;
-        const MUTATION_LOG_MAX: u32 = 5;
+
         if additional_input_map.is_some() && prng.gen_range(0..4).is_zero() {
             starting_input_value =
                 self.splice_two_maps(&previous_input_map, &additional_input_map.unwrap(), prng);
@@ -580,17 +582,22 @@ impl InputMutator {
         }
         starting_input_value
     }
+
     /// Generate the default input value for a given type
     /// false for boolean, 0 for integers and field elements and recursively defined through the first three for others
     pub fn generate_default_input_value(abi_type: &AbiType) -> InputValue {
         match abi_type {
+            // Field integer and boolean are 0
             AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean => {
-                InputValue::Field(0i128.into())
+                InputValue::Field(FieldElement::zero())
             }
 
+            // Default string is zero-filled
             AbiType::String { length } => {
                 InputValue::String(String::from_utf8(vec![0x0u8; *length as usize]).unwrap())
             }
+
+            // Array uses default values of its type
             AbiType::Array { length, typ } => {
                 let length = *length as usize;
                 InputValue::Vec(
@@ -598,6 +605,7 @@ impl InputMutator {
                 )
             }
 
+            // Structure is recursively filled out with default values of its members
             AbiType::Struct { fields, .. } => {
                 let fields: Vec<(String, InputValue)> = fields
                     .iter()
@@ -608,6 +616,7 @@ impl InputMutator {
                 InputValue::Struct(fields)
             }
 
+            // Tuple is recursively filled out with default values of its members
             AbiType::Tuple { fields } => {
                 let fields: Vec<_> =
                     fields.iter().map(Self::generate_default_input_value).collect();
@@ -617,7 +626,7 @@ impl InputMutator {
     }
 
     /// Generate an input map consisting of default values (0 for field, false for boolean, etc)
-    /// Used to initialize the corpus for the fuzzer, since the input can't be empty as usually in fuzzers
+    /// Used to initialize the corpus for the fuzzer, since the input can't be empty as usually in binary fuzzers
     pub fn generate_default_input_map(&self) -> InputMap {
         self.abi
             .parameters

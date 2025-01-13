@@ -318,6 +318,7 @@ struct TopLevelMutationConfiguration {
 }
 
 impl TopLevelMutationConfiguration {
+    #[allow(unused)]
     pub fn new(
         substitution_weight: usize,
         inversion_weight: usize,
