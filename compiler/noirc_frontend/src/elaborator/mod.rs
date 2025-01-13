@@ -776,9 +776,15 @@ impl<'context> Elaborator<'context> {
     fn add_missing_named_generics(&mut self, bound: &mut TraitBound) -> Vec<ResolvedGeneric> {
         let mut added_generics = Vec::new();
 
-        let Some(the_trait) = self.lookup_trait_or_error(bound.trait_path.clone()) else {
-            return added_generics;
+        let Ok(item) = self.resolve_path_or_error(bound.trait_path.clone()) else {
+            return Vec::new();
         };
+
+        let PathResolutionItem::Trait(trait_id) = item else {
+            return Vec::new();
+        };
+
+        let the_trait = self.get_trait_mut(trait_id);
 
         if the_trait.associated_types.len() > bound.trait_generics.named_args.len() {
             for associated_type in the_trait.associated_types.clone() {
