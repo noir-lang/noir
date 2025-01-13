@@ -121,11 +121,9 @@ jobs:
           mv gates_report_brillig.json ../reports/gates_report_brillig_inliner_max.json
           ./gates_report_brillig.sh 0
           jq '.programs |= map(.package_name |= (. + "_inliner_zero"))' gates_report_brillig.json > gates_report_brillig.json
-          cat gates_report_brillig.json
           mv gates_report_brillig.json ../reports/gates_report_brillig_inliner_zero.json
           ./gates_report_brillig.sh -9223372036854775808
           jq '.programs |= map(.package_name |= (. + "_inliner_min"))' gates_report_brillig.json > gates_report_brillig.json
-          cat gates_report_brillig.json
           mv gates_report_brillig.json ../reports/gates_report_brillig_inliner_min.json
 
       - name: Merge compilation reports using jq
@@ -454,9 +452,8 @@ jobs:
 
       - name: Merge compilation reports using jq
         run: |
-          mv ./compilation_report.json ./reports/compilation_report.json
           mv ./.github/scripts/merge-bench-reports.sh merge-bench-reports.sh
-          ./merge-bench-reports.sh compilation_report 0
+          ./merge-bench-reports.sh compilation_report
 
       - name: Parse compilation report
         id: compilation_report
@@ -592,9 +589,8 @@ jobs:
 
       - name: Merge memory reports using jq
         run: |
-          mv ./memory_report.json ./reports/memory_report.json
           mv ./.github/scripts/merge-bench-reports.sh merge-bench-reports.sh
-          ./merge-bench-reports.sh memory_report 0
+          ./merge-bench-reports.sh memory_report
 
       - name: Parse compilation memory report
         id: compilation_mem_report
@@ -637,9 +633,8 @@ jobs:
 
       - name: Merge memory reports using jq
         run: |
-          mv ./memory_report.json ./reports/memory_report.json
           mv ./.github/scripts/merge-bench-reports.sh merge-bench-reports.sh
-          ./merge-bench-reports.sh memory_report 0
+          ./merge-bench-reports.sh memory_report
           # Rename the memory report as to not clash with the compilation memory report file name
           cp memory_report.json execution_memory_report.json
 
@@ -684,9 +679,8 @@ jobs:
 
       - name: Merge execution reports using jq
         run: |
-          mv ./execution_report.json ./reports/execution_report.json
           mv ./.github/scripts/merge-bench-reports.sh merge-bench-reports.sh
-          ./merge-bench-reports.sh execution_report 0
+          ./merge-bench-reports.sh execution_report
 
       - name: Parse execution report
         id: execution_report

@@ -14,13 +14,10 @@ for report in ./reports/*; do
   FILE_PATH=$(echo $(ls $report)) 
 
   # Extract the $NAME_PLURAL array from each report and merge it
-  if [ "$2" == "1" ]; then 
-    echo $report
-    combined_reports=$(jq '[."'"$NAME_PLURAL"'"[]] + '"$combined_reports" <<< "$(cat "$report")")
-  else
-    combined_reports=$(jq '[."'"$NAME_PLURAL"'"[]] + '"$combined_reports" <<< "$(cat "$report/$FILE_PATH")")
-  fi
+  combined_reports=$(jq '[."'"$NAME_PLURAL"'"[]] + '"$combined_reports" <<< "$(cat "$report/$FILE_PATH")")
 done
+
+combined_reports=$(jq '[."'$NAME_PLURAL'"[]] + '"$combined_reports" <<< "$(cat ./$REPORT_NAME.json)")
 
 # Wrap the merged memory reports into a new object as to keep the $NAME_PLURAL key
 final_report="{\"$NAME_PLURAL\": $combined_reports}"
