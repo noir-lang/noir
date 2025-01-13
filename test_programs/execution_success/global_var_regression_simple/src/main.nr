@@ -7,7 +7,7 @@ fn main(x: Field, y: pub Field) {
             acc += EXPONENTIATE[i][j];
         }
     }
-    // assert(!acc.lt(x));
+    assert(!acc.lt(x));
     assert(x != y);
 
     dummy_again(x, y);
@@ -20,6 +20,6 @@ fn dummy_again(x: Field, y: Field) {
             acc += EXPONENTIATE[i][j];
         }
     }
-    // assert(!acc.lt(x));
+    assert(!acc.lt(x));
     assert(x != y);
 }

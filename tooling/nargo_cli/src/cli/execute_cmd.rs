@@ -7,7 +7,7 @@ use clap::Args;
 
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::errors::try_to_diagnose_runtime_error;
-use nargo::foreign_calls::DefaultForeignCallExecutor;
+use nargo::foreign_calls::DefaultForeignCallBuilder;
 use nargo::package::Package;
 use nargo::PrintOutput;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml};
@@ -150,12 +150,14 @@ pub(crate) fn execute_program(
         &compiled_program.program,
         initial_witness,
         &Bn254BlackBoxSolver(pedantic_solving),
-        &mut DefaultForeignCallExecutor::new(
-            PrintOutput::Stdout,
-            foreign_call_resolver_url,
+        &mut DefaultForeignCallBuilder {
+            output: PrintOutput::Stdout,
+            enable_mocks: false,
+            resolver_url: foreign_call_resolver_url.map(|s| s.to_string()),
             root_path,
             package_name,
-        ),
+        }
+        .build(),
     );
     match solved_witness_stack_err {
         Ok(solved_witness_stack) => Ok(solved_witness_stack),
