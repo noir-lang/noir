@@ -131,8 +131,8 @@ jobs:
       - name: Merge compilation reports using jq
         run: |
           mv ./.github/scripts/merge-bench-reports.sh merge-bench-reports.sh
-          ./merge-bench-reports.sh program 1
-          mv ./program.json ./gates_report_brillig.json
+          jq -s '[.[][]]' ./reports/* > gates_report_brillig.json
+          cat gates_report_brillig
 
       - name: Compare Brillig bytecode size reports
         id: brillig_bytecode_diff
