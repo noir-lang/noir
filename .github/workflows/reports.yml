@@ -300,17 +300,17 @@ jobs:
       matrix:
         include:
           # - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-contracts, is_library: true }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-inner, take_average: true }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-tail, take_average: true  }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-reset, take_average: true }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-base-private, take_average: true }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-base-public, take_average: true }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-block-merge, take_average: true }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-inner, num_runs: 5 }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-tail, num_runs: 5  }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-reset, num_runs: 5 }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-base-private, num_runs: 5 }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-base-public, num_runs: 5 }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-block-merge, num_runs: 5 }
           #- project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-block-root-empty }
           #- project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-block-single-tx }
           #- project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-block-root }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-merge, take_average: true }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-root, take_average: true }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-merge, num_runs: 5 }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-root, num_runs: 5 }
 
     name: External repo compilation and execution reports - ${{ matrix.project.repo }}/${{ matrix.project.path }}
     steps:
@@ -351,12 +351,7 @@ jobs:
           touch parse_time.sh
           chmod +x parse_time.sh
           cp /home/runner/work/noir/noir/scripts/test_programs/parse_time.sh ./parse_time.sh
-          if [ "${{ matrix.project.take_average }}" == "true" ]; then
-            # Take the average of 5 runs 
-            ./compilation_report.sh 1 5
-          else
-            ./compilation_report.sh 1
-          fi
+          ./compilation_report.sh 1 ${{ matrix.project.num_runs }}
       
       - name: Generate execution report
         working-directory: ./test-repo/${{ matrix.project.path }}
@@ -364,12 +359,7 @@ jobs:
         run: |
           mv /home/runner/work/noir/noir/scripts/test_programs/execution_report.sh ./execution_report.sh
           mv /home/runner/work/noir/noir/scripts/test_programs/parse_time.sh ./parse_time.sh
-          if [ "${{ matrix.project.take_average }}" == "true" ]; then
-            # Take the average of 5 runs 
-            ./execution_report.sh 1 5
-          else
-            ./execution_report.sh 1
-          fi
+          ./execution_report.sh 1 ${{ matrix.project.num_runs }}
 
       - name: Move compilation report
         id: compilation_report
