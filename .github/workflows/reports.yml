@@ -344,41 +344,32 @@ jobs:
           path: test-repo
           ref: ${{ matrix.project.ref }}
 
-      - name: Generate compilation report without averages
+      - name: Generate compilation report
         working-directory: ./test-repo/${{ matrix.project.path }}
-        if: ${{ !matrix.project.take_average }}
         run: |
           mv /home/runner/work/noir/noir/scripts/test_programs/compilation_report.sh ./compilation_report.sh
           touch parse_time.sh
           chmod +x parse_time.sh
           cp /home/runner/work/noir/noir/scripts/test_programs/parse_time.sh ./parse_time.sh
-          ./compilation_report.sh 1
-
-      - name: Generate compilation report with averages
-        working-directory: ./test-repo/${{ matrix.project.path }}
-        if: ${{ matrix.project.take_average }}
-        run: |
-          mv /home/runner/work/noir/noir/scripts/test_programs/compilation_report.sh ./compilation_report.sh
-          touch parse_time.sh
-          chmod +x parse_time.sh
-          cp /home/runner/work/noir/noir/scripts/test_programs/parse_time.sh ./parse_time.sh
-          ./compilation_report.sh 1 1
+          if [ "${{ matrix.project.take_average }}" == "true" ]; then
+            # Take the average of 5 runs 
+            ./compilation_report.sh 1 5
+          else
+            ./compilation_report.sh 1
+          fi
       
-      - name: Generate execution report without averages
+      - name: Generate execution report
         working-directory: ./test-repo/${{ matrix.project.path }}
-        if: ${{ !matrix.project.is_library && !matrix.project.take_average }}
+        if: ${{ !matrix.project.is_library }}
         run: |
           mv /home/runner/work/noir/noir/scripts/test_programs/execution_report.sh ./execution_report.sh
           mv /home/runner/work/noir/noir/scripts/test_programs/parse_time.sh ./parse_time.sh
-          ./execution_report.sh 1
-
-      - name: Generate execution report with averages
-        working-directory: ./test-repo/${{ matrix.project.path }}
-        if: ${{ !matrix.project.is_library && matrix.project.take_average }}
-        run: |
-          mv /home/runner/work/noir/noir/scripts/test_programs/execution_report.sh ./execution_report.sh
-          mv /home/runner/work/noir/noir/scripts/test_programs/parse_time.sh ./parse_time.sh
-          ./execution_report.sh 1 1
+          if [ "${{ matrix.project.take_average }}" == "true" ]; then
+            # Take the average of 5 runs 
+            ./execution_report.sh 1 5
+          else
+            ./execution_report.sh 1
+          fi
 
       - name: Move compilation report
         id: compilation_report
