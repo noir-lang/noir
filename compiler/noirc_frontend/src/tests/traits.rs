@@ -5,7 +5,7 @@ use crate::hir::resolution::import::PathResolutionError;
 use crate::hir::type_check::TypeCheckError;
 use crate::tests::{get_program_errors, get_program_with_maybe_parser_errors};
 
-use super::{assert_no_errors, get_program};
+use super::assert_no_errors;
 
 #[test]
 fn trait_inheritance() {
@@ -1251,6 +1251,35 @@ fn error_on_duplicate_impl_with_associated_type() {
 
         impl Foo for i32 {
             type Bar = u8;
+        }
+
+        fn main() {}
+    "#;
+
+    // Expect "Impl for type `i32` overlaps with existing impl"
+    //    and "Previous impl defined here"
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 2);
+
+    use CompilationError::DefinitionError;
+    use DefCollectorErrorKind::*;
+    assert!(matches!(&errors[0].0, DefinitionError(OverlappingImpl { .. })));
+    assert!(matches!(&errors[1].0, DefinitionError(OverlappingImplNote { .. })));
+}
+
+#[test]
+fn error_on_duplicate_impl_with_associated_constant() {
+    let src = r#"
+        trait Foo {
+            let Bar: u32;
+        }
+
+        impl Foo for i32 {
+            let Bar = 5;
+        }
+
+        impl Foo for i32 {
+            let Bar = 6;
         }
 
         fn main() {}
