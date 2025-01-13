@@ -29,18 +29,20 @@ fn main() {
 }
 
 // Ensure we can use `<T as Foo>::Bar: Eq` in a function's where clause
-fn call_foo<T>(x: T) where
+fn call_foo<T>(x: T)
+where
     T: Foo,
-    <T as Foo>::Bar: Eq
+    <T as Foo>::Bar: Eq,
 {
     let y = x.foo();
     assert_eq(y, y);
 }
 
 // Ensure we can use `<T as Foo>::Bar: Eq` in a trait impl's where clause
-impl<T> Foo for Option<T> where
+impl<T> Foo for Option<T>
+where
     T: Foo,
-    <T as Foo>::Bar: Eq
+    <T as Foo>::Bar: Eq,
 {
     type Bar = <T as Foo>::Bar;
 
@@ -54,5 +56,5 @@ impl<T> Foo for Option<T> where
 // trait Baz<T> where
 //     T: Foo,
 //     <T as Foo>::Bar: Eq {}
-// 
+//
 // impl Baz<u64> for u32 {}

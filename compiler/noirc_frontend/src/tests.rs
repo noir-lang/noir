@@ -3955,3 +3955,26 @@ fn mutable_self_call() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn checks_visibility_of_trait_related_to_trait_impl_on_method_call() {
+    let src = r#"
+    mod moo {
+        pub struct Bar {}
+    }
+
+    trait Foo {
+        fn foo(self);
+    }
+
+    impl Foo for moo::Bar {
+        fn foo(self) {}
+    }
+
+    fn main() {
+        let bar = moo::Bar {};
+        bar.foo();
+    }
+    "#;
+    assert_no_errors(src);
+}
