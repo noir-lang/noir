@@ -2879,4 +2879,55 @@ fn main() {
         let items = get_completions(src).await;
         assert_eq!(items.len(), 1);
     }
+
+    #[test]
+    async fn test_does_not_suggest_trait_function_not_visible() {
+        let src = r#"
+        mod moo {
+            trait Foo {
+                fn foobar();
+            }
+
+            impl Foo for Field {
+                fn foobar() {}
+            }
+        }
+
+        fn main() {
+            Field::fooba>|<
+        }
+
+        "#;
+        assert_completion(src, vec![]).await;
+    }
+
+    #[test]
+    async fn test_suggests_multiple_trait_methods() {
+        let src = r#"
+        mod moo {
+            pub trait Foo {
+                fn foobar();
+            }
+
+            impl Foo for Field {
+                fn foobar() {}
+            }
+
+            pub trait Bar {
+                fn foobar();
+            }
+
+            impl Bar for Field {
+                fn foobar() {}
+            }
+        }
+
+        fn main() {
+            Field::fooba>|<
+        }
+
+        "#;
+        let items = get_completions(src).await;
+        assert_eq!(items.len(), 2);
+    }
 }
