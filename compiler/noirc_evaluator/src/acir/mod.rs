@@ -1,6 +1,7 @@
 //! This file holds the pass to convert from Noir's SSA IR to ACIR.
 
 use fxhash::FxHashMap as HashMap;
+use noirc_errors::call_stack::CallStack;
 use std::collections::{BTreeMap, HashSet};
 use std::fmt::Debug;
 
@@ -34,7 +35,6 @@ use crate::ssa::ir::instruction::Hint;
 use crate::ssa::{
     function_builder::data_bus::DataBus,
     ir::{
-        call_stack::CallStack,
         dfg::DataFlowGraph,
         function::{Function, FunctionId, RuntimeType},
         instruction::{
@@ -382,11 +382,12 @@ impl<'a> Context<'a> {
     }
 
     fn convert_ssa_function(
-        self,
+        mut self,
         ssa: &Ssa,
         function: &Function,
         brillig: &Brillig,
     ) -> Result<Option<GeneratedAcir<FieldElement>>, RuntimeError> {
+        self.acir_context.set_call_stack_helper(brillig.call_stacks.to_owned());
         match function.runtime() {
             RuntimeType::Acir(inline_type) => {
                 match inline_type {
@@ -2932,7 +2933,7 @@ mod test {
         // Set a call stack for testing whether `brillig_locations` in the `GeneratedAcir` was accurately set.
         let stack = vec![Location::dummy(), Location::dummy()];
         let call_stack =
-            builder.current_function.dfg.call_stack_data.get_or_insert_locations(stack);
+            builder.current_function.dfg.call_stack_data.get_or_insert_locations(&stack);
         builder.set_call_stack(call_stack);
 
         let foo_v0 = builder.add_parameter(Type::field());

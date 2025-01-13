@@ -22,14 +22,14 @@ use std::collections::BTreeSet;
 
 use acvm::{acir::AcirField, FieldElement};
 use im::HashSet;
+use noirc_errors::call_stack::{CallStack, CallStackId};
 
 use crate::{
-    brillig::brillig_gen::convert_ssa_function,
+    brillig::Brillig,
     errors::RuntimeError,
     ssa::{
         ir::{
             basic_block::BasicBlockId,
-            call_stack::{CallStack, CallStackId},
             cfg::ControlFlowGraph,
             dfg::DataFlowGraph,
             dom::DominatorTree,
@@ -985,8 +985,8 @@ fn brillig_bytecode_size(function: &Function) -> usize {
 
     // This is to try to prevent hitting ICE.
     temp.dead_instruction_elimination(false);
-
-    convert_ssa_function(&temp, false).byte_code.len()
+    let mut brillig_temp = Brillig::default();
+    brillig_temp.convert_ssa_function(&temp, false).byte_code.len()
 }
 
 /// Decide if the new bytecode size is acceptable, compared to the original.

@@ -127,9 +127,9 @@ impl ControlFlowGraph {
 
 #[cfg(test)]
 mod tests {
-    use crate::ssa::ir::{
-        call_stack::CallStackId, instruction::TerminatorInstruction, map::Id, types::Type,
-    };
+    use noirc_errors::call_stack::CallStackId;
+
+    use crate::ssa::ir::{instruction::TerminatorInstruction, map::Id, types::Type};
 
     use super::{super::function::Function, ControlFlowGraph};
 

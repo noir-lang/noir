@@ -338,7 +338,7 @@ fn convert_generated_acir_into_circuit(
     let current_witness_index = generated_acir.current_witness_index().0;
     let GeneratedAcir {
         return_witnesses,
-        locations,
+        location_map,
         brillig_locations,
         input_witnesses,
         assertion_payloads: assert_messages,
@@ -364,26 +364,11 @@ fn convert_generated_acir_into_circuit(
         assert_messages: assert_messages.into_iter().collect(),
     };
 
-    // This converts each im::Vector in the BTreeMap to a Vec
-    let locations = locations
-        .into_iter()
-        .map(|(index, locations)| (index, locations.into_iter().collect()))
-        .collect();
-
-    let brillig_locations = brillig_locations
-        .into_iter()
-        .map(|(function_index, locations)| {
-            let locations = locations
-                .into_iter()
-                .map(|(index, locations)| (index, locations.into_iter().collect()))
-                .collect();
-            (function_index, locations)
-        })
-        .collect();
-
+    let location_tree = generated_acir.call_stacks.to_location_tree();
     let mut debug_info = DebugInfo::new(
-        locations,
         brillig_locations,
+        location_map,
+        location_tree,
         debug_variables,
         debug_functions,
         debug_types,

@@ -27,10 +27,10 @@ mod instructions;
 use artifact::Label;
 use brillig_variable::SingleAddrVariable;
 pub(crate) use instructions::BrilligBinaryOp;
+use noirc_errors::call_stack::{CallStack, CallStackHelper, CallStackId};
 use registers::{RegisterAllocator, ScratchSpace};
 
 use self::{artifact::BrilligArtifact, debug_show::DebugToString, registers::Stack};
-use crate::ssa::ir::call_stack::CallStack;
 use acvm::{
     acir::brillig::{MemoryAddress, Opcode as BrilligOpcode},
     AcirField,
@@ -95,11 +95,15 @@ pub(crate) struct BrilligContext<F, Registers> {
     /// Whether this context can call procedures or not.
     /// This is used to prevent a procedure from calling another procedure.
     can_call_procedures: bool,
+    pub(crate) call_stacks: CallStackHelper,
 }
 
 /// Regular brillig context to codegen user defined functions
 impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
-    pub(crate) fn new(enable_debug_trace: bool) -> BrilligContext<F, Stack> {
+    pub(crate) fn new(
+        enable_debug_trace: bool,
+        call_stacks: CallStackHelper,
+    ) -> BrilligContext<F, Stack> {
         BrilligContext {
             obj: BrilligArtifact::default(),
             registers: Stack::new(),
@@ -108,7 +112,12 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             next_section: 1,
             debug_show: DebugShow::new(enable_debug_trace),
             can_call_procedures: true,
+            call_stacks,
         }
+    }
+
+    pub(crate) fn get_or_insert_locations(&mut self, location: &CallStack) -> CallStackId {
+        self.call_stacks.get_or_insert_locations(location)
     }
 
     /// Splits a two's complement signed integer in the sign bit and the absolute value.
@@ -209,6 +218,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, ScratchSpace> {
             next_section: 1,
             debug_show: DebugShow::new(enable_debug_trace),
             can_call_procedures: false,
+            call_stacks: CallStackHelper::default(),
         }
     }
 }
@@ -225,7 +235,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     }
 
     /// Sets a current call stack that the next pushed opcodes will be associated with.
-    pub(crate) fn set_call_stack(&mut self, call_stack: CallStack) {
+    pub(crate) fn set_call_stack(&mut self, call_stack: CallStackId) {
         self.obj.set_call_stack(call_stack);
     }
 }
@@ -241,6 +251,7 @@ pub(crate) mod tests {
     use acvm::brillig_vm::brillig::HeapValueType;
     use acvm::brillig_vm::{VMStatus, VM};
     use acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
+    use noirc_errors::call_stack::CallStackHelper;
 
     use crate::brillig::brillig_ir::{BrilligBinaryOp, BrilligContext};
     use crate::ssa::ir::function::FunctionId;
@@ -284,7 +295,7 @@ pub(crate) mod tests {
     }
 
     pub(crate) fn create_context(id: FunctionId) -> BrilligContext<FieldElement, Stack> {
-        let mut context = BrilligContext::new(true);
+        let mut context = BrilligContext::new(true, CallStackHelper::default());
         context.enter_context(Label::function(id));
         context
     }
@@ -337,7 +348,7 @@ pub(crate) mod tests {
         //   let the_sequence = get_number_sequence(12);
         //   assert(the_sequence.len() == 12);
         // }
-        let mut context = BrilligContext::new(true);
+        let mut context = BrilligContext::new(true, CallStackHelper::default());
         let r_stack = ReservedRegisters::free_memory_pointer();
         // Start stack pointer at 0
         context.usize_const_instruction(r_stack, FieldElement::from(ReservedRegisters::len() + 3));

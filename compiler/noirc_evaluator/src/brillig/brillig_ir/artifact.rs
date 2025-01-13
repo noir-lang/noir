@@ -1,8 +1,9 @@
 use acvm::acir::brillig::Opcode as BrilligOpcode;
 use acvm::acir::circuit::ErrorSelector;
+use noirc_errors::call_stack::{CallStackId, LocationTree};
 use std::collections::{BTreeMap, HashMap};
 
-use crate::ssa::ir::{basic_block::BasicBlockId, call_stack::CallStack, function::FunctionId};
+use crate::ssa::ir::{basic_block::BasicBlockId, function::FunctionId};
 use crate::ErrorType;
 
 use super::procedures::ProcedureId;
@@ -24,7 +25,7 @@ pub(crate) enum BrilligParameter {
 #[derive(Debug, Default)]
 pub(crate) struct GeneratedBrillig<F> {
     pub(crate) byte_code: Vec<BrilligOpcode<F>>,
-    pub(crate) locations: BTreeMap<OpcodeLocation, CallStack>,
+    pub(crate) locations: BTreeMap<OpcodeLocation, CallStackId>,
     pub(crate) error_types: BTreeMap<ErrorSelector, ErrorType>,
     pub(crate) name: String,
     pub(crate) procedure_locations: BTreeMap<ProcedureId, (OpcodeLocation, OpcodeLocation)>,
@@ -49,9 +50,10 @@ pub(crate) struct BrilligArtifact<F> {
     /// TODO: and have an enum which indicates whether the jump is internal or external
     unresolved_external_call_labels: Vec<(JumpInstructionPosition, Label)>,
     /// Maps the opcodes that are associated with a callstack to it.
-    locations: BTreeMap<OpcodeLocation, CallStack>,
+    locations: BTreeMap<OpcodeLocation, CallStackId>,
+    pub(crate) location_tree: LocationTree,
     /// The current call stack. All opcodes that are pushed will be associated with this call stack.
-    call_stack: CallStack,
+    call_stack_id: CallStackId,
     /// Name of the function, only used for debugging purposes.
     pub(crate) name: String,
 
@@ -217,14 +219,14 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
         }
 
         for (position_in_bytecode, call_stack) in obj.locations.iter() {
-            self.locations.insert(position_in_bytecode + offset, call_stack.clone());
+            self.locations.insert(position_in_bytecode + offset, *call_stack);
         }
     }
 
     /// Adds a brillig instruction to the brillig byte code
     pub(crate) fn push_opcode(&mut self, opcode: BrilligOpcode<F>) {
-        if !self.call_stack.is_empty() {
-            self.locations.insert(self.index_of_next_opcode(), self.call_stack.clone());
+        if !self.call_stack_id.is_root() {
+            self.locations.insert(self.index_of_next_opcode(), self.call_stack_id);
         }
         self.byte_code.push(opcode);
     }
@@ -324,7 +326,7 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
         }
     }
 
-    pub(crate) fn set_call_stack(&mut self, call_stack: CallStack) {
-        self.call_stack = call_stack;
+    pub(crate) fn set_call_stack(&mut self, call_stack: CallStackId) {
+        self.call_stack_id = call_stack;
     }
 }

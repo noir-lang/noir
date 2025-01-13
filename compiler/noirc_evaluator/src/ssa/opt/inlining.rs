@@ -6,12 +6,12 @@ use std::collections::{BTreeSet, HashSet, VecDeque};
 
 use acvm::acir::AcirField;
 use iter_extended::{btree_map, vecmap};
+use noirc_errors::call_stack::CallStackId;
 
 use crate::ssa::{
     function_builder::FunctionBuilder,
     ir::{
         basic_block::BasicBlockId,
-        call_stack::CallStackId,
         dfg::InsertInstructionResult,
         function::{Function, FunctionId, RuntimeType},
         instruction::{Instruction, InstructionId, TerminatorInstruction},

@@ -1,10 +1,10 @@
 use iter_extended::vecmap;
+use noirc_errors::call_stack::CallStackId;
 
 use crate::ssa::ir::types::Type;
 
 use super::{
     basic_block::BasicBlockId,
-    call_stack::CallStackId,
     dfg::InsertInstructionResult,
     function::Function,
     instruction::{Instruction, InstructionId},

@@ -7,7 +7,6 @@ use crate::brillig::brillig_ir::registers::Stack;
 use crate::brillig::brillig_ir::{
     BrilligBinaryOp, BrilligContext, ReservedRegisters, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
 };
-use crate::ssa::ir::call_stack::CallStack;
 use crate::ssa::ir::instruction::{ConstrainError, Hint};
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
@@ -23,6 +22,7 @@ use acvm::acir::brillig::{MemoryAddress, ValueOrArray};
 use acvm::{acir::AcirField, FieldElement};
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use iter_extended::vecmap;
+use noirc_errors::call_stack::CallStackId;
 use num_bigint::BigUint;
 use std::sync::Arc;
 
@@ -45,6 +45,9 @@ pub(crate) struct BrilligBlock<'block> {
 }
 
 impl<'block> BrilligBlock<'block> {
+    // pub(crate) fn get_or_insert_location(&mut self, call_stack: &CallStack) {
+    //     self.brillig_context.get_or_insert_locations(&call_stack);
+    // }
     /// Converts an SSA Basic block into a sequence of Brillig opcodes
     pub(crate) fn compile(
         function_context: &'block mut FunctionContext,
@@ -201,7 +204,9 @@ impl<'block> BrilligBlock<'block> {
     /// Converts an SSA instruction into a sequence of Brillig opcodes.
     fn convert_ssa_instruction(&mut self, instruction_id: InstructionId, dfg: &DataFlowGraph) {
         let instruction = &dfg[instruction_id];
-        self.brillig_context.set_call_stack(dfg.get_instruction_call_stack(instruction_id));
+        let call_stack = dfg.get_instruction_call_stack(instruction_id);
+        let call_stack_new_id = self.brillig_context.get_or_insert_locations(&call_stack);
+        self.brillig_context.set_call_stack(call_stack_new_id);
 
         self.initialize_constants(
             &self.function_context.constant_allocation.allocated_at_location(
@@ -852,7 +857,7 @@ impl<'block> BrilligBlock<'block> {
                 self.brillig_context,
             );
         }
-        self.brillig_context.set_call_stack(CallStack::new());
+        self.brillig_context.set_call_stack(CallStackId::root());
     }
 
     fn convert_ssa_function_call(

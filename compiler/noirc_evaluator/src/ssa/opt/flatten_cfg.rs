@@ -135,11 +135,11 @@ use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use acvm::{acir::AcirField, acir::BlackBoxFunc, FieldElement};
 use iter_extended::vecmap;
+use noirc_errors::call_stack::CallStackId;
 
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
-        call_stack::CallStackId,
         cfg::ControlFlowGraph,
         dfg::InsertInstructionResult,
         function::{Function, FunctionId, RuntimeType},

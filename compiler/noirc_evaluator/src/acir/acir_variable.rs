@@ -16,15 +16,14 @@ use acvm::{
 };
 use fxhash::FxHashMap as HashMap;
 use iter_extended::{try_vecmap, vecmap};
+use noirc_errors::call_stack::{CallStack, CallStackHelper};
 use num_bigint::BigUint;
 use std::cmp::Ordering;
 use std::{borrow::Cow, hash::Hash};
 
 use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
 use crate::errors::{InternalBug, InternalError, RuntimeError, SsaReport};
-use crate::ssa::ir::{
-    call_stack::CallStack, instruction::Endian, types::NumericType, types::Type as SsaType,
-};
+use crate::ssa::ir::{instruction::Endian, types::NumericType, types::Type as SsaType};
 
 use super::big_int::BigIntContext;
 use super::generated_acir::{BrilligStdlibFunc, GeneratedAcir, PLACEHOLDER_BRILLIG_INDEX};
@@ -240,11 +239,16 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
     }
 
     pub(crate) fn get_call_stack(&self) -> CallStack {
-        self.acir_ir.call_stack.clone()
+        self.acir_ir.call_stacks.get_call_stack(self.acir_ir.call_stack_id)
     }
 
     pub(crate) fn set_call_stack(&mut self, call_stack: CallStack) {
+        self.acir_ir.call_stacks.get_or_insert_locations(&call_stack);
         self.acir_ir.call_stack = call_stack;
+    }
+
+    pub(crate) fn set_call_stack_helper(&mut self, call_stack: CallStackHelper) {
+        self.acir_ir.call_stacks = call_stack;
     }
 
     pub(crate) fn get_or_create_witness_var(
@@ -2088,6 +2092,15 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
     ) -> AssertionPayload<F> {
         self.acir_ir.generate_assertion_message_payload(message)
     }
+
+    // pub(crate) fn set_locations(&mut self, locations: Vec<LocationNode>) {
+    //     self.acir_ir.location_tree = LocationTree {
+    //         locations:     locations.into_iter().map(|node| LocationNodeDebugInfo {
+    //             value: node.value,
+    //             parent: node.parent,
+    //         }).collect(),
+    //     }
+    // }
 }
 
 /// Enum representing the possible values that a

@@ -1,48 +1,70 @@
 use fxhash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
-use noirc_errors::Location;
+use crate::Location;
 
-pub(crate) type CallStack = Vec<Location>;
-
+pub type CallStack = Vec<Location>;
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub(crate) struct CallStackId(u32);
+pub struct CallStackId(u32);
 
 impl CallStackId {
-    pub(crate) fn root() -> Self {
+    pub fn root() -> Self {
         Self::new(0)
     }
 
-    fn new(id: usize) -> Self {
+    pub fn new(id: usize) -> Self {
         Self(id as u32)
     }
 
-    pub(crate) fn index(&self) -> usize {
+    pub fn index(&self) -> usize {
         self.0 as usize
     }
 
-    pub(crate) fn is_root(&self) -> bool {
+    pub fn is_root(&self) -> bool {
         self.0 == 0
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Hash)]
+pub struct LocationNodeDebugInfo {
+    pub parent: Option<CallStackId>,
+    pub value: Location,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, Hash)]
+pub struct LocationTree {
+    pub locations: Vec<LocationNodeDebugInfo>,
+}
+
+impl LocationTree {
+    /// Construct a CallStack from a CallStackId
+    pub fn get_call_stack(&self, mut call_stack: CallStackId) -> CallStack {
+        let mut result = Vec::new();
+        while let Some(parent) = self.locations[call_stack.index()].parent {
+            result.push(self.locations[call_stack.index()].value);
+            call_stack = parent;
+        }
+        result
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct LocationNode {
-    pub(crate) parent: Option<CallStackId>,
-    pub(crate) children: Vec<CallStackId>,
-    pub(crate) children_hash: FxHashMap<u64, CallStackId>,
-    pub(crate) value: Location,
+pub struct LocationNode {
+    pub parent: Option<CallStackId>,
+    pub children: Vec<CallStackId>,
+    pub children_hash: FxHashMap<u64, CallStackId>,
+    pub value: Location,
 }
 
 impl LocationNode {
-    pub(crate) fn new(parent: Option<CallStackId>, value: Location) -> Self {
+    pub fn new(parent: Option<CallStackId>, value: Location) -> Self {
         LocationNode { parent, children: Vec::new(), children_hash: FxHashMap::default(), value }
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct CallStackHelper {
-    locations: Vec<LocationNode>,
+pub struct CallStackHelper {
+    pub locations: Vec<LocationNode>,
 }
 
 impl Default for CallStackHelper {
@@ -56,7 +78,7 @@ impl Default for CallStackHelper {
 
 impl CallStackHelper {
     /// Construct a CallStack from a CallStackId
-    pub(crate) fn get_call_stack(&self, mut call_stack: CallStackId) -> CallStack {
+    pub fn get_call_stack(&self, mut call_stack: CallStackId) -> CallStack {
         let mut result = Vec::new();
         while let Some(parent) = self.locations[call_stack.index()].parent {
             result.push(self.locations[call_stack.index()].value);
@@ -66,7 +88,7 @@ impl CallStackHelper {
     }
 
     /// Returns a new CallStackId which extends the call_stack with the provided call_stack.
-    pub(crate) fn extend_call_stack(
+    pub fn extend_call_stack(
         &mut self,
         mut call_stack: CallStackId,
         locations: &CallStack,
@@ -78,7 +100,7 @@ impl CallStackHelper {
     }
 
     /// Adds a location to the call stack
-    pub(crate) fn add_child(&mut self, call_stack: CallStackId, location: Location) -> CallStackId {
+    pub fn add_child(&mut self, call_stack: CallStackId, location: Location) -> CallStackId {
         let key = fxhash::hash64(&location);
         if let Some(result) = self.locations[call_stack.index()].children_hash.get(&key) {
             if self.locations[result.index()].value == location {
@@ -96,11 +118,7 @@ impl CallStackHelper {
     }
 
     /// Retrieve the CallStackId corresponding to call_stack with the last 'len' locations removed.
-    pub(crate) fn unwind_call_stack(
-        &self,
-        mut call_stack: CallStackId,
-        mut len: usize,
-    ) -> CallStackId {
+    pub fn unwind_call_stack(&self, mut call_stack: CallStackId, mut len: usize) -> CallStackId {
         while len > 0 {
             if let Some(parent) = self.locations[call_stack.index()].parent {
                 len -= 1;
@@ -112,7 +130,7 @@ impl CallStackHelper {
         call_stack
     }
 
-    pub(crate) fn add_location_to_root(&mut self, location: Location) -> CallStackId {
+    pub fn add_location_to_root(&mut self, location: Location) -> CallStackId {
         if self.locations.is_empty() {
             self.locations.push(LocationNode::new(None, location));
             CallStackId::root()
@@ -122,7 +140,19 @@ impl CallStackHelper {
     }
 
     /// Get (or create) a CallStackId corresponding to the given locations
-    pub(crate) fn get_or_insert_locations(&mut self, locations: CallStack) -> CallStackId {
-        self.extend_call_stack(CallStackId::root(), &locations)
+    pub fn get_or_insert_locations(&mut self, locations: &CallStack) -> CallStackId {
+        self.extend_call_stack(CallStackId::root(), locations)
+    }
+
+    // Clone the locations into a LocationTree
+    pub fn to_location_tree(&self) -> LocationTree {
+        LocationTree {
+            locations: self
+                .locations
+                .clone()
+                .into_iter()
+                .map(|node| LocationNodeDebugInfo { value: node.value, parent: node.parent })
+                .collect(),
+        }
     }
 }

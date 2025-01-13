@@ -190,8 +190,12 @@ fn find_callsite_labels<'files>(
                 }
             }
             let brillig_locations = debug_symbols.brillig_locations.get(&brillig_function_id);
+
             if let Some(brillig_locations) = brillig_locations {
-                brillig_locations.get(&brillig_location).cloned().unwrap_or_default()
+                brillig_locations
+                    .get(&brillig_location)
+                    .map(|call_stack| debug_symbols.location_tree.get_call_stack(*call_stack))
+                    .unwrap_or_default()
             } else {
                 vec![]
             }
@@ -298,7 +302,11 @@ mod tests {
         FieldElement,
     };
     use fm::FileManager;
-    use noirc_errors::{debug_info::DebugInfo, Location, Span};
+    use noirc_errors::{
+        call_stack::{CallStackHelper, CallStackId},
+        debug_info::DebugInfo,
+        Location, Span,
+    };
     use std::{collections::BTreeMap, path::Path};
 
     use crate::{flamegraph::CompilationSample, opcode_formatter::format_acir_opcode};
@@ -356,32 +364,37 @@ mod tests {
         let baz_whatever_call_location =
             Location::new(find_spans_for(source_code, "whatever()")[2], file_id);
 
-        let mut opcode_locations = BTreeMap::<OpcodeLocation, Vec<Location>>::new();
+        //  let mut opcode_locations = BTreeMap::<OpcodeLocation, Vec<Location>>::new();
+        let mut opcode_locations = BTreeMap::<OpcodeLocation, CallStackId>::new();
+        let mut call_stack_hlp = CallStackHelper::default();
         // main::foo::baz::whatever
-        opcode_locations.insert(
-            OpcodeLocation::Acir(0),
-            vec![
-                main_declaration_location,
-                main_foo_call_location,
-                foo_baz_call_location,
-                baz_whatever_call_location,
-            ],
-        );
-
+        let call_stack_id = call_stack_hlp.get_or_insert_locations(&vec![
+            main_declaration_location,
+            main_foo_call_location,
+            foo_baz_call_location,
+            baz_whatever_call_location,
+        ]);
+        opcode_locations.insert(OpcodeLocation::Acir(0), call_stack_id);
         // main::bar::whatever
-        opcode_locations.insert(
-            OpcodeLocation::Acir(1),
-            vec![main_declaration_location, main_bar_call_location, bar_whatever_call_location],
-        );
+        let call_stack_id = call_stack_hlp.get_or_insert_locations(&vec![
+            main_declaration_location,
+            main_bar_call_location,
+            bar_whatever_call_location,
+        ]);
+        opcode_locations.insert(OpcodeLocation::Acir(1), call_stack_id);
         // main::whatever
-        opcode_locations.insert(
-            OpcodeLocation::Acir(2),
-            vec![main_declaration_location, main_whatever_call_location],
-        );
+        let call_stack_id = call_stack_hlp
+            .get_or_insert_locations(&vec![main_declaration_location, main_whatever_call_location]);
+        opcode_locations.insert(OpcodeLocation::Acir(2), call_stack_id);
+
+        let mut opcode_locations = BTreeMap::<OpcodeLocation, CallStackId>::new();
+        opcode_locations.insert(OpcodeLocation::Acir(42), CallStackId::new(1));
+        let location_tree = call_stack_hlp.to_location_tree();
 
         let debug_info = DebugInfo::new(
-            opcode_locations,
             BTreeMap::default(),
+            opcode_locations,
+            location_tree,
             BTreeMap::default(),
             BTreeMap::default(),
             BTreeMap::default(),
