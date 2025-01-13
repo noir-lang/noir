@@ -24,7 +24,6 @@ use self::{
 };
 
 use super::ir::dfg::GlobalsGraph;
-// use super::ir::dfg::Globals;
 use super::ir::instruction::ErrorType;
 use super::ir::types::NumericType;
 use super::{
