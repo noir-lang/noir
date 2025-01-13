@@ -44,7 +44,7 @@ impl<'context> Elaborator<'context> {
                 this.generics.extend(new_generics);
 
                 let where_clause =
-                    this.resolve_trait_constraints(&unresolved_trait.trait_def.where_clause, true);
+                    this.resolve_trait_constraints(&unresolved_trait.trait_def.where_clause);
                 this.remove_trait_constraints_from_scope(&where_clause);
 
                 // Each associated type in this trait is also an implicit generic

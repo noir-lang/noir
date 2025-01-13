@@ -734,16 +734,20 @@ impl<'context> Elaborator<'context> {
         None
     }
 
+    /// Resolve the given trait constraints and add them to scope as we go.
+    /// This second step is necessary to resolve subsequent constraints such
+    /// as `<T as Foo>::Bar: Eq` which may lookup an impl which was assumed
+    /// by a previous constraint.
+    ///
+    /// If these constraints are unwanted afterward they should be manually
+    /// removed from the interner.
     fn resolve_trait_constraints(
         &mut self,
         where_clause: &[UnresolvedTraitConstraint],
-        add_constraints_to_scope: bool,
     ) -> Vec<TraitConstraint> {
         where_clause
             .iter()
-            .filter_map(|constraint| {
-                self.resolve_trait_constraint(constraint, add_constraints_to_scope)
-            })
+            .filter_map(|constraint| self.resolve_trait_constraint(constraint))
             .collect()
     }
 
@@ -787,7 +791,7 @@ impl<'context> Elaborator<'context> {
         let the_trait = self.get_trait_mut(trait_id);
 
         if the_trait.associated_types.len() > bound.trait_generics.named_args.len() {
-            for associated_type in the_trait.associated_types.clone() {
+            for associated_type in &the_trait.associated_types.clone() {
                 if !bound
                     .trait_generics
                     .named_args
@@ -800,14 +804,14 @@ impl<'context> Elaborator<'context> {
                     let type_var = TypeVariable::unbound(new_generic_id, Kind::Normal);
 
                     let span = bound.trait_path.span;
-                    let no_name = Rc::new("_".to_string());
-                    let typ = Type::NamedGeneric(type_var.clone(), no_name.clone());
+                    let name = associated_type.name.clone();
+                    let typ = Type::NamedGeneric(type_var.clone(), name.clone());
                     let typ = self.interner.push_quoted_type(typ);
                     let typ = UnresolvedTypeData::Resolved(typ).with_span(span);
                     let ident = Ident::new(associated_type.name.as_ref().clone(), span);
 
                     bound.trait_generics.named_args.push((ident, typ));
-                    added_generics.push(ResolvedGeneric { name: no_name, span, type_var });
+                    added_generics.push(ResolvedGeneric { name, span, type_var });
                 }
             }
         }
@@ -815,22 +819,23 @@ impl<'context> Elaborator<'context> {
         added_generics
     }
 
+    /// Resolves a trait constraint and adds it to scope as an assumed impl.
+    /// This second step is necessary to resolve subsequent constraints such
+    /// as `<T as Foo>::Bar: Eq` which may lookup an impl which was assumed
+    /// by a previous constraint.
     fn resolve_trait_constraint(
         &mut self,
         constraint: &UnresolvedTraitConstraint,
-        add_constraints_to_scope: bool,
     ) -> Option<TraitConstraint> {
         let typ = self.resolve_type(constraint.typ.clone());
         let trait_bound = self.resolve_trait_bound(&constraint.trait_bound)?;
 
-        if add_constraints_to_scope {
-            self.add_trait_bound_to_scope(
-                constraint.trait_bound.trait_path.span,
-                &typ,
-                &trait_bound,
-                trait_bound.trait_id,
-            );
-        }
+        self.add_trait_bound_to_scope(
+            constraint.trait_bound.trait_path.span,
+            &typ,
+            &trait_bound,
+            trait_bound.trait_id,
+        );
 
         Some(TraitConstraint { typ, trait_bound })
     }
@@ -886,7 +891,7 @@ impl<'context> Elaborator<'context> {
         let new_generics = self.desugar_trait_constraints(&mut func.def.where_clause);
         generics.extend(new_generics.into_iter().map(|generic| generic.type_var));
 
-        let mut trait_constraints = self.resolve_trait_constraints(&func.def.where_clause, true);
+        let mut trait_constraints = self.resolve_trait_constraints(&func.def.where_clause);
 
         let mut parameters = Vec::new();
         let mut parameter_types = Vec::new();
@@ -1396,7 +1401,7 @@ impl<'context> Elaborator<'context> {
         if let Some(trait_id) = trait_impl.trait_id {
             self.generics = trait_impl.resolved_generics.clone();
 
-            let where_clause = self.resolve_trait_constraints(&trait_impl.where_clause, true);
+            let where_clause = self.resolve_trait_constraints(&trait_impl.where_clause);
             self.remove_trait_constraints_from_scope(&where_clause);
 
             self.collect_trait_impl_methods(trait_id, trait_impl, &where_clause);
@@ -1896,7 +1901,7 @@ impl<'context> Elaborator<'context> {
             // We need to resolve the where clause before any associated types to be
             // able to resolve trait as type syntax, eg. `<T as Foo>` in case there
             // is a where constraint for `T: Foo`.
-            let constraints = self.resolve_trait_constraints(&trait_impl.where_clause, true);
+            let constraints = self.resolve_trait_constraints(&trait_impl.where_clause);
 
             for (_, _, method) in trait_impl.methods.functions.iter_mut() {
                 // Attach any trait constraints on the impl to the function
