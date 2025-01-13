@@ -546,22 +546,14 @@ impl DataFlowGraph {
     /// Otherwise, this returns None.
     pub(crate) fn get_array_constant(&self, value: ValueId) -> Option<(im::Vector<ValueId>, Type)> {
         let value = self.resolve(value);
-        match &self.values[value] {
-            Value::Instruction { instruction, .. } => {
-                let instruction = if self.is_global(value) {
-                    &self.globals[*instruction]
-                } else {
-                    &self.instructions[*instruction]
-                };
-                match instruction {
-                    Instruction::MakeArray { elements, typ } => {
-                        Some((elements.clone(), typ.clone()))
-                    }
-                    _ => None,
-                }
+        if let Some(instruction) = self.get_instruction(value) {
+            match instruction {
+                Instruction::MakeArray { elements, typ } => Some((elements.clone(), typ.clone())),
+                _ => None,
             }
+        } else {
             // Arrays are shared, so cloning them is cheap
-            _ => None,
+            None
         }
     }
 
@@ -684,6 +676,20 @@ impl DataFlowGraph {
 
     pub(crate) fn is_global(&self, value: ValueId) -> bool {
         matches!(self.values[value], Value::Global(_))
+    }
+
+    pub(crate) fn get_instruction(&self, value: ValueId) -> Option<&Instruction> {
+        match &self[value] {
+            Value::Instruction { instruction, .. } => {
+                let instruction = if self.is_global(value) {
+                    &self.globals[*instruction]
+                } else {
+                    &self[*instruction]
+                };
+                Some(instruction)
+            }
+            _ => None,
+        }
     }
 }
 
