@@ -1,5 +1,7 @@
 fn main(sum_limit: u64, desired_sum: pub u64) {
-    let actual_sum = sum(sum_limit);
+    let actual_sum = unsafe { 
+       sum(sum_limit)
+    };
     assert(actual_sum == desired_sum);
 }
 

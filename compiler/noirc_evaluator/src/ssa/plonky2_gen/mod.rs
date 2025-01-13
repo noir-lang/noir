@@ -584,7 +584,7 @@ impl Builder {
         match instruction {
             Instruction::Binary(Binary { lhs, rhs, operator }) => {
                 let p2value = match operator {
-                    super::ir::instruction::BinaryOp::Mul => self.multi_convert_integer_op(
+                    super::ir::instruction::BinaryOp::Mul{..} => self.multi_convert_integer_op(
                         lhs,
                         rhs,
                         AsmWriter::mul,
@@ -640,7 +640,7 @@ impl Builder {
                         }
                     }
 
-                    super::ir::instruction::BinaryOp::Add => self.multi_convert_integer_op(
+                    super::ir::instruction::BinaryOp::Add{..} => self.multi_convert_integer_op(
                         lhs,
                         rhs,
                         AsmWriter::add,
@@ -648,7 +648,7 @@ impl Builder {
                         "Add",
                     ),
 
-                    super::ir::instruction::BinaryOp::Sub => {
+                    super::ir::instruction::BinaryOp::Sub{..} => {
                         self.convert_integer_op(lhs, rhs, AsmWriter::sub)
                     }
 
