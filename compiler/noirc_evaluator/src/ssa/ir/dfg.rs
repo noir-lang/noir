@@ -668,8 +668,7 @@ impl DataFlowGraph {
                 _ => false,
             },
             Value::Global(_) => {
-                dbg!(argument);
-                true
+                panic!("The global value case should already be handled");
             }
             _ => true,
         }

@@ -51,7 +51,6 @@ pub(crate) fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     let return_location = program.return_location;
     let context = SharedContext::new(program);
 
-    // let globals_dfg = std::mem::take(&mut context.globals_context.dfg);
     let globals = GlobalsGraph::from_dfg(context.globals_context.dfg.clone());
 
     let main_id = Program::main_id();
@@ -122,7 +121,6 @@ pub(crate) fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     // to generate SSA for each function used within the program.
     while let Some((src_function_id, dest_id)) = context.pop_next_function_in_queue() {
         let function = &context.program[src_function_id];
-        // let globals_dfg = std::mem::take(&mut function_context.builder.current_function.dfg.globals_new);
         function_context.new_function(dest_id, function);
         function_context.codegen_function_body(&function.body)?;
     }
