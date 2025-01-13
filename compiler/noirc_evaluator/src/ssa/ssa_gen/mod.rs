@@ -528,6 +528,22 @@ impl<'a> FunctionContext<'a> {
     ///   ... This is the current insert point after codegen_for finishes ...
     /// ```
     fn codegen_for(&mut self, for_expr: &ast::For) -> Result<Values, RuntimeError> {
+        self.builder.set_location(for_expr.start_range_location);
+        let start_index = self.codegen_non_tuple_expression(&for_expr.start_range)?;
+
+        self.builder.set_location(for_expr.end_range_location);
+        let end_index = self.codegen_non_tuple_expression(&for_expr.end_range)?;
+
+        if let (Some(start_constant), Some(end_constant)) = (
+            self.builder.current_function.dfg.get_numeric_constant(start_index),
+            self.builder.current_function.dfg.get_numeric_constant(end_index),
+        ) {
+            // If we can determine that the loop contains zero iterations then there's no need to codegen the loop.
+            if start_constant >= end_constant {
+                return Ok(Self::unit_value());
+            }
+        }
+
         let loop_entry = self.builder.insert_block();
         let loop_body = self.builder.insert_block();
         let loop_end = self.builder.insert_block();
@@ -539,12 +555,6 @@ impl<'a> FunctionContext<'a> {
         // Remember the blocks and variable used in case there are break/continue instructions
         // within the loop which need to jump to them.
         self.enter_loop(loop_entry, loop_index, loop_end);
-
-        self.builder.set_location(for_expr.start_range_location);
-        let start_index = self.codegen_non_tuple_expression(&for_expr.start_range)?;
-
-        self.builder.set_location(for_expr.end_range_location);
-        let end_index = self.codegen_non_tuple_expression(&for_expr.end_range)?;
 
         // Set the location of the initial jmp instruction to the start range. This is the location
         // used to issue an error if the start range cannot be determined at compile-time.
