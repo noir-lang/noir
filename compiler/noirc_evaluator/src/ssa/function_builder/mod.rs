@@ -251,14 +251,6 @@ impl FunctionBuilder {
         operator: BinaryOp,
         rhs: ValueId,
     ) -> ValueId {
-        let lhs_type = self.type_of_value(lhs);
-        let rhs_type = self.type_of_value(rhs);
-        if operator != BinaryOp::Shl && operator != BinaryOp::Shr {
-            assert_eq!(
-                lhs_type, rhs_type,
-                "ICE - Binary instruction operands must have the same type"
-            );
-        }
         let instruction = Instruction::Binary(Binary { lhs, rhs, operator });
         self.insert_instruction(instruction, None).first()
     }

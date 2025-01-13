@@ -412,10 +412,15 @@ impl Instruction {
 
             // Some binary math can overflow or underflow
             Binary(binary) => match binary.operator {
-                BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul | BinaryOp::Div | BinaryOp::Mod => {
-                    true
-                }
-                BinaryOp::Eq
+                BinaryOp::Add { unchecked: false }
+                | BinaryOp::Sub { unchecked: false }
+                | BinaryOp::Mul { unchecked: false }
+                | BinaryOp::Div
+                | BinaryOp::Mod => true,
+                BinaryOp::Add { unchecked: true }
+                | BinaryOp::Sub { unchecked: true }
+                | BinaryOp::Mul { unchecked: true }
+                | BinaryOp::Eq
                 | BinaryOp::Lt
                 | BinaryOp::And
                 | BinaryOp::Or
@@ -566,16 +571,19 @@ impl Instruction {
         match self {
             Instruction::Binary(binary) => {
                 match binary.operator {
-                    BinaryOp::Add
-                    | BinaryOp::Sub
-                    | BinaryOp::Mul
+                    BinaryOp::Add { unchecked: false }
+                    | BinaryOp::Sub { unchecked: false }
+                    | BinaryOp::Mul { unchecked: false }
                     | BinaryOp::Div
                     | BinaryOp::Mod => {
                         // Some binary math can overflow or underflow, but this is only the case
                         // for unsigned types (here we assume the type of binary.lhs is the same)
                         dfg.type_of_value(binary.rhs).is_unsigned()
                     }
-                    BinaryOp::Eq
+                    BinaryOp::Add { unchecked: true }
+                    | BinaryOp::Sub { unchecked: true }
+                    | BinaryOp::Mul { unchecked: true }
+                    | BinaryOp::Eq
                     | BinaryOp::Lt
                     | BinaryOp::And
                     | BinaryOp::Or
@@ -1057,12 +1065,6 @@ impl Instruction {
             Instruction::MakeArray { .. } => None,
             Instruction::Noop => Remove,
         }
-    }
-
-    /// Some instructions are only to be used in Brillig and should be eliminated
-    /// after runtime separation, never to be be reintroduced in an ACIR runtime.
-    pub(crate) fn is_brillig_only(&self) -> bool {
-        matches!(self, Instruction::IncrementRc { .. } | Instruction::DecrementRc { .. })
     }
 }
 
