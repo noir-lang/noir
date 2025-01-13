@@ -53,6 +53,9 @@ pub(crate) enum Value {
     /// ForeignFunction's always have the type Type::Function and have similar semantics to Function,
     /// other than generating different backend operations and being only accessible through Brillig.
     ForeignFunction(String),
+
+    /// This Value indicates we have a reserved slot that needs to be accessed in a separate global context
+    Global(Type),
 }
 
 impl Value {
@@ -64,6 +67,7 @@ impl Value {
             Value::Function { .. } | Value::Intrinsic { .. } | Value::ForeignFunction { .. } => {
                 Cow::Owned(Type::Function)
             }
+            Value::Global(typ) => Cow::Borrowed(typ),
         }
     }
 }

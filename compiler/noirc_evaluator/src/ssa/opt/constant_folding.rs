@@ -307,6 +307,7 @@ impl<'brillig> Context<'brillig> {
         let old_results = dfg.instruction_results(id).to_vec();
 
         // If a copy of this instruction exists earlier in the block, then reuse the previous results.
+        let runtime_is_brillig = dfg.runtime().is_brillig();
         if let Some(cache_result) =
             self.get_cached(dfg, dom, &instruction, *side_effects_enabled_var, block)
         {
@@ -314,7 +315,7 @@ impl<'brillig> Context<'brillig> {
                 CacheResult::Cached(cached) => {
                     // We track whether we may mutate MakeArray instructions before we deduplicate
                     // them but we still need to issue an extra inc_rc in case they're mutated afterward.
-                    if matches!(instruction, Instruction::MakeArray { .. }) {
+                    if runtime_is_brillig && matches!(instruction, Instruction::MakeArray { .. }) {
                         let value = *cached.last().unwrap();
                         let inc_rc = Instruction::IncrementRc { value };
                         let call_stack = dfg.get_instruction_call_stack_id(id);
@@ -560,7 +561,7 @@ impl<'brillig> Context<'brillig> {
         );
 
         match evaluation_result {
-            EvaluationResult::NotABrilligCall | EvaluationResult::CannotEvaluate(_) => None,
+            EvaluationResult::NotABrilligCall | EvaluationResult::CannotEvaluate => None,
             EvaluationResult::Evaluated(memory_values) => {
                 let mut memory_index = 0;
                 let new_results = vecmap(old_results, |old_result| {
@@ -601,14 +602,14 @@ impl<'brillig> Context<'brillig> {
         };
 
         if !arguments.iter().all(|argument| dfg.is_constant(*argument)) {
-            return EvaluationResult::CannotEvaluate(*func_id);
+            return EvaluationResult::CannotEvaluate;
         }
 
         let mut brillig_arguments = Vec::new();
         for argument in arguments {
             let typ = dfg.type_of_value(*argument);
             let Some(parameter) = type_to_brillig_parameter(&typ) else {
-                return EvaluationResult::CannotEvaluate(*func_id);
+                return EvaluationResult::CannotEvaluate;
             };
             brillig_arguments.push(parameter);
         }
@@ -617,12 +618,12 @@ impl<'brillig> Context<'brillig> {
         for return_id in func.returns().iter() {
             let typ = func.dfg.type_of_value(*return_id);
             if type_to_brillig_parameter(&typ).is_none() {
-                return EvaluationResult::CannotEvaluate(*func_id);
+                return EvaluationResult::CannotEvaluate;
             }
         }
 
         let Ok(generated_brillig) = gen_brillig_for(func, brillig_arguments, brillig) else {
-            return EvaluationResult::CannotEvaluate(*func_id);
+            return EvaluationResult::CannotEvaluate;
         };
 
         let mut calldata = Vec::new();
@@ -639,7 +640,7 @@ impl<'brillig> Context<'brillig> {
             VM::new(calldata, bytecode, foreign_call_results, &black_box_solver, profiling_active);
         let vm_status: VMStatus<_> = vm.process_opcodes();
         let VMStatus::Finished { return_data_offset, return_data_size } = vm_status else {
-            return EvaluationResult::CannotEvaluate(*func_id);
+            return EvaluationResult::CannotEvaluate;
         };
 
         let memory =
@@ -771,7 +772,7 @@ enum EvaluationResult {
     NotABrilligCall,
     /// The instruction was a call to a brillig function, but we couldn't evaluate it.
     /// This can occur in the situation where the brillig function reaches a "trap" or a foreign call opcode.
-    CannotEvaluate(FunctionId),
+    CannotEvaluate,
     /// The instruction was a call to a brillig function and we were able to evaluate it,
     /// returning evaluation memory values.
     Evaluated(Vec<MemoryValue<FieldElement>>),
@@ -1557,7 +1558,6 @@ mod test {
         // After EnableSideEffectsIf removal:
         brillig(inline) fn main f0 {
           b0(v0: Field, v1: Field, v2: u1):
-            v4 = call is_unconstrained() -> u1
             v7 = call to_be_radix(v0, u32 256) -> [u8; 1]    // `a.to_be_radix(256)`;
             inc_rc v7
             v8 = call to_be_radix(v0, u32 256) -> [u8; 1]    // duplicate load of `a`
@@ -1566,7 +1566,6 @@ mod test {
             v10 = mul v0, v9                                 // attaching `c` to `a`
             v11 = call to_be_radix(v10, u32 256) -> [u8; 1]  // calling `to_radix(c * a)`
             inc_rc v11
-            enable_side_effects v2                           // side effect var for `c` shifted down by removal
             return
         }
         ";
@@ -1574,15 +1573,13 @@ mod test {
         let expected = "
         brillig(inline) fn main f0 {
           b0(v0: Field, v1: Field, v2: u1):
-            v4 = call is_unconstrained() -> u1
-            v7 = call to_be_radix(v0, u32 256) -> [u8; 1]
-            inc_rc v7
-            inc_rc v7
-            v8 = cast v2 as Field
-            v9 = mul v0, v8
-            v10 = call to_be_radix(v9, u32 256) -> [u8; 1]
-            inc_rc v10
-            enable_side_effects v2
+            v5 = call to_be_radix(v0, u32 256) -> [u8; 1]
+            inc_rc v5
+            inc_rc v5
+            v6 = cast v2 as Field
+            v7 = mul v0, v6
+            v8 = call to_be_radix(v7, u32 256) -> [u8; 1]
+            inc_rc v8
             return
         }
         ";

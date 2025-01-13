@@ -1,7 +1,7 @@
 // Tests arithmetic operations on fields
 fn main() {
+    /// Safety: testing context
     unsafe {
-        //@safety: testing context
         let x = 4;
         let y = 2;
         assert((x + y) == add(x, y));
