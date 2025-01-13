@@ -6,7 +6,7 @@ use acir::{
     native_types::Witness,
     AcirField,
 };
-use std::collections::{BTreeMap, HashSet};
+use std::collections::BTreeMap;
 
 /// `RangeOptimizer` will remove redundant range constraints.
 ///
@@ -28,8 +28,8 @@ use std::collections::{BTreeMap, HashSet};
 /// This optimization pass will keep the 16-bit range constraint
 /// and remove the 32-bit range constraint opcode.
 pub(crate) struct RangeOptimizer<F> {
-    /// Maps witnesses to their lowest known bit sizes.
-    lists: BTreeMap<Witness, u32>,
+    /// Maps witnesses to the index of the most restrictive range opcode.
+    lists: BTreeMap<Witness, usize>,
     circuit: Circuit<F>,
 }
 
@@ -47,10 +47,10 @@ impl<F: AcirField> RangeOptimizer<F> {
     /// both 32 bits and 16 bits. This function will
     /// only store the fact that we have constrained it to
     /// be 16 bits.
-    fn collect_ranges(circuit: &Circuit<F>) -> BTreeMap<Witness, u32> {
-        let mut witness_to_bit_sizes: BTreeMap<Witness, u32> = BTreeMap::new();
+    fn collect_ranges(circuit: &Circuit<F>) -> BTreeMap<Witness, usize> {
+        let mut witness_to_bit_sizes: BTreeMap<Witness, (u32, usize)> = BTreeMap::new();
 
-        for opcode in &circuit.opcodes {
+        for (index, opcode) in circuit.opcodes.iter().enumerate() {
             let Some((witness, num_bits)) = (match opcode {
                 Opcode::AssertZero(expr) => {
                     // If the opcode is constraining a witness to be equal to a value then it can be considered
@@ -90,12 +90,16 @@ impl<F: AcirField> RangeOptimizer<F> {
             // size is more than the current one, we replace it
             witness_to_bit_sizes
                 .entry(witness)
-                .and_modify(|old_range_bits| {
-                    *old_range_bits = std::cmp::min(*old_range_bits, num_bits);
+                .and_modify(|(old_range_bits, old_index)| {
+                    if *old_range_bits > num_bits {
+                        *old_range_bits = num_bits;
+                        *old_index = index;
+                    }
                 })
-                .or_insert(num_bits);
+                .or_insert((num_bits, index));
         }
-        witness_to_bit_sizes
+
+        witness_to_bit_sizes.into_iter().map(|(key, (_, index))| (key, index)).collect()
     }
 
     /// Returns a `Circuit` where each Witness is only range constrained
@@ -104,53 +108,21 @@ impl<F: AcirField> RangeOptimizer<F> {
         self,
         order_list: Vec<usize>,
     ) -> (Circuit<F>, Vec<usize>) {
-        let mut already_seen_witness = HashSet::new();
-
         let mut new_order_list = Vec::with_capacity(order_list.len());
         let mut optimized_opcodes = Vec::with_capacity(self.circuit.opcodes.len());
         for (idx, opcode) in self.circuit.opcodes.into_iter().enumerate() {
-            let (witness, num_bits) = {
-                // If its not the range opcode, add it to the opcode
-                // list and continue;
-                let mut push_non_range_opcode = || {
-                    optimized_opcodes.push(opcode.clone());
-                    new_order_list.push(order_list[idx]);
-                };
-
-                match opcode {
-                    Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input }) => {
-                        match input.input() {
-                            ConstantOrWitnessEnum::Witness(witness) => (witness, input.num_bits()),
-                            _ => {
-                                push_non_range_opcode();
-                                continue;
-                            }
-                        }
-                    }
-                    _ => {
-                        push_non_range_opcode();
+            if let Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input }) = opcode {
+                match input.input() {
+                    ConstantOrWitnessEnum::Witness(witness) if self.lists[&witness] != idx => {
+                        // Only keep a range opcode if it's at the specified index for the given witness.
                         continue;
                     }
+                    _ => (),
                 }
-            };
-            // If we've already applied the range constraint for this witness then skip this opcode.
-            let already_added = already_seen_witness.contains(&witness);
-            if already_added {
-                continue;
             }
 
-            // Check if this is the lowest number of bits in the circuit
-            let stored_num_bits = self.lists.get(&witness).expect("Could not find witness. This should never be the case if `collect_ranges` is called");
-            let is_lowest_bit_size = num_bits <= *stored_num_bits;
-
-            // If the opcode is associated with the lowest bit size
-            // and we have not added a duplicate of this opcode yet,
-            // then we should add retain this range opcode.
-            if is_lowest_bit_size {
-                already_seen_witness.insert(witness);
-                new_order_list.push(order_list[idx]);
-                optimized_opcodes.push(opcode.clone());
-            }
+            optimized_opcodes.push(opcode);
+            new_order_list.push(order_list[idx]);
         }
 
         (Circuit { opcodes: optimized_opcodes, ..self.circuit }, new_order_list)
@@ -201,14 +173,11 @@ mod tests {
         let acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
         let optimizer = RangeOptimizer::new(circuit);
 
-        let range_size = *optimizer
+        let kept_index = *optimizer
             .lists
             .get(&Witness(1))
             .expect("Witness(1) was inserted, but it is missing from the map");
-        assert_eq!(
-            range_size, 16,
-            "expected a range size of 16 since that was the lowest bit size provided"
-        );
+        assert_eq!(kept_index, 1, "expected to keep range opcode at index 1");
 
         let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
         assert_eq!(optimized_circuit.opcodes.len(), 1);
