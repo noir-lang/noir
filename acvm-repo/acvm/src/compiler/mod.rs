@@ -82,8 +82,6 @@ pub fn compile<F: AcirField>(
 
     let (acir, acir_opcode_positions) = optimize_internal(acir, acir_opcode_positions);
 
-    // For most test programs it would be enough to only loop `transform_internal`,
-    // but some of them don't stabilize unless we also repeat the backend agnostic optimizations.
     let (mut acir, acir_opcode_positions) =
         transform_internal(acir, expression_width, acir_opcode_positions);
 
