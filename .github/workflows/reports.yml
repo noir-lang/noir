@@ -117,6 +117,7 @@ jobs:
         working-directory: ./test_programs
         run: |
           ./gates_report_brillig.sh 9223372036854775807
+          mkdir ./reports
           mv gates_report_brillig.json ../reports/gates_report_brillig_inliner_max.json
           ./gates_report_brillig.sh 0
           jq '.programs |= map(.package_name |= (. + "_inliner_zero"))' gates_report_brillig.json
