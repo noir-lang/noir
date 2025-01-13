@@ -253,14 +253,6 @@ impl FunctionBuilder {
         operator: BinaryOp,
         rhs: ValueId,
     ) -> ValueId {
-        let lhs_type = self.type_of_value(lhs);
-        let rhs_type = self.type_of_value(rhs);
-        if operator != BinaryOp::Shl && operator != BinaryOp::Shr {
-            assert_eq!(
-                lhs_type, rhs_type,
-                "ICE - Binary instruction operands must have the same type"
-            );
-        }
         let instruction = Instruction::Binary(Binary { lhs, rhs, operator });
         self.insert_instruction(instruction, None).first()
     }
@@ -485,29 +477,33 @@ impl FunctionBuilder {
     ///
     /// Returns whether a reference count instruction was issued.
     fn update_array_reference_count(&mut self, value: ValueId, increment: bool) -> bool {
-        match self.type_of_value(value) {
-            Type::Numeric(_) => false,
-            Type::Function => false,
-            Type::Reference(element) => {
-                if element.contains_an_array() {
-                    let reference = value;
-                    let value = self.insert_load(reference, element.as_ref().clone());
-                    self.update_array_reference_count(value, increment);
+        if self.current_function.runtime().is_brillig() {
+            match self.type_of_value(value) {
+                Type::Numeric(_) => false,
+                Type::Function => false,
+                Type::Reference(element) => {
+                    if element.contains_an_array() {
+                        let reference = value;
+                        let value = self.insert_load(reference, element.as_ref().clone());
+                        self.update_array_reference_count(value, increment);
+                        true
+                    } else {
+                        false
+                    }
+                }
+                Type::Array(..) | Type::Slice(..) => {
+                    // If there are nested arrays or slices, we wait until ArrayGet
+                    // is issued to increment the count of that array.
+                    if increment {
+                        self.insert_inc_rc(value);
+                    } else {
+                        self.insert_dec_rc(value);
+                    }
                     true
-                } else {
-                    false
                 }
             }
-            Type::Array(..) | Type::Slice(..) => {
-                // If there are nested arrays or slices, we wait until ArrayGet
-                // is issued to increment the count of that array.
-                if increment {
-                    self.insert_inc_rc(value);
-                } else {
-                    self.insert_dec_rc(value);
-                }
-                true
-            }
+        } else {
+            false
         }
     }
 

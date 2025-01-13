@@ -21,19 +21,19 @@ impl Eq for Match {
 // impl<N> From<Match> for str<N>
 
 trait Regex {
-    fn match(self, input: [u8]) -> Match;
+    fn find_match(self, input: [u8]) -> Match;
 }
 
 // Empty
 impl Regex for () {
-    fn match(_self: Self, input: [u8]) -> Match {
+    fn find_match(_self: Self, input: [u8]) -> Match {
         Match::empty(input)
     }
 }
 
 // Exact
 impl<let N: u32> Regex for str<N> {
-    fn match(self, input: [u8]) -> Match {
+    fn find_match(self, input: [u8]) -> Match {
         let mut leftover = input;
         let mut matches_input = true;
         let self_as_bytes = self.as_bytes();
@@ -60,10 +60,10 @@ where
     T: Regex,
     U: Regex,
 {
-    fn match(self, input: [u8]) -> Match {
-        let lhs_result = self.0.match(input);
+    fn find_match(self, input: [u8]) -> Match {
+        let lhs_result = self.0.find_match(input);
         if lhs_result.succeeded {
-            let rhs_result = self.1.match(lhs_result.leftover);
+            let rhs_result = self.1.find_match(lhs_result.leftover);
             if rhs_result.succeeded {
                 Match {
                     succeeded: true,
@@ -88,11 +88,11 @@ impl<T, let N: u32> Regex for Repeated<T, N>
 where
     T: Regex,
 {
-    fn match(self, input: [u8]) -> Match {
+    fn find_match(self, input: [u8]) -> Match {
         let mut result = Match::empty(input);
         for _ in 0..N {
             if result.succeeded {
-                let next_result = self.inner.match(result.leftover);
+                let next_result = self.inner.find_match(result.leftover);
                 result = Match {
                     succeeded: next_result.succeeded,
                     match_ends: result.match_ends + next_result.match_ends,
@@ -114,12 +114,12 @@ where
     T: Regex,
     U: Regex,
 {
-    fn match(self, input: [u8]) -> Match {
-        let lhs_result = self.lhs.match(input);
+    fn find_match(self, input: [u8]) -> Match {
+        let lhs_result = self.lhs.find_match(input);
         if lhs_result.succeeded {
             lhs_result
         } else {
-            self.rhs.match(input)
+            self.rhs.find_match(input)
         }
     }
 }
@@ -132,8 +132,8 @@ impl<T> Regex for Question<T>
 where
     T: Regex,
 {
-    fn match(self, input: [u8]) -> Match {
-        Or { lhs: self.inner, rhs: () }.match(input)
+    fn find_match(self, input: [u8]) -> Match {
+        Or { lhs: self.inner, rhs: () }.find_match(input)
     }
 }
 
@@ -146,9 +146,9 @@ impl<T, let N: u32> Regex for Star<T, N>
 where
     T: Regex,
 {
-    fn match(self, input: [u8]) -> Match {
+    fn find_match(self, input: [u8]) -> Match {
         let regex: Repeated<_, N> = Repeated { inner: Question { inner: self.inner } };
-        regex.match(input)
+        regex.find_match(input)
     }
 }
 
@@ -161,10 +161,10 @@ impl<T, let N: u32, let N_PRED: u32> Regex for Plus<T, N, N_PRED>
 where
     T: Regex,
 {
-    fn match(self, input: [u8]) -> Match {
+    fn find_match(self, input: [u8]) -> Match {
         std::static_assert(N_PRED + 1 == N, "N - 1 != N_PRED");
         let star: Star<T, N_PRED> = Star { inner: self.inner };
-        (self.inner, star).match(input)
+        (self.inner, star).find_match(input)
     }
 }
 
@@ -173,23 +173,23 @@ fn main() {
     let graey_regex = ("gr", (Or { lhs: "a", rhs: "e" }, "y"));
 
     // NOTE: leftover ignored in Eq: Match
-    let result = graey_regex.match("gray".as_bytes().as_slice());
+    let result = graey_regex.find_match("gray".as_bytes().as_slice());
     println(result);
     assert_eq(result, Match { succeeded: true, match_ends: 4, leftover: &[] });
 
     // NOTE: leftover ignored in Eq: Match
-    let result = graey_regex.match("grey".as_bytes().as_slice());
+    let result = graey_regex.find_match("grey".as_bytes().as_slice());
     println(result);
     assert_eq(result, Match { succeeded: true, match_ends: 4, leftover: &[] });
 
     // colou?r
     let colour_regex = ("colo", (Question { inner: "u" }, "r"));
 
-    let result = colour_regex.match("color".as_bytes().as_slice());
+    let result = colour_regex.find_match("color".as_bytes().as_slice());
     println(result);
     assert_eq(result, Match { succeeded: true, match_ends: 5, leftover: &[] });
 
-    let result = colour_regex.match("colour".as_bytes().as_slice());
+    let result = colour_regex.find_match("colour".as_bytes().as_slice());
     println(result);
     assert_eq(result, Match { succeeded: true, match_ends: 6, leftover: &[] });
 
@@ -197,35 +197,35 @@ fn main() {
     // EMPTY{3}
     let three_empties_regex: Repeated<(), 3> = Repeated { inner: () };
 
-    let result = three_empties_regex.match("111".as_bytes().as_slice());
+    let result = three_empties_regex.find_match("111".as_bytes().as_slice());
     println(result);
     assert_eq(result, Match { succeeded: true, match_ends: 0, leftover: &[] });
 
     // 1{0}
     let zero_ones_regex: Repeated<str<1>, 0> = Repeated { inner: "1" };
 
-    let result = zero_ones_regex.match("111".as_bytes().as_slice());
+    let result = zero_ones_regex.find_match("111".as_bytes().as_slice());
     println(result);
     assert_eq(result, Match { succeeded: true, match_ends: 0, leftover: &[] });
 
     // 1{1}
     let one_ones_regex: Repeated<str<1>, 1> = Repeated { inner: "1" };
 
-    let result = one_ones_regex.match("111".as_bytes().as_slice());
+    let result = one_ones_regex.find_match("111".as_bytes().as_slice());
     println(result);
     assert_eq(result, Match { succeeded: true, match_ends: 1, leftover: &[] });
 
     // 1{2}
     let two_ones_regex: Repeated<str<1>, 2> = Repeated { inner: "1" };
 
-    let result = two_ones_regex.match("111".as_bytes().as_slice());
+    let result = two_ones_regex.find_match("111".as_bytes().as_slice());
     println(result);
     assert_eq(result, Match { succeeded: true, match_ends: 2, leftover: &[] });
 
     // 1{3}
     let three_ones_regex: Repeated<str<1>, 3> = Repeated { inner: "1" };
 
-    let result = three_ones_regex.match("1111".as_bytes().as_slice());
+    let result = three_ones_regex.find_match("1111".as_bytes().as_slice());
     println(result);
     assert_eq(result, Match { succeeded: true, match_ends: 3, leftover: &[] });
     // TODO(https://github.com/noir-lang/noir/issues/6285): re-enable these cases and complete the test using array_regex below
@@ -233,15 +233,15 @@ fn main() {
     // // 1*
     // let ones_regex: Star<str<1>, 5> = Star { inner: "1" };
     //
-    // let result = ones_regex.match("11000".as_bytes().as_slice());
+    // let result = ones_regex.find_match("11000".as_bytes().as_slice());
     // println(result);
     // assert_eq(result, Match { succeeded: true, match_ends: 2, leftover: &[] });
     //
-    // let result = ones_regex.match("11".as_bytes().as_slice());
+    // let result = ones_regex.find_match("11".as_bytes().as_slice());
     // println(result);
     // assert_eq(result, Match { succeeded: true, match_ends: 2, leftover: &[] });
     //
-    // let result = ones_regex.match("111111".as_bytes().as_slice());
+    // let result = ones_regex.find_match("111111".as_bytes().as_slice());
     // println(result);
     // assert_eq(result, Match { succeeded: true, match_ends: 5, leftover: &[] });
     //
@@ -249,28 +249,28 @@ fn main() {
     // // 1+
     // let nonempty_ones_regex: Plus<str<1>, 5, 4> = Plus { inner: "1" };
     //
-    // let result = nonempty_ones_regex.match("111111".as_bytes().as_slice());
+    // let result = nonempty_ones_regex.find_match("111111".as_bytes().as_slice());
     // println(result);
     // assert_eq(result, Match { succeeded: true, match_ends: 5, leftover: &[] });
     //
     // // 2^n-1 in binary: 1+0
     // let pred_pow_two_regex = (nonempty_ones_regex, "0");
     //
-    // let result = pred_pow_two_regex.match("1110".as_bytes().as_slice());
+    // let result = pred_pow_two_regex.find_match("1110".as_bytes().as_slice());
     // println(result);
     // assert_eq(result, Match { succeeded: true, match_ends: 3, leftover: &[] });
     //
     // // (0|1)*
     // let binary_regex: Star<Or<str<1>, str<1>>, 5> = Star { inner: Or { lhs: "0", rhs: "1" } };
     //
-    // let result = binary_regex.match("110100".as_bytes().as_slice());
+    // let result = binary_regex.find_match("110100".as_bytes().as_slice());
     // println(result);
     // assert_eq(result, Match { succeeded: true, match_ends: 5, leftover: &[] });
     //
     // // even numbers in binary: 1(0|1)*0
     // let even_binary_regex = ("1", (binary_regex, "0"));
     //
-    // let result = even_binary_regex.match("1111110".as_bytes().as_slice());
+    // let result = even_binary_regex.find_match("1111110".as_bytes().as_slice());
     // println(result);
     // assert_eq(result, Match { succeeded: true, match_ends: 6, leftover: &[] });
     // 2-letter capitalized words: [A-Z][a-z]
@@ -290,7 +290,7 @@ fn main() {
     //     )
     // );
     //
-    // let result = foo_regex.match("colo".as_bytes().as_slice());
+    // let result = foo_regex.find_match("colo".as_bytes().as_slice());
     // println(result);
     // assert_eq(result, Match {
     //     succeeded: true,
@@ -387,19 +387,19 @@ fn main() {
 //
 // trait Regex {
 //     // Perform a match without backtracking
-//     fn match<let N: u32>(self, input: Bvec<u8, N>) -> Match<N>;
+//     fn find_match<let N: u32>(self, input: Bvec<u8, N>) -> Match<N>;
 // }
 //
 // // Empty
 // impl Regex for () {
-//     fn match<let N: u32>(_self: Self, input: Bvec<u8, N>) -> Match<N> {
+//     fn find_match<let N: u32>(_self: Self, input: Bvec<u8, N>) -> Match<N> {
 //         Match::empty(input)
 //     }
 // }
 //
 // // Exact
 // impl<let M: u32> Regex for str<M> {
-//     fn match<let N: u32>(self, input: Bvec<u8, N>) -> Match<N> {
+//     fn find_match<let N: u32>(self, input: Bvec<u8, N>) -> Match<N> {
 //         let mut leftover = input;
 //         let mut matches_input = true;
 //         let self_as_bytes = self.as_bytes();
@@ -430,10 +430,10 @@ fn main() {
 //
 // // And
 // impl<T, U> Regex for (T, U) where T: Regex, U: Regex {
-//     fn match<let N: u32>(self, input: Bvec<u8, N>) -> Match<N> {
-//         let lhs_result = self.0.match(input);
+//     fn find_match<let N: u32>(self, input: Bvec<u8, N>) -> Match<N> {
+//         let lhs_result = self.0.find_match(input);
 //         if lhs_result.succeeded {
-//             let rhs_result = self.1.match(lhs_result.leftover);
+//             let rhs_result = self.1.find_match(lhs_result.leftover);
 //             if rhs_result.succeeded {
 //                 Match {
 //                     succeeded: true,
@@ -463,11 +463,11 @@ fn main() {
 // }
 //
 // impl<T, let M: u32> Regex for Repeated<T, M> where T: Regex {
-//     fn match<let N: u32>(self, input: Bvec<u8, N>) -> Match<N> {
+//     fn find_match<let N: u32>(self, input: Bvec<u8, N>) -> Match<N> {
 //         let mut result = Match::empty(input);
 //         for _ in 0..M {
 //             if result.succeeded {
-//                 let next_result = self.inner.match(result.leftover);
+//                 let next_result = self.inner.find_match(result.leftover);
 //                 result = Match {
 //                     succeeded: next_result.succeeded,
 //                     match_ends: result.match_ends + next_result.match_ends,
@@ -485,12 +485,12 @@ fn main() {
 // }
 //
 // impl<T, U> Regex for Or<T, U> where T: Regex, U: Regex {
-//     fn match<let N: u32>(self, input: Bvec<u8, N>) -> Match<N> {
-//         let lhs_result = self.lhs.match(input);
+//     fn find_match<let N: u32>(self, input: Bvec<u8, N>) -> Match<N> {
+//         let lhs_result = self.lhs.find_match(input);
 //         if lhs_result.succeeded {
 //             lhs_result
 //         } else {
-//             self.rhs.match(input)
+//             self.rhs.find_match(input)
 //         }
 //     }
 // }
@@ -500,11 +500,11 @@ fn main() {
 // }
 //
 // impl<T> Regex for Question<T> where T: Regex {
-//     fn match<let N: u32>(self, input: Bvec<u8, N>) -> Match<N> {
+//     fn find_match<let N: u32>(self, input: Bvec<u8, N>) -> Match<N> {
 //         Or {
 //             lhs: self.inner,
 //             rhs: (),
-//         }.match(input)
+//         }.find_match(input)
 //     }
 // }
 //
@@ -514,11 +514,11 @@ fn main() {
 // }
 //
 // impl<T, let M: u32> Regex for Star<T, M> where T: Regex {
-//     fn match<let N: u32>(self, input: Bvec<u8, N>) -> Match<N> {
+//     fn find_match<let N: u32>(self, input: Bvec<u8, N>) -> Match<N> {
 //         let regex: Repeated<_, M> = Repeated {
 //             inner: Question { inner: self.inner },
 //         };
-//         regex.match(input)
+//         regex.find_match(input)
 //     }
 // }
 //
@@ -528,13 +528,13 @@ fn main() {
 // }
 //
 // impl<T, let M: u32, let M_PRED: u32> Regex for Plus<T, M, M_PRED> where T: Regex {
-//     fn match<let N: u32>(self, input: Bvec<u8, N>) -> Match<N> {
+//     fn find_match<let N: u32>(self, input: Bvec<u8, N>) -> Match<N> {
 //         std::static_assert(M_PRED + 1 == M, "M - 1 != M_PRED");
 //         let star: Star<T, M_PRED> = Star { inner: self.inner };
 //         (
 //             self.inner,
 //             star
-//         ).match(input)
+//         ).find_match(input)
 //     }
 // }
 //
@@ -544,11 +544,11 @@ fn main() {
 // }
 //
 // impl<T, let M: u32> Regex for AnyOf<T, M> where T: Regex {
-//     fn match<let N: u32>(self, input: Bvec<u8, N>) -> Match<N> {
+//     fn find_match<let N: u32>(self, input: Bvec<u8, N>) -> Match<N> {
 //         let mut result = Match::failed(input);
 //         for i in 0..M {
 //             if !result.succeeded {
-//                 result = self.inner[i].match(result.leftover);
+//                 result = self.inner[i].find_match(result.leftover);
 //             }
 //         }
 //         result
@@ -611,13 +611,13 @@ fn main() {
 //     // gr(a|e)y
 //     let graey_regex = ("gr", (Or { lhs: "a", rhs: "e" }, "y"));
 //
-//     let result = graey_regex.match(Bvec::new("gray".as_bytes()));
+//     let result = graey_regex.find_match(Bvec::new("gray".as_bytes()));
 //     println(result);
 //     assert(result.succeeded);
 //     assert_eq(result.match_ends, 4);
 //     assert_eq(result.leftover.len, 0);
 //
-//     let result = graey_regex.match(Bvec::new("grey".as_bytes()));
+//     let result = graey_regex.find_match(Bvec::new("grey".as_bytes()));
 //     println(result);
 //     assert(result.succeeded);
 //     assert_eq(result.match_ends, 4);
@@ -626,13 +626,13 @@ fn main() {
 //     // colou?r
 //     let colour_regex = ("colo", (Question { inner: "u" }, "r"));
 //
-//     let result = colour_regex.match(Bvec::new("color".as_bytes()));
+//     let result = colour_regex.find_match(Bvec::new("color".as_bytes()));
 //     println(result);
 //     assert(result.succeeded);
 //     assert_eq(result.match_ends, 5);
 //     assert_eq(result.leftover.len, 0);
 //
-//     let result = colour_regex.match(Bvec::new("colour".as_bytes()));
+//     let result = colour_regex.find_match(Bvec::new("colour".as_bytes()));
 //     println(result);
 //     assert(result.succeeded);
 //     assert_eq(result.match_ends, 6);
@@ -642,7 +642,7 @@ fn main() {
 //     // EMPTY{3}
 //     let three_empties_regex: Repeated<(), 3> = Repeated { inner: () };
 //
-//     let result = three_empties_regex.match(Bvec::new("111".as_bytes()));
+//     let result = three_empties_regex.find_match(Bvec::new("111".as_bytes()));
 //     println(result);
 //     assert(result.succeeded);
 //     assert_eq(result.match_ends, 0);
@@ -651,7 +651,7 @@ fn main() {
 //     // 1{0}
 //     let zero_ones_regex: Repeated<str<1>, 0> = Repeated { inner: "1" };
 //
-//     let result = zero_ones_regex.match(Bvec::new("111".as_bytes()));
+//     let result = zero_ones_regex.find_match(Bvec::new("111".as_bytes()));
 //     println(result);
 //     assert(result.succeeded);
 //     assert_eq(result.match_ends, 0);
@@ -660,7 +660,7 @@ fn main() {
 //     // 1{1}
 //     let one_ones_regex: Repeated<str<1>, 1> = Repeated { inner: "1" };
 //
-//     let result = one_ones_regex.match(Bvec::new("111".as_bytes()));
+//     let result = one_ones_regex.find_match(Bvec::new("111".as_bytes()));
 //     println(result);
 //     assert(result.succeeded);
 //     assert_eq(result.match_ends, 1);
@@ -669,7 +669,7 @@ fn main() {
 //     // 1{2}
 //     let two_ones_regex: Repeated<str<1>, 2> = Repeated { inner: "1" };
 //
-//     let result = two_ones_regex.match(Bvec::new("111".as_bytes()));
+//     let result = two_ones_regex.find_match(Bvec::new("111".as_bytes()));
 //     println(result);
 //     assert(result.succeeded);
 //     assert_eq(result.match_ends, 2);
@@ -678,7 +678,7 @@ fn main() {
 //     // 1{3}
 //     let three_ones_regex: Repeated<str<1>, 3> = Repeated { inner: "1" };
 //
-//     let result = three_ones_regex.match(Bvec::new("1111".as_bytes()));
+//     let result = three_ones_regex.find_match(Bvec::new("1111".as_bytes()));
 //     println(result);
 //     assert(result.succeeded);
 //     assert_eq(result.match_ends, 3);
@@ -687,19 +687,19 @@ fn main() {
 //     // 1*
 //     let ones_regex: Star<str<1>, 5> = Star { inner: "1" };
 //
-//     let result = ones_regex.match(Bvec::new("11000".as_bytes()));
+//     let result = ones_regex.find_match(Bvec::new("11000".as_bytes()));
 //     println(result);
 //     assert(result.succeeded);
 //     assert_eq(result.match_ends, 2);
 //     assert_eq(result.leftover.len, 3);
 //
-//     let result = ones_regex.match(Bvec::new("11".as_bytes()));
+//     let result = ones_regex.find_match(Bvec::new("11".as_bytes()));
 //     println(result);
 //     assert(result.succeeded);
 //     assert_eq(result.match_ends, 2);
 //     assert_eq(result.leftover.len, 0);
 //
-//     let result = ones_regex.match(Bvec::new("111111".as_bytes()));
+//     let result = ones_regex.find_match(Bvec::new("111111".as_bytes()));
 //     println(result);
 //     assert(result.succeeded);
 //     assert_eq(result.match_ends, 5);
@@ -708,7 +708,7 @@ fn main() {
 //     // 1+
 //     let nonempty_ones_regex: Plus<str<1>, 5, 4> = Plus { inner: "1" };
 //
-//     let result = nonempty_ones_regex.match(Bvec::new("111111".as_bytes()));
+//     let result = nonempty_ones_regex.find_match(Bvec::new("111111".as_bytes()));
 //     println(result);
 //     assert(result.succeeded);
 //     assert_eq(result.match_ends, 5);
@@ -717,7 +717,7 @@ fn main() {
 //     // 2^n-1 in binary: 1+0
 //     let pred_pow_two_regex = (nonempty_ones_regex, "0");
 //
-//     let result = pred_pow_two_regex.match(Bvec::new("1110".as_bytes()));
+//     let result = pred_pow_two_regex.find_match(Bvec::new("1110".as_bytes()));
 //     println(result);
 //     assert(result.succeeded);
 //     assert_eq(result.match_ends, 4);
@@ -726,7 +726,7 @@ fn main() {
 //     // (0|1)*
 //     let binary_regex: Star<Or<str<1>, str<1>>, 5> = Star { inner: Or { lhs: "0", rhs: "1" } };
 //
-//     let result = binary_regex.match(Bvec::new("110100".as_bytes()));
+//     let result = binary_regex.find_match(Bvec::new("110100".as_bytes()));
 //     println(result);
 //     assert(result.succeeded);
 //     assert_eq(result.match_ends, 5);
@@ -735,7 +735,7 @@ fn main() {
 //     // even numbers in binary: 1(0|1)*0
 //     let even_binary_regex = ("1", (binary_regex, "0"));
 //
-//     let result = even_binary_regex.match(Bvec::new("1111110".as_bytes()));
+//     let result = even_binary_regex.find_match(Bvec::new("1111110".as_bytes()));
 //     println(result);
 //     assert(result.succeeded);
 //     assert_eq(result.match_ends, 7);
@@ -758,13 +758,13 @@ fn main() {
 //         ]
 //     };
 //
-//     let result = digit_regex.match(Bvec::new("157196345823795".as_bytes()));
+//     let result = digit_regex.find_match(Bvec::new("157196345823795".as_bytes()));
 //     println(result);
 //     assert(result.succeeded);
 //     assert_eq(result.match_ends, 1);
 //     assert_eq(result.leftover.len, 14);
 //
-//     let result = digit_regex.match(Bvec::new("hi".as_bytes()));
+//     let result = digit_regex.find_match(Bvec::new("hi".as_bytes()));
 //     println(result);
 //     assert(!result.succeeded);
 //     assert_eq(result.match_ends, 0);
@@ -774,13 +774,13 @@ fn main() {
 //     // [0-9]+
 //     let digits_regex: Plus<AnyOf<str<1>, 10>, 32, 31> = Plus { inner: digit_regex };
 //
-//     let result = digits_regex.match(Bvec::new("123456789012345".as_bytes()));
+//     let result = digits_regex.find_match(Bvec::new("123456789012345".as_bytes()));
 //     println(result);
 //     assert(result.succeeded);
 //     assert_eq(result.match_ends, 15);
 //     assert_eq(result.leftover.len, 0);
 //
-//     let result = digits_regex.match(Bvec::new("123456789012345 then words".as_bytes()));
+//     let result = digits_regex.find_match(Bvec::new("123456789012345 then words".as_bytes()));
 //     println(result);
 //     assert(result.succeeded);
 //     assert_eq(result.match_ends, 15);
@@ -791,14 +791,14 @@ fn main() {
 //     // 0\d+
 //     let backwards_mult_of_10_regex = ("0", digits_regex);
 //
-//     let result = backwards_mult_of_10_regex.match(Bvec::new(reverse_array("1230".as_bytes())));
+//     let result = backwards_mult_of_10_regex.find_match(Bvec::new(reverse_array("1230".as_bytes())));
 //     println(result);
 //     assert(result.succeeded);
 //     assert_eq(result.match_ends, 4);
 //     assert_eq(result.leftover.len, 0);
 //
 //     let ten_pow_16: str<17> = "10000000000000000";
-//     let result = backwards_mult_of_10_regex.match(Bvec::new(reverse_array(ten_pow_16.as_bytes())));
+//     let result = backwards_mult_of_10_regex.find_match(Bvec::new(reverse_array(ten_pow_16.as_bytes())));
 //     println(result);
 //     assert(result.succeeded);
 //     assert_eq(result.match_ends, 17);

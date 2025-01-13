@@ -1,5 +1,6 @@
 use std::{borrow::Cow, rc::Rc};
 
+use im::HashSet;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 use rustc_hash::FxHashMap as HashMap;
@@ -12,6 +13,7 @@ use crate::{
     },
     hir::{
         def_collector::dc_crate::CompilationError,
+        def_map::{fully_qualified_module_path, ModuleDefId},
         resolution::{errors::ResolverError, import::PathResolutionError},
         type_check::{
             generics::{Generic, TraitGenerics},
@@ -28,7 +30,7 @@ use crate::{
         traits::{NamedType, ResolvedTraitBound, Trait, TraitConstraint},
     },
     node_interner::{
-        DependencyId, ExprId, GlobalValue, ImplSearchErrorKind, NodeInterner, TraitId,
+        DependencyId, ExprId, FuncId, GlobalValue, ImplSearchErrorKind, NodeInterner, TraitId,
         TraitImplKind, TraitMethodId,
     },
     token::SecondaryAttribute,
@@ -566,12 +568,17 @@ impl<'context> Elaborator<'context> {
     }
 
     // this resolves Self::some_static_method, inside an impl block (where we don't have a concrete self_type)
+    // or inside a trait default method.
     //
     // Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
     // E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
     fn resolve_trait_static_method_by_self(&mut self, path: &Path) -> Option<TraitPathResolution> {
-        let trait_impl = self.current_trait_impl?;
-        let trait_id = self.interner.try_get_trait_implementation(trait_impl)?.borrow().trait_id;
+        let trait_id = if let Some(current_trait) = self.current_trait {
+            current_trait
+        } else {
+            let trait_impl = self.current_trait_impl?;
+            self.interner.try_get_trait_implementation(trait_impl)?.borrow().trait_id
+        };
 
         if path.kind == PathKind::Plain && path.segments.len() == 2 {
             let name = &path.segments[0].ident.0.contents;
@@ -1304,7 +1311,7 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    pub(super) fn lookup_method(
+    pub(crate) fn lookup_method(
         &mut self,
         object_type: &Type,
         method_name: &str,
@@ -1312,33 +1319,6 @@ impl<'context> Elaborator<'context> {
         has_self_arg: bool,
     ) -> Option<HirMethodReference> {
         match object_type.follow_bindings() {
-            Type::Struct(typ, _args) => {
-                let id = typ.borrow().id;
-                match self.interner.lookup_method(object_type, id, method_name, false, has_self_arg)
-                {
-                    Some(method_id) => Some(HirMethodReference::FuncId(method_id)),
-                    None => {
-                        let has_field_with_function_type =
-                            typ.borrow().get_fields_as_written().into_iter().any(|field| {
-                                field.name.0.contents == method_name && field.typ.is_function()
-                            });
-                        if has_field_with_function_type {
-                            self.push_err(TypeCheckError::CannotInvokeStructFieldFunctionType {
-                                method_name: method_name.to_string(),
-                                object_type: object_type.clone(),
-                                span,
-                            });
-                        } else {
-                            self.push_err(TypeCheckError::UnresolvedMethodCall {
-                                method_name: method_name.to_string(),
-                                object_type: object_type.clone(),
-                                span,
-                            });
-                        }
-                        None
-                    }
-                }
-            }
             // TODO: We should allow method calls on `impl Trait`s eventually.
             //       For now it is fine since they are only allowed on return types.
             Type::TraitAsType(..) => {
@@ -1354,11 +1334,9 @@ impl<'context> Elaborator<'context> {
             }
             // Mutable references to another type should resolve to methods of their element type.
             // This may be a struct or a primitive type.
-            Type::MutableReference(element) => self
-                .interner
-                .lookup_primitive_trait_method_mut(element.as_ref(), method_name, has_self_arg)
-                .map(HirMethodReference::FuncId)
-                .or_else(|| self.lookup_method(&element, method_name, span, has_self_arg)),
+            Type::MutableReference(element) => {
+                self.lookup_method(&element, method_name, span, has_self_arg)
+            }
 
             // If we fail to resolve the object to a struct type, we have no way of type
             // checking its arguments as we can't even resolve the name of the function
@@ -1370,17 +1348,175 @@ impl<'context> Elaborator<'context> {
                 None
             }
 
-            other => match self.interner.lookup_primitive_method(&other, method_name, has_self_arg)
-            {
-                Some(method_id) => Some(HirMethodReference::FuncId(method_id)),
-                None => {
-                    // It could be that this type is a composite type that is bound to a trait,
-                    // for example `x: (T, U) ... where (T, U): SomeTrait`
-                    // (so this case is a generalization of the NamedGeneric case)
-                    self.lookup_method_in_trait_constraints(object_type, method_name, span)
-                }
-            },
+            other => {
+                self.lookup_struct_or_primitive_method(&other, method_name, span, has_self_arg)
+            }
         }
+    }
+
+    fn lookup_struct_or_primitive_method(
+        &mut self,
+        object_type: &Type,
+        method_name: &str,
+        span: Span,
+        has_self_arg: bool,
+    ) -> Option<HirMethodReference> {
+        // First search in the type methods. If there is one, that's the one.
+        if let Some(method_id) =
+            self.interner.lookup_direct_method(object_type, method_name, has_self_arg)
+        {
+            return Some(HirMethodReference::FuncId(method_id));
+        }
+
+        // Next lookup all matching trait methods.
+        let trait_methods =
+            self.interner.lookup_trait_methods(object_type, method_name, has_self_arg);
+
+        // If there's at least one matching trait method we need to see if only one is in scope.
+        if !trait_methods.is_empty() {
+            return self.return_trait_method_in_scope(&trait_methods, method_name, span);
+        }
+
+        // If we couldn't find any trait methods, search in
+        // impls for all types `T`, e.g. `impl<T> Foo for T`
+        let generic_methods =
+            self.interner.lookup_generic_methods(object_type, method_name, has_self_arg);
+        if !generic_methods.is_empty() {
+            return self.return_trait_method_in_scope(&generic_methods, method_name, span);
+        }
+
+        if let Type::Struct(struct_type, _) = object_type {
+            let has_field_with_function_type = struct_type
+                .borrow()
+                .get_fields_as_written()
+                .into_iter()
+                .any(|field| field.name.0.contents == method_name && field.typ.is_function());
+            if has_field_with_function_type {
+                self.push_err(TypeCheckError::CannotInvokeStructFieldFunctionType {
+                    method_name: method_name.to_string(),
+                    object_type: object_type.clone(),
+                    span,
+                });
+            } else {
+                self.push_err(TypeCheckError::UnresolvedMethodCall {
+                    method_name: method_name.to_string(),
+                    object_type: object_type.clone(),
+                    span,
+                });
+            }
+            None
+        } else {
+            // It could be that this type is a composite type that is bound to a trait,
+            // for example `x: (T, U) ... where (T, U): SomeTrait`
+            // (so this case is a generalization of the NamedGeneric case)
+            self.lookup_method_in_trait_constraints(object_type, method_name, span)
+        }
+    }
+
+    /// Given a list of functions and the trait they belong to, returns the one function
+    /// that is in scope.
+    fn return_trait_method_in_scope(
+        &mut self,
+        trait_methods: &[(FuncId, TraitId)],
+        method_name: &str,
+        span: Span,
+    ) -> Option<HirMethodReference> {
+        let module_id = self.module_id();
+        let module_data = self.get_module(module_id);
+
+        // Only keep unique trait IDs: multiple trait methods might come from the same trait
+        // but implemented with different generics (like `Convert<Field>` and `Convert<i32>`).
+        let traits: HashSet<TraitId> =
+            trait_methods.iter().map(|(_, trait_id)| *trait_id).collect();
+
+        let traits_in_scope: Vec<_> = traits
+            .iter()
+            .filter_map(|trait_id| {
+                let trait_ = self.interner.get_trait(*trait_id);
+                let trait_name = &trait_.name;
+                let Some(map) = module_data.scope().types().get(trait_name) else {
+                    return None;
+                };
+                let Some(imported_item) = map.get(&None) else {
+                    return None;
+                };
+                if imported_item.0 == ModuleDefId::TraitId(*trait_id) {
+                    Some((*trait_id, trait_name))
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        for (_, trait_name) in &traits_in_scope {
+            self.usage_tracker.mark_as_used(module_id, trait_name);
+        }
+
+        if traits_in_scope.is_empty() {
+            if traits.len() == 1 {
+                // This is the backwards-compatible case where there's a single trait but it's not in scope
+                let trait_id = *traits.iter().next().unwrap();
+                let trait_ = self.interner.get_trait(trait_id);
+                let trait_name = self.fully_qualified_trait_path(trait_);
+
+                self.push_err(PathResolutionError::TraitMethodNotInScope {
+                    ident: Ident::new(method_name.into(), span),
+                    trait_name,
+                });
+
+                return Some(self.trait_hir_method_reference(
+                    trait_id,
+                    trait_methods,
+                    method_name,
+                    span,
+                ));
+            } else {
+                let traits = vecmap(traits, |trait_id| {
+                    let trait_ = self.interner.get_trait(trait_id);
+                    self.fully_qualified_trait_path(trait_)
+                });
+                self.push_err(PathResolutionError::UnresolvedWithPossibleTraitsToImport {
+                    ident: Ident::new(method_name.into(), span),
+                    traits,
+                });
+                return None;
+            }
+        }
+
+        if traits_in_scope.len() > 1 {
+            let traits = vecmap(traits, |trait_id| {
+                let trait_ = self.interner.get_trait(trait_id);
+                self.fully_qualified_trait_path(trait_)
+            });
+            self.push_err(PathResolutionError::MultipleTraitsInScope {
+                ident: Ident::new(method_name.into(), span),
+                traits,
+            });
+            return None;
+        }
+
+        let trait_id = traits_in_scope[0].0;
+        Some(self.trait_hir_method_reference(trait_id, trait_methods, method_name, span))
+    }
+
+    fn trait_hir_method_reference(
+        &self,
+        trait_id: TraitId,
+        trait_methods: &[(FuncId, TraitId)],
+        method_name: &str,
+        span: Span,
+    ) -> HirMethodReference {
+        // If we find a single trait impl method, return it so we don't have to later determine the impl
+        if trait_methods.len() == 1 {
+            let (func_id, _) = trait_methods[0];
+            return HirMethodReference::FuncId(func_id);
+        }
+
+        // Return a TraitMethodId with unbound generics. These will later be bound by the type-checker.
+        let trait_ = self.interner.get_trait(trait_id);
+        let generics = trait_.as_constraint(span).trait_bound.trait_generics;
+        let trait_method_id = trait_.find_method(method_name).unwrap();
+        HirMethodReference::TraitMethodId(trait_method_id, generics, false)
     }
 
     fn lookup_method_in_trait_constraints(
@@ -1391,9 +1527,28 @@ impl<'context> Elaborator<'context> {
     ) -> Option<HirMethodReference> {
         let func_id = match self.current_item {
             Some(DependencyId::Function(id)) => id,
-            _ => panic!("unexpected method outside a function"),
+            _ => panic!("unexpected method outside a function: {method_name}"),
         };
         let func_meta = self.interner.function_meta(&func_id);
+
+        // If inside a trait method, check if it's a method on `self`
+        if let Some(trait_id) = func_meta.trait_id {
+            if Some(object_type) == self.self_type.as_ref() {
+                let the_trait = self.interner.get_trait(trait_id);
+                let constraint = the_trait.as_constraint(the_trait.name.span());
+                if let Some(HirMethodReference::TraitMethodId(method_id, generics, _)) = self
+                    .lookup_method_in_trait(
+                        the_trait,
+                        method_name,
+                        &constraint.trait_bound,
+                        the_trait.id,
+                    )
+                {
+                    // If it is, it's an assumed trait
+                    return Some(HirMethodReference::TraitMethodId(method_id, generics, true));
+                }
+            }
+        }
 
         for constraint in &func_meta.trait_constraints {
             if *object_type == constraint.typ {
@@ -1432,6 +1587,7 @@ impl<'context> Elaborator<'context> {
             return Some(HirMethodReference::TraitMethodId(
                 trait_method,
                 trait_bound.trait_generics.clone(),
+                false,
             ));
         }
 
@@ -1797,6 +1953,10 @@ impl<'context> Elaborator<'context> {
             trait_generics: parent_trait_bound.trait_generics.map(|typ| typ.substitute(&bindings)),
             ..*parent_trait_bound
         }
+    }
+
+    pub(crate) fn fully_qualified_trait_path(&self, trait_: &Trait) -> String {
+        fully_qualified_module_path(self.def_maps, self.crate_graph, &trait_.crate_id, trait_.id.0)
     }
 }
 

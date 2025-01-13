@@ -121,13 +121,18 @@ impl<'a> ValueMerger<'a> {
         let else_condition =
             dfg.insert_instruction_and_results(cast, block, None, call_stack).first();
 
-        let mul = Instruction::binary(BinaryOp::Mul, then_condition, then_value);
+        // Unchecked mul because `then_condition` will be 1 or 0
+        let mul =
+            Instruction::binary(BinaryOp::Mul { unchecked: true }, then_condition, then_value);
         let then_value = dfg.insert_instruction_and_results(mul, block, None, call_stack).first();
 
-        let mul = Instruction::binary(BinaryOp::Mul, else_condition, else_value);
+        // Unchecked mul because `else_condition` will be 1 or 0
+        let mul =
+            Instruction::binary(BinaryOp::Mul { unchecked: true }, else_condition, else_value);
         let else_value = dfg.insert_instruction_and_results(mul, block, None, call_stack).first();
 
-        let add = Instruction::binary(BinaryOp::Add, then_value, else_value);
+        // Unchecked add because one of the values will always be 0
+        let add = Instruction::binary(BinaryOp::Add { unchecked: true }, then_value, else_value);
         dfg.insert_instruction_and_results(add, block, None, call_stack).first()
     }
 

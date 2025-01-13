@@ -84,14 +84,15 @@ fn run_stdlib_tests(force_brillig: bool, inliner_aggressiveness: i64) {
     let test_report: Vec<(String, TestStatus)> = test_functions
         .into_iter()
         .map(|(test_name, test_function)| {
+            let pedantic_solving = true;
             let status = run_test(
-                &bn254_blackbox_solver::Bn254BlackBoxSolver,
+                &bn254_blackbox_solver::Bn254BlackBoxSolver(pedantic_solving),
                 &mut context,
                 &test_function,
                 PrintOutput::Stdout,
                 &CompileOptions { force_brillig, inliner_aggressiveness, ..Default::default() },
                 |output, base| {
-                    DefaultForeignCallBuilder { output, ..Default::default() }.build_with_base(base)
+                    DefaultForeignCallBuilder::default().with_output(output).build_with_base(base)
                 },
             );
             (test_name, status)

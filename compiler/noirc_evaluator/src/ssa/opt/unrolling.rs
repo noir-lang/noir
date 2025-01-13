@@ -619,10 +619,16 @@ impl Loop {
         let header = &function.dfg[self.header];
         let induction_var = header.parameters()[0];
 
-        back.instructions().iter().filter(|instruction|  {
-            let instruction = &function.dfg[**instruction];
-            matches!(instruction, Instruction::Binary(Binary { lhs, operator: BinaryOp::Add, rhs: _ }) if *lhs == induction_var)
-        }).count()
+        back.instructions()
+            .iter()
+            .filter(|instruction| {
+                let instruction = &function.dfg[**instruction];
+                matches!(instruction,
+                    Instruction::Binary(Binary { lhs, operator: BinaryOp::Add { .. }, rhs: _ })
+                        if *lhs == induction_var
+                )
+            })
+            .count()
     }
 
     /// Decide if this loop is small enough that it can be inlined in a way that the number

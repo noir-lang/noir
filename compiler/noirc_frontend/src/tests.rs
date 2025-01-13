@@ -65,6 +65,9 @@ pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(Compilation
     )
 }
 
+/// Compile a program.
+///
+/// The stdlib is not available for these snippets.
 pub(crate) fn get_program_with_maybe_parser_errors(
     src: &str,
     allow_parser_errors: bool,
@@ -114,7 +117,7 @@ pub(crate) fn get_program_with_maybe_parser_errors(
         };
 
         let debug_comptime_in_file = None;
-        let error_on_unused_imports = true;
+        let pedantic_solving = true;
 
         // Now we want to populate the CrateDefMap using the DefCollector
         errors.extend(DefCollector::collect_crate_and_dependencies(
@@ -123,7 +126,7 @@ pub(crate) fn get_program_with_maybe_parser_errors(
             program.clone().into_sorted(),
             root_file_id,
             debug_comptime_in_file,
-            error_on_unused_imports,
+            pedantic_solving,
         ));
     }
     (program, context, errors)
@@ -1244,7 +1247,7 @@ fn resolve_fmt_strings() {
 fn monomorphize_program(src: &str) -> Result<Program, MonomorphizationError> {
     let (_program, mut context, _errors) = get_program(src);
     let main_func_id = context.def_interner.find_function("main").unwrap();
-    monomorphize(main_func_id, &mut context.def_interner)
+    monomorphize(main_func_id, &mut context.def_interner, false)
 }
 
 fn get_monomorphization_error(src: &str) -> Option<MonomorphizationError> {
@@ -2845,6 +2848,21 @@ fn trait_constraint_on_tuple_type() {
 }
 
 #[test]
+fn trait_constraint_on_tuple_type_pub_crate() {
+    let src = r#"
+        pub(crate) trait Foo<A> {
+            fn foo(self, x: A) -> bool;
+        }
+
+        pub fn bar<T, U, V>(x: (T, U), y: V) -> bool where (T, U): Foo<V> {
+            x.foo(y)
+        }
+
+        fn main() {}"#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn incorrect_generic_count_on_struct_impl() {
     let src = r#"
     struct Foo {}
@@ -2942,7 +2960,7 @@ fn uses_self_type_inside_trait() {
 fn uses_self_type_in_trait_where_clause() {
     let src = r#"
     pub trait Trait {
-        fn trait_func() -> bool;
+        fn trait_func(self) -> bool;
     }
 
     pub trait Foo where Self: Trait {
@@ -3879,10 +3897,10 @@ fn errors_on_cyclic_globals() {
 #[test]
 fn warns_on_unneeded_unsafe() {
     let src = r#"
-    fn main() { 
+    fn main() {
+        /// Safety: test
         unsafe {
-            //@safety: test
-            foo() 
+            foo()
         }
     }
 
@@ -3899,12 +3917,12 @@ fn warns_on_unneeded_unsafe() {
 #[test]
 fn warns_on_nested_unsafe() {
     let src = r#"
-    fn main() { 
-        unsafe { 
-            //@safety: test
+    fn main() {
+        /// Safety: test
+        unsafe {
+            /// Safety: test
             unsafe {
-                //@safety: test
-                foo() 
+                foo()
             }
         }
     }
@@ -3917,4 +3935,23 @@ fn warns_on_nested_unsafe() {
         &errors[0].0,
         CompilationError::TypeError(TypeCheckError::NestedUnsafeBlock { .. })
     ));
+}
+
+#[test]
+fn mutable_self_call() {
+    let src = r#"
+    fn main() {
+        let mut bar = Bar {};
+        let _ = bar.bar();
+    }
+
+    struct Bar {}
+
+    impl Bar {
+        fn bar(&mut self) {
+            let _ = self;
+        }
+    }
+    "#;
+    assert_no_errors(src);
 }

@@ -1862,7 +1862,7 @@ impl Type {
         if let (Type::Array(_size, element1), Type::Slice(element2)) = (&this, &target) {
             // We can only do the coercion if the `as_slice` method exists.
             // This is usually true, but some tests don't have access to the standard library.
-            if let Some(as_slice) = interner.lookup_primitive_method(&this, "as_slice", true) {
+            if let Some(as_slice) = interner.lookup_direct_method(&this, "as_slice", true) {
                 // Still have to ensure the element types match.
                 // Don't need to issue an error here if not, it will be done in unify_with_coercions
                 let mut bindings = TypeBindings::new();

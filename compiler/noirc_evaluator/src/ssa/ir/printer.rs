@@ -1,11 +1,14 @@
 //! This file is for pretty-printing the SSA IR in a human-readable form for debugging.
-use std::fmt::{Formatter, Result};
+use std::fmt::{Display, Formatter, Result};
 
 use acvm::acir::AcirField;
 use im::Vector;
 use iter_extended::vecmap;
 
-use crate::ssa::ir::types::{NumericType, Type};
+use crate::ssa::{
+    ir::types::{NumericType, Type},
+    Ssa,
+};
 
 use super::{
     basic_block::BasicBlockId,
@@ -15,72 +18,104 @@ use super::{
     value::{Value, ValueId},
 };
 
+impl Display for Ssa {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        for (id, global_value) in self.globals.dfg.values_iter() {
+            match global_value {
+                Value::NumericConstant { constant, typ } => {
+                    writeln!(f, "g{} = {typ} {constant}", id.to_u32())?;
+                }
+                Value::Instruction { instruction, .. } => {
+                    display_instruction(&self.globals.dfg, *instruction, true, f)?;
+                }
+                Value::Global(_) => {
+                    panic!("Value::Global should only be in the function dfg");
+                }
+                _ => panic!("Expected only numeric constant or instruction"),
+            };
+        }
+
+        if self.globals.dfg.values_iter().len() > 0 {
+            writeln!(f)?;
+        }
+
+        for function in self.functions.values() {
+            writeln!(f, "{function}")?;
+        }
+        Ok(())
+    }
+}
+
+impl Display for Function {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        display_function(self, f)
+    }
+}
+
 /// Helper function for Function's Display impl to pretty-print the function with the given formatter.
-pub(crate) fn display_function(function: &Function, f: &mut Formatter) -> Result {
+fn display_function(function: &Function, f: &mut Formatter) -> Result {
     writeln!(f, "{} fn {} {} {{", function.runtime(), function.name(), function.id())?;
     for block_id in function.reachable_blocks() {
-        display_block(function, block_id, f)?;
+        display_block(&function.dfg, block_id, f)?;
     }
     write!(f, "}}")
 }
 
 /// Display a single block. This will not display the block's successors.
-pub(crate) fn display_block(
-    function: &Function,
-    block_id: BasicBlockId,
-    f: &mut Formatter,
-) -> Result {
-    let block = &function.dfg[block_id];
+fn display_block(dfg: &DataFlowGraph, block_id: BasicBlockId, f: &mut Formatter) -> Result {
+    let block = &dfg[block_id];
 
-    writeln!(f, "  {}({}):", block_id, value_list_with_types(function, block.parameters()))?;
+    writeln!(f, "  {}({}):", block_id, value_list_with_types(dfg, block.parameters()))?;
 
     for instruction in block.instructions() {
-        display_instruction(function, *instruction, f)?;
+        display_instruction(dfg, *instruction, false, f)?;
     }
 
-    display_terminator(function, block.terminator(), f)
+    display_terminator(dfg, block.terminator(), f)
 }
 
 /// Specialize displaying value ids so that if they refer to a numeric
 /// constant or a function we print those directly.
-fn value(function: &Function, id: ValueId) -> String {
-    let id = function.dfg.resolve(id);
-    match &function.dfg[id] {
+fn value(dfg: &DataFlowGraph, id: ValueId) -> String {
+    let id = dfg.resolve(id);
+    match &dfg[id] {
         Value::NumericConstant { constant, typ } => {
             format!("{typ} {constant}")
         }
         Value::Function(id) => id.to_string(),
         Value::Intrinsic(intrinsic) => intrinsic.to_string(),
-        Value::Param { .. } | Value::Instruction { .. } | Value::ForeignFunction(_) => {
-            id.to_string()
+        Value::ForeignFunction(function) => function.clone(),
+        Value::Param { .. } | Value::Instruction { .. } => id.to_string(),
+        Value::Global(_) => {
+            format!("g{}", id.to_u32())
         }
     }
 }
 
 /// Display each value along with its type. E.g. `v0: Field, v1: u64, v2: u1`
-fn value_list_with_types(function: &Function, values: &[ValueId]) -> String {
+fn value_list_with_types(dfg: &DataFlowGraph, values: &[ValueId]) -> String {
     vecmap(values, |id| {
-        let value = value(function, *id);
-        let typ = function.dfg.type_of_value(*id);
+        let value = value(dfg, *id);
+        let typ = dfg.type_of_value(*id);
         format!("{value}: {typ}")
     })
     .join(", ")
 }
 
 /// Display each value separated by a comma
-fn value_list(function: &Function, values: &[ValueId]) -> String {
-    vecmap(values, |id| value(function, *id)).join(", ")
+fn value_list(dfg: &DataFlowGraph, values: &[ValueId]) -> String {
+    vecmap(values, |id| value(dfg, *id)).join(", ")
 }
 
 /// Display a terminator instruction
-pub(crate) fn display_terminator(
-    function: &Function,
+fn display_terminator(
+    dfg: &DataFlowGraph,
     terminator: Option<&TerminatorInstruction>,
     f: &mut Formatter,
 ) -> Result {
     match terminator {
         Some(TerminatorInstruction::Jmp { destination, arguments, call_stack: _ }) => {
-            writeln!(f, "    jmp {}({})", destination, value_list(function, arguments))
+            writeln!(f, "    jmp {}({})", destination, value_list(dfg, arguments))
         }
         Some(TerminatorInstruction::JmpIf {
             condition,
@@ -91,7 +126,7 @@ pub(crate) fn display_terminator(
             writeln!(
                 f,
                 "    jmpif {} then: {}, else: {}",
-                value(function, *condition),
+                value(dfg, *condition),
                 then_destination,
                 else_destination
             )
@@ -100,7 +135,7 @@ pub(crate) fn display_terminator(
             if return_values.is_empty() {
                 writeln!(f, "    return")
             } else {
-                writeln!(f, "    return {}", value_list(function, return_values))
+                writeln!(f, "    return {}", value_list(dfg, return_values))
             }
         }
         None => writeln!(f, "    (no terminator instruction)"),
@@ -108,29 +143,36 @@ pub(crate) fn display_terminator(
 }
 
 /// Display an arbitrary instruction
-pub(crate) fn display_instruction(
-    function: &Function,
+fn display_instruction(
+    dfg: &DataFlowGraph,
     instruction: InstructionId,
+    in_global_space: bool,
     f: &mut Formatter,
 ) -> Result {
-    // instructions are always indented within a function
-    write!(f, "    ")?;
-
-    let results = function.dfg.instruction_results(instruction);
-    if !results.is_empty() {
-        write!(f, "{} = ", value_list(function, results))?;
+    if !in_global_space {
+        // instructions are always indented within a function
+        write!(f, "    ")?;
     }
 
-    display_instruction_inner(function, &function.dfg[instruction], results, f)
+    let results = dfg.instruction_results(instruction);
+    if !results.is_empty() {
+        let mut value_list = value_list(dfg, results);
+        if in_global_space {
+            value_list = value_list.replace('v', "g");
+        }
+        write!(f, "{} = ", value_list)?;
+    }
+
+    display_instruction_inner(dfg, &dfg[instruction], results, f)
 }
 
 fn display_instruction_inner(
-    function: &Function,
+    dfg: &DataFlowGraph,
     instruction: &Instruction,
     results: &[ValueId],
     f: &mut Formatter,
 ) -> Result {
-    let show = |id| value(function, id);
+    let show = |id| value(dfg, id);
 
     match instruction {
         Instruction::Binary(binary) => {
@@ -145,20 +187,20 @@ fn display_instruction_inner(
         Instruction::Constrain(lhs, rhs, error) => {
             write!(f, "constrain {} == {}", show(*lhs), show(*rhs))?;
             if let Some(error) = error {
-                display_constrain_error(function, error, f)
+                display_constrain_error(dfg, error, f)
             } else {
                 writeln!(f)
             }
         }
         Instruction::Call { func, arguments } => {
-            let arguments = value_list(function, arguments);
-            writeln!(f, "call {}({}){}", show(*func), arguments, result_types(function, results))
+            let arguments = value_list(dfg, arguments);
+            writeln!(f, "call {}({}){}", show(*func), arguments, result_types(dfg, results))
         }
         Instruction::Allocate => {
-            writeln!(f, "allocate{}", result_types(function, results))
+            writeln!(f, "allocate{}", result_types(dfg, results))
         }
         Instruction::Load { address } => {
-            writeln!(f, "load {}{}", show(*address), result_types(function, results))
+            writeln!(f, "load {}{}", show(*address), result_types(dfg, results))
         }
         Instruction::Store { address, value } => {
             writeln!(f, "store {} at {}", show(*value), show(*address))
@@ -172,7 +214,7 @@ fn display_instruction_inner(
                 "array_get {}, index {}{}",
                 show(*array),
                 show(*index),
-                result_types(function, results)
+                result_types(dfg, results)
             )
         }
         Instruction::ArraySet { array, index, value, mutable } => {
@@ -215,7 +257,7 @@ fn display_instruction_inner(
             if element_types.len() == 1
                 && element_types[0] == Type::Numeric(NumericType::Unsigned { bit_size: 8 })
             {
-                if let Some(string) = try_byte_array_to_string(elements, function) {
+                if let Some(string) = try_byte_array_to_string(elements, dfg) {
                     if is_slice {
                         return writeln!(f, "make_array &b{:?}", string);
                     } else {
@@ -239,10 +281,10 @@ fn display_instruction_inner(
     }
 }
 
-fn try_byte_array_to_string(elements: &Vector<ValueId>, function: &Function) -> Option<String> {
+fn try_byte_array_to_string(elements: &Vector<ValueId>, dfg: &DataFlowGraph) -> Option<String> {
     let mut string = String::new();
     for element in elements {
-        let element = function.dfg.get_numeric_constant(*element)?;
+        let element = dfg.get_numeric_constant(*element)?;
         let element = element.try_to_u32()?;
         if element > 0xFF {
             return None;
@@ -258,8 +300,8 @@ fn try_byte_array_to_string(elements: &Vector<ValueId>, function: &Function) -> 
     Some(string)
 }
 
-fn result_types(function: &Function, results: &[ValueId]) -> String {
-    let types = vecmap(results, |result| function.dfg.type_of_value(*result).to_string());
+fn result_types(dfg: &DataFlowGraph, results: &[ValueId]) -> String {
+    let types = vecmap(results, |result| dfg.type_of_value(*result).to_string());
     if types.is_empty() {
         String::new()
     } else if types.len() == 1 {
@@ -275,26 +317,15 @@ pub(crate) fn try_to_extract_string_from_error_payload(
     values: &[ValueId],
     dfg: &DataFlowGraph,
 ) -> Option<String> {
-    (is_string_type && (values.len() == 1))
-        .then_some(())
-        .and_then(|()| {
-            let (values, _) = &dfg.get_array_constant(values[0])?;
-            let values = values.iter().map(|value_id| dfg.get_numeric_constant(*value_id));
-            values.collect::<Option<Vec<_>>>()
-        })
-        .map(|fields| {
-            fields
-                .iter()
-                .map(|field| {
-                    let as_u8 = field.try_to_u64().unwrap_or_default() as u8;
-                    as_u8 as char
-                })
-                .collect()
-        })
+    if is_string_type && values.len() == 1 {
+        dfg.get_string(values[0])
+    } else {
+        None
+    }
 }
 
 fn display_constrain_error(
-    function: &Function,
+    dfg: &DataFlowGraph,
     error: &ConstrainError,
     f: &mut Formatter,
 ) -> Result {
@@ -304,11 +335,11 @@ fn display_constrain_error(
         }
         ConstrainError::Dynamic(_, is_string, values) => {
             if let Some(constant_string) =
-                try_to_extract_string_from_error_payload(*is_string, values, &function.dfg)
+                try_to_extract_string_from_error_payload(*is_string, values, dfg)
             {
                 writeln!(f, ", {constant_string:?}")
             } else {
-                writeln!(f, ", data {}", value_list(function, values))
+                writeln!(f, ", data {}", value_list(dfg, values))
             }
         }
     }
