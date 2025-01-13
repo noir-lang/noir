@@ -106,6 +106,9 @@ pub(crate) struct DataFlowGraph {
     pub(crate) globals: Arc<GlobalsGraph>,
 }
 
+/// The GlobalsGraph contains the actual global data. 
+/// Global data is expected to only be numeric constants or array constants (which are represented by Instruction::MakeArray).
+/// The global's data will shared across functions and should be accessible inside of a function's DataFlowGraph.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub(crate) struct GlobalsGraph {
     /// Storage for all of the global values
@@ -533,12 +536,8 @@ impl DataFlowGraph {
         &self,
         value: ValueId,
     ) -> Option<(FieldElement, NumericType)> {
-        match &self.values[self.resolve(value)] {
+        match &self[self.resolve(value)] {
             Value::NumericConstant { constant, typ } => Some((*constant, *typ)),
-            Value::Global(_) => match &self.globals[self.resolve(value)] {
-                Value::NumericConstant { constant, typ } => Some((*constant, *typ)),
-                _ => None,
-            },
             _ => None,
         }
     }
@@ -668,7 +667,7 @@ impl DataFlowGraph {
                 _ => false,
             },
             Value::Global(_) => {
-                panic!("The global value case should already be handled");
+                unreachable!("The global value case should already be handled");
             }
             _ => true,
         }
