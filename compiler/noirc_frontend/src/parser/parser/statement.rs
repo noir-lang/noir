@@ -10,7 +10,7 @@ use crate::{
     token::{Attribute, Keyword, Token, TokenKind},
 };
 
-use super::Parser;
+use super::{Parser, StatementDocComments};
 
 impl<'a> Parser<'a> {
     pub(crate) fn parse_statement_or_error(&mut self) -> Statement {
@@ -25,9 +25,37 @@ impl<'a> Parser<'a> {
     /// Statement = Attributes StatementKind ';'?
     pub(crate) fn parse_statement(&mut self) -> Option<(Statement, (Option<Token>, Span))> {
         loop {
+            let span_before_doc_comments = self.current_token_span;
+            let doc_comments = self.parse_outer_doc_comments();
+            let span_after_doc_comments = self.current_token_span;
+            if doc_comments.is_empty() {
+                self.statement_doc_comments = None;
+            } else {
+                self.statement_doc_comments = Some(StatementDocComments {
+                    doc_comments,
+                    start_span: span_before_doc_comments,
+                    end_span: span_after_doc_comments,
+                    read: false,
+                });
+            }
+
             let attributes = self.parse_attributes();
             let start_span = self.current_token_span;
             let kind = self.parse_statement_kind(attributes);
+
+            if let Some(statement_doc_comments) = &self.statement_doc_comments {
+                if !statement_doc_comments.read {
+                    self.push_error(
+                        ParserErrorReason::DocCommentDoesNotDocumentAnything,
+                        Span::from(
+                            statement_doc_comments.start_span.start()
+                                ..statement_doc_comments.end_span.start(),
+                        ),
+                    );
+                }
+            }
+
+            self.statement_doc_comments = None;
 
             let (semicolon_token, semicolon_span) = if self.at(Token::Semicolon) {
                 let token = self.token.clone();
@@ -482,6 +510,17 @@ mod tests {
     }
 
     #[test]
+    fn parses_let_statement_with_unsafe() {
+        let src = "/// Safety: doc comment
+        let x = unsafe { 1 };";
+        let statement = parse_statement_no_errors(src);
+        let StatementKind::Let(let_statement) = statement.kind else {
+            panic!("Expected let statement");
+        };
+        assert_eq!(let_statement.pattern.to_string(), "x");
+    }
+
+    #[test]
     fn parses_assert() {
         let src = "assert(true, \"good\")";
         let statement = parse_statement_no_errors(src);
@@ -634,6 +673,20 @@ mod tests {
     }
 
     #[test]
+    fn parses_assignment_with_unsafe() {
+        let src = "/// Safety: test 
+        x = unsafe { 1 }";
+        let statement = parse_statement_no_errors(src);
+        let StatementKind::Assign(assign) = statement.kind else {
+            panic!("Expected assign");
+        };
+        let LValue::Ident(ident) = assign.lvalue else {
+            panic!("Expected ident");
+        };
+        assert_eq!(ident.to_string(), "x");
+    }
+
+    #[test]
     fn parses_op_assignment() {
         let src = "x += 1";
         let statement = parse_statement_no_errors(src);
@@ -651,6 +704,16 @@ mod tests {
             panic!("Expected assign");
         };
         assert_eq!(assign.to_string(), "x = (x >> 1)");
+    }
+
+    #[test]
+    fn parses_op_assignment_with_unsafe() {
+        let src = "/// Safety: comment
+        x += unsafe { 1 }";
+        let statement = parse_statement_no_errors(src);
+        let StatementKind::Assign(_) = statement.kind else {
+            panic!("Expected assign");
+        };
     }
 
     #[test]

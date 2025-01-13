@@ -92,7 +92,7 @@ fn run_stdlib_tests(force_brillig: bool, inliner_aggressiveness: i64) {
                 PrintOutput::Stdout,
                 &CompileOptions { force_brillig, inliner_aggressiveness, ..Default::default() },
                 |output, base| {
-                    DefaultForeignCallBuilder { output, ..Default::default() }.build_with_base(base)
+                    DefaultForeignCallBuilder::default().with_output(output).build_with_base(base)
                 },
             );
             (test_name, status)

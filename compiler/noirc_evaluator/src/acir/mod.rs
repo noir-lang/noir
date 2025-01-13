@@ -1892,6 +1892,9 @@ impl<'a> Context<'a> {
             Value::Instruction { .. } | Value::Param { .. } => {
                 unreachable!("ICE: Should have been in cache {value_id} {value:?}")
             }
+            Value::Global(_) => {
+                unreachable!("ICE: All globals should have been inlined");
+            }
         };
         self.ssa_values.insert(value_id, acir_value.clone());
         acir_value
@@ -1949,9 +1952,9 @@ impl<'a> Context<'a> {
         let bit_count = binary_type.bit_size::<FieldElement>();
         let num_type = binary_type.to_numeric_type();
         let result = match binary.operator {
-            BinaryOp::Add => self.acir_context.add_var(lhs, rhs),
-            BinaryOp::Sub => self.acir_context.sub_var(lhs, rhs),
-            BinaryOp::Mul => self.acir_context.mul_var(lhs, rhs),
+            BinaryOp::Add { .. } => self.acir_context.add_var(lhs, rhs),
+            BinaryOp::Sub { .. } => self.acir_context.sub_var(lhs, rhs),
+            BinaryOp::Mul { .. } => self.acir_context.mul_var(lhs, rhs),
             BinaryOp::Div => self.acir_context.div_var(
                 lhs,
                 rhs,
@@ -2070,7 +2073,7 @@ impl<'a> Context<'a> {
             Value::Instruction { instruction, .. } => {
                 if matches!(
                     &dfg[*instruction],
-                    Instruction::Binary(Binary { operator: BinaryOp::Sub, .. })
+                    Instruction::Binary(Binary { operator: BinaryOp::Sub { .. }, .. })
                 ) {
                     // Subtractions must first have the integer modulus added before truncation can be
                     // applied. This is done in order to prevent underflow.
@@ -2169,7 +2172,7 @@ impl<'a> Context<'a> {
 
                 let Type::Array(result_type, array_length) = dfg.type_of_value(result_ids[0])
                 else {
-                    unreachable!("ICE: ToRadix result must be an array");
+                    unreachable!("ICE: ToBits result must be an array");
                 };
 
                 self.acir_context
@@ -3159,7 +3162,11 @@ mod test {
         let func_with_nested_call_v1 = builder.add_parameter(Type::field());
 
         let two = builder.field_constant(2u128);
-        let v0_plus_two = builder.insert_binary(func_with_nested_call_v0, BinaryOp::Add, two);
+        let v0_plus_two = builder.insert_binary(
+            func_with_nested_call_v0,
+            BinaryOp::Add { unchecked: false },
+            two,
+        );
 
         let foo_id = Id::test_new(2);
         let foo_call = builder.import_function(foo_id);

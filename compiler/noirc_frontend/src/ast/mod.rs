@@ -580,12 +580,13 @@ impl std::fmt::Display for ItemVisibility {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 /// Represents whether the parameter is public or known only to the prover.
 pub enum Visibility {
     Public,
     // Constants are not allowed in the ABI for main at the moment.
     // Constant,
+    #[default]
     Private,
     /// DataBus is public input handled as private input. We use the fact that return values are properly computed by the program to avoid having them as public inputs
     /// it is useful for recursion and is handled by the proving system.

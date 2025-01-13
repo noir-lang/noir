@@ -79,7 +79,7 @@ pub struct Turbofish {
 /// Any item that can appear before the last segment in a path.
 #[derive(Debug)]
 enum IntermediatePathResolutionItem {
-    Module(ModuleId),
+    Module,
     Struct(StructId, Option<Turbofish>),
     TypeAlias(TypeAliasId, Option<Turbofish>),
     Trait(TraitId, Option<Turbofish>),
@@ -180,7 +180,7 @@ impl<'context> Elaborator<'context> {
         let mut current_module_id = starting_module;
         let mut current_module = self.get_module(starting_module);
 
-        let mut intermediate_item = IntermediatePathResolutionItem::Module(current_module_id);
+        let mut intermediate_item = IntermediatePathResolutionItem::Module;
 
         let first_segment =
             &path.segments.first().expect("ice: could not fetch first segment").ident;
@@ -222,7 +222,7 @@ impl<'context> Elaborator<'context> {
                         });
                     }
 
-                    (id, false, IntermediatePathResolutionItem::Module(id))
+                    (id, false, IntermediatePathResolutionItem::Module)
                 }
                 ModuleDefId::TypeId(id) => (
                     id.module_id(),
@@ -460,9 +460,7 @@ fn merge_intermediate_path_resolution_item_with_module_def_id(
         ModuleDefId::TraitId(trait_id) => PathResolutionItem::Trait(trait_id),
         ModuleDefId::GlobalId(global_id) => PathResolutionItem::Global(global_id),
         ModuleDefId::FunctionId(func_id) => match intermediate_item {
-            IntermediatePathResolutionItem::Module(_) => {
-                PathResolutionItem::ModuleFunction(func_id)
-            }
+            IntermediatePathResolutionItem::Module => PathResolutionItem::ModuleFunction(func_id),
             IntermediatePathResolutionItem::Struct(struct_id, generics) => {
                 PathResolutionItem::StructFunction(struct_id, generics, func_id)
             }

@@ -1409,9 +1409,15 @@ impl<'context> Elaborator<'context> {
             let span = trait_impl.object_type.span;
             self.declare_methods_on_struct(Some(trait_id), &mut trait_impl.methods, span);
 
+            let trait_visibility = self.interner.get_trait(trait_id).visibility;
+
             let methods = trait_impl.methods.function_ids();
             for func_id in &methods {
                 self.interner.set_function_trait(*func_id, self_type.clone(), trait_id);
+
+                // A trait impl method has the same visibility as its trait
+                let modifiers = self.interner.function_modifiers_mut(func_id);
+                modifiers.visibility = trait_visibility;
             }
 
             let trait_generics = trait_impl.resolved_trait_generics.clone();

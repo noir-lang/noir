@@ -1002,7 +1002,7 @@ mod tests {
         let two = builder.field_constant(2u128);
         builder.insert_store(v5, two);
         let one = builder.field_constant(1u128);
-        let v3_plus_one = builder.insert_binary(v3, BinaryOp::Add, one);
+        let v3_plus_one = builder.insert_binary(v3, BinaryOp::Add { unchecked: false }, one);
         builder.terminate_with_jmp(b1, vec![v3_plus_one]);
 
         builder.switch_to_block(b3);
