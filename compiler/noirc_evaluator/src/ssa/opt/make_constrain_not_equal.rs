@@ -10,16 +10,11 @@ use crate::ssa::{
 };
 
 impl Ssa {
-    /// A simple SSA pass to go through each instruction and evaluate each call
-    /// to `assert_constant`, issuing an error if any arguments to the function are
-    /// not constants.
+    /// A simple SSA pass to go through each [`Instruction::Constrain`], determine whether it's asserting
+    /// two values are not equal, and if so replace it with a [`Instruction::ConstrainNotEqual`].
     ///
-    /// Note that this pass must be placed directly before loop unrolling to be
-    /// useful. Any optimization passes between this and loop unrolling will cause
-    /// the constants that this pass sees to be potentially different than the constants
-    /// seen by loop unrolling. Furthermore, this pass cannot be a part of loop unrolling
-    /// since we must go through every instruction to find all references to `assert_constant`
-    /// while loop unrolling only touches blocks with loops in them.
+    /// Note that this pass must be placed after CFG flattening as the flattening pass cannot
+    /// handle this instruction.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn make_constrain_not_equal_instructions(mut self) -> Ssa {
         for function in self.functions.values_mut() {
