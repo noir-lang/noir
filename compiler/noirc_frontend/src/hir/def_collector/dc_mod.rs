@@ -1228,9 +1228,10 @@ pub(crate) fn collect_trait_impl_items(
     for item in std::mem::take(&mut trait_impl.items) {
         match item.item.kind {
             TraitImplItemKind::Function(mut impl_method) => {
-                // Regardless of what visibility was on the source code, treat it as public
-                // (a warning is produced during parsing for this)
-                impl_method.def.visibility = ItemVisibility::Public;
+                // Set the impl method visibility as temporarily private.
+                // Eventually when we find out what trait is this impl for we'll set it
+                // to the trait's visibility.
+                impl_method.def.visibility = ItemVisibility::Private;
 
                 let func_id = interner.push_empty_fn();
                 let location = Location::new(impl_method.span(), file_id);

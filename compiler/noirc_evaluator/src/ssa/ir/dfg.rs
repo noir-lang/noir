@@ -20,7 +20,6 @@ use iter_extended::vecmap;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use serde_with::DisplayFromStr;
-use tracing::warn;
 
 /// The DataFlowGraph contains most of the actual data in a function including
 /// its blocks, instructions, and values. This struct is largely responsible for
@@ -238,8 +237,7 @@ impl DataFlowGraph {
         call_stack: CallStackId,
     ) -> InsertInstructionResult {
         if !self.is_handled_by_runtime(&instruction) {
-            warn!("Attempted to insert instruction not handled by runtime: {instruction:?}");
-            return InsertInstructionResult::InstructionRemoved;
+            panic!("Attempted to insert instruction not handled by runtime: {instruction:?}");
         }
 
         match instruction.simplify(self, block, ctrl_typevars.clone(), call_stack) {
