@@ -1,11 +1,12 @@
 use std::collections::BTreeSet;
+use std::sync::Arc;
 
 use iter_extended::vecmap;
 use noirc_frontend::monomorphization::ast::InlineType;
 use serde::{Deserialize, Serialize};
 
 use super::basic_block::BasicBlockId;
-use super::dfg::DataFlowGraph;
+use super::dfg::{DataFlowGraph, GlobalsGraph};
 use super::instruction::TerminatorInstruction;
 use super::map::Id;
 use super::types::Type;
@@ -89,6 +90,7 @@ impl Function {
     /// Note that any parameters or attributes of the function must be manually added later.
     pub(crate) fn new(name: String, id: FunctionId) -> Self {
         let mut dfg = DataFlowGraph::default();
+        // dfg.globals_new = Some(Box::new(globals_dfg));
         let entry_block = dfg.make_block();
         Self { name, id: Some(id), entry_block, dfg }
     }
@@ -112,6 +114,7 @@ impl Function {
     pub(crate) fn clone_signature(id: FunctionId, another: &Function) -> Self {
         let mut new_function = Function::new(another.name.clone(), id);
         new_function.set_runtime(another.runtime());
+        new_function.set_globals(another.dfg.globals.clone());
         new_function
     }
 
@@ -134,6 +137,10 @@ impl Function {
     /// Set runtime type of the function.
     pub(crate) fn set_runtime(&mut self, runtime: RuntimeType) {
         self.dfg.set_runtime(runtime);
+    }
+
+    pub(crate) fn set_globals(&mut self, globals: Arc<GlobalsGraph>) {
+        self.dfg.globals = globals;
     }
 
     pub(crate) fn is_no_predicates(&self) -> bool {

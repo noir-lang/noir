@@ -105,6 +105,7 @@ impl Ssa {
 
 #[cfg(test)]
 mod test {
+    use crate::ssa::ir::dfg::DataFlowGraph;
     use crate::ssa::ir::map::Id;
 
     use crate::ssa::ssa_gen::Ssa;

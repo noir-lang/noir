@@ -295,6 +295,7 @@ mod test {
     use crate::ssa::{
         function_builder::FunctionBuilder,
         ir::{
+            dfg::DataFlowGraph,
             instruction::{BinaryOp, TerminatorInstruction},
             map::Id,
             types::Type,

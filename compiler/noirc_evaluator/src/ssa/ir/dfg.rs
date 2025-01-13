@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, sync::Arc};
 
 use crate::ssa::{function_builder::data_bus::DataBus, ir::instruction::SimplifyResult};
 
@@ -102,6 +102,28 @@ pub(crate) struct DataFlowGraph {
 
     #[serde(skip)]
     pub(crate) data_bus: DataBus,
+
+    pub(crate) globals: Arc<GlobalsGraph>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub(crate) struct GlobalsGraph {
+    /// Storage for all of the global values
+    values: DenseMap<Value>,
+    /// All of the instructions in the global value space.
+    /// These are expected to all be Instruction::MakeArray
+    instructions: DenseMap<Instruction>,
+}
+
+impl GlobalsGraph {
+    pub(crate) fn from_dfg(dfg: DataFlowGraph) -> Self {
+        Self { values: dfg.values, instructions: dfg.instructions }
+    }
+
+    /// Iterate over every Value in this DFG in no particular order, including unused Values
+    pub(crate) fn values_iter(&self) -> impl ExactSizeIterator<Item = (ValueId, &Value)> {
+        self.values.iter()
+    }
 }
 
 impl DataFlowGraph {
@@ -326,6 +348,7 @@ impl DataFlowGraph {
     }
 
     pub(crate) fn make_global(&mut self, typ: Type) -> ValueId {
+        // self.instructions.insert(Instruction::Allocate);
         self.values.insert(Value::Global(typ))
     }
 
@@ -503,6 +526,10 @@ impl DataFlowGraph {
     ) -> Option<(FieldElement, NumericType)> {
         match &self.values[self.resolve(value)] {
             Value::NumericConstant { constant, typ } => Some((*constant, *typ)),
+            Value::Global(_) => match &self.globals[self.resolve(value)] {
+                Value::NumericConstant { constant, typ } => Some((*constant, *typ)),
+                _ => None,
+            },
             _ => None,
         }
     }
@@ -510,11 +537,21 @@ impl DataFlowGraph {
     /// Returns the Value::Array associated with this ValueId if it refers to an array constant.
     /// Otherwise, this returns None.
     pub(crate) fn get_array_constant(&self, value: ValueId) -> Option<(im::Vector<ValueId>, Type)> {
-        match &self.values[self.resolve(value)] {
-            Value::Instruction { instruction, .. } => match &self.instructions[*instruction] {
-                Instruction::MakeArray { elements, typ } => Some((elements.clone(), typ.clone())),
-                _ => None,
-            },
+        let value = self.resolve(value);
+        match &self.values[value] {
+            Value::Instruction { instruction, .. } => {
+                let instruction = if self.is_global(value) {
+                    &self.globals[*instruction]
+                } else {
+                    &self.instructions[*instruction]
+                };
+                match instruction {
+                    Instruction::MakeArray { elements, typ } => {
+                        Some((elements.clone(), typ.clone()))
+                    }
+                    _ => None,
+                }
+            }
             // Arrays are shared, so cloning them is cheap
             _ => None,
         }
@@ -617,9 +654,10 @@ impl DataFlowGraph {
                 }
                 _ => false,
             },
-            // TODO: Make this true and handle instruction simplifications with globals.
-            // Currently all globals are inlined as a temporary measure so this is fine to have as false.
-            Value::Global(_) => false,
+            Value::Global(_) => {
+                dbg!(argument);
+                true
+            }
             _ => true,
         }
     }
@@ -631,6 +669,10 @@ impl DataFlowGraph {
         } else {
             false
         }
+    }
+
+    pub(crate) fn is_global(&self, value: ValueId) -> bool {
+        matches!(self.values[value], Value::Global(_))
     }
 }
 
@@ -650,7 +692,11 @@ impl std::ops::IndexMut<InstructionId> for DataFlowGraph {
 impl std::ops::Index<ValueId> for DataFlowGraph {
     type Output = Value;
     fn index(&self, id: ValueId) -> &Self::Output {
-        &self.values[id]
+        let value = &self.values[id];
+        if matches!(value, Value::Global(_)) {
+            return &self.globals[id];
+        }
+        value
     }
 }
 
@@ -665,6 +711,20 @@ impl std::ops::IndexMut<BasicBlockId> for DataFlowGraph {
     /// Get a mutable reference to a function's basic block for the given id.
     fn index_mut(&mut self, id: BasicBlockId) -> &mut Self::Output {
         &mut self.blocks[id]
+    }
+}
+
+impl std::ops::Index<ValueId> for GlobalsGraph {
+    type Output = Value;
+    fn index(&self, id: ValueId) -> &Self::Output {
+        &self.values[id]
+    }
+}
+
+impl std::ops::Index<InstructionId> for GlobalsGraph {
+    type Output = Instruction;
+    fn index(&self, id: InstructionId) -> &Self::Output {
+        &self.instructions[id]
     }
 }
 

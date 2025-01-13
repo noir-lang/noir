@@ -23,6 +23,8 @@ use self::{
     value::{Tree, Values},
 };
 
+use super::ir::dfg::GlobalsGraph;
+// use super::ir::dfg::Globals;
 use super::ir::instruction::ErrorType;
 use super::ir::types::NumericType;
 use super::{
@@ -49,6 +51,9 @@ pub(crate) fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     let return_location = program.return_location;
     let context = SharedContext::new(program);
 
+    // let globals_dfg = std::mem::take(&mut context.globals_context.dfg);
+    let globals = GlobalsGraph::from_dfg(context.globals_context.dfg.clone());
+
     let main_id = Program::main_id();
     let main = context.program.main();
 
@@ -60,7 +65,7 @@ pub(crate) fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
         RuntimeType::Acir(main.inline_type)
     };
     let mut function_context =
-        FunctionContext::new(main.name.clone(), &main.parameters, main_runtime, &context);
+        FunctionContext::new(main.name.clone(), &main.parameters, main_runtime, &context, globals);
 
     // Generate the call_data bus from the relevant parameters. We create it *before* processing the function body
     let call_data = function_context.builder.call_data_bus(is_databus);
@@ -117,6 +122,7 @@ pub(crate) fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     // to generate SSA for each function used within the program.
     while let Some((src_function_id, dest_id)) = context.pop_next_function_in_queue() {
         let function = &context.program[src_function_id];
+        // let globals_dfg = std::mem::take(&mut function_context.builder.current_function.dfg.globals_new);
         function_context.new_function(dest_id, function);
         function_context.codegen_function_body(&function.body)?;
     }

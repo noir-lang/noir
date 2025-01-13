@@ -4,7 +4,10 @@
 //! with a non-literal target can be replaced with a call to an apply function.
 //! The apply function is a dispatch function that takes the function id as a parameter
 //! and dispatches to the correct target.
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::{
+    collections::{BTreeMap, BTreeSet, HashSet},
+    sync::Arc,
+};
 
 use acvm::FieldElement;
 use iter_extended::vecmap;
@@ -13,6 +16,7 @@ use crate::ssa::{
     function_builder::FunctionBuilder,
     ir::{
         basic_block::BasicBlockId,
+        dfg::GlobalsGraph,
         function::{Function, FunctionId, Signature},
         instruction::{BinaryOp, Instruction},
         types::{NumericType, Type},
@@ -278,8 +282,10 @@ fn create_apply_function(
     function_ids: Vec<FunctionId>,
 ) -> FunctionId {
     assert!(!function_ids.is_empty());
-    ssa.add_fn(|id| {
+    let globals_dfg = std::mem::take(&mut ssa.globals.dfg);
+    let new_id = ssa.add_fn(|id| {
         let mut function_builder = FunctionBuilder::new("apply".to_string(), id);
+        function_builder.set_globals(Arc::new(GlobalsGraph::from_dfg(globals_dfg.clone())));
         let target_id = function_builder.add_parameter(Type::field());
         let params_ids = vecmap(signature.params, |typ| function_builder.add_parameter(typ));
 
@@ -334,7 +340,9 @@ fn create_apply_function(
             }
         }
         function_builder.current_function
-    })
+    });
+    ssa.globals.dfg = globals_dfg;
+    new_id
 }
 
 /// Crates a return block, if no previous return exists, it will create a final return
