@@ -310,11 +310,32 @@ impl<'context> Elaborator<'context> {
         }
     }
 
+    /// Identical to `resolve_type_args` but does not allow
+    /// associated types to be elided since trait impls must specify them.
+    pub(super) fn resolve_trait_args_from_trait_impl(
+        &mut self,
+        args: GenericTypeArgs,
+        item: TraitId,
+        span: Span,
+    ) -> (Vec<Type>, Vec<NamedType>) {
+        self.resolve_type_args_inner(args, item, span, false)
+    }
+
     pub(super) fn resolve_type_args(
+        &mut self,
+        args: GenericTypeArgs,
+        item: impl Generic,
+        span: Span,
+    ) -> (Vec<Type>, Vec<NamedType>) {
+        self.resolve_type_args_inner(args, item, span, true)
+    }
+
+    pub(super) fn resolve_type_args_inner(
         &mut self,
         mut args: GenericTypeArgs,
         item: impl Generic,
         span: Span,
+        allow_implicit_named_args: bool,
     ) -> (Vec<Type>, Vec<NamedType>) {
         let expected_kinds = item.generics(self.interner);
 
@@ -336,7 +357,12 @@ impl<'context> Elaborator<'context> {
         let mut associated = Vec::new();
 
         if item.accepts_named_type_args() {
-            associated = self.resolve_associated_type_args(args.named_args, item, span);
+            associated = self.resolve_associated_type_args(
+                args.named_args,
+                item,
+                span,
+                allow_implicit_named_args,
+            );
         } else if !args.named_args.is_empty() {
             let item_kind = item.item_kind();
             self.push_err(ResolverError::NamedTypeArgs { span, item_kind });
@@ -350,6 +376,7 @@ impl<'context> Elaborator<'context> {
         args: Vec<(Ident, UnresolvedType)>,
         item: impl Generic,
         span: Span,
+        allow_implicit_named_args: bool,
     ) -> Vec<NamedType> {
         let mut seen_args = HashMap::default();
         let mut required_args = item.named_generics(self.interner);
@@ -379,11 +406,19 @@ impl<'context> Elaborator<'context> {
             resolved.push(NamedType { name, typ });
         }
 
-        // Anything that hasn't been removed yet is missing
+        // Anything that hasn't been removed yet is missing.
+        // Fill it in to avoid a panic if we allow named args to be elided, otherwise error.
         for generic in required_args {
-            let item = item.item_name(self.interner);
             let name = generic.name.clone();
-            self.push_err(TypeCheckError::MissingNamedTypeArg { item, span, name });
+
+            if allow_implicit_named_args {
+                let name = Ident::new(name.as_ref().clone(), span);
+                let typ = self.interner.next_type_variable();
+                resolved.push(NamedType { name, typ });
+            } else {
+                let item = item.item_name(self.interner);
+                self.push_err(TypeCheckError::MissingNamedTypeArg { item, span, name });
+            }
         }
 
         resolved
@@ -1434,12 +1469,8 @@ impl<'context> Elaborator<'context> {
             .filter_map(|trait_id| {
                 let trait_ = self.interner.get_trait(*trait_id);
                 let trait_name = &trait_.name;
-                let Some(map) = module_data.scope().types().get(trait_name) else {
-                    return None;
-                };
-                let Some(imported_item) = map.get(&None) else {
-                    return None;
-                };
+                let map = module_data.scope().types().get(trait_name)?;
+                let imported_item = map.get(&None)?;
                 if imported_item.0 == ModuleDefId::TraitId(*trait_id) {
                     Some((*trait_id, trait_name))
                 } else {
@@ -1814,6 +1845,7 @@ impl<'context> Elaborator<'context> {
         (expr_span, empty_function)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn verify_trait_constraint(
         &mut self,
         object_type: &Type,
@@ -1821,6 +1853,7 @@ impl<'context> Elaborator<'context> {
         trait_generics: &[Type],
         associated_types: &[NamedType],
         function_ident_id: ExprId,
+        select_impl: bool,
         span: Span,
     ) {
         match self.interner.lookup_trait_implementation(
@@ -1830,7 +1863,9 @@ impl<'context> Elaborator<'context> {
             associated_types,
         ) {
             Ok(impl_kind) => {
-                self.interner.select_impl_for_expression(function_ident_id, impl_kind);
+                if select_impl {
+                    self.interner.select_impl_for_expression(function_ident_id, impl_kind);
+                }
             }
             Err(error) => self.push_trait_constraint_error(object_type, error, span),
         }
@@ -1904,10 +1939,15 @@ impl<'context> Elaborator<'context> {
 
     /// Push a trait constraint into the current FunctionContext to be solved if needed
     /// at the end of the earlier of either the current function or the current comptime scope.
-    pub fn push_trait_constraint(&mut self, constraint: TraitConstraint, expr_id: ExprId) {
+    pub fn push_trait_constraint(
+        &mut self,
+        constraint: TraitConstraint,
+        expr_id: ExprId,
+        select_impl: bool,
+    ) {
         let context = self.function_context.last_mut();
         let context = context.expect("The function_context stack should always be non-empty");
-        context.trait_constraints.push((constraint, expr_id));
+        context.trait_constraints.push((constraint, expr_id, select_impl));
     }
 
     pub fn bind_generics_from_trait_constraint(
@@ -1977,7 +2017,7 @@ pub(crate) fn bind_named_generics(
     args: &[NamedType],
     bindings: &mut TypeBindings,
 ) {
-    assert_eq!(params.len(), args.len());
+    assert!(args.len() <= params.len());
 
     for arg in args {
         let i = params
@@ -1987,6 +2027,10 @@ pub(crate) fn bind_named_generics(
 
         let param = params.swap_remove(i);
         bind_generic(&param, &arg.typ, bindings);
+    }
+
+    for unbound_param in params {
+        bind_generic(&unbound_param, &Type::Error, bindings);
     }
 }
 
