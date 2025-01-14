@@ -886,7 +886,7 @@ mod test {
             acir(inline) fn main f0 {
               b0(v0: u16, v1: u16):
                 v2 = div v0, v1
-                v3 = truncate v2 to 8 bits, max_bit_size: 16
+                v3 = truncate v2 to 8 bits
                 return v3
             }
             ";
@@ -924,7 +924,7 @@ mod test {
             acir(inline) fn main f0 {
               b0(v0: u16, v1: u16):
                 v2 = div v0, v1
-                v3 = truncate v2 to 8 bits, max_bit_size: 16
+                v3 = truncate v2 to 8 bits
                 return v3
             }
             ";
@@ -946,7 +946,7 @@ mod test {
             acir(inline) fn main f0 {
               b0(v0: u16, v1: u16):
                 v3 = div v0, u16 255
-                v4 = truncate v3 to 8 bits, max_bit_size: 16
+                v4 = truncate v3 to 8 bits
                 return v4
             }
             ";

@@ -1244,7 +1244,7 @@ mod test {
           b0(v0: [u8; 2]):
             v2 = array_get v0, index u8 0 -> u8
             v3 = cast v2 as u32
-            v4 = truncate v3 to 1 bits, max_bit_size: 32
+            v4 = truncate v3 to 1 bits
             v5 = cast v4 as u1
             v6 = allocate -> &mut Field
             store u8 0 at v6
@@ -1271,7 +1271,7 @@ mod test {
           b0(v0: [u8; 2]):
             v2 = array_get v0, index u8 0 -> u8
             v3 = cast v2 as u32
-            v4 = truncate v3 to 1 bits, max_bit_size: 32
+            v4 = truncate v3 to 1 bits
             v5 = cast v4 as u1
             v6 = allocate -> &mut Field
             store u8 0 at v6

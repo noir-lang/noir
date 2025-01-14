@@ -361,7 +361,7 @@ fn test_truncate() {
     let src = "
         acir(inline) fn main f0 {
           b0(v0: Field):
-            v1 = truncate v0 to 8 bits, max_bit_size: 16
+            v1 = truncate v0 to 8 bits
             return
         }
         ";
