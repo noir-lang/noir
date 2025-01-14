@@ -181,7 +181,10 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "struct_def_add_generic" => struct_def_add_generic(interner, arguments, location),
             "struct_def_as_type" => struct_def_as_type(interner, arguments, location),
             "struct_def_eq" => struct_def_eq(arguments, location),
-            "struct_def_fields" => struct_def_fields(interner, arguments, location),
+            "struct_def_fields" => struct_def_fields(interner, arguments, location, call_stack),
+            "struct_def_fields_as_written" => {
+                struct_def_fields_as_written(interner, arguments, location)
+            }
             "struct_def_generics" => struct_def_generics(interner, arguments, location),
             "struct_def_has_named_attribute" => {
                 struct_def_has_named_attribute(interner, arguments, location)
@@ -482,9 +485,52 @@ fn struct_def_has_named_attribute(
     Ok(Value::Bool(has_named_attribute(&name, interner.struct_attributes(&struct_id))))
 }
 
-/// fn fields(self) -> [(Quoted, Type)]
-/// Returns (name, type) pairs of each field of this StructDefinition
+/// fn fields(self, generic_args: [Type]) -> [(Quoted, Type)]
+/// Returns (name, type) pairs of each field of this StructDefinition.
+/// Applies the given generic arguments to each field.
 fn struct_def_fields(
+    interner: &mut NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+    call_stack: &im::Vector<Location>,
+) -> IResult<Value> {
+    let (typ, generic_args) = check_two_arguments(arguments, location)?;
+    let struct_id = get_struct(typ)?;
+    let struct_def = interner.get_struct(struct_id);
+    let struct_def = struct_def.borrow();
+
+    let args_location = generic_args.1;
+    let generic_args = get_slice(interner, generic_args)?.0;
+    let generic_args = try_vecmap(generic_args, |arg| get_type((arg, args_location)))?;
+
+    let actual = generic_args.len();
+    let expected = struct_def.generics.len();
+    if actual != expected {
+        let s = if expected == 1 { "" } else { "s" };
+        let was_were = if actual == 1 { "was" } else { "were" };
+        let message = Some(format!("`StructDefinition::fields` expected {expected} generic{s} for `{}` but {actual} {was_were} given", struct_def.name));
+        let location = args_location;
+        let call_stack = call_stack.clone();
+        return Err(InterpreterError::FailingConstraint { message, location, call_stack });
+    }
+
+    let mut fields = im::Vector::new();
+
+    for (field_name, field_type) in struct_def.get_fields(&generic_args) {
+        let name = Value::Quoted(Rc::new(vec![Token::Ident(field_name)]));
+        fields.push_back(Value::Tuple(vec![name, Value::Type(field_type)]));
+    }
+
+    let typ = Type::Slice(Box::new(Type::Tuple(vec![
+        Type::Quoted(QuotedType::Quoted),
+        Type::Quoted(QuotedType::Type),
+    ])));
+    Ok(Value::Slice(fields, typ))
+}
+
+/// fn fields_as_written(self) -> [(Quoted, Type)]
+/// Returns (name, type) pairs of each field of this StructDefinition
+fn struct_def_fields_as_written(
     interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
