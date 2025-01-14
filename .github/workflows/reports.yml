@@ -116,19 +116,24 @@ jobs:
       - name: Generate Brillig bytecode size report
         working-directory: ./test_programs
         run: |
-          ./gates_report_brillig.sh 9223372036854775807
           mkdir ../reports
+
+          ./gates_report_brillig.sh 9223372036854775807
           mv gates_report_brillig.json ../reports/gates_report_brillig_inliner_max.json
+          
           ./gates_report_brillig.sh 0
           jq '.programs |= map(.package_name |= (. + "_inliner_zero"))' gates_report_brillig.json > gates_report_brillig.json
+          cat gates_report_brillig.json
           mv gates_report_brillig.json ../reports/gates_report_brillig_inliner_zero.json
+          
           ./gates_report_brillig.sh -9223372036854775808
           jq '.programs |= map(.package_name |= (. + "_inliner_min"))' gates_report_brillig.json > gates_report_brillig.json
+          cat gates_report_brillig.json
           mv gates_report_brillig.json ../reports/gates_report_brillig_inliner_min.json
 
       - name: Merge compilation reports using jq
         run: |
-          jq -s '[.[][]]' ./reports/* > gates_report_brillig.json
+          jq -s '{ programs: map(.programs) | add }' ./reports/* > gates_report_brillig.json
           cat gates_report_brillig.json
 
       - name: Compare Brillig bytecode size reports
