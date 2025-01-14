@@ -3,15 +3,14 @@ use std::collections::BTreeSet;
 use crate::ssa::ir::value::ValueId;
 
 /// A set of possible aliases. Each ValueId in this set represents one possible value the reference
-/// holding this AliasSet may be aliased to. This struct wrapper is provided so that when we take
-/// the union of multiple alias sets, the result should be empty if any individual set is empty.
-///
-/// Note that we distinguish between "definitely has no aliases" - `Some(BTreeSet::new())`, and
-/// "unknown which aliases this may refer to" - `None`.
+/// holding this AliasSet may be aliased to. This enum wrapper is provided so that when we take
+/// the union of multiple alias sets, the result should be unknown if any individual set is unknown.
 #[derive(Debug, Default, Clone)]
 pub(super) enum AliasSet {
+    /// Unknown which aliases this may refer to.
     #[default]
     Unknown,
+    /// Definitely has no aliases.
     Empty,
     Known(ValueId),
     KnownMultiple(BTreeSet<ValueId>),
