@@ -635,10 +635,9 @@ impl Instruction {
             }),
             Instruction::Cast(value, typ) => Instruction::Cast(f(*value), *typ),
             Instruction::Not(value) => Instruction::Not(f(*value)),
-            Instruction::Truncate { value, bit_size } => Instruction::Truncate {
-                value: f(*value),
-                bit_size: *bit_size,
-            },
+            Instruction::Truncate { value, bit_size } => {
+                Instruction::Truncate { value: f(*value), bit_size: *bit_size }
+            }
             Instruction::Constrain(lhs, rhs, assert_message) => {
                 // Must map the `lhs` and `rhs` first as the value `f` is moved with the closure
                 let lhs = f(*lhs);
@@ -710,7 +709,7 @@ impl Instruction {
             }
             Instruction::Cast(value, _) => *value = f(*value),
             Instruction::Not(value) => *value = f(*value),
-            Instruction::Truncate { value, bit_size: _, } => {
+            Instruction::Truncate { value, bit_size: _ } => {
                 *value = f(*value);
             }
             Instruction::Constrain(lhs, rhs, assert_message) => {

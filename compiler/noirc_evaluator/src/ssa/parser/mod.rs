@@ -506,7 +506,7 @@ impl<'a> Parser<'a> {
             let value = self.parse_value_or_error()?;
             self.eat_or_error(Token::Keyword(Keyword::To))?;
             let bit_size = self.eat_int_or_error()?.to_u128() as u32;
-            self.eat_or_error(Token::Keyword(Keyword::Bits))?;``
+            self.eat_or_error(Token::Keyword(Keyword::Bits))?;
             return Ok(ParsedInstruction::Truncate { target, value, bit_size });
         }
 

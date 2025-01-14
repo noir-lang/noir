@@ -270,7 +270,7 @@ impl Translator {
                 let address = self.translate_value(address)?;
                 self.builder.insert_store(address, value);
             }
-            ParsedInstruction::Truncate { target, value, bit_size} => {
+            ParsedInstruction::Truncate { target, value, bit_size } => {
                 let value = self.translate_value(value)?;
                 let value_id = self.builder.insert_truncate(value, bit_size);
                 self.define_variable(target, value_id)?;

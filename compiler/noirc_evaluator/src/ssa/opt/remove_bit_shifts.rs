@@ -276,13 +276,8 @@ impl Context<'_> {
 
     /// Insert a truncate instruction at the end of the current block.
     /// Returns the result of the truncate instruction.
-    pub(crate) fn insert_truncate(
-        &mut self,
-        value: ValueId,
-        bit_size: u32,
-    ) -> ValueId {
-        self.insert_instruction(Instruction::Truncate { value, bit_size }, None)
-            .first()
+    pub(crate) fn insert_truncate(&mut self, value: ValueId, bit_size: u32) -> ValueId {
+        self.insert_instruction(Instruction::Truncate { value, bit_size }, None).first()
     }
 
     /// Insert a cast instruction at the end of the current block.

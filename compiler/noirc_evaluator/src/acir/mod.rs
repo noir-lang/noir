@@ -746,8 +746,7 @@ impl<'a> Context<'a> {
                 self.define_result_var(dfg, instruction_id, result_acir_var);
             }
             Instruction::Truncate { value, bit_size } => {
-                let result_acir_var =
-                    self.convert_ssa_truncate(*value, *bit_size, dfg)?;
+                let result_acir_var = self.convert_ssa_truncate(*value, *bit_size, dfg)?;
                 self.define_result_var(dfg, instruction_id, result_acir_var);
             }
             Instruction::EnableSideEffectsIf { condition } => {

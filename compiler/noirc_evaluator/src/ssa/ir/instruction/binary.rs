@@ -220,10 +220,7 @@ impl Binary {
                         if modulus.is_power_of_two() {
                             let bit_size = modulus.ilog2();
                             return SimplifyResult::SimplifiedToInstruction(
-                                Instruction::Truncate {
-                                    value: self.lhs,
-                                    bit_size,
-                                },
+                                Instruction::Truncate { value: self.lhs, bit_size },
                             );
                         }
                     }
@@ -301,10 +298,7 @@ impl Binary {
                                 let value = if lhs_value.is_some() { self.rhs } else { self.lhs };
                                 let num_bits = bitmask_plus_one.ilog2();
                                 return SimplifyResult::SimplifiedToInstruction(
-                                    Instruction::Truncate {
-                                        value,
-                                        bit_size: num_bits,
-                                    },
+                                    Instruction::Truncate { value, bit_size: num_bits },
                                 );
                             }
                         }

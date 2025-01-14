@@ -1137,11 +1137,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
     /// Returns an `AcirVar` which will be constrained to be lhs mod 2^{rhs}
     /// In order to do this, we 'simply' perform euclidean division of lhs by 2^{rhs}
     /// The remainder of the division is then lhs mod 2^{rhs}
-    pub(crate) fn truncate_var(
-        &mut self,
-        lhs: AcirVar,
-        rhs: u32,
-    ) -> Result<AcirVar, RuntimeError> {
+    pub(crate) fn truncate_var(&mut self, lhs: AcirVar, rhs: u32) -> Result<AcirVar, RuntimeError> {
         // 2^{rhs}
         let divisor = self.add_constant(F::from(2_u128).pow(&F::from(rhs as u128)));
         let one = self.add_constant(F::one());
