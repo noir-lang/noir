@@ -195,7 +195,7 @@ jobs:
           ls ./reports
 
           jq -s '{ programs: map(.programs) | add }' ./reports/* > ../gates_report_brillig_execution.json
-          jq '.programs | length' ../gates_report_brillig.json
+          jq '.programs | length' ../gates_report_brillig_execution.json
 
       - name: Compare Brillig execution reports
         id: brillig_execution_diff
