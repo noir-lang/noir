@@ -1434,12 +1434,8 @@ impl<'context> Elaborator<'context> {
             .filter_map(|trait_id| {
                 let trait_ = self.interner.get_trait(*trait_id);
                 let trait_name = &trait_.name;
-                let Some(map) = module_data.scope().types().get(trait_name) else {
-                    return None;
-                };
-                let Some(imported_item) = map.get(&None) else {
-                    return None;
-                };
+                let map = module_data.scope().types().get(trait_name)?;
+                let imported_item = map.get(&None)?;
                 if imported_item.0 == ModuleDefId::TraitId(*trait_id) {
                     Some((*trait_id, trait_name))
                 } else {

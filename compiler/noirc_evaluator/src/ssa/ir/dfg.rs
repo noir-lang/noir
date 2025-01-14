@@ -181,7 +181,16 @@ impl DataFlowGraph {
 
     /// Check if the function runtime would simply ignore this instruction.
     pub(crate) fn is_handled_by_runtime(&self, instruction: &Instruction) -> bool {
-        !(self.runtime().is_acir() && instruction.is_brillig_only())
+        match self.runtime() {
+            RuntimeType::Acir(_) => !matches!(
+                instruction,
+                Instruction::IncrementRc { .. } | Instruction::DecrementRc { .. }
+            ),
+            RuntimeType::Brillig(_) => !matches!(
+                instruction,
+                Instruction::EnableSideEffectsIf { .. } | Instruction::IfElse { .. }
+            ),
+        }
     }
 
     fn insert_instruction_without_simplification(
@@ -205,7 +214,7 @@ impl DataFlowGraph {
         call_stack: CallStackId,
     ) -> InsertInstructionResult {
         if !self.is_handled_by_runtime(&instruction_data) {
-            return InsertInstructionResult::InstructionRemoved;
+            panic!("Attempted to insert instruction not handled by runtime: {instruction_data:?}");
         }
 
         let id = self.insert_instruction_without_simplification(
@@ -228,8 +237,9 @@ impl DataFlowGraph {
         call_stack: CallStackId,
     ) -> InsertInstructionResult {
         if !self.is_handled_by_runtime(&instruction) {
-            return InsertInstructionResult::InstructionRemoved;
+            panic!("Attempted to insert instruction not handled by runtime: {instruction:?}");
         }
+
         match instruction.simplify(self, block, ctrl_typevars.clone(), call_stack) {
             SimplifyResult::SimplifiedTo(simplification) => {
                 InsertInstructionResult::SimplifiedTo(simplification)
@@ -323,6 +333,10 @@ impl DataFlowGraph {
         let id = self.values.insert(Value::NumericConstant { constant, typ });
         self.constants.insert((constant, typ), id);
         id
+    }
+
+    pub(crate) fn make_global(&mut self, typ: Type) -> ValueId {
+        self.values.insert(Value::Global(typ))
     }
 
     /// Gets or creates a ValueId for the given FunctionId.
@@ -613,6 +627,9 @@ impl DataFlowGraph {
                 }
                 _ => false,
             },
+            // TODO: Make this true and handle instruction simplifications with globals.
+            // Currently all globals are inlined as a temporary measure so this is fine to have as false.
+            Value::Global(_) => false,
             _ => true,
         }
     }
