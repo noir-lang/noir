@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{collections::BTreeMap, fmt::Display};
 
 use acvm::FieldElement;
 use iter_extended::vecmap;
@@ -7,11 +7,11 @@ use noirc_errors::{
     Location,
 };
 
-use crate::hir_def::function::FunctionSignature;
 use crate::{
     ast::{BinaryOpKind, IntegerBitSize, Signedness, Visibility},
     token::{Attributes, FunctionAttribute},
 };
+use crate::{hir_def::function::FunctionSignature, token::FmtStrFragment};
 use serde::{Deserialize, Serialize};
 
 use super::HirType;
@@ -48,11 +48,18 @@ pub enum Expression {
     Continue,
 }
 
+impl Expression {
+    pub fn is_array_or_slice_literal(&self) -> bool {
+        matches!(self, Expression::Literal(Literal::Array(_) | Literal::Slice(_)))
+    }
+}
+
 /// A definition is either a local (variable), function, or is a built-in
 /// function that will be generated or referenced by the compiler later.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Definition {
     Local(LocalId),
+    Global(GlobalId),
     Function(FuncId),
     Builtin(String),
     LowLevel(String),
@@ -64,6 +71,10 @@ pub enum Definition {
 /// function parameter that should be compiled before it is referenced.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct LocalId(pub u32);
+
+/// A function ID corresponds directly to an index of `Program::globals`
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct GlobalId(pub u32);
 
 /// A function ID corresponds directly to an index of `Program::functions`
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -106,7 +117,7 @@ pub enum Literal {
     Bool(bool),
     Unit,
     Str(String),
-    FmtStr(String, u64, Box<Expression>),
+    FmtStr(Vec<FmtStrFragment>, u64, Box<Expression>),
 }
 
 #[derive(Debug, Clone, Hash)]
@@ -222,6 +233,8 @@ pub enum InlineType {
     /// All function calls are expected to be inlined into a single ACIR.
     #[default]
     Inline,
+    /// Functions marked as inline always will always be inlined, even in brillig contexts.
+    InlineAlways,
     /// Functions marked as foldable will not be inlined and compiled separately into ACIR
     Fold,
     /// Functions marked to have no predicates will not be inlined in the default inlining pass
@@ -235,12 +248,11 @@ pub enum InlineType {
 
 impl From<&Attributes> for InlineType {
     fn from(attributes: &Attributes) -> Self {
-        attributes.function.as_ref().map_or(InlineType::default(), |func_attribute| {
-            match func_attribute {
-                FunctionAttribute::Fold => InlineType::Fold,
-                FunctionAttribute::NoPredicates => InlineType::NoPredicates,
-                _ => InlineType::default(),
-            }
+        attributes.function().map_or(InlineType::default(), |func_attribute| match func_attribute {
+            FunctionAttribute::Fold => InlineType::Fold,
+            FunctionAttribute::NoPredicates => InlineType::NoPredicates,
+            FunctionAttribute::InlineAlways => InlineType::InlineAlways,
+            _ => InlineType::default(),
         })
     }
 }
@@ -249,6 +261,7 @@ impl InlineType {
     pub fn is_entry_point(&self) -> bool {
         match self {
             InlineType::Inline => false,
+            InlineType::InlineAlways => false,
             InlineType::Fold => true,
             InlineType::NoPredicates => false,
         }
@@ -259,6 +272,7 @@ impl std::fmt::Display for InlineType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             InlineType::Inline => write!(f, "inline"),
+            InlineType::InlineAlways => write!(f, "inline_always"),
             InlineType::Fold => write!(f, "fold"),
             InlineType::NoPredicates => write!(f, "no_predicates"),
         }
@@ -313,15 +327,14 @@ impl Type {
     }
 }
 
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone, Hash, Default)]
 pub struct Program {
     pub functions: Vec<Function>,
     pub function_signatures: Vec<FunctionSignature>,
     pub main_function_signature: FunctionSignature,
     pub return_location: Option<Location>,
     pub return_visibility: Visibility,
-    /// Indicates to a backend whether a SNARK-friendly prover should be used.  
-    pub recursive: bool,
+    pub globals: BTreeMap<GlobalId, Expression>,
     pub debug_variables: DebugVariables,
     pub debug_functions: DebugFunctions,
     pub debug_types: DebugTypes,
@@ -335,7 +348,7 @@ impl Program {
         main_function_signature: FunctionSignature,
         return_location: Option<Location>,
         return_visibility: Visibility,
-        recursive: bool,
+        globals: BTreeMap<GlobalId, Expression>,
         debug_variables: DebugVariables,
         debug_functions: DebugFunctions,
         debug_types: DebugTypes,
@@ -346,7 +359,7 @@ impl Program {
             main_function_signature,
             return_location,
             return_visibility,
-            recursive,
+            globals,
             debug_variables,
             debug_functions,
             debug_types,
@@ -362,6 +375,13 @@ impl Program {
     }
 
     pub fn main_id() -> FuncId {
+        FuncId(0)
+    }
+
+    /// Globals are expected to be generated within a different context than
+    /// all other functions in the program. Thus, the globals space has the same
+    /// ID as `main`, although we should never expect a clash in these IDs.
+    pub fn global_space_id() -> FuncId {
         FuncId(0)
     }
 

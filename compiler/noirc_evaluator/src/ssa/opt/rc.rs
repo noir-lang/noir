@@ -155,11 +155,17 @@ fn remove_instructions(to_remove: HashSet<InstructionId>, function: &mut Functio
 mod test {
     use std::sync::Arc;
 
+    use noirc_frontend::monomorphization::ast::InlineType;
+
     use crate::ssa::{
         function_builder::FunctionBuilder,
         ir::{
-            basic_block::BasicBlockId, dfg::DataFlowGraph, function::RuntimeType,
-            instruction::Instruction, map::Id, types::Type,
+            basic_block::BasicBlockId,
+            dfg::DataFlowGraph,
+            function::RuntimeType,
+            instruction::Instruction,
+            map::Id,
+            types::{NumericType, Type},
         },
     };
 
@@ -195,11 +201,12 @@ mod test {
         //     inc_rc v0
         //     inc_rc v0
         //     dec_rc v0
-        //     return [v0]
+        //     v1 = make_array [v0]
+        //     return v1
         // }
         let main_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("foo".into(), main_id);
-        builder.set_runtime(RuntimeType::Brillig);
+        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
 
         let inner_array_type = Type::Array(Arc::new(vec![Type::field()]), 2);
         let v0 = builder.add_parameter(inner_array_type.clone());
@@ -209,8 +216,8 @@ mod test {
         builder.insert_dec_rc(v0);
 
         let outer_array_type = Type::Array(Arc::new(vec![inner_array_type]), 1);
-        let array = builder.array_constant(vec![v0].into(), outer_array_type);
-        builder.terminate_with_return(vec![array]);
+        let v1 = builder.insert_make_array(vec![v0].into(), outer_array_type);
+        builder.terminate_with_return(vec![v1]);
 
         let ssa = builder.finish().remove_paired_rc();
         let main = ssa.main();
@@ -239,6 +246,7 @@ mod test {
         // }
         let main_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("mutator".into(), main_id);
+        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
 
         let array_type = Type::Array(Arc::new(vec![Type::field()]), 2);
         let v0 = builder.add_parameter(array_type.clone());
@@ -248,7 +256,7 @@ mod test {
         builder.insert_inc_rc(v0);
         let v2 = builder.insert_load(v1, array_type);
 
-        let zero = builder.numeric_constant(0u128, Type::unsigned(64));
+        let zero = builder.numeric_constant(0u128, NumericType::unsigned(64));
         let five = builder.field_constant(5u128);
         let v7 = builder.insert_array_set(v2, zero, five);
 
@@ -288,6 +296,7 @@ mod test {
         // }
         let main_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("mutator2".into(), main_id);
+        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
 
         let array_type = Type::Array(Arc::new(vec![Type::field()]), 2);
         let reference_type = Type::Reference(Arc::new(array_type.clone()));
@@ -299,7 +308,7 @@ mod test {
         builder.insert_store(v0, v1);
 
         let v2 = builder.insert_load(v1, array_type.clone());
-        let zero = builder.numeric_constant(0u128, Type::unsigned(64));
+        let zero = builder.numeric_constant(0u128, NumericType::unsigned(64));
         let five = builder.field_constant(5u128);
         let v7 = builder.insert_array_set(v2, zero, five);
 

@@ -4,18 +4,18 @@ use async_lsp::ResponseError;
 use fm::{FileMap, PathString};
 use lsp_types::{Hover, HoverContents, HoverParams, MarkupContent, MarkupKind};
 use noirc_frontend::{
-    ast::Visibility,
-    elaborator::types::try_eval_array_length_id,
+    ast::{ItemVisibility, Visibility},
     hir::def_map::ModuleId,
     hir_def::{
         expr::{HirArrayLiteral, HirExpression, HirLiteral},
+        function::FuncMeta,
         stmt::HirPattern,
         traits::Trait,
     },
     node_interner::{
-        DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, ReferenceId, TraitId, TypeAliasId,
+        DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, NodeInterner, ReferenceId,
+        StructId, TraitId, TraitImplKind, TypeAliasId,
     },
-    node_interner::{NodeInterner, StructId},
     Generics, Shared, StructType, Type, TypeAlias, TypeBinding, TypeVariable,
 };
 
@@ -93,9 +93,7 @@ fn format_module(id: ModuleId, args: &ProcessRequestCallbackArgs) -> Option<Stri
     let mut string = String::new();
 
     if id.local_id == crate_root {
-        let Some(dep) = args.dependencies.iter().find(|dep| dep.crate_id == id.krate) else {
-            return None;
-        };
+        let dep = args.dependencies.iter().find(|dep| dep.crate_id == id.krate)?;
         string.push_str("    crate ");
         string.push_str(&dep.name.to_string());
     } else {
@@ -137,11 +135,11 @@ fn format_struct(id: StructId, args: &ProcessRequestCallbackArgs) -> String {
     string.push_str(&struct_type.name.0.contents);
     format_generics(&struct_type.generics, &mut string);
     string.push_str(" {\n");
-    for (field_name, field_type) in struct_type.get_fields_as_written() {
+    for field in struct_type.get_fields_as_written() {
         string.push_str("        ");
-        string.push_str(&field_name);
+        string.push_str(&field.name.0.contents);
         string.push_str(": ");
-        string.push_str(&format!("{}", field_type));
+        string.push_str(&format!("{}", field.typ));
         string.push_str(",\n");
     }
     string.push_str("    }");
@@ -158,7 +156,7 @@ fn format_struct_member(
 ) -> String {
     let struct_type = args.interner.get_struct(id);
     let struct_type = struct_type.borrow();
-    let (field_name, field_type) = struct_type.field_at(field_index);
+    let field = struct_type.field_at(field_index);
 
     let mut string = String::new();
     if format_parent_module(ReferenceId::Struct(id), args, &mut string) {
@@ -167,10 +165,10 @@ fn format_struct_member(
     string.push_str(&struct_type.name.0.contents);
     string.push('\n');
     string.push_str("    ");
-    string.push_str(&field_name.0.contents);
+    string.push_str(&field.name.0.contents);
     string.push_str(": ");
-    string.push_str(&format!("{}", field_type));
-    string.push_str(&go_to_type_links(field_type, args.interner, args.files));
+    string.push_str(&format!("{}", field.typ));
+    string.push_str(&go_to_type_links(&field.typ, args.interner, args.files));
 
     append_doc_comments(args.interner, ReferenceId::StructMember(id, field_index), &mut string);
 
@@ -205,8 +203,17 @@ fn format_global(id: GlobalId, args: &ProcessRequestCallbackArgs) -> String {
         string.push('\n');
     }
 
+    let mut print_comptime = definition.comptime;
+    let mut opt_value = None;
+
+    // See if we can figure out what's the global's value
+    if let Some(stmt) = args.interner.get_global_let_statement(id) {
+        print_comptime = stmt.comptime;
+        opt_value = get_global_value(args.interner, stmt.expression);
+    }
+
     string.push_str("    ");
-    if definition.comptime {
+    if print_comptime {
         string.push_str("comptime ");
     }
     if definition.mutable {
@@ -217,12 +224,9 @@ fn format_global(id: GlobalId, args: &ProcessRequestCallbackArgs) -> String {
     string.push_str(": ");
     string.push_str(&format!("{}", typ));
 
-    // See if we can figure out what's the global's value
-    if let Some(stmt) = args.interner.get_global_let_statement(id) {
-        if let Some(value) = get_global_value(args.interner, stmt.expression) {
-            string.push_str(" = ");
-            string.push_str(&value);
-        }
+    if let Some(value) = opt_value {
+        string.push_str(" = ");
+        string.push_str(&value);
     }
 
     string.push_str(&go_to_type_links(&typ, args.interner, args.files));
@@ -233,13 +237,6 @@ fn format_global(id: GlobalId, args: &ProcessRequestCallbackArgs) -> String {
 }
 
 fn get_global_value(interner: &NodeInterner, expr: ExprId) -> Option<String> {
-    let span = interner.expr_span(&expr);
-
-    // Globals as array lengths are extremely common, so we try that first.
-    if let Ok(result) = try_eval_array_length_id(interner, expr, span) {
-        return Some(result.to_string());
-    }
-
     match interner.expression(&expr) {
         HirExpression::Literal(literal) => match literal {
             HirLiteral::Array(hir_array_literal) => {
@@ -300,28 +297,126 @@ fn get_exprs_global_value(interner: &NodeInterner, exprs: &[ExprId]) -> Option<S
 
 fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
     let func_meta = args.interner.function_meta(&id);
+
+    // If this points to a trait method, see if we can figure out what's the concrete trait impl method
+    if let Some(func_id) = get_trait_impl_func_id(id, args, func_meta) {
+        return format_function(func_id, args);
+    }
+
+    let func_modifiers = args.interner.function_modifiers(&id);
+
     let func_name_definition_id = args.interner.definition(func_meta.name.id);
 
     let mut string = String::new();
     let formatted_parent_module =
         format_parent_module(ReferenceId::Function(id), args, &mut string);
-    let formatted_parent_struct = if let Some(struct_id) = func_meta.struct_id {
+
+    let formatted_parent_type = if let Some(trait_impl_id) = func_meta.trait_impl {
+        let trait_impl = args.interner.get_trait_implementation(trait_impl_id);
+        let trait_impl = trait_impl.borrow();
+        let trait_ = args.interner.get_trait(trait_impl.trait_id);
+
+        let generics: Vec<_> =
+            trait_impl
+                .trait_generics
+                .iter()
+                .filter_map(|generic| {
+                    if let Type::NamedGeneric(_, name) = generic {
+                        Some(name)
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+
+        string.push('\n');
+        string.push_str("    impl");
+        if !generics.is_empty() {
+            string.push('<');
+            for (index, generic) in generics.into_iter().enumerate() {
+                if index > 0 {
+                    string.push_str(", ");
+                }
+                string.push_str(generic);
+            }
+            string.push('>');
+        }
+
+        string.push(' ');
+        string.push_str(&trait_.name.0.contents);
+        if !trait_impl.trait_generics.is_empty() {
+            string.push('<');
+            for (index, generic) in trait_impl.trait_generics.iter().enumerate() {
+                if index > 0 {
+                    string.push_str(", ");
+                }
+                string.push_str(&generic.to_string());
+            }
+            string.push('>');
+        }
+
+        string.push_str(" for ");
+        string.push_str(&trait_impl.typ.to_string());
+
+        true
+    } else if let Some(trait_id) = func_meta.trait_id {
+        let trait_ = args.interner.get_trait(trait_id);
+        string.push('\n');
+        string.push_str("    trait ");
+        string.push_str(&trait_.name.0.contents);
+        format_generics(&trait_.generics, &mut string);
+
+        true
+    } else if let Some(struct_id) = func_meta.struct_id {
         let struct_type = args.interner.get_struct(struct_id);
         let struct_type = struct_type.borrow();
         if formatted_parent_module {
             string.push_str("::");
         }
         string.push_str(&struct_type.name.0.contents);
+        string.push('\n');
+        string.push_str("    ");
+        string.push_str("impl");
+
+        let impl_generics: Vec<_> = func_meta
+            .all_generics
+            .iter()
+            .take(func_meta.all_generics.len() - func_meta.direct_generics.len())
+            .cloned()
+            .collect();
+        format_generics(&impl_generics, &mut string);
+
+        string.push(' ');
+        string.push_str(&struct_type.name.0.contents);
+        format_generic_names(&impl_generics, &mut string);
+
         true
     } else {
         false
     };
-    if formatted_parent_module || formatted_parent_struct {
+    if formatted_parent_module || formatted_parent_type {
         string.push('\n');
     }
     string.push_str("    ");
+
+    if func_modifiers.visibility != ItemVisibility::Private
+        && func_meta.trait_id.is_none()
+        && func_meta.trait_impl.is_none()
+    {
+        string.push_str(&func_modifiers.visibility.to_string());
+        string.push(' ');
+    }
+    if func_modifiers.is_unconstrained {
+        string.push_str("unconstrained ");
+    }
+    if func_modifiers.is_comptime {
+        string.push_str("comptime ");
+    }
+
+    let func_name = &func_name_definition_id.name;
+
     string.push_str("fn ");
-    string.push_str(&func_name_definition_id.name);
+    string.push_str(func_name);
     format_generics(&func_meta.direct_generics, &mut string);
     string.push('(');
     let parameters = &func_meta.parameters;
@@ -352,9 +447,47 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
 
     string.push_str(&go_to_type_links(return_type, args.interner, args.files));
 
-    append_doc_comments(args.interner, ReferenceId::Function(id), &mut string);
+    let had_doc_comments =
+        append_doc_comments(args.interner, ReferenceId::Function(id), &mut string);
+    if !had_doc_comments {
+        // If this function doesn't have doc comments, but it's a trait impl method,
+        // use the trait method doc comments.
+        if let Some(trait_impl_id) = func_meta.trait_impl {
+            let trait_impl = args.interner.get_trait_implementation(trait_impl_id);
+            let trait_impl = trait_impl.borrow();
+            let trait_ = args.interner.get_trait(trait_impl.trait_id);
+            if let Some(func_id) = trait_.method_ids.get(func_name) {
+                append_doc_comments(args.interner, ReferenceId::Function(*func_id), &mut string);
+            }
+        }
+    }
 
     string
+}
+
+fn get_trait_impl_func_id(
+    id: FuncId,
+    args: &ProcessRequestCallbackArgs,
+    func_meta: &FuncMeta,
+) -> Option<FuncId> {
+    func_meta.trait_id?;
+
+    let index = args.interner.find_location_index(args.location)?;
+    let expr_id = args.interner.get_expr_id_from_index(index)?;
+    let Some(TraitImplKind::Normal(trait_impl_id)) =
+        args.interner.get_selected_impl_for_expression(expr_id)
+    else {
+        return None;
+    };
+
+    let trait_impl = args.interner.get_trait_implementation(trait_impl_id);
+    let trait_impl = trait_impl.borrow();
+
+    let function_name = args.interner.function_name(&id);
+    let mut trait_impl_methods = trait_impl.methods.iter();
+    let func_id =
+        trait_impl_methods.find(|func_id| args.interner.function_name(func_id) == function_name)?;
+    Some(*func_id)
 }
 
 fn format_alias(id: TypeAliasId, args: &ProcessRequestCallbackArgs) -> String {
@@ -411,21 +544,55 @@ fn format_local(id: DefinitionId, args: &ProcessRequestCallbackArgs) -> String {
     string
 }
 
-/// Some doc comments
 fn format_generics(generics: &Generics, string: &mut String) {
+    format_generics_impl(
+        generics, false, // only show names
+        string,
+    );
+}
+
+fn format_generic_names(generics: &Generics, string: &mut String) {
+    format_generics_impl(
+        generics, true, // only show names
+        string,
+    );
+}
+
+fn format_generics_impl(generics: &Generics, only_show_names: bool, string: &mut String) {
     if generics.is_empty() {
         return;
     }
 
     string.push('<');
     for (index, generic) in generics.iter().enumerate() {
-        string.push_str(&generic.name);
-        if index != generics.len() - 1 {
+        if index > 0 {
             string.push_str(", ");
+        }
+
+        if only_show_names {
+            string.push_str(&generic.name);
+        } else {
+            match generic.kind() {
+                noirc_frontend::Kind::Any | noirc_frontend::Kind::Normal => {
+                    string.push_str(&generic.name);
+                }
+                noirc_frontend::Kind::IntegerOrField | noirc_frontend::Kind::Integer => {
+                    string.push_str("let ");
+                    string.push_str(&generic.name);
+                    string.push_str(": u32");
+                }
+                noirc_frontend::Kind::Numeric(typ) => {
+                    string.push_str("let ");
+                    string.push_str(&generic.name);
+                    string.push_str(": ");
+                    string.push_str(&typ.to_string());
+                }
+            }
         }
     }
     string.push('>');
 }
+
 fn format_pattern(pattern: &HirPattern, interner: &NodeInterner, string: &mut String) {
     match pattern {
         HirPattern::Identifier(ident) => {
@@ -558,6 +725,7 @@ impl<'a> TypeLinksGatherer<'a> {
                 self.gather_type_links(lhs);
                 self.gather_type_links(rhs);
             }
+            Type::CheckedCast { to, .. } => self.gather_type_links(to),
             Type::FieldElement
             | Type::Integer(..)
             | Type::Bool
@@ -626,13 +794,16 @@ fn format_link(name: String, location: lsp_types::Location) -> String {
     )
 }
 
-fn append_doc_comments(interner: &NodeInterner, id: ReferenceId, string: &mut String) {
+fn append_doc_comments(interner: &NodeInterner, id: ReferenceId, string: &mut String) -> bool {
     if let Some(doc_comments) = interner.doc_comments(id) {
         string.push_str("\n\n---\n\n");
         for comment in doc_comments {
             string.push_str(comment);
             string.push('\n');
         }
+        true
+    } else {
+        false
     }
 }
 
@@ -647,6 +818,11 @@ mod hover_tests {
     use tokio::test;
 
     async fn assert_hover(directory: &str, file: &str, position: Position, expected_text: &str) {
+        let hover_text = get_hover_text(directory, file, position).await;
+        assert_eq!(hover_text, expected_text);
+    }
+
+    async fn get_hover_text(directory: &str, file: &str, position: Position) -> String {
         let (mut state, noir_text_document) = test_utils::init_lsp_server(directory).await;
 
         // noir_text_document is always `src/main.nr` in the workspace directory, so let's go to the workspace dir
@@ -673,7 +849,7 @@ mod hover_tests {
             panic!("Expected hover contents to be Markup");
         };
 
-        assert_eq!(markup.value, expected_text);
+        markup.value
     }
 
     #[test]
@@ -759,7 +935,7 @@ mod hover_tests {
             "two/src/lib.nr",
             Position { line: 3, character: 4 },
             r#"    one
-    fn function_one<A, B>()"#,
+    pub fn function_one<A, B>()"#,
         )
         .await;
     }
@@ -771,7 +947,7 @@ mod hover_tests {
             "two/src/lib.nr",
             Position { line: 2, character: 7 },
             r#"    two
-    fn function_two()"#,
+    pub fn function_two()"#,
         )
         .await;
     }
@@ -783,6 +959,7 @@ mod hover_tests {
             "two/src/lib.nr",
             Position { line: 20, character: 6 },
             r#"    one::subone::SubOneStruct
+    impl SubOneStruct
     fn foo(self, x: i32, y: i32) -> Field"#,
         )
         .await;
@@ -892,7 +1069,7 @@ mod hover_tests {
         assert_hover(
             "workspace",
             "two/src/lib.nr",
-            Position { line: 43, character: 4 },
+            Position { line: 42, character: 4 },
             r#"    two
     mod other"#,
         )
@@ -904,7 +1081,7 @@ mod hover_tests {
         assert_hover(
             "workspace",
             "two/src/lib.nr",
-            Position { line: 44, character: 11 },
+            Position { line: 43, character: 11 },
             r#"    two
     mod other"#,
         )
@@ -955,8 +1132,40 @@ mod hover_tests {
             "workspace",
             "two/src/lib.nr",
             Position { line: 54, character: 2 },
-            "    two\n    fn attr(_: FunctionDefinition) -> Quoted",
+            "    two\n    comptime fn attr(_: FunctionDefinition) -> Quoted",
         )
         .await;
+    }
+
+    #[test]
+    async fn hover_on_generic_struct_function() {
+        let hover_text =
+            get_hover_text("workspace", "two/src/lib.nr", Position { line: 70, character: 11 })
+                .await;
+        assert!(hover_text.starts_with(
+            "    two::Foo
+    impl<U> Foo<U>
+    fn new() -> Foo<U>"
+        ));
+    }
+
+    #[test]
+    async fn hover_on_trait_impl_function_call() {
+        let hover_text =
+            get_hover_text("workspace", "two/src/lib.nr", Position { line: 83, character: 16 })
+                .await;
+        assert!(hover_text.starts_with(
+            "    two
+    impl<A> Bar<A, i32> for Foo<A>
+    fn bar_stuff(self)"
+        ));
+    }
+
+    #[test]
+    async fn hover_on_trait_impl_method_uses_docs_from_trait_method() {
+        let hover_text =
+            get_hover_text("workspace", "two/src/lib.nr", Position { line: 92, character: 8 })
+                .await;
+        assert!(hover_text.contains("Some docs"));
     }
 }

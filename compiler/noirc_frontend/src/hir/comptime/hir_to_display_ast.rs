@@ -121,9 +121,9 @@ impl HirExpression {
             HirExpression::Literal(HirLiteral::Str(string)) => {
                 ExpressionKind::Literal(Literal::Str(string.clone()))
             }
-            HirExpression::Literal(HirLiteral::FmtStr(string, _exprs)) => {
+            HirExpression::Literal(HirLiteral::FmtStr(fragments, _exprs, length)) => {
                 // TODO: Is throwing away the exprs here valid?
-                ExpressionKind::Literal(Literal::FmtStr(string.clone()))
+                ExpressionKind::Literal(Literal::FmtStr(fragments.clone(), *length))
             }
             HirExpression::Literal(HirLiteral::Unit) => ExpressionKind::Literal(Literal::Unit),
             HirExpression::Block(expr) => ExpressionKind::Block(expr.to_display_ast(interner)),
@@ -303,7 +303,8 @@ impl Type {
             Type::Struct(def, generics) => {
                 let struct_def = def.borrow();
                 let ordered_args = vecmap(generics, |generic| generic.to_display_ast());
-                let generics = GenericTypeArgs { ordered_args, named_args: Vec::new() };
+                let generics =
+                    GenericTypeArgs { ordered_args, named_args: Vec::new(), kinds: Vec::new() };
                 let name = Path::from_ident(struct_def.name.clone());
                 UnresolvedTypeData::Named(name, generics, false)
             }
@@ -312,7 +313,8 @@ impl Type {
                 // alias' definition was changed
                 let type_def = type_def.borrow();
                 let ordered_args = vecmap(generics, |generic| generic.to_display_ast());
-                let generics = GenericTypeArgs { ordered_args, named_args: Vec::new() };
+                let generics =
+                    GenericTypeArgs { ordered_args, named_args: Vec::new(), kinds: Vec::new() };
                 let name = Path::from_ident(type_def.name.clone());
                 UnresolvedTypeData::Named(name, generics, false)
             }
@@ -330,7 +332,7 @@ impl Type {
                 let named_args = vecmap(&generics.named, |named_type| {
                     (named_type.name.clone(), named_type.typ.to_display_ast())
                 });
-                let generics = GenericTypeArgs { ordered_args, named_args };
+                let generics = GenericTypeArgs { ordered_args, named_args, kinds: Vec::new() };
                 let name = Path::from_single(name.as_ref().clone(), Span::default());
                 UnresolvedTypeData::TraitAsType(name, generics)
             }
@@ -338,6 +340,7 @@ impl Type {
                 let name = Path::from_single(name.as_ref().clone(), Span::default());
                 UnresolvedTypeData::Named(name, GenericTypeArgs::default(), true)
             }
+            Type::CheckedCast { to, .. } => to.to_display_ast().typ,
             Type::Function(args, ret, env, unconstrained) => {
                 let args = vecmap(args, |arg| arg.to_display_ast());
                 let ret = Box::new(ret.to_display_ast());
@@ -417,7 +420,7 @@ impl HirArrayLiteral {
                 let repeated_element = Box::new(repeated_element.to_display_ast(interner));
                 let length = match length {
                     Type::Constant(length, _kind) => {
-                        let literal = Literal::Integer((*length as u128).into(), false);
+                        let literal = Literal::Integer(*length, false);
                         let expr_kind = ExpressionKind::Literal(literal);
                         Box::new(Expression::new(expr_kind, span))
                     }

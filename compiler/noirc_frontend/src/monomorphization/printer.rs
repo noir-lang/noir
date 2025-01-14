@@ -105,9 +105,11 @@ impl AstPrinter {
             super::ast::Literal::Integer(x, _, _, _) => x.fmt(f),
             super::ast::Literal::Bool(x) => x.fmt(f),
             super::ast::Literal::Str(s) => s.fmt(f),
-            super::ast::Literal::FmtStr(s, _, _) => {
+            super::ast::Literal::FmtStr(fragments, _, _) => {
                 write!(f, "f\"")?;
-                s.fmt(f)?;
+                for fragment in fragments {
+                    fragment.fmt(f)?;
+                }
                 write!(f, "\"")
             }
             super::ast::Literal::Unit => {
@@ -291,6 +293,7 @@ impl Display for Definition {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         match self {
             Definition::Local(id) => write!(f, "l{}", id.0),
+            Definition::Global(id) => write!(f, "g{}", id.0),
             Definition::Function(id) => write!(f, "f{}", id),
             Definition::Builtin(name) => write!(f, "{name}"),
             Definition::LowLevel(name) => write!(f, "{name}"),

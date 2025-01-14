@@ -18,8 +18,10 @@ name = "noir-profiler"
 path = "src/main.rs"
 
 [dependencies]
+bn254_blackbox_solver.workspace = true
 color-eyre.workspace = true
 clap.workspace = true
+fxhash.workspace = true
 noirc_artifacts.workspace = true
 const_format.workspace = true
 serde.workspace = true
@@ -28,7 +30,10 @@ fm.workspace = true
 inferno = "0.11.19"
 im.workspace = true
 acir.workspace = true
+nargo.workspace = true
 noirc_errors.workspace = true
+noirc_abi.workspace = true
+noirc_evaluator.workspace = true
 
 # Logs
 tracing-subscriber.workspace = true
@@ -39,6 +44,3 @@ noirc_abi.workspace = true
 noirc_driver.workspace = true
 tempfile.workspace = true
 
-[features]
-default = ["bn254"]
-bn254 = ["acir/bn254"]

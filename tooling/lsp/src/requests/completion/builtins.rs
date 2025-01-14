@@ -107,11 +107,29 @@ impl<'a> NodeFinder<'a> {
                 let one_argument_attributes = &["abi", "field", "foreign", "oracle"];
                 self.suggest_one_argument_attributes(prefix, one_argument_attributes);
 
+                if name_matches("deprecated", prefix) {
+                    self.completion_items.push(snippet_completion_item(
+                        "deprecated(\"...\")",
+                        CompletionItemKind::METHOD,
+                        "deprecated(\"${1:message}\")",
+                        None,
+                    ));
+                }
+
+                if name_matches("test", prefix) || name_matches("should_fail", prefix) {
+                    self.completion_items.push(snippet_completion_item(
+                        "test(should_fail)",
+                        CompletionItemKind::METHOD,
+                        "test(should_fail)",
+                        None,
+                    ));
+                }
+
                 if name_matches("test", prefix) || name_matches("should_fail_with", prefix) {
                     self.completion_items.push(snippet_completion_item(
-                        "test(should_fail_with=\"...\")",
+                        "test(should_fail_with = \"...\")",
                         CompletionItemKind::METHOD,
-                        "test(should_fail_with=\"${1:message}\")",
+                        "test(should_fail_with = \"${1:message}\")",
                         None,
                     ));
                 }
@@ -164,6 +182,7 @@ pub(super) fn keyword_builtin_type(keyword: &Keyword) -> Option<&'static str> {
         | Keyword::Crate
         | Keyword::Dep
         | Keyword::Else
+        | Keyword::Enum
         | Keyword::Fn
         | Keyword::For
         | Keyword::FormatString
@@ -172,6 +191,7 @@ pub(super) fn keyword_builtin_type(keyword: &Keyword) -> Option<&'static str> {
         | Keyword::Impl
         | Keyword::In
         | Keyword::Let
+        | Keyword::Match
         | Keyword::Mod
         | Keyword::Mut
         | Keyword::Pub
@@ -225,6 +245,7 @@ pub(super) fn keyword_builtin_function(keyword: &Keyword) -> Option<BuiltInFunct
         | Keyword::CtString
         | Keyword::Dep
         | Keyword::Else
+        | Keyword::Enum
         | Keyword::Expr
         | Keyword::Field
         | Keyword::Fn
@@ -236,6 +257,7 @@ pub(super) fn keyword_builtin_function(keyword: &Keyword) -> Option<BuiltInFunct
         | Keyword::Impl
         | Keyword::In
         | Keyword::Let
+        | Keyword::Match
         | Keyword::Mod
         | Keyword::Module
         | Keyword::Mut

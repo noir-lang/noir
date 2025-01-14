@@ -12,7 +12,6 @@ use serde::Serializer;
 use serde_with::serde_as;
 use serde_with::DisplayFromStr;
 use std::collections::BTreeMap;
-use std::collections::HashMap;
 use std::io::Read;
 use std::io::Write;
 use std::mem;
@@ -47,6 +46,9 @@ pub struct DebugFunction {
 pub type DebugVariables = BTreeMap<DebugVarId, DebugVariable>;
 pub type DebugFunctions = BTreeMap<DebugFnId, DebugFunction>;
 pub type DebugTypes = BTreeMap<DebugTypeId, PrintableType>;
+
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
+pub struct ProcedureDebugId(pub u32);
 
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub struct ProgramDebugInfo {
@@ -92,7 +94,7 @@ impl ProgramDebugInfo {
 }
 
 #[serde_as]
-#[derive(Default, Debug, Clone, Deserialize, Serialize)]
+#[derive(Default, Debug, Clone, Deserialize, Serialize, Hash)]
 pub struct DebugInfo {
     /// Map opcode index of an ACIR circuit into the source code location
     /// Serde does not support mapping keys being enums for json, so we indicate
@@ -104,14 +106,9 @@ pub struct DebugInfo {
     pub variables: DebugVariables,
     pub functions: DebugFunctions,
     pub types: DebugTypes,
-}
-
-/// Holds OpCodes Counts for Acir and Brillig Opcodes
-/// To be printed with `nargo info --profile-info`
-#[derive(Default, Debug, Serialize, Deserialize, Clone)]
-pub struct OpCodesCount {
-    pub acir_size: usize,
-    pub brillig_size: usize,
+    /// This a map per brillig function representing the range of opcodes where a procedure is activated.
+    pub brillig_procedure_locs:
+        BTreeMap<BrilligFunctionId, BTreeMap<ProcedureDebugId, (usize, usize)>>,
 }
 
 impl DebugInfo {
@@ -124,8 +121,12 @@ impl DebugInfo {
         variables: DebugVariables,
         functions: DebugFunctions,
         types: DebugTypes,
+        brillig_procedure_locs: BTreeMap<
+            BrilligFunctionId,
+            BTreeMap<ProcedureDebugId, (usize, usize)>,
+        >,
     ) -> Self {
-        Self { locations, brillig_locations, variables, functions, types }
+        Self { locations, brillig_locations, variables, functions, types, brillig_procedure_locs }
     }
 
     /// Updates the locations map when the [`Circuit`][acvm::acir::circuit::Circuit] is modified.
@@ -146,39 +147,5 @@ impl DebugInfo {
 
     pub fn opcode_location(&self, loc: &OpcodeLocation) -> Option<Vec<Location>> {
         self.locations.get(loc).cloned()
-    }
-
-    pub fn count_span_opcodes(&self) -> HashMap<Location, OpCodesCount> {
-        let mut accumulator: HashMap<Location, Vec<&OpcodeLocation>> = HashMap::new();
-
-        for (opcode_location, locations) in self.locations.iter() {
-            for location in locations.iter() {
-                let opcodes = accumulator.entry(*location).or_default();
-                opcodes.push(opcode_location);
-            }
-        }
-
-        let counted_opcodes = accumulator
-            .iter()
-            .map(|(location, opcodes)| {
-                let acir_opcodes: Vec<_> = opcodes
-                    .iter()
-                    .filter(|opcode_location| matches!(opcode_location, OpcodeLocation::Acir(_)))
-                    .collect();
-                let brillig_opcodes: Vec<_> = opcodes
-                    .iter()
-                    .filter(|opcode_location| {
-                        matches!(opcode_location, OpcodeLocation::Brillig { .. })
-                    })
-                    .collect();
-                let opcodes_count = OpCodesCount {
-                    acir_size: acir_opcodes.len(),
-                    brillig_size: brillig_opcodes.len(),
-                };
-                (*location, opcodes_count)
-            })
-            .collect();
-
-        counted_opcodes
     }
 }

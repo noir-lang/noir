@@ -1,7 +1,8 @@
 // Tests a very simple program.
-// 
+//
 // The features being tested is modulo operations on brillig
 fn main() {
+    /// Safety: testing context
     unsafe {
         assert(modulo(47, 3) == 2);
         assert(modulo(2, 3) == 2);

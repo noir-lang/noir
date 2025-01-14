@@ -5,11 +5,8 @@ use std::meta::unquote;
 global three_field: Field = 3;
 
 fn main() {
-    comptime
-    {
-        unsafe {
-            foo::<three_field>(5)
-        };
+    comptime {
+        foo::<three_field>(5);
         submodule::bar();
     }
 }

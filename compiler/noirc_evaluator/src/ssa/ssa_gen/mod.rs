@@ -2,6 +2,8 @@ pub(crate) mod context;
 mod program;
 mod value;
 
+use acvm::AcirField;
+use noirc_frontend::token::FmtStrFragment;
 pub(crate) use program::Ssa;
 
 use context::{LValue, NestedArrayIndex, SharedContext};
@@ -21,7 +23,8 @@ use self::{
     value::{Tree, Values},
 };
 
-use super::ir::instruction::error_selector_from_type;
+use super::ir::instruction::ErrorType;
+use super::ir::types::NumericType;
 use super::{
     function_builder::data_bus::DataBus,
     ir::{
@@ -37,10 +40,7 @@ pub(crate) const SSA_WORD_SIZE: u32 = 32;
 /// Generates SSA for the given monomorphized program.
 ///
 /// This function will generate the SSA but does not perform any optimizations on it.
-pub(crate) fn generate_ssa(
-    program: Program,
-    force_brillig_runtime: bool,
-) -> Result<Ssa, RuntimeError> {
+pub(crate) fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     // see which parameter has call_data/return_data attribute
     let is_databus = DataBusBuilder::is_databus(&program.main_function_signature);
 
@@ -54,16 +54,13 @@ pub(crate) fn generate_ssa(
 
     // Queue the main function for compilation
     context.get_or_queue_function(main_id);
-    let mut function_context = FunctionContext::new(
-        main.name.clone(),
-        &main.parameters,
-        if force_brillig_runtime || main.unconstrained {
-            RuntimeType::Brillig
-        } else {
-            RuntimeType::Acir(main.inline_type)
-        },
-        &context,
-    );
+    let main_runtime = if main.unconstrained {
+        RuntimeType::Brillig(main.inline_type)
+    } else {
+        RuntimeType::Acir(main.inline_type)
+    };
+    let mut function_context =
+        FunctionContext::new(main.name.clone(), &main.parameters, main_runtime, &context);
 
     // Generate the call_data bus from the relevant parameters. We create it *before* processing the function body
     let call_data = function_context.builder.call_data_bus(is_databus);
@@ -89,12 +86,18 @@ pub(crate) fn generate_ssa(
                 None,
             );
         }
+        let return_call_stack = function_context
+            .builder
+            .current_function
+            .dfg
+            .call_stack_data
+            .add_location_to_root(return_location);
         let return_instruction =
             function_context.builder.current_function.dfg[block].unwrap_terminator_mut();
+
         match return_instruction {
             TerminatorInstruction::Return { return_values, call_stack } => {
-                call_stack.clear();
-                call_stack.push_back(return_location);
+                *call_stack = return_call_stack;
                 // replace the returned values with the return data array
                 if let Some(return_data_bus) = return_data.databus {
                     return_values.clear();
@@ -114,21 +117,23 @@ pub(crate) fn generate_ssa(
     // to generate SSA for each function used within the program.
     while let Some((src_function_id, dest_id)) = context.pop_next_function_in_queue() {
         let function = &context.program[src_function_id];
-        function_context.new_function(dest_id, function, force_brillig_runtime);
+        function_context.new_function(dest_id, function);
         function_context.codegen_function_body(&function.body)?;
     }
 
-    Ok(function_context.builder.finish())
+    let mut ssa = function_context.builder.finish();
+    ssa.globals = context.globals_context;
+    Ok(ssa)
 }
 
 impl<'a> FunctionContext<'a> {
     /// Codegen a function's body and set its return value to that of its last parameter.
     /// For functions returning nothing, this will be an empty list.
     fn codegen_function_body(&mut self, body: &Expression) -> Result<(), RuntimeError> {
-        let entry_block = self.increment_parameter_rcs();
+        let incremented_params = self.increment_parameter_rcs();
         let return_value = self.codegen_expression(body)?;
         let results = return_value.into_value_list(self);
-        self.end_scope(entry_block, &results);
+        self.end_scope(incremented_params, &results);
 
         self.builder.terminate_with_return(results);
         Ok(())
@@ -176,6 +181,7 @@ impl<'a> FunctionContext<'a> {
     fn codegen_ident_reference(&mut self, ident: &ast::Ident) -> Values {
         match &ident.definition {
             ast::Definition::Local(id) => self.lookup(*id),
+            ast::Definition::Global(id) => self.lookup_global(*id),
             ast::Definition::Function(id) => self.get_or_queue_function(*id),
             ast::Definition::Oracle(name) => self.builder.import_foreign_function(name).into(),
             ast::Definition::Builtin(name) | ast::Definition::LowLevel(name) => {
@@ -198,6 +204,7 @@ impl<'a> FunctionContext<'a> {
                 // dbg!(array.contents.clone());
                 let elements =
                     try_vecmap(&array.contents, |element| self.codegen_expression(element))?;
+                // let elements = self.codegen_array_elements(&array.contents)?;
 
                 let typ = Self::convert_type(&array.typ).flatten();
                 dbg!(typ.clone());
@@ -218,8 +225,7 @@ impl<'a> FunctionContext<'a> {
                 })
             }
             ast::Literal::Slice(array) => {
-                let elements =
-                    try_vecmap(&array.contents, |element| self.codegen_expression(element))?;
+                let elements = self.codegen_array_elements(&array.contents)?;
 
                 let typ = Self::convert_type(&array.typ).flatten();
                 Ok(match array.typ {
@@ -235,18 +241,34 @@ impl<'a> FunctionContext<'a> {
             }
             ast::Literal::Integer(value, negative, typ, location) => {
                 self.builder.set_location(*location);
-                let typ = Self::convert_non_tuple_type(typ);
+                let typ = Self::convert_non_tuple_type(typ).unwrap_numeric();
                 self.checked_numeric_constant(*value, *negative, typ).map(Into::into)
             }
             ast::Literal::Bool(value) => {
                 // Don't need to call checked_numeric_constant here since `value` can only be true or false
-                Ok(self.builder.numeric_constant(*value as u128, Type::bool()).into())
+                Ok(self.builder.numeric_constant(*value as u128, NumericType::bool()).into())
             }
             ast::Literal::Str(string) => Ok(self.codegen_string(string)),
-            ast::Literal::FmtStr(string, number_of_fields, fields) => {
+            ast::Literal::FmtStr(fragments, number_of_fields, fields) => {
+                let mut string = String::new();
+                for fragment in fragments {
+                    match fragment {
+                        FmtStrFragment::String(value) => {
+                            // Escape curly braces in non-interpolations
+                            let value = value.replace('{', "{{").replace('}', "}}");
+                            string.push_str(&value);
+                        }
+                        FmtStrFragment::Interpolation(value, _span) => {
+                            string.push('{');
+                            string.push_str(value);
+                            string.push('}');
+                        }
+                    }
+                }
+
                 // A caller needs multiple pieces of information to make use of a format string
                 // The message string, the number of fields to be formatted, and the fields themselves
-                let string = self.codegen_string(string);
+                let string = self.codegen_string(&string);
                 let field_count = self.builder.length_constant(*number_of_fields as u128);
                 let fields = self.codegen_expression(fields)?;
 
@@ -256,18 +278,33 @@ impl<'a> FunctionContext<'a> {
         }
     }
 
+    fn codegen_array_elements(
+        &mut self,
+        elements: &[Expression],
+    ) -> Result<Vec<(Values, bool)>, RuntimeError> {
+        try_vecmap(elements, |element| {
+            let value = self.codegen_expression(element)?;
+            Ok((value, element.is_array_or_slice_literal()))
+        })
+    }
+
     fn codegen_string(&mut self, string: &str) -> Values {
         let elements = vecmap(string.as_bytes(), |byte| {
-            self.builder.numeric_constant(*byte as u128, Type::unsigned(8)).into()
+            let char = self.builder.numeric_constant(*byte as u128, NumericType::char());
+            (char.into(), false)
         });
         let typ = Self::convert_non_tuple_type(&ast::Type::String(elements.len() as u32));
         self.codegen_array(elements, typ)
     }
 
     // Codegen an array but make sure that we do not have a nested slice
+    ///
+    /// The bool aspect of each array element indicates whether the element is an array constant
+    /// or not. If it is, we avoid incrementing the reference count because we consider the
+    /// constant to be moved into this larger array constant.
     fn codegen_array_checked(
         &mut self,
-        elements: Vec<Values>,
+        elements: Vec<(Values, bool)>,
         typ: Type,
     ) -> Result<Values, RuntimeError> {
         if typ.is_nested_slice() {
@@ -284,11 +321,15 @@ impl<'a> FunctionContext<'a> {
     /// stored next to the other fields in memory. So an array such as [(1, 2), (3, 4)] is
     /// stored the same as the array [1, 2, 3, 4].
     ///
+    /// The bool aspect of each array element indicates whether the element is an array constant
+    /// or not. If it is, we avoid incrementing the reference count because we consider the
+    /// constant to be moved into this larger array constant.
+    ///
     /// The value returned from this function is always that of the allocate instruction.
-    fn codegen_array(&mut self, elements: Vec<Values>, typ: Type) -> Values {
+    fn codegen_array(&mut self, elements: Vec<(Values, bool)>, typ: Type) -> Values {
         let mut array = im::Vector::new();
 
-        for element in elements {
+        for (element, is_array_constant) in elements {
             element.for_each(|element| {
                 let element = element.eval(self);
 
@@ -297,13 +338,16 @@ impl<'a> FunctionContext<'a> {
                 // pessimistic reference count (since some are likely moved rather than shared)
                 // which is important for Brillig's copy on write optimization. This has no
                 // effect in ACIR code.
-                self.builder.increment_array_reference_count(element);
+                if !is_array_constant {
+                    self.builder.increment_array_reference_count(element);
+                }
+
                 // array.push_back(element);
                 array.extend(self.codegen_array_helper(element));
             });
         }
 
-        self.builder.array_constant(array, typ).into()
+        self.builder.insert_make_array(array, typ).into()
     }
 
     fn codegen_array_helper(&mut self, element: ValueId) -> im::Vector<ValueId> {
@@ -378,7 +422,7 @@ impl<'a> FunctionContext<'a> {
             UnaryOp::Minus => {
                 let rhs = self.codegen_expression(&unary.rhs)?;
                 let rhs = rhs.into_leaf().eval(self);
-                let typ = self.builder.type_of_value(rhs);
+                let typ = self.builder.type_of_value(rhs).unwrap_numeric();
                 let zero = self.builder.numeric_constant(0u128, typ);
                 Ok(self.insert_binary(
                     zero,
@@ -537,9 +581,14 @@ impl<'a> FunctionContext<'a> {
         let index = self.make_array_index(index);
         let type_size = Self::convert_type(element_type).size_of_type();
         let type_size =
-            self.builder.numeric_constant(type_size as u128, Type::unsigned(SSA_WORD_SIZE));
-        let base_index =
-            self.builder.set_location(location).insert_binary(index, BinaryOp::Mul, type_size);
+            self.builder.numeric_constant(type_size as u128, NumericType::length_type());
+        // This shouldn't overflow as we are reaching for an initial array offset
+        // (otherwise it would have overflowed when creating the array)
+        let base_index = self.builder.set_location(location).insert_binary(
+            index,
+            BinaryOp::Mul { unchecked: true },
+            type_size,
+        );
 
         let mut field_index = 0u128;
         Ok(Self::map_type(element_type, |typ| {
@@ -576,7 +625,7 @@ impl<'a> FunctionContext<'a> {
             .make_array_index(length.expect("ICE: a length must be supplied for indexing slices"));
 
         let is_offset_out_of_bounds = self.builder.insert_binary(index, BinaryOp::Lt, array_len);
-        let true_const = self.builder.numeric_constant(true, Type::bool());
+        let true_const = self.builder.numeric_constant(true, NumericType::bool());
 
         self.builder.insert_constrain(
             is_offset_out_of_bounds,
@@ -587,7 +636,7 @@ impl<'a> FunctionContext<'a> {
 
     fn codegen_cast(&mut self, cast: &ast::Cast) -> Result<Values, RuntimeError> {
         let lhs = self.codegen_non_tuple_expression(&cast.lhs)?;
-        let typ = Self::convert_non_tuple_type(&cast.r#type);
+        let typ = Self::convert_non_tuple_type(&cast.r#type).unwrap_numeric();
 
         Ok(self.insert_safe_cast(lhs, typ, cast.location).into())
     }
@@ -597,6 +646,7 @@ impl<'a> FunctionContext<'a> {
     ///
     /// For example, the loop `for i in start .. end { body }` is codegen'd as:
     ///
+    /// ```text
     ///   v0 = ... codegen start ...
     ///   v1 = ... codegen end ...
     ///   br loop_entry(v0)
@@ -609,7 +659,24 @@ impl<'a> FunctionContext<'a> {
     ///   br loop_entry(v4)
     /// loop_end():
     ///   ... This is the current insert point after codegen_for finishes ...
+    /// ```
     fn codegen_for(&mut self, for_expr: &ast::For) -> Result<Values, RuntimeError> {
+        self.builder.set_location(for_expr.start_range_location);
+        let start_index = self.codegen_non_tuple_expression(&for_expr.start_range)?;
+
+        self.builder.set_location(for_expr.end_range_location);
+        let end_index = self.codegen_non_tuple_expression(&for_expr.end_range)?;
+
+        if let (Some(start_constant), Some(end_constant)) = (
+            self.builder.current_function.dfg.get_numeric_constant(start_index),
+            self.builder.current_function.dfg.get_numeric_constant(end_index),
+        ) {
+            // If we can determine that the loop contains zero iterations then there's no need to codegen the loop.
+            if start_constant >= end_constant {
+                return Ok(Self::unit_value());
+            }
+        }
+
         let loop_entry = self.builder.insert_block();
         let loop_body = self.builder.insert_block();
         let loop_end = self.builder.insert_block();
@@ -621,12 +688,6 @@ impl<'a> FunctionContext<'a> {
         // Remember the blocks and variable used in case there are break/continue instructions
         // within the loop which need to jump to them.
         self.enter_loop(loop_entry, loop_index, loop_end);
-
-        self.builder.set_location(for_expr.start_range_location);
-        let start_index = self.codegen_non_tuple_expression(&for_expr.start_range)?;
-
-        self.builder.set_location(for_expr.end_range_location);
-        let end_index = self.codegen_non_tuple_expression(&for_expr.end_range)?;
 
         // Set the location of the initial jmp instruction to the start range. This is the location
         // used to issue an error if the start range cannot be determined at compile-time.
@@ -660,6 +721,7 @@ impl<'a> FunctionContext<'a> {
     ///
     /// For example, the expression `if cond { a } else { b }` is codegen'd as:
     ///
+    /// ```text
     ///   v0 = ... codegen cond ...
     ///   brif v0, then: then_block, else: else_block
     /// then_block():
@@ -670,18 +732,24 @@ impl<'a> FunctionContext<'a> {
     ///   br end_if(v2)
     /// end_if(v3: ?):  // Type of v3 matches the type of a and b
     ///   ... This is the current insert point after codegen_if finishes ...
+    /// ```
     ///
     /// As another example, the expression `if cond { a }` is codegen'd as:
     ///
+    /// ```text
     ///   v0 = ... codegen cond ...
-    ///   brif v0, then: then_block, else: end_block
+    ///   brif v0, then: then_block, else: end_if
     /// then_block:
     ///   v1 = ... codegen a ...
     ///   br end_if()
     /// end_if:  // No block parameter is needed. Without an else, the unit value is always returned.
     ///   ... This is the current insert point after codegen_if finishes ...
+    /// ```
     fn codegen_if(&mut self, if_expr: &ast::If) -> Result<Values, RuntimeError> {
         let condition = self.codegen_non_tuple_expression(&if_expr.condition)?;
+        if let Some(result) = self.try_codegen_constant_if(condition, if_expr) {
+            return result;
+        }
 
         let then_block = self.builder.insert_block();
         let else_block = self.builder.insert_block();
@@ -718,6 +786,25 @@ impl<'a> FunctionContext<'a> {
         }
 
         Ok(result)
+    }
+
+    /// If the condition is known, skip codegen for the then/else branch and only compile the
+    /// relevant branch.
+    fn try_codegen_constant_if(
+        &mut self,
+        condition: ValueId,
+        if_expr: &ast::If,
+    ) -> Option<Result<Values, RuntimeError>> {
+        let condition = self.builder.current_function.dfg.get_numeric_constant(condition)?;
+
+        Some(if condition.is_zero() {
+            match if_expr.alternative.as_ref() {
+                Some(alternative) => self.codegen_expression(alternative),
+                None => Ok(Self::unit_value()),
+            }
+        } else {
+            self.codegen_expression(&if_expr.consequence)
+        })
     }
 
     fn codegen_tuple(&mut self, tuple: &[Expression]) -> Result<Values, RuntimeError> {
@@ -767,7 +854,12 @@ impl<'a> FunctionContext<'a> {
 
                     // We add one here in the case of a slice insert as a slice insert at the length of the slice
                     // can be converted to a slice push back
-                    let len_plus_one = self.builder.insert_binary(arguments[0], BinaryOp::Add, one);
+                    // This is unchecked as the slice length could be u32::max
+                    let len_plus_one = self.builder.insert_binary(
+                        arguments[0],
+                        BinaryOp::Add { unchecked: false },
+                        one,
+                    );
 
                     self.codegen_slice_access_check(arguments[2], Some(len_plus_one));
                 }
@@ -788,15 +880,22 @@ impl<'a> FunctionContext<'a> {
     fn codegen_let(&mut self, let_expr: &ast::Let) -> Result<Values, RuntimeError> {
         let mut values = self.codegen_expression(&let_expr.expression)?;
 
+        // Don't mutate the reference count if we're assigning an array literal to a Let:
+        // `let mut foo = [1, 2, 3];`
+        // we consider the array to be moved, so we should have an initial rc of just 1.
+        let should_inc_rc = !let_expr.expression.is_array_or_slice_literal();
+
         values = values.map(|value| {
             let value = value.eval(self);
 
-            // Make sure to increment array reference counts on each let binding
-            self.builder.increment_array_reference_count(value);
-
             Tree::Leaf(if let_expr.mutable {
-                self.new_mutable_variable(value)
+                self.new_mutable_variable(value, should_inc_rc)
             } else {
+                // `new_mutable_variable` increments rcs internally so we have to
+                // handle it separately for the immutable case
+                if should_inc_rc {
+                    self.builder.increment_array_reference_count(value);
+                }
                 value::Value::Normal(value)
             })
         });
@@ -812,7 +911,7 @@ impl<'a> FunctionContext<'a> {
         assert_payload: &Option<Box<(Expression, HirType)>>,
     ) -> Result<Values, RuntimeError> {
         let expr = self.codegen_non_tuple_expression(expr)?;
-        let true_literal = self.builder.numeric_constant(true, Type::bool());
+        let true_literal = self.builder.numeric_constant(true, NumericType::bool());
 
         // Set the location here for any errors that may occur when we codegen the assert message
         self.builder.set_location(location);
@@ -833,24 +932,23 @@ impl<'a> FunctionContext<'a> {
         assert_message: &Option<Box<(Expression, HirType)>>,
     ) -> Result<Option<ConstrainError>, RuntimeError> {
         let Some(assert_message_payload) = assert_message else { return Ok(None) };
-
-        if let Expression::Literal(ast::Literal::Str(static_string)) = &assert_message_payload.0 {
-            return Ok(Some(ConstrainError::StaticString(static_string.clone())));
-        }
-
         let (assert_message_expression, assert_message_typ) = assert_message_payload.as_ref();
 
-        let values = self.codegen_expression(assert_message_expression)?.into_value_list(self);
-
-        let error_type_id = error_selector_from_type(assert_message_typ);
-        // Do not record string errors in the ABI
-        match assert_message_typ {
-            HirType::String(_) => {}
-            _ => {
-                self.builder.record_error_type(error_type_id, assert_message_typ.clone());
+        if let Expression::Literal(ast::Literal::Str(static_string)) = assert_message_expression {
+            Ok(Some(ConstrainError::StaticString(static_string.clone())))
+        } else {
+            let error_type = ErrorType::Dynamic(assert_message_typ.clone());
+            let selector = error_type.selector();
+            let values = self.codegen_expression(assert_message_expression)?.into_value_list(self);
+            let is_string_type = matches!(assert_message_typ, HirType::String(_));
+            // Record custom types in the builder, outside of SSA instructions
+            // This is made to avoid having Hir types in the SSA code.
+            if !is_string_type {
+                self.builder.record_error_type(selector, assert_message_typ.clone());
             }
-        };
-        Ok(Some(ConstrainError::Dynamic(error_type_id, values)))
+
+            Ok(Some(ConstrainError::Dynamic(selector, is_string_type, values)))
+        }
     }
 
     fn codegen_assign(&mut self, assign: &ast::Assign) -> Result<Values, RuntimeError> {
@@ -883,6 +981,17 @@ impl<'a> FunctionContext<'a> {
         }
 
         println!("{}", self.builder.current_function);
+        // let should_inc_rc = !assign.expression.is_array_or_slice_literal();
+
+        // rhs.clone().for_each(|value| {
+        //     let value = value.eval(self);
+
+        //     if should_inc_rc {
+        //         self.builder.increment_array_reference_count(value);
+        //     }
+        // });
+
+        // self.assign_new_value(lhs, rhs);
         Ok(Self::unit_value())
     }
     

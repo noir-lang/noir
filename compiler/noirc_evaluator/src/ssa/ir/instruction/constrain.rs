@@ -1,5 +1,7 @@
 use acvm::{acir::AcirField, FieldElement};
 
+use crate::ssa::ir::types::NumericType;
+
 use super::{Binary, BinaryOp, ConstrainError, DataFlowGraph, Instruction, Type, Value, ValueId};
 
 /// Try to decompose this constrain instruction. This constraint will be broken down such that it instead constrains
@@ -20,7 +22,7 @@ pub(super) fn decompose_constrain(
         match (&dfg[lhs], &dfg[rhs]) {
             (Value::NumericConstant { constant, typ }, Value::Instruction { instruction, .. })
             | (Value::Instruction { instruction, .. }, Value::NumericConstant { constant, typ })
-                if *typ == Type::bool() =>
+                if *typ == NumericType::bool() =>
             {
                 match dfg[*instruction] {
                     Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Eq })
@@ -42,7 +44,7 @@ pub(super) fn decompose_constrain(
                         vec![Instruction::Constrain(lhs, rhs, msg.clone())]
                     }
 
-                    Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Mul })
+                    Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Mul { .. } })
                         if constant.is_one() && dfg.type_of_value(lhs) == Type::bool() =>
                     {
                         // Replace an equality assertion on a boolean multiplication
@@ -61,7 +63,7 @@ pub(super) fn decompose_constrain(
                         // Note that this doesn't remove the value `v2` as it may be used in other instructions, but it
                         // will likely be removed through dead instruction elimination.
                         let one = FieldElement::one();
-                        let one = dfg.make_constant(one, Type::bool());
+                        let one = dfg.make_constant(one, NumericType::bool());
 
                         [
                             decompose_constrain(lhs, one, msg, dfg),
@@ -89,7 +91,7 @@ pub(super) fn decompose_constrain(
                         // Note that this doesn't remove the value `v2` as it may be used in other instructions, but it
                         // will likely be removed through dead instruction elimination.
                         let zero = FieldElement::zero();
-                        let zero = dfg.make_constant(zero, dfg.type_of_value(lhs));
+                        let zero = dfg.make_constant(zero, dfg.type_of_value(lhs).unwrap_numeric());
 
                         [
                             decompose_constrain(lhs, zero, msg, dfg),
@@ -112,7 +114,8 @@ pub(super) fn decompose_constrain(
                         // Note that this doesn't remove the value `v1` as it may be used in other instructions, but it
                         // will likely be removed through dead instruction elimination.
                         let reversed_constant = FieldElement::from(!constant.is_one());
-                        let reversed_constant = dfg.make_constant(reversed_constant, Type::bool());
+                        let reversed_constant =
+                            dfg.make_constant(reversed_constant, NumericType::bool());
                         decompose_constrain(value, reversed_constant, msg, dfg)
                     }
 

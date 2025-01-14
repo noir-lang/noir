@@ -1,5 +1,5 @@
 use fm::FileId;
-use noirc_errors::Location;
+use noirc_errors::{Location, Span};
 use rangemap::RangeMap;
 use rustc_hash::FxHashMap as HashMap;
 
@@ -34,6 +34,27 @@ impl LocationIndices {
     }
 }
 
+pub struct ReferencesTracker<'a> {
+    interner: &'a mut NodeInterner,
+    file_id: FileId,
+}
+
+impl<'a> ReferencesTracker<'a> {
+    pub fn new(interner: &'a mut NodeInterner, file_id: FileId) -> Self {
+        Self { interner, file_id }
+    }
+
+    pub(crate) fn add_reference(
+        &mut self,
+        module_def_id: ModuleDefId,
+        span: Span,
+        is_self_type: bool,
+    ) {
+        let location = Location::new(span, self.file_id);
+        self.interner.add_module_def_id_reference(module_def_id, location, is_self_type);
+    }
+}
+
 impl NodeInterner {
     pub fn reference_location(&self, reference: ReferenceId) -> Location {
         match reference {
@@ -47,7 +68,10 @@ impl NodeInterner {
             ReferenceId::StructMember(id, field_index) => {
                 let struct_type = self.get_struct(id);
                 let struct_type = struct_type.borrow();
-                Location::new(struct_type.field_at(field_index).0.span(), struct_type.location.file)
+                Location::new(
+                    struct_type.field_at(field_index).name.span(),
+                    struct_type.location.file,
+                )
             }
             ReferenceId::Trait(id) => {
                 let trait_type = self.get_trait(id);

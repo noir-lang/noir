@@ -79,17 +79,15 @@ impl<'block> BrilligBlock<'block> {
         source_vector: BrilligVector,
         removed_items: &[BrilligVariable],
     ) {
-        let read_pointer = self.brillig_context.allocate_register();
-        self.brillig_context.call_vector_pop_procedure(
-            source_vector,
-            target_vector,
-            read_pointer,
-            removed_items.len(),
-            false,
-        );
-
+        let read_pointer = self.brillig_context.codegen_make_vector_items_pointer(source_vector);
         self.read_variables(read_pointer, removed_items);
         self.brillig_context.deallocate_register(read_pointer);
+
+        self.brillig_context.call_vector_pop_front_procedure(
+            source_vector,
+            target_vector,
+            removed_items.len(),
+        );
     }
 
     pub(crate) fn slice_pop_back_operation(
@@ -99,12 +97,11 @@ impl<'block> BrilligBlock<'block> {
         removed_items: &[BrilligVariable],
     ) {
         let read_pointer = self.brillig_context.allocate_register();
-        self.brillig_context.call_vector_pop_procedure(
+        self.brillig_context.call_vector_pop_back_procedure(
             source_vector,
             target_vector,
             read_pointer,
             removed_items.len(),
-            true,
         );
 
         self.read_variables(read_pointer, removed_items);
@@ -162,6 +159,7 @@ mod tests {
     use std::vec;
 
     use acvm::FieldElement;
+    use noirc_frontend::monomorphization::ast::InlineType;
 
     use crate::brillig::brillig_gen::brillig_block::BrilligBlock;
     use crate::brillig::brillig_gen::brillig_block_variables::BlockVariables;
@@ -182,7 +180,7 @@ mod tests {
 
     fn create_test_environment() -> (Ssa, FunctionContext, BrilligContext<FieldElement, Stack>) {
         let mut builder = FunctionBuilder::new("main".to_string(), Id::test_new(0));
-        builder.set_runtime(RuntimeType::Brillig);
+        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
 
         let ssa = builder.finish();
         let mut brillig_context = create_context(ssa.main_id);
@@ -212,7 +210,7 @@ mod tests {
             push_back: bool,
             array: Vec<FieldElement>,
             item_to_push: FieldElement,
-            mut expected_return: Vec<FieldElement>,
+            expected_return: Vec<FieldElement>,
         ) {
             let arguments = vec![
                 BrilligParameter::Slice(
@@ -222,11 +220,15 @@ mod tests {
                 BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
             ];
             let result_length = array.len() + 1;
+            assert_eq!(result_length, expected_return.len());
+            let result_length_with_metadata = result_length + 2; // Leading length and capacity
+
+            // Entry points don't support returning slices, so we implicitly cast the vector to an array
+            // With the metadata at the start.
             let returns = vec![BrilligParameter::Array(
                 vec![BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
-                result_length + 1, // Leading length since the we return a vector
+                result_length_with_metadata,
             )];
-            expected_return.insert(0, FieldElement::from(result_length));
 
             let (_, mut function_context, mut context) = create_test_environment();
 
@@ -261,14 +263,17 @@ mod tests {
             let bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
             let (vm, return_data_offset, return_data_size) =
                 create_and_run_vm(array.into_iter().chain(vec![item_to_push]).collect(), &bytecode);
-            assert_eq!(return_data_size, expected_return.len());
-            assert_eq!(
-                vm.get_memory()[return_data_offset..(return_data_offset + expected_return.len())]
-                    .iter()
-                    .map(|mem_val| mem_val.to_field())
-                    .collect::<Vec<_>>(),
-                expected_return
-            );
+            assert_eq!(return_data_size, result_length_with_metadata);
+            let mut returned_vector: Vec<FieldElement> = vm.get_memory()
+                [return_data_offset..(return_data_offset + result_length_with_metadata)]
+                .iter()
+                .map(|mem_val| mem_val.to_field())
+                .collect();
+            let returned_size = returned_vector.remove(0);
+            assert_eq!(returned_size, result_length.into());
+            let _returned_capacity = returned_vector.remove(0);
+
+            assert_eq!(returned_vector, expected_return);
         }
 
         test_case_push(
@@ -320,7 +325,7 @@ mod tests {
         fn test_case_pop(
             pop_back: bool,
             array: Vec<FieldElement>,
-            mut expected_return_array: Vec<FieldElement>,
+            expected_return_array: Vec<FieldElement>,
             expected_return_item: FieldElement,
         ) {
             let arguments = vec![BrilligParameter::Slice(
@@ -328,15 +333,18 @@ mod tests {
                 array.len(),
             )];
             let result_length = array.len() - 1;
+            assert_eq!(result_length, expected_return_array.len());
+            let result_length_with_metadata = result_length + 2; // Leading length and capacity
 
+            // Entry points don't support returning slices, so we implicitly cast the vector to an array
+            // With the metadata at the start.
             let returns = vec![
+                BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
                 BrilligParameter::Array(
                     vec![BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
-                    result_length + 1,
+                    result_length_with_metadata,
                 ),
-                BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
             ];
-            expected_return_array.insert(0, FieldElement::from(result_length));
 
             let (_, mut function_context, mut context) = create_test_environment();
 
@@ -366,22 +374,28 @@ mod tests {
                 );
             }
 
-            context.codegen_return(&[target_vector.pointer, removed_item.address]);
+            context.codegen_return(&[removed_item.address, target_vector.pointer]);
 
             let bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
-            let expected_return: Vec<_> =
-                expected_return_array.into_iter().chain(vec![expected_return_item]).collect();
+
             let (vm, return_data_offset, return_data_size) =
                 create_and_run_vm(array.clone(), &bytecode);
-            assert_eq!(return_data_size, expected_return.len());
+            // vector + removed item
+            assert_eq!(return_data_size, result_length_with_metadata + 1);
 
-            assert_eq!(
-                vm.get_memory()[return_data_offset..(return_data_offset + expected_return.len())]
-                    .iter()
-                    .map(|mem_val| mem_val.to_field())
-                    .collect::<Vec<_>>(),
-                expected_return
-            );
+            let mut return_data: Vec<FieldElement> = vm.get_memory()
+                [return_data_offset..(return_data_offset + return_data_size)]
+                .iter()
+                .map(|mem_val| mem_val.to_field())
+                .collect();
+            let returned_item = return_data.remove(0);
+            assert_eq!(returned_item, expected_return_item);
+
+            let returned_size = return_data.remove(0);
+            assert_eq!(returned_size, result_length.into());
+            let _returned_capacity = return_data.remove(0);
+
+            assert_eq!(return_data, expected_return_array);
         }
 
         test_case_pop(
@@ -413,7 +427,7 @@ mod tests {
             array: Vec<FieldElement>,
             item: FieldElement,
             index: FieldElement,
-            mut expected_return: Vec<FieldElement>,
+            expected_return: Vec<FieldElement>,
         ) {
             let arguments = vec![
                 BrilligParameter::Slice(
@@ -424,11 +438,15 @@ mod tests {
                 BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
             ];
             let result_length = array.len() + 1;
+            assert_eq!(result_length, expected_return.len());
+            let result_length_with_metadata = result_length + 2; // Leading length and capacity
+
+            // Entry points don't support returning slices, so we implicitly cast the vector to an array
+            // With the metadata at the start.
             let returns = vec![BrilligParameter::Array(
                 vec![BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
-                result_length + 1,
+                result_length_with_metadata,
             )];
-            expected_return.insert(0, FieldElement::from(result_length));
 
             let (_, mut function_context, mut context) = create_test_environment();
 
@@ -460,15 +478,18 @@ mod tests {
 
             let bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
             let (vm, return_data_offset, return_data_size) = create_and_run_vm(calldata, &bytecode);
-            assert_eq!(return_data_size, expected_return.len());
+            assert_eq!(return_data_size, result_length_with_metadata);
 
-            assert_eq!(
-                vm.get_memory()[return_data_offset..(return_data_offset + expected_return.len())]
-                    .iter()
-                    .map(|mem_val| mem_val.to_field())
-                    .collect::<Vec<_>>(),
-                expected_return
-            );
+            let mut returned_vector: Vec<FieldElement> = vm.get_memory()
+                [return_data_offset..(return_data_offset + result_length_with_metadata)]
+                .iter()
+                .map(|mem_val| mem_val.to_field())
+                .collect();
+            let returned_size = returned_vector.remove(0);
+            assert_eq!(returned_size, result_length.into());
+            let _returned_capacity = returned_vector.remove(0);
+
+            assert_eq!(returned_vector, expected_return);
         }
 
         test_case_insert(
@@ -545,7 +566,7 @@ mod tests {
         fn test_case_remove(
             array: Vec<FieldElement>,
             index: FieldElement,
-            mut expected_array: Vec<FieldElement>,
+            expected_array: Vec<FieldElement>,
             expected_removed_item: FieldElement,
         ) {
             let arguments = vec![
@@ -556,15 +577,16 @@ mod tests {
                 BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
             ];
             let result_length = array.len() - 1;
+            assert_eq!(result_length, expected_array.len());
+            let result_length_with_metadata = result_length + 2; // Leading length and capacity
 
             let returns = vec![
+                BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
                 BrilligParameter::Array(
                     vec![BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
-                    result_length + 1,
+                    result_length_with_metadata,
                 ),
-                BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
             ];
-            expected_array.insert(0, FieldElement::from(result_length));
 
             let (_, mut function_context, mut context) = create_test_environment();
 
@@ -591,24 +613,29 @@ mod tests {
                 &[BrilligVariable::SingleAddr(removed_item)],
             );
 
-            context.codegen_return(&[target_vector.pointer, removed_item.address]);
+            context.codegen_return(&[removed_item.address, target_vector.pointer]);
 
             let calldata: Vec<_> = array.into_iter().chain(vec![index]).collect();
 
             let bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
             let (vm, return_data_offset, return_data_size) = create_and_run_vm(calldata, &bytecode);
 
-            let expected_return: Vec<_> =
-                expected_array.into_iter().chain(vec![expected_removed_item]).collect();
-            assert_eq!(return_data_size, expected_return.len());
+            // vector + removed item
+            assert_eq!(return_data_size, result_length_with_metadata + 1);
 
-            assert_eq!(
-                vm.get_memory()[return_data_offset..(return_data_offset + expected_return.len())]
-                    .iter()
-                    .map(|mem_val| mem_val.to_field())
-                    .collect::<Vec<_>>(),
-                expected_return
-            );
+            let mut return_data: Vec<FieldElement> = vm.get_memory()
+                [return_data_offset..(return_data_offset + return_data_size)]
+                .iter()
+                .map(|mem_val| mem_val.to_field())
+                .collect();
+            let returned_item = return_data.remove(0);
+            assert_eq!(returned_item, expected_removed_item);
+
+            let returned_size = return_data.remove(0);
+            assert_eq!(returned_size, result_length.into());
+            let _returned_capacity = return_data.remove(0);
+
+            assert_eq!(return_data, expected_array);
         }
 
         test_case_remove(

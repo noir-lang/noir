@@ -6,7 +6,9 @@ trait DoNothing {
 }
 
 #[derive(DoNothing)]
-struct MyStruct { my_field: u32 }
+struct MyStruct {
+    my_field: u32,
+}
 
 comptime fn derive_do_nothing(s: StructDefinition) -> Quoted {
     let typ = s.as_type();
@@ -23,6 +25,14 @@ comptime fn derive_do_nothing(s: StructDefinition) -> Quoted {
 
 // Test stdlib derive fns & multiple traits
 // - We can derive Ord and Hash even though std::cmp::Ordering and std::hash::Hasher aren't imported
+// - We need to define MyOtherOtherStruct first since MyOtherStruct references it as a field and
+//   attributes are run in reading order. If it were defined afterward, the derived Eq impl for MyOtherStruct
+//   would error that MyOtherOtherStruct doesn't (yet) implement Eq.
+#[derive(Eq, Default, Hash, Ord)]
+struct MyOtherOtherStruct<T> {
+    x: T,
+}
+
 #[derive(Eq, Default, Hash, Ord)]
 struct MyOtherStruct<A, B> {
     field1: A,
@@ -31,12 +41,7 @@ struct MyOtherStruct<A, B> {
 }
 
 #[derive(Eq, Default, Hash, Ord)]
-struct MyOtherOtherStruct<T> {
-    x: T,
-}
-
-#[derive(Eq, Default, Hash, Ord)]
-struct EmptyStruct { }
+struct EmptyStruct {}
 
 fn main() {
     let s = MyStruct { my_field: 1 };
@@ -49,8 +54,16 @@ fn main() {
     assert_eq(o, o);
 
     // Field & str<2> above don't implement Ord
-    let o1 = MyOtherStruct { field1: 12 as u32, field2: 24 as i8, field3: MyOtherOtherStruct { x: 54 as i8 } };
-    let o2 = MyOtherStruct { field1: 12 as u32, field2: 24 as i8, field3: MyOtherOtherStruct { x: 55 as i8 } };
+    let o1 = MyOtherStruct {
+        field1: 12 as u32,
+        field2: 24 as i8,
+        field3: MyOtherOtherStruct { x: 54 as i8 },
+    };
+    let o2 = MyOtherStruct {
+        field1: 12 as u32,
+        field2: 24 as i8,
+        field3: MyOtherOtherStruct { x: 55 as i8 },
+    };
     assert(o1 < o2);
 
     let mut hasher = TestHasher { result: 0 };

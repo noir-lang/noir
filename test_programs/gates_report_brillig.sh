@@ -28,6 +28,6 @@ done
 
 echo "]" >> Nargo.toml
 
-nargo info --force-brillig --json > gates_report_brillig.json
+nargo info --force-brillig --json | jq -r ".programs[].functions = []"  > gates_report_brillig.json
 
 rm Nargo.toml

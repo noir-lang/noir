@@ -141,15 +141,10 @@ pub(crate) fn allocate_value<F, Registers: RegisterAllocator>(
                 bit_size: get_bit_size_from_ssa_type(&typ),
             })
         }
-        Type::Array(item_typ, elem_count) => {
-            let size = compute_array_length(&item_typ, elem_count);
-            dbg!(size);
-            dbg!(flattened_size);
-            BrilligVariable::BrilligArray(BrilligArray {
-                pointer: brillig_context.allocate_register(),
-                size: flattened_size,
-            })
-        }
+        Type::Array(item_typ, elem_count) => BrilligVariable::BrilligArray(BrilligArray {
+            pointer: brillig_context.allocate_register(),
+            size: compute_array_length(&item_typ, elem_count as usize),
+        }),
         Type::Slice(_) => BrilligVariable::BrilligVector(BrilligVector {
             pointer: brillig_context.allocate_register(),
         }),

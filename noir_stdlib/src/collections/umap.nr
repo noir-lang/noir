@@ -1,7 +1,7 @@
 use crate::cmp::Eq;
-use crate::option::Option;
 use crate::default::Default;
-use crate::hash::{Hash, Hasher, BuildHasher};
+use crate::hash::{BuildHasher, Hash, Hasher};
+use crate::option::Option;
 
 // An unconstrained hash table with open addressing and quadratic probing.
 // Note that "unconstrained" here means that almost all operations on this
@@ -17,11 +17,11 @@ pub struct UHashMap<K, V, B> {
     // Amount of valid elements in the map.
     _len: u32,
 
-    _build_hasher: B
+    _build_hasher: B,
 }
 
 // Data unit in the UHashMap table.
-// In case Noir adds support for enums in the future, this  
+// In case Noir adds support for enums in the future, this
 // should be refactored to have three states:
 // 1. (key, value)
 // 2. (empty)
@@ -60,7 +60,7 @@ impl<K, V> Slot<K, V> {
     }
 
     // Shall not override `_key_value` with Option::none(),
-    // because we must be able to differentiate empty 
+    // because we must be able to differentiate empty
     // and deleted slots for lookup.
     fn mark_deleted(&mut self) {
         self._is_deleted = true;
@@ -68,14 +68,15 @@ impl<K, V> Slot<K, V> {
 }
 
 // While conducting lookup, we iterate attempt from 0 to N - 1 due to heuristic,
-// that if we have went that far without finding desired, 
+// that if we have went that far without finding desired,
 // it is very unlikely to be after - performance will be heavily degraded.
 impl<K, V, B> UHashMap<K, V, B> {
     // Creates a new instance of UHashMap with specified BuildHasher.
     // docs:start:with_hasher
     pub fn with_hasher<H>(_build_hasher: B) -> Self
     where
-        B: BuildHasher<H> {
+        B: BuildHasher<H>,
+    {
         // docs:end:with_hasher
         let _table = &[Slot::default()];
         let _len = 0;
@@ -84,7 +85,8 @@ impl<K, V, B> UHashMap<K, V, B> {
 
     pub fn with_hasher_and_capacity<H>(_build_hasher: B, capacity: u32) -> Self
     where
-        B: BuildHasher<H> {
+        B: BuildHasher<H>,
+    {
         // docs:end:with_hasher
         let mut _table = &[];
         for _ in 0..capacity {
@@ -104,18 +106,15 @@ impl<K, V, B> UHashMap<K, V, B> {
 
     // Returns true if the map contains a value for the specified key.
     // docs:start:contains_key
-    pub fn contains_key<H>(
-        self,
-        key: K
-    ) -> bool
+    pub fn contains_key<H>(self, key: K) -> bool
     where
         K: Hash + Eq,
         B: BuildHasher<H>,
-        H: Hasher {
+        H: Hasher,
+    {
         // docs:end:contains_key
-        unsafe {
-            self.get(key)
-        }.is_some()
+        /// Safety: unconstrained context
+        unsafe { self.get(key) }.is_some()
     }
 
     // Returns true if the map contains no elements.
@@ -140,7 +139,10 @@ impl<K, V, B> UHashMap<K, V, B> {
             }
         }
 
-        let msg = f"Amount of valid elements should have been {self._len} times, but got {entries.len()}.";
+        let self_len = self._len;
+        let entries_len = entries.len();
+        let msg =
+            f"Amount of valid elements should have been {self_len} times, but got {entries_len}.";
         assert(entries.len() == self._len, msg);
 
         entries
@@ -160,7 +162,10 @@ impl<K, V, B> UHashMap<K, V, B> {
             }
         }
 
-        let msg = f"Amount of valid elements should have been {self._len} times, but got {keys.len()}.";
+        let self_len = self._len;
+        let keys_len = keys.len();
+        let msg =
+            f"Amount of valid elements should have been {self_len} times, but got {keys_len}.";
         assert(keys.len() == self._len, msg);
 
         keys
@@ -180,7 +185,10 @@ impl<K, V, B> UHashMap<K, V, B> {
             }
         }
 
-        let msg = f"Amount of valid elements should have been {self._len} times, but got {values.len()}.";
+        let self_len = self._len;
+        let values_len = values.len();
+        let msg =
+            f"Amount of valid elements should have been {self_len} times, but got {values_len}.";
         assert(values.len() == self._len, msg);
 
         values
@@ -188,14 +196,12 @@ impl<K, V, B> UHashMap<K, V, B> {
 
     // For each key-value entry applies mutator function.
     // docs:start:iter_mut
-    unconstrained pub fn iter_mut<H>(
-        &mut self,
-        f: fn(K, V) -> (K, V)
-    )
+    pub unconstrained fn iter_mut<H>(&mut self, f: fn(K, V) -> (K, V))
     where
         K: Eq + Hash,
         B: BuildHasher<H>,
-        H: Hasher {
+        H: Hasher,
+    {
         // docs:end:iter_mut
         let mut entries = self.entries();
         let mut new_map = UHashMap::with_hasher(self._build_hasher);
@@ -210,14 +216,12 @@ impl<K, V, B> UHashMap<K, V, B> {
 
     // For each key applies mutator function.
     // docs:start:iter_keys_mut
-    unconstrained pub fn iter_keys_mut<H>(
-        &mut self,
-        f: fn(K) -> K
-    ) 
+    pub unconstrained fn iter_keys_mut<H>(&mut self, f: fn(K) -> K)
     where
         K: Eq + Hash,
         B: BuildHasher<H>,
-        H: Hasher {
+        H: Hasher,
+    {
         // docs:end:iter_keys_mut
         let mut entries = self.entries();
         let mut new_map = UHashMap::with_hasher(self._build_hasher);
@@ -277,14 +281,12 @@ impl<K, V, B> UHashMap<K, V, B> {
 
     // Get the value by key. If it does not exist, returns none().
     // docs:start:get
-    unconstrained pub fn get<H>(
-        self,
-        key: K
-    ) -> Option<V>
+    pub unconstrained fn get<H>(self, key: K) -> Option<V>
     where
         K: Eq + Hash,
         B: BuildHasher<H>,
-        H: Hasher {
+        H: Hasher,
+    {
         // docs:end:get
         let mut result = Option::none();
 
@@ -307,17 +309,14 @@ impl<K, V, B> UHashMap<K, V, B> {
         result
     }
 
-    // Insert key-value entry. In case key was already present, value is overridden. 
+    // Insert key-value entry. In case key was already present, value is overridden.
     // docs:start:insert
-    unconstrained pub fn insert<H>(
-        &mut self,
-        key: K,
-        value: V
-    )
+    pub unconstrained fn insert<H>(&mut self, key: K, value: V)
     where
         K: Eq + Hash,
         B: BuildHasher<H>,
-        H: Hasher {
+        H: Hasher,
+    {
         // docs:end:insert
         self.try_resize();
 
@@ -348,7 +347,11 @@ impl<K, V, B> UHashMap<K, V, B> {
     }
 
     unconstrained fn try_resize<H>(&mut self)
-        where B: BuildHasher<H>, K: Eq + Hash, H: Hasher {
+    where
+        B: BuildHasher<H>,
+        K: Eq + Hash,
+        H: Hasher,
+    {
         if self.len() + 1 >= self.capacity() / 2 {
             let capacity = self.capacity() * 2;
             let mut new_map = UHashMap::with_hasher_and_capacity(self._build_hasher, capacity);
@@ -362,14 +365,12 @@ impl<K, V, B> UHashMap<K, V, B> {
 
     // Removes a key-value entry. If key is not present, UHashMap remains unchanged.
     // docs:start:remove
-    unconstrained pub fn remove<H>(
-        &mut self,
-        key: K
-    )
+    pub unconstrained fn remove<H>(&mut self, key: K)
     where
         K: Eq + Hash,
         B: BuildHasher<H>,
-        H: Hasher {
+        H: Hasher,
+    {
         // docs:end:remove
         let hash = self.hash(key);
 
@@ -391,14 +392,12 @@ impl<K, V, B> UHashMap<K, V, B> {
     }
 
     // Apply UHashMap's hasher onto key to obtain pre-hash for probing.
-    fn hash<H>(
-        self,
-        key: K
-    ) -> u32
+    fn hash<H>(self, key: K) -> u32
     where
         K: Hash,
         B: BuildHasher<H>,
-        H: Hasher {
+        H: Hasher,
+    {
         let mut hasher = self._build_hasher.build_hasher();
         key.hash(&mut hasher);
         hasher.finish() as u32
@@ -407,14 +406,14 @@ impl<K, V, B> UHashMap<K, V, B> {
     // Probing scheme: quadratic function.
     // We use 0.5 constant near variadic attempt and attempt^2 monomials.
     // This ensures good uniformity of distribution for table sizes
-    // equal to prime numbers or powers of two. 
+    // equal to prime numbers or powers of two.
     fn quadratic_probe(self: Self, hash: u32, attempt: u32) -> u32 {
         (hash + (attempt + attempt * attempt) / 2) % self._table.len()
     }
 }
 
-// Equality class on UHashMap has to test that they have 
-// equal sets of key-value entries, 
+// Equality class on UHashMap has to test that they have
+// equal sets of key-value entries,
 // thus one is a subset of the other and vice versa.
 // docs:start:eq
 impl<K, V, B, H> Eq for UHashMap<K, V, B>
@@ -422,7 +421,8 @@ where
     K: Eq + Hash,
     V: Eq,
     B: BuildHasher<H>,
-    H: Hasher {
+    H: Hasher,
+{
     fn eq(self, other: UHashMap<K, V, B>) -> bool {
         // docs:end:eq
         let mut equal = false;
@@ -433,9 +433,8 @@ where
                 // Not marked as deleted and has key-value.
                 if equal & slot.is_valid() {
                     let (key, value) = slot.key_value_unchecked();
-                    let other_value = unsafe {
-                        other.get(key)
-                    };
+                    /// Safety: unconstrained context
+                    let other_value = unsafe { other.get(key) };
 
                     if other_value.is_none() {
                         equal = false;
@@ -457,7 +456,8 @@ where
 impl<K, V, B, H> Default for UHashMap<K, V, B>
 where
     B: BuildHasher<H> + Default,
-    H: Hasher + Default {
+    H: Hasher + Default,
+{
     fn default() -> Self {
         // docs:end:default
         UHashMap::with_hasher(B::default())

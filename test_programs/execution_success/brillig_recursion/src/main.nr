@@ -1,7 +1,8 @@
 // Tests a very simple program.
-// 
+//
 // The feature being tested is brillig recursion
 fn main(x: u32) {
+    /// Safety: testing context
     unsafe {
         assert(fibonacci(x) == 55);
     }

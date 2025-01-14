@@ -1,4 +1,4 @@
-use crate::ast::{Expression, IntegerBitSize};
+use crate::ast::{Expression, IntegerBitSize, ItemVisibility};
 use crate::lexer::errors::LexerErrorKind;
 use crate::lexer::token::Token;
 use crate::token::TokenKind;
@@ -13,26 +13,52 @@ use super::labels::ParsingRuleLabel;
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum ParserErrorReason {
-    #[error("Unexpected '{0}', expected a field name")]
+    #[error("Unexpected `;`")]
+    UnexpectedSemicolon,
+    #[error("Unexpected `,`")]
+    UnexpectedComma,
+    #[error("Expected a `{token}` separating these two {items}")]
+    ExpectedTokenSeparatingTwoItems { token: Token, items: &'static str },
+    #[error("Expected `mut` after `&`, found `{found}`")]
+    ExpectedMutAfterAmpersand { found: Token },
+    #[error("Invalid left-hand side of assignment")]
+    InvalidLeftHandSideOfAssignment,
+    #[error("Expected trait, found {found}")]
+    ExpectedTrait { found: String },
+    #[error("Visibility `{visibility}` is not followed by an item")]
+    VisibilityNotFollowedByAnItem { visibility: ItemVisibility },
+    #[error("`unconstrained` is not followed by an item")]
+    UnconstrainedNotFollowedByAnItem,
+    #[error("`comptime` is not followed by an item")]
+    ComptimeNotFollowedByAnItem,
+    #[error("`mut` cannot be applied to this item")]
+    MutableNotApplicable,
+    #[error("`comptime` cannot be applied to this item")]
+    ComptimeNotApplicable,
+    #[error("`unconstrained` cannot be applied to this item")]
+    UnconstrainedNotApplicable,
+    #[error("Expected an identifier or `(expression) after `$` for unquoting")]
+    ExpectedIdentifierOrLeftParenAfterDollar,
+    #[error("`&mut` can only be used with `self")]
+    RefMutCanOnlyBeUsedWithSelf,
+    #[error("Invalid pattern")]
+    InvalidPattern,
+    #[error("Documentation comment does not document anything")]
+    DocCommentDoesNotDocumentAnything,
+
+    #[error("Missing type for function parameter")]
+    MissingTypeForFunctionParameter,
+    #[error("Missing type for numeric generic")]
+    MissingTypeForNumericGeneric,
+    #[error("Expected a function body (`{{ ... }}`), not `;`")]
+    ExpectedFunctionBody,
+    #[error("Expected the global to have a value")]
+    GlobalWithoutValue,
+
+    #[error("Unexpected '{0}', expected a field name or number")]
     ExpectedFieldName(Token),
-    #[error("expected a pattern but found a type - {0}")]
+    #[error("Expected a pattern but found a type - {0}")]
     ExpectedPatternButFoundType(Token),
-    #[error("expected an identifier after .")]
-    ExpectedIdentifierAfterDot,
-    #[error("expected an identifier after ::")]
-    ExpectedIdentifierAfterColons,
-    #[error("expected {{ or -> after function parameters")]
-    ExpectedLeftBraceOrArrowAfterFunctionParameters,
-    #[error("expected {{ after if condition")]
-    ExpectedLeftBraceAfterIfCondition,
-    #[error("expected <, where or {{ after trait name")]
-    ExpectedLeftBracketOrWhereOrLeftBraceOrArrowAfterTraitName,
-    #[error("expected <, where or {{ after impl type")]
-    ExpectedLeftBracketOrWhereOrLeftBraceOrArrowAfterImplType,
-    #[error("expected <, where or {{ after trait impl for type")]
-    ExpectedLeftBracketOrWhereOrLeftBraceOrArrowAfterTraitImplForType,
-    #[error("expected ( or < after function name")]
-    ExpectedLeftParenOrLeftBracketAfterFunctionName,
     #[error("Expected a ; separating these two statements")]
     MissingSeparatingSemi,
     #[error("constrain keyword is deprecated")]
@@ -45,6 +71,8 @@ pub enum ParserErrorReason {
     PatternInTraitFunctionParameter,
     #[error("Patterns aren't allowed in a trait impl's associated constants")]
     PatternInAssociatedConstant,
+    #[error("Visibility is ignored on a trait method")]
+    TraitVisibilityIgnored,
     #[error("Visibility is ignored on a trait impl method")]
     TraitImplVisibilityIgnored,
     #[error("comptime keyword is deprecated")]
@@ -71,6 +99,23 @@ pub enum ParserErrorReason {
     AssociatedTypesNotAllowedInPaths,
     #[error("Associated types are not allowed on a method call")]
     AssociatedTypesNotAllowedInMethodCalls,
+    #[error("Empty trait alias")]
+    EmptyTraitAlias,
+    #[error(
+        "Wrong number of arguments for attribute `{}`. Expected {}, found {}",
+        name,
+        if min == max { min.to_string() } else { format!("between {} and {}", min, max) },
+        found
+    )]
+    WrongNumberOfAttributeArguments { name: String, min: usize, max: usize, found: usize },
+    #[error("The `deprecated` attribute expects a string argument")]
+    DeprecatedAttributeExpectsAStringArgument,
+    #[error("Unsafe block must have a safety doc comment above it")]
+    MissingSafetyComment,
+    #[error("Unsafe block must start with a safety comment")]
+    UnsafeDocCommentDoesNotStartWithSafety,
+    #[error("Missing parameters for function definition")]
+    MissingParametersForFunctionDefinition,
 }
 
 /// Represents a parsing error, or a parsing error in the making.
@@ -105,6 +150,20 @@ impl ParserError {
         }
     }
 
+    pub fn expected_token(token: Token, found: Token, span: Span) -> ParserError {
+        let mut error = ParserError::empty(found, span);
+        error.expected_tokens.insert(token);
+        error
+    }
+
+    pub fn expected_one_of_tokens(tokens: &[Token], found: Token, span: Span) -> ParserError {
+        let mut error = ParserError::empty(found, span);
+        for token in tokens {
+            error.expected_tokens.insert(token.clone());
+        }
+        error
+    }
+
     pub fn expected_label(label: ParsingRuleLabel, found: Token, span: Span) -> ParserError {
         let mut error = ParserError::empty(found, span);
         error.expected_labels.insert(label);
@@ -130,18 +189,24 @@ impl ParserError {
     }
 
     pub fn is_warning(&self) -> bool {
-        matches!(self.reason(), Some(ParserErrorReason::ExperimentalFeature(_)))
+        let diagnostic: Diagnostic = self.into();
+        diagnostic.is_warning()
     }
 }
 
 impl std::fmt::Display for ParserError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let token_to_string = |token: &Token| match token {
+            Token::EOF => token.to_string(),
+            _ => format!("'{}'", token),
+        };
+
         let reason_str: String = if self.reason.is_none() {
             "".to_string()
         } else {
             format!("\nreason: {}", Diagnostic::from(self))
         };
-        let mut expected = vecmap(&self.expected_tokens, ToString::to_string);
+        let mut expected = vecmap(&self.expected_tokens, token_to_string);
         expected.append(&mut vecmap(&self.expected_labels, |label| format!("{label}")));
 
         if expected.is_empty() {
@@ -154,7 +219,7 @@ impl std::fmt::Display for ParserError {
                 "Expected a{} {} but found {}{}",
                 if vowel { "n" } else { "" },
                 first,
-                self.found,
+                token_to_string(&self.found),
                 reason_str
             )
         } else {
@@ -202,15 +267,43 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                 ParserErrorReason::ExperimentalFeature(_) => {
                     Diagnostic::simple_warning(reason.to_string(), "".into(), error.span)
                 }
+                ParserErrorReason::TraitVisibilityIgnored => {
+                    Diagnostic::simple_warning(reason.to_string(), "".into(), error.span)
+                }
                 ParserErrorReason::TraitImplVisibilityIgnored => {
                     Diagnostic::simple_warning(reason.to_string(), "".into(), error.span)
                 }
                 ParserErrorReason::ExpectedPatternButFoundType(ty) => Diagnostic::simple_error(
-                    "Expected a ; separating these two statements".into(),
+                    format!("Expected a pattern but found a type - {ty}"),
                     format!("{ty} is a type and cannot be used as a variable name"),
                     error.span,
                 ),
                 ParserErrorReason::Lexer(error) => error.into(),
+                ParserErrorReason::ExpectedMutAfterAmpersand { found } => Diagnostic::simple_error(
+                    format!("Expected `mut` after `&`, found `{found}`"),
+                    "Noir doesn't have immutable references, only mutable references".to_string(),
+                    error.span,
+                ),
+                ParserErrorReason::MissingSafetyComment => Diagnostic::simple_warning(
+                    "Unsafe block must have a safety doc comment above it".into(),
+                    "The doc comment must start with the \"Safety: \" word".into(),
+                    error.span,
+                ),
+                ParserErrorReason::UnsafeDocCommentDoesNotStartWithSafety => {
+                    Diagnostic::simple_warning(
+                        "Unsafe block must start with a safety comment".into(),
+                        "The doc comment above this unsafe block must start with the \"Safety: \" word"
+                            .into(),
+                        error.span,
+                    )
+                }
+                ParserErrorReason::MissingParametersForFunctionDefinition => {
+                    Diagnostic::simple_error(
+                        "Missing parameters for function definition".into(),
+                        "Add a parameter list: `()`".into(),
+                        error.span,
+                    )
+                }
                 other => Diagnostic::simple_error(format!("{other}"), String::new(), error.span),
             },
             None => {
@@ -227,47 +320,5 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                 }
             }
         }
-    }
-}
-
-impl chumsky::Error<Token> for ParserError {
-    type Span = Span;
-    type Label = ParsingRuleLabel;
-
-    fn expected_input_found<Iter>(span: Self::Span, expected: Iter, found: Option<Token>) -> Self
-    where
-        Iter: IntoIterator<Item = Option<Token>>,
-    {
-        ParserError {
-            expected_tokens: expected.into_iter().map(|opt| opt.unwrap_or(Token::EOF)).collect(),
-            expected_labels: SmallOrdSet::new(),
-            found: found.unwrap_or(Token::EOF),
-            reason: None,
-            span,
-        }
-    }
-
-    fn with_label(mut self, label: Self::Label) -> Self {
-        self.expected_tokens.clear();
-        self.expected_labels.clear();
-        self.expected_labels.insert(label);
-        self
-    }
-
-    // Merge two errors into a new one that should encompass both.
-    // If one error has a more specific reason with it then keep
-    // that reason and discard the other if present.
-    // The spans of both errors must match, otherwise the error
-    // messages and error spans may not line up.
-    fn merge(mut self, mut other: Self) -> Self {
-        self.expected_tokens.append(&mut other.expected_tokens);
-        self.expected_labels.append(&mut other.expected_labels);
-
-        if self.reason.is_none() {
-            self.reason = other.reason;
-        }
-
-        self.span = self.span.merge(other.span);
-        self
     }
 }

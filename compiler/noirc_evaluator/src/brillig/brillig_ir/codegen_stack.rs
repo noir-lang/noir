@@ -47,6 +47,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             let destinations_of_temp = movements_map.remove(first_source).unwrap();
             movements_map.insert(temp_register, destinations_of_temp);
         }
+
         // After removing loops we should have an DAG with each node having only one ancestor (but could have multiple successors)
         // Now we should be able to move the registers just by performing a DFS on the movements map
         let heads: Vec<_> = movements_map
@@ -54,6 +55,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             .filter(|source| !destinations_set.contains(source))
             .copied()
             .collect();
+
         for head in heads {
             self.perform_movements(&movements_map, head);
         }
@@ -140,7 +142,9 @@ mod tests {
         movements: Vec<(usize, usize)>,
     ) -> HashMap<MemoryAddress, HashSet<MemoryAddress>> {
         movements.into_iter().fold(HashMap::default(), |mut map, (source, destination)| {
-            map.entry(MemoryAddress(source)).or_default().insert(MemoryAddress(destination));
+            map.entry(MemoryAddress::relative(source))
+                .or_default()
+                .insert(MemoryAddress::relative(destination));
             map
         })
     }
@@ -190,9 +194,12 @@ mod tests {
     fn movements_to_source_and_destinations(
         movements: Vec<(usize, usize)>,
     ) -> (Vec<MemoryAddress>, Vec<MemoryAddress>) {
-        let sources = movements.iter().map(|(source, _)| MemoryAddress::from(*source)).collect();
-        let destinations =
-            movements.iter().map(|(_, destination)| MemoryAddress::from(*destination)).collect();
+        let sources =
+            movements.iter().map(|(source, _)| MemoryAddress::relative(*source)).collect();
+        let destinations = movements
+            .iter()
+            .map(|(_, destination)| MemoryAddress::relative(*destination))
+            .collect();
         (sources, destinations)
     }
 
@@ -223,10 +230,22 @@ mod tests {
         assert_eq!(
             opcodes,
             vec![
-                Opcode::Mov { destination: MemoryAddress(14), source: MemoryAddress(13) },
-                Opcode::Mov { destination: MemoryAddress(13), source: MemoryAddress(12) },
-                Opcode::Mov { destination: MemoryAddress(12), source: MemoryAddress(11) },
-                Opcode::Mov { destination: MemoryAddress(11), source: MemoryAddress(10) },
+                Opcode::Mov {
+                    destination: MemoryAddress::relative(14),
+                    source: MemoryAddress::relative(13)
+                },
+                Opcode::Mov {
+                    destination: MemoryAddress::relative(13),
+                    source: MemoryAddress::relative(12)
+                },
+                Opcode::Mov {
+                    destination: MemoryAddress::relative(12),
+                    source: MemoryAddress::relative(11)
+                },
+                Opcode::Mov {
+                    destination: MemoryAddress::relative(11),
+                    source: MemoryAddress::relative(10)
+                },
             ]
         );
     }
@@ -241,8 +260,14 @@ mod tests {
         assert_eq!(
             opcodes,
             vec![
-                Opcode::Mov { destination: MemoryAddress(12), source: MemoryAddress(11) },
-                Opcode::Mov { destination: MemoryAddress(11), source: MemoryAddress(10) },
+                Opcode::Mov {
+                    destination: MemoryAddress::relative(12),
+                    source: MemoryAddress::relative(11)
+                },
+                Opcode::Mov {
+                    destination: MemoryAddress::relative(11),
+                    source: MemoryAddress::relative(10)
+                },
             ]
         );
     }
@@ -258,11 +283,26 @@ mod tests {
         assert_eq!(
             opcodes,
             vec![
-                Opcode::Mov { destination: MemoryAddress(3), source: MemoryAddress(10) },
-                Opcode::Mov { destination: MemoryAddress(10), source: MemoryAddress(13) },
-                Opcode::Mov { destination: MemoryAddress(13), source: MemoryAddress(12) },
-                Opcode::Mov { destination: MemoryAddress(12), source: MemoryAddress(11) },
-                Opcode::Mov { destination: MemoryAddress(11), source: MemoryAddress(3) }
+                Opcode::Mov {
+                    destination: MemoryAddress::relative(1),
+                    source: MemoryAddress::relative(10)
+                },
+                Opcode::Mov {
+                    destination: MemoryAddress::relative(10),
+                    source: MemoryAddress::relative(13)
+                },
+                Opcode::Mov {
+                    destination: MemoryAddress::relative(13),
+                    source: MemoryAddress::relative(12)
+                },
+                Opcode::Mov {
+                    destination: MemoryAddress::relative(12),
+                    source: MemoryAddress::relative(11)
+                },
+                Opcode::Mov {
+                    destination: MemoryAddress::relative(11),
+                    source: MemoryAddress::relative(1)
+                }
             ]
         );
     }
@@ -278,12 +318,30 @@ mod tests {
         assert_eq!(
             opcodes,
             vec![
-                Opcode::Mov { destination: MemoryAddress(3), source: MemoryAddress(10) }, // Temporary
-                Opcode::Mov { destination: MemoryAddress(14), source: MemoryAddress(13) }, // Branch
-                Opcode::Mov { destination: MemoryAddress(10), source: MemoryAddress(12) }, // Loop
-                Opcode::Mov { destination: MemoryAddress(12), source: MemoryAddress(11) }, // Loop
-                Opcode::Mov { destination: MemoryAddress(13), source: MemoryAddress(3) }, // Finish branch
-                Opcode::Mov { destination: MemoryAddress(11), source: MemoryAddress(3) } // Finish loop
+                Opcode::Mov {
+                    destination: MemoryAddress::relative(1),
+                    source: MemoryAddress::relative(10)
+                }, // Temporary
+                Opcode::Mov {
+                    destination: MemoryAddress::relative(10),
+                    source: MemoryAddress::relative(12)
+                }, // Branch
+                Opcode::Mov {
+                    destination: MemoryAddress::relative(12),
+                    source: MemoryAddress::relative(11)
+                }, // Loop
+                Opcode::Mov {
+                    destination: MemoryAddress::relative(14),
+                    source: MemoryAddress::relative(13)
+                }, // Loop
+                Opcode::Mov {
+                    destination: MemoryAddress::relative(11),
+                    source: MemoryAddress::relative(1)
+                }, // Finish branch
+                Opcode::Mov {
+                    destination: MemoryAddress::relative(13),
+                    source: MemoryAddress::relative(1)
+                } // Finish loop
             ]
         );
     }

@@ -1,342 +1,580 @@
-use chumsky::prelude::*;
+use iter_extended::vecmap;
 
-use super::attributes::{attributes, validate_secondary_attributes};
-use super::doc_comments::outer_doc_comments;
-use super::function::{function_modifiers, function_return_type};
-use super::path::path_no_turbofish;
-use super::visibility::item_visibility;
-use super::{
-    block, expression, fresh_statement, function, function_declaration_parameters, let_statement,
-};
+use noirc_errors::Span;
 
 use crate::ast::{
-    Documented, Expression, ItemVisibility, NoirTrait, NoirTraitImpl, Pattern, TraitBound,
-    TraitImplItem, TraitImplItemKind, TraitItem, UnresolvedTraitConstraint, UnresolvedType,
+    Documented, GenericTypeArg, GenericTypeArgs, ItemVisibility, NoirTrait, Path, Pattern,
+    TraitItem, UnresolvedGeneric, UnresolvedTraitConstraint, UnresolvedType,
 };
-use crate::parser::spanned;
 use crate::{
-    parser::{
-        ignore_then_commit, parenthesized, parser::primitives::keyword, NoirParser, ParserError,
-        ParserErrorReason, TopLevelStatementKind,
-    },
-    token::{Keyword, Token},
+    ast::{Ident, UnresolvedTypeData},
+    parser::{labels::ParsingRuleLabel, NoirTraitImpl, ParserErrorReason},
+    token::{Attribute, Keyword, SecondaryAttribute, Token},
 };
 
-use super::{generic_type_args, parse_type, primitives::ident};
+use super::parse_many::without_separator;
+use super::Parser;
 
-pub(super) fn trait_definition() -> impl NoirParser<TopLevelStatementKind> {
-    let trait_body_or_error = just(Token::LeftBrace)
-        .ignore_then(trait_body())
-        .then_ignore(just(Token::RightBrace))
-        .or_not()
-        .validate(|items, span, emit| {
-            if let Some(items) = items {
-                items
-            } else {
-                emit(ParserError::with_reason(
-                    ParserErrorReason::ExpectedLeftBracketOrWhereOrLeftBraceOrArrowAfterTraitName,
-                    span,
-                ));
-                vec![]
+impl<'a> Parser<'a> {
+    /// Trait = 'trait' identifier Generics ( ':' TraitBounds )? WhereClause TraitBody
+    ///       | 'trait' identifier Generics '=' TraitBounds WhereClause ';'
+    pub(crate) fn parse_trait(
+        &mut self,
+        attributes: Vec<(Attribute, Span)>,
+        visibility: ItemVisibility,
+        start_span: Span,
+    ) -> (NoirTrait, Option<NoirTraitImpl>) {
+        let attributes = self.validate_secondary_attributes(attributes);
+
+        let Some(name) = self.eat_ident() else {
+            self.expected_identifier();
+            let noir_trait = empty_trait(attributes, visibility, self.span_since(start_span));
+            let no_implicit_impl = None;
+            return (noir_trait, no_implicit_impl);
+        };
+
+        let generics = self.parse_generics();
+
+        // Trait aliases:
+        // trait Foo<..> = A + B + E where ..;
+        let (bounds, where_clause, items, is_alias) = if self.eat_assign() {
+            let bounds = self.parse_trait_bounds();
+
+            if bounds.is_empty() {
+                self.push_error(ParserErrorReason::EmptyTraitAlias, self.previous_token_span);
             }
-        });
 
-    attributes()
-        .then(item_visibility())
-        .then_ignore(keyword(Keyword::Trait))
-        .then(ident())
-        .then(function::generics())
-        .then(where_clause())
-        .then(trait_body_or_error)
-        .validate(
-            |(((((attributes, visibility), name), generics), where_clause), items), span, emit| {
-                let attributes = validate_secondary_attributes(attributes, span, emit);
-                TopLevelStatementKind::Trait(NoirTrait {
-                    name,
-                    generics,
-                    where_clause,
-                    span,
-                    items,
-                    attributes,
-                    visibility,
-                })
-            },
-        )
-}
-
-fn trait_body() -> impl NoirParser<Vec<Documented<TraitItem>>> {
-    let item =
-        trait_function_declaration().or(trait_type_declaration()).or(trait_constant_declaration());
-    outer_doc_comments()
-        .then(item)
-        .map(|(doc_comments, item)| Documented::new(item, doc_comments))
-        .repeated()
-}
-
-fn optional_default_value() -> impl NoirParser<Option<Expression>> {
-    ignore_then_commit(just(Token::Assign), expression()).or_not()
-}
-
-fn trait_constant_declaration() -> impl NoirParser<TraitItem> {
-    keyword(Keyword::Let)
-        .ignore_then(ident())
-        .then_ignore(just(Token::Colon))
-        .then(parse_type())
-        .then(optional_default_value())
-        .then_ignore(just(Token::Semicolon))
-        .map(|((name, typ), default_value)| TraitItem::Constant { name, typ, default_value })
-}
-
-/// trait_function_declaration: 'fn' ident generics '(' declaration_parameters ')' function_return_type
-fn trait_function_declaration() -> impl NoirParser<TraitItem> {
-    let trait_function_body_or_semicolon =
-        block(fresh_statement()).map(Option::from).or(just(Token::Semicolon).to(Option::None));
-
-    let trait_function_body_or_semicolon_or_error =
-        trait_function_body_or_semicolon.or_not().validate(|body, span, emit| {
-            if let Some(body) = body {
-                body
-            } else {
-                emit(ParserError::with_reason(
-                    ParserErrorReason::ExpectedLeftBraceOrArrowAfterFunctionParameters,
-                    span,
-                ));
-                None
+            let where_clause = self.parse_where_clause();
+            let items = Vec::new();
+            if !self.eat_semicolon() {
+                self.expected_token(Token::Semicolon);
             }
-        });
 
-    function_modifiers()
-        .then_ignore(keyword(Keyword::Fn))
-        .then(ident())
-        .then(function::generics())
-        .then(parenthesized(function_declaration_parameters()))
-        .then(function_return_type().map(|(_, typ)| typ))
-        .then(where_clause())
-        .then(trait_function_body_or_semicolon_or_error)
-        .map(
-            |((((((modifiers, name), generics), parameters), return_type), where_clause), body)| {
-                TraitItem::Function {
-                    name,
-                    generics,
-                    parameters,
-                    return_type,
-                    where_clause,
-                    body,
-                    is_unconstrained: modifiers.0,
-                    visibility: modifiers.1,
-                    is_comptime: modifiers.2,
-                }
-            },
-        )
-}
+            let is_alias = true;
+            (bounds, where_clause, items, is_alias)
+        } else {
+            let bounds = if self.eat_colon() { self.parse_trait_bounds() } else { Vec::new() };
+            let where_clause = self.parse_where_clause();
+            let items = self.parse_trait_body();
+            let is_alias = false;
+            (bounds, where_clause, items, is_alias)
+        };
 
-/// trait_type_declaration: 'type' ident generics
-fn trait_type_declaration() -> impl NoirParser<TraitItem> {
-    keyword(Keyword::Type)
-        .ignore_then(ident())
-        .then_ignore(just(Token::Semicolon))
-        .map(|name| TraitItem::Type { name })
-}
+        let span = self.span_since(start_span);
 
-/// Parses a trait implementation, implementing a particular trait for a type.
-/// This has a similar syntax to `implementation`, but the `for type` clause is required,
-/// and an optional `where` clause is also useable.
-///
-/// trait_implementation: 'impl' generics ident generic_args for type '{' trait_implementation_body '}'
-pub(super) fn trait_implementation() -> impl NoirParser<TopLevelStatementKind> {
-    let body_or_error =
-        just(Token::LeftBrace)
-            .ignore_then(trait_implementation_body())
-            .then_ignore(just(Token::RightBrace))
-            .or_not()
-            .validate(|items, span, emit| {
-                if let Some(items) = items {
-                    items
-                } else {
-                    emit(ParserError::with_reason(
-                        ParserErrorReason::ExpectedLeftBracketOrWhereOrLeftBraceOrArrowAfterTraitImplForType,
-                        span,
-                    ));
+        let noir_impl = is_alias.then(|| {
+            let object_type_ident = Ident::new("#T".to_string(), span);
+            let object_type_path = Path::from_ident(object_type_ident.clone());
+            let object_type_generic = UnresolvedGeneric::Variable(object_type_ident);
 
-                    vec![]
-                }
-            });
+            let is_synthesized = true;
+            let object_type = UnresolvedType {
+                typ: UnresolvedTypeData::Named(object_type_path, vec![].into(), is_synthesized),
+                span,
+            };
 
-    keyword(Keyword::Impl)
-        .ignore_then(function::generics())
-        .then(path_no_turbofish())
-        .then(generic_type_args(parse_type()))
-        .then_ignore(keyword(Keyword::For))
-        .then(parse_type())
-        .then(where_clause())
-        .then(body_or_error)
-        .map(|args| {
-            let (((other_args, object_type), where_clause), items) = args;
-            let ((impl_generics, trait_name), trait_generics) = other_args;
-            TopLevelStatementKind::TraitImpl(NoirTraitImpl {
+            let mut impl_generics = generics.clone();
+            impl_generics.push(object_type_generic);
+
+            let trait_name = Path::from_ident(name.clone());
+            let trait_generics: GenericTypeArgs = vecmap(generics.clone(), |generic| {
+                let is_synthesized = true;
+                let generic_type = UnresolvedType {
+                    typ: UnresolvedTypeData::Named(
+                        Path::from_ident(generic.ident().clone()),
+                        vec![].into(),
+                        is_synthesized,
+                    ),
+                    span,
+                };
+
+                GenericTypeArg::Ordered(generic_type)
+            })
+            .into();
+
+            // bounds from trait
+            let mut where_clause = where_clause.clone();
+            for bound in bounds.clone() {
+                where_clause.push(UnresolvedTraitConstraint {
+                    typ: object_type.clone(),
+                    trait_bound: bound,
+                });
+            }
+
+            let items = vec![];
+            let is_synthetic = true;
+
+            NoirTraitImpl {
                 impl_generics,
                 trait_name,
                 trait_generics,
                 object_type,
-                items,
                 where_clause,
-            })
-        })
-}
+                items,
+                is_synthetic,
+            }
+        });
 
-fn trait_implementation_body() -> impl NoirParser<Vec<Documented<TraitImplItem>>> {
-    let function = function::function_definition(true).validate(|mut f, span, emit| {
-        if f.def().visibility != ItemVisibility::Private {
-            emit(ParserError::with_reason(ParserErrorReason::TraitImplVisibilityIgnored, span));
-        }
-        // Trait impl functions are always public
-        f.def_mut().visibility = ItemVisibility::Public;
-        TraitImplItemKind::Function(f)
-    });
+        let noir_trait = NoirTrait {
+            name,
+            generics,
+            bounds,
+            where_clause,
+            span,
+            items,
+            attributes,
+            visibility,
+            is_alias,
+        };
 
-    let alias = keyword(Keyword::Type)
-        .ignore_then(ident())
-        .then_ignore(just(Token::Assign))
-        .then(parse_type())
-        .then_ignore(just(Token::Semicolon))
-        .map(|(name, alias)| TraitImplItemKind::Type { name, alias });
-
-    let let_statement = let_statement(expression()).then_ignore(just(Token::Semicolon)).try_map(
-        |((pattern, typ), expr), span| match pattern {
-            Pattern::Identifier(ident) => Ok(TraitImplItemKind::Constant(ident, typ, expr)),
-            _ => Err(ParserError::with_reason(
-                ParserErrorReason::PatternInTraitFunctionParameter,
-                span,
-            )),
-        },
-    );
-
-    let item = choice((function, alias, let_statement));
-    outer_doc_comments()
-        .then(spanned(item).map(|(kind, span)| TraitImplItem { kind, span }))
-        .map(|(doc_comments, item)| Documented::new(item, doc_comments))
-        .repeated()
-}
-
-pub(super) fn where_clause() -> impl NoirParser<Vec<UnresolvedTraitConstraint>> {
-    struct MultiTraitConstraint {
-        typ: UnresolvedType,
-        trait_bounds: Vec<TraitBound>,
+        (noir_trait, noir_impl)
     }
 
-    let constraints = parse_type()
-        .then_ignore(just(Token::Colon))
-        .then(trait_bounds())
-        .map(|(typ, trait_bounds)| MultiTraitConstraint { typ, trait_bounds });
+    /// TraitBody = '{' ( OuterDocComments TraitItem )* '}'
+    fn parse_trait_body(&mut self) -> Vec<Documented<TraitItem>> {
+        if !self.eat_left_brace() {
+            self.expected_token(Token::LeftBrace);
+            return Vec::new();
+        }
 
-    keyword(Keyword::Where)
-        .ignore_then(constraints.separated_by(just(Token::Comma)).allow_trailing())
-        .or_not()
-        .map(|option| option.unwrap_or_default())
-        .map(|x: Vec<MultiTraitConstraint>| {
-            let mut result: Vec<UnresolvedTraitConstraint> = Vec::new();
-            for constraint in x {
-                for bound in constraint.trait_bounds {
-                    result.push(UnresolvedTraitConstraint {
-                        typ: constraint.typ.clone(),
-                        trait_bound: bound,
-                    });
-                }
-            }
-            result
+        self.parse_many(
+            "trait items",
+            without_separator().until(Token::RightBrace),
+            Self::parse_trait_item_in_list,
+        )
+    }
+
+    fn parse_trait_item_in_list(&mut self) -> Option<Documented<TraitItem>> {
+        self.parse_item_in_list(ParsingRuleLabel::TraitItem, |parser| {
+            let doc_comments = parser.parse_outer_doc_comments();
+            parser.parse_trait_item().map(|item| Documented::new(item, doc_comments))
         })
+    }
+
+    /// TraitItem
+    ///     = TraitType
+    ///     | TraitConstant
+    ///     | TraitFunction
+    fn parse_trait_item(&mut self) -> Option<TraitItem> {
+        if let Some(item) = self.parse_trait_type() {
+            return Some(item);
+        }
+
+        if let Some(item) = self.parse_trait_constant() {
+            return Some(item);
+        }
+
+        if let Some(item) = self.parse_trait_function() {
+            return Some(item);
+        }
+
+        None
+    }
+
+    /// TraitType = 'type' identifier ';'
+    fn parse_trait_type(&mut self) -> Option<TraitItem> {
+        if !self.eat_keyword(Keyword::Type) {
+            return None;
+        }
+
+        let name = match self.eat_ident() {
+            Some(name) => name,
+            None => {
+                self.expected_identifier();
+                Ident::default()
+            }
+        };
+
+        self.eat_semicolons();
+
+        Some(TraitItem::Type { name })
+    }
+
+    /// TraitConstant = 'let' identifier ':' Type ( '=' Expression ) ';'
+    fn parse_trait_constant(&mut self) -> Option<TraitItem> {
+        if !self.eat_keyword(Keyword::Let) {
+            return None;
+        }
+
+        let name = match self.eat_ident() {
+            Some(name) => name,
+            None => {
+                self.expected_identifier();
+                Ident::default()
+            }
+        };
+
+        let typ = if self.eat_colon() {
+            self.parse_type_or_error()
+        } else {
+            self.expected_token(Token::Colon);
+            UnresolvedType { typ: UnresolvedTypeData::Unspecified, span: Span::default() }
+        };
+
+        let default_value =
+            if self.eat_assign() { Some(self.parse_expression_or_error()) } else { None };
+
+        self.eat_semicolons();
+
+        Some(TraitItem::Constant { name, typ, default_value })
+    }
+
+    /// TraitFunction = Modifiers Function
+    fn parse_trait_function(&mut self) -> Option<TraitItem> {
+        let modifiers = self.parse_modifiers(
+            false, // allow mut
+        );
+
+        if modifiers.visibility != ItemVisibility::Private {
+            self.push_error(ParserErrorReason::TraitVisibilityIgnored, modifiers.visibility_span);
+        }
+
+        if !self.eat_keyword(Keyword::Fn) {
+            self.modifiers_not_followed_by_an_item(modifiers);
+            return None;
+        }
+
+        let function = self.parse_function_definition_with_optional_body(
+            true, // allow optional body
+            true, // allow self
+        );
+
+        let parameters = function
+            .parameters
+            .into_iter()
+            .filter_map(|param| {
+                if let Pattern::Identifier(ident) = param.pattern {
+                    Some((ident, param.typ))
+                } else {
+                    self.push_error(ParserErrorReason::InvalidPattern, param.pattern.span());
+                    None
+                }
+            })
+            .collect();
+
+        Some(TraitItem::Function {
+            is_unconstrained: modifiers.unconstrained.is_some(),
+            visibility: modifiers.visibility,
+            is_comptime: modifiers.comptime.is_some(),
+            name: function.name,
+            generics: function.generics,
+            parameters,
+            return_type: function.return_type,
+            where_clause: function.where_clause,
+            body: function.body,
+        })
+    }
 }
 
-fn trait_bounds() -> impl NoirParser<Vec<TraitBound>> {
-    trait_bound().separated_by(just(Token::Plus)).at_least(1).allow_trailing()
-}
-
-pub fn trait_bound() -> impl NoirParser<TraitBound> {
-    path_no_turbofish().then(generic_type_args(parse_type())).map(|(trait_path, trait_generics)| {
-        TraitBound { trait_path, trait_generics, trait_id: None }
-    })
+fn empty_trait(
+    attributes: Vec<SecondaryAttribute>,
+    visibility: ItemVisibility,
+    span: Span,
+) -> NoirTrait {
+    NoirTrait {
+        name: Ident::default(),
+        generics: Vec::new(),
+        bounds: Vec::new(),
+        where_clause: Vec::new(),
+        span,
+        items: Vec::new(),
+        attributes,
+        visibility,
+        is_alias: false,
+    }
 }
 
 #[cfg(test)]
-mod test {
-    use super::*;
-    use crate::parser::parser::test_helpers::*;
+mod tests {
+    use crate::{
+        ast::{NoirTrait, NoirTraitImpl, TraitItem},
+        parser::{
+            parser::{
+                parse_program,
+                tests::{expect_no_errors, get_single_error, get_source_with_error_span},
+                ParserErrorReason,
+            },
+            ItemKind,
+        },
+    };
 
-    #[test]
-    fn parse_trait() {
-        parse_all(
-            trait_definition(),
-            vec![
-                // Empty traits are legal in Rust and sometimes used as a way to whitelist certain types
-                // for a particular operation. Also known as `tag` or `marker` traits:
-                // https://stackoverflow.com/questions/71895489/what-is-the-purpose-of-defining-empty-impl-in-rust
-                "trait Empty {}",
-                "trait TraitWithDefaultBody { fn foo(self) {} }",
-                "trait TraitAcceptingMutableRef { fn foo(&mut self); }",
-                "trait TraitWithTypeBoundOperation { fn identity() -> Self; }",
-                "trait TraitWithAssociatedType { type Element; fn item(self, index: Field) -> Self::Element; }",
-                "trait TraitWithAssociatedConstant { let Size: Field; }",
-                "trait TraitWithAssociatedConstantWithDefaultValue { let Size: Field = 10; }",
-                "trait GenericTrait<T> { fn elem(&mut self, index: Field) -> T; }",
-                "trait GenericTraitWithConstraints<T> where T: SomeTrait { fn elem(self, index: Field) -> T; }",
-                "trait TraitWithMultipleGenericParams<A, B, C> where A: SomeTrait, B: AnotherTrait<C> { let Size: Field; fn zero() -> Self; }",
-                "trait TraitWithMultipleGenericParams<A, B, C> where A: SomeTrait, B: AnotherTrait<C>, { let Size: Field; fn zero() -> Self; }",
-            ],
-        );
+    fn parse_trait_opt_impl_no_errors(src: &str) -> (NoirTrait, Option<NoirTraitImpl>) {
+        let (mut module, errors) = parse_program(src);
+        expect_no_errors(&errors);
+        let (item, impl_item) = if module.items.len() == 2 {
+            let item = module.items.remove(0);
+            let impl_item = module.items.remove(0);
+            (item, Some(impl_item))
+        } else {
+            assert_eq!(module.items.len(), 1);
+            let item = module.items.remove(0);
+            (item, None)
+        };
+        let ItemKind::Trait(noir_trait) = item.kind else {
+            panic!("Expected trait");
+        };
+        let noir_trait_impl = impl_item.map(|impl_item| {
+            let ItemKind::TraitImpl(noir_trait_impl) = impl_item.kind else {
+                panic!("Expected impl");
+            };
+            noir_trait_impl
+        });
+        (noir_trait, noir_trait_impl)
+    }
 
-        parse_all_failing(
-            trait_definition(),
-            vec!["trait MissingBody", "trait WrongDelimiter { fn foo() -> u8, fn bar() -> u8 }"],
-        );
+    fn parse_trait_with_impl_no_errors(src: &str) -> (NoirTrait, NoirTraitImpl) {
+        let (noir_trait, noir_trait_impl) = parse_trait_opt_impl_no_errors(src);
+        (noir_trait, noir_trait_impl.expect("expected a NoirTraitImpl"))
+    }
+
+    fn parse_trait_no_errors(src: &str) -> NoirTrait {
+        parse_trait_opt_impl_no_errors(src).0
     }
 
     #[test]
-    fn parse_recover_function_without_left_brace_or_semicolon() {
-        let src = "fn foo(x: i32)";
+    fn parse_empty_trait() {
+        let src = "trait Foo {}";
+        let noir_trait = parse_trait_no_errors(src);
+        assert_eq!(noir_trait.name.to_string(), "Foo");
+        assert!(noir_trait.generics.is_empty());
+        assert!(noir_trait.where_clause.is_empty());
+        assert!(noir_trait.items.is_empty());
+        assert!(!noir_trait.is_alias);
+    }
 
-        let (trait_item, errors) = parse_recover(trait_function_declaration(), src);
-        assert_eq!(errors.len(), 1);
-        assert_eq!(errors[0].message, "expected { or -> after function parameters");
+    #[test]
+    fn parse_empty_trait_alias() {
+        let src = "trait Foo = ;";
+        let (_module, errors) = parse_program(src);
+        assert_eq!(errors.len(), 2);
+        assert_eq!(errors[1].reason(), Some(ParserErrorReason::EmptyTraitAlias).as_ref());
+    }
 
-        let Some(TraitItem::Function { name, parameters, body, .. }) = trait_item else {
-            panic!("Expected to parser trait item as function");
+    #[test]
+    fn parse_trait_with_generics() {
+        let src = "trait Foo<A, B> {}";
+        let noir_trait = parse_trait_no_errors(src);
+        assert_eq!(noir_trait.name.to_string(), "Foo");
+        assert_eq!(noir_trait.generics.len(), 2);
+        assert!(noir_trait.where_clause.is_empty());
+        assert!(noir_trait.items.is_empty());
+        assert!(!noir_trait.is_alias);
+    }
+
+    #[test]
+    fn parse_trait_alias_with_generics() {
+        let src = "trait Foo<A, B> = Bar + Baz<A>;";
+        let (noir_trait_alias, noir_trait_impl) = parse_trait_with_impl_no_errors(src);
+        assert_eq!(noir_trait_alias.name.to_string(), "Foo");
+        assert_eq!(noir_trait_alias.generics.len(), 2);
+        assert_eq!(noir_trait_alias.bounds.len(), 2);
+        assert_eq!(noir_trait_alias.bounds[0].to_string(), "Bar");
+        assert_eq!(noir_trait_alias.bounds[1].to_string(), "Baz<A>");
+        assert!(noir_trait_alias.where_clause.is_empty());
+        assert!(noir_trait_alias.items.is_empty());
+        assert!(noir_trait_alias.is_alias);
+
+        assert_eq!(noir_trait_impl.trait_name.to_string(), "Foo");
+        assert_eq!(noir_trait_impl.impl_generics.len(), 3);
+        assert_eq!(noir_trait_impl.trait_generics.ordered_args.len(), 2);
+        assert_eq!(noir_trait_impl.where_clause.len(), 2);
+        assert_eq!(noir_trait_alias.bounds.len(), 2);
+        assert_eq!(noir_trait_alias.bounds[0].to_string(), "Bar");
+        assert_eq!(noir_trait_alias.bounds[1].to_string(), "Baz<A>");
+        assert!(noir_trait_impl.items.is_empty());
+        assert!(noir_trait_impl.is_synthetic);
+
+        // Equivalent to
+        let src = "trait Foo<A, B>: Bar + Baz<A> {}";
+        let noir_trait = parse_trait_no_errors(src);
+        assert_eq!(noir_trait.name.to_string(), noir_trait_alias.name.to_string());
+        assert_eq!(noir_trait.generics.len(), noir_trait_alias.generics.len());
+        assert_eq!(noir_trait.bounds.len(), noir_trait_alias.bounds.len());
+        assert_eq!(noir_trait.bounds[0].to_string(), noir_trait_alias.bounds[0].to_string());
+        assert_eq!(noir_trait.where_clause.is_empty(), noir_trait_alias.where_clause.is_empty());
+        assert_eq!(noir_trait.items.is_empty(), noir_trait_alias.items.is_empty());
+        assert!(!noir_trait.is_alias);
+    }
+
+    #[test]
+    fn parse_empty_trait_alias_with_generics() {
+        let src = "trait Foo<A, B> = ;";
+        let (_module, errors) = parse_program(src);
+        assert_eq!(errors.len(), 2);
+        assert_eq!(errors[1].reason(), Some(ParserErrorReason::EmptyTraitAlias).as_ref());
+    }
+
+    #[test]
+    fn parse_trait_with_where_clause() {
+        let src = "trait Foo<A, B> where A: Z {}";
+        let noir_trait = parse_trait_no_errors(src);
+        assert_eq!(noir_trait.name.to_string(), "Foo");
+        assert_eq!(noir_trait.generics.len(), 2);
+        assert_eq!(noir_trait.where_clause.len(), 1);
+        assert!(noir_trait.items.is_empty());
+        assert!(!noir_trait.is_alias);
+    }
+
+    #[test]
+    fn parse_trait_alias_with_where_clause() {
+        let src = "trait Foo<A, B> = Bar + Baz<A> where A: Z;";
+        let (noir_trait_alias, noir_trait_impl) = parse_trait_with_impl_no_errors(src);
+        assert_eq!(noir_trait_alias.name.to_string(), "Foo");
+        assert_eq!(noir_trait_alias.generics.len(), 2);
+        assert_eq!(noir_trait_alias.bounds.len(), 2);
+        assert_eq!(noir_trait_alias.bounds[0].to_string(), "Bar");
+        assert_eq!(noir_trait_alias.bounds[1].to_string(), "Baz<A>");
+        assert_eq!(noir_trait_alias.where_clause.len(), 1);
+        assert!(noir_trait_alias.items.is_empty());
+        assert!(noir_trait_alias.is_alias);
+
+        assert_eq!(noir_trait_impl.trait_name.to_string(), "Foo");
+        assert_eq!(noir_trait_impl.impl_generics.len(), 3);
+        assert_eq!(noir_trait_impl.trait_generics.ordered_args.len(), 2);
+        assert_eq!(noir_trait_impl.where_clause.len(), 3);
+        assert_eq!(noir_trait_impl.where_clause[0].to_string(), "A: Z");
+        assert_eq!(noir_trait_impl.where_clause[1].to_string(), "#T: Bar");
+        assert_eq!(noir_trait_impl.where_clause[2].to_string(), "#T: Baz<A>");
+        assert!(noir_trait_impl.items.is_empty());
+        assert!(noir_trait_impl.is_synthetic);
+
+        // Equivalent to
+        let src = "trait Foo<A, B>: Bar + Baz<A> where A: Z {}";
+        let noir_trait = parse_trait_no_errors(src);
+        assert_eq!(noir_trait.name.to_string(), noir_trait_alias.name.to_string());
+        assert_eq!(noir_trait.generics.len(), noir_trait_alias.generics.len());
+        assert_eq!(noir_trait.bounds.len(), noir_trait_alias.bounds.len());
+        assert_eq!(noir_trait.bounds[0].to_string(), noir_trait_alias.bounds[0].to_string());
+        assert_eq!(noir_trait.where_clause.len(), noir_trait_alias.where_clause.len());
+        assert_eq!(
+            noir_trait.where_clause[0].to_string(),
+            noir_trait_alias.where_clause[0].to_string()
+        );
+        assert_eq!(noir_trait.items.is_empty(), noir_trait_alias.items.is_empty());
+        assert!(!noir_trait.is_alias);
+    }
+
+    #[test]
+    fn parse_empty_trait_alias_with_where_clause() {
+        let src = "trait Foo<A, B> = where A: Z;";
+        let (_module, errors) = parse_program(src);
+        assert_eq!(errors.len(), 2);
+        assert_eq!(errors[1].reason(), Some(ParserErrorReason::EmptyTraitAlias).as_ref());
+    }
+
+    #[test]
+    fn parse_trait_with_type() {
+        let src = "trait Foo { type Elem; }";
+        let mut noir_trait = parse_trait_no_errors(src);
+        assert_eq!(noir_trait.items.len(), 1);
+
+        let item = noir_trait.items.remove(0).item;
+        let TraitItem::Type { name } = item else {
+            panic!("Expected type");
         };
+        assert_eq!(name.to_string(), "Elem");
+        assert!(!noir_trait.is_alias);
+    }
 
-        assert_eq!(name.to_string(), "foo");
-        assert_eq!(parameters.len(), 1);
+    #[test]
+    fn parse_trait_with_constant() {
+        let src = "trait Foo { let x: Field = 1; }";
+        let mut noir_trait = parse_trait_no_errors(src);
+        assert_eq!(noir_trait.items.len(), 1);
+
+        let item = noir_trait.items.remove(0).item;
+        let TraitItem::Constant { name, typ, default_value } = item else {
+            panic!("Expected constant");
+        };
+        assert_eq!(name.to_string(), "x");
+        assert_eq!(typ.to_string(), "Field");
+        assert_eq!(default_value.unwrap().to_string(), "1");
+        assert!(!noir_trait.is_alias);
+    }
+
+    #[test]
+    fn parse_trait_with_function_no_body() {
+        let src = "trait Foo { fn foo(); }";
+        let mut noir_trait = parse_trait_no_errors(src);
+        assert_eq!(noir_trait.items.len(), 1);
+
+        let item = noir_trait.items.remove(0).item;
+        let TraitItem::Function { body, .. } = item else {
+            panic!("Expected function");
+        };
         assert!(body.is_none());
+        assert!(!noir_trait.is_alias);
     }
 
     #[test]
-    fn parse_recover_trait_without_body() {
-        let src = "trait Foo";
+    fn parse_trait_with_function_with_body() {
+        let src = "trait Foo { fn foo() {} }";
+        let mut noir_trait = parse_trait_no_errors(src);
+        assert_eq!(noir_trait.items.len(), 1);
 
-        let (top_level_statement, errors) = parse_recover(trait_definition(), src);
-        assert_eq!(errors.len(), 1);
-        assert_eq!(errors[0].message, "expected <, where or { after trait name");
-
-        let top_level_statement = top_level_statement.unwrap();
-        let TopLevelStatementKind::Trait(trait_) = top_level_statement else {
-            panic!("Expected to parse a trait");
+        let item = noir_trait.items.remove(0).item;
+        let TraitItem::Function { body, .. } = item else {
+            panic!("Expected function");
         };
-
-        assert_eq!(trait_.name.to_string(), "Foo");
-        assert!(trait_.items.is_empty());
+        assert!(body.is_some());
+        assert!(!noir_trait.is_alias);
     }
 
     #[test]
-    fn parse_recover_trait_impl_without_body() {
-        let src = "impl Foo for Bar";
+    fn parse_trait_function_with_visibility() {
+        let src = "
+        trait Foo { pub fn foo(); }
+                    ^^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let (_module, errors) = parse_program(&src);
+        let error = get_single_error(&errors, span);
+        assert!(error.to_string().contains("Visibility is ignored on a trait method"));
+    }
 
-        let (top_level_statement, errors) = parse_recover(trait_implementation(), src);
-        assert_eq!(errors.len(), 1);
-        assert_eq!(errors[0].message, "expected <, where or { after trait impl for type");
+    #[test]
+    fn parse_trait_inheritance() {
+        let src = "trait Foo: Bar + Baz {}";
+        let noir_trait = parse_trait_no_errors(src);
+        assert_eq!(noir_trait.bounds.len(), 2);
 
-        let top_level_statement = top_level_statement.unwrap();
-        let TopLevelStatementKind::TraitImpl(trait_impl) = top_level_statement else {
-            panic!("Expected to parse a trait impl");
-        };
+        assert_eq!(noir_trait.bounds[0].to_string(), "Bar");
+        assert_eq!(noir_trait.bounds[1].to_string(), "Baz");
 
-        assert!(trait_impl.items.is_empty());
+        assert_eq!(noir_trait.to_string(), "trait Foo: Bar + Baz {\n}");
+        assert!(!noir_trait.is_alias);
+    }
+
+    #[test]
+    fn parse_trait_alias() {
+        let src = "trait Foo = Bar + Baz;";
+        let (noir_trait_alias, noir_trait_impl) = parse_trait_with_impl_no_errors(src);
+        assert_eq!(noir_trait_alias.bounds.len(), 2);
+
+        assert_eq!(noir_trait_alias.bounds[0].to_string(), "Bar");
+        assert_eq!(noir_trait_alias.bounds[1].to_string(), "Baz");
+
+        assert_eq!(noir_trait_alias.to_string(), "trait Foo = Bar + Baz;");
+        assert!(noir_trait_alias.is_alias);
+
+        assert_eq!(noir_trait_impl.trait_name.to_string(), "Foo");
+        assert_eq!(noir_trait_impl.impl_generics.len(), 1);
+        assert_eq!(noir_trait_impl.trait_generics.ordered_args.len(), 0);
+        assert_eq!(noir_trait_impl.where_clause.len(), 2);
+        assert_eq!(noir_trait_impl.where_clause[0].to_string(), "#T: Bar");
+        assert_eq!(noir_trait_impl.where_clause[1].to_string(), "#T: Baz");
+        assert!(noir_trait_impl.items.is_empty());
+        assert!(noir_trait_impl.is_synthetic);
+
+        // Equivalent to
+        let src = "trait Foo: Bar + Baz {}";
+        let noir_trait = parse_trait_no_errors(src);
+        assert_eq!(noir_trait.name.to_string(), noir_trait_alias.name.to_string());
+        assert_eq!(noir_trait.generics.len(), noir_trait_alias.generics.len());
+        assert_eq!(noir_trait.bounds.len(), noir_trait_alias.bounds.len());
+        assert_eq!(noir_trait.bounds[0].to_string(), noir_trait_alias.bounds[0].to_string());
+        assert_eq!(noir_trait.where_clause.is_empty(), noir_trait_alias.where_clause.is_empty());
+        assert_eq!(noir_trait.items.is_empty(), noir_trait_alias.items.is_empty());
+        assert!(!noir_trait.is_alias);
     }
 }

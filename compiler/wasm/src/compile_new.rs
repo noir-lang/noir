@@ -118,6 +118,13 @@ impl CompilerContext {
                 .0;
 
         let optimized_program = nargo::ops::transform_program(compiled_program, expression_width);
+        nargo::ops::check_program(&optimized_program).map_err(|errs| {
+            CompileError::with_file_diagnostics(
+                "Compiled program is not solvable",
+                errs,
+                &self.context.file_manager,
+            )
+        })?;
         let warnings = optimized_program.warnings.clone();
 
         Ok(JsCompileProgramResult::new(optimized_program.into(), warnings))

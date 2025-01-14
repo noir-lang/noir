@@ -1,7 +1,7 @@
 use iter_extended::vecmap;
 use rustc_hash::FxHashMap as HashMap;
 
-use crate::ast::{Ident, NoirFunction};
+use crate::ast::{Ident, ItemVisibility, NoirFunction};
 use crate::hir::type_check::generics::TraitGenerics;
 use crate::ResolvedGeneric;
 use crate::{
@@ -66,12 +66,18 @@ pub struct Trait {
     pub name: Ident,
     pub generics: Generics,
     pub location: Location,
+    pub visibility: ItemVisibility,
 
     /// When resolving the types of Trait elements, all references to `Self` resolve
     /// to this TypeVariable. Then when we check if the types of trait impl elements
     /// match the definition in the trait, we bind this TypeVariable to whatever
     /// the correct Self type is for that particular impl block.
     pub self_type_typevar: TypeVariable,
+
+    /// The resolved trait bounds (for example in `trait Foo: Bar + Baz`, this would be `Bar + Baz`)
+    pub trait_bounds: Vec<ResolvedTraitBound>,
+
+    pub where_clause: Vec<TraitConstraint>,
 }
 
 #[derive(Debug)]
@@ -101,15 +107,25 @@ pub struct TraitImpl {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TraitConstraint {
     pub typ: Type,
-    pub trait_id: TraitId,
-    pub trait_generics: TraitGenerics,
-    pub span: Span,
+    pub trait_bound: ResolvedTraitBound,
 }
 
 impl TraitConstraint {
     pub fn apply_bindings(&mut self, type_bindings: &TypeBindings) {
         self.typ = self.typ.substitute(type_bindings);
+        self.trait_bound.apply_bindings(type_bindings);
+    }
+}
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ResolvedTraitBound {
+    pub trait_id: TraitId,
+    pub trait_generics: TraitGenerics,
+    pub span: Span,
+}
+
+impl ResolvedTraitBound {
+    pub fn apply_bindings(&mut self, type_bindings: &TypeBindings) {
         for typ in &mut self.trait_generics.ordered {
             *typ = typ.substitute(type_bindings);
         }
@@ -135,6 +151,18 @@ impl PartialEq for Trait {
 impl Trait {
     pub fn set_methods(&mut self, methods: Vec<TraitFunction>) {
         self.methods = methods;
+    }
+
+    pub fn set_trait_bounds(&mut self, trait_bounds: Vec<ResolvedTraitBound>) {
+        self.trait_bounds = trait_bounds;
+    }
+
+    pub fn set_where_clause(&mut self, where_clause: Vec<TraitConstraint>) {
+        self.where_clause = where_clause;
+    }
+
+    pub fn set_visibility(&mut self, visibility: ItemVisibility) {
+        self.visibility = visibility;
     }
 
     pub fn find_method(&self, name: &str) -> Option<TraitMethodId> {
@@ -169,9 +197,11 @@ impl Trait {
 
         TraitConstraint {
             typ: Type::TypeVariable(self.self_type_typevar.clone()),
-            trait_generics: TraitGenerics { ordered, named },
-            trait_id: self.id,
-            span,
+            trait_bound: ResolvedTraitBound {
+                trait_generics: TraitGenerics { ordered, named },
+                trait_id: self.id,
+                span,
+            },
         }
     }
 }

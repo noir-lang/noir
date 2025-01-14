@@ -18,11 +18,13 @@ use super::{Documented, GenericTypeArgs, ItemVisibility};
 pub struct NoirTrait {
     pub name: Ident,
     pub generics: UnresolvedGenerics,
+    pub bounds: Vec<TraitBound>,
     pub where_clause: Vec<UnresolvedTraitConstraint>,
     pub span: Span,
     pub items: Vec<Documented<TraitItem>>,
     pub attributes: Vec<SecondaryAttribute>,
     pub visibility: ItemVisibility,
+    pub is_alias: bool,
 }
 
 /// Any declaration inside the body of a trait that a user is required to
@@ -76,6 +78,9 @@ pub struct NoirTraitImpl {
     pub where_clause: Vec<UnresolvedTraitConstraint>,
 
     pub items: Vec<Documented<TraitImplItem>>,
+
+    /// true if generated at compile-time, e.g. from a trait alias
+    pub is_synthetic: bool,
 }
 
 /// Represents a simple trait constraint such as `where Foo: TraitY<U, V>`
@@ -129,12 +134,24 @@ impl Display for TypeImpl {
     }
 }
 
+// TODO: display where clauses (follow-up issue)
 impl Display for NoirTrait {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let generics = vecmap(&self.generics, |generic| generic.to_string());
         let generics = if generics.is_empty() { "".into() } else { generics.join(", ") };
 
-        writeln!(f, "trait {}{} {{", self.name, generics)?;
+        write!(f, "trait {}{}", self.name, generics)?;
+
+        if self.is_alias {
+            let bounds = vecmap(&self.bounds, |bound| bound.to_string()).join(" + ");
+            return write!(f, " = {};", bounds);
+        }
+
+        if !self.bounds.is_empty() {
+            let bounds = vecmap(&self.bounds, |bound| bound.to_string()).join(" + ");
+            write!(f, ": {}", bounds)?;
+        }
+        writeln!(f, " {{")?;
 
         for item in self.items.iter() {
             let item = item.to_string();
@@ -216,7 +233,29 @@ impl Display for TraitBound {
 
 impl Display for NoirTraitImpl {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "impl {}{} for {} {{", self.trait_name, self.trait_generics, self.object_type)?;
+        // Synthetic NoirTraitImpl's don't get printed
+        if self.is_synthetic {
+            return Ok(());
+        }
+
+        write!(f, "impl")?;
+        if !self.impl_generics.is_empty() {
+            write!(
+                f,
+                "<{}>",
+                self.impl_generics.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ")
+            )?;
+        }
+
+        write!(f, " {}{} for {}", self.trait_name, self.trait_generics, self.object_type)?;
+        if !self.where_clause.is_empty() {
+            write!(
+                f,
+                " where {}",
+                self.where_clause.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ")
+            )?;
+        }
+        writeln!(f, "{{")?;
 
         for item in self.items.iter() {
             let item = item.to_string();

@@ -1,11 +1,12 @@
-use crate::ops::{Add, Sub, Mul, Div, Rem, Not, BitOr, BitAnd, BitXor, Shl, Shr};
 use crate::cmp::{Eq, Ord, Ordering};
+use crate::ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Not, Rem, Shl, Shr, Sub};
+use super::{convert::AsPrimitive, default::Default};
 
-global pow64 : Field = 18446744073709551616; //2^64;
-global pow63 : Field = 9223372036854775808; // 2^63;
+global pow64: Field = 18446744073709551616; //2^64;
+global pow63: Field = 9223372036854775808; // 2^63;
 pub struct U128 {
-    lo: Field,
-    hi: Field,
+    pub(crate) lo: Field,
+    pub(crate) hi: Field,
 }
 
 impl U128 {
@@ -31,13 +32,13 @@ impl U128 {
         let mut lo = 0;
         let mut base = 1;
         for i in 0..8 {
-            lo += (bytes[i] as Field)*base;
+            lo += (bytes[i] as Field) * base;
             base *= 256;
         }
         let mut hi = 0;
         base = 1;
         for i in 8..16 {
-            hi += (bytes[i] as Field)*base;
+            hi += (bytes[i] as Field) * base;
             base *= 256;
         }
         U128 { lo, hi }
@@ -49,7 +50,7 @@ impl U128 {
         let mut bytes = [0; 16];
         for i in 0..8 {
             bytes[i] = hi[i];
-            bytes[i+8] = lo[i];
+            bytes[i + 8] = lo[i];
         }
         bytes
     }
@@ -60,7 +61,7 @@ impl U128 {
         let mut bytes = [0; 16];
         for i in 0..8 {
             bytes[i] = lo[i];
-            bytes[i+8] = hi[i];
+            bytes[i + 8] = hi[i];
         }
         bytes
     }
@@ -77,18 +78,18 @@ impl U128 {
         let mut base = 1;
         if N <= 18 {
             for i in 0..N - 2 {
-                lo += U128::decode_ascii(bytes[N-i-1])*base;
-                base = base*16;
+                lo += U128::decode_ascii(bytes[N - i - 1]) * base;
+                base = base * 16;
             }
         } else {
             for i in 0..16 {
-                lo += U128::decode_ascii(bytes[N-i-1])*base;
-                base = base*16;
+                lo += U128::decode_ascii(bytes[N - i - 1]) * base;
+                base = base * 16;
             }
             base = 1;
             for i in 17..N - 1 {
-                hi += U128::decode_ascii(bytes[N-i])*base;
-                base = base*16;
+                hi += U128::decode_ascii(bytes[N - i]) * base;
+                base = base * 16;
             }
         }
         U128 { lo: lo as Field, hi: hi as Field }
@@ -99,19 +100,21 @@ impl U128 {
     }
 
     pub(crate) fn decode_ascii(ascii: u8) -> Field {
-        (if ascii < 58 {
-            ascii - 48
-        } else {
-            let ascii = ascii + 32 * (unsafe {
-                        U128::uconstrained_check_is_upper_ascii(ascii) as u8
-                    });
-            assert(ascii >= 97); // enforce >= 'a'
-            assert(ascii <= 102); // enforce <= 'f'
-            ascii - 87
-        }) as Field
+        (
+            if ascii < 58 {
+                ascii - 48
+            } else {
+                /// Safety: optionally adds 32 and then check (below) the result is in 'a..f' range
+                let ascii =
+                    ascii + 32 * (unsafe { U128::uconstrained_check_is_upper_ascii(ascii) as u8 });
+                assert(ascii >= 97); // enforce >= 'a'
+                assert(ascii <= 102); // enforce <= 'f'
+                ascii - 87
+            }
+        ) as Field
     }
 
-    // TODO: Replace with a faster version. 
+    // TODO: Replace with a faster version.
     // A circuit that uses this function can be slow to compute
     // (we're doing up to 127 calls to compute the quotient)
     unconstrained fn unconstrained_div(self: Self, b: U128) -> (U128, U128) {
@@ -123,7 +126,7 @@ impl U128 {
         } else if self == b {
             (U128::one(), U128::zero())
         } else {
-            let (q,r) = if b.hi as u64 >= pow63 as u64 {
+            let (q, r) = if b.hi as u64 >= pow63 as u64 {
                 // The result of multiplication by 2 would overflow
                 (U128::zero(), self)
             } else {
@@ -138,17 +141,23 @@ impl U128 {
         }
     }
 
-    pub fn from_integer<T>(i: T) -> U128 {
-        let f = crate::as_field(i);
+    pub fn from_integer<T>(i: T) -> U128
+    where
+        T: AsPrimitive<Field>,
+    {
+        let f = i.as_();
         // Reject values which would overflow a u128
-        f.assert_max_bit_size(128);
+        f.assert_max_bit_size::<128>();
         let lo = f as u64 as Field;
         let hi = (f - lo) / pow64;
         U128 { lo, hi }
     }
 
-    pub fn to_integer<T>(self) -> T {
-        crate::from_field(self.lo + self.hi * pow64)
+    pub fn to_integer<T>(self) -> T
+    where
+        Field: AsPrimitive<T>,
+    {
+        AsPrimitive::as_(self.lo + self.hi * pow64)
     }
 
     fn wrapping_mul(self: Self, b: U128) -> U128 {
@@ -204,8 +213,10 @@ impl Mul for U128 {
 
 impl Div for U128 {
     fn div(self: Self, b: U128) -> U128 {
+        /// Safety: euclidian division is asserted to be correct: assert(a == b * q + r); and assert(r < b);
+        /// Furthermore, U128 addition and multiplication ensures that b * q + r does not overflow
         unsafe {
-            let (q,r) = self.unconstrained_div(b);
+            let (q, r) = self.unconstrained_div(b);
             let a = b * q + r;
             assert_eq(self, a);
             assert(r < b);
@@ -216,8 +227,9 @@ impl Div for U128 {
 
 impl Rem for U128 {
     fn rem(self: Self, b: U128) -> U128 {
+        /// Safety: cf div() above
         unsafe {
-            let (q,r) = self.unconstrained_div(b);
+            let (q, r) = self.unconstrained_div(b);
             let a = b * q + r;
             assert_eq(self, a);
             assert(r < b);
@@ -256,7 +268,7 @@ impl BitOr for U128 {
     fn bitor(self, other: U128) -> U128 {
         U128 {
             lo: ((self.lo as u64) | (other.lo as u64)) as Field,
-            hi: ((self.hi as u64) | (other.hi as u64)) as Field
+            hi: ((self.hi as u64) | (other.hi as u64)) as Field,
         }
     }
 }
@@ -265,7 +277,7 @@ impl BitAnd for U128 {
     fn bitand(self, other: U128) -> U128 {
         U128 {
             lo: ((self.lo as u64) & (other.lo as u64)) as Field,
-            hi: ((self.hi as u64) & (other.hi as u64)) as Field
+            hi: ((self.hi as u64) & (other.hi as u64)) as Field,
         }
     }
 }
@@ -274,7 +286,7 @@ impl BitXor for U128 {
     fn bitxor(self, other: U128) -> U128 {
         U128 {
             lo: ((self.lo as u64) ^ (other.lo as u64)) as Field,
-            hi: ((self.hi as u64) ^ (other.hi as u64)) as Field
+            hi: ((self.hi as u64) ^ (other.hi as u64)) as Field,
         }
     }
 }
@@ -311,8 +323,16 @@ impl Shr for U128 {
     }
 }
 
+impl Default for U128 {
+    fn default() -> Self {
+        U128::zero()
+    }
+}
+
 mod tests {
-    use crate::uint128::{U128, pow64, pow63};
+    use crate::default::Default;
+    use crate::ops::Not;
+    use crate::uint128::{pow63, pow64, U128};
 
     #[test]
     fn test_not(lo: u64, hi: u64) {
@@ -340,15 +360,15 @@ mod tests {
     fn test_byte_decomposition() {
         let a = U128::from_u64s_le(0x0706050403020100, 0x0f0e0d0c0b0a0908);
         // Get big-endian and little-endian byte decompostions
-        let le_bytes_a= a.to_le_bytes();
-        let be_bytes_a= a.to_be_bytes();
+        let le_bytes_a = a.to_le_bytes();
+        let be_bytes_a = a.to_be_bytes();
 
         // Check equivalence
         for i in 0..16 {
             assert_eq(le_bytes_a[i], be_bytes_a[15 - i]);
         }
         // Reconstruct U128 from byte decomposition
-        let b= U128::from_le_bytes(le_bytes_a);
+        let b = U128::from_le_bytes(le_bytes_a);
         // Check that it's the same element
         assert_eq(a, b);
     }
@@ -358,12 +378,12 @@ mod tests {
         let b = U128::from_hex("0x20000000000000001");
         assert_eq(a, b);
 
-        let c= U128::from_hex("0xffffffffffffffffffffffffffffffff");
-        let d= U128::from_u64s_le(0xffffffffffffffff, 0xffffffffffffffff);
+        let c = U128::from_hex("0xffffffffffffffffffffffffffffffff");
+        let d = U128::from_u64s_le(0xffffffffffffffff, 0xffffffffffffffff);
         assert_eq(c, d);
 
-        let e= U128::from_hex("0x00000000000000000000000000000000");
-        let f= U128::from_u64s_le(0, 0);
+        let e = U128::from_hex("0x00000000000000000000000000000000");
+        let f = U128::from_u64s_le(0, 0);
         assert_eq(e, f);
     }
 
@@ -373,7 +393,7 @@ mod tests {
     fn test_ascii_decode_correct_range() {
         // '0'..'9' range
         for i in 0..10 {
-            let decoded= U128::decode_ascii(48 + i);
+            let decoded = U128::decode_ascii(48 + i);
             assert_eq(decoded, i as Field);
         }
         // 'A'..'F' range
@@ -423,20 +443,21 @@ mod tests {
         // This code will actually fail because of ascii_decode,
         // but in the past it was possible to create a value > (1<<128)
         let a = U128::from_hex("0x~fffffffffffffffffffffffffffffff");
-        let b:Field= a.to_integer();
-        let c: [u8; 17]= b.to_le_bytes();
+        let b: Field = a.to_integer();
+        let c: [u8; 17] = b.to_le_bytes();
         assert(c[16] != 0);
     }
 
     #[test]
     fn test_unconstrained_div() {
         // Test the potential overflow case
-        let a= U128::from_u64s_le(0x0, 0xffffffffffffffff);
-        let b= U128::from_u64s_le(0x0, 0xfffffffffffffffe);
-        let c= U128::one();
-        let d= U128::from_u64s_le(0x0, 0x1);
+        let a = U128::from_u64s_le(0x0, 0xffffffffffffffff);
+        let b = U128::from_u64s_le(0x0, 0xfffffffffffffffe);
+        let c = U128::one();
+        let d = U128::from_u64s_le(0x0, 0x1);
+        /// Safety: testing context
         unsafe {
-            let (q,r) = a.unconstrained_div(b);
+            let (q, r) = a.unconstrained_div(b);
             assert_eq(q, c);
             assert_eq(r, d);
         }
@@ -444,27 +465,31 @@ mod tests {
         let a = U128::from_u64s_le(2, 0);
         let b = U128::one();
         // Check the case where a is a multiple of b
+        /// Safety: testing context
         unsafe {
             let (c, d) = a.unconstrained_div(b);
             assert_eq((c, d), (a, U128::zero()));
         }
 
         // Check where b is a multiple of a
+        /// Safety: testing context
         unsafe {
-            let (c,d) = b.unconstrained_div(a);
+            let (c, d) = b.unconstrained_div(a);
             assert_eq((c, d), (U128::zero(), b));
         }
 
         // Dividing by zero returns 0,0
         let a = U128::from_u64s_le(0x1, 0x0);
         let b = U128::zero();
+        /// Safety: testing context
         unsafe {
-            let (c, d)= a.unconstrained_div(b);
+            let (c, d) = a.unconstrained_div(b);
             assert_eq((c, d), (U128::zero(), U128::zero()));
         }
         // Dividing 1<<127 by 1<<127 (special case)
         let a = U128::from_u64s_le(0x0, pow63 as u64);
         let b = U128::from_u64s_le(0x0, pow63 as u64);
+        /// Safety: testing context
         unsafe {
             let (c, d) = a.unconstrained_div(b);
             assert_eq((c, d), (U128::one(), U128::zero()));
@@ -474,25 +499,25 @@ mod tests {
     #[test]
     fn integer_conversions() {
         // Maximum
-        let start:Field = 0xffffffffffffffffffffffffffffffff;
+        let start: Field = 0xffffffffffffffffffffffffffffffff;
         let a = U128::from_integer(start);
         let end = a.to_integer();
         assert_eq(start, end);
 
         // Minimum
-        let start:Field = 0x0;
+        let start: Field = 0x0;
         let a = U128::from_integer(start);
         let end = a.to_integer();
         assert_eq(start, end);
 
         // Low limb
-        let start:Field = 0xffffffffffffffff;
+        let start: Field = 0xffffffffffffffff;
         let a = U128::from_integer(start);
         let end = a.to_integer();
         assert_eq(start, end);
 
         // High limb
-        let start:Field = 0xffffffffffffffff0000000000000000;
+        let start: Field = 0xffffffffffffffff0000000000000000;
         let a = U128::from_integer(start);
         let end = a.to_integer();
         assert_eq(start, end);
@@ -533,7 +558,15 @@ mod tests {
         assert_eq(U128::zero(), U128::from_u64s_le(0, 1).wrapping_mul(U128::from_u64s_le(0, 1)));
         // -1 * -1 == 1
         assert_eq(
-            U128::one(), U128::from_u64s_le(0xffffffffffffffff, 0xffffffffffffffff).wrapping_mul(U128::from_u64s_le(0xffffffffffffffff, 0xffffffffffffffff))
+            U128::one(),
+            U128::from_u64s_le(0xffffffffffffffff, 0xffffffffffffffff).wrapping_mul(
+                U128::from_u64s_le(0xffffffffffffffff, 0xffffffffffffffff),
+            ),
         );
+    }
+
+    #[test]
+    fn test_default() {
+        assert_eq(U128::default(), U128::zero());
     }
 }

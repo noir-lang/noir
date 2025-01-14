@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
+        dfg::DataFlowGraph,
         function::{Function, FunctionId},
         map::SparseMap,
         post_order::PostOrder,
@@ -25,7 +26,7 @@ impl Ssa {
         let mut context = Context::default();
         context.populate_functions(&self.functions);
         for function in self.functions.values_mut() {
-            context.normalize_ids(function);
+            context.normalize_ids(function, &self.globals.dfg);
         }
         self.functions = context.functions.into_btree();
     }
@@ -65,12 +66,16 @@ impl Context {
         }
     }
 
-    fn normalize_ids(&mut self, old_function: &mut Function) {
+    fn normalize_ids(&mut self, old_function: &mut Function, globals: &DataFlowGraph) {
         self.new_ids.blocks.clear();
         self.new_ids.values.clear();
 
         let new_function_id = self.new_ids.function_ids[&old_function.id()];
         let new_function = &mut self.functions[new_function_id];
+
+        for (_, value) in globals.values_iter() {
+            new_function.dfg.make_global(value.get_type().into_owned());
+        }
 
         let mut reachable_blocks = PostOrder::with_function(old_function).into_vec();
         reachable_blocks.reverse();
@@ -86,19 +91,23 @@ impl Context {
                 let instruction = old_function.dfg[old_instruction_id]
                     .map_values(|value| self.new_ids.map_value(new_function, old_function, value));
 
-                let call_stack = old_function.dfg.get_call_stack(old_instruction_id);
+                let call_stack = old_function.dfg.get_instruction_call_stack_id(old_instruction_id);
+                let locations = old_function.dfg.get_call_stack(call_stack);
+                let new_call_stack =
+                    new_function.dfg.call_stack_data.get_or_insert_locations(locations);
                 let old_results = old_function.dfg.instruction_results(old_instruction_id);
 
                 let ctrl_typevars = instruction
                     .requires_ctrl_typevars()
                     .then(|| vecmap(old_results, |result| old_function.dfg.type_of_value(*result)));
 
-                let new_results = new_function.dfg.insert_instruction_and_results(
-                    instruction,
-                    new_block_id,
-                    ctrl_typevars,
-                    call_stack,
-                );
+                let new_results =
+                    new_function.dfg.insert_instruction_and_results_without_simplification(
+                        instruction,
+                        new_block_id,
+                        ctrl_typevars,
+                        new_call_stack,
+                    );
 
                 assert_eq!(old_results.len(), new_results.len());
                 for (old_result, new_result) in old_results.iter().zip(new_results.results().iter())
@@ -109,12 +118,22 @@ impl Context {
             }
 
             let old_block = &mut old_function.dfg[old_block_id];
-            let mut terminator = old_block
-                .take_terminator()
-                .map_values(|value| self.new_ids.map_value(new_function, old_function, value));
+            let mut terminator = old_block.take_terminator();
+            terminator
+                .map_values_mut(|value| self.new_ids.map_value(new_function, old_function, value));
+
             terminator.mutate_blocks(|old_block| self.new_ids.blocks[&old_block]);
+            let locations = old_function.dfg.get_call_stack(terminator.call_stack());
+            let new_call_stack =
+                new_function.dfg.call_stack_data.get_or_insert_locations(locations);
+            terminator.set_call_stack(new_call_stack);
             new_function.dfg.set_block_terminator(new_block_id, terminator);
         }
+
+        // Also map the values in the databus
+        let old_databus = &old_function.dfg.data_bus;
+        new_function.dfg.data_bus = old_databus
+            .map_values(|old_value| self.new_ids.map_value(new_function, old_function, old_value));
     }
 }
 
@@ -167,28 +186,22 @@ impl IdMaps {
             }
 
             Value::Function(id) => {
-                let new_id = self.function_ids[id];
+                let new_id = *self.function_ids.get(id).unwrap_or_else(|| {
+                    unreachable!("Unmapped function with id {id}")
+                });
                 new_function.dfg.import_function(new_id)
             }
 
             Value::NumericConstant { constant, typ } => {
-                new_function.dfg.make_constant(*constant, typ.clone())
-            }
-            Value::Array { array, typ } => {
-                if let Some(value) = self.values.get(&old_value) {
-                    return *value;
-                }
-
-                let array = array
-                    .iter()
-                    .map(|value| self.map_value(new_function, old_function, *value))
-                    .collect();
-                let new_value = new_function.dfg.make_array(array, typ.clone());
-                self.values.insert(old_value, new_value);
-                new_value
+                new_function.dfg.make_constant(*constant, *typ)
             }
             Value::Intrinsic(intrinsic) => new_function.dfg.import_intrinsic(*intrinsic),
             Value::ForeignFunction(name) => new_function.dfg.import_foreign_function(name),
+            Value::Global(_) => {
+                // Globals are computed at compile-time and thus are expected to be remain normalized
+                // between SSA passes
+                old_value
+            },
         }
     }
 }

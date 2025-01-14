@@ -1,8 +1,9 @@
 struct MyStruct {
-    operation: unconstrained fn (u32) -> u32,
+    operation: unconstrained fn(u32) -> u32,
 }
 
 fn main(x: u32) {
+    /// Safety: testing context
     unsafe {
         assert(wrapper(increment, x) == x + 1);
         assert(wrapper(increment_acir, x) == x + 1);

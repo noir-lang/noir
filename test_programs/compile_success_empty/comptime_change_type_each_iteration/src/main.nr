@@ -1,6 +1,7 @@
+use std::meta::ctstring::AsCtString;
+
 fn main() {
-    comptime
-    {
+    comptime {
         for i in 9..11 {
             // Lengths are different on each iteration:
             // foo9, foo10

@@ -1,105 +1,78 @@
 use acvm::{acir::brillig::MemoryAddress, AcirField};
 
+use crate::ssa::ir::function::FunctionId;
+
 use super::{
-    brillig_variable::BrilligVariable, debug_show::DebugToString, registers::RegisterAllocator,
+    brillig_variable::{BrilligVariable, SingleAddrVariable},
+    debug_show::DebugToString,
+    registers::{RegisterAllocator, Stack},
     BrilligBinaryOp, BrilligContext, ReservedRegisters,
 };
 
-impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
-    /// Saves all of the registers that have been used up until this point.
-    fn codegen_save_registers_of_vars(&mut self, vars: &[BrilligVariable]) -> Vec<MemoryAddress> {
-        // Save all of the used registers at this point in memory
-        // because the function call will/may overwrite them.
-        //
-        // Note that here it is important that the stack pointer register is at register 0,
-        // as after the first register save we add to the pointer.
-        let mut used_registers: Vec<_> = vars.iter().map(|var| var.extract_register()).collect();
-
-        // Also dump the previous stack pointer
-        used_registers.push(ReservedRegisters::previous_stack_pointer());
-        for register in used_registers.iter() {
-            self.store_instruction(ReservedRegisters::free_memory_pointer(), *register);
-            // Add one to our stack pointer
-            self.codegen_usize_op_in_place(
-                ReservedRegisters::free_memory_pointer(),
-                BrilligBinaryOp::Add,
-                1,
-            );
-        }
-
-        // Store the location of our registers in the previous stack pointer
-        self.mov_instruction(
-            ReservedRegisters::previous_stack_pointer(),
-            ReservedRegisters::free_memory_pointer(),
-        );
-        used_registers
-    }
-
-    /// Loads all of the registers that have been save by save_all_used_registers.
-    fn codegen_load_all_saved_registers(&mut self, used_registers: &[MemoryAddress]) {
-        // Load all of the used registers that we saved.
-        // We do all the reverse operations of save_all_used_registers.
-        // Iterate our registers in reverse
-        let iterator_register = self.allocate_register();
-        self.mov_instruction(iterator_register, ReservedRegisters::previous_stack_pointer());
-
-        for register in used_registers.iter().rev() {
-            // Subtract one from our stack pointer
-            self.codegen_usize_op_in_place(iterator_register, BrilligBinaryOp::Sub, 1);
-            self.load_instruction(*register, iterator_register);
-        }
-    }
-
-    // Used before a call instruction.
-    // Save all the registers we have used to the stack.
-    // Move argument values to the front of the register indices.
-    pub(crate) fn codegen_pre_call_save_registers_prep_args(
+impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
+    pub(crate) fn codegen_call(
         &mut self,
-        arguments: &[MemoryAddress],
-        variables_to_save: &[BrilligVariable],
-    ) -> Vec<MemoryAddress> {
-        // Save all the registers we have used to the stack.
-        let saved_registers = self.codegen_save_registers_of_vars(variables_to_save);
+        func_id: FunctionId,
+        arguments: &[BrilligVariable],
+        returns: &[BrilligVariable],
+    ) {
+        let stack_size_register = SingleAddrVariable::new_usize(self.allocate_register());
+        let previous_stack_pointer = self.registers.empty_stack_start();
+        let stack_size = previous_stack_pointer.unwrap_relative();
+        // Write the stack size
+        self.const_instruction(stack_size_register, stack_size.into());
+        // Pass the previous stack pointer
+        self.mov_instruction(previous_stack_pointer, ReservedRegisters::stack_pointer());
+        // Pass the arguments
+        let mut current_argument_location = stack_size + 1;
+        for item in arguments {
+            self.mov_instruction(
+                MemoryAddress::relative(current_argument_location),
+                item.extract_register(),
+            );
+            current_argument_location += 1;
+        }
+        // Increment the stack pointer
+        self.memory_op_instruction(
+            ReservedRegisters::stack_pointer(),
+            stack_size_register.address,
+            ReservedRegisters::stack_pointer(),
+            BrilligBinaryOp::Add,
+        );
 
-        // Move argument values to the front of the registers
-        //
-        // This means that the arguments will be in the first `n` registers after
-        // the number of reserved registers.
-        let (sources, destinations): (Vec<_>, Vec<_>) = arguments
-            .iter()
-            .enumerate()
-            .map(|(i, argument)| (*argument, self.stack_register(i)))
-            .unzip();
+        self.add_external_call_instruction(func_id);
+
+        // Restore the stack pointer
+        self.mov_instruction(ReservedRegisters::stack_pointer(), MemoryAddress::relative(0));
+
+        // Move the return values back
+        let mut current_return_location = stack_size + 1;
+        for item in returns {
+            self.mov_instruction(
+                item.extract_register(),
+                MemoryAddress::relative(current_return_location),
+            );
+            current_return_location += 1;
+        }
+        self.deallocate_single_addr(stack_size_register);
+    }
+
+    /// Codegens a return from the current function.
+    pub(crate) fn codegen_return(&mut self, return_registers: &[MemoryAddress]) {
+        let mut sources = Vec::with_capacity(return_registers.len());
+        let mut destinations = Vec::with_capacity(return_registers.len());
+
+        for (destination_index, return_register) in return_registers.iter().enumerate() {
+            // In case we have fewer return registers than indices to write to, ensure we've allocated this register
+            let destination_register = MemoryAddress::relative(Stack::start() + destination_index);
+            self.registers.ensure_register_is_allocated(destination_register);
+            sources.push(*return_register);
+            destinations.push(destination_register);
+        }
         destinations
             .iter()
             .for_each(|destination| self.registers.ensure_register_is_allocated(*destination));
         self.codegen_mov_registers_to_registers(sources, destinations);
-        saved_registers
-    }
-
-    // Used after a call instruction.
-    // Move return values to the front of the register indices.
-    // Load all the registers we have previous saved in save_registers_prep_args.
-    pub(crate) fn codegen_post_call_prep_returns_load_registers(
-        &mut self,
-        result_registers: &[MemoryAddress],
-        saved_registers: &[MemoryAddress],
-    ) {
-        // Allocate our result registers and write into them
-        // We assume the return values of our call are held in 0..num results register indices
-        let (sources, destinations): (Vec<_>, Vec<_>) = result_registers
-            .iter()
-            .enumerate()
-            .map(|(i, result_register)| (self.stack_register(i), *result_register))
-            .unzip();
-        sources.iter().for_each(|source| self.registers.ensure_register_is_allocated(*source));
-        self.codegen_mov_registers_to_registers(sources, destinations);
-
-        // Restore all the same registers we have, in exact reverse order.
-        // Note that we have allocated some registers above, which we will not be handling here,
-        // only restoring registers that were used prior to the call finishing.
-        // After the call instruction, the stack frame pointer should be back to where we left off,
-        // so we do our instructions in reverse order.
-        self.codegen_load_all_saved_registers(saved_registers);
+        self.return_instruction();
     }
 }

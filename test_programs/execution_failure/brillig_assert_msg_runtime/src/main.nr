@@ -1,9 +1,6 @@
 fn main(x: Field) {
-    assert(
-        1 == unsafe {
-            conditional(x)
-        }
-    );
+    /// Safety: testing context
+    assert(1 == unsafe { conditional(x) });
 }
 
 unconstrained fn conditional(x: Field) -> Field {

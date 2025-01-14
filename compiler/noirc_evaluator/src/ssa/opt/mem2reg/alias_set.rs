@@ -24,6 +24,10 @@ impl AliasSet {
         Self { aliases: Some(aliases) }
     }
 
+    pub(super) fn known_multiple(values: BTreeSet<ValueId>) -> AliasSet {
+        Self { aliases: Some(values) }
+    }
+
     /// In rare cases, such as when creating an empty array of references, the set of aliases for a
     /// particular value will be known to be zero, which is distinct from being unknown and
     /// possibly referring to any alias.
@@ -72,5 +76,12 @@ impl AliasSet {
                 f(*alias);
             }
         }
+    }
+
+    /// Return the first ValueId in the alias set as long as there is at least one.
+    /// The ordering is arbitrary (by lowest ValueId) so this method should only be
+    /// used when you need an arbitrary ValueId from the alias set.
+    pub(super) fn first(&self) -> Option<ValueId> {
+        self.aliases.as_ref().and_then(|aliases| aliases.first().copied())
     }
 }

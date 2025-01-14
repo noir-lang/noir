@@ -12,8 +12,8 @@ impl<T> [T] {
     pub fn push_back(self, elem: T) -> Self {}
 
     /// Push a new element to the front of the slice, returning a
-    /// new slice with a length one greater than the 
-    /// original unmodified slice. 
+    /// new slice with a length one greater than the
+    /// original unmodified slice.
     #[builtin(slice_push_front)]
     pub fn push_front(self, elem: T) -> Self {}
 
@@ -27,13 +27,13 @@ impl<T> [T] {
     #[builtin(slice_pop_front)]
     pub fn pop_front(self) -> (T, Self) {}
 
-    /// Insert an element at a specified index, shifting all elements 
+    /// Insert an element at a specified index, shifting all elements
     /// after it to the right
     #[builtin(slice_insert)]
     pub fn insert(self, index: u32, elem: T) -> Self {}
 
     /// Remove an element at a specified index, shifting all elements
-    /// after it to the left, returning the altered slice and 
+    /// after it to the left, returning the altered slice and
     /// the removed element
     #[builtin(slice_remove)]
     pub fn remove(self, index: u32) -> (Self, T) {}
@@ -101,7 +101,10 @@ impl<T> [T] {
     }
 
     // Flatten each element in the slice into one value, separated by `separator`.
-    pub fn join(self, separator: T) -> T where T: Append {
+    pub fn join(self, separator: T) -> T
+    where
+        T: Append,
+    {
         let mut ret = T::empty();
 
         if self.len() != 0 {

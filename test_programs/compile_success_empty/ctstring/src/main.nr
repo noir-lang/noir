@@ -1,6 +1,7 @@
+use std::meta::ctstring::AsCtString;
+
 fn main() {
-    comptime
-    {
+    comptime {
         let msg1 = "msg1";
         let msg2 = f" (msg2 contains {msg1}) ";
 

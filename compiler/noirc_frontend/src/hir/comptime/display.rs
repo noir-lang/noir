@@ -281,8 +281,7 @@ impl<'interner> TokenPrettyPrinter<'interner> {
             | Token::Whitespace(_)
             | Token::LineComment(..)
             | Token::BlockComment(..)
-            | Token::Attribute(..)
-            | Token::InnerAttribute(..)
+            | Token::AttributeStart { .. }
             | Token::Invalid(_) => {
                 if last_was_alphanumeric {
                     write!(f, " ")?;
@@ -509,8 +508,11 @@ impl<'token, 'interner> Display for TokenPrinter<'token, 'interner> {
 }
 
 fn display_trait_constraint(interner: &NodeInterner, trait_constraint: &TraitConstraint) -> String {
-    let trait_ = interner.get_trait(trait_constraint.trait_id);
-    format!("{}: {}{}", trait_constraint.typ, trait_.name, trait_constraint.trait_generics)
+    let trait_ = interner.get_trait(trait_constraint.trait_bound.trait_id);
+    format!(
+        "{}: {}{}",
+        trait_constraint.typ, trait_.name, trait_constraint.trait_bound.trait_generics
+    )
 }
 
 // Returns a new Expression where all Interned and Resolved expressions have been turned into non-interned ExpressionKind.
@@ -617,7 +619,9 @@ fn remove_interned_in_expression_kind(
         }
         ExpressionKind::TypePath(mut path) => {
             path.typ = remove_interned_in_unresolved_type(interner, path.typ);
-            path.turbofish = remove_interned_in_generic_type_args(interner, path.turbofish);
+            path.turbofish = path
+                .turbofish
+                .map(|turbofish| remove_interned_in_generic_type_args(interner, turbofish));
             ExpressionKind::TypePath(path)
         }
         ExpressionKind::Resolved(id) => {
@@ -657,7 +661,7 @@ fn remove_interned_in_literal(interner: &NodeInterner, literal: Literal) -> Lite
         | Literal::Integer(_, _)
         | Literal::Str(_)
         | Literal::RawStr(_, _)
-        | Literal::FmtStr(_)
+        | Literal::FmtStr(_, _)
         | Literal::Unit => literal,
     }
 }
@@ -857,6 +861,7 @@ fn remove_interned_in_generic_type_args(
         named_args: vecmap(args.named_args, |(name, typ)| {
             (name, remove_interned_in_unresolved_type(interner, typ))
         }),
+        kinds: args.kinds,
     }
 }
 

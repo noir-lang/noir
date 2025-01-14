@@ -5,7 +5,7 @@ keywords: [Noir, comptime, compile-time, metaprogramming, macros, quote, unquote
 sidebar_position: 15
 ---
 
-# Overview
+## Overview
 
 Metaprogramming in Noir is comprised of three parts:
 1. `comptime` code
@@ -21,7 +21,7 @@ for greater analysis and modification of programs.
 
 ---
 
-# Comptime
+## Comptime
 
 `comptime` is a new keyword in Noir which marks an item as executing or existing at compile-time. It can be used in several ways:
 
@@ -32,16 +32,16 @@ for greater analysis and modification of programs.
 - `comptime let` to define a variable whose value is evaluated at compile-time.
 - `comptime for` to run a for loop at compile-time. Syntax sugar for `comptime { for .. }`.
 
-## Scoping
+### Scoping
 
 Note that while in a `comptime` context, any runtime variables _local to the current function_ are never visible.
 
-## Evaluating
+### Evaluating
 
 Evaluation rules of `comptime` follows the normal unconstrained evaluation rules for other Noir code. There are a few things to note though:
 
 - Certain built-in functions may not be available, although more may be added over time.
-- Evaluation order of global items is currently unspecified. For example, given the following two functions we can't guarantee
+- Evaluation order of `comptime {}` blocks within global items is currently unspecified. For example, given the following two functions we can't guarantee
 which `println` will execute first. The ordering of the two printouts will be arbitrary, but should be stable across multiple compilations with the same `nargo` version as long as the program is also unchanged.
 
 ```rust
@@ -56,13 +56,16 @@ fn two() {
 
 - Since evaluation order is unspecified, care should be taken when using mutable globals so that they do not rely on a particular ordering.
 For example, using globals to generate unique ids should be fine but relying on certain ids always being produced (especially after edits to the program) should be avoided.
-- Although most ordering of globals is unspecified, two are:
+- Although the ordering of comptime code is usually unspecified, there are cases where it is:
   - Dependencies of a crate will always be evaluated before the dependent crate.
-  - Any annotations on a function will be run before the function itself is resolved. This is to allow the annotation to modify the function if necessary. Note that if the
+  - Any attributes on a function will be run before the function body is resolved. This is to allow the attribute to modify the function if necessary. Note that if the
     function itself was called at compile-time previously, it will already be resolved and cannot be modified. To prevent accidentally calling functions you wish to modify
-    at compile-time, it may be helpful to sort your `comptime` annotation functions into a different crate along with any dependencies they require.
+    at compile-time, it may be helpful to sort your `comptime` annotation functions into a different submodule crate along with any dependencies they require.
+  - Unlike raw `comptime {}` blocks, attributes on top-level items in the program do have a set evaluation order. Attributes within a module are evaluated top-down, and attributes
+    in different modules are evaluated submodule-first. Sibling modules to the same parent module are evaluated in order of the module declarations (`mod foo; mod bar;`) in their
+    parent module.
 
-## Lowering
+### Lowering
 
 When a `comptime` value is used in runtime code it must be lowered into a runtime value. This means replacing the expression with the literal that it evaluated to. For example, the code:
 
@@ -89,7 +92,7 @@ fn main() {
 }
 ```
 
-Not all types of values can be lowered. For example, `Type`s and `TypeDefinition`s (among other types) cannot be lowered at all.
+Not all types of values can be lowered. For example, references, `Type`s, and `TypeDefinition`s (among other types) cannot be lowered at all.
 
 ```rust
 fn main() {
@@ -100,9 +103,22 @@ fn main() {
 comptime fn get_type() -> Type { ... }
 ```
 
+Values of certain types may also change type when they are lowered. For example, a comptime format string will already be
+formatted, and thus lowers into a runtime string instead:
+
+```rust
+fn main() {
+    let foo = comptime {
+        let i = 2;
+        f"i = {i}"
+    };
+    assert_eq(foo, "i = 2");
+}
+```
+
 ---
 
-# (Quasi) Quote
+## (Quasi) Quote
 
 Macros in Noir are `comptime` functions which return code as a value which is inserted into the call site when it is lowered there.
 A code value in this case is of type `Quoted` and can be created by a `quote { ... }` expression.
@@ -121,7 +137,22 @@ Calling such a function at compile-time without `!` will just return the `Quoted
 For those familiar with quoting from other languages (primarily lisps), Noir's `quote` is actually a _quasiquote_.
 This means we can escape the quoting by using the unquote operator to splice values in the middle of quoted code.
 
-# Unquote
+In addition to curly braces, you can also use square braces for the quote operator:
+
+```rust
+comptime {
+    let q1 = quote { 1 };
+    let q2 = quote [ 2 ];
+    assert_eq(q1, q2);
+
+    // Square braces can be used to quote mismatched curly braces if needed
+    let _ = quote[}];
+}
+```
+
+---
+
+## Unquote
 
 The unquote operator `$` is usable within a `quote` expression.
 It takes a variable as an argument, evaluates the variable, and splices the resulting value into the quoted token stream at that point. For example,
@@ -149,7 +180,7 @@ If it is an expression (even a parenthesized one), it will do nothing. Most like
 
 Unquoting can also be avoided by escaping the `$` with a backslash:
 
-```
+```rust
 comptime {
     let x = quote { 1 + 2 };
 
@@ -158,26 +189,48 @@ comptime {
 }
 ```
 
----
+### Combining Tokens
 
-# Annotations
-
-Annotations provide a way to run a `comptime` function on an item in the program.
-When you use an annotation, the function with the same name will be called with that item as an argument:
+Note that `Quoted` is internally a series of separate tokens, and that all unquoting does is combine these token vectors.
+This means that code which appears to append like a string actually appends like a vector internally:
 
 ```rust
-#[my_struct_annotation]
+comptime {
+    let x = 3;
+    let q = quote { foo$x }; // This is [foo, 3], not [foo3]
+
+    // Spaces are ignored in general, they're never part of a token
+    assert_eq(q, quote { foo   3 });
+}
+```
+
+If you do want string semantics, you can use format strings then convert back to a `Quoted` value with `.quoted_contents()`.
+Note that formatting a quoted value with multiple tokens will always insert a space between each token. If this is
+undesired, you'll need to only operate on quoted values containing a single token. To do this, you can iterate
+over each token of a larger quoted value with `.tokens()`:
+
+#include_code concatenate-example noir_stdlib/src/meta/mod.nr rust
+
+---
+
+## Attributes
+
+Attributes provide a way to run a `comptime` function on an item in the program.
+When you use an attribute, the function with the same name will be called with that item as an argument:
+
+```rust
+#[my_struct_attribute]
 struct Foo {}
 
-comptime fn my_struct_annotation(s: StructDefinition) {
-    println("Called my_struct_annotation!");
+comptime fn my_struct_attribute(s: StructDefinition) {
+    println("Called my_struct_attribute!");
 }
 
-#[my_function_annotation]
+#[my_function_attribute]
 fn foo() {}
 
-comptime fn my_function_annotation(f: FunctionDefinition) {
-    println("Called my_function_annotation!");
+comptime fn my_function_attribute(f: FunctionDefinition) {
+    println("Called my_function_attribute!");
 }
 ```
 
@@ -188,26 +241,58 @@ For example, this is the mechanism used to insert additional trait implementatio
 
 #include_code derive-field-count-example noir_stdlib/src/meta/mod.nr rust
 
-## Calling annotations with additional arguments
+### Calling annotations with additional arguments
 
-Arguments may optionally be given to annotations.
-When this is done, these additional arguments are passed to the annotation function after the item argument.
+Arguments may optionally be given to attributes.
+When this is done, these additional arguments are passed to the attribute function after the item argument.
 
 #include_code annotation-arguments-example noir_stdlib/src/meta/mod.nr rust
 
-We can also take any number of arguments by adding the `varargs` annotation:
+We can also take any number of arguments by adding the `varargs` attribute:
 
 #include_code annotation-varargs-example noir_stdlib/src/meta/mod.nr rust
 
+### Attribute Evaluation Order
+
+Unlike the evaluation order of stray `comptime {}` blocks within functions, attributes have a well-defined evaluation
+order. Within a module, attributes are evaluated top to bottom. Between modules, attributes in child modules are evaluated
+first. Attributes in sibling modules are resolved following the `mod foo; mod bar;` declaration order within their parent
+modules.
+
+```rust
+mod foo; // attributes in foo are run first
+mod bar; // followed by attributes in bar
+
+// followed by any attributes in the parent module
+#[derive(Eq)]
+struct Baz {}
+```
+
+Note that because of this evaluation order, you may get an error trying to derive a trait for a struct whose fields
+have not yet had the trait derived already:
+
+```rust
+// Error! `Bar` field of `Foo` does not (yet) implement Eq!
+#[derive(Eq)]
+struct Foo {
+    bar: Bar
+}
+
+#[derive(Eq)]
+struct Bar {}
+```
+
+In this case, the issue can be resolved by rearranging the structs.
+
 ---
 
-# Comptime API
+## Comptime API
 
 Although `comptime`, `quote`, and unquoting provide a flexible base for writing macros,
 Noir's true metaprogramming ability comes from being able to interact with the compiler through a compile-time API.
 This API can be accessed through built-in functions in `std::meta` as well as on methods of several `comptime` types.
 
-The following is an incomplete list of some `comptime` types along with some useful methods on them.
+The following is an incomplete list of some `comptime` types along with some useful methods on them. You can see more in the standard library [Metaprogramming section](../standard_library/meta).
 
 - `Quoted`: A token stream
 - `Type`: The type of a Noir type
@@ -238,7 +323,7 @@ The following is an incomplete list of some `comptime` types along with some use
 There are many more functions available by exploring the `std::meta` module and its submodules.
 Using these methods is the key to writing powerful metaprogramming libraries.
 
-## `#[use_callers_scope]`
+### `#[use_callers_scope]`
 
 Since certain functions such as `Quoted::as_type`, `Expression::as_type`, or `Quoted::as_trait_constraint` will attempt
 to resolve their contents in a particular scope - it can be useful to change the scope they resolve in. By default
@@ -251,7 +336,7 @@ your attribute function and a helper function it calls use it, then they can bot
 
 ---
 
-# Example: Derive
+## Example: Derive
 
 Using all of the above, we can write a `derive` macro that behaves similarly to Rust's but is not built into the language.
 From the user's perspective it will look like this:

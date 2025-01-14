@@ -10,7 +10,7 @@ use crate::ast::{
 use crate::node_interner::{
     ExprId, InternedExpressionKind, InternedStatementKind, QuotedTypeId, StructId,
 };
-use crate::token::{Attributes, FunctionAttribute, Token, Tokens};
+use crate::token::{Attributes, FmtStrFragment, FunctionAttribute, Token, Tokens};
 use crate::{Kind, Type};
 use acvm::{acir::AcirField, FieldElement};
 use iter_extended::vecmap;
@@ -98,7 +98,7 @@ impl UnresolvedGeneric {
             UnresolvedGeneric::Variable(_) => Ok(Kind::Normal),
             UnresolvedGeneric::Numeric { typ, .. } => {
                 let typ = self.resolve_numeric_kind_type(typ)?;
-                Ok(Kind::Numeric(Box::new(typ)))
+                Ok(Kind::numeric(typ))
             }
             UnresolvedGeneric::Resolved(..) => {
                 panic!("Don't know the kind of a resolved generic here")
@@ -210,8 +210,8 @@ impl ExpressionKind {
         ExpressionKind::Literal(Literal::RawStr(contents, hashes))
     }
 
-    pub fn format_string(contents: String) -> ExpressionKind {
-        ExpressionKind::Literal(Literal::FmtStr(contents))
+    pub fn format_string(fragments: Vec<FmtStrFragment>, length: u32) -> ExpressionKind {
+        ExpressionKind::Literal(Literal::FmtStr(fragments, length))
     }
 
     pub fn constructor(
@@ -309,6 +309,7 @@ impl Expression {
 pub type BinaryOp = Spanned<BinaryOpKind>;
 
 #[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Copy, Clone)]
+#[cfg_attr(test, derive(strum_macros::EnumIter))]
 pub enum BinaryOpKind {
     Add,
     Subtract,
@@ -433,7 +434,7 @@ pub enum Literal {
     Integer(FieldElement, /*sign*/ bool), // false for positive integer and true for negative
     Str(String),
     RawStr(String, u8),
-    FmtStr(String),
+    FmtStr(Vec<FmtStrFragment>, u32 /* length */),
     Unit,
 }
 
@@ -503,7 +504,7 @@ impl FunctionDefinition {
     }
 
     pub fn is_test(&self) -> bool {
-        if let Some(attribute) = &self.attributes.function {
+        if let Some(attribute) = self.attributes.function() {
             matches!(attribute, FunctionAttribute::Test(..))
         } else {
             false
@@ -668,7 +669,13 @@ impl Display for Literal {
                     std::iter::once('#').cycle().take(*num_hashes as usize).collect();
                 write!(f, "r{hashes}\"{string}\"{hashes}")
             }
-            Literal::FmtStr(string) => write!(f, "f\"{string}\""),
+            Literal::FmtStr(fragments, _length) => {
+                write!(f, "f\"")?;
+                for fragment in fragments {
+                    fragment.fmt(f)?;
+                }
+                write!(f, "\"")
+            }
             Literal::Unit => write!(f, "()"),
         }
     }
@@ -801,8 +808,8 @@ impl Display for AsTraitPath {
 impl Display for TypePath {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}::{}", self.typ, self.item)?;
-        if !self.turbofish.is_empty() {
-            write!(f, "::{}", self.turbofish)?;
+        if let Some(turbofish) = &self.turbofish {
+            write!(f, "::{}", turbofish)?;
         }
         Ok(())
     }
@@ -814,8 +821,8 @@ impl FunctionDefinition {
         is_unconstrained: bool,
         generics: &UnresolvedGenerics,
         parameters: &[(Ident, UnresolvedType)],
-        body: &BlockExpression,
-        where_clause: &[UnresolvedTraitConstraint],
+        body: BlockExpression,
+        where_clause: Vec<UnresolvedTraitConstraint>,
         return_type: &FunctionReturnType,
     ) -> FunctionDefinition {
         let p = parameters
@@ -836,9 +843,9 @@ impl FunctionDefinition {
             visibility: ItemVisibility::Private,
             generics: generics.clone(),
             parameters: p,
-            body: body.clone(),
+            body,
             span: name.span(),
-            where_clause: where_clause.to_vec(),
+            where_clause,
             return_type: return_type.clone(),
             return_visibility: Visibility::Private,
         }
@@ -873,7 +880,7 @@ impl FunctionDefinition {
 impl Display for FunctionDefinition {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "{:?}", self.attributes)?;
-        write!(f, "fn {} {}", self.signature(), self.body)
+        write!(f, "{} {}", self.signature(), self.body)
     }
 }
 

@@ -7,11 +7,11 @@ use crate::hir::type_check::generics::TraitGenerics;
 use crate::node_interner::{
     DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, TraitMethodId,
 };
-use crate::token::Tokens;
+use crate::token::{FmtStrFragment, Tokens};
 use crate::Shared;
 
 use super::stmt::HirPattern;
-use super::traits::TraitConstraint;
+use super::traits::{ResolvedTraitBound, TraitConstraint};
 use super::types::{StructType, Type};
 
 /// A HirExpression is the result of an Expression in the AST undergoing
@@ -114,7 +114,7 @@ pub enum HirLiteral {
     Bool(bool),
     Integer(FieldElement, bool), //true for negative integer and false for positive
     Str(String),
-    FmtStr(String, Vec<ExprId>),
+    FmtStr(Vec<FmtStrFragment>, Vec<ExprId>, u32 /* length */),
     Unit,
 }
 
@@ -209,14 +209,14 @@ pub enum HirMethodReference {
     /// Or a method can come from a Trait impl block, in which case
     /// the actual function called will depend on the instantiated type,
     /// which can be only known during monomorphization.
-    TraitMethodId(TraitMethodId, TraitGenerics),
+    TraitMethodId(TraitMethodId, TraitGenerics, bool /* assumed */),
 }
 
 impl HirMethodReference {
     pub fn func_id(&self, interner: &NodeInterner) -> Option<FuncId> {
         match self {
             HirMethodReference::FuncId(func_id) => Some(*func_id),
-            HirMethodReference::TraitMethodId(method_id, _) => {
+            HirMethodReference::TraitMethodId(method_id, _, _) => {
                 let id = interner.trait_method_id(*method_id);
                 match &interner.try_definition(id)?.kind {
                     DefinitionKind::Function(func_id) => Some(*func_id),
@@ -246,15 +246,18 @@ impl HirMethodCallExpression {
             HirMethodReference::FuncId(func_id) => {
                 (interner.function_definition_id(func_id), ImplKind::NotATraitMethod)
             }
-            HirMethodReference::TraitMethodId(method_id, trait_generics) => {
+            HirMethodReference::TraitMethodId(method_id, trait_generics, assumed) => {
                 let id = interner.trait_method_id(method_id);
                 let constraint = TraitConstraint {
                     typ: object_type,
-                    trait_id: method_id.trait_id,
-                    trait_generics,
-                    span: location.span,
+                    trait_bound: ResolvedTraitBound {
+                        trait_id: method_id.trait_id,
+                        trait_generics,
+                        span: location.span,
+                    },
                 };
-                (id, ImplKind::TraitMethod(TraitMethod { method_id, constraint, assumed: false }))
+
+                (id, ImplKind::TraitMethod(TraitMethod { method_id, constraint, assumed }))
             }
         };
         let func_var = HirIdent { location, id, impl_kind };

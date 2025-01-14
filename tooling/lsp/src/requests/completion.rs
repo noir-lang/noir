@@ -19,24 +19,29 @@ use noirc_frontend::{
         Expression, ExpressionKind, ForLoopStatement, GenericTypeArgs, Ident, IfExpression,
         IntegerBitSize, ItemVisibility, LValue, Lambda, LetStatement, MemberAccessExpression,
         MethodCallExpression, NoirFunction, NoirStruct, NoirTraitImpl, Path, PathKind, Pattern,
-        Signedness, Statement, TraitImplItemKind, TypeImpl, TypePath, UnresolvedGeneric,
-        UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression, UseTree,
-        UseTreeKind, Visitor,
+        Signedness, Statement, TraitBound, TraitImplItemKind, TypeImpl, TypePath,
+        UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UnresolvedTypeData,
+        UnresolvedTypeExpression, UseTree, UseTreeKind, Visitor,
     },
     graph::{CrateId, Dependency},
-    hir::def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId},
+    hir::{
+        def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId},
+        resolution::visibility::{
+            item_in_module_is_visible, method_call_is_visible, struct_member_is_visible,
+            trait_member_is_visible,
+        },
+    },
     hir_def::traits::Trait,
-    node_interner::NodeInterner,
-    node_interner::ReferenceId,
+    node_interner::{FuncId, NodeInterner, ReferenceId, StructId},
     parser::{Item, ItemKind, ParsedSubModule},
-    token::{CustomAttribute, Token, Tokens},
+    token::{MetaAttribute, Token, Tokens},
     Kind, ParsedModule, StructType, Type, TypeBinding,
 };
 use sort_text::underscore_sort_text;
 
 use crate::{
     requests::to_lsp_location, trait_impl_method_stub_generator::TraitImplMethodStubGenerator,
-    utils, visibility::is_visible, LspState,
+    use_segment_positions::UseSegmentPositions, utils, LspState,
 };
 
 use super::process_request;
@@ -113,8 +118,11 @@ struct NodeFinder<'a> {
     nesting: usize,
     /// The line where an auto_import must be inserted
     auto_import_line: usize,
+    use_segment_positions: UseSegmentPositions,
     self_type: Option<Type>,
     in_comptime: bool,
+    /// The function we are in, if any
+    func_id: Option<FuncId>,
 }
 
 impl<'a> NodeFinder<'a> {
@@ -157,8 +165,10 @@ impl<'a> NodeFinder<'a> {
             suggested_module_def_ids: HashSet::new(),
             nesting: 0,
             auto_import_line: 0,
+            use_segment_positions: UseSegmentPositions::default(),
             self_type: None,
             in_comptime: false,
+            func_id: None,
         }
     }
 
@@ -202,14 +212,14 @@ impl<'a> NodeFinder<'a> {
 
         // Remove the ones that already exists in the constructor
         for (used_name, _) in &constructor_expression.fields {
-            fields.retain(|(_, (name, _))| name != &used_name.0.contents);
+            fields.retain(|(_, field)| field.name.0.contents != used_name.0.contents);
         }
 
         let self_prefix = false;
-        for (field_index, (field, typ)) in &fields {
+        for (field_index, field) in &fields {
             self.completion_items.push(self.struct_field_completion_item(
-                field,
-                typ,
+                &field.name.0.contents,
+                &field.typ,
                 struct_type.id,
                 *field_index,
                 self_prefix,
@@ -236,7 +246,7 @@ impl<'a> NodeFinder<'a> {
         let mut idents: Vec<Ident> = Vec::new();
 
         // Find in which ident we are in, and in which part of it
-        // (it could be that we are completting in the middle of an ident)
+        // (it could be that we are completing in the middle of an ident)
         for segment in &path.segments {
             let ident = &segment.ident;
 
@@ -379,7 +389,7 @@ impl<'a> NodeFinder<'a> {
                     self.builtin_types_completion(&prefix);
                     self.type_parameters_completion(&prefix);
                 }
-                RequestedItems::OnlyAttributeFunctions(..) => (),
+                RequestedItems::OnlyTraits | RequestedItems::OnlyAttributeFunctions(..) => (),
             }
             self.complete_auto_imports(&prefix, requested_items, function_completion_kind);
         }
@@ -578,6 +588,14 @@ impl<'a> NodeFinder<'a> {
                     self_prefix,
                 );
             }
+            Type::CheckedCast { to, .. } => {
+                return self.complete_type_fields_and_methods(
+                    to,
+                    prefix,
+                    function_completion_kind,
+                    self_prefix,
+                );
+            }
             Type::Tuple(types) => {
                 self.complete_tuple_fields(types, self_prefix);
             }
@@ -625,34 +643,101 @@ impl<'a> NodeFinder<'a> {
         function_completion_kind: FunctionCompletionKind,
         self_prefix: bool,
     ) {
+        self.complete_trait_constraints_methods(
+            typ,
+            prefix,
+            function_kind,
+            function_completion_kind,
+        );
+
         let Some(methods_by_name) = self.interner.get_type_methods(typ) else {
             return;
         };
 
+        let struct_id = get_type_struct_id(typ);
+        let is_primitive = typ.is_primitive();
+        let has_self_param = matches!(function_kind, FunctionKind::SelfType(..));
+
         for (name, methods) in methods_by_name {
-            for (func_id, method_type) in methods.iter() {
-                if function_kind == FunctionKind::Any {
-                    if let Some(method_type) = method_type {
-                        if method_type.unify(typ).is_err() {
-                            continue;
-                        }
+            if !name_matches(name, prefix) {
+                continue;
+            }
+
+            for (func_id, trait_id) in
+                methods.find_matching_methods(typ, has_self_param, self.interner)
+            {
+                if let Some(struct_id) = struct_id {
+                    let modifiers = self.interner.function_modifiers(&func_id);
+                    let visibility = modifiers.visibility;
+                    if !struct_member_is_visible(
+                        struct_id,
+                        visibility,
+                        self.module_id,
+                        self.def_maps,
+                    ) {
+                        continue;
                     }
                 }
 
-                if name_matches(name, prefix) {
-                    let completion_items = self.function_completion_items(
-                        name,
-                        func_id,
-                        function_completion_kind,
-                        function_kind,
-                        None, // attribute first type
-                        self_prefix,
-                    );
-                    if !completion_items.is_empty() {
-                        self.completion_items.extend(completion_items);
-                        self.suggested_module_def_ids.insert(ModuleDefId::FunctionId(func_id));
+                if let Some(trait_id) = trait_id {
+                    let modifiers = self.interner.function_modifiers(&func_id);
+                    let visibility = modifiers.visibility;
+                    if !trait_member_is_visible(trait_id, visibility, self.module_id, self.def_maps)
+                    {
+                        continue;
                     }
                 }
+
+                if is_primitive
+                    && !method_call_is_visible(
+                        typ,
+                        func_id,
+                        self.module_id,
+                        self.interner,
+                        self.def_maps,
+                    )
+                {
+                    continue;
+                }
+
+                let completion_items = self.function_completion_items(
+                    name,
+                    func_id,
+                    function_completion_kind,
+                    function_kind,
+                    None, // attribute first type
+                    trait_id,
+                    self_prefix,
+                );
+                if !completion_items.is_empty() {
+                    self.completion_items.extend(completion_items);
+                    self.suggested_module_def_ids.insert(ModuleDefId::FunctionId(func_id));
+                }
+            }
+        }
+    }
+
+    fn complete_trait_constraints_methods(
+        &mut self,
+        typ: &Type,
+        prefix: &str,
+        function_kind: FunctionKind,
+        function_completion_kind: FunctionCompletionKind,
+    ) {
+        let Some(func_id) = self.func_id else {
+            return;
+        };
+
+        let func_meta = self.interner.function_meta(&func_id);
+        for constraint in &func_meta.trait_constraints {
+            if *typ == constraint.typ {
+                let trait_ = self.interner.get_trait(constraint.trait_bound.trait_id);
+                self.complete_trait_methods(
+                    trait_,
+                    prefix,
+                    function_kind,
+                    function_completion_kind,
+                );
             }
         }
     }
@@ -674,6 +759,7 @@ impl<'a> NodeFinder<'a> {
                     function_completion_kind,
                     function_kind,
                     None, // attribute first type
+                    None, // trait_id (we are suggesting methods for `Trait::>|<` so no need to auto-import it)
                     self_prefix,
                 );
                 if !completion_items.is_empty() {
@@ -691,16 +777,25 @@ impl<'a> NodeFinder<'a> {
         prefix: &str,
         self_prefix: bool,
     ) {
-        for (field_index, (name, typ)) in struct_type.get_fields(generics).iter().enumerate() {
-            if name_matches(name, prefix) {
-                self.completion_items.push(self.struct_field_completion_item(
-                    name,
-                    typ,
-                    struct_type.id,
-                    field_index,
-                    self_prefix,
-                ));
+        for (field_index, (name, visibility, typ)) in
+            struct_type.get_fields_with_visibility(generics).iter().enumerate()
+        {
+            if !struct_member_is_visible(struct_type.id, *visibility, self.module_id, self.def_maps)
+            {
+                continue;
             }
+
+            if !name_matches(name, prefix) {
+                continue;
+            }
+
+            self.completion_items.push(self.struct_field_completion_item(
+                name,
+                typ,
+                struct_type.id,
+                field_index,
+                self_prefix,
+            ));
         }
     }
 
@@ -756,7 +851,12 @@ impl<'a> NodeFinder<'a> {
             if name_matches(name, prefix) {
                 let per_ns = module_data.find_name(ident);
                 if let Some((module_def_id, visibility, _)) = per_ns.types {
-                    if is_visible(module_id, self.module_id, visibility, self.def_maps) {
+                    if item_in_module_is_visible(
+                        self.def_maps,
+                        self.module_id,
+                        module_id,
+                        visibility,
+                    ) {
                         let completion_items = self.module_def_id_completion_items(
                             module_def_id,
                             name.clone(),
@@ -772,7 +872,12 @@ impl<'a> NodeFinder<'a> {
                 }
 
                 if let Some((module_def_id, visibility, _)) = per_ns.values {
-                    if is_visible(module_id, self.module_id, visibility, self.def_maps) {
+                    if item_in_module_is_visible(
+                        self.def_maps,
+                        self.module_id,
+                        module_id,
+                        visibility,
+                    ) {
                         let completion_items = self.module_def_id_completion_items(
                             module_def_id,
                             name.clone(),
@@ -838,24 +943,6 @@ impl<'a> NodeFinder<'a> {
         }
 
         None
-    }
-
-    fn suggest_attributes(&mut self, prefix: &str, target: AttributeTarget) {
-        self.suggest_builtin_attributes(prefix, target);
-
-        let function_completion_kind = FunctionCompletionKind::NameAndParameters;
-        let requested_items = RequestedItems::OnlyAttributeFunctions(target);
-
-        self.complete_in_module(
-            self.module_id,
-            prefix,
-            PathKind::Plain,
-            true,
-            function_completion_kind,
-            requested_items,
-        );
-
-        self.complete_auto_imports(prefix, requested_items, function_completion_kind);
     }
 
     fn suggest_no_arguments_attributes(&mut self, prefix: &str, attributes: &[&str]) {
@@ -996,6 +1083,8 @@ impl<'a> NodeFinder<'a> {
         }
     }
 
+    /// Determine where each segment in a `use` statement is located.
+
     fn includes_span(&self, span: Span) -> bool {
         span.start() as usize <= self.byte_index && self.byte_index <= span.end() as usize
     }
@@ -1003,10 +1092,11 @@ impl<'a> NodeFinder<'a> {
 
 impl<'a> Visitor for NodeFinder<'a> {
     fn visit_item(&mut self, item: &Item) -> bool {
-        if let ItemKind::Import(..) = &item.kind {
+        if let ItemKind::Import(use_tree, _) = &item.kind {
             if let Some(lsp_location) = to_lsp_location(self.files, self.file, item.span) {
                 self.auto_import_line = (lsp_location.range.end.line + 1) as usize;
             }
+            self.use_segment_positions.add(use_tree);
         }
 
         self.includes_span(item.span)
@@ -1069,6 +1159,10 @@ impl<'a> Visitor for NodeFinder<'a> {
 
         noir_function.def.return_type.accept(self);
 
+        for constraint in &noir_function.def.where_clause {
+            constraint.accept(self);
+        }
+
         self.local_variables.clear();
         for param in &noir_function.def.parameters {
             self.collect_local_variables(&param.pattern);
@@ -1077,7 +1171,16 @@ impl<'a> Visitor for NodeFinder<'a> {
         let old_in_comptime = self.in_comptime;
         self.in_comptime = noir_function.def.is_comptime;
 
+        if let Some(ReferenceId::Function(func_id)) = self
+            .interner
+            .reference_at_location(Location::new(noir_function.name_ident().span(), self.file))
+        {
+            self.func_id = Some(func_id);
+        }
+
         noir_function.def.body.accept(Some(span), self);
+
+        self.func_id = None;
 
         self.in_comptime = old_in_comptime;
         self.type_parameters = old_type_parameters;
@@ -1159,7 +1262,7 @@ impl<'a> Visitor for NodeFinder<'a> {
 
     fn visit_trait_item_function(
         &mut self,
-        _name: &Ident,
+        name: &Ident,
         generics: &UnresolvedGenerics,
         parameters: &[(Ident, UnresolvedType)],
         return_type: &noirc_frontend::ast::FunctionReturnType,
@@ -1176,7 +1279,7 @@ impl<'a> Visitor for NodeFinder<'a> {
         return_type.accept(self);
 
         for unresolved_trait_constraint in where_clause {
-            unresolved_trait_constraint.typ.accept(self);
+            unresolved_trait_constraint.accept(self);
         }
 
         if let Some(body) = body {
@@ -1184,7 +1287,16 @@ impl<'a> Visitor for NodeFinder<'a> {
             for (name, _) in parameters {
                 self.local_variables.insert(name.to_string(), name.span());
             }
+
+            if let Some(ReferenceId::Function(func_id)) =
+                self.interner.reference_at_location(Location::new(name.span(), self.file))
+            {
+                self.func_id = Some(func_id);
+            }
+
             body.accept(None, self);
+
+            self.func_id = None;
         };
 
         self.type_parameters = old_type_parameters;
@@ -1607,12 +1719,14 @@ impl<'a> Visitor for NodeFinder<'a> {
         false
     }
 
-    fn visit_custom_attribute(&mut self, attribute: &CustomAttribute, target: AttributeTarget) {
-        if self.byte_index != attribute.contents_span.end() as usize {
-            return;
+    fn visit_meta_attribute(&mut self, attribute: &MetaAttribute, target: AttributeTarget) -> bool {
+        if self.byte_index == attribute.name.span.end() as usize {
+            self.suggest_builtin_attributes(&attribute.name.to_string(), target);
         }
 
-        self.suggest_attributes(&attribute.contents, target);
+        self.find_in_path(&attribute.name, RequestedItems::OnlyAttributeFunctions(target));
+
+        true
     }
 
     fn visit_quote(&mut self, tokens: &Tokens) {
@@ -1646,6 +1760,12 @@ impl<'a> Visitor for NodeFinder<'a> {
 
             last_was_dollar = false;
         }
+    }
+
+    fn visit_trait_bound(&mut self, trait_bound: &TraitBound) -> bool {
+        self.find_in_path(&trait_bound.trait_path, RequestedItems::OnlyTraits);
+        trait_bound.trait_generics.accept(self);
+        false
     }
 }
 
@@ -1686,6 +1806,18 @@ fn get_array_element_type(typ: Type) -> Option<Type> {
             } else {
                 None
             }
+        }
+        _ => None,
+    }
+}
+
+fn get_type_struct_id(typ: &Type) -> Option<StructId> {
+    match typ {
+        Type::Struct(struct_type, _) => Some(struct_type.borrow().id),
+        Type::Alias(type_alias, generics) => {
+            let type_alias = type_alias.borrow();
+            let typ = type_alias.get_type(generics);
+            get_type_struct_id(&typ)
         }
         _ => None,
     }
