@@ -4,17 +4,18 @@ pub struct MyBigNum;
 
 impl crate::BigNumTrait for MyBigNum {}
 
-trait CurveParamsTrait<BigNum>
-where
-    BigNum: BigNumTrait,
-{
-    // The difference between this and regression_7083 is that here
-    // this is a default method.
-    fn one() {}
+trait CurveParamsTrait<BigNum> {
+    // The difference between this and regression_7038 and regression_7038_2 is that
+    // here the where clause is on the method, not the trait
+    fn one()
+    where
+        BigNum: BigNumTrait;
 }
 
 pub struct BN254Params;
-impl CurveParamsTrait<MyBigNum> for BN254Params {}
+impl CurveParamsTrait<MyBigNum> for BN254Params {
+    fn one() {}
+}
 
 trait BigCurveTrait {
     fn two();
