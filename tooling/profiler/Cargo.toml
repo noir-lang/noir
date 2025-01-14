@@ -34,11 +34,13 @@ nargo.workspace = true
 noirc_errors.workspace = true
 noirc_abi.workspace = true
 noirc_evaluator.workspace = true
-tcmalloc.workspace = true
 
 # Logs
 tracing-subscriber.workspace = true
 tracing-appender = "0.2.3"
+
+[target.'cfg(not(target_env = "msvc"))'.dependencies]
+tikv-jemallocator.workspace = true
 
 [dev-dependencies]
 noirc_abi.workspace = true

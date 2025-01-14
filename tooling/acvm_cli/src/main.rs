@@ -11,8 +11,12 @@ use std::env;
 use tracing_appender::rolling;
 use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter};
 
+#[cfg(not(target_env = "msvc"))]
+use tikv_jemallocator::Jemalloc;
+
+#[cfg(not(target_env = "msvc"))]
 #[global_allocator]
-static GLOBAL_ALLOCATOR: tcmalloc::TCMalloc = tcmalloc::TCMalloc;
+static GLOBAL: Jemalloc = Jemalloc;
 
 fn main() {
     // Setup tracing

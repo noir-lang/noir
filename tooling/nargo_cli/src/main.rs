@@ -19,8 +19,12 @@ use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter};
 
 const PANIC_MESSAGE: &str = "This is a bug. We may have already fixed this in newer versions of Nargo so try searching for similar issues at https://github.com/noir-lang/noir/issues/.\nIf there isn't an open issue for this bug, consider opening one at https://github.com/noir-lang/noir/issues/new?labels=bug&template=bug_report.yml";
 
+#[cfg(not(target_env = "msvc"))]
+use tikv_jemallocator::Jemalloc;
+
+#[cfg(not(target_env = "msvc"))]
 #[global_allocator]
-static GLOBAL_ALLOCATOR: tcmalloc::TCMalloc = tcmalloc::TCMalloc;
+static GLOBAL: Jemalloc = Jemalloc;
 
 fn main() {
     setup_tracing();

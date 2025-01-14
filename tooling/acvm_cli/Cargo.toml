@@ -30,7 +30,9 @@ nargo.workspace = true
 const_format.workspace = true
 bn254_blackbox_solver.workspace = true
 acir.workspace = true
-tcmalloc.workspace = true
+
+[target.'cfg(not(target_env = "msvc"))'.dependencies]
+tikv-jemallocator.workspace = true
 
 # Logs
 tracing-subscriber.workspace = true

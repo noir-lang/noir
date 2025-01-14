@@ -69,7 +69,6 @@ clap-markdown = { git = "https://github.com/noir-lang/clap-markdown", rev = "450
 notify = "6.1.1"
 notify-debouncer-full = "0.3.1"
 termion = "3.0.0"
-tcmalloc.workspace = true
 
 # Logs
 tracing.workspace = true
@@ -77,6 +76,9 @@ tracing-subscriber.workspace = true
 tracing-appender = "0.2.3"
 clap_complete = "4.5.36"
 fs2 = "0.4.3"
+
+[target.'cfg(not(target_env = "msvc"))'.dependencies]
+tikv-jemallocator.workspace = true
 
 [target.'cfg(not(unix))'.dependencies]
 tokio-util = { version = "0.7.8", features = ["compat"] }
