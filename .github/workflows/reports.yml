@@ -126,7 +126,7 @@ jobs:
           
           ./gates_report_brillig.sh -9223372036854775808
           jq '.programs |= map(.package_name |= (. + "_inliner_min"))' gates_report_brillig.json > ./reports/gates_report_brillig_inliner_min.json
-          # cat ./reports/gates_report_brillig_inliner_min
+          cat ./reports/gates_report_brillig_inliner_min
           ls ./reports
 
           jq -s '{ programs: map(.programs) | add }' ./reports/* > ../gates_report_brillig.json
