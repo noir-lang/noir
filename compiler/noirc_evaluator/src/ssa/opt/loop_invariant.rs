@@ -112,10 +112,12 @@ impl<'f> LoopInvariantContext<'f> {
 
                     // If we are hoisting a MakeArray instruction,
                     // we need to issue an extra inc_rc in case they are mutated afterward.
-                    if matches!(
-                        self.inserter.function.dfg[instruction_id],
-                        Instruction::MakeArray { .. }
-                    ) {
+                    if self.inserter.function.runtime().is_brillig()
+                        && matches!(
+                            self.inserter.function.dfg[instruction_id],
+                            Instruction::MakeArray { .. }
+                        )
+                    {
                         let result =
                             self.inserter.function.dfg.instruction_results(instruction_id)[0];
                         let inc_rc = Instruction::IncrementRc { value: result };

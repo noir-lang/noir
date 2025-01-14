@@ -399,7 +399,10 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
     }
     string.push_str("    ");
 
-    if func_modifiers.visibility != ItemVisibility::Private {
+    if func_modifiers.visibility != ItemVisibility::Private
+        && func_meta.trait_id.is_none()
+        && func_meta.trait_impl.is_none()
+    {
         string.push_str(&func_modifiers.visibility.to_string());
         string.push(' ');
     }
@@ -1154,7 +1157,7 @@ mod hover_tests {
         assert!(hover_text.starts_with(
             "    two
     impl<A> Bar<A, i32> for Foo<A>
-    pub fn bar_stuff(self)"
+    fn bar_stuff(self)"
         ));
     }
 
