@@ -204,21 +204,20 @@ impl<'a> FunctionContext<'a> {
                 // dbg!(array.contents.clone());
                 let elements =
                     try_vecmap(&array.contents, |element| self.codegen_expression(element))?;
-                // let elements = self.codegen_array_elements(&array.contents)?;
+                let elements = self.codegen_array_elements(&array.contents)?;
 
                 let typ = Self::convert_type(&array.typ).flatten();
                 dbg!(typ.clone());
                 dbg!(elements.len());
-                let flat_size = elements.clone().into_iter().flat_map(|value| value.flatten()).collect::<Vec<_>>();
+                let flat_size = elements.clone().into_iter().flat_map(|(value, _)| value.flatten()).collect::<Vec<_>>();
                 dbg!(flat_size.len());
-                for elem in elements.clone() {
+                for (elem, _) in elements.clone() {
                     dbg!(elem.count_leaves());
                 }
                 dbg!(typ[0].element_size());
                 dbg!(typ[0].flattened_size());
                 Ok(match array.typ {
                     ast::Type::Array(_, _) => {
-                        // if typ[0].
                         self.codegen_array_checked(elements, typ[0].clone())?
                     }
                     _ => unreachable!("ICE: unexpected array literal type, got {}", array.typ),
@@ -1031,9 +1030,9 @@ impl<'a> FunctionContext<'a> {
                 let elements = current_typ.element_types().to_vec();
                 let offset = elements.iter().fold(0, |acc, typ| acc + typ.flattened_size());
                 dbg!(offset);
-                let offset = self.builder.numeric_constant(offset, Type::unsigned(SSA_WORD_SIZE));
+                let offset = self.builder.numeric_constant(offset, NumericType::length_type());
                 let value = self.make_array_index(value);
-                let new_index = self.builder.insert_binary(value, BinaryOp::Mul, offset);
+                let new_index = self.builder.insert_binary(value, BinaryOp::Mul { unchecked: true }, offset);
                 result_index = new_index;
 
                 current_types = elements;
@@ -1046,8 +1045,8 @@ impl<'a> FunctionContext<'a> {
                 NestedArrayIndex::Constant(field_index) => {
                     let offset = (current_types[0..field_index]).iter().fold(0, |acc, typ| acc + typ.flattened_size());
                     dbg!(offset);
-                    let offset = self.builder.numeric_constant(offset, Type::unsigned(SSA_WORD_SIZE));
-                    let new_index = self.builder.insert_binary(result_index, BinaryOp::Add, offset);
+                    let offset = self.builder.numeric_constant(offset, NumericType::length_type());
+                    let new_index = self.builder.insert_binary(result_index, BinaryOp::Add { unchecked: true }, offset);
                     result_index = new_index;
 
                     current_types = vec![current_types[field_index].clone()];
@@ -1055,17 +1054,17 @@ impl<'a> FunctionContext<'a> {
                 NestedArrayIndex::Value(value) => {
                     // let current_typ = current_types[0].clone();
                     // let offset = current_typ.flattened_size() / current_typ.array_size();
-                    if value.to_usize() == 40 {
+                    if value.to_u32() == 40 {
                         dbg!(current_types.clone());
                         dbg!(result_index);
                     }
                     let elements = current_types[0].clone().element_types().to_vec();
                     let offset = elements.iter().fold(0, |acc, typ| acc + typ.flattened_size());
                     dbg!(offset);
-                    let offset = self.builder.numeric_constant(offset, Type::unsigned(SSA_WORD_SIZE));
+                    let offset = self.builder.numeric_constant(offset, NumericType::length_type());
                     let value = self.make_array_index(value);
-                    let new_index = self.builder.insert_binary(value, BinaryOp::Mul, offset);
-                    let new_index = self.builder.insert_binary(result_index, BinaryOp::Add, new_index);
+                    let new_index = self.builder.insert_binary(value, BinaryOp::Mul { unchecked: true }, offset);
+                    let new_index = self.builder.insert_binary(result_index, BinaryOp::Add { unchecked: true }, new_index);
                     result_index = new_index;
 
                     current_types = elements;
@@ -1073,7 +1072,7 @@ impl<'a> FunctionContext<'a> {
                 _ => {},
             }
         }
-        if result_index.to_usize() == 0 {
+        if result_index.to_u32() == 0 {
             panic!("ahh");
         }
         Some(result_index)

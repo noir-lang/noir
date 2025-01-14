@@ -1331,10 +1331,6 @@ impl<'a> Context<'a> {
         let block_id = self.ensure_array_is_initialized(array, dfg)?;
         let results = dfg.instruction_results(instruction);
         let res_typ = dfg.type_of_value(results[0]);
-<<<<<<< HEAD:compiler/noirc_evaluator/src/ssa/acir_gen/mod.rs
-        dbg!(res_typ.clone());
-=======
->>>>>>> master:compiler/noirc_evaluator/src/acir/mod.rs
         // Get operations to call-data parameters are replaced by a get to the call-data-bus array
         let call_data =
             self.data_bus.call_data.iter().find(|cd| cd.index_map.contains_key(&array)).cloned();
@@ -1354,10 +1350,10 @@ impl<'a> Context<'a> {
             "ICE: Nested slice result found during ACIR generation"
         );
         let mut value = self.array_get_value(&res_typ, block_id, &mut var_index)?;
-        dbg!(value.clone());
+        // dbg!(value.clone());
         if res_typ.is_nested_array() {
             // TODO: can probably move this entire conversion to a method on `AcirValue`
-            let flat_value = value.flatten().into_iter().map(|(var, typ)| AcirValue::Var(var, typ)).collect::<Vector<_>>();
+            let flat_value = value.flatten().into_iter().map(|(var, typ)| AcirValue::Var(var, typ)).collect::<im::Vector<_>>();
             value = AcirValue::Array(flat_value);
         }
         

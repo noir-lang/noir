@@ -187,7 +187,7 @@ impl Type {
 
     pub(crate) fn array_size(&self) -> usize {
         match self {
-            Type::Array(_, size) => *size,
+            Type::Array(_, size) => *size as usize,
             other => panic!("array_size: Expected array, found {other}"),
         }
     }
