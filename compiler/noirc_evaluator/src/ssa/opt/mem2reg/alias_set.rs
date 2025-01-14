@@ -1,4 +1,4 @@
-use vec_collections::VecSet;
+use vec_collections::{AbstractVecSet, VecSet};
 
 use crate::ssa::ir::value::ValueId;
 
@@ -52,6 +52,20 @@ impl AliasSet {
             self_aliases.extend(other_aliases.iter().cloned());
         } else {
             self.aliases = None;
+        }
+    }
+
+    /// Returns true if calling `unify` would change something in this alias set.
+    ///
+    /// This is an optimization to avoid having to look up an entry ready to be modified in the [Block](crate::ssa::opt::mem2reg::block::Block),
+    /// because doing so would involve calling `Arc::make_mut` which clones the entry, ready for modification.
+    pub(super) fn should_unify(&self, other: &Self) -> bool {
+        if let (Some(self_aliases), Some(other_aliases)) = (&self.aliases, &other.aliases) {
+            // `unify` would extend `self_aliases` with `other_aliases`, so if `other_aliases` is a subset, then nothing would happen.
+            !other_aliases.is_subset(self_aliases)
+        } else {
+            // `unify` would set `aliases` to `None`, so if it's not `Some`, then nothing would happen.
+            self.aliases.is_some()
         }
     }
 
