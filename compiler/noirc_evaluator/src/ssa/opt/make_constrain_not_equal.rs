@@ -31,8 +31,6 @@ impl Function {
         }
 
         for block in self.reachable_blocks() {
-            // Unfortunately we can't just use instructions.retain(...) here since
-            // check_instruction can also return an error
             let instructions = self.dfg[block].instructions().to_vec();
 
             for instruction in instructions {
