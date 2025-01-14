@@ -182,7 +182,7 @@ jobs:
         run: |
           mkdir ./reports 
           ./gates_report_brillig_execution.sh 9223372036854775807
-          mv gates_report_brillig_execution.json ../gates_report_brillig_execution_inliner_max.json
+          mv gates_report_brillig_execution.json ./reports/gates_report_brillig_execution_inliner_max.json
           jq '.programs | length' ./reports/gates_report_brillig_execution_inliner_max.json
 
           ./gates_report_brillig_execution.sh 0
