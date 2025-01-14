@@ -1,4 +1,4 @@
-use vec_collections::{AbstractVecSet, VecSet};
+use vec_collections::VecSet;
 
 use crate::ssa::ir::value::ValueId;
 
