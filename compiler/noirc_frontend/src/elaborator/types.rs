@@ -638,6 +638,30 @@ impl<'context> Elaborator<'context> {
 
                 let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
                 if let Some(method) = the_trait.find_method(path.last_name()) {
+                    let show = |constraint: &TraitConstraint| {
+                        let name = &self.interner.get_trait(constraint.trait_bound.trait_id).name;
+                        let args = vecmap(
+                            &constraint.trait_bound.trait_generics.ordered,
+                            ToString::to_string,
+                        )
+                        .join(", ");
+                        let named = vecmap(&constraint.trait_bound.trait_generics.named, |t| {
+                            format!("{}: {}", t.name, t.typ)
+                        })
+                        .join(", ");
+
+                        if args.is_empty() && named.is_empty() {
+                            name.to_string()
+                        } else if args.is_empty() {
+                            format!("{name}<{named}>")
+                        } else if named.is_empty() {
+                            format!("{name}<{args}>")
+                        } else {
+                            format!("{name}<{args}, {named}>")
+                        }
+                    };
+
+                    eprintln!("Returning assumed constraint: {}", show(&constraint));
                     return Some(TraitPathResolution {
                         method: TraitMethod { method_id: method, constraint, assumed: true },
                         item: None,

@@ -34,6 +34,7 @@ nargo.workspace = true
 noirc_errors.workspace = true
 noirc_abi.workspace = true
 noirc_evaluator.workspace = true
+mimalloc.workspace = true
 
 # Logs
 tracing-subscriber.workspace = true

@@ -14,6 +14,9 @@ use std::env;
 use tracing_appender::rolling;
 use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter};
 
+#[global_allocator]
+static GLOBAL_ALLOCATOR: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 fn main() {
     // Setup tracing
     if let Ok(log_dir) = env::var("PROFILER_LOG_DIR") {
