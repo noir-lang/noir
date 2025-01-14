@@ -2999,7 +2999,6 @@ dependencies = [
  "fm",
  "iter-extended",
  "jsonrpsee",
- "mimalloc",
  "noir_fuzzer",
  "noirc_abi",
  "noirc_driver",
