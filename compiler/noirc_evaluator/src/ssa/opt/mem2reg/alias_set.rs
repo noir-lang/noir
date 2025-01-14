@@ -27,7 +27,13 @@ impl AliasSet {
     }
 
     pub(super) fn known_multiple(values: BTreeSet<ValueId>) -> AliasSet {
-        AliasSet::KnownMultiple(values)
+        if values.is_empty() {
+            AliasSet::Empty
+        } else if values.len() == 1 {
+            AliasSet::Known(*values.first().unwrap())
+        } else {
+            AliasSet::KnownMultiple(values)
+        }
     }
 
     /// In rare cases, such as when creating an empty array of references, the set of aliases for a
