@@ -1810,6 +1810,7 @@ impl<'context> Elaborator<'context> {
         (expr_span, empty_function)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn verify_trait_constraint(
         &mut self,
         object_type: &Type,
@@ -1817,6 +1818,7 @@ impl<'context> Elaborator<'context> {
         trait_generics: &[Type],
         associated_types: &[NamedType],
         function_ident_id: ExprId,
+        select_impl: bool,
         span: Span,
     ) {
         match self.interner.lookup_trait_implementation(
@@ -1826,7 +1828,9 @@ impl<'context> Elaborator<'context> {
             associated_types,
         ) {
             Ok(impl_kind) => {
-                self.interner.select_impl_for_expression(function_ident_id, impl_kind);
+                if select_impl {
+                    self.interner.select_impl_for_expression(function_ident_id, impl_kind);
+                }
             }
             Err(error) => self.push_trait_constraint_error(object_type, error, span),
         }
@@ -1900,10 +1904,15 @@ impl<'context> Elaborator<'context> {
 
     /// Push a trait constraint into the current FunctionContext to be solved if needed
     /// at the end of the earlier of either the current function or the current comptime scope.
-    pub fn push_trait_constraint(&mut self, constraint: TraitConstraint, expr_id: ExprId) {
+    pub fn push_trait_constraint(
+        &mut self,
+        constraint: TraitConstraint,
+        expr_id: ExprId,
+        select_impl: bool,
+    ) {
         let context = self.function_context.last_mut();
         let context = context.expect("The function_context stack should always be non-empty");
-        context.trait_constraints.push((constraint, expr_id));
+        context.trait_constraints.push((constraint, expr_id, select_impl));
     }
 
     pub fn bind_generics_from_trait_constraint(
