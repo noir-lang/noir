@@ -299,7 +299,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-contracts, is_library: true }
+          # - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-contracts, cannot_execute: true }
           - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-inner, num_runs: 5 }
           - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-tail, num_runs: 5  }
           - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-reset, num_runs: 5 }
@@ -307,8 +307,8 @@ jobs:
           - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-base-public, num_runs: 5 }
           - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-block-merge, num_runs: 5 }
           - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-block-root-empty, num_runs: 5 }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-block-root-single-tx, num_runs: 1, flags: "--skip-brillig-constraints-check --skip-underconstrained-check" }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-block-root, num_runs: 1, flags: "--skip-brillig-constraints-check --skip-underconstrained-check" }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-block-root-single-tx, num_runs: 1, flags: "--skip-brillig-constraints-check --skip-underconstrained-check", cannot_execute: true }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-block-root, num_runs: 1, flags: "--skip-brillig-constraints-check --skip-underconstrained-check", cannot_execute: true }
           - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-merge, num_runs: 5 }
           - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-root, num_runs: 5 }
 
@@ -357,7 +357,7 @@ jobs:
 
       - name: Generate execution report
         working-directory: ./test-repo/${{ matrix.project.path }}
-        if: ${{ !matrix.project.is_library }}
+        if: ${{ !matrix.project.cannot_execute }}
         run: |
           mv /home/runner/work/noir/noir/scripts/test_programs/execution_report.sh ./execution_report.sh
           mv /home/runner/work/noir/noir/scripts/test_programs/parse_time.sh ./parse_time.sh
@@ -375,7 +375,7 @@ jobs:
       - name: Move execution report
         id: execution_report
         shell: bash
-        if: ${{ !matrix.project.is_library }}
+        if: ${{ !matrix.project.cannot_execute }}
         run: |
           PACKAGE_NAME=${{ matrix.project.path }}
           PACKAGE_NAME=$(basename $PACKAGE_NAME)
