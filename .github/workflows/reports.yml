@@ -120,17 +120,19 @@ jobs:
 
           ./gates_report_brillig.sh 9223372036854775807
           mv gates_report_brillig.json ./reports/gates_report_brillig_inliner_max.json
+          jq '.programs | length' ./reports/gates_report_brillig_inliner_max.json
           
           ./gates_report_brillig.sh 0
           jq '.programs |= map(.package_name |= (. + "_inliner_zero"))' gates_report_brillig.json > ./reports/gates_report_brillig_inliner_zero.json
+          jq '.programs | length' ./reports/gates_report_brillig_inliner_zero.json
           
           ./gates_report_brillig.sh -9223372036854775808
           jq '.programs |= map(.package_name |= (. + "_inliner_min"))' gates_report_brillig.json > ./reports/gates_report_brillig_inliner_min.json
-          cat ./reports/gates_report_brillig_inliner_min.json
+          jq '.programs | length' ./reports/gates_report_brillig_inliner_min.json
           ls ./reports
 
           jq -s '{ programs: map(.programs) | add }' ./reports/* > ../gates_report_brillig.json
-          cat ../gates_report_brillig.json
+          jq '.programs | length' ../gates_report_brillig.json
 
       - name: Compare Brillig bytecode size reports
         id: brillig_bytecode_diff
