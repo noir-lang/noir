@@ -236,6 +236,24 @@ impl DataFlowGraph {
         ctrl_typevars: Option<Vec<Type>>,
         call_stack: CallStackId,
     ) -> InsertInstructionResult {
+        self.insert_instruction_and_results_if_simplified(
+            instruction,
+            block,
+            ctrl_typevars,
+            call_stack,
+            None,
+        )
+    }
+
+    /// Simplifies a potentially existing instruction and inserts it only if it changed.
+    pub(crate) fn insert_instruction_and_results_if_simplified(
+        &mut self,
+        instruction: Instruction,
+        block: BasicBlockId,
+        ctrl_typevars: Option<Vec<Type>>,
+        call_stack: CallStackId,
+        existing_id: Option<InstructionId>,
+    ) -> InsertInstructionResult {
         if !self.is_handled_by_runtime(&instruction) {
             panic!("Attempted to insert instruction not handled by runtime: {instruction:?}");
         }
@@ -251,7 +269,20 @@ impl DataFlowGraph {
             result @ (SimplifyResult::SimplifiedToInstruction(_)
             | SimplifyResult::SimplifiedToInstructionMultiple(_)
             | SimplifyResult::None) => {
-                let mut instructions = result.instructions().unwrap_or(vec![instruction]);
+                let instructions = result.instructions();
+                if instructions.is_none() {
+                    if let Some(id) = existing_id {
+                        if self[id] == instruction {
+                            // Just (re)insert into the block, no need to redefine.
+                            self.blocks[block].insert_instruction(id);
+                            return InsertInstructionResult::Results(
+                                id,
+                                self.instruction_results(id),
+                            );
+                        }
+                    }
+                }
+                let mut instructions = instructions.unwrap_or(vec![instruction]);
                 assert!(!instructions.is_empty(), "`SimplifyResult::SimplifiedToInstructionMultiple` must not return empty vector");
 
                 if instructions.len() > 1 {
