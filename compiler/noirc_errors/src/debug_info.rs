@@ -98,14 +98,13 @@ impl ProgramDebugInfo {
 #[serde_as]
 #[derive(Default, Debug, Clone, Deserialize, Serialize, Hash)]
 pub struct DebugInfo {
-    /// Map opcode index of an ACIR circuit into the source code location
-    /// Serde does not support mapping keys being enums for json, so we indicate
-    /// that they should be serialized to/from strings.
-    //    #[serde_as(as = "BTreeMap<DisplayFromStr, _>")]
-    //    pub locations: BTreeMap<OpcodeLocation, Vec<Location>>,
+
     pub brillig_locations:
         BTreeMap<BrilligFunctionId, BTreeMap<BrilligOpcodeLocation, CallStackId>>,
     pub location_tree: LocationTree,
+    /// Map opcode index of an ACIR circuit into the source code location
+    /// Serde does not support mapping keys being enums for json, so we indicate
+    /// that they should be serialized to/from strings.
     #[serde_as(as = "BTreeMap<DisplayFromStr, _>")]
     pub location_map: BTreeMap<OpcodeLocation, CallStackId>,
     pub variables: DebugVariables,
