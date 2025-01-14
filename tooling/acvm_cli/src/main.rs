@@ -12,7 +12,7 @@ use tracing_appender::rolling;
 use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter};
 
 #[global_allocator]
-static GLOBAL_ALLOCATOR: mimalloc::MiMalloc = mimalloc::MiMalloc;
+static GLOBAL_ALLOCATOR: tcmalloc::TCMalloc = tcmalloc::TCMalloc;
 
 fn main() {
     // Setup tracing
