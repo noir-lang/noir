@@ -33,9 +33,6 @@ mod arithmetic;
 
 #[derive(Eq, Clone, Ord, PartialOrd)]
 pub enum Type {
-    /// A primitive Field type
-    FieldElement,
-
     /// Array(N, E) is an array of N elements of type E. It is expected that N
     /// is either a type variable of some kind or a Type::Constant.
     Array(Box<Type>, Box<Type>),
@@ -47,9 +44,6 @@ pub enum Type {
     /// E.g. `u32` would be `Integer(Unsigned, ThirtyTwo)`
     Integer(Signedness, IntegerBitSize),
 
-    /// The primitive `bool` type.
-    Bool,
-
     /// String(N) is an array of characters of length N. It is expected that N
     /// is either a type variable of some kind or a Type::Constant.
     String(Box<Type>),
@@ -57,9 +51,6 @@ pub enum Type {
     /// FmtString(N, Vec<E>) is an array of characters of length N that contains
     /// a list of fields specified inside the string by the following regular expression r"\{([\S]+)\}"
     FmtString(Box<Type>, Box<Type>),
-
-    /// The unit type `()`.
-    Unit,
 
     /// A tuple type with the given list of fields in the order they appear in source code.
     Tuple(Vec<Type>),
@@ -768,7 +759,7 @@ impl TypeVariable {
     /// and if unbound, that it's a Kind::Integer
     pub fn is_integer(&self) -> bool {
         match &*self.borrow() {
-            TypeBinding::Bound(binding) => matches!(binding.follow_bindings(), Type::Integer(..)),
+            TypeBinding::Bound(binding) => binding.is_integer(),
             TypeBinding::Unbound(_, type_var_kind) => {
                 matches!(type_var_kind.follow_bindings(), Kind::Integer)
             }
@@ -779,9 +770,7 @@ impl TypeVariable {
     /// and if unbound, that it's a Kind::IntegerOrField
     pub fn is_integer_or_field(&self) -> bool {
         match &*self.borrow() {
-            TypeBinding::Bound(binding) => {
-                matches!(binding.follow_bindings(), Type::Integer(..) | Type::FieldElement)
-            }
+            TypeBinding::Bound(binding) => binding.is_integer_or_field(),
             TypeBinding::Unbound(_, type_var_kind) => {
                 matches!(type_var_kind.follow_bindings(), Kind::IntegerOrField)
             }
@@ -819,9 +808,6 @@ pub struct TypeVariableId(pub usize);
 impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Type::FieldElement => {
-                write!(f, "Field")
-            }
             Type::Array(len, typ) => {
                 write!(f, "[{typ}; {len}]")
             }
@@ -830,7 +816,15 @@ impl std::fmt::Display for Type {
             }
             Type::Integer(sign, num_bits) => match sign {
                 Signedness::Signed => write!(f, "i{num_bits}"),
-                Signedness::Unsigned => write!(f, "u{num_bits}"),
+                Signedness::Unsigned => {
+                    match num_bits {
+                        IntegerBitSize::Zero => write!(f, "()"),
+                        IntegerBitSize::One(/* is_bool */ true) => write!(f, "bool"),
+                        IntegerBitSize::One(/* is_bool */ false) => write!(f, "u1"),
+                        IntegerBitSize::FieldElementBits => write!(f, "Field"),
+                        _ => write!(f, "u{num_bits}"),
+                    }
+                }
             },
             Type::TypeVariable(var) => {
                 let binding = &var.1;
@@ -869,12 +863,10 @@ impl std::fmt::Display for Type {
                 let elements = vecmap(elements, ToString::to_string);
                 write!(f, "({})", elements.join(", "))
             }
-            Type::Bool => write!(f, "bool"),
             Type::String(len) => write!(f, "str<{len}>"),
             Type::FmtString(len, elements) => {
                 write!(f, "fmtstr<{len}, {elements}>")
             }
-            Type::Unit => write!(f, "()"),
             Type::Error => write!(f, "error"),
             Type::NamedGeneric(binding, name) => match &*binding.borrow() {
                 TypeBinding::Bound(binding) => binding.fmt(f),
@@ -892,9 +884,10 @@ impl std::fmt::Display for Type {
                     write!(f, "unconstrained ")?;
                 }
 
-                let closure_env_text = match **env {
-                    Type::Unit => "".to_string(),
-                    _ => format!("[{env}]"),
+                let closure_env_text = if env.is_unit() {
+                    "".to_string()
+                } else {
+                    format!("[{env}]")
                 };
 
                 let args = vecmap(args.iter(), ToString::to_string);
@@ -970,7 +963,7 @@ pub struct UnificationError;
 
 impl Type {
     pub fn default_int_or_field_type() -> Type {
-        Type::FieldElement
+        Type::field_element()
     }
 
     pub fn default_int_type() -> Type {
@@ -998,6 +991,24 @@ impl Type {
         Self::type_variable_with_kind(interner, type_var_kind)
     }
 
+    pub fn unit() -> Type {
+        Type::Integer(Signedness::Unsigned, IntegerBitSize::Zero)
+    }
+
+    pub fn bool() -> Type {
+        let is_bool = true;
+        Type::Integer(Signedness::Unsigned, IntegerBitSize::One(is_bool))
+    }
+
+    pub fn u1() -> Type {
+        let is_bool = false;
+        Type::Integer(Signedness::Unsigned, IntegerBitSize::One(is_bool))
+    }
+
+    pub fn field_element() -> Type {
+        Type::Integer(Signedness::Unsigned, IntegerBitSize::FieldElementBits)
+    }
+
     /// A bit of an awkward name for this function - this function returns
     /// true for type variables or polymorphic integers which are unbound.
     /// NamedGenerics will always be false as although they are bindable,
@@ -1013,32 +1024,46 @@ impl Type {
         }
     }
 
-    pub fn is_field(&self) -> bool {
-        matches!(self.follow_bindings(), Type::FieldElement)
+    pub fn is_unit(&self) -> bool {
+        matches!(self.follow_bindings(), Type::Integer(Signedness::Unsigned, IntegerBitSize::Zero))
     }
 
     pub fn is_bool(&self) -> bool {
-        matches!(self.follow_bindings(), Type::Bool)
+        matches!(self.follow_bindings(), Type::Integer(Signedness::Unsigned, IntegerBitSize::One(/* is_bool */ true)))
+    }
+
+    pub fn is_u1(&self) -> bool {
+        matches!(self.follow_bindings(), Type::Integer(Signedness::Unsigned, IntegerBitSize::One(/* is_bool */ false)))
     }
 
     pub fn is_integer(&self) -> bool {
-        matches!(self.follow_bindings(), Type::Integer(_, _))
+        match self.follow_bindings() {
+            Type::Integer(_, num_bits) => num_bits.is_integer_size(),
+            _ => false,
+        }
     }
 
-    /// If value_level, only check for Type::FieldElement,
+    // is `self` integer or value-level field
+    pub fn is_integer_or_field(&self) -> bool {
+        let value_level = true;
+        self.is_integer() || self.is_field_element(value_level)
+    }
+
+    /// If value_level, only check for Type::field_element(),
     /// else only check for a type-level FieldElement
-    fn is_field_element(&self, value_level: bool) -> bool {
+    pub fn is_field_element(&self, value_level: bool) -> bool {
         match self.follow_bindings() {
-            Type::FieldElement => value_level,
+            Type::Integer(Signedness::Unsigned, IntegerBitSize::FieldElementBits) => value_level,
             Type::TypeVariable(var) => var.is_field_element(value_level),
             Type::Constant(_, kind) => !value_level && kind.is_field_element(true),
             _ => false,
         }
     }
 
-    pub fn is_signed(&self) -> bool {
-        matches!(self.follow_bindings(), Type::Integer(Signedness::Signed, _))
-    }
+    // TODO unused
+    // pub fn is_signed(&self) -> bool {
+    //     matches!(self.follow_bindings(), Type::Integer(Signedness::Signed, _))
+    // }
 
     pub fn is_unsigned(&self) -> bool {
         matches!(self.follow_bindings(), Type::Integer(Signedness::Unsigned, _))
@@ -1050,9 +1075,9 @@ impl Type {
         use Kind as K;
         use Type::*;
         match self.follow_bindings() {
-            FieldElement => true,
-            Integer(..) => true,
-            Bool => true,
+            Integer(_, num_bits) => {
+                !num_bits.is_zero()
+            },
             TypeVariable(var) => match &*var.borrow() {
                 TypeBinding::Bound(typ) => typ.is_numeric_value(),
                 TypeBinding::Unbound(_, type_var_kind) => {
@@ -1063,16 +1088,21 @@ impl Type {
         }
     }
 
+    pub fn is_tuple(&self) -> bool {
+        matches!(self.follow_bindings(), Type::Tuple(..))
+    }
+
+    pub fn is_named_generic(&self) -> bool {
+        matches!(self.follow_bindings(), Type::NamedGeneric(..))
+    }
+
     pub fn is_primitive(&self) -> bool {
         match self.follow_bindings() {
-            Type::FieldElement
-            | Type::Array(_, _)
+            Type::Array(_, _)
             | Type::Slice(_)
             | Type::Integer(..)
-            | Type::Bool
             | Type::String(_)
             | Type::FmtString(_, _)
-            | Type::Unit
             | Type::Function(..)
             | Type::Tuple(..) => true,
             Type::Alias(alias_type, generics) => {
@@ -1111,10 +1141,7 @@ impl Type {
         match self {
             // Type::Error is allowed as usual since it indicates an error was already issued and
             // we don't need to issue further errors about this likely unresolved type
-            Type::FieldElement
-            | Type::Integer(_, _)
-            | Type::Bool
-            | Type::Unit
+            Type::Integer(_, _)
             | Type::Constant(_, _)
             | Type::Error => true,
 
@@ -1162,10 +1189,7 @@ impl Type {
         match self {
             // Type::Error is allowed as usual since it indicates an error was already issued and
             // we don't need to issue further errors about this likely unresolved type
-            Type::FieldElement
-            | Type::Integer(_, _)
-            | Type::Bool
-            | Type::Unit
+            Type::Integer(_, _)
             | Type::Constant(_, _)
             | Type::TypeVariable(_)
             | Type::NamedGeneric(_, _)
@@ -1207,10 +1231,7 @@ impl Type {
     /// unconstrained functions (and vice-versa).
     pub(crate) fn is_valid_for_unconstrained_boundary(&self) -> bool {
         match self {
-            Type::FieldElement
-            | Type::Integer(_, _)
-            | Type::Bool
-            | Type::Unit
+            Type::Integer(_, _)
             | Type::Constant(_, _)
             | Type::Slice(_)
             | Type::Function(_, _, _, _)
@@ -1309,15 +1330,11 @@ impl Type {
             },
             Type::InfixExpr(lhs, _op, rhs) => lhs.infix_kind(rhs),
             Type::Alias(def, generics) => def.borrow().get_type(generics).kind(),
-            // This is a concrete FieldElement, not an IntegerOrField
-            Type::FieldElement
-            | Type::Integer(..)
+            Type::Integer(..)
             | Type::Array(..)
             | Type::Slice(..)
-            | Type::Bool
             | Type::String(..)
             | Type::FmtString(..)
-            | Type::Unit
             | Type::Tuple(..)
             | Type::Struct(..)
             | Type::TraitAsType(..)
@@ -1343,7 +1360,13 @@ impl Type {
     /// Returns the number of field elements required to represent the type once encoded.
     pub fn field_count(&self, location: &Location) -> u32 {
         match self {
-            Type::FieldElement | Type::Integer { .. } | Type::Bool => 1,
+            Type::Integer(_, num_bits) => {
+                if num_bits.is_zero() {
+                    unreachable!("This type cannot exist as a parameter to main")
+                } else {
+                    1
+                }
+            }
             Type::Array(size, typ) => {
                 let length = size
                     .evaluate_to_u32(location.span)
@@ -1365,7 +1388,6 @@ impl Type {
                 .evaluate_to_u32(location.span)
                 .expect("Cannot have variable sized strings as a parameter to main"),
             Type::FmtString(_, _)
-            | Type::Unit
             | Type::TypeVariable(_)
             | Type::TraitAsType(..)
             | Type::NamedGeneric(_, _)
@@ -1433,12 +1455,28 @@ impl Type {
 
         let this = self.substitute(bindings).follow_bindings();
         match &this {
-            Type::Integer(..) => {
+            Type::Integer(_, num_bits) => {
+
+                // TODO cleanup
+                // dbg!("try_bind_to_polymorphic_int", self.kind(), &this, only_integer);
+
+                if num_bits.is_field_element_bits() {
+                    if only_integer {
+                        return Err(UnificationError);
+                    } else {
+                        bindings.insert(target_id, (var.clone(), Kind::IntegerOrField, this));
+                        return Ok(());
+                    }
+                }
+
+                // can't bind () to a polymorphic int
+                // // TODO: likely need to error somewhere else
+                // if num_bits.is_zero() {
+                if num_bits.is_zero() {
+                    return Err(UnificationError)
+                }
+
                 bindings.insert(target_id, (var.clone(), Kind::Integer, this));
-                Ok(())
-            }
-            Type::FieldElement if !only_integer => {
-                bindings.insert(target_id, (var.clone(), Kind::IntegerOrField, this));
                 Ok(())
             }
             Type::TypeVariable(self_var) => {
@@ -1585,7 +1623,11 @@ impl Type {
                 TypeBinding::Bound(typ) => {
                     if typ.is_numeric_value() {
                         other.try_unify_to_type_variable(var, bindings, |bindings| {
-                            let only_integer = matches!(typ, Type::Integer(..));
+                            let only_integer = typ.is_integer();
+
+                            // TODO cleanup
+                            // dbg!("try_bind_to_polymorphic_int: bound", &other, &var, only_integer);
+
                             other.try_bind_to_polymorphic_int(var, bindings, only_integer)
                         })
                     } else {
@@ -1597,11 +1639,19 @@ impl Type {
                 TypeBinding::Unbound(_id, Kind::IntegerOrField) => other
                     .try_unify_to_type_variable(var, bindings, |bindings| {
                         let only_integer = false;
+
+                        // TODO cleanup
+                        // dbg!("try_bind_to_polymorphic_int: unbound int-or-field", &other, &var, only_integer);
+
                         other.try_bind_to_polymorphic_int(var, bindings, only_integer)
                     }),
                 TypeBinding::Unbound(_id, Kind::Integer) => {
                     other.try_unify_to_type_variable(var, bindings, |bindings| {
                         let only_integer = true;
+
+                        // TODO cleanup
+                        // dbg!("try_bind_to_polymorphic_int: unbound int", &other, &var, only_integer);
+
                         other.try_bind_to_polymorphic_int(var, bindings, only_integer)
                     })
                 }
@@ -2273,13 +2323,10 @@ impl Type {
                 Type::InfixExpr(Box::new(lhs), *op, Box::new(rhs))
             }
 
-            Type::FieldElement
-            | Type::Integer(_, _)
-            | Type::Bool
+            Type::Integer(_, _)
             | Type::Constant(_, _)
             | Type::Error
-            | Type::Quoted(_)
-            | Type::Unit => self.clone(),
+            | Type::Quoted(_) => self.clone(),
         }
     }
 
@@ -2322,13 +2369,10 @@ impl Type {
             Type::MutableReference(element) => element.occurs(target_id),
             Type::InfixExpr(lhs, _op, rhs) => lhs.occurs(target_id) || rhs.occurs(target_id),
 
-            Type::FieldElement
-            | Type::Integer(_, _)
-            | Type::Bool
+            Type::Integer(_, _)
             | Type::Constant(_, _)
             | Type::Error
-            | Type::Quoted(_)
-            | Type::Unit => false,
+            | Type::Quoted(_) => false,
         }
     }
 
@@ -2397,7 +2441,7 @@ impl Type {
 
             // Expect that this function should only be called on instantiated types
             Forall(..) => unreachable!(),
-            FieldElement | Integer(_, _) | Bool | Constant(_, _) | Unit | Quoted(_) | Error => {
+            Integer(_, _) | Constant(_, _) | Quoted(_) | Error => {
                 self.clone()
             }
         }
@@ -2427,11 +2471,8 @@ impl Type {
     /// to bind to named generics since they are unbindable during type checking.
     pub fn replace_named_generics_with_type_variables(&mut self) {
         match self {
-            Type::FieldElement
-            | Type::Constant(_, _)
+            Type::Constant(_, _)
             | Type::Integer(_, _)
-            | Type::Bool
-            | Type::Unit
             | Type::Error
             | Type::Quoted(_) => (),
 
@@ -2518,15 +2559,20 @@ impl Type {
 
     pub(crate) fn integral_maximum_size(&self) -> Option<FieldElement> {
         match self {
-            Type::FieldElement => None,
             Type::Integer(sign, num_bits) => {
-                let mut max_bit_size = num_bits.bit_size();
-                if sign == &Signedness::Signed {
-                    max_bit_size -= 1;
+                match num_bits {
+                    IntegerBitSize::Zero => Some(FieldElement::zero()),
+                    IntegerBitSize::One(_) => Some(FieldElement::one()),
+                    IntegerBitSize::FieldElementBits => None,
+                    _ => {
+                        let mut max_bit_size = num_bits.bit_size();
+                        if sign == &Signedness::Signed {
+                            max_bit_size -= 1;
+                        }
+                        Some(((1u128 << max_bit_size) - 1).into())
+                    }
                 }
-                Some(((1u128 << max_bit_size) - 1).into())
             }
-            Type::Bool => Some(FieldElement::one()),
             Type::TypeVariable(var) => {
                 let binding = &var.1;
                 match &*binding.borrow() {
@@ -2551,7 +2597,6 @@ impl Type {
             | Type::Slice(..)
             | Type::String(..)
             | Type::FmtString(..)
-            | Type::Unit
             | Type::Tuple(..)
             | Type::Struct(..)
             | Type::TraitAsType(..)
@@ -2592,7 +2637,7 @@ fn convert_array_expression_to_slice(
     interner.push_expr_type(expression, target_type.clone());
 
     let func_type =
-        Type::Function(vec![array_type], Box::new(target_type), Box::new(Type::Unit), false);
+        Type::Function(vec![array_type], Box::new(target_type), Box::new(Type::unit()), false);
     interner.push_expr_type(func, func_type);
 }
 
@@ -2673,7 +2718,6 @@ impl From<&Type> for PrintableType {
         // Note; use strict_eq instead of partial_eq when comparing field types
         // in this method, you most likely want to distinguish between public and private
         match value {
-            Type::FieldElement => PrintableType::Field,
             Type::Array(size, typ) => {
                 let dummy_span = Span::default();
                 let length =
@@ -2687,7 +2731,14 @@ impl From<&Type> for PrintableType {
             }
             Type::Integer(sign, bit_width) => match sign {
                 Signedness::Unsigned => {
-                    PrintableType::UnsignedInteger { width: (*bit_width).into() }
+                    match bit_width {
+                        IntegerBitSize::Zero => PrintableType::Unit,
+                        IntegerBitSize::One(true) => PrintableType::Boolean,
+                        IntegerBitSize::FieldElementBits => PrintableType::Field,
+                        _ => {
+                            PrintableType::UnsignedInteger { width: (*bit_width).into() }
+                        }
+                    }
                 }
                 Signedness::Signed => PrintableType::SignedInteger { width: (*bit_width).into() },
             },
@@ -2700,7 +2751,6 @@ impl From<&Type> for PrintableType {
                 TypeBinding::Unbound(_, Kind::Numeric(typ)) => (*typ.clone()).into(),
                 TypeBinding::Unbound(_, Kind::Any | Kind::Normal) => unreachable!(),
             },
-            Type::Bool => PrintableType::Boolean,
             Type::String(size) => {
                 let dummy_span = Span::default();
                 let size =
@@ -2709,7 +2759,6 @@ impl From<&Type> for PrintableType {
             }
             Type::FmtString(_, _) => unreachable!("format strings cannot be printed"),
             Type::Error => unreachable!(),
-            Type::Unit => PrintableType::Unit,
             Type::Constant(_, _) => unreachable!(),
             Type::Struct(def, ref args) => {
                 let struct_type = def.borrow();
@@ -2741,9 +2790,6 @@ impl From<&Type> for PrintableType {
 impl std::fmt::Debug for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Type::FieldElement => {
-                write!(f, "Field")
-            }
             Type::Array(len, typ) => {
                 write!(f, "[{typ:?}; {len:?}]")
             }
@@ -2752,8 +2798,16 @@ impl std::fmt::Debug for Type {
             }
             Type::Integer(sign, num_bits) => match sign {
                 Signedness::Signed => write!(f, "i{num_bits}"),
-                Signedness::Unsigned => write!(f, "u{num_bits}"),
-            },
+                Signedness::Unsigned => {
+                    match num_bits {
+                        IntegerBitSize::Zero => write!(f, "()"),
+                        IntegerBitSize::One(/* is_bool */ true) => write!(f, "bool"),
+                        IntegerBitSize::One(/* is_bool */ false) => write!(f, "u1"),
+                        IntegerBitSize::FieldElementBits => write!(f, "Field"),
+                        _ => write!(f, "u{num_bits}"),
+                    }
+                }
+            }
             Type::TypeVariable(var) => {
                 let binding = &var.1;
                 if let TypeBinding::Unbound(_, type_var_kind) = &*binding.borrow() {
@@ -2788,12 +2842,10 @@ impl std::fmt::Debug for Type {
                 let elements = vecmap(elements, |arg| format!("{:?}", arg));
                 write!(f, "({})", elements.join(", "))
             }
-            Type::Bool => write!(f, "bool"),
             Type::String(len) => write!(f, "str<{len:?}>"),
             Type::FmtString(len, elements) => {
                 write!(f, "fmtstr<{len:?}, {elements:?}>")
             }
-            Type::Unit => write!(f, "()"),
             Type::Error => write!(f, "error"),
             Type::CheckedCast { to, .. } => write!(f, "{:?}", to),
             Type::NamedGeneric(binding, name) => match binding.kind() {
@@ -2814,9 +2866,10 @@ impl std::fmt::Debug for Type {
                     write!(f, "unconstrained ")?;
                 }
 
-                let closure_env_text = match **env {
-                    Type::Unit => "".to_string(),
-                    _ => format!(" with env {env:?}"),
+                let closure_env_text = if (**env).is_unit() {
+                    "".to_string()
+                } else {
+                    format!(" with env {env:?}")
                 };
 
                 let args = vecmap(args.iter(), |arg| format!("{:?}", arg));
@@ -2870,7 +2923,7 @@ impl std::hash::Hash for Type {
         }
 
         match self {
-            Type::FieldElement | Type::Bool | Type::Unit | Type::Error => (),
+            Type::Error => (),
             Type::Array(len, elem) => {
                 len.hash(state);
                 elem.hash(state);
@@ -2944,7 +2997,7 @@ impl PartialEq for Type {
 
         use Type::*;
         match (self, other) {
-            (FieldElement, FieldElement) | (Bool, Bool) | (Unit, Unit) | (Error, Error) => true,
+            (Error, Error) => true,
             (Array(lhs_len, lhs_elem), Array(rhs_len, rhs_elem)) => {
                 lhs_len == rhs_len && lhs_elem == rhs_elem
             }

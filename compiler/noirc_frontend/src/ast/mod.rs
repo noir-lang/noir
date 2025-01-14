@@ -43,28 +43,66 @@ use iter_extended::vecmap;
 #[cfg_attr(test, derive(Arbitrary))]
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Ord, PartialOrd)]
 pub enum IntegerBitSize {
-    One,
+    Zero, // bit size of Unit
+    One(/* is_bool */ bool),
     Eight,
     Sixteen,
     ThirtyTwo,
     SixtyFour,
+    FieldElementBits, // max bit size of FieldElement
 }
 
 impl IntegerBitSize {
     pub fn bit_size(&self) -> u8 {
         match self {
-            IntegerBitSize::One => 1,
+            IntegerBitSize::Zero => 0,
+            IntegerBitSize::One(_) => 1,
             IntegerBitSize::Eight => 8,
             IntegerBitSize::Sixteen => 16,
             IntegerBitSize::ThirtyTwo => 32,
             IntegerBitSize::SixtyFour => 64,
+            IntegerBitSize::FieldElementBits => {
+                FieldElement::max_num_bits().try_into().expect("ICE: FieldElement has more than u8::MAX bits")
+            }
         }
+    }
+
+    pub fn bool() -> IntegerBitSize {
+        IntegerBitSize::One(true)
+    }
+
+    pub fn u1() -> IntegerBitSize {
+        IntegerBitSize::One(false)
+    }
+
+    pub fn is_zero(&self) -> bool {
+        matches!(self, IntegerBitSize::Zero)
+    }
+
+    pub fn is_u1(&self) -> bool {
+        matches!(self, IntegerBitSize::One(false))
+    }
+
+    pub fn is_bool(&self) -> bool {
+        matches!(self, IntegerBitSize::One(false))
+    }
+
+    pub fn is_field_element_bits(&self) -> bool {
+        matches!(self, IntegerBitSize::FieldElementBits)
+    }
+
+    pub fn is_integer_size(&self) -> bool {
+        !self.is_zero() && !self.is_bool() && !self.is_field_element_bits()
+    }
+
+    pub fn is_integer_or_field_size(&self) -> bool {
+        !self.is_zero() && !self.is_bool()
     }
 }
 
 impl IntegerBitSize {
     pub fn allowed_sizes() -> Vec<Self> {
-        vec![Self::One, Self::Eight, Self::ThirtyTwo, Self::SixtyFour]
+        vec![Self::bool(), Self::u1(), Self::Eight, Self::ThirtyTwo, Self::SixtyFour]
     }
 }
 
@@ -72,11 +110,13 @@ impl From<IntegerBitSize> for u32 {
     fn from(size: IntegerBitSize) -> u32 {
         use IntegerBitSize::*;
         match size {
-            One => 1,
+            Zero => 0,
+            One(_) => 1,
             Eight => 8,
             Sixteen => 16,
             ThirtyTwo => 32,
             SixtyFour => 64,
+            FieldElementBits => FieldElement::max_num_bits(),
         }
     }
 }
@@ -88,8 +128,12 @@ impl TryFrom<u32> for IntegerBitSize {
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
         use IntegerBitSize::*;
+        if value == FieldElement::max_num_bits() {
+            return Ok(FieldElementBits);
+        }
         match value {
-            1 => Ok(One),
+            0 => Ok(Zero),
+            1 => Ok(One(/* is_bool */ false)),
             8 => Ok(Eight),
             16 => Ok(Sixteen),
             32 => Ok(ThirtyTwo),
@@ -110,15 +154,12 @@ impl core::fmt::Display for IntegerBitSize {
 /// for structs within, but are otherwise identical to Types.
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum UnresolvedTypeData {
-    FieldElement,
     Array(UnresolvedTypeExpression, Box<UnresolvedType>), // [Field; 4] = Array(4, Field)
     Slice(Box<UnresolvedType>),
     Integer(Signedness, IntegerBitSize), // u32 = Integer(unsigned, ThirtyTwo)
-    Bool,
     Expression(UnresolvedTypeExpression),
     String(UnresolvedTypeExpression),
     FormatString(UnresolvedTypeExpression, Box<UnresolvedType>),
-    Unit,
 
     Parenthesized(Box<UnresolvedType>),
 
@@ -287,13 +328,12 @@ impl std::fmt::Display for UnresolvedTypeData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use UnresolvedTypeData::*;
         match self {
-            FieldElement => write!(f, "Field"),
             Array(len, typ) => write!(f, "[{typ}; {len}]"),
             Slice(typ) => write!(f, "[{typ}]"),
-            Integer(sign, num_bits) => match sign {
-                Signedness::Signed => write!(f, "i{num_bits}"),
-                Signedness::Unsigned => write!(f, "u{num_bits}"),
-            },
+            // NOTE: identical to implementation in Display for Type
+            Integer(sign, num_bits) => {
+                write!(f, "{}", crate::Type::Integer(*sign, *num_bits))
+            }
             Named(s, args, _) => write!(f, "{s}{args}"),
             TraitAsType(s, args) => write!(f, "impl {s}{args}"),
             Tuple(elements) => {
@@ -301,7 +341,6 @@ impl std::fmt::Display for UnresolvedTypeData {
                 write!(f, "({})", elements.join(", "))
             }
             Expression(expression) => expression.fmt(f),
-            Bool => write!(f, "bool"),
             String(len) => write!(f, "str<{len}>"),
             FormatString(len, elements) => write!(f, "fmt<{len}, {elements}"),
             Function(args, ret, env, unconstrained) => {
@@ -310,21 +349,18 @@ impl std::fmt::Display for UnresolvedTypeData {
                 }
 
                 let args = vecmap(args, ToString::to_string).join(", ");
-
-                match &env.as_ref().typ {
-                    UnresolvedTypeData::Unit => {
-                        write!(f, "fn({args}) -> {ret}")
-                    }
-                    UnresolvedTypeData::Tuple(env_types) => {
-                        let env_types = vecmap(env_types, |arg| arg.typ.to_string()).join(", ");
-                        write!(f, "fn[{env_types}]({args}) -> {ret}")
-                    }
-                    other => write!(f, "fn[{other}]({args}) -> {ret}"),
+                let env_typ = &env.as_ref().typ;
+                if env_typ.is_unit() {
+                    write!(f, "fn({args}) -> {ret}")
+                } else if let UnresolvedTypeData::Tuple(env_types) = env_typ {
+                    let env_types = vecmap(env_types, |arg| arg.typ.to_string()).join(", ");
+                    write!(f, "fn[{env_types}]({args}) -> {ret}")
+                } else {
+                    write!(f, "fn[{env_typ}]({args}) -> {ret}")
                 }
             }
             MutableReference(element) => write!(f, "&mut {element}"),
             Quoted(quoted) => write!(f, "{}", quoted),
-            Unit => write!(f, "()"),
             Error => write!(f, "error"),
             Unspecified => write!(f, "unspecified"),
             Parenthesized(typ) => write!(f, "({typ})"),
@@ -437,16 +473,37 @@ impl UnresolvedTypeData {
             }
             UnresolvedTypeData::Unspecified => true,
 
-            UnresolvedTypeData::FieldElement
-            | UnresolvedTypeData::Integer(_, _)
-            | UnresolvedTypeData::Bool
-            | UnresolvedTypeData::Unit
+            UnresolvedTypeData::Integer(_, _)
             | UnresolvedTypeData::Quoted(_)
             | UnresolvedTypeData::AsTraitPath(_)
             | UnresolvedTypeData::Resolved(_)
             | UnresolvedTypeData::Interned(_)
             | UnresolvedTypeData::Error => false,
         }
+    }
+
+    pub(crate) fn unit() -> UnresolvedTypeData {
+        UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::Zero)
+    }
+
+    pub(crate) fn bool() -> UnresolvedTypeData {
+        UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::bool())
+    }
+
+    pub(crate) fn field_element() -> UnresolvedTypeData {
+        UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::FieldElementBits)
+    }
+
+    pub(crate) fn is_unit(&self) -> bool {
+        matches!(self, UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::Zero))
+    }
+
+    pub(crate) fn is_bool(&self) -> bool {
+        matches!(self, UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::One(/* is_bool */ true)))
+    }
+
+    pub(crate) fn is_field_element(&self) -> bool {
+        matches!(self, UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::FieldElementBits))
     }
 }
 

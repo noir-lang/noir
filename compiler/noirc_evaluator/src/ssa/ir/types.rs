@@ -63,16 +63,15 @@ impl NumericType {
         field: FieldElement,
         negative: bool,
     ) -> Option<String> {
+        // TODO cleanup
+        dbg!(self);
+
         match self {
             NumericType::Unsigned { bit_size } => {
-                let max = 2u128.pow(bit_size) - 1;
-                if negative {
-                    return Some(format!("0..={}", max));
-                }
-                if field <= max.into() {
+                if !negative && field.num_bits() <= bit_size {
                     None
                 } else {
-                    Some(format!("0..={}", max))
+                    Some(format!("0..=2.pow({})", bit_size))
                 }
             }
             NumericType::Signed { bit_size } => {
@@ -85,7 +84,10 @@ impl NumericType {
                     Some(format!("-{}..={}", min, max))
                 }
             }
-            NumericType::NativeField => None,
+
+            // TODO: re-enable if used
+            // NumericType::NativeField => None,
+            NumericType::NativeField => panic!("value_is_outside_limits: NumericType::NativeField is used!"),
         }
     }
 

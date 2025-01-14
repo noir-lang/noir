@@ -681,7 +681,7 @@ impl<'context> Elaborator<'context> {
             } else {
                 self.resolve_type(unresolved_typ.clone())
             };
-            if !matches!(typ, Type::FieldElement | Type::Integer(_, _)) {
+            if !typ.is_integer_or_field() {
                 let unsupported_typ_err =
                     ResolverError::UnsupportedNumericGenericType(UnsupportedNumericGenericType {
                         ident: ident.clone(),
@@ -850,7 +850,7 @@ impl<'context> Elaborator<'context> {
         let mut typ = Type::Function(
             parameter_types,
             return_type,
-            Box::new(Type::Unit),
+            Box::new(Type::unit()),
             func.def.is_unconstrained,
         );
 
@@ -936,12 +936,9 @@ impl<'context> Elaborator<'context> {
                 self.mark_type_as_used(left);
                 self.mark_type_as_used(right);
             }
-            Type::FieldElement
-            | Type::Integer(..)
-            | Type::Bool
+            Type::Integer(..)
             | Type::String(_)
             | Type::FmtString(_, _)
-            | Type::Unit
             | Type::Quoted(..)
             | Type::Constant(..)
             | Type::TraitAsType(..)
@@ -1586,12 +1583,9 @@ impl<'context> Elaborator<'context> {
                 self.check_type_is_not_more_private_then_item(name, visibility, left, span);
                 self.check_type_is_not_more_private_then_item(name, visibility, right, span);
             }
-            Type::FieldElement
-            | Type::Integer(..)
-            | Type::Bool
+            Type::Integer(..)
             | Type::String(..)
             | Type::FmtString(..)
-            | Type::Unit
             | Type::Quoted(..)
             | Type::TypeVariable(..)
             | Type::Forall(..)

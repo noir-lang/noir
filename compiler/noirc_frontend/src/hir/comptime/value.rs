@@ -108,14 +108,14 @@ impl Value {
 
     pub(crate) fn get_type(&self) -> Cow<Type> {
         Cow::Owned(match self {
-            Value::Unit => Type::Unit,
-            Value::Bool(_) => Type::Bool,
-            Value::Field(_) => Type::FieldElement,
+            Value::Unit => Type::unit(),
+            Value::Bool(_) => Type::bool(),
+            Value::Field(_) => Type::field_element(),
             Value::I8(_) => Type::Integer(Signedness::Signed, IntegerBitSize::Eight),
             Value::I16(_) => Type::Integer(Signedness::Signed, IntegerBitSize::Sixteen),
             Value::I32(_) => Type::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo),
             Value::I64(_) => Type::Integer(Signedness::Signed, IntegerBitSize::SixtyFour),
-            Value::U1(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::One),
+            Value::U1(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::One(/* is_bool */ false)),
             Value::U8(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight),
             Value::U16(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::Sixteen),
             Value::U32(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo),
