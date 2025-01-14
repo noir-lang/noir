@@ -197,7 +197,11 @@ struct FunctionContext {
     /// verified at the end of a function. This is because constraints arise
     /// on each variable, but it is only until function calls when the types
     /// needed for the trait constraint may become known.
-    trait_constraints: Vec<(TraitConstraint, ExprId)>,
+    /// The `select impl` bool indicates whether, after verifying the trait constraint,
+    /// the resulting trait impl should be the one used for a call (sometimes trait
+    /// constraints are verified but there's no call associated with them, like in the
+    /// case of checking generic arguments)
+    trait_constraints: Vec<(TraitConstraint, ExprId, bool /* select impl */)>,
 }
 
 impl<'context> Elaborator<'context> {
@@ -550,7 +554,7 @@ impl<'context> Elaborator<'context> {
             }
         }
 
-        for (mut constraint, expr_id) in context.trait_constraints {
+        for (mut constraint, expr_id, select_impl) in context.trait_constraints {
             let span = self.interner.expr_span(&expr_id);
 
             if matches!(&constraint.typ, Type::MutableReference(_)) {
@@ -565,6 +569,7 @@ impl<'context> Elaborator<'context> {
                 &constraint.trait_bound.trait_generics.ordered,
                 &constraint.trait_bound.trait_generics.named,
                 expr_id,
+                select_impl,
                 span,
             );
         }
