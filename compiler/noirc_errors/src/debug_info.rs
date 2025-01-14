@@ -98,7 +98,6 @@ impl ProgramDebugInfo {
 #[serde_as]
 #[derive(Default, Debug, Clone, Deserialize, Serialize, Hash)]
 pub struct DebugInfo {
-
     pub brillig_locations:
         BTreeMap<BrilligFunctionId, BTreeMap<BrilligOpcodeLocation, CallStackId>>,
     pub location_tree: LocationTree,
