@@ -119,7 +119,6 @@ jobs:
           mkdir ../reports
 
           ./gates_report_brillig.sh 9223372036854775807
-          cat gates_report_brillig.json
           mv gates_report_brillig.json ../reports/gates_report_brillig_inliner_max.json
           
           ./gates_report_brillig.sh 0
