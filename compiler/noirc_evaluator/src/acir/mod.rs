@@ -745,9 +745,9 @@ impl<'a> Context<'a> {
                 let result_acir_var = self.acir_context.not_var(acir_var, typ)?;
                 self.define_result_var(dfg, instruction_id, result_acir_var);
             }
-            Instruction::Truncate { value, bit_size, max_bit_size } => {
+            Instruction::Truncate { value, bit_size } => {
                 let result_acir_var =
-                    self.convert_ssa_truncate(*value, *bit_size, *max_bit_size, dfg)?;
+                    self.convert_ssa_truncate(*value, *bit_size, dfg)?;
                 self.define_result_var(dfg, instruction_id, result_acir_var);
             }
             Instruction::EnableSideEffectsIf { condition } => {
@@ -2065,7 +2065,6 @@ impl<'a> Context<'a> {
         &mut self,
         value_id: ValueId,
         bit_size: u32,
-        max_bit_size: u32,
         dfg: &DataFlowGraph,
     ) -> Result<AcirVar, RuntimeError> {
         let mut var = self.convert_numeric_value(value_id, dfg)?;
@@ -2090,7 +2089,7 @@ impl<'a> Context<'a> {
             ),
         };
 
-        self.acir_context.truncate_var(var, bit_size, max_bit_size)
+        self.acir_context.truncate_var(var, bit_size)
     }
 
     /// Returns a vector of `AcirVar`s constrained to be result of the function call.

@@ -1141,14 +1141,13 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         &mut self,
         lhs: AcirVar,
         rhs: u32,
-        max_bit_size: u32,
     ) -> Result<AcirVar, RuntimeError> {
         // 2^{rhs}
         let divisor = self.add_constant(F::from(2_u128).pow(&F::from(rhs as u128)));
         let one = self.add_constant(F::one());
 
         //  Computes lhs = 2^{rhs} * q + r
-        let (_, remainder) = self.euclidean_division_var(lhs, divisor, max_bit_size, one)?;
+        let (_, remainder) = self.euclidean_division_var(lhs, divisor, F::max_num_bits(), one)?;
 
         Ok(remainder)
     }

@@ -180,9 +180,9 @@ fn display_instruction_inner(
         }
         Instruction::Cast(lhs, typ) => writeln!(f, "cast {} as {typ}", show(*lhs)),
         Instruction::Not(rhs) => writeln!(f, "not {}", show(*rhs)),
-        Instruction::Truncate { value, bit_size, max_bit_size } => {
+        Instruction::Truncate { value, bit_size } => {
             let value = show(*value);
-            writeln!(f, "truncate {value} to {bit_size} bits, max_bit_size: {max_bit_size}",)
+            writeln!(f, "truncate {value} to {bit_size} bits",)
         }
         Instruction::Constrain(lhs, rhs, error) => {
             write!(f, "constrain {} == {}", show(*lhs), show(*rhs))?;

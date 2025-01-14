@@ -126,7 +126,6 @@ pub(crate) enum ParsedInstruction {
         target: Identifier,
         value: ParsedValue,
         bit_size: u32,
-        max_bit_size: u32,
     },
 }
 

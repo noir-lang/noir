@@ -150,7 +150,7 @@ impl Context<'_> {
             // Unchecked mul as this is a wrapping operation that we later truncate
             let result =
                 self.insert_binary(lhs_field, BinaryOp::Mul { unchecked: true }, pow_field);
-            let result = self.insert_truncate(result, bit_size, max_bit);
+            let result = self.insert_truncate(result, bit_size);
             self.insert_cast(result, typ)
         }
     }
@@ -184,7 +184,7 @@ impl Context<'_> {
                 BinaryOp::Add { unchecked: true },
                 lhs_as_field,
             );
-            let one_complement = self.insert_truncate(one_complement, bit_size, bit_size + 1);
+            let one_complement = self.insert_truncate(one_complement, bit_size);
             let one_complement = self.insert_cast(one_complement, NumericType::signed(bit_size));
             // Performs the division on the 1-complement (or the operand if positive)
             let shifted_complement = self.insert_binary(one_complement, BinaryOp::Div, pow);
@@ -201,7 +201,7 @@ impl Context<'_> {
                 BinaryOp::Sub { unchecked: true },
                 lhs_sign_as_int,
             );
-            self.insert_truncate(shifted, bit_size, bit_size + 1)
+            self.insert_truncate(shifted, bit_size)
         }
     }
 
@@ -280,9 +280,8 @@ impl Context<'_> {
         &mut self,
         value: ValueId,
         bit_size: u32,
-        max_bit_size: u32,
     ) -> ValueId {
-        self.insert_instruction(Instruction::Truncate { value, bit_size, max_bit_size }, None)
+        self.insert_instruction(Instruction::Truncate { value, bit_size }, None)
             .first()
     }
 

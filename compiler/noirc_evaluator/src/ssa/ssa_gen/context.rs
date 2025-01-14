@@ -382,7 +382,7 @@ impl<'a> FunctionContext<'a> {
                 match operator {
                     BinaryOpKind::Add | BinaryOpKind::Subtract => {
                         // Result is computed modulo the bit size
-                        let result = self.builder.insert_truncate(result, bit_size, bit_size + 1);
+                        let result = self.builder.insert_truncate(result, bit_size);
                         let result = self.insert_safe_cast(
                             result,
                             NumericType::unsigned(bit_size),
@@ -396,7 +396,7 @@ impl<'a> FunctionContext<'a> {
                         // Result is computed modulo the bit size
                         let mut result =
                             self.builder.insert_cast(result, NumericType::unsigned(2 * bit_size));
-                        result = self.builder.insert_truncate(result, bit_size, 2 * bit_size);
+                        result = self.builder.insert_truncate(result, bit_size);
 
                         self.check_signed_overflow(result, lhs, rhs, operator, bit_size, location);
                         self.insert_safe_cast(result, result_type, location)
@@ -461,7 +461,7 @@ impl<'a> FunctionContext<'a> {
             one,
             Some("attempt to bit-shift with overflow".to_owned().into()),
         );
-        self.builder.insert_truncate(result, bit_size, bit_size + 1)
+        self.builder.insert_truncate(result, bit_size)
     }
 
     /// Insert constraints ensuring that the operation does not overflow the bit size of the result
@@ -641,7 +641,7 @@ impl<'a> FunctionContext<'a> {
         let incoming_type_size = self.builder.type_of_value(value).bit_size();
         let target_type_size = typ.bit_size();
         if target_type_size < incoming_type_size {
-            value = self.builder.insert_truncate(value, target_type_size, incoming_type_size);
+            value = self.builder.insert_truncate(value, target_type_size);
         }
 
         self.builder.insert_cast(value, typ)

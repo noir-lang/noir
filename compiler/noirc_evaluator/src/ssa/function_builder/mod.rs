@@ -273,9 +273,8 @@ impl FunctionBuilder {
         &mut self,
         value: ValueId,
         bit_size: u32,
-        max_bit_size: u32,
     ) -> ValueId {
-        self.insert_instruction(Instruction::Truncate { value, bit_size, max_bit_size }, None)
+        self.insert_instruction(Instruction::Truncate { value, bit_size }, None)
             .first()
     }
 

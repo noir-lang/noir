@@ -223,7 +223,6 @@ impl Binary {
                                 Instruction::Truncate {
                                     value: self.lhs,
                                     bit_size,
-                                    max_bit_size: lhs_type.bit_size(),
                                 },
                             );
                         }
@@ -305,7 +304,6 @@ impl Binary {
                                     Instruction::Truncate {
                                         value,
                                         bit_size: num_bits,
-                                        max_bit_size: lhs_type.bit_size(),
                                     },
                                 );
                             }

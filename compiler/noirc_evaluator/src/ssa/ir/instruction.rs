@@ -251,7 +251,7 @@ pub(crate) enum Instruction {
     Not(ValueId),
 
     /// Truncates `value` to `bit_size`
-    Truncate { value: ValueId, bit_size: u32, max_bit_size: u32 },
+    Truncate { value: ValueId, bit_size: u32 },
 
     /// Constrains two values to be equal to one another.
     Constrain(ValueId, ValueId, Option<ConstrainError>),
@@ -635,10 +635,9 @@ impl Instruction {
             }),
             Instruction::Cast(value, typ) => Instruction::Cast(f(*value), *typ),
             Instruction::Not(value) => Instruction::Not(f(*value)),
-            Instruction::Truncate { value, bit_size, max_bit_size } => Instruction::Truncate {
+            Instruction::Truncate { value, bit_size } => Instruction::Truncate {
                 value: f(*value),
                 bit_size: *bit_size,
-                max_bit_size: *max_bit_size,
             },
             Instruction::Constrain(lhs, rhs, assert_message) => {
                 // Must map the `lhs` and `rhs` first as the value `f` is moved with the closure
@@ -711,7 +710,7 @@ impl Instruction {
             }
             Instruction::Cast(value, _) => *value = f(*value),
             Instruction::Not(value) => *value = f(*value),
-            Instruction::Truncate { value, bit_size: _, max_bit_size: _ } => {
+            Instruction::Truncate { value, bit_size: _, } => {
                 *value = f(*value);
             }
             Instruction::Constrain(lhs, rhs, assert_message) => {
@@ -908,8 +907,8 @@ impl Instruction {
 
                 try_optimize_array_set_from_previous_get(dfg, *array_id, *index_id, *value)
             }
-            Instruction::Truncate { value, bit_size, max_bit_size } => {
-                if bit_size == max_bit_size {
+            Instruction::Truncate { value, bit_size } => {
+                if *bit_size == FieldElement::max_num_bits() {
                     return SimplifiedTo(*value);
                 }
                 if let Some((numeric_constant, typ)) = dfg.get_numeric_constant_with_type(*value) {
@@ -920,7 +919,7 @@ impl Instruction {
                     match &dfg[*instruction] {
                         Instruction::Truncate { bit_size: src_bit_size, .. } => {
                             // If we're truncating the value to fit into the same or larger bit size then this is a noop.
-                            if src_bit_size <= bit_size && src_bit_size <= max_bit_size {
+                            if src_bit_size <= bit_size {
                                 SimplifiedTo(*value)
                             } else {
                                 None
