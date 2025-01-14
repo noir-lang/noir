@@ -1,3 +1,4 @@
+use im::OrdSet;
 use std::collections::BTreeSet;
 
 use crate::ssa::ir::value::ValueId;
@@ -10,7 +11,7 @@ use crate::ssa::ir::value::ValueId;
 /// "unknown which aliases this may refer to" - `None`.
 #[derive(Debug, Default, Clone)]
 pub(super) struct AliasSet {
-    aliases: Option<BTreeSet<ValueId>>,
+    aliases: Option<OrdSet<ValueId>>,
 }
 
 impl AliasSet {
@@ -19,20 +20,20 @@ impl AliasSet {
     }
 
     pub(super) fn known(value: ValueId) -> AliasSet {
-        let mut aliases = BTreeSet::new();
+        let mut aliases = OrdSet::new();
         aliases.insert(value);
         Self { aliases: Some(aliases) }
     }
 
     pub(super) fn known_multiple(values: BTreeSet<ValueId>) -> AliasSet {
-        Self { aliases: Some(values) }
+        Self { aliases: Some(values.into()) }
     }
 
     /// In rare cases, such as when creating an empty array of references, the set of aliases for a
     /// particular value will be known to be zero, which is distinct from being unknown and
     /// possibly referring to any alias.
     pub(super) fn known_empty() -> AliasSet {
-        Self { aliases: Some(BTreeSet::new()) }
+        Self { aliases: Some(OrdSet::new()) }
     }
 
     pub(super) fn is_unknown(&self) -> bool {
@@ -44,16 +45,14 @@ impl AliasSet {
     pub(super) fn single_alias(&self) -> Option<ValueId> {
         self.aliases
             .as_ref()
-            .and_then(|aliases| (aliases.len() == 1).then(|| *aliases.first().unwrap()))
+            .and_then(|aliases| (aliases.len() == 1).then(|| *aliases.get_min().unwrap()))
     }
 
     /// Unify this alias set with another. The result of this set is empty if either set is empty.
     /// Otherwise, it is the union of both alias sets.
     pub(super) fn unify(&mut self, other: &Self) {
-        if let (Some(self_aliases), Some(other_aliases)) = (&mut self.aliases, &other.aliases) {
-            self_aliases.extend(other_aliases);
-        } else {
-            self.aliases = None;
+        if let (Some(self_aliases), Some(other_aliases)) = (self.aliases.take(), &other.aliases) {
+            self.aliases = Some(self_aliases.union(other_aliases.clone()));
         }
     }
 
@@ -82,6 +81,6 @@ impl AliasSet {
     /// The ordering is arbitrary (by lowest ValueId) so this method should only be
     /// used when you need an arbitrary ValueId from the alias set.
     pub(super) fn first(&self) -> Option<ValueId> {
-        self.aliases.as_ref().and_then(|aliases| aliases.first().copied())
+        self.aliases.as_ref().and_then(|aliases| aliases.get_min().copied())
     }
 }
