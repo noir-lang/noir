@@ -307,6 +307,7 @@ impl<'brillig> Context<'brillig> {
         let old_results = dfg.instruction_results(id).to_vec();
 
         // If a copy of this instruction exists earlier in the block, then reuse the previous results.
+        let runtime_is_brillig = dfg.runtime().is_brillig();
         if let Some(cache_result) =
             self.get_cached(dfg, dom, &instruction, *side_effects_enabled_var, block)
         {
@@ -314,7 +315,7 @@ impl<'brillig> Context<'brillig> {
                 CacheResult::Cached(cached) => {
                     // We track whether we may mutate MakeArray instructions before we deduplicate
                     // them but we still need to issue an extra inc_rc in case they're mutated afterward.
-                    if matches!(instruction, Instruction::MakeArray { .. }) {
+                    if runtime_is_brillig && matches!(instruction, Instruction::MakeArray { .. }) {
                         let value = *cached.last().unwrap();
                         let inc_rc = Instruction::IncrementRc { value };
                         let call_stack = dfg.get_instruction_call_stack_id(id);
