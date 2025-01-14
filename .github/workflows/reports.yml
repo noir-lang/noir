@@ -116,8 +116,19 @@ jobs:
       - name: Generate Brillig bytecode size report
         working-directory: ./test_programs
         run: |
-          ./gates_report_brillig.sh
-          mv gates_report_brillig.json ../gates_report_brillig.json
+          mkdir ./reports
+
+          ./gates_report_brillig.sh 9223372036854775807
+          jq '.programs |= map(.package_name |= (. + "_inliner_max"))' gates_report_brillig.json > ./reports/gates_report_brillig_inliner_max.json
+          
+          ./gates_report_brillig.sh 0
+          jq '.programs |= map(.package_name |= (. + "_inliner_zero"))' gates_report_brillig.json > ./reports/gates_report_brillig_inliner_zero.json
+          
+          ./gates_report_brillig.sh -9223372036854775808
+          jq '.programs |= map(.package_name |= (. + "_inliner_min"))' gates_report_brillig.json > ./reports/gates_report_brillig_inliner_min.json
+
+          # Merge all reports
+          jq -s '{ programs: map(.programs) | add }' ./reports/* > ../gates_report_brillig.json
 
       - name: Compare Brillig bytecode size reports
         id: brillig_bytecode_diff
@@ -165,8 +176,19 @@ jobs:
       - name: Generate Brillig execution report
         working-directory: ./test_programs
         run: |
-          ./gates_report_brillig_execution.sh
-          mv gates_report_brillig_execution.json ../gates_report_brillig_execution.json
+          mkdir ./reports 
+          
+          ./gates_report_brillig_execution.sh 9223372036854775807
+          jq '.programs |= map(.package_name |= (. + "_inliner_max"))' gates_report_brillig_execution.json > ./reports/gates_report_brillig_execution_inliner_max.json
+
+          ./gates_report_brillig_execution.sh 0
+          jq '.programs |= map(.package_name |= (. + "_inliner_zero"))' gates_report_brillig_execution.json > ./reports/gates_report_brillig_execution_inliner_zero.json
+          
+          ./gates_report_brillig_execution.sh -9223372036854775808
+          jq '.programs |= map(.package_name |= (. + "_inliner_min"))' gates_report_brillig_execution.json > ./reports/gates_report_brillig_execution_inliner_min.json
+
+          # Merge all reports
+          jq -s '{ programs: map(.programs) | add }' ./reports/* > ../gates_report_brillig_execution.json
 
       - name: Compare Brillig execution reports
         id: brillig_execution_diff
