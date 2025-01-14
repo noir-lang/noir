@@ -134,7 +134,7 @@ jobs:
 
       - name: Merge compilation reports using jq
         run: |
-          jq -s '{ programs: [.[][]] }' ./reports/* > gates_report_brillig.json
+          jq -s '{ programs: map(.programs) | add }' ./reports/* > gates_report_brillig.json
           cat gates_report_brillig.json
 
       - name: Compare Brillig bytecode size reports
