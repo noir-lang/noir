@@ -22,7 +22,7 @@ use super::{
     value::{Value, ValueId},
 };
 
-mod binary;
+pub(crate) mod binary;
 mod call;
 mod cast;
 mod constrain;
@@ -412,10 +412,15 @@ impl Instruction {
 
             // Some binary math can overflow or underflow
             Binary(binary) => match binary.operator {
-                BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul | BinaryOp::Div | BinaryOp::Mod => {
-                    true
-                }
-                BinaryOp::Eq
+                BinaryOp::Add { unchecked: false }
+                | BinaryOp::Sub { unchecked: false }
+                | BinaryOp::Mul { unchecked: false }
+                | BinaryOp::Div
+                | BinaryOp::Mod => true,
+                BinaryOp::Add { unchecked: true }
+                | BinaryOp::Sub { unchecked: true }
+                | BinaryOp::Mul { unchecked: true }
+                | BinaryOp::Eq
                 | BinaryOp::Lt
                 | BinaryOp::And
                 | BinaryOp::Or
@@ -473,6 +478,9 @@ impl Instruction {
             // removed entirely.
             Noop => true,
 
+            // Cast instructions can always be deduplicated
+            Cast(_, _) => true,
+
             // Arrays can be mutated in unconstrained code so code that handles this case must
             // take care to track whether the array was possibly mutated or not before
             // deduplicating. Since we don't know if the containing pass checks for this, we
@@ -484,7 +492,6 @@ impl Instruction {
             // with one that was disabled. See
             // https://github.com/noir-lang/noir/pull/4716#issuecomment-2047846328.
             Binary(_)
-            | Cast(_, _)
             | Not(_)
             | Truncate { .. }
             | IfElse { .. }
@@ -564,16 +571,19 @@ impl Instruction {
         match self {
             Instruction::Binary(binary) => {
                 match binary.operator {
-                    BinaryOp::Add
-                    | BinaryOp::Sub
-                    | BinaryOp::Mul
+                    BinaryOp::Add { unchecked: false }
+                    | BinaryOp::Sub { unchecked: false }
+                    | BinaryOp::Mul { unchecked: false }
                     | BinaryOp::Div
                     | BinaryOp::Mod => {
                         // Some binary math can overflow or underflow, but this is only the case
                         // for unsigned types (here we assume the type of binary.lhs is the same)
                         dfg.type_of_value(binary.rhs).is_unsigned()
                     }
-                    BinaryOp::Eq
+                    BinaryOp::Add { unchecked: true }
+                    | BinaryOp::Sub { unchecked: true }
+                    | BinaryOp::Mul { unchecked: true }
+                    | BinaryOp::Eq
                     | BinaryOp::Lt
                     | BinaryOp::And
                     | BinaryOp::Or
@@ -1300,31 +1310,6 @@ pub(crate) enum TerminatorInstruction {
 }
 
 impl TerminatorInstruction {
-    /// Map each ValueId in this terminator to a new value.
-    pub(crate) fn map_values(
-        &self,
-        mut f: impl FnMut(ValueId) -> ValueId,
-    ) -> TerminatorInstruction {
-        use TerminatorInstruction::*;
-        match self {
-            JmpIf { condition, then_destination, else_destination, call_stack } => JmpIf {
-                condition: f(*condition),
-                then_destination: *then_destination,
-                else_destination: *else_destination,
-                call_stack: *call_stack,
-            },
-            Jmp { destination, arguments, call_stack } => Jmp {
-                destination: *destination,
-                arguments: vecmap(arguments, |value| f(*value)),
-                call_stack: *call_stack,
-            },
-            Return { return_values, call_stack } => Return {
-                return_values: vecmap(return_values, |value| f(*value)),
-                call_stack: *call_stack,
-            },
-        }
-    }
-
     /// Mutate each ValueId to a new ValueId using the given mapping function
     pub(crate) fn map_values_mut(&mut self, mut f: impl FnMut(ValueId) -> ValueId) {
         use TerminatorInstruction::*;

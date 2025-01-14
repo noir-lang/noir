@@ -28,10 +28,11 @@ use noirc_frontend::{
         def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId},
         resolution::visibility::{
             item_in_module_is_visible, method_call_is_visible, struct_member_is_visible,
+            trait_member_is_visible,
         },
     },
     hir_def::traits::Trait,
-    node_interner::{NodeInterner, ReferenceId, StructId},
+    node_interner::{FuncId, NodeInterner, ReferenceId, StructId},
     parser::{Item, ItemKind, ParsedSubModule},
     token::{MetaAttribute, Token, Tokens},
     Kind, ParsedModule, StructType, Type, TypeBinding,
@@ -120,6 +121,8 @@ struct NodeFinder<'a> {
     use_segment_positions: UseSegmentPositions,
     self_type: Option<Type>,
     in_comptime: bool,
+    /// The function we are in, if any
+    func_id: Option<FuncId>,
 }
 
 impl<'a> NodeFinder<'a> {
@@ -165,6 +168,7 @@ impl<'a> NodeFinder<'a> {
             use_segment_positions: UseSegmentPositions::default(),
             self_type: None,
             in_comptime: false,
+            func_id: None,
         }
     }
 
@@ -242,7 +246,7 @@ impl<'a> NodeFinder<'a> {
         let mut idents: Vec<Ident> = Vec::new();
 
         // Find in which ident we are in, and in which part of it
-        // (it could be that we are completting in the middle of an ident)
+        // (it could be that we are completing in the middle of an ident)
         for segment in &path.segments {
             let ident = &segment.ident;
 
@@ -639,6 +643,13 @@ impl<'a> NodeFinder<'a> {
         function_completion_kind: FunctionCompletionKind,
         self_prefix: bool,
     ) {
+        self.complete_trait_constraints_methods(
+            typ,
+            prefix,
+            function_kind,
+            function_completion_kind,
+        );
+
         let Some(methods_by_name) = self.interner.get_type_methods(typ) else {
             return;
         };
@@ -648,51 +659,85 @@ impl<'a> NodeFinder<'a> {
         let has_self_param = matches!(function_kind, FunctionKind::SelfType(..));
 
         for (name, methods) in methods_by_name {
-            let Some(func_id) =
-                methods.find_matching_method(typ, has_self_param, self.interner).or_else(|| {
-                    // Also try to find a method assuming typ is `&mut typ`:
-                    // we want to suggest methods that take `&mut self` even though a variable might not
-                    // be mutable, so a user can know they need to mark it as mutable.
-                    let typ = Type::MutableReference(Box::new(typ.clone()));
-                    methods.find_matching_method(&typ, has_self_param, self.interner)
-                })
-            else {
+            if !name_matches(name, prefix) {
                 continue;
-            };
+            }
 
-            if let Some(struct_id) = struct_id {
-                let modifiers = self.interner.function_modifiers(&func_id);
-                let visibility = modifiers.visibility;
-                if !struct_member_is_visible(struct_id, visibility, self.module_id, self.def_maps) {
+            for (func_id, trait_id) in
+                methods.find_matching_methods(typ, has_self_param, self.interner)
+            {
+                if let Some(struct_id) = struct_id {
+                    let modifiers = self.interner.function_modifiers(&func_id);
+                    let visibility = modifiers.visibility;
+                    if !struct_member_is_visible(
+                        struct_id,
+                        visibility,
+                        self.module_id,
+                        self.def_maps,
+                    ) {
+                        continue;
+                    }
+                }
+
+                if let Some(trait_id) = trait_id {
+                    let modifiers = self.interner.function_modifiers(&func_id);
+                    let visibility = modifiers.visibility;
+                    if !trait_member_is_visible(trait_id, visibility, self.module_id, self.def_maps)
+                    {
+                        continue;
+                    }
+                }
+
+                if is_primitive
+                    && !method_call_is_visible(
+                        typ,
+                        func_id,
+                        self.module_id,
+                        self.interner,
+                        self.def_maps,
+                    )
+                {
                     continue;
                 }
-            }
 
-            if is_primitive
-                && !method_call_is_visible(
-                    typ,
-                    func_id,
-                    self.module_id,
-                    self.interner,
-                    self.def_maps,
-                )
-            {
-                continue;
-            }
-
-            if name_matches(name, prefix) {
                 let completion_items = self.function_completion_items(
                     name,
                     func_id,
                     function_completion_kind,
                     function_kind,
                     None, // attribute first type
+                    trait_id,
                     self_prefix,
                 );
                 if !completion_items.is_empty() {
                     self.completion_items.extend(completion_items);
                     self.suggested_module_def_ids.insert(ModuleDefId::FunctionId(func_id));
                 }
+            }
+        }
+    }
+
+    fn complete_trait_constraints_methods(
+        &mut self,
+        typ: &Type,
+        prefix: &str,
+        function_kind: FunctionKind,
+        function_completion_kind: FunctionCompletionKind,
+    ) {
+        let Some(func_id) = self.func_id else {
+            return;
+        };
+
+        let func_meta = self.interner.function_meta(&func_id);
+        for constraint in &func_meta.trait_constraints {
+            if *typ == constraint.typ {
+                let trait_ = self.interner.get_trait(constraint.trait_bound.trait_id);
+                self.complete_trait_methods(
+                    trait_,
+                    prefix,
+                    function_kind,
+                    function_completion_kind,
+                );
             }
         }
     }
@@ -714,6 +759,7 @@ impl<'a> NodeFinder<'a> {
                     function_completion_kind,
                     function_kind,
                     None, // attribute first type
+                    None, // trait_id (we are suggesting methods for `Trait::>|<` so no need to auto-import it)
                     self_prefix,
                 );
                 if !completion_items.is_empty() {
@@ -1125,7 +1171,16 @@ impl<'a> Visitor for NodeFinder<'a> {
         let old_in_comptime = self.in_comptime;
         self.in_comptime = noir_function.def.is_comptime;
 
+        if let Some(ReferenceId::Function(func_id)) = self
+            .interner
+            .reference_at_location(Location::new(noir_function.name_ident().span(), self.file))
+        {
+            self.func_id = Some(func_id);
+        }
+
         noir_function.def.body.accept(Some(span), self);
+
+        self.func_id = None;
 
         self.in_comptime = old_in_comptime;
         self.type_parameters = old_type_parameters;
@@ -1207,7 +1262,7 @@ impl<'a> Visitor for NodeFinder<'a> {
 
     fn visit_trait_item_function(
         &mut self,
-        _name: &Ident,
+        name: &Ident,
         generics: &UnresolvedGenerics,
         parameters: &[(Ident, UnresolvedType)],
         return_type: &noirc_frontend::ast::FunctionReturnType,
@@ -1232,7 +1287,16 @@ impl<'a> Visitor for NodeFinder<'a> {
             for (name, _) in parameters {
                 self.local_variables.insert(name.to_string(), name.span());
             }
+
+            if let Some(ReferenceId::Function(func_id)) =
+                self.interner.reference_at_location(Location::new(name.span(), self.file))
+            {
+                self.func_id = Some(func_id);
+            }
+
             body.accept(None, self);
+
+            self.func_id = None;
         };
 
         self.type_parameters = old_type_parameters;

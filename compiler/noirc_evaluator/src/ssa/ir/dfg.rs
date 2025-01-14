@@ -5,7 +5,7 @@ use crate::ssa::{function_builder::data_bus::DataBus, ir::instruction::SimplifyR
 use super::{
     basic_block::{BasicBlock, BasicBlockId},
     call_stack::{CallStack, CallStackHelper, CallStackId},
-    function::FunctionId,
+    function::{FunctionId, RuntimeType},
     instruction::{
         Instruction, InstructionId, InstructionResultType, Intrinsic, TerminatorInstruction,
     },
@@ -17,7 +17,6 @@ use super::{
 use acvm::{acir::AcirField, FieldElement};
 use fxhash::FxHashMap as HashMap;
 use iter_extended::vecmap;
-use noirc_errors::Location;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use serde_with::DisplayFromStr;
@@ -27,8 +26,13 @@ use serde_with::DisplayFromStr;
 /// owning most data in a function and handing out Ids to this data that can be
 /// shared without worrying about ownership.
 #[serde_as]
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub(crate) struct DataFlowGraph {
+    /// Runtime of the [Function] that owns this [DataFlowGraph].
+    /// This might change during the `runtime_separation` pass where
+    /// ACIR functions are cloned as Brillig functions.
+    runtime: RuntimeType,
+
     /// All of the instructions in a function
     instructions: DenseMap<Instruction>,
 
@@ -101,6 +105,16 @@ pub(crate) struct DataFlowGraph {
 }
 
 impl DataFlowGraph {
+    /// Runtime type of the function.
+    pub(crate) fn runtime(&self) -> RuntimeType {
+        self.runtime
+    }
+
+    /// Set runtime type of the function.
+    pub(crate) fn set_runtime(&mut self, runtime: RuntimeType) {
+        self.runtime = runtime;
+    }
+
     /// Creates a new basic block with no parameters.
     /// After being created, the block is unreachable in the current function
     /// until another block is made to jump to it.
@@ -165,6 +179,20 @@ impl DataFlowGraph {
         id
     }
 
+    /// Check if the function runtime would simply ignore this instruction.
+    pub(crate) fn is_handled_by_runtime(&self, instruction: &Instruction) -> bool {
+        match self.runtime() {
+            RuntimeType::Acir(_) => !matches!(
+                instruction,
+                Instruction::IncrementRc { .. } | Instruction::DecrementRc { .. }
+            ),
+            RuntimeType::Brillig(_) => !matches!(
+                instruction,
+                Instruction::EnableSideEffectsIf { .. } | Instruction::IfElse { .. }
+            ),
+        }
+    }
+
     fn insert_instruction_without_simplification(
         &mut self,
         instruction_data: Instruction,
@@ -185,6 +213,10 @@ impl DataFlowGraph {
         ctrl_typevars: Option<Vec<Type>>,
         call_stack: CallStackId,
     ) -> InsertInstructionResult {
+        if !self.is_handled_by_runtime(&instruction_data) {
+            panic!("Attempted to insert instruction not handled by runtime: {instruction_data:?}");
+        }
+
         let id = self.insert_instruction_without_simplification(
             instruction_data,
             block,
@@ -195,7 +227,8 @@ impl DataFlowGraph {
         InsertInstructionResult::Results(id, self.instruction_results(id))
     }
 
-    /// Inserts a new instruction at the end of the given block and returns its results
+    /// Simplifies a new instruction and inserts it at the end of the given block and returns its results.
+    /// If the instruction is not handled by the current runtime, `InstructionRemoved` is returned.
     pub(crate) fn insert_instruction_and_results(
         &mut self,
         instruction: Instruction,
@@ -203,6 +236,10 @@ impl DataFlowGraph {
         ctrl_typevars: Option<Vec<Type>>,
         call_stack: CallStackId,
     ) -> InsertInstructionResult {
+        if !self.is_handled_by_runtime(&instruction) {
+            panic!("Attempted to insert instruction not handled by runtime: {instruction:?}");
+        }
+
         match instruction.simplify(self, block, ctrl_typevars.clone(), call_stack) {
             SimplifyResult::SimplifiedTo(simplification) => {
                 InsertInstructionResult::SimplifiedTo(simplification)
@@ -245,12 +282,6 @@ impl DataFlowGraph {
                 )
             }
         }
-    }
-
-    /// Insert a value into the dfg's storage and return an id to reference it.
-    /// Until the value is used in an instruction it is unreachable.
-    pub(crate) fn make_value(&mut self, value: Value) -> ValueId {
-        self.values.insert(value)
     }
 
     /// Set the value of value_to_replace to refer to the value referred to by new_value.
@@ -302,6 +333,10 @@ impl DataFlowGraph {
         let id = self.values.insert(Value::NumericConstant { constant, typ });
         self.constants.insert((constant, typ), id);
         id
+    }
+
+    pub(crate) fn make_global(&mut self, typ: Type) -> ValueId {
+        self.values.insert(Value::Global(typ))
     }
 
     /// Gets or creates a ValueId for the given FunctionId.
@@ -395,10 +430,15 @@ impl DataFlowGraph {
     pub(crate) fn get_value_max_num_bits(&self, value: ValueId) -> u32 {
         match self[value] {
             Value::Instruction { instruction, .. } => {
+                let value_bit_size = self.type_of_value(value).bit_size();
                 if let Instruction::Cast(original_value, _) = self[instruction] {
-                    self.type_of_value(original_value).bit_size()
+                    let original_bit_size = self.type_of_value(original_value).bit_size();
+                    // We might have cast e.g. `u1` to `u8` to be able to do arithmetic,
+                    // in which case we want to recover the original smaller bit size;
+                    // OTOH if we cast down, then we don't need the higher original size.
+                    value_bit_size.min(original_bit_size)
                 } else {
-                    self.type_of_value(value).bit_size()
+                    value_bit_size
                 }
             }
 
@@ -437,12 +477,6 @@ impl DataFlowGraph {
         value_id
     }
 
-    /// Returns the number of instructions
-    /// inserted into functions.
-    pub(crate) fn num_instructions(&self) -> usize {
-        self.instructions.len()
-    }
-
     /// Returns all of result values which are attached to this instruction.
     pub(crate) fn instruction_results(&self, instruction_id: InstructionId) -> &[ValueId] {
         self.results.get(&instruction_id).expect("expected a list of Values").as_slice()
@@ -450,6 +484,7 @@ impl DataFlowGraph {
 
     /// Remove an instruction by replacing it with a `Noop` instruction.
     /// Doing this avoids shifting over each instruction after this one in its block's instructions vector.
+    #[allow(unused)]
     pub(crate) fn remove_instruction(&mut self, instruction: InstructionId) {
         self.instructions[instruction] = Instruction::Noop;
         self.results.insert(instruction, smallvec::SmallVec::new());
@@ -504,6 +539,24 @@ impl DataFlowGraph {
         }
     }
 
+    /// If this value points to an array of constant bytes, returns a string
+    /// consisting of those bytes if they form a valid UTF-8 string.
+    pub(crate) fn get_string(&self, value: ValueId) -> Option<String> {
+        let (value_ids, _typ) = self.get_array_constant(value)?;
+
+        let mut bytes = Vec::new();
+        for value_id in value_ids {
+            let field_value = self.get_numeric_constant(value_id)?;
+            let u64_value = field_value.try_to_u64()?;
+            if u64_value > 255 {
+                return None;
+            };
+            let byte = u64_value as u8;
+            bytes.push(byte);
+        }
+        String::from_utf8(bytes).ok()
+    }
+
     /// A constant index less than the array length is safe
     pub(crate) fn is_safe_index(&self, index: ValueId, array: ValueId) -> bool {
         #[allow(clippy::match_like_matches_macro)]
@@ -544,15 +597,6 @@ impl DataFlowGraph {
         self.locations.get(&instruction).cloned().unwrap_or_default()
     }
 
-    pub(crate) fn add_location_to_instruction(
-        &mut self,
-        instruction: InstructionId,
-        location: Location,
-    ) {
-        let call_stack = self.locations.entry(instruction).or_default();
-        *call_stack = self.call_stack_data.add_child(*call_stack, location);
-    }
-
     pub(crate) fn get_call_stack(&self, call_stack: CallStackId) -> CallStack {
         self.call_stack_data.get_call_stack(call_stack)
     }
@@ -583,6 +627,9 @@ impl DataFlowGraph {
                 }
                 _ => false,
             },
+            // TODO: Make this true and handle instruction simplifications with globals.
+            // Currently all globals are inlined as a temporary measure so this is fine to have as false.
+            Value::Global(_) => false,
             _ => true,
         }
     }

@@ -15,7 +15,7 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         function::Function,
         function_inserter::FunctionInserter,
-        instruction::{Instruction, InstructionId},
+        instruction::{binary::eval_constant_binary_op, BinaryOp, Instruction, InstructionId},
         types::Type,
         value::ValueId,
     },
@@ -112,10 +112,12 @@ impl<'f> LoopInvariantContext<'f> {
 
                     // If we are hoisting a MakeArray instruction,
                     // we need to issue an extra inc_rc in case they are mutated afterward.
-                    if matches!(
-                        self.inserter.function.dfg[instruction_id],
-                        Instruction::MakeArray { .. }
-                    ) {
+                    if self.inserter.function.runtime().is_brillig()
+                        && matches!(
+                            self.inserter.function.dfg[instruction_id],
+                            Instruction::MakeArray { .. }
+                        )
+                    {
                         let result =
                             self.inserter.function.dfg.instruction_results(instruction_id)[0];
                         let inc_rc = Instruction::IncrementRc { value: result };
@@ -207,6 +209,7 @@ impl<'f> LoopInvariantContext<'f> {
 
         let can_be_deduplicated = instruction.can_be_deduplicated(self.inserter.function, false)
             || matches!(instruction, Instruction::MakeArray { .. })
+            || matches!(instruction, Instruction::Binary(_))
             || self.can_be_deduplicated_from_upper_bound(&instruction);
 
         is_loop_invariant && can_be_deduplicated
@@ -230,6 +233,31 @@ impl<'f> LoopInvariantContext<'f> {
                 } else {
                     false
                 }
+            }
+            Instruction::Binary(binary) => {
+                if !matches!(binary.operator, BinaryOp::Add { .. } | BinaryOp::Mul { .. }) {
+                    return false;
+                }
+
+                let operand_type =
+                    self.inserter.function.dfg.type_of_value(binary.lhs).unwrap_numeric();
+
+                let lhs_const =
+                    self.inserter.function.dfg.get_numeric_constant_with_type(binary.lhs);
+                let rhs_const =
+                    self.inserter.function.dfg.get_numeric_constant_with_type(binary.rhs);
+                let (lhs, rhs) = match (
+                    lhs_const,
+                    rhs_const,
+                    self.outer_induction_variables.get(&binary.lhs),
+                    self.outer_induction_variables.get(&binary.rhs),
+                ) {
+                    (Some((lhs, _)), None, None, Some(upper_bound)) => (lhs, *upper_bound),
+                    (None, Some((rhs, _)), Some(upper_bound), None) => (*upper_bound, rhs),
+                    _ => return false,
+                };
+
+                eval_constant_binary_op(lhs, rhs, binary.operator, operand_type).is_some()
             }
             _ => false,
         }
@@ -278,8 +306,8 @@ mod test {
         }
         ";
 
-        let mut ssa = Ssa::from_str(src).unwrap();
-        let main = ssa.main_mut();
+        let ssa = Ssa::from_str(src).unwrap();
+        let main = ssa.main();
 
         let instructions = main.dfg[main.entry_block()].instructions();
         assert_eq!(instructions.len(), 0); // The final return is not counted
@@ -335,8 +363,8 @@ mod test {
         }
         ";
 
-        let mut ssa = Ssa::from_str(src).unwrap();
-        let main = ssa.main_mut();
+        let ssa = Ssa::from_str(src).unwrap();
+        let main = ssa.main();
 
         let instructions = main.dfg[main.entry_block()].instructions();
         assert_eq!(instructions.len(), 0); // The final return is not counted
@@ -403,8 +431,8 @@ mod test {
         }
         ";
 
-        let mut ssa = Ssa::from_str(src).unwrap();
-        let main = ssa.main_mut();
+        let ssa = Ssa::from_str(src).unwrap();
+        let main = ssa.main();
 
         let instructions = main.dfg[main.entry_block()].instructions();
         assert_eq!(instructions.len(), 0); // The final return is not counted
@@ -462,8 +490,8 @@ mod test {
         }
         ";
 
-        let mut ssa = Ssa::from_str(src).unwrap();
-        let main = ssa.main_mut();
+        let ssa = Ssa::from_str(src).unwrap();
+        let main = ssa.main();
 
         let instructions = main.dfg[main.entry_block()].instructions();
         assert_eq!(instructions.len(), 4); // The final return is not counted

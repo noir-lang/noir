@@ -3,8 +3,8 @@ struct MyStruct {
 }
 
 fn main(x: u32) {
+    /// Safety: testing context
     unsafe {
-        //@safety: testing context
         assert(wrapper(increment, x) == x + 1);
         assert(wrapper(increment_acir, x) == x + 1);
         assert(wrapper(decrement, x) == x - 1);

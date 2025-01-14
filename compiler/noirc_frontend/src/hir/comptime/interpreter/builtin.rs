@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use acvm::{acir::BlackBoxFunc, AcirField, FieldElement};
+use acvm::{AcirField, FieldElement};
 use builtin_helpers::{
     block_expression_to_value, byte_array_type, check_argument_count,
     check_function_not_yet_resolved, check_one_argument, check_three_arguments,
@@ -23,6 +23,7 @@ use crate::{
         Pattern, Signedness, Statement, StatementKind, UnaryOp, UnresolvedType, UnresolvedTypeData,
         Visibility,
     },
+    elaborator::Elaborator,
     hir::{
         comptime::{
             errors::IResult,
@@ -32,9 +33,11 @@ use crate::{
         def_collector::dc_crate::CollectedItems,
         def_map::ModuleDefId,
     },
-    hir_def::expr::{HirExpression, HirLiteral},
-    hir_def::function::FunctionBody,
-    hir_def::{self},
+    hir_def::{
+        self,
+        expr::{HirExpression, HirLiteral},
+        function::FunctionBody,
+    },
     node_interner::{DefinitionKind, NodeInterner, TraitImplKind},
     parser::{Parser, StatementOrExpressionOrLValue},
     token::{Attribute, Token},
@@ -158,7 +161,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "modulus_le_bits" => modulus_le_bits(arguments, location),
             "modulus_le_bytes" => modulus_le_bytes(arguments, location),
             "modulus_num_bits" => modulus_num_bits(arguments, location),
-            "quoted_as_expr" => quoted_as_expr(interner, arguments, return_type, location),
+            "quoted_as_expr" => quoted_as_expr(self.elaborator, arguments, return_type, location),
             "quoted_as_module" => quoted_as_module(self, arguments, return_type, location),
             "quoted_as_trait_constraint" => quoted_as_trait_constraint(self, arguments, location),
             "quoted_as_type" => quoted_as_type(self, arguments, location),
@@ -189,6 +192,8 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "struct_def_set_fields" => struct_def_set_fields(interner, arguments, location),
             "to_be_radix" => to_be_radix(arguments, return_type, location),
             "to_le_radix" => to_le_radix(arguments, return_type, location),
+            "to_be_bits" => to_be_bits(arguments, return_type, location),
+            "to_le_bits" => to_le_bits(arguments, return_type, location),
             "trait_constraint_eq" => trait_constraint_eq(arguments, location),
             "trait_constraint_hash" => trait_constraint_hash(arguments, location),
             "trait_def_as_trait_constraint" => {
@@ -236,9 +241,6 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "unresolved_type_is_field" => unresolved_type_is_field(interner, arguments, location),
             "unresolved_type_is_unit" => unresolved_type_is_unit(interner, arguments, location),
             "zeroed" => zeroed(return_type, location.span),
-            blackbox if BlackBoxFunc::is_valid_black_box_func_name(blackbox) => {
-                self.call_foreign(blackbox, arguments, return_type, location)
-            }
             _ => {
                 let item = format!("Comptime evaluation for builtin function '{name}'");
                 Err(InterpreterError::Unimplemented { item, location })
@@ -679,15 +681,19 @@ fn slice_insert(
 
 // fn as_expr(quoted: Quoted) -> Option<Expr>
 fn quoted_as_expr(
-    interner: &NodeInterner,
+    elaborator: &mut Elaborator,
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
 
-    let result =
-        parse(interner, argument, Parser::parse_statement_or_expression_or_lvalue, "an expression");
+    let result = parse(
+        elaborator,
+        argument,
+        Parser::parse_statement_or_expression_or_lvalue,
+        "an expression",
+    );
 
     let value =
         result.ok().map(
@@ -712,13 +718,9 @@ fn quoted_as_module(
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
 
-    let path = parse(
-        interpreter.elaborator.interner,
-        argument,
-        Parser::parse_path_no_turbofish_or_error,
-        "a path",
-    )
-    .ok();
+    let path =
+        parse(interpreter.elaborator, argument, Parser::parse_path_no_turbofish_or_error, "a path")
+            .ok();
     let option_value = path.and_then(|path| {
         let module = interpreter
             .elaborate_in_function(interpreter.current_function, |elaborator| {
@@ -738,7 +740,7 @@ fn quoted_as_trait_constraint(
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
     let trait_bound = parse(
-        interpreter.elaborator.interner,
+        interpreter.elaborator,
         argument,
         Parser::parse_trait_bound_or_error,
         "a trait constraint",
@@ -759,8 +761,7 @@ fn quoted_as_type(
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
-    let typ =
-        parse(interpreter.elaborator.interner, argument, Parser::parse_type_or_error, "a type")?;
+    let typ = parse(interpreter.elaborator, argument, Parser::parse_type_or_error, "a type")?;
     let typ = interpreter
         .elaborate_in_function(interpreter.current_function, |elab| elab.resolve_type(typ));
     Ok(Value::Type(typ))
@@ -775,6 +776,26 @@ fn quoted_tokens(arguments: Vec<(Value, Location)>, location: Location) -> IResu
         value.iter().map(|token| Value::Quoted(Rc::new(vec![token.clone()]))).collect(),
         Type::Slice(Box::new(Type::Quoted(QuotedType::Quoted))),
     ))
+}
+
+fn to_be_bits(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    let value = check_one_argument(arguments, location)?;
+    let radix = (Value::U32(2), value.1);
+    to_be_radix(vec![value, radix], return_type, location)
+}
+
+fn to_le_bits(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    let value = check_one_argument(arguments, location)?;
+    let radix = (Value::U32(2), value.1);
+    to_le_radix(vec![value, radix], return_type, location)
 }
 
 fn to_be_radix(
@@ -801,10 +822,10 @@ fn to_le_radix(
 
     let value = get_field(value)?;
     let radix = get_u32(radix)?;
-    let limb_count = if let Type::Array(length, _) = return_type {
+    let (limb_count, element_type) = if let Type::Array(length, element_type) = return_type {
         if let Type::Constant(limb_count, kind) = *length {
             if kind.unifies(&Kind::u32()) {
-                limb_count
+                (limb_count, element_type)
             } else {
                 return Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location });
             }
@@ -815,14 +836,29 @@ fn to_le_radix(
         return Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location });
     };
 
+    let return_type_is_bits =
+        *element_type == Type::Integer(Signedness::Unsigned, IntegerBitSize::One);
+
     // Decompose the integer into its radix digits in little endian form.
     let decomposed_integer = compute_to_radix_le(value, radix);
-    let decomposed_integer =
-        vecmap(0..limb_count.to_u128() as usize, |i| match decomposed_integer.get(i) {
-            Some(digit) => Value::U8(*digit),
-            None => Value::U8(0),
-        });
-    let result_type = byte_array_type(decomposed_integer.len());
+    let decomposed_integer = vecmap(0..limb_count.to_u128() as usize, |i| {
+        let digit = match decomposed_integer.get(i) {
+            Some(digit) => *digit,
+            None => 0,
+        };
+        // The only built-ins that use these either return `[u1; N]` or `[u8; N]`
+        if return_type_is_bits {
+            Value::U1(digit != 0)
+        } else {
+            Value::U8(digit)
+        }
+    });
+
+    let result_type = Type::Array(
+        Box::new(Type::Constant(decomposed_integer.len().into(), Kind::u32())),
+        element_type,
+    );
+
     Ok(Value::Array(decomposed_integer.into(), result_type))
 }
 
@@ -2456,7 +2492,7 @@ fn function_def_set_parameters(
         )?;
         let parameter_type = get_type((tuple.pop().unwrap(), parameters_argument_location))?;
         let parameter_pattern = parse(
-            interpreter.elaborator.interner,
+            interpreter.elaborator,
             (tuple.pop().unwrap(), parameters_argument_location),
             Parser::parse_pattern_or_error,
             "a pattern",
@@ -2573,12 +2609,11 @@ fn module_add_item(
 ) -> IResult<Value> {
     let (self_argument, item) = check_two_arguments(arguments, location)?;
     let module_id = get_module(self_argument)?;
-    let module_data = interpreter.elaborator.get_module(module_id);
 
     let parser = Parser::parse_top_level_items;
-    let top_level_statements =
-        parse(interpreter.elaborator.interner, item, parser, "a top-level item")?;
+    let top_level_statements = parse(interpreter.elaborator, item, parser, "a top-level item")?;
 
+    let module_data = interpreter.elaborator.get_module(module_id);
     interpreter.elaborate_in_module(module_id, module_data.location.file, |elaborator| {
         let mut generated_items = CollectedItems::default();
 

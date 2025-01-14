@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
+        dfg::DataFlowGraph,
         function::{Function, FunctionId},
         map::SparseMap,
         post_order::PostOrder,
@@ -25,7 +26,7 @@ impl Ssa {
         let mut context = Context::default();
         context.populate_functions(&self.functions);
         for function in self.functions.values_mut() {
-            context.normalize_ids(function);
+            context.normalize_ids(function, &self.globals.dfg);
         }
         self.functions = context.functions.into_btree();
     }
@@ -65,12 +66,16 @@ impl Context {
         }
     }
 
-    fn normalize_ids(&mut self, old_function: &mut Function) {
+    fn normalize_ids(&mut self, old_function: &mut Function, globals: &DataFlowGraph) {
         self.new_ids.blocks.clear();
         self.new_ids.values.clear();
 
         let new_function_id = self.new_ids.function_ids[&old_function.id()];
         let new_function = &mut self.functions[new_function_id];
+
+        for (_, value) in globals.values_iter() {
+            new_function.dfg.make_global(value.get_type().into_owned());
+        }
 
         let mut reachable_blocks = PostOrder::with_function(old_function).into_vec();
         reachable_blocks.reverse();
@@ -96,12 +101,13 @@ impl Context {
                     .requires_ctrl_typevars()
                     .then(|| vecmap(old_results, |result| old_function.dfg.type_of_value(*result)));
 
-                let new_results = new_function.dfg.insert_instruction_and_results(
-                    instruction,
-                    new_block_id,
-                    ctrl_typevars,
-                    new_call_stack,
-                );
+                let new_results =
+                    new_function.dfg.insert_instruction_and_results_without_simplification(
+                        instruction,
+                        new_block_id,
+                        ctrl_typevars,
+                        new_call_stack,
+                    );
 
                 assert_eq!(old_results.len(), new_results.len());
                 for (old_result, new_result) in old_results.iter().zip(new_results.results().iter())
@@ -180,7 +186,9 @@ impl IdMaps {
             }
 
             Value::Function(id) => {
-                let new_id = self.function_ids[id];
+                let new_id = *self.function_ids.get(id).unwrap_or_else(|| {
+                    unreachable!("Unmapped function with id {id}")
+                });
                 new_function.dfg.import_function(new_id)
             }
 
@@ -189,6 +197,11 @@ impl IdMaps {
             }
             Value::Intrinsic(intrinsic) => new_function.dfg.import_intrinsic(*intrinsic),
             Value::ForeignFunction(name) => new_function.dfg.import_foreign_function(name),
+            Value::Global(_) => {
+                // Globals are computed at compile-time and thus are expected to be remain normalized
+                // between SSA passes
+                old_value
+            },
         }
     }
 }

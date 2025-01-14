@@ -3,8 +3,7 @@ use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 use iter_extended::vecmap;
 use nargo::{
-    constants::PROVER_INPUT_FILE, foreign_calls::DefaultForeignCallExecutor, package::Package,
-    PrintOutput,
+    constants::PROVER_INPUT_FILE, foreign_calls::DefaultForeignCallBuilder, package::Package,
 };
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml};
 use noirc_abi::input_parser::Format;
@@ -84,6 +83,7 @@ pub(crate) fn run(mut args: InfoCommand, config: NargoConfig) -> Result<(), CliE
             binary_packages,
             &args.prover_name,
             args.compile_options.expression_width,
+            args.compile_options.pedantic_solving,
         )?
     } else {
         binary_packages
@@ -239,6 +239,7 @@ fn profile_brillig_execution(
     binary_packages: Vec<(Package, ProgramArtifact)>,
     prover_name: &str,
     expression_width: Option<ExpressionWidth>,
+    pedantic_solving: bool,
 ) -> Result<Vec<ProgramInfo>, CliError> {
     let mut program_info = Vec::new();
     for (package, program_artifact) in binary_packages.iter() {
@@ -254,9 +255,16 @@ fn profile_brillig_execution(
         let (_, profiling_samples) = nargo::ops::execute_program_with_profiling(
             &program_artifact.bytecode,
             initial_witness,
-            &Bn254BlackBoxSolver,
-            &mut DefaultForeignCallExecutor::new(PrintOutput::None, None, None, None),
-        )?;
+            &Bn254BlackBoxSolver(pedantic_solving),
+            &mut DefaultForeignCallBuilder::default().build(),
+        )
+        .map_err(|e| {
+            CliError::Generic(format!(
+                "failed to execute '{}': {}",
+                package.root_dir.to_string_lossy(),
+                e
+            ))
+        })?;
 
         let expression_width = get_target_width(package.expression_width, expression_width);
 

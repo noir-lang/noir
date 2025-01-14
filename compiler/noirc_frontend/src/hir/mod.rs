@@ -14,12 +14,12 @@ use crate::parser::ParserError;
 use crate::usage_tracker::UsageTracker;
 use crate::{Generics, Kind, ParsedModule, ResolvedGeneric, TypeVariable};
 use def_collector::dc_crate::CompilationError;
-use def_map::{Contract, CrateDefMap};
+use def_map::{fully_qualified_module_path, Contract, CrateDefMap};
 use fm::{FileId, FileManager};
 use iter_extended::vecmap;
 use noirc_errors::Location;
 use std::borrow::Cow;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::PathBuf;
 use std::rc::Rc;
 
@@ -152,56 +152,7 @@ impl Context<'_, '_> {
     /// For example, if you project contains a `main.nr` and `foo.nr` and you provide the `main_crate_id` and the
     /// `bar_struct_id` where the `Bar` struct is inside `foo.nr`, this function would return `foo::Bar` as a [String].
     pub fn fully_qualified_struct_path(&self, crate_id: &CrateId, id: StructId) -> String {
-        let module_id = id.module_id();
-        let child_id = module_id.local_id.0;
-        let def_map =
-            self.def_map(&module_id.krate).expect("The local crate should be analyzed already");
-
-        let module = self.module(module_id);
-
-        let module_path = def_map.get_module_path_with_separator(child_id, module.parent, "::");
-
-        if &module_id.krate == crate_id {
-            module_path
-        } else {
-            let crates = self
-                .find_dependencies(crate_id, &module_id.krate)
-                .expect("The Struct was supposed to be defined in a dependency");
-            crates.join("::") + "::" + &module_path
-        }
-    }
-
-    /// Tries to find the requested crate in the current one's dependencies,
-    /// otherwise walks down the crate dependency graph from crate_id until we reach it.
-    /// This is needed in case a library (lib1) re-export a structure defined in another library (lib2)
-    /// In that case, we will get [lib1,lib2] when looking for a struct defined in lib2,
-    /// re-exported by lib1 and used by the main crate.
-    /// Returns the path from crate_id to target_crate_id
-    fn find_dependencies(
-        &self,
-        crate_id: &CrateId,
-        target_crate_id: &CrateId,
-    ) -> Option<Vec<String>> {
-        self.crate_graph[crate_id]
-            .dependencies
-            .iter()
-            .find_map(|dep| {
-                if &dep.crate_id == target_crate_id {
-                    Some(vec![dep.name.to_string()])
-                } else {
-                    None
-                }
-            })
-            .or_else(|| {
-                self.crate_graph[crate_id].dependencies.iter().find_map(|dep| {
-                    if let Some(mut path) = self.find_dependencies(&dep.crate_id, target_crate_id) {
-                        path.insert(0, dep.name.to_string());
-                        Some(path)
-                    } else {
-                        None
-                    }
-                })
-            })
+        fully_qualified_module_path(&self.def_maps, &self.crate_graph, crate_id, id.module_id())
     }
 
     pub fn function_meta(&self, func_id: &FuncId) -> &FuncMeta {
@@ -299,6 +250,10 @@ impl Context<'_, '_> {
 
             ResolvedGeneric { name, type_var, span }
         })
+    }
+
+    pub fn crate_files(&self, crate_id: &CrateId) -> HashSet<FileId> {
+        self.def_maps.get(crate_id).map(|def_map| def_map.file_ids()).unwrap_or_default()
     }
 
     /// Activates LSP mode, which will track references for all definitions.

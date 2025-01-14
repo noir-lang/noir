@@ -112,9 +112,6 @@ impl From<NumericType> for AcirType {
 pub(crate) struct AcirContext<F: AcirField, B: BlackBoxFunctionSolver<F>> {
     blackbox_solver: B,
 
-    /// Two-way map that links `AcirVar` to `AcirVarData`.
-    ///
-    /// The vars object is an instance of the `TwoWayMap`, which provides a bidirectional mapping between `AcirVar` and `AcirVarData`.
     vars: HashMap<AcirVar, AcirVarData<F>>,
 
     constant_witnesses: HashMap<F, Witness>,
@@ -1424,7 +1421,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                     }
                 }?;
                 output_count = input_size + (16 - input_size % 16);
-                (vec![], vec![F::from(output_count as u128)])
+                (vec![], vec![])
             }
             BlackBoxFunc::RecursiveAggregation => {
                 let proof_type_var = match inputs.pop() {

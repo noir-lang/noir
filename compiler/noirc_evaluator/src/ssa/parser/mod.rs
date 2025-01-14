@@ -32,16 +32,24 @@ mod token;
 
 impl Ssa {
     /// Creates an Ssa object from the given string.
-    ///
-    /// Note that the resulting Ssa might not be exactly the same as the given string.
-    /// This is because, internally, the Ssa is built using a `FunctionBuilder`, so
-    /// some instructions might be simplified while they are inserted.
     pub(crate) fn from_str(src: &str) -> Result<Ssa, SsaErrorWithSource> {
+        Self::from_str_impl(src, false)
+    }
+
+    /// Creates an Ssa object from the given string but trying to simplify
+    /// each parsed instruction as it's inserted into the final SSA.
+    pub(crate) fn from_str_simplifying(src: &str) -> Result<Ssa, SsaErrorWithSource> {
+        Self::from_str_impl(src, true)
+    }
+
+    fn from_str_impl(src: &str, simplify: bool) -> Result<Ssa, SsaErrorWithSource> {
         let mut parser =
             Parser::new(src).map_err(|err| SsaErrorWithSource::parse_error(err, src))?;
         let parsed_ssa =
             parser.parse_ssa().map_err(|err| SsaErrorWithSource::parse_error(err, src))?;
-        parsed_ssa.into_ssa().map_err(|error| SsaErrorWithSource { src: src.to_string(), error })
+        parsed_ssa
+            .into_ssa(simplify)
+            .map_err(|error| SsaErrorWithSource { src: src.to_string(), error })
     }
 }
 
@@ -278,9 +286,9 @@ impl<'a> Parser<'a> {
 
     fn eat_binary_op(&mut self) -> ParseResult<Option<BinaryOp>> {
         let op = match self.token.token() {
-            Token::Keyword(Keyword::Add) => BinaryOp::Add,
-            Token::Keyword(Keyword::Sub) => BinaryOp::Sub,
-            Token::Keyword(Keyword::Mul) => BinaryOp::Mul,
+            Token::Keyword(Keyword::Add) => BinaryOp::Add { unchecked: false },
+            Token::Keyword(Keyword::Sub) => BinaryOp::Sub { unchecked: false },
+            Token::Keyword(Keyword::Mul) => BinaryOp::Mul { unchecked: false },
             Token::Keyword(Keyword::Div) => BinaryOp::Div,
             Token::Keyword(Keyword::Eq) => BinaryOp::Eq,
             Token::Keyword(Keyword::Mod) => BinaryOp::Mod,
@@ -290,6 +298,9 @@ impl<'a> Parser<'a> {
             Token::Keyword(Keyword::Xor) => BinaryOp::Xor,
             Token::Keyword(Keyword::Shl) => BinaryOp::Shl,
             Token::Keyword(Keyword::Shr) => BinaryOp::Shr,
+            Token::Keyword(Keyword::UncheckedAdd) => BinaryOp::Add { unchecked: true },
+            Token::Keyword(Keyword::UncheckedSub) => BinaryOp::Sub { unchecked: true },
+            Token::Keyword(Keyword::UncheckedMul) => BinaryOp::Mul { unchecked: true },
             _ => return Ok(None),
         };
 
@@ -857,10 +868,6 @@ impl<'a> Parser<'a> {
 
     fn at(&self, token: Token) -> bool {
         self.token.token() == &token
-    }
-
-    fn at_keyword(&self, keyword: Keyword) -> bool {
-        self.at(Token::Keyword(keyword))
     }
 
     fn newline_follows(&self) -> bool {

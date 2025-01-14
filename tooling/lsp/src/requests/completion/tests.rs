@@ -2861,4 +2861,165 @@ fn main() {
         assert_eq!(items.len(), 1);
         assert!(items[0].label == "bar_baz()");
     }
+
+    #[test]
+    async fn test_suggests_trait_method_from_where_clause_in_function() {
+        let src = r#"
+        trait Foo {
+            fn foo(self) -> i32;
+        }
+
+        fn something<T>(x: T) -> i32
+        where
+            T: Foo,
+        {
+            x.fo>|<
+        }
+        "#;
+        let items = get_completions(src).await;
+        assert_eq!(items.len(), 1);
+    }
+
+    #[test]
+    async fn test_does_not_suggest_trait_function_not_visible() {
+        let src = r#"
+        mod moo {
+            trait Foo {
+                fn foobar();
+            }
+
+            impl Foo for Field {
+                fn foobar() {}
+            }
+        }
+
+        fn main() {
+            Field::fooba>|<
+        }
+
+        "#;
+        assert_completion(src, vec![]).await;
+    }
+
+    #[test]
+    async fn test_suggests_multiple_trait_methods() {
+        let src = r#"
+        mod moo {
+            pub trait Foo {
+                fn foobar();
+            }
+
+            impl Foo for Field {
+                fn foobar() {}
+            }
+
+            pub trait Bar {
+                fn foobar();
+            }
+
+            impl Bar for Field {
+                fn foobar() {}
+            }
+        }
+
+        fn main() {
+            Field::fooba>|<
+        }
+
+        "#;
+        let items = get_completions(src).await;
+        assert_eq!(items.len(), 2);
+    }
+
+    #[test]
+    async fn test_suggests_and_imports_trait_method_without_self() {
+        let src = r#"
+mod moo {
+    pub trait Foo {
+        fn foobar();
+    }
+
+    impl Foo for Field {
+        fn foobar() {}
+    }
+}
+
+fn main() {
+    Field::fooba>|<
+}
+        "#;
+        let mut items = get_completions(src).await;
+        assert_eq!(items.len(), 1);
+
+        let item = items.remove(0);
+        assert_eq!(item.label_details.unwrap().detail, Some("(use moo::Foo)".to_string()));
+
+        let new_code =
+            apply_text_edits(&src.replace(">|<", ""), &item.additional_text_edits.unwrap());
+
+        let expected = r#"use moo::Foo;
+
+mod moo {
+    pub trait Foo {
+        fn foobar();
+    }
+
+    impl Foo for Field {
+        fn foobar() {}
+    }
+}
+
+fn main() {
+    Field::fooba
+}
+        "#;
+        assert_eq!(new_code, expected);
+    }
+
+    #[test]
+    async fn test_suggests_and_imports_trait_method_with_self() {
+        let src = r#"
+mod moo {
+    pub trait Foo {
+        fn foobar(self);
+    }
+
+    impl Foo for Field {
+        fn foobar(self) {}
+    }
+}
+
+fn main() {
+    let x: Field = 1;
+    x.fooba>|<
+}
+        "#;
+        let mut items = get_completions(src).await;
+        assert_eq!(items.len(), 1);
+
+        let item = items.remove(0);
+        assert_eq!(item.label_details.unwrap().detail, Some("(use moo::Foo)".to_string()));
+
+        let new_code =
+            apply_text_edits(&src.replace(">|<", ""), &item.additional_text_edits.unwrap());
+
+        let expected = r#"use moo::Foo;
+
+mod moo {
+    pub trait Foo {
+        fn foobar(self);
+    }
+
+    impl Foo for Field {
+        fn foobar(self) {}
+    }
+}
+
+fn main() {
+    let x: Field = 1;
+    x.fooba
+}
+        "#;
+        assert_eq!(new_code, expected);
+    }
 }
