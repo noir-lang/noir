@@ -243,7 +243,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
     }
 
     pub(crate) fn set_call_stack(&mut self, call_stack: CallStack) {
-        self.acir_ir.call_stacks.get_or_insert_locations(&call_stack);
+        self.acir_ir.call_stack_id = self.acir_ir.call_stacks.get_or_insert_locations(&call_stack);
         self.acir_ir.call_stack = call_stack;
     }
 
