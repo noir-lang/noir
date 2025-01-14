@@ -529,7 +529,9 @@ fn struct_def_fields(
 }
 
 /// fn fields_as_written(self) -> [(Quoted, Type)]
-/// Returns (name, type) pairs of each field of this StructDefinition
+/// Returns (name, type) pairs of each field of this StructDefinition.
+///
+/// Note that any generic arguments won't be applied: if you need them to be, use `fields`.
 fn struct_def_fields_as_written(
     interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
