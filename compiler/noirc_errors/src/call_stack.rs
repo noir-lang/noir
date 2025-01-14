@@ -44,6 +44,7 @@ impl LocationTree {
             result.push(self.locations[call_stack.index()].value);
             call_stack = parent;
         }
+        result.reverse();
         result
     }
 }
@@ -84,6 +85,7 @@ impl CallStackHelper {
             result.push(self.locations[call_stack.index()].value);
             call_stack = parent;
         }
+        result.reverse();
         result
     }
 

@@ -387,7 +387,6 @@ mod tests {
             .get_or_insert_locations(&vec![main_declaration_location, main_whatever_call_location]);
         opcode_locations.insert(OpcodeLocation::Acir(2), call_stack_id);
 
-        let mut opcode_locations = BTreeMap::<OpcodeLocation, CallStackId>::new();
         opcode_locations.insert(OpcodeLocation::Acir(42), CallStackId::new(1));
         let location_tree = call_stack_hlp.to_location_tree();
 
