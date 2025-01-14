@@ -1093,7 +1093,7 @@ fn try_optimize_array_get_from_previous_set(
     // Arbitrary number of maximum tries just to prevent this optimization from taking too long.
     let max_tries = 5;
     for _ in 0..max_tries {
-        if let Some(instruction) = dfg.get_instruction(array_id) {
+        if let Some(instruction) = dfg.get_local_or_global_instruction(array_id) {
             match instruction {
                 Instruction::ArraySet { array, index, value, .. } => {
                     if let Some(constant) = dfg.get_numeric_constant(*index) {

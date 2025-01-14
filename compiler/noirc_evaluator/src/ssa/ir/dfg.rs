@@ -546,7 +546,7 @@ impl DataFlowGraph {
     /// Otherwise, this returns None.
     pub(crate) fn get_array_constant(&self, value: ValueId) -> Option<(im::Vector<ValueId>, Type)> {
         let value = self.resolve(value);
-        if let Some(instruction) = self.get_instruction(value) {
+        if let Some(instruction) = self.get_local_or_global_instruction(value) {
             match instruction {
                 Instruction::MakeArray { elements, typ } => Some((elements.clone(), typ.clone())),
                 _ => None,
@@ -647,19 +647,21 @@ impl DataFlowGraph {
     /// True if the given ValueId refers to a (recursively) constant value
     pub(crate) fn is_constant(&self, argument: ValueId) -> bool {
         let argument = self.resolve(argument);
-        if self.is_global(argument) {
-            return true;
-        }
         match &self[argument] {
             Value::Param { .. } => false,
-            Value::Instruction { instruction, .. } => match &self[*instruction] {
-                Instruction::MakeArray { elements, .. } => {
-                    elements.iter().all(|element| self.is_constant(*element))
+            Value::Instruction { .. } => {
+                let Some(instruction) = self.get_local_or_global_instruction(argument) else {
+                    return false;
+                };
+                match &instruction {
+                    Instruction::MakeArray { elements, .. } => {
+                        elements.iter().all(|element| self.is_constant(*element))
+                    }
+                    _ => false,
                 }
-                _ => false,
-            },
+            }
             Value::Global(_) => {
-                unreachable!("The global value case should already be handled");
+                unreachable!("The global value should have been indexed from the global space");
             }
             _ => true,
         }
@@ -678,11 +680,16 @@ impl DataFlowGraph {
         matches!(self.values[value], Value::Global(_))
     }
 
-    pub(crate) fn get_instruction(&self, value: ValueId) -> Option<&Instruction> {
+    /// Uses value information to determine whether an instruction is from
+    /// this function's DFG or the global space's DFG.
+    pub(crate) fn get_local_or_global_instruction(&self, value: ValueId) -> Option<&Instruction> {
         match &self[value] {
             Value::Instruction { instruction, .. } => {
                 let instruction = if self.is_global(value) {
-                    &self.globals[*instruction]
+                    let instruction = &self.globals[*instruction];
+                    // We expect to only have MakeArray instructions in the global space
+                    assert!(matches!(instruction, Instruction::MakeArray { .. }));
+                    instruction
                 } else {
                     &self[*instruction]
                 };
