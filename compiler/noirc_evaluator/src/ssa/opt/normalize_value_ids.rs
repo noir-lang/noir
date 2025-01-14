@@ -197,9 +197,6 @@ impl IdMaps {
             }
 
             Value::NumericConstant { constant, typ } => {
-                if old_function.dfg.is_global(old_value) {
-                    return old_value;
-                }
                 new_function.dfg.make_constant(*constant, *typ)
             }
             Value::Intrinsic(intrinsic) => new_function.dfg.import_intrinsic(*intrinsic),
