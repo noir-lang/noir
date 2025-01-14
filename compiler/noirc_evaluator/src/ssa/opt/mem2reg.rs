@@ -620,7 +620,7 @@ impl<'f> PerFunctionContext<'f> {
                 // then those parameters also alias each other.
                 // We save parameters with repeat arguments to later mark those
                 // parameters as aliasing one another.
-                let mut arg_set: HashMap<ValueId, VecSet<[ValueId; 1]>> = HashMap::default();
+                let mut arg_set = HashMap::default();
 
                 // Add an alias for each reference parameter
                 for (parameter, argument) in destination_parameters.iter().zip(arguments) {
