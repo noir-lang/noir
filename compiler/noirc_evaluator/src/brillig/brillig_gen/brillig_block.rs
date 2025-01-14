@@ -496,7 +496,7 @@ impl<'block> BrilligBlock<'block> {
                                 arguments,
                             );
                         }
-                        Intrinsic::ToBitsUnsafe(endianness) => {
+                        Intrinsic::ToBits(endianness) => {
                             let results = dfg.instruction_results(instruction_id);
 
                             let source = self.convert_ssa_single_addr_value(arguments[0], dfg);
@@ -526,7 +526,7 @@ impl<'block> BrilligBlock<'block> {
                             self.brillig_context.deallocate_single_addr(two);
                         }
 
-                        Intrinsic::ToRadixUnsafe(endianness) => {
+                        Intrinsic::ToRadix(endianness) => {
                             let results = dfg.instruction_results(instruction_id);
 
                             let source = self.convert_ssa_single_addr_value(arguments[0], dfg);

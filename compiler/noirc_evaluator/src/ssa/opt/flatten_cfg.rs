@@ -697,7 +697,7 @@ impl<'f> Context<'f> {
                 }
                 Instruction::Call { func, mut arguments } => match self.inserter.function.dfg[func]
                 {
-                    Value::Intrinsic(Intrinsic::ToBitsUnsafe(_) | Intrinsic::ToRadixUnsafe(_)) => {
+                    Value::Intrinsic(Intrinsic::ToBits(_) | Intrinsic::ToRadix(_)) => {
                         let field = arguments[0];
                         let casted_condition =
                             self.cast_condition_to_value_type(condition, field, call_stack);

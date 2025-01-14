@@ -558,7 +558,7 @@ mod tests {
         let one = builder.numeric_constant(FieldElement::one(), NumericType::bool());
         let zero = builder.numeric_constant(FieldElement::zero(), NumericType::bool());
 
-        let to_bits_id = builder.import_intrinsic_id(Intrinsic::ToBitsUnsafe(Endian::Little));
+        let to_bits_id = builder.import_intrinsic_id(Intrinsic::ToBits(Endian::Little));
         let input = builder.field_constant(FieldElement::from(7_u128));
         let length = builder.field_constant(FieldElement::from(8_u128));
         let result_types = vec![Type::Array(Arc::new(vec![Type::bool()]), 8)];

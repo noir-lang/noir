@@ -368,12 +368,17 @@ impl<F: AcirField> GeneratedAcir<F> {
             "ICE: Radix must be a power of 2"
         );
 
+        // TODO: is this range_constraint useful?
+        let input_expr_witness = self.create_witness_for_expression(input_expr);
+        self.range_constraint(input_expr_witness, bit_size)?;
+
         let limb_witnesses = self.brillig_to_radix(input_expr, radix, limb_count);
 
         let mut composed_limbs = Expression::default();
 
         let mut radix_pow = BigUint::from(1u128);
         for limb_witness in &limb_witnesses {
+            // TODO: do we need both range_constraint's?
             self.range_constraint(*limb_witness, bit_size)?;
 
             composed_limbs = composed_limbs.add_mul(

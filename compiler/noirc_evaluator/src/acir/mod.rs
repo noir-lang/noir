@@ -2148,7 +2148,7 @@ impl<'a> Context<'a> {
             Intrinsic::ApplyRangeConstraint => {
                 unreachable!("ICE: `Intrinsic::ApplyRangeConstraint` calls should be transformed into an `Instruction::RangeCheck`");
             }
-            Intrinsic::ToRadixUnsafe(endian) => {
+            Intrinsic::ToRadix(endian) => {
                 let field = self.convert_value(arguments[0], dfg).into_var()?;
                 let radix = self.convert_value(arguments[1], dfg).into_var()?;
 
@@ -2167,7 +2167,7 @@ impl<'a> Context<'a> {
                     )
                     .map(|array| vec![array])
             }
-            Intrinsic::ToBitsUnsafe(endian) => {
+            Intrinsic::ToBits(endian) => {
                 let field = self.convert_value(arguments[0], dfg).into_var()?;
 
                 let Type::Array(result_type, array_length) = dfg.type_of_value(result_ids[0])

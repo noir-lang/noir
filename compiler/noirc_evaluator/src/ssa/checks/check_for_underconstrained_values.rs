@@ -307,8 +307,8 @@ impl DependencyContext {
                             | Intrinsic::SliceRemove
                             | Intrinsic::StaticAssert
                             | Intrinsic::StrAsBytes
-                            | Intrinsic::ToBitsUnsafe(..)
-                            | Intrinsic::ToRadixUnsafe(..)
+                            | Intrinsic::ToBits(..)
+                            | Intrinsic::ToRadix(..)
                             | Intrinsic::FieldLessThan => {
                                 // Record all the function arguments as parents of the results
                                 self.update_children(&arguments, &results);
@@ -587,8 +587,8 @@ impl Context {
                             | Intrinsic::SliceRemove
                             | Intrinsic::StaticAssert
                             | Intrinsic::StrAsBytes
-                            | Intrinsic::ToBitsUnsafe(..)
-                            | Intrinsic::ToRadixUnsafe(..)
+                            | Intrinsic::ToBits(..)
+                            | Intrinsic::ToRadix(..)
                             | Intrinsic::FieldLessThan => {
                                 self.value_sets.push(instruction_arguments_and_results);
                             }

@@ -28,26 +28,9 @@ impl Field {
     /// Values of `N` equal to or greater than the number of bits necessary to represent the `Field` modulus
     /// (e.g. 254 for the BN254 field) allow for multiple bit decompositions. This is due to how the `Field` will
     /// wrap around due to overflow when verifying the decomposition.
-    #[builtin(to_le_bits_unsafe)]
-    // docs:start:to_le_bits_unsafe
-    pub fn to_le_bits_unsafe<let N: u32>(self: Self) -> [u1; N] {}
-    // docs:end:to_le_bits_unsafe
-
-    /// Decomposes `self` into its little endian bit decomposition as a `[u1; N]` array.
-    /// This slice will be zero padded should not all bits be necessary to represent `self`.
-    ///
-    /// # Failures
-    /// Causes a constraint failure for `Field` values exceeding `2^N` as the resulting slice will not
-    /// be able to represent the original `Field`.
-    ///
-    /// # Safety
-    /// Values of `N` equal to or greater than the number of bits necessary to represent the `Field` modulus
-    /// (e.g. 254 for the BN254 field) cause a compile-time error.
+    #[builtin(to_le_bits)]
     // docs:start:to_le_bits
-    pub fn to_le_bits<let N: u32>(self: Self) -> [u1; N] {
-        static_assert(N <= modulus_num_bits() as u32, "N must be less than or equal to modulus_num_bits");
-        self.to_le_bits_unsafe()
-    }
+    pub fn to_le_bits<let N: u32>(self: Self) -> [u1; N] {}
     // docs:end:to_le_bits
 
     /// Decomposes `self` into its big endian bit decomposition as a `[u1; N]` array.
@@ -61,26 +44,9 @@ impl Field {
     /// Values of `N` equal to or greater than the number of bits necessary to represent the `Field` modulus
     /// (e.g. 254 for the BN254 field) allow for multiple bit decompositions. This is due to how the `Field` will
     /// wrap around due to overflow when verifying the decomposition.
-    #[builtin(to_be_bits_unsafe)]
-    // docs:start:to_be_bits_unsafe
-    pub fn to_be_bits_unsafe<let N: u32>(self: Self) -> [u1; N] {}
-    // docs:end:to_be_bits_unsafe
-
-    /// Decomposes `self` into its big endian bit decomposition as a `[u1; N]` array.
-    /// This array will be zero padded should not all bits be necessary to represent `self`.
-    ///
-    /// # Failures
-    /// Causes a constraint failure for `Field` values exceeding `2^N` as the resulting slice will not
-    /// be able to represent the original `Field`.
-    ///
-    /// # Safety
-    /// Values of `N` equal to or greater than the number of bits necessary to represent the `Field` modulus
-    /// (e.g. 254 for the BN254 field) cause a compile-time error.
+    #[builtin(to_be_bits)]
     // docs:start:to_be_bits
-    pub fn to_be_bits<let N: u32>(self: Self) -> [u1; N] {
-        static_assert(N <= modulus_num_bits() as u32, "N must be less than or equal to modulus_num_bits");
-        self.to_be_bits_unsafe()
-    }
+    pub fn to_be_bits<let N: u32>(self: Self) -> [u1; N] {}
     // docs:end:to_be_bits
 
     /// Decomposes `self` into its little endian byte decomposition as a `[u8;N]` array
@@ -172,26 +138,12 @@ impl Field {
     // docs:end:to_be_radix
 
     // `_radix` must be less than 256
-    #[builtin(to_le_radix_unsafe)]
-    fn __to_le_radix_unsafe<let N: u32>(self, radix: u32) -> [u8; N] {}
+    #[builtin(to_le_radix)]
+    fn __to_le_radix<let N: u32>(self, radix: u32) -> [u8; N] {}
 
     // `_radix` must be less than 256
-    fn __to_le_radix<let N: u32>(self, radix: u32) -> [u8; N] {
-        static_assert(N <= modulus_num_bits() as u32, "N must be less than or equal to modulus_num_bits");
-        // TODO(https://github.com/noir-lang/noir/issues/6964): assert(radix < 256, "`_radix` must be less than 256");
-        self.__to_le_radix_unsafe(radix)
-    }
-
-    // `_radix` must be less than 256
-    #[builtin(to_be_radix_unsafe)]
-    fn __to_be_radix_unsafe<let N: u32>(self, radix: u32) -> [u8; N] {}
-
-    // `_radix` must be less than 256
-    fn __to_be_radix<let N: u32>(self, radix: u32) -> [u8; N] {
-        static_assert(N <= modulus_num_bits() as u32, "N must be less than or equal to modulus_num_bits");
-        // TODO(https://github.com/noir-lang/noir/issues/6964): assert(radix < 256, "`_radix` must be less than 256");
-        self.__to_be_radix_unsafe(radix)
-    }
+    #[builtin(to_be_radix)]
+    fn __to_be_radix<let N: u32>(self, radix: u32) -> [u8; N] {}
 
     // Returns self to the power of the given exponent value.
     // Caution: we assume the exponent fits into 32 bits

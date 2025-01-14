@@ -234,8 +234,8 @@ fn slice_capacity_change(
         | Intrinsic::AsWitness
         | Intrinsic::IsUnconstrained
         | Intrinsic::DerivePedersenGenerators
-        | Intrinsic::ToBitsUnsafe(_)
-        | Intrinsic::ToRadixUnsafe(_)
+        | Intrinsic::ToBits(_)
+        | Intrinsic::ToRadix(_)
         | Intrinsic::ArrayRefCount
         | Intrinsic::SliceRefCount
         | Intrinsic::FieldLessThan => SizeChange::None,
