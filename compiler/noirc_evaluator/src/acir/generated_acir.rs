@@ -576,14 +576,25 @@ impl<F: AcirField> GeneratedAcir<F> {
         witness: Witness,
         num_bits: u32,
     ) -> Result<(), RuntimeError> {
-        // We class this as an error because users should instead
-        // do `as Field`.
-        if num_bits >= F::max_num_bits() {
-            return Err(RuntimeError::InvalidRangeConstraint {
-                num_bits: F::max_num_bits(),
-                call_stack: self.call_stack.clone(),
-            });
-        };
+        // TODO: similar approaches are failing at
+        //  noirc_evaluator/src/ssa/opt/inlining.rs:723
+        // with before/after instruction counts not matching:
+        //
+        // if num_bits == F::max_num_bits() {
+        //     // TODO: desired behavior?
+        //
+        //     // no-op: assert_zero(0)
+        //     self.push_opcode(AcirOpcode::AssertZero(Expression::zero()));
+        //     return Ok(());
+        // };
+        // // We class this as an error because users should instead
+        // // do `as Field`.
+        // if num_bits > F::max_num_bits() {
+        //     return Err(RuntimeError::InvalidRangeConstraint {
+        //         num_bits: F::max_num_bits(),
+        //         call_stack: self.call_stack.clone(),
+        //     });
+        // };
 
         let constraint = AcirOpcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
             input: FunctionInput::witness(witness, num_bits),
