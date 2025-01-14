@@ -744,6 +744,18 @@ impl<'context> Elaborator<'context> {
         let (typ, bindings) =
             self.instantiate(t, bindings, generics, function_generic_count, span, location);
 
+        // Push any trait constraints required by this definition to the context
+        // to be checked later when the type of this variable is further constrained.
+        if let Some(definition) = self.interner.try_definition(ident.id) {
+            if let DefinitionKind::Function(function) = definition.kind {
+                let function = self.interner.function_meta(&function);
+                for mut constraint in function.trait_constraints.clone() {
+                    constraint.apply_bindings(&bindings);
+                    self.push_trait_constraint(constraint, expr_id);
+                }
+            }
+        }
+
         if let ImplKind::TraitMethod(mut method) = ident.impl_kind {
             method.constraint.apply_bindings(&bindings);
             if method.assumed {
@@ -756,16 +768,6 @@ impl<'context> Elaborator<'context> {
                 // constraint needs to be pushed after any other constraints so
                 // that monomorphization can resolve this trait method to the correct impl.
                 self.push_trait_constraint(method.constraint, expr_id);
-            }
-        } else if let Some(definition) = self.interner.try_definition(ident.id) {
-            // Push any trait constraints required by this definition to the context
-            // to be checked later when the type of this variable is further constrained.
-            if let DefinitionKind::Function(function) = definition.kind {
-                let function = self.interner.function_meta(&function);
-                for mut constraint in function.trait_constraints.clone() {
-                    constraint.apply_bindings(&bindings);
-                    self.push_trait_constraint(constraint, expr_id);
-                }
             }
         }
 
