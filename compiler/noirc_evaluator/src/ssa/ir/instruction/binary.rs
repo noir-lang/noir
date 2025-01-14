@@ -91,8 +91,12 @@ impl Binary {
     pub(super) fn simplify(&self, dfg: &mut DataFlowGraph) -> SimplifyResult {
         let lhs_value = dfg.get_numeric_constant(self.lhs);
         let rhs_value = dfg.get_numeric_constant(self.rhs);
-
+        // dbg!(self.operator);
+        dbg!(self.lhs);
+        dbg!(lhs_value);
+        dbg!(rhs_value);
         let lhs_type = dfg.type_of_value(self.lhs).unwrap_numeric();
+        // dbg!(self.rhs);
         let rhs_type = dfg.type_of_value(self.rhs).unwrap_numeric();
 
         let operator = self.operator;

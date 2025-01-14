@@ -155,7 +155,6 @@ impl<'a> FunctionContext<'a> {
     /// be returned as one entry for each field (recursively).
     fn add_parameters_to_scope(&mut self, parameters: &Parameters) {
         for (id, mutable, name, typ) in parameters {
-            dbg!(name.clone());
             self.add_parameter_to_scope(*id, typ, *mutable);
         }
     }
@@ -1068,6 +1067,7 @@ impl<'a> FunctionContext<'a> {
                 }
             }
             ast::Expression::ExtractTupleField(tuple, field_index) => {
+                dbg!(field_index);
                 indices.push(NestedArrayIndex::Constant(*field_index));
                 self.extract_ident_from_expr(tuple, indices)?
             }

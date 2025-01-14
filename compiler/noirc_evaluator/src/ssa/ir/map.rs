@@ -28,7 +28,7 @@ impl<T> Id<T> {
     ///
     /// This is private so that we can guarantee ids created from this function
     /// point to valid T values in their external maps.
-    pub(crate) fn new(index: u32) -> Self {
+    fn new(index: u32) -> Self {
         Self { index, _marker: std::marker::PhantomData }
     }
 

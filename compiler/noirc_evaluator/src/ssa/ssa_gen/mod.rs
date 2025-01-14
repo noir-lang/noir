@@ -202,20 +202,20 @@ impl<'a> FunctionContext<'a> {
         match literal {
             ast::Literal::Array(array) => {
                 // dbg!(array.contents.clone());
-                let elements =
-                    try_vecmap(&array.contents, |element| self.codegen_expression(element))?;
+                // let elements =
+                    // try_vecmap(&array.contents, |element| self.codegen_expression(element))?;
                 let elements = self.codegen_array_elements(&array.contents)?;
 
                 let typ = Self::convert_type(&array.typ).flatten();
-                dbg!(typ.clone());
-                dbg!(elements.len());
-                let flat_size = elements.clone().into_iter().flat_map(|(value, _)| value.flatten()).collect::<Vec<_>>();
-                dbg!(flat_size.len());
-                for (elem, _) in elements.clone() {
-                    dbg!(elem.count_leaves());
-                }
-                dbg!(typ[0].element_size());
-                dbg!(typ[0].flattened_size());
+                // dbg!(typ.clone());
+                // dbg!(elements.len());
+                // let flat_size = elements.clone().into_iter().flat_map(|(value, _)| value.flatten()).collect::<Vec<_>>();
+                // dbg!(flat_size.len());
+                // for (elem, _) in elements.clone() {
+                //     dbg!(elem.count_leaves());
+                // }
+                // dbg!(typ[0].element_size());
+                // dbg!(typ[0].flattened_size());
                 Ok(match array.typ {
                     ast::Type::Array(_, _) => {
                         self.codegen_array_checked(elements, typ[0].clone())?
@@ -496,16 +496,10 @@ impl<'a> FunctionContext<'a> {
         };
 
         let typ = self.builder.current_function.dfg.type_of_value(array);
-        dbg!(indices.clone());
+        // dbg!(indices.clone());
         let flattened_index = self.build_nested_lvalue_index(&typ, &mut indices).unwrap();
-        // TODO: need to switch this to map type
-        // let element_type = Self::convert_type(&index.element_type);
         let flattened_index = self.make_array_index(flattened_index);
-        // TODO: need to map_type here
-        // dbg!(element_type.clone());
-        dbg!(index.element_type.clone());
-        // let value = self.builder.insert_array_get(array, index, element_type).into();
-        // Ok(value)
+
         let mut field_index = 0u128;
         Ok(Self::map_type(&index.element_type, |typ| {
             dbg!(typ.clone());
@@ -514,8 +508,8 @@ impl<'a> FunctionContext<'a> {
             let offset = self.make_offset(flattened_index, field_index);
             field_index += 1;
 
-            let array_type = &self.builder.type_of_value(array);
             // TODO: add back slice check
+            // let array_type = &self.builder.type_of_value(array);
             // match array_type {
             //     Type::Slice(_) => {
             //         self.codegen_slice_access_check(index, length);
@@ -1013,32 +1007,29 @@ impl<'a> FunctionContext<'a> {
         typ: &Type,
         indices: &mut Vec<NestedArrayIndex>,
     ) -> Option<ValueId> {
-        let mut result_index = ValueId::new(0);
-        // let flat_array = typ.clone().flatten();
-        // dbg!(flat_array.clone());
-        let mut current_types = vec![typ.clone()];
         let Some(first_index) = indices.pop() else {
             return None
         };
-        match first_index {
-            NestedArrayIndex::Constant(field_index) => {
+        let (mut result_index, mut current_types) = match first_index {
+            NestedArrayIndex::Constant(_) => {
                 todo!()
             }
             NestedArrayIndex::Value(value) => {
-                let current_typ = current_types[0].clone();
+                // let current_typ = current_types[0].clone();
                 // let offset = current_typ.flattened_size() / current_typ.array_size();
-                let elements = current_typ.element_types().to_vec();
+                let elements = typ.clone().element_types().to_vec();
                 let offset = elements.iter().fold(0, |acc, typ| acc + typ.flattened_size());
                 dbg!(offset);
                 let offset = self.builder.numeric_constant(offset, NumericType::length_type());
                 let value = self.make_array_index(value);
                 let new_index = self.builder.insert_binary(value, BinaryOp::Mul { unchecked: true }, offset);
-                result_index = new_index;
-
-                current_types = elements;
+                // result_index = new_index;
+                // current_types = elements;
+                (new_index, elements)
             }
             _ => todo!(),
-        }
+        };
+
         while let Some(index) = indices.pop() {
             dbg!(index.clone());
             match index {
@@ -1054,10 +1045,10 @@ impl<'a> FunctionContext<'a> {
                 NestedArrayIndex::Value(value) => {
                     // let current_typ = current_types[0].clone();
                     // let offset = current_typ.flattened_size() / current_typ.array_size();
-                    if value.to_u32() == 40 {
-                        dbg!(current_types.clone());
-                        dbg!(result_index);
-                    }
+                    // if value.to_u32() == 40 {
+                    //     dbg!(current_types.clone());
+                    //     dbg!(result_index);
+                    // }
                     let elements = current_types[0].clone().element_types().to_vec();
                     let offset = elements.iter().fold(0, |acc, typ| acc + typ.flattened_size());
                     dbg!(offset);
