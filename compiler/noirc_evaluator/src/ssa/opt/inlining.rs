@@ -145,6 +145,8 @@ struct PerFunctionContext<'function, 'a> {
 }
 
 /// Utility function to find out the direct calls of a function.
+///
+/// Returns the function IDs from all `Call` instructions without deduplication.
 fn called_functions_vec(func: &Function) -> Vec<FunctionId> {
     let mut called_function_ids = Vec::new();
     for block_id in func.reachable_blocks() {
@@ -162,7 +164,7 @@ fn called_functions_vec(func: &Function) -> Vec<FunctionId> {
     called_function_ids
 }
 
-/// Utility function to find out the deduplicated direct calls of a function.
+/// Utility function to find out the deduplicated direct calls made from a function.
 fn called_functions(func: &Function) -> BTreeSet<FunctionId> {
     called_functions_vec(func).into_iter().collect()
 }
@@ -222,6 +224,7 @@ pub(super) fn get_functions_to_inline_into(
         .collect()
 }
 
+/// Compute the time each function is called from any other function.
 fn compute_times_called(ssa: &Ssa) -> HashMap<FunctionId, usize> {
     ssa.functions
         .iter()
@@ -236,10 +239,14 @@ fn compute_times_called(ssa: &Ssa) -> HashMap<FunctionId, usize> {
         })
 }
 
+/// Traverse the call graph starting from a given function, marking function to be retained if they are:
+/// * recursive functions, or
+/// * the cost of inlining outweighs the cost of not doing so
 fn should_retain_recursive(
     ssa: &Ssa,
     func: FunctionId,
     times_called: &HashMap<FunctionId, usize>,
+    // FunctionId -> (should_retain, weight)
     should_retain_function: &mut HashMap<FunctionId, (bool, i64)>,
     mut explored_functions: im::HashSet<FunctionId>,
     inline_no_predicates_functions: bool,
@@ -280,6 +287,8 @@ fn should_retain_recursive(
     // And the interface cost of the function (the inherent cost at the callsite, roughly the number of args and returns)
     // We then can compute an approximation of the cost of inlining vs the cost of retaining the function
     // We do this computation using saturating i64s to avoid overflows
+
+    // Total weight of functions called by this one, unless we decided not to inline them.
     let inlined_function_weights: i64 = called_functions.iter().fold(0, |acc, called_function| {
         let (should_retain, weight) = should_retain_function[called_function];
         if should_retain {
@@ -311,6 +320,7 @@ fn should_retain_recursive(
     should_retain_function.insert(func, (!should_inline, this_function_weight));
 }
 
+/// Gather the functions that should not be inlined.
 fn compute_functions_to_retain(
     ssa: &Ssa,
     entry_points: &BTreeSet<FunctionId>,
@@ -346,6 +356,7 @@ fn compute_functions_to_retain(
         .collect()
 }
 
+/// Compute a weight of a function based on the number of instructions in its reachable blocks.
 fn compute_function_own_weight(func: &Function) -> usize {
     let mut weight = 0;
     for block_id in func.reachable_blocks() {
@@ -356,6 +367,7 @@ fn compute_function_own_weight(func: &Function) -> usize {
     weight
 }
 
+/// Compute interface cost of a function based on the number of inputs and outputs.
 fn compute_function_interface_cost(func: &Function) -> usize {
     func.parameters().len() + func.returns().len()
 }
