@@ -47,7 +47,7 @@ async fn get_code_action(src: &str) -> CodeActionResponse {
     )
     .await
     .expect("Could not execute on_code_action_request")
-    .unwrap()
+    .expect("Expected to get a CodeActionResponse, got None")
 }
 
 pub(crate) async fn assert_code_action(title: &str, src: &str, expected: &str) {
