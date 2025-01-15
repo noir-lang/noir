@@ -423,14 +423,18 @@ impl<'brillig> Context<'brillig> {
             .then(|| vecmap(old_results, |result| dfg.type_of_value(*result)));
 
         let call_stack = dfg.get_instruction_call_stack_id(id);
-        let new_results =
-            match dfg.insert_instruction_and_results(instruction, block, ctrl_typevars, call_stack)
-            {
-                InsertInstructionResult::SimplifiedTo(new_result) => vec![new_result],
-                InsertInstructionResult::SimplifiedToMultiple(new_results) => new_results,
-                InsertInstructionResult::Results(_, new_results) => new_results.to_vec(),
-                InsertInstructionResult::InstructionRemoved => vec![],
-            };
+        let new_results = match dfg.insert_instruction_and_results_if_simplified(
+            instruction,
+            block,
+            ctrl_typevars,
+            call_stack,
+            Some(id),
+        ) {
+            InsertInstructionResult::SimplifiedTo(new_result) => vec![new_result],
+            InsertInstructionResult::SimplifiedToMultiple(new_results) => new_results,
+            InsertInstructionResult::Results(_, new_results) => new_results.to_vec(),
+            InsertInstructionResult::InstructionRemoved => vec![],
+        };
         // Optimizations while inserting the instruction should not change the number of results.
         assert_eq!(old_results.len(), new_results.len());
 
