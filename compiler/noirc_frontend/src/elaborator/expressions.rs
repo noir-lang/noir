@@ -58,8 +58,8 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::Comptime(comptime, _) => {
                 return self.elaborate_comptime_block(comptime, expr.span)
             }
-            ExpressionKind::Unsafe(block_expression, _) => {
-                self.elaborate_unsafe_block(block_expression, expr.span)
+            ExpressionKind::Unsafe(block_expression, span) => {
+                self.elaborate_unsafe_block(block_expression, span)
             }
             ExpressionKind::Resolved(id) => return (id, self.interner.id_type(id)),
             ExpressionKind::Interned(id) => {
@@ -775,7 +775,10 @@ impl<'context> Elaborator<'context> {
                             span,
                         },
                     };
-                    self.push_trait_constraint(constraint, expr_id);
+                    self.push_trait_constraint(
+                        constraint, expr_id,
+                        true, // this constraint should lead to choosing a trait impl
+                    );
                     self.type_check_operator_method(expr_id, trait_id, operand_type, span);
                 }
                 typ

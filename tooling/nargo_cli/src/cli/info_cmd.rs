@@ -257,7 +257,14 @@ fn profile_brillig_execution(
             initial_witness,
             &Bn254BlackBoxSolver(pedantic_solving),
             &mut DefaultForeignCallBuilder::default().build(),
-        )?;
+        )
+        .map_err(|e| {
+            CliError::Generic(format!(
+                "failed to execute '{}': {}",
+                package.root_dir.to_string_lossy(),
+                e
+            ))
+        })?;
 
         let expression_width = get_target_width(package.expression_width, expression_width);
 

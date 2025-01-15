@@ -65,6 +65,9 @@ pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(Compilation
     )
 }
 
+/// Compile a program.
+///
+/// The stdlib is not available for these snippets.
 pub(crate) fn get_program_with_maybe_parser_errors(
     src: &str,
     allow_parser_errors: bool,
@@ -3894,10 +3897,10 @@ fn errors_on_cyclic_globals() {
 #[test]
 fn warns_on_unneeded_unsafe() {
     let src = r#"
-    fn main() { 
+    fn main() {
+        /// Safety: test
         unsafe {
-            //@safety: test
-            foo() 
+            foo()
         }
     }
 
@@ -3914,12 +3917,12 @@ fn warns_on_unneeded_unsafe() {
 #[test]
 fn warns_on_nested_unsafe() {
     let src = r#"
-    fn main() { 
-        unsafe { 
-            //@safety: test
+    fn main() {
+        /// Safety: test
+        unsafe {
+            /// Safety: test
             unsafe {
-                //@safety: test
-                foo() 
+                foo()
             }
         }
     }
@@ -3948,6 +3951,29 @@ fn mutable_self_call() {
         fn bar(&mut self) {
             let _ = self;
         }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn checks_visibility_of_trait_related_to_trait_impl_on_method_call() {
+    let src = r#"
+    mod moo {
+        pub struct Bar {}
+    }
+
+    trait Foo {
+        fn foo(self);
+    }
+
+    impl Foo for moo::Bar {
+        fn foo(self) {}
+    }
+
+    fn main() {
+        let bar = moo::Bar {};
+        bar.foo();
     }
     "#;
     assert_no_errors(src);

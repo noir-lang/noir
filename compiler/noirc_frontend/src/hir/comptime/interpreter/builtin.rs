@@ -181,7 +181,10 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "struct_def_add_generic" => struct_def_add_generic(interner, arguments, location),
             "struct_def_as_type" => struct_def_as_type(interner, arguments, location),
             "struct_def_eq" => struct_def_eq(arguments, location),
-            "struct_def_fields" => struct_def_fields(interner, arguments, location),
+            "struct_def_fields" => struct_def_fields(interner, arguments, location, call_stack),
+            "struct_def_fields_as_written" => {
+                struct_def_fields_as_written(interner, arguments, location)
+            }
             "struct_def_generics" => struct_def_generics(interner, arguments, location),
             "struct_def_has_named_attribute" => {
                 struct_def_has_named_attribute(interner, arguments, location)
@@ -192,6 +195,8 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "struct_def_set_fields" => struct_def_set_fields(interner, arguments, location),
             "to_be_radix" => to_be_radix(arguments, return_type, location),
             "to_le_radix" => to_le_radix(arguments, return_type, location),
+            "to_be_bits" => to_be_bits(arguments, return_type, location),
+            "to_le_bits" => to_le_bits(arguments, return_type, location),
             "trait_constraint_eq" => trait_constraint_eq(arguments, location),
             "trait_constraint_hash" => trait_constraint_hash(arguments, location),
             "trait_def_as_trait_constraint" => {
@@ -480,9 +485,54 @@ fn struct_def_has_named_attribute(
     Ok(Value::Bool(has_named_attribute(&name, interner.struct_attributes(&struct_id))))
 }
 
-/// fn fields(self) -> [(Quoted, Type)]
-/// Returns (name, type) pairs of each field of this StructDefinition
+/// fn fields(self, generic_args: [Type]) -> [(Quoted, Type)]
+/// Returns (name, type) pairs of each field of this StructDefinition.
+/// Applies the given generic arguments to each field.
 fn struct_def_fields(
+    interner: &mut NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+    call_stack: &im::Vector<Location>,
+) -> IResult<Value> {
+    let (typ, generic_args) = check_two_arguments(arguments, location)?;
+    let struct_id = get_struct(typ)?;
+    let struct_def = interner.get_struct(struct_id);
+    let struct_def = struct_def.borrow();
+
+    let args_location = generic_args.1;
+    let generic_args = get_slice(interner, generic_args)?.0;
+    let generic_args = try_vecmap(generic_args, |arg| get_type((arg, args_location)))?;
+
+    let actual = generic_args.len();
+    let expected = struct_def.generics.len();
+    if actual != expected {
+        let s = if expected == 1 { "" } else { "s" };
+        let was_were = if actual == 1 { "was" } else { "were" };
+        let message = Some(format!("`StructDefinition::fields` expected {expected} generic{s} for `{}` but {actual} {was_were} given", struct_def.name));
+        let location = args_location;
+        let call_stack = call_stack.clone();
+        return Err(InterpreterError::FailingConstraint { message, location, call_stack });
+    }
+
+    let mut fields = im::Vector::new();
+
+    for (field_name, field_type) in struct_def.get_fields(&generic_args) {
+        let name = Value::Quoted(Rc::new(vec![Token::Ident(field_name)]));
+        fields.push_back(Value::Tuple(vec![name, Value::Type(field_type)]));
+    }
+
+    let typ = Type::Slice(Box::new(Type::Tuple(vec![
+        Type::Quoted(QuotedType::Quoted),
+        Type::Quoted(QuotedType::Type),
+    ])));
+    Ok(Value::Slice(fields, typ))
+}
+
+/// fn fields_as_written(self) -> [(Quoted, Type)]
+/// Returns (name, type) pairs of each field of this StructDefinition.
+///
+/// Note that any generic arguments won't be applied: if you need them to be, use `fields`.
+fn struct_def_fields_as_written(
     interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
@@ -776,6 +826,26 @@ fn quoted_tokens(arguments: Vec<(Value, Location)>, location: Location) -> IResu
     ))
 }
 
+fn to_be_bits(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    let value = check_one_argument(arguments, location)?;
+    let radix = (Value::U32(2), value.1);
+    to_be_radix(vec![value, radix], return_type, location)
+}
+
+fn to_le_bits(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    let value = check_one_argument(arguments, location)?;
+    let radix = (Value::U32(2), value.1);
+    to_le_radix(vec![value, radix], return_type, location)
+}
+
 fn to_be_radix(
     arguments: Vec<(Value, Location)>,
     return_type: Type,
@@ -800,10 +870,10 @@ fn to_le_radix(
 
     let value = get_field(value)?;
     let radix = get_u32(radix)?;
-    let limb_count = if let Type::Array(length, _) = return_type {
+    let (limb_count, element_type) = if let Type::Array(length, element_type) = return_type {
         if let Type::Constant(limb_count, kind) = *length {
             if kind.unifies(&Kind::u32()) {
-                limb_count
+                (limb_count, element_type)
             } else {
                 return Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location });
             }
@@ -814,14 +884,29 @@ fn to_le_radix(
         return Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location });
     };
 
+    let return_type_is_bits =
+        *element_type == Type::Integer(Signedness::Unsigned, IntegerBitSize::One);
+
     // Decompose the integer into its radix digits in little endian form.
     let decomposed_integer = compute_to_radix_le(value, radix);
-    let decomposed_integer =
-        vecmap(0..limb_count.to_u128() as usize, |i| match decomposed_integer.get(i) {
-            Some(digit) => Value::U8(*digit),
-            None => Value::U8(0),
-        });
-    let result_type = byte_array_type(decomposed_integer.len());
+    let decomposed_integer = vecmap(0..limb_count.to_u128() as usize, |i| {
+        let digit = match decomposed_integer.get(i) {
+            Some(digit) => *digit,
+            None => 0,
+        };
+        // The only built-ins that use these either return `[u1; N]` or `[u8; N]`
+        if return_type_is_bits {
+            Value::U1(digit != 0)
+        } else {
+            Value::U8(digit)
+        }
+    });
+
+    let result_type = Type::Array(
+        Box::new(Type::Constant(decomposed_integer.len().into(), Kind::u32())),
+        element_type,
+    );
+
     Ok(Value::Array(decomposed_integer.into(), result_type))
 }
 

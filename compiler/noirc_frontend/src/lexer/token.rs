@@ -345,7 +345,6 @@ impl Display for FmtStrFragment {
 pub enum DocStyle {
     Outer,
     Inner,
-    Safety,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -425,13 +424,11 @@ impl fmt::Display for Token {
             Token::LineComment(ref s, style) => match style {
                 Some(DocStyle::Inner) => write!(f, "//!{s}"),
                 Some(DocStyle::Outer) => write!(f, "///{s}"),
-                Some(DocStyle::Safety) => write!(f, "//@safety{s}"),
                 None => write!(f, "//{s}"),
             },
             Token::BlockComment(ref s, style) => match style {
                 Some(DocStyle::Inner) => write!(f, "/*!{s}*/"),
                 Some(DocStyle::Outer) => write!(f, "/**{s}*/"),
-                Some(DocStyle::Safety) => write!(f, "/*@safety{s}*/"),
                 None => write!(f, "/*{s}*/"),
             },
             Token::Quote(ref stream) => {
@@ -1051,6 +1048,7 @@ pub enum Keyword {
     CtString,
     Dep,
     Else,
+    Enum,
     Expr,
     Field,
     Fn,
@@ -1062,6 +1060,7 @@ pub enum Keyword {
     Impl,
     In,
     Let,
+    Match,
     Mod,
     Module,
     Mut,
@@ -1108,6 +1107,7 @@ impl fmt::Display for Keyword {
             Keyword::CtString => write!(f, "CtString"),
             Keyword::Dep => write!(f, "dep"),
             Keyword::Else => write!(f, "else"),
+            Keyword::Enum => write!(f, "enum"),
             Keyword::Expr => write!(f, "Expr"),
             Keyword::Field => write!(f, "Field"),
             Keyword::Fn => write!(f, "fn"),
@@ -1119,6 +1119,7 @@ impl fmt::Display for Keyword {
             Keyword::Impl => write!(f, "impl"),
             Keyword::In => write!(f, "in"),
             Keyword::Let => write!(f, "let"),
+            Keyword::Match => write!(f, "match"),
             Keyword::Mod => write!(f, "mod"),
             Keyword::Module => write!(f, "Module"),
             Keyword::Mut => write!(f, "mut"),
@@ -1168,6 +1169,7 @@ impl Keyword {
             "CtString" => Keyword::CtString,
             "dep" => Keyword::Dep,
             "else" => Keyword::Else,
+            "enum" => Keyword::Enum,
             "Expr" => Keyword::Expr,
             "Field" => Keyword::Field,
             "fn" => Keyword::Fn,
@@ -1179,6 +1181,7 @@ impl Keyword {
             "impl" => Keyword::Impl,
             "in" => Keyword::In,
             "let" => Keyword::Let,
+            "match" => Keyword::Match,
             "mod" => Keyword::Mod,
             "Module" => Keyword::Module,
             "mut" => Keyword::Mut,

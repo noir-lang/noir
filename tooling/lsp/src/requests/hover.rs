@@ -8,12 +8,13 @@ use noirc_frontend::{
     hir::def_map::ModuleId,
     hir_def::{
         expr::{HirArrayLiteral, HirExpression, HirLiteral},
+        function::FuncMeta,
         stmt::HirPattern,
         traits::Trait,
     },
     node_interner::{
         DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, NodeInterner, ReferenceId,
-        StructId, TraitId, TypeAliasId,
+        StructId, TraitId, TraitImplKind, TypeAliasId,
     },
     Generics, Shared, StructType, Type, TypeAlias, TypeBinding, TypeVariable,
 };
@@ -296,6 +297,12 @@ fn get_exprs_global_value(interner: &NodeInterner, exprs: &[ExprId]) -> Option<S
 
 fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
     let func_meta = args.interner.function_meta(&id);
+
+    // If this points to a trait method, see if we can figure out what's the concrete trait impl method
+    if let Some(func_id) = get_trait_impl_func_id(id, args, func_meta) {
+        return format_function(func_id, args);
+    }
+
     let func_modifiers = args.interner.function_modifiers(&id);
 
     let func_name_definition_id = args.interner.definition(func_meta.name.id);
@@ -392,7 +399,10 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
     }
     string.push_str("    ");
 
-    if func_modifiers.visibility != ItemVisibility::Private {
+    if func_modifiers.visibility != ItemVisibility::Private
+        && func_meta.trait_id.is_none()
+        && func_meta.trait_impl.is_none()
+    {
         string.push_str(&func_modifiers.visibility.to_string());
         string.push(' ');
     }
@@ -403,8 +413,10 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
         string.push_str("comptime ");
     }
 
+    let func_name = &func_name_definition_id.name;
+
     string.push_str("fn ");
-    string.push_str(&func_name_definition_id.name);
+    string.push_str(func_name);
     format_generics(&func_meta.direct_generics, &mut string);
     string.push('(');
     let parameters = &func_meta.parameters;
@@ -435,9 +447,47 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
 
     string.push_str(&go_to_type_links(return_type, args.interner, args.files));
 
-    append_doc_comments(args.interner, ReferenceId::Function(id), &mut string);
+    let had_doc_comments =
+        append_doc_comments(args.interner, ReferenceId::Function(id), &mut string);
+    if !had_doc_comments {
+        // If this function doesn't have doc comments, but it's a trait impl method,
+        // use the trait method doc comments.
+        if let Some(trait_impl_id) = func_meta.trait_impl {
+            let trait_impl = args.interner.get_trait_implementation(trait_impl_id);
+            let trait_impl = trait_impl.borrow();
+            let trait_ = args.interner.get_trait(trait_impl.trait_id);
+            if let Some(func_id) = trait_.method_ids.get(func_name) {
+                append_doc_comments(args.interner, ReferenceId::Function(*func_id), &mut string);
+            }
+        }
+    }
 
     string
+}
+
+fn get_trait_impl_func_id(
+    id: FuncId,
+    args: &ProcessRequestCallbackArgs,
+    func_meta: &FuncMeta,
+) -> Option<FuncId> {
+    func_meta.trait_id?;
+
+    let index = args.interner.find_location_index(args.location)?;
+    let expr_id = args.interner.get_expr_id_from_index(index)?;
+    let Some(TraitImplKind::Normal(trait_impl_id)) =
+        args.interner.get_selected_impl_for_expression(expr_id)
+    else {
+        return None;
+    };
+
+    let trait_impl = args.interner.get_trait_implementation(trait_impl_id);
+    let trait_impl = trait_impl.borrow();
+
+    let function_name = args.interner.function_name(&id);
+    let mut trait_impl_methods = trait_impl.methods.iter();
+    let func_id =
+        trait_impl_methods.find(|func_id| args.interner.function_name(func_id) == function_name)?;
+    Some(*func_id)
 }
 
 fn format_alias(id: TypeAliasId, args: &ProcessRequestCallbackArgs) -> String {
@@ -744,13 +794,16 @@ fn format_link(name: String, location: lsp_types::Location) -> String {
     )
 }
 
-fn append_doc_comments(interner: &NodeInterner, id: ReferenceId, string: &mut String) {
+fn append_doc_comments(interner: &NodeInterner, id: ReferenceId, string: &mut String) -> bool {
     if let Some(doc_comments) = interner.doc_comments(id) {
         string.push_str("\n\n---\n\n");
         for comment in doc_comments {
             string.push_str(comment);
             string.push('\n');
         }
+        true
+    } else {
+        false
     }
 }
 
@@ -1104,7 +1157,15 @@ mod hover_tests {
         assert!(hover_text.starts_with(
             "    two
     impl<A> Bar<A, i32> for Foo<A>
-    pub fn bar_stuff(self)"
+    fn bar_stuff(self)"
         ));
+    }
+
+    #[test]
+    async fn hover_on_trait_impl_method_uses_docs_from_trait_method() {
+        let hover_text =
+            get_hover_text("workspace", "two/src/lib.nr", Position { line: 92, character: 8 })
+                .await;
+        assert!(hover_text.contains("Some docs"));
     }
 }

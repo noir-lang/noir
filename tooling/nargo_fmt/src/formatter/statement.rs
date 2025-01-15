@@ -4,7 +4,7 @@ use noirc_frontend::{
         ForLoopStatement, ForRange, LetStatement, Pattern, Statement, StatementKind,
         UnresolvedType, UnresolvedTypeData,
     },
-    token::{Keyword, SecondaryAttribute, Token},
+    token::{Keyword, SecondaryAttribute, Token, TokenKind},
 };
 
 use crate::chunks::{ChunkFormatter, ChunkGroup, GroupKind};
@@ -23,7 +23,17 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
 
         // Now write any leading comment respecting multiple newlines after them
         group.leading_comment(self.chunk(|formatter| {
+            // Doc comments for a let statement could come before a potential non-doc comment
+            if formatter.token.kind() == TokenKind::OuterDocComment {
+                formatter.format_outer_doc_comments();
+            }
+
             formatter.skip_comments_and_whitespace_writing_multiple_lines_if_found();
+
+            // Or doc comments could come after a potential non-doc comment
+            if formatter.token.kind() == TokenKind::OuterDocComment {
+                formatter.format_outer_doc_comments();
+            }
         }));
 
         ignore_next |= self.ignore_next;
@@ -375,6 +385,34 @@ mod tests {
     }
 
     #[test]
+    fn format_let_statement_with_unsafe() {
+        let src = " fn foo() { 
+        /// Safety: some doc
+        let  x  =  unsafe { 1 } ; } ";
+        let expected = "fn foo() {
+    /// Safety: some doc
+    let x = unsafe { 1 };
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_let_statement_with_unsafe_and_comment_before_it() {
+        let src = " fn foo() { 
+        // Some comment
+        /// Safety: some doc
+        let  x  =  unsafe { 1 } ; } ";
+        let expected = "fn foo() {
+    // Some comment
+    /// Safety: some doc
+    let x = unsafe { 1 };
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
     fn format_assign() {
         let src = " fn foo() { x  =  2 ; } ";
         let expected = "fn foo() {
@@ -490,11 +528,9 @@ mod tests {
     #[test]
     fn format_unsafe_statement() {
         let src = " fn foo() { unsafe { 
-        //@safety: testing context
         1  } } ";
         let expected = "fn foo() {
     unsafe {
-        //@safety: testing context
         1
     }
 }

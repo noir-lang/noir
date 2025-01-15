@@ -17,6 +17,7 @@ if [ -f $1 ] && [ -f $2 ]; then
     echo "Error: test failures don't match expected failures"
     echo "Lines prefixed with '>' are new test failures (you could add them to '$1')"
     echo "Lines prefixed with '<' are tests that were expected to fail but passed (you could remove them from '$1')"
+    exit -1
   fi
 elif [ -f $1 ]; then
   # Only the expected file exists, which means the actual test couldn't be compiled.
