@@ -15,6 +15,7 @@ mod debug_cmd;
 mod execute_cmd;
 mod export_cmd;
 mod fmt_cmd;
+mod fuzz_cmd;
 mod generate_completion_script_cmd;
 mod info_cmd;
 mod init_cmd;
@@ -108,6 +109,7 @@ enum NargoCommand {
     Export(export_cmd::ExportCommand),
     Debug(debug_cmd::DebugCommand),
     Test(test_cmd::TestCommand),
+    Fuzz(fuzz_cmd::FuzzCommand),
     Info(info_cmd::InfoCommand),
     Lsp(lsp_cmd::LspCommand),
     #[command(hide = true)]
@@ -166,6 +168,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         NargoCommand::Execute(args) => execute_cmd::run(args, config),
         NargoCommand::Export(args) => export_cmd::run(args, config),
         NargoCommand::Test(args) => test_cmd::run(args, config),
+        NargoCommand::Fuzz(args) => fuzz_cmd::run(args, config),
         NargoCommand::Info(args) => info_cmd::run(args, config),
         NargoCommand::Lsp(args) => lsp_cmd::run(args, config),
         NargoCommand::Dap(args) => dap_cmd::run(args, config),
@@ -197,6 +200,7 @@ fn command_scope(cmd: &NargoCommand) -> CommandScope {
         NargoCommand::Execute(cmd) => cmd.package_options.scope(),
         NargoCommand::Export(cmd) => cmd.package_options.scope(),
         NargoCommand::Test(cmd) => cmd.package_options.scope(),
+        NargoCommand::Fuzz(cmd) => cmd.package_options.scope(),
         NargoCommand::Info(cmd) => cmd.package_options.scope(),
         NargoCommand::Fmt(cmd) => cmd.package_options.scope(),
         NargoCommand::Debug(cmd) => {
@@ -230,7 +234,8 @@ fn needs_lock(cmd: &NargoCommand) -> Option<bool> {
         | NargoCommand::Compile(..)
         | NargoCommand::Execute(..)
         | NargoCommand::Export(..)
-        | NargoCommand::Info(..) => Some(true),
+        | NargoCommand::Info(..)
+        | NargoCommand::Fuzz(..) => Some(true),
         NargoCommand::Debug(..) | NargoCommand::Test(..) => Some(false),
         NargoCommand::Fmt(..)
         | NargoCommand::New(..)

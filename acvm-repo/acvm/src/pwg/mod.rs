@@ -16,6 +16,7 @@ use acir::{
     AcirField, BlackBoxFunc,
 };
 use acvm_blackbox_solver::BlackBoxResolutionError;
+use brillig_vm::BranchToFeatureMap;
 
 use self::{
     arithmetic::ExpressionSolver, blackbox::bigint::AcvmBigIntSolver, memory_op::MemoryOpSolver,
@@ -209,6 +210,14 @@ pub struct ACVM<'a, F, B: BlackBoxFunctionSolver<F>> {
     profiling_active: bool,
 
     profiling_samples: ProfilingSamples,
+
+    // Whether we need to trace brillig execution for fuzzing
+    brillig_fuzzing_active: bool,
+
+    // Brillig branch to feature map
+    brillig_branch_to_feature_map: Option<&'a BranchToFeatureMap>,
+
+    brillig_fuzzing_trace: Option<Vec<u32>>,
 }
 
 impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
@@ -236,12 +245,33 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             assertion_payloads,
             profiling_active: false,
             profiling_samples: Vec::new(),
+            brillig_fuzzing_active: false,
+            brillig_branch_to_feature_map: None,
+            brillig_fuzzing_trace: None,
         }
     }
 
     // Enable profiling
     pub fn with_profiler(&mut self, profiling_active: bool) {
         self.profiling_active = profiling_active;
+    }
+
+    // Enable brillig fuzzing
+    pub fn with_brillig_fuzzing(
+        &mut self,
+        brillig_fuzzing_active: bool,
+        brillig_branch_to_feature_map: Option<&'a BranchToFeatureMap>,
+    ) {
+        self.brillig_fuzzing_active = brillig_fuzzing_active;
+        if brillig_fuzzing_active {
+            self.brillig_branch_to_feature_map = brillig_branch_to_feature_map;
+        } else {
+            self.brillig_branch_to_feature_map = None;
+        }
+    }
+
+    pub fn get_brillig_fuzzing_trace(&self) -> Option<Vec<u32>> {
+        self.brillig_fuzzing_trace.clone()
     }
 
     /// Returns a reference to the current state of the ACVM's [`WitnessMap`].
@@ -510,10 +540,16 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
                 self.instruction_pointer,
                 *id,
                 self.profiling_active,
+                self.brillig_branch_to_feature_map,
             )?,
         };
 
-        let result = solver.solve()?;
+        let result = solver.solve().map_err(|err| {
+            if self.brillig_fuzzing_active {
+                self.brillig_fuzzing_trace = Some((&solver).get_fuzzing_trace())
+            };
+            err
+        })?;
 
         match result {
             BrilligSolverStatus::ForeignCallWait(foreign_call) => {
@@ -525,6 +561,9 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
                 unreachable!("Brillig solver still in progress")
             }
             BrilligSolverStatus::Finished => {
+                if self.brillig_fuzzing_active {
+                    self.brillig_fuzzing_trace = Some((&solver).get_fuzzing_trace())
+                }
                 // Write execution outputs
                 if self.profiling_active {
                     let profiling_info =
@@ -586,6 +625,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             self.instruction_pointer,
             *id,
             self.profiling_active,
+            self.brillig_branch_to_feature_map,
         );
         match solver {
             Ok(solver) => StepResult::IntoBrillig(solver),

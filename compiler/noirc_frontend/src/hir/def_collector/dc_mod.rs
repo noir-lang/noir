@@ -951,6 +951,7 @@ pub fn collect_function(
     let module_data = &mut def_map.modules[module.local_id.0];
 
     let is_test = function.def.attributes.is_test_function();
+    let is_fuzzing_harness = function.def.attributes.is_fuzzing_harness();
     let is_entry_point_function = if module_data.is_contract {
         function.attributes().is_contract_entry_point()
     } else {
@@ -967,7 +968,7 @@ pub fn collect_function(
         interner.register_function(func_id, &function.def);
     }
 
-    if !is_test && !is_entry_point_function && !has_export {
+    if !is_test && !is_fuzzing_harness && !is_entry_point_function && !has_export {
         let item = UnusedItem::Function(func_id);
         usage_tracker.add_unused_item(module, name.clone(), item, visibility);
     }

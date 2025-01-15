@@ -10,6 +10,8 @@
 //! [acir]: https://crates.io/crates/acir
 //! [acvm]: https://crates.io/crates/acvm
 
+use std::collections::HashMap;
+
 use acir::brillig::{
     BinaryFieldOp, BinaryIntOp, BitSize, ForeignCallParam, ForeignCallResult, HeapArray,
     HeapValueType, HeapVector, IntegerBitSize, MemoryAddress, Opcode, ValueOrArray,
@@ -22,6 +24,7 @@ use black_box::{evaluate_black_box, BrilligBigIntSolver};
 // Re-export `brillig`.
 pub use acir::brillig;
 pub use memory::{Memory, MemoryValue, MEMORY_ADDRESSING_BIT_SIZE};
+use num_bigint::BigUint;
 
 mod arithmetic;
 mod black_box;
@@ -65,6 +68,10 @@ pub enum VMStatus<F> {
 // A sample for each opcode that was executed.
 pub type BrilligProfilingSamples = Vec<BrilligProfilingSample>;
 
+pub type Branch = (usize, usize);
+// A map for translating encountered branching logic to features for fuzzing
+pub type BranchToFeatureMap = HashMap<Branch, usize>;
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct BrilligProfilingSample {
     // The call stack when processing a given opcode.
@@ -100,6 +107,14 @@ pub struct VM<'a, F, B: BlackBoxFunctionSolver<F>> {
     profiling_active: bool,
     // Samples for profiling the VM execution.
     profiling_samples: BrilligProfilingSamples,
+
+    // The vm should trace fuzzing
+    fuzzing_active: bool,
+    // Fuzzer tracing memory
+    fuzzer_trace: Vec<u32>,
+
+    // Branch to feature map for fuzzing
+    branch_to_feature_map: BranchToFeatureMap,
 }
 
 impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
@@ -110,7 +125,15 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         foreign_call_results: Vec<ForeignCallResult<F>>,
         black_box_solver: &'a B,
         profiling_active: bool,
+        with_branch_to_feature_map: Option<&BranchToFeatureMap>,
     ) -> Self {
+        let (fuzzing_active, fuzzer_trace, branch_to_feature_map) = match with_branch_to_feature_map
+        {
+            Some(branch_to_feature_map) => {
+                (true, vec![0u32; branch_to_feature_map.len()], branch_to_feature_map.clone())
+            }
+            None => (false, Vec::new(), HashMap::new()),
+        };
         let bigint_solver =
             BrilligBigIntSolver::with_pedantic_solving(black_box_solver.pedantic_solving());
         Self {
@@ -126,11 +149,18 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
             bigint_solver,
             profiling_active,
             profiling_samples: Vec::with_capacity(bytecode.len()),
+            fuzzing_active,
+            fuzzer_trace,
+            branch_to_feature_map,
         }
     }
 
     pub fn is_profiling_active(&self) -> bool {
         self.profiling_active
+    }
+
+    pub fn is_fuzzing_active(&self) -> bool {
+        self.fuzzing_active
     }
 
     pub fn take_profiling_samples(&mut self) -> BrilligProfilingSamples {
@@ -228,7 +258,141 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
 
         self.process_opcode_internal()
     }
+    fn trace_branching(&mut self, destination: usize) {
+        if self.fuzzing_active {
+            let index = self.branch_to_feature_map[&(self.program_counter, destination)];
+            self.fuzzer_trace[index] += 1;
+        }
+    }
+    fn trace_conditional_mov(&mut self, branch: bool) {
+        if self.fuzzing_active {
+            let index = self.branch_to_feature_map
+                [&(self.program_counter, if branch { usize::MAX } else { usize::MAX - 1 })];
+            self.fuzzer_trace[index] += 1;
+        }
+    }
+    fn trace_binary_field_op(
+        &mut self,
+        op: &BinaryFieldOp,
+        lhs: MemoryValue<F>,
+        rhs: MemoryValue<F>,
+        result: MemoryValue<F>,
+    ) {
+        if self.fuzzing_active {
+            match op {
+                BinaryFieldOp::Add
+                | BinaryFieldOp::Sub
+                | BinaryFieldOp::Mul
+                | BinaryFieldOp::Div
+                | BinaryFieldOp::IntegerDiv => {}
+                BinaryFieldOp::Equals | BinaryFieldOp::LessThan | BinaryFieldOp::LessThanEquals => {
+                    let a = match lhs {
+                        MemoryValue::Field(a) => a,
+                        MemoryValue::Integer(_, _bit_size) => {
+                            return;
+                        }
+                    };
+                    let b = match rhs {
+                        MemoryValue::Field(b) => b,
+                        MemoryValue::Integer(_, _bit_size) => {
+                            return;
+                        }
+                    };
+                    let c = match result {
+                        MemoryValue::Field(..) => {
+                            return;
+                        }
+                        MemoryValue::Integer(value, bit_size) => {
+                            if bit_size != IntegerBitSize::U1 {
+                                return;
+                            }
+                            value != 0
+                        }
+                    };
+                    let approach_index = self.branch_to_feature_map[&(
+                        self.program_counter,
+                        usize::MAX
+                            - 2
+                            - BigUint::from_bytes_be(&(b - a).to_be_bytes()).bits() as usize,
+                    )];
+                    let condition_index = self.branch_to_feature_map
+                        [&(self.program_counter, if c { usize::MAX } else { usize::MAX - 1 })];
+                    self.fuzzer_trace[condition_index] += 1;
+                    self.fuzzer_trace[approach_index] += 1;
+                }
+            }
+        }
+    }
 
+    fn trace_binary_int_op(
+        &mut self,
+        op: &BinaryIntOp,
+        lhs: MemoryValue<F>,
+        rhs: MemoryValue<F>,
+        bit_size: IntegerBitSize,
+        result: MemoryValue<F>,
+    ) {
+        if self.fuzzing_active {
+            match op {
+                BinaryIntOp::Add
+                | BinaryIntOp::Sub
+                | BinaryIntOp::Mul
+                | BinaryIntOp::Div
+                | BinaryIntOp::And
+                | BinaryIntOp::Or
+                | BinaryIntOp::Xor
+                | BinaryIntOp::Shl
+                | BinaryIntOp::Shr => {}
+                BinaryIntOp::Equals | BinaryIntOp::LessThan | BinaryIntOp::LessThanEquals => {
+                    let lhs_value = match lhs.expect_integer_with_bit_size(bit_size) {
+                        Ok(lhs_value) => lhs_value,
+                        Err(..) => {
+                            return;
+                        }
+                    };
+                    let rhs_value = match rhs.expect_integer_with_bit_size(bit_size) {
+                        Ok(rhs_value) => rhs_value,
+                        Err(..) => {
+                            return;
+                        }
+                    };
+
+                    let c = match result {
+                        MemoryValue::Field(..) => {
+                            return;
+                        }
+                        MemoryValue::Integer(value, bit_size) => {
+                            if bit_size != IntegerBitSize::U1 {
+                                return;
+                            }
+                            value != 0
+                        }
+                    };
+                    let approach_index = self.branch_to_feature_map[&(
+                        self.program_counter,
+                        usize::MAX
+                            - 2
+                            - rhs_value
+                                .abs_diff(lhs_value)
+                                .checked_ilog2()
+                                .map_or_else(|| 0, |x| x + 1)
+                                as usize,
+                    )];
+                    let condition_index = self.branch_to_feature_map
+                        [&(self.program_counter, if c { usize::MAX } else { usize::MAX - 1 })];
+                    self.fuzzer_trace[condition_index] += 1;
+                    self.fuzzer_trace[approach_index] += 1;
+                }
+            }
+        }
+    }
+    pub fn get_fuzzing_trace(&self) -> Vec<u32> {
+        if !self.fuzzing_active {
+            Vec::new()
+        } else {
+            self.fuzzer_trace.clone()
+        }
+    }
     fn process_opcode_internal(&mut self) -> VMStatus<F> {
         let opcode = &self.bytecode[self.program_counter];
         match opcode {
@@ -266,15 +430,19 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 // We use 0 to mean false and any other value to mean true
                 let condition_value = self.memory.read(*condition);
                 if condition_value.try_into().expect("condition value is not a boolean") {
+                    self.trace_branching(*destination);
                     return self.set_program_counter(*destination);
                 }
+                self.trace_branching(self.program_counter + 1);
                 self.increment_program_counter()
             }
             Opcode::JumpIfNot { condition, location: destination } => {
                 let condition_value = self.memory.read(*condition);
                 if condition_value.try_into().expect("condition value is not a boolean") {
+                    self.trace_branching(self.program_counter + 1);
                     return self.increment_program_counter();
                 }
+                self.trace_branching(*destination);
                 self.set_program_counter(*destination)
             }
             Opcode::CalldataCopy { destination_address, size_address, offset_address } => {
@@ -340,11 +508,15 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
             }
             Opcode::ConditionalMov { destination, source_a, source_b, condition } => {
                 let condition_value = self.memory.read(*condition);
-                if condition_value.try_into().expect("condition value is not a boolean") {
+
+                let condition_value_bool =
+                    condition_value.try_into().expect("condition value is not a boolean");
+                if condition_value_bool {
                     self.memory.write(*destination, self.memory.read(*source_a));
                 } else {
                     self.memory.write(*destination, self.memory.read(*source_b));
                 }
+                self.trace_conditional_mov(condition_value_bool);
                 self.increment_program_counter()
             }
             Opcode::Trap { revert_data } => {
@@ -750,6 +922,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
 
         self.memory.write(result, result_value);
 
+        self.trace_binary_field_op(&op, lhs_value, rhs_value, result_value);
         Ok(())
     }
 
@@ -768,6 +941,8 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
 
         let result_value = evaluate_binary_int_op(&op, lhs_value, rhs_value, bit_size)?;
         self.memory.write(result, result_value);
+
+        self.trace_binary_int_op(&op, lhs_value, rhs_value, bit_size, result_value);
         Ok(())
     }
 

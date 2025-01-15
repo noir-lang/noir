@@ -34,7 +34,8 @@ use crate::{
         TraitImplKind, TraitMethodId,
     },
     token::SecondaryAttribute,
-    Generics, Kind, ResolvedGeneric, Type, TypeBinding, TypeBindings, UnificationError,
+    Generics, Kind, ResolvedGeneric, Shared, StructType, Type, TypeBinding, TypeBindings,
+    UnificationError,
 };
 
 use super::{lints, path_resolution::PathResolutionItem, Elaborator, UnsafeBlockStatus};
