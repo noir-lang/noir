@@ -66,7 +66,18 @@ comptime fn example(foo: StructDefinition) {
 
 #include_code fields noir_stdlib/src/meta/struct_def.nr rust
 
-Returns each field of this struct as a pair of (field name, field type).
+Returns (name, type) pairs of each field in this struct.
+Any generic types used in each field type is automatically substituted with the
+provided generic arguments.
+
+### fields_as_written
+
+#include_code fields_as_written noir_stdlib/src/meta/struct_def.nr rust
+
+Returns (name, type) pairs of each field in this struct. Each type is as-is
+with any generic arguments unchanged. Unless the field types are not needed,
+users should generally prefer to use `StructDefinition::fields` over this
+function if possible.
 
 ### has_named_attribute
 
