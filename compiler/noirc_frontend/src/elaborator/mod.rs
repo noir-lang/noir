@@ -1412,7 +1412,12 @@ impl<'context> Elaborator<'context> {
             self.collect_trait_impl_methods(trait_id, trait_impl, &where_clause);
 
             let span = trait_impl.object_type.span;
-            self.declare_methods_on_struct(Some(trait_id), &mut trait_impl.methods, span);
+            let trait_impl_id = trait_impl.impl_id.expect("TraitImpl impl ID should be set by now");
+            self.declare_methods_on_struct(
+                Some((trait_impl_id, trait_id)),
+                &mut trait_impl.methods,
+                span,
+            );
 
             let trait_visibility = self.interner.get_trait(trait_id).visibility;
 
@@ -1477,7 +1482,7 @@ impl<'context> Elaborator<'context> {
 
     fn declare_methods_on_struct(
         &mut self,
-        trait_id: Option<TraitId>,
+        trait_impl: Option<(TraitImplId, TraitId)>,
         functions: &mut UnresolvedFunctions,
         span: Span,
     ) {
@@ -1491,7 +1496,7 @@ impl<'context> Elaborator<'context> {
             let struct_ref = struct_type.borrow();
 
             // `impl`s are only allowed on types defined within the current crate
-            if trait_id.is_none() && struct_ref.id.krate() != self.crate_id {
+            if trait_impl.is_none() && struct_ref.id.krate() != self.crate_id {
                 let type_name = struct_ref.name.to_string();
                 self.push_err(DefCollectorErrorKind::ForeignImpl { span, type_name });
                 return;
@@ -1508,10 +1513,15 @@ impl<'context> Elaborator<'context> {
                 // object types in each method overlap or not. If they do, we issue an error.
                 // If not, that is specialization which is allowed.
                 let name = method.name_ident().clone();
-                if let Some(trait_id) = trait_id {
+                if let Some((trait_impl_id, trait_id)) = trait_impl {
                     // We don't check the result here because for trait and trait impl functions
                     // we already checked if a duplicate definition exists
-                    let _ = module.declare_trait_function(name, *method_id, trait_id);
+                    let _ = module.declare_trait_impl_function(
+                        name,
+                        *method_id,
+                        trait_impl_id,
+                        trait_id,
+                    );
                 } else {
                     // For non-trait methods we'll check if there are duplicates below
                     let _ =
@@ -1520,14 +1530,14 @@ impl<'context> Elaborator<'context> {
             }
 
             // Trait impl methods are already declared in NodeInterner::add_trait_implementation
-            if trait_id.is_none() {
+            if trait_impl.is_none() {
                 self.declare_methods(self_type, &function_ids);
             }
         // We can define methods on primitive types only if we're in the stdlib
-        } else if trait_id.is_none() && *self_type != Type::Error {
+        } else if trait_impl.is_none() && *self_type != Type::Error {
             if self.crate_id.is_stdlib() {
                 // Trait impl methods are already declared in NodeInterner::add_trait_implementation
-                if trait_id.is_none() {
+                if trait_impl.is_none() {
                     self.declare_methods(self_type, &function_ids);
                 }
             } else {

@@ -1,10 +1,11 @@
 use super::{namespace::PerNs, ModuleDefId, ModuleId};
 use crate::ast::{Ident, ItemVisibility};
-use crate::node_interner::{FuncId, TraitId};
+use crate::node_interner::{FuncId, TraitId, TraitImplId};
 
 use std::collections::{hash_map::Entry, HashMap};
 
-type Scope = HashMap<Option<TraitId>, (ModuleDefId, ItemVisibility, bool /*is_prelude*/)>;
+type Scope =
+    HashMap<Option<(TraitImplId, TraitId)>, (ModuleDefId, ItemVisibility, bool /*is_prelude*/)>;
 
 #[derive(Default, Debug, PartialEq, Eq)]
 pub struct ItemScope {
@@ -20,9 +21,9 @@ impl ItemScope {
         name: Ident,
         visibility: ItemVisibility,
         mod_def: ModuleDefId,
-        trait_id: Option<TraitId>,
+        trait_impl: Option<(TraitImplId, TraitId)>,
     ) -> Result<(), (Ident, Ident)> {
-        self.add_item_to_namespace(name, visibility, mod_def, trait_id, false)?;
+        self.add_item_to_namespace(name, visibility, mod_def, trait_impl, false)?;
         self.defs.push(mod_def);
         Ok(())
     }
@@ -35,13 +36,13 @@ impl ItemScope {
         name: Ident,
         visibility: ItemVisibility,
         mod_def: ModuleDefId,
-        trait_id: Option<TraitId>,
+        trait_impl: Option<(TraitImplId, TraitId)>,
         is_prelude: bool,
     ) -> Result<(), (Ident, Ident)> {
         let add_item = |map: &mut HashMap<Ident, Scope>| {
             if let Entry::Occupied(mut o) = map.entry(name.clone()) {
-                let trait_hashmap = o.get_mut();
-                if let Entry::Occupied(mut n) = trait_hashmap.entry(trait_id) {
+                let trait_impl_hashmap = o.get_mut();
+                if let Entry::Occupied(mut n) = trait_impl_hashmap.entry(trait_impl) {
                     // Generally we want to reject having two of the same ident in the same namespace.
                     // The exception to this is when we're explicitly importing something
                     // which exists in the Noir stdlib prelude.
@@ -56,12 +57,12 @@ impl ItemScope {
                         Err((old_ident.clone(), name))
                     }
                 } else {
-                    trait_hashmap.insert(trait_id, (mod_def, visibility, is_prelude));
+                    trait_impl_hashmap.insert(trait_impl, (mod_def, visibility, is_prelude));
                     Ok(())
                 }
             } else {
                 let mut trait_hashmap = HashMap::new();
-                trait_hashmap.insert(trait_id, (mod_def, visibility, is_prelude));
+                trait_hashmap.insert(trait_impl, (mod_def, visibility, is_prelude));
                 map.insert(name, trait_hashmap);
                 Ok(())
             }
@@ -108,18 +109,6 @@ impl ItemScope {
         }
     }
 
-    pub fn find_func_with_name_and_trait_id(
-        &self,
-        func_name: &Ident,
-        trait_id: &Option<TraitId>,
-    ) -> Option<FuncId> {
-        let (module_def, _, _) = self.values.get(func_name)?.get(trait_id)?;
-        match module_def {
-            ModuleDefId::FunctionId(id) => Some(*id),
-            _ => None,
-        }
-    }
-
     pub fn find_name(&self, name: &Ident) -> PerNs {
         // Names, not associated with traits are searched first. If not found, we search for name, coming from a trait.
         // If we find only one name from trait, we return it. If there are multiple traits, providing the same name, we return None.
@@ -138,17 +127,6 @@ impl ItemScope {
         };
 
         PerNs { types: find_name_in(&self.types), values: find_name_in(&self.values) }
-    }
-
-    pub fn find_name_for_trait_id(&self, name: &Ident, trait_id: &Option<TraitId>) -> PerNs {
-        PerNs {
-            types: if let Some(t) = self.types.get(name) { t.get(trait_id).cloned() } else { None },
-            values: if let Some(v) = self.values.get(name) {
-                v.get(trait_id).cloned()
-            } else {
-                None
-            },
-        }
     }
 
     pub fn names(&self) -> impl Iterator<Item = &Ident> {

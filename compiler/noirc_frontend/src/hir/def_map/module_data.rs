@@ -4,7 +4,7 @@ use noirc_errors::Location;
 
 use super::{ItemScope, LocalModuleId, ModuleDefId, ModuleId, PerNs};
 use crate::ast::{Ident, ItemVisibility};
-use crate::node_interner::{FuncId, GlobalId, StructId, TraitId, TypeAliasId};
+use crate::node_interner::{FuncId, GlobalId, StructId, TraitId, TraitImplId, TypeAliasId};
 use crate::token::SecondaryAttribute;
 
 /// Contains the actual contents of a module: its parent (if one exists),
@@ -75,9 +75,9 @@ impl ModuleData {
         name: Ident,
         visibility: ItemVisibility,
         item_id: ModuleDefId,
-        trait_id: Option<TraitId>,
+        trait_impl: Option<(TraitImplId, TraitId)>,
     ) -> Result<(), (Ident, Ident)> {
-        self.scope.add_definition(name.clone(), visibility, item_id, trait_id)?;
+        self.scope.add_definition(name.clone(), visibility, item_id, trait_impl)?;
 
         if let ModuleDefId::ModuleId(child) = item_id {
             self.child_declaration_order.push(child.local_id);
@@ -85,7 +85,7 @@ impl ModuleData {
 
         // definitions is a subset of self.scope so it is expected if self.scope.define_func_def
         // returns without error, so will self.definitions.define_func_def.
-        self.definitions.add_definition(name, visibility, item_id, trait_id)
+        self.definitions.add_definition(name, visibility, item_id, trait_impl)
     }
 
     pub fn declare_function(
@@ -97,13 +97,14 @@ impl ModuleData {
         self.declare(name, visibility, id.into(), None)
     }
 
-    pub fn declare_trait_function(
+    pub fn declare_trait_impl_function(
         &mut self,
         name: Ident,
         id: FuncId,
+        trait_impl_id: TraitImplId,
         trait_id: TraitId,
     ) -> Result<(), (Ident, Ident)> {
-        self.declare(name, ItemVisibility::Public, id.into(), Some(trait_id))
+        self.declare(name, ItemVisibility::Public, id.into(), Some((trait_impl_id, trait_id)))
     }
 
     pub fn declare_global(

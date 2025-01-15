@@ -407,8 +407,8 @@ impl<'context> Elaborator<'context> {
         // Gather a list of items for which their trait is in scope.
         let mut results = Vec::new();
 
-        for (trait_id, item) in values.iter() {
-            let trait_id = trait_id.expect("The None option was already considered before");
+        for (key, item) in values.iter() {
+            let (_, trait_id) = key.expect("The None option was already considered before");
             let trait_ = self.interner.get_trait(trait_id);
             let Some(map) = starting_module.scope().types().get(&trait_.name) else {
                 continue;
@@ -424,15 +424,15 @@ impl<'context> Elaborator<'context> {
         if results.is_empty() {
             if values.len() == 1 {
                 // This is the backwards-compatible case where there's a single trait method but it's not in scope
-                let (trait_id, item) = values.iter().next().expect("Expected an item");
-                let trait_id = trait_id.expect("The None option was already considered before");
+                let (key, item) = values.iter().next().expect("Expected an item");
+                let (_, trait_id) = key.expect("The None option was already considered before");
                 let per_ns = PerNs { types: None, values: Some(*item) };
                 return StructMethodLookupResult::FoundOneTraitMethodButNotInScope(
                     per_ns, trait_id,
                 );
             } else {
                 let trait_ids = vecmap(values, |(trait_id, _)| {
-                    trait_id.expect("The none option was already considered before")
+                    trait_id.expect("The none option was already considered before").1
                 });
                 return StructMethodLookupResult::NotFound(trait_ids);
             }
