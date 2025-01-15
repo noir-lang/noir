@@ -148,7 +148,7 @@ impl DebugInstrumenter {
         let has_ret_expr = match ret_stmt {
             None => false,
             Some(ast::Statement { kind: ast::StatementKind::Expression(ret_expr), .. }) => {
-                let save_ret_expr = ast::Statement {
+                let mut save_ret_expr = ast::Statement {
                     kind: ast::StatementKind::new_let(
                         ast::Pattern::Identifier(ident("__debug_expr", ret_expr.location)),
                         ast::UnresolvedTypeData::Unspecified.with_dummy_location(),
@@ -157,6 +157,8 @@ impl DebugInstrumenter {
                     ),
                     location: ret_expr.location,
                 };
+                // call walk_statement on the new let statement, in order to make the return variable visible in the debugger
+                self.walk_statement(&mut save_ret_expr);
                 statements.push(save_ret_expr);
                 true
             }
