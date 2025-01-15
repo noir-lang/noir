@@ -4,10 +4,6 @@ use std::{
 };
 
 use crate::{
-    ast::{ItemVisibility, UnresolvedType}, graph::CrateGraph, hir_def::traits::ResolvedTraitBound,
-    node_interner::GlobalValue, usage_tracker::UsageTracker, StructField, StructType, TypeBindings,
-};
-use crate::{
     ast::{
         BlockExpression, FunctionKind, GenericTypeArgs, Ident, NoirFunction, NoirStruct, Param,
         Path, Pattern, TraitBound, UnresolvedGeneric, UnresolvedGenerics,
@@ -40,6 +36,14 @@ use crate::{
     },
     token::SecondaryAttribute,
     Shared, Type, TypeVariable,
+};
+use crate::{
+    ast::{ItemVisibility, UnresolvedType},
+    graph::CrateGraph,
+    hir_def::traits::ResolvedTraitBound,
+    node_interner::GlobalValue,
+    usage_tracker::UsageTracker,
+    StructField, StructType, TypeBindings,
 };
 
 mod comptime;
@@ -766,7 +770,9 @@ impl<'context> Elaborator<'context> {
     ) -> Vec<ResolvedGeneric> {
         where_clause
             .iter_mut()
-            .flat_map(|constraint| self.add_missing_named_generics(&constraint.typ, &mut constraint.trait_bound))
+            .flat_map(|constraint| {
+                self.add_missing_named_generics(&constraint.typ, &mut constraint.trait_bound)
+            })
             .collect()
     }
 
@@ -782,7 +788,11 @@ impl<'context> Elaborator<'context> {
     ///
     /// with a vector of `<A, B>` returned so that the caller can then modify the function to:
     /// `fn foo<T, A, B>() where T: Foo<Bar = A, Baz = B> { ... }`
-    fn add_missing_named_generics(&mut self, object: &UnresolvedType, bound: &mut TraitBound) -> Vec<ResolvedGeneric> {
+    fn add_missing_named_generics(
+        &mut self,
+        object: &UnresolvedType,
+        bound: &mut TraitBound,
+    ) -> Vec<ResolvedGeneric> {
         let mut added_generics = Vec::new();
 
         let Ok(item) = self.resolve_path_or_error(bound.trait_path.clone()) else {
@@ -812,7 +822,8 @@ impl<'context> Elaborator<'context> {
                     let type_var = TypeVariable::unbound(new_generic_id, kind);
 
                     let span = bound.trait_path.span;
-                    let name = format!("<{object} as {trait_name}>::{}",associated_type.name.clone());
+                    let name =
+                        format!("<{object} as {trait_name}>::{}", associated_type.name.clone());
                     let name = Rc::new(name);
                     let typ = Type::NamedGeneric(type_var.clone(), name.clone());
                     let typ = self.interner.push_quoted_type(typ);
