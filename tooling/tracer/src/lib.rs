@@ -3,7 +3,7 @@ use noirc_evaluator::debug_trace::DebugTraceList;
 use source_location::SourceLocation;
 
 mod stack_frame;
-use stack_frame::StackFrame;
+use stack_frame::{StackFrame, Variable};
 
 mod debugger_glue;
 use debugger_glue::{get_current_source_locations, get_stack_frames};
@@ -45,6 +45,7 @@ pub struct TracingContext<'a, B: BlackBoxFunctionSolver<FieldElement>> {
     source_locations: Vec<SourceLocation>,
     /// The stack trace at the current moment; last call is last in the vector.
     stack_frames: Vec<StackFrame>,
+    saved_return_value: Option<Variable>,
 }
 
 impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
@@ -66,7 +67,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
             unconstrained_functions,
         );
 
-        Self { debug_context, source_locations: vec![], stack_frames: vec![] }
+        Self { debug_context, source_locations: vec![], stack_frames: vec![], saved_return_value: None }
     }
 
     /// Steps the debugger until a new line is reached, or the debugger returns anything other than
@@ -105,6 +106,15 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
         }
     }
 
+    fn maybe_update_saved_return_value(frame: &StackFrame, saved_return_value: &mut Option<Variable>) {
+        for variable in &frame.variables {
+            if variable.name == "__debug_return_expr" {
+                *saved_return_value = Some(variable.clone());
+                break;
+            }
+        }
+    }
+
     /// Propagates information about the current execution state to `tracer`.
     fn update_record(
         &mut self,
@@ -117,7 +127,8 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
             tail_diff_vecs(&self.stack_frames, &stack_frames);
 
         for _ in dropped_frames {
-            register_return(tracer);
+            register_return(tracer, &self.saved_return_value);
+            self.saved_return_value = None;
             if self.source_locations.len() > 1 {
                 // This branch is for returns not from main.
                 assert!(first_nomatch > 0, "no matching frames after return");
@@ -128,6 +139,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
                     let frame = &stack_frames[first_nomatch - 1];
                     register_step(tracer, call_site_location, debug_trace_list);
                     register_variables(tracer, frame);
+                    Self::maybe_update_saved_return_value(frame, &mut self.saved_return_value);
                 }
             }
         }
@@ -144,6 +156,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
             let location = &source_locations[index];
             register_step(tracer, location, debug_trace_list);
             register_variables(tracer, &stack_frames[index]);
+            Self::maybe_update_saved_return_value(&stack_frames[index], &mut self.saved_return_value);
         }
 
         self.stack_frames = stack_frames;

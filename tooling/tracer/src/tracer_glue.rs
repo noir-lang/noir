@@ -65,7 +65,9 @@ pub(crate) fn register_step(
 /// step, the frontend will not carry over the variables registered for the previous step.
 pub(crate) fn register_variables(tracer: &mut Tracer, frame: &StackFrame) {
     for variable in &frame.variables {
-        register_variable(tracer, variable);
+        if variable.name != "__debug_return_expr" {
+            register_variable(tracer, variable);
+        }
     }
 }
 
@@ -181,7 +183,13 @@ fn convert_params_to_args_vec(tracer: &mut Tracer, frame: &StackFrame) -> Vec<Fu
 ///
 /// The tracer seems to be keeping context of which function is returning and is not expecting that
 /// to be specified.
-pub(crate) fn register_return(tracer: &mut Tracer) {
-    let type_id = tracer.ensure_type_id(runtime_tracing::TypeKind::None, "()");
-    tracer.register_return(runtime_tracing::ValueRecord::None { type_id });
+pub(crate) fn register_return(tracer: &mut Tracer, return_value: &Option<Variable>) {
+    if let Some(return_value) = return_value {
+        let value_record = register_value(tracer, &return_value.value, &return_value.typ);
+        tracer.register_return(value_record);
+    } else {
+        let type_id = tracer.ensure_type_id(runtime_tracing::TypeKind::None, "()");
+
+        tracer.register_return(runtime_tracing::ValueRecord::None { type_id });
+    }
 }
