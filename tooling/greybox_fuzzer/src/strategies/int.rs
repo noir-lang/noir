@@ -9,6 +9,15 @@ use num_traits::{
 
 use rand::{seq::SliceRandom, Rng};
 use rand_xorshift::XorShiftRng;
+/// This file contains mechanisms for mutating integer InputValues.
+/// If the value is a boolean, it just picks a new random value.
+/// Otherwise, it performs one of the following mutations:
+/// 1. Substitution with one of the fixed values (the selection of values is dependent on the width and signedness of the integer)
+/// 2. Substitution with a dictionary value of appropriate width
+/// 3. Negation (wrapping for unsigned values)
+/// 4. Shift (left or right)
+/// 5. Addition, subtraction, "xor", "or" or "and" with a random small value
+/// 6. Addition, subtraction, "xor", "or" or "and" with a dictionary value
 
 /// Performs negation with a flag for overflow.
 trait OverflowingNeg: Sized + Neg {
