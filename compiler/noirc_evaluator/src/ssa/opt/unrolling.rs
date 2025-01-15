@@ -54,52 +54,73 @@ impl Ssa {
     /// fewer SSA instructions, but that can still result in more Brillig opcodes.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn unroll_loops_iteratively(
-        mut self: Ssa,
+        mut self,
         max_bytecode_increase_percent: Option<i32>,
     ) -> Result<Ssa, RuntimeError> {
-        for (_, function) in self.functions.iter_mut() {
-            // Take a snapshot of the function to compare byte size increase,
-            // but only if the setting indicates we have to, otherwise skip it.
-            let orig_func_and_max_incr_pct = max_bytecode_increase_percent
-                .filter(|_| function.runtime().is_brillig())
-                .map(|max_incr_pct| (function.clone(), max_incr_pct));
-
-            // Try to unroll loops first:
-            let (mut has_unrolled, mut unroll_errors) = function.try_unroll_loops();
-
-            // Keep unrolling until no more errors are found
-            while !unroll_errors.is_empty() {
-                let prev_unroll_err_count = unroll_errors.len();
-
-                // Simplify the SSA before retrying
-                simplify_between_unrolls(function);
-
-                // Unroll again
-                let (new_unrolled, new_errors) = function.try_unroll_loops();
-                unroll_errors = new_errors;
-                has_unrolled |= new_unrolled;
-
-                // If we didn't manage to unroll any more loops, exit
-                if unroll_errors.len() >= prev_unroll_err_count {
-                    return Err(unroll_errors.swap_remove(0));
-                }
-            }
-
-            if has_unrolled {
-                if let Some((orig_function, max_incr_pct)) = orig_func_and_max_incr_pct {
-                    let new_size = brillig_bytecode_size(function);
-                    let orig_size = brillig_bytecode_size(&orig_function);
-                    if !is_new_size_ok(orig_size, new_size, max_incr_pct) {
-                        *function = orig_function;
-                    }
-                }
-            }
+        for function in self.functions.values_mut() {
+            // We must be able to unroll ACIR loops at this point.
+            function.try_unroll_loops_iteratively(max_bytecode_increase_percent, false)?;
         }
         Ok(self)
     }
 }
 
 impl Function {
+    /// Try to unroll loops in the function.
+    ///
+    /// Returns an `Err` if it cannot be done, for example because the loop bounds
+    /// cannot be determined at compile time. This can happen during pre-processing,
+    /// in which case `restore_on_error` can be used to leave the function untouched.
+    pub(super) fn try_unroll_loops_iteratively(
+        &mut self,
+        max_bytecode_increase_percent: Option<i32>,
+        restore_on_error: bool,
+    ) -> Result<(), RuntimeError> {
+        // Take a snapshot in case we have to restore it.
+        let orig_function = (max_bytecode_increase_percent.is_some()
+            && self.runtime().is_brillig()
+            || restore_on_error)
+            .then(|| self.clone());
+
+        // Try to unroll loops first:
+        let (mut has_unrolled, mut unroll_errors) = self.try_unroll_loops();
+
+        // Keep unrolling until no more errors are found
+        while !unroll_errors.is_empty() {
+            let prev_unroll_err_count = unroll_errors.len();
+
+            // Simplify the SSA before retrying
+            simplify_between_unrolls(self);
+
+            // Unroll again
+            let (new_unrolled, new_errors) = self.try_unroll_loops();
+            unroll_errors = new_errors;
+            has_unrolled |= new_unrolled;
+
+            // If we didn't manage to unroll any more loops, exit
+            if unroll_errors.len() >= prev_unroll_err_count {
+                if restore_on_error {
+                    *self = orig_function.expect("took snapshot to restore");
+                }
+                return Err(unroll_errors.swap_remove(0));
+            }
+        }
+
+        // Check if the size increase is acceptable
+        if has_unrolled && self.runtime().is_brillig() {
+            if let Some(max_incr_pct) = max_bytecode_increase_percent {
+                let orig_function = orig_function.expect("took snapshot to compare");
+                let new_size = brillig_bytecode_size(self);
+                let orig_size = brillig_bytecode_size(&orig_function);
+                if !is_new_size_ok(orig_size, new_size, max_incr_pct) {
+                    *self = orig_function;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     // Loop unrolling in brillig can lead to a code explosion currently.
     // This can also be true for ACIR, but we have no alternative to unrolling in ACIR.
     // Brillig also generally prefers smaller code rather than faster code,

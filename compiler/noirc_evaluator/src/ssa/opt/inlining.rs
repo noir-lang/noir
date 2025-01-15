@@ -49,7 +49,7 @@ impl Ssa {
         Self::inline_functions_inner(self, aggressiveness, false)
     }
 
-    // Run the inlining pass where functions marked with `InlineType::NoPredicates` as not entry points
+    /// Run the inlining pass where functions marked with `InlineType::NoPredicates` as not entry points
     pub(crate) fn inline_functions_with_no_predicates(self, aggressiveness: i64) -> Ssa {
         Self::inline_functions_inner(self, aggressiveness, true)
     }
@@ -61,17 +61,28 @@ impl Ssa {
     ) -> Ssa {
         let inline_sources =
             get_functions_to_inline_into(&self, inline_no_predicates_functions, aggressiveness);
+        // NOTE: Functions are processed independently of each other, with the final mapping replacing the original,
+        // instead of inlining the "leaf" functions, moving up towards the entry point.
         self.functions = btree_map(&inline_sources, |entry_point| {
-            let new_function = InlineContext::new(
-                &self,
-                *entry_point,
-                inline_no_predicates_functions,
-                inline_sources.clone(),
-            )
-            .inline_all(&self);
+            let function = &self.functions[entry_point];
+            let new_function =
+                function.inlined(&self, inline_no_predicates_functions, &inline_sources);
             (*entry_point, new_function)
         });
         self
+    }
+}
+
+impl Function {
+    /// Create a new function which has the functions called by this one inlined into its body.
+    pub(super) fn inlined(
+        &self,
+        ssa: &Ssa,
+        inline_no_predicates_functions: bool,
+        functions_not_to_inline: &BTreeSet<FunctionId>,
+    ) -> Function {
+        InlineContext::new(ssa, self.id(), inline_no_predicates_functions, functions_not_to_inline)
+            .inline_all(ssa)
     }
 }
 
@@ -80,7 +91,7 @@ impl Ssa {
 /// This works using an internal FunctionBuilder to build a new main function from scratch.
 /// Doing it this way properly handles importing instructions between functions and lets us
 /// reuse the existing API at the cost of essentially cloning each of main's instructions.
-struct InlineContext {
+struct InlineContext<'a> {
     recursion_level: u32,
     builder: FunctionBuilder,
 
@@ -97,7 +108,7 @@ struct InlineContext {
     inline_no_predicates_functions: bool,
 
     // These are the functions of the program that we shouldn't inline.
-    functions_not_to_inline: BTreeSet<FunctionId>,
+    functions_not_to_inline: &'a BTreeSet<FunctionId>,
 }
 
 /// The per-function inlining context contains information that is only valid for one function.
@@ -105,13 +116,13 @@ struct InlineContext {
 /// layer to translate between BlockId to BlockId for the current function and the function to
 /// inline into. The same goes for ValueIds, InstructionIds, and for storing other data like
 /// parameter to argument mappings.
-struct PerFunctionContext<'function> {
+struct PerFunctionContext<'function, 'a> {
     /// The source function is the function we're currently inlining into the function being built.
     source_function: &'function Function,
 
     /// The shared inlining context for all functions. This notably contains the FunctionBuilder used
     /// to build the function we're inlining into.
-    context: &'function mut InlineContext,
+    context: &'function mut InlineContext<'a>,
 
     /// Maps ValueIds in the function being inlined to the new ValueIds to use in the function
     /// being inlined into. This mapping also contains the mapping from parameter values to
@@ -161,7 +172,7 @@ fn called_functions(func: &Function) -> BTreeSet<FunctionId> {
 ///  - Any Brillig function called from Acir
 ///  - Some Brillig functions depending on aggressiveness and some metrics
 ///  - Any Acir functions with a [fold inline type][InlineType::Fold],
-fn get_functions_to_inline_into(
+pub(super) fn get_functions_to_inline_into(
     ssa: &Ssa,
     inline_no_predicates_functions: bool,
     aggressiveness: i64,
@@ -349,7 +360,7 @@ fn compute_function_interface_cost(func: &Function) -> usize {
     func.parameters().len() + func.returns().len()
 }
 
-impl InlineContext {
+impl<'a> InlineContext<'a> {
     /// Create a new context object for the function inlining pass.
     /// This starts off with an empty mapping of instructions for main's parameters.
     /// The function being inlined into will always be the main function, although it is
@@ -359,7 +370,7 @@ impl InlineContext {
         ssa: &Ssa,
         entry_point: FunctionId,
         inline_no_predicates_functions: bool,
-        functions_not_to_inline: BTreeSet<FunctionId>,
+        functions_not_to_inline: &'a BTreeSet<FunctionId>,
     ) -> Self {
         let source = &ssa.functions[&entry_point];
         let mut builder = FunctionBuilder::new(source.name().to_owned(), entry_point);
@@ -444,13 +455,13 @@ impl InlineContext {
     }
 }
 
-impl<'function> PerFunctionContext<'function> {
+impl<'function, 'ctx> PerFunctionContext<'function, 'ctx> {
     /// Create a new PerFunctionContext from the source function.
     /// The value and block mappings for this context are initially empty except
     /// for containing the mapping between parameters in the source_function and
     /// the arguments of the destination function.
     fn new(
-        context: &'function mut InlineContext,
+        context: &'function mut InlineContext<'ctx>,
         source_function: &'function Function,
         globals: &'function Function,
     ) -> Self {
