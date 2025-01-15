@@ -7,7 +7,7 @@ use crate::{
             get_bit_size_from_ssa_type, BrilligArray, BrilligVariable, BrilligVector,
             SingleAddrVariable,
         },
-        registers::{RegisterAllocator, Stack},
+        registers::RegisterAllocator,
         BrilligContext,
     },
     ssa::ir::{
@@ -48,10 +48,10 @@ impl BlockVariables {
     }
 
     /// For a given SSA value id, define the variable and return the corresponding cached allocation.
-    pub(crate) fn define_variable(
+    pub(crate) fn define_variable<Registers: RegisterAllocator>(
         &mut self,
         function_context: &mut FunctionContext,
-        brillig_context: &mut BrilligContext<FieldElement, Stack>,
+        brillig_context: &mut BrilligContext<FieldElement, Registers>,
         value_id: ValueId,
         dfg: &DataFlowGraph,
     ) -> BrilligVariable {
@@ -68,10 +68,10 @@ impl BlockVariables {
     }
 
     /// Defines a variable that fits in a single register and returns the allocated register.
-    pub(crate) fn define_single_addr_variable(
+    pub(crate) fn define_single_addr_variable<Registers: RegisterAllocator>(
         &mut self,
         function_context: &mut FunctionContext,
-        brillig_context: &mut BrilligContext<FieldElement, Stack>,
+        brillig_context: &mut BrilligContext<FieldElement, Registers>,
         value: ValueId,
         dfg: &DataFlowGraph,
     ) -> SingleAddrVariable {
@@ -80,11 +80,11 @@ impl BlockVariables {
     }
 
     /// Removes a variable so it's not used anymore within this block.
-    pub(crate) fn remove_variable(
+    pub(crate) fn remove_variable<Registers: RegisterAllocator>(
         &mut self,
         value_id: &ValueId,
         function_context: &mut FunctionContext,
-        brillig_context: &mut BrilligContext<FieldElement, Stack>,
+        brillig_context: &mut BrilligContext<FieldElement, Registers>,
     ) {
         assert!(self.available_variables.remove(value_id), "ICE: Variable is not available");
         let variable = function_context
@@ -133,6 +133,14 @@ pub(crate) fn allocate_value<F, Registers: RegisterAllocator>(
 ) -> BrilligVariable {
     let typ = dfg.type_of_value(value_id);
 
+    allocate_value_with_type(brillig_context, typ)
+}
+
+/// For a given value_id, allocates the necessary registers to hold it.
+pub(crate) fn allocate_value_with_type<F, Registers: RegisterAllocator>(
+    brillig_context: &mut BrilligContext<F, Registers>,
+    typ: Type,
+) -> BrilligVariable {
     match typ {
         Type::Numeric(_) | Type::Reference(_) | Type::Function => {
             BrilligVariable::SingleAddr(SingleAddrVariable {

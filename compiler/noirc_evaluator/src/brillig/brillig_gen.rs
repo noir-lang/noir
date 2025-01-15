@@ -2,11 +2,13 @@ pub(crate) mod brillig_black_box;
 pub(crate) mod brillig_block;
 pub(crate) mod brillig_block_variables;
 pub(crate) mod brillig_fn;
+pub(crate) mod brillig_globals;
 pub(crate) mod brillig_slice_ops;
 mod constant_allocation;
 mod variable_liveness;
 
 use acvm::FieldElement;
+use fxhash::FxHashMap as HashMap;
 
 use self::{brillig_block::BrilligBlock, brillig_fn::FunctionContext};
 use super::{
@@ -14,7 +16,7 @@ use super::{
         artifact::{BrilligArtifact, BrilligParameter, GeneratedBrillig, Label},
         BrilligContext,
     },
-    Brillig,
+    Brillig, BrilligVariable, ValueId,
 };
 use crate::{
     errors::InternalError,
@@ -25,10 +27,11 @@ use crate::{
 pub(crate) fn convert_ssa_function(
     func: &Function,
     enable_debug_trace: bool,
+    globals: &HashMap<ValueId, BrilligVariable>,
 ) -> BrilligArtifact<FieldElement> {
     let mut brillig_context = BrilligContext::new(enable_debug_trace);
 
-    let mut function_context = FunctionContext::new(func);
+    let mut function_context = FunctionContext::new(func, globals);
 
     brillig_context.enter_context(Label::function(func.id()));
 
@@ -53,6 +56,7 @@ pub(crate) fn gen_brillig_for(
         arguments,
         FunctionContext::return_values(func),
         func.id(),
+        true,
     );
     entry_point.name = func.name().to_string();
 

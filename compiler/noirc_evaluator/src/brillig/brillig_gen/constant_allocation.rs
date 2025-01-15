@@ -22,6 +22,7 @@ pub(crate) enum InstructionLocation {
     Terminator,
 }
 
+#[derive(Default)]
 pub(crate) struct ConstantAllocation {
     constant_usage: HashMap<ValueId, HashMap<BasicBlockId, Vec<InstructionLocation>>>,
     allocation_points: HashMap<BasicBlockId, HashMap<InstructionLocation, Vec<ValueId>>>,

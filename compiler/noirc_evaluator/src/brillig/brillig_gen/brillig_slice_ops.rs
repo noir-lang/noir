@@ -2,12 +2,13 @@ use acvm::acir::brillig::MemoryAddress;
 
 use crate::brillig::brillig_ir::{
     brillig_variable::{BrilligVariable, BrilligVector, SingleAddrVariable},
+    registers::RegisterAllocator,
     BrilligBinaryOp,
 };
 
 use super::brillig_block::BrilligBlock;
 
-impl<'block> BrilligBlock<'block> {
+impl<'block, 'global, Registers: RegisterAllocator> BrilligBlock<'block, 'global, Registers> {
     fn write_variables(&mut self, write_pointer: MemoryAddress, variables: &[BrilligVariable]) {
         for (index, variable) in variables.iter().enumerate() {
             self.brillig_context.store_instruction(write_pointer, variable.extract_register());
@@ -159,6 +160,7 @@ mod tests {
     use std::vec;
 
     use acvm::FieldElement;
+    use fxhash::FxHashMap as HashMap;
     use noirc_frontend::monomorphization::ast::InlineType;
 
     use crate::brillig::brillig_gen::brillig_block::BrilligBlock;
@@ -173,12 +175,15 @@ mod tests {
         create_and_run_vm, create_context, create_entry_point_bytecode,
     };
     use crate::brillig::brillig_ir::{BrilligContext, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE};
+    use crate::brillig::ValueId;
     use crate::ssa::function_builder::FunctionBuilder;
     use crate::ssa::ir::function::RuntimeType;
     use crate::ssa::ir::map::Id;
     use crate::ssa::ssa_gen::Ssa;
 
-    fn create_test_environment() -> (Ssa, FunctionContext, BrilligContext<FieldElement, Stack>) {
+    fn create_test_environment(
+        brillig_globals: &HashMap<ValueId, BrilligVariable>,
+    ) -> (Ssa, FunctionContext, BrilligContext<FieldElement, Stack>) {
         let mut builder = FunctionBuilder::new("main".to_string(), Id::test_new(0));
         builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
 
@@ -186,14 +191,14 @@ mod tests {
         let mut brillig_context = create_context(ssa.main_id);
         brillig_context.enter_context(Label::block(ssa.main_id, Id::test_new(0)));
 
-        let function_context = FunctionContext::new(ssa.main());
+        let function_context = FunctionContext::new(ssa.main(), brillig_globals);
         (ssa, function_context, brillig_context)
     }
 
-    fn create_brillig_block<'a>(
-        function_context: &'a mut FunctionContext,
+    fn create_brillig_block<'a, 'global>(
+        function_context: &'a mut FunctionContext<'global>,
         brillig_context: &'a mut BrilligContext<FieldElement, Stack>,
-    ) -> BrilligBlock<'a> {
+    ) -> BrilligBlock<'a, 'global, Stack> {
         let variables = BlockVariables::default();
         BrilligBlock {
             function_context,
@@ -201,6 +206,7 @@ mod tests {
             brillig_context,
             variables,
             last_uses: Default::default(),
+            building_globals: false,
         }
     }
 
@@ -230,7 +236,8 @@ mod tests {
                 result_length_with_metadata,
             )];
 
-            let (_, mut function_context, mut context) = create_test_environment();
+            let brillig_globals = HashMap::default();
+            let (_, mut function_context, mut context) = create_test_environment(&brillig_globals);
 
             // Allocate the parameters
             let source_vector = BrilligVector { pointer: context.allocate_register() };
@@ -346,7 +353,8 @@ mod tests {
                 ),
             ];
 
-            let (_, mut function_context, mut context) = create_test_environment();
+            let brillig_globals = HashMap::default();
+            let (_, mut function_context, mut context) = create_test_environment(&brillig_globals);
 
             // Allocate the parameters
             let source_vector = BrilligVector { pointer: context.allocate_register() };
@@ -448,7 +456,8 @@ mod tests {
                 result_length_with_metadata,
             )];
 
-            let (_, mut function_context, mut context) = create_test_environment();
+            let brillig_globals = HashMap::default();
+            let (_, mut function_context, mut context) = create_test_environment(&brillig_globals);
 
             // Allocate the parameters
             let source_vector = BrilligVector { pointer: context.allocate_register() };
@@ -588,7 +597,8 @@ mod tests {
                 ),
             ];
 
-            let (_, mut function_context, mut context) = create_test_environment();
+            let brillig_globals = HashMap::default();
+            let (_, mut function_context, mut context) = create_test_environment(&brillig_globals);
 
             // Allocate the parameters
             let source_vector = BrilligVector { pointer: context.allocate_register() };

@@ -39,6 +39,7 @@ impl DominatorTreeNode {
 }
 
 /// The dominator tree for a single function.
+#[derive(Default)]
 pub(crate) struct DominatorTree {
     /// The nodes of the dominator tree
     ///
