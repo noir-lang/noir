@@ -11,9 +11,7 @@ use super::{
     BrilligContext, ReservedRegisters,
 };
 
-use std::any::Any;
-
-pub(crate) trait RegisterAllocator: Any {
+pub(crate) trait RegisterAllocator {
     /// First valid memory address
     fn start() -> usize;
     /// Last valid memory address
@@ -35,16 +33,6 @@ pub(crate) trait RegisterAllocator: Any {
 pub(crate) struct Stack {
     storage: DeallocationListAllocator,
 }
-
-// pub(crate) trait StackMarker {
-//     fn empty_stack_start(&self) -> MemoryAddress;
-// }
-
-// impl StackMarker for Stack {
-//     fn empty_stack_start(&self) -> MemoryAddress {
-//         MemoryAddress::relative(self.storage.empty_registers_start(Self::start()))
-//     }
-// }
 
 impl Stack {
     pub(crate) fn new() -> Self {
@@ -161,7 +149,7 @@ impl RegisterAllocator for ScratchSpace {
 
 /// Globals have a separate memory space
 /// This memory space is initialized once at the beginning of a program
-/// is read-only.
+/// and is read-only.
 pub(crate) struct GlobalSpace {
     storage: DeallocationListAllocator,
 }

@@ -478,11 +478,10 @@ impl<'function> PerFunctionContext<'function> {
 
         let new_value = match &self.source_function.dfg[id] {
             value @ Value::Instruction { instruction, .. } => {
-                // TODO: Inlining the global into the function is only a temporary measure
-                // until Brillig gen with globals is working end to end
                 if self.source_function.dfg.is_global(id) {
                     if self.context.builder.current_function.dfg.runtime().is_acir() {
-                        let Instruction::MakeArray { elements, typ } = &self.globals.dfg[*instruction]
+                        let Instruction::MakeArray { elements, typ } =
+                            &self.globals.dfg[*instruction]
                         else {
                             panic!("Only expect Instruction::MakeArray for a global");
                         };
@@ -492,7 +491,7 @@ impl<'function> PerFunctionContext<'function> {
                             .collect::<im::Vector<_>>();
                         return self.context.builder.insert_make_array(elements, typ.clone());
                     } else {
-                        return id
+                        return id;
                     }
                 }
                 unreachable!("All Value::Instructions should already be known during inlining after creating the original inlined instruction. Unknown value {id} = {value:?}")
@@ -504,7 +503,9 @@ impl<'function> PerFunctionContext<'function> {
                 // The dfg indexes a global's inner value directly, so we need to check here
                 // whether we have a global.
                 // We also only keep a global and do not inline it in a Brillig runtime.
-                if self.source_function.dfg.is_global(id) && self.context.builder.current_function.dfg.runtime().is_brillig() {
+                if self.source_function.dfg.is_global(id)
+                    && self.context.builder.current_function.dfg.runtime().is_brillig()
+                {
                     id
                 } else {
                     self.context.builder.numeric_constant(*constant, *typ)

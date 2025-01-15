@@ -58,7 +58,7 @@ impl<'block, 'global, Registers: RegisterAllocator> BrilligBlock<'block, 'global
 
         let mut live_in_no_globals = HashSet::default();
         for value in live_in {
-            if !matches!(&dfg[*value], Value::Global(_)) {
+            if !dfg.is_global(*value) {
                 live_in_no_globals.insert(*value);
             }
         }
@@ -888,16 +888,13 @@ impl<'block, 'global, Registers: RegisterAllocator> BrilligBlock<'block, 'global
                 .expect("Last uses for instruction should have been computed");
 
             for dead_variable in dead_variables {
-                match &dfg[*dead_variable] {
-                    // Globals are reserved throughout the entirety of the program
-                    Value::Global(_) => {}
-                    _ => {
-                        self.variables.remove_variable(
-                            dead_variable,
-                            self.function_context,
-                            self.brillig_context,
-                        );
-                    }
+                // Globals are reserved throughout the entirety of the program
+                if !dfg.is_global(*dead_variable) {
+                    self.variables.remove_variable(
+                        dead_variable,
+                        self.function_context,
+                        self.brillig_context,
+                    );
                 }
             }
         }
@@ -1611,22 +1608,29 @@ impl<'block, 'global, Registers: RegisterAllocator> BrilligBlock<'block, 'global
         let value = &dfg[value_id];
 
         match value {
-            Value::Global(_) => *self
-                .function_context
-                .globals
-                .get(&value_id)
-                .unwrap_or_else(|| panic!("ICE: Global value not found in cache {value_id}")),
+            Value::Global(_) => {
+                unreachable!("Expected global value to be resolve to its inner value");
+            }
             Value::Param { .. } | Value::Instruction { .. } => {
                 // All block parameters and instruction results should have already been
                 // converted to registers so we fetch from the cache.
-
-                self.variables.get_allocation(self.function_context, value_id, dfg)
+                if dfg.is_global(value_id) {
+                    *self.function_context.globals.get(&value_id).unwrap_or_else(|| {
+                        panic!("ICE: Global value not found in cache {value_id}")
+                    })
+                } else {
+                    self.variables.get_allocation(self.function_context, value_id, dfg)
+                }
             }
             Value::NumericConstant { constant, .. } => {
                 // Constants might have been converted previously or not, so we get or create and
                 // (re)initialize the value inside.
                 if self.variables.is_allocated(&value_id) {
                     self.variables.get_allocation(self.function_context, value_id, dfg)
+                } else if dfg.is_global(value_id) {
+                    *self.function_context.globals.get(&value_id).unwrap_or_else(|| {
+                        panic!("ICE: Global value not found in cache {value_id}")
+                    })
                 } else {
                     let new_variable = self.variables.define_variable(
                         self.function_context,
