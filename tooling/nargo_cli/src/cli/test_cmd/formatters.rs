@@ -514,7 +514,10 @@ fn package_start(package_name: &str, test_count: usize) -> std::io::Result<()> {
     Ok(())
 }
 
-fn diagnostic_to_string(file_diagnostic: &FileDiagnostic, file_manager: &FileManager) -> String {
+pub(crate) fn diagnostic_to_string(
+    file_diagnostic: &FileDiagnostic,
+    file_manager: &FileManager,
+) -> String {
     let file_map = file_manager.as_file_map();
 
     let custom_diagnostic = &file_diagnostic.diagnostic;

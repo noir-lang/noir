@@ -7,7 +7,8 @@ impl CtString {
         "".as_ctstring()
     }
 
-    // Bug: using &mut self as the object results in this method not being found
+    // TODO(https://github.com/noir-lang/noir/issues/6980): Bug: using &mut self
+    // as the object results in this method not being found
     // docs:start:append_str
     pub comptime fn append_str<let N: u32>(self, s: str<N>) -> Self {
         // docs:end:append_str

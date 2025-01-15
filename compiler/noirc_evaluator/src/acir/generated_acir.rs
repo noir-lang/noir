@@ -367,7 +367,6 @@ impl<F: AcirField> GeneratedAcir<F> {
             radix_big,
             "ICE: Radix must be a power of 2"
         );
-
         let limb_witnesses = self.brillig_to_radix(input_expr, radix, limb_count);
 
         let mut composed_limbs = Expression::default();
