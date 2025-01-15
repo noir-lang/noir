@@ -2,6 +2,8 @@
 
 use crate::ssa::Ssa;
 
+use super::inlining;
+
 impl Ssa {
     /// Run pre-processing steps on functions in isolation.
     pub(crate) fn preprocess_functions(
@@ -9,18 +11,11 @@ impl Ssa {
         aggressiveness: i64,
         max_bytecode_increase_percent: Option<i32>,
     ) -> Ssa {
-        // TODO: Ideally we would go bottom-up, starting with the "leaf" functions, so we inline already optimized code into
-        // the ones that call them, but for now just see what happens if we pre-process the "serialize" function instances.
-        let to_preprocess = self
-            .functions
-            .iter()
-            .filter_map(|(id, f)| (f.name() == "serialize").then_some(*id))
-            .collect::<Vec<_>>();
+        // Bottom-up order, starting with the "leaf" functions, so we inline already optimized code into the ones that call them.
+        let bottom_up = inlining::compute_bottom_up_order(&self);
+        let not_to_inline = inlining::get_functions_to_inline_into(&self, false, aggressiveness);
 
-        let not_to_inline =
-            super::inlining::get_functions_to_inline_into(&self, false, aggressiveness);
-
-        for id in to_preprocess {
+        for id in bottom_up.into_iter().filter(|id| !not_to_inline.contains(id)) {
             let function = &self.functions[&id];
             let mut function = function.inlined(&self, false, &not_to_inline);
             // Help unrolling determine bounds.

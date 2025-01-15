@@ -35,6 +35,7 @@
         "bunx",
         "bytecount",
         "cachix",
+        "callees",
         "callsite",
         "callsites",
         "callstack",

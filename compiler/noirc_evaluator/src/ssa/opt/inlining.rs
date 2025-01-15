@@ -2,9 +2,10 @@
 //! The purpose of this pass is to inline the instructions of each function call
 //! within the function caller. If all function calls are known, there will only
 //! be a single function remaining when the pass finishes.
-use std::collections::{BTreeSet, HashSet, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, HashSet, VecDeque};
 
 use acvm::acir::AcirField;
+use im::HashMap;
 use iter_extended::{btree_map, vecmap};
 
 use crate::ssa::{
@@ -19,7 +20,6 @@ use crate::ssa::{
     },
     ssa_gen::Ssa,
 };
-use fxhash::FxHashMap as HashMap;
 
 /// An arbitrary limit to the maximum number of recursive call
 /// frames at any point in time.
@@ -225,7 +225,7 @@ pub(super) fn get_functions_to_inline_into(
 }
 
 /// Compute the time each function is called from any other function.
-fn compute_times_called(ssa: &Ssa) -> HashMap<FunctionId, usize> {
+pub(super) fn compute_times_called(ssa: &Ssa) -> HashMap<FunctionId, usize> {
     ssa.functions
         .iter()
         .flat_map(|(_caller_id, function)| {
@@ -237,6 +237,88 @@ fn compute_times_called(ssa: &Ssa) -> HashMap<FunctionId, usize> {
             *map.entry(func_id).or_insert(0) += 1;
             map
         })
+}
+
+/// Compute for each function the set of functions that call it.
+fn compute_callers(ssa: &Ssa) -> BTreeMap<FunctionId, BTreeSet<FunctionId>> {
+    ssa.functions
+        .iter()
+        .flat_map(|(caller_id, function)| {
+            let called_functions = called_functions(function);
+            called_functions.into_iter().map(|called_id| (called_id, *caller_id))
+        })
+        .fold(
+            ssa.functions.keys().map(|id| (*id, BTreeSet::new())).collect(),
+            |mut acc, (called_id, caller_id)| {
+                let callers = acc.entry(called_id).or_default();
+                callers.insert(caller_id);
+                acc
+            },
+        )
+}
+
+/// Compute for each function the set of functions called by it.
+fn compute_callees(ssa: &Ssa) -> BTreeMap<FunctionId, BTreeSet<FunctionId>> {
+    ssa.functions
+        .iter()
+        .map(|(caller_id, function)| {
+            let called_functions = called_functions(function);
+            (*caller_id, called_functions)
+        })
+        .collect()
+}
+
+/// Compute something like a topological order of the functions, starting with the ones
+/// that do not call any other functions, going towards the entry points. When cycles
+/// are detected, take the one which are called by the most to break the ties.
+///
+/// This can be used to simplify the most often called functions first.
+pub(super) fn compute_bottom_up_order(ssa: &Ssa) -> Vec<FunctionId> {
+    let mut order = Vec::new();
+    let mut visited = HashSet::new();
+
+    // Number of times a function is called, to break cycles.
+    let mut times_called = compute_times_called(ssa).into_iter().collect::<Vec<_>>();
+    times_called.sort_by_key(|(id, cnt)| (*cnt, *id));
+
+    let callers = compute_callers(ssa);
+    let mut callees = compute_callees(ssa);
+
+    // Seed the queue with functions that don't call anything.
+    let mut queue = callees
+        .iter()
+        .filter_map(|(id, callees)| callees.is_empty().then_some(*id))
+        .collect::<VecDeque<_>>();
+
+    loop {
+        if times_called.is_empty() && queue.is_empty() {
+            break;
+        }
+        while let Some(id) = queue.pop_front() {
+            order.push(id);
+            visited.insert(id);
+            // Remove this function from all of its callers.
+            for caller in &callers[&id] {
+                let callees = callees.get_mut(caller).expect("all callees computed");
+                // If the caller doesn't call any other function, enqueue it.
+                if callees.is_empty() && !visited.contains(caller) {
+                    queue.push_back(*caller);
+                }
+            }
+        }
+        // If we ran out of the queue, maybe there is a cycle; take the next most called function.
+        loop {
+            let Some((id, _)) = times_called.pop() else {
+                break;
+            };
+            if !visited.contains(&id) {
+                queue.push_back(id);
+                break;
+            }
+        }
+    }
+
+    order
 }
 
 /// Traverse the call graph starting from a given function, marking function to be retained if they are:
