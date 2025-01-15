@@ -79,7 +79,7 @@ fn check_for_underconstrained_values_within_function(
     let connected_sets_indices =
         context.find_sets_connected_to_function_inputs_or_outputs(function);
 
-    // Go through each disconnected set, find brillig calls that caused it and form warnings
+    // Go through each disconnected set, find Brillig calls that caused it and form warnings
     for set_index in
         BTreeSet::from_iter(0..(context.value_sets.len())).difference(&connected_sets_indices)
     {
@@ -99,10 +99,11 @@ struct DependencyContext {
     block_queue: Vec<BasicBlockId>,
     // Map keeping track of values stored at memory locations
     memory_slots: HashMap<ValueId, ValueId>,
-    // Value currently affecting every instruction because
+    // Value currently affecting every instruction (i.e. being
+    // considered a parent of every value id met) because
     // of its involvement in an EnableSideEffectsIf condition
     side_effects_condition: Option<ValueId>,
-    // Map of brillig call ids to sets of the value ids descending
+    // Map of Brillig call ids to sets of the value ids descending
     // from their arguments and results
     tainted: BTreeMap<InstructionId, BrilligTaintedIds>,
 }
@@ -631,7 +632,7 @@ impl Context {
         function: &Function,
     ) -> Vec<SsaReport> {
         let mut warnings = Vec::new();
-        // Find brillig-generated values in the set
+        // Find Brillig-generated values in the set
         let intersection = all_brillig_generated_values.intersection(current_set).copied();
 
         // Go through all Brillig outputs in the set
@@ -1240,7 +1241,7 @@ mod test {
 
     #[test]
     #[traced_test]
-    /// Test chained (wrapper) brillig calls not producing a false positive
+    /// Test chained (wrapper) Brillig calls not producing a false positive
     fn test_chained_brillig_calls_constrained() {
         /*
         struct Animal {
