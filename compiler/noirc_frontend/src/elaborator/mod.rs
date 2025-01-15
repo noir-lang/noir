@@ -822,8 +822,7 @@ impl<'context> Elaborator<'context> {
                     let type_var = TypeVariable::unbound(new_generic_id, kind);
 
                     let span = bound.trait_path.span;
-                    let name =
-                        format!("<{object} as {trait_name}>::{}", associated_type.name);
+                    let name = format!("<{object} as {trait_name}>::{}", associated_type.name);
                     let name = Rc::new(name);
                     let typ = Type::NamedGeneric(type_var.clone(), name.clone());
                     let typ = self.interner.push_quoted_type(typ);
