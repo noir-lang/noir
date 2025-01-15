@@ -6,7 +6,7 @@ use std::{
 use async_lsp::ResponseError;
 use completion_items::{
     field_completion_item, simple_completion_item, snippet_completion_item,
-    trait_impl_method_completion_item, TraitReexport,
+    trait_impl_method_completion_item,
 };
 use convert_case::{Case, Casing};
 use fm::{FileId, FileMap, PathString};
@@ -44,7 +44,7 @@ use crate::{
     LspState,
 };
 
-use super::process_request;
+use super::{process_request, TraitReexport};
 
 mod auto_import;
 mod builtins;

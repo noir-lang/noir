@@ -3,7 +3,7 @@ use lsp_types::{
     InsertTextFormat, MarkupContent, MarkupKind,
 };
 use noirc_frontend::{
-    ast::{AttributeTarget, Ident},
+    ast::AttributeTarget,
     hir::def_map::{ModuleDefId, ModuleId},
     hir_def::{function::FuncMeta, stmt::HirPattern},
     node_interner::{FuncId, GlobalId, ReferenceId, StructId, TraitId, TypeAliasId},
@@ -22,14 +22,8 @@ use super::{
         crate_or_module_sort_text, default_sort_text, new_sort_text, operator_sort_text,
         self_mismatch_sort_text,
     },
-    FunctionCompletionKind, FunctionKind, NodeFinder, RequestedItems,
+    FunctionCompletionKind, FunctionKind, NodeFinder, RequestedItems, TraitReexport,
 };
-
-/// Represents a trait reexported from a given module with a name.
-pub(super) struct TraitReexport<'a> {
-    pub(super) module_id: &'a ModuleId,
-    pub(super) name: &'a Ident,
-}
 
 impl<'a> NodeFinder<'a> {
     pub(super) fn module_def_id_completion_items(
@@ -366,10 +360,10 @@ impl<'a> NodeFinder<'a> {
         completion_item: &mut CompletionItem,
     ) -> Option<()> {
         // If this is a trait method, check if the trait is in scope
-        let (trait_id, reexport_data) = trait_info?;
+        let (trait_id, trait_reexport) = trait_info?;
 
-        let trait_name = if let Some(reexport_data) = reexport_data {
-            reexport_data.name
+        let trait_name = if let Some(trait_reexport) = trait_reexport {
+            trait_reexport.name
         } else {
             let trait_ = self.interner.get_trait(trait_id);
             &trait_.name
@@ -383,7 +377,7 @@ impl<'a> NodeFinder<'a> {
 
         // If not, automatically import it
         let current_module_parent_id = self.module_id.parent(self.def_maps);
-        let module_full_path = if let Some(reexport_data) = reexport_data {
+        let module_full_path = if let Some(reexport_data) = trait_reexport {
             relative_module_id_path(
                 *reexport_data.module_id,
                 &self.module_id,
