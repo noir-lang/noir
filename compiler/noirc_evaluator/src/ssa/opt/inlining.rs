@@ -2,9 +2,10 @@
 //! The purpose of this pass is to inline the instructions of each function call
 //! within the function caller. If all function calls are known, there will only
 //! be a single function remaining when the pass finishes.
-use std::collections::{BTreeSet, HashSet, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, HashSet, VecDeque};
 
 use acvm::acir::AcirField;
+use im::HashMap;
 use iter_extended::{btree_map, vecmap};
 
 use crate::ssa::{
@@ -19,7 +20,6 @@ use crate::ssa::{
     },
     ssa_gen::Ssa,
 };
-use fxhash::FxHashMap as HashMap;
 
 /// An arbitrary limit to the maximum number of recursive call
 /// frames at any point in time.
@@ -49,7 +49,7 @@ impl Ssa {
         Self::inline_functions_inner(self, aggressiveness, false)
     }
 
-    // Run the inlining pass where functions marked with `InlineType::NoPredicates` as not entry points
+    /// Run the inlining pass where functions marked with `InlineType::NoPredicates` as not entry points
     pub(crate) fn inline_functions_with_no_predicates(self, aggressiveness: i64) -> Ssa {
         Self::inline_functions_inner(self, aggressiveness, true)
     }
@@ -61,17 +61,28 @@ impl Ssa {
     ) -> Ssa {
         let inline_sources =
             get_functions_to_inline_into(&self, inline_no_predicates_functions, aggressiveness);
+        // NOTE: Functions are processed independently of each other, with the final mapping replacing the original,
+        // instead of inlining the "leaf" functions, moving up towards the entry point.
         self.functions = btree_map(&inline_sources, |entry_point| {
-            let new_function = InlineContext::new(
-                &self,
-                *entry_point,
-                inline_no_predicates_functions,
-                inline_sources.clone(),
-            )
-            .inline_all(&self);
+            let function = &self.functions[entry_point];
+            let new_function =
+                function.inlined(&self, inline_no_predicates_functions, &inline_sources);
             (*entry_point, new_function)
         });
         self
+    }
+}
+
+impl Function {
+    /// Create a new function which has the functions called by this one inlined into its body.
+    pub(super) fn inlined(
+        &self,
+        ssa: &Ssa,
+        inline_no_predicates_functions: bool,
+        functions_not_to_inline: &BTreeSet<FunctionId>,
+    ) -> Function {
+        InlineContext::new(ssa, self.id(), inline_no_predicates_functions, functions_not_to_inline)
+            .inline_all(ssa)
     }
 }
 
@@ -80,7 +91,7 @@ impl Ssa {
 /// This works using an internal FunctionBuilder to build a new main function from scratch.
 /// Doing it this way properly handles importing instructions between functions and lets us
 /// reuse the existing API at the cost of essentially cloning each of main's instructions.
-struct InlineContext {
+struct InlineContext<'a> {
     recursion_level: u32,
     builder: FunctionBuilder,
 
@@ -97,7 +108,7 @@ struct InlineContext {
     inline_no_predicates_functions: bool,
 
     // These are the functions of the program that we shouldn't inline.
-    functions_not_to_inline: BTreeSet<FunctionId>,
+    functions_not_to_inline: &'a BTreeSet<FunctionId>,
 }
 
 /// The per-function inlining context contains information that is only valid for one function.
@@ -105,13 +116,13 @@ struct InlineContext {
 /// layer to translate between BlockId to BlockId for the current function and the function to
 /// inline into. The same goes for ValueIds, InstructionIds, and for storing other data like
 /// parameter to argument mappings.
-struct PerFunctionContext<'function> {
+struct PerFunctionContext<'function, 'a> {
     /// The source function is the function we're currently inlining into the function being built.
     source_function: &'function Function,
 
     /// The shared inlining context for all functions. This notably contains the FunctionBuilder used
     /// to build the function we're inlining into.
-    context: &'function mut InlineContext,
+    context: &'function mut InlineContext<'a>,
 
     /// Maps ValueIds in the function being inlined to the new ValueIds to use in the function
     /// being inlined into. This mapping also contains the mapping from parameter values to
@@ -134,6 +145,8 @@ struct PerFunctionContext<'function> {
 }
 
 /// Utility function to find out the direct calls of a function.
+///
+/// Returns the function IDs from all `Call` instructions without deduplication.
 fn called_functions_vec(func: &Function) -> Vec<FunctionId> {
     let mut called_function_ids = Vec::new();
     for block_id in func.reachable_blocks() {
@@ -151,7 +164,7 @@ fn called_functions_vec(func: &Function) -> Vec<FunctionId> {
     called_function_ids
 }
 
-/// Utility function to find out the deduplicated direct calls of a function.
+/// Utility function to find out the deduplicated direct calls made from a function.
 fn called_functions(func: &Function) -> BTreeSet<FunctionId> {
     called_functions_vec(func).into_iter().collect()
 }
@@ -161,7 +174,7 @@ fn called_functions(func: &Function) -> BTreeSet<FunctionId> {
 ///  - Any Brillig function called from Acir
 ///  - Some Brillig functions depending on aggressiveness and some metrics
 ///  - Any Acir functions with a [fold inline type][InlineType::Fold],
-fn get_functions_to_inline_into(
+pub(super) fn get_functions_to_inline_into(
     ssa: &Ssa,
     inline_no_predicates_functions: bool,
     aggressiveness: i64,
@@ -211,7 +224,8 @@ fn get_functions_to_inline_into(
         .collect()
 }
 
-fn compute_times_called(ssa: &Ssa) -> HashMap<FunctionId, usize> {
+/// Compute the time each function is called from any other function.
+pub(super) fn compute_times_called(ssa: &Ssa) -> HashMap<FunctionId, usize> {
     ssa.functions
         .iter()
         .flat_map(|(_caller_id, function)| {
@@ -225,10 +239,96 @@ fn compute_times_called(ssa: &Ssa) -> HashMap<FunctionId, usize> {
         })
 }
 
+/// Compute for each function the set of functions that call it.
+fn compute_callers(ssa: &Ssa) -> BTreeMap<FunctionId, BTreeSet<FunctionId>> {
+    ssa.functions
+        .iter()
+        .flat_map(|(caller_id, function)| {
+            let called_functions = called_functions(function);
+            called_functions.into_iter().map(|called_id| (called_id, *caller_id))
+        })
+        .fold(
+            ssa.functions.keys().map(|id| (*id, BTreeSet::new())).collect(),
+            |mut acc, (called_id, caller_id)| {
+                let callers = acc.entry(called_id).or_default();
+                callers.insert(caller_id);
+                acc
+            },
+        )
+}
+
+/// Compute for each function the set of functions called by it.
+fn compute_callees(ssa: &Ssa) -> BTreeMap<FunctionId, BTreeSet<FunctionId>> {
+    ssa.functions
+        .iter()
+        .map(|(caller_id, function)| {
+            let called_functions = called_functions(function);
+            (*caller_id, called_functions)
+        })
+        .collect()
+}
+
+/// Compute something like a topological order of the functions, starting with the ones
+/// that do not call any other functions, going towards the entry points. When cycles
+/// are detected, take the one which are called by the most to break the ties.
+///
+/// This can be used to simplify the most often called functions first.
+pub(super) fn compute_bottom_up_order(ssa: &Ssa) -> Vec<FunctionId> {
+    let mut order = Vec::new();
+    let mut visited = HashSet::new();
+
+    // Number of times a function is called, to break cycles.
+    let mut times_called = compute_times_called(ssa).into_iter().collect::<Vec<_>>();
+    times_called.sort_by_key(|(id, cnt)| (*cnt, *id));
+
+    let callers = compute_callers(ssa);
+    let mut callees = compute_callees(ssa);
+
+    // Seed the queue with functions that don't call anything.
+    let mut queue = callees
+        .iter()
+        .filter_map(|(id, callees)| callees.is_empty().then_some(*id))
+        .collect::<VecDeque<_>>();
+
+    loop {
+        if times_called.is_empty() && queue.is_empty() {
+            break;
+        }
+        while let Some(id) = queue.pop_front() {
+            order.push(id);
+            visited.insert(id);
+            // Remove this function from all of its callers.
+            for caller in &callers[&id] {
+                let callees = callees.get_mut(caller).expect("all callees computed");
+                // If the caller doesn't call any other function, enqueue it.
+                if callees.is_empty() && !visited.contains(caller) {
+                    queue.push_back(*caller);
+                }
+            }
+        }
+        // If we ran out of the queue, maybe there is a cycle; take the next most called function.
+        loop {
+            let Some((id, _)) = times_called.pop() else {
+                break;
+            };
+            if !visited.contains(&id) {
+                queue.push_back(id);
+                break;
+            }
+        }
+    }
+
+    order
+}
+
+/// Traverse the call graph starting from a given function, marking function to be retained if they are:
+/// * recursive functions, or
+/// * the cost of inlining outweighs the cost of not doing so
 fn should_retain_recursive(
     ssa: &Ssa,
     func: FunctionId,
     times_called: &HashMap<FunctionId, usize>,
+    // FunctionId -> (should_retain, weight)
     should_retain_function: &mut HashMap<FunctionId, (bool, i64)>,
     mut explored_functions: im::HashSet<FunctionId>,
     inline_no_predicates_functions: bool,
@@ -269,6 +369,8 @@ fn should_retain_recursive(
     // And the interface cost of the function (the inherent cost at the callsite, roughly the number of args and returns)
     // We then can compute an approximation of the cost of inlining vs the cost of retaining the function
     // We do this computation using saturating i64s to avoid overflows
+
+    // Total weight of functions called by this one, unless we decided not to inline them.
     let inlined_function_weights: i64 = called_functions.iter().fold(0, |acc, called_function| {
         let (should_retain, weight) = should_retain_function[called_function];
         if should_retain {
@@ -300,6 +402,7 @@ fn should_retain_recursive(
     should_retain_function.insert(func, (!should_inline, this_function_weight));
 }
 
+/// Gather the functions that should not be inlined.
 fn compute_functions_to_retain(
     ssa: &Ssa,
     entry_points: &BTreeSet<FunctionId>,
@@ -335,6 +438,7 @@ fn compute_functions_to_retain(
         .collect()
 }
 
+/// Compute a weight of a function based on the number of instructions in its reachable blocks.
 fn compute_function_own_weight(func: &Function) -> usize {
     let mut weight = 0;
     for block_id in func.reachable_blocks() {
@@ -345,11 +449,12 @@ fn compute_function_own_weight(func: &Function) -> usize {
     weight
 }
 
+/// Compute interface cost of a function based on the number of inputs and outputs.
 fn compute_function_interface_cost(func: &Function) -> usize {
     func.parameters().len() + func.returns().len()
 }
 
-impl InlineContext {
+impl<'a> InlineContext<'a> {
     /// Create a new context object for the function inlining pass.
     /// This starts off with an empty mapping of instructions for main's parameters.
     /// The function being inlined into will always be the main function, although it is
@@ -359,7 +464,7 @@ impl InlineContext {
         ssa: &Ssa,
         entry_point: FunctionId,
         inline_no_predicates_functions: bool,
-        functions_not_to_inline: BTreeSet<FunctionId>,
+        functions_not_to_inline: &'a BTreeSet<FunctionId>,
     ) -> Self {
         let source = &ssa.functions[&entry_point];
         let mut builder = FunctionBuilder::new(source.name().to_owned(), entry_point);
@@ -446,13 +551,13 @@ impl InlineContext {
     }
 }
 
-impl<'function> PerFunctionContext<'function> {
+impl<'function, 'ctx> PerFunctionContext<'function, 'ctx> {
     /// Create a new PerFunctionContext from the source function.
     /// The value and block mappings for this context are initially empty except
     /// for containing the mapping between parameters in the source_function and
     /// the arguments of the destination function.
     fn new(
-        context: &'function mut InlineContext,
+        context: &'function mut InlineContext<'ctx>,
         source_function: &'function Function,
         globals: &'function Function,
     ) -> Self {
