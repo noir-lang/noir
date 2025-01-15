@@ -182,6 +182,10 @@ impl DataFlowGraph {
         self.values.iter()
     }
 
+    pub(crate) fn values_rev_iter(&self) -> impl ExactSizeIterator<Item = (ValueId, &Value)> {
+        self.values.rev_iter()
+    }
+
     /// Returns the parameters of the given block
     pub(crate) fn block_parameters(&self, block: BasicBlockId) -> &[ValueId] {
         self.blocks[block].parameters()

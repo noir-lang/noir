@@ -86,8 +86,15 @@ impl<'block, 'global, Registers: RegisterAllocator> BrilligBlock<'block, 'global
         brillig_block.convert_block(dfg);
     }
 
-    pub(crate) fn compile_globals(&mut self, globals: &DataFlowGraph) {
+    pub(crate) fn compile_globals(
+        &mut self,
+        globals: &DataFlowGraph,
+        used_globals: &HashSet<ValueId>,
+    ) {
         for (id, value) in globals.values_iter() {
+            if !used_globals.contains(&id) {
+                continue;
+            }
             match value {
                 Value::NumericConstant { .. } => {
                     self.convert_ssa_value(id, globals);
