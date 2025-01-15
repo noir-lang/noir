@@ -37,7 +37,6 @@ impl Ssa {
                 if let Value::Instruction { instruction, .. } = &value {
                     let instruction = &self.globals.dfg[*instruction];
                     instruction.for_each_value(|value_id| {
-                        dbg!(value_id);
                         used_global_values.insert(value_id);
                     });
                 }
