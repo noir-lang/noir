@@ -560,7 +560,7 @@ impl<'context> Elaborator<'context> {
         typ
     }
 
-    fn resolve_as_trait_path(&mut self, path: AsTraitPath) -> Type {
+    pub(super) fn resolve_as_trait_path(&mut self, path: AsTraitPath) -> Type {
         let span = path.trait_path.span;
         let Some(trait_id) = self.resolve_trait_by_path(path.trait_path.clone()) else {
             // Error should already be pushed in the None case

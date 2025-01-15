@@ -8,7 +8,7 @@ use crate::{
         ArrayLiteral, BlockExpression, CallExpression, CastExpression, ConstructorExpression,
         Expression, ExpressionKind, Ident, IfExpression, IndexExpression, InfixExpression,
         ItemVisibility, Lambda, Literal, MemberAccessExpression, MethodCallExpression, Path,
-        PrefixExpression, StatementKind, UnaryOp, UnresolvedTypeData, UnresolvedTypeExpression,
+        PrefixExpression, StatementKind, UnaryOp, UnresolvedTypeData, UnresolvedTypeExpression, AsTraitPath,
     },
     hir::{
         comptime::{self, InterpreterError},
@@ -75,7 +75,7 @@ impl<'context> Elaborator<'context> {
                 self.push_err(ResolverError::UnquoteUsedOutsideQuote { span: expr.span });
                 (HirExpression::Error, Type::Error)
             }
-            ExpressionKind::AsTraitPath(_) => todo!("Implement AsTraitPath"),
+            ExpressionKind::AsTraitPath(path) => return self.elaborate_as_trait_path(path),
             ExpressionKind::TypePath(path) => return self.elaborate_type_path(path),
         };
         let id = self.interner.push_expr(hir_expr);
@@ -1019,5 +1019,13 @@ impl<'context> Elaborator<'context> {
 
         let (expr_id, typ) = self.inline_comptime_value(result, location.span);
         Some((self.interner.expression(&expr_id), typ))
+    }
+
+    fn elaborate_as_trait_path(&mut self, path: AsTraitPath) -> (ExprId, Type) {
+        let span = path.typ.span.merge(path.impl_item.span());
+
+        // Convert the resulting type to an expression and elaborate that
+        let expr = self.resolve_as_trait_path(path).as_expression(span);
+        self.elaborate_expression(expr)
     }
 }

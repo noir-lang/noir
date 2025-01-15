@@ -11,12 +11,12 @@ use proptest_derive::Arbitrary;
 use acvm::{AcirField, FieldElement};
 
 use crate::{
-    ast::{IntegerBitSize, ItemVisibility},
+    ast::{IntegerBitSize, ItemVisibility, ExpressionKind, Literal, InfixExpression, BinaryOpKind},
     hir::type_check::{generics::TraitGenerics, TypeCheckError},
     node_interner::{ExprId, NodeInterner, TraitId, TypeAliasId},
 };
 use iter_extended::vecmap;
-use noirc_errors::{Location, Span};
+use noirc_errors::{Location, Span, Spanned};
 use noirc_printable_type::PrintableType;
 
 use crate::{
@@ -2560,6 +2560,39 @@ impl Type {
             | Type::Quoted(..)
             | Type::Error => None,
         }
+    }
+
+    /// Converts this type into an expression.
+    /// E.g. a `Type::InfixExpr` will attempt to be represented as an actual expression.
+    pub(crate) fn as_expression(self, span: Span) -> crate::ast::Expression {
+        let kind = match self.follow_bindings_shallow().into_owned() {
+            Type::Constant(value, _kind) => {
+                let is_negative = false;
+                ExpressionKind::Literal(Literal::Integer(value, is_negative))
+            },
+            Type::Error => ExpressionKind::Error,
+            Type::NamedGeneric(_, name) => {
+                let path = crate::ast::Path::from_single(name.as_ref().clone(), span);
+                ExpressionKind::Variable(path)
+            }
+            Type::InfixExpr(lhs, op, rhs) => {
+                let lhs = lhs.as_expression(span);
+                let rhs = rhs.as_expression(span);
+
+                let operator = match op {
+                    BinaryTypeOperator::Addition => BinaryOpKind::Add,
+                    BinaryTypeOperator::Subtraction => BinaryOpKind::Subtract,
+                    BinaryTypeOperator::Multiplication => BinaryOpKind::Multiply,
+                    BinaryTypeOperator::Division => BinaryOpKind::Divide,
+                    BinaryTypeOperator::Modulo => BinaryOpKind::Modulo,
+                };
+                let operator = Spanned::from(span, operator);
+                ExpressionKind::Infix(Box::new(InfixExpression { lhs, operator, rhs }))
+            }
+            Type::CheckedCast { from: _, to } => return to.as_expression(span),
+            other  => todo!("Unexpected other type '{other:?}'"),
+        };
+        crate::ast::Expression::new(kind, span)
     }
 }
 
