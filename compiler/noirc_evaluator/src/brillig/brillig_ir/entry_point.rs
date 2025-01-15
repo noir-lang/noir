@@ -23,12 +23,15 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         arguments: Vec<BrilligParameter>,
         return_parameters: Vec<BrilligParameter>,
         target_function: FunctionId,
+        globals_init: bool,
     ) -> BrilligArtifact<F> {
         let mut context = BrilligContext::new(false);
 
         context.codegen_entry_point(&arguments, &return_parameters);
 
-        context.add_globals_init_instruction();
+        if globals_init {
+            context.add_globals_init_instruction();
+        }
 
         context.add_external_call_instruction(target_function);
 
