@@ -54,7 +54,7 @@ fn main() {
 
         let (field1_name, field1_type) = fields[0];
         let (field2_name, field2_type) = fields[1];
-        
+
         assert_eq(field1_name, quote { field1 });
         assert_eq(field2_name, quote { field2 });
 

@@ -143,3 +143,29 @@ jobs:
       - name: Format test suite
         working-directory: ./test_programs
         run: ./format.sh check
+
+  # This is a job which depends on all test jobs and reports the overall status.
+  # This allows us to add/remove test jobs without having to update the required workflows.
+  formatting-end:
+    name: Formatting End
+    runs-on: ubuntu-22.04
+    # We want this job to always run (even if the dependant jobs fail) as we want this job to fail rather than skipping.
+    if: ${{ always() }}
+    needs:
+      - clippy
+      - rustfmt
+      - eslint
+      - nargo_fmt
+
+    steps:
+        - name: Report overall success
+          run: |
+            if [[ $FAIL == true ]]; then
+                exit 1
+            else
+                exit 0
+            fi
+          env:
+            # We treat any skipped or failing jobs as a failure for the workflow as a whole.
+            FAIL: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}
+
