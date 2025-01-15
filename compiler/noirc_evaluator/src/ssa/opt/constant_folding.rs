@@ -237,14 +237,14 @@ impl SimplificationCache {
 type ConstraintSimplificationCache = HashMap<ValueId, HashMap<ValueId, SimplificationCache>>;
 
 /// HashMap from `(Instruction, side_effects_enabled_var)` to the results of the instruction.
-/// Stored as a two-level map to avoid cloning Instructions during the `.get` call.
+/// Stored as a three-level map to avoid cloning Instructions during the `.get` call.
 ///
 /// The `side_effects_enabled_var` is optional because we only use them when `Instruction::requires_acir_gen_predicate`
 /// is true _and_ the constraint information is also taken into account.
 ///
 /// In addition to each result, the original BasicBlockId is stored as well. This allows us
 /// to deduplicate instructions across blocks as long as the new block dominates the original.
-type InstructionResultCache = HashMap<Instruction, HashMap<Option<ValueId>, ResultCache>>;
+type InstructionResultCache = HashMap<Instruction, HashMap<Option<Vec<Type>>, HashMap<Option<ValueId>, ResultCache>>>;
 
 /// Records the results of all duplicate [`Instruction`]s along with the blocks in which they sit.
 ///
@@ -306,10 +306,14 @@ impl<'brillig> Context<'brillig> {
 
         let old_results = dfg.instruction_results(id).to_vec();
 
+        let ctrl_typevars = instruction
+            .requires_ctrl_typevars()
+            .then(|| vecmap(&old_results, |result| dfg.type_of_value(*result)));
+
         // If a copy of this instruction exists earlier in the block, then reuse the previous results.
         let runtime_is_brillig = dfg.runtime().is_brillig();
         if let Some(cache_result) =
-            self.get_cached(dfg, dom, &instruction, *side_effects_enabled_var, block)
+            self.get_cached(dfg, dom, &instruction, &ctrl_typevars, *side_effects_enabled_var, block)
         {
             match cache_result {
                 CacheResult::Cached(cached) => {
@@ -459,6 +463,10 @@ impl<'brillig> Context<'brillig> {
             }
         }
 
+        let ctrl_typevars = instruction
+            .requires_ctrl_typevars()
+            .then(|| vecmap(instruction_results.iter(), |result| function.dfg.type_of_value(*result)));
+
         // If we have an array get whose value is from an array set on the same array at the same index,
         // we can simplify that array get to the value of the previous array set.
         //
@@ -478,6 +486,8 @@ impl<'brillig> Context<'brillig> {
 
             self.cached_instruction_results
                 .entry(array_get)
+                .or_default()
+                .entry(ctrl_typevars.clone())
                 .or_default()
                 .entry(predicate)
                 .or_default()
@@ -501,6 +511,8 @@ impl<'brillig> Context<'brillig> {
 
             self.cached_instruction_results
                 .entry(instruction)
+                .or_default()
+                .entry(ctrl_typevars.clone())
                 .or_default()
                 .entry(predicate)
                 .or_default()
@@ -534,6 +546,7 @@ impl<'brillig> Context<'brillig> {
         dfg: &DataFlowGraph,
         dom: &mut DominatorTree,
         instruction: &Instruction,
+        ctrl_typevars: &Option<Vec<Type>>,
         side_effects_enabled_var: ValueId,
         block: BasicBlockId,
     ) -> Option<CacheResult> {
@@ -541,7 +554,7 @@ impl<'brillig> Context<'brillig> {
         let predicate = self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
         let predicate = predicate.then_some(side_effects_enabled_var);
 
-        results_for_instruction.get(&predicate)?.get(block, dom, instruction.has_side_effects(dfg))
+        results_for_instruction.get(ctrl_typevars)?.get(&predicate)?.get(block, dom, instruction.has_side_effects(dfg))
     }
 
     /// Checks if the given instruction is a call to a brillig function with all constant arguments.
@@ -720,6 +733,7 @@ impl<'brillig> Context<'brillig> {
             };
 
             if matches!(instruction, Instruction::MakeArray { .. }) {
+                // Instruction::MakeArray does not require ctrl typevars 
                 self.cached_instruction_results.remove(instruction);
             }
         }

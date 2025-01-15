@@ -132,7 +132,6 @@ pub(crate) fn allocate_value<F, Registers: RegisterAllocator>(
     dfg: &DataFlowGraph,
 ) -> BrilligVariable {
     let typ = dfg.type_of_value(value_id);
-    let flattened_size = typ.flattened_size();
 
     match typ {
         Type::Numeric(_) | Type::Reference(_) | Type::Function => {

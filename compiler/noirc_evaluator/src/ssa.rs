@@ -100,6 +100,7 @@ pub(crate) fn optimize_into_acir(
         &options.emit_ssa,
     )?;
 
+    // let mut ssa = builder.finish();
     let mut ssa = optimize_all(builder, options)?;
 
     let mut ssa_level_warnings = vec![];
@@ -185,8 +186,11 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
         .run_pass(Ssa::remove_if_else, "Remove IfElse")
         .run_pass(Ssa::fold_constants, "Constant Folding")
         .run_pass(Ssa::remove_enable_side_effects, "EnableSideEffectsIf removal")
+        // TODO: Remove this additional DIE pass. We generate additional array get instructions with different types
+        // this can cause 
+        // .run_pass(Ssa::dead_instruction_elimination, "Dead Instruction Elimination (1st)")
         .run_pass(Ssa::fold_constants_using_constraints, "Constraint Folding")
-        .run_pass(Ssa::dead_instruction_elimination, "Dead Instruction Elimination (1st)")
+        .run_pass(Ssa::dead_instruction_elimination, "Dead Instruction Elimination (2nd)")
         .run_pass(Ssa::simplify_cfg, "Simplifying:")
         .run_pass(Ssa::array_set_optimization, "Array Set Optimizations")
         .finish())
@@ -490,7 +494,7 @@ impl SsaBuilder {
             }
         };
         if print_ssa_pass {
-            self.ssa.normalize_ids();
+            // self.ssa.normalize_ids();
             println!("After {msg}:\n{}", self.ssa);
         }
         self

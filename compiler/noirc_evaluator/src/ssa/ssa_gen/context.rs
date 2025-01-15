@@ -793,6 +793,7 @@ impl<'a> FunctionContext<'a> {
     fn ident_lvalue(&self, ident: &ast::Ident) -> (Values, bool) {
         match &ident.definition {
             ast::Definition::Local(id) => (self.lookup(*id), ident.mutable),
+            ast::Definition::Global(id) => (self.lookup_global(*id), false),
             other => panic!("Unexpected definition found for mutable value: {other}"),
         }
     }
@@ -879,21 +880,19 @@ impl<'a> FunctionContext<'a> {
             ast::LValue::Ident(ident) => {
                 let (variable, should_auto_deref) = self.ident_lvalue(ident);
                 if should_auto_deref {
-                    let dereferenced = self.dereference_lvalue(&variable, &ident.typ);
-                    // Ok((dereferenced, LValue::Dereference { reference: variable }))
+                    let _ = self.dereference_lvalue(&variable, &ident.typ);
                     LValue::Dereference { reference: variable }
                 } else {
-                    // LValue::Dereference { reference: variable }
                     LValue::Ident
                 }
             }
-            ast::LValue::Index { array, index, element_type, location } => {
+            ast::LValue::Index { array, .. } => {
                 self.extract_ident(array)?
             }
-            ast::LValue::MemberAccess { object, field_index } => {
+            ast::LValue::MemberAccess { object, .. } => {
                 self.extract_ident(object)?
             }
-            ast::LValue::Dereference { reference, element_type } => {
+            ast::LValue::Dereference { reference, .. } => {
                 self.extract_ident(reference)?
             }
         };
@@ -907,8 +906,8 @@ impl<'a> FunctionContext<'a> {
         indices: &mut Vec<NestedArrayIndex>,
     ) -> Result<(), RuntimeError> {
         match lvalue {
-            ast::LValue::Ident(ident) => {}
-            ast::LValue::Index { array, index, element_type, location } => {
+            ast::LValue::Ident(_) => {}
+            ast::LValue::Index { array, index, .. } => {
                 // indices.push(LValueIndex::Test(*index.to_owned()));
                 let index = self.codegen_non_tuple_expression(index)?;
                 indices.push(NestedArrayIndex::Value(index));
@@ -916,6 +915,7 @@ impl<'a> FunctionContext<'a> {
             }
             ast::LValue::MemberAccess { object, field_index } => {
                 // TODO: compute the accurate field index
+                dbg!(field_index);
                 indices.push(NestedArrayIndex::Constant(*field_index));
                 self.build_lvalue_index(object, indices)?;
             }
@@ -1077,6 +1077,9 @@ impl<'a> FunctionContext<'a> {
                 indices.push(NestedArrayIndex::Value(index_value));
                 self.extract_ident_from_expr(&index.collection, indices)?
             }
+            ast::Expression::Literal(literal) => {
+                self.codegen_literal(literal)?
+            }
             _ => unreachable!("ICE: Expected Ident, ExtractTupleField, or Index, but got {expr}"),
         })
     }
@@ -1196,7 +1199,7 @@ fn convert_operator(op: BinaryOpKind) -> BinaryOp {
 pub(super) enum NestedArrayIndex {
     Value(ValueId),
     Constant(usize),
-    Test(ast::Expression),
+    // Test(ast::Expression),
 }
 
 impl SharedContext {

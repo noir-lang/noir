@@ -880,7 +880,10 @@ impl Instruction {
             }
             Instruction::ArrayGet { array, index } => {
                 if let Some(index) = dfg.get_numeric_constant(*index) {
-                    try_optimize_array_get_from_previous_set(dfg, *array, index)
+                    // dbg!(array);
+                    // dbg!(index);
+                    // dbg!(ctrl_typevars.clone());
+                    try_optimize_array_get_from_previous_set(dfg, *array, index, ctrl_typevars.unwrap(), block, call_stack)
                 } else {
                     None
                 }
@@ -1084,9 +1087,12 @@ impl Instruction {
 ///   - If the array value is constant, we use that array.
 ///   - If the array value is from a previous array-set, we recur.
 fn try_optimize_array_get_from_previous_set(
-    dfg: &DataFlowGraph,
+    dfg: &mut DataFlowGraph,
     mut array_id: Id<Value>,
     target_index: FieldElement,
+    result_type: Vec<Type>,
+    block: BasicBlockId,
+    call_stack: CallStackId,
 ) -> SimplifyResult {
     let mut elements = None;
 
@@ -1117,11 +1123,31 @@ fn try_optimize_array_get_from_previous_set(
             _ => return SimplifyResult::None,
         }
     }
-
+    // let typ = dfg.type_of_value(array_id);
     if let (Some(array), Some(index)) = (elements, target_index.try_to_u64()) {
         let index = index as usize;
+
         if index < array.len() {
-            return SimplifyResult::SimplifiedTo(array[index]);
+            if dfg.runtime().is_brillig() {
+                return SimplifyResult::SimplifiedTo(array[index]);
+            }
+
+            let mut elements = im::Vector::new();
+            let array_get_res = match &result_type[0] {
+                Type::Array(_, len) => {
+                    // TODO: probably need to do this based off flattened size
+                    // the index check will also need to be updated
+                    for i in 0..*len {
+                        elements.push_back(array[index + i as usize]);
+                    }
+                    let instruction = Instruction::MakeArray { elements, typ: result_type[0].clone() };
+                    let new_array = dfg.insert_instruction_and_results(instruction, block, None, call_stack).first();
+                    new_array
+                }
+                _ => array[index],
+            };
+            return SimplifyResult::SimplifiedTo(array_get_res);
+            // return SimplifyResult::SimplifiedTo(array[index]);
         }
     }
     SimplifyResult::None

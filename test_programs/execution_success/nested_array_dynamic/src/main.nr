@@ -60,12 +60,13 @@ fn main(mut x: [Foo; 4], y: pub Field) {
     } else {
         foo_parents[y - 2].foos[y - 2].b = [20, 19, 18];
     }
+    foo_parents[y - 2].foos[y - 2].b = [20, 19, 18];
     assert(foo_parents[1].foos[1].b == [20, 19, 18]);
 
     assert(foo_parents[1].foos[1].b[2] == 18);
     if y == 3 {
         foo_parents[y - 2].foos[y - 2].b[y - 1] = 5000;
-    } else {
+} else {
         foo_parents[y - 2].foos[y - 2].b[y - 1] = 1000;
     }
     assert(foo_parents[1].foos[1].b[2] == 5000);

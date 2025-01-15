@@ -568,7 +568,9 @@ impl<'a> Context<'a> {
             let typ = dfg.type_of_value(*param_id);
             let value = self.convert_ssa_block_param(&typ)?;
             match &value {
-                AcirValue::Var(_, _) => (),
+                AcirValue::Var(_, _) => {
+                    self.ssa_values.insert(*param_id, value);
+                }
                 AcirValue::Array(_) => {
                     let block_id = self.block_id(param_id);
                     let len = if matches!(typ, Type::Array(_, _)) {
@@ -582,12 +584,17 @@ impl<'a> Context<'a> {
                         .into());
                     };
                     self.initialize_array(block_id, len, Some(value.clone()))?;
+                    let flat_value = value.flatten().into_iter().map(|(var, typ)| AcirValue::Var(var, typ)).collect::<im::Vector<_>>();
+                    self.ssa_values.insert(*param_id, AcirValue::Array(flat_value));
+                    // self.ssa_values.insert(*param_id, value);
                 }
                 AcirValue::DynamicArray(_) => unreachable!(
                     "The dynamic array type is created in Acir gen and therefore cannot be a block parameter"
                 ),
             }
-            self.ssa_values.insert(*param_id, value);
+            // let value = value.flatten();
+            // let flat_value = value.flatten().into_iter().map(|(var, typ)| AcirValue::Var(var, typ)).collect::<im::Vector<_>>();
+            // self.ssa_values.insert(*param_id, value);
         }
         let end_witness = self.acir_context.current_witness_index().0;
         let witnesses = (start_witness..=end_witness).map(Witness::from).collect();
@@ -1007,6 +1014,7 @@ impl<'a> Context<'a> {
         instruction: InstructionId,
         dfg: &DataFlowGraph,
     ) -> Result<(), RuntimeError> {
+        
         let mut mutable_array_set = false;
 
         // Pass the instruction between array methods rather than the internal fields themselves
@@ -1025,21 +1033,34 @@ impl<'a> Context<'a> {
                 .into())
             }
         };
+        
         // Ensure that array id is fully resolved.
         let array = dfg.resolve(array);
 
         let array_id = dfg.resolve(array);
+
+        // dbg!(array_id);
         let array_typ = dfg.type_of_value(array_id);
         // Compiler sanity checks
         assert!(!array_typ.is_nested_slice(), "ICE: Nested slice type has reached ACIR generation");
         let (Type::Array(_, _) | Type::Slice(_)) = &array_typ else {
+            // dbg!(array_typ.clone());
+            // dbg!(array_id);
             unreachable!("ICE: expected array or slice type");
         };
 
-        if self.handle_constant_index_wrapper(instruction, dfg, array, index, store_value)? {
+        let get_const_res = self.handle_constant_index_wrapper(instruction, dfg, array, index, store_value);
+        // if array_id.to_u32() == 0 {
+            // dbg!(get_const_res.clone());
+        // }
+        if get_const_res? {
             return Ok(());
         }
+        // dbg!(array_typ.clone());
 
+        // if array_id.to_u32() == 0 {
+            // dbg!(array_typ.clone());
+        // }
         // Get an offset such that the type of the array at the offset is the same as the type at the 'index'
         // If we find one, we will use it when computing the index under the enable_side_effect predicate
         // If not, array_get(..) will use a fallback costing one multiplication in the worst case.
@@ -1070,6 +1091,7 @@ impl<'a> Context<'a> {
         if let Some(new_value) = new_value {
             self.array_set(instruction, new_index, new_value, dfg, mutable_array_set)?;
         } else {
+            // dbg!(array);
             self.array_get(instruction, array, new_index, dfg, offset.is_none())?;
         }
 
@@ -1091,8 +1113,12 @@ impl<'a> Context<'a> {
         let (Type::Array(_, _) | Type::Slice(_)) = &array_typ else {
             unreachable!("ICE: expected array or slice type");
         };
-
-        match self.convert_value(array_id, dfg) {
+        // dbg!(array_id);
+        let value = self.convert_value(array_id, dfg);
+        // if array_id.to_u32() == 0 {
+        //     dbg!(value.clone());
+        // }
+        match value {
             AcirValue::Var(acir_var, _) => {
                 Err(RuntimeError::InternalError(InternalError::Unexpected {
                     expected: "an array value".to_string(),
@@ -1328,13 +1354,17 @@ impl<'a> Context<'a> {
         dfg: &DataFlowGraph,
         mut index_side_effect: bool,
     ) -> Result<AcirValue, RuntimeError> {
+        // dbg!(array);
         let block_id = self.ensure_array_is_initialized(array, dfg)?;
+        // dbg!(block_id);
         let results = dfg.instruction_results(instruction);
         let res_typ = dfg.type_of_value(results[0]);
+        // dbg!(results.clone());
         // Get operations to call-data parameters are replaced by a get to the call-data-bus array
         let call_data =
             self.data_bus.call_data.iter().find(|cd| cd.index_map.contains_key(&array)).cloned();
         if let Some(call_data) = call_data {
+            dbg!("got here");
             let call_data_block = self.ensure_array_is_initialized(call_data.array_id, dfg)?;
             let bus_index = self
                 .acir_context
@@ -1349,8 +1379,14 @@ impl<'a> Context<'a> {
             !res_typ.contains_slice_element(),
             "ICE: Nested slice result found during ACIR generation"
         );
+        // if results[0].to_u32() == 0 {
+        //     dbg!(res_typ.clone());
+        // }
         let mut value = self.array_get_value(&res_typ, block_id, &mut var_index)?;
         // dbg!(value.clone());
+        // if results[0].to_u32() == 0 {
+        //     dbg!(value.clone());
+        // }
         if res_typ.is_nested_array() {
             // TODO: can probably move this entire conversion to a method on `AcirValue`
             let flat_value = value.flatten().into_iter().map(|(var, typ)| AcirValue::Var(var, typ)).collect::<im::Vector<_>>();
@@ -1443,6 +1479,9 @@ impl<'a> Context<'a> {
             }
         };
 
+
+        // dbg!(store_value.clone());
+
         let block_id = self.ensure_array_is_initialized(array, dfg)?;
 
         // Every array has a length in its type, so we fetch that from
@@ -1475,8 +1514,8 @@ impl<'a> Context<'a> {
             result_block_id = self.block_id(result_id);
             self.copy_dynamic_array(block_id, result_block_id, array_len)?;
         }
-        dbg!(result_block_id);
-        dbg!(store_value.clone());
+        // dbg!(result_block_id);
+        // dbg!(store_value.clone());
         self.array_set_value(&store_value, result_block_id, &mut var_index)?;
 
         let element_type_sizes = if !can_omit_element_sizes_array(&array_typ) {
@@ -1915,11 +1954,14 @@ impl<'a> Context<'a> {
     ) -> Result<AcirVar, InternalError> {
         match self.convert_value(value_id, dfg) {
             AcirValue::Var(acir_var, _) => Ok(acir_var),
-            AcirValue::Array(array) => Err(InternalError::Unexpected {
-                expected: "a numeric value".to_string(),
-                found: format!("{array:?}"),
-                call_stack: self.acir_context.get_call_stack(),
-            }),
+            AcirValue::Array(array) => {
+                dbg!(value_id);
+                Err(InternalError::Unexpected {
+                    expected: "a numeric value".to_string(),
+                    found: format!("{array:?}"),
+                    call_stack: self.acir_context.get_call_stack(),
+                })
+            }
             AcirValue::DynamicArray(_) => Err(InternalError::Unexpected {
                 expected: "a numeric value".to_string(),
                 found: "an array".to_string(),

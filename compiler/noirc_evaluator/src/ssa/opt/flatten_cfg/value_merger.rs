@@ -96,7 +96,9 @@ impl<'a> ValueMerger<'a> {
         then_value: ValueId,
         else_value: ValueId,
     ) -> ValueId {
+        // dbg!(then_value);
         let then_type = dfg.type_of_value(then_value).unwrap_numeric();
+        // dbg!(else_value);
         let else_type = dfg.type_of_value(else_value).unwrap_numeric();
         assert_eq!(
             then_type, else_type,
@@ -149,49 +151,76 @@ impl<'a> ValueMerger<'a> {
     ) -> ValueId {
         let mut merged = im::Vector::new();
 
-        let (element_types, len) = match &typ {
-            Type::Array(elements, len) => (elements, *len),
-            _ => panic!("Expected array type"),
-        };
+        assert!(matches!(&typ, Type::Array(..)));
 
-        let actual_length = len * element_types.len() as u32;
+        // let actual_length = len * element_types.len() as u32;
+        // if let Some(result) = self.try_merge_only_changed_indices(
+        //     then_condition,
+        //     else_condition,
+        //     then_value,
+        //     else_value,
+        //     actual_length,
+        // ) {
+        //     return result;
+        // }
 
-        if let Some(result) = self.try_merge_only_changed_indices(
-            then_condition,
-            else_condition,
-            then_value,
-            else_value,
-            actual_length,
-        ) {
-            return result;
+        // let flattened_size = typ.flattened_size();
+        let flat_typ = typ.clone().flatten();
+
+        let mut my_index: u128 = 0;
+        for typ in flat_typ {
+            let index = self.dfg.make_constant(my_index.into(), typ.unwrap_numeric());
+            my_index += 1;
+            assert!(matches!(typ, Type::Numeric(_)));
+            let typevars = Some(vec![typ]);
+            let mut get_element = |array, typevars: Option<Vec<Type>>| {
+                let get = Instruction::ArrayGet { array, index };
+                self.dfg
+                    .insert_instruction_and_results(get, self.block, typevars, self.call_stack)
+                    .first()
+            };
+            let then_element = get_element(then_value, typevars.clone());
+            let else_element = get_element(else_value, typevars);
+            merged.push_back(self.merge_values(
+                then_condition,
+                else_condition,
+                then_element,
+                else_element,
+            ));
         }
-
-        for i in 0..len {
-            for (element_index, element_type) in element_types.iter().enumerate() {
-                let index =
-                    ((i * element_types.len() as u32 + element_index as u32) as u128).into();
-                let index = self.dfg.make_constant(index, NumericType::NativeField);
-
-                let typevars = Some(vec![element_type.clone()]);
-
-                let mut get_element = |array, typevars| {
-                    let get = Instruction::ArrayGet { array, index };
-                    self.dfg
-                        .insert_instruction_and_results(get, self.block, typevars, self.call_stack)
-                        .first()
-                };
-
-                let then_element = get_element(then_value, typevars.clone());
-                let else_element = get_element(else_value, typevars);
-
-                merged.push_back(self.merge_values(
-                    then_condition,
-                    else_condition,
-                    then_element,
-                    else_element,
-                ));
-            }
-        }
+        
+        // let mut my_index: u128 = 0;
+        // for i in 0..len {
+        //     for (element_index, element_type) in element_types.iter().enumerate() {
+        //         // dbg!(my_index);
+        //         // dbg!(element_type.clone());
+        //         let flat_typ = element_type.clone().flatten();
+        //         // dbg!(flat_typ.clone());
+        //         assert_eq!(flat_typ.len(), element_type.flattened_size() as usize);
+        //         // my_index += element_type.flattened_size();
+        //         for typ in flat_typ {
+        //             // dbg!(my_index);
+        //             let index = self.dfg.make_constant(my_index.into(), typ.unwrap_numeric());
+        //             my_index += 1;
+        //             let typevars = Some(vec![typ]);
+        //             let mut get_element = |array, typevars: Option<Vec<Type>>| {
+        //                 let get = Instruction::ArrayGet { array, index };
+        //                 self.dfg
+        //                     .insert_instruction_and_results(get, self.block, typevars, self.call_stack)
+        //                     .first()
+        //             };
+        //             let then_element = get_element(then_value, typevars.clone());
+        //             let else_element = get_element(else_value, typevars);
+        //             merged.push_back(self.merge_values(
+        //                 then_condition,
+        //                 else_condition,
+        //                 then_element,
+        //                 else_element,
+        //             ));
+        //         }
+        //     }
+        // }
+        
 
         let instruction = Instruction::MakeArray { elements: merged, typ };
         self.dfg
@@ -380,7 +409,7 @@ impl<'a> ValueMerger<'a> {
         }
 
         let mut array = then_value;
-
+        dbg!(changed_indices.clone());
         for (index, element_type, condition) in changed_indices {
             let typevars = Some(vec![element_type.clone()]);
 

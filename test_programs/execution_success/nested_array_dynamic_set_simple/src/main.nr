@@ -12,25 +12,25 @@ struct Foo {
 }
 
 // 10 values
-// struct FooParent {
-//     array: [Field; 3],
-//     foos: [Foo; 1],
-// }
+struct FooParent {
+    array: [Field; 3],
+    foos: [Foo; 1],
+}
 
 fn main(mut x: [Foo; 1], y: pub Field) {
-    if y == 3 {
-        x[y - 3].b[y - 1] = 5000;
-    }
-    // println(x[y - 3].b[y - 1]);
-    assert(x[y - 3].b[y - 1] == 5000);
-    // let foo_parent_one = FooParent { array: [0, 1, 2], foos: x };
-    // let foo_parent_two = FooParent { array: [3, 4, 5], foos: x };
-    // let mut foo_parents = [foo_parent_one, foo_parent_two];
-
     // if y == 3 {
-    //     foo_parents[y - 2].foos[y - 3].b[y - 1] = 5000;
-    // } 
-    // assert(foo_parents[1].foos[0].b[2] == 5000);
+    //     x[y - 3].b[y - 1] = 5000;
+    // }
+    // assert(x[y - 3].b[y - 1] == 5000);
+
+    let foo_parent_one = FooParent { array: [0, 1, 2], foos: x };
+    let foo_parent_two = FooParent { array: [3, 4, 5], foos: x };
+    let mut foo_parents = [foo_parent_one, foo_parent_two];
+
+    if y == 3 {
+        foo_parents[y - 2].foos[y - 3].b[y - 1] = 5000;
+    } 
+    assert(foo_parents[1].foos[0].b[2] == 5000);
 }
 
 // fn main(mut x: [Foo; 1], y: pub Field) {

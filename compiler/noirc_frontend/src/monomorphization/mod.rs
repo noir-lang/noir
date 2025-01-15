@@ -1026,6 +1026,10 @@ impl<'interner> Monomorphizer<'interner> {
 
             let expr = self.expr(expr)?;
 
+            if !self.in_unconstrained_function {
+                return Ok(expr);
+            }
+
             // Globals are meant to be computed at compile time and are stored in their own context to be shared across functions.
             // Closures are defined as normal functions among all SSA functions and later need to be defunctionalized.
             // Thus, this means we would have to re-define any global closures.
