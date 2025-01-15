@@ -364,6 +364,8 @@ impl InlineContext {
         let source = &ssa.functions[&entry_point];
         let mut builder = FunctionBuilder::new(source.name().to_owned(), entry_point);
         builder.set_runtime(source.runtime());
+        builder.current_function.set_globals(source.dfg.globals.clone());
+
         Self {
             builder,
             recursion_level: 0,
@@ -381,7 +383,7 @@ impl InlineContext {
         let mut context = PerFunctionContext::new(&mut self, entry_point, &ssa.globals);
         context.inlining_entry = true;
 
-        for (_, value) in ssa.globals.dfg.values_iter() {
+        for (_, value) in entry_point.dfg.globals.values_iter() {
             context.context.builder.current_function.dfg.make_global(value.get_type().into_owned());
         }
 
@@ -475,19 +477,38 @@ impl<'function> PerFunctionContext<'function> {
         }
 
         let new_value = match &self.source_function.dfg[id] {
-            value @ Value::Instruction { .. } => {
-                // if self.context.globals.dfg.values_iter().len() > id.to_u32() as usize {
-                //     id
-                // } else {
-                //     unreachable!("All Value::Instructions should already be known during inlining after creating the original inlined instruction. Unknown value {id} = {value:?}")
-                // }
+            value @ Value::Instruction { instruction, .. } => {
+                // TODO: Inlining the global into the function is only a temporary measure
+                // until Brillig gen with globals is working end to end
+                if self.source_function.dfg.is_global(id) {
+                    if self.context.builder.current_function.dfg.runtime().is_acir() {
+                        let Instruction::MakeArray { elements, typ } = &self.globals.dfg[*instruction]
+                        else {
+                            panic!("Only expect Instruction::MakeArray for a global");
+                        };
+                        let elements = elements
+                            .iter()
+                            .map(|element| self.translate_value(*element))
+                            .collect::<im::Vector<_>>();
+                        return self.context.builder.insert_make_array(elements, typ.clone());
+                    } else {
+                        return id
+                    }
+                }
                 unreachable!("All Value::Instructions should already be known during inlining after creating the original inlined instruction. Unknown value {id} = {value:?}")
             }
             value @ Value::Param { .. } => {
                 unreachable!("All Value::Params should already be known from previous calls to translate_block. Unknown value {id} = {value:?}")
             }
             Value::NumericConstant { constant, typ } => {
-                self.context.builder.numeric_constant(*constant, *typ)
+                // The dfg indexes a global's inner value directly, so we need to check here
+                // whether we have a global.
+                // We also only keep a global and do not inline it in a Brillig runtime.
+                if self.source_function.dfg.is_global(id) && self.context.builder.current_function.dfg.runtime().is_brillig() {
+                    id
+                } else {
+                    self.context.builder.numeric_constant(*constant, *typ)
+                }
             }
             Value::Function(function) => self.context.builder.import_function(*function),
             Value::Intrinsic(intrinsic) => self.context.builder.import_intrinsic_id(*intrinsic),
@@ -495,28 +516,7 @@ impl<'function> PerFunctionContext<'function> {
                 self.context.builder.import_foreign_function(function)
             }
             Value::Global(_) => {
-                if self.context.builder.current_function.dfg.runtime().is_acir() {
-                    match &self.globals.dfg[id] {
-                        Value::Instruction { instruction, .. } => {
-                            let Instruction::MakeArray { elements, typ } =
-                                &self.globals.dfg[*instruction]
-                            else {
-                                panic!("Only expect Instruction::MakeArray for a global");
-                            };
-                            let elements = elements
-                                .iter()
-                                .map(|element| self.translate_value(*element))
-                                .collect::<im::Vector<_>>();
-                            self.context.builder.insert_make_array(elements, typ.clone())
-                        }
-                        Value::NumericConstant { constant, typ } => {
-                            self.context.builder.numeric_constant(*constant, *typ)
-                        }
-                        _ => panic!("Expected only an instruction or a numeric constant"),
-                    }
-                } else {
-                    id
-                }
+                panic!("Expected a global to be resolved to its inner value");
             }
         };
 

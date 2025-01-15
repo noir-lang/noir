@@ -23,6 +23,7 @@ use self::{
     value::{Tree, Values},
 };
 
+use super::ir::dfg::GlobalsGraph;
 use super::ir::instruction::ErrorType;
 use super::ir::types::NumericType;
 use super::{
@@ -49,6 +50,8 @@ pub(crate) fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     let return_location = program.return_location;
     let context = SharedContext::new(program);
 
+    let globals = GlobalsGraph::from_dfg(context.globals_context.dfg.clone());
+
     let main_id = Program::main_id();
     let main = context.program.main();
 
@@ -60,7 +63,7 @@ pub(crate) fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
         RuntimeType::Acir(main.inline_type)
     };
     let mut function_context =
-        FunctionContext::new(main.name.clone(), &main.parameters, main_runtime, &context);
+        FunctionContext::new(main.name.clone(), &main.parameters, main_runtime, &context, globals);
 
     // Generate the call_data bus from the relevant parameters. We create it *before* processing the function body
     let call_data = function_context.builder.call_data_bus(is_databus);
