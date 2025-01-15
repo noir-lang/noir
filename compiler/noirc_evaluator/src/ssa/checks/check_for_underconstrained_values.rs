@@ -116,7 +116,7 @@ struct BrilligTaintedIds {
     arguments: HashSet<ValueId>,
     // Results status
     results: Vec<ResultStatus>,
-    // Indices of the array elements into the results vector
+    // Indices of the array elements in the results vector
     array_elements: HashMap<ValueId, Vec<usize>>,
     // Initial result value ids, along with element ids for arrays
     root_results: HashSet<ValueId>,
