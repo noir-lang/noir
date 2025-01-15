@@ -10,7 +10,10 @@ impl Field {
     // docs:start:assert_max_bit_size
     pub fn assert_max_bit_size<let BIT_SIZE: u32>(self) {
         // docs:end:assert_max_bit_size
-        static_assert(BIT_SIZE < modulus_num_bits() as u32, "BIT_SIZE must be less than modulus_num_bits");
+        static_assert(
+            BIT_SIZE < modulus_num_bits() as u32,
+            "BIT_SIZE must be less than modulus_num_bits",
+        );
         self.__assert_max_bit_size(BIT_SIZE);
     }
 
@@ -61,7 +64,10 @@ impl Field {
     // docs:start:to_le_bytes
     pub fn to_le_bytes<let N: u32>(self: Self) -> [u8; N] {
         // docs:end:to_le_bytes
-        static_assert(N <= modulus_le_bytes().len(), "N must be less than or equal to modulus_le_bytes().len()");
+        static_assert(
+            N <= modulus_le_bytes().len(),
+            "N must be less than or equal to modulus_le_bytes().len()",
+        );
         // Compute the byte decomposition
         let bytes = self.to_le_radix(256);
 
@@ -95,7 +101,10 @@ impl Field {
     // docs:start:to_be_bytes
     pub fn to_be_bytes<let N: u32>(self: Self) -> [u8; N] {
         // docs:end:to_be_bytes
-        static_assert(N <= modulus_le_bytes().len(), "N must be less than or equal to modulus_le_bytes().len()");
+        static_assert(
+            N <= modulus_le_bytes().len(),
+            "N must be less than or equal to modulus_le_bytes().len()",
+        );
         // Compute the byte decomposition
         let bytes = self.to_be_radix(256);
 
@@ -175,7 +184,10 @@ impl Field {
     /// Convert a little endian byte array to a field element.
     /// If the provided byte array overflows the field modulus then the Field will silently wrap around.
     pub fn from_le_bytes<let N: u32>(bytes: [u8; N]) -> Field {
-        static_assert(N <= modulus_le_bytes().len(), "N must be less than or equal to modulus_le_bytes().len()");
+        static_assert(
+            N <= modulus_le_bytes().len(),
+            "N must be less than or equal to modulus_le_bytes().len()",
+        );
         let mut v = 1;
         let mut result = 0;
 
@@ -189,7 +201,10 @@ impl Field {
     /// Convert a big endian byte array to a field element.
     /// If the provided byte array overflows the field modulus then the Field will silently wrap around.
     pub fn from_be_bytes<let N: u32>(bytes: [u8; N]) -> Field {
-        static_assert(N <= modulus_le_bytes().len(), "N must be less than or equal to modulus_le_bytes().len()");
+        static_assert(
+            N <= modulus_le_bytes().len(),
+            "N must be less than or equal to modulus_le_bytes().len()",
+        );
         let mut v = 1;
         let mut result = 0;
 
