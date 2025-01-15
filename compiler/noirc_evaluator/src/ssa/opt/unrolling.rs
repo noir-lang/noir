@@ -90,8 +90,10 @@ impl Ssa {
 
             if has_unrolled {
                 if let Some((orig_function, max_incr_pct)) = orig_func_and_max_incr_pct {
+                    // DIE is run at the end of our SSA optimizations, so we mark all globals as in use here.
+                    let used_globals = &self.globals.dfg.values_iter().map(|(id, _)| id).collect();
                     let (_, brillig_globals) =
-                        convert_ssa_globals(false, &self.globals, &self.used_global_values);
+                        convert_ssa_globals(false, &self.globals, used_globals);
 
                     let new_size = brillig_bytecode_size(function, &brillig_globals);
                     let orig_size = brillig_bytecode_size(&orig_function, &brillig_globals);

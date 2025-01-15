@@ -27,8 +27,7 @@ impl Ssa {
         let mut used_global_values: HashSet<_> = self
             .functions
             .par_iter_mut()
-            .map(|(_, func)| func.dead_instruction_elimination(true))
-            .flatten()
+            .flat_map(|(_, func)| func.dead_instruction_elimination(true))
             .collect();
 
         // Check which globals are used across all functions
@@ -42,6 +41,7 @@ impl Ssa {
                 }
             }
         }
+
         self.used_global_values = used_global_values;
 
         self
