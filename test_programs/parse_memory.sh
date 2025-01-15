@@ -14,7 +14,7 @@ if [[ $1 =~ $KILOBYTES_REGEX ]]; then
 elif [[ $1 =~ $MEGABYTES_REGEX ]]; then
   echo ${BASH_REMATCH[1]} | awk '{printf "%.3f\n", $1}'
 elif [[ $1 =~ $GIGABYTES_REGEX ]]; then
-  echo ${BASH_REMATCH[1]} 1000 | awk '{printf "%.3f\n", $1/$2}'
+  echo ${BASH_REMATCH[1]} 1000 | awk '{printf "%.3f\n", $1*$2}'
 else 
   echo "Could not parse memory: unrecognized format" 1>&2
   exit 1
