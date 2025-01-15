@@ -150,7 +150,7 @@ impl DebugInstrumenter {
             Some(ast::Statement { kind: ast::StatementKind::Expression(ret_expr), .. }) => {
                 let mut save_ret_expr = ast::Statement {
                     kind: ast::StatementKind::new_let(
-                        ast::Pattern::Identifier(ident("__debug_expr", ret_expr.location)),
+                        ast::Pattern::Identifier(ident("__debug_return_expr", ret_expr.location)),
                         ast::UnresolvedTypeData::Unspecified.with_dummy_location(),
                         ret_expr.clone(),
                         vec![],
@@ -178,12 +178,12 @@ impl DebugInstrumenter {
             scope_vars.values().map(|var_id| build_drop_var_stmt(*var_id, location));
         statements.extend(drop_vars_stmts);
 
-        // return the saved value in __debug_expr, or unit otherwise
+        // return the saved value in __debug_return_expr, or unit otherwise
         let last_stmt = if has_ret_expr {
             ast::Statement {
                 kind: ast::StatementKind::Expression(ast::Expression {
                     kind: ast::ExpressionKind::Variable(ast::Path::plain(
-                        vec![PathSegment::from(ident("__debug_expr", location))],
+                        vec![PathSegment::from(ident("__debug_return_expr", location))],
                         location,
                     )),
                     location,
