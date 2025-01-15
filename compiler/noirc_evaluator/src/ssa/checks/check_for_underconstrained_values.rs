@@ -134,14 +134,14 @@ impl BrilligTaintedIds {
         // Exclude numeric constants
         let arguments: Vec<ValueId> = arguments
             .iter()
+            .filter(|value| function.dfg.get_numeric_constant(**value).is_none())
             .copied()
-            .filter(|value| function.dfg.get_numeric_constant(*value).is_none())
             .map(|value| function.dfg.resolve(value))
             .collect();
         let results: Vec<ValueId> = results
             .iter()
+            .filter(|value| function.dfg.get_numeric_constant(**value).is_none())
             .copied()
-            .filter(|value| function.dfg.get_numeric_constant(*value).is_none())
             .map(|value| function.dfg.resolve(value))
             .collect();
 
