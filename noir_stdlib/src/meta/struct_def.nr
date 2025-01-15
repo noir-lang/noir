@@ -27,12 +27,22 @@ impl StructDefinition {
     pub comptime fn generics(self) -> [Type] {}
     // docs:end:generics
 
-    /// Returns (name, type) pairs of each field in this struct. Each type is as-is
-    /// with any generic arguments unchanged.
+    /// Returns (name, type) pairs of each field in this struct.
+    /// Any generic types used in each field type is automatically substituted with the
+    /// provided generic arguments.
     #[builtin(struct_def_fields)]
     // docs:start:fields
-    pub comptime fn fields(self) -> [(Quoted, Type)] {}
+    pub comptime fn fields(self, generic_args: [Type]) -> [(Quoted, Type)] {}
     // docs:end:fields
+
+    /// Returns (name, type) pairs of each field in this struct. Each type is as-is
+    /// with any generic arguments unchanged. Unless the field types are not needed,
+    /// users should generally prefer to use `StructDefinition::fields` over this
+    /// function if possible.
+    #[builtin(struct_def_fields_as_written)]
+    // docs:start:fields_as_written
+    pub comptime fn fields_as_written(self) -> [(Quoted, Type)] {}
+    // docs:end:fields_as_written
 
     #[builtin(struct_def_module)]
     // docs:start:module
