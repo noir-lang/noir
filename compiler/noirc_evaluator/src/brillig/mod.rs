@@ -84,7 +84,8 @@ impl Ssa {
 
         let mut brillig = Brillig::default();
 
-        let (artifact, brillig_globals) = convert_ssa_globals(enable_debug_trace, &self.globals);
+        let (artifact, brillig_globals) =
+            convert_ssa_globals(enable_debug_trace, &self.globals, &self.used_global_values);
         brillig.globals = artifact;
 
         for brillig_function_id in brillig_reachable_function_ids {

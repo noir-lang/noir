@@ -1,5 +1,5 @@
 use acvm::FieldElement;
-use fxhash::FxHashMap as HashMap;
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use super::{
     BrilligArtifact, BrilligBlock, BrilligVariable, Function, FunctionContext, Label, ValueId,
@@ -9,6 +9,7 @@ use crate::brillig::{brillig_ir::BrilligContext, DataFlowGraph};
 pub(crate) fn convert_ssa_globals(
     enable_debug_trace: bool,
     globals: &Function,
+    used_globals: &HashSet<ValueId>,
 ) -> (BrilligArtifact<FieldElement>, HashMap<ValueId, BrilligVariable>) {
     let mut brillig_context = BrilligContext::new_for_global_init(enable_debug_trace);
     // The global space does not have globals itself
@@ -28,7 +29,7 @@ pub(crate) fn convert_ssa_globals(
         building_globals: true,
     };
 
-    brillig_block.compile_globals(&globals.dfg);
+    brillig_block.compile_globals(&globals.dfg, used_globals);
 
     brillig_context.return_instruction();
 

@@ -194,6 +194,11 @@ impl<T> DenseMap<T> {
         let ids_iter = (0..self.storage.len() as u32).map(|idx| Id::new(idx));
         ids_iter.zip(self.storage.iter())
     }
+
+    pub(crate) fn rev_iter(&self) -> impl ExactSizeIterator<Item = (Id<T>, &T)> {
+        let ids_iter = (0..self.storage.len() as u32).map(|idx| Id::new(idx));
+        ids_iter.zip(self.storage.iter()).rev()
+    }
 }
 
 impl<T> Default for DenseMap<T> {
