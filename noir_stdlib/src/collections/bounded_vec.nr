@@ -612,8 +612,7 @@ mod bounded_vec_tests {
             assert_eq(bounded_vec.get(2), 3);
         }
 
-        // TODO(https://github.com/noir-lang/noir/issues/6995): #[test(should_fail_with = "from array out of bounds")]
-        #[test(should_fail_with = "Argument is false")]
+        #[test(should_fail_with = "from array out of bounds")]
         fn max_len_lower_then_array_len() {
             let _: BoundedVec<Field, 2> = BoundedVec::from_array([0; 3]);
         }

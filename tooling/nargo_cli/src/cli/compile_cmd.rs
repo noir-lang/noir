@@ -418,10 +418,13 @@ mod tests {
                 )
                 // TODO: collect all errors and only error at the end! (i.e. don't fail fast)
                 .unwrap_or_else(|err| {
-                    let error_string: String = err
-                        .iter()
-                        .fold(String::new(), |mut output, diagnostic| {
-                            let _ = write!(output, "{}\n---\n", diagnostic_to_string(diagnostic, &file_manager));
+                    let error_string: String =
+                        err.iter().fold(String::new(), |mut output, diagnostic| {
+                            let _ = write!(
+                                output,
+                                "{}\n---\n",
+                                diagnostic_to_string(diagnostic, &file_manager)
+                            );
                             output
                         });
                     panic!("Failed to compile:\n\n{}", error_string)
