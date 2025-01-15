@@ -5,10 +5,11 @@ use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
     ast::{
-        ArrayLiteral, BlockExpression, CallExpression, CastExpression, ConstructorExpression,
-        Expression, ExpressionKind, Ident, IfExpression, IndexExpression, InfixExpression,
-        ItemVisibility, Lambda, Literal, MemberAccessExpression, MethodCallExpression, Path,
-        PrefixExpression, StatementKind, UnaryOp, UnresolvedTypeData, UnresolvedTypeExpression, AsTraitPath,
+        ArrayLiteral, AsTraitPath, BlockExpression, CallExpression, CastExpression,
+        ConstructorExpression, Expression, ExpressionKind, Ident, IfExpression, IndexExpression,
+        InfixExpression, ItemVisibility, Lambda, Literal, MemberAccessExpression,
+        MethodCallExpression, Path, PrefixExpression, StatementKind, UnaryOp, UnresolvedTypeData,
+        UnresolvedTypeExpression,
     },
     hir::{
         comptime::{self, InterpreterError},

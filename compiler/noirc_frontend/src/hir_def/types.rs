@@ -11,7 +11,7 @@ use proptest_derive::Arbitrary;
 use acvm::{AcirField, FieldElement};
 
 use crate::{
-    ast::{IntegerBitSize, ItemVisibility, ExpressionKind, Literal, InfixExpression, BinaryOpKind},
+    ast::{BinaryOpKind, ExpressionKind, InfixExpression, IntegerBitSize, ItemVisibility, Literal},
     hir::type_check::{generics::TraitGenerics, TypeCheckError},
     node_interner::{ExprId, NodeInterner, TraitId, TypeAliasId},
 };
@@ -2569,7 +2569,7 @@ impl Type {
             Type::Constant(value, _kind) => {
                 let is_negative = false;
                 ExpressionKind::Literal(Literal::Integer(value, is_negative))
-            },
+            }
             Type::Error => ExpressionKind::Error,
             Type::NamedGeneric(_, name) => {
                 let path = crate::ast::Path::from_single(name.as_ref().clone(), span);
@@ -2590,7 +2590,7 @@ impl Type {
                 ExpressionKind::Infix(Box::new(InfixExpression { lhs, operator, rhs }))
             }
             Type::CheckedCast { from: _, to } => return to.as_expression(span),
-            other  => todo!("Unexpected other type '{other:?}'"),
+            other => todo!("Unexpected other type '{other:?}'"),
         };
         crate::ast::Expression::new(kind, span)
     }
