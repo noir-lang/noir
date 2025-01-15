@@ -5,7 +5,9 @@ use acvm::acir::circuit::ErrorSelector;
 use crate::ssa::{
     function_builder::FunctionBuilder,
     ir::{
-        basic_block::BasicBlockId, function::FunctionId, instruction::ConstrainError,
+        basic_block::BasicBlockId,
+        function::{Function, FunctionId},
+        instruction::ConstrainError,
         value::ValueId,
     },
 };
@@ -345,6 +347,8 @@ impl Translator {
         // that the SSA we parsed was printed by the `SsaBuilder`, which normalizes
         // before each print.
         ssa.normalize_ids();
+        // Does not matter what ID we sue here.
+        ssa.globals = Function::new("globals".to_owned(), ssa.main_id);
         ssa
     }
 

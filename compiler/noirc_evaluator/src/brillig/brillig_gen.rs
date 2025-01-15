@@ -56,6 +56,7 @@ pub(crate) fn gen_brillig_for(
         arguments,
         FunctionContext::return_values(func),
         func.id(),
+        true,
     );
     entry_point.name = func.name().to_string();
 
