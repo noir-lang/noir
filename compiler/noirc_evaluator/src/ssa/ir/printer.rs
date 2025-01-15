@@ -198,6 +198,14 @@ fn display_instruction_inner(
                 writeln!(f)
             }
         }
+        Instruction::ConstrainNotEqual(lhs, rhs, error) => {
+            write!(f, "constrain {} != {}", show(*lhs), show(*rhs))?;
+            if let Some(error) = error {
+                display_constrain_error(dfg, error, f)
+            } else {
+                writeln!(f)
+            }
+        }
         Instruction::Call { func, arguments } => {
             let arguments = value_list(dfg, arguments);
             writeln!(f, "call {}({}){}", show(*func), arguments, result_types(dfg, results))

@@ -14,6 +14,7 @@ pub(crate) mod flatten_cfg;
 mod hint;
 mod inlining;
 mod loop_invariant;
+mod make_constrain_not_equal;
 mod mem2reg;
 mod normalize_value_ids;
 mod rc;
