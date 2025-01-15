@@ -28,7 +28,6 @@ use noirc_frontend::{
         def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId},
         resolution::visibility::{
             item_in_module_is_visible, method_call_is_visible, struct_member_is_visible,
-            trait_member_is_visible,
         },
     },
     hir_def::traits::Trait,
@@ -41,10 +40,11 @@ use sort_text::underscore_sort_text;
 
 use crate::{
     requests::to_lsp_location, trait_impl_method_stub_generator::TraitImplMethodStubGenerator,
-    use_segment_positions::UseSegmentPositions, utils, LspState,
+    use_segment_positions::UseSegmentPositions, utils, visibility::module_def_id_is_visible,
+    LspState,
 };
 
-use super::process_request;
+use super::{process_request, TraitReexport};
 
 mod auto_import;
 mod builtins;
@@ -679,12 +679,40 @@ impl<'a> NodeFinder<'a> {
                     }
                 }
 
+                let mut trait_reexport = None;
+
                 if let Some(trait_id) = trait_id {
                     let modifiers = self.interner.function_modifiers(&func_id);
                     let visibility = modifiers.visibility;
-                    if !trait_member_is_visible(trait_id, visibility, self.module_id, self.def_maps)
-                    {
-                        continue;
+                    let module_def_id = ModuleDefId::TraitId(trait_id);
+                    if !module_def_id_is_visible(
+                        module_def_id,
+                        self.module_id,
+                        visibility,
+                        None, // defining module
+                        self.interner,
+                        self.def_maps,
+                    ) {
+                        // Try to find a visible reexport of the trait
+                        // that is visible from the current module
+                        let Some((visible_module_id, name, _)) =
+                            self.interner.get_trait_reexports(trait_id).iter().find(
+                                |(module_id, _, visibility)| {
+                                    module_def_id_is_visible(
+                                        module_def_id,
+                                        self.module_id,
+                                        *visibility,
+                                        Some(*module_id),
+                                        self.interner,
+                                        self.def_maps,
+                                    )
+                                },
+                            )
+                        else {
+                            continue;
+                        };
+
+                        trait_reexport = Some(TraitReexport { module_id: visible_module_id, name });
                     }
                 }
 
@@ -706,7 +734,7 @@ impl<'a> NodeFinder<'a> {
                     function_completion_kind,
                     function_kind,
                     None, // attribute first type
-                    trait_id,
+                    trait_id.map(|id| (id, trait_reexport.as_ref())),
                     self_prefix,
                 );
                 if !completion_items.is_empty() {

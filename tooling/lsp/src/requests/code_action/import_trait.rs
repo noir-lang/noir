@@ -1,16 +1,19 @@
+use std::collections::HashSet;
+
 use noirc_errors::Location;
 use noirc_frontend::{
     ast::MethodCallExpression,
-    hir::{def_map::ModuleDefId, resolution::visibility::trait_member_is_visible},
-    hir_def::traits::Trait,
-    node_interner::ReferenceId,
+    hir::def_map::ModuleDefId,
+    node_interner::{ReferenceId, TraitId},
 };
 
 use crate::{
-    modules::relative_module_full_path,
+    modules::{relative_module_full_path, relative_module_id_path},
+    requests::TraitReexport,
     use_segment_positions::{
         use_completion_item_additional_text_edits, UseCompletionItemAdditionTextEditsRequest,
     },
+    visibility::module_def_id_is_visible,
 };
 
 use super::CodeActionFinder;
@@ -29,16 +32,7 @@ impl<'a> CodeActionFinder<'a> {
 
             let trait_impl = self.interner.get_trait_implementation(trait_impl_id);
             let trait_id = trait_impl.borrow().trait_id;
-            let trait_ = self.interner.get_trait(trait_id);
-
-            // Check if the trait is currently imported. If so, no need to suggest anything
-            let module_data =
-                &self.def_maps[&self.module_id.krate].modules()[self.module_id.local_id.0];
-            if !module_data.scope().find_name(&trait_.name).is_none() {
-                return;
-            }
-
-            self.push_import_trait_code_action(trait_);
+            self.import_trait(trait_id);
             return;
         }
 
@@ -48,33 +42,86 @@ impl<'a> CodeActionFinder<'a> {
             return;
         };
 
-        for (func_id, trait_id) in
-            self.interner.lookup_trait_methods(&typ, &method_call.method_name.0.contents, true)
-        {
-            let visibility = self.interner.function_modifiers(&func_id).visibility;
-            if !trait_member_is_visible(trait_id, visibility, self.module_id, self.def_maps) {
-                continue;
-            }
+        let trait_methods =
+            self.interner.lookup_trait_methods(&typ, &method_call.method_name.0.contents, true);
+        let trait_ids: HashSet<_> = trait_methods.iter().map(|(_, trait_id)| *trait_id).collect();
 
-            let trait_ = self.interner.get_trait(trait_id);
-            self.push_import_trait_code_action(trait_);
+        for trait_id in trait_ids {
+            self.import_trait(trait_id);
         }
     }
 
-    fn push_import_trait_code_action(&mut self, trait_: &Trait) {
-        let trait_id = trait_.id;
+    fn import_trait(&mut self, trait_id: TraitId) {
+        // First check if the trait is visible
+        let trait_ = self.interner.get_trait(trait_id);
+        let visibility = trait_.visibility;
+        let module_def_id = ModuleDefId::TraitId(trait_id);
+        let mut trait_reexport = None;
+
+        if !module_def_id_is_visible(
+            module_def_id,
+            self.module_id,
+            visibility,
+            None,
+            self.interner,
+            self.def_maps,
+        ) {
+            // If it's not, try to find a visible reexport of the trait
+            // that is visible from the current module
+            let Some((visible_module_id, name, _)) =
+                self.interner.get_trait_reexports(trait_id).iter().find(
+                    |(module_id, _, visibility)| {
+                        module_def_id_is_visible(
+                            module_def_id,
+                            self.module_id,
+                            *visibility,
+                            Some(*module_id),
+                            self.interner,
+                            self.def_maps,
+                        )
+                    },
+                )
+            else {
+                return;
+            };
+            trait_reexport = Some(TraitReexport { module_id: visible_module_id, name });
+        }
+
+        let trait_name = if let Some(trait_reexport) = &trait_reexport {
+            trait_reexport.name
+        } else {
+            &trait_.name
+        };
+
+        // Check if the trait is currently imported. If yes, no need to suggest anything
+        let module_data =
+            &self.def_maps[&self.module_id.krate].modules()[self.module_id.local_id.0];
+        if !module_data.scope().find_name(trait_name).is_none() {
+            return;
+        }
 
         let module_def_id = ModuleDefId::TraitId(trait_id);
         let current_module_parent_id = self.module_id.parent(self.def_maps);
-        let Some(module_full_path) = relative_module_full_path(
-            module_def_id,
-            self.module_id,
-            current_module_parent_id,
-            self.interner,
-        ) else {
-            return;
+        let module_full_path = if let Some(trait_reexport) = &trait_reexport {
+            relative_module_id_path(
+                *trait_reexport.module_id,
+                &self.module_id,
+                current_module_parent_id,
+                self.interner,
+            )
+        } else {
+            let Some(path) = relative_module_full_path(
+                module_def_id,
+                self.module_id,
+                current_module_parent_id,
+                self.interner,
+            ) else {
+                return;
+            };
+            path
         };
-        let full_path = format!("{}::{}", module_full_path, trait_.name);
+
+        let full_path = format!("{}::{}", module_full_path, trait_name);
 
         let title = format!("Import {}", full_path);
 
@@ -240,6 +287,118 @@ mod moo {
     impl Bar for Field {
         fn foobar(self) {}
     }
+}
+
+fn main() {
+    let x: Field = 1;
+    x.foobar();
+}"#;
+
+        assert_code_action(title, src, expected).await;
+    }
+
+    #[test]
+    async fn test_import_trait_in_method_call_when_one_option_but_not_in_scope_via_reexport() {
+        let title = "Import moo::Bar";
+
+        let src = r#"mod moo {
+    mod nested {
+        pub trait Foo {
+            fn foobar(self);
+        }
+
+        impl Foo for Field {
+            fn foobar(self) {}
+        }
+    }
+
+    pub use nested::Foo as Bar;
+}
+
+fn main() {
+    let x: Field = 1;
+    x.foo>|<bar();
+}"#;
+
+        let expected = r#"use moo::Bar;
+
+mod moo {
+    mod nested {
+        pub trait Foo {
+            fn foobar(self);
+        }
+
+        impl Foo for Field {
+            fn foobar(self) {}
+        }
+    }
+
+    pub use nested::Foo as Bar;
+}
+
+fn main() {
+    let x: Field = 1;
+    x.foobar();
+}"#;
+
+        assert_code_action(title, src, expected).await;
+    }
+
+    #[test]
+    async fn test_import_trait_in_method_call_when_multiple_via_reexport() {
+        let title = "Import moo::Baz";
+
+        let src = r#"mod moo {
+    mod nested {
+        pub trait Foo {
+            fn foobar(self);
+        }
+
+        impl Foo for Field {
+            fn foobar(self) {}
+        }
+
+        pub trait Bar {
+            fn foobar(self);
+        }
+
+        impl Bar for Field {
+            fn foobar(self) {}
+        }
+    }
+
+    pub use nested::Foo as Baz;
+    pub use nested::Foo as Qux;
+}
+
+fn main() {
+    let x: Field = 1;
+    x.foo>|<bar();
+}"#;
+
+        let expected = r#"use moo::Baz;
+
+mod moo {
+    mod nested {
+        pub trait Foo {
+            fn foobar(self);
+        }
+
+        impl Foo for Field {
+            fn foobar(self) {}
+        }
+
+        pub trait Bar {
+            fn foobar(self);
+        }
+
+        impl Bar for Field {
+            fn foobar(self) {}
+        }
+    }
+
+    pub use nested::Foo as Baz;
+    pub use nested::Foo as Qux;
 }
 
 fn main() {

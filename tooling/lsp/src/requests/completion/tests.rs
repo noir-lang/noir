@@ -3022,4 +3022,59 @@ fn main() {
         "#;
         assert_eq!(new_code, expected);
     }
+
+    #[test]
+    async fn test_suggests_and_imports_trait_method_with_self_using_public_export() {
+        let src = r#"
+mod moo {
+    mod nested {
+        pub trait Foo {
+            fn foobar(self);
+        }
+
+        impl Foo for Field {
+            fn foobar(self) {}
+        }
+    }
+
+    pub use nested::Foo as Bar;
+}
+
+fn main() {
+    let x: Field = 1;
+    x.fooba>|<
+}
+        "#;
+        let mut items = get_completions(src).await;
+        assert_eq!(items.len(), 1);
+
+        let item = items.remove(0);
+        assert_eq!(item.label_details.unwrap().detail, Some("(use moo::Bar)".to_string()));
+
+        let new_code =
+            apply_text_edits(&src.replace(">|<", ""), &item.additional_text_edits.unwrap());
+
+        let expected = r#"use moo::Bar;
+
+mod moo {
+    mod nested {
+        pub trait Foo {
+            fn foobar(self);
+        }
+
+        impl Foo for Field {
+            fn foobar(self) {}
+        }
+    }
+
+    pub use nested::Foo as Bar;
+}
+
+fn main() {
+    let x: Field = 1;
+    x.fooba
+}
+        "#;
+        assert_eq!(new_code, expected);
+    }
 }

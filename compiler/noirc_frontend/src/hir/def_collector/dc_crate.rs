@@ -3,7 +3,7 @@ use super::errors::{DefCollectorErrorKind, DuplicateType};
 use crate::elaborator::Elaborator;
 use crate::graph::CrateId;
 use crate::hir::comptime::InterpreterError;
-use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
+use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir::type_check::TypeCheckError;
 use crate::locations::ReferencesTracker;
@@ -412,13 +412,24 @@ impl DefCollector {
                                 visibility,
                             );
 
-                            if visibility != ItemVisibility::Private {
+                            if context.def_interner.is_in_lsp_mode()
+                                && visibility != ItemVisibility::Private
+                            {
                                 context.def_interner.register_name_for_auto_import(
                                     name.to_string(),
                                     module_def_id,
                                     visibility,
                                     Some(defining_module),
                                 );
+
+                                if let ModuleDefId::TraitId(trait_id) = module_def_id {
+                                    context.def_interner.add_trait_reexport(
+                                        trait_id,
+                                        defining_module,
+                                        name.clone(),
+                                        visibility,
+                                    );
+                                }
                             }
                         }
 
