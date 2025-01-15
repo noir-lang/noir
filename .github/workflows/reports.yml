@@ -507,6 +507,7 @@ jobs:
           path: scripts
           sparse-checkout: |
             test_programs/memory_report.sh
+            test_programs/parse_memory.sh
           sparse-checkout-cone-mode: false
 
       - name: Checkout
@@ -520,6 +521,7 @@ jobs:
         working-directory: ./test-repo/${{ matrix.project.path }}
         run: |
           mv /home/runner/work/noir/noir/scripts/test_programs/memory_report.sh ./memory_report.sh
+          mv /home/runner/work/noir/noir/scripts/test_programs/parse_memory.sh ./parse_memory.sh
           ./memory_report.sh 1
           # Rename the memory report as the execution report is about to write to the same file
           cp memory_report.json compilation_memory_report.json
