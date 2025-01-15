@@ -106,11 +106,6 @@ impl ModuleData {
         self.declare(name, ItemVisibility::Public, id.into(), Some(trait_id))
     }
 
-    pub fn remove_function(&mut self, name: &Ident) {
-        self.scope.remove_definition(name);
-        self.definitions.remove_definition(name);
-    }
-
     pub fn declare_global(
         &mut self,
         name: Ident,
