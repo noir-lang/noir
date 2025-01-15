@@ -1236,3 +1236,31 @@ fn warns_if_trait_is_not_in_scope_for_generic_function_call_and_there_is_only_on
     assert_eq!(ident.to_string(), "foo");
     assert_eq!(trait_name, "private_mod::Foo");
 }
+
+#[test]
+fn calls_trait_method_using_struct_name_when_multiple_impls_exist() {
+    let src = r#"
+    trait From2<T> {
+        fn from2(input: T) -> Self;
+    }
+
+    struct U60Repr {}
+
+    impl From2<[Field; 3]> for U60Repr {
+        fn from2(_: [Field; 3]) -> Self {
+            U60Repr {}
+        }
+    }
+
+    impl From2<Field> for U60Repr {
+        fn from2(_: Field) -> Self {
+            U60Repr {}
+        }
+    }
+
+    fn main() {
+        let _ = U60Repr::from2([1, 2, 3]);
+    }
+    "#;
+    assert_no_errors(src);
+}

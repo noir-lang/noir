@@ -2833,6 +2833,50 @@ fn duplicate_struct_field() {
 }
 
 #[test]
+fn duplicate_struct_method_without_self() {
+    let src = r#"
+    pub struct Foo {
+    }
+
+    impl Foo {
+        fn bar() {}
+        fn bar() {}
+    }
+
+    fn main() {}
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ResolverError(ResolverError::DuplicateDefinition { .. }) = &errors[0].0
+    else {
+        panic!("Expected a duplicate error, got {:?}", errors[0].0);
+    };
+}
+
+#[test]
+fn duplicate_struct_method_with_self() {
+    let src = r#"
+    pub struct Foo {
+    }
+
+    impl Foo {
+        fn bar(self) { let _ = self; }
+        fn bar(self) { let _ = self; }
+    }
+
+    fn main() {}
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ResolverError(ResolverError::DuplicateDefinition { .. }) = &errors[0].0
+    else {
+        panic!("Expected a duplicate error, got {:?}", errors[0].0);
+    };
+}
+
+#[test]
 fn trait_constraint_on_tuple_type() {
     let src = r#"
         trait Foo<A> {

@@ -1382,7 +1382,8 @@ impl NodeInterner {
                 });
 
                 if trait_id.is_none() && matches!(self_type, Type::Struct(..)) {
-                    if let Some(existing) = self.lookup_direct_method(self_type, &method_name, true)
+                    if let Some(existing) =
+                        self.lookup_direct_method(self_type, &method_name, false)
                     {
                         return Some(existing);
                     }
@@ -1752,14 +1753,14 @@ impl NodeInterner {
         &self,
         typ: &Type,
         method_name: &str,
-        has_self_arg: bool,
+        check_self_arg_type: bool,
     ) -> Option<FuncId> {
         let key = get_type_method_key(typ)?;
 
         self.methods
             .get(&key)
             .and_then(|h| h.get(method_name))
-            .and_then(|methods| methods.find_direct_method(typ, has_self_arg, self))
+            .and_then(|methods| methods.find_direct_method(typ, check_self_arg_type, self))
     }
 
     /// Looks up a methods that apply to the given type but are defined in traits.
@@ -1767,14 +1768,14 @@ impl NodeInterner {
         &self,
         typ: &Type,
         method_name: &str,
-        has_self_arg: bool,
+        check_self_arg_type: bool,
     ) -> Vec<(FuncId, TraitId)> {
         let key = get_type_method_key(typ);
         if let Some(key) = key {
             self.methods
                 .get(&key)
                 .and_then(|h| h.get(method_name))
-                .map(|methods| methods.find_trait_methods(typ, has_self_arg, self))
+                .map(|methods| methods.find_trait_methods(typ, check_self_arg_type, self))
                 .unwrap_or_default()
         } else {
             Vec::new()
@@ -1786,12 +1787,12 @@ impl NodeInterner {
         &self,
         typ: &Type,
         method_name: &str,
-        has_self_arg: bool,
+        check_self_arg_type: bool,
     ) -> Vec<(FuncId, TraitId)> {
         self.methods
             .get(&TypeMethodKey::Generic)
             .and_then(|h| h.get(method_name))
-            .map(|methods| methods.find_trait_methods(typ, has_self_arg, self))
+            .map(|methods| methods.find_trait_methods(typ, check_self_arg_type, self))
             .unwrap_or_default()
     }
 

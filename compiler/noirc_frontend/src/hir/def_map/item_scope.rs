@@ -68,12 +68,11 @@ impl ItemScope {
         };
 
         match mod_def {
-            ModuleDefId::ModuleId(_) => add_item(&mut self.types),
-            ModuleDefId::FunctionId(_) => add_item(&mut self.values),
-            ModuleDefId::TypeId(_) => add_item(&mut self.types),
-            ModuleDefId::TypeAliasId(_) => add_item(&mut self.types),
-            ModuleDefId::TraitId(_) => add_item(&mut self.types),
-            ModuleDefId::GlobalId(_) => add_item(&mut self.values),
+            ModuleDefId::ModuleId(_)
+            | ModuleDefId::TypeId(_)
+            | ModuleDefId::TypeAliasId(_)
+            | ModuleDefId::TraitId(_) => add_item(&mut self.types),
+            ModuleDefId::FunctionId(_) | ModuleDefId::GlobalId(_) => add_item(&mut self.values),
         }
     }
 

@@ -1508,23 +1508,15 @@ impl<'context> Elaborator<'context> {
                 // object types in each method overlap or not. If they do, we issue an error.
                 // If not, that is specialization which is allowed.
                 let name = method.name_ident().clone();
-                let result = if let Some(trait_id) = trait_id {
-                    module.declare_trait_function(name, *method_id, trait_id)
+                if let Some(trait_id) = trait_id {
+                    // We don't check the result here because for trait and trait impl functions
+                    // we already checked if a duplicate definition exists
+                    let _ = module.declare_trait_function(name, *method_id, trait_id);
                 } else {
-                    module.declare_function(name, method.def.visibility, *method_id)
+                    // For non-trait methods we'll check if there are duplicates below
+                    let _ =
+                        module.declare_function(name.clone(), method.def.visibility, *method_id);
                 };
-                if result.is_err() {
-                    let existing = module.find_func_with_name(method.name_ident()).expect(
-                        "declare_function should only error if there is an existing function",
-                    );
-
-                    // Only remove the existing function from scope if it is from a trait impl as
-                    // well. If it is from a non-trait impl that should override trait impl methods
-                    // anyway so that Foo::bar always resolves to the non-trait impl version.
-                    if self.interner.function_meta(&existing).trait_impl.is_some() {
-                        module.remove_function(method.name_ident());
-                    }
-                }
             }
 
             // Trait impl methods are already declared in NodeInterner::add_trait_implementation

@@ -41,6 +41,7 @@ use super::{lints, path_resolution::PathResolutionItem, Elaborator, UnsafeBlockS
 
 pub const SELF_TYPE_NAME: &str = "Self";
 
+#[derive(Debug)]
 pub(super) struct TraitPathResolution {
     pub(super) method: TraitMethod,
     pub(super) item: Option<PathResolutionItem>,
@@ -1351,7 +1352,7 @@ impl<'context> Elaborator<'context> {
         object_type: &Type,
         method_name: &str,
         span: Span,
-        has_self_arg: bool,
+        check_self_arg_type: bool,
     ) -> Option<HirMethodReference> {
         match object_type.follow_bindings() {
             // TODO: We should allow method calls on `impl Trait`s eventually.
@@ -1370,7 +1371,7 @@ impl<'context> Elaborator<'context> {
             // Mutable references to another type should resolve to methods of their element type.
             // This may be a struct or a primitive type.
             Type::MutableReference(element) => {
-                self.lookup_method(&element, method_name, span, has_self_arg)
+                self.lookup_method(&element, method_name, span, check_self_arg_type)
             }
 
             // If we fail to resolve the object to a struct type, we have no way of type
@@ -1383,9 +1384,12 @@ impl<'context> Elaborator<'context> {
                 None
             }
 
-            other => {
-                self.lookup_struct_or_primitive_method(&other, method_name, span, has_self_arg)
-            }
+            other => self.lookup_struct_or_primitive_method(
+                &other,
+                method_name,
+                span,
+                check_self_arg_type,
+            ),
         }
     }
 
@@ -1394,18 +1398,18 @@ impl<'context> Elaborator<'context> {
         object_type: &Type,
         method_name: &str,
         span: Span,
-        has_self_arg: bool,
+        check_self_arg_type: bool,
     ) -> Option<HirMethodReference> {
         // First search in the type methods. If there is one, that's the one.
         if let Some(method_id) =
-            self.interner.lookup_direct_method(object_type, method_name, has_self_arg)
+            self.interner.lookup_direct_method(object_type, method_name, check_self_arg_type)
         {
             return Some(HirMethodReference::FuncId(method_id));
         }
 
         // Next lookup all matching trait methods.
         let trait_methods =
-            self.interner.lookup_trait_methods(object_type, method_name, has_self_arg);
+            self.interner.lookup_trait_methods(object_type, method_name, check_self_arg_type);
 
         // If there's at least one matching trait method we need to see if only one is in scope.
         if !trait_methods.is_empty() {
@@ -1415,7 +1419,7 @@ impl<'context> Elaborator<'context> {
         // If we couldn't find any trait methods, search in
         // impls for all types `T`, e.g. `impl<T> Foo for T`
         let generic_methods =
-            self.interner.lookup_generic_methods(object_type, method_name, has_self_arg);
+            self.interner.lookup_generic_methods(object_type, method_name, check_self_arg_type);
         if !generic_methods.is_empty() {
             return self.return_trait_method_in_scope(&generic_methods, method_name, span);
         }
