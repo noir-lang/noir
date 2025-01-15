@@ -2092,15 +2092,6 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
     ) -> AssertionPayload<F> {
         self.acir_ir.generate_assertion_message_payload(message)
     }
-
-    // pub(crate) fn set_locations(&mut self, locations: Vec<LocationNode>) {
-    //     self.acir_ir.location_tree = LocationTree {
-    //         locations:     locations.into_iter().map(|node| LocationNodeDebugInfo {
-    //             value: node.value,
-    //             parent: node.parent,
-    //         }).collect(),
-    //     }
-    // }
 }
 
 /// Enum representing the possible values that a
