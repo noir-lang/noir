@@ -20,6 +20,7 @@ use crate::ssa::ir::types::{NumericType, Type};
 use crate::ssa::ir::value::ValueId;
 
 use super::value::{Tree, Value, Values};
+use super::GlobalsGraph;
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 /// The FunctionContext is the main context object for translating a
@@ -109,6 +110,7 @@ impl<'a> FunctionContext<'a> {
         parameters: &Parameters,
         runtime: RuntimeType,
         shared_context: &'a SharedContext,
+        globals: GlobalsGraph,
     ) -> Self {
         let function_id = shared_context
             .pop_next_function_in_queue()
@@ -117,10 +119,10 @@ impl<'a> FunctionContext<'a> {
 
         let mut builder = FunctionBuilder::new(function_name, function_id);
         builder.set_runtime(runtime);
+        builder.set_globals(Arc::new(globals));
 
         let definitions = HashMap::default();
         let mut this = Self { definitions, builder, shared_context, loops: Vec::new() };
-        this.add_globals();
         this.add_parameters_to_scope(parameters);
         this
     }
@@ -132,21 +134,16 @@ impl<'a> FunctionContext<'a> {
     /// avoid calling new_function until the previous function is completely finished with ssa-gen.
     pub(super) fn new_function(&mut self, id: IrFunctionId, func: &ast::Function) {
         self.definitions.clear();
+
+        let globals = self.builder.current_function.dfg.globals.clone();
         if func.unconstrained {
             self.builder.new_brillig_function(func.name.clone(), id, func.inline_type);
         } else {
             self.builder.new_function(func.name.clone(), id, func.inline_type);
         }
-
-        self.add_globals();
+        self.builder.set_globals(globals);
 
         self.add_parameters_to_scope(&func.parameters);
-    }
-
-    fn add_globals(&mut self) {
-        for (_, value) in self.shared_context.globals_context.dfg.values_iter() {
-            self.builder.current_function.dfg.make_global(value.get_type().into_owned());
-        }
     }
 
     /// Add each parameter to the current scope, and return the list of parameter types.
@@ -1087,6 +1084,7 @@ impl SharedContext {
             &vec![],
             RuntimeType::Brillig(InlineType::default()),
             &globals_shared_context,
+            GlobalsGraph::default(),
         );
         let mut globals = BTreeMap::default();
         for (id, global) in program.globals.iter() {

@@ -33,6 +33,7 @@ impl<'context> Elaborator<'context> {
             StatementKind::Constrain(constrain) => self.elaborate_constrain(constrain),
             StatementKind::Assign(assign) => self.elaborate_assign(assign),
             StatementKind::For(for_stmt) => self.elaborate_for(for_stmt),
+            StatementKind::Loop(block) => self.elaborate_loop(block, statement.span),
             StatementKind::Break => self.elaborate_jump(true, statement.span),
             StatementKind::Continue => self.elaborate_jump(false, statement.span),
             StatementKind::Comptime(statement) => self.elaborate_comptime_statement(*statement),
@@ -266,6 +267,15 @@ impl<'context> Elaborator<'context> {
             HirStatement::For(HirForStatement { start_range, end_range, block, identifier });
 
         (statement, Type::Unit)
+    }
+
+    pub(super) fn elaborate_loop(
+        &mut self,
+        _block: Expression,
+        span: noirc_errors::Span,
+    ) -> (HirStatement, Type) {
+        self.push_err(ResolverError::LoopNotYetSupported { span });
+        (HirStatement::Error, Type::Unit)
     }
 
     fn elaborate_jump(&mut self, is_break: bool, span: noirc_errors::Span) -> (HirStatement, Type) {

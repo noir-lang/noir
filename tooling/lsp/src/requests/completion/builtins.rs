@@ -191,6 +191,7 @@ pub(super) fn keyword_builtin_type(keyword: &Keyword) -> Option<&'static str> {
         | Keyword::Impl
         | Keyword::In
         | Keyword::Let
+        | Keyword::Loop
         | Keyword::Match
         | Keyword::Mod
         | Keyword::Mut
@@ -257,6 +258,7 @@ pub(super) fn keyword_builtin_function(keyword: &Keyword) -> Option<BuiltInFunct
         | Keyword::Impl
         | Keyword::In
         | Keyword::Let
+        | Keyword::Loop
         | Keyword::Match
         | Keyword::Mod
         | Keyword::Module
