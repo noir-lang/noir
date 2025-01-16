@@ -36,7 +36,6 @@ fn comptime_code_rejects_dynamic_variable() {
     let errors = get_program_errors(src);
 
     // TODO cleanup
-    dbg!(&errors);
 
     assert_eq!(errors.len(), 1);
     match &errors[0].0 {
