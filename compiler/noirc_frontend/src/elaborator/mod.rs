@@ -4,10 +4,6 @@ use std::{
 };
 
 use crate::{
-    ast::ItemVisibility, graph::CrateGraph, hir_def::traits::ResolvedTraitBound,
-    node_interner::GlobalValue, usage_tracker::UsageTracker, StructField, StructType, TypeBindings,
-};
-use crate::{
     ast::{
         BlockExpression, FunctionKind, GenericTypeArgs, Ident, NoirFunction, NoirStruct, Param,
         Path, Pattern, TraitBound, UnresolvedGeneric, UnresolvedGenerics,
@@ -40,6 +36,14 @@ use crate::{
     },
     token::SecondaryAttribute,
     Shared, Type, TypeVariable,
+};
+use crate::{
+    ast::{ItemVisibility, UnresolvedType},
+    graph::CrateGraph,
+    hir_def::traits::ResolvedTraitBound,
+    node_interner::GlobalValue,
+    usage_tracker::UsageTracker,
+    StructField, StructType, TypeBindings,
 };
 
 mod comptime;
@@ -766,7 +770,9 @@ impl<'context> Elaborator<'context> {
     ) -> Vec<ResolvedGeneric> {
         where_clause
             .iter_mut()
-            .flat_map(|constraint| self.add_missing_named_generics(&mut constraint.trait_bound))
+            .flat_map(|constraint| {
+                self.add_missing_named_generics(&constraint.typ, &mut constraint.trait_bound)
+            })
             .collect()
     }
 
@@ -782,7 +788,11 @@ impl<'context> Elaborator<'context> {
     ///
     /// with a vector of `<A, B>` returned so that the caller can then modify the function to:
     /// `fn foo<T, A, B>() where T: Foo<Bar = A, Baz = B> { ... }`
-    fn add_missing_named_generics(&mut self, bound: &mut TraitBound) -> Vec<ResolvedGeneric> {
+    fn add_missing_named_generics(
+        &mut self,
+        object: &UnresolvedType,
+        bound: &mut TraitBound,
+    ) -> Vec<ResolvedGeneric> {
         let mut added_generics = Vec::new();
 
         let Ok(item) = self.resolve_path_or_error(bound.trait_path.clone()) else {
@@ -796,6 +806,8 @@ impl<'context> Elaborator<'context> {
         let the_trait = self.get_trait_mut(trait_id);
 
         if the_trait.associated_types.len() > bound.trait_generics.named_args.len() {
+            let trait_name = the_trait.name.to_string();
+
             for associated_type in &the_trait.associated_types.clone() {
                 if !bound
                     .trait_generics
@@ -806,10 +818,12 @@ impl<'context> Elaborator<'context> {
                     // This generic isn't contained in the bound's named arguments,
                     // so add it by creating a fresh type variable.
                     let new_generic_id = self.interner.next_type_variable_id();
-                    let type_var = TypeVariable::unbound(new_generic_id, Kind::Normal);
+                    let kind = associated_type.type_var.kind();
+                    let type_var = TypeVariable::unbound(new_generic_id, kind);
 
                     let span = bound.trait_path.span;
-                    let name = associated_type.name.clone();
+                    let name = format!("<{object} as {trait_name}>::{}", associated_type.name);
+                    let name = Rc::new(name);
                     let typ = Type::NamedGeneric(type_var.clone(), name.clone());
                     let typ = self.interner.push_quoted_type(typ);
                     let typ = UnresolvedTypeData::Resolved(typ).with_span(span);
