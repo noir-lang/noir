@@ -237,7 +237,6 @@ pub fn try_to_diagnose_runtime_error(
         }
         _ => return None,
     };
-
     // The location of the error itself will be the location at the top
     // of the call stack (the last item in the Vec).
     let location = *source_locations.last()?;
