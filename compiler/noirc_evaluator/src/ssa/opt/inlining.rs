@@ -563,7 +563,7 @@ impl InlineContext {
 
         if self.recursion_level > RECURSION_LIMIT {
             panic!(
-                "Attempted to recur more than {RECURSION_LIMIT} times during inlining function '{}': {}", source_function.name(), source_function
+                "Attempted to recur more than {RECURSION_LIMIT} times during inlining function '{}':\n{}", source_function.name(), source_function
             );
         }
 
@@ -1021,6 +1021,7 @@ mod test {
             map::Id,
             types::{NumericType, Type},
         },
+        Ssa,
     };
 
     #[test]
@@ -1293,26 +1294,25 @@ mod test {
 
     #[test]
     #[should_panic(
-        expected = "Attempted to recur more than 1000 times during inlining function 'main': acir(inline) fn main f0 {"
+        expected = "Attempted to recur more than 1000 times during inlining function 'foo':\nacir(inline) fn foo f1 {"
     )]
     fn unconditional_recursion() {
-        // fn main f1 {
-        //   b0():
-        //     call f1()
-        //     return
-        // }
-        let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            call f1()
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0():
+            call f1()
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        assert_eq!(ssa.functions.len(), 2);
 
-        let main = builder.import_function(main_id);
-        let results = builder.insert_call(main, Vec::new(), vec![]).to_vec();
-        builder.terminate_with_return(results);
-
-        let ssa = builder.finish();
-        assert_eq!(ssa.functions.len(), 1);
-
-        let inlined = ssa.inline_functions(i64::MAX);
-        assert_eq!(inlined.functions.len(), 0);
+        let _ = ssa.inline_functions(i64::MAX);
     }
 
     #[test]

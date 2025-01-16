@@ -3456,6 +3456,9 @@ fn arithmetic_generics_rounding_fail_on_struct() {
 
 #[test]
 fn unconditional_recursion_fail() {
+    // These examples are self recursive top level functions, which actually
+    // would not be inlined now, but this error comes from the compilation checks,
+    // which is different from what the SSA would try to inline.
     let srcs = vec![
         r#"
         fn main() {
