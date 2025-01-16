@@ -1,0 +1,12 @@
+[package]
+name = "zk_dungeon"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.29.0"
+version = "1.1.0"
+
+[dependencies]
+
+[tool.NodeGuardians]
+part_1 = "Is Valid Path"
+part_2 = "Is Safe Path"
