@@ -223,14 +223,6 @@ impl ExpressionKind {
             struct_type: None,
         }))
     }
-
-    pub fn is_lambda_without_type_annotations(&self) -> bool {
-        if let ExpressionKind::Lambda(lambda) = self {
-            lambda.parameters.iter().any(|(_, typ)| typ.typ.is_unspecified())
-        } else {
-            false
-        }
-    }
 }
 
 impl Recoverable for ExpressionKind {

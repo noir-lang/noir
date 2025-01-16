@@ -387,50 +387,33 @@ impl<'context> Elaborator<'context> {
 
     fn elaborate_call(&mut self, call: CallExpression, span: Span) -> (HirExpression, Type) {
         let (func, func_type) = self.elaborate_expression(*call.func);
-
-        let any_argument_has_lambda_without_type_annotations =
-            call.arguments.iter().any(|arg| arg.kind.is_lambda_without_type_annotations());
+        let func_arg_types =
+            if let Type::Function(args, _, _, _) = &func_type { Some(args) } else { None };
 
         let mut arguments = Vec::with_capacity(call.arguments.len());
-        let args: Vec<_> = call
-            .arguments
-            .into_iter()
-            .enumerate()
-            .map(|(arg_index, arg)| {
-                let span = arg.span;
+        let args = vecmap(call.arguments.into_iter().enumerate(), |(arg_index, arg)| {
+            let span = arg.span;
+            let expected_type = func_arg_types.and_then(|args| args.get(arg_index));
 
-                let (arg, typ) = if call.is_macro_call {
-                    self.elaborate_in_comptime_context(|this| {
-                        this.elaborate_call_argument_expression(
-                            arg,
-                            arg_index,
-                            &func_type,
-                            any_argument_has_lambda_without_type_annotations,
-                        )
-                    })
-                } else {
-                    self.elaborate_call_argument_expression(
-                        arg,
-                        arg_index,
-                        &func_type,
-                        any_argument_has_lambda_without_type_annotations,
-                    )
-                };
+            let (arg, typ) = if call.is_macro_call {
+                self.elaborate_in_comptime_context(|this| {
+                    this.elaborate_expression_with_type(arg, expected_type)
+                })
+            } else {
+                self.elaborate_expression_with_type(arg, expected_type)
+            };
 
-                if any_argument_has_lambda_without_type_annotations {
-                    // Try to unify this argument type against the function's argument type
-                    // so that a potential lambda following this argument can have more concrete types.
-                    if let Type::Function(func_args, _, _, _) = &func_type {
-                        if let Some(func_arg_type) = func_args.get(arg_index) {
-                            let _ = func_arg_type.unify(&typ);
-                        }
-                    }
+            // Try to unify this argument type against the function's argument type
+            // so that a potential lambda following this argument can have more concrete types.
+            if let Type::Function(func_args, _, _, _) = &func_type {
+                if let Some(func_arg_type) = func_args.get(arg_index) {
+                    let _ = func_arg_type.unify(&typ);
                 }
+            }
 
-                arguments.push(arg);
-                (typ, arg, span)
-            })
-            .collect();
+            arguments.push(arg);
+            (typ, arg, span)
+        });
 
         // Avoid cloning arguments unless this is a macro call
         let mut comptime_args = Vec::new();
@@ -502,21 +485,17 @@ impl<'context> Elaborator<'context> {
                     self.type_check_variable(function_name.clone(), function_id, generics.clone());
                 self.interner.push_expr_type(function_id, func_type.clone());
 
-                let any_argument_has_lambda_without_type_annotations = method_call
-                    .arguments
-                    .iter()
-                    .any(|arg| arg.kind.is_lambda_without_type_annotations());
+                let func_arg_types =
+                    if let Type::Function(args, _, _, _) = &func_type { Some(args) } else { None };
 
-                if any_argument_has_lambda_without_type_annotations {
-                    // Try to unify the object type with the first argument of the function.
-                    // The reason to do this is that many methods that take a lambda will yield `self` or part of `self`
-                    // as a parameter. By unifying `self` with the first argument we'll potentially get more
-                    // concrete types in the arguments that are function types, which will later be passed as
-                    // lambda parameter hints.
-                    if let Type::Function(args, _, _, _) = &func_type {
-                        if !args.is_empty() {
-                            let _ = args[0].unify(&object_type);
-                        }
+                // Try to unify the object type with the first argument of the function.
+                // The reason to do this is that many methods that take a lambda will yield `self` or part of `self`
+                // as a parameter. By unifying `self` with the first argument we'll potentially get more
+                // concrete types in the arguments that are function types, which will later be passed as
+                // lambda parameter hints.
+                if let Type::Function(args, _, _, _) = &func_type {
+                    if !args.is_empty() {
+                        let _ = args[0].unify(&object_type);
                     }
                 }
 
@@ -529,20 +508,14 @@ impl<'context> Elaborator<'context> {
 
                 for (arg_index, arg) in method_call.arguments.into_iter().enumerate() {
                     let span = arg.span;
-                    let (arg, typ) = self.elaborate_call_argument_expression(
-                        arg,
-                        arg_index + 1,
-                        &func_type,
-                        any_argument_has_lambda_without_type_annotations,
-                    );
+                    let expected_type = func_arg_types.and_then(|args| args.get(arg_index + 1));
+                    let (arg, typ) = self.elaborate_expression_with_type(arg, expected_type);
 
-                    if any_argument_has_lambda_without_type_annotations {
-                        // Try to unify this argument type against the function's argument type
-                        // so that a potential lambda following this argument can have more concrete types.
-                        if let Type::Function(func_args, _, _, _) = &func_type {
-                            if let Some(func_arg_type) = func_args.get(arg_index + 1) {
-                                let _ = func_arg_type.unify(&typ);
-                            }
+                    // Try to unify this argument type against the function's argument type
+                    // so that a potential lambda following this argument can have more concrete types.
+                    if let Type::Function(func_args, _, _, _) = &func_type {
+                        if let Some(func_arg_type) = func_args.get(arg_index + 1) {
+                            let _ = func_arg_type.unify(&typ);
                         }
                     }
 
@@ -586,33 +559,19 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    /// Elaborates an expression taking into account that it's a call argument in a function
-    /// that has the given type, and `arg_index` is the index of that argument in that function type.
-    fn elaborate_call_argument_expression(
+    /// Elaborates an expression knowing that it has to match a given type.
+    fn elaborate_expression_with_type(
         &mut self,
         arg: Expression,
-        arg_index: usize,
-        func_type: &Type,
-        any_argument_has_lambda_without_type_annotations: bool,
+        typ: Option<&Type>,
     ) -> (ExprId, Type) {
-        if !any_argument_has_lambda_without_type_annotations {
-            return self.elaborate_expression(arg);
-        }
-
         let ExpressionKind::Lambda(lambda) = arg.kind else {
             return self.elaborate_expression(arg);
         };
 
         let span = arg.span;
-        let type_hint = if let Type::Function(func_args, _, _, _) = func_type {
-            if let Some(Type::Function(func_args, _, _, _)) = func_args.get(arg_index) {
-                Some(func_args)
-            } else {
-                None
-            }
-        } else {
-            None
-        };
+        let type_hint =
+            if let Some(Type::Function(func_args, _, _, _)) = typ { Some(func_args) } else { None };
         let (hir_expr, typ) = self.elaborate_lambda(*lambda, type_hint);
         let id = self.interner.push_expr(hir_expr);
         self.interner.push_expr_location(id, span, self.file);
@@ -960,30 +919,24 @@ impl<'context> Elaborator<'context> {
         self.lambda_stack.push(LambdaContext { captures: Vec::new(), scope_index });
 
         let mut arg_types = Vec::with_capacity(lambda.parameters.len());
-        let parameters: Vec<_> = lambda
-            .parameters
-            .into_iter()
-            .enumerate()
-            .map(|(index, (pattern, typ))| {
+        let parameters =
+            vecmap(lambda.parameters.into_iter().enumerate(), |(index, (pattern, typ))| {
                 let parameter = DefinitionKind::Local(None);
-                let is_unspecified = matches!(typ.typ, UnresolvedTypeData::Unspecified);
-                let typ = self.resolve_inferred_type(typ);
-
-                if is_unspecified {
-                    // If there's a parameter type hint, use it to unify the argument type
+                let typ = if let UnresolvedTypeData::Unspecified = typ.typ {
                     if let Some(parameter_type_hint) =
                         parameters_type_hints.and_then(|hints| hints.get(index))
                     {
-                        // We don't error here because eventually the lambda type will be checked against
-                        // the call that contains it, which would then produce an error if this didn't unify.
-                        let _ = typ.unify(parameter_type_hint);
+                        parameter_type_hint.clone()
+                    } else {
+                        self.interner.next_type_variable_with_kind(Kind::Any)
                     }
-                }
+                } else {
+                    self.resolve_type(typ)
+                };
 
                 arg_types.push(typ.clone());
                 (self.elaborate_pattern(pattern, typ.clone(), parameter, true), typ)
-            })
-            .collect();
+            });
 
         let return_type = self.resolve_inferred_type(lambda.return_type);
         let body_span = lambda.body.span;
