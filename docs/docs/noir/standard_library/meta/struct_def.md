@@ -48,20 +48,21 @@ Example:
 
 ```
 #[example]
-struct Foo<T, U> {
-    bar: [T; 2],
+struct Foo<T, U, let K: u32> {
+    bar: [T; K],
     baz: Baz<U, U>,
 }
 
 comptime fn example(foo: StructDefinition) {
-    assert_eq(foo.generics().len(), 2);
-
-    let (first_generic_type, first_generic_numeric) = foo.generics()[0];
-    assert(first_generic_numeric.is_none());
+    assert_eq(foo.generics().len(), 3);
 
     // Fails because `T` isn't in scope
     // let t = quote { T }.as_type();
-    // assert_eq(first_generic_type, t);
+    // assert_eq(foo.generics()[0].0, t);
+    assert(foo.generics()[0].1.is_none());
+
+    // Last generic is numeric, so we have the numeric type available to us
+    assert(foo.generics()[2].1.is_some());
 }
 ```
 

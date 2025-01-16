@@ -44,7 +44,7 @@ comptime fn add_generic(s: StructDefinition) {
 
         let generics = s.generics();
         assert_eq(generics.len(), 1);
-        assert_eq(generics[0], new_generic);
+        assert_eq(generics[0].0, new_generic);
     }
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/compile_success_empty/comptime_struct_definition/src/main.nr#L35-L44" target="_blank" rel="noopener noreferrer">Source code: test_programs/compile_success_empty/comptime_struct_definition/src/main.nr#L35-L44</a></sub></sup>
