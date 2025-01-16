@@ -39,7 +39,9 @@ mod foo {
 
         let generics = s.generics();
         assert_eq(generics.len(), 1);
-        assert_eq(generics[0], new_generic);
+        let (typ, numeric) = generics[0];
+        assert_eq(typ, new_generic);
+        assert(numeric.is_none());
     }
     // docs:end:add-generic-example
 }
