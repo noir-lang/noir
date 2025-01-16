@@ -3844,6 +3844,240 @@ fn disallows_export_attribute_on_trait_impl_method() {
     });
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// TODO: move these to their own test sub-directory
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#[test]
+fn cfg_attribute_on_function() {
+    let src = r#"
+        #[cfg(feature = "foo")]
+        fn foo() { }
+
+        fn main() {
+            foo();
+        }
+    "#;
+    let errors = get_program_errors(src);
+    
+    // TODO cleanup
+    dbg!(&errors);
+
+    assert_eq!(errors.len(), 0);
+}
+
+#[test]
+fn cfg_disabled_attribute_on_function() {
+    let src = r#"
+        #[cfg(feature = "foo")]
+        fn foo() {
+            let result = unresolved_function(unresolved_variable)
+                .unresolved_method::<UnresolvedType>();
+            result
+        }
+
+        fn main() { }
+    "#;
+    let errors = get_program_errors(src);
+    
+    // TODO cleanup
+    dbg!(&errors);
+
+    assert_eq!(errors.len(), 0);
+}
+
+#[test]
+fn cfg_disabled_attribute_on_function_rejects_parse_error() {
+    let src = r#"
+        #[cfg(feature = "foo")]
+        fn foo() {
+            unmatched parentheses -> )
+        }
+
+        fn main() { }
+    "#;
+    let errors = get_program_errors(src);
+
+    // TODO cleanup
+    dbg!(&errors);
+
+    assert_eq!(errors.len(), 1);
+}
+
+#[test]
+fn cfg_disabled_attribute_on_global() {
+    let src = r#"
+        #[cfg(feature = "foo")]
+        global FOO: bool = true;
+
+        fn main() { }
+    "#;
+    let errors = get_program_errors(src);
+    
+    // TODO cleanup
+    dbg!(&errors);
+
+    assert_eq!(errors.len(), 0);
+}
+
+#[test]
+fn cfg_attribute_on_global() {
+    let src = r#"
+        #[cfg(feature = "foo")]
+        global FOO: bool = true;
+
+        fn main() {
+            let _ = FOO;
+        }
+    "#;
+    let errors = get_program_errors(src);
+
+    // TODO cleanup
+    dbg!(&errors);
+
+    assert_eq!(errors.len(), 0);
+}
+
+#[test]
+fn cfg_disabled_attribute_on_statement_block() {
+    let src = r#"
+        fn foo() -> Field {
+            let mut result = 0;
+
+            #[cfg(feature = "bar")]
+            {
+                result = 1;
+            }
+
+            result
+        }
+
+        fn main() {
+            let _ = foo() == 0;
+        }
+    "#;
+    let errors = get_program_errors(src);
+    
+    // TODO cleanup
+    dbg!(&errors);
+
+    assert_eq!(errors.len(), 0);
+}
+
+#[test]
+fn cfg_attribute_on_statement_block() {
+    let src = r#"
+        fn foo() -> Field {
+            let mut result = 0;
+
+            #[cfg(feature = "bar")]
+            {
+                result = 1;
+            }
+
+            result
+        }
+
+        fn main() {
+            let _ = foo() == 1;
+        }
+    "#;
+    let errors = get_program_errors(src);
+    
+    // TODO cleanup
+    dbg!(&errors);
+
+    assert_eq!(errors.len(), 0);
+}
+
+#[test]
+fn cfg_attribute_on_module() {
+    let src = r#"
+        #[cfg(feature = "foo")]
+        mod foo_module {
+            pub global FOO: bool = true;
+        }
+
+        fn main() {
+            let _ = foo_module::FOO;
+        }
+    "#;
+    let errors = get_program_errors(src);
+    
+    // TODO cleanup
+    dbg!(&errors);
+
+    assert_eq!(errors.len(), 0);
+}
+
+#[test]
+fn cfg_disabled_attribute_on_module() {
+    let src = r#"
+        #[cfg(feature = "foo")]
+        mod foo_module {
+            pub global FOO: bool = true;
+        }
+
+        fn main() {
+            let _ = foo_module::FOO;
+        }
+    "#;
+    let errors = get_program_errors(src);
+    
+    // TODO cleanup
+    dbg!(&errors);
+
+    assert_eq!(errors.len(), 1);
+}
+
+#[test]
+fn cfg_attribute_on_use() {
+    let src = r#"
+        mod foo_module {
+            pub global FOO: bool = true;
+        }
+
+        #[cfg(feature = "foo")]
+        use foo_module::FOO;
+
+        fn main() {
+            let _ = FOO;
+        }
+    "#;
+    let errors = get_program_errors(src);
+    
+    // TODO cleanup
+    dbg!(&errors);
+
+    assert_eq!(errors.len(), 0);
+}
+
+#[test]
+fn cfg_disabled_attribute_on_use() {
+    let src = r#"
+        mod foo_module {
+            pub global FOO: bool = true;
+        }
+
+        #[cfg(feature = "foo")]
+        use foo_module::FOO;
+
+        fn main() {
+            let _ = FOO;
+        }
+    "#;
+    let errors = get_program_errors(src);
+    
+    // TODO cleanup
+    dbg!(&errors);
+
+    assert_eq!(errors.len(), 1);
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// END cfg tests
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 #[test]
 fn allows_multiple_underscore_parameters() {
     let src = r#"

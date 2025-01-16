@@ -904,6 +904,9 @@ pub enum SecondaryAttribute {
 
     /// Allow chosen warnings to happen so they are silenced.
     Allow(String),
+
+    // A #[cfg(..)] attribute
+    Cfg(CfgAttribute),
 }
 
 impl SecondaryAttribute {
@@ -921,6 +924,7 @@ impl SecondaryAttribute {
             SecondaryAttribute::Varargs => Some("varargs".to_string()),
             SecondaryAttribute::UseCallersScope => Some("use_callers_scope".to_string()),
             SecondaryAttribute::Allow(_) => Some("allow".to_string()),
+            SecondaryAttribute::Cfg(_) => Some("cfg".to_string()),
         }
     }
 
@@ -950,6 +954,7 @@ impl SecondaryAttribute {
             SecondaryAttribute::Varargs => "varargs".to_string(),
             SecondaryAttribute::UseCallersScope => "use_callers_scope".to_string(),
             SecondaryAttribute::Allow(ref k) => format!("allow({k})"),
+            SecondaryAttribute::Cfg(ref cfg_attribute) => format!("cfg({cfg_attribute})"),
         }
     }
 }
@@ -975,6 +980,25 @@ impl Display for MetaAttribute {
             let args =
                 self.arguments.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ");
             write!(f, "{}({})", self.name, args)
+        }
+    }
+}
+
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub enum CfgAttribute {
+    // feature = "{name}"
+    Feature {
+        name: String,
+        span: Span,
+    },
+}
+
+impl Display for CfgAttribute {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CfgAttribute::Feature { name, span: _ } => {
+                write!(f, "feature = {:?}", name)
+            }
         }
     }
 }
@@ -1010,6 +1034,7 @@ pub enum Keyword {
     Bool,
     Break,
     CallData,
+    Cfg,
     Char,
     Comptime,
     Constrain,
@@ -1021,6 +1046,7 @@ pub enum Keyword {
     Else,
     Enum,
     Expr,
+    Feature,
     Field,
     Fn,
     For,
@@ -1069,6 +1095,7 @@ impl fmt::Display for Keyword {
             Keyword::AssertEq => write!(f, "assert_eq"),
             Keyword::Bool => write!(f, "bool"),
             Keyword::Break => write!(f, "break"),
+            Keyword::Cfg => write!(f, "cfg"),
             Keyword::Char => write!(f, "char"),
             Keyword::CallData => write!(f, "call_data"),
             Keyword::Comptime => write!(f, "comptime"),
@@ -1081,6 +1108,7 @@ impl fmt::Display for Keyword {
             Keyword::Else => write!(f, "else"),
             Keyword::Enum => write!(f, "enum"),
             Keyword::Expr => write!(f, "Expr"),
+            Keyword::Feature => write!(f, "feature"),
             Keyword::Field => write!(f, "Field"),
             Keyword::Fn => write!(f, "fn"),
             Keyword::For => write!(f, "for"),
@@ -1133,6 +1161,7 @@ impl Keyword {
             "bool" => Keyword::Bool,
             "break" => Keyword::Break,
             "call_data" => Keyword::CallData,
+            "cfg" => Keyword::Cfg,
             "char" => Keyword::Char,
             "comptime" => Keyword::Comptime,
             "constrain" => Keyword::Constrain,
@@ -1144,6 +1173,7 @@ impl Keyword {
             "else" => Keyword::Else,
             "enum" => Keyword::Enum,
             "Expr" => Keyword::Expr,
+            "feature" => Keyword::Feature,
             "Field" => Keyword::Field,
             "fn" => Keyword::Fn,
             "for" => Keyword::For,
