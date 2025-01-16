@@ -224,8 +224,12 @@ impl ExpressionKind {
         }))
     }
 
-    pub fn is_lambda(&self) -> bool {
-        matches!(self, ExpressionKind::Lambda(..))
+    pub fn is_lambda_without_type_annotations(&self) -> bool {
+        if let ExpressionKind::Lambda(lambda) = self {
+            lambda.parameters.iter().any(|(_, typ)| typ.typ.is_unspecified())
+        } else {
+            false
+        }
     }
 }
 

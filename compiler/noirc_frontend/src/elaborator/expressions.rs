@@ -388,7 +388,8 @@ impl<'context> Elaborator<'context> {
     fn elaborate_call(&mut self, call: CallExpression, span: Span) -> (HirExpression, Type) {
         let (func, func_type) = self.elaborate_expression(*call.func);
 
-        let any_argument_is_lambda = call.arguments.iter().any(|arg| arg.kind.is_lambda());
+        let any_argument_has_lambda_without_type_annotations =
+            call.arguments.iter().any(|arg| arg.kind.is_lambda_without_type_annotations());
 
         let mut arguments = Vec::with_capacity(call.arguments.len());
         let args: Vec<_> = call
@@ -400,13 +401,23 @@ impl<'context> Elaborator<'context> {
 
                 let (arg, typ) = if call.is_macro_call {
                     self.elaborate_in_comptime_context(|this| {
-                        this.elaborate_call_argument_expression(arg, arg_index, &func_type)
+                        this.elaborate_call_argument_expression(
+                            arg,
+                            arg_index,
+                            &func_type,
+                            any_argument_has_lambda_without_type_annotations,
+                        )
                     })
                 } else {
-                    self.elaborate_call_argument_expression(arg, arg_index, &func_type)
+                    self.elaborate_call_argument_expression(
+                        arg,
+                        arg_index,
+                        &func_type,
+                        any_argument_has_lambda_without_type_annotations,
+                    )
                 };
 
-                if any_argument_is_lambda {
+                if any_argument_has_lambda_without_type_annotations {
                     // Try to unify this argument type against the function's argument type
                     // so that a potential lambda following this argument can have more concrete types.
                     if let Type::Function(func_args, _, _, _) = &func_type {
@@ -491,10 +502,12 @@ impl<'context> Elaborator<'context> {
                     self.type_check_variable(function_name.clone(), function_id, generics.clone());
                 self.interner.push_expr_type(function_id, func_type.clone());
 
-                let any_argument_is_lambda =
-                    method_call.arguments.iter().any(|arg| arg.kind.is_lambda());
+                let any_argument_has_lambda_without_type_annotations = method_call
+                    .arguments
+                    .iter()
+                    .any(|arg| arg.kind.is_lambda_without_type_annotations());
 
-                if any_argument_is_lambda {
+                if any_argument_has_lambda_without_type_annotations {
                     // Try to unify the object type with the first argument of the function.
                     // The reason to do this is that many methods that take a lambda will yield `self` or part of `self`
                     // as a parameter. By unifying `self` with the first argument we'll potentially get more
@@ -516,10 +529,14 @@ impl<'context> Elaborator<'context> {
 
                 for (arg_index, arg) in method_call.arguments.into_iter().enumerate() {
                     let span = arg.span;
-                    let (arg, typ) =
-                        self.elaborate_call_argument_expression(arg, arg_index + 1, &func_type);
+                    let (arg, typ) = self.elaborate_call_argument_expression(
+                        arg,
+                        arg_index + 1,
+                        &func_type,
+                        any_argument_has_lambda_without_type_annotations,
+                    );
 
-                    if any_argument_is_lambda {
+                    if any_argument_has_lambda_without_type_annotations {
                         // Try to unify this argument type against the function's argument type
                         // so that a potential lambda following this argument can have more concrete types.
                         if let Type::Function(func_args, _, _, _) = &func_type {
@@ -576,7 +593,12 @@ impl<'context> Elaborator<'context> {
         arg: Expression,
         arg_index: usize,
         func_type: &Type,
+        any_argument_has_lambda_without_type_annotations: bool,
     ) -> (ExprId, Type) {
+        if !any_argument_has_lambda_without_type_annotations {
+            return self.elaborate_expression(arg);
+        }
+
         let ExpressionKind::Lambda(lambda) = arg.kind else {
             return self.elaborate_expression(arg);
         };
