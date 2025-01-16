@@ -166,7 +166,7 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
                     options.max_bytecode_increase_percent,
                 )
             },
-            "Pre-processing Functions",
+            "Preprocessing Functions",
         )
         .run_pass(|ssa| ssa.inline_functions(options.inliner_aggressiveness), "Inlining (1st)")
         // Run mem2reg with the CFG separated into blocks
