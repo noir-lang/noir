@@ -1550,6 +1550,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirStatement::Constrain(constrain) => self.evaluate_constrain(constrain),
             HirStatement::Assign(assign) => self.evaluate_assign(assign),
             HirStatement::For(for_) => self.evaluate_for(for_),
+            HirStatement::Loop(expression) => self.evaluate_loop(expression),
             HirStatement::Break => self.evaluate_break(statement),
             HirStatement::Continue => self.evaluate_continue(statement),
             HirStatement::Expression(expression) => self.evaluate(expression),
@@ -1728,6 +1729,26 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             self.current_scope_mut().insert(for_.identifier.id, make_value(i));
 
             match self.evaluate(for_.block) {
+                Ok(_) => (),
+                Err(InterpreterError::Break) => break,
+                Err(InterpreterError::Continue) => continue,
+                Err(other) => return Err(other),
+            }
+
+            self.pop_scope();
+        }
+
+        self.in_loop = was_in_loop;
+        Ok(Value::Unit)
+    }
+
+    fn evaluate_loop(&mut self, expr: ExprId) -> IResult<Value> {
+        let was_in_loop = std::mem::replace(&mut self.in_loop, true);
+
+        loop {
+            self.push_scope();
+
+            match self.evaluate(expr) {
                 Ok(_) => (),
                 Err(InterpreterError::Break) => break,
                 Err(InterpreterError::Continue) => continue,

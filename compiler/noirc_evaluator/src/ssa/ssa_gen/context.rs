@@ -88,7 +88,8 @@ pub(super) struct SharedContext {
 #[derive(Copy, Clone)]
 pub(super) struct Loop {
     pub(super) loop_entry: BasicBlockId,
-    pub(super) loop_index: ValueId,
+    /// The loop index will be `Some` for a `for` and `None` for a `loop`
+    pub(super) loop_index: Option<ValueId>,
     pub(super) loop_end: BasicBlockId,
 }
 
@@ -1010,13 +1011,8 @@ impl<'a> FunctionContext<'a> {
         }
     }
 
-    pub(crate) fn enter_loop(
-        &mut self,
-        loop_entry: BasicBlockId,
-        loop_index: ValueId,
-        loop_end: BasicBlockId,
-    ) {
-        self.loops.push(Loop { loop_entry, loop_index, loop_end });
+    pub(crate) fn enter_loop(&mut self, loop_: Loop) {
+        self.loops.push(loop_);
     }
 
     pub(crate) fn exit_loop(&mut self) {

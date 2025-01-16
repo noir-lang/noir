@@ -98,6 +98,8 @@ pub enum ResolverError {
     DependencyCycle { span: Span, item: String, cycle: String },
     #[error("break/continue are only allowed in unconstrained functions")]
     JumpInConstrainedFn { is_break: bool, span: Span },
+    #[error("loop is only allowed in unconstrained functions")]
+    LoopInConstrainedFn { span: Span },
     #[error("break/continue are only allowed within loops")]
     JumpOutsideLoop { is_break: bool, span: Span },
     #[error("Only `comptime` globals can be mutable")]
@@ -430,6 +432,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 let item = if *is_break { "break" } else { "continue" };
                 Diagnostic::simple_error(
                     format!("{item} is only allowed in unconstrained functions"),
+                    "Constrained code must always have a known number of loop iterations".into(),
+                    *span,
+                )
+            },
+            ResolverError::LoopInConstrainedFn { span } => {
+                Diagnostic::simple_error(
+                    "loop is only allowed in unconstrained functions".into(),
                     "Constrained code must always have a known number of loop iterations".into(),
                     *span,
                 )
