@@ -130,7 +130,6 @@ mod tests {
         FieldElement,
     };
     use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
-    use noirc_errors::call_stack::CallStackHelper;
 
     use crate::{
         brillig::brillig_ir::{artifact::Label, registers::Stack, BrilligContext},
@@ -205,7 +204,7 @@ mod tests {
     }
 
     pub(crate) fn create_test_context() -> BrilligContext<FieldElement, Stack> {
-        let mut context = BrilligContext::new(true, CallStackHelper::default());
+        let mut context = BrilligContext::new(true);
         context.enter_context(Label::function(FunctionId::test_new(0)));
         context
     }

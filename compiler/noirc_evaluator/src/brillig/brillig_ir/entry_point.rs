@@ -11,7 +11,6 @@ use acvm::acir::{
     brillig::{HeapVector, MemoryAddress},
     AcirField,
 };
-use noirc_errors::call_stack::CallStackHelper;
 
 pub(crate) const MAX_STACK_SIZE: usize = 16 * MAX_STACK_FRAME_SIZE;
 pub(crate) const MAX_STACK_FRAME_SIZE: usize = 2048;
@@ -24,7 +23,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         return_parameters: Vec<BrilligParameter>,
         target_function: FunctionId,
     ) -> BrilligArtifact<F> {
-        let mut context = BrilligContext::new(false, CallStackHelper::default());
+        let mut context = BrilligContext::new(false);
 
         context.codegen_entry_point(&arguments, &return_parameters);
 

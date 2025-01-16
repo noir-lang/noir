@@ -57,7 +57,7 @@ impl Brillig {
         func: &Function,
         enable_debug_trace: bool,
     ) -> BrilligArtifact<FieldElement> {
-        let mut brillig_context = BrilligContext::new(enable_debug_trace, self.call_stacks.clone());
+        let mut brillig_context = BrilligContext::new(enable_debug_trace);
 
         let mut function_context = FunctionContext::new(func);
 
@@ -66,9 +66,14 @@ impl Brillig {
         brillig_context.call_check_max_stack_depth_procedure();
 
         for block in function_context.blocks.clone() {
-            BrilligBlock::compile(&mut function_context, &mut brillig_context, block, &func.dfg);
+            BrilligBlock::compile(
+                &mut function_context,
+                &mut brillig_context,
+                block,
+                &func.dfg,
+                &mut self.call_stacks,
+            );
         }
-        self.call_stacks = brillig_context.call_stacks.clone();
         let mut artifact = brillig_context.artifact();
         artifact.name = func.name().to_string();
         artifact.location_tree = func.dfg.call_stack_data.to_location_tree();

@@ -22,7 +22,7 @@ use acvm::acir::brillig::{MemoryAddress, ValueOrArray};
 use acvm::{acir::AcirField, FieldElement};
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use iter_extended::vecmap;
-use noirc_errors::call_stack::CallStackId;
+use noirc_errors::call_stack::{CallStackHelper, CallStackId};
 use num_bigint::BigUint;
 use std::sync::Arc;
 
@@ -51,6 +51,7 @@ impl<'block> BrilligBlock<'block> {
         brillig_context: &'block mut BrilligContext<FieldElement, Stack>,
         block_id: BasicBlockId,
         dfg: &DataFlowGraph,
+        call_stacks: &mut CallStackHelper,
     ) {
         let live_in = function_context.liveness.get_live_in(&block_id);
         let variables = BlockVariables::new(live_in.clone());
@@ -67,10 +68,10 @@ impl<'block> BrilligBlock<'block> {
         let mut brillig_block =
             BrilligBlock { function_context, block_id, brillig_context, variables, last_uses };
 
-        brillig_block.convert_block(dfg);
+        brillig_block.convert_block(dfg, call_stacks);
     }
 
-    fn convert_block(&mut self, dfg: &DataFlowGraph) {
+    fn convert_block(&mut self, dfg: &DataFlowGraph, call_stacks: &mut CallStackHelper) {
         // Add a label for this block
         let block_label = self.create_block_label_for_current_function(self.block_id);
         self.brillig_context.enter_context(block_label);
@@ -81,7 +82,7 @@ impl<'block> BrilligBlock<'block> {
 
         // Convert all of the instructions into the block
         for instruction_id in block.instructions() {
-            self.convert_ssa_instruction(*instruction_id, dfg);
+            self.convert_ssa_instruction(*instruction_id, dfg, call_stacks);
         }
 
         // Process the block's terminator instruction
@@ -199,10 +200,15 @@ impl<'block> BrilligBlock<'block> {
     }
 
     /// Converts an SSA instruction into a sequence of Brillig opcodes.
-    fn convert_ssa_instruction(&mut self, instruction_id: InstructionId, dfg: &DataFlowGraph) {
+    fn convert_ssa_instruction(
+        &mut self,
+        instruction_id: InstructionId,
+        dfg: &DataFlowGraph,
+        call_stack_hlp: &mut CallStackHelper,
+    ) {
         let instruction = &dfg[instruction_id];
         let call_stack = dfg.get_instruction_call_stack(instruction_id);
-        let call_stack_new_id = self.brillig_context.get_or_insert_locations(&call_stack);
+        let call_stack_new_id = call_stack_hlp.get_or_insert_locations(&call_stack);
         self.brillig_context.set_call_stack(call_stack_new_id);
 
         self.initialize_constants(
