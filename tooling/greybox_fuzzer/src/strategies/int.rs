@@ -9,6 +9,8 @@ use num_traits::{
 
 use rand::{seq::SliceRandom, Rng};
 use rand_xorshift::XorShiftRng;
+
+use super::dictionary::IntDictionary;
 /// This file contains mechanisms for mutating integer InputValues.
 /// If the value is a boolean, it just picks a new random value.
 /// Otherwise, it performs one of the following mutations:
@@ -63,58 +65,6 @@ has_bits_impl!(u8);
 has_bits_impl!(u16);
 has_bits_impl!(u32);
 has_bits_impl!(u64);
-
-/// A dictionary for integer values. Separated by width
-#[derive(Default)]
-pub struct IntDictionary {
-    width_dictionaries: [Vec<FieldElement>; 4],
-}
-
-impl IntDictionary {
-    pub fn new(original_dictionary: &Vec<FieldElement>) -> Self {
-        Self { width_dictionaries: filter_dictionary_by_width(original_dictionary) }
-    }
-    pub fn get_dictionary_by_width(&self, width: u32) -> &Vec<FieldElement> {
-        match width {
-            8 => &self.width_dictionaries[0],
-            16 => &self.width_dictionaries[1],
-            32 => &self.width_dictionaries[2],
-            64 => &self.width_dictionaries[3],
-            _ => panic!("Only widths 8, 16, 32, 64 are supported"),
-        }
-    }
-}
-
-/// Filter values in the original dictionary collected from the program into 4 categories, separated by width of integers into which those elements can fit
-fn filter_dictionary_by_width(original_dictionary: &Vec<FieldElement>) -> [Vec<FieldElement>; 4] {
-    let mut width8_dict = Vec::new();
-    let mut width16_dict = Vec::new();
-    let mut width32_dict = Vec::new();
-    let mut width64_dict = Vec::new();
-    const MAX_U8: i128 = u8::MAX as i128;
-    const MAX_U16: i128 = u16::MAX as i128;
-    const MAX_U32: i128 = u32::MAX as i128;
-    const MAX_U64: i128 = u64::MAX as i128;
-    for element in original_dictionary.iter().copied() {
-        let el_i128 = element.to_i128();
-        if el_i128 <= 0 {
-            continue;
-        }
-        if el_i128 < MAX_U64 {
-            width64_dict.push(element);
-        }
-        if el_i128 < MAX_U32 {
-            width32_dict.push(element);
-        }
-        if el_i128 < MAX_U16 {
-            width16_dict.push(element);
-        }
-        if el_i128 < MAX_U8 {
-            width8_dict.push(element);
-        }
-    }
-    [width8_dict, width16_dict, width32_dict, width64_dict]
-}
 
 const NUM_FIXED_VALUES: usize = 128;
 const FIXED_SIGNED_VALUES: [i128; NUM_FIXED_VALUES] = calculate_fixed_values_for_signed();

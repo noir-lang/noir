@@ -1,7 +1,8 @@
 use acvm::{AcirField, FieldElement};
 
+use dictionary::FullDictionary;
 use field::mutate_field_input_value;
-use int::{mutate_int_input_value, IntDictionary};
+use int::mutate_int_input_value;
 use noirc_abi::{input_parser::InputValue, Abi, AbiType, InputMap};
 use rand::Rng;
 use rand_xorshift::XorShiftRng;
@@ -11,6 +12,7 @@ use std::{
 };
 use string::{mutate_string_input_value, splice_string_input_value};
 
+mod dictionary;
 mod field;
 mod int;
 mod string;
@@ -20,108 +22,13 @@ pub struct InputMutator {
     weight_tree: NodeWeight,
     full_dictionary: FullDictionary,
 }
-pub struct FullDictionary {
-    original_dictionary: Vec<FieldElement>,
-    original_int_dictionary: IntDictionary,
-}
+
 const MUTATION_LOG_MIN: u32 = 0;
 const MUTATION_LOG_MAX: u32 = 5;
 const TOP_LEVEL_RANDOM_SPLICE_STRATEGY_WEIGHT: usize = 1usize;
 const SPLICE_ONE_DESCENDANT: usize = 1usize;
 const TOTAL_WEIGHT: usize = TOP_LEVEL_RANDOM_SPLICE_STRATEGY_WEIGHT + SPLICE_ONE_DESCENDANT;
-impl FullDictionary {
-    fn collect_dictionary_from_input_value(
-        abi_type: &AbiType,
-        input: &InputValue,
-        full_dictionary: &mut HashSet<FieldElement>,
-    ) {
-        match abi_type {
-            // Boolean only has 2 values, there is no point in getting the value
-            AbiType::Boolean => (),
-            // Mutate fields in a smart way
-            AbiType::Field | AbiType::Integer { .. } => {
-                let initial_field_value = match input {
-                    InputValue::Field(inner_field) => inner_field,
-                    _ => panic!("Shouldn't be used with other input value types"),
-                };
-                full_dictionary.insert(*initial_field_value);
-            }
-            AbiType::String { length: _ } => {
-                let initial_string = match input {
-                    InputValue::String(inner_string) => inner_string,
-                    _ => panic!("Shouldn't be used with other input value types"),
-                };
-                for character in initial_string.as_bytes().iter() {
-                    full_dictionary.insert(FieldElement::from(*character as i128));
-                }
-            }
-            AbiType::Array { length: _, typ } => {
-                let input_vector = match input {
-                    InputValue::Vec(previous_input_vector) => previous_input_vector,
-                    _ => panic!("Mismatch of AbiType and InputValue should not happen"),
-                };
-                for element in input_vector.iter() {
-                    Self::collect_dictionary_from_input_value(typ, element, full_dictionary);
-                }
-            }
 
-            AbiType::Struct { fields, .. } => {
-                let input_struct = match input {
-                    InputValue::Struct(previous_input_struct) => previous_input_struct,
-                    _ => panic!("Mismatch of AbiType and InputValue should not happen"),
-                };
-                for (name, typ) in fields.iter() {
-                    Self::collect_dictionary_from_input_value(
-                        typ,
-                        &input_struct[name],
-                        full_dictionary,
-                    );
-                }
-            }
-
-            AbiType::Tuple { fields } => {
-                let input_vector = match input {
-                    InputValue::Vec(previous_input_vector) => previous_input_vector,
-                    _ => panic!("Mismatch of AbiType and InputValue should not happen"),
-                };
-                for (typ, previous_tuple_input) in zip(fields, input_vector) {
-                    Self::collect_dictionary_from_input_value(
-                        typ,
-                        previous_tuple_input,
-                        full_dictionary,
-                    );
-                }
-            }
-        }
-    }
-
-    fn collect_dictionary_from_input(
-        abi: &Abi,
-        input: &InputMap,
-        full_dictionary: &mut HashSet<FieldElement>,
-    ) {
-        for param in abi.parameters.iter() {
-            Self::collect_dictionary_from_input_value(
-                &param.typ,
-                &input[&param.name],
-                full_dictionary,
-            );
-        }
-    }
-    pub fn new(original_dictionary: &HashSet<FieldElement>) -> Self {
-        let dictionary_vector: Vec<_> = original_dictionary.iter().copied().collect();
-        let int_dict = IntDictionary::new(&dictionary_vector);
-        Self { original_dictionary: dictionary_vector, original_int_dictionary: int_dict }
-    }
-    pub fn update(&mut self, abi: &Abi, testcase: &InputMap) {
-        let mut testcase_full_dictionary: HashSet<_> =
-            self.original_dictionary.iter().copied().collect();
-        Self::collect_dictionary_from_input(abi, testcase, &mut testcase_full_dictionary);
-        self.original_dictionary = testcase_full_dictionary.iter().copied().collect();
-        // TODO: update just ints, don't redo the full thing
-        self.original_int_dictionary = IntDictionary::new(&self.original_dictionary);
-    }
-}
 #[derive(Clone, Debug)]
 pub struct NodeWeight {
     start: u32,
@@ -233,24 +140,22 @@ impl InputMutator {
         match abi_type {
             // Boolean only has 2 values, there is no point in performing complex logic
             AbiType::Boolean => InputValue::Field(FieldElement::from(prng.gen_range(0u32..=1u32))),
-            // Mutate fields in a smart way
             AbiType::Field => mutate_field_input_value(
                 previous_input,
-                &self.full_dictionary.original_dictionary,
+                &self.full_dictionary.get_field_dictionary(),
                 prng,
             ),
-            // TODO: IMPLEMENT THESE
             AbiType::Integer { sign, width } => mutate_int_input_value(
                 previous_input,
                 sign,
                 *width,
-                &self.full_dictionary.original_int_dictionary,
+                &self.full_dictionary.get_int_dictionary(),
                 prng,
             ),
             AbiType::String { length: _ } => mutate_string_input_value(
                 previous_input,
                 prng,
-                &self.full_dictionary.original_int_dictionary,
+                &self.full_dictionary.get_int_dictionary(),
             ),
             AbiType::Array { length, typ } => {
                 let length = *length as usize;
@@ -387,7 +292,7 @@ impl InputMutator {
                     second_input.clone()
                 }
             }
-            // Mutate fields in a smart way
+            // Pick one
             AbiType::Field => {
                 if prng.gen_bool(0.5) {
                     first_input.clone()

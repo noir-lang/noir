@@ -1,4 +1,4 @@
-use super::int::IntDictionary;
+use super::dictionary::IntDictionary;
 use acvm::{AcirField, FieldElement};
 use noirc_abi::input_parser::InputValue;
 use rand::{seq::SliceRandom, Rng};
