@@ -11,12 +11,27 @@ impl Ssa {
         aggressiveness: i64,
         max_bytecode_increase_percent: Option<i32>,
     ) -> Ssa {
+        // No point pre-processing the functions that will never be inlined into others.
+        let not_to_inline = inlining::get_functions_to_inline_into(&self, false, aggressiveness);
         // Bottom-up order, starting with the "leaf" functions, so we inline already optimized code into the ones that call them.
         let bottom_up = inlining::compute_bottom_up_order(&self);
-        let not_to_inline = inlining::get_functions_to_inline_into(&self, false, aggressiveness);
 
-        for id in bottom_up.into_iter().filter(|id| !not_to_inline.contains(id)) {
+        // As a heuristic to avoid optimizing functions near the entry point, find a cutoff weight.
+        let total_weight = bottom_up.iter().fold(0usize, |acc, (_, w)| acc.saturating_add(*w));
+        let mean_weight = total_weight / bottom_up.len();
+        let cutoff_weight = mean_weight;
+
+        for (id, weight) in bottom_up.into_iter().filter(|(id, _)| !not_to_inline.contains(id)) {
             let function = &self.functions[&id];
+            if weight <= cutoff_weight {
+                println!("PREPROCESSING fn {} {id} with weight {weight}", function.name());
+            } else {
+                println!(
+                    "SKIP PREPROCESSING fn {} {id} with weight {weight} > {cutoff_weight}",
+                    function.name()
+                );
+                continue;
+            }
             let mut function = function.inlined(&self, false, &not_to_inline);
             // Help unrolling determine bounds.
             function.as_slice_optimization();

@@ -239,33 +239,42 @@ pub(super) fn compute_times_called(ssa: &Ssa) -> HashMap<FunctionId, usize> {
         })
 }
 
-/// Compute for each function the set of functions that call it.
-fn compute_callers(ssa: &Ssa) -> BTreeMap<FunctionId, BTreeSet<FunctionId>> {
+/// Compute for each function the set of functions that call it, and how many times they do so.
+fn compute_callers(ssa: &Ssa) -> BTreeMap<FunctionId, BTreeMap<FunctionId, usize>> {
     ssa.functions
         .iter()
         .flat_map(|(caller_id, function)| {
-            let called_functions = called_functions(function);
-            called_functions.into_iter().map(|called_id| (called_id, *caller_id))
+            let called_functions = called_functions_vec(function);
+            called_functions.into_iter().map(|callee_id| (*caller_id, callee_id))
         })
         .fold(
-            ssa.functions.keys().map(|id| (*id, BTreeSet::new())).collect(),
-            |mut acc, (called_id, caller_id)| {
-                let callers = acc.entry(called_id).or_default();
-                callers.insert(caller_id);
+            // Make sure an entry exists even for ones that don't get called.
+            ssa.functions.keys().map(|id| (*id, BTreeMap::new())).collect(),
+            |mut acc, (caller_id, callee_id)| {
+                let callers = acc.entry(callee_id).or_default();
+                *callers.entry(caller_id).or_default() += 1;
                 acc
             },
         )
 }
 
-/// Compute for each function the set of functions called by it.
-fn compute_callees(ssa: &Ssa) -> BTreeMap<FunctionId, BTreeSet<FunctionId>> {
+/// Compute for each function the set of functions called by it, and how many times it does so.
+fn compute_callees(ssa: &Ssa) -> BTreeMap<FunctionId, BTreeMap<FunctionId, usize>> {
     ssa.functions
         .iter()
-        .map(|(caller_id, function)| {
-            let called_functions = called_functions(function);
-            (*caller_id, called_functions)
+        .flat_map(|(caller_id, function)| {
+            let called_functions = called_functions_vec(function);
+            called_functions.into_iter().map(|callee_id| (*caller_id, callee_id))
         })
-        .collect()
+        .fold(
+            // Make sure an entry exists even for ones that don't call anything.
+            ssa.functions.keys().map(|id| (*id, BTreeMap::new())).collect(),
+            |mut acc, (caller_id, callee_id)| {
+                let callees = acc.entry(caller_id).or_default();
+                *callees.entry(callee_id).or_default() += 1;
+                acc
+            },
+        )
 }
 
 /// Compute something like a topological order of the functions, starting with the ones
@@ -273,13 +282,23 @@ fn compute_callees(ssa: &Ssa) -> BTreeMap<FunctionId, BTreeSet<FunctionId>> {
 /// are detected, take the one which are called by the most to break the ties.
 ///
 /// This can be used to simplify the most often called functions first.
-pub(super) fn compute_bottom_up_order(ssa: &Ssa) -> Vec<FunctionId> {
+///
+/// Returns the functions paired with their transitive weight, which accumulates
+/// the weight of all the functions they call.
+pub(super) fn compute_bottom_up_order(ssa: &Ssa) -> Vec<(FunctionId, usize)> {
     let mut order = Vec::new();
     let mut visited = HashSet::new();
 
     // Number of times a function is called, to break cycles.
     let mut times_called = compute_times_called(ssa).into_iter().collect::<Vec<_>>();
     times_called.sort_by_key(|(id, cnt)| (*cnt, *id));
+
+    // Start with the weight of the functions in isolation, then accumulate as we pop off the ones they call.
+    let mut weights = ssa
+        .functions
+        .iter()
+        .map(|(id, f)| (*id, compute_function_own_weight(f)))
+        .collect::<HashMap<_, _>>();
 
     let callers = compute_callers(ssa);
     let mut callees = compute_callees(ssa);
@@ -292,14 +311,19 @@ pub(super) fn compute_bottom_up_order(ssa: &Ssa) -> Vec<FunctionId> {
 
     loop {
         if times_called.is_empty() && queue.is_empty() {
-            break;
+            return order;
         }
         while let Some(id) = queue.pop_front() {
-            order.push(id);
+            let weight = weights[&id];
+            order.push((id, weight));
             visited.insert(id);
-            // Remove this function from all of its callers.
-            for caller in &callers[&id] {
-                let callees = callees.get_mut(caller).expect("all callees computed");
+            // Update the callers of this function.
+            for (caller, call_count) in &callers[&id] {
+                // Update the weight of the caller with the weight of this function.
+                weights[caller] = weights[caller].saturating_add(call_count.saturating_mul(weight));
+                // Remove this function from the callees of the caller.
+                let callees = callees.get_mut(caller).unwrap();
+                callees.remove(&id);
                 // If the caller doesn't call any other function, enqueue it.
                 if callees.is_empty() && !visited.contains(caller) {
                     queue.push_back(*caller);
@@ -317,8 +341,6 @@ pub(super) fn compute_bottom_up_order(ssa: &Ssa) -> Vec<FunctionId> {
             }
         }
     }
-
-    order
 }
 
 /// Traverse the call graph starting from a given function, marking function to be retained if they are:
