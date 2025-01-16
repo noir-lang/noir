@@ -68,7 +68,6 @@ impl U128 {
     }
 
     pub fn from_hex<let N: u32>(hex: str<N>) -> U128 {
-        // TODO cleanup if working
         // let N = N as u32;
         let bytes = hex.as_bytes();
         // string must starts with "0x"
