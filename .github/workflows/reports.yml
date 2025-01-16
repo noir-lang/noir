@@ -736,7 +736,7 @@ jobs:
 
       - name: Convert to `benchmark-action` format
         run: |
-          jq ".compilation_reports | map({name: .artifact_name, value: (.time[:-1] | tonumber), unit: \"s\"}) " ./memory_report.json > memory_bench.json
+          jq ".compilation_reports | map({name: .artifact_name, value: (.time[:-1] | tonumber), unit: \"s\"}) " ./compilation_report.json > time_bench.json
 
       - name: Store benchmark result
         continue-on-error: true
@@ -744,7 +744,7 @@ jobs:
         with:
           name: "Compilation Time"
           tool: "customSmallerIsBetter"
-          output-file-path: ./memory_bench.json
+          output-file-path: ./time_bench.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
           auto-push: true
           alert-threshold: "110%"
