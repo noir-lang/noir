@@ -723,6 +723,47 @@ impl<'a> Context<'a> {
 
                 self.acir_context.assert_eq_var(lhs, rhs, assert_payload)?;
             }
+            Instruction::ConstrainNotEqual(lhs, rhs, assert_message) => {
+                let lhs = self.convert_numeric_value(*lhs, dfg)?;
+                let rhs = self.convert_numeric_value(*rhs, dfg)?;
+
+                let assert_payload = if let Some(error) = assert_message {
+                    match error {
+                        ConstrainError::StaticString(string) => Some(
+                            self.acir_context.generate_assertion_message_payload(string.clone()),
+                        ),
+                        ConstrainError::Dynamic(error_selector, is_string_type, values) => {
+                            if let Some(constant_string) = try_to_extract_string_from_error_payload(
+                                *is_string_type,
+                                values,
+                                dfg,
+                            ) {
+                                Some(
+                                    self.acir_context
+                                        .generate_assertion_message_payload(constant_string),
+                                )
+                            } else {
+                                let acir_vars: Vec<_> = values
+                                    .iter()
+                                    .map(|value| self.convert_value(*value, dfg))
+                                    .collect();
+
+                                let expressions_or_memory =
+                                    self.acir_context.vars_to_expressions_or_memory(&acir_vars)?;
+
+                                Some(AssertionPayload {
+                                    error_selector: error_selector.as_u64(),
+                                    payload: expressions_or_memory,
+                                })
+                            }
+                        }
+                    }
+                } else {
+                    None
+                };
+
+                self.acir_context.assert_neq_var(lhs, rhs, assert_payload)?;
+            }
             Instruction::Cast(value_id, _) => {
                 let acir_var = self.convert_numeric_value(*value_id, dfg)?;
                 self.define_result_var(dfg, instruction_id, acir_var);
@@ -1892,6 +1933,9 @@ impl<'a> Context<'a> {
             Value::Instruction { .. } | Value::Param { .. } => {
                 unreachable!("ICE: Should have been in cache {value_id} {value:?}")
             }
+            Value::Global(_) => {
+                unreachable!("ICE: All globals should have been inlined");
+            }
         };
         self.ssa_values.insert(value_id, acir_value.clone());
         acir_value
@@ -1949,9 +1993,9 @@ impl<'a> Context<'a> {
         let bit_count = binary_type.bit_size::<FieldElement>();
         let num_type = binary_type.to_numeric_type();
         let result = match binary.operator {
-            BinaryOp::Add => self.acir_context.add_var(lhs, rhs),
-            BinaryOp::Sub => self.acir_context.sub_var(lhs, rhs),
-            BinaryOp::Mul => self.acir_context.mul_var(lhs, rhs),
+            BinaryOp::Add { .. } => self.acir_context.add_var(lhs, rhs),
+            BinaryOp::Sub { .. } => self.acir_context.sub_var(lhs, rhs),
+            BinaryOp::Mul { .. } => self.acir_context.mul_var(lhs, rhs),
             BinaryOp::Div => self.acir_context.div_var(
                 lhs,
                 rhs,
@@ -2070,7 +2114,7 @@ impl<'a> Context<'a> {
             Value::Instruction { instruction, .. } => {
                 if matches!(
                     &dfg[*instruction],
-                    Instruction::Binary(Binary { operator: BinaryOp::Sub, .. })
+                    Instruction::Binary(Binary { operator: BinaryOp::Sub { .. }, .. })
                 ) {
                     // Subtractions must first have the integer modulus added before truncation can be
                     // applied. This is done in order to prevent underflow.
@@ -3159,7 +3203,11 @@ mod test {
         let func_with_nested_call_v1 = builder.add_parameter(Type::field());
 
         let two = builder.field_constant(2u128);
-        let v0_plus_two = builder.insert_binary(func_with_nested_call_v0, BinaryOp::Add, two);
+        let v0_plus_two = builder.insert_binary(
+            func_with_nested_call_v0,
+            BinaryOp::Add { unchecked: false },
+            two,
+        );
 
         let foo_id = Id::test_new(2);
         let foo_call = builder.import_function(foo_id);

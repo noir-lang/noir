@@ -179,7 +179,12 @@ impl Ord for Segment {
 
         if let (Segment::Plain(self_string), Segment::Plain(other_string)) = (self, other) {
             // Case-insensitive comparison for plain segments
-            self_string.to_lowercase().cmp(&other_string.to_lowercase())
+            let ordering = self_string.to_lowercase().cmp(&other_string.to_lowercase());
+            if ordering == Ordering::Equal {
+                self_string.cmp(other_string)
+            } else {
+                ordering
+            }
         } else {
             order_number_ordering
         }
@@ -619,5 +624,11 @@ use std::merkle::compute_merkle_root;
         let src = "use std::{as_witness, merkle::compute_merkle_root};";
         let expected = "use std::{as_witness, merkle::compute_merkle_root};\n";
         assert_format(src, expected);
+    }
+
+    #[test]
+    fn does_not_merge_same_identifiers_if_equal_case_insensitive() {
+        let src = "use bigint::{BigNum, bignum::BigNumTrait};\n";
+        assert_format(src, src);
     }
 }

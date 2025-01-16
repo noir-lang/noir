@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, fmt::Display};
+use std::collections::BTreeMap;
 
 use acvm::acir::circuit::ErrorSelector;
 use iter_extended::btree_map;
@@ -17,6 +17,7 @@ use noirc_frontend::hir_def::types::Type as HirType;
 pub(crate) struct Ssa {
     #[serde_as(as = "Vec<(_, _)>")]
     pub(crate) functions: BTreeMap<FunctionId, Function>,
+    pub(crate) globals: Function,
     pub(crate) main_id: FunctionId,
     #[serde(skip)]
     pub(crate) next_id: AtomicCounter<Function>,
@@ -53,6 +54,9 @@ impl Ssa {
             next_id: AtomicCounter::starting_after(max_id),
             entry_point_to_generated_index: BTreeMap::new(),
             error_selector_to_type: error_types,
+            // This field should be set afterwards as globals are generated
+            // outside of the FunctionBuilder, which is where the `Ssa` is instantiated.
+            globals: Function::new_for_globals(),
         }
     }
 
@@ -99,15 +103,6 @@ impl Ssa {
     }
 }
 
-impl Display for Ssa {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for function in self.functions.values() {
-            writeln!(f, "{function}")?;
-        }
-        Ok(())
-    }
-}
-
 #[cfg(test)]
 mod test {
     use crate::ssa::ir::map::Id;
@@ -129,8 +124,8 @@ mod test {
         let one = builder.field_constant(1u128);
         let three = builder.field_constant(3u128);
 
-        let v1 = builder.insert_binary(v0, BinaryOp::Add, one);
-        let v2 = builder.insert_binary(v1, BinaryOp::Mul, three);
+        let v1 = builder.insert_binary(v0, BinaryOp::Add { unchecked: false }, one);
+        let v2 = builder.insert_binary(v1, BinaryOp::Mul { unchecked: false }, three);
         builder.terminate_with_return(vec![v2]);
 
         let ssa = builder.finish();

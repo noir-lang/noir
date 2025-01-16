@@ -34,8 +34,7 @@ use crate::{
         TraitImplKind, TraitMethodId,
     },
     token::SecondaryAttribute,
-    Generics, Kind, ResolvedGeneric, Shared, StructType, Type, TypeBinding, TypeBindings,
-    UnificationError,
+    Generics, Kind, ResolvedGeneric, Type, TypeBinding, TypeBindings, UnificationError,
 };
 
 use super::{lints, path_resolution::PathResolutionItem, Elaborator, UnsafeBlockStatus};
@@ -311,11 +310,32 @@ impl<'context> Elaborator<'context> {
         }
     }
 
+    /// Identical to `resolve_type_args` but does not allow
+    /// associated types to be elided since trait impls must specify them.
+    pub(super) fn resolve_trait_args_from_trait_impl(
+        &mut self,
+        args: GenericTypeArgs,
+        item: TraitId,
+        span: Span,
+    ) -> (Vec<Type>, Vec<NamedType>) {
+        self.resolve_type_args_inner(args, item, span, false)
+    }
+
     pub(super) fn resolve_type_args(
+        &mut self,
+        args: GenericTypeArgs,
+        item: impl Generic,
+        span: Span,
+    ) -> (Vec<Type>, Vec<NamedType>) {
+        self.resolve_type_args_inner(args, item, span, true)
+    }
+
+    pub(super) fn resolve_type_args_inner(
         &mut self,
         mut args: GenericTypeArgs,
         item: impl Generic,
         span: Span,
+        allow_implicit_named_args: bool,
     ) -> (Vec<Type>, Vec<NamedType>) {
         let expected_kinds = item.generics(self.interner);
 
@@ -337,7 +357,12 @@ impl<'context> Elaborator<'context> {
         let mut associated = Vec::new();
 
         if item.accepts_named_type_args() {
-            associated = self.resolve_associated_type_args(args.named_args, item, span);
+            associated = self.resolve_associated_type_args(
+                args.named_args,
+                item,
+                span,
+                allow_implicit_named_args,
+            );
         } else if !args.named_args.is_empty() {
             let item_kind = item.item_kind();
             self.push_err(ResolverError::NamedTypeArgs { span, item_kind });
@@ -351,6 +376,7 @@ impl<'context> Elaborator<'context> {
         args: Vec<(Ident, UnresolvedType)>,
         item: impl Generic,
         span: Span,
+        allow_implicit_named_args: bool,
     ) -> Vec<NamedType> {
         let mut seen_args = HashMap::default();
         let mut required_args = item.named_generics(self.interner);
@@ -380,11 +406,19 @@ impl<'context> Elaborator<'context> {
             resolved.push(NamedType { name, typ });
         }
 
-        // Anything that hasn't been removed yet is missing
+        // Anything that hasn't been removed yet is missing.
+        // Fill it in to avoid a panic if we allow named args to be elided, otherwise error.
         for generic in required_args {
-            let item = item.item_name(self.interner);
             let name = generic.name.clone();
-            self.push_err(TypeCheckError::MissingNamedTypeArg { item, span, name });
+
+            if allow_implicit_named_args {
+                let name = Ident::new(name.as_ref().clone(), span);
+                let typ = self.interner.next_type_variable();
+                resolved.push(NamedType { name, typ });
+            } else {
+                let item = item.item_name(self.interner);
+                self.push_err(TypeCheckError::MissingNamedTypeArg { item, span, name });
+            }
         }
 
         resolved
@@ -1320,9 +1354,6 @@ impl<'context> Elaborator<'context> {
         has_self_arg: bool,
     ) -> Option<HirMethodReference> {
         match object_type.follow_bindings() {
-            Type::Struct(typ, _args) => {
-                self.lookup_struct_method(object_type, method_name, span, has_self_arg, typ)
-            }
             // TODO: We should allow method calls on `impl Trait`s eventually.
             //       For now it is fine since they are only allowed on return types.
             Type::TraitAsType(..) => {
@@ -1338,11 +1369,9 @@ impl<'context> Elaborator<'context> {
             }
             // Mutable references to another type should resolve to methods of their element type.
             // This may be a struct or a primitive type.
-            Type::MutableReference(element) => self
-                .interner
-                .lookup_primitive_trait_method_mut(element.as_ref(), method_name, has_self_arg)
-                .map(HirMethodReference::FuncId)
-                .or_else(|| self.lookup_method(&element, method_name, span, has_self_arg)),
+            Type::MutableReference(element) => {
+                self.lookup_method(&element, method_name, span, has_self_arg)
+            }
 
             // If we fail to resolve the object to a struct type, we have no way of type
             // checking its arguments as we can't even resolve the name of the function
@@ -1354,51 +1383,45 @@ impl<'context> Elaborator<'context> {
                 None
             }
 
-            other => match self.interner.lookup_primitive_method(&other, method_name, has_self_arg)
-            {
-                Some(method_id) => Some(HirMethodReference::FuncId(method_id)),
-                None => {
-                    // It could be that this type is a composite type that is bound to a trait,
-                    // for example `x: (T, U) ... where (T, U): SomeTrait`
-                    // (so this case is a generalization of the NamedGeneric case)
-                    self.lookup_method_in_trait_constraints(object_type, method_name, span)
-                }
-            },
+            other => {
+                self.lookup_struct_or_primitive_method(&other, method_name, span, has_self_arg)
+            }
         }
     }
 
-    fn lookup_struct_method(
+    fn lookup_struct_or_primitive_method(
         &mut self,
         object_type: &Type,
         method_name: &str,
         span: Span,
         has_self_arg: bool,
-        typ: Shared<StructType>,
     ) -> Option<HirMethodReference> {
-        let id = typ.borrow().id;
-
-        // First search in the struct methods
+        // First search in the type methods. If there is one, that's the one.
         if let Some(method_id) =
-            self.interner.lookup_direct_method(object_type, id, method_name, has_self_arg)
+            self.interner.lookup_direct_method(object_type, method_name, has_self_arg)
         {
             return Some(HirMethodReference::FuncId(method_id));
         }
 
         // Next lookup all matching trait methods.
         let trait_methods =
-            self.interner.lookup_trait_methods(object_type, id, method_name, has_self_arg);
+            self.interner.lookup_trait_methods(object_type, method_name, has_self_arg);
 
-        if trait_methods.is_empty() {
-            // If we couldn't find any trait methods, search in
-            // impls for all types `T`, e.g. `impl<T> Foo for T`
-            if let Some(func_id) =
-                self.interner.lookup_generic_method(object_type, method_name, has_self_arg)
-            {
-                return Some(HirMethodReference::FuncId(func_id));
-            }
+        // If there's at least one matching trait method we need to see if only one is in scope.
+        if !trait_methods.is_empty() {
+            return self.return_trait_method_in_scope(&trait_methods, method_name, span);
+        }
 
-            // Otherwise it's an error
-            let has_field_with_function_type = typ
+        // If we couldn't find any trait methods, search in
+        // impls for all types `T`, e.g. `impl<T> Foo for T`
+        let generic_methods =
+            self.interner.lookup_generic_methods(object_type, method_name, has_self_arg);
+        if !generic_methods.is_empty() {
+            return self.return_trait_method_in_scope(&generic_methods, method_name, span);
+        }
+
+        if let Type::Struct(struct_type, _) = object_type {
+            let has_field_with_function_type = struct_type
                 .borrow()
                 .get_fields_as_written()
                 .into_iter()
@@ -1416,10 +1439,23 @@ impl<'context> Elaborator<'context> {
                     span,
                 });
             }
-            return None;
+            None
+        } else {
+            // It could be that this type is a composite type that is bound to a trait,
+            // for example `x: (T, U) ... where (T, U): SomeTrait`
+            // (so this case is a generalization of the NamedGeneric case)
+            self.lookup_method_in_trait_constraints(object_type, method_name, span)
         }
+    }
 
-        // We found some trait methods... but is only one of them currently in scope?
+    /// Given a list of functions and the trait they belong to, returns the one function
+    /// that is in scope.
+    fn return_trait_method_in_scope(
+        &mut self,
+        trait_methods: &[(FuncId, TraitId)],
+        method_name: &str,
+        span: Span,
+    ) -> Option<HirMethodReference> {
         let module_id = self.module_id();
         let module_data = self.get_module(module_id);
 
@@ -1433,12 +1469,8 @@ impl<'context> Elaborator<'context> {
             .filter_map(|trait_id| {
                 let trait_ = self.interner.get_trait(*trait_id);
                 let trait_name = &trait_.name;
-                let Some(map) = module_data.scope().types().get(trait_name) else {
-                    return None;
-                };
-                let Some(imported_item) = map.get(&None) else {
-                    return None;
-                };
+                let map = module_data.scope().types().get(trait_name)?;
+                let imported_item = map.get(&None)?;
                 if imported_item.0 == ModuleDefId::TraitId(*trait_id) {
                     Some((*trait_id, trait_name))
                 } else {
@@ -1501,7 +1533,7 @@ impl<'context> Elaborator<'context> {
     fn trait_hir_method_reference(
         &self,
         trait_id: TraitId,
-        trait_methods: Vec<(FuncId, TraitId)>,
+        trait_methods: &[(FuncId, TraitId)],
         method_name: &str,
         span: Span,
     ) -> HirMethodReference {
@@ -1813,6 +1845,7 @@ impl<'context> Elaborator<'context> {
         (expr_span, empty_function)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn verify_trait_constraint(
         &mut self,
         object_type: &Type,
@@ -1820,6 +1853,7 @@ impl<'context> Elaborator<'context> {
         trait_generics: &[Type],
         associated_types: &[NamedType],
         function_ident_id: ExprId,
+        select_impl: bool,
         span: Span,
     ) {
         match self.interner.lookup_trait_implementation(
@@ -1829,7 +1863,9 @@ impl<'context> Elaborator<'context> {
             associated_types,
         ) {
             Ok(impl_kind) => {
-                self.interner.select_impl_for_expression(function_ident_id, impl_kind);
+                if select_impl {
+                    self.interner.select_impl_for_expression(function_ident_id, impl_kind);
+                }
             }
             Err(error) => self.push_trait_constraint_error(object_type, error, span),
         }
@@ -1903,10 +1939,15 @@ impl<'context> Elaborator<'context> {
 
     /// Push a trait constraint into the current FunctionContext to be solved if needed
     /// at the end of the earlier of either the current function or the current comptime scope.
-    pub fn push_trait_constraint(&mut self, constraint: TraitConstraint, expr_id: ExprId) {
+    pub fn push_trait_constraint(
+        &mut self,
+        constraint: TraitConstraint,
+        expr_id: ExprId,
+        select_impl: bool,
+    ) {
         let context = self.function_context.last_mut();
         let context = context.expect("The function_context stack should always be non-empty");
-        context.trait_constraints.push((constraint, expr_id));
+        context.trait_constraints.push((constraint, expr_id, select_impl));
     }
 
     pub fn bind_generics_from_trait_constraint(
@@ -1976,7 +2017,7 @@ pub(crate) fn bind_named_generics(
     args: &[NamedType],
     bindings: &mut TypeBindings,
 ) {
-    assert_eq!(params.len(), args.len());
+    assert!(args.len() <= params.len());
 
     for arg in args {
         let i = params
@@ -1986,6 +2027,10 @@ pub(crate) fn bind_named_generics(
 
         let param = params.swap_remove(i);
         bind_generic(&param, &arg.typ, bindings);
+    }
+
+    for unbound_param in params {
+        bind_generic(&unbound_param, &Type::Error, bindings);
     }
 }
 

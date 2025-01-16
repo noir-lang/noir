@@ -278,8 +278,10 @@ fn create_apply_function(
     function_ids: Vec<FunctionId>,
 ) -> FunctionId {
     assert!(!function_ids.is_empty());
+    let globals = ssa.functions[&function_ids[0]].dfg.globals.clone();
     ssa.add_fn(|id| {
         let mut function_builder = FunctionBuilder::new("apply".to_string(), id);
+        function_builder.set_globals(globals);
         let target_id = function_builder.add_parameter(Type::field());
         let params_ids = vecmap(signature.params, |typ| function_builder.add_parameter(typ));
 

@@ -1,0 +1,6 @@
+[package]
+name = "associated_types_implicit"
+type = "bin"
+authors = [""]
+
+[dependencies]

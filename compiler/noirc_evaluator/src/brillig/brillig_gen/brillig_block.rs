@@ -279,6 +279,10 @@ impl<'block> BrilligBlock<'block> {
                     self.brillig_context.deallocate_single_addr(condition);
                 }
             }
+            Instruction::ConstrainNotEqual(..) => {
+                unreachable!("only implemented in ACIR")
+            }
+
             Instruction::Allocate => {
                 let result_value = dfg.instruction_results(instruction_id)[0];
                 let pointer = self.variables.define_single_addr_variable(
@@ -646,7 +650,10 @@ impl<'block> BrilligBlock<'block> {
                         }
                     }
                 }
-                Value::Instruction { .. } | Value::Param { .. } | Value::NumericConstant { .. } => {
+                Value::Instruction { .. }
+                | Value::Param { .. }
+                | Value::NumericConstant { .. }
+                | Value::Global(_) => {
                     unreachable!("unsupported function call type {:?}", dfg[*func])
                 }
             },
@@ -795,7 +802,7 @@ impl<'block> BrilligBlock<'block> {
                 self.brillig_context.deallocate_register(rc_register);
             }
             Instruction::EnableSideEffectsIf { .. } => {
-                todo!("enable_side_effects not supported by brillig")
+                unreachable!("enable_side_effects not supported by brillig")
             }
             Instruction::IfElse { .. } => {
                 unreachable!("IfElse instructions should not be possible in brillig")
@@ -1318,9 +1325,9 @@ impl<'block> BrilligBlock<'block> {
                     BrilligBinaryOp::Modulo
                 }
             }
-            BinaryOp::Add => BrilligBinaryOp::Add,
-            BinaryOp::Sub => BrilligBinaryOp::Sub,
-            BinaryOp::Mul => BrilligBinaryOp::Mul,
+            BinaryOp::Add { .. } => BrilligBinaryOp::Add,
+            BinaryOp::Sub { .. } => BrilligBinaryOp::Sub,
+            BinaryOp::Mul { .. } => BrilligBinaryOp::Mul,
             BinaryOp::Eq => BrilligBinaryOp::Equals,
             BinaryOp::Lt => {
                 if is_signed {
@@ -1557,6 +1564,9 @@ impl<'block> BrilligBlock<'block> {
         let value = &dfg[value_id];
 
         match value {
+            Value::Global(_) => {
+                unreachable!("ICE: All globals should have been inlined");
+            }
             Value::Param { .. } | Value::Instruction { .. } => {
                 // All block parameters and instruction results should have already been
                 // converted to registers so we fetch from the cache.

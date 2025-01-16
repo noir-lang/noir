@@ -23,6 +23,7 @@ use self::{
     value::{Tree, Values},
 };
 
+use super::ir::dfg::GlobalsGraph;
 use super::ir::instruction::ErrorType;
 use super::ir::types::NumericType;
 use super::{
@@ -49,6 +50,8 @@ pub(crate) fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     let return_location = program.return_location;
     let context = SharedContext::new(program);
 
+    let globals = GlobalsGraph::from_dfg(context.globals_context.dfg.clone());
+
     let main_id = Program::main_id();
     let main = context.program.main();
 
@@ -60,7 +63,7 @@ pub(crate) fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
         RuntimeType::Acir(main.inline_type)
     };
     let mut function_context =
-        FunctionContext::new(main.name.clone(), &main.parameters, main_runtime, &context);
+        FunctionContext::new(main.name.clone(), &main.parameters, main_runtime, &context, globals);
 
     // Generate the call_data bus from the relevant parameters. We create it *before* processing the function body
     let call_data = function_context.builder.call_data_bus(is_databus);
@@ -121,7 +124,9 @@ pub(crate) fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
         function_context.codegen_function_body(&function.body)?;
     }
 
-    Ok(function_context.builder.finish())
+    let mut ssa = function_context.builder.finish();
+    ssa.globals = context.globals_context;
+    Ok(ssa)
 }
 
 impl<'a> FunctionContext<'a> {
@@ -179,6 +184,7 @@ impl<'a> FunctionContext<'a> {
     fn codegen_ident_reference(&mut self, ident: &ast::Ident) -> Values {
         match &ident.definition {
             ast::Definition::Local(id) => self.lookup(*id),
+            ast::Definition::Global(id) => self.lookup_global(*id),
             ast::Definition::Function(id) => self.get_or_queue_function(*id),
             ast::Definition::Oracle(name) => self.builder.import_foreign_function(name).into(),
             ast::Definition::Builtin(name) | ast::Definition::LowLevel(name) => {
@@ -446,8 +452,13 @@ impl<'a> FunctionContext<'a> {
         let type_size = Self::convert_type(element_type).size_of_type();
         let type_size =
             self.builder.numeric_constant(type_size as u128, NumericType::length_type());
-        let base_index =
-            self.builder.set_location(location).insert_binary(index, BinaryOp::Mul, type_size);
+        // This shouldn't overflow as we are reaching for an initial array offset
+        // (otherwise it would have overflowed when creating the array)
+        let base_index = self.builder.set_location(location).insert_binary(
+            index,
+            BinaryOp::Mul { unchecked: true },
+            type_size,
+        );
 
         let mut field_index = 0u128;
         Ok(Self::map_type(element_type, |typ| {
@@ -520,6 +531,22 @@ impl<'a> FunctionContext<'a> {
     ///   ... This is the current insert point after codegen_for finishes ...
     /// ```
     fn codegen_for(&mut self, for_expr: &ast::For) -> Result<Values, RuntimeError> {
+        self.builder.set_location(for_expr.start_range_location);
+        let start_index = self.codegen_non_tuple_expression(&for_expr.start_range)?;
+
+        self.builder.set_location(for_expr.end_range_location);
+        let end_index = self.codegen_non_tuple_expression(&for_expr.end_range)?;
+
+        if let (Some(start_constant), Some(end_constant)) = (
+            self.builder.current_function.dfg.get_numeric_constant(start_index),
+            self.builder.current_function.dfg.get_numeric_constant(end_index),
+        ) {
+            // If we can determine that the loop contains zero iterations then there's no need to codegen the loop.
+            if start_constant >= end_constant {
+                return Ok(Self::unit_value());
+            }
+        }
+
         let loop_entry = self.builder.insert_block();
         let loop_body = self.builder.insert_block();
         let loop_end = self.builder.insert_block();
@@ -531,12 +558,6 @@ impl<'a> FunctionContext<'a> {
         // Remember the blocks and variable used in case there are break/continue instructions
         // within the loop which need to jump to them.
         self.enter_loop(loop_entry, loop_index, loop_end);
-
-        self.builder.set_location(for_expr.start_range_location);
-        let start_index = self.codegen_non_tuple_expression(&for_expr.start_range)?;
-
-        self.builder.set_location(for_expr.end_range_location);
-        let end_index = self.codegen_non_tuple_expression(&for_expr.end_range)?;
 
         // Set the location of the initial jmp instruction to the start range. This is the location
         // used to issue an error if the start range cannot be determined at compile-time.
@@ -702,7 +723,12 @@ impl<'a> FunctionContext<'a> {
 
                     // We add one here in the case of a slice insert as a slice insert at the length of the slice
                     // can be converted to a slice push back
-                    let len_plus_one = self.builder.insert_binary(arguments[0], BinaryOp::Add, one);
+                    // This is unchecked as the slice length could be u32::max
+                    let len_plus_one = self.builder.insert_binary(
+                        arguments[0],
+                        BinaryOp::Add { unchecked: false },
+                        one,
+                    );
 
                     self.codegen_slice_access_check(arguments[2], Some(len_plus_one));
                 }

@@ -1,11 +1,12 @@
 use std::collections::BTreeSet;
+use std::sync::Arc;
 
 use iter_extended::vecmap;
 use noirc_frontend::monomorphization::ast::InlineType;
 use serde::{Deserialize, Serialize};
 
 use super::basic_block::BasicBlockId;
-use super::dfg::DataFlowGraph;
+use super::dfg::{DataFlowGraph, GlobalsGraph};
 use super::instruction::TerminatorInstruction;
 use super::map::Id;
 use super::types::Type;
@@ -76,7 +77,7 @@ pub(crate) struct Function {
     /// Name of the function for debugging only
     name: String,
 
-    id: FunctionId,
+    id: Option<FunctionId>,
 
     /// The DataFlowGraph holds the majority of data pertaining to the function
     /// including its blocks, instructions, and values.
@@ -90,20 +91,29 @@ impl Function {
     pub(crate) fn new(name: String, id: FunctionId) -> Self {
         let mut dfg = DataFlowGraph::default();
         let entry_block = dfg.make_block();
-        Self { name, id, entry_block, dfg }
+        Self { name, id: Some(id), entry_block, dfg }
+    }
+
+    /// Globals are generated using the same codegen process as functions.
+    /// To avoid a recursive global context we should create a pseudo function to mock a globals context.
+    pub(crate) fn new_for_globals() -> Self {
+        let mut dfg = DataFlowGraph::default();
+        let entry_block = dfg.make_block();
+        Self { name: "globals".to_owned(), id: None, entry_block, dfg }
     }
 
     /// Creates a new function as a clone of the one passed in with the passed in id.
     pub(crate) fn clone_with_id(id: FunctionId, another: &Function) -> Self {
         let dfg = another.dfg.clone();
         let entry_block = another.entry_block;
-        Self { name: another.name.clone(), id, entry_block, dfg }
+        Self { name: another.name.clone(), id: Some(id), entry_block, dfg }
     }
 
     /// Takes the signature (function name & runtime) from a function but does not copy the body.
     pub(crate) fn clone_signature(id: FunctionId, another: &Function) -> Self {
         let mut new_function = Function::new(another.name.clone(), id);
         new_function.set_runtime(another.runtime());
+        new_function.set_globals(another.dfg.globals.clone());
         new_function
     }
 
@@ -115,7 +125,7 @@ impl Function {
 
     /// The id of the function.
     pub(crate) fn id(&self) -> FunctionId {
-        self.id
+        self.id.expect("FunctionId should be initialized")
     }
 
     /// Runtime type of the function.
@@ -126,6 +136,10 @@ impl Function {
     /// Set runtime type of the function.
     pub(crate) fn set_runtime(&mut self, runtime: RuntimeType) {
         self.dfg.set_runtime(runtime);
+    }
+
+    pub(crate) fn set_globals(&mut self, globals: Arc<GlobalsGraph>) {
+        self.dfg.globals = globals;
     }
 
     pub(crate) fn is_no_predicates(&self) -> bool {
@@ -226,12 +240,6 @@ pub(crate) type FunctionId = Id<Function>;
 pub(crate) struct Signature {
     pub(crate) params: Vec<Type>,
     pub(crate) returns: Vec<Type>,
-}
-
-impl std::fmt::Display for Function {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        super::printer::display_function(self, f)
-    }
 }
 
 #[test]

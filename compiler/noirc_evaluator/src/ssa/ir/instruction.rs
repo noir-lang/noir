@@ -256,6 +256,9 @@ pub(crate) enum Instruction {
     /// Constrains two values to be equal to one another.
     Constrain(ValueId, ValueId, Option<ConstrainError>),
 
+    /// Constrains two values to not be equal to one another.
+    ConstrainNotEqual(ValueId, ValueId, Option<ConstrainError>),
+
     /// Range constrain `value` to `max_bit_size`
     RangeCheck { value: ValueId, max_bit_size: u32, assert_message: Option<String> },
 
@@ -364,6 +367,7 @@ impl Instruction {
                 InstructionResultType::Operand(*value)
             }
             Instruction::Constrain(..)
+            | Instruction::ConstrainNotEqual(..)
             | Instruction::Store { .. }
             | Instruction::IncrementRc { .. }
             | Instruction::DecrementRc { .. }
@@ -405,17 +409,22 @@ impl Instruction {
             },
 
             // These can fail.
-            Constrain(..) | RangeCheck { .. } => true,
+            Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => true,
 
             // This should never be side-effectful
             MakeArray { .. } | Noop => false,
 
             // Some binary math can overflow or underflow
             Binary(binary) => match binary.operator {
-                BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul | BinaryOp::Div | BinaryOp::Mod => {
-                    true
-                }
-                BinaryOp::Eq
+                BinaryOp::Add { unchecked: false }
+                | BinaryOp::Sub { unchecked: false }
+                | BinaryOp::Mul { unchecked: false }
+                | BinaryOp::Div
+                | BinaryOp::Mod => true,
+                BinaryOp::Add { unchecked: true }
+                | BinaryOp::Sub { unchecked: true }
+                | BinaryOp::Mul { unchecked: true }
+                | BinaryOp::Eq
                 | BinaryOp::Lt
                 | BinaryOp::And
                 | BinaryOp::Or
@@ -467,7 +476,7 @@ impl Instruction {
             },
 
             // We can deduplicate these instructions if we know the predicate is also the same.
-            Constrain(..) | RangeCheck { .. } => deduplicate_with_predicate,
+            Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => deduplicate_with_predicate,
 
             // Noop instructions can always be deduplicated, although they're more likely to be
             // removed entirely.
@@ -535,6 +544,7 @@ impl Instruction {
             }
 
             Constrain(..)
+            | ConstrainNotEqual(..)
             | EnableSideEffectsIf { .. }
             | IncrementRc { .. }
             | DecrementRc { .. }
@@ -566,16 +576,19 @@ impl Instruction {
         match self {
             Instruction::Binary(binary) => {
                 match binary.operator {
-                    BinaryOp::Add
-                    | BinaryOp::Sub
-                    | BinaryOp::Mul
+                    BinaryOp::Add { unchecked: false }
+                    | BinaryOp::Sub { unchecked: false }
+                    | BinaryOp::Mul { unchecked: false }
                     | BinaryOp::Div
                     | BinaryOp::Mod => {
                         // Some binary math can overflow or underflow, but this is only the case
                         // for unsigned types (here we assume the type of binary.lhs is the same)
                         dfg.type_of_value(binary.rhs).is_unsigned()
                     }
-                    BinaryOp::Eq
+                    BinaryOp::Add { unchecked: true }
+                    | BinaryOp::Sub { unchecked: true }
+                    | BinaryOp::Mul { unchecked: true }
+                    | BinaryOp::Eq
                     | BinaryOp::Lt
                     | BinaryOp::And
                     | BinaryOp::Or
@@ -602,6 +615,7 @@ impl Instruction {
             Instruction::Cast(_, _)
             | Instruction::Not(_)
             | Instruction::Truncate { .. }
+            | Instruction::ConstrainNotEqual(..)
             | Instruction::Constrain(_, _, _)
             | Instruction::RangeCheck { .. }
             | Instruction::Allocate
@@ -647,6 +661,22 @@ impl Instruction {
                     _ => error.clone(),
                 });
                 Instruction::Constrain(lhs, rhs, assert_message)
+            }
+            Instruction::ConstrainNotEqual(lhs, rhs, assert_message) => {
+                // Must map the `lhs` and `rhs` first as the value `f` is moved with the closure
+                let lhs = f(*lhs);
+                let rhs = f(*rhs);
+                let assert_message = assert_message.as_ref().map(|error| match error {
+                    ConstrainError::Dynamic(selector, is_string, payload_values) => {
+                        ConstrainError::Dynamic(
+                            *selector,
+                            *is_string,
+                            payload_values.iter().map(|&value| f(value)).collect(),
+                        )
+                    }
+                    _ => error.clone(),
+                });
+                Instruction::ConstrainNotEqual(lhs, rhs, assert_message)
             }
             Instruction::Call { func, arguments } => Instruction::Call {
                 func: f(*func),
@@ -706,7 +736,8 @@ impl Instruction {
             Instruction::Truncate { value, bit_size: _, max_bit_size: _ } => {
                 *value = f(*value);
             }
-            Instruction::Constrain(lhs, rhs, assert_message) => {
+            Instruction::Constrain(lhs, rhs, assert_message)
+            | Instruction::ConstrainNotEqual(lhs, rhs, assert_message) => {
                 *lhs = f(*lhs);
                 *rhs = f(*rhs);
                 if let Some(ConstrainError::Dynamic(_, _, payload_values)) = assert_message {
@@ -778,7 +809,8 @@ impl Instruction {
             | Instruction::Load { address: value } => {
                 f(*value);
             }
-            Instruction::Constrain(lhs, rhs, assert_error) => {
+            Instruction::Constrain(lhs, rhs, assert_error)
+            | Instruction::ConstrainNotEqual(lhs, rhs, assert_error) => {
                 f(*lhs);
                 f(*rhs);
                 if let Some(ConstrainError::Dynamic(_, _, values)) = assert_error.as_ref() {
@@ -870,6 +902,7 @@ impl Instruction {
                     SimplifiedToInstructionMultiple(constraints)
                 }
             }
+            Instruction::ConstrainNotEqual(..) => None,
             Instruction::ArrayGet { array, index } => {
                 if let Some(index) = dfg.get_numeric_constant(*index) {
                     try_optimize_array_get_from_previous_set(dfg, *array, index)
@@ -1058,12 +1091,6 @@ impl Instruction {
             Instruction::Noop => Remove,
         }
     }
-
-    /// Some instructions are only to be used in Brillig and should be eliminated
-    /// after runtime separation, never to be be reintroduced in an ACIR runtime.
-    pub(crate) fn is_brillig_only(&self) -> bool {
-        matches!(self, Instruction::IncrementRc { .. } | Instruction::DecrementRc { .. })
-    }
 }
 
 /// Given a chain of operations like:
@@ -1091,28 +1118,27 @@ fn try_optimize_array_get_from_previous_set(
     // Arbitrary number of maximum tries just to prevent this optimization from taking too long.
     let max_tries = 5;
     for _ in 0..max_tries {
-        match &dfg[array_id] {
-            Value::Instruction { instruction, .. } => {
-                match &dfg[*instruction] {
-                    Instruction::ArraySet { array, index, value, .. } => {
-                        if let Some(constant) = dfg.get_numeric_constant(*index) {
-                            if constant == target_index {
-                                return SimplifyResult::SimplifiedTo(*value);
-                            }
-
-                            array_id = *array; // recur
-                        } else {
-                            return SimplifyResult::None;
+        if let Some(instruction) = dfg.get_local_or_global_instruction(array_id) {
+            match instruction {
+                Instruction::ArraySet { array, index, value, .. } => {
+                    if let Some(constant) = dfg.get_numeric_constant(*index) {
+                        if constant == target_index {
+                            return SimplifyResult::SimplifiedTo(*value);
                         }
+
+                        array_id = *array; // recur
+                    } else {
+                        return SimplifyResult::None;
                     }
-                    Instruction::MakeArray { elements: array, typ: _ } => {
-                        elements = Some(array.clone());
-                        break;
-                    }
-                    _ => return SimplifyResult::None,
                 }
+                Instruction::MakeArray { elements: array, typ: _ } => {
+                    elements = Some(array.clone());
+                    break;
+                }
+                _ => return SimplifyResult::None,
             }
-            _ => return SimplifyResult::None,
+        } else {
+            return SimplifyResult::None;
         }
     }
 
