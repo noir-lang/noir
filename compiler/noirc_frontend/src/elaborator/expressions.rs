@@ -389,18 +389,25 @@ impl<'context> Elaborator<'context> {
         let (func, func_type) = self.elaborate_expression(*call.func);
 
         let mut arguments = Vec::with_capacity(call.arguments.len());
-        let args = vecmap(call.arguments, |arg| {
-            let span = arg.span;
+        let args: Vec<_> = call
+            .arguments
+            .into_iter()
+            .enumerate()
+            .map(|(arg_index, arg)| {
+                let span = arg.span;
 
-            let (arg, typ) = if call.is_macro_call {
-                self.elaborate_in_comptime_context(|this| this.elaborate_expression(arg))
-            } else {
-                self.elaborate_expression(arg)
-            };
+                let (arg, typ) = if call.is_macro_call {
+                    self.elaborate_in_comptime_context(|this| {
+                        this.elaborate_call_argument_expression(arg, arg_index, &func_type)
+                    })
+                } else {
+                    self.elaborate_call_argument_expression(arg, arg_index, &func_type)
+                };
 
-            arguments.push(arg);
-            (typ, arg, span)
-        });
+                arguments.push(arg);
+                (typ, arg, span)
+            })
+            .collect();
 
         // Avoid cloning arguments unless this is a macro call
         let mut comptime_args = Vec::new();
@@ -492,26 +499,8 @@ impl<'context> Elaborator<'context> {
 
                 for (arg_index, arg) in method_call.arguments.into_iter().enumerate() {
                     let span = arg.span;
-                    let (arg, typ) = if let ExpressionKind::Lambda(lambda) = arg.kind {
-                        let type_hint = if let Type::Function(func_args, _, _, _) = &func_type {
-                            if let Some(Type::Function(func_args, _, _, _)) =
-                                func_args.get(arg_index + 1)
-                            {
-                                Some(func_args)
-                            } else {
-                                None
-                            }
-                        } else {
-                            None
-                        };
-                        let (hir_expr, typ) = self.elaborate_lambda(*lambda, type_hint);
-                        let id = self.interner.push_expr(hir_expr);
-                        self.interner.push_expr_location(id, span, self.file);
-                        self.interner.push_expr_type(id, typ.clone());
-                        (id, typ)
-                    } else {
-                        self.elaborate_expression(arg)
-                    };
+                    let (arg, typ) =
+                        self.elaborate_call_argument_expression(arg, arg_index + 1, &func_type);
                     arguments.push(arg);
                     function_args.push((typ, arg, span));
                 }
@@ -550,6 +539,35 @@ impl<'context> Elaborator<'context> {
             }
             None => (HirExpression::Error, Type::Error),
         }
+    }
+
+    /// Elaborates an expression taking into account that it's a call argument in a function
+    /// that has the given type, and `arg_index` is the index of that argument in that function type.
+    fn elaborate_call_argument_expression(
+        &mut self,
+        arg: Expression,
+        arg_index: usize,
+        func_type: &Type,
+    ) -> (ExprId, Type) {
+        let ExpressionKind::Lambda(lambda) = arg.kind else {
+            return self.elaborate_expression(arg);
+        };
+
+        let span = arg.span;
+        let type_hint = if let Type::Function(func_args, _, _, _) = func_type {
+            if let Some(Type::Function(func_args, _, _, _)) = func_args.get(arg_index) {
+                Some(func_args)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+        let (hir_expr, typ) = self.elaborate_lambda(*lambda, type_hint);
+        let id = self.interner.push_expr(hir_expr);
+        self.interner.push_expr_location(id, span, self.file);
+        self.interner.push_expr_type(id, typ.clone());
+        (id, typ)
     }
 
     fn check_method_call_visibility(&mut self, func_id: FuncId, object_type: &Type, name: &Ident) {

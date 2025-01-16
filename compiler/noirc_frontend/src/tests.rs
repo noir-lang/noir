@@ -3980,7 +3980,7 @@ fn checks_visibility_of_trait_related_to_trait_impl_on_method_call() {
 }
 
 #[test]
-fn infers_lambda_argument_from_call_function_type() {
+fn infers_lambda_argument_from_method_call_function_type() {
     let src = r#"
     struct Foo {
         value: Field,
@@ -4005,6 +4005,24 @@ fn infers_lambda_argument_from_call_function_type() {
     fn main() {
         let box = Box { value: Foo { value: 1 } };
         let _ = box.map(|foo| foo.foo());
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn infers_lambda_argument_from_call_function_type() {
+    let src = r#"
+    struct Foo {
+        value: Field,
+    }
+
+    fn call(f: fn(Foo) -> Field) -> Field {
+        f(Foo { value: 1 })
+    }
+
+    fn main() {
+        let _ = call(|foo| foo.value);
     }
     "#;
     assert_no_errors(src);
