@@ -97,22 +97,13 @@ pub comptime fn make_trait_impl<Env1, Env2>(
 ) -> Quoted {
     // docs:end:make_trait_impl
     let typ = s.as_type();
-    // Urgh, if we emit he type directly, the compiler fails to match it with the type in impl generics.
-    let typ = f"{typ}".quoted_contents();
 
     let mut impl_generics = &[];
     let mut where_clause = &[];
     for g in s.generics() {
         let (typ, numeric_type) = g;
-        // Urgh again, if we emit the type directly, since <let T: u32> expects T to be an ident, will fail parsing
-        let typ = f"{typ}".quoted_contents();
-
-        if numeric_type.is_some() {
-            let numeric_type = numeric_type.unwrap_unchecked();
-            // Numeric generics expect the name to be an ident, not a type
-            impl_generics = impl_generics.push_back(quote { let $typ : $numeric_type });
-        } else {
-            impl_generics = impl_generics.push_back(quote { $typ });
+        impl_generics = impl_generics.push_back(quote { $typ });
+        if numeric_type.is_none() {
             where_clause = where_clause.push_back(quote { $typ: $trait_name });
         }
     }
