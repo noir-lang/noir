@@ -55,6 +55,9 @@ impl Function {
     /// instructions that reference results from an instruction in another block are evaluated first.
     /// If we did not iterate blocks in this order we could not safely say whether or not the results
     /// of its instructions are needed elsewhere.
+    ///
+    /// Returns the set of globals that were used in this function.
+    /// After processing all functions, the union of these sets enables determining the unused globals.
     pub(crate) fn dead_instruction_elimination(
         &mut self,
         insert_out_of_bounds_checks: bool,
