@@ -347,7 +347,7 @@ impl Translator {
         // that the SSA we parsed was printed by the `SsaBuilder`, which normalizes
         // before each print.
         ssa.normalize_ids();
-        // Does not matter what ID we sue here.
+        // Does not matter what ID we use here.
         ssa.globals = Function::new("globals".to_owned(), ssa.main_id);
         ssa
     }
