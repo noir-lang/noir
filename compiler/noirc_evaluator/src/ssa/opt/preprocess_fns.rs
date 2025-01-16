@@ -11,9 +11,6 @@ impl Ssa {
         aggressiveness: i64,
         max_bytecode_increase_percent: Option<i32>,
     ) -> Ssa {
-        // No point pre-processing the functions that will never be inlined into others.
-        let not_to_inline = inlining::get_functions_to_inline_into(&self, false, aggressiveness);
-
         // Bottom-up order, starting with the "leaf" functions, so we inline already optimized code into the ones that call them.
         let bottom_up = inlining::compute_bottom_up_order(&self);
 
@@ -22,13 +19,20 @@ impl Ssa {
         let mean_weight = total_weight / bottom_up.len();
         let cutoff_weight = mean_weight;
 
+        // Preliminary inlining decisions.
+        // Functions which are inline targets will be processed in later passes.
+        // Here we want to treat the functions which will be inlined into them.
+        let inline_infos = inlining::compute_inline_infos(&self, false, aggressiveness);
+
         for (id, _) in bottom_up
             .into_iter()
-            .filter(|(id, _)| !not_to_inline.contains(id))
+            .filter(|(id, _)| {
+                inline_infos.get(id).map(|info| !info.is_inline_target()).unwrap_or(true)
+            })
             .filter(|(_, weight)| *weight < cutoff_weight)
         {
             let function = &self.functions[&id];
-            let mut function = function.inlined(&self, false, &not_to_inline);
+            let mut function = function.inlined(&self, false, &inline_infos);
             // Help unrolling determine bounds.
             function.as_slice_optimization();
             // We might not be able to unroll all loops without fully inlining them, so ignore errors.

@@ -46,28 +46,31 @@ impl Ssa {
     /// This step should run after runtime separation, since it relies on the runtime of the called functions being final.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn inline_functions(self, aggressiveness: i64) -> Ssa {
-        let inline_sources = get_functions_to_inline_into(&self, false, aggressiveness);
-        Self::inline_functions_inner(self, &inline_sources, false)
+        let inline_infos = compute_inline_infos(&self, false, aggressiveness);
+        Self::inline_functions_inner(self, &inline_infos, false)
     }
 
     /// Run the inlining pass where functions marked with `InlineType::NoPredicates` as not entry points
     pub(crate) fn inline_functions_with_no_predicates(self, aggressiveness: i64) -> Ssa {
-        let inline_sources = get_functions_to_inline_into(&self, true, aggressiveness);
-        Self::inline_functions_inner(self, &inline_sources, true)
+        let inline_infos = compute_inline_infos(&self, true, aggressiveness);
+        Self::inline_functions_inner(self, &inline_infos, true)
     }
 
     fn inline_functions_inner(
         mut self,
-        inline_sources: &BTreeSet<FunctionId>,
+        inline_infos: &InlineInfos,
         inline_no_predicates_functions: bool,
     ) -> Ssa {
+        let inline_targets =
+            inline_infos.iter().filter_map(|(id, info)| info.is_inline_target().then_some(*id));
+
         // NOTE: Functions are processed independently of each other, with the final mapping replacing the original,
         // instead of inlining the "leaf" functions, moving up towards the entry point.
-        self.functions = btree_map(inline_sources, |entry_point| {
-            let function = &self.functions[entry_point];
+        self.functions = btree_map(inline_targets, |entry_point| {
+            let function = &self.functions[&entry_point];
             let new_function =
-                function.inlined(&self, inline_no_predicates_functions, inline_sources);
-            (*entry_point, new_function)
+                function.inlined(&self, inline_no_predicates_functions, inline_infos);
+            (entry_point, new_function)
         });
         self
     }
@@ -79,7 +82,7 @@ impl Function {
         &self,
         ssa: &Ssa,
         inline_no_predicates_functions: bool,
-        functions_not_to_inline: &BTreeSet<FunctionId>,
+        inline_infos: &InlineInfos,
     ) -> Function {
         let should_inline_call =
             |_context: &PerFunctionContext, ssa: &Ssa, called_func_id: FunctionId| -> bool {
@@ -89,22 +92,26 @@ impl Function {
                 if called_func_id == self.id() {
                     return false;
                 }
-                let function = &ssa.functions[&called_func_id];
+                let callee = &ssa.functions[&called_func_id];
 
-                match function.runtime() {
+                match callee.runtime() {
                     RuntimeType::Acir(inline_type) => {
                         // If the called function is acir, we inline if it's not an entry point
 
                         // If we have not already finished the flattening pass, functions marked
                         // to not have predicates should be preserved.
                         let preserve_function =
-                            !inline_no_predicates_functions && function.is_no_predicates();
+                            !inline_no_predicates_functions && callee.is_no_predicates();
+
                         !inline_type.is_entry_point() && !preserve_function
                     }
                     RuntimeType::Brillig(_) => {
-                        // If the called function is brillig, we inline only if it's into brillig and the function is not recursive
+                        // If the called function is brillig, we inline only if it's into brillig and the function is not recursive and not too costly.
                         self.runtime().is_brillig()
-                            && !functions_not_to_inline.contains(&called_func_id)
+                            && inline_infos
+                                .get(&called_func_id)
+                                .map(|info| info.should_inline)
+                                .unwrap_or_default()
                     }
                 }
             };
@@ -186,27 +193,56 @@ fn called_functions(func: &Function) -> BTreeSet<FunctionId> {
     called_functions_vec(func).into_iter().collect()
 }
 
+/// Information about a function to aid the decision about whether to inline it or not.
+/// The final decision depends on what we're inlining it into.
+#[derive(Default, Debug)]
+pub(super) struct InlineInfo {
+    is_brillig_entry_point: bool,
+    is_acir_entry_point: bool,
+    is_recursive: bool,
+    should_inline: bool,
+    weight: i64,
+    cost: i64,
+}
+
+impl InlineInfo {
+    /// Functions which are to be retained, not inlined.
+    pub(super) fn is_inline_target(&self) -> bool {
+        self.is_brillig_entry_point
+            || self.is_acir_entry_point
+            || self.is_recursive
+            || !self.should_inline
+    }
+}
+
+type InlineInfos = BTreeMap<FunctionId, InlineInfo>;
+
 /// The functions we should inline into (and that should be left in the final program) are:
 ///  - main
 ///  - Any Brillig function called from Acir
 ///  - Some Brillig functions depending on aggressiveness and some metrics
 ///  - Any Acir functions with a [fold inline type][InlineType::Fold],
-pub(super) fn get_functions_to_inline_into(
+///
+/// The returned `InlineInfos` won't have every function in it, only the ones which the algorithm visited.
+pub(super) fn compute_inline_infos(
     ssa: &Ssa,
     inline_no_predicates_functions: bool,
     aggressiveness: i64,
-) -> BTreeSet<FunctionId> {
-    let mut brillig_entry_points = BTreeSet::default();
-    let mut acir_entry_points = BTreeSet::default();
+) -> InlineInfos {
+    let mut inline_infos = InlineInfos::default();
 
-    if matches!(ssa.main().runtime(), RuntimeType::Brillig(_)) {
-        brillig_entry_points.insert(ssa.main_id);
-    } else {
-        acir_entry_points.insert(ssa.main_id);
-    }
+    inline_infos.insert(
+        ssa.main_id,
+        InlineInfo {
+            is_acir_entry_point: ssa.main().runtime().is_acir(),
+            is_brillig_entry_point: ssa.main().runtime().is_brillig(),
+            ..Default::default()
+        },
+    );
 
+    // Handle ACIR functions.
     for (func_id, function) in ssa.functions.iter() {
-        if matches!(function.runtime(), RuntimeType::Brillig(_)) {
+        if function.runtime().is_brillig() {
             continue;
         }
 
@@ -214,31 +250,28 @@ pub(super) fn get_functions_to_inline_into(
         // to not have predicates should be preserved.
         let preserve_function = !inline_no_predicates_functions && function.is_no_predicates();
         if function.runtime().is_entry_point() || preserve_function {
-            acir_entry_points.insert(*func_id);
+            inline_infos.entry(*func_id).or_default().is_acir_entry_point = true;
         }
 
-        for called_function_id in called_functions(function) {
-            if matches!(ssa.functions[&called_function_id].runtime(), RuntimeType::Brillig(_)) {
-                brillig_entry_points.insert(called_function_id);
+        // Any Brillig function called from ACIR is an entry into the Brillig VM.
+        for called_func_id in called_functions(function) {
+            if ssa.functions[&called_func_id].runtime().is_brillig() {
+                inline_infos.entry(called_func_id).or_default().is_brillig_entry_point = true;
             }
         }
     }
 
     let times_called = compute_times_called(ssa);
 
-    let brillig_functions_to_retain: BTreeSet<_> = compute_functions_to_retain(
+    mark_brillig_functions_to_retain(
         ssa,
-        &brillig_entry_points,
-        &times_called,
         inline_no_predicates_functions,
         aggressiveness,
+        &times_called,
+        &mut inline_infos,
     );
 
-    acir_entry_points
-        .into_iter()
-        .chain(brillig_entry_points)
-        .chain(brillig_functions_to_retain)
-        .collect()
+    inline_infos
 }
 
 /// Compute the time each function is called from any other function.
@@ -363,43 +396,52 @@ pub(super) fn compute_bottom_up_order(ssa: &Ssa) -> Vec<(FunctionId, usize)> {
 /// Traverse the call graph starting from a given function, marking function to be retained if they are:
 /// * recursive functions, or
 /// * the cost of inlining outweighs the cost of not doing so
-fn should_retain_recursive(
+fn mark_functions_to_retain_recursive(
     ssa: &Ssa,
-    func: FunctionId,
-    times_called: &HashMap<FunctionId, usize>,
-    // FunctionId -> (should_retain, weight)
-    should_retain_function: &mut HashMap<FunctionId, (bool, i64)>,
-    mut explored_functions: im::HashSet<FunctionId>,
     inline_no_predicates_functions: bool,
     aggressiveness: i64,
+    times_called: &HashMap<FunctionId, usize>,
+    inline_infos: &mut InlineInfos,
+    mut explored_functions: im::HashSet<FunctionId>,
+    func: FunctionId,
 ) {
-    // We have already decided on this function
-    if should_retain_function.get(&func).is_some() {
+    // Check if we have set any of the fields this method touches.
+    let decided = |inline_infos: &InlineInfos| {
+        inline_infos
+            .get(&func)
+            .map(|info| info.is_recursive || info.should_inline || info.weight != 0)
+            .unwrap_or_default()
+    };
+
+    // Check if we have already decided on this function
+    if decided(inline_infos) {
         return;
     }
-    // Recursive, this function won't be inlined
+
+    // If recursive, this function won't be inlined
     if explored_functions.contains(&func) {
-        should_retain_function.insert(func, (true, 0));
+        inline_infos.entry(func).or_default().is_recursive = true;
         return;
     }
     explored_functions.insert(func);
 
-    // Decide on dependencies first
-    let called_functions = called_functions(&ssa.functions[&func]);
-    for function in called_functions.iter() {
-        should_retain_recursive(
+    // Decide on dependencies first, so we know their weight.
+    let called_functions = called_functions_vec(&ssa.functions[&func]);
+    for callee in &called_functions {
+        mark_functions_to_retain_recursive(
             ssa,
-            *function,
-            times_called,
-            should_retain_function,
-            explored_functions.clone(),
             inline_no_predicates_functions,
             aggressiveness,
+            times_called,
+            inline_infos,
+            explored_functions.clone(),
+            *callee,
         );
     }
+
     // We could have decided on this function while deciding on dependencies
-    // If the function is recursive
-    if should_retain_function.get(&func).is_some() {
+    // if the function is recursive.
+    if decided(inline_infos) {
         return;
     }
 
@@ -407,15 +449,18 @@ fn should_retain_recursive(
     // We compute the weight (roughly the number of instructions) of the function after inlining
     // And the interface cost of the function (the inherent cost at the callsite, roughly the number of args and returns)
     // We then can compute an approximation of the cost of inlining vs the cost of retaining the function
-    // We do this computation using saturating i64s to avoid overflows
+    // We do this computation using saturating i64s to avoid overflows,
+    // and because we want to calculate a difference which can be negative.
 
     // Total weight of functions called by this one, unless we decided not to inline them.
-    let inlined_function_weights: i64 = called_functions.iter().fold(0, |acc, called_function| {
-        let (should_retain, weight) = should_retain_function[called_function];
-        if should_retain {
-            acc
+    // Callees which appear multiple times would be inlined multiple times.
+    let inlined_function_weights: i64 = called_functions.iter().fold(0, |acc, callee| {
+        let info = &inline_infos[callee];
+        // If the callee is not going to be inlined then we can ignore its cost.
+        if info.should_inline {
+            acc.saturating_add(info.weight)
         } else {
-            acc.saturating_add(weight)
+            acc
         }
     });
 
@@ -428,53 +473,47 @@ fn should_retain_recursive(
 
     let inline_cost = times_called.saturating_mul(this_function_weight);
     let retain_cost = times_called.saturating_mul(interface_cost) + this_function_weight;
+    let net_cost = inline_cost.saturating_sub(retain_cost);
 
     let runtime = ssa.functions[&func].runtime();
     // We inline if the aggressiveness is higher than inline cost minus the retain cost
     // If aggressiveness is infinite, we'll always inline
     // If aggressiveness is 0, we'll inline when the inline cost is lower than the retain cost
     // If aggressiveness is minus infinity, we'll never inline (other than in the mandatory cases)
-    let should_inline = ((inline_cost.saturating_sub(retain_cost)) < aggressiveness)
+    let should_inline = (net_cost < aggressiveness)
         || runtime.is_inline_always()
         || (runtime.is_no_predicates() && inline_no_predicates_functions);
 
-    should_retain_function.insert(func, (!should_inline, this_function_weight));
+    let info = inline_infos.entry(func).or_default();
+    info.should_inline = should_inline;
+    info.weight = this_function_weight;
+    info.cost = net_cost;
 }
 
-/// Gather the functions that should not be inlined.
-fn compute_functions_to_retain(
+/// Mark Brillig functions that should not be inlined because they are recursive or expensive.
+fn mark_brillig_functions_to_retain(
     ssa: &Ssa,
-    entry_points: &BTreeSet<FunctionId>,
-    times_called: &HashMap<FunctionId, usize>,
     inline_no_predicates_functions: bool,
     aggressiveness: i64,
-) -> BTreeSet<FunctionId> {
-    let mut should_retain_function = HashMap::default();
+    times_called: &HashMap<FunctionId, usize>,
+    inline_infos: &mut BTreeMap<FunctionId, InlineInfo>,
+) {
+    let brillig_entry_points = inline_infos
+        .iter()
+        .filter_map(|(id, info)| info.is_brillig_entry_point.then_some(*id))
+        .collect::<Vec<_>>();
 
-    for entry_point in entry_points.iter() {
-        should_retain_recursive(
+    for entry_point in brillig_entry_points {
+        mark_functions_to_retain_recursive(
             ssa,
-            *entry_point,
-            times_called,
-            &mut should_retain_function,
-            im::HashSet::default(),
             inline_no_predicates_functions,
             aggressiveness,
+            times_called,
+            inline_infos,
+            im::HashSet::default(),
+            entry_point,
         );
     }
-
-    should_retain_function
-        .into_iter()
-        .filter_map(
-            |(func_id, (should_retain, _))| {
-                if should_retain {
-                    Some(func_id)
-                } else {
-                    None
-                }
-            },
-        )
-        .collect()
 }
 
 /// Compute a weight of a function based on the number of instructions in its reachable blocks.
