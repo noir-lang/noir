@@ -3978,3 +3978,34 @@ fn checks_visibility_of_trait_related_to_trait_impl_on_method_call() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn infers_lambda_argument_from_call_function_type() {
+    let src = r#"
+    struct Foo {
+        value: Field,
+    }
+
+    impl Foo {
+        fn foo(self) -> Field {
+            self.value
+        }
+    }
+
+    struct Box<T> {
+        value: T,
+    }
+
+    impl<T> Box<T> {
+        fn map<U>(self, f: fn(T) -> U) -> Box<U> {
+            Box { value: f(self.value) }
+        }
+    }
+
+    fn main() {
+        let box = Box { value: Foo { value: 1 } };
+        let _ = box.map(|foo| foo.foo());
+    }
+    "#;
+    assert_no_errors(src);
+}
