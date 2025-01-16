@@ -51,3 +51,5 @@ tooling/noir_js/lib
 
 # docs autogen build
 /docs/docs/noir_js/reference/
+
+codegen

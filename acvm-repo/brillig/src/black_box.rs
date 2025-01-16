@@ -102,7 +102,8 @@ pub enum BlackBoxOp {
     ToRadix {
         input: MemoryAddress,
         radix: MemoryAddress,
-        output: HeapArray,
-        output_bits: bool,
+        output_pointer: MemoryAddress,
+        num_limbs: MemoryAddress,
+        output_bits: MemoryAddress,
     },
 }

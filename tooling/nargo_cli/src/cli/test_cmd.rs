@@ -43,6 +43,10 @@ pub(crate) struct TestCommand {
     #[clap(long)]
     exact: bool,
 
+    /// Print all matching test names.
+    #[clap(long)]
+    list_tests: bool,
+
     #[clap(flatten)]
     pub(super) package_options: PackageOptions,
 
@@ -170,6 +174,15 @@ impl<'a> TestRunner<'a> {
     fn run(&self) -> Result<(), CliError> {
         // First compile all packages and collect their tests
         let packages_tests = self.collect_packages_tests()?;
+
+        if self.args.list_tests {
+            for (package_name, package_tests) in packages_tests {
+                for test in package_tests {
+                    println!("{} {}", package_name, test.name);
+                }
+            }
+            return Ok(());
+        }
 
         // Now gather all tests and how many are per packages
         let mut tests = Vec::new();
