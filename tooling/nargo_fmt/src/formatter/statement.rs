@@ -75,6 +75,9 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
             StatementKind::For(for_loop_statement) => {
                 group.group(self.format_for_loop(for_loop_statement));
             }
+            StatementKind::Loop(..) => {
+                todo!("Format loop statement")
+            }
             StatementKind::Break => {
                 group.text(self.chunk(|formatter| {
                     formatter.write_keyword(Keyword::Break);
