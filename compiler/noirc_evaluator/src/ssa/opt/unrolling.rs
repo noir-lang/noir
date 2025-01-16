@@ -991,8 +991,7 @@ fn brillig_bytecode_size(function: &Function) -> usize {
 
     // This is to try to prevent hitting ICE.
     temp.dead_instruction_elimination(false);
-    let mut brillig_temp = Brillig::default();
-    brillig_temp.convert_ssa_function(&temp, false).byte_code.len()
+    Brillig::default().convert_ssa_function(&temp, false).byte_code.len()
 }
 
 /// Decide if the new bytecode size is acceptable, compared to the original.

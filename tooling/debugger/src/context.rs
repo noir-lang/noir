@@ -455,7 +455,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
                     let call_stack_id = brillig_locations
                         .unwrap()
                         .get(&brillig_location)
-                        .cloned()
+                        .copied()
                         .unwrap_or_default();
                     self.debug_artifact.debug_symbols[debug_location.circuit_id as usize]
                         .location_tree

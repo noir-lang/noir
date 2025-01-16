@@ -151,8 +151,7 @@ impl CallStackHelper {
         LocationTree {
             locations: self
                 .locations
-                .clone()
-                .into_iter()
+                .iter()
                 .map(|node| LocationNodeDebugInfo { value: node.value, parent: node.parent })
                 .collect(),
         }

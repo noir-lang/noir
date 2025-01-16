@@ -45,9 +45,6 @@ pub(crate) struct BrilligBlock<'block> {
 }
 
 impl<'block> BrilligBlock<'block> {
-    // pub(crate) fn get_or_insert_location(&mut self, call_stack: &CallStack) {
-    //     self.brillig_context.get_or_insert_locations(&call_stack);
-    // }
     /// Converts an SSA Basic block into a sequence of Brillig opcodes
     pub(crate) fn compile(
         function_context: &'block mut FunctionContext,
