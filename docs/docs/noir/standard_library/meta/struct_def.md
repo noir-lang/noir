@@ -42,7 +42,8 @@ any generics, the generics are also included as-is.
 
 #include_code generics noir_stdlib/src/meta/struct_def.nr rust
 
-Returns each generic on this struct.
+Returns each generic on this struct. Each generic is represented as a tuple containing the type, 
+and an optional containing the numeric type if it's a numeric generic.
 
 Example:
 
