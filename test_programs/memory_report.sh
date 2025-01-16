@@ -19,6 +19,7 @@ fi
 
 FIRST="1"
 
+FLAGS=${FLAGS:- ""}
 echo "{\"memory_reports\": [ " > memory_report.json
 
 for test_name in ${tests_to_profile[@]}; do    
@@ -35,12 +36,12 @@ for test_name in ${tests_to_profile[@]}; do
             test_name=$(basename $current_dir)
         fi
 
-        COMMAND="compile --force --silence-warnings"
+        COMMAND="compile --force --silence-warnings $FLAGS"
         if [ "$2" == "1" ]; then
             COMMAND="execute --silence-warnings"
         fi
 
-        heaptrack --output $current_dir/$test_name"_heap" $NARGO $COMMAND
+        heaptrack --output $current_dir/$test_name"_heap" $NARGO $COMMAND 
         if test -f $current_dir/$test_name"_heap.gz"; 
         then 
             heaptrack --analyze $current_dir/$test_name"_heap.gz" > $current_dir/$test_name"_heap_analysis.txt"
