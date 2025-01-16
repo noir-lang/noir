@@ -448,10 +448,6 @@ impl UnresolvedTypeData {
             | UnresolvedTypeData::Error => false,
         }
     }
-
-    pub fn is_unspecified(&self) -> bool {
-        matches!(self, UnresolvedTypeData::Unspecified)
-    }
 }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Hash, PartialOrd, Ord)]
