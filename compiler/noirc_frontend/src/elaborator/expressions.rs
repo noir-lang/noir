@@ -405,10 +405,8 @@ impl<'context> Elaborator<'context> {
 
             // Try to unify this argument type against the function's argument type
             // so that a potential lambda following this argument can have more concrete types.
-            if let Type::Function(func_args, _, _, _) = &func_type {
-                if let Some(func_arg_type) = func_args.get(arg_index) {
-                    let _ = func_arg_type.unify(&typ);
-                }
+            if let Some(expected_type) = expected_type {
+                let _ = expected_type.unify(&typ);
             }
 
             arguments.push(arg);
@@ -493,10 +491,8 @@ impl<'context> Elaborator<'context> {
                 // as a parameter. By unifying `self` with the first argument we'll potentially get more
                 // concrete types in the arguments that are function types, which will later be passed as
                 // lambda parameter hints.
-                if let Type::Function(args, _, _, _) = &func_type {
-                    if !args.is_empty() {
-                        let _ = args[0].unify(&object_type);
-                    }
+                if let Some(first_arg_type) = func_arg_types.and_then(|args| args.first()) {
+                    let _ = first_arg_type.unify(&object_type);
                 }
 
                 // These arguments will be given to the desugared function call.
@@ -513,10 +509,8 @@ impl<'context> Elaborator<'context> {
 
                     // Try to unify this argument type against the function's argument type
                     // so that a potential lambda following this argument can have more concrete types.
-                    if let Type::Function(func_args, _, _, _) = &func_type {
-                        if let Some(func_arg_type) = func_args.get(arg_index + 1) {
-                            let _ = func_arg_type.unify(&typ);
-                        }
+                    if let Some(expected_type) = expected_type {
+                        let _ = expected_type.unify(&typ);
                     }
 
                     arguments.push(arg);
