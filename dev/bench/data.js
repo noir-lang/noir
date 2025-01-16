@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737035225410,
+  "lastUpdate": 1737070505807,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -475,6 +475,98 @@ window.BENCHMARK_DATA = {
             "name": "private-kernel-inner",
             "value": 294.47,
             "unit": "MB"
+          }
+        ]
+      }
+    ],
+    "Compilation Time": [
+      {
+        "commit": {
+          "author": {
+            "name": "noir-lang",
+            "username": "noir-lang"
+          },
+          "committer": {
+            "name": "noir-lang",
+            "username": "noir-lang"
+          },
+          "id": "3d4497397baf3d5afb14f2def2ea0806efeaaac0",
+          "message": "chore: experimenting with benchmark action",
+          "timestamp": "2025-01-16T19:56:31Z",
+          "url": "https://github.com/noir-lang/noir/pull/7068/commits/3d4497397baf3d5afb14f2def2ea0806efeaaac0"
+        },
+        "date": 1737070505290,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 1.01,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.805,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 16.1,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 3.868,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 2.022,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 140,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 2.108,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 136,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 3.494,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 27.24,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 10.034,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.019,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.186,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.086,
+            "unit": "s"
           }
         ]
       }
