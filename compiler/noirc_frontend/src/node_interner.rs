@@ -267,6 +267,11 @@ pub struct NodeInterner {
 
     /// Captures the documentation comments for each module, struct, trait, function, etc.
     pub(crate) doc_comments: HashMap<ReferenceId, Vec<String>>,
+
+    /// Only for LSP: a map of trait ID to each module that pub or pub(crate) exports it.
+    /// In LSP this is used to offer importing the trait via one of these exports if
+    /// the trait is not visible where it's defined.
+    trait_reexports: HashMap<TraitId, Vec<(ModuleId, Ident, ItemVisibility)>>,
 }
 
 /// A dependency in the dependency graph may be a type or a definition.
@@ -680,6 +685,7 @@ impl Default for NodeInterner {
             comptime_scopes: vec![HashMap::default()],
             trait_impl_associated_types: HashMap::default(),
             doc_comments: HashMap::default(),
+            trait_reexports: HashMap::default(),
         }
     }
 }
@@ -2255,6 +2261,20 @@ impl NodeInterner {
             Some(Node::Expression(_)) => Some(ExprId(index)),
             _ => None,
         }
+    }
+
+    pub fn add_trait_reexport(
+        &mut self,
+        trait_id: TraitId,
+        module_id: ModuleId,
+        name: Ident,
+        visibility: ItemVisibility,
+    ) {
+        self.trait_reexports.entry(trait_id).or_default().push((module_id, name, visibility));
+    }
+
+    pub fn get_trait_reexports(&self, trait_id: TraitId) -> &[(ModuleId, Ident, ItemVisibility)] {
+        self.trait_reexports.get(&trait_id).map_or(&[], |exports| exports)
     }
 }
 
