@@ -9,9 +9,7 @@ impl Into<Field> for Foo {
 }
 
 fn main() {
-    let foo = Foo {
-        inner: 0,
-    };
+    let foo = Foo { inner: 0 };
 
     // This works:
     let _: Field = Into::<Field>::into(foo);
