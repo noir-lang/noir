@@ -944,15 +944,18 @@ impl<'context> Elaborator<'context> {
             .enumerate()
             .map(|(index, (pattern, typ))| {
                 let parameter = DefinitionKind::Local(None);
+                let is_unspecified = matches!(typ.typ, UnresolvedTypeData::Unspecified);
                 let typ = self.resolve_inferred_type(typ);
 
-                // If there's a parameter type hint, use it to unify the argument type
-                if let Some(parameter_type_hint) =
-                    parameters_type_hints.and_then(|hints| hints.get(index))
-                {
-                    // We don't error here because eventually the lambda type will be checked against
-                    // the call that contains it, which would then produce an error if this didn't unify.
-                    let _ = typ.unify(parameter_type_hint);
+                if is_unspecified {
+                    // If there's a parameter type hint, use it to unify the argument type
+                    if let Some(parameter_type_hint) =
+                        parameters_type_hints.and_then(|hints| hints.get(index))
+                    {
+                        // We don't error here because eventually the lambda type will be checked against
+                        // the call that contains it, which would then produce an error if this didn't unify.
+                        let _ = typ.unify(parameter_type_hint);
+                    }
                 }
 
                 arg_types.push(typ.clone());
