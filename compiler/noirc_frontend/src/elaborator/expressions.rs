@@ -458,6 +458,20 @@ impl<'context> Elaborator<'context> {
                     None
                 };
 
+                let call_span = Span::from(object_span.start()..method_name_span.end());
+                let location = Location::new(call_span, self.file);
+
+                let (function_id, function_name) = method_ref.clone().into_function_id_and_name(
+                    object_type.clone(),
+                    generics.clone(),
+                    location,
+                    self.interner,
+                );
+
+                let func_type =
+                    self.type_check_variable(function_name.clone(), function_id, generics.clone());
+                self.interner.push_expr_type(function_id, func_type.clone());
+
                 // These arguments will be given to the desugared function call.
                 // Compared to the method arguments, they also contain the object.
                 let mut function_args = Vec::with_capacity(method_call.arguments.len() + 1);
@@ -472,10 +486,7 @@ impl<'context> Elaborator<'context> {
                     function_args.push((typ, arg, span));
                 }
 
-                let call_span = Span::from(object_span.start()..method_name_span.end());
-                let location = Location::new(call_span, self.file);
                 let method = method_call.method_name;
-                let turbofish_generics = generics.clone();
                 let is_macro_call = method_call.is_macro_call;
                 let method_call =
                     HirMethodCallExpression { method, object, arguments, location, generics };
@@ -485,18 +496,9 @@ impl<'context> Elaborator<'context> {
                 // Desugar the method call into a normal, resolved function call
                 // so that the backend doesn't need to worry about methods
                 // TODO: update object_type here?
-                let ((function_id, function_name), function_call) = method_call.into_function_call(
-                    method_ref,
-                    object_type,
-                    is_macro_call,
-                    location,
-                    self.interner,
-                );
 
-                let func_type =
-                    self.type_check_variable(function_name, function_id, turbofish_generics);
-
-                self.interner.push_expr_type(function_id, func_type.clone());
+                let function_call =
+                    method_call.into_function_call(function_id, is_macro_call, location);
 
                 self.interner
                     .add_function_reference(func_id, Location::new(method_name_span, self.file));
