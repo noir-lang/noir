@@ -21,9 +21,10 @@ impl Ssa {
         let mean_weight = total_weight / bottom_up.len();
         let cutoff_weight = mean_weight;
 
-        for (id, weight) in bottom_up
+        for (id, _) in bottom_up
             .into_iter()
-            .filter(|(id, weight)| !not_to_inline.contains(id) && *weight < cutoff_weight)
+            .filter(|(id, _)| !not_to_inline.contains(id))
+            .filter(|(_, weight)| *weight < cutoff_weight)
         {
             let function = &self.functions[&id];
             let mut function = function.inlined(&self, false, &not_to_inline);
