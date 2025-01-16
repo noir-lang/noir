@@ -19,9 +19,13 @@ impl Ssa {
     pub(crate) fn remove_unreachable_functions(mut self) -> Self {
         let mut used_functions = HashSet::default();
 
-        for function_id in self.functions.keys() {
-            if self.is_entry_point(*function_id) {
-                collect_reachable_functions(&self, *function_id, &mut used_functions);
+        for (id, function) in self.functions.iter() {
+            // XXX: `self.is_entry_point(*id)` could leave Brillig functions that nobody calls in the SSA.
+            let is_entry_point = function.id() == self.main_id
+                || function.runtime().is_acir() && function.runtime().is_entry_point();
+
+            if is_entry_point {
+                collect_reachable_functions(&self, *id, &mut used_functions);
             }
         }
 
