@@ -4,6 +4,8 @@ set -e
 sudo apt-get install heaptrack
 
 NARGO="nargo"
+PARSE_MEMORY=$(realpath "$(dirname "$0")/parse_memory.sh")
+
 
 # Tests to be profiled for memory report
 tests_to_profile=("keccak256" "workspace" "regression_4709" "ram_blowup_regression")
@@ -54,7 +56,8 @@ for test_name in ${tests_to_profile[@]}; do
         len=${#consumption}-30
         peak=${consumption:30:len}
         rm $current_dir/$test_name"_heap_analysis.txt"
-        echo -e " {\n    \"artifact_name\":\"$test_name\",\n    \"peak_memory\":\"$peak\"\n }" >> $current_dir"/memory_report.json"
+        peak_memory=$($PARSE_MEMORY $peak)
+        echo -e " {\n    \"artifact_name\":\"$test_name\",\n    \"peak_memory\":\"$peak_memory\"\n }" >> $current_dir"/memory_report.json"
 done
 
 echo "]}" >> $current_dir"/memory_report.json"
