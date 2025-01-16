@@ -26,10 +26,14 @@ impl DebugArtifact {
         let mut files_with_debug_symbols: BTreeSet<FileId> = debug_symbols
             .iter()
             .flat_map(|function_symbols| {
-                function_symbols
-                    .locations
-                    .values()
-                    .flat_map(|call_stack| call_stack.iter().map(|location| location.file))
+                function_symbols.location_map.values().flat_map(|call_stack_id| {
+                    function_symbols
+                        .location_tree
+                        .get_call_stack(*call_stack_id)
+                        .iter()
+                        .map(|location| location.file)
+                        .collect::<Vec<_>>()
+                })
             })
             .collect();
 
@@ -38,9 +42,14 @@ impl DebugArtifact {
             .flat_map(|function_symbols| {
                 let brillig_location_maps =
                     function_symbols.brillig_locations.values().flat_map(|brillig_location_map| {
-                        brillig_location_map
-                            .values()
-                            .flat_map(|call_stack| call_stack.iter().map(|location| location.file))
+                        brillig_location_map.values().flat_map(|call_stack_id| {
+                            function_symbols
+                                .location_tree
+                                .get_call_stack(*call_stack_id)
+                                .iter()
+                                .map(|location| location.file)
+                                .collect::<Vec<_>>()
+                        })
                     });
                 brillig_location_maps
             })
@@ -204,6 +213,7 @@ mod tests {
     use crate::debug::DebugArtifact;
     use acvm::acir::circuit::OpcodeLocation;
     use fm::FileManager;
+    use noirc_errors::call_stack::{CallStackId, LocationNodeDebugInfo, LocationTree};
     use noirc_errors::{debug_info::DebugInfo, Location, Span};
     use std::collections::BTreeMap;
     use std::ops::Range;
@@ -255,12 +265,20 @@ mod tests {
 
         // We don't care about opcodes in this context,
         // we just use a dummy to construct debug_symbols
-        let mut opcode_locations = BTreeMap::<OpcodeLocation, Vec<Location>>::new();
-        opcode_locations.insert(OpcodeLocation::Acir(42), vec![loc]);
+        let mut opcode_locations = BTreeMap::<OpcodeLocation, CallStackId>::new();
+        opcode_locations.insert(OpcodeLocation::Acir(42), CallStackId::new(1));
+        let mut location_tree = LocationTree::default();
+        location_tree
+            .locations
+            .push(LocationNodeDebugInfo { parent: None, value: Location::dummy() });
+        location_tree
+            .locations
+            .push(LocationNodeDebugInfo { parent: Some(CallStackId::root()), value: loc });
 
         let debug_symbols = vec![DebugInfo::new(
-            opcode_locations,
             BTreeMap::default(),
+            opcode_locations,
+            location_tree,
             BTreeMap::default(),
             BTreeMap::default(),
             BTreeMap::default(),

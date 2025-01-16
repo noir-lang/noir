@@ -1,9 +1,9 @@
 use super::{
-    call_stack::CallStackId,
     instruction::{InstructionId, TerminatorInstruction},
     map::Id,
     value::ValueId,
 };
+use noirc_errors::call_stack::CallStackId;
 use serde::{Deserialize, Serialize};
 
 /// A Basic block is a maximal collection of instructions

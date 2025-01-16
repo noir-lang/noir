@@ -2,14 +2,13 @@ pub(crate) mod brillig_gen;
 pub(crate) mod brillig_ir;
 
 use acvm::FieldElement;
-use brillig_ir::artifact::LabelType;
+use brillig_gen::{brillig_block::BrilligBlock, brillig_fn::FunctionContext};
+use brillig_ir::{artifact::LabelType, BrilligContext};
+use noirc_errors::call_stack::CallStackHelper;
 
-use self::{
-    brillig_gen::convert_ssa_function,
-    brillig_ir::{
-        artifact::{BrilligArtifact, Label},
-        procedures::compile_procedure,
-    },
+use self::brillig_ir::{
+    artifact::{BrilligArtifact, Label},
+    procedures::compile_procedure,
 };
 use crate::ssa::{
     ir::function::{Function, FunctionId},
@@ -26,12 +25,14 @@ pub use self::brillig_ir::procedures::ProcedureId;
 pub struct Brillig {
     /// Maps SSA function labels to their brillig artifact
     ssa_function_to_brillig: HashMap<FunctionId, BrilligArtifact<FieldElement>>,
+
+    pub call_stacks: CallStackHelper,
 }
 
 impl Brillig {
     /// Compiles a function into brillig and store the compilation artifacts
     pub(crate) fn compile(&mut self, func: &Function, enable_debug_trace: bool) {
-        let obj = convert_ssa_function(func, enable_debug_trace);
+        let obj = self.convert_ssa_function(func, enable_debug_trace);
         self.ssa_function_to_brillig.insert(func.id(), obj);
     }
 
@@ -48,6 +49,31 @@ impl Brillig {
             LabelType::Procedure(procedure_id) => Some(Cow::Owned(compile_procedure(procedure_id))),
             _ => unreachable!("ICE: Expected a function or procedure label"),
         }
+    }
+
+    /// Converting an SSA function into Brillig bytecode.
+    pub(crate) fn convert_ssa_function(
+        &mut self,
+        func: &Function,
+        enable_debug_trace: bool,
+    ) -> BrilligArtifact<FieldElement> {
+        let mut brillig_context = BrilligContext::new(enable_debug_trace, self.call_stacks.clone());
+
+        let mut function_context = FunctionContext::new(func);
+
+        brillig_context.enter_context(Label::function(func.id()));
+
+        brillig_context.call_check_max_stack_depth_procedure();
+
+        for block in function_context.blocks.clone() {
+            BrilligBlock::compile(&mut function_context, &mut brillig_context, block, &func.dfg);
+        }
+        self.call_stacks = brillig_context.call_stacks.clone();
+        let mut artifact = brillig_context.artifact();
+        artifact.name = func.name().to_string();
+        artifact.location_tree = func.dfg.call_stack_data.to_location_tree();
+
+        artifact
     }
 }
 
