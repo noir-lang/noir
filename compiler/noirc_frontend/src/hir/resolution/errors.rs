@@ -170,6 +170,8 @@ pub enum ResolverError {
         span: Span,
         missing_trait_location: Location,
     },
+    #[error("`loop` statements are not yet implemented")]
+    LoopNotYetSupported { span: Span },
 }
 
 impl ResolverError {
@@ -642,6 +644,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 diagnostic.add_secondary_with_file(format!("required by this bound in `{impl_trait}"), missing_trait_location.span, missing_trait_location.file);
                 diagnostic
             },
+            ResolverError::LoopNotYetSupported { span  } => {
+                Diagnostic::simple_error(
+                    "`loop` statements are not yet implemented".to_string(), 
+                    String::new(),
+                    *span)
+
+            }
         }
     }
 }
