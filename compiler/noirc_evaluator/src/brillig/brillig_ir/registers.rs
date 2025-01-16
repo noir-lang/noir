@@ -111,7 +111,7 @@ impl RegisterAllocator for ScratchSpace {
     }
 
     fn end() -> usize {
-        ReservedRegisters::len() + MAX_STACK_SIZE + MAX_SCRATCH_SPACE
+        Self::start() + MAX_SCRATCH_SPACE
     }
 
     fn ensure_register_is_allocated(&mut self, register: MemoryAddress) {
@@ -176,7 +176,7 @@ impl RegisterAllocator for GlobalSpace {
 
     fn allocate_register(&mut self) -> MemoryAddress {
         let allocated = MemoryAddress::direct(self.storage.allocate_register());
-        assert!(Self::is_within_bounds(allocated), "Scratch space too deep");
+        assert!(Self::is_within_bounds(allocated), "Global space too deep");
         allocated
     }
 
@@ -185,13 +185,13 @@ impl RegisterAllocator for GlobalSpace {
     }
 
     fn ensure_register_is_allocated(&mut self, register: MemoryAddress) {
-        assert!(Self::is_within_bounds(register), "Register out of scratch space bounds");
+        assert!(Self::is_within_bounds(register), "Register out of global space bounds");
         self.storage.ensure_register_is_allocated(register.unwrap_direct());
     }
 
     fn from_preallocated_registers(preallocated_registers: Vec<MemoryAddress>) -> Self {
         for register in &preallocated_registers {
-            assert!(Self::is_within_bounds(*register), "Register out of scratch space bounds");
+            assert!(Self::is_within_bounds(*register), "Register out of global space bounds");
         }
 
         Self {

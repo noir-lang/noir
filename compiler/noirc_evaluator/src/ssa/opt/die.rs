@@ -383,15 +383,16 @@ impl Context {
     ) -> bool {
         use Instruction::*;
         if let IncrementRc { value } | DecrementRc { value } = instruction {
-            if let Value::Instruction { instruction, .. } = &dfg[*value] {
-                return match &dfg[*instruction] {
-                    MakeArray { .. } => true,
-                    Call { func, .. } => {
-                        matches!(&dfg[*func], Value::Intrinsic(_) | Value::ForeignFunction(_))
-                    }
-                    _ => false,
-                };
-            }
+            let Some(instruction) = dfg.get_local_or_global_instruction(*value) else {
+                return false;
+            };
+            return match instruction {
+                MakeArray { .. } => true,
+                Call { func, .. } => {
+                    matches!(&dfg[*func], Value::Intrinsic(_) | Value::ForeignFunction(_))
+                }
+                _ => false,
+            };
         }
         false
     }
