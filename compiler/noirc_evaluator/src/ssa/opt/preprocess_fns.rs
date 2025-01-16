@@ -21,16 +21,11 @@ impl Ssa {
         let mean_weight = total_weight / bottom_up.len();
         let cutoff_weight = mean_weight;
 
-        for (id, weight) in bottom_up.into_iter().filter(|(id, _)| !not_to_inline.contains(id)) {
+        for (id, weight) in bottom_up
+            .into_iter()
+            .filter(|(id, weight)| !not_to_inline.contains(id) && *weight < cutoff_weight)
+        {
             let function = &self.functions[&id];
-            if weight >= cutoff_weight {
-                // println!(
-                //     "SKIP PREPROCESSING fn {} {id} with weight {weight} > {cutoff_weight}",
-                //     function.name()
-                // );
-                continue;
-            }
-            // println!("PREPROCESSING fn {} {id} with weight {weight}", function.name());
             let mut function = function.inlined(&self, false, &not_to_inline);
             // Help unrolling determine bounds.
             function.as_slice_optimization();
@@ -40,10 +35,12 @@ impl Ssa {
             function.mem2reg();
             // Try to reduce the number of blocks.
             function.simplify_function();
+
             // Remove leftover instructions.
-            // XXX: Leaving this in causes integration test failures,
+            // XXX: Doing this would currently integration test failures,
             // for example with `traits_in_crates_1` it eliminates a store to a mutable input reference.
             // function.dead_instruction_elimination(true);
+
             // Put it back into the SSA, so the next functions can pick it up.
             self.functions.insert(id, function);
         }

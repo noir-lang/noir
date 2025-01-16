@@ -494,12 +494,6 @@ impl SsaBuilder {
     }
 
     fn print(mut self, msg: &str) -> Self {
-        // println!("AFTER {msg}: functions={}", self.ssa.functions.len());
-        // for f in self.ssa.functions.values() {
-        //     let block_cnt = ir::post_order::PostOrder::with_function(f).into_vec().len();
-        //     println!("    fn {} {}: blocks={block_cnt}", f.name(), f.id());
-        // }
-
         let print_ssa_pass = match &self.ssa_logging {
             SsaLogging::None => false,
             SsaLogging::All => true,
