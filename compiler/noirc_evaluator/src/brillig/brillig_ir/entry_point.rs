@@ -15,7 +15,7 @@ use acvm::acir::{
 pub(crate) const MAX_STACK_SIZE: usize = 16 * MAX_STACK_FRAME_SIZE;
 pub(crate) const MAX_STACK_FRAME_SIZE: usize = 2048;
 pub(crate) const MAX_SCRATCH_SPACE: usize = 64;
-pub(crate) const MAX_GLOBAL_SPACE: usize = 2048;
+pub(crate) const MAX_GLOBAL_SPACE: usize = 16384;
 
 impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
     /// Creates an entry point artifact that will jump to the function label provided.
