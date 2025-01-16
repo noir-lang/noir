@@ -71,6 +71,9 @@ pub struct SsaEvaluatorOptions {
     /// Skip the missing Brillig call constraints check
     pub skip_brillig_constraints_check: bool,
 
+    /// Skip preprocessing functions.
+    pub skip_preprocess_fns: bool,
+
     /// The higher the value, the more inlined Brillig functions will be.
     pub inliner_aggressiveness: i64,
 
@@ -155,6 +158,9 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
         .run_pass(Ssa::remove_paired_rc, "Removing Paired rc_inc & rc_decs")
         .run_pass(
             |ssa| {
+                if options.skip_preprocess_fns {
+                    return ssa;
+                }
                 ssa.preprocess_functions(
                     options.inliner_aggressiveness,
                     options.max_bytecode_increase_percent,
@@ -488,11 +494,11 @@ impl SsaBuilder {
     }
 
     fn print(mut self, msg: &str) -> Self {
-        println!("AFTER {msg}: functions={}", self.ssa.functions.len());
-        for f in self.ssa.functions.values() {
-            let block_cnt = ir::post_order::PostOrder::with_function(f).into_vec().len();
-            println!("    fn {} {}: blocks={block_cnt}", f.name(), f.id());
-        }
+        // println!("AFTER {msg}: functions={}", self.ssa.functions.len());
+        // for f in self.ssa.functions.values() {
+        //     let block_cnt = ir::post_order::PostOrder::with_function(f).into_vec().len();
+        //     println!("    fn {} {}: blocks={block_cnt}", f.name(), f.id());
+        // }
 
         let print_ssa_pass = match &self.ssa_logging {
             SsaLogging::None => false,

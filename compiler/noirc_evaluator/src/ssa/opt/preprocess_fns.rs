@@ -23,15 +23,14 @@ impl Ssa {
 
         for (id, weight) in bottom_up.into_iter().filter(|(id, _)| !not_to_inline.contains(id)) {
             let function = &self.functions[&id];
-            if weight <= cutoff_weight {
-                println!("PREPROCESSING fn {} {id} with weight {weight}", function.name());
-            } else {
-                println!(
-                    "SKIP PREPROCESSING fn {} {id} with weight {weight} > {cutoff_weight}",
-                    function.name()
-                );
+            if weight >= cutoff_weight {
+                // println!(
+                //     "SKIP PREPROCESSING fn {} {id} with weight {weight} > {cutoff_weight}",
+                //     function.name()
+                // );
                 continue;
             }
+            // println!("PREPROCESSING fn {} {id} with weight {weight}", function.name());
             let mut function = function.inlined(&self, false, &not_to_inline);
             // Help unrolling determine bounds.
             function.as_slice_optimization();
