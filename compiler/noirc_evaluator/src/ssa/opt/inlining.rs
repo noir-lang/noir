@@ -83,6 +83,12 @@ impl Function {
     ) -> Function {
         let should_inline_call =
             |_context: &PerFunctionContext, ssa: &Ssa, called_func_id: FunctionId| -> bool {
+                // Do not inline self-recursive functions on the top level.
+                // Inlining a self-recursive function works when there is something to inline into
+                // by importing all the recursive blocks, but for the entry function there is no wrapper.
+                if called_func_id == self.id() {
+                    return false;
+                }
                 let function = &ssa.functions[&called_func_id];
 
                 match function.runtime() {

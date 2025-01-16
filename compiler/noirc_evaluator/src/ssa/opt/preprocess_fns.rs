@@ -13,6 +13,7 @@ impl Ssa {
     ) -> Ssa {
         // No point pre-processing the functions that will never be inlined into others.
         let not_to_inline = inlining::get_functions_to_inline_into(&self, false, aggressiveness);
+
         // Bottom-up order, starting with the "leaf" functions, so we inline already optimized code into the ones that call them.
         let bottom_up = inlining::compute_bottom_up_order(&self);
 
@@ -38,7 +39,7 @@ impl Ssa {
             function.simplify_function();
 
             // Remove leftover instructions.
-            // XXX: Doing this would currently integration test failures,
+            // XXX: Doing this would currently cause integration test failures,
             // for example with `traits_in_crates_1` it eliminates a store to a mutable input reference.
             // function.dead_instruction_elimination(true);
 
