@@ -1,3 +1,5 @@
+use crate::option::Option;
+
 impl StructDefinition {
     #[builtin(struct_def_add_attribute)]
     // docs:start:add_attribute
@@ -21,10 +23,11 @@ impl StructDefinition {
     pub comptime fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}
     // docs:end:has_named_attribute
 
-    /// Return each generic on this struct.
+    /// Return (type, option<type>) pairs of each generic in this struct definition.
+    /// If a generic is numeric, the second element of the pair will contain the numeric type.
     #[builtin(struct_def_generics)]
     // docs:start:generics
-    pub comptime fn generics(self) -> [Type] {}
+    pub comptime fn generics(self) -> [(Type, Option<Type>)] {}
     // docs:end:generics
 
     /// Returns (name, type) pairs of each field in this struct.
