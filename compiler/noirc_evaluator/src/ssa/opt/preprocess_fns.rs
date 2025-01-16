@@ -35,7 +35,7 @@ impl Ssa {
             // Help unrolling determine bounds.
             function.as_slice_optimization();
             // We might not be able to unroll all loops without fully inlining them, so ignore errors.
-            let _ = function.try_unroll_loops_iteratively(max_bytecode_increase_percent, true);
+            let _ = function.unroll_loops_iteratively(max_bytecode_increase_percent);
             // Reduce the number of redundant stores/loads after unrolling
             function.mem2reg();
             // Try to reduce the number of blocks.

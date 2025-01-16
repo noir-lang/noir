@@ -59,7 +59,7 @@ impl Ssa {
     ) -> Result<Ssa, RuntimeError> {
         for function in self.functions.values_mut() {
             // We must be able to unroll ACIR loops at this point.
-            function.try_unroll_loops_iteratively(max_bytecode_increase_percent, false)?;
+            function.unroll_loops_iteratively(max_bytecode_increase_percent)?;
         }
         Ok(self)
     }
@@ -70,17 +70,15 @@ impl Function {
     ///
     /// Returns an `Err` if it cannot be done, for example because the loop bounds
     /// cannot be determined at compile time. This can happen during pre-processing,
-    /// in which case `restore_on_error` can be used to leave the function untouched.
-    pub(super) fn try_unroll_loops_iteratively(
+    /// but it should still leave the function in a partially unrolled, but valid state.
+    pub(super) fn unroll_loops_iteratively(
         &mut self,
         max_bytecode_increase_percent: Option<i32>,
-        restore_on_error: bool,
     ) -> Result<(), RuntimeError> {
         // Take a snapshot in case we have to restore it.
         let orig_function = (max_bytecode_increase_percent.is_some()
-            && self.runtime().is_brillig()
-            || restore_on_error)
-            .then(|| self.clone());
+            && self.runtime().is_brillig())
+        .then(|| self.clone());
 
         // Try to unroll loops first:
         let (mut has_unrolled, mut unroll_errors) = self.try_unroll_loops();
@@ -99,9 +97,6 @@ impl Function {
 
             // If we didn't manage to unroll any more loops, exit
             if unroll_errors.len() >= prev_unroll_err_count {
-                if restore_on_error {
-                    *self = orig_function.expect("took snapshot to restore");
-                }
                 return Err(unroll_errors.swap_remove(0));
             }
         }
