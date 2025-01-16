@@ -56,9 +56,12 @@ struct Foo<T, U> {
 comptime fn example(foo: StructDefinition) {
     assert_eq(foo.generics().len(), 2);
 
+    let (first_generic_type, first_generic_numeric) = foo.generics()[0];
+    assert(first_generic_numeric.is_none());
+
     // Fails because `T` isn't in scope
     // let t = quote { T }.as_type();
-    // assert_eq(foo.generics()[0], t);
+    // assert_eq(first_generic_type, t);
 }
 ```
 
