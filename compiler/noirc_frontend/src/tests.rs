@@ -3015,13 +3015,13 @@ fn do_not_eagerly_error_on_cast_on_type_variable() {
 #[test]
 fn error_on_cast_over_type_variable() {
     let src = r#"
-    pub fn foo<T, U>(x: T, f: fn(T) -> U) -> U {
+    pub fn foo<T, U>(f: fn(T) -> U, x: T, ) -> U {
         f(x)
     }
 
     fn main() {
         let x = "a";
-        let _: Field = foo(x, |x| x as Field);
+        let _: Field = foo(|x| x as Field, x);
     }
     "#;
 
@@ -4023,6 +4023,24 @@ fn infers_lambda_argument_from_call_function_type() {
 
     fn main() {
         let _ = call(|foo| foo.value);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn infers_lambda_argument_from_call_function_type_in_generic_call() {
+    let src = r#"
+    struct Foo {
+        value: Field,
+    }
+
+    fn call<T>(t: T, f: fn(T) -> Field) -> Field {
+        f(t)
+    }
+
+    fn main() {
+        let _ = call(Foo { value: 1 }, |foo| foo.value);
     }
     "#;
     assert_no_errors(src);

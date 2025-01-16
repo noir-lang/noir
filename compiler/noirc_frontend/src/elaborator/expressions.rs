@@ -388,6 +388,8 @@ impl<'context> Elaborator<'context> {
     fn elaborate_call(&mut self, call: CallExpression, span: Span) -> (HirExpression, Type) {
         let (func, func_type) = self.elaborate_expression(*call.func);
 
+        let any_argument_is_lambda = call.arguments.iter().any(|arg| arg.kind.is_lambda());
+
         let mut arguments = Vec::with_capacity(call.arguments.len());
         let args: Vec<_> = call
             .arguments
@@ -403,6 +405,16 @@ impl<'context> Elaborator<'context> {
                 } else {
                     self.elaborate_call_argument_expression(arg, arg_index, &func_type)
                 };
+
+                if any_argument_is_lambda {
+                    // Try to unify this argument type against the function's argument type
+                    // so that a potential lambda following this argument can have more concrete types.
+                    if let Type::Function(func_args, _, _, _) = &func_type {
+                        if let Some(func_arg_type) = func_args.get(arg_index) {
+                            let _ = func_arg_type.unify(&typ);
+                        }
+                    }
+                }
 
                 arguments.push(arg);
                 (typ, arg, span)
@@ -479,14 +491,19 @@ impl<'context> Elaborator<'context> {
                     self.type_check_variable(function_name.clone(), function_id, generics.clone());
                 self.interner.push_expr_type(function_id, func_type.clone());
 
-                // Try to unify the object type with the first argument of the function.
-                // The reason to do this is that many methods that take a lambda will yield `self` or part of `self`
-                // as a parameter. By unifying `self` with the first argument we'll potentially get more
-                // concrete types in the arguments that are function types, which will later be passed as
-                // lambda parameter hints.
-                if let Type::Function(args, _, _, _) = &func_type {
-                    if !args.is_empty() {
-                        let _ = args[0].unify(&object_type);
+                let any_argument_is_lambda =
+                    method_call.arguments.iter().any(|arg| arg.kind.is_lambda());
+
+                if any_argument_is_lambda {
+                    // Try to unify the object type with the first argument of the function.
+                    // The reason to do this is that many methods that take a lambda will yield `self` or part of `self`
+                    // as a parameter. By unifying `self` with the first argument we'll potentially get more
+                    // concrete types in the arguments that are function types, which will later be passed as
+                    // lambda parameter hints.
+                    if let Type::Function(args, _, _, _) = &func_type {
+                        if !args.is_empty() {
+                            let _ = args[0].unify(&object_type);
+                        }
                     }
                 }
 
@@ -501,6 +518,17 @@ impl<'context> Elaborator<'context> {
                     let span = arg.span;
                     let (arg, typ) =
                         self.elaborate_call_argument_expression(arg, arg_index + 1, &func_type);
+
+                    if any_argument_is_lambda {
+                        // Try to unify this argument type against the function's argument type
+                        // so that a potential lambda following this argument can have more concrete types.
+                        if let Type::Function(func_args, _, _, _) = &func_type {
+                            if let Some(func_arg_type) = func_args.get(arg_index + 1) {
+                                let _ = func_arg_type.unify(&typ);
+                            }
+                        }
+                    }
+
                     arguments.push(arg);
                     function_args.push((typ, arg, span));
                 }

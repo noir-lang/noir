@@ -223,6 +223,10 @@ impl ExpressionKind {
             struct_type: None,
         }))
     }
+
+    pub fn is_lambda(&self) -> bool {
+        matches!(self, ExpressionKind::Lambda(..))
+    }
 }
 
 impl Recoverable for ExpressionKind {
