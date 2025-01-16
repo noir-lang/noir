@@ -542,6 +542,9 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
     }
 
     /// Constrains the `lhs` and `rhs` to be non-equal.
+    ///
+    /// This is done by asserting the existence of an inverse for the value `lhs - rhs`.
+    /// The constraint `(lhs - rhs) * inverse == 1` will only be satisfiable if `lhs` and `rhs` are non-equal.
     pub(crate) fn assert_neq_var(
         &mut self,
         lhs: AcirVar,
