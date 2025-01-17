@@ -692,7 +692,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                     .to_string();
                 let secondary =
                     "This error doesn't happen in normal executions of `nargo`".to_string();
-                CustomDiagnostic::simple_error(msg, secondary, location.span)
+                CustomDiagnostic::simple_warning(msg, secondary, location.span)
             }
         }
     }
