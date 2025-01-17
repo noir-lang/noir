@@ -24,7 +24,7 @@ where
     T: MyInto<U>,
 {
     fn into(self) -> [U; N] {
-        self.map(|x: T| x.into())
+        self.map(|x| x.into())
     }
 }
 

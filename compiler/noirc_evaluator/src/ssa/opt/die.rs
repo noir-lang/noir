@@ -22,12 +22,18 @@ use super::rc::{pop_rc_for, RcInstruction};
 impl Ssa {
     /// Performs Dead Instruction Elimination (DIE) to remove any instructions with
     /// unused results.
+    ///
+    /// This step should come after the flattening of the CFG and mem2reg.
     #[tracing::instrument(level = "trace", skip(self))]
-    pub(crate) fn dead_instruction_elimination(mut self) -> Ssa {
+    pub(crate) fn dead_instruction_elimination(self) -> Ssa {
+        self.dead_instruction_elimination_inner(true)
+    }
+
+    fn dead_instruction_elimination_inner(mut self, flattened: bool) -> Ssa {
         let mut used_global_values: HashSet<_> = self
             .functions
             .par_iter_mut()
-            .flat_map(|(_, func)| func.dead_instruction_elimination(true))
+            .flat_map(|(_, func)| func.dead_instruction_elimination(true, flattened))
             .collect();
 
         // Check which globals are used across all functions
@@ -61,8 +67,10 @@ impl Function {
     pub(crate) fn dead_instruction_elimination(
         &mut self,
         insert_out_of_bounds_checks: bool,
+        flattened: bool,
     ) -> HashSet<ValueId> {
-        let mut context = Context::default();
+        let mut context = Context { flattened, ..Default::default() };
+
         for call_data in &self.dfg.data_bus.call_data {
             context.mark_used_instruction_results(&self.dfg, call_data.array_id);
         }
@@ -82,7 +90,7 @@ impl Function {
         // instructions (we don't want to remove those checks, or instructions that are
         // dependencies of those checks)
         if inserted_out_of_bounds_checks {
-            return self.dead_instruction_elimination(false);
+            return self.dead_instruction_elimination(false, flattened);
         }
 
         context.remove_rc_instructions(&mut self.dfg);
@@ -101,6 +109,11 @@ struct Context {
     /// they technically contain side-effects but we still want to remove them if their
     /// `value` parameter is not used elsewhere.
     rc_instructions: Vec<(InstructionId, BasicBlockId)>,
+
+    /// The elimination of certain unused instructions assumes that the DIE pass runs after
+    /// the flattening of the CFG, but if that's not the case then we should not eliminate
+    /// them just yet.
+    flattened: bool,
 }
 
 impl Context {
@@ -197,7 +210,7 @@ impl Context {
     fn is_unused(&self, instruction_id: InstructionId, function: &Function) -> bool {
         let instruction = &function.dfg[instruction_id];
 
-        if instruction.can_eliminate_if_unused(function) {
+        if instruction.can_eliminate_if_unused(function, self.flattened) {
             let results = function.dfg.instruction_results(instruction_id);
             results.iter().all(|result| !self.used_values.contains(result))
         } else if let Instruction::Call { func, arguments } = instruction {
@@ -968,5 +981,54 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.dead_instruction_elimination();
         assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn do_not_remove_mutable_reference_params() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v2 = allocate -> &mut Field
+            store v0 at v2
+            call f1(v2)
+            v4 = load v2 -> Field
+            v5 = eq v4, v1
+            constrain v4 == v1
+            return
+        }
+        acir(inline) fn Add10 f1 {
+          b0(v0: &mut Field):
+            v1 = load v0 -> Field
+            v2 = load v0 -> Field
+            v4 = add v2, Field 10
+            store v4 at v0
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        // Even though these ACIR functions only have 1 block, we have not inlined and flattened anything yet.
+        let ssa = ssa.dead_instruction_elimination_inner(false);
+
+        let expected = "
+          acir(inline) fn main f0 {
+            b0(v0: Field, v1: Field):
+              v2 = allocate -> &mut Field
+              store v0 at v2
+              call f1(v2)
+              v4 = load v2 -> Field
+              constrain v4 == v1
+              return
+          }
+          acir(inline) fn Add10 f1 {
+            b0(v0: &mut Field):
+              v1 = load v0 -> Field
+              v3 = add v1, Field 10
+              store v3 at v0
+              return
+          }
+        ";
+        assert_normalized_ssa_equals(ssa, expected);
     }
 }
