@@ -38,10 +38,6 @@ impl<'a> Parser<'a> {
 
         let generics = self.parse_generics();
 
-        if self.eat_semicolons() {
-            return self.empty_enum(name, attributes, visibility, generics, start_span);
-        }
-
         if !self.eat_left_brace() {
             self.expected_token(Token::LeftBrace);
             return self.empty_enum(name, attributes, visibility, generics, start_span);
@@ -155,15 +151,6 @@ mod tests {
     #[test]
     fn parse_empty_enum() {
         let src = "enum Foo {}";
-        let noir_enum = parse_enum_no_errors(src);
-        assert_eq!("Foo", noir_enum.name.to_string());
-        assert!(noir_enum.variants.is_empty());
-        assert!(noir_enum.generics.is_empty());
-    }
-
-    #[test]
-    fn parse_empty_enum_followed_by_semicolon() {
-        let src = "enum Foo;";
         let noir_enum = parse_enum_no_errors(src);
         assert_eq!("Foo", noir_enum.name.to_string());
         assert!(noir_enum.variants.is_empty());
