@@ -271,11 +271,25 @@ impl<'context> Elaborator<'context> {
 
     pub(super) fn elaborate_loop(
         &mut self,
-        _block: Expression,
+        block: Expression,
         span: noirc_errors::Span,
     ) -> (HirStatement, Type) {
-        self.push_err(ResolverError::LoopNotYetSupported { span });
-        (HirStatement::Error, Type::Unit)
+        let in_constrained_function = self.in_constrained_function();
+        if in_constrained_function {
+            self.push_err(ResolverError::LoopInConstrainedFn { span });
+        }
+
+        self.nested_loops += 1;
+        self.push_scope();
+
+        let (block, _block_type) = self.elaborate_expression(block);
+
+        self.pop_scope();
+        self.nested_loops -= 1;
+
+        let statement = HirStatement::Loop(block);
+
+        (statement, Type::Unit)
     }
 
     fn elaborate_jump(&mut self, is_break: bool, span: noirc_errors::Span) -> (HirStatement, Type) {

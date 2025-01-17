@@ -10,7 +10,7 @@ use fxhash::FxHasher64;
 use iter_extended::vecmap;
 use noirc_frontend::hir_def::types::Type as HirType;
 
-use crate::ssa::{ir::function::RuntimeType, opt::flatten_cfg::value_merger::ValueMerger};
+use crate::ssa::opt::flatten_cfg::value_merger::ValueMerger;
 
 use super::{
     basic_block::BasicBlockId,
@@ -506,7 +506,7 @@ impl Instruction {
         }
     }
 
-    pub(crate) fn can_eliminate_if_unused(&self, function: &Function) -> bool {
+    pub(crate) fn can_eliminate_if_unused(&self, function: &Function, flattened: bool) -> bool {
         use Instruction::*;
         match self {
             Binary(binary) => {
@@ -539,8 +539,7 @@ impl Instruction {
             // pass where this check is done, but does mean that we cannot perform mem2reg
             // after the DIE pass.
             Store { .. } => {
-                matches!(function.runtime(), RuntimeType::Acir(_))
-                    && function.reachable_blocks().len() == 1
+                flattened && function.runtime().is_acir() && function.reachable_blocks().len() == 1
             }
 
             Constrain(..)

@@ -35,7 +35,7 @@ impl Display for Ssa {
             };
         }
 
-        if self.globals.dfg.values_iter().len() > 0 {
+        if self.globals.dfg.values_iter().next().is_some() {
             writeln!(f)?;
         }
 
@@ -169,13 +169,14 @@ fn display_instruction(
         write!(f, "{} = ", value_list)?;
     }
 
-    display_instruction_inner(dfg, &dfg[instruction], results, f)
+    display_instruction_inner(dfg, &dfg[instruction], results, in_global_space, f)
 }
 
 fn display_instruction_inner(
     dfg: &DataFlowGraph,
     instruction: &Instruction,
     results: &[ValueId],
+    in_global_space: bool,
     f: &mut Formatter,
 ) -> Result {
     let show = |id| value(dfg, id);
@@ -286,7 +287,11 @@ fn display_instruction_inner(
                 if i != 0 {
                     write!(f, ", ")?;
                 }
-                write!(f, "{}", show(*element))?;
+                let mut value = show(*element);
+                if in_global_space {
+                    value = value.replace('v', "g");
+                }
+                write!(f, "{}", value)?;
             }
 
             writeln!(f, "] : {typ}")

@@ -59,6 +59,7 @@ impl HirStatement {
                 block: for_stmt.block.to_display_ast(interner),
                 span,
             }),
+            HirStatement::Loop(block) => StatementKind::Loop(block.to_display_ast(interner)),
             HirStatement::Break => StatementKind::Break,
             HirStatement::Continue => StatementKind::Continue,
             HirStatement::Expression(expr) => {
@@ -359,7 +360,7 @@ impl Type {
             Type::Constant(..) => panic!("Type::Constant where a type was expected: {self:?}"),
             Type::Quoted(quoted_type) => UnresolvedTypeData::Quoted(*quoted_type),
             Type::Error => UnresolvedTypeData::Error,
-            Type::InfixExpr(lhs, op, rhs) => {
+            Type::InfixExpr(lhs, op, rhs, _) => {
                 let lhs = Box::new(lhs.to_type_expression());
                 let rhs = Box::new(rhs.to_type_expression());
                 let span = Span::default();
