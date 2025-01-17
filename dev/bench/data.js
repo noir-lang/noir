@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737140063140,
+  "lastUpdate": 1737140683967,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -2002,6 +2002,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-reset",
             "value": 0.313,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 0.068,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "82cb9007b89c1a3520c85d3134916a29127226db",
+          "message": "feat(brillig): SSA globals code gen (#7021)\n\nCo-authored-by: jfecher <jake@aztecprotocol.com>",
+          "timestamp": "2025-01-17T18:47:15Z",
+          "tree_id": "a1cc28441a9d2b957a20b238752b31d2f35a0f65",
+          "url": "https://github.com/noir-lang/noir/commit/82cb9007b89c1a3520c85d3134916a29127226db"
+        },
+        "date": 1737140683300,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 0.053,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.001,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 0.603,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.108,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.007,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 38.2,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 0.104,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1.222,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.45,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.02,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.31,
             "unit": "s"
           },
           {
