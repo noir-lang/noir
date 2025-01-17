@@ -31,13 +31,14 @@ impl Ssa {
             let mut function = function.inlined(&self, false, &inline_infos);
             // Help unrolling determine bounds.
             function.as_slice_optimization();
+            // Prepare for unrolling
+            function.loop_invariant_code_motion();
             // We might not be able to unroll all loops without fully inlining them, so ignore errors.
             let _ = function.unroll_loops_iteratively();
             // Reduce the number of redundant stores/loads after unrolling
             function.mem2reg();
             // Try to reduce the number of blocks.
             function.simplify_function();
-
             // Remove leftover instructions.
             function.dead_instruction_elimination(true, false);
 
