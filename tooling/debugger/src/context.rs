@@ -892,9 +892,14 @@ fn build_source_to_opcode_debug_mappings(
 
     let mut result: BTreeMap<FileId, Vec<(usize, DebugLocation)>> = BTreeMap::new();
     for (circuit_id, debug_symbols) in debug_artifact.debug_symbols.iter().enumerate() {
+        let location_map = debug_symbols
+            .location_map
+            .iter()
+            .map(|(key, val)| (OpcodeLocation::Acir(key.index()), *val))
+            .collect();
         add_opcode_locations_map(
             debug_symbols,
-            &debug_symbols.location_map,
+            &location_map,
             &mut result,
             &simple_files,
             circuit_id,

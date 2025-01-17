@@ -2,7 +2,7 @@ use std::path::Path;
 use std::{collections::BTreeMap, io::BufWriter};
 
 use acir::circuit::brillig::BrilligFunctionId;
-use acir::circuit::OpcodeLocation;
+use acir::circuit::{AcirOpcodeLocation, OpcodeLocation};
 use color_eyre::eyre::{self};
 use fm::codespan_files::Files;
 use fxhash::FxHashMap as HashMap;
@@ -176,33 +176,38 @@ fn find_callsite_labels<'files>(
     files: &'files impl Files<'files, FileId = fm::FileId>,
 ) -> Vec<String> {
     let mut procedure_id = None;
-    let source_locations = debug_symbols.opcode_location(opcode_location).unwrap_or_else(|| {
-        if let (Some(brillig_function_id), Some(brillig_location)) =
-            (brillig_function_id, opcode_location.to_brillig_location())
-        {
-            let procedure_locs = debug_symbols.brillig_procedure_locs.get(&brillig_function_id);
-            if let Some(procedure_locs) = procedure_locs {
-                for (procedure, range) in procedure_locs.iter() {
-                    if brillig_location.0 >= range.0 && brillig_location.0 <= range.1 {
-                        procedure_id = Some(*procedure);
-                        break;
+    let source_locations = match opcode_location {
+        OpcodeLocation::Acir(idx) => {
+            debug_symbols.acir_opcode_location(&AcirOpcodeLocation::new(*idx)).unwrap_or_default()
+        }
+        OpcodeLocation::Brillig { .. } => {
+            if let (Some(brillig_function_id), Some(brillig_location)) =
+                (brillig_function_id, opcode_location.to_brillig_location())
+            {
+                let procedure_locs = debug_symbols.brillig_procedure_locs.get(&brillig_function_id);
+                if let Some(procedure_locs) = procedure_locs {
+                    for (procedure, range) in procedure_locs.iter() {
+                        if brillig_location.0 >= range.0 && brillig_location.0 <= range.1 {
+                            procedure_id = Some(*procedure);
+                            break;
+                        }
                     }
                 }
-            }
-            let brillig_locations = debug_symbols.brillig_locations.get(&brillig_function_id);
+                let brillig_locations = debug_symbols.brillig_locations.get(&brillig_function_id);
 
-            if let Some(brillig_locations) = brillig_locations {
-                brillig_locations
-                    .get(&brillig_location)
-                    .map(|call_stack| debug_symbols.location_tree.get_call_stack(*call_stack))
-                    .unwrap_or_default()
+                if let Some(brillig_locations) = brillig_locations {
+                    brillig_locations
+                        .get(&brillig_location)
+                        .map(|call_stack| debug_symbols.location_tree.get_call_stack(*call_stack))
+                        .unwrap_or_default()
+                } else {
+                    vec![]
+                }
             } else {
                 vec![]
             }
-        } else {
-            vec![]
         }
-    });
+    };
 
     let mut callsite_labels: Vec<_> = source_locations
         .into_iter()
@@ -297,7 +302,7 @@ fn to_folded_sorted_lines(
 #[cfg(test)]
 mod tests {
     use acir::{
-        circuit::{opcodes::BlockId, Opcode as AcirOpcode, OpcodeLocation},
+        circuit::{opcodes::BlockId, AcirOpcodeLocation, Opcode as AcirOpcode, OpcodeLocation},
         native_types::Expression,
         FieldElement,
     };
@@ -365,7 +370,7 @@ mod tests {
             Location::new(find_spans_for(source_code, "whatever()")[2], file_id);
 
         //  let mut opcode_locations = BTreeMap::<OpcodeLocation, Vec<Location>>::new();
-        let mut opcode_locations = BTreeMap::<OpcodeLocation, CallStackId>::new();
+        let mut opcode_locations = BTreeMap::<AcirOpcodeLocation, CallStackId>::new();
         let mut call_stack_hlp = CallStackHelper::default();
         // main::foo::baz::whatever
         let call_stack_id = call_stack_hlp.get_or_insert_locations(&vec![
@@ -374,20 +379,20 @@ mod tests {
             foo_baz_call_location,
             baz_whatever_call_location,
         ]);
-        opcode_locations.insert(OpcodeLocation::Acir(0), call_stack_id);
+        opcode_locations.insert(AcirOpcodeLocation::new(0), call_stack_id);
         // main::bar::whatever
         let call_stack_id = call_stack_hlp.get_or_insert_locations(&vec![
             main_declaration_location,
             main_bar_call_location,
             bar_whatever_call_location,
         ]);
-        opcode_locations.insert(OpcodeLocation::Acir(1), call_stack_id);
+        opcode_locations.insert(AcirOpcodeLocation::new(1), call_stack_id);
         // main::whatever
         let call_stack_id = call_stack_hlp
             .get_or_insert_locations(&vec![main_declaration_location, main_whatever_call_location]);
-        opcode_locations.insert(OpcodeLocation::Acir(2), call_stack_id);
+        opcode_locations.insert(AcirOpcodeLocation::new(2), call_stack_id);
 
-        opcode_locations.insert(OpcodeLocation::Acir(42), CallStackId::new(1));
+        opcode_locations.insert(AcirOpcodeLocation::new(42), CallStackId::new(1));
         let location_tree = call_stack_hlp.to_location_tree();
 
         let debug_info = DebugInfo::new(

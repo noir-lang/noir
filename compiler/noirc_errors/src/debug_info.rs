@@ -1,4 +1,5 @@
 use acvm::acir::circuit::brillig::BrilligFunctionId;
+use acvm::acir::circuit::AcirOpcodeLocation;
 use acvm::acir::circuit::BrilligOpcodeLocation;
 use acvm::acir::circuit::OpcodeLocation;
 use acvm::compiler::AcirTransformationMap;
@@ -105,7 +106,7 @@ pub struct DebugInfo {
     /// Serde does not support mapping keys being enums for json, so we indicate
     /// that they should be serialized to/from strings.
     #[serde_as(as = "BTreeMap<DisplayFromStr, _>")]
-    pub location_map: BTreeMap<OpcodeLocation, CallStackId>,
+    pub location_map: BTreeMap<AcirOpcodeLocation, CallStackId>,
     pub variables: DebugVariables,
     pub functions: DebugFunctions,
     pub types: DebugTypes,
@@ -120,7 +121,7 @@ impl DebugInfo {
             BrilligFunctionId,
             BTreeMap<BrilligOpcodeLocation, CallStackId>,
         >,
-        location_map: BTreeMap<OpcodeLocation, CallStackId>,
+        location_map: BTreeMap<AcirOpcodeLocation, CallStackId>,
         location_tree: LocationTree,
         variables: DebugVariables,
         functions: DebugFunctions,
@@ -151,15 +152,22 @@ impl DebugInfo {
         let old_locations = mem::take(&mut self.location_map);
 
         for (old_opcode_location, source_locations) in old_locations {
-            update_map.new_locations(old_opcode_location).for_each(|new_opcode_location| {
+            update_map.new_acir_locations(old_opcode_location).for_each(|new_opcode_location| {
                 self.location_map.insert(new_opcode_location, source_locations);
             });
         }
     }
 
-    pub fn opcode_location(&self, loc: &OpcodeLocation) -> Option<Vec<Location>> {
+    pub fn acir_opcode_location(&self, loc: &AcirOpcodeLocation) -> Option<Vec<Location>> {
         self.location_map
             .get(loc)
             .map(|call_stack_id| self.location_tree.get_call_stack(*call_stack_id))
+    }
+
+    pub fn opcode_location(&self, loc: &OpcodeLocation) -> Option<Vec<Location>> {
+        match loc {
+            OpcodeLocation::Brillig { .. } => None, //TODO: need brillig function id in order to look into brillig_locations
+            OpcodeLocation::Acir(loc) => self.acir_opcode_location(&AcirOpcodeLocation::new(*loc)),
+        }
     }
 }

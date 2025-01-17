@@ -2,8 +2,8 @@ use std::collections::BTreeMap;
 
 use acvm::{
     acir::circuit::{
-        brillig::BrilligFunctionId, ErrorSelector, OpcodeLocation, RawAssertionPayload,
-        ResolvedAssertionPayload, ResolvedOpcodeLocation,
+        brillig::BrilligFunctionId, AcirOpcodeLocation, BrilligOpcodeLocation, ErrorSelector,
+        OpcodeLocation, RawAssertionPayload, ResolvedAssertionPayload, ResolvedOpcodeLocation,
     },
     pwg::{ErrorLocation, OpcodeResolutionError},
     AcirField, FieldElement,
@@ -165,28 +165,20 @@ fn extract_locations_from_error<F: AcirField>(
         opcode_locations
             .iter()
             .flat_map(|resolved_location| {
+                let call_stack_id = match resolved_location.opcode_location {
+                    OpcodeLocation::Acir(idx) => {
+                        debug[resolved_location.acir_function_index].location_map
+                            [&AcirOpcodeLocation::new(idx)]
+                    }
+                    // TODO: should we use acir_index here and merge the 2 call stacks?
+                    OpcodeLocation::Brillig { brillig_index, .. } => {
+                        debug[resolved_location.acir_function_index].brillig_locations
+                            [&brillig_function_id.unwrap()][&BrilligOpcodeLocation(brillig_index)]
+                    }
+                };
                 debug[resolved_location.acir_function_index]
-                    .opcode_location(&resolved_location.opcode_location)
-                    .unwrap_or_else(|| {
-                        if let (Some(brillig_function_id), Some(brillig_location)) = (
-                            brillig_function_id,
-                            &resolved_location.opcode_location.to_brillig_location(),
-                        ) {
-                            let brillig_locations = debug[resolved_location.acir_function_index]
-                                .brillig_locations
-                                .get(&brillig_function_id);
-                            let call_stack_id = brillig_locations
-                                .unwrap()
-                                .get(brillig_location)
-                                .cloned()
-                                .unwrap_or_default();
-                            debug[resolved_location.acir_function_index]
-                                .location_tree
-                                .get_call_stack(call_stack_id)
-                        } else {
-                            vec![]
-                        }
-                    })
+                    .location_tree
+                    .get_call_stack(call_stack_id)
             })
             .collect(),
     )

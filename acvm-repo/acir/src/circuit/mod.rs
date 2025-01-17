@@ -147,6 +147,37 @@ pub enum OpcodeLocation {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+/// Opcodes are locatable so that callers can
+/// map opcodes to debug information related to their context.
+pub struct AcirOpcodeLocation(usize);
+impl std::fmt::Display for AcirOpcodeLocation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+/// The implementation of display and FromStr allows serializing and deserializing a OpcodeLocation to a string.
+/// This is useful when used as key in a map that has to be serialized to JSON/TOML, for example when mapping an opcode to its metadata.
+impl FromStr for AcirOpcodeLocation {
+    type Err = OpcodeLocationFromStrError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        fn parse_index(input: &str) -> Result<AcirOpcodeLocation, ParseIntError> {
+            let index = input.parse()?;
+            Ok(AcirOpcodeLocation::new(index))
+        }
+        parse_index(s)
+            .map_err(|_| OpcodeLocationFromStrError::InvalidOpcodeLocationString(s.to_string()))
+    }
+}
+
+impl AcirOpcodeLocation {
+    pub fn new(index: usize) -> Self {
+        AcirOpcodeLocation(index)
+    }
+    pub fn index(&self) -> usize {
+        self.0
+    }
+}
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct BrilligOpcodeLocation(pub usize);
 
 impl OpcodeLocation {

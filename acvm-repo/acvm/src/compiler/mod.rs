@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use acir::{
-    circuit::{AssertionPayload, Circuit, ExpressionWidth, OpcodeLocation},
+    circuit::{AcirOpcodeLocation, AssertionPayload, Circuit, ExpressionWidth, OpcodeLocation},
     AcirField,
 };
 
@@ -53,6 +53,19 @@ impl AcirTransformationMap {
                         OpcodeLocation::Brillig { acir_index: *new_index, brillig_index }
                     }
                 })
+            },
+        )
+    }
+
+    pub fn new_acir_locations(
+        &self,
+        old_location: AcirOpcodeLocation,
+    ) -> impl Iterator<Item = AcirOpcodeLocation> + '_ {
+        let old_acir_index = old_location.index();
+
+        self.old_indices_to_new_indices.get(&old_acir_index).into_iter().flat_map(
+            move |new_indices| {
+                new_indices.iter().map(move |new_index| AcirOpcodeLocation::new(*new_index))
             },
         )
     }
