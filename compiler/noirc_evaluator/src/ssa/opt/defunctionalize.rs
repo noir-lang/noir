@@ -439,7 +439,7 @@ mod tests {
               v2 = add v0, u32 1
               return v2
           }
-          brillig(inline) fn apply f4 {
+          brillig(inline_always) fn apply f4 {
             b0(v0: Field, v1: u32):
               v4 = eq v0, Field 2
               jmpif v4 then: b2, else: b1
