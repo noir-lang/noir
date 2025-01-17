@@ -723,6 +723,47 @@ impl<'a> Context<'a> {
 
                 self.acir_context.assert_eq_var(lhs, rhs, assert_payload)?;
             }
+            Instruction::ConstrainNotEqual(lhs, rhs, assert_message) => {
+                let lhs = self.convert_numeric_value(*lhs, dfg)?;
+                let rhs = self.convert_numeric_value(*rhs, dfg)?;
+
+                let assert_payload = if let Some(error) = assert_message {
+                    match error {
+                        ConstrainError::StaticString(string) => Some(
+                            self.acir_context.generate_assertion_message_payload(string.clone()),
+                        ),
+                        ConstrainError::Dynamic(error_selector, is_string_type, values) => {
+                            if let Some(constant_string) = try_to_extract_string_from_error_payload(
+                                *is_string_type,
+                                values,
+                                dfg,
+                            ) {
+                                Some(
+                                    self.acir_context
+                                        .generate_assertion_message_payload(constant_string),
+                                )
+                            } else {
+                                let acir_vars: Vec<_> = values
+                                    .iter()
+                                    .map(|value| self.convert_value(*value, dfg))
+                                    .collect();
+
+                                let expressions_or_memory =
+                                    self.acir_context.vars_to_expressions_or_memory(&acir_vars)?;
+
+                                Some(AssertionPayload {
+                                    error_selector: error_selector.as_u64(),
+                                    payload: expressions_or_memory,
+                                })
+                            }
+                        }
+                    }
+                } else {
+                    None
+                };
+
+                self.acir_context.assert_neq_var(lhs, rhs, assert_payload)?;
+            }
             Instruction::Cast(value_id, _) => {
                 let acir_var = self.convert_numeric_value(*value_id, dfg)?;
                 self.define_result_var(dfg, instruction_id, acir_var);

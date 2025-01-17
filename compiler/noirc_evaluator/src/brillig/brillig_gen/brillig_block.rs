@@ -279,6 +279,10 @@ impl<'block> BrilligBlock<'block> {
                     self.brillig_context.deallocate_single_addr(condition);
                 }
             }
+            Instruction::ConstrainNotEqual(..) => {
+                unreachable!("only implemented in ACIR")
+            }
+
             Instruction::Allocate => {
                 let result_value = dfg.instruction_results(instruction_id)[0];
                 let pointer = self.variables.define_single_addr_variable(

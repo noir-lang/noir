@@ -82,3 +82,54 @@ fn used_functions(func: &Function) -> BTreeSet<FunctionId> {
 
     used_function_ids
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::ssa::opt::assert_normalized_ssa_equals;
+
+    use super::Ssa;
+
+    #[test]
+    fn remove_unused_brillig() {
+        let src = "
+          brillig(inline) fn main f0 {
+            b0(v0: u32):
+              v2 = call f1(v0) -> u32
+              v4 = add v0, u32 1
+              v5 = eq v2, v4
+              constrain v2 == v4
+              return
+          }
+          brillig(inline) fn increment f1 {
+            b0(v0: u32):
+              v2 = add v0, u32 1
+              return v2
+          }
+          brillig(inline) fn increment_acir f2 {
+            b0(v0: u32):
+              v2 = add v0, u32 1
+              return v2
+          }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_functions();
+
+        let expected = "
+          brillig(inline) fn main f0 {
+            b0(v0: u32):
+              v2 = call f1(v0) -> u32
+              v4 = add v0, u32 1
+              v5 = eq v2, v4
+              constrain v2 == v4
+              return
+          }
+          brillig(inline) fn increment f1 {
+            b0(v0: u32):
+              v2 = add v0, u32 1
+              return v2
+          }
+        ";
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+}
