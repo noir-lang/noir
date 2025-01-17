@@ -795,8 +795,10 @@ version = "1.0.0-beta.2"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
+ "criterion",
  "num-bigint",
  "num-traits",
+ "pprof",
  "thiserror",
 ]
 
