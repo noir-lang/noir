@@ -45,23 +45,6 @@ Alternatively, `start..=end` can be used for a range that is inclusive on both e
 
 The index for loops is of type `u64`.
 
-## Loops
-
-In unconstrained code, `loop` is allowed for loops that end after a certain condition is met
-(or to loop forever):
-
-```rust
-let mut i = 10
-loop {
-    println(i);
-    i -= 1;
-
-    if i == 0 {
-        break;
-    }
-}
-```
-
 ### Break and Continue
 
 In unconstrained code, `break` and `continue` are also allowed in `for` and `loop` loops. These are only allowed
@@ -93,3 +76,22 @@ above, `continue` will jump to `println("Iteration start")` when used. Note that
 The iteration variable `i` is still increased by one as normal when `continue` is used.
 
 `break` and `continue` cannot currently be used to jump out of more than a single loop at a time.
+
+## Loops
+
+In unconstrained code, `loop` is allowed for loops that end with a `break`. This is only allowed
+in unconstrained code since normal constrained code requires that Noir knows exactly how many iterations
+a loop may have.
+
+```rust
+let mut i = 10
+loop {
+    println(i);
+    i -= 1;
+
+    if i == 0 {
+        break;
+    }
+}
+```
+
