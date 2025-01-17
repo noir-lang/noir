@@ -187,17 +187,13 @@ impl Translator {
                 let function_id = if let Some(id) = self.builder.import_intrinsic(&function.name) {
                     id
                 } else {
-                    match self.lookup_function(&function) {
-                        Ok(f) => self.builder.import_function(f),
-                        Err(e) => {
-                            if let Ok(v) = self.lookup_variable(&function) {
-                                // e.g. `v2 = call v0(v1) -> u32`, a lambda passed as a parameter
-                                v
-                            } else {
-                                return Err(e);
-                            }
-                        }
-                    }
+                    let maybe_func =
+                        self.lookup_function(&function).map(|f| self.builder.import_function(f));
+
+                    maybe_func.or_else(|e| {
+                        // e.g. `v2 = call v0(v1) -> u32`, a lambda passed as a parameter
+                        self.lookup_variable(&function).map_err(|_| e)
+                    })?
                 };
 
                 let arguments = self.translate_values(arguments)?;
@@ -303,12 +299,12 @@ impl Translator {
                 Ok(self.builder.numeric_constant(constant, typ.unwrap_numeric()))
             }
             ParsedValue::Variable(identifier) => self.lookup_variable(&identifier).or_else(|e| {
-                if let Ok(f) = self.lookup_function(&identifier) {
-                    // e.g. `v3 = call f1(f2, v0) -> u32`
-                    Ok(self.builder.import_function(f))
-                } else {
-                    Err(e)
-                }
+                self.lookup_function(&identifier)
+                    .map(|f| {
+                        // e.g. `v3 = call f1(f2, v0) -> u32`
+                        self.builder.import_function(f)
+                    })
+                    .map_err(|_| e)
             }),
         }
     }
