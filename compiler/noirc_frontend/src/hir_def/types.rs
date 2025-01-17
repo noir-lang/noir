@@ -1368,7 +1368,7 @@ impl Type {
         // unification (that is, the compiler had `b = a / y` and ended up doing `y = b / a` where
         // `y` is `rhs` here) then we can simplify this to just `b` because there wasn't an actual
         // division in the original expression, so multiplying it back is just going back to the
-        // original `y`.gg
+        // original `y`
         if let Type::InfixExpr(rhs_lhs, rhs_op, rhs_rhs, true) = &*rhs {
             if op.approx_inverse() == Some(*rhs_op) && lhs == *rhs_rhs {
                 return *rhs_lhs.clone();
