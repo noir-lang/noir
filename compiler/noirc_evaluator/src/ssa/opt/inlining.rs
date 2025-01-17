@@ -262,7 +262,8 @@ pub(super) fn compute_inline_infos(
         }
     }
 
-    let times_called = compute_times_called(ssa);
+    let callers = compute_callers(ssa);
+    let times_called = compute_times_called(&callers);
 
     mark_brillig_functions_to_retain(
         ssa,
@@ -276,18 +277,16 @@ pub(super) fn compute_inline_infos(
 }
 
 /// Compute the time each function is called from any other function.
-pub(super) fn compute_times_called(ssa: &Ssa) -> HashMap<FunctionId, usize> {
-    ssa.functions
+fn compute_times_called(
+    callers: &BTreeMap<FunctionId, BTreeMap<FunctionId, usize>>,
+) -> HashMap<FunctionId, usize> {
+    callers
         .iter()
-        .flat_map(|(_caller_id, function)| {
-            let called_functions_vec = called_functions_vec(function);
-            called_functions_vec.into_iter()
+        .map(|(callee, callers)| {
+            let total_calls = callers.iter().fold(0, |acc, (_caller, calls)| acc + calls);
+            (*callee, total_calls)
         })
-        .chain(std::iter::once(ssa.main_id))
-        .fold(HashMap::default(), |mut map, func_id| {
-            *map.entry(func_id).or_insert(0) += 1;
-            map
-        })
+        .collect()
 }
 
 /// Compute for each function the set of functions that call it, and how many times they do so.
@@ -340,8 +339,13 @@ pub(super) fn compute_bottom_up_order(ssa: &Ssa) -> Vec<(FunctionId, usize)> {
     let mut order = Vec::new();
     let mut visited = HashSet::new();
 
-    // Number of times a function is called, to break cycles.
-    let mut times_called = compute_times_called(ssa).into_iter().collect::<Vec<_>>();
+    // Call graph which we'll repeatedly prune to find the "leaves".
+    let mut callees = compute_callees(ssa);
+    let callers = compute_callers(ssa);
+
+    // Number of times a function is called, to break cycles in the call graph.
+    let mut times_called = compute_times_called(&callers).into_iter().collect::<Vec<_>>();
+    // Sort by number of calls ascending, so popping yields the next most called; break ties by ID.
     times_called.sort_by_key(|(id, cnt)| (*cnt, *id));
 
     // Start with the weight of the functions in isolation, then accumulate as we pop off the ones they call.
@@ -350,9 +354,6 @@ pub(super) fn compute_bottom_up_order(ssa: &Ssa) -> Vec<(FunctionId, usize)> {
         .iter()
         .map(|(id, f)| (*id, compute_function_own_weight(f)))
         .collect::<HashMap<_, _>>();
-
-    let callers = compute_callers(ssa);
-    let mut callees = compute_callees(ssa);
 
     // Seed the queue with functions that don't call anything.
     let mut queue = callees
