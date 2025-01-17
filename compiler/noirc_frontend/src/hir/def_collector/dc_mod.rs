@@ -1088,7 +1088,7 @@ pub fn collect_enum(
     _file_id: FileId,
     _module_id: LocalModuleId,
     _krate: CrateId,
-    _definition_errors: &mut Vec<(CompilationError, FileId)>,
+    _definition_errors: &mut [(CompilationError, FileId)],
 ) -> Option<(StructId, UnresolvedEnum)> {
     todo!("Implement collect_enum")
 }
