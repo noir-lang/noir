@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737148819320,
+  "lastUpdate": 1737149332846,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3267,6 +3267,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 208.85,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "dd7084545dfd93a07599fc10676b6c8ec1e3d458",
+          "message": "fix: defunctionalize pass on the caller runtime to apply (#7100)\n\nCo-authored-by: Tom French <tom@tomfren.ch>",
+          "timestamp": "2025-01-17T21:03:22Z",
+          "tree_id": "ec1f1281a650d393899df99e1c24f1ac3a92c4d8",
+          "url": "https://github.com/noir-lang/noir/commit/dd7084545dfd93a07599fc10676b6c8ec1e3d458"
+        },
+        "date": 1737149332301,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "keccak256",
+            "value": 74.63,
+            "unit": "MB"
+          },
+          {
+            "name": "workspace",
+            "value": 123.46,
+            "unit": "MB"
+          },
+          {
+            "name": "regression_4709",
+            "value": 315.94,
+            "unit": "MB"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 512.57,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 498.7,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 473.34,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1230,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 498.71,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 734.39,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 590.8,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 180.84,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 245.44,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 208.84,
             "unit": "MB"
           }
         ]
