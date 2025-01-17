@@ -440,9 +440,7 @@ mod tests {
             b1():
               constrain v0 == Field 3
               v8 = call f3(v1) -> u32
-              jmp b2(v8)
-            b2(v2: u32):
-              jmp b4(v2)
+              jmp b4(v8)
             b3():
               v10 = call f2(v1) -> u32
               jmp b4(v10)
