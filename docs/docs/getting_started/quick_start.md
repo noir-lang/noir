@@ -68,6 +68,7 @@ We can now use `nargo` to generate a _Prover.toml_ file, where our input values 
 ```sh
 cd hello_world
 nargo check
+```
 
 Let's feed some valid values into this file:
 
