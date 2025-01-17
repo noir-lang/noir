@@ -428,6 +428,10 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
+      # deployments permission to deploy GitHub pages website
+      deployments: write
+      # contents permission to update benchmark contents in gh-pages branch
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
@@ -463,6 +467,27 @@ jobs:
         with:
           header: compilation
           message: ${{ steps.compilation_report.outputs.markdown }}
+
+      - name: Convert to `benchmark-action` format
+        run: |
+          jq ".compilation_reports | map({name: .artifact_name, value: (.time[:-1] | tonumber), unit: \"s\"}) " ./compilation_report.json > time_bench.json
+
+      - name: Store benchmark result
+        # We always push new benchmarks so we want this to only run on master to avoid garbage data.``
+        # if: github.ref == 'refs/heads/master'
+        continue-on-error: true
+        uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
+        with:
+          name: "Compilation Time"
+          tool: "customSmallerIsBetter"
+          output-file-path: ./time_bench.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: true
+          alert-threshold: "110%"
+          comment-on-alert: true
+          fail-on-alert: false
+          alert-comment-cc-users: "@TomAFrench"
+          max-items-in-chart: 50
 
   external_repo_memory_report:
     needs: [build-nargo]
@@ -613,6 +638,27 @@ jobs:
           header: compilation_memory
           message: ${{ steps.compilation_mem_report.outputs.markdown }}
 
+      - name: Convert to `benchmark-action` format
+        run: |
+          jq ".memory_reports | map({name: .artifact_name, value: (.peak_memory | tonumber), unit: \"MB\"}) " ./memory_report.json > memory_bench.json
+
+      - name: Store benchmark result
+        # We always push new benchmarks so we want this to only run on master to avoid garbage data.``
+         # if: github.ref == 'refs/heads/master'
+        continue-on-error: true
+        uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
+        with:
+          name: "Compilation Memory"
+          tool: "customSmallerIsBetter"
+          output-file-path: ./memory_bench.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: true
+          alert-threshold: "110%"
+          comment-on-alert: true
+          fail-on-alert: false
+          alert-comment-cc-users: "@TomAFrench"
+          max-items-in-chart: 50
+
   upload_execution_memory_report:
     name: Upload execution memory report 
     needs: [generate_memory_report, external_repo_memory_report]
@@ -659,6 +705,28 @@ jobs:
           header: execution_memory
           message: ${{ steps.execution_mem_report.outputs.markdown }}
 
+      - name: Convert to `benchmark-action` format
+        run: |
+          jq ".memory_reports | map({name: .artifact_name, value: (.peak_memory | tonumber), unit: \"MB\"}) " ./execution_memory_report.json > memory_bench.json
+
+      - name: Store benchmark result
+        # We always push new benchmarks so we want this to only run on master to avoid garbage data.``
+         # if: github.ref == 'refs/heads/master'
+        continue-on-error: true
+        uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
+        with:
+          name: "Execution Memory"
+          tool: "customSmallerIsBetter"
+          output-file-path: ./memory_bench.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: true
+          alert-threshold: "110%"
+          comment-on-alert: true
+          fail-on-alert: false
+          alert-comment-cc-users: "@TomAFrench"
+          max-items-in-chart: 50
+
+
   upload_execution_report:
     name: Upload execution report 
     needs: [generate_compilation_and_execution_report, external_repo_compilation_and_execution_report]
@@ -703,98 +771,19 @@ jobs:
           header: execution_time
           message: ${{ steps.execution_report.outputs.markdown }}
 
-  upload_time_benchmarks:
-    name: Upload time benchmarks 
-    needs: [generate_memory_report, external_repo_memory_report]
-    # We always push new benchmarks so we want this to only run on master to avoid garbage data.``
-    # if: github.ref == 'refs/heads/master'
-    runs-on: ubuntu-latest
-    permissions:
-      # deployments permission to deploy GitHub pages website
-      deployments: write
-      # contents permission to update benchmark contents in gh-pages branch
-      contents: write
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download initial compilation report
-        uses: actions/download-artifact@v4
-        with:
-          name: in_progress_compilation_report
-
-      - name: Download matrix compilation reports
-        uses: actions/download-artifact@v4
-        with:
-          pattern: compilation_report_*
-          path: ./reports
-
-      - name: Merge compilation reports using jq
-        run: |
-          mv ./.github/scripts/merge-bench-reports.sh merge-bench-reports.sh
-          ./merge-bench-reports.sh compilation_report
-
       - name: Convert to `benchmark-action` format
         run: |
-          jq ".compilation_reports | map({name: .artifact_name, value: (.time[:-1] | tonumber), unit: \"s\"}) " ./compilation_report.json > time_bench.json
+          jq ".execution_report | map({name: .artifact_name, value: (.time[:-1] | tonumber), unit: \"s\"}) " ./execution_report.json > time_bench.json
 
       - name: Store benchmark result
+        # We always push new benchmarks so we want this to only run on master to avoid garbage data.``
+        # if: github.ref == 'refs/heads/master'
         continue-on-error: true
         uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
         with:
-          name: "Compilation Time"
+          name: "Execution Time"
           tool: "customSmallerIsBetter"
           output-file-path: ./time_bench.json
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          auto-push: true
-          alert-threshold: "110%"
-          comment-on-alert: true
-          fail-on-alert: false
-          alert-comment-cc-users: "@TomAFrench"
-          max-items-in-chart: 50
-  
-  upload_memory_benchmarks:
-    name: Upload memory benchmarks 
-    needs: [generate_memory_report, external_repo_memory_report]
-    # We always push new benchmarks so we want this to only run on master to avoid garbage data.``
-    # if: github.ref == 'refs/heads/master'
-    runs-on: ubuntu-latest
-    permissions:
-      # deployments permission to deploy GitHub pages website
-      deployments: write
-      # contents permission to update benchmark contents in gh-pages branch
-      contents: write
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download initial memory report
-        uses: actions/download-artifact@v4
-        with:
-          name: in_progress_compilation_mem_report
-
-      - name: Download matrix memory reports
-        uses: actions/download-artifact@v4
-        with:
-          pattern: compilation_mem_report_*
-          path: ./reports
-
-      - name: Merge memory reports using jq
-        run: |
-          mv ./.github/scripts/merge-bench-reports.sh merge-bench-reports.sh
-          ./merge-bench-reports.sh memory_report
-
-      - name: Convert to `benchmark-action` format
-        run: |
-          jq ".memory_reports | map({name: .artifact_name, value: (.peak_memory | tonumber), unit: \"MB\"}) " ./memory_report.json > memory_bench.json
-
-      - name: Store benchmark result
-        continue-on-error: true
-        uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
-        with:
-          name: "Compilation Memory"
-          tool: "customSmallerIsBetter"
-          output-file-path: ./memory_bench.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
           auto-push: true
           alert-threshold: "110%"
