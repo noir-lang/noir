@@ -66,22 +66,27 @@ impl Ssa {
         self.functions = btree_map(inline_sources, |entry_point| {
             let should_inline_call =
                 |_context: &PerFunctionContext, ssa: &Ssa, called_func_id: FunctionId| -> bool {
-                    let function = &ssa.functions[&called_func_id];
+                    let callee = &ssa.functions[&called_func_id];
+                    let caller_runtime = ssa.functions[entry_point].runtime();
 
-                    match function.runtime() {
+                    match callee.runtime() {
                         RuntimeType::Acir(inline_type) => {
                             // If the called function is acir, we inline if it's not an entry point
 
                             // If we have not already finished the flattening pass, functions marked
                             // to not have predicates should be preserved.
                             let preserve_function =
-                                !inline_no_predicates_functions && function.is_no_predicates();
+                                !inline_no_predicates_functions && callee.is_no_predicates();
                             !inline_type.is_entry_point() && !preserve_function
                         }
                         RuntimeType::Brillig(_) => {
-                            // If the called function is brillig, we inline only if it's into brillig and the function is not recursive
-                            ssa.functions[entry_point].runtime().is_brillig()
-                                && !inline_sources.contains(&called_func_id)
+                            if caller_runtime.is_acir() {
+                                // We never inline a brillig function into an ACIR function.
+                                return false;
+                            }
+
+                            // Avoid inlining recursive functions.
+                            !inline_sources.contains(&called_func_id)
                         }
                     }
                 };

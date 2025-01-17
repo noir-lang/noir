@@ -8,6 +8,7 @@ use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 use acvm::FieldElement;
 use iter_extended::vecmap;
+use noirc_frontend::monomorphization::ast::InlineType;
 
 use crate::ssa::{
     function_builder::FunctionBuilder,
@@ -277,7 +278,7 @@ fn function_id_to_field(function_id: FunctionId) -> FieldElement {
 fn create_apply_function(
     ssa: &mut Ssa,
     signature: Signature,
-    runtime: RuntimeType,
+    caller_runtime: RuntimeType,
     function_ids: Vec<FunctionId>,
 ) -> FunctionId {
     assert!(!function_ids.is_empty());
@@ -285,6 +286,12 @@ fn create_apply_function(
     ssa.add_fn(|id| {
         let mut function_builder = FunctionBuilder::new("apply".to_string(), id);
         function_builder.set_globals(globals);
+
+        // We want to push for apply functions to be inlined more aggressively.
+        let runtime = match caller_runtime {
+            RuntimeType::Acir(_) => RuntimeType::Acir(InlineType::InlineAlways),
+            RuntimeType::Brillig(_) => RuntimeType::Brillig(InlineType::InlineAlways),
+        };
         function_builder.set_runtime(runtime);
         let target_id = function_builder.add_parameter(Type::field());
         let params_ids = vecmap(signature.params, |typ| function_builder.add_parameter(typ));
