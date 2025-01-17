@@ -8,12 +8,24 @@ use noirc_printable_type::{PrintableType, PrintableValueDisplay};
 
 use super::{ForeignCall, ForeignCallError, ForeignCallExecutor};
 
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub enum PrintOutput<'a> {
     #[default]
     None,
     Stdout,
     String(&'a mut String),
+    PrintCallback(Box<dyn Fn (String) + 'a>),
+}
+
+impl<'a> std::fmt::Debug for PrintOutput<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::None => write!(f, "None"),
+            Self::Stdout => write!(f, "Stdout"),
+            Self::String(arg0) => f.debug_tuple("String").field(arg0).finish(),
+            Self::PrintCallback(arg0) => write!(f, "PrintCallback(Box<dyn Fn (String) + 'a)"),
+        }
+    }
 }
 
 #[derive(Debug, Default)]
@@ -53,6 +65,9 @@ impl<F: AcirField> ForeignCallExecutor<F> for PrintForeignCallExecutor<'_> {
                     PrintOutput::Stdout => print!("{display_string}"),
                     PrintOutput::String(string) => {
                         string.push_str(&display_string);
+                    }
+                    PrintOutput::PrintCallback(callback_fn) => {
+                        callback_fn(display_string);
                     }
                 }
 
