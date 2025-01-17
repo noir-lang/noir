@@ -78,10 +78,6 @@ fn display_block(dfg: &DataFlowGraph, block_id: BasicBlockId, f: &mut Formatter)
 /// constant or a function we print those directly.
 fn value(dfg: &DataFlowGraph, id: ValueId) -> String {
     let id = dfg.resolve(id);
-    if dfg.is_global(id) {
-        return format!("g{}", id.to_u32());
-    }
-
     match &dfg[id] {
         Value::NumericConstant { constant, typ } => {
             format!("{typ} {constant}")
@@ -89,7 +85,13 @@ fn value(dfg: &DataFlowGraph, id: ValueId) -> String {
         Value::Function(id) => id.to_string(),
         Value::Intrinsic(intrinsic) => intrinsic.to_string(),
         Value::ForeignFunction(function) => function.clone(),
-        Value::Param { .. } | Value::Instruction { .. } => id.to_string(),
+        Value::Param { .. } | Value::Instruction { .. } => {
+            if dfg.is_global(id) {
+                format!("g{}", id.to_u32())
+            } else {
+                id.to_string()
+            }
+        }
         Value::Global(_) => {
             format!("g{}", id.to_u32())
         }
