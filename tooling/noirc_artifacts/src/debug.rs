@@ -211,7 +211,7 @@ impl<'a> Files<'a> for DebugArtifact {
 #[cfg(test)]
 mod tests {
     use crate::debug::DebugArtifact;
-    use acvm::acir::circuit::OpcodeLocation;
+    use acvm::acir::circuit::AcirOpcodeLocation;
     use fm::FileManager;
     use noirc_errors::call_stack::{CallStackId, LocationNodeDebugInfo, LocationTree};
     use noirc_errors::{debug_info::DebugInfo, Location, Span};
@@ -265,8 +265,8 @@ mod tests {
 
         // We don't care about opcodes in this context,
         // we just use a dummy to construct debug_symbols
-        let mut opcode_locations = BTreeMap::<OpcodeLocation, CallStackId>::new();
-        opcode_locations.insert(OpcodeLocation::Acir(42), CallStackId::new(1));
+        let mut opcode_locations = BTreeMap::<AcirOpcodeLocation, CallStackId>::new();
+        opcode_locations.insert(AcirOpcodeLocation::new(42), CallStackId::new(1));
         let mut location_tree = LocationTree::default();
         location_tree
             .locations
