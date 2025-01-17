@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737140689125,
+  "lastUpdate": 1737141198164,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -932,6 +932,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-merge",
             "value": 601.46,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 2380,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1140,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 207.35,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 584.4,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 294.6,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "82cb9007b89c1a3520c85d3134916a29127226db",
+          "message": "feat(brillig): SSA globals code gen (#7021)\n\nCo-authored-by: jfecher <jake@aztecprotocol.com>",
+          "timestamp": "2025-01-17T18:47:15Z",
+          "tree_id": "a1cc28441a9d2b957a20b238752b31d2f35a0f65",
+          "url": "https://github.com/noir-lang/noir/commit/82cb9007b89c1a3520c85d3134916a29127226db"
+        },
+        "date": 1737141197551,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "keccak256",
+            "value": 77.56,
+            "unit": "MB"
+          },
+          {
+            "name": "workspace",
+            "value": 123.81,
+            "unit": "MB"
+          },
+          {
+            "name": "regression_4709",
+            "value": 424.07,
+            "unit": "MB"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 1460,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 601.6,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 494.44,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 16060,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 489.06,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 16070,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 601.59,
             "unit": "MB"
           },
           {
