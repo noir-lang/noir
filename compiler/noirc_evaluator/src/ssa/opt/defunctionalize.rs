@@ -343,22 +343,21 @@ fn create_apply_function(
     })
 }
 
-/// Crates a return block, if no previous return exists, it will create a final return
-/// Else, it will create a bypass return block that points to the previous return block
+/// If no previous return target exists, it will create a final return,
+/// otherwise returns the existing return block to jump to.
 fn build_return_block(
     builder: &mut FunctionBuilder,
     previous_block: BasicBlockId,
     passed_types: &[Type],
     target: Option<BasicBlockId>,
 ) -> BasicBlockId {
+    if let Some(return_block) = target {
+        return return_block;
+    }
     let return_block = builder.insert_block();
     builder.switch_to_block(return_block);
-
     let params = vecmap(passed_types, |typ| builder.add_block_parameter(return_block, typ.clone()));
-    match target {
-        None => builder.terminate_with_return(params),
-        Some(target) => builder.terminate_with_jmp(target, params),
-    }
+    builder.terminate_with_return(params);
     builder.switch_to_block(previous_block);
     return_block
 }
@@ -435,19 +434,17 @@ mod tests {
           }
           brillig(inline) fn apply f4 {
             b0(v0: Field, v1: u32):
-              v5 = eq v0, Field 2
-              jmpif v5 then: b3, else: b1
+              v4 = eq v0, Field 2
+              jmpif v4 then: b2, else: b1
             b1():
               constrain v0 == Field 3
-              v8 = call f3(v1) -> u32
-              jmp b2(v8)
-            b2(v2: u32):
-              jmp b4(v2)
-            b3():
-              v10 = call f2(v1) -> u32
-              jmp b4(v10)
-            b4(v3: u32):
-              return v3
+              v7 = call f3(v1) -> u32
+              jmp b3(v7)
+            b2():
+              v9 = call f2(v1) -> u32
+              jmp b3(v9)
+            b3(v2: u32):
+              return v2
           }
         ";
         assert_normalized_ssa_equals(ssa, expected);
