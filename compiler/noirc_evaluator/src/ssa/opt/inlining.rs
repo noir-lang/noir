@@ -106,7 +106,8 @@ impl Function {
                         !inline_type.is_entry_point() && !preserve_function
                     }
                     RuntimeType::Brillig(_) => {
-                        // If the called function is brillig, we inline only if it's into brillig and the function is not recursive and not too costly.
+                        // If the called function is brillig, we inline only if the caller is Brillig,
+                        // and the function called wasn't ruled out as too costly to inline or recursive.
                         self.runtime().is_brillig()
                             && inline_infos
                                 .get(&called_func_id)
