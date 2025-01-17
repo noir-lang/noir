@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737114643658,
+  "lastUpdate": 1737114815958,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -1390,6 +1390,91 @@ window.BENCHMARK_DATA = {
           {
             "name": "workspace",
             "value": 123.51,
+            "unit": "MB"
+          },
+          {
+            "name": "regression_4709",
+            "value": 316.02,
+            "unit": "MB"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 512.62,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 498.31,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 473.05,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1220,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 498.33,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 734.18,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 590.51,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 180.91,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 245.52,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 208.92,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "noir-lang",
+            "username": "noir-lang"
+          },
+          "committer": {
+            "name": "noir-lang",
+            "username": "noir-lang"
+          },
+          "id": "1fb25cdd37fe24cd912cb0cb24c2d16a8dfa0f52",
+          "message": "chore: experimenting with benchmark action",
+          "timestamp": "2025-01-17T11:23:29Z",
+          "url": "https://github.com/noir-lang/noir/pull/7068/commits/1fb25cdd37fe24cd912cb0cb24c2d16a8dfa0f52"
+        },
+        "date": 1737114815435,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "keccak256",
+            "value": 74.71,
+            "unit": "MB"
+          },
+          {
+            "name": "workspace",
+            "value": 124,
             "unit": "MB"
           },
           {
