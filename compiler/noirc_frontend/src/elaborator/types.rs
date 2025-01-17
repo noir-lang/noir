@@ -154,7 +154,7 @@ impl<'context> Elaborator<'context> {
 
         let location = Location::new(named_path_span.unwrap_or(typ.span), self.file);
         match resolved_type {
-            Type::Struct(ref struct_type, _) => {
+            Type::DataType(ref struct_type, _) => {
                 // Record the location of the type reference
                 self.interner.push_type_ref_location(resolved_type.clone(), location);
                 if !is_synthetic {
@@ -288,7 +288,7 @@ impl<'context> Elaborator<'context> {
                     self.interner.add_type_dependency(current_item, dependency_id);
                 }
 
-                Type::Struct(struct_type, args)
+                Type::DataType(struct_type, args)
             }
             None => Type::Error,
         }
@@ -1420,7 +1420,7 @@ impl<'context> Elaborator<'context> {
             return self.return_trait_method_in_scope(&generic_methods, method_name, span);
         }
 
-        if let Type::Struct(struct_type, _) = object_type {
+        if let Type::DataType(struct_type, _) = object_type {
             let has_field_with_function_type = struct_type
                 .borrow()
                 .get_fields_as_written()

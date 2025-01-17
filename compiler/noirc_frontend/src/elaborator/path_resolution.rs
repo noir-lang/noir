@@ -9,7 +9,7 @@ use crate::hir::resolution::errors::ResolverError;
 use crate::hir::resolution::visibility::item_in_module_is_visible;
 
 use crate::locations::ReferencesTracker;
-use crate::node_interner::{FuncId, GlobalId, StructId, TraitId, TypeAliasId};
+use crate::node_interner::{FuncId, GlobalId, TraitId, TypeAliasId, TypeId};
 use crate::{Shared, Type, TypeAlias};
 
 use super::types::SELF_TYPE_NAME;
@@ -27,12 +27,12 @@ pub(crate) struct PathResolution {
 #[derive(Debug, Clone)]
 pub enum PathResolutionItem {
     Module(ModuleId),
-    Struct(StructId),
+    Struct(TypeId),
     TypeAlias(TypeAliasId),
     Trait(TraitId),
     Global(GlobalId),
     ModuleFunction(FuncId),
-    StructFunction(StructId, Option<Turbofish>, FuncId),
+    StructFunction(TypeId, Option<Turbofish>, FuncId),
     TypeAliasFunction(TypeAliasId, Option<Turbofish>, FuncId),
     TraitFunction(TraitId, Option<Turbofish>, FuncId),
 }
@@ -80,7 +80,7 @@ pub struct Turbofish {
 #[derive(Debug)]
 enum IntermediatePathResolutionItem {
     Module,
-    Struct(StructId, Option<Turbofish>),
+    Struct(TypeId, Option<Turbofish>),
     TypeAlias(TypeAliasId, Option<Turbofish>),
     Trait(TraitId, Option<Turbofish>),
 }
@@ -124,7 +124,7 @@ impl<'context> Elaborator<'context> {
         let mut module_id = self.module_id();
 
         if path.kind == PathKind::Plain && path.first_name() == Some(SELF_TYPE_NAME) {
-            if let Some(Type::Struct(struct_type, _)) = &self.self_type {
+            if let Some(Type::DataType(struct_type, _)) = &self.self_type {
                 let struct_type = struct_type.borrow();
                 if path.segments.len() == 1 {
                     return Ok(PathResolution {
@@ -373,7 +373,7 @@ impl<'context> Elaborator<'context> {
     }
 
     fn self_type_module_id(&self) -> Option<ModuleId> {
-        if let Some(Type::Struct(struct_type, _)) = &self.self_type {
+        if let Some(Type::DataType(struct_type, _)) = &self.self_type {
             Some(struct_type.borrow().id.module_id())
         } else {
             None
@@ -478,7 +478,7 @@ fn get_type_alias_module_def_id(type_alias: &Shared<TypeAlias>) -> Option<Module
     let type_alias = type_alias.borrow();
 
     match &type_alias.typ {
-        Type::Struct(struct_id, _generics) => Some(struct_id.borrow().id.module_id()),
+        Type::DataType(struct_id, _generics) => Some(struct_id.borrow().id.module_id()),
         Type::Alias(type_alias, _generics) => get_type_alias_module_def_id(type_alias),
         Type::Error => None,
         _ => {

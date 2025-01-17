@@ -1,7 +1,7 @@
 use crate::graph::{CrateGraph, CrateId};
 use crate::hir::def_collector::dc_crate::{CompilationError, DefCollector};
 use crate::hir::Context;
-use crate::node_interner::{FuncId, GlobalId, NodeInterner, StructId};
+use crate::node_interner::{FuncId, GlobalId, NodeInterner, TypeId};
 use crate::parse_program;
 use crate::parser::{ParsedModule, ParserError};
 use crate::token::{FunctionAttribute, SecondaryAttribute, TestScope};
@@ -356,7 +356,7 @@ pub struct ContractFunctionMeta {
 }
 
 pub struct ContractOutputs {
-    pub structs: HashMap<String, Vec<StructId>>,
+    pub structs: HashMap<String, Vec<TypeId>>,
     pub globals: HashMap<String, Vec<GlobalId>>,
 }
 

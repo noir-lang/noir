@@ -1159,7 +1159,7 @@ impl<'interner> Monomorphizer<'interner> {
                 monomorphized_default
             }
 
-            HirType::Struct(def, args) => {
+            HirType::DataType(def, args) => {
                 // Not all generic arguments may be used in a struct's fields so we have to check
                 // the arguments as well as the fields in case any need to be defaulted or are unbound.
                 for arg in args {
@@ -1279,7 +1279,7 @@ impl<'interner> Monomorphizer<'interner> {
                 Self::check_type(&default, location)
             }
 
-            HirType::Struct(_def, args) => {
+            HirType::DataType(_def, args) => {
                 for arg in args {
                     Self::check_type(arg, location)?;
                 }
@@ -2133,7 +2133,7 @@ fn unwrap_struct_type(
     location: Location,
 ) -> Result<Vec<(String, HirType)>, MonomorphizationError> {
     match typ.follow_bindings() {
-        HirType::Struct(def, args) => {
+        HirType::DataType(def, args) => {
             // Some of args might not be mentioned in fields, so we need to check that they aren't unbound.
             for arg in &args {
                 Monomorphizer::check_type(arg, location)?;

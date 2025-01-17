@@ -21,7 +21,7 @@ use noirc_printable_type::PrintableType;
 
 use crate::{
     ast::{Ident, Signedness},
-    node_interner::StructId,
+    node_interner::TypeId,
 };
 
 use super::{
@@ -67,7 +67,7 @@ pub enum Type {
     /// A user-defined struct type. The `Shared<StructType>` field here refers to
     /// the shared definition for each instance of this struct type. The `Vec<Type>`
     /// represents the generic arguments (if any) to this struct type.
-    Struct(Shared<StructType>, Vec<Type>),
+    DataType(Shared<DataType>, Vec<Type>),
 
     /// A user-defined alias to another type. Similar to a Struct, this carries a shared
     /// reference to the definition of the alias along with any generics that may have
@@ -330,29 +330,44 @@ pub enum QuotedType {
 /// the binding to later be undone if needed.
 pub type TypeBindings = HashMap<TypeVariableId, (TypeVariable, Kind, Type)>;
 
-/// Represents a struct type in the type system. Each instance of this
-/// rust struct will be shared across all Type::Struct variants that represent
-/// the same struct type.
-pub struct StructType {
-    /// A unique id representing this struct type. Used to check if two
-    /// struct types are equal.
-    pub id: StructId,
+/// Represents a struct or enum type in the type system. Each instance of this
+/// rust struct will be shared across all Type::DataType variants that represent
+/// the same struct or enum type.
+pub struct DataType {
+    /// A unique id representing this type. Used to check if two types are equal.
+    pub id: TypeId,
 
     pub name: Ident,
 
-    /// Fields are ordered and private, they should only
-    /// be accessed through get_field(), get_fields(), or instantiate()
+    /// A type's body is private to force struct fields or enum variants to only be
+    /// accessed through get_field(), get_fields(), instantiate(), or similar functions
     /// since these will handle applying generic arguments to fields as well.
-    fields: Vec<StructField>,
+    body: TypeBody,
 
     pub generics: Generics,
     pub location: Location,
 }
 
+enum TypeBody {
+    /// A type with no body is still in the process of being created
+    None,
+    Struct(Vec<StructField>),
+
+    #[allow(unused)]
+    Enum(Vec<EnumVariant>),
+}
+
+#[derive(Clone)]
 pub struct StructField {
     pub visibility: ItemVisibility,
     pub name: Ident,
     pub typ: Type,
+}
+
+#[derive(Clone)]
+pub struct EnumVariant {
+    pub name: Ident,
+    pub params: Vec<Type>,
 }
 
 /// Corresponds to generic lists such as `<T, U>` in the source program.
@@ -388,42 +403,35 @@ enum FunctionCoercionResult {
     UnconstrainedMismatch(Type),
 }
 
-impl std::hash::Hash for StructType {
+impl std::hash::Hash for DataType {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.id.hash(state);
     }
 }
 
-impl Eq for StructType {}
+impl Eq for DataType {}
 
-impl PartialEq for StructType {
+impl PartialEq for DataType {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
     }
 }
 
-impl PartialOrd for StructType {
+impl PartialOrd for DataType {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for StructType {
+impl Ord for DataType {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.id.cmp(&other.id)
     }
 }
 
-impl StructType {
-    pub fn new(
-        id: StructId,
-        name: Ident,
-
-        location: Location,
-        fields: Vec<StructField>,
-        generics: Generics,
-    ) -> StructType {
-        StructType { id, fields, name, location, generics }
+impl DataType {
+    pub fn new(id: TypeId, name: Ident, location: Location, generics: Generics) -> DataType {
+        DataType { id, name, location, generics, body: TypeBody::None }
     }
 
     /// To account for cyclic references between structs, a struct's
@@ -431,14 +439,38 @@ impl StructType {
     /// created. Therefore, this method is used to set the fields once they
     /// become known.
     pub fn set_fields(&mut self, fields: Vec<StructField>) {
-        self.fields = fields;
+        self.body = TypeBody::Struct(fields);
     }
 
+    /// Returns the number of fields this struct has. Returns 0 if this type
+    /// is not a struct.
     pub fn num_fields(&self) -> usize {
-        self.fields.len()
+        match &self.body {
+            TypeBody::Struct(fields) => fields.len(),
+            _ => 0,
+        }
+    }
+
+    /// Retrieve the fields of this type with no modifications.
+    /// Panics if this is not a struct type.
+    fn fields_raw(&self) -> &[StructField] {
+        match &self.body {
+            TypeBody::Struct(fields) => fields,
+            _ => panic!("Called DataType::fields_raw on a non-struct type: {}", self.name),
+        }
+    }
+
+    /// Retrieve the variants of this type with no modifications.
+    /// Panics if this is not an enum type.
+    fn variants_raw(&self) -> &[EnumVariant] {
+        match &self.body {
+            TypeBody::Enum(variants) => variants,
+            _ => panic!("Called DataType::variants_raw on a non-enum type: {}", self.name),
+        }
     }
 
     /// Returns the field matching the given field name, as well as its visibility and field index.
+    /// Panics if this is not a struct type.
     pub fn get_field(
         &self,
         field_name: &str,
@@ -446,42 +478,38 @@ impl StructType {
     ) -> Option<(Type, ItemVisibility, usize)> {
         assert_eq!(self.generics.len(), generic_args.len());
 
-        self.fields.iter().enumerate().find(|(_, field)| field.name.0.contents == field_name).map(
-            |(i, field)| {
-                let substitutions = self
-                    .generics
-                    .iter()
-                    .zip(generic_args)
-                    .map(|(old, new)| {
-                        (
-                            old.type_var.id(),
-                            (old.type_var.clone(), old.type_var.kind(), new.clone()),
-                        )
-                    })
-                    .collect();
+        let mut fields = self.fields_raw().iter().enumerate();
+        fields.find(|(_, field)| field.name.0.contents == field_name).map(|(i, field)| {
+            let generics = self.generics.iter().zip(generic_args);
+            let substitutions = generics
+                .map(|(old, new)| {
+                    (old.type_var.id(), (old.type_var.clone(), old.type_var.kind(), new.clone()))
+                })
+                .collect();
 
-                (field.typ.substitute(&substitutions), field.visibility, i)
-            },
-        )
+            (field.typ.substitute(&substitutions), field.visibility, i)
+        })
     }
 
     /// Returns all the fields of this type, after being applied to the given generic arguments.
+    /// Panics if this is not a struct type.
     pub fn get_fields_with_visibility(
         &self,
         generic_args: &[Type],
     ) -> Vec<(String, ItemVisibility, Type)> {
         let substitutions = self.get_fields_substitutions(generic_args);
 
-        vecmap(&self.fields, |field| {
+        vecmap(self.fields_raw(), |field| {
             let name = field.name.0.contents.clone();
             (name, field.visibility, field.typ.substitute(&substitutions))
         })
     }
 
+    /// Retrieve the fields of this type. Panics if this is not a struct type
     pub fn get_fields(&self, generic_args: &[Type]) -> Vec<(String, Type)> {
         let substitutions = self.get_fields_substitutions(generic_args);
 
-        vecmap(&self.fields, |field| {
+        vecmap(self.fields_raw(), |field| {
             let name = field.name.0.contents.clone();
             (name, field.typ.substitute(&substitutions))
         })
@@ -508,21 +536,35 @@ impl StructType {
     ///
     /// This method is almost never what is wanted for type checking or monomorphization,
     /// prefer to use `get_fields` whenever possible.
+    ///
+    /// Panics if this is not a struct type.
     pub fn get_fields_as_written(&self) -> Vec<StructField> {
-        vecmap(&self.fields, |field| StructField {
-            visibility: field.visibility,
-            name: field.name.clone(),
-            typ: field.typ.clone(),
-        })
+        self.fields_raw().to_vec()
     }
 
-    /// Returns the field at the given index. Panics if no field exists at the given index.
+    /// Returns the name and raw parameters of each variant of this type.
+    /// This will not substitute any generic arguments so a generic variant like `X`
+    /// in `enum Foo<T> { X(T) }` will return a `("X", Vec<T>)` pair.
+    ///
+    /// Panics if this is not an enum type.
+    pub fn get_variants_as_written(&self) -> Vec<EnumVariant> {
+        self.variants_raw().to_vec()
+    }
+
+    /// Returns the field at the given index. Panics if no field exists at the given index or this
+    /// is not a struct type.
     pub fn field_at(&self, index: usize) -> &StructField {
-        &self.fields[index]
+        &self.fields_raw()[index]
+    }
+
+    /// Returns the enum variant at the given index. Panics if no field exists at the given index
+    /// or this is not an enum type.
+    pub fn variant_at(&self, index: usize) -> &EnumVariant {
+        &self.variants_raw()[index]
     }
 
     pub fn field_names(&self) -> BTreeSet<Ident> {
-        self.fields.iter().map(|field| field.name.clone()).collect()
+        self.fields_raw().iter().map(|field| field.name.clone()).collect()
     }
 
     /// Instantiate this struct type, returning a Vec of the new generic args (in
@@ -530,9 +572,27 @@ impl StructType {
     pub fn instantiate(&self, interner: &mut NodeInterner) -> Vec<Type> {
         vecmap(&self.generics, |generic| interner.next_type_variable_with_kind(generic.kind()))
     }
+
+    /// Returns the function type of the variant at the given index of this enum.
+    /// Requires the `Shared<DataType>` handle of self to create the given function type.
+    /// Panics if this is not an enum.
+    ///
+    /// The function type uses the variant "as written" ie. no generic substitutions.
+    /// Although the returned function is technically generic, Type::Function is returned
+    /// instead of Type::Forall.
+    pub fn variant_function_type(&self, variant_index: usize, this: Shared<DataType>) -> Type {
+        let variant = self.variant_at(variant_index);
+        let args = variant.params.clone();
+        assert_eq!(this.borrow().id, self.id);
+        let generics = vecmap(&self.generics, |generic| {
+            Type::NamedGeneric(generic.type_var.clone(), generic.name.clone())
+        });
+        let ret = Box::new(Type::DataType(this, generics));
+        Type::Function(args, ret, Box::new(Type::Unit), false)
+    }
 }
 
-impl std::fmt::Display for StructType {
+impl std::fmt::Display for DataType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.name)
     }
@@ -850,7 +910,7 @@ impl std::fmt::Display for Type {
                     }
                 }
             }
-            Type::Struct(s, args) => {
+            Type::DataType(s, args) => {
                 let args = vecmap(args, |arg| arg.to_string());
                 if args.is_empty() {
                     write!(f, "{}", s.borrow())
@@ -1084,7 +1144,7 @@ impl Type {
                 alias_type.borrow().get_type(&generics).is_primitive()
             }
             Type::MutableReference(typ) => typ.is_primitive(),
-            Type::Struct(..)
+            Type::DataType(..)
             | Type::TypeVariable(..)
             | Type::TraitAsType(..)
             | Type::NamedGeneric(..)
@@ -1145,7 +1205,7 @@ impl Type {
             }
             Type::String(length) => length.is_valid_for_program_input(),
             Type::Tuple(elements) => elements.iter().all(|elem| elem.is_valid_for_program_input()),
-            Type::Struct(definition, generics) => definition
+            Type::DataType(definition, generics) => definition
                 .borrow()
                 .get_fields(generics)
                 .into_iter()
@@ -1200,7 +1260,7 @@ impl Type {
             }
             Type::String(length) => length.is_valid_non_inlined_function_input(),
             Type::Tuple(elements) => elements.iter().all(|elem| elem.is_valid_non_inlined_function_input()),
-            Type::Struct(definition, generics) => definition
+            Type::DataType(definition, generics) => definition
                 .borrow()
                 .get_fields(generics)
                 .into_iter()
@@ -1252,7 +1312,7 @@ impl Type {
             Type::Tuple(elements) => {
                 elements.iter().all(|elem| elem.is_valid_for_unconstrained_boundary())
             }
-            Type::Struct(definition, generics) => definition
+            Type::DataType(definition, generics) => definition
                 .borrow()
                 .get_fields(generics)
                 .into_iter()
@@ -1324,7 +1384,7 @@ impl Type {
             | Type::FmtString(..)
             | Type::Unit
             | Type::Tuple(..)
-            | Type::Struct(..)
+            | Type::DataType(..)
             | Type::TraitAsType(..)
             | Type::Function(..)
             | Type::MutableReference(..)
@@ -1398,7 +1458,7 @@ impl Type {
                 let typ = typ.as_ref();
                 length * typ.field_count(location)
             }
-            Type::Struct(def, args) => {
+            Type::DataType(def, args) => {
                 let struct_type = def.borrow();
                 let fields = struct_type.get_fields(args);
                 fields.iter().fold(0, |acc, (_, field_type)| acc + field_type.field_count(location))
@@ -1439,7 +1499,7 @@ impl Type {
     pub(crate) fn contains_slice(&self) -> bool {
         match self {
             Type::Slice(_) => true,
-            Type::Struct(struct_typ, generics) => {
+            Type::DataType(struct_typ, generics) => {
                 let fields = struct_typ.borrow().get_fields(generics);
                 for field in fields.iter() {
                     if field.1.contains_slice() {
@@ -1687,7 +1747,7 @@ impl Type {
             // No recursive try_unify call for struct fields. Don't want
             // to mutate shared type variables within struct definitions.
             // This isn't possible currently but will be once noir gets generic types
-            (Struct(id_a, args_a), Struct(id_b, args_b)) => {
+            (DataType(id_a, args_a), DataType(id_b, args_b)) => {
                 if id_a == id_b && args_a.len() == args_b.len() {
                     for (a, b) in args_a.iter().zip(args_b) {
                         a.try_unify(b, bindings)?;
@@ -2037,28 +2097,6 @@ impl Type {
         }
     }
 
-    /// Iterate over the fields of this type.
-    /// Panics if the type is not a struct or tuple.
-    pub fn iter_fields(&self) -> impl Iterator<Item = (String, Type)> {
-        let fields: Vec<_> = match self {
-            // Unfortunately the .borrow() here forces us to collect into a Vec
-            // only to have to call .into_iter again afterward. Trying to elide
-            // collecting to a Vec leads to us dropping the temporary Ref before
-            // the iterator is returned
-            Type::Struct(def, args) => vecmap(&def.borrow().fields, |field| {
-                let name = &field.name.0.contents;
-                let typ = def.borrow().get_field(name, args).unwrap().0;
-                (name.clone(), typ)
-            }),
-            Type::Tuple(fields) => {
-                let fields = fields.iter().enumerate();
-                vecmap(fields, |(i, field)| (i.to_string(), field.clone()))
-            }
-            other => panic!("Tried to iterate over the fields of '{other}', which has none"),
-        };
-        fields.into_iter()
-    }
-
     /// Retrieves the type of the given field name
     /// Panics if the type is not a struct or tuple.
     pub fn get_field_type_and_visibility(
@@ -2066,7 +2104,7 @@ impl Type {
         field_name: &str,
     ) -> Option<(Type, ItemVisibility)> {
         match self.follow_bindings() {
-            Type::Struct(def, args) => def
+            Type::DataType(def, args) => def
                 .borrow()
                 .get_field(field_name, &args)
                 .map(|(typ, visibility, _)| (typ, visibility)),
@@ -2266,11 +2304,11 @@ impl Type {
 
             // Do not substitute_helper fields, it can lead to infinite recursion
             // and we should not match fields when type checking anyway.
-            Type::Struct(fields, args) => {
+            Type::DataType(fields, args) => {
                 let args = vecmap(args, |arg| {
                     arg.substitute_helper(type_bindings, substitute_bound_typevars)
                 });
-                Type::Struct(fields.clone(), args)
+                Type::DataType(fields.clone(), args)
             }
             Type::Alias(alias, args) => {
                 let args = vecmap(args, |arg| {
@@ -2342,7 +2380,7 @@ impl Type {
                 let field_occurs = fields.occurs(target_id);
                 len_occurs || field_occurs
             }
-            Type::Struct(_, generic_args) | Type::Alias(_, generic_args) => {
+            Type::DataType(_, generic_args) | Type::Alias(_, generic_args) => {
                 generic_args.iter().any(|arg| arg.occurs(target_id))
             }
             Type::TraitAsType(_, _, args) => {
@@ -2399,9 +2437,9 @@ impl Type {
                 let args = Box::new(args.follow_bindings());
                 FmtString(size, args)
             }
-            Struct(def, args) => {
+            DataType(def, args) => {
                 let args = vecmap(args, |arg| arg.follow_bindings());
-                Struct(def.clone(), args)
+                DataType(def.clone(), args)
             }
             Alias(def, args) => {
                 // We don't need to vecmap(args, follow_bindings) since we're recursively
@@ -2499,7 +2537,7 @@ impl Type {
                     field.replace_named_generics_with_type_variables();
                 }
             }
-            Type::Struct(_, generics) => {
+            Type::DataType(_, generics) => {
                 for generic in generics {
                     generic.replace_named_generics_with_type_variables();
                 }
@@ -2601,7 +2639,7 @@ impl Type {
             | Type::FmtString(..)
             | Type::Unit
             | Type::Tuple(..)
-            | Type::Struct(..)
+            | Type::DataType(..)
             | Type::TraitAsType(..)
             | Type::Function(..)
             | Type::Forall(..)
@@ -2759,7 +2797,7 @@ impl From<&Type> for PrintableType {
             Type::Error => unreachable!(),
             Type::Unit => PrintableType::Unit,
             Type::Constant(_, _) => unreachable!(),
-            Type::Struct(def, ref args) => {
+            Type::DataType(def, ref args) => {
                 let struct_type = def.borrow();
                 let fields = struct_type.get_fields(args);
                 let fields = vecmap(fields, |(name, typ)| (name, typ.into()));
@@ -2815,7 +2853,7 @@ impl std::fmt::Debug for Type {
                     write!(f, "{}", binding.borrow())
                 }
             }
-            Type::Struct(s, args) => {
+            Type::DataType(s, args) => {
                 let args = vecmap(args, |arg| format!("{:?}", arg));
                 if args.is_empty() {
                     write!(f, "{}", s.borrow())
@@ -2897,7 +2935,7 @@ impl std::fmt::Debug for TypeVariable {
     }
 }
 
-impl std::fmt::Debug for StructType {
+impl std::fmt::Debug for DataType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.name)
     }
@@ -2934,7 +2972,7 @@ impl std::hash::Hash for Type {
                 env.hash(state);
             }
             Type::Tuple(elems) => elems.hash(state),
-            Type::Struct(def, args) => {
+            Type::DataType(def, args) => {
                 def.hash(state);
                 args.hash(state);
             }
@@ -3005,7 +3043,7 @@ impl PartialEq for Type {
                 lhs_len == rhs_len && lhs_env == rhs_env
             }
             (Tuple(lhs_types), Tuple(rhs_types)) => lhs_types == rhs_types,
-            (Struct(lhs_struct, lhs_generics), Struct(rhs_struct, rhs_generics)) => {
+            (DataType(lhs_struct, lhs_generics), DataType(rhs_struct, rhs_generics)) => {
                 lhs_struct == rhs_struct && lhs_generics == rhs_generics
             }
             (Alias(lhs_alias, lhs_generics), Alias(rhs_alias, rhs_generics)) => {

@@ -32,7 +32,7 @@ use crate::{
     },
     node_interner::{
         DefinitionKind, DependencyId, ExprId, FuncId, FunctionModifiers, GlobalId, NodeInterner,
-        ReferenceId, StructId, TraitId, TraitImplId, TypeAliasId,
+        ReferenceId, TraitId, TraitImplId, TypeAliasId, TypeId,
     },
     token::SecondaryAttribute,
     Shared, Type, TypeVariable,
@@ -43,7 +43,7 @@ use crate::{
     hir_def::traits::ResolvedTraitBound,
     node_interner::GlobalValue,
     usage_tracker::UsageTracker,
-    StructField, StructType, TypeBindings,
+    DataType, StructField, TypeBindings,
 };
 
 mod comptime;
@@ -146,7 +146,7 @@ pub struct Elaborator<'context> {
     /// struct Wrapped {
     /// }
     /// ```
-    resolving_ids: BTreeSet<StructId>,
+    resolving_ids: BTreeSet<TypeId>,
 
     /// Each constraint in the `where` clause of the function currently being resolved.
     trait_bounds: Vec<TraitConstraint>,
@@ -976,7 +976,7 @@ impl<'context> Elaborator<'context> {
         let statements = std::mem::take(&mut func.def.body.statements);
         let body = BlockExpression { statements };
 
-        let struct_id = if let Some(Type::Struct(struct_type, _)) = &self.self_type {
+        let struct_id = if let Some(Type::DataType(struct_type, _)) = &self.self_type {
             Some(struct_type.borrow().id)
         } else {
             None
@@ -1024,7 +1024,7 @@ impl<'context> Elaborator<'context> {
                     self.mark_type_as_used(typ);
                 }
             }
-            Type::Struct(struct_type, generics) => {
+            Type::DataType(struct_type, generics) => {
                 self.mark_struct_as_constructed(struct_type.clone());
                 for generic in generics {
                     self.mark_type_as_used(generic);
@@ -1501,7 +1501,7 @@ impl<'context> Elaborator<'context> {
 
         let function_ids = functions.function_ids();
 
-        if let Type::Struct(struct_type, _) = &self_type {
+        if let Type::DataType(struct_type, _) = &self_type {
             let struct_ref = struct_type.borrow();
 
             // `impl`s are only allowed on types defined within the current crate
@@ -1596,7 +1596,7 @@ impl<'context> Elaborator<'context> {
     }
 
     /// Find the struct in the parent module so we can know its visibility
-    fn find_struct_visibility(&self, struct_type: &StructType) -> Option<ItemVisibility> {
+    fn find_struct_visibility(&self, struct_type: &DataType) -> Option<ItemVisibility> {
         let parent_module_id = struct_type.id.parent_module_id(self.def_maps);
         let parent_module_data = self.get_module(parent_module_id);
         let per_ns = parent_module_data.find_name(&struct_type.name);
@@ -1638,7 +1638,7 @@ impl<'context> Elaborator<'context> {
         span: Span,
     ) {
         match typ {
-            Type::Struct(struct_type, generics) => {
+            Type::DataType(struct_type, generics) => {
                 let struct_type = struct_type.borrow();
                 let struct_module_id = struct_type.id.module_id();
 
@@ -1708,7 +1708,7 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn collect_struct_definitions(&mut self, structs: &BTreeMap<StructId, UnresolvedStruct>) {
+    fn collect_struct_definitions(&mut self, structs: &BTreeMap<TypeId, UnresolvedStruct>) {
         // This is necessary to avoid cloning the entire struct map
         // when adding checks after each struct field is resolved.
         let struct_ids = structs.keys().copied().collect::<Vec<_>>();
@@ -1760,7 +1760,7 @@ impl<'context> Elaborator<'context> {
         // We need to check after all structs are resolved to
         // make sure every struct's fields is accurately set.
         for id in struct_ids {
-            let struct_type = self.interner.get_struct(id);
+            let struct_type = self.interner.get_type(id);
 
             // Only handle structs without generics as any generics args will be checked
             // after monomorphization when performing SSA codegen
@@ -1780,14 +1780,14 @@ impl<'context> Elaborator<'context> {
     pub fn resolve_struct_fields(
         &mut self,
         unresolved: &NoirStruct,
-        struct_id: StructId,
+        struct_id: TypeId,
     ) -> Vec<StructField> {
         self.recover_generics(|this| {
             this.current_item = Some(DependencyId::Struct(struct_id));
 
             this.resolving_ids.insert(struct_id);
 
-            let struct_def = this.interner.get_struct(struct_id);
+            let struct_def = this.interner.get_type(struct_id);
             this.add_existing_generics(&unresolved.generics, &struct_def.borrow().generics);
 
             let fields = vecmap(&unresolved.fields, |field| {

@@ -21,7 +21,7 @@ use crate::{
         },
     },
     node_interner::{DefinitionId, DefinitionKind, GlobalId, StmtId},
-    StructType, Type,
+    DataType, Type,
 };
 
 use super::{lints, Elaborator};
@@ -478,7 +478,7 @@ impl<'context> Elaborator<'context> {
         let lhs_type = lhs_type.follow_bindings();
 
         match &lhs_type {
-            Type::Struct(s, args) => {
+            Type::DataType(s, args) => {
                 let s = s.borrow();
                 if let Some((field, visibility, index)) = s.get_field(field_name, args) {
                     let reference_location = Location::new(span, self.file);
@@ -542,7 +542,7 @@ impl<'context> Elaborator<'context> {
 
     pub(super) fn check_struct_field_visibility(
         &mut self,
-        struct_type: &StructType,
+        struct_type: &DataType,
         field_name: &str,
         visibility: ItemVisibility,
         span: Span,
