@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737133296460,
+  "lastUpdate": 1737133298090,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -759,6 +759,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 294.68,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "df71bdea8d726142994f92fea1d947e6307a7095",
+          "message": "chore: Add benchmarking dashboard (#7068)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-01-17T16:36:34Z",
+          "tree_id": "0dfe3a96b6cccdbe9fa643ac09acc0ab8e246c74",
+          "url": "https://github.com/noir-lang/noir/commit/df71bdea8d726142994f92fea1d947e6307a7095"
+        },
+        "date": 1737133297266,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "keccak256",
+            "value": 77.56,
+            "unit": "MB"
+          },
+          {
+            "name": "workspace",
+            "value": 123.77,
+            "unit": "MB"
+          },
+          {
+            "name": "regression_4709",
+            "value": 424.07,
+            "unit": "MB"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 1460,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 601.17,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 494.14,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 16060,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 488.32,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 16070,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 601.16,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 2380,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1140,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 207.34,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 584.4,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 294.6,
             "unit": "MB"
           }
         ]
