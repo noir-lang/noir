@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-# This script accepts a string representing the amount of memory allocatedas outputted by `heaptrack`
+# This script accepts a string representing the amount of memory allocated as outputted by `heaptrack`
 # and standardizes it to be in terms of megabytes as `heaptrack` will report different units depending on the duration.
 
 DIGITS='([0-9]+(\.[0-9]+)?)'
