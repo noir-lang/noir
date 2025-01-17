@@ -45,6 +45,7 @@ pub enum StatementKind {
     Expression(Expression),
     Assign(AssignStatement),
     For(ForLoopStatement),
+    Loop(Expression),
     Break,
     Continue,
     /// This statement should be executed at compile-time
@@ -105,6 +106,9 @@ impl StatementKind {
             }
             // A semicolon on a for loop is optional and does nothing
             StatementKind::For(_) => self,
+
+            // A semicolon on a loop is optional and does nothing
+            StatementKind::Loop(..) => self,
 
             // No semicolon needed for a resolved statement
             StatementKind::Interned(_) => self,
@@ -961,6 +965,7 @@ impl Display for StatementKind {
             StatementKind::Expression(expression) => expression.fmt(f),
             StatementKind::Assign(assign) => assign.fmt(f),
             StatementKind::For(for_loop) => for_loop.fmt(f),
+            StatementKind::Loop(block) => write!(f, "loop {}", block),
             StatementKind::Break => write!(f, "break"),
             StatementKind::Continue => write!(f, "continue"),
             StatementKind::Comptime(statement) => write!(f, "comptime {}", statement.kind),
