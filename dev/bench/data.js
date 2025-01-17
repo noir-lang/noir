@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737114641160,
+  "lastUpdate": 1737114643658,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -1359,6 +1359,93 @@ window.BENCHMARK_DATA = {
             "name": "private-kernel-inner",
             "value": 0.067,
             "unit": "s"
+          }
+        ]
+      }
+    ],
+    "Execution Memory": [
+      {
+        "commit": {
+          "author": {
+            "name": "noir-lang",
+            "username": "noir-lang"
+          },
+          "committer": {
+            "name": "noir-lang",
+            "username": "noir-lang"
+          },
+          "id": "e66444af8bc65e787b25ad9274dcd060bec7ad5a",
+          "message": "chore: experimenting with benchmark action",
+          "timestamp": "2025-01-17T11:23:29Z",
+          "url": "https://github.com/noir-lang/noir/pull/7068/commits/e66444af8bc65e787b25ad9274dcd060bec7ad5a"
+        },
+        "date": 1737114642790,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "keccak256",
+            "value": 74.71,
+            "unit": "MB"
+          },
+          {
+            "name": "workspace",
+            "value": 123.51,
+            "unit": "MB"
+          },
+          {
+            "name": "regression_4709",
+            "value": 316.02,
+            "unit": "MB"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 512.62,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 498.31,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 473.05,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1220,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 498.33,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 734.18,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 590.51,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 180.91,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 245.52,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 208.92,
+            "unit": "MB"
           }
         ]
       }
