@@ -3709,4 +3709,38 @@ mod test {
             }
         }
     }
+
+    #[test]
+    fn does_not_generate_memory_blocks_without_dynamic_accesses() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 2]):
+            v2, v3 = call as_slice(v0) -> (u32, [Field])
+            call f1(u32 2, v3)
+            v7 = array_get v0, index u32 0 -> Field
+            constrain v7 == Field 0
+            return
+        }
+        
+        brillig(inline) fn foo f1 {
+          b0(v0: u32, v1: [Field]):
+              return
+          }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let brillig = ssa.to_brillig(false);
+
+        let (acir_functions, _brillig_functions, _, _) = ssa
+            .into_acir(&brillig, ExpressionWidth::default())
+            .expect("Should compile manually written SSA into ACIR");
+
+        assert_eq!(acir_functions.len(), 1);
+
+        // Check that no memory opcodes were emitted.
+        let main = &acir_functions[0];
+        assert!(!main
+            .opcodes()
+            .iter()
+            .any(|opcode| matches!(opcode, Opcode::MemoryInit { .. } | Opcode::MemoryOp { .. })));
+    }
 }
