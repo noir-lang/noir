@@ -101,24 +101,10 @@ mod tests {
     use crate::assert_format;
 
     #[test]
-    fn format_empty_enum_semicolon() {
-        let src = " mod moo { 
-    /// hello
-    #[foo] pub ( crate ) enum Foo  ; }";
-        let expected = "mod moo {
-    /// hello
-    #[foo]
-    pub(crate) enum Foo;
-}
-";
-        assert_format(src, expected);
-    }
-
-    #[test]
     fn format_empty_enum_with_generics() {
-        let src = " mod moo { enum Foo < A, B, let N : u32  > ; }";
+        let src = " mod moo { enum Foo < A, B, let N : u32  > {} }";
         let expected = "mod moo {
-    enum Foo<A, B, let N: u32>;
+    enum Foo<A, B, let N: u32> {}
 }
 ";
         assert_format(src, expected);
