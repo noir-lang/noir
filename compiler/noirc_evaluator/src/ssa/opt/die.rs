@@ -941,4 +941,52 @@ mod test {
         let ssa = ssa.dead_instruction_elimination();
         assert_normalized_ssa_equals(ssa, src);
     }
+
+    #[test]
+    fn do_not_remove_mutable_reference_params() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v2 = allocate -> &mut Field
+            store v0 at v2
+            call f1(v2)
+            v4 = load v2 -> Field
+            v5 = eq v4, v1
+            constrain v4 == v1
+            return
+        }
+        acir(inline) fn Add10 f1 {
+          b0(v0: &mut Field):
+            v1 = load v0 -> Field
+            v2 = load v0 -> Field
+            v4 = add v2, Field 10
+            store v4 at v0
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.dead_instruction_elimination();
+
+        let expected = "
+          acir(inline) fn main f0 {
+            b0(v0: Field, v1: Field):
+              v2 = allocate -> &mut Field
+              store v0 at v2
+              call f1(v2)
+              v4 = load v2 -> Field
+              v5 = eq v4, v1
+              constrain v4 == v1
+              return
+          }
+          acir(inline) fn Add10 f1 {
+            b0(v0: &mut Field):
+              v1 = load v0 -> Field
+              v2 = add v1, Field 10
+              store v2 at v0
+              return
+          }
+        ";
+        assert_normalized_ssa_equals(ssa, &expected);
+    }
 }
