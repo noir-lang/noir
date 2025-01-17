@@ -2818,12 +2818,13 @@ fn duplicate_struct_field() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
 
-    let CompilationError::DefinitionError(DefCollectorErrorKind::DuplicateField {
+    let CompilationError::DefinitionError(DefCollectorErrorKind::Duplicate {
+        typ: _,
         first_def,
         second_def,
     }) = &errors[0].0
     else {
-        panic!("Expected a duplicate field error, got {:?}", errors[0].0);
+        panic!("Expected a 'duplicate' error, got {:?}", errors[0].0);
     };
 
     assert_eq!(first_def.to_string(), "x");
