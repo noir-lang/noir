@@ -75,6 +75,8 @@ pub(crate) enum LabelType {
     Function(FunctionId, Option<BasicBlockId>),
     /// Labels for intrinsic procedures
     Procedure(ProcedureId),
+    /// Label for initialization of globals
+    GlobalInit,
 }
 
 impl std::fmt::Display for LabelType {
@@ -89,6 +91,7 @@ impl std::fmt::Display for LabelType {
             }
             LabelType::Entrypoint => write!(f, "Entrypoint"),
             LabelType::Procedure(procedure_id) => write!(f, "Procedure({:?})", procedure_id),
+            LabelType::GlobalInit => write!(f, "Globals Initialization"),
         }
     }
 }
@@ -122,6 +125,10 @@ impl Label {
 
     pub(crate) fn procedure(procedure_id: ProcedureId) -> Self {
         Label { label_type: LabelType::Procedure(procedure_id), section: None }
+    }
+
+    pub(crate) fn globals_init() -> Self {
+        Label { label_type: LabelType::GlobalInit, section: None }
     }
 }
 

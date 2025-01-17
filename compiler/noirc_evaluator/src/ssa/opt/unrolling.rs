@@ -24,7 +24,10 @@ use acvm::{acir::AcirField, FieldElement};
 use im::HashSet;
 
 use crate::{
-    brillig::brillig_gen::convert_ssa_function,
+    brillig::{
+        brillig_gen::{brillig_globals::convert_ssa_globals, convert_ssa_function},
+        brillig_ir::brillig_variable::BrilligVariable,
+    },
     errors::RuntimeError,
     ssa::{
         ir::{
@@ -87,8 +90,13 @@ impl Ssa {
 
             if has_unrolled {
                 if let Some((orig_function, max_incr_pct)) = orig_func_and_max_incr_pct {
-                    let new_size = brillig_bytecode_size(function);
-                    let orig_size = brillig_bytecode_size(&orig_function);
+                    // DIE is run at the end of our SSA optimizations, so we mark all globals as in use here.
+                    let used_globals = &self.globals.dfg.values_iter().map(|(id, _)| id).collect();
+                    let (_, brillig_globals) =
+                        convert_ssa_globals(false, &self.globals, used_globals);
+
+                    let new_size = brillig_bytecode_size(function, &brillig_globals);
+                    let orig_size = brillig_bytecode_size(&orig_function, &brillig_globals);
                     if !is_new_size_ok(orig_size, new_size, max_incr_pct) {
                         *function = orig_function;
                     }
@@ -988,7 +996,10 @@ fn simplify_between_unrolls(function: &mut Function) {
 }
 
 /// Convert the function to Brillig bytecode and return the resulting size.
-fn brillig_bytecode_size(function: &Function) -> usize {
+fn brillig_bytecode_size(
+    function: &Function,
+    globals: &HashMap<ValueId, BrilligVariable>,
+) -> usize {
     // We need to do some SSA passes in order for the conversion to be able to go ahead,
     // otherwise we can hit `unreachable!()` instructions in `convert_ssa_instruction`.
     // Creating a clone so as not to modify the originals.
@@ -1000,7 +1011,7 @@ fn brillig_bytecode_size(function: &Function) -> usize {
     // This is to try to prevent hitting ICE.
     temp.dead_instruction_elimination(false, true);
 
-    convert_ssa_function(&temp, false).byte_code.len()
+    convert_ssa_function(&temp, false, globals).byte_code.len()
 }
 
 /// Decide if the new bytecode size is acceptable, compared to the original.
