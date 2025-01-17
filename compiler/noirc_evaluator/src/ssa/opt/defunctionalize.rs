@@ -343,22 +343,21 @@ fn create_apply_function(
     })
 }
 
-/// Crates a return block, if no previous return exists, it will create a final return
-/// Else, it will create a bypass return block that points to the previous return block
+/// If no previous return target exists, it will create a final return,
+/// otherwise returns the existing return block to jump to.
 fn build_return_block(
     builder: &mut FunctionBuilder,
     previous_block: BasicBlockId,
     passed_types: &[Type],
     target: Option<BasicBlockId>,
 ) -> BasicBlockId {
+    if let Some(return_block) = target {
+        return return_block;
+    }
     let return_block = builder.insert_block();
     builder.switch_to_block(return_block);
-
     let params = vecmap(passed_types, |typ| builder.add_block_parameter(return_block, typ.clone()));
-    match target {
-        None => builder.terminate_with_return(params),
-        Some(target) => builder.terminate_with_jmp(target, params),
-    }
+    builder.terminate_with_return(params);
     builder.switch_to_block(previous_block);
     return_block
 }
