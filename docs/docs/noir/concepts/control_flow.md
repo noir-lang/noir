@@ -29,10 +29,9 @@ if a == 0 {
 assert(x == 2);
 ```
 
-## Loops
+## For loops
 
-Noir has one kind of loop: the `for` loop. `for` loops allow you to repeat a block of code multiple
-times.
+`for` loops allow you to repeat a block of code multiple times.
 
 The following block of code between the braces is run 10 times.
 
@@ -46,9 +45,26 @@ Alternatively, `start..=end` can be used for a range that is inclusive on both e
 
 The index for loops is of type `u64`.
 
+## Loops
+
+In unconstrained code, `loop` is allowed for loops that end after a certain condition is met
+(or to loop forever):
+
+```rust
+let mut i = 10
+loop {
+    println(i);
+    i -= 1;
+
+    if i == 0 {
+        break;
+    }
+}
+```
+
 ### Break and Continue
 
-In unconstrained code, `break` and `continue` are also allowed in `for` loops. These are only allowed
+In unconstrained code, `break` and `continue` are also allowed in `for` and `loop` loops. These are only allowed
 in unconstrained code since normal constrained code requires that Noir knows exactly how many iterations
 a loop may have. `break` and `continue` can be used like so:
 
