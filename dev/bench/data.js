@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737144763328,
+  "lastUpdate": 1737148817558,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -1983,6 +1983,100 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 2.024,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "dd7084545dfd93a07599fc10676b6c8ec1e3d458",
+          "message": "fix: defunctionalize pass on the caller runtime to apply (#7100)\n\nCo-authored-by: Tom French <tom@tomfren.ch>",
+          "timestamp": "2025-01-17T21:03:22Z",
+          "tree_id": "ec1f1281a650d393899df99e1c24f1ac3a92c4d8",
+          "url": "https://github.com/noir-lang/noir/commit/dd7084545dfd93a07599fc10676b6c8ec1e3d458"
+        },
+        "date": 1737148816768,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 1.03,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.803,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 16.1,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 3.566,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 2.078,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 145,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 2.082,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 139,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 3.508,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 27.66,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 10.16,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.006,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.032,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.07,
             "unit": "s"
           }
         ]
