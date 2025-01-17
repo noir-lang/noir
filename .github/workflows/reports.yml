@@ -602,6 +602,10 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
+      # deployments permission to deploy GitHub pages website
+      deployments: write
+      # contents permission to update benchmark contents in gh-pages branch
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
@@ -667,6 +671,10 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
+      # deployments permission to deploy GitHub pages website
+      deployments: write
+      # contents permission to update benchmark contents in gh-pages branch
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
