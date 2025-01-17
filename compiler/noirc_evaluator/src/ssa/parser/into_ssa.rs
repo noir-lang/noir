@@ -15,7 +15,7 @@ use crate::ssa::{
 
 use super::{
     ast::AssertMessage, Identifier, ParsedBlock, ParsedFunction, ParsedGlobal, ParsedGlobalValue,
-    ParsedInstruction, ParsedSsa, ParsedTerminator, ParsedValue, RuntimeType, Ssa, SsaError,
+    ParsedInstruction, ParsedSsa, ParsedTerminator, ParsedValue, RuntimeType, Ssa, SsaError, Type,
 };
 
 impl ParsedSsa {
@@ -42,6 +42,9 @@ struct Translator {
 
     /// The function that will hold the actual SSA globals.
     globals_function: Function,
+
+    /// The types of globals in the parsed SSA, in the order they were defined.
+    global_types: Vec<Type>,
 
     /// Maps names like g0, g1, etc., in the parsed SSA to global IDs.
     globals: HashMap<String, ValueId>,
@@ -90,11 +93,13 @@ impl Translator {
             variables: HashMap::new(),
             blocks: HashMap::new(),
             globals_function: globals,
+            global_types: Vec::new(),
             globals: HashMap::new(),
             error_selector_counter: 0,
         };
 
         translator.translate_globals(std::mem::take(&mut parsed_ssa.globals))?;
+
         translator.translate_function_body(main_function)?;
 
         Ok(translator)
@@ -117,6 +122,10 @@ impl Translator {
     }
 
     fn translate_function_body(&mut self, function: ParsedFunction) -> Result<(), SsaError> {
+        for typ in &self.global_types {
+            self.builder.current_function.dfg.make_global(typ.clone());
+        }
+
         // First define all blocks so that they are known (a block might jump to a block that comes next)
         for (index, block) in function.blocks.iter().enumerate() {
             // The first block is the entry block and it was automatically created by the builder
@@ -402,6 +411,9 @@ impl Translator {
 
         self.globals.insert(identifier.name, value_id);
 
+        let typ = self.globals_function.dfg.type_of_value(value_id);
+        self.global_types.push(typ);
+
         Ok(())
     }
 
@@ -431,12 +443,14 @@ impl Translator {
 
     fn finish(self) -> Ssa {
         let mut ssa = self.builder.finish();
+        ssa.globals = self.globals_function;
+
         // Normalize the IDs so we have a better chance of matching the SSA we parsed
         // after the step-by-step reconstruction done during translation. This assumes
         // that the SSA we parsed was printed by the `SsaBuilder`, which normalizes
         // before each print.
         ssa.normalize_ids();
-        ssa.globals = self.globals_function;
+
         ssa
     }
 
