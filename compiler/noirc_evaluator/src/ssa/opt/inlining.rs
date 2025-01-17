@@ -283,7 +283,7 @@ fn compute_times_called(
     callers
         .iter()
         .map(|(callee, callers)| {
-            let total_calls = callers.iter().fold(0, |acc, (_caller, calls)| acc + calls);
+            let total_calls = callers.values().sum();
             (*callee, total_calls)
         })
         .collect()
