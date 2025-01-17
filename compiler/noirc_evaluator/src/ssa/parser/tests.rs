@@ -530,3 +530,19 @@ fn test_does_not_simplify() {
         ";
     assert_ssa_roundtrip(src);
 }
+
+#[test]
+fn parses_globals() {
+    let src = "
+        g0 = Field 0
+        g1 = u32 1
+        g2 = make_array [] : [Field; 0]
+        g3 = make_array [g2] : [[Field; 0]; 1]
+
+        acir(inline) fn main f0 {
+          b0():
+            return
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}

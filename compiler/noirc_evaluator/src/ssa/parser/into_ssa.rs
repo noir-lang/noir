@@ -6,15 +6,16 @@ use crate::ssa::{
     function_builder::FunctionBuilder,
     ir::{
         basic_block::BasicBlockId,
+        call_stack::CallStackId,
         function::{Function, FunctionId},
-        instruction::ConstrainError,
+        instruction::{ConstrainError, Instruction},
         value::ValueId,
     },
 };
 
 use super::{
-    ast::AssertMessage, Identifier, ParsedBlock, ParsedFunction, ParsedInstruction, ParsedSsa,
-    ParsedTerminator, ParsedValue, RuntimeType, Ssa, SsaError,
+    ast::AssertMessage, Identifier, ParsedBlock, ParsedFunction, ParsedGlobal, ParsedGlobalValue,
+    ParsedInstruction, ParsedSsa, ParsedTerminator, ParsedValue, RuntimeType, Ssa, SsaError,
 };
 
 impl ParsedSsa {
@@ -39,6 +40,12 @@ struct Translator {
     /// will recreate the SSA step by step, which can result in a new ID layout.
     variables: HashMap<FunctionId, HashMap<String, ValueId>>,
 
+    /// The function that will hold the actual SSA globals.
+    globals_function: Function,
+
+    /// Maps names like g0, g1, etc., in the parsed SSA to global IDs.
+    globals: HashMap<String, ValueId>,
+
     error_selector_counter: u64,
 }
 
@@ -50,6 +57,10 @@ impl Translator {
         // so all we are left with are non-main functions.
         for function in parsed_ssa.functions {
             translator.translate_non_main_function(function)?;
+        }
+
+        for global in parsed_ssa.globals {
+            translator.translate_global(global)?;
         }
 
         Ok(translator.finish())
@@ -74,11 +85,16 @@ impl Translator {
             functions.insert(function.internal_name.clone(), function_id);
         }
 
+        // Does not matter what ID we use here.
+        let globals = Function::new("globals".to_owned(), main_id);
+
         let mut translator = Self {
             builder,
             functions,
             variables: HashMap::new(),
             blocks: HashMap::new(),
+            globals_function: globals,
+            globals: HashMap::new(),
             error_selector_counter: 0,
         };
         translator.translate_function_body(main_function)?;
@@ -292,11 +308,43 @@ impl Translator {
 
     fn translate_value(&mut self, value: ParsedValue) -> Result<ValueId, SsaError> {
         match value {
-            ParsedValue::NumericConstant { constant, typ } => {
-                Ok(self.builder.numeric_constant(constant, typ.unwrap_numeric()))
+            ParsedValue::NumericConstant(constant) => {
+                Ok(self.builder.numeric_constant(constant.value, constant.typ.unwrap_numeric()))
             }
             ParsedValue::Variable(identifier) => self.lookup_variable(identifier),
         }
+    }
+
+    fn translate_global(&mut self, global: ParsedGlobal) -> Result<(), SsaError> {
+        let value_id = match global.value {
+            ParsedGlobalValue::NumericConstant(constant) => self
+                .globals_function
+                .dfg
+                .make_constant(constant.value, constant.typ.unwrap_numeric()),
+            ParsedGlobalValue::MakeArray(make_array) => {
+                let mut elements = im::Vector::new();
+                for element in make_array.elements {
+                    let element_id = match element {
+                        ParsedValue::NumericConstant(constant) => self
+                            .globals_function
+                            .dfg
+                            .make_constant(constant.value, constant.typ.unwrap_numeric()),
+                        ParsedValue::Variable(identifier) => self.lookup_global(identifier)?,
+                    };
+                    elements.push_back(element_id);
+                }
+
+                let instruction = Instruction::MakeArray { elements, typ: make_array.typ };
+                let block = self.globals_function.entry_block();
+                let call_stack = CallStackId::root();
+                self.globals_function
+                    .dfg
+                    .insert_instruction_and_results(instruction, block, None, call_stack)
+                    .first()
+            }
+        };
+
+        self.define_global(global.name, value_id)
     }
 
     fn define_variable(
@@ -324,6 +372,24 @@ impl Translator {
         }
     }
 
+    fn define_global(&mut self, identifier: Identifier, value_id: ValueId) -> Result<(), SsaError> {
+        if self.globals.contains_key(&identifier.name) {
+            return Err(SsaError::GlobalAlreadyDefined(identifier));
+        }
+
+        self.globals.insert(identifier.name, value_id);
+
+        Ok(())
+    }
+
+    fn lookup_global(&mut self, identifier: Identifier) -> Result<ValueId, SsaError> {
+        if let Some(value_id) = self.globals.get(&identifier.name) {
+            Ok(*value_id)
+        } else {
+            Err(SsaError::UnknownGlobal(identifier))
+        }
+    }
+
     fn lookup_block(&mut self, identifier: Identifier) -> Result<BasicBlockId, SsaError> {
         if let Some(block_id) = self.blocks[&self.current_function_id()].get(&identifier.name) {
             Ok(*block_id)
@@ -347,8 +413,7 @@ impl Translator {
         // that the SSA we parsed was printed by the `SsaBuilder`, which normalizes
         // before each print.
         ssa.normalize_ids();
-        // Does not matter what ID we use here.
-        ssa.globals = Function::new("globals".to_owned(), ssa.main_id);
+        ssa.globals = self.globals_function;
         ssa
     }
 
