@@ -2909,7 +2909,7 @@ mod test {
     use std::collections::BTreeMap;
 
     use crate::{
-        acir::BrilligStdlibFunc,
+        acir::{BrilligStdlibFunc, Function},
         brillig::Brillig,
         ssa::{
             function_builder::FunctionBuilder,
@@ -3341,7 +3341,8 @@ mod test {
         build_basic_foo_with_return(&mut builder, foo_id, true, InlineType::default());
         build_basic_foo_with_return(&mut builder, bar_id, true, InlineType::default());
 
-        let ssa = builder.finish();
+        let mut ssa = builder.finish();
+        ssa.globals = Function::new("globals".to_owned(), ssa.main_id);
         let brillig = ssa.to_brillig(false);
 
         let (acir_functions, brillig_functions, _, _) = ssa
@@ -3479,7 +3480,8 @@ mod test {
 
         build_basic_foo_with_return(&mut builder, foo_id, true, InlineType::default());
 
-        let ssa = builder.finish();
+        let mut ssa = builder.finish();
+        ssa.globals = Function::new("globals".to_owned(), ssa.main_id);
         // We need to generate  Brillig artifacts for the regular Brillig function and pass them to the ACIR generation pass.
         let brillig = ssa.to_brillig(false);
         println!("{}", ssa);
@@ -3568,7 +3570,8 @@ mod test {
         // Build an ACIR function which has the same logic as the Brillig function above
         build_basic_foo_with_return(&mut builder, bar_id, false, InlineType::Fold);
 
-        let ssa = builder.finish();
+        let mut ssa = builder.finish();
+        ssa.globals = Function::new("globals".to_owned(), ssa.main_id);
         // We need to generate  Brillig artifacts for the regular Brillig function and pass them to the ACIR generation pass.
         let brillig = ssa.to_brillig(false);
         println!("{}", ssa);

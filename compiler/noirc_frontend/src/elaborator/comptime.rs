@@ -442,7 +442,21 @@ impl<'context> Elaborator<'context> {
                     self.crate_id,
                     &mut self.errors,
                 ) {
-                    generated_items.types.insert(type_id, the_struct);
+                    generated_items.structs.insert(type_id, the_struct);
+                }
+            }
+            ItemKind::Enum(enum_def) => {
+                if let Some((type_id, the_enum)) = dc_mod::collect_enum(
+                    self.interner,
+                    self.def_maps.get_mut(&self.crate_id).unwrap(),
+                    self.usage_tracker,
+                    Documented::new(enum_def, item.doc_comments),
+                    self.file,
+                    self.local_module,
+                    self.crate_id,
+                    &mut self.errors,
+                ) {
+                    generated_items.enums.insert(type_id, the_enum);
                 }
             }
             ItemKind::Impl(r#impl) => {

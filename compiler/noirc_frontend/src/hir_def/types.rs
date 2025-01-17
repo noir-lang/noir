@@ -97,10 +97,7 @@ pub enum Type {
     /// A cast (to, from) that's checked at monomorphization.
     ///
     /// Simplifications on arithmetic generics are only allowed on the LHS.
-    CheckedCast {
-        from: Box<Type>,
-        to: Box<Type>,
-    },
+    CheckedCast { from: Box<Type>, to: Box<Type> },
 
     /// A functions with arguments, a return type and environment.
     /// the environment should be `Unit` by default,
@@ -132,7 +129,13 @@ pub enum Type {
     /// The type of quoted code in macros. This is always a comptime-only type
     Quoted(QuotedType),
 
-    InfixExpr(Box<Type>, BinaryTypeOperator, Box<Type>),
+    /// An infix expression in the form `lhs * rhs`.
+    ///
+    /// The `inversion` bool keeps track of whether this expression came from
+    /// an expression like `4 = a / b` which was transformed to `a = 4 / b`
+    /// so that if at some point a infix expression `b * (4 / b)` is created,
+    /// it could be simplified back to `4`.
+    InfixExpr(Box<Type>, BinaryTypeOperator, Box<Type>, bool /* inversion */),
 
     /// The result of some type error. Remembering type errors as their own type variant lets
     /// us avoid issuing repeat type errors for the same item. For example, a lambda with
@@ -312,6 +315,7 @@ pub enum QuotedType {
     Type,
     TypedExpr,
     StructDefinition,
+    EnumDefinition,
     TraitConstraint,
     TraitDefinition,
     TraitImpl,
@@ -905,7 +909,7 @@ impl std::fmt::Display for Type {
                 write!(f, "&mut {element}")
             }
             Type::Quoted(quoted) => write!(f, "{}", quoted),
-            Type::InfixExpr(lhs, op, rhs) => {
+            Type::InfixExpr(lhs, op, rhs, _) => {
                 let this = self.canonicalize_checked();
 
                 // Prevent infinite recursion
@@ -955,6 +959,7 @@ impl std::fmt::Display for QuotedType {
             QuotedType::Type => write!(f, "Type"),
             QuotedType::TypedExpr => write!(f, "TypedExpr"),
             QuotedType::StructDefinition => write!(f, "StructDefinition"),
+            QuotedType::EnumDefinition => write!(f, "EnumDefinition"),
             QuotedType::TraitDefinition => write!(f, "TraitDefinition"),
             QuotedType::TraitConstraint => write!(f, "TraitConstraint"),
             QuotedType::TraitImpl => write!(f, "TraitImpl"),
@@ -1146,7 +1151,7 @@ impl Type {
                 .into_iter()
                 .all(|(_, field)| field.is_valid_for_program_input()),
 
-            Type::InfixExpr(lhs, _, rhs) => {
+            Type::InfixExpr(lhs, _, rhs, _) => {
                 lhs.is_valid_for_program_input() && rhs.is_valid_for_program_input()
             }
         }
@@ -1307,7 +1312,7 @@ impl Type {
                 TypeBinding::Bound(ref typ) => typ.kind(),
                 TypeBinding::Unbound(_, ref type_var_kind) => type_var_kind.clone(),
             },
-            Type::InfixExpr(lhs, _op, rhs) => lhs.infix_kind(rhs),
+            Type::InfixExpr(lhs, _op, rhs, _) => lhs.infix_kind(rhs),
             Type::Alias(def, generics) => def.borrow().get_type(generics).kind(),
             // This is a concrete FieldElement, not an IntegerOrField
             Type::FieldElement
@@ -1338,6 +1343,48 @@ impl Type {
         } else {
             Kind::numeric(Type::Error)
         }
+    }
+
+    /// Creates an `InfixExpr`.
+    pub fn infix_expr(lhs: Box<Type>, op: BinaryTypeOperator, rhs: Box<Type>) -> Type {
+        Self::new_infix_expr(lhs, op, rhs, false)
+    }
+
+    /// Creates an `InfixExpr` that results from the compiler trying to unify something like
+    /// `4 = a * b` into `a = 4 / b` (where `4 / b` is the "inverted" expression).
+    pub fn inverted_infix_expr(lhs: Box<Type>, op: BinaryTypeOperator, rhs: Box<Type>) -> Type {
+        Self::new_infix_expr(lhs, op, rhs, true)
+    }
+
+    pub fn new_infix_expr(
+        lhs: Box<Type>,
+        op: BinaryTypeOperator,
+        rhs: Box<Type>,
+        inversion: bool,
+    ) -> Type {
+        // If an InfixExpr like this is tried to be created:
+        //
+        // a * (b / a)
+        //
+        // where `b / a` resulted from the compiler creating an inverted InfixExpr from a previous
+        // unification (that is, the compiler had `b = a / y` and ended up doing `y = b / a` where
+        // `y` is `rhs` here) then we can simplify this to just `b` because there wasn't an actual
+        // division in the original expression, so multiplying it back is just going back to the
+        // original `y`
+        if let Type::InfixExpr(rhs_lhs, rhs_op, rhs_rhs, true) = &*rhs {
+            if op.approx_inverse() == Some(*rhs_op) && lhs == *rhs_rhs {
+                return *rhs_lhs.clone();
+            }
+        }
+
+        // Same thing but on the other side.
+        if let Type::InfixExpr(lhs_lhs, lhs_op, lhs_rhs, true) = &*lhs {
+            if op.approx_inverse() == Some(*lhs_op) && rhs == *lhs_rhs {
+                return *lhs_lhs.clone();
+            }
+        }
+
+        Self::InfixExpr(lhs, op, rhs, inversion)
     }
 
     /// Returns the number of field elements required to represent the type once encoded.
@@ -1697,7 +1744,7 @@ impl Type {
                 elem_a.try_unify(elem_b, bindings)
             }
 
-            (InfixExpr(lhs_a, op_a, rhs_a), InfixExpr(lhs_b, op_b, rhs_b)) => {
+            (InfixExpr(lhs_a, op_a, rhs_a, _), InfixExpr(lhs_b, op_b, rhs_b, _)) => {
                 if op_a == op_b {
                     // We need to preserve the original bindings since if syntactic equality
                     // fails we fall back to other equality strategies.
@@ -1724,14 +1771,15 @@ impl Type {
                     } else {
                         Err(UnificationError)
                     }
-                } else if let InfixExpr(lhs, op, rhs) = other {
+                } else if let InfixExpr(lhs, op, rhs, _) = other {
                     if let Some(inverse) = op.approx_inverse() {
                         // Handle cases like `4 = a + b` by trying to solve to `a = 4 - b`
-                        let new_type = InfixExpr(
+                        let new_type = Type::inverted_infix_expr(
                             Box::new(Constant(*value, kind.clone())),
                             inverse,
                             rhs.clone(),
                         );
+
                         new_type.try_unify(lhs, bindings)?;
                         Ok(())
                     } else {
@@ -1937,7 +1985,7 @@ impl Type {
                     })
                 }
             }
-            Type::InfixExpr(lhs, op, rhs) => {
+            Type::InfixExpr(lhs, op, rhs, _) => {
                 let infix_kind = lhs.infix_kind(&rhs);
                 if kind.unifies(&infix_kind) {
                     let lhs_value = lhs.evaluate_to_field_element_helper(
@@ -2267,10 +2315,10 @@ impl Type {
                 });
                 Type::TraitAsType(*s, name.clone(), TraitGenerics { ordered, named })
             }
-            Type::InfixExpr(lhs, op, rhs) => {
+            Type::InfixExpr(lhs, op, rhs, inversion) => {
                 let lhs = lhs.substitute_helper(type_bindings, substitute_bound_typevars);
                 let rhs = rhs.substitute_helper(type_bindings, substitute_bound_typevars);
-                Type::InfixExpr(Box::new(lhs), *op, Box::new(rhs))
+                Type::InfixExpr(Box::new(lhs), *op, Box::new(rhs), *inversion)
             }
 
             Type::FieldElement
@@ -2320,7 +2368,7 @@ impl Type {
                     || env.occurs(target_id)
             }
             Type::MutableReference(element) => element.occurs(target_id),
-            Type::InfixExpr(lhs, _op, rhs) => lhs.occurs(target_id) || rhs.occurs(target_id),
+            Type::InfixExpr(lhs, _op, rhs, _) => lhs.occurs(target_id) || rhs.occurs(target_id),
 
             Type::FieldElement
             | Type::Integer(_, _)
@@ -2389,10 +2437,10 @@ impl Type {
                 });
                 TraitAsType(*s, name.clone(), TraitGenerics { ordered, named })
             }
-            InfixExpr(lhs, op, rhs) => {
+            InfixExpr(lhs, op, rhs, inversion) => {
                 let lhs = lhs.follow_bindings();
                 let rhs = rhs.follow_bindings();
-                InfixExpr(Box::new(lhs), *op, Box::new(rhs))
+                InfixExpr(Box::new(lhs), *op, Box::new(rhs), *inversion)
             }
 
             // Expect that this function should only be called on instantiated types
@@ -2502,7 +2550,7 @@ impl Type {
             }
             Type::MutableReference(elem) => elem.replace_named_generics_with_type_variables(),
             Type::Forall(_, typ) => typ.replace_named_generics_with_type_variables(),
-            Type::InfixExpr(lhs, _op, rhs) => {
+            Type::InfixExpr(lhs, _op, rhs, _) => {
                 lhs.replace_named_generics_with_type_variables();
                 rhs.replace_named_generics_with_type_variables();
             }
@@ -2544,7 +2592,7 @@ impl Type {
                 TypeBinding::Unbound(_, kind) => kind.integral_maximum_size(),
             },
             Type::MutableReference(typ) => typ.integral_maximum_size(),
-            Type::InfixExpr(lhs, _op, rhs) => lhs.infix_kind(rhs).integral_maximum_size(),
+            Type::InfixExpr(lhs, _op, rhs, _) => lhs.infix_kind(rhs).integral_maximum_size(),
             Type::Constant(_, kind) => kind.integral_maximum_size(),
 
             Type::Array(..)
@@ -2827,7 +2875,7 @@ impl std::fmt::Debug for Type {
                 write!(f, "&mut {element:?}")
             }
             Type::Quoted(quoted) => write!(f, "{}", quoted),
-            Type::InfixExpr(lhs, op, rhs) => write!(f, "({lhs:?} {op} {rhs:?})"),
+            Type::InfixExpr(lhs, op, rhs, _) => write!(f, "({lhs:?} {op} {rhs:?})"),
         }
     }
 }
@@ -2913,7 +2961,7 @@ impl std::hash::Hash for Type {
             Type::CheckedCast { to, .. } => to.hash(state),
             Type::Constant(value, _) => value.hash(state),
             Type::Quoted(typ) => typ.hash(state),
-            Type::InfixExpr(lhs, op, rhs) => {
+            Type::InfixExpr(lhs, op, rhs, _) => {
                 lhs.hash(state);
                 op.hash(state);
                 rhs.hash(state);
@@ -2982,7 +3030,7 @@ impl PartialEq for Type {
                 lhs == rhs && lhs_kind == rhs_kind
             }
             (Quoted(lhs), Quoted(rhs)) => lhs == rhs,
-            (InfixExpr(l_lhs, l_op, l_rhs), InfixExpr(r_lhs, r_op, r_rhs)) => {
+            (InfixExpr(l_lhs, l_op, l_rhs, _), InfixExpr(r_lhs, r_op, r_rhs, _)) => {
                 l_lhs == r_lhs && l_op == r_op && l_rhs == r_rhs
             }
             // Special case: we consider unbound named generics and type variables to be equal to each

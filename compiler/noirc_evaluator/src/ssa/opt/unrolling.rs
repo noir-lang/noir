@@ -24,7 +24,10 @@ use acvm::{acir::AcirField, FieldElement};
 use im::HashSet;
 
 use crate::{
-    brillig::brillig_gen::convert_ssa_function,
+    brillig::{
+        brillig_gen::{brillig_globals::convert_ssa_globals, convert_ssa_function},
+        brillig_ir::brillig_variable::BrilligVariable,
+    },
     errors::RuntimeError,
     ssa::{
         ir::{
@@ -57,9 +60,42 @@ impl Ssa {
         mut self,
         max_bytecode_increase_percent: Option<i32>,
     ) -> Result<Ssa, RuntimeError> {
+        let mut global_cache = None;
+
         for function in self.functions.values_mut() {
-            // We must be able to unroll ACIR loops at this point.
-            function.unroll_loops_iteratively(max_bytecode_increase_percent)?;
+            let is_brillig = function.runtime().is_brillig();
+
+            // Take a snapshot in case we have to restore it.
+            let orig_function =
+                (max_bytecode_increase_percent.is_some() && is_brillig).then(|| function.clone());
+
+            // We must be able to unroll ACIR loops at this point, so exit on failure to unroll.
+            let has_unrolled = function.unroll_loops_iteratively()?;
+
+            // Check if the size increase is acceptable
+            // This is here now instead of in `Function::unroll_loops_iteratively` because we'd need
+            // more finessing to convince the borrow checker that it's okay to share a read-only reference
+            // to the globals and a mutable reference to the function at the same time, both part of the `Ssa`.
+            if has_unrolled && is_brillig {
+                if let Some(max_incr_pct) = max_bytecode_increase_percent {
+                    if global_cache.is_none() {
+                        // DIE is run at the end of our SSA optimizations, so we mark all globals as in use here.
+                        let used_globals =
+                            &self.globals.dfg.values_iter().map(|(id, _)| id).collect();
+                        let (_, brillig_globals) =
+                            convert_ssa_globals(false, &self.globals, used_globals);
+                        global_cache = Some(brillig_globals);
+                    }
+                    let brillig_globals = global_cache.as_ref().unwrap();
+
+                    let orig_function = orig_function.expect("took snapshot to compare");
+                    let new_size = brillig_bytecode_size(function, brillig_globals);
+                    let orig_size = brillig_bytecode_size(&orig_function, brillig_globals);
+                    if !is_new_size_ok(orig_size, new_size, max_incr_pct) {
+                        *function = orig_function;
+                    }
+                }
+            }
         }
         Ok(self)
     }
@@ -71,15 +107,9 @@ impl Function {
     /// Returns an `Err` if it cannot be done, for example because the loop bounds
     /// cannot be determined at compile time. This can happen during pre-processing,
     /// but it should still leave the function in a partially unrolled, but valid state.
-    pub(super) fn unroll_loops_iteratively(
-        &mut self,
-        max_bytecode_increase_percent: Option<i32>,
-    ) -> Result<(), RuntimeError> {
-        // Take a snapshot in case we have to restore it.
-        let orig_function = (max_bytecode_increase_percent.is_some()
-            && self.runtime().is_brillig())
-        .then(|| self.clone());
-
+    ///
+    /// If successful, returns a flag indicating whether any loops have been unrolled.
+    pub(super) fn unroll_loops_iteratively(&mut self) -> Result<bool, RuntimeError> {
         // Try to unroll loops first:
         let (mut has_unrolled, mut unroll_errors) = self.try_unroll_loops();
 
@@ -101,19 +131,7 @@ impl Function {
             }
         }
 
-        // Check if the size increase is acceptable
-        if has_unrolled && self.runtime().is_brillig() {
-            if let Some(max_incr_pct) = max_bytecode_increase_percent {
-                let orig_function = orig_function.expect("took snapshot to compare");
-                let new_size = brillig_bytecode_size(self);
-                let orig_size = brillig_bytecode_size(&orig_function);
-                if !is_new_size_ok(orig_size, new_size, max_incr_pct) {
-                    *self = orig_function;
-                }
-            }
-        }
-
-        Ok(())
+        Ok(has_unrolled)
     }
 
     // Loop unrolling in brillig can lead to a code explosion currently.
@@ -326,11 +344,13 @@ impl Loop {
             // simplified to a simple jump.
             return None;
         }
-        assert_eq!(
-            instructions.len(),
-            1,
-            "The header should just compare the induction variable and jump"
-        );
+
+        if instructions.len() != 1 {
+            // The header should just compare the induction variable and jump.
+            // If that's not the case, this might be a `loop` and not a `for` loop.
+            return None;
+        }
+
         match &function.dfg[instructions[0]] {
             Instruction::Binary(Binary { lhs: _, operator: BinaryOp::Lt, rhs }) => {
                 function.dfg.get_numeric_constant(*rhs)
@@ -766,7 +786,13 @@ fn get_induction_variable(function: &Function, block: BasicBlockId) -> Result<Va
             // block parameters. If that becomes the case we'll need to figure out which variable
             // is generally constant and increasing to guess which parameter is the induction
             // variable.
-            assert_eq!(arguments.len(), 1, "It is expected that a loop's induction variable is the only block parameter of the loop header");
+            if arguments.len() != 1 {
+                // It is expected that a loop's induction variable is the only block parameter of the loop header.
+                // If there's no variable this might be a `loop`.
+                let call_stack = function.dfg.get_call_stack(*location);
+                return Err(call_stack);
+            }
+
             let value = arguments[0];
             if function.dfg.get_numeric_constant(value).is_some() {
                 Ok(value)
@@ -996,7 +1022,10 @@ fn simplify_between_unrolls(function: &mut Function) {
 }
 
 /// Convert the function to Brillig bytecode and return the resulting size.
-fn brillig_bytecode_size(function: &Function) -> usize {
+fn brillig_bytecode_size(
+    function: &Function,
+    globals: &HashMap<ValueId, BrilligVariable>,
+) -> usize {
     // We need to do some SSA passes in order for the conversion to be able to go ahead,
     // otherwise we can hit `unreachable!()` instructions in `convert_ssa_instruction`.
     // Creating a clone so as not to modify the originals.
@@ -1008,7 +1037,7 @@ fn brillig_bytecode_size(function: &Function) -> usize {
     // This is to try to prevent hitting ICE.
     temp.dead_instruction_elimination(false, true);
 
-    convert_ssa_function(&temp, false).byte_code.len()
+    convert_ssa_function(&temp, false, globals).byte_code.len()
 }
 
 /// Decide if the new bytecode size is acceptable, compared to the original.

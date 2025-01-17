@@ -6,11 +6,7 @@ use super::inlining;
 
 impl Ssa {
     /// Run pre-processing steps on functions in isolation.
-    pub(crate) fn preprocess_functions(
-        mut self,
-        aggressiveness: i64,
-        max_bytecode_increase_percent: Option<i32>,
-    ) -> Ssa {
+    pub(crate) fn preprocess_functions(mut self, aggressiveness: i64) -> Ssa {
         // Bottom-up order, starting with the "leaf" functions, so we inline already optimized code into the ones that call them.
         let bottom_up = inlining::compute_bottom_up_order(&self);
 
@@ -36,7 +32,7 @@ impl Ssa {
             // Help unrolling determine bounds.
             function.as_slice_optimization();
             // We might not be able to unroll all loops without fully inlining them, so ignore errors.
-            let _ = function.unroll_loops_iteratively(max_bytecode_increase_percent);
+            let _ = function.unroll_loops_iteratively();
             // Reduce the number of redundant stores/loads after unrolling
             function.mem2reg();
             // Try to reduce the number of blocks.

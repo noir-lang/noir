@@ -36,6 +36,7 @@ pub enum Expression {
     Index(Index),
     Cast(Cast),
     For(For),
+    Loop(Box<Expression>),
     If(If),
     Tuple(Vec<Expression>),
     ExtractTupleField(Box<Expression>, usize),

@@ -161,10 +161,7 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
                 if options.skip_preprocess_fns {
                     return ssa;
                 }
-                ssa.preprocess_functions(
-                    options.inliner_aggressiveness,
-                    options.max_bytecode_increase_percent,
-                )
+                ssa.preprocess_functions(options.inliner_aggressiveness)
             },
             "Preprocessing Functions",
         )
