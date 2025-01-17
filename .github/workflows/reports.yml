@@ -735,6 +735,10 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
+      # deployments permission to deploy GitHub pages website
+      deployments: write
+      # contents permission to update benchmark contents in gh-pages branch
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
@@ -773,7 +777,7 @@ jobs:
 
       - name: Convert to `benchmark-action` format
         run: |
-          jq ".execution_report | map({name: .artifact_name, value: (.time[:-1] | tonumber), unit: \"s\"}) " ./execution_report.json > time_bench.json
+          jq ".execution_reports | map({name: .artifact_name, value: (.time[:-1] | tonumber), unit: \"s\"}) " ./execution_report.json > time_bench.json
 
       - name: Store benchmark result
         # We always push new benchmarks so we want this to only run on master to avoid garbage data.``
