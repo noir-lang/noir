@@ -382,7 +382,11 @@ impl Translator {
     }
 
     fn lookup_variable(&mut self, identifier: &Identifier) -> Result<ValueId, SsaError> {
-        if let Some(value_id) = self.variables[&self.current_function_id()].get(&identifier.name) {
+        if let Some(value_id) = self
+            .variables
+            .get(&self.current_function_id())
+            .and_then(|hash| hash.get(&identifier.name))
+        {
             Ok(*value_id)
         } else if let Some(value_id) = self.globals.get(&identifier.name) {
             Ok(*value_id)
