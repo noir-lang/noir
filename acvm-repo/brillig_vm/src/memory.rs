@@ -276,8 +276,7 @@ impl<F: AcirField> Memory<F> {
         let current_size = self.inner.len();
         if size >= current_size {
             // Expand memory to new size with default values if needed
-            let additional = size - current_size;
-            self.inner.reserve(additional);
+            self.inner.resize(size, MemoryValue::default());
         }
     }
 
