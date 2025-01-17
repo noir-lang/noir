@@ -597,7 +597,7 @@ impl<'a> FunctionContext<'a> {
     ///   br loop_body()
     /// loop_body():
     ///   v3 = ... codegen body ...
-    ///   br loop_body(v4)
+    ///   br loop_body()
     /// loop_end():
     ///   ... This is the current insert point after codegen_for finishes ...
     /// ```
