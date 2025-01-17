@@ -43,9 +43,7 @@ impl Ssa {
             function.simplify_function();
 
             // Remove leftover instructions.
-            // XXX: Doing this would currently cause integration test failures,
-            // for example with `traits_in_crates_1` it eliminates a store to a mutable input reference.
-            // function.dead_instruction_elimination(true);
+            function.dead_instruction_elimination(true, false);
 
             // Put it back into the SSA, so the next functions can pick it up.
             self.functions.insert(id, function);
