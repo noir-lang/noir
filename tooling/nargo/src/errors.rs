@@ -167,10 +167,10 @@ fn extract_locations_from_error<F: AcirField>(
             .iter()
             .flat_map(|resolved_location| {
                 let call_stack_id = match resolved_location.opcode_location {
-                    OpcodeLocation::Acir(idx) => {
-                        debug[resolved_location.acir_function_index].location_map
-                            [&AcirOpcodeLocation::new(idx)]
-                    }
+                    OpcodeLocation::Acir(idx) => *debug[resolved_location.acir_function_index]
+                        .location_map
+                        .get(&AcirOpcodeLocation::new(idx))
+                        .unwrap_or(&CallStackId::root()),
                     // TODO: should we use acir_index here and merge the 2 call stacks?
                     OpcodeLocation::Brillig { brillig_index, .. } => *debug
                         [resolved_location.acir_function_index]
