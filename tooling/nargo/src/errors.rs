@@ -10,7 +10,8 @@ use acvm::{
 };
 use noirc_abi::{display_abi_error, Abi, AbiErrorType};
 use noirc_errors::{
-    debug_info::DebugInfo, reporter::ReportedErrors, CustomDiagnostic, FileDiagnostic,
+    call_stack::CallStackId, debug_info::DebugInfo, reporter::ReportedErrors, CustomDiagnostic,
+    FileDiagnostic,
 };
 
 pub use noirc_errors::Location;
@@ -171,10 +172,11 @@ fn extract_locations_from_error<F: AcirField>(
                             [&AcirOpcodeLocation::new(idx)]
                     }
                     // TODO: should we use acir_index here and merge the 2 call stacks?
-                    OpcodeLocation::Brillig { brillig_index, .. } => {
-                        debug[resolved_location.acir_function_index].brillig_locations
-                            [&brillig_function_id.unwrap()][&BrilligOpcodeLocation(brillig_index)]
-                    }
+                    OpcodeLocation::Brillig { brillig_index, .. } => *debug
+                        [resolved_location.acir_function_index]
+                        .brillig_locations[&brillig_function_id.unwrap()]
+                        .get(&BrilligOpcodeLocation(brillig_index))
+                        .unwrap_or(&CallStackId::root()),
                 };
                 debug[resolved_location.acir_function_index]
                     .location_tree
@@ -228,6 +230,7 @@ pub fn try_to_diagnose_runtime_error(
 ) -> Option<FileDiagnostic> {
     let source_locations = match nargo_err {
         NargoError::ExecutionError(execution_error) => {
+            dbg!(&debug);
             extract_locations_from_error(execution_error, debug)?
         }
         _ => return None,
