@@ -75,6 +75,9 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
             StatementKind::For(for_loop_statement) => {
                 group.group(self.format_for_loop(for_loop_statement));
             }
+            StatementKind::Loop(block) => {
+                group.group(self.format_loop(block));
+            }
             StatementKind::Break => {
                 group.text(self.chunk(|formatter| {
                     formatter.write_keyword(Keyword::Break);
@@ -260,6 +263,34 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
 
         let ExpressionKind::Block(block) = for_loop.block.kind else {
             panic!("Expected a block expression for for loop body");
+        };
+
+        group.group(self.format_block_expression(
+            block, true, // force multiple lines
+        ));
+
+        // If there's a trailing semicolon, remove it
+        group.text(self.chunk(|formatter| {
+            formatter.skip_whitespace_if_it_is_not_a_newline();
+            if formatter.is_at(Token::Semicolon) {
+                formatter.bump();
+            }
+        }));
+
+        group
+    }
+
+    fn format_loop(&mut self, block: Expression) -> ChunkGroup {
+        let mut group = ChunkGroup::new();
+
+        group.text(self.chunk(|formatter| {
+            formatter.write_keyword(Keyword::Loop);
+        }));
+
+        group.space(self);
+
+        let ExpressionKind::Block(block) = block.kind else {
+            panic!("Expected a block expression for loop body");
         };
 
         group.group(self.format_block_expression(
@@ -748,5 +779,28 @@ mod tests {
 ";
         let expected = src;
         assert_format_with_max_width(src, expected, "    let x = 123456;".len());
+    }
+
+    #[test]
+    fn format_empty_loop() {
+        let src = " fn foo() {  loop  {   }  } ";
+        let expected = "fn foo() {
+    loop {}
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_non_empty_loop() {
+        let src = " fn foo() {  loop  { 1 ; 2  }  } ";
+        let expected = "fn foo() {
+    loop {
+        1;
+        2
+    }
+}
+";
+        assert_format(src, expected);
     }
 }
