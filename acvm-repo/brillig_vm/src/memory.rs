@@ -273,10 +273,12 @@ impl<F: AcirField> Memory<F> {
     }
 
     fn resize_to_fit(&mut self, size: usize) {
-        // Calculate new memory size
-        let new_size = std::cmp::max(self.inner.len(), size);
-        // Expand memory to new size with default values if needed
-        self.inner.resize(new_size, MemoryValue::default());
+        let current_size = self.inner.len();
+        if size >= current_size {
+            // Expand memory to new size with default values if needed
+            let additional = size - current_size;
+            self.inner.reserve(additional);
+        }
     }
 
     /// Sets the values after `address` to `values`
