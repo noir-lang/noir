@@ -70,6 +70,12 @@ where
 
                 let mut foreign_call_log = ForeignCallLog::from_env("NARGO_TEST_FOREIGN_CALL_LOG");
 
+                let log_file = if let ForeignCallLog::File(file, _) = &foreign_call_log {
+                    Some(file.clone())
+                } else {
+                    None
+                };
+
                 // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
                 // otherwise constraints involving these expressions will not error.
                 // Use a base layer that doesn't handle anything, which we handle in the `execute` below.
@@ -94,8 +100,16 @@ where
                     &circuit_execution,
                 );
 
+                // The following if body was written because of some hard to avoid
+                // issues with the borrow checker.
+                if let Some(path) = log_file {
+                    if let PrintOutput::String(contents) = foreign_call_executor.output {
+                        std::fs::write(path, contents).expect("failed to write foreign call log");
+                    }
+                }
                 let foreign_call_executor = foreign_call_executor.executor;
-                foreign_call_log.write_log().expect("failed to write foreign call log");
+                // TODO Borrow checker fails but in upstream it doesn't
+                // foreign_call_log.write_log().expect("failed to write foreign call log");
 
                 if let TestStatus::Fail { .. } = status {
                     if ignore_foreign_call_failures

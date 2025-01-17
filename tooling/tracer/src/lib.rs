@@ -8,7 +8,9 @@ mod debugger_glue;
 use debugger_glue::{get_current_source_locations, get_stack_frames};
 
 pub mod tracer_glue;
-use tracer_glue::{register_call, register_return, register_step, register_variables};
+use tracer_glue::{
+    register_call, register_print, register_return, register_step, register_variables,
+};
 
 pub mod tail_diff_vecs;
 use tail_diff_vecs::tail_diff_vecs;
@@ -21,7 +23,9 @@ use noir_debugger::context::{DebugCommandResult, DebugContext};
 use noir_debugger::foreign_calls::DefaultDebugForeignCallExecutor;
 use noirc_artifacts::debug::DebugArtifact;
 use runtime_tracing::{Line, Tracer};
+use std::cell::RefCell;
 use std::path::PathBuf;
+use std::rc::Rc;
 use tracing::debug;
 
 /// The result from step_debugger: the debugger either paused at a new location, reached the end of
@@ -45,6 +49,7 @@ pub struct TracingContext<'a, B: BlackBoxFunctionSolver<FieldElement>> {
     /// The stack trace at the current moment; last call is last in the vector.
     stack_frames: Vec<StackFrame>,
     saved_return_value: Option<Variable>,
+    print_output: Rc<RefCell<String>>,
 }
 
 impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
@@ -55,8 +60,15 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
         initial_witness: WitnessMap<FieldElement>,
         unconstrained_functions: &'a [BrilligBytecode<FieldElement>],
     ) -> Self {
-        let foreign_call_executor =
-            Box::new(DefaultDebugForeignCallExecutor::from_artifact(nargo::PrintOutput::Stdout, debug_artifact));
+        let print_output = Rc::new(RefCell::new(String::new()));
+        let print_output_clone_1 = Rc::clone(&print_output);
+        let print_output_clone_2 = Rc::clone(&print_output);
+        let foreign_call_executor = Box::new(DefaultDebugForeignCallExecutor::from_artifact(
+            nargo::PrintOutput::PrintCallback(Box::new(move |s| {
+                *Rc::clone(&print_output_clone_1).borrow_mut() = s
+            })),
+            debug_artifact,
+        ));
         let debug_context = DebugContext::new(
             blackbox_solver,
             circuit,
@@ -66,7 +78,13 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
             unconstrained_functions,
         );
 
-        Self { debug_context, source_locations: vec![], stack_frames: vec![], saved_return_value: None }
+        Self {
+            debug_context,
+            source_locations: vec![],
+            stack_frames: vec![],
+            saved_return_value: None,
+            print_output: print_output_clone_2,
+        }
     }
 
     /// Steps the debugger until a new line is reached, or the debugger returns anything other than
@@ -114,6 +132,14 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
         }
     }
 
+    fn maybe_report_print_events(&self, tracer: &mut Tracer) {
+        let mut s = self.print_output.borrow_mut();
+        if !(*s).is_empty() {
+            register_print(tracer, (*s).as_str());
+            *s = String::new();
+        }
+    }
+
     /// Propagates information about the current execution state to `tracer`.
     fn update_record(&mut self, tracer: &mut Tracer, source_locations: &Vec<SourceLocation>) {
         let stack_frames = get_stack_frames(&self.debug_context);
@@ -134,6 +160,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
                     register_step(tracer, call_site_location);
                     register_variables(tracer, frame);
                     Self::maybe_update_saved_return_value(frame, &mut self.saved_return_value);
+                    self.maybe_report_print_events(tracer);
                 }
             }
         }
@@ -151,6 +178,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
             register_step(tracer, location);
             register_variables(tracer, &stack_frames[index]);
             Self::maybe_update_saved_return_value(&stack_frames[index], &mut self.saved_return_value);
+            self.maybe_report_print_events(tracer);
         }
 
         self.stack_frames = stack_frames;

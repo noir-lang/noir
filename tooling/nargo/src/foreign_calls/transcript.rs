@@ -61,6 +61,9 @@ where
                     s.push_str(&log_item());
                     s.push('\n');
                 }
+                PrintOutput::PrintCallback(callback_fn) => {
+                    callback_fn(log_item());
+                },
             }
         }
         result

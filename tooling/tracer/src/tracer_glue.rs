@@ -3,7 +3,7 @@ use crate::{stack_frame::Variable, SourceLocation, StackFrame};
 use acvm::acir::AcirField; // necessary, for `to_i128` to work
 use acvm::FieldElement;
 use noirc_printable_type::{PrintableType, PrintableValue};
-use runtime_tracing::{FullValueRecord, Line, Tracer, ValueRecord};
+use runtime_tracing::{EventLogKind, FullValueRecord, Line, Tracer, ValueRecord};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use tracing::warn;
@@ -170,4 +170,8 @@ pub(crate) fn register_return(tracer: &mut Tracer, return_value: &Option<Variabl
 
         tracer.register_return(runtime_tracing::ValueRecord::None { type_id });
     }
+}
+
+pub(crate) fn register_print(tracer: &mut Tracer, s: &str) {
+    tracer.register_special_event(EventLogKind::Write, s);
 }
