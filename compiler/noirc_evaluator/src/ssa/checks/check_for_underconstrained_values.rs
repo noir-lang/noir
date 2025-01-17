@@ -267,7 +267,8 @@ impl DependencyContext {
                 }
                 // Check the constrain instruction arguments against those
                 // involved in Brillig calls, remove covered calls
-                Instruction::Constrain(value_id1, value_id2, _) => {
+                Instruction::Constrain(value_id1, value_id2, _)
+                | Instruction::ConstrainNotEqual(value_id1, value_id2, _) => {
                     self.clear_constrained(
                         &[function.dfg.resolve(*value_id1), function.dfg.resolve(*value_id2)],
                         function,
@@ -555,6 +556,7 @@ impl Context {
                 | Instruction::Binary(..)
                 | Instruction::Cast(..)
                 | Instruction::Constrain(..)
+                | Instruction::ConstrainNotEqual(..)
                 | Instruction::IfElse { .. }
                 | Instruction::Load { .. }
                 | Instruction::Not(..)

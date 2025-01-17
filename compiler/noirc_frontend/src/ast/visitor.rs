@@ -296,6 +296,10 @@ pub trait Visitor {
         true
     }
 
+    fn visit_loop_statement(&mut self, _: &Expression) -> bool {
+        true
+    }
+
     fn visit_comptime_statement(&mut self, _: &Statement) -> bool {
         true
     }
@@ -1103,6 +1107,11 @@ impl Statement {
             }
             StatementKind::For(for_loop_statement) => {
                 for_loop_statement.accept(visitor);
+            }
+            StatementKind::Loop(block) => {
+                if visitor.visit_loop_statement(block) {
+                    block.accept(visitor);
+                }
             }
             StatementKind::Comptime(statement) => {
                 if visitor.visit_comptime_statement(statement) {
