@@ -695,6 +695,10 @@ impl<'interner> Monomorphizer<'interner> {
                     block,
                 }))
             }
+            HirStatement::Loop(block) => {
+                let block = Box::new(self.expr(block)?);
+                Ok(ast::Expression::Loop(block))
+            }
             HirStatement::Expression(expr) => self.expr(expr),
             HirStatement::Semi(expr) => {
                 self.expr(expr).map(|expr| ast::Expression::Semi(Box::new(expr)))
