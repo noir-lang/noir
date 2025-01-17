@@ -128,10 +128,7 @@ mod tests {
         parser::{
             parser::{
                 parse_program,
-                tests::{
-                    expect_no_errors, get_single_error, get_single_error_reason,
-                    get_source_with_error_span,
-                },
+                tests::{expect_no_errors, get_source_with_error_span},
             },
             ItemKind, ParserErrorReason,
         },
@@ -224,7 +221,7 @@ mod tests {
     fn parse_unclosed_enum() {
         let src = "enum Foo {";
         let (module, errors) = parse_program(src);
-        assert_eq!(errors.len(), 1);
+        assert_eq!(errors.len(), 2);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
         let ItemKind::Enum(noir_enum) = &item.kind else {
@@ -239,9 +236,9 @@ mod tests {
         #[test] enum Foo {}
         ^^^^^^^
         ";
-        let (src, span) = get_source_with_error_span(src);
+        let (src, _) = get_source_with_error_span(src);
         let (_, errors) = parse_program(&src);
-        let reason = get_single_error_reason(&errors, span);
+        let reason = errors[0].reason().unwrap();
         assert!(matches!(reason, ParserErrorReason::NoFunctionAttributesAllowedOnType));
     }
 
@@ -251,7 +248,7 @@ mod tests {
         enum Foo { 42 X(i32) }
                    ^^
         ";
-        let (src, span) = get_source_with_error_span(src);
+        let (src, _) = get_source_with_error_span(src);
         let (module, errors) = parse_program(&src);
 
         assert_eq!(module.items.len(), 1);
@@ -262,7 +259,7 @@ mod tests {
         assert_eq!("Foo", noir_enum.name.to_string());
         assert_eq!(noir_enum.variants.len(), 1);
 
-        let error = get_single_error(&errors, span);
+        let error = &errors[1];
         assert_eq!(error.to_string(), "Expected an identifier but found '42'");
     }
 }
