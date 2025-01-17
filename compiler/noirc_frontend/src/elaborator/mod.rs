@@ -1043,7 +1043,7 @@ impl<'context> Elaborator<'context> {
             Type::MutableReference(typ) => {
                 self.mark_type_as_used(typ);
             }
-            Type::InfixExpr(left, _op, right) => {
+            Type::InfixExpr(left, _op, right, _) => {
                 self.mark_type_as_used(left);
                 self.mark_type_as_used(right);
             }
@@ -1688,7 +1688,7 @@ impl<'context> Elaborator<'context> {
             Type::MutableReference(typ) | Type::Array(_, typ) | Type::Slice(typ) => {
                 self.check_type_is_not_more_private_then_item(name, visibility, typ, span);
             }
-            Type::InfixExpr(left, _op, right) => {
+            Type::InfixExpr(left, _op, right, _) => {
                 self.check_type_is_not_more_private_then_item(name, visibility, left, span);
                 self.check_type_is_not_more_private_then_item(name, visibility, right, span);
             }

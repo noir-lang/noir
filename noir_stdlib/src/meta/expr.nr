@@ -285,33 +285,31 @@ impl Expr {
 }
 
 comptime fn modify_array<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_array().map(|exprs: [Expr]| {
+    expr.as_array().map(|exprs| {
         let exprs = modify_expressions(exprs, f);
         new_array(exprs)
     })
 }
 
 comptime fn modify_assert<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_assert().map(|expr: (Expr, Option<Expr>)| {
-        let (predicate, msg) = expr;
+    expr.as_assert().map(|(predicate, msg)| {
         let predicate = predicate.modify(f);
-        let msg = msg.map(|msg: Expr| msg.modify(f));
+        let msg = msg.map(|msg| msg.modify(f));
         new_assert(predicate, msg)
     })
 }
 
 comptime fn modify_assert_eq<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_assert_eq().map(|expr: (Expr, Expr, Option<Expr>)| {
-        let (lhs, rhs, msg) = expr;
+    expr.as_assert_eq().map(|(lhs, rhs, msg)| {
         let lhs = lhs.modify(f);
         let rhs = rhs.modify(f);
-        let msg = msg.map(|msg: Expr| msg.modify(f));
+        let msg = msg.map(|msg| msg.modify(f));
         new_assert_eq(lhs, rhs, msg)
     })
 }
 
 comptime fn modify_assign<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_assign().map(|expr: (Expr, Expr)| {
+    expr.as_assign().map(|expr| {
         let (lhs, rhs) = expr;
         let lhs = lhs.modify(f);
         let rhs = rhs.modify(f);
@@ -320,8 +318,7 @@ comptime fn modify_assign<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> 
 }
 
 comptime fn modify_binary_op<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_binary_op().map(|expr: (Expr, BinaryOp, Expr)| {
-        let (lhs, op, rhs) = expr;
+    expr.as_binary_op().map(|(lhs, op, rhs)| {
         let lhs = lhs.modify(f);
         let rhs = rhs.modify(f);
         new_binary_op(lhs, op, rhs)
@@ -329,34 +326,29 @@ comptime fn modify_binary_op<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) 
 }
 
 comptime fn modify_block<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_block().map(|exprs: [Expr]| {
+    expr.as_block().map(|exprs| {
         let exprs = modify_expressions(exprs, f);
         new_block(exprs)
     })
 }
 
 comptime fn modify_cast<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_cast().map(|expr: (Expr, UnresolvedType)| {
-        let (expr, typ) = expr;
+    expr.as_cast().map(|(expr, typ)| {
         let expr = expr.modify(f);
         new_cast(expr, typ)
     })
 }
 
 comptime fn modify_comptime<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_comptime().map(|exprs: [Expr]| {
-        let exprs = exprs.map(|expr: Expr| expr.modify(f));
+    expr.as_comptime().map(|exprs| {
+        let exprs = exprs.map(|expr| expr.modify(f));
         new_comptime(exprs)
     })
 }
 
 comptime fn modify_constructor<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_constructor().map(|expr: (UnresolvedType, [(Quoted, Expr)])| {
-        let (typ, fields) = expr;
-        let fields = fields.map(|field: (Quoted, Expr)| {
-            let (name, value) = field;
-            (name, value.modify(f))
-        });
+    expr.as_constructor().map(|(typ, fields)| {
+        let fields = fields.map(|(name, value)| (name, value.modify(f)));
         new_constructor(typ, fields)
     })
 }
@@ -365,27 +357,24 @@ comptime fn modify_function_call<Env>(
     expr: Expr,
     f: fn[Env](Expr) -> Option<Expr>,
 ) -> Option<Expr> {
-    expr.as_function_call().map(|expr: (Expr, [Expr])| {
-        let (function, arguments) = expr;
+    expr.as_function_call().map(|(function, arguments)| {
         let function = function.modify(f);
-        let arguments = arguments.map(|arg: Expr| arg.modify(f));
+        let arguments = arguments.map(|arg| arg.modify(f));
         new_function_call(function, arguments)
     })
 }
 
 comptime fn modify_if<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_if().map(|expr: (Expr, Expr, Option<Expr>)| {
-        let (condition, consequence, alternative) = expr;
+    expr.as_if().map(|(condition, consequence, alternative)| {
         let condition = condition.modify(f);
         let consequence = consequence.modify(f);
-        let alternative = alternative.map(|alternative: Expr| alternative.modify(f));
+        let alternative = alternative.map(|alternative| alternative.modify(f));
         new_if(condition, consequence, alternative)
     })
 }
 
 comptime fn modify_index<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_index().map(|expr: (Expr, Expr)| {
-        let (object, index) = expr;
+    expr.as_index().map(|(object, index)| {
         let object = object.modify(f);
         let index = index.modify(f);
         new_index(object, index)
@@ -393,8 +382,7 @@ comptime fn modify_index<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> O
 }
 
 comptime fn modify_for<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_for().map(|expr: (Quoted, Expr, Expr)| {
-        let (identifier, array, body) = expr;
+    expr.as_for().map(|(identifier, array, body)| {
         let array = array.modify(f);
         let body = body.modify(f);
         new_for(identifier, array, body)
@@ -402,8 +390,7 @@ comptime fn modify_for<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Opt
 }
 
 comptime fn modify_for_range<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_for_range().map(|expr: (Quoted, Expr, Expr, Expr)| {
-        let (identifier, from, to, body) = expr;
+    expr.as_for_range().map(|(identifier, from, to, body)| {
         let from = from.modify(f);
         let to = to.modify(f);
         let body = body.modify(f);
@@ -412,18 +399,15 @@ comptime fn modify_for_range<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) 
 }
 
 comptime fn modify_lambda<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_lambda().map(|expr: ([(Expr, Option<UnresolvedType>)], Option<UnresolvedType>, Expr)| {
-        let (params, return_type, body) = expr;
-        let params =
-            params.map(|param: (Expr, Option<UnresolvedType>)| (param.0.modify(f), param.1));
+    expr.as_lambda().map(|(params, return_type, body)| {
+        let params = params.map(|(name, typ)| (name.modify(f), typ));
         let body = body.modify(f);
         new_lambda(params, return_type, body)
     })
 }
 
 comptime fn modify_let<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_let().map(|expr: (Expr, Option<UnresolvedType>, Expr)| {
-        let (pattern, typ, expr) = expr;
+    expr.as_let().map(|(pattern, typ, expr)| {
         let pattern = pattern.modify(f);
         let expr = expr.modify(f);
         new_let(pattern, typ, expr)
@@ -434,18 +418,16 @@ comptime fn modify_member_access<Env>(
     expr: Expr,
     f: fn[Env](Expr) -> Option<Expr>,
 ) -> Option<Expr> {
-    expr.as_member_access().map(|expr: (Expr, Quoted)| {
-        let (object, name) = expr;
+    expr.as_member_access().map(|(object, name)| {
         let object = object.modify(f);
         new_member_access(object, name)
     })
 }
 
 comptime fn modify_method_call<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_method_call().map(|expr: (Expr, Quoted, [UnresolvedType], [Expr])| {
-        let (object, name, generics, arguments) = expr;
+    expr.as_method_call().map(|(object, name, generics, arguments)| {
         let object = object.modify(f);
-        let arguments = arguments.map(|arg: Expr| arg.modify(f));
+        let arguments = arguments.map(|arg| arg.modify(f));
         new_method_call(object, name, generics, arguments)
     })
 }
@@ -454,8 +436,7 @@ comptime fn modify_repeated_element_array<Env>(
     expr: Expr,
     f: fn[Env](Expr) -> Option<Expr>,
 ) -> Option<Expr> {
-    expr.as_repeated_element_array().map(|expr: (Expr, Expr)| {
-        let (expr, length) = expr;
+    expr.as_repeated_element_array().map(|(expr, length)| {
         let expr = expr.modify(f);
         let length = length.modify(f);
         new_repeated_element_array(expr, length)
@@ -466,8 +447,7 @@ comptime fn modify_repeated_element_slice<Env>(
     expr: Expr,
     f: fn[Env](Expr) -> Option<Expr>,
 ) -> Option<Expr> {
-    expr.as_repeated_element_slice().map(|expr: (Expr, Expr)| {
-        let (expr, length) = expr;
+    expr.as_repeated_element_slice().map(|(expr, length)| {
         let expr = expr.modify(f);
         let length = length.modify(f);
         new_repeated_element_slice(expr, length)
@@ -475,36 +455,35 @@ comptime fn modify_repeated_element_slice<Env>(
 }
 
 comptime fn modify_slice<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_slice().map(|exprs: [Expr]| {
+    expr.as_slice().map(|exprs| {
         let exprs = modify_expressions(exprs, f);
         new_slice(exprs)
     })
 }
 
 comptime fn modify_tuple<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_tuple().map(|exprs: [Expr]| {
+    expr.as_tuple().map(|exprs| {
         let exprs = modify_expressions(exprs, f);
         new_tuple(exprs)
     })
 }
 
 comptime fn modify_unary_op<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_unary_op().map(|expr: (UnaryOp, Expr)| {
-        let (op, rhs) = expr;
+    expr.as_unary_op().map(|(op, rhs)| {
         let rhs = rhs.modify(f);
         new_unary_op(op, rhs)
     })
 }
 
 comptime fn modify_unsafe<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_unsafe().map(|exprs: [Expr]| {
-        let exprs = exprs.map(|expr: Expr| expr.modify(f));
+    expr.as_unsafe().map(|exprs| {
+        let exprs = exprs.map(|expr| expr.modify(f));
         new_unsafe(exprs)
     })
 }
 
 comptime fn modify_expressions<Env>(exprs: [Expr], f: fn[Env](Expr) -> Option<Expr>) -> [Expr] {
-    exprs.map(|expr: Expr| expr.modify(f))
+    exprs.map(|expr| expr.modify(f))
 }
 
 comptime fn new_array(exprs: [Expr]) -> Expr {
@@ -554,12 +533,7 @@ comptime fn new_comptime(exprs: [Expr]) -> Expr {
 }
 
 comptime fn new_constructor(typ: UnresolvedType, fields: [(Quoted, Expr)]) -> Expr {
-    let fields = fields
-        .map(|field: (Quoted, Expr)| {
-            let (name, value) = field;
-            quote { $name: $value }
-        })
-        .join(quote { , });
+    let fields = fields.map(|(name, value)| quote { $name: $value }).join(quote { , });
     quote { $typ { $fields }}.as_expr().unwrap()
 }
 
@@ -590,8 +564,7 @@ comptime fn new_lambda(
     body: Expr,
 ) -> Expr {
     let params = params
-        .map(|param: (Expr, Option<UnresolvedType>)| {
-            let (name, typ) = param;
+        .map(|(name, typ)| {
             if typ.is_some() {
                 let typ = typ.unwrap();
                 quote { $name: $typ }
@@ -678,5 +651,5 @@ comptime fn new_unsafe(exprs: [Expr]) -> Expr {
 }
 
 comptime fn join_expressions(exprs: [Expr], separator: Quoted) -> Quoted {
-    exprs.map(|expr: Expr| expr.quoted()).join(separator)
+    exprs.map(|expr| expr.quoted()).join(separator)
 }
