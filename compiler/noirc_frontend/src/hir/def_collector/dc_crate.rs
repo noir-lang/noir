@@ -14,7 +14,7 @@ use crate::{Generics, Type};
 use crate::hir::resolution::import::{resolve_import, ImportDirective};
 use crate::hir::Context;
 
-use crate::ast::Expression;
+use crate::ast::{Expression, NoirEnumeration};
 use crate::node_interner::{
     FuncId, GlobalId, ModuleAttributes, NodeInterner, ReferenceId, StructId, TraitId, TraitImplId,
     TypeAliasId,
@@ -62,6 +62,12 @@ pub struct UnresolvedStruct {
     pub file_id: FileId,
     pub module_id: LocalModuleId,
     pub struct_def: NoirStruct,
+}
+
+pub struct UnresolvedEnum {
+    pub file_id: FileId,
+    pub module_id: LocalModuleId,
+    pub enum_def: NoirEnumeration,
 }
 
 #[derive(Clone)]
@@ -141,7 +147,8 @@ pub struct DefCollector {
 #[derive(Default)]
 pub struct CollectedItems {
     pub functions: Vec<UnresolvedFunctions>,
-    pub(crate) types: BTreeMap<StructId, UnresolvedStruct>,
+    pub(crate) structs: BTreeMap<StructId, UnresolvedStruct>,
+    pub(crate) enums: BTreeMap<StructId, UnresolvedEnum>,
     pub(crate) type_aliases: BTreeMap<TypeAliasId, UnresolvedTypeAlias>,
     pub(crate) traits: BTreeMap<TraitId, UnresolvedTrait>,
     pub globals: Vec<UnresolvedGlobal>,
@@ -153,7 +160,7 @@ pub struct CollectedItems {
 impl CollectedItems {
     pub fn is_empty(&self) -> bool {
         self.functions.is_empty()
-            && self.types.is_empty()
+            && self.structs.is_empty()
             && self.type_aliases.is_empty()
             && self.traits.is_empty()
             && self.globals.is_empty()
@@ -254,7 +261,8 @@ impl DefCollector {
             imports: vec![],
             items: CollectedItems {
                 functions: vec![],
-                types: BTreeMap::new(),
+                structs: BTreeMap::new(),
+                enums: BTreeMap::new(),
                 type_aliases: BTreeMap::new(),
                 traits: BTreeMap::new(),
                 impls: HashMap::default(),
