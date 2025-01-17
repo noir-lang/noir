@@ -62,11 +62,10 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
         unconstrained_functions: &'a [BrilligBytecode<FieldElement>],
     ) -> Self {
         let print_output = Rc::new(RefCell::new(String::new()));
-        let print_output_clone_1 = Rc::clone(&print_output);
-        let print_output_clone_2 = Rc::clone(&print_output);
         let foreign_call_executor = Box::new(DefaultDebugForeignCallExecutor::from_artifact(
-            nargo::PrintOutput::PrintCallback(Box::new(move |s| {
-                *Rc::clone(&print_output_clone_1).borrow_mut() = s
+            nargo::PrintOutput::PrintCallback(Box::new({
+                let print_output_clone = Rc::clone(&print_output);
+                move |s| *Rc::clone(&print_output_clone).borrow_mut() = s
             })),
             debug_artifact,
         ));
@@ -84,7 +83,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
             source_locations: vec![],
             stack_frames: vec![],
             saved_return_value: None,
-            print_output: print_output_clone_2,
+            print_output,
         }
     }
 
