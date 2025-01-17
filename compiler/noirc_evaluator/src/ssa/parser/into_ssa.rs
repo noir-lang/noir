@@ -59,10 +59,6 @@ impl Translator {
             translator.translate_non_main_function(function)?;
         }
 
-        for global in parsed_ssa.globals {
-            translator.translate_global(global)?;
-        }
-
         Ok(translator.finish())
     }
 
@@ -97,6 +93,8 @@ impl Translator {
             globals: HashMap::new(),
             error_selector_counter: 0,
         };
+
+        translator.translate_globals(std::mem::take(&mut parsed_ssa.globals))?;
         translator.translate_function_body(main_function)?;
 
         Ok(translator)
@@ -327,6 +325,13 @@ impl Translator {
         }
     }
 
+    fn translate_globals(&mut self, globals: Vec<ParsedGlobal>) -> Result<(), SsaError> {
+        for global in globals {
+            self.translate_global(global)?;
+        }
+        Ok(())
+    }
+
     fn translate_global(&mut self, global: ParsedGlobal) -> Result<(), SsaError> {
         let value_id = match global.value {
             ParsedGlobalValue::NumericConstant(constant) => self
@@ -346,7 +351,7 @@ impl Translator {
                     elements.push_back(element_id);
                 }
 
-                let instruction = Instruction::MakeArray { elements, typ: make_array.typ };
+                let instruction = Instruction::MakeArray { elements, typ: make_array.typ.clone() };
                 let block = self.globals_function.entry_block();
                 let call_stack = CallStackId::root();
                 self.globals_function
@@ -378,6 +383,8 @@ impl Translator {
 
     fn lookup_variable(&mut self, identifier: &Identifier) -> Result<ValueId, SsaError> {
         if let Some(value_id) = self.variables[&self.current_function_id()].get(&identifier.name) {
+            Ok(*value_id)
+        } else if let Some(value_id) = self.globals.get(&identifier.name) {
             Ok(*value_id)
         } else {
             Err(SsaError::UnknownVariable(identifier.clone()))

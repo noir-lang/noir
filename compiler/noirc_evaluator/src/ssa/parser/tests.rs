@@ -541,7 +541,7 @@ fn parses_globals() {
 
         acir(inline) fn main f0 {
           b0():
-            return
+            return g3
         }
         ";
     assert_ssa_roundtrip(src);
