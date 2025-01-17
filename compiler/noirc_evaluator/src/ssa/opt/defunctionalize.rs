@@ -8,6 +8,7 @@ use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 use acvm::FieldElement;
 use iter_extended::vecmap;
+use noirc_frontend::monomorphization::ast::InlineType;
 
 use crate::ssa::{
     function_builder::FunctionBuilder,
@@ -277,7 +278,7 @@ fn function_id_to_field(function_id: FunctionId) -> FieldElement {
 fn create_apply_function(
     ssa: &mut Ssa,
     signature: Signature,
-    runtime: RuntimeType,
+    caller_runtime: RuntimeType,
     function_ids: Vec<FunctionId>,
 ) -> FunctionId {
     assert!(!function_ids.is_empty());
@@ -285,6 +286,13 @@ fn create_apply_function(
     ssa.add_fn(|id| {
         let mut function_builder = FunctionBuilder::new("apply".to_string(), id);
         function_builder.set_globals(globals);
+
+        // We want to push for apply functions to be inlined more aggressively;
+        // they are expected to be optimized away by constants visible at the call site.
+        let runtime = match caller_runtime {
+            RuntimeType::Acir(_) => RuntimeType::Acir(InlineType::InlineAlways),
+            RuntimeType::Brillig(_) => RuntimeType::Brillig(InlineType::InlineAlways),
+        };
         function_builder.set_runtime(runtime);
         let target_id = function_builder.add_parameter(Type::field());
         let params_ids = vecmap(signature.params, |typ| function_builder.add_parameter(typ));
@@ -360,4 +368,139 @@ fn build_return_block(
     builder.terminate_with_return(params);
     builder.switch_to_block(previous_block);
     return_block
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::ssa::opt::assert_normalized_ssa_equals;
+
+    use super::Ssa;
+
+    #[test]
+    fn apply_inherits_caller_runtime() {
+        // Extracted from `execution_success/brillig_fns_as_values` with `--force-brillig`
+        let src = "
+          brillig(inline) fn main f0 {
+            b0(v0: u32):
+              v3 = call f1(f2, v0) -> u32
+              v5 = add v0, u32 1
+              v6 = eq v3, v5
+              constrain v3 == v5
+              v9 = call f1(f3, v0) -> u32
+              v10 = add v0, u32 1
+              v11 = eq v9, v10
+              constrain v9 == v10
+              return
+          }
+          brillig(inline) fn wrapper f1 {
+            b0(v0: function, v1: u32):
+              v2 = call v0(v1) -> u32
+              return v2
+          }
+          brillig(inline) fn increment f2 {
+            b0(v0: u32):
+              v2 = add v0, u32 1
+              return v2
+          }
+          brillig(inline) fn increment_acir f3 {
+            b0(v0: u32):
+              v2 = add v0, u32 1
+              return v2
+          }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.defunctionalize();
+
+        let expected = "
+          brillig(inline) fn main f0 {
+            b0(v0: u32):
+              v3 = call f1(Field 2, v0) -> u32
+              v5 = add v0, u32 1
+              v6 = eq v3, v5
+              constrain v3 == v5
+              v9 = call f1(Field 3, v0) -> u32
+              v10 = add v0, u32 1
+              v11 = eq v9, v10
+              constrain v9 == v10
+              return
+          }
+          brillig(inline) fn wrapper f1 {
+            b0(v0: Field, v1: u32):
+              v3 = call f4(v0, v1) -> u32
+              return v3
+          }
+          brillig(inline) fn increment f2 {
+            b0(v0: u32):
+              v2 = add v0, u32 1
+              return v2
+          }
+          brillig(inline) fn increment_acir f3 {
+            b0(v0: u32):
+              v2 = add v0, u32 1
+              return v2
+          }
+          brillig(inline_always) fn apply f4 {
+            b0(v0: Field, v1: u32):
+              v4 = eq v0, Field 2
+              jmpif v4 then: b2, else: b1
+            b1():
+              constrain v0 == Field 3
+              v7 = call f3(v1) -> u32
+              jmp b3(v7)
+            b2():
+              v9 = call f2(v1) -> u32
+              jmp b3(v9)
+            b3(v2: u32):
+              return v2
+          }
+        ";
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn apply_created_per_caller_runtime() {
+        let src = "
+          acir(inline) fn main f0 {
+            b0(v0: u32):
+              v3 = call f1(f2, v0) -> u32
+              v5 = add v0, u32 1
+              v6 = eq v3, v5
+              constrain v3 == v5
+              v9 = call f4(f3, v0) -> u32
+              v10 = add v0, u32 1
+              v11 = eq v9, v10
+              constrain v9 == v10
+              return
+          }
+          brillig(inline) fn wrapper f1 {
+            b0(v0: function, v1: u32):
+              v2 = call v0(v1) -> u32
+              return v2
+          }
+          acir(inline) fn wrapper_acir f4 {
+            b0(v0: function, v1: u32):
+              v2 = call v0(v1) -> u32
+              return v2
+          }
+          brillig(inline) fn increment f2 {
+            b0(v0: u32):
+              v2 = add v0, u32 1
+              return v2
+          }
+          acir(inline) fn increment_acir f3 {
+            b0(v0: u32):
+              v2 = add v0, u32 1
+              return v2
+          }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.defunctionalize();
+
+        let applies = ssa.functions.values().filter(|f| f.name() == "apply").collect::<Vec<_>>();
+        assert_eq!(applies.len(), 2);
+        assert!(applies.iter().any(|f| f.runtime().is_acir()));
+        assert!(applies.iter().any(|f| f.runtime().is_brillig()));
+    }
 }

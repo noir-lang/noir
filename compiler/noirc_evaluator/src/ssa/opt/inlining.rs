@@ -84,6 +84,8 @@ impl Function {
         inline_no_predicates_functions: bool,
         inline_infos: &InlineInfos,
     ) -> Function {
+        let caller_runtime = self.runtime();
+
         let should_inline_call =
             |_context: &PerFunctionContext, ssa: &Ssa, called_func_id: FunctionId| -> bool {
                 // Do not inline self-recursive functions on the top level.
@@ -106,13 +108,15 @@ impl Function {
                         !inline_type.is_entry_point() && !preserve_function
                     }
                     RuntimeType::Brillig(_) => {
-                        // If the called function is brillig, we inline only if the caller is Brillig,
-                        // and the function called wasn't ruled out as too costly to inline or recursive.
-                        self.runtime().is_brillig()
-                            && inline_infos
-                                .get(&called_func_id)
-                                .map(|info| info.should_inline)
-                                .unwrap_or_default()
+                        if caller_runtime.is_acir() {
+                            // We never inline a brillig function into an ACIR function.
+                            return false;
+                        }
+                        // We inline inline if the function called wasn't ruled out as too costly or recursive.
+                        inline_infos
+                            .get(&called_func_id)
+                            .map(|info| info.should_inline)
+                            .unwrap_or_default()
                     }
                 }
             };
