@@ -451,7 +451,7 @@ mod tests {
                     &mut interpreter.bigint_solver,
                     name,
                     Vec::new(),
-                    Type::Unit,
+                    Type::unit(),
                     no_location,
                     pedantic_solving,
                 ) {

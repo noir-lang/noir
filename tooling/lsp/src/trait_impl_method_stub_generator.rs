@@ -85,7 +85,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
         self.string.push(')');
 
         let return_type = self.func_meta.return_type();
-        if return_type != &Type::Unit {
+        if !return_type.is_unit() {
             self.string.push_str(" -> ");
             self.append_type(return_type);
         }
@@ -158,7 +158,6 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
 
     fn append_type(&mut self, typ: &Type) {
         match typ {
-            Type::FieldElement => self.string.push_str("Field"),
             Type::Array(n, e) => {
                 self.string.push('[');
                 self.append_type(e);
@@ -332,7 +331,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                 }
                 self.string.push_str("fn");
 
-                if let Type::Unit = **env {
+                if env.is_unit() {
                 } else {
                     self.string.push('[');
                     self.append_type(env);
@@ -348,7 +347,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                 }
                 self.string.push(')');
 
-                if let Type::Unit = **ret {
+                if ret.is_unit() {
                 } else {
                     self.string.push_str(" -> ");
                     self.append_type(ret);
@@ -369,12 +368,16 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                 self.append_type(right);
             }
             Type::CheckedCast { to, .. } => self.append_type(to),
+            Type::Integer(_, num_bits) => {
+                if num_bits.is_field_element_bits() {
+                    self.string.push_str("Field")
+                } else {
+                    self.string.push_str(&typ.to_string())
+                }
+            }
             Type::Constant(..)
-            | Type::Integer(_, _)
-            | Type::Bool
             | Type::String(_)
             | Type::FmtString(_, _)
-            | Type::Unit
             | Type::Quoted(_)
             | Type::Error => self.string.push_str(&typ.to_string()),
         }

@@ -10,15 +10,16 @@ impl<'a> Formatter<'a> {
         self.skip_comments_and_whitespace();
 
         match typ.typ {
-            UnresolvedTypeData::Unit => {
-                self.write_left_paren();
-                self.write_right_paren();
-            }
-            UnresolvedTypeData::Bool => {
-                self.write_keyword(Keyword::Bool);
-            }
-            UnresolvedTypeData::Integer(..) | UnresolvedTypeData::FieldElement => {
-                self.write_current_token_and_bump();
+            UnresolvedTypeData::Integer(_, num_bits) => {
+                if num_bits.is_zero() {
+                    self.write_left_paren();
+                    self.write_right_paren();
+                } else if num_bits.is_bool() {
+                    self.write_keyword(Keyword::Bool);
+                    // TODO: special-case for u1 here?
+                } else {
+                    self.write_current_token_and_bump();
+                }
             }
             UnresolvedTypeData::Array(type_expr, typ) => {
                 self.write_left_bracket();

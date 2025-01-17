@@ -420,7 +420,7 @@ mod tests {
 
     #[test]
     fn instantiate_after_canonicalize_smoke_test() {
-        let field_element_kind = Kind::numeric(Type::FieldElement);
+        let field_element_kind = Kind::numeric(Type::field_element());
         let x_var = TypeVariable::unbound(TypeVariableId(0), field_element_kind.clone());
         let x_type = Type::TypeVariable(x_var.clone());
         let one = Type::Constant(FieldElement::one(), field_element_kind.clone());
@@ -473,12 +473,16 @@ mod proptests {
 
     prop_compose! {
         // maximum_size must be non-zero
-        fn arbitrary_u128_field_element(maximum_size: u128)
+        fn arbitrary_u128_field_element(maximum_size: FieldElement)
             (u128_value in any::<u128>())
             -> FieldElement
         {
-            assert!(maximum_size != 0);
-            FieldElement::from(u128_value % maximum_size)
+            if maximum_size == FieldElement::zero() {
+                FieldElement::zero()
+            } else {
+                let maximum_size = maximum_size.try_into_u128().expect("ICE: maximum_size is larger than u128::MAX");
+                FieldElement::from(u128_value % maximum_size)
+            }
         }
     }
 
@@ -500,13 +504,13 @@ mod proptests {
     fn arbitrary_unsigned_type_with_generator() -> BoxedStrategy<(Type, BoxedStrategy<FieldElement>)>
     {
         prop_oneof![
-            strategy::Just((Type::FieldElement, arbitrary_field_element().boxed())),
+            strategy::Just((Type::field_element(), arbitrary_field_element().boxed())),
             any::<IntegerBitSize>().prop_map(|bit_size| {
                 let typ = Type::Integer(Signedness::Unsigned, bit_size);
-                let maximum_size = typ.integral_maximum_size().unwrap().to_u128();
+                let maximum_size = typ.integral_maximum_size().unwrap_or_else(|| FieldElement::one());
                 (typ, arbitrary_u128_field_element(maximum_size).boxed())
             }),
-            strategy::Just((Type::Bool, arbitrary_u128_field_element(1).boxed())),
+            strategy::Just((Type::bool(), arbitrary_u128_field_element(FieldElement::one()).boxed())),
         ]
         .boxed()
     }

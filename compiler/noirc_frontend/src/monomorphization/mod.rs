@@ -1058,9 +1058,7 @@ impl<'interner> Monomorphizer<'interner> {
     fn convert_type(typ: &HirType, location: Location) -> Result<ast::Type, MonomorphizationError> {
         let typ = typ.follow_bindings_shallow();
         Ok(match typ.as_ref() {
-            HirType::FieldElement => ast::Type::Field,
             HirType::Integer(sign, bits) => ast::Type::Integer(*sign, *bits),
-            HirType::Bool => ast::Type::Bool,
             HirType::String(size) => {
                 let size = match size.evaluate_to_u32(location.span) {
                     Ok(size) => size,
@@ -1094,7 +1092,6 @@ impl<'interner> Monomorphizer<'interner> {
                 let fields = Box::new(Self::convert_type(fields.as_ref(), location)?);
                 ast::Type::FmtString(size, fields)
             }
-            HirType::Unit => ast::Type::Unit,
             HirType::Array(length, element) => {
                 let element = Box::new(Self::convert_type(element.as_ref(), location)?);
                 let length = match length.evaluate_to_u32(location.span) {
@@ -1187,7 +1184,7 @@ impl<'interner> Monomorphizer<'interner> {
                 let ret = Box::new(Self::convert_type(ret, location)?);
                 let env = Self::convert_type(env, location)?;
                 match &env {
-                    ast::Type::Unit => {
+                    ast::Type::Integer(_, IntegerBitSize::Zero) | ast::Type::Unit => {
                         ast::Type::Function(args, ret, Box::new(env), *unconstrained)
                     }
                     ast::Type::Tuple(_elements) => ast::Type::Tuple(vec![
@@ -1225,11 +1222,8 @@ impl<'interner> Monomorphizer<'interner> {
     fn check_type(typ: &HirType, location: Location) -> Result<(), MonomorphizationError> {
         let typ = typ.follow_bindings_shallow();
         match typ.as_ref() {
-            HirType::FieldElement
-            | HirType::Integer(..)
-            | HirType::Bool
+            HirType::Integer(..)
             | HirType::String(..)
-            | HirType::Unit
             | HirType::TraitAsType(..)
             | HirType::Forall(_, _)
             | HirType::Error
@@ -1570,11 +1564,11 @@ impl<'interner> Monomorphizer<'interner> {
                     }
                     "modulus_le_bits" => {
                         let bits = FieldElement::modulus().to_radix_le(2);
-                        Some(self.modulus_slice_literal(bits, IntegerBitSize::One, location))
+                        Some(self.modulus_slice_literal(bits, IntegerBitSize::u1(), location))
                     }
                     "modulus_be_bits" => {
                         let bits = FieldElement::modulus().to_radix_be(2);
-                        Some(self.modulus_slice_literal(bits, IntegerBitSize::One, location))
+                        Some(self.modulus_slice_literal(bits, IntegerBitSize::u1(), location))
                     }
                     "modulus_be_bytes" => {
                         let bytes = FieldElement::modulus().to_bytes_be();

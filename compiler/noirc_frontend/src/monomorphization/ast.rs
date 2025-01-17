@@ -300,13 +300,14 @@ pub struct Function {
 /// - All structs replaced with tuples
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum Type {
-    Field,
     Array(/*len:*/ u32, Box<Type>), // Array(4, Field) = [Field; 4]
-    Integer(Signedness, /*bits:*/ IntegerBitSize), // u32 = Integer(unsigned, ThirtyTwo)
+    // TODO
+    Unit,
     Bool,
+    Field,
+    Integer(Signedness, /*bits:*/ IntegerBitSize), // u32 = Integer(unsigned, ThirtyTwo)
     String(/*len:*/ u32), // String(4) = str[4]
     FmtString(/*len:*/ u32, Box<Type>),
-    Unit,
     Tuple(Vec<Type>),
     Slice(Box<Type>),
     MutableReference(Box<Type>),
@@ -434,10 +435,22 @@ impl std::fmt::Display for Type {
         match self {
             Type::Field => write!(f, "Field"),
             Type::Array(len, elements) => write!(f, "[{elements}; {len}]"),
-            Type::Integer(sign, bits) => match sign {
-                Signedness::Unsigned => write!(f, "u{bits}"),
-                Signedness::Signed => write!(f, "i{bits}"),
-            },
+            Type::Integer(sign, num_bits) => {
+                if num_bits.is_zero() {
+                    return write!(f, "()");
+                } else if num_bits.is_bool() {
+                    return write!(f, "bool");
+                } else if num_bits.is_u1() {
+                    return write!(f, "bool");
+                } else if num_bits.is_field_element_bits() {
+                    return write!(f, "Field");
+                }
+                match sign {
+                    Signedness::Signed => write!(f, "i{num_bits}"),
+                    Signedness::Unsigned => write!(f, "u{num_bits}"),
+                }
+            }
+            // TODO: combine cases
             Type::Bool => write!(f, "bool"),
             Type::String(len) => write!(f, "str<{len}>"),
             Type::FmtString(len, elements) => {

@@ -185,9 +185,11 @@ impl FuncMeta {
     }
 
     pub fn function_signature(&self) -> FunctionSignature {
-        let return_type = match self.return_type() {
-            Type::Unit => None,
-            typ => Some(typ.clone()),
+        let return_type = self.return_type();
+        let return_type = if return_type.is_unit() {
+            None
+        } else {
+            Some(return_type.clone())
         };
         (self.parameters.0.clone(), return_type)
     }
