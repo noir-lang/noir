@@ -434,17 +434,17 @@ mod tests {
           }
           brillig(inline) fn apply f4 {
             b0(v0: Field, v1: u32):
-              v5 = eq v0, Field 2
-              jmpif v5 then: b3, else: b1
+              v4 = eq v0, Field 2
+              jmpif v4 then: b2, else: b1
             b1():
               constrain v0 == Field 3
-              v8 = call f3(v1) -> u32
-              jmp b4(v8)
-            b3():
-              v10 = call f2(v1) -> u32
-              jmp b4(v10)
-            b4(v3: u32):
-              return v3
+              v7 = call f3(v1) -> u32
+              jmp b3(v7)
+            b2():
+              v9 = call f2(v1) -> u32
+              jmp b3(v9)
+            b3(v2: u32):
+              return v2
           }
         ";
         assert_normalized_ssa_equals(ssa, expected);
