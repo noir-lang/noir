@@ -31,14 +31,20 @@ pub(crate) fn convert_ssa_function(
 ) -> BrilligArtifact<FieldElement> {
     let mut brillig_context = BrilligContext::new(enable_debug_trace);
 
-    let mut function_context = FunctionContext::new(func, globals);
+    let mut function_context = FunctionContext::new(func);
 
     brillig_context.enter_context(Label::function(func.id()));
 
     brillig_context.call_check_max_stack_depth_procedure();
 
     for block in function_context.blocks.clone() {
-        BrilligBlock::compile(&mut function_context, &mut brillig_context, block, &func.dfg);
+        BrilligBlock::compile(
+            &mut function_context,
+            &mut brillig_context,
+            block,
+            &func.dfg,
+            globals,
+        );
     }
 
     let mut artifact = brillig_context.artifact();

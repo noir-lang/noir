@@ -32,8 +32,8 @@ use super::brillig_fn::FunctionContext;
 use super::constant_allocation::InstructionLocation;
 
 /// Generate the compilation artifacts for compiling a function into brillig bytecode.
-pub(crate) struct BrilligBlock<'block, 'global, Registers: RegisterAllocator> {
-    pub(crate) function_context: &'block mut FunctionContext<'global>,
+pub(crate) struct BrilligBlock<'block, Registers: RegisterAllocator> {
+    pub(crate) function_context: &'block mut FunctionContext,
     /// The basic block that is being converted
     pub(crate) block_id: BasicBlockId,
     /// Context for creating brillig opcodes
@@ -43,16 +43,19 @@ pub(crate) struct BrilligBlock<'block, 'global, Registers: RegisterAllocator> {
     /// For each instruction, the set of values that are not used anymore after it.
     pub(crate) last_uses: HashMap<InstructionId, HashSet<ValueId>>,
 
+    pub(crate) globals: &'block HashMap<ValueId, BrilligVariable>,
+
     pub(crate) building_globals: bool,
 }
 
-impl<'block, 'global, Registers: RegisterAllocator> BrilligBlock<'block, 'global, Registers> {
+impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     /// Converts an SSA Basic block into a sequence of Brillig opcodes
     pub(crate) fn compile(
-        function_context: &'block mut FunctionContext<'global>,
+        function_context: &'block mut FunctionContext,
         brillig_context: &'block mut BrilligContext<FieldElement, Registers>,
         block_id: BasicBlockId,
         dfg: &DataFlowGraph,
+        globals: &'block HashMap<ValueId, BrilligVariable>,
     ) {
         let live_in = function_context.liveness.get_live_in(&block_id);
 
@@ -80,6 +83,7 @@ impl<'block, 'global, Registers: RegisterAllocator> BrilligBlock<'block, 'global
             brillig_context,
             variables,
             last_uses,
+            globals,
             building_globals: false,
         };
 
@@ -1622,7 +1626,7 @@ impl<'block, 'global, Registers: RegisterAllocator> BrilligBlock<'block, 'global
                 // All block parameters and instruction results should have already been
                 // converted to registers so we fetch from the cache.
                 if dfg.is_global(value_id) {
-                    *self.function_context.globals.get(&value_id).unwrap_or_else(|| {
+                    *self.globals.get(&value_id).unwrap_or_else(|| {
                         panic!("ICE: Global value not found in cache {value_id}")
                     })
                 } else {
@@ -1635,7 +1639,7 @@ impl<'block, 'global, Registers: RegisterAllocator> BrilligBlock<'block, 'global
                 if self.variables.is_allocated(&value_id) {
                     self.variables.get_allocation(self.function_context, value_id, dfg)
                 } else if dfg.is_global(value_id) {
-                    *self.function_context.globals.get(&value_id).unwrap_or_else(|| {
+                    *self.globals.get(&value_id).unwrap_or_else(|| {
                         panic!("ICE: Global value not found in cache {value_id}")
                     })
                 } else {
