@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737144753264,
+  "lastUpdate": 1737144763328,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -2945,6 +2945,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "workspace",
             "value": 123.66,
+            "unit": "MB"
+          },
+          {
+            "name": "regression_4709",
+            "value": 315.94,
+            "unit": "MB"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 512.57,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 498.7,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 473.34,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1230,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 498.71,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 734.39,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 590.81,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 180.84,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 245.44,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 208.85,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jake@aztecprotocol.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7705a624842d1e1f716506b005ca65e397ff7a9f",
+          "message": "feat: Parser and formatter support for `enum`s (#7110)",
+          "timestamp": "2025-01-17T19:47:41Z",
+          "tree_id": "57c059db9627325e6d4fa517a31f236c78cdde21",
+          "url": "https://github.com/noir-lang/noir/commit/7705a624842d1e1f716506b005ca65e397ff7a9f"
+        },
+        "date": 1737144762098,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "keccak256",
+            "value": 74.63,
+            "unit": "MB"
+          },
+          {
+            "name": "workspace",
+            "value": 123.41,
             "unit": "MB"
           },
           {
