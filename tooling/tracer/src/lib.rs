@@ -180,10 +180,10 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
         if index >= 0 {
             let index = index as usize;
             let location = &source_locations[index];
+            self.maybe_report_print_events(tracer);
             register_step(tracer, location, debug_trace_list);
             register_variables(tracer, &stack_frames[index]);
             Self::maybe_update_saved_return_value(&stack_frames[index], &mut self.saved_return_value);
-            self.maybe_report_print_events(tracer);
         }
 
         self.stack_frames = stack_frames;
