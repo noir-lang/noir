@@ -452,4 +452,50 @@ mod tests {
         ";
         assert_normalized_ssa_equals(ssa, expected);
     }
+
+    #[test]
+    fn apply_created_per_caller_runtime() {
+        let src = "
+          acir(inline) fn main f0 {
+            b0(v0: u32):
+              v3 = call f1(f2, v0) -> u32
+              v5 = add v0, u32 1
+              v6 = eq v3, v5
+              constrain v3 == v5
+              v9 = call f4(f3, v0) -> u32
+              v10 = add v0, u32 1
+              v11 = eq v9, v10
+              constrain v9 == v10
+              return
+          }
+          brillig(inline) fn wrapper f1 {
+            b0(v0: function, v1: u32):
+              v2 = call v0(v1) -> u32
+              return v2
+          }
+          acir(inline) fn wrapper_acir f4 {
+            b0(v0: function, v1: u32):
+              v2 = call v0(v1) -> u32
+              return v2
+          }
+          brillig(inline) fn increment f2 {
+            b0(v0: u32):
+              v2 = add v0, u32 1
+              return v2
+          }
+          acir(inline) fn increment_acir f3 {
+            b0(v0: u32):
+              v2 = add v0, u32 1
+              return v2
+          }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.defunctionalize();
+
+        let applies = ssa.functions.values().filter(|f| f.name() == "apply").collect::<Vec<_>>();
+        assert_eq!(applies.len(), 2);
+        assert!(applies.iter().any(|f| f.runtime().is_acir()));
+        assert!(applies.iter().any(|f| f.runtime().is_brillig()));
+    }
 }
