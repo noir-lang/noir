@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737144255715,
+  "lastUpdate": 1737144256924,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -2373,6 +2373,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-reset",
             "value": 0.31,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 0.068,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jake@aztecprotocol.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7705a624842d1e1f716506b005ca65e397ff7a9f",
+          "message": "feat: Parser and formatter support for `enum`s (#7110)",
+          "timestamp": "2025-01-17T19:47:41Z",
+          "tree_id": "57c059db9627325e6d4fa517a31f236c78cdde21",
+          "url": "https://github.com/noir-lang/noir/commit/7705a624842d1e1f716506b005ca65e397ff7a9f"
+        },
+        "date": 1737144256085,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 0.052,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.001,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 0.639,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.105,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.007,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 38.3,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 0.106,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1.226,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.453,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.019,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.312,
             "unit": "s"
           },
           {
