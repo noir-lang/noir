@@ -315,7 +315,7 @@ jobs:
 
   external_repo_compilation_and_execution_report:
     needs: [build-nargo]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 15
     strategy:
       fail-fast: false
@@ -425,7 +425,7 @@ jobs:
     needs: [generate_compilation_and_execution_report, external_repo_compilation_and_execution_report]
     # We want this job to run even if one variation of the matrix in `external_repo_compilation_and_execution_report` fails
     if: always() 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
 
@@ -466,7 +466,7 @@ jobs:
 
   external_repo_memory_report:
     needs: [build-nargo]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -572,7 +572,7 @@ jobs:
     needs: [generate_memory_report, external_repo_memory_report]
     # We want this job to run even if one variation of the matrix in `external_repo_memory_report` fails
     if: always() 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
 
@@ -616,7 +616,7 @@ jobs:
     needs: [generate_memory_report, external_repo_memory_report]
     # We want this job to run even if one variation of the matrix in `external_repo_memory_report` fails
     if: always() 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
 
@@ -662,7 +662,7 @@ jobs:
     needs: [generate_compilation_and_execution_report, external_repo_compilation_and_execution_report]
     # We want this job to run even if one variation of the matrix in `external_repo_compilation_and_execution_report` fails
     if: always() 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
 
