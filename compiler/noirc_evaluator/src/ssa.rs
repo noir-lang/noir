@@ -17,8 +17,8 @@ use crate::errors::{RuntimeError, SsaReport};
 use acvm::{
     acir::{
         circuit::{
-            brillig::BrilligBytecode, Circuit, ErrorSelector, ExpressionWidth,
-            Program as AcirProgram, PublicInputs,
+            brillig::BrilligBytecode, AcirOpcodeLocation, Circuit, ErrorSelector, ExpressionWidth,
+            OpcodeLocation, Program as AcirProgram, PublicInputs,
         },
         native_types::Witness,
     },
@@ -26,7 +26,10 @@ use acvm::{
 };
 
 use ir::instruction::ErrorType;
-use noirc_errors::debug_info::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables};
+use noirc_errors::{
+    call_stack::CallStackId,
+    debug_info::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables},
+};
 
 use noirc_frontend::ast::Visibility;
 use noirc_frontend::{hir_def::function::FunctionSignature, monomorphization::ast::Program};
@@ -354,11 +357,17 @@ fn convert_generated_acir_into_circuit(
         return_values,
         assert_messages: assert_messages.into_iter().collect(),
     };
-
+    let acir_location_map: BTreeMap<AcirOpcodeLocation, CallStackId> = location_map
+        .iter()
+        .map(|(k, v)| match k {
+            OpcodeLocation::Acir(index) => (AcirOpcodeLocation::new(*index), *v),
+            OpcodeLocation::Brillig { .. } => unreachable!("Expected ACIR opcode"),
+        })
+        .collect();
     let location_tree = generated_acir.call_stacks.to_location_tree();
     let mut debug_info = DebugInfo::new(
         brillig_locations,
-        location_map,
+        acir_location_map,
         location_tree,
         debug_variables,
         debug_functions,
