@@ -1236,3 +1236,75 @@ fn warns_if_trait_is_not_in_scope_for_generic_function_call_and_there_is_only_on
     assert_eq!(ident.to_string(), "foo");
     assert_eq!(trait_name, "private_mod::Foo");
 }
+
+// See https://github.com/noir-lang/noir/issues/6530
+#[test]
+fn regression_6530() {
+    let src = r#"
+    pub trait From<T> {
+        fn from(input: T) -> Self;
+    }
+    
+    pub trait Into<T> {
+        fn into(self) -> T;
+    }
+    
+    impl<T, U> Into<T> for U
+    where
+        T: From<U>,
+    {
+        fn into(self) -> T {
+            T::from(self)
+        }
+    }
+    
+    struct Foo {
+        inner: Field,
+    }
+    
+    impl Into<Field> for Foo {
+        fn into(self) -> Field {
+            self.inner
+        }
+    }
+    
+    fn main() {
+        let foo = Foo { inner: 0 };
+    
+        // This works:
+        let _: Field = Into::<Field>::into(foo);
+    
+        // This was failing with 'No matching impl':
+        let _: Field = foo.into();
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 0);
+}
+
+// See https://github.com/noir-lang/noir/issues/7090
+#[test]
+#[should_panic]
+fn calls_trait_method_using_struct_name_when_multiple_impls_exist() {
+    let src = r#"
+    trait From2<T> {
+        fn from2(input: T) -> Self;
+    }
+    struct U60Repr {}
+    impl From2<[Field; 3]> for U60Repr {
+        fn from2(_: [Field; 3]) -> Self {
+            U60Repr {}
+        }
+    }
+    impl From2<Field> for U60Repr {
+        fn from2(_: Field) -> Self {
+            U60Repr {}
+        }
+    }
+    fn main() {
+        let _ = U60Repr::from2([1, 2, 3]);
+        let _ = U60Repr::from2(1);
+    }
+    "#;
+    assert_no_errors(src);
+}
