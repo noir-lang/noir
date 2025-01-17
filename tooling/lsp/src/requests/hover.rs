@@ -721,7 +721,7 @@ impl<'a> TypeLinksGatherer<'a> {
                 self.gather_type_links(env);
             }
             Type::MutableReference(typ) => self.gather_type_links(typ),
-            Type::InfixExpr(lhs, _, rhs) => {
+            Type::InfixExpr(lhs, _, rhs, _) => {
                 self.gather_type_links(lhs);
                 self.gather_type_links(rhs);
             }
