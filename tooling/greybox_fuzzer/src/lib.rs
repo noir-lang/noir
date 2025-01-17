@@ -15,15 +15,15 @@ use noir_fuzzer::dictionary::build_dictionary_from_program;
 
 mod corpus;
 mod coverage;
-mod strategies;
+mod mutation;
 mod types;
 
 use corpus::{Corpus, TestCase, TestCaseId};
+use mutation::InputMutator;
 use rayon::{
     iter::{IntoParallelRefIterator, ParallelIterator},
     ThreadPool,
 };
-use strategies::InputMutator;
 use types::{
     CounterExampleOutcome, DiscrepancyOutcome, FuzzOutcome, FuzzTestResult, SuccessfulCaseOutcome,
 };
