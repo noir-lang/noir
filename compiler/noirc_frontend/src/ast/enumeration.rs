@@ -8,7 +8,7 @@ use noirc_errors::Span;
 
 use super::{Documented, ItemVisibility};
 
-/// Ast node for a struct
+/// Ast node for an enum
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NoirEnumeration {
     pub name: Ident,
@@ -26,7 +26,7 @@ impl NoirEnumeration {
 }
 
 /// We only support  variants of the form `Name(A, B, ...)` currently.
-/// Struct variants like `Name { a: A, b: B, .. }` will be implemented later
+/// Enum variants like `Name { a: A, b: B, .. }` will be implemented later
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EnumVariant {
     pub name: Ident,
