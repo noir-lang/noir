@@ -185,7 +185,9 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "struct_def_fields_as_written" => {
                 struct_def_fields_as_written(interner, arguments, location)
             }
-            "struct_def_generics" => struct_def_generics(interner, arguments, location),
+            "struct_def_generics" => {
+                struct_def_generics(interner, arguments, return_type, location)
+            }
             "struct_def_has_named_attribute" => {
                 struct_def_has_named_attribute(interner, arguments, location)
             }
@@ -445,10 +447,11 @@ fn struct_def_as_type(
     Ok(Value::Type(Type::Struct(struct_def_rc, generics)))
 }
 
-/// fn generics(self) -> [Type]
+/// fn generics(self) -> [(Type, Option<Type>)]
 fn struct_def_generics(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
+    return_type: Type,
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
@@ -456,11 +459,38 @@ fn struct_def_generics(
     let struct_def = interner.get_struct(struct_id);
     let struct_def = struct_def.borrow();
 
-    let generics =
-        struct_def.generics.iter().map(|generic| Value::Type(generic.clone().as_named_generic()));
+    let expected = Type::Slice(Box::new(Type::Tuple(vec![
+        Type::Quoted(QuotedType::Type),
+        interner.next_type_variable(), // Option
+    ])));
 
-    let typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Type)));
-    Ok(Value::Slice(generics.collect(), typ))
+    let actual = return_type.clone();
+
+    let slice_item_type = match return_type {
+        Type::Slice(item_type) => *item_type,
+        _ => return Err(InterpreterError::TypeMismatch { expected, actual, location }),
+    };
+
+    let option_typ = match &slice_item_type {
+        Type::Tuple(types) if types.len() == 2 => types[1].clone(),
+        _ => return Err(InterpreterError::TypeMismatch { expected, actual, location }),
+    };
+
+    let generics: IResult<_> = struct_def
+        .generics
+        .iter()
+        .map(|generic| -> IResult<Value> {
+            let generic_as_named = generic.clone().as_named_generic();
+            let numeric_type = match generic_as_named.kind() {
+                Kind::Numeric(numeric_type) => Some(Value::Type(*numeric_type)),
+                _ => None,
+            };
+            let numeric_type = option(option_typ.clone(), numeric_type, location.span)?;
+            Ok(Value::Tuple(vec![Value::Type(generic_as_named), numeric_type]))
+        })
+        .collect();
+
+    Ok(Value::Slice(generics?, slice_item_type))
 }
 
 fn struct_def_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
