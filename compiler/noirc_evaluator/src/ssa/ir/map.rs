@@ -190,16 +190,9 @@ impl<T> DenseMap<T> {
     /// Gets an iterator to a reference to each element in the dense map paired with its id.
     ///
     /// The id-element pairs are ordered by the numeric values of the ids.
-    pub(crate) fn iter(&self) -> impl ExactSizeIterator<Item = (Id<T>, &T)> {
+    pub(crate) fn iter(&self) -> impl DoubleEndedIterator<Item = (Id<T>, &T)> {
         let ids_iter = (0..self.storage.len() as u32).map(|idx| Id::new(idx));
         ids_iter.zip(self.storage.iter())
-    }
-
-    pub(crate) fn rev_iter(&self) -> impl ExactSizeIterator<Item = (Id<T>, &T)> {
-        // `DoubleEndedIterator` is not implemented for `ExactSizeIterator` so must
-        // setup a reversed iterator for the map rather than calling `self.iter().rev()`
-        let ids_iter = (0..self.storage.len() as u32).map(|idx| Id::new(idx));
-        ids_iter.zip(self.storage.iter()).rev()
     }
 }
 

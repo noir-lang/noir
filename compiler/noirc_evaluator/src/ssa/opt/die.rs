@@ -37,7 +37,7 @@ impl Ssa {
             .collect();
 
         // Check which globals are used across all functions
-        for (id, value) in self.globals.dfg.values_rev_iter() {
+        for (id, value) in self.globals.dfg.values_iter().rev() {
             if used_global_values.contains(&id) {
                 if let Value::Instruction { instruction, .. } = &value {
                     let instruction = &self.globals.dfg[*instruction];

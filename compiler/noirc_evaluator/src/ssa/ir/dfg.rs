@@ -124,7 +124,7 @@ impl GlobalsGraph {
     }
 
     /// Iterate over every Value in this DFG in no particular order, including unused Values
-    pub(crate) fn values_iter(&self) -> impl ExactSizeIterator<Item = (ValueId, &Value)> {
+    pub(crate) fn values_iter(&self) -> impl DoubleEndedIterator<Item = (ValueId, &Value)> {
         self.values.iter()
     }
 }
@@ -173,17 +173,13 @@ impl DataFlowGraph {
     /// The pairs are order by id, which is not guaranteed to be meaningful.
     pub(crate) fn basic_blocks_iter(
         &self,
-    ) -> impl ExactSizeIterator<Item = (BasicBlockId, &BasicBlock)> {
+    ) -> impl DoubleEndedIterator<Item = (BasicBlockId, &BasicBlock)> {
         self.blocks.iter()
     }
 
     /// Iterate over every Value in this DFG in no particular order, including unused Values
-    pub(crate) fn values_iter(&self) -> impl ExactSizeIterator<Item = (ValueId, &Value)> {
+    pub(crate) fn values_iter(&self) -> impl DoubleEndedIterator<Item = (ValueId, &Value)> {
         self.values.iter()
-    }
-
-    pub(crate) fn values_rev_iter(&self) -> impl ExactSizeIterator<Item = (ValueId, &Value)> {
-        self.values.rev_iter()
     }
 
     /// Returns the parameters of the given block
