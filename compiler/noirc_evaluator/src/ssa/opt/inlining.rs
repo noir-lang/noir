@@ -366,9 +366,6 @@ pub(super) fn compute_bottom_up_order(ssa: &Ssa) -> Vec<(FunctionId, usize)> {
         .collect::<VecDeque<_>>();
 
     loop {
-        if times_called.is_empty() && queue.is_empty() {
-            return order;
-        }
         while let Some(id) = queue.pop_front() {
             let weight = weights[&id];
             order.push((id, weight));
@@ -387,14 +384,15 @@ pub(super) fn compute_bottom_up_order(ssa: &Ssa) -> Vec<(FunctionId, usize)> {
             }
         }
         // If we ran out of the queue, maybe there is a cycle; take the next most called function.
-        loop {
-            let Some((id, _)) = times_called.pop() else {
-                break;
-            };
+        while let Some((id, _)) = times_called.pop() {
             if !visited.contains(&id) {
                 queue.push_back(id);
                 break;
             }
+        }
+        if times_called.is_empty() && queue.is_empty() {
+            assert_eq!(order.len(), callers.len());
+            return order;
         }
     }
 }
