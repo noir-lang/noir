@@ -163,9 +163,9 @@ fn example() {
     // there is no matching impl for `u32: MyTrait`. 
     //
     // Substituting the `10` on the left hand side of this assert
-    // with `10 as u32` would also fail with a type mismatch as we 
+    // with `10 as u32` would fail with a type mismatch as we 
     // are expecting a `Field` from the right hand side.
-    assert(10 as u32 == foo.generic_method::<Field>());
+    assert(10 == foo.generic_method::<Field>());
 }
 ```
 
