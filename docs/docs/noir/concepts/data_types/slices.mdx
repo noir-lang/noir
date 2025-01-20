@@ -57,7 +57,7 @@ View the corresponding test file [here][test-file].
 
 ### push_front
 
-Returns a new array with the specified element inserted at index 0. The existing elements indexes are incremented by 1.
+Returns a new slice with the specified element inserted at index 0. The existing elements indexes are incremented by 1.
 
 ```rust
 fn push_front(_self: Self, _elem: T) -> Self
@@ -75,7 +75,7 @@ View the corresponding test file [here][test-file].
 
 ### pop_front
 
-Returns a tuple of two items, the first element of the array and the rest of the array.
+Returns a tuple of two items, the first element of the slice and the rest of the slice.
 
 ```rust
 fn pop_front(_self: Self) -> (T, Self)
@@ -91,7 +91,7 @@ View the corresponding test file [here][test-file].
 
 ### pop_back
 
-Returns a tuple of two items, the beginning of the array with the last element omitted and the last element.
+Returns a tuple of two items, the beginning of the slice with the last element omitted and the last element.
 
 ```rust
 fn pop_back(_self: Self) -> (Self, T)
