@@ -37,7 +37,11 @@ use crate::{
     Generics, Kind, ResolvedGeneric, Type, TypeBinding, TypeBindings, UnificationError,
 };
 
-use super::{lints, path_resolution::PathResolutionItem, Elaborator, UnsafeBlockStatus};
+use super::{
+    lints,
+    path_resolution::{PathResolutionItem, Turbofish},
+    Elaborator, UnsafeBlockStatus,
+};
 
 pub const SELF_TYPE_NAME: &str = "Self";
 
@@ -692,7 +696,8 @@ impl<'context> Elaborator<'context> {
 
         let mut path = path.clone();
         let span = path.span();
-        let last_path_segment = path.pop();
+        let last_segment = path.pop();
+        let before_last_segment = path.last_segment();
 
         let path_resolution = self.resolve_path(path).ok()?;
         let PathResolutionItem::Struct(struct_id) = path_resolution.item else {
@@ -702,7 +707,7 @@ impl<'context> Elaborator<'context> {
         let struct_type = self.get_struct(struct_id);
         let generics = struct_type.borrow().instantiate(self.interner);
         let typ = Type::Struct(struct_type, generics);
-        let method_name = &last_path_segment.ident.0.contents;
+        let method_name = &last_segment.ident.0.contents;
 
         // If we can find a method on the struct, this is definitely not a trait method
         if self.interner.lookup_direct_method(&typ, method_name, false).is_some() {
@@ -715,7 +720,7 @@ impl<'context> Elaborator<'context> {
         }
 
         let (hir_method_reference, error) =
-            self.get_trait_method_in_scope(&trait_methods, method_name, last_path_segment.span);
+            self.get_trait_method_in_scope(&trait_methods, method_name, last_segment.span);
         let hir_method_reference = hir_method_reference?;
         let func_id = hir_method_reference.func_id(self.interner)?;
         let HirMethodReference::TraitMethodId(trait_method_id, _, _) = hir_method_reference else {
@@ -728,9 +733,10 @@ impl<'context> Elaborator<'context> {
         constraint.typ = typ;
 
         let method = TraitMethod { method_id: trait_method_id, constraint, assumed: false };
-
-        // TODO: turbofish
-        let turbofish = None;
+        let turbofish = before_last_segment.generics.as_ref().map(|generics| Turbofish {
+            generics: generics.clone(),
+            span: before_last_segment.turbofish_span(),
+        });
         let item = PathResolutionItem::TraitFunction(trait_id, turbofish, func_id);
         let errors = if let Some(error) = error { vec![error] } else { Vec::new() };
         Some(TraitPathResolution { method, item: Some(item), errors })
