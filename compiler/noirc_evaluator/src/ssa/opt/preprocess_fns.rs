@@ -46,6 +46,7 @@ impl Ssa {
             self.functions.insert(id, function);
         }
 
-        self
+        // Remove any functions that have been inlined into others already.
+        self.remove_unreachable_functions()
     }
 }
