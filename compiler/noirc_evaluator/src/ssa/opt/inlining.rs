@@ -337,9 +337,9 @@ fn compute_callees(ssa: &Ssa) -> BTreeMap<FunctionId, BTreeMap<FunctionId, usize
 ///
 /// This can be used to simplify the most often called functions first.
 ///
-/// Returns the functions paired with their transitive weight, which accumulates
-/// the weight of all the functions they call.
-pub(super) fn compute_bottom_up_order(ssa: &Ssa) -> Vec<(FunctionId, usize)> {
+/// Returns the functions paired with their own as well as transitive weight,
+/// which accumulates the weight of all the functions they call, as well as own.
+pub(super) fn compute_bottom_up_order(ssa: &Ssa) -> Vec<(FunctionId, (usize, usize))> {
     let mut order = Vec::new();
     let mut visited = HashSet::new();
 
@@ -359,11 +359,12 @@ pub(super) fn compute_bottom_up_order(ssa: &Ssa) -> Vec<(FunctionId, usize)> {
     });
 
     // Start with the weight of the functions in isolation, then accumulate as we pop off the ones they call.
-    let mut weights = ssa
+    let own_weights = ssa
         .functions
         .iter()
         .map(|(id, f)| (*id, compute_function_own_weight(f)))
         .collect::<HashMap<_, _>>();
+    let mut weights = own_weights.clone();
 
     // Seed the queue with functions that don't call anything.
     let mut queue = callees
@@ -381,9 +382,10 @@ pub(super) fn compute_bottom_up_order(ssa: &Ssa) -> Vec<(FunctionId, usize)> {
             }
             // Own weight plus the weights accumulated from callees.
             let weight = weights[&id];
+            let own_weight = own_weights[&id];
 
             // Emit the function.
-            order.push((id, weight));
+            order.push((id, (own_weight, weight)));
             visited.insert(id);
 
             // Update the callers of this function.
@@ -1511,7 +1513,7 @@ mod test {
             b3(v1: u1):
               return v1
           }
-          brillig(inline) fn decr f3 {
+          brillig(inline) fn decrement f3 {
             b0(v0: u32):
               v2 = sub v0, u32 1
               return v2
@@ -1523,42 +1525,46 @@ mod test {
         // is_odd <-> is_even
         //      |     |
         //      V     V
-        //       decr
+        //      decrement
 
         let ssa = Ssa::from_str(src).unwrap();
         let order = compute_bottom_up_order(&ssa);
 
         assert_eq!(order.len(), 4);
         let (ids, ws): (Vec<_>, Vec<_>) = order.into_iter().map(|(id, w)| (id.to_u32(), w)).unzip();
+        let (ows, tws): (Vec<_>, Vec<_>) = ws.into_iter().unzip();
 
         // Check order
-        assert_eq!(ids[0], 3, "decr: first, it doesn't call anything");
+        assert_eq!(ids[0], 3, "decrement: first, it doesn't call anything");
         assert_eq!(ids[1], 1, "is_even: called by is_odd; removing first avoids cutting the graph");
         assert_eq!(ids[2], 2, "is_odd: called by is_odd and main");
         assert_eq!(ids[3], 0, "main: last, it's the entry");
 
-        // Check weights
-        assert_eq!(ws[0], 2, "decr");
+        // Check own weights
+        assert_eq!(ows, [2, 7, 7, 4]);
+
+        // Check transitive weights
+        assert_eq!(tws[0], ows[0], "decrement");
         assert_eq!(
-            ws[1],
-            7 + // own
-            ws[0] + // pushed from decr
-            (7 + ws[0]), // pulled from is_odd at the time is_even is emitted
+            tws[1],
+            ows[1] + // own
+            tws[0] + // pushed from decrement
+            (ows[2] + tws[0]), // pulled from is_odd at the time is_even is emitted
             "is_even"
         );
         assert_eq!(
-            ws[2],
-            7 + // own
-            ws[0] + // pushed from decr
-            ws[1], // pushed from is_even
+            tws[2],
+            ows[2] + // own
+            tws[0] + // pushed from decrement
+            tws[1], // pushed from is_even
             "is_odd"
         );
         assert_eq!(
-            ws[3],
-            4 + // own
-            ws[2], // pushed from is_odd
+            tws[3],
+            ows[3] + // own
+            tws[2], // pushed from is_odd
             "main"
         );
-        assert!(ws[3] > max(ws[1], ws[2]), "ideally 'main' has the most weight");
+        assert!(tws[3] > max(tws[1], tws[2]), "ideally 'main' has the most weight");
     }
 }

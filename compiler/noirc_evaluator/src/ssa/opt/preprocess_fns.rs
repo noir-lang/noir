@@ -11,23 +11,29 @@ impl Ssa {
         let bottom_up = inlining::compute_bottom_up_order(&self);
 
         // As a heuristic to avoid optimizing functions near the entry point, find a cutoff weight.
-        let total_weight = bottom_up.iter().fold(0usize, |acc, (_, w)| acc.saturating_add(*w));
+        let total_weight =
+            bottom_up.iter().fold(0usize, |acc, (_, (_, w))| (acc.saturating_add(*w)));
         let mean_weight = total_weight / bottom_up.len();
         let cutoff_weight = mean_weight;
 
         // Preliminary inlining decisions.
-        // Functions which are inline targets will be processed in later passes.
-        // Here we want to treat the functions which will be inlined into them.
         let inline_infos = inlining::compute_inline_infos(&self, false, aggressiveness);
 
-        for (id, _) in bottom_up
-            .into_iter()
-            .filter(|(id, _)| {
-                inline_infos.get(id).map(|info| !info.is_inline_target()).unwrap_or(true)
-            })
-            .filter(|(_, weight)| *weight < cutoff_weight)
-        {
+        for (id, (own_weight, transitive_weight)) in bottom_up {
+            // Skip preprocessing heavy functions that gained most of their weight from transitive accumulation.
+            // These can be processed later by the regular SSA passes.
+            if transitive_weight >= cutoff_weight && transitive_weight > own_weight * 2 {
+                continue;
+            }
+            // Functions which are inline targets will be processed in later passes.
+            // Here we want to treat the functions which will be inlined into them.
+            if let Some(info) = inline_infos.get(&id) {
+                if info.is_inline_target() {
+                    continue;
+                }
+            }
             let function = &self.functions[&id];
+            // Start with an inline pass.
             let mut function = function.inlined(&self, false, &inline_infos);
             // Help unrolling determine bounds.
             function.as_slice_optimization();
