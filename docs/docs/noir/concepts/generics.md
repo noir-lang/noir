@@ -36,6 +36,7 @@ impl<let N: u32> BigInt<N> {
     fn first(first: BigInt<N>, second: BigInt<N>) -> Self {
         assert(first.limbs != second.limbs);
         first
+    }
 
     fn second(first: BigInt<N>, second: Self) -> Self {
         assert(first.limbs != second.limbs);
