@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737381045948,
+  "lastUpdate": 1737381047768,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -2932,6 +2932,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 0.068,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47638426+e1Ru1o@users.noreply.github.com",
+            "name": "Lázaro Raúl",
+            "username": "e1Ru1o"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6e176d281eeef22ebcc81d00bf928e14f260dc17",
+          "message": "chore: Formatting issues / minor errors in the docs (#7105)",
+          "timestamp": "2025-01-20T13:28:01Z",
+          "tree_id": "d6aaab6304450f65b5703e837f7e02763ee9bbdb",
+          "url": "https://github.com/noir-lang/noir/commit/6e176d281eeef22ebcc81d00bf928e14f260dc17"
+        },
+        "date": 1737381047146,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 0.053,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.001,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 0.603,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.104,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.007,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 38.1,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 0.105,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1.226,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.458,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.019,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.317,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 0.069,
             "unit": "s"
           }
         ]
