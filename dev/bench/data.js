@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737394764401,
+  "lastUpdate": 1737394765503,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -5562,6 +5562,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 207.81,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3597ffe1c9098aecf1be808c5575d9cd62a70dda",
+          "message": "feat: unconstrained optimizations for BoundedVec (#7119)",
+          "timestamp": "2025-01-20T17:18:31Z",
+          "tree_id": "43787be8cb29126141d69e4b35f4a4dec735f594",
+          "url": "https://github.com/noir-lang/noir/commit/3597ffe1c9098aecf1be808c5575d9cd62a70dda"
+        },
+        "date": 1737394764733,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "keccak256",
+            "value": 74.69,
+            "unit": "MB"
+          },
+          {
+            "name": "workspace",
+            "value": 123.86,
+            "unit": "MB"
+          },
+          {
+            "name": "regression_4709",
+            "value": 315.98,
+            "unit": "MB"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 512.6,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 498.92,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 473.61,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1230,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 498.93,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 730.78,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 591.18,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 180.99,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 245.6,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 207.99,
             "unit": "MB"
           }
         ]
