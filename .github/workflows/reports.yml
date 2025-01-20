@@ -606,7 +606,7 @@ jobs:
           mv ./.github/scripts/merge-bench-reports.sh merge-bench-reports.sh
           ./merge-bench-reports.sh memory_report
           jq ".memory_reports | map({name: .artifact_name, value: (.peak_memory | tonumber), unit: \"MB\"}) " ./memory_report.json > memory_bench.json
-          
+
       - name: Store benchmark result
         continue-on-error: true
         uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
