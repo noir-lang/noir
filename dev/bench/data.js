@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737395177916,
+  "lastUpdate": 1737395179825,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4594,6 +4594,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 0.068,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jake@aztecprotocol.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ed9977a57e0015ed653f54ce9377225434a947df",
+          "message": "fix: Prevent overlapping associated types impls (#7047)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-01-20T17:29:47Z",
+          "tree_id": "1f005abc1d2f572a303b7324a4c7ec9b280da41f",
+          "url": "https://github.com/noir-lang/noir/commit/ed9977a57e0015ed653f54ce9377225434a947df"
+        },
+        "date": 1737395179094,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 0.051,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.001,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 0.607,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.104,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.007,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 37.9,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 0.104,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1.206,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.466,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.019,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.317,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 0.067,
             "unit": "s"
           }
         ]
