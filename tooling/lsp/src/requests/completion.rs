@@ -622,7 +622,7 @@ impl<'a> NodeFinder<'a> {
             | Type::Forall(_, _)
             | Type::Constant(..)
             | Type::Quoted(_)
-            | Type::InfixExpr(_, _, _)
+            | Type::InfixExpr(..)
             | Type::Error => (),
         }
 

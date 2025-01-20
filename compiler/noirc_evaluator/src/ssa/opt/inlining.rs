@@ -66,22 +66,27 @@ impl Ssa {
         self.functions = btree_map(inline_sources, |entry_point| {
             let should_inline_call =
                 |_context: &PerFunctionContext, ssa: &Ssa, called_func_id: FunctionId| -> bool {
-                    let function = &ssa.functions[&called_func_id];
+                    let callee = &ssa.functions[&called_func_id];
+                    let caller_runtime = ssa.functions[entry_point].runtime();
 
-                    match function.runtime() {
+                    match callee.runtime() {
                         RuntimeType::Acir(inline_type) => {
                             // If the called function is acir, we inline if it's not an entry point
 
                             // If we have not already finished the flattening pass, functions marked
                             // to not have predicates should be preserved.
                             let preserve_function =
-                                !inline_no_predicates_functions && function.is_no_predicates();
+                                !inline_no_predicates_functions && callee.is_no_predicates();
                             !inline_type.is_entry_point() && !preserve_function
                         }
                         RuntimeType::Brillig(_) => {
-                            // If the called function is brillig, we inline only if it's into brillig and the function is not recursive
-                            ssa.functions[entry_point].runtime().is_brillig()
-                                && !inline_sources.contains(&called_func_id)
+                            if caller_runtime.is_acir() {
+                                // We never inline a brillig function into an ACIR function.
+                                return false;
+                            }
+
+                            // Avoid inlining recursive functions.
+                            !inline_sources.contains(&called_func_id)
                         }
                     }
                 };
@@ -480,18 +485,21 @@ impl<'function> PerFunctionContext<'function> {
 
         let new_value = match &self.source_function.dfg[id] {
             value @ Value::Instruction { instruction, .. } => {
-                // TODO: Inlining the global into the function is only a temporary measure
-                // until Brillig gen with globals is working end to end
                 if self.source_function.dfg.is_global(id) {
-                    let Instruction::MakeArray { elements, typ } = &self.globals.dfg[*instruction]
-                    else {
-                        panic!("Only expect Instruction::MakeArray for a global");
-                    };
-                    let elements = elements
-                        .iter()
-                        .map(|element| self.translate_value(*element))
-                        .collect::<im::Vector<_>>();
-                    return self.context.builder.insert_make_array(elements, typ.clone());
+                    if self.context.builder.current_function.dfg.runtime().is_acir() {
+                        let Instruction::MakeArray { elements, typ } =
+                            &self.globals.dfg[*instruction]
+                        else {
+                            panic!("Only expect Instruction::MakeArray for a global");
+                        };
+                        let elements = elements
+                            .iter()
+                            .map(|element| self.translate_value(*element))
+                            .collect::<im::Vector<_>>();
+                        return self.context.builder.insert_make_array(elements, typ.clone());
+                    } else {
+                        return id;
+                    }
                 }
                 unreachable!("All Value::Instructions should already be known during inlining after creating the original inlined instruction. Unknown value {id} = {value:?}")
             }
@@ -499,11 +507,16 @@ impl<'function> PerFunctionContext<'function> {
                 unreachable!("All Value::Params should already be known from previous calls to translate_block. Unknown value {id} = {value:?}")
             }
             Value::NumericConstant { constant, typ } => {
-                // TODO: Inlining the global into the function is only a temporary measure
-                // until Brillig gen with globals is working end to end.
-                // The dfg indexes a global's inner value directly, so we will need to check here
+                // The dfg indexes a global's inner value directly, so we need to check here
                 // whether we have a global.
-                self.context.builder.numeric_constant(*constant, *typ)
+                // We also only keep a global and do not inline it in a Brillig runtime.
+                if self.source_function.dfg.is_global(id)
+                    && self.context.builder.current_function.dfg.runtime().is_brillig()
+                {
+                    id
+                } else {
+                    self.context.builder.numeric_constant(*constant, *typ)
+                }
             }
             Value::Function(function) => self.context.builder.import_function(*function),
             Value::Intrinsic(intrinsic) => self.context.builder.import_intrinsic_id(*intrinsic),

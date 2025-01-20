@@ -9,7 +9,8 @@ use super::{
     BrilligBinaryOp, BrilligContext, ReservedRegisters,
 };
 
-impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
+impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
+    // impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
     pub(crate) fn codegen_call(
         &mut self,
         func_id: FunctionId,
@@ -17,7 +18,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         returns: &[BrilligVariable],
     ) {
         let stack_size_register = SingleAddrVariable::new_usize(self.allocate_register());
-        let previous_stack_pointer = self.registers.empty_stack_start();
+        let previous_stack_pointer = self.registers.empty_registers_start();
         let stack_size = previous_stack_pointer.unwrap_relative();
         // Write the stack size
         self.const_instruction(stack_size_register, stack_size.into());
