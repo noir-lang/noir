@@ -21,15 +21,17 @@ use crate::{
 };
 
 use super::{
-    ForBounds, FunctionReturnType, GenericTypeArgs, IntegerBitSize, ItemVisibility, Pattern,
-    Signedness, TraitBound, TraitImplItemKind, TypePath, UnresolvedGenerics,
-    UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
+    ForBounds, FunctionReturnType, GenericTypeArgs, IntegerBitSize, ItemVisibility,
+    NoirEnumeration, Pattern, Signedness, TraitBound, TraitImplItemKind, TypePath,
+    UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
+    UnresolvedTypeExpression,
 };
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum AttributeTarget {
     Module,
     Struct,
+    Enum,
     Trait,
     Function,
     Let,
@@ -139,6 +141,10 @@ pub trait Visitor {
     }
 
     fn visit_noir_struct(&mut self, _: &NoirStruct, _: Span) -> bool {
+        true
+    }
+
+    fn visit_noir_enum(&mut self, _: &NoirEnumeration, _: Span) -> bool {
         true
     }
 
@@ -293,6 +299,10 @@ pub trait Visitor {
     }
 
     fn visit_for_loop_statement(&mut self, _: &ForLoopStatement) -> bool {
+        true
+    }
+
+    fn visit_loop_statement(&mut self, _: &Expression) -> bool {
         true
     }
 
@@ -523,6 +533,7 @@ impl Item {
             }
             ItemKind::TypeAlias(noir_type_alias) => noir_type_alias.accept(self.span, visitor),
             ItemKind::Struct(noir_struct) => noir_struct.accept(self.span, visitor),
+            ItemKind::Enum(noir_enum) => noir_enum.accept(self.span, visitor),
             ItemKind::ModuleDecl(module_declaration) => {
                 module_declaration.accept(self.span, visitor);
             }
@@ -767,6 +778,26 @@ impl NoirStruct {
 
         for field in &self.fields {
             field.item.typ.accept(visitor);
+        }
+    }
+}
+
+impl NoirEnumeration {
+    pub fn accept(&self, span: Span, visitor: &mut impl Visitor) {
+        if visitor.visit_noir_enum(self, span) {
+            self.accept_children(visitor);
+        }
+    }
+
+    pub fn accept_children(&self, visitor: &mut impl Visitor) {
+        for attribute in &self.attributes {
+            attribute.accept(AttributeTarget::Enum, visitor);
+        }
+
+        for variant in &self.variants {
+            for parameter in &variant.item.parameters {
+                parameter.accept(visitor);
+            }
         }
     }
 }
@@ -1103,6 +1134,11 @@ impl Statement {
             }
             StatementKind::For(for_loop_statement) => {
                 for_loop_statement.accept(visitor);
+            }
+            StatementKind::Loop(block) => {
+                if visitor.visit_loop_statement(block) {
+                    block.accept(visitor);
+                }
             }
             StatementKind::Comptime(statement) => {
                 if visitor.visit_comptime_statement(statement) {

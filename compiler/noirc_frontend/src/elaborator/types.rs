@@ -535,7 +535,7 @@ impl<'context> Elaborator<'context> {
                         }
                     }
                     (lhs, rhs) => {
-                        let infix = Type::InfixExpr(Box::new(lhs), op, Box::new(rhs));
+                        let infix = Type::infix_expr(Box::new(lhs), op, Box::new(rhs));
                         Type::CheckedCast { from: Box::new(infix.clone()), to: Box::new(infix) }
                             .canonicalize()
                     }

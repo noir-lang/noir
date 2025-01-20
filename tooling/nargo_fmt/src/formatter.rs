@@ -14,6 +14,7 @@ mod attribute;
 mod buffer;
 mod comments_and_whitespace;
 mod doc_comments;
+mod enums;
 mod expression;
 mod function;
 mod generics;
