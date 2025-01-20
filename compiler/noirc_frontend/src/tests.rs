@@ -4073,3 +4073,25 @@ fn regression_7088() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn errors_if_loop_does_not_have_break() {
+    let src = r#"
+    fn main() {
+        /// Safety: test
+        unsafe {
+            foo()
+        }
+    }
+
+    unconstrained fn foo() {
+        loop {}
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        &errors[0].0,
+        CompilationError::ResolverError(ResolverError::LoopWithoutBreak { .. })
+    ));
+}
