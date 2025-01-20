@@ -1,4 +1,4 @@
-use crate::runtime::is_unconstrained;
+use crate::{for_loop, runtime::is_unconstrained};
 
 global BLOCK_SIZE_IN_BYTES: u32 = 136; //(1600 - BITS * 2) / WORD_SIZE;
 global WORD_SIZE: u32 = 8; // Limbs are made up of u64s so 8 bytes each.
@@ -15,17 +15,7 @@ pub(crate) fn keccak256<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 3
     // Copy input to block bytes. For that we'll need at least input bytes (N)
     // but we want it to be padded to a multiple of BLOCK_SIZE_IN_BYTES.
     let mut block_bytes = [0; ((N / BLOCK_SIZE_IN_BYTES) + 1) * BLOCK_SIZE_IN_BYTES];
-    if is_unconstrained() {
-        for i in 0..message_size {
-            block_bytes[i] = input[i];
-        }
-    } else {
-        for i in 0..N {
-            if i < message_size {
-                block_bytes[i] = input[i];
-            }
-        }
-    }
+    for_loop::<N, _>(0, message_size, |i| { block_bytes[i] = input[i]; });
 
     //1. format_input_lanes
     let max_blocks = (N + BLOCK_SIZE_IN_BYTES) / BLOCK_SIZE_IN_BYTES;

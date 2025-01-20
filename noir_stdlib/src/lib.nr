@@ -121,6 +121,33 @@ where
 #[builtin(as_witness)]
 pub fn as_witness(x: Field) {}
 
+/// A for loop like this:
+///
+/// ```noir
+/// for i in start..min(Max, end) {
+///     f(i);
+/// }
+/// ```
+///
+/// that is implemented using constrained and (an optimized) unconstrained versions.
+pub(crate) fn for_loop<let Max: u32, Env>(start: u32, end: u32, f: fn[Env](u32) -> ()) {
+    if crate::runtime::is_unconstrained() {
+        if end < Max {
+            for i in start..end {
+                f(i);
+            }
+        }
+    } else {
+        let mut exceeded_len = false;
+        for i in start..Max {
+            exceeded_len |= i == end;
+            if !exceeded_len {
+                f(i);
+            }
+        }
+    }
+}
+
 mod tests {
     #[test(should_fail_with = "custom message")]
     fn test_static_assert_custom_message() {
