@@ -97,7 +97,17 @@ fn main() {
     // We can use first_element_is_equal for arrays of any type
     // as long as we have an Eq impl for the types we pass in
     let array = [MyStruct::new(), MyStruct::new()];
-    assert(array_eq(array, array, MyStruct::eq));
+    assert(first_element_is_equal(array, array));
+}
+
+struct MyStruct {
+    foo: Field
+}
+
+impl MyStruct {
+    fn new() -> Self {
+        MyStruct { foo: 0 }
+    }
 }
 
 impl Eq for MyStruct {
