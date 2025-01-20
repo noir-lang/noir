@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737381047768,
+  "lastUpdate": 1737381504584,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3578,6 +3578,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "workspace",
             "value": 123.46,
+            "unit": "MB"
+          },
+          {
+            "name": "regression_4709",
+            "value": 315.94,
+            "unit": "MB"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 512.57,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 498.7,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 473.34,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1230,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 498.71,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 734.39,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 590.8,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 180.84,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 245.44,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 208.84,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47638426+e1Ru1o@users.noreply.github.com",
+            "name": "Lázaro Raúl",
+            "username": "e1Ru1o"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6e176d281eeef22ebcc81d00bf928e14f260dc17",
+          "message": "chore: Formatting issues / minor errors in the docs (#7105)",
+          "timestamp": "2025-01-20T13:28:01Z",
+          "tree_id": "d6aaab6304450f65b5703e837f7e02763ee9bbdb",
+          "url": "https://github.com/noir-lang/noir/commit/6e176d281eeef22ebcc81d00bf928e14f260dc17"
+        },
+        "date": 1737381503442,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "keccak256",
+            "value": 74.63,
+            "unit": "MB"
+          },
+          {
+            "name": "workspace",
+            "value": 123.65,
             "unit": "MB"
           },
           {
