@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737385119081,
+  "lastUpdate": 1737385371242,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4310,6 +4310,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "workspace",
             "value": 123.89,
+            "unit": "MB"
+          },
+          {
+            "name": "regression_4709",
+            "value": 315.93,
+            "unit": "MB"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 512.57,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 498.65,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 473.34,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1230,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 498.66,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 733.92,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 590.34,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 180.81,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 245.42,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 207.81,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bbdb937d44ddfbcd02a746dba9ad73ac704fcdd3",
+          "message": "fix: don't always use an exclusive lock in `nargo check` (#7120)",
+          "timestamp": "2025-01-20T14:41:38Z",
+          "tree_id": "cbe93c884f1997cd5ff41f80680b50d21aafccdd",
+          "url": "https://github.com/noir-lang/noir/commit/bbdb937d44ddfbcd02a746dba9ad73ac704fcdd3"
+        },
+        "date": 1737385370629,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "keccak256",
+            "value": 74.63,
+            "unit": "MB"
+          },
+          {
+            "name": "workspace",
+            "value": 123.81,
             "unit": "MB"
           },
           {
