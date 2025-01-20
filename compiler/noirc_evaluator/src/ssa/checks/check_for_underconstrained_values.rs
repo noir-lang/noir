@@ -365,7 +365,7 @@ impl DependencyContext {
                 Instruction::Load { address } => {
                     // Recall the value stored at address as parent for the results
                     if let Some(value_id) = self.memory_slots.get(address) {
-                        self.update_children(*instruction, &[*value_id], &results);
+                        self.update_children(&[*value_id], &results);
                     } else {
                         panic!("load instruction {} has attempted to access previously unused memory location",
                             instruction);
@@ -424,14 +424,14 @@ impl DependencyContext {
                             | Intrinsic::ToRadix(..)
                             | Intrinsic::FieldLessThan => {
                                 // Record all the function arguments as parents of the results
-                                self.update_children(*instruction, &arguments, &results);
+                                self.update_children(&arguments, &results);
                             }
                         },
                         Value::Function(callee) => match all_functions[&callee].runtime() {
                             // Only update tainted sets for non-Brillig calls, as
                             // the chained Brillig case should already be covered
                             RuntimeType::Acir(..) => {
-                                self.update_children(*instruction, &arguments, &results);
+                                self.update_children(&arguments, &results);
                             }
                             RuntimeType::Brillig(..) => {}
                         },
@@ -455,7 +455,7 @@ impl DependencyContext {
                 Instruction::ArrayGet { array, index } => {
                     self.process_array_get(function, *array, *index, &results);
                     // Record all the used arguments as parents of the results
-                    self.update_children(*instruction, &arguments, &results);
+                    self.update_children(&arguments, &results);
                 }
                 Instruction::ArraySet { .. }
                 | Instruction::Binary(..)
@@ -464,7 +464,7 @@ impl DependencyContext {
                 | Instruction::Not(..)
                 | Instruction::Truncate { .. } => {
                     // Record all the used arguments as parents of the results
-                    self.update_children(*instruction, &arguments, &results);
+                    self.update_children(&arguments, &results);
                 }
                 // These instructions won't affect the dependency graph
                 Instruction::Allocate { .. }
@@ -509,7 +509,6 @@ impl DependencyContext {
     /// Update sets of value ids that can be traced back to the Brillig calls being tracked
     fn update_children(
         &mut self,
-        instruction: InstructionId,
         parents: &[ValueId],
         children: &[ValueId],
     ) {
@@ -519,12 +518,8 @@ impl DependencyContext {
         // (as it would affect every following statement)
         self.side_effects_condition.map(|v| parents.insert(v));
 
-        for (call_instruction, tainted_ids) in self.tainted.iter_mut() {
-            // Skip updating if the update reason is the actual Brillig call being tracked
-            // (to prevent linking its own arguments to results)
-            if *call_instruction != instruction {
-                tainted_ids.update_children(&parents, children);
-            }
+        for (_, tainted_ids) in self.tainted.iter_mut() {
+            tainted_ids.update_children(&parents, children);
         }
     }
 
