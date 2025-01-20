@@ -738,7 +738,10 @@ impl<'context> Elaborator<'context> {
             span: before_last_segment.turbofish_span(),
         });
         let item = PathResolutionItem::TraitFunction(trait_id, turbofish, func_id);
-        let errors = if let Some(error) = error { vec![error] } else { Vec::new() };
+        let mut errors = path_resolution.errors;
+        if let Some(error) = error {
+            errors.push(error);
+        }
         Some(TraitPathResolution { method, item: Some(item), errors })
     }
 
