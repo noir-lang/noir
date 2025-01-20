@@ -1341,9 +1341,7 @@ fn regression_6530() {
     assert_eq!(errors.len(), 0);
 }
 
-// See https://github.com/noir-lang/noir/issues/7090
 #[test]
-#[should_panic]
 fn calls_trait_method_using_struct_name_when_multiple_impls_exist() {
     let src = r#"
     trait From2<T> {

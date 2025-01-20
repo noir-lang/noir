@@ -684,6 +684,58 @@ impl<'context> Elaborator<'context> {
         None
     }
 
+    /// This resolves a method in the form `Struct::method` where `method` is a trait method
+    fn resolve_struct_trait_method(&mut self, path: &Path) -> Option<TraitPathResolution> {
+        if path.segments.len() < 2 {
+            return None;
+        }
+
+        let mut path = path.clone();
+        let span = path.span();
+        let last_path_segment = path.pop();
+
+        let path_resolution = self.resolve_path(path).ok()?;
+        let PathResolutionItem::Struct(struct_id) = path_resolution.item else {
+            return None;
+        };
+
+        let struct_type = self.get_struct(struct_id);
+        let generics = struct_type.borrow().instantiate(self.interner);
+        let typ = Type::Struct(struct_type, generics);
+        let method_name = &last_path_segment.ident.0.contents;
+
+        // If we can find a method on the struct, this is definitely not a trait method
+        if self.interner.lookup_direct_method(&typ, method_name, false).is_some() {
+            return None;
+        }
+
+        let trait_methods = self.interner.lookup_trait_methods(&typ, method_name, false);
+        if trait_methods.is_empty() {
+            return None;
+        }
+
+        let (hir_method_reference, error) =
+            self.get_trait_method_in_scope(&trait_methods, method_name, last_path_segment.span);
+        let hir_method_reference = hir_method_reference?;
+        let func_id = hir_method_reference.func_id(self.interner)?;
+        let HirMethodReference::TraitMethodId(trait_method_id, _, _) = hir_method_reference else {
+            return None;
+        };
+
+        let trait_id = trait_method_id.trait_id;
+        let trait_ = self.interner.get_trait(trait_id);
+        let mut constraint = trait_.as_constraint(span);
+        constraint.typ = typ;
+
+        let method = TraitMethod { method_id: trait_method_id, constraint, assumed: false };
+
+        // TODO: turbofish
+        let turbofish = None;
+        let item = PathResolutionItem::TraitFunction(trait_id, turbofish, func_id);
+        let errors = if let Some(error) = error { vec![error] } else { Vec::new() };
+        Some(TraitPathResolution { method, item: Some(item), errors })
+    }
+
     // Try to resolve the given trait method path.
     //
     // Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
@@ -695,6 +747,7 @@ impl<'context> Elaborator<'context> {
         self.resolve_trait_static_method_by_self(path)
             .or_else(|| self.resolve_trait_static_method(path))
             .or_else(|| self.resolve_trait_method_by_named_generic(path))
+            .or_else(|| self.resolve_struct_trait_method(path))
     }
 
     pub(super) fn unify(
@@ -1456,6 +1509,19 @@ impl<'context> Elaborator<'context> {
         method_name: &str,
         span: Span,
     ) -> Option<HirMethodReference> {
+        let (method, error) = self.get_trait_method_in_scope(trait_methods, method_name, span);
+        if let Some(error) = error {
+            self.push_err(error);
+        }
+        method
+    }
+
+    fn get_trait_method_in_scope(
+        &mut self,
+        trait_methods: &[(FuncId, TraitId)],
+        method_name: &str,
+        span: Span,
+    ) -> (Option<HirMethodReference>, Option<PathResolutionError>) {
         let module_id = self.module_id();
         let module_data = self.get_module(module_id);
 
@@ -1489,28 +1555,24 @@ impl<'context> Elaborator<'context> {
                 let trait_id = *traits.iter().next().unwrap();
                 let trait_ = self.interner.get_trait(trait_id);
                 let trait_name = self.fully_qualified_trait_path(trait_);
-
-                self.push_err(PathResolutionError::TraitMethodNotInScope {
+                let method =
+                    self.trait_hir_method_reference(trait_id, trait_methods, method_name, span);
+                let error = PathResolutionError::TraitMethodNotInScope {
                     ident: Ident::new(method_name.into(), span),
                     trait_name,
-                });
-
-                return Some(self.trait_hir_method_reference(
-                    trait_id,
-                    trait_methods,
-                    method_name,
-                    span,
-                ));
+                };
+                return (Some(method), Some(error));
             } else {
                 let traits = vecmap(traits, |trait_id| {
                     let trait_ = self.interner.get_trait(trait_id);
                     self.fully_qualified_trait_path(trait_)
                 });
-                self.push_err(PathResolutionError::UnresolvedWithPossibleTraitsToImport {
+                let method = None;
+                let error = PathResolutionError::UnresolvedWithPossibleTraitsToImport {
                     ident: Ident::new(method_name.into(), span),
                     traits,
-                });
-                return None;
+                };
+                return (method, Some(error));
             }
         }
 
@@ -1519,15 +1581,18 @@ impl<'context> Elaborator<'context> {
                 let trait_ = self.interner.get_trait(trait_id);
                 self.fully_qualified_trait_path(trait_)
             });
-            self.push_err(PathResolutionError::MultipleTraitsInScope {
+            let method = None;
+            let error = PathResolutionError::MultipleTraitsInScope {
                 ident: Ident::new(method_name.into(), span),
                 traits,
-            });
-            return None;
+            };
+            return (method, Some(error));
         }
 
         let trait_id = traits_in_scope[0].0;
-        Some(self.trait_hir_method_reference(trait_id, trait_methods, method_name, span))
+        let method = self.trait_hir_method_reference(trait_id, trait_methods, method_name, span);
+        let error = None;
+        (Some(method), error)
     }
 
     fn trait_hir_method_reference(
@@ -1545,7 +1610,7 @@ impl<'context> Elaborator<'context> {
 
         // Return a TraitMethodId with unbound generics. These will later be bound by the type-checker.
         let trait_ = self.interner.get_trait(trait_id);
-        let generics = trait_.as_constraint(span).trait_bound.trait_generics;
+        let generics = trait_.get_trait_generics(span);
         let trait_method_id = trait_.find_method(method_name).unwrap();
         HirMethodReference::TraitMethodId(trait_method_id, generics, false)
     }
