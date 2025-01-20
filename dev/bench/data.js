@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737385115516,
+  "lastUpdate": 1737385119081,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3486,6 +3486,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 0.068,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bbdb937d44ddfbcd02a746dba9ad73ac704fcdd3",
+          "message": "fix: don't always use an exclusive lock in `nargo check` (#7120)",
+          "timestamp": "2025-01-20T14:41:38Z",
+          "tree_id": "cbe93c884f1997cd5ff41f80680b50d21aafccdd",
+          "url": "https://github.com/noir-lang/noir/commit/bbdb937d44ddfbcd02a746dba9ad73ac704fcdd3"
+        },
+        "date": 1737385117751,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 0.053,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.001,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 0.601,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.104,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.007,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 37.6,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 0.104,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1.226,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.457,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.019,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.31,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 0.067,
             "unit": "s"
           }
         ]
