@@ -12,8 +12,9 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::{
     Documented, Expression, FunctionDefinition, Ident, ItemVisibility, LetStatement,
-    ModuleDeclaration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Pattern,
-    TraitImplItemKind, TraitItem, TypeImpl, UnresolvedType, UnresolvedTypeData,
+    ModuleDeclaration, NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
+    NoirTypeAlias, Pattern, TraitImplItemKind, TraitItem, TypeImpl, UnresolvedType,
+    UnresolvedTypeData,
 };
 use crate::hir::resolution::errors::ResolverError;
 use crate::node_interner::{ModuleAttributes, NodeInterner, ReferenceId, StructId};
@@ -27,8 +28,8 @@ use crate::{
 };
 use crate::{Generics, Kind, ResolvedGeneric, Type, TypeVariable};
 
-use super::dc_crate::CollectedItems;
 use super::dc_crate::ModuleAttribute;
+use super::dc_crate::{CollectedItems, UnresolvedEnum};
 use super::{
     dc_crate::{
         CompilationError, DefCollector, UnresolvedFunctions, UnresolvedGlobal, UnresolvedTraitImpl,
@@ -91,7 +92,7 @@ pub fn collect_defs(
 
     errors.extend(collector.collect_traits(context, ast.traits, crate_id));
 
-    errors.extend(collector.collect_structs(context, ast.types, crate_id));
+    errors.extend(collector.collect_structs(context, ast.structs, crate_id));
 
     errors.extend(collector.collect_type_aliases(context, ast.type_aliases, crate_id));
 
@@ -317,7 +318,7 @@ impl<'a> ModCollector<'a> {
                 krate,
                 &mut definition_errors,
             ) {
-                self.def_collector.items.types.insert(id, the_struct);
+                self.def_collector.items.structs.insert(id, the_struct);
             }
         }
         definition_errors
@@ -1076,6 +1077,20 @@ pub fn collect_struct(
     }
 
     Some((id, unresolved))
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn collect_enum(
+    _interner: &mut NodeInterner,
+    _def_map: &mut CrateDefMap,
+    _usage_tracker: &mut UsageTracker,
+    _enum_definition: Documented<NoirEnumeration>,
+    _file_id: FileId,
+    _module_id: LocalModuleId,
+    _krate: CrateId,
+    _definition_errors: &mut [(CompilationError, FileId)],
+) -> Option<(StructId, UnresolvedEnum)> {
+    todo!("Implement collect_enum")
 }
 
 pub fn collect_impl(

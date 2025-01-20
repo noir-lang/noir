@@ -723,6 +723,47 @@ impl<'a> Context<'a> {
 
                 self.acir_context.assert_eq_var(lhs, rhs, assert_payload)?;
             }
+            Instruction::ConstrainNotEqual(lhs, rhs, assert_message) => {
+                let lhs = self.convert_numeric_value(*lhs, dfg)?;
+                let rhs = self.convert_numeric_value(*rhs, dfg)?;
+
+                let assert_payload = if let Some(error) = assert_message {
+                    match error {
+                        ConstrainError::StaticString(string) => Some(
+                            self.acir_context.generate_assertion_message_payload(string.clone()),
+                        ),
+                        ConstrainError::Dynamic(error_selector, is_string_type, values) => {
+                            if let Some(constant_string) = try_to_extract_string_from_error_payload(
+                                *is_string_type,
+                                values,
+                                dfg,
+                            ) {
+                                Some(
+                                    self.acir_context
+                                        .generate_assertion_message_payload(constant_string),
+                                )
+                            } else {
+                                let acir_vars: Vec<_> = values
+                                    .iter()
+                                    .map(|value| self.convert_value(*value, dfg))
+                                    .collect();
+
+                                let expressions_or_memory =
+                                    self.acir_context.vars_to_expressions_or_memory(&acir_vars)?;
+
+                                Some(AssertionPayload {
+                                    error_selector: error_selector.as_u64(),
+                                    payload: expressions_or_memory,
+                                })
+                            }
+                        }
+                    }
+                } else {
+                    None
+                };
+
+                self.acir_context.assert_neq_var(lhs, rhs, assert_payload)?;
+            }
             Instruction::Cast(value_id, _) => {
                 let acir_var = self.convert_numeric_value(*value_id, dfg)?;
                 self.define_result_var(dfg, instruction_id, acir_var);
@@ -2868,7 +2909,7 @@ mod test {
     use std::collections::BTreeMap;
 
     use crate::{
-        acir::BrilligStdlibFunc,
+        acir::{BrilligStdlibFunc, Function},
         brillig::Brillig,
         ssa::{
             function_builder::FunctionBuilder,
@@ -3300,7 +3341,8 @@ mod test {
         build_basic_foo_with_return(&mut builder, foo_id, true, InlineType::default());
         build_basic_foo_with_return(&mut builder, bar_id, true, InlineType::default());
 
-        let ssa = builder.finish();
+        let mut ssa = builder.finish();
+        ssa.globals = Function::new("globals".to_owned(), ssa.main_id);
         let brillig = ssa.to_brillig(false);
 
         let (acir_functions, brillig_functions, _, _) = ssa
@@ -3438,7 +3480,8 @@ mod test {
 
         build_basic_foo_with_return(&mut builder, foo_id, true, InlineType::default());
 
-        let ssa = builder.finish();
+        let mut ssa = builder.finish();
+        ssa.globals = Function::new("globals".to_owned(), ssa.main_id);
         // We need to generate  Brillig artifacts for the regular Brillig function and pass them to the ACIR generation pass.
         let brillig = ssa.to_brillig(false);
         println!("{}", ssa);
@@ -3527,7 +3570,8 @@ mod test {
         // Build an ACIR function which has the same logic as the Brillig function above
         build_basic_foo_with_return(&mut builder, bar_id, false, InlineType::Fold);
 
-        let ssa = builder.finish();
+        let mut ssa = builder.finish();
+        ssa.globals = Function::new("globals".to_owned(), ssa.main_id);
         // We need to generate  Brillig artifacts for the regular Brillig function and pass them to the ACIR generation pass.
         let brillig = ssa.to_brillig(false);
         println!("{}", ssa);
