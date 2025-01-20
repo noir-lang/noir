@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737385371242,
+  "lastUpdate": 1737385376143,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -1417,6 +1417,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root-empty",
             "value": 488.07,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 6230,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 601.46,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 2120,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1110,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 198.62,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 539.96,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 268.2,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bbdb937d44ddfbcd02a746dba9ad73ac704fcdd3",
+          "message": "fix: don't always use an exclusive lock in `nargo check` (#7120)",
+          "timestamp": "2025-01-20T14:41:38Z",
+          "tree_id": "cbe93c884f1997cd5ff41f80680b50d21aafccdd",
+          "url": "https://github.com/noir-lang/noir/commit/bbdb937d44ddfbcd02a746dba9ad73ac704fcdd3"
+        },
+        "date": 1737385374932,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "keccak256",
+            "value": 77.52,
+            "unit": "MB"
+          },
+          {
+            "name": "workspace",
+            "value": 123.83,
+            "unit": "MB"
+          },
+          {
+            "name": "regression_4709",
+            "value": 424.07,
+            "unit": "MB"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 1480,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 601.46,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 484.4,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 6230,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 488.06,
             "unit": "MB"
           },
           {
