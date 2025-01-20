@@ -347,10 +347,16 @@ pub(super) fn compute_bottom_up_order(ssa: &Ssa) -> Vec<(FunctionId, usize)> {
     let mut callees = compute_callees(ssa);
     let callers = compute_callers(ssa);
 
-    // Number of times a function is called, to break cycles in the call graph.
+    // Number of times a function is called, used to break cycles in the call graph by popping the next candidate.
     let mut times_called = compute_times_called(&callers).into_iter().collect::<Vec<_>>();
-    // Sort by number of calls ascending, so popping yields the next most called; break ties by ID.
-    times_called.sort_by_key(|(id, cnt)| (*cnt, *id));
+    times_called.sort_by_key(|(id, cnt)| {
+        // Sort by called the *least* by others, as these are less likely to cut the graph when removed.
+        let called_desc = -(*cnt as i64);
+        // Sort entries first (last to be popped).
+        let is_entry_asc = -called_desc.signum();
+        // Finally break ties by ID.
+        (is_entry_asc, called_desc, *id)
+    });
 
     // Start with the weight of the functions in isolation, then accumulate as we pop off the ones they call.
     let mut weights = ssa
@@ -367,18 +373,29 @@ pub(super) fn compute_bottom_up_order(ssa: &Ssa) -> Vec<(FunctionId, usize)> {
 
     loop {
         while let Some(id) = queue.pop_front() {
+            // Pull the current weight of yet-to-be emitted callees (a nod to mutual recursion).
+            for (callee, cnt) in &callees[&id] {
+                if *callee != id {
+                    weights[&id] = weights[&id].saturating_add(cnt.saturating_mul(weights[callee]));
+                }
+            }
+            // Own weight plus the weights accumulated from callees.
             let weight = weights[&id];
+
+            // Emit the function.
             order.push((id, weight));
             visited.insert(id);
+
             // Update the callers of this function.
-            for (caller, call_count) in &callers[&id] {
+            for (caller, cnt) in &callers[&id] {
                 // Update the weight of the caller with the weight of this function.
-                weights[caller] = weights[caller].saturating_add(call_count.saturating_mul(weight));
+                weights[caller] = weights[caller].saturating_add(cnt.saturating_mul(weight));
                 // Remove this function from the callees of the caller.
                 let callees = callees.get_mut(caller).unwrap();
                 callees.remove(&id);
-                // If the caller doesn't call any other function, enqueue it.
-                if callees.is_empty() && !visited.contains(caller) {
+                // If the caller doesn't call any other function, enqueue it,
+                // unless it's the entry function, which is never called by anything, so it should be last.
+                if callees.is_empty() && !visited.contains(caller) && !callers[caller].is_empty() {
                     queue.push_back(*caller);
                 }
             }
@@ -1060,6 +1077,8 @@ impl<'function> PerFunctionContext<'function> {
 
 #[cfg(test)]
 mod test {
+    use std::cmp::max;
+
     use acvm::{acir::AcirField, FieldElement};
     use noirc_frontend::monomorphization::ast::InlineType;
 
@@ -1074,6 +1093,8 @@ mod test {
         },
         Ssa,
     };
+
+    use super::compute_bottom_up_order;
 
     #[test]
     fn basic_inlining() {
@@ -1452,5 +1473,92 @@ mod test {
         let inlined = ssa.inline_functions(0);
         // No inlining has happened
         assert_eq!(inlined.functions.len(), 2);
+    }
+
+    #[test]
+    fn bottom_up_order_and_weights() {
+        let src = "
+          brillig(inline) fn main f0 {
+            b0(v0: u32, v1: u1):
+              v3 = call f2(v0) -> u1
+              v4 = eq v3, v1
+              constrain v3 == v1
+              return
+          }
+          brillig(inline) fn is_even f1 {
+            b0(v0: u32):
+              v3 = eq v0, u32 0
+              jmpif v3 then: b2, else: b1
+            b1():
+              v5 = call f3(v0) -> u32
+              v7 = call f2(v5) -> u1
+              jmp b3(v7)
+            b2():
+              jmp b3(u1 1)
+            b3(v1: u1):
+              return v1
+          }
+          brillig(inline) fn is_odd f2 {
+            b0(v0: u32):
+              v3 = eq v0, u32 0
+              jmpif v3 then: b2, else: b1
+            b1():
+              v5 = call f3(v0) -> u32
+              v7 = call f1(v5) -> u1
+              jmp b3(v7)
+            b2():
+              jmp b3(u1 0)
+            b3(v1: u1):
+              return v1
+          }
+          brillig(inline) fn decr f3 {
+            b0(v0: u32):
+              v2 = sub v0, u32 1
+              return v2
+          }
+        ";
+        // main
+        //   |
+        //   V
+        // is_odd <-> is_even
+        //      |     |
+        //      V     V
+        //       decr
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let order = compute_bottom_up_order(&ssa);
+
+        assert_eq!(order.len(), 4);
+        let (ids, ws): (Vec<_>, Vec<_>) = order.into_iter().map(|(id, w)| (id.to_u32(), w)).unzip();
+
+        // Check order
+        assert_eq!(ids[0], 3, "decr: first, it doesn't call anything");
+        assert_eq!(ids[1], 1, "is_even: called by is_odd; removing first avoids cutting the graph");
+        assert_eq!(ids[2], 2, "is_odd: called by is_odd and main");
+        assert_eq!(ids[3], 0, "main: last, it's the entry");
+
+        // Check weights
+        assert_eq!(ws[0], 2, "decr");
+        assert_eq!(
+            ws[1],
+            7 + // own
+            ws[0] + // pushed from decr
+            (7 + ws[0]), // pulled from is_odd at the time is_even is emitted
+            "is_even"
+        );
+        assert_eq!(
+            ws[2],
+            7 + // own
+            ws[0] + // pushed from decr
+            ws[1], // pushed from is_even
+            "is_odd"
+        );
+        assert_eq!(
+            ws[3],
+            4 + // own
+            ws[2], // pushed from is_odd
+            "main"
+        );
+        assert!(ws[3] > max(ws[1], ws[2]), "ideally 'main' has the most weight");
     }
 }
