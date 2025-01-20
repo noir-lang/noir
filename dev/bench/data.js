@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737384420457,
+  "lastUpdate": 1737384424295,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3209,6 +3209,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 0.069,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bc0c0ca7f96d52f79944ec7a002df315b91337f2",
+          "message": "feat(ssa): Pass to preprocess functions (#7072)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: Tom French <tom@tomfren.ch>\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-01-20T14:30:43Z",
+          "tree_id": "d68ecfb9be5df8e57f951247d420aa898f0378b1",
+          "url": "https://github.com/noir-lang/noir/commit/bc0c0ca7f96d52f79944ec7a002df315b91337f2"
+        },
+        "date": 1737384423166,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 0.062,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.001,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 0.604,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.103,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.007,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 38,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 0.103,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1.218,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.453,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.019,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.311,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 0.068,
             "unit": "s"
           }
         ]
