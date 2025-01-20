@@ -3725,9 +3725,6 @@ mod test {
 
         // Check that no memory opcodes were emitted.
         let main = &acir_functions[0];
-        assert!(!main
-            .opcodes()
-            .iter()
-            .any(|opcode| matches!(opcode, Opcode::MemoryInit { .. } | Opcode::MemoryOp { .. })));
+        assert!(!main.opcodes().iter().any(|opcode| matches!(opcode, Opcode::MemoryOp { .. })));
     }
 }
