@@ -141,10 +141,6 @@ pub struct CompileOptions {
     #[arg(long)]
     pub skip_brillig_constraints_check: bool,
 
-    /// Flag to turn off preprocessing functions during SSA passes.
-    #[arg(long)]
-    pub skip_preprocess_fns: bool,
-
     /// Setting to decide on an inlining strategy for Brillig functions.
     /// A more aggressive inliner should generate larger programs but more optimized
     /// A less aggressive inliner should generate smaller programs
@@ -683,7 +679,6 @@ pub fn compile_no_check(
         emit_ssa: if options.emit_ssa { Some(context.package_build_path.clone()) } else { None },
         skip_underconstrained_check: options.skip_underconstrained_check,
         skip_brillig_constraints_check: options.skip_brillig_constraints_check,
-        skip_preprocess_fns: options.skip_preprocess_fns,
         inliner_aggressiveness: options.inliner_aggressiveness,
         max_bytecode_increase_percent: options.max_bytecode_increase_percent,
     };

@@ -71,9 +71,6 @@ pub struct SsaEvaluatorOptions {
     /// Skip the missing Brillig call constraints check
     pub skip_brillig_constraints_check: bool,
 
-    /// Skip preprocessing functions.
-    pub skip_preprocess_fns: bool,
-
     /// The higher the value, the more inlined Brillig functions will be.
     pub inliner_aggressiveness: i64,
 
@@ -157,12 +154,7 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
         .run_pass(Ssa::defunctionalize, "Defunctionalization")
         .run_pass(Ssa::remove_paired_rc, "Removing Paired rc_inc & rc_decs")
         .run_pass(
-            |ssa| {
-                if options.skip_preprocess_fns {
-                    return ssa;
-                }
-                ssa.preprocess_functions(options.inliner_aggressiveness)
-            },
+            |ssa| ssa.preprocess_functions(options.inliner_aggressiveness),
             "Preprocessing Functions",
         )
         .run_pass(|ssa| ssa.inline_functions(options.inliner_aggressiveness), "Inlining (1st)")
