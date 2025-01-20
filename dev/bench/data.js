@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737394765503,
+  "lastUpdate": 1737395177916,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3334,6 +3334,100 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 2.166,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jake@aztecprotocol.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ed9977a57e0015ed653f54ce9377225434a947df",
+          "message": "fix: Prevent overlapping associated types impls (#7047)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-01-20T17:29:47Z",
+          "tree_id": "1f005abc1d2f572a303b7324a4c7ec9b280da41f",
+          "url": "https://github.com/noir-lang/noir/commit/ed9977a57e0015ed653f54ce9377225434a947df"
+        },
+        "date": 1737395177446,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 1.06,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.831,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 19,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 3.582,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 2.012,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 85.1,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 2.07,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 82.4,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 3.494,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 25.76,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 11,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.96,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 5.97,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2,
             "unit": "s"
           }
         ]
