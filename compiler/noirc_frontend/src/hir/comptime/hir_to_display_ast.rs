@@ -59,6 +59,7 @@ impl HirStatement {
                 block: for_stmt.block.to_display_ast(interner),
                 span,
             }),
+            HirStatement::Loop(block) => StatementKind::Loop(block.to_display_ast(interner)),
             HirStatement::Break => StatementKind::Break,
             HirStatement::Continue => StatementKind::Continue,
             HirStatement::Expression(expr) => {

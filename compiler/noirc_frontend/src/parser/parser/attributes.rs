@@ -92,7 +92,7 @@ impl<'a> Parser<'a> {
             .into_iter()
             .filter_map(|(attribute, span)| match attribute {
                 Attribute::Function(..) => {
-                    self.push_error(ParserErrorReason::NoFunctionAttributesAllowedOnStruct, span);
+                    self.push_error(ParserErrorReason::NoFunctionAttributesAllowedOnType, span);
                     None
                 }
                 Attribute::Secondary(attr) => Some(attr),

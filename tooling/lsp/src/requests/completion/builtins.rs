@@ -91,6 +91,9 @@ impl<'a> NodeFinder<'a> {
             AttributeTarget::Struct => {
                 self.suggest_one_argument_attributes(prefix, &["abi"]);
             }
+            AttributeTarget::Enum => {
+                self.suggest_one_argument_attributes(prefix, &["abi"]);
+            }
             AttributeTarget::Function => {
                 let no_arguments_attributes = &[
                     "contract_library_method",
@@ -156,6 +159,7 @@ pub(super) fn keyword_builtin_type(keyword: &Keyword) -> Option<&'static str> {
     match keyword {
         Keyword::Bool => Some("bool"),
         Keyword::CtString => Some("CtString"),
+        Keyword::EnumDefinition => Some("EnumDefinition"),
         Keyword::Expr => Some("Expr"),
         Keyword::Field => Some("Field"),
         Keyword::FunctionDefinition => Some("FunctionDefinition"),
@@ -247,6 +251,7 @@ pub(super) fn keyword_builtin_function(keyword: &Keyword) -> Option<BuiltInFunct
         | Keyword::Dep
         | Keyword::Else
         | Keyword::Enum
+        | Keyword::EnumDefinition
         | Keyword::Expr
         | Keyword::Field
         | Keyword::Fn

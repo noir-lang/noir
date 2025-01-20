@@ -3,7 +3,7 @@ use crate::brillig::brillig_ir::brillig_variable::{
     type_to_heap_value_type, BrilligArray, BrilligVariable, SingleAddrVariable,
 };
 
-use crate::brillig::brillig_ir::registers::Stack;
+use crate::brillig::brillig_ir::registers::RegisterAllocator;
 use crate::brillig::brillig_ir::{
     BrilligBinaryOp, BrilligContext, ReservedRegisters, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
 };
@@ -32,29 +32,42 @@ use super::brillig_fn::FunctionContext;
 use super::constant_allocation::InstructionLocation;
 
 /// Generate the compilation artifacts for compiling a function into brillig bytecode.
-pub(crate) struct BrilligBlock<'block> {
+pub(crate) struct BrilligBlock<'block, Registers: RegisterAllocator> {
     pub(crate) function_context: &'block mut FunctionContext,
     /// The basic block that is being converted
     pub(crate) block_id: BasicBlockId,
     /// Context for creating brillig opcodes
-    pub(crate) brillig_context: &'block mut BrilligContext<FieldElement, Stack>,
+    pub(crate) brillig_context: &'block mut BrilligContext<FieldElement, Registers>,
     /// Tracks the available variable during the codegen of the block
     pub(crate) variables: BlockVariables,
     /// For each instruction, the set of values that are not used anymore after it.
     pub(crate) last_uses: HashMap<InstructionId, HashSet<ValueId>>,
+
+    pub(crate) globals: &'block HashMap<ValueId, BrilligVariable>,
+
+    pub(crate) building_globals: bool,
 }
 
-impl<'block> BrilligBlock<'block> {
+impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     /// Converts an SSA Basic block into a sequence of Brillig opcodes
     pub(crate) fn compile(
         function_context: &'block mut FunctionContext,
-        brillig_context: &'block mut BrilligContext<FieldElement, Stack>,
+        brillig_context: &'block mut BrilligContext<FieldElement, Registers>,
         block_id: BasicBlockId,
         dfg: &DataFlowGraph,
         call_stacks: &mut CallStackHelper,
+        globals: &'block HashMap<ValueId, BrilligVariable>,
     ) {
         let live_in = function_context.liveness.get_live_in(&block_id);
-        let variables = BlockVariables::new(live_in.clone());
+
+        let mut live_in_no_globals = HashSet::default();
+        for value in live_in {
+            if !dfg.is_global(*value) {
+                live_in_no_globals.insert(*value);
+            }
+        }
+
+        let variables = BlockVariables::new(live_in_no_globals);
 
         brillig_context.set_allocated_registers(
             variables
@@ -65,10 +78,43 @@ impl<'block> BrilligBlock<'block> {
         );
         let last_uses = function_context.liveness.get_last_uses(&block_id).clone();
 
-        let mut brillig_block =
-            BrilligBlock { function_context, block_id, brillig_context, variables, last_uses };
+        let mut brillig_block = BrilligBlock {
+            function_context,
+            block_id,
+            brillig_context,
+            variables,
+            last_uses,
+            globals,
+            building_globals: false,
+        };
 
         brillig_block.convert_block(dfg, call_stacks);
+    }
+
+    pub(crate) fn compile_globals(
+        &mut self,
+        globals: &DataFlowGraph,
+        used_globals: &HashSet<ValueId>,
+        call_stacks: &mut CallStackHelper,
+    ) {
+        for (id, value) in globals.values_iter() {
+            if !used_globals.contains(&id) {
+                continue;
+            }
+            match value {
+                Value::NumericConstant { .. } => {
+                    self.convert_ssa_value(id, globals);
+                }
+                Value::Instruction { instruction, .. } => {
+                    self.convert_ssa_instruction(*instruction, globals, call_stacks);
+                }
+                _ => {
+                    panic!(
+                        "Expected either an instruction or a numeric constant for a global value"
+                    )
+                }
+            }
+        }
     }
 
     fn convert_block(&mut self, dfg: &DataFlowGraph, call_stacks: &mut CallStackHelper) {
@@ -855,17 +901,22 @@ impl<'block> BrilligBlock<'block> {
             Instruction::Noop => (),
         };
 
-        let dead_variables = self
-            .last_uses
-            .get(&instruction_id)
-            .expect("Last uses for instruction should have been computed");
+        if !self.building_globals {
+            let dead_variables = self
+                .last_uses
+                .get(&instruction_id)
+                .expect("Last uses for instruction should have been computed");
 
-        for dead_variable in dead_variables {
-            self.variables.remove_variable(
-                dead_variable,
-                self.function_context,
-                self.brillig_context,
-            );
+            for dead_variable in dead_variables {
+                // Globals are reserved throughout the entirety of the program
+                if !dfg.is_global(*dead_variable) {
+                    self.variables.remove_variable(
+                        dead_variable,
+                        self.function_context,
+                        self.brillig_context,
+                    );
+                }
+            }
         }
         self.brillig_context.set_call_stack(CallStackId::root());
     }
@@ -1567,25 +1618,38 @@ impl<'block> BrilligBlock<'block> {
     }
 
     /// Converts an SSA `ValueId` into a `RegisterOrMemory`. Initializes if necessary.
-    fn convert_ssa_value(&mut self, value_id: ValueId, dfg: &DataFlowGraph) -> BrilligVariable {
+    pub(crate) fn convert_ssa_value(
+        &mut self,
+        value_id: ValueId,
+        dfg: &DataFlowGraph,
+    ) -> BrilligVariable {
         let value_id = dfg.resolve(value_id);
         let value = &dfg[value_id];
 
         match value {
             Value::Global(_) => {
-                unreachable!("ICE: All globals should have been inlined");
+                unreachable!("Expected global value to be resolve to its inner value");
             }
             Value::Param { .. } | Value::Instruction { .. } => {
                 // All block parameters and instruction results should have already been
                 // converted to registers so we fetch from the cache.
-
-                self.variables.get_allocation(self.function_context, value_id, dfg)
+                if dfg.is_global(value_id) {
+                    *self.globals.get(&value_id).unwrap_or_else(|| {
+                        panic!("ICE: Global value not found in cache {value_id}")
+                    })
+                } else {
+                    self.variables.get_allocation(self.function_context, value_id, dfg)
+                }
             }
             Value::NumericConstant { constant, .. } => {
                 // Constants might have been converted previously or not, so we get or create and
                 // (re)initialize the value inside.
                 if self.variables.is_allocated(&value_id) {
                     self.variables.get_allocation(self.function_context, value_id, dfg)
+                } else if dfg.is_global(value_id) {
+                    *self.globals.get(&value_id).unwrap_or_else(|| {
+                        panic!("ICE: Global value not found in cache {value_id}")
+                    })
                 } else {
                     let new_variable = self.variables.define_variable(
                         self.function_context,

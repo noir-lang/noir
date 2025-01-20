@@ -18,7 +18,7 @@ struct CfgNode {
     pub(crate) successors: BTreeSet<BasicBlockId>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 /// The Control Flow Graph maintains a mapping of blocks to their predecessors
 /// and successors where predecessors are basic blocks and successors are
 /// basic blocks.

@@ -37,7 +37,7 @@ use acvm::{
 };
 use debug_show::DebugShow;
 
-use super::ProcedureId;
+use super::{GlobalSpace, ProcedureId};
 
 /// The Brillig VM does not apply a limit to the memory address space,
 /// As a convention, we take use 32 bits. This means that we assume that
@@ -110,7 +110,9 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             can_call_procedures: true,
         }
     }
+}
 
+impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     /// Splits a two's complement signed integer in the sign bit and the absolute value.
     /// For example, -6 i8 (11111010) is split to 00000110 (6, absolute value) and 1 (is_negative).
     pub(crate) fn absolute_value(
@@ -213,6 +215,21 @@ impl<F: AcirField + DebugToString> BrilligContext<F, ScratchSpace> {
     }
 }
 
+/// Special brillig context to codegen global values initialization
+impl<F: AcirField + DebugToString> BrilligContext<F, GlobalSpace> {
+    pub(crate) fn new_for_global_init(enable_debug_trace: bool) -> BrilligContext<F, GlobalSpace> {
+        BrilligContext {
+            obj: BrilligArtifact::default(),
+            registers: GlobalSpace::new(),
+            context_label: Label::globals_init(),
+            current_section: 0,
+            next_section: 1,
+            debug_show: DebugShow::new(enable_debug_trace),
+            can_call_procedures: false,
+        }
+    }
+}
+
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     /// Adds a brillig instruction to the brillig byte code
     fn push_opcode(&mut self, opcode: BrilligOpcode<F>) {
@@ -299,8 +316,12 @@ pub(crate) mod tests {
         returns: Vec<BrilligParameter>,
     ) -> GeneratedBrillig<FieldElement> {
         let artifact = context.artifact();
-        let mut entry_point_artifact =
-            BrilligContext::new_entry_point_artifact(arguments, returns, FunctionId::test_new(0));
+        let mut entry_point_artifact = BrilligContext::new_entry_point_artifact(
+            arguments,
+            returns,
+            FunctionId::test_new(0),
+            false,
+        );
         entry_point_artifact.link_with(&artifact);
         while let Some(unresolved_fn_label) = entry_point_artifact.first_unresolved_function_call()
         {

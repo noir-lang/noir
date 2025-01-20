@@ -114,6 +114,7 @@ fn compute_used_before_def(
 type LastUses = HashMap<InstructionId, Variables>;
 
 /// A struct representing the liveness of variables throughout a function.
+#[derive(Default)]
 pub(crate) struct VariableLiveness {
     cfg: ControlFlowGraph,
     post_order: PostOrder,

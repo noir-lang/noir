@@ -2,6 +2,7 @@ pub(crate) mod brillig_black_box;
 pub(crate) mod brillig_block;
 pub(crate) mod brillig_block_variables;
 pub(crate) mod brillig_fn;
+pub(crate) mod brillig_globals;
 pub(crate) mod brillig_slice_ops;
 mod constant_allocation;
 mod variable_liveness;
@@ -15,7 +16,7 @@ use super::{
         artifact::{BrilligParameter, GeneratedBrillig},
         BrilligContext,
     },
-    Brillig,
+    Brillig, BrilligVariable, ValueId,
 };
 use crate::{errors::InternalError, ssa::ir::function::Function};
 
@@ -29,6 +30,7 @@ pub(crate) fn gen_brillig_for(
         arguments,
         FunctionContext::return_values(func),
         func.id(),
+        true,
     );
     entry_point.name = func.name().to_string();
 

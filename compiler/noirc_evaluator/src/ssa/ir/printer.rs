@@ -35,7 +35,7 @@ impl Display for Ssa {
             };
         }
 
-        if self.globals.dfg.values_iter().len() > 0 {
+        if self.globals.dfg.values_iter().next().is_some() {
             writeln!(f)?;
         }
 
