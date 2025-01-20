@@ -11,6 +11,7 @@ use crate::ssa::ssa_gen::Ssa;
 use im::HashMap;
 use rayon::prelude::*;
 use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::time::{Duration, Instant};
 use tracing::trace;
 
 impl Ssa {
@@ -106,6 +107,26 @@ struct DependencyContext {
     // Map of Brillig call ids to sets of the value ids descending
     // from their arguments and results
     tainted: BTreeMap<InstructionId, BrilligTaintedIds>,
+    // Map of argument value ids to the Brilling call ids employing them
+    call_arguments: HashMap<ValueId, Vec<InstructionId>>,
+    // Profiling metrics
+    metrics: DependencyContextMetrics,
+}
+
+#[derive(Default, Clone, Debug)]
+struct DependencyContextMetrics {
+    time_spent: HashMap<(FunctionId, String), Duration>,
+}
+
+impl DependencyContextMetrics {
+    /// Update total time spent under function/tag combination  
+    fn update_time(&mut self, func_id: FunctionId, tag: String, start: Instant) {
+        let elapsed = start.elapsed();
+        self.time_spent
+            .entry((func_id, tag))
+            .and_modify(|e| *e = e.saturating_add(elapsed))
+            .or_insert(elapsed);
+    }
 }
 
 /// Structure keeping track of value ids descending from Brillig calls'
@@ -121,6 +142,8 @@ struct BrilligTaintedIds {
     array_elements: HashMap<ValueId, Vec<usize>>,
     // Initial result value ids, along with element ids for arrays
     root_results: HashSet<ValueId>,
+    // The flag signaling that the call should be now tracked
+    tracking: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -176,6 +199,7 @@ impl BrilligTaintedIds {
             results: results_status,
             array_elements,
             root_results: HashSet::from_iter(results.iter().copied()),
+            tracking: false,
         }
     }
 
@@ -239,9 +263,7 @@ impl BrilligTaintedIds {
         for (i, result_status) in self.results.iter().enumerate() {
             match result_status {
                 // Skip checking already covered results
-                ResultStatus::Constrained => {
-                    continue;
-                }
+                ResultStatus::Constrained => {}
                 ResultStatus::Unconstrained { descendants } => {
                     if descendants.intersection(constrained_values).next().is_some() {
                         results_involved.push(i);
@@ -292,6 +314,7 @@ impl DependencyContext {
             self.visited_blocks.insert(block);
             self.process_instructions(block, function, all_functions);
         }
+        trace!("dependency context metrics: {:?}", self.metrics);
     }
 
     /// Go over the given block tracking Brillig calls and checking them against
@@ -307,6 +330,7 @@ impl DependencyContext {
         // First, gather information on all Brillig calls in the block
         // to be able to follow their arguments first appearing in the
         // flow graph before the calls themselves
+        let process_stage_1_start = Instant::now();
         function.dfg[block].instructions().iter().for_each(|instruction| {
             if let Instruction::Call { func, arguments } = &function.dfg[*instruction] {
                 if let Value::Function(callee) = &function.dfg[*func] {
@@ -329,16 +353,26 @@ impl DependencyContext {
                         }
 
                         if !wrapped_call_found {
-                            // Record the current call
+                            // Record the current call, remember the argument values involved
                             self.tainted.insert(*instruction, current_tainted);
+                            arguments.iter().for_each(|value| {
+                                self.call_arguments.entry(*value).or_default().push(*instruction);
+                            });
                         }
                     }
                 }
             }
         });
 
+        self.update_time(
+            function.id(),
+            "instruction processing stage 1".into(),
+            process_stage_1_start,
+        );
+
         //Then, go over the instructions
-        for instruction in function.dfg[block].instructions() {
+        let process_stage_2_start = Instant::now();
+        for instruction in function.dfg[block].instructions().iter() {
             let mut arguments = Vec::new();
             let mut results = Vec::new();
 
@@ -356,6 +390,21 @@ impl DependencyContext {
                 }
             }
 
+            // Start tracking calls when their argument value ids first appear,
+            // or when their instruction id comes up
+            for argument in &arguments {
+                if let Some(calls) = self.call_arguments.get(argument) {
+                    for call in calls {
+                        if let Some(tainted_ids) = self.tainted.get_mut(call) {
+                            tainted_ids.tracking = true;
+                        }
+                    }
+                }
+            }
+            if let Some(tainted_ids) = self.tainted.get_mut(instruction) {
+                tainted_ids.tracking = true;
+            }
+
             match &function.dfg[*instruction] {
                 // For memory operations, we have to link up the stored value as a parent
                 // of one loaded from the same memory slot
@@ -365,7 +414,7 @@ impl DependencyContext {
                 Instruction::Load { address } => {
                     // Recall the value stored at address as parent for the results
                     if let Some(value_id) = self.memory_slots.get(address) {
-                        self.update_children(&[*value_id], &results);
+                        self.update_children(function, &[*value_id], &results);
                     } else {
                         panic!("load instruction {} has attempted to access previously unused memory location",
                             instruction);
@@ -425,14 +474,14 @@ impl DependencyContext {
                             | Intrinsic::ToRadix(..)
                             | Intrinsic::FieldLessThan => {
                                 // Record all the function arguments as parents of the results
-                                self.update_children(&arguments, &results);
+                                self.update_children(function, &arguments, &results);
                             }
                         },
                         Value::Function(callee) => match all_functions[&callee].runtime() {
                             // Only update tainted sets for non-Brillig calls, as
                             // the chained Brillig case should already be covered
                             RuntimeType::Acir(..) => {
-                                self.update_children(&arguments, &results);
+                                self.update_children(function, &arguments, &results);
                             }
                             RuntimeType::Brillig(..) => {}
                         },
@@ -456,7 +505,7 @@ impl DependencyContext {
                 Instruction::ArrayGet { array, index } => {
                     self.process_array_get(function, *array, *index, &results);
                     // Record all the used arguments as parents of the results
-                    self.update_children(&arguments, &results);
+                    self.update_children(function, &arguments, &results);
                 }
                 Instruction::ArraySet { .. }
                 | Instruction::Binary(..)
@@ -465,7 +514,7 @@ impl DependencyContext {
                 | Instruction::Not(..)
                 | Instruction::Truncate { .. } => {
                     // Record all the used arguments as parents of the results
-                    self.update_children(&arguments, &results);
+                    self.update_children(function, &arguments, &results);
                 }
                 // These instructions won't affect the dependency graph
                 Instruction::Allocate { .. }
@@ -475,6 +524,12 @@ impl DependencyContext {
                 | Instruction::Noop => {}
             }
         }
+
+        self.update_time(
+            function.id(),
+            "instruction processing stage 2".into(),
+            process_stage_2_start,
+        );
 
         if !self.tainted.is_empty() {
             trace!(
@@ -508,11 +563,8 @@ impl DependencyContext {
     }
 
     /// Update sets of value ids that can be traced back to the Brillig calls being tracked
-    fn update_children(
-        &mut self,
-        parents: &[ValueId],
-        children: &[ValueId],
-    ) {
+    fn update_children(&mut self, function: &Function, parents: &[ValueId], children: &[ValueId]) {
+        let update_children_start = Instant::now();
         let mut parents: HashSet<_> = HashSet::from_iter(parents.iter().copied());
 
         // Also include the current EnableSideEffectsIf condition in parents
@@ -520,8 +572,12 @@ impl DependencyContext {
         self.side_effects_condition.map(|v| parents.insert(v));
 
         for (_, tainted_ids) in self.tainted.iter_mut() {
-            tainted_ids.update_children(&parents, children);
+            // Don't update sets for the calls not yet being tracked
+            if tainted_ids.tracking {
+                tainted_ids.update_children(&parents, children);
+            }
         }
+        self.update_time(function.id(), "updating children".into(), update_children_start);
     }
 
     /// Check if any of the recorded Brillig calls have been properly constrained
@@ -550,6 +606,7 @@ impl DependencyContext {
     ) {
         use acvm::acir::AcirField;
 
+        let process_array_get_start = Instant::now();
         // Only allow numeric constant indices
         if let Some(value) = function.dfg.get_numeric_constant(index) {
             if let Some(index) = value.try_to_u32() {
@@ -558,6 +615,11 @@ impl DependencyContext {
                 });
             }
         }
+        self.update_time(function.id(), "array get processing".into(), process_array_get_start);
+    }
+
+    fn update_time(&mut self, func_id: FunctionId, comment: String, start: Instant) {
+        self.metrics.update_time(func_id, comment, start);
     }
 }
 
