@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737388823131,
+  "lastUpdate": 1737388828083,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -5141,6 +5141,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "workspace",
             "value": 123.23,
+            "unit": "MB"
+          },
+          {
+            "name": "regression_4709",
+            "value": 315.93,
+            "unit": "MB"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 512.57,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 498.65,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 473.34,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1230,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 498.66,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 733.92,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 590.34,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 180.81,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 245.42,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 207.81,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9be84f7102b80c650ff0b3d5328efc70873debbe",
+          "message": "chore: mark libs good (#7123)",
+          "timestamp": "2025-01-20T15:41:02Z",
+          "tree_id": "67e1f2a4915cedc53a1f5bbea32e6821189bb6db",
+          "url": "https://github.com/noir-lang/noir/commit/9be84f7102b80c650ff0b3d5328efc70873debbe"
+        },
+        "date": 1737388826735,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "keccak256",
+            "value": 74.63,
+            "unit": "MB"
+          },
+          {
+            "name": "workspace",
+            "value": 123.52,
             "unit": "MB"
           },
           {
