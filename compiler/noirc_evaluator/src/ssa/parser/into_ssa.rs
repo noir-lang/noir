@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use acvm::acir::circuit::ErrorSelector;
 
@@ -7,6 +7,7 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         call_stack::CallStackId,
+        dfg::GlobalsGraph,
         function::{Function, FunctionId},
         instruction::{ConstrainError, Instruction},
         value::ValueId,
@@ -46,8 +47,10 @@ struct Translator {
     /// The types of globals in the parsed SSA, in the order they were defined.
     global_types: Vec<Type>,
 
-    /// Maps names like g0, g1, etc., in the parsed SSA to global IDs.
-    globals: HashMap<String, ValueId>,
+    /// Maps names (e.g. "g0") in the parsed SSA to global IDs.
+    global_values: HashMap<String, ValueId>,
+
+    globals_graph: Arc<GlobalsGraph>,
 
     error_selector_counter: u64,
 }
@@ -94,11 +97,15 @@ impl Translator {
             blocks: HashMap::new(),
             globals_function: globals,
             global_types: Vec::new(),
-            globals: HashMap::new(),
+            global_values: HashMap::new(),
+            globals_graph: Arc::new(GlobalsGraph::default()),
             error_selector_counter: 0,
         };
 
         translator.translate_globals(std::mem::take(&mut parsed_ssa.globals))?;
+
+        translator.globals_graph =
+            Arc::new(GlobalsGraph::from_dfg(translator.globals_function.dfg.clone()));
 
         translator.translate_function_body(main_function)?;
 
@@ -122,6 +129,8 @@ impl Translator {
     }
 
     fn translate_function_body(&mut self, function: ParsedFunction) -> Result<(), SsaError> {
+        self.builder.current_function.set_globals(self.globals_graph.clone());
+
         for typ in &self.global_types {
             self.builder.current_function.dfg.make_global(typ.clone());
         }
@@ -397,7 +406,7 @@ impl Translator {
             .and_then(|hash| hash.get(&identifier.name))
         {
             Ok(*value_id)
-        } else if let Some(value_id) = self.globals.get(&identifier.name) {
+        } else if let Some(value_id) = self.global_values.get(&identifier.name) {
             Ok(*value_id)
         } else {
             Err(SsaError::UnknownVariable(identifier.clone()))
@@ -405,11 +414,11 @@ impl Translator {
     }
 
     fn define_global(&mut self, identifier: Identifier, value_id: ValueId) -> Result<(), SsaError> {
-        if self.globals.contains_key(&identifier.name) {
+        if self.global_values.contains_key(&identifier.name) {
             return Err(SsaError::GlobalAlreadyDefined(identifier));
         }
 
-        self.globals.insert(identifier.name, value_id);
+        self.global_values.insert(identifier.name, value_id);
 
         let typ = self.globals_function.dfg.type_of_value(value_id);
         self.global_types.push(typ);
@@ -418,7 +427,7 @@ impl Translator {
     }
 
     fn lookup_global(&mut self, identifier: Identifier) -> Result<ValueId, SsaError> {
-        if let Some(value_id) = self.globals.get(&identifier.name) {
+        if let Some(value_id) = self.global_values.get(&identifier.name) {
             Ok(*value_id)
         } else {
             Err(SsaError::UnknownGlobal(identifier))
