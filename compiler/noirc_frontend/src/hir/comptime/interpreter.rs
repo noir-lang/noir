@@ -1730,17 +1730,21 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             self.push_scope();
             self.current_scope_mut().insert(for_.identifier.id, make_value(i));
 
-            match self.evaluate(for_.block) {
-                Ok(_) => (),
-                Err(InterpreterError::Break) => break,
-                Err(InterpreterError::Continue) => continue,
+            let must_break = match self.evaluate(for_.block) {
+                Ok(_) => false,
+                Err(InterpreterError::Break) => true,
+                Err(InterpreterError::Continue) => false,
                 Err(error) => {
                     result = Err(error);
-                    break;
+                    true
                 }
-            }
+            };
 
             self.pop_scope();
+
+            if must_break {
+                break;
+            }
         }
 
         self.in_loop = was_in_loop;
@@ -1756,17 +1760,21 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         loop {
             self.push_scope();
 
-            match self.evaluate(expr) {
-                Ok(_) => (),
-                Err(InterpreterError::Break) => break,
-                Err(InterpreterError::Continue) => continue,
+            let must_break = match self.evaluate(expr) {
+                Ok(_) => false,
+                Err(InterpreterError::Break) => true,
+                Err(InterpreterError::Continue) => false,
                 Err(error) => {
                     result = Err(error);
-                    break;
+                    true
                 }
-            }
+            };
 
             self.pop_scope();
+
+            if must_break {
+                break;
+            }
 
             counter += 1;
             if in_lsp && counter == 10_000 {
