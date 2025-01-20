@@ -420,74 +420,6 @@ jobs:
           retention-days: 3
           overwrite: true
 
-  upload_compilation_report:
-    name: Upload compilation report 
-    needs: [generate_compilation_and_execution_report, external_repo_compilation_and_execution_report]
-    # We want this job to run even if one variation of the matrix in `external_repo_compilation_and_execution_report` fails
-    if: always() 
-    runs-on: ubuntu-22.04
-    permissions:
-      pull-requests: write
-      # deployments permission to deploy GitHub pages website
-      deployments: write
-      # contents permission to update benchmark contents in gh-pages branch
-      contents: write
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download initial compilation report
-        uses: actions/download-artifact@v4
-        with:
-          name: in_progress_compilation_report
-
-      - name: Download matrix compilation reports
-        uses: actions/download-artifact@v4
-        with:
-          pattern: compilation_report_*
-          path: ./reports
-
-      - name: Merge compilation reports using jq
-        run: |
-          mv ./.github/scripts/merge-bench-reports.sh merge-bench-reports.sh
-          ./merge-bench-reports.sh compilation_report
-
-      - name: Parse compilation report
-        id: compilation_report
-        uses: noir-lang/noir-bench-report@6ba151d7795042c4ff51864fbeb13c0a6a79246c
-        with:
-          report: compilation_report.json
-          header: |
-            Compilation Report
-          memory_report: false
-
-      - name: Add memory report to sticky comment
-        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          header: compilation
-          message: ${{ steps.compilation_report.outputs.markdown }}
-
-      - name: Convert to `benchmark-action` format
-        run: |
-          jq ".compilation_reports | map({name: .artifact_name, value: (.time[:-1] | tonumber), unit: \"s\"}) " ./compilation_report.json > time_bench.json
-
-      - name: Store benchmark result
-        continue-on-error: true
-        uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
-        with:
-          name: "Compilation Time"
-          tool: "customSmallerIsBetter"
-          output-file-path: ./time_bench.json
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          # We want this to only run on master to avoid garbage data from PRs being added.
-          auto-push: ${{ github.ref == 'refs/heads/master' }}
-          alert-threshold: "110%"
-          comment-on-alert: true
-          fail-on-alert: false
-          alert-comment-cc-users: "@TomAFrench"
-          max-items-in-chart: 50
-
   external_repo_memory_report:
     needs: [build-nargo]
     runs-on: ubuntu-22.04
@@ -593,6 +525,55 @@ jobs:
           retention-days: 3
           overwrite: true
 
+  upload_compilation_report:
+    name: Upload compilation report 
+    needs: [generate_compilation_and_execution_report, external_repo_compilation_and_execution_report]
+    # We want this job to run even if one variation of the matrix in `external_repo_compilation_and_execution_report` fails
+    if: always() 
+    runs-on: ubuntu-22.04
+    permissions:
+      pull-requests: write
+      # deployments permission to deploy GitHub pages website
+      deployments: write
+      # contents permission to update benchmark contents in gh-pages branch
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download initial compilation report
+        uses: actions/download-artifact@v4
+        with:
+          name: in_progress_compilation_report
+
+      - name: Download matrix compilation reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: compilation_report_*
+          path: ./reports
+
+      - name: Merge compilation reports using jq
+        run: |
+          mv ./.github/scripts/merge-bench-reports.sh merge-bench-reports.sh
+          ./merge-bench-reports.sh compilation_report
+          jq ".compilation_reports | map({name: .artifact_name, value: (.time[:-1] | tonumber), unit: \"s\"}) " ./compilation_report.json > time_bench.json
+
+      - name: Store benchmark result
+        continue-on-error: true
+        uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
+        with:
+          name: "Compilation Time"
+          tool: "customSmallerIsBetter"
+          output-file-path: ./time_bench.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # We want this to only run on master to avoid garbage data from PRs being added.
+          auto-push: ${{ github.ref == 'refs/heads/master' }}
+          alert-threshold: "110%"
+          comment-on-alert: true
+          fail-on-alert: false
+          alert-comment-cc-users: "@TomAFrench"
+          max-items-in-chart: 50
+
   upload_compilation_memory_report:
     name: Upload compilation memory report 
     needs: [generate_memory_report, external_repo_memory_report]
@@ -624,27 +605,8 @@ jobs:
         run: |
           mv ./.github/scripts/merge-bench-reports.sh merge-bench-reports.sh
           ./merge-bench-reports.sh memory_report
-
-      - name: Parse compilation memory report
-        id: compilation_mem_report
-        uses: noir-lang/noir-bench-report@6ba151d7795042c4ff51864fbeb13c0a6a79246c
-        with:
-          report: memory_report.json
-          header: |
-            Compilation Memory Report
-          memory_report: true
-
-      - name: Add memory report to sticky comment
-        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          header: compilation_memory
-          message: ${{ steps.compilation_mem_report.outputs.markdown }}
-
-      - name: Convert to `benchmark-action` format
-        run: |
           jq ".memory_reports | map({name: .artifact_name, value: (.peak_memory | tonumber), unit: \"MB\"}) " ./memory_report.json > memory_bench.json
-
+          
       - name: Store benchmark result
         continue-on-error: true
         uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
@@ -694,26 +656,7 @@ jobs:
           ./merge-bench-reports.sh memory_report
           # Rename the memory report as to not clash with the compilation memory report file name
           cp memory_report.json execution_memory_report.json
-
-      - name: Parse execution memory report
-        id: execution_mem_report
-        uses: noir-lang/noir-bench-report@6ba151d7795042c4ff51864fbeb13c0a6a79246c
-        with:
-          report: execution_memory_report.json
-          header: |
-            Execution Memory Report
-          memory_report: true
-
-      - name: Add execution memory report to sticky comment
-        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          header: execution_memory
-          message: ${{ steps.execution_mem_report.outputs.markdown }}
-
-      - name: Convert to `benchmark-action` format
-        run: |
-          jq ".memory_reports | map({name: .artifact_name, value: (.peak_memory | tonumber), unit: \"MB\"}) " ./execution_memory_report.json > memory_bench.json
+          jq ".memory_reports | map({name: .artifact_name, value: (.peak_memory | tonumber), unit: \"MB\"}) " ./execution_memory_report.json > memory_bench.json          
 
       - name: Store benchmark result
         continue-on-error: true
@@ -763,25 +706,6 @@ jobs:
         run: |
           mv ./.github/scripts/merge-bench-reports.sh merge-bench-reports.sh
           ./merge-bench-reports.sh execution_report
-
-      - name: Parse execution report
-        id: execution_report
-        uses: noir-lang/noir-bench-report@6ba151d7795042c4ff51864fbeb13c0a6a79246c
-        with:
-          report: execution_report.json
-          header: |
-            Execution Report
-          execution_report: true
-
-      - name: Add memory report to sticky comment
-        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          header: execution_time
-          message: ${{ steps.execution_report.outputs.markdown }}
-
-      - name: Convert to `benchmark-action` format
-        run: |
           jq ".execution_reports | map({name: .artifact_name, value: (.time[:-1] | tonumber), unit: \"s\"}) " ./execution_report.json > time_bench.json
 
       - name: Store benchmark result
