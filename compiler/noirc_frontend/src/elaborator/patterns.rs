@@ -574,7 +574,7 @@ impl<'context> Elaborator<'context> {
     ///         solve these
     fn resolve_item_turbofish(&mut self, item: PathResolutionItem) -> Vec<Type> {
         match item {
-            PathResolutionItem::StructFunction(struct_id, Some(generics), _func_id) => {
+            PathResolutionItem::Method(struct_id, Some(generics), _func_id) => {
                 let struct_type = self.interner.get_type(struct_id);
                 let struct_type = struct_type.borrow();
                 let struct_generics = struct_type.instantiate(self.interner);

@@ -1620,7 +1620,7 @@ impl<'context> Elaborator<'context> {
         }
         // Public struct functions should not expose private types.
         if let Some(struct_visibility) = func_meta.struct_id.and_then(|id| {
-            let struct_def = self.get_struct(id);
+            let struct_def = self.get_type(id);
             let struct_def = struct_def.borrow();
             self.find_struct_visibility(&struct_def)
         }) {

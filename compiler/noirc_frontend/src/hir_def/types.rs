@@ -451,6 +451,19 @@ impl DataType {
         }
     }
 
+    pub fn is_struct(&self) -> bool {
+        matches!(&self.body, TypeBody::Struct(_))
+    }
+
+    /// Retrieve the fields of this type with no modifications.
+    /// Returns None if this is not a struct type.
+    pub fn try_fields_raw(&self) -> Option<&[StructField]> {
+        match &self.body {
+            TypeBody::Struct(fields) => Some(fields),
+            _ => None,
+        }
+    }
+
     /// Retrieve the fields of this type with no modifications.
     /// Panics if this is not a struct type.
     fn fields_raw(&self) -> &[StructField] {
