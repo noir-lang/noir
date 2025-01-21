@@ -132,7 +132,7 @@ pub fn poseidon2_permutation<let N: u32>(_input: [Field; N], _state_length: u32)
 pub trait Hash {
     fn hash<H>(self, state: &mut H)
     where
-        H: Hasher;
+        H: Hasher<Field>;
 }
 
 // docs:start:derive_hash
@@ -152,35 +152,34 @@ comptime fn derive_hash(s: StructDefinition) -> Quoted {
 // docs:end:derive_hash
 
 // Hasher trait shall be implemented by algorithms to provide hash-agnostic means.
-// TODO: consider making the types generic here ([u8], [Field], etc.)
-pub trait Hasher {
+pub trait Hasher<T> {
     fn finish(self) -> Field;
 
-    fn write(&mut self, input: Field);
+    fn write(&mut self, input: T);
 }
 
 // BuildHasher is a factory trait, responsible for production of specific Hasher.
-pub trait BuildHasher<H>
+pub trait BuildHasher<H, T>
 where
-    H: Hasher,
+    H: Hasher<T>,
 {
     fn build_hasher(self) -> H;
 }
 
-pub struct BuildHasherDefault<H>;
+pub struct BuildHasherDefault<H, T>;
 
-impl<H> BuildHasher<H> for BuildHasherDefault<H>
+impl<H, T> BuildHasher<H, T> for BuildHasherDefault<H, T>
 where
-    H: Hasher + Default,
+    H: Hasher<T> + Default,
 {
     fn build_hasher(_self: Self) -> H {
         H::default()
     }
 }
 
-impl<H> Default for BuildHasherDefault<H>
+impl<H, T> Default for BuildHasherDefault<H, T>
 where
-    H: Hasher + Default,
+    H: Hasher<T> + Default,
 {
     fn default() -> Self {
         BuildHasherDefault {}
@@ -190,7 +189,7 @@ where
 impl Hash for Field {
     fn hash<H>(self, state: &mut H)
     where
-        H: Hasher,
+        H: Hasher<Field>,
     {
         H::write(state, self);
     }
@@ -199,7 +198,7 @@ impl Hash for Field {
 impl Hash for u1 {
     fn hash<H>(self, state: &mut H)
     where
-        H: Hasher,
+        H: Hasher<Field>,
     {
         H::write(state, self as Field);
     }
@@ -208,7 +207,7 @@ impl Hash for u1 {
 impl Hash for u8 {
     fn hash<H>(self, state: &mut H)
     where
-        H: Hasher,
+        H: Hasher<Field>,
     {
         H::write(state, self as Field);
     }
@@ -217,7 +216,7 @@ impl Hash for u8 {
 impl Hash for u16 {
     fn hash<H>(self, state: &mut H)
     where
-        H: Hasher,
+        H: Hasher<Field>,
     {
         H::write(state, self as Field);
     }
@@ -226,7 +225,7 @@ impl Hash for u16 {
 impl Hash for u32 {
     fn hash<H>(self, state: &mut H)
     where
-        H: Hasher,
+        H: Hasher<Field>,
     {
         H::write(state, self as Field);
     }
@@ -235,7 +234,7 @@ impl Hash for u32 {
 impl Hash for u64 {
     fn hash<H>(self, state: &mut H)
     where
-        H: Hasher,
+        H: Hasher<Field>,
     {
         H::write(state, self as Field);
     }
@@ -244,7 +243,7 @@ impl Hash for u64 {
 impl Hash for i8 {
     fn hash<H>(self, state: &mut H)
     where
-        H: Hasher,
+        H: Hasher<Field>,
     {
         H::write(state, self as Field);
     }
@@ -253,7 +252,7 @@ impl Hash for i8 {
 impl Hash for i16 {
     fn hash<H>(self, state: &mut H)
     where
-        H: Hasher,
+        H: Hasher<Field>,
     {
         H::write(state, self as Field);
     }
@@ -262,7 +261,7 @@ impl Hash for i16 {
 impl Hash for i32 {
     fn hash<H>(self, state: &mut H)
     where
-        H: Hasher,
+        H: Hasher<Field>,
     {
         H::write(state, self as Field);
     }
@@ -271,7 +270,7 @@ impl Hash for i32 {
 impl Hash for i64 {
     fn hash<H>(self, state: &mut H)
     where
-        H: Hasher,
+        H: Hasher<Field>,
     {
         H::write(state, self as Field);
     }
@@ -280,7 +279,7 @@ impl Hash for i64 {
 impl Hash for bool {
     fn hash<H>(self, state: &mut H)
     where
-        H: Hasher,
+        H: Hasher<Field>,
     {
         H::write(state, self as Field);
     }
@@ -289,14 +288,14 @@ impl Hash for bool {
 impl Hash for () {
     fn hash<H>(_self: Self, _state: &mut H)
     where
-        H: Hasher,
+        H: Hasher<Field>,
     {}
 }
 
 impl Hash for U128 {
     fn hash<H>(self, state: &mut H)
     where
-        H: Hasher,
+        H: Hasher<Field>,
     {
         H::write(state, self.lo as Field);
         H::write(state, self.hi as Field);
@@ -309,7 +308,7 @@ where
 {
     fn hash<H>(self, state: &mut H)
     where
-        H: Hasher,
+        H: Hasher<Field>,
     {
         for elem in self {
             elem.hash(state);
@@ -323,7 +322,7 @@ where
 {
     fn hash<H>(self, state: &mut H)
     where
-        H: Hasher,
+        H: Hasher<Field>,
     {
         self.len().hash(state);
         for elem in self {
@@ -339,7 +338,7 @@ where
 {
     fn hash<H>(self, state: &mut H)
     where
-        H: Hasher,
+        H: Hasher<Field>,
     {
         self.0.hash(state);
         self.1.hash(state);
@@ -354,7 +353,7 @@ where
 {
     fn hash<H>(self, state: &mut H)
     where
-        H: Hasher,
+        H: Hasher<Field>,
     {
         self.0.hash(state);
         self.1.hash(state);
@@ -371,7 +370,7 @@ where
 {
     fn hash<H>(self, state: &mut H)
     where
-        H: Hasher,
+        H: Hasher<Field>,
     {
         self.0.hash(state);
         self.1.hash(state);
@@ -390,7 +389,7 @@ where
 {
     fn hash<H>(self, state: &mut H)
     where
-        H: Hasher,
+        H: Hasher<Field>,
     {
         self.0.hash(state);
         self.1.hash(state);
