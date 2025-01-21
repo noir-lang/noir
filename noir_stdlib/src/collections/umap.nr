@@ -114,8 +114,7 @@ impl<K, V, B> UHashMap<K, V, B> {
     {
         // docs:end:contains_key
         /// Safety: unconstrained context
-        unsafe { self.get(key) }
-            .is_some()
+        unsafe { self.get(key) }.is_some()
     }
 
     // Returns true if the map contains no elements.

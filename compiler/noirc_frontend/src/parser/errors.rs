@@ -83,8 +83,8 @@ pub enum ParserErrorReason {
         "Multiple primary attributes found. Only one function attribute is allowed per function"
     )]
     MultipleFunctionAttributesFound,
-    #[error("A function attribute cannot be placed on a struct")]
-    NoFunctionAttributesAllowedOnStruct,
+    #[error("A function attribute cannot be placed on a struct or enum")]
+    NoFunctionAttributesAllowedOnType,
     #[error("Assert statements can only accept string literals")]
     AssertMessageNotString,
     #[error("Integer bit size {0} isn't supported")]

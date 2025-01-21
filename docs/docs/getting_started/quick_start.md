@@ -68,6 +68,7 @@ We can now use `nargo` to generate a _Prover.toml_ file, where our input values 
 ```sh
 cd hello_world
 nargo check
+```
 
 Let's feed some valid values into this file:
 
@@ -113,7 +114,7 @@ bb verify -k ./target/vk -p ./target/proof
 
 Notice that in order to verify a proof, the verifier knows nothing but the circuit, which is compiled and used to generate the verification key. This is obviously quite important: private inputs remain private.
 
-As for the public inputs, you may have noticed they haven't been specified. This behavior varies with each particular backend, but barretenberg typically attaches them to the proof. You can see them by parsing and splitting it. For example for if your public inputs are 32 bytes:
+As for the public inputs, you may have noticed they haven't been specified. This behavior varies with each particular backend, but barretenberg typically attaches them to the proof. You can see them by parsing and splitting it. For example if your public inputs are 32 bytes:
 
 ```bash
 head -c 32 ./target/proof | od -An -v -t x1 | tr -d $' \n'

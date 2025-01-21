@@ -40,19 +40,16 @@ comptime fn inject_context(f: FunctionDefinition) {
 }
 
 comptime fn mapping_function(expr: Expr, f: FunctionDefinition) -> Option<Expr> {
-    expr.as_function_call().and_then(|func_call: (Expr, [Expr])| {
-        let (name, arguments) = func_call;
-        name.resolve(Option::some(f)).as_function_definition().and_then(
-            |function_definition: FunctionDefinition| {
-                if function_definition.has_named_attribute("inject_context") {
-                    let arguments = arguments.push_front(quote { _context }.as_expr().unwrap());
-                    let arguments = arguments.map(|arg: Expr| arg.quoted()).join(quote { , });
-                    Option::some(quote { $name($arguments) }.as_expr().unwrap())
-                } else {
-                    Option::none()
-                }
-            },
-        )
+    expr.as_function_call().and_then(|(name, arguments)| {
+        name.resolve(Option::some(f)).as_function_definition().and_then(|function_definition| {
+            if function_definition.has_named_attribute("inject_context") {
+                let arguments = arguments.push_front(quote { _context }.as_expr().unwrap());
+                let arguments = arguments.map(|arg| arg.quoted()).join(quote { , });
+                Option::some(quote { $name($arguments) }.as_expr().unwrap())
+            } else {
+                Option::none()
+            }
+        })
     })
 }
 

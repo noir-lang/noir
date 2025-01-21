@@ -1,7 +1,7 @@
 use iter_extended::vecmap;
 use rustc_hash::FxHashMap as HashMap;
 
-use crate::ast::{Ident, NoirFunction};
+use crate::ast::{Ident, ItemVisibility, NoirFunction};
 use crate::hir::type_check::generics::TraitGenerics;
 use crate::ResolvedGeneric;
 use crate::{
@@ -66,6 +66,7 @@ pub struct Trait {
     pub name: Ident,
     pub generics: Generics,
     pub location: Location,
+    pub visibility: ItemVisibility,
 
     /// When resolving the types of Trait elements, all references to `Self` resolve
     /// to this TypeVariable. Then when we check if the types of trait impl elements
@@ -160,6 +161,10 @@ impl Trait {
         self.where_clause = where_clause;
     }
 
+    pub fn set_visibility(&mut self, visibility: ItemVisibility) {
+        self.visibility = visibility;
+    }
+
     pub fn find_method(&self, name: &str) -> Option<TraitMethodId> {
         for (idx, method) in self.methods.iter().enumerate() {
             if &method.name == name {
@@ -181,22 +186,22 @@ impl Trait {
         (ordered, named)
     }
 
-    /// Returns a TraitConstraint for this trait using Self as the object
-    /// type and the uninstantiated generics for any trait generics.
-    pub fn as_constraint(&self, span: Span) -> TraitConstraint {
+    pub fn get_trait_generics(&self, span: Span) -> TraitGenerics {
         let ordered = vecmap(&self.generics, |generic| generic.clone().as_named_generic());
         let named = vecmap(&self.associated_types, |generic| {
             let name = Ident::new(generic.name.to_string(), span);
             NamedType { name, typ: generic.clone().as_named_generic() }
         });
+        TraitGenerics { ordered, named }
+    }
 
+    /// Returns a TraitConstraint for this trait using Self as the object
+    /// type and the uninstantiated generics for any trait generics.
+    pub fn as_constraint(&self, span: Span) -> TraitConstraint {
+        let trait_generics = self.get_trait_generics(span);
         TraitConstraint {
             typ: Type::TypeVariable(self.self_type_typevar.clone()),
-            trait_bound: ResolvedTraitBound {
-                trait_generics: TraitGenerics { ordered, named },
-                trait_id: self.id,
-                span,
-            },
+            trait_bound: ResolvedTraitBound { trait_generics, trait_id: self.id, span },
         }
     }
 }

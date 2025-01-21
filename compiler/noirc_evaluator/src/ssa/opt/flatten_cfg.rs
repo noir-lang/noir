@@ -654,20 +654,10 @@ impl<'f> Context<'f> {
                     // Replace constraint `lhs == rhs` with `condition * lhs == condition * rhs`.
 
                     // Condition needs to be cast to argument type in order to multiply them together.
-                    let argument_type = self.inserter.function.dfg.type_of_value(lhs);
-
-                    let cast = Instruction::Cast(condition, argument_type.unwrap_numeric());
-                    let casted_condition = self.insert_instruction(cast, call_stack);
-
-                    let lhs = self.insert_instruction(
-                        Instruction::binary(BinaryOp::Mul, lhs, casted_condition),
-                        call_stack,
-                    );
-                    let rhs = self.insert_instruction(
-                        Instruction::binary(BinaryOp::Mul, rhs, casted_condition),
-                        call_stack,
-                    );
-
+                    let casted_condition =
+                        self.cast_condition_to_value_type(condition, lhs, call_stack);
+                    let lhs = self.mul_by_condition(lhs, casted_condition, call_stack);
+                    let rhs = self.mul_by_condition(rhs, casted_condition, call_stack);
                     Instruction::Constrain(lhs, rhs, message)
                 }
                 Instruction::Store { address, value } => {
@@ -700,28 +690,18 @@ impl<'f> Context<'f> {
                     // Replace value with `value * predicate` to zero out value when predicate is inactive.
 
                     // Condition needs to be cast to argument type in order to multiply them together.
-                    let argument_type = self.inserter.function.dfg.type_of_value(value);
-                    let cast = Instruction::Cast(condition, argument_type.unwrap_numeric());
-                    let casted_condition = self.insert_instruction(cast, call_stack);
-
-                    let value = self.insert_instruction(
-                        Instruction::binary(BinaryOp::Mul, value, casted_condition),
-                        call_stack,
-                    );
+                    let casted_condition =
+                        self.cast_condition_to_value_type(condition, value, call_stack);
+                    let value = self.mul_by_condition(value, casted_condition, call_stack);
                     Instruction::RangeCheck { value, max_bit_size, assert_message }
                 }
                 Instruction::Call { func, mut arguments } => match self.inserter.function.dfg[func]
                 {
                     Value::Intrinsic(Intrinsic::ToBits(_) | Intrinsic::ToRadix(_)) => {
                         let field = arguments[0];
-                        let argument_type = self.inserter.function.dfg.type_of_value(field);
-
-                        let cast = Instruction::Cast(condition, argument_type.unwrap_numeric());
-                        let casted_condition = self.insert_instruction(cast, call_stack);
-                        let field = self.insert_instruction(
-                            Instruction::binary(BinaryOp::Mul, field, casted_condition),
-                            call_stack,
-                        );
+                        let casted_condition =
+                            self.cast_condition_to_value_type(condition, field, call_stack);
+                        let field = self.mul_by_condition(field, casted_condition, call_stack);
 
                         arguments[0] = field;
 
@@ -765,6 +745,30 @@ impl<'f> Context<'f> {
         }
     }
 
+    fn cast_condition_to_value_type(
+        &mut self,
+        condition: ValueId,
+        value: ValueId,
+        call_stack: CallStackId,
+    ) -> ValueId {
+        let argument_type = self.inserter.function.dfg.type_of_value(value);
+        let cast = Instruction::Cast(condition, argument_type.unwrap_numeric());
+        self.insert_instruction(cast, call_stack)
+    }
+
+    fn mul_by_condition(
+        &mut self,
+        value: ValueId,
+        condition: ValueId,
+        call_stack: CallStackId,
+    ) -> ValueId {
+        // Unchecked mul because the condition is always 0 or 1
+        self.insert_instruction(
+            Instruction::binary(BinaryOp::Mul { unchecked: true }, value, condition),
+            call_stack,
+        )
+    }
+
     /// When a MSM is done under a predicate, we need to apply the predicate
     /// to the is_infinity property of the input points in order to ensure
     /// that the points will be on the curve no matter what.
@@ -797,11 +801,11 @@ impl<'f> Context<'f> {
 
     // Computes: if condition { var } else { 1 }
     fn var_or_one(&mut self, var: ValueId, condition: ValueId, call_stack: CallStackId) -> ValueId {
-        let field =
-            self.insert_instruction(Instruction::binary(BinaryOp::Mul, var, condition), call_stack);
+        let field = self.mul_by_condition(var, condition, call_stack);
         let not_condition = self.not_instruction(condition, call_stack);
+        // Unchecked add because of the values is guaranteed to be 0
         self.insert_instruction(
-            Instruction::binary(BinaryOp::Add, field, not_condition),
+            Instruction::binary(BinaryOp::Add { unchecked: true }, field, not_condition),
             call_stack,
         )
     }
@@ -1279,15 +1283,15 @@ mod test {
             v12 = not v5
             v13 = cast v4 as u8
             v14 = cast v12 as u8
-            v15 = mul v13, v10
-            v16 = mul v14, v11
-            v17 = add v15, v16
+            v15 = unchecked_mul v13, v10
+            v16 = unchecked_mul v14, v11
+            v17 = unchecked_add v15, v16
             store v17 at v6
             enable_side_effects v12
             v18 = load v6 -> u8
             v19 = cast v12 as u8
             v20 = cast v4 as u8
-            v21 = mul v20, v18
+            v21 = unchecked_mul v20, v18
             store v21 at v6
             enable_side_effects u1 1
             constrain v5 == u1 1

@@ -36,7 +36,7 @@ impl Ssa {
 }
 
 impl Function {
-    fn loop_invariant_code_motion(&mut self) {
+    pub(super) fn loop_invariant_code_motion(&mut self) {
         Loops::find_all(self).hoist_loop_invariants(self);
     }
 }
@@ -112,10 +112,12 @@ impl<'f> LoopInvariantContext<'f> {
 
                     // If we are hoisting a MakeArray instruction,
                     // we need to issue an extra inc_rc in case they are mutated afterward.
-                    if matches!(
-                        self.inserter.function.dfg[instruction_id],
-                        Instruction::MakeArray { .. }
-                    ) {
+                    if self.inserter.function.runtime().is_brillig()
+                        && matches!(
+                            self.inserter.function.dfg[instruction_id],
+                            Instruction::MakeArray { .. }
+                        )
+                    {
                         let result =
                             self.inserter.function.dfg.instruction_results(instruction_id)[0];
                         let inc_rc = Instruction::IncrementRc { value: result };
@@ -233,7 +235,7 @@ impl<'f> LoopInvariantContext<'f> {
                 }
             }
             Instruction::Binary(binary) => {
-                if !matches!(binary.operator, BinaryOp::Add | BinaryOp::Mul) {
+                if !matches!(binary.operator, BinaryOp::Add { .. } | BinaryOp::Mul { .. }) {
                     return false;
                 }
 

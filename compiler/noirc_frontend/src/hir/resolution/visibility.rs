@@ -138,18 +138,29 @@ pub fn method_call_is_visible(
         ItemVisibility::Public => true,
         ItemVisibility::PublicCrate | ItemVisibility::Private => {
             let func_meta = interner.function_meta(&func_id);
-            if let Some(struct_id) = func_meta.struct_id {
-                return struct_member_is_visible(
-                    struct_id,
+
+            if let Some(trait_id) = func_meta.trait_id {
+                return trait_member_is_visible(
+                    trait_id,
                     modifiers.visibility,
                     current_module,
                     def_maps,
                 );
             }
 
-            if let Some(trait_id) = func_meta.trait_id {
+            if let Some(trait_impl_id) = func_meta.trait_impl {
+                let trait_impl = interner.get_trait_implementation(trait_impl_id);
                 return trait_member_is_visible(
-                    trait_id,
+                    trait_impl.borrow().trait_id,
+                    modifiers.visibility,
+                    current_module,
+                    def_maps,
+                );
+            }
+
+            if let Some(struct_id) = func_meta.struct_id {
+                return struct_member_is_visible(
+                    struct_id,
                     modifiers.visibility,
                     current_module,
                     def_maps,

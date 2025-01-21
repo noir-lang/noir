@@ -120,3 +120,10 @@ where
 
 #[builtin(as_witness)]
 pub fn as_witness(x: Field) {}
+
+mod tests {
+    #[test(should_fail_with = "custom message")]
+    fn test_static_assert_custom_message() {
+        super::static_assert(1 == 2, "custom message");
+    }
+}

@@ -267,7 +267,8 @@ impl DependencyContext {
                 }
                 // Check the constrain instruction arguments against those
                 // involved in Brillig calls, remove covered calls
-                Instruction::Constrain(value_id1, value_id2, _) => {
+                Instruction::Constrain(value_id1, value_id2, _)
+                | Instruction::ConstrainNotEqual(value_id1, value_id2, _) => {
                     self.clear_constrained(
                         &[function.dfg.resolve(*value_id1), function.dfg.resolve(*value_id2)],
                         function,
@@ -332,7 +333,8 @@ impl DependencyContext {
                         }
                         Value::Instruction { .. }
                         | Value::NumericConstant { .. }
-                        | Value::Param { .. } => {
+                        | Value::Param { .. }
+                        | Value::Global(_) => {
                             panic!(
                                 "calling non-function value with ID {func_id} in function {}",
                                 function.name()
@@ -554,6 +556,7 @@ impl Context {
                 | Instruction::Binary(..)
                 | Instruction::Cast(..)
                 | Instruction::Constrain(..)
+                | Instruction::ConstrainNotEqual(..)
                 | Instruction::IfElse { .. }
                 | Instruction::Load { .. }
                 | Instruction::Not(..)
@@ -618,7 +621,8 @@ impl Context {
                         }
                         Value::Instruction { .. }
                         | Value::NumericConstant { .. }
-                        | Value::Param { .. } => {
+                        | Value::Param { .. }
+                        | Value::Global(_) => {
                             panic!("At the point we are running disconnect there shouldn't be any other values as arguments")
                         }
                     }

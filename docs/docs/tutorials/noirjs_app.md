@@ -25,7 +25,7 @@ Let's go barebones. Doing the bare minimum is not only simple, but also allows y
 Barebones means we can immediately start with the dependencies even on an empty folder 😈:
 
 ```bash
-bun i @noir-lang/noir_wasm@1.0.0-beta.0 @noir-lang/noir_js@1.0.0-beta.0 @aztec/bb.js@0.63.1
+bun i @noir-lang/noir_wasm@1.0.0-beta.1 @noir-lang/noir_js@1.0.0-beta.1 @aztec/bb.js@0.63.1
 ```
 
 Wait, what are these dependencies?
@@ -36,7 +36,7 @@ Wait, what are these dependencies?
 
 :::info
 
-In this guide, we will install versions pinned to 1.0.0-beta.0. These work with Barretenberg version 0.63.1, so we are using that one version too. Feel free to try with older or later versions, though!
+In this guide, we will install versions pinned to 1.0.0-beta.1. These work with Barretenberg version 0.63.1, so we are using that one version too. Feel free to try with older or later versions, though!
 
 :::
 
@@ -50,7 +50,7 @@ It's not just you. We also enjoy syntax highlighting. [Check out the Language Se
 
 :::
 
-All you need is a `main.nr` and a `Nargo.toml` file. You can follow the [noirup](../getting_started/noir_installation.md) installation and just run `noirup -v 1.0.0-beta.0`, or just create them by hand:
+All you need is a `main.nr` and a `Nargo.toml` file. You can follow the [noirup](../getting_started/noir_installation.md) installation and just run `noirup -v 1.0.0-beta.1`, or just create them by hand:
 
 ```bash
 mkdir -p circuit/src

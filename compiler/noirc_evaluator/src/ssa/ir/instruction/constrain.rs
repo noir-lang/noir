@@ -44,7 +44,7 @@ pub(super) fn decompose_constrain(
                         vec![Instruction::Constrain(lhs, rhs, msg.clone())]
                     }
 
-                    Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Mul })
+                    Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Mul { .. } })
                         if constant.is_one() && dfg.type_of_value(lhs) == Type::bool() =>
                     {
                         // Replace an equality assertion on a boolean multiplication

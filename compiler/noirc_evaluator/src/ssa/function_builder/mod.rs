@@ -19,7 +19,7 @@ use super::{
     ir::{
         basic_block::BasicBlock,
         call_stack::{CallStack, CallStackId},
-        dfg::InsertInstructionResult,
+        dfg::{GlobalsGraph, InsertInstructionResult},
         function::RuntimeType,
         instruction::{ConstrainError, InstructionId, Intrinsic},
         types::NumericType,
@@ -71,6 +71,13 @@ impl FunctionBuilder {
     pub(crate) fn set_runtime(&mut self, runtime: RuntimeType) {
         assert_eq!(self.finished_functions.len(), 0, "Attempted to set runtime on a FunctionBuilder with finished functions. A FunctionBuilder's runtime should only be set on its initial function");
         self.current_function.set_runtime(runtime);
+    }
+
+    pub(crate) fn set_globals(&mut self, globals: Arc<GlobalsGraph>) {
+        for (_, value) in globals.values_iter() {
+            self.current_function.dfg.make_global(value.get_type().into_owned());
+        }
+        self.current_function.set_globals(globals);
     }
 
     /// Finish the current function and create a new function.
@@ -251,14 +258,6 @@ impl FunctionBuilder {
         operator: BinaryOp,
         rhs: ValueId,
     ) -> ValueId {
-        let lhs_type = self.type_of_value(lhs);
-        let rhs_type = self.type_of_value(rhs);
-        if operator != BinaryOp::Shl && operator != BinaryOp::Shr {
-            assert_eq!(
-                lhs_type, rhs_type,
-                "ICE - Binary instruction operands must have the same type"
-            );
-        }
         let instruction = Instruction::Binary(Binary { lhs, rhs, operator });
         self.insert_instruction(instruction, None).first()
     }

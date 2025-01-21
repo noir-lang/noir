@@ -33,6 +33,7 @@ use super::{process_request, to_lsp_location};
 mod fill_struct_fields;
 mod implement_missing_members;
 mod import_or_qualify;
+mod import_trait;
 mod remove_bang_from_call;
 mod remove_unused_import;
 mod tests;
@@ -284,6 +285,8 @@ impl<'a> Visitor for CodeActionFinder<'a> {
         if method_call.is_macro_call {
             self.remove_bang_from_call(method_call.method_name.span());
         }
+
+        self.import_trait_in_method_call(method_call);
 
         true
     }

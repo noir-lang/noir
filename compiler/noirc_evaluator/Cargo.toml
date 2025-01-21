@@ -29,6 +29,7 @@ chrono = "0.4.37"
 rayon.workspace = true
 cfg-if.workspace = true
 smallvec = { version = "1.13.2", features = ["serde"] }
+vec-collections = "0.4.3"
 
 [dev-dependencies]
 proptest.workspace = true

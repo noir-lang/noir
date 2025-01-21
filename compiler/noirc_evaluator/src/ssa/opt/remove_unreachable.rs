@@ -19,9 +19,13 @@ impl Ssa {
     pub(crate) fn remove_unreachable_functions(mut self) -> Self {
         let mut used_functions = HashSet::default();
 
-        for function_id in self.functions.keys() {
-            if self.is_entry_point(*function_id) {
-                collect_reachable_functions(&self, *function_id, &mut used_functions);
+        for (id, function) in self.functions.iter() {
+            // XXX: `self.is_entry_point(*id)` could leave Brillig functions that nobody calls in the SSA.
+            let is_entry_point = function.id() == self.main_id
+                || function.runtime().is_acir() && function.runtime().is_entry_point();
+
+            if is_entry_point {
+                collect_reachable_functions(&self, *id, &mut used_functions);
             }
         }
 
@@ -77,4 +81,55 @@ fn used_functions(func: &Function) -> BTreeSet<FunctionId> {
     }
 
     used_function_ids
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::ssa::opt::assert_normalized_ssa_equals;
+
+    use super::Ssa;
+
+    #[test]
+    fn remove_unused_brillig() {
+        let src = "
+          brillig(inline) fn main f0 {
+            b0(v0: u32):
+              v2 = call f1(v0) -> u32
+              v4 = add v0, u32 1
+              v5 = eq v2, v4
+              constrain v2 == v4
+              return
+          }
+          brillig(inline) fn increment f1 {
+            b0(v0: u32):
+              v2 = add v0, u32 1
+              return v2
+          }
+          brillig(inline) fn increment_acir f2 {
+            b0(v0: u32):
+              v2 = add v0, u32 1
+              return v2
+          }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_functions();
+
+        let expected = "
+          brillig(inline) fn main f0 {
+            b0(v0: u32):
+              v2 = call f1(v0) -> u32
+              v4 = add v0, u32 1
+              v5 = eq v2, v4
+              constrain v2 == v4
+              return
+          }
+          brillig(inline) fn increment f1 {
+            b0(v0: u32):
+              v2 = add v0, u32 1
+              return v2
+          }
+        ";
+        assert_normalized_ssa_equals(ssa, expected);
+    }
 }

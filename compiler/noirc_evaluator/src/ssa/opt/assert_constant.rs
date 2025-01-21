@@ -122,7 +122,11 @@ fn evaluate_static_assert(
     } else {
         let call_stack = function.dfg.get_instruction_call_stack(instruction);
         if function.dfg.is_constant(arguments[0]) {
-            Err(RuntimeError::StaticAssertFailed { call_stack })
+            let message = function
+                .dfg
+                .get_string(arguments[1])
+                .expect("Expected second argument to be a string");
+            Err(RuntimeError::StaticAssertFailed { message, call_stack })
         } else {
             Err(RuntimeError::StaticAssertDynamicPredicate { call_stack })
         }

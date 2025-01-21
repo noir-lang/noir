@@ -21,7 +21,7 @@ use crate::{
 use super::Elaborator;
 
 impl<'context> Elaborator<'context> {
-    pub fn collect_traits(&mut self, traits: &BTreeMap<TraitId, UnresolvedTrait>) {
+    pub fn collect_traits(&mut self, traits: &mut BTreeMap<TraitId, UnresolvedTrait>) {
         for (trait_id, unresolved_trait) in traits {
             self.local_module = unresolved_trait.module_id;
 
@@ -39,8 +39,13 @@ impl<'context> Elaborator<'context> {
                     &resolved_generics,
                 );
 
+                let new_generics =
+                    this.desugar_trait_constraints(&mut unresolved_trait.trait_def.where_clause);
+                this.generics.extend(new_generics);
+
                 let where_clause =
                     this.resolve_trait_constraints(&unresolved_trait.trait_def.where_clause);
+                this.remove_trait_constraints_from_scope(&where_clause);
 
                 // Each associated type in this trait is also an implicit generic
                 for associated_type in &this.interner.get_trait(*trait_id).associated_types {
@@ -56,6 +61,7 @@ impl<'context> Elaborator<'context> {
                 this.interner.update_trait(*trait_id, |trait_def| {
                     trait_def.set_trait_bounds(resolved_trait_bounds);
                     trait_def.set_where_clause(where_clause);
+                    trait_def.set_visibility(unresolved_trait.trait_def.visibility);
                 });
 
                 let methods = this.resolve_trait_methods(*trait_id, unresolved_trait);
@@ -126,7 +132,7 @@ impl<'context> Elaborator<'context> {
                     let func_id = unresolved_trait.method_ids[&name.0.contents];
                     let mut where_clause = where_clause.to_vec();
 
-                    // Attach any trait constraints on the trait to the function
+                    // Attach any trait constraints on the trait to the function,
                     where_clause.extend(unresolved_trait.trait_def.where_clause.clone());
 
                     this.resolve_trait_function(

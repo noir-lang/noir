@@ -16,6 +16,7 @@ pub enum HirStatement {
     Constrain(HirConstrainStatement),
     Assign(HirAssignStatement),
     For(HirForStatement),
+    Loop(ExprId),
     Break,
     Continue,
     Expression(ExprId),

@@ -14,11 +14,16 @@ mod csat;
 
 pub(crate) use csat::CSatTransformer;
 pub use csat::MIN_EXPRESSION_WIDTH;
+use tracing::info;
 
 use super::{
-    optimizers::MergeExpressionsOptimizer, transform_assert_messages, AcirTransformationMap,
-    MAX_OPTIMIZER_PASSES,
+    optimizers::{MergeExpressionsOptimizer, RangeOptimizer},
+    transform_assert_messages, AcirTransformationMap,
 };
+
+/// We need multiple passes to stabilize the output.
+/// The value was determined by running tests.
+const MAX_TRANSFORMER_PASSES: usize = 3;
 
 /// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] specific optimizations to a [`Circuit`].
 pub fn transform<F: AcirField>(
@@ -50,12 +55,18 @@ pub(super) fn transform_internal<F: AcirField>(
     expression_width: ExpressionWidth,
     mut acir_opcode_positions: Vec<usize>,
 ) -> (Circuit<F>, Vec<usize>) {
+    if acir.opcodes.len() == 1 && matches!(acir.opcodes[0], Opcode::BrilligCall { .. }) {
+        info!("Program is fully unconstrained, skipping transformation pass");
+        return (acir, acir_opcode_positions);
+    }
+
     // Allow multiple passes until we have stable output.
     let mut prev_opcodes_hash = fxhash::hash64(&acir.opcodes);
 
     // For most test programs it would be enough to loop here, but some of them
     // don't stabilize unless we also repeat the backend agnostic optimizations.
-    for _ in 0..MAX_OPTIMIZER_PASSES {
+    for _ in 0..MAX_TRANSFORMER_PASSES {
+        info!("Number of opcodes {}", acir.opcodes.len());
         let (new_acir, new_acir_opcode_positions) =
             transform_internal_once(acir, expression_width, acir_opcode_positions);
 
@@ -216,6 +227,12 @@ fn transform_internal_once<F: AcirField>(
         // The optimizer does not add new public inputs
         ..acir
     };
+
+    // The `MergeOptimizer` can merge two witnesses which have range opcodes applied to them
+    // so we run the `RangeOptimizer` afterwards to clear these up.
+    let range_optimizer = RangeOptimizer::new(acir);
+    let (acir, new_acir_opcode_positions) =
+        range_optimizer.replace_redundant_ranges(new_acir_opcode_positions);
 
     (acir, new_acir_opcode_positions)
 }

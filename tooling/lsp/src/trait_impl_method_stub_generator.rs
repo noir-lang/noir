@@ -361,7 +361,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
             Type::Forall(_, _) => {
                 panic!("Shouldn't get a Type::Forall");
             }
-            Type::InfixExpr(left, op, right) => {
+            Type::InfixExpr(left, op, right, _) => {
                 self.append_type(left);
                 self.string.push(' ');
                 self.string.push_str(&op.to_string());

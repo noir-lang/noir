@@ -26,7 +26,7 @@ pub(crate) struct CheckCommand {
 
     /// Force overwrite of existing files
     #[clap(long = "overwrite")]
-    allow_overwrite: bool,
+    pub(super) allow_overwrite: bool,
 
     #[clap(flatten)]
     compile_options: CompileOptions,

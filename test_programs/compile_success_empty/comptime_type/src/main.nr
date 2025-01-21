@@ -100,7 +100,7 @@ fn main() {
         let foo = Foo { x: 0 };
         let foo_type = type_of(foo);
         let (struct_definition, generics) = foo_type.as_struct().unwrap();
-        let fields = struct_definition.fields();
+        let fields = struct_definition.fields(generics);
         assert_eq(fields.len(), 1);
 
         assert_eq(generics.len(), 1);

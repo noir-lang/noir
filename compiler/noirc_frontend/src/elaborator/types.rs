@@ -310,11 +310,32 @@ impl<'context> Elaborator<'context> {
         }
     }
 
+    /// Identical to `resolve_type_args` but does not allow
+    /// associated types to be elided since trait impls must specify them.
+    pub(super) fn resolve_trait_args_from_trait_impl(
+        &mut self,
+        args: GenericTypeArgs,
+        item: TraitId,
+        span: Span,
+    ) -> (Vec<Type>, Vec<NamedType>) {
+        self.resolve_type_args_inner(args, item, span, false)
+    }
+
     pub(super) fn resolve_type_args(
+        &mut self,
+        args: GenericTypeArgs,
+        item: impl Generic,
+        span: Span,
+    ) -> (Vec<Type>, Vec<NamedType>) {
+        self.resolve_type_args_inner(args, item, span, true)
+    }
+
+    pub(super) fn resolve_type_args_inner(
         &mut self,
         mut args: GenericTypeArgs,
         item: impl Generic,
         span: Span,
+        allow_implicit_named_args: bool,
     ) -> (Vec<Type>, Vec<NamedType>) {
         let expected_kinds = item.generics(self.interner);
 
@@ -336,7 +357,12 @@ impl<'context> Elaborator<'context> {
         let mut associated = Vec::new();
 
         if item.accepts_named_type_args() {
-            associated = self.resolve_associated_type_args(args.named_args, item, span);
+            associated = self.resolve_associated_type_args(
+                args.named_args,
+                item,
+                span,
+                allow_implicit_named_args,
+            );
         } else if !args.named_args.is_empty() {
             let item_kind = item.item_kind();
             self.push_err(ResolverError::NamedTypeArgs { span, item_kind });
@@ -350,6 +376,7 @@ impl<'context> Elaborator<'context> {
         args: Vec<(Ident, UnresolvedType)>,
         item: impl Generic,
         span: Span,
+        allow_implicit_named_args: bool,
     ) -> Vec<NamedType> {
         let mut seen_args = HashMap::default();
         let mut required_args = item.named_generics(self.interner);
@@ -379,11 +406,19 @@ impl<'context> Elaborator<'context> {
             resolved.push(NamedType { name, typ });
         }
 
-        // Anything that hasn't been removed yet is missing
+        // Anything that hasn't been removed yet is missing.
+        // Fill it in to avoid a panic if we allow named args to be elided, otherwise error.
         for generic in required_args {
-            let item = item.item_name(self.interner);
             let name = generic.name.clone();
-            self.push_err(TypeCheckError::MissingNamedTypeArg { item, span, name });
+
+            if allow_implicit_named_args {
+                let name = Ident::new(name.as_ref().clone(), span);
+                let typ = self.interner.next_type_variable();
+                resolved.push(NamedType { name, typ });
+            } else {
+                let item = item.item_name(self.interner);
+                self.push_err(TypeCheckError::MissingNamedTypeArg { item, span, name });
+            }
         }
 
         resolved
@@ -500,7 +535,7 @@ impl<'context> Elaborator<'context> {
                         }
                     }
                     (lhs, rhs) => {
-                        let infix = Type::InfixExpr(Box::new(lhs), op, Box::new(rhs));
+                        let infix = Type::infix_expr(Box::new(lhs), op, Box::new(rhs));
                         Type::CheckedCast { from: Box::new(infix.clone()), to: Box::new(infix) }
                             .canonicalize()
                     }
@@ -649,6 +684,60 @@ impl<'context> Elaborator<'context> {
         None
     }
 
+    /// This resolves a method in the form `Struct::method` where `method` is a trait method
+    fn resolve_struct_trait_method(&mut self, path: &Path) -> Option<TraitPathResolution> {
+        if path.segments.len() < 2 {
+            return None;
+        }
+
+        let mut path = path.clone();
+        let span = path.span();
+        let last_segment = path.pop();
+        let before_last_segment = path.last_segment();
+
+        let path_resolution = self.resolve_path(path).ok()?;
+        let PathResolutionItem::Struct(struct_id) = path_resolution.item else {
+            return None;
+        };
+
+        let struct_type = self.get_struct(struct_id);
+        let generics = struct_type.borrow().instantiate(self.interner);
+        let typ = Type::Struct(struct_type, generics);
+        let method_name = &last_segment.ident.0.contents;
+
+        // If we can find a method on the struct, this is definitely not a trait method
+        if self.interner.lookup_direct_method(&typ, method_name, false).is_some() {
+            return None;
+        }
+
+        let trait_methods = self.interner.lookup_trait_methods(&typ, method_name, false);
+        if trait_methods.is_empty() {
+            return None;
+        }
+
+        let (hir_method_reference, error) =
+            self.get_trait_method_in_scope(&trait_methods, method_name, last_segment.span);
+        let hir_method_reference = hir_method_reference?;
+        let func_id = hir_method_reference.func_id(self.interner)?;
+        let HirMethodReference::TraitMethodId(trait_method_id, _, _) = hir_method_reference else {
+            return None;
+        };
+
+        let trait_id = trait_method_id.trait_id;
+        let trait_ = self.interner.get_trait(trait_id);
+        let mut constraint = trait_.as_constraint(span);
+        constraint.typ = typ;
+
+        let method = TraitMethod { method_id: trait_method_id, constraint, assumed: false };
+        let turbofish = before_last_segment.turbofish();
+        let item = PathResolutionItem::TraitFunction(trait_id, turbofish, func_id);
+        let mut errors = path_resolution.errors;
+        if let Some(error) = error {
+            errors.push(error);
+        }
+        Some(TraitPathResolution { method, item: Some(item), errors })
+    }
+
     // Try to resolve the given trait method path.
     //
     // Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
@@ -660,6 +749,7 @@ impl<'context> Elaborator<'context> {
         self.resolve_trait_static_method_by_self(path)
             .or_else(|| self.resolve_trait_static_method(path))
             .or_else(|| self.resolve_trait_method_by_named_generic(path))
+            .or_else(|| self.resolve_struct_trait_method(path))
     }
 
     pub(super) fn unify(
@@ -1421,6 +1511,19 @@ impl<'context> Elaborator<'context> {
         method_name: &str,
         span: Span,
     ) -> Option<HirMethodReference> {
+        let (method, error) = self.get_trait_method_in_scope(trait_methods, method_name, span);
+        if let Some(error) = error {
+            self.push_err(error);
+        }
+        method
+    }
+
+    fn get_trait_method_in_scope(
+        &mut self,
+        trait_methods: &[(FuncId, TraitId)],
+        method_name: &str,
+        span: Span,
+    ) -> (Option<HirMethodReference>, Option<PathResolutionError>) {
         let module_id = self.module_id();
         let module_data = self.get_module(module_id);
 
@@ -1434,12 +1537,8 @@ impl<'context> Elaborator<'context> {
             .filter_map(|trait_id| {
                 let trait_ = self.interner.get_trait(*trait_id);
                 let trait_name = &trait_.name;
-                let Some(map) = module_data.scope().types().get(trait_name) else {
-                    return None;
-                };
-                let Some(imported_item) = map.get(&None) else {
-                    return None;
-                };
+                let map = module_data.scope().types().get(trait_name)?;
+                let imported_item = map.get(&None)?;
                 if imported_item.0 == ModuleDefId::TraitId(*trait_id) {
                     Some((*trait_id, trait_name))
                 } else {
@@ -1458,28 +1557,24 @@ impl<'context> Elaborator<'context> {
                 let trait_id = *traits.iter().next().unwrap();
                 let trait_ = self.interner.get_trait(trait_id);
                 let trait_name = self.fully_qualified_trait_path(trait_);
-
-                self.push_err(PathResolutionError::TraitMethodNotInScope {
+                let method =
+                    self.trait_hir_method_reference(trait_id, trait_methods, method_name, span);
+                let error = PathResolutionError::TraitMethodNotInScope {
                     ident: Ident::new(method_name.into(), span),
                     trait_name,
-                });
-
-                return Some(self.trait_hir_method_reference(
-                    trait_id,
-                    trait_methods,
-                    method_name,
-                    span,
-                ));
+                };
+                return (Some(method), Some(error));
             } else {
                 let traits = vecmap(traits, |trait_id| {
                     let trait_ = self.interner.get_trait(trait_id);
                     self.fully_qualified_trait_path(trait_)
                 });
-                self.push_err(PathResolutionError::UnresolvedWithPossibleTraitsToImport {
+                let method = None;
+                let error = PathResolutionError::UnresolvedWithPossibleTraitsToImport {
                     ident: Ident::new(method_name.into(), span),
                     traits,
-                });
-                return None;
+                };
+                return (method, Some(error));
             }
         }
 
@@ -1488,15 +1583,18 @@ impl<'context> Elaborator<'context> {
                 let trait_ = self.interner.get_trait(trait_id);
                 self.fully_qualified_trait_path(trait_)
             });
-            self.push_err(PathResolutionError::MultipleTraitsInScope {
+            let method = None;
+            let error = PathResolutionError::MultipleTraitsInScope {
                 ident: Ident::new(method_name.into(), span),
                 traits,
-            });
-            return None;
+            };
+            return (method, Some(error));
         }
 
         let trait_id = traits_in_scope[0].0;
-        Some(self.trait_hir_method_reference(trait_id, trait_methods, method_name, span))
+        let method = self.trait_hir_method_reference(trait_id, trait_methods, method_name, span);
+        let error = None;
+        (Some(method), error)
     }
 
     fn trait_hir_method_reference(
@@ -1514,7 +1612,7 @@ impl<'context> Elaborator<'context> {
 
         // Return a TraitMethodId with unbound generics. These will later be bound by the type-checker.
         let trait_ = self.interner.get_trait(trait_id);
-        let generics = trait_.as_constraint(span).trait_bound.trait_generics;
+        let generics = trait_.get_trait_generics(span);
         let trait_method_id = trait_.find_method(method_name).unwrap();
         HirMethodReference::TraitMethodId(trait_method_id, generics, false)
     }
@@ -1814,6 +1912,7 @@ impl<'context> Elaborator<'context> {
         (expr_span, empty_function)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn verify_trait_constraint(
         &mut self,
         object_type: &Type,
@@ -1821,6 +1920,7 @@ impl<'context> Elaborator<'context> {
         trait_generics: &[Type],
         associated_types: &[NamedType],
         function_ident_id: ExprId,
+        select_impl: bool,
         span: Span,
     ) {
         match self.interner.lookup_trait_implementation(
@@ -1830,7 +1930,9 @@ impl<'context> Elaborator<'context> {
             associated_types,
         ) {
             Ok(impl_kind) => {
-                self.interner.select_impl_for_expression(function_ident_id, impl_kind);
+                if select_impl {
+                    self.interner.select_impl_for_expression(function_ident_id, impl_kind);
+                }
             }
             Err(error) => self.push_trait_constraint_error(object_type, error, span),
         }
@@ -1904,10 +2006,15 @@ impl<'context> Elaborator<'context> {
 
     /// Push a trait constraint into the current FunctionContext to be solved if needed
     /// at the end of the earlier of either the current function or the current comptime scope.
-    pub fn push_trait_constraint(&mut self, constraint: TraitConstraint, expr_id: ExprId) {
+    pub fn push_trait_constraint(
+        &mut self,
+        constraint: TraitConstraint,
+        expr_id: ExprId,
+        select_impl: bool,
+    ) {
         let context = self.function_context.last_mut();
         let context = context.expect("The function_context stack should always be non-empty");
-        context.trait_constraints.push((constraint, expr_id));
+        context.trait_constraints.push((constraint, expr_id, select_impl));
     }
 
     pub fn bind_generics_from_trait_constraint(
@@ -1977,7 +2084,7 @@ pub(crate) fn bind_named_generics(
     args: &[NamedType],
     bindings: &mut TypeBindings,
 ) {
-    assert_eq!(params.len(), args.len());
+    assert!(args.len() <= params.len());
 
     for arg in args {
         let i = params
@@ -1987,6 +2094,10 @@ pub(crate) fn bind_named_generics(
 
         let param = params.swap_remove(i);
         bind_generic(&param, &arg.typ, bindings);
+    }
+
+    for unbound_param in params {
+        bind_generic(&unbound_param, &Type::Error, bindings);
     }
 }
 

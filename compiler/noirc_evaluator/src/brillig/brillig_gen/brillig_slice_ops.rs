@@ -2,12 +2,13 @@ use acvm::acir::brillig::MemoryAddress;
 
 use crate::brillig::brillig_ir::{
     brillig_variable::{BrilligVariable, BrilligVector, SingleAddrVariable},
+    registers::RegisterAllocator,
     BrilligBinaryOp,
 };
 
 use super::brillig_block::BrilligBlock;
 
-impl<'block> BrilligBlock<'block> {
+impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     fn write_variables(&mut self, write_pointer: MemoryAddress, variables: &[BrilligVariable]) {
         for (index, variable) in variables.iter().enumerate() {
             self.brillig_context.store_instruction(write_pointer, variable.extract_register());
@@ -159,6 +160,7 @@ mod tests {
     use std::vec;
 
     use acvm::FieldElement;
+    use fxhash::FxHashMap as HashMap;
     use noirc_frontend::monomorphization::ast::InlineType;
 
     use crate::brillig::brillig_gen::brillig_block::BrilligBlock;
@@ -173,6 +175,7 @@ mod tests {
         create_and_run_vm, create_context, create_entry_point_bytecode,
     };
     use crate::brillig::brillig_ir::{BrilligContext, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE};
+    use crate::brillig::ValueId;
     use crate::ssa::function_builder::FunctionBuilder;
     use crate::ssa::ir::function::RuntimeType;
     use crate::ssa::ir::map::Id;
@@ -193,7 +196,8 @@ mod tests {
     fn create_brillig_block<'a>(
         function_context: &'a mut FunctionContext,
         brillig_context: &'a mut BrilligContext<FieldElement, Stack>,
-    ) -> BrilligBlock<'a> {
+        globals: &'a HashMap<ValueId, BrilligVariable>,
+    ) -> BrilligBlock<'a, Stack> {
         let variables = BlockVariables::default();
         BrilligBlock {
             function_context,
@@ -201,6 +205,8 @@ mod tests {
             brillig_context,
             variables,
             last_uses: Default::default(),
+            globals,
+            building_globals: false,
         }
     }
 
@@ -242,7 +248,9 @@ mod tests {
             // Allocate the results
             let target_vector = BrilligVector { pointer: context.allocate_register() };
 
-            let mut block = create_brillig_block(&mut function_context, &mut context);
+            let brillig_globals = HashMap::default();
+            let mut block =
+                create_brillig_block(&mut function_context, &mut context, &brillig_globals);
 
             if push_back {
                 block.slice_push_back_operation(
@@ -358,7 +366,9 @@ mod tests {
                 bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
             };
 
-            let mut block = create_brillig_block(&mut function_context, &mut context);
+            let brillig_globals = HashMap::default();
+            let mut block =
+                create_brillig_block(&mut function_context, &mut context, &brillig_globals);
 
             if pop_back {
                 block.slice_pop_back_operation(
@@ -464,7 +474,9 @@ mod tests {
             // Allocate the results
             let target_vector = BrilligVector { pointer: context.allocate_register() };
 
-            let mut block = create_brillig_block(&mut function_context, &mut context);
+            let brillig_globals = HashMap::default();
+            let mut block =
+                create_brillig_block(&mut function_context, &mut context, &brillig_globals);
 
             block.slice_insert_operation(
                 target_vector,
@@ -604,7 +616,9 @@ mod tests {
                 bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
             };
 
-            let mut block = create_brillig_block(&mut function_context, &mut context);
+            let brillig_globals = HashMap::default();
+            let mut block =
+                create_brillig_block(&mut function_context, &mut context, &brillig_globals);
 
             block.slice_remove_operation(
                 target_vector,

@@ -18,6 +18,7 @@ fi
 
 ITER="1"
 NUM_ARTIFACTS=${#tests_to_profile[@]}
+FLAGS=${FLAGS:- ""}
 
 for dir in ${tests_to_profile[@]}; do 
     if [[ " ${excluded_dirs[@]} " =~ " ${dir} " ]]; then
@@ -37,17 +38,11 @@ for dir in ${tests_to_profile[@]}; do
       PACKAGE_NAME=$(basename $current_dir)
     fi
 
-    NUM_RUNS=1
+    NUM_RUNS=$2
     TOTAL_TIME=0
 
-    # Passing a second argument will take an average of five runs
-    # rather than 
-    if [ "$2" == "1" ]; then
-      NUM_RUNS=5
-    fi
-
     for ((i = 1; i <= NUM_RUNS; i++)); do
-      NOIR_LOG=trace NARGO_LOG_DIR=./tmp nargo compile --force --silence-warnings
+      NOIR_LOG=trace NARGO_LOG_DIR=./tmp nargo compile --force --silence-warnings $FLAGS
     done
 
     TIMES=($(jq -r '. | select(.target == "nargo::cli" and .fields.message == "close") | .fields."time.busy"' ./tmp/*))

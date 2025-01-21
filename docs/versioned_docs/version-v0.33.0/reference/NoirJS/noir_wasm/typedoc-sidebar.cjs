@@ -1,4 +1,0 @@
-// @ts-check
-/** @type {import('@docusaurus/plugin-content-docs').SidebarsConfig} */
-const typedocSidebar = { items: [{"type":"doc","id":"reference/NoirJS/noir_wasm/index","label":"API"},{"type":"category","label":"Functions","items":[{"type":"doc","id":"reference/NoirJS/noir_wasm/functions/compile","label":"compile"},{"type":"doc","id":"reference/NoirJS/noir_wasm/functions/compile_contract","label":"compile_contract"},{"type":"doc","id":"reference/NoirJS/noir_wasm/functions/createFileManager","label":"createFileManager"},{"type":"doc","id":"reference/NoirJS/noir_wasm/functions/inflateDebugSymbols","label":"inflateDebugSymbols"}]}]};
-module.exports = typedocSidebar.items;

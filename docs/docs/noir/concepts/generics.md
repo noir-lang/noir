@@ -36,6 +36,7 @@ impl<let N: u32> BigInt<N> {
     fn first(first: BigInt<N>, second: BigInt<N>) -> Self {
         assert(first.limbs != second.limbs);
         first
+    }
 
     fn second(first: BigInt<N>, second: Self) -> Self {
         assert(first.limbs != second.limbs);
@@ -96,7 +97,17 @@ fn main() {
     // We can use first_element_is_equal for arrays of any type
     // as long as we have an Eq impl for the types we pass in
     let array = [MyStruct::new(), MyStruct::new()];
-    assert(array_eq(array, array, MyStruct::eq));
+    assert(first_element_is_equal(array, array));
+}
+
+struct MyStruct {
+    foo: Field
+}
+
+impl MyStruct {
+    fn new() -> Self {
+        MyStruct { foo: 0 }
+    }
 }
 
 impl Eq for MyStruct {
@@ -152,9 +163,9 @@ fn example() {
     // there is no matching impl for `u32: MyTrait`. 
     //
     // Substituting the `10` on the left hand side of this assert
-    // with `10 as u32` would also fail with a type mismatch as we 
+    // with `10 as u32` would fail with a type mismatch as we 
     // are expecting a `Field` from the right hand side.
-    assert(10 as u32 == foo.generic_method::<Field>());
+    assert(10 == foo.generic_method::<Field>());
 }
 ```
 

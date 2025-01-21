@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 use crate::PrintOutput;
 
 use super::{
-    layers::{self, Layer, Layering},
-    mocker::MockForeignCallExecutor,
+    layers::{self, Either, Layer, Layering},
+    mocker::{DisabledMockForeignCallExecutor, MockForeignCallExecutor},
     print::PrintForeignCallExecutor,
     ForeignCallExecutor,
 };
@@ -15,21 +15,48 @@ use super::rpc::RPCForeignCallExecutor;
 
 /// A builder for [DefaultForeignCallLayers] where we can enable fields based on feature flags,
 /// which is easier than providing different overrides for a `new` method.
-#[derive(Default)]
 pub struct DefaultForeignCallBuilder<'a> {
     pub output: PrintOutput<'a>,
+    pub enable_mocks: bool,
+
     #[cfg(feature = "rpc")]
     pub resolver_url: Option<String>,
+
     #[cfg(feature = "rpc")]
     pub root_path: Option<std::path::PathBuf>,
+
     #[cfg(feature = "rpc")]
     pub package_name: Option<String>,
+}
+
+impl<'a> Default for DefaultForeignCallBuilder<'a> {
+    fn default() -> Self {
+        Self {
+            output: PrintOutput::default(),
+            enable_mocks: true,
+
+            #[cfg(feature = "rpc")]
+            resolver_url: None,
+
+            #[cfg(feature = "rpc")]
+            root_path: None,
+
+            #[cfg(feature = "rpc")]
+            package_name: None,
+        }
+    }
 }
 
 impl<'a> DefaultForeignCallBuilder<'a> {
     /// Override the output.
     pub fn with_output(mut self, output: PrintOutput<'a>) -> Self {
         self.output = output;
+        self
+    }
+
+    /// Enable or disable mocks.
+    pub fn with_mocks(mut self, enabled: bool) -> Self {
+        self.enable_mocks = enabled;
         self
     }
 
@@ -69,7 +96,11 @@ impl<'a> DefaultForeignCallBuilder<'a> {
         };
 
         executor
-            .add_layer(MockForeignCallExecutor::default())
+            .add_layer(if self.enable_mocks {
+                Either::Left(MockForeignCallExecutor::default())
+            } else {
+                Either::Right(DisabledMockForeignCallExecutor)
+            })
             .add_layer(PrintForeignCallExecutor::new(self.output))
     }
 }
@@ -78,11 +109,16 @@ impl<'a> DefaultForeignCallBuilder<'a> {
 #[cfg(feature = "rpc")]
 pub type DefaultForeignCallLayers<'a, B, F> = Layer<
     PrintForeignCallExecutor<'a>,
-    Layer<MockForeignCallExecutor<F>, Layer<Option<RPCForeignCallExecutor>, B>>,
+    Layer<
+        Either<MockForeignCallExecutor<F>, DisabledMockForeignCallExecutor>,
+        Layer<Option<RPCForeignCallExecutor>, B>,
+    >,
 >;
 #[cfg(not(feature = "rpc"))]
-pub type DefaultForeignCallLayers<'a, B, F> =
-    Layer<PrintForeignCallExecutor<'a>, Layer<MockForeignCallExecutor<F>, B>>;
+pub type DefaultForeignCallLayers<'a, B, F> = Layer<
+    PrintForeignCallExecutor<'a>,
+    Layer<Either<MockForeignCallExecutor<F>, DisabledMockForeignCallExecutor>, B>,
+>;
 
 /// Convenience constructor for code that used to create the executor this way.
 #[cfg(feature = "rpc")]
@@ -106,6 +142,7 @@ impl DefaultForeignCallExecutor {
     {
         DefaultForeignCallBuilder {
             output,
+            enable_mocks: true,
             resolver_url: resolver_url.map(|s| s.to_string()),
             root_path,
             package_name,

@@ -79,6 +79,7 @@ mod block;
 use std::collections::{BTreeMap, BTreeSet};
 
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use vec_collections::VecSet;
 
 use crate::ssa::{
     ir::{
@@ -619,7 +620,7 @@ impl<'f> PerFunctionContext<'f> {
                 // then those parameters also alias each other.
                 // We save parameters with repeat arguments to later mark those
                 // parameters as aliasing one another.
-                let mut arg_set: HashMap<ValueId, BTreeSet<ValueId>> = HashMap::default();
+                let mut arg_set = HashMap::default();
 
                 // Add an alias for each reference parameter
                 for (parameter, argument) in destination_parameters.iter().zip(arguments) {
@@ -632,7 +633,8 @@ impl<'f> PerFunctionContext<'f> {
                                 aliases.insert(*parameter);
 
                                 // Check if we have seen the same argument
-                                let seen_parameters = arg_set.entry(argument).or_default();
+                                let seen_parameters =
+                                    arg_set.entry(argument).or_insert_with(VecSet::empty);
                                 // Add the current parameter to the parameters we have seen for this argument.
                                 // The previous parameters and the current one alias one another.
                                 seen_parameters.insert(*parameter);
@@ -1002,7 +1004,7 @@ mod tests {
         let two = builder.field_constant(2u128);
         builder.insert_store(v5, two);
         let one = builder.field_constant(1u128);
-        let v3_plus_one = builder.insert_binary(v3, BinaryOp::Add, one);
+        let v3_plus_one = builder.insert_binary(v3, BinaryOp::Add { unchecked: false }, one);
         builder.terminate_with_jmp(b1, vec![v3_plus_one]);
 
         builder.switch_to_block(b3);

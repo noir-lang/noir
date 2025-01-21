@@ -128,6 +128,12 @@ impl Block {
         }
 
         for (expression, new_aliases) in &other.aliases {
+            // If nothing would change, then don't call `.entry(...).and_modify(...)` as it involves creating more `Arc`s.
+            if let Some(aliases) = self.aliases.get(expression) {
+                if !aliases.should_unify(new_aliases) {
+                    continue;
+                }
+            }
             let expression = expression.clone();
 
             self.aliases

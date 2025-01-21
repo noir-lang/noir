@@ -13,6 +13,7 @@ use super::{labels::ParsingRuleLabel, ParsedModule, ParserError, ParserErrorReas
 mod arguments;
 mod attributes;
 mod doc_comments;
+mod enums;
 mod expression;
 mod function;
 mod generics;
@@ -191,14 +192,10 @@ impl<'a> Parser<'a> {
 
     fn read_token_internal(&mut self) -> SpannedToken {
         loop {
-            let token = self.tokens.next();
-            if let Some(token) = token {
-                match token {
-                    Ok(token) => return token,
-                    Err(lexer_error) => self.errors.push(lexer_error.into()),
-                }
-            } else {
-                return eof_spanned_token();
+            match self.tokens.next() {
+                Some(Ok(token)) => return token,
+                Some(Err(lexer_error)) => self.errors.push(lexer_error.into()),
+                None => return eof_spanned_token(),
             }
         }
     }

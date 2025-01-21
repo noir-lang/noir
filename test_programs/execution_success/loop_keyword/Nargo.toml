@@ -1,0 +1,5 @@
+[package]
+name = "loop_keyword"
+type = "bin"
+authors = [""]
+[dependencies]

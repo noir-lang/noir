@@ -252,36 +252,33 @@ impl MyTrait for Field {
 Since associated constants can also be used in a type position, its values are limited to only other
 expression kinds allowed in numeric generics.
 
-Note that currently all associated types and constants must be explicitly specified in a trait constraint.
-If we leave out any, we'll get an error that we're missing one:
+When writing a trait constraint, you can specify all associated types and constants explicitly if
+you wish:
 
 ```rust
-// Error! Constraint is missing associated constant for `Bar`
-fn foo<T>(x: T) where T: MyTrait<Foo = i32> {
+fn foo<T>(x: T) where T: MyTrait<Foo = i32, Bar = 11> {
     ...
 }
 ```
 
-Because all associated types and constants must be explicitly specified, they are essentially named generics,
-although this is set to change in the future. Future versions of Noir will allow users to elide associated types
-in trait constraints similar to Rust. When this is done, you may still refer to their value with the `<Type as Trait>::AssociatedType`
-syntax:
+Or you can also elide them since there should only be one `Foo` and `Bar` for a given implementation
+of `MyTrait` for a type:
 
 ```rust
-// Only valid in future versions of Noir:
 fn foo<T>(x: T) where T: MyTrait {
-    let _: <T as MyTrait>::Foo = ...;
+    ...
 }
 ```
 
-The type as trait syntax is possible in Noir today but is less useful when each type must be explicitly specified anyway:
+If you elide associated types, you can still refer to them via the type as trait syntax `<T as MyTrait>`:
 
 ```rust
-fn foo<T, F, let B: u32>(x: T) where T: MyTrait<Foo = F, Bar = B> {
-    // Works, but could just use F directly
-    let _: <T as MyTrait<Foo = F, Bar = B>>::Foo = ...;
-
-    let _: F = ...;
+fn foo<T>(x: T) where
+    T: MyTrait,
+    <T as MyTrait>::Foo: Default + Eq
+{
+    let foo_value: <T as MyTrait>::Foo = Default::default();
+    assert_eq(foo_value, foo_value);
 }
 ```
 

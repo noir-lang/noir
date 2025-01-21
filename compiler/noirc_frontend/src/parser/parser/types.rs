@@ -208,6 +208,9 @@ impl<'a> Parser<'a> {
         if self.eat_keyword(Keyword::StructDefinition) {
             return Some(UnresolvedTypeData::Quoted(QuotedType::StructDefinition));
         }
+        if self.eat_keyword(Keyword::EnumDefinition) {
+            return Some(UnresolvedTypeData::Quoted(QuotedType::EnumDefinition));
+        }
         if self.eat_keyword(Keyword::TraitConstraint) {
             return Some(UnresolvedTypeData::Quoted(QuotedType::TraitConstraint));
         }

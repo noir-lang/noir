@@ -26,9 +26,9 @@ The equivalent optimization task when writing zk circuits is affectionately refe
 
 ### Coding for circuits - a paradigm shift
 
-In zero knowledge cryptography, code is compiled to "circuits" consisting of arithmetic gates, and gate count is the significant cost. Depending on the proving system this is linearly proportionate to proving time, and so from a product point this should be kept as low as possible.
+In zero knowledge cryptography, code is compiled to "circuits" consisting of arithmetic gates, and gate count is the significant cost. Depending on the proving system this is linearly proportionate to proof size and proving time, so from a product point of view this should be kept as low as possible.
 
-Whilst writing efficient code for web apps and Solidity has a few key differences, writing efficient circuits have a different set of considerations. It is a bit of a paradigm shift, like writing code for GPUs for the first time...
+Whilst writing efficient code for web apps and Solidity have some differences, writing efficient circuits have a different set of considerations. It is a bit of a paradigm shift, like writing code for GPUs for the first time...
 
 For example, drawing a circle at (0, 0) of radius `r`:
 - For a single CPU thread,
@@ -57,7 +57,7 @@ For those coming from a primarily web app background, this article will explain 
 
 ## Translating from Rust
 
-For some applications using Noir, existing code might be a convenient starting point to then proceed to optimize the gate count of.
+Programs written in anything from pseudo code to C, can be translated into Noir. A Rust program written for execution can be readily ported to Noir thanks to the similarities in syntax.
 
 :::note
 Many valuable functions and algorithms have been written in more established languages (C/C++), and converted to modern ones (like Rust).
@@ -93,22 +93,41 @@ A Noir program compiles to an Abstract Circuit Intermediate Representation which
 
 :::tip
 The command `nargo info` shows the programs circuit size, and is useful to compare the value of changes made.
-You can dig deeper and use the `--print-acir` param to take a closer look at individual ACIR opcodes, and the proving backend to see its gate count (eg for barretenberg, `bb gates -b ./target/program.json`).
+You can dig deeper and use the `--print-acir` param to take a closer look at individual ACIR opcodes, and the proving backend to see its gate count (eg for barretenberg, the `bb` binary has a `gates` option).
 :::
 
-### Use the `Field` type
+### Numerical types
 
-Since the native type of values in circuits are `Field`s, using them for variables in Noir means less gates converting them under the hood.
-Some things to be mindful of when using a Field type for a regular integer value:
-- A variable of type `Field` can be cast `as` an integer type (eg `u8`, `u64`)
-  - Note: this retains only the bits of the integer type. Eg a Field value of 260 as a `u8` becomes 4
-- For Field types arithmetic operations meaningfully overflow/underflow, yet for integer types they are checked according to their size
-- Comparisons and bitwise operations do not exist for `Field`s, cast to an appropriately sized integer type when you need to
+As mentioned earlier Noir has many familiar integer types (eg `i8`, `u64`). Ideally after bringing a program into Noir, proving/verifying of its execution just works where needed: client/server side, on an evm, or on the Aztec network.
+
+A program optimized for execution may leverage the binary representations of integers, reducing the number of clock cycles, and thus time of execution.
+The cryptography in a proving backend makes use of a `Field` type, and leveraging this lower level type correctly can reduce gate count, and thus proof size and proving time.
+
+In some instances simply replacing the integer type with a `Field` could save on some range checks (and hence gates).
+Note: when casting a `Field` to an integer type, the value is converted based on the integer binary representation. Eg a Field variable with a value of 260 `as u8` becomes 4
+
+### `Field`s for efficiency
+
+`Field` types have their own underlying representation that is efficient for cryptography, which is different to binary representations efficient for CPUs. So, mathematically speaking, things like bitwise operations do not directly translate to fields. That said, the same outcome can be achieved if wanting to use the Field type as a number with lower overhead.
+
+For instance shift (`<<`) and or (`|`) work seamlessly with integer types (bit-packing `u8`'s into a `u16`):
+```
+  high as u16 << 8 | low as u16
+```
+
+More efficiently with `Field` types, the equivalent is:
+```
+  low.assert_max_bit_size::<8>(); // ensure Field values could be represented as 8 bit numbers
+  high.assert_max_bit_size::<8>();
+  (high * 2.pow_32(8) + low)
+```
+(Note, the power of two can instead be a constant (256) or global evaluated at compile time)
+
+The first snippet is good for compatibility when using existing code, converting to the latter can help optimize frequently used functions.
 
 :::tip
-Where possible, use `Field` type for values. Using smaller value types, and bit-packing strategies, will result in MORE gates
+Where possible, use the `Field` type for values. Writing code with smaller value types and bit-packing strategies will result in MORE gates
 :::
-
 
 ### Use Arithmetic over non-arithmetic operations
 

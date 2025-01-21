@@ -44,7 +44,7 @@ pub(super) fn get_single_error_reason(
 }
 
 pub(super) fn expect_no_errors(errors: &[ParserError]) {
-    if errors.is_empty() {
+    if errors.is_empty() || errors.iter().all(|error| error.is_warning()) {
         return;
     }
 

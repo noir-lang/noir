@@ -1,4 +1,4 @@
-use acir::circuit::{opcodes::BlockId, Circuit, Opcode};
+use acir::circuit::{brillig::BrilligInputs, opcodes::BlockId, Circuit, Opcode};
 use std::collections::HashSet;
 
 /// `UnusedMemoryOptimizer` will remove initializations of memory blocks which are unused.
@@ -28,6 +28,13 @@ impl<F> UnusedMemoryOptimizer<F> {
                 }
                 Opcode::MemoryOp { block_id, .. } => {
                     unused_memory_initialization.remove(block_id);
+                }
+                Opcode::BrilligCall { inputs, .. } => {
+                    for input in inputs {
+                        if let BrilligInputs::MemoryArray(block) = input {
+                            unused_memory_initialization.remove(block);
+                        }
+                    }
                 }
                 _ => (),
             }

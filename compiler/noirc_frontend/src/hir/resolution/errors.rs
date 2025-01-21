@@ -98,6 +98,8 @@ pub enum ResolverError {
     DependencyCycle { span: Span, item: String, cycle: String },
     #[error("break/continue are only allowed in unconstrained functions")]
     JumpInConstrainedFn { is_break: bool, span: Span },
+    #[error("loop is only allowed in unconstrained functions")]
+    LoopInConstrainedFn { span: Span },
     #[error("break/continue are only allowed within loops")]
     JumpOutsideLoop { is_break: bool, span: Span },
     #[error("Only `comptime` globals can be mutable")]
@@ -170,6 +172,8 @@ pub enum ResolverError {
         span: Span,
         missing_trait_location: Location,
     },
+    #[error("`loop` statements are not yet implemented")]
+    LoopNotYetSupported { span: Span },
 }
 
 impl ResolverError {
@@ -432,6 +436,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *span,
                 )
             },
+            ResolverError::LoopInConstrainedFn { span } => {
+                Diagnostic::simple_error(
+                    "loop is only allowed in unconstrained functions".into(),
+                    "Constrained code must always have a known number of loop iterations".into(),
+                    *span,
+                )
+            },
             ResolverError::JumpOutsideLoop { is_break, span } => {
                 let item = if *is_break { "break" } else { "continue" };
                 Diagnostic::simple_error(
@@ -642,6 +653,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 diagnostic.add_secondary_with_file(format!("required by this bound in `{impl_trait}"), missing_trait_location.span, missing_trait_location.file);
                 diagnostic
             },
+            ResolverError::LoopNotYetSupported { span  } => {
+                Diagnostic::simple_error(
+                    "`loop` statements are not yet implemented".to_string(), 
+                    String::new(),
+                    *span)
+
+            }
         }
     }
 }

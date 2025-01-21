@@ -16,8 +16,9 @@ use lsp_types::{
 };
 use nargo_fmt::Config;
 
+use noirc_frontend::ast::Ident;
 use noirc_frontend::graph::CrateId;
-use noirc_frontend::hir::def_map::CrateDefMap;
+use noirc_frontend::hir::def_map::{CrateDefMap, ModuleId};
 use noirc_frontend::parser::ParserError;
 use noirc_frontend::usage_tracker::UsageTracker;
 use noirc_frontend::{graph::Dependency, node_interner::NodeInterner};
@@ -617,6 +618,12 @@ pub(crate) fn find_all_references(
                 .collect()
         })
         .unwrap_or_default()
+}
+
+/// Represents a trait reexported from a given module with a name.
+pub(crate) struct TraitReexport<'a> {
+    pub(super) module_id: &'a ModuleId,
+    pub(super) name: &'a Ident,
 }
 
 #[cfg(test)]
