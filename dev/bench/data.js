@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737487191967,
+  "lastUpdate": 1737487197095,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -2278,6 +2278,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "workspace",
             "value": 123.93,
+            "unit": "MB"
+          },
+          {
+            "name": "regression_4709",
+            "value": 424.11,
+            "unit": "MB"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 1480,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 601.66,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 484.6,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 6230,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 488.27,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 6230,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 601.65,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 2120,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1120,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 198.81,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 540.15,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 268.39,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "fd3377b3ae279fafc6d72a62c7661c542c713117",
+          "message": "feat: parse globals in SSA parser (#7112)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-01-21T19:00:21Z",
+          "tree_id": "0a6f9ced7be9191c31b1eb59faaa542ab2be6977",
+          "url": "https://github.com/noir-lang/noir/commit/fd3377b3ae279fafc6d72a62c7661c542c713117"
+        },
+        "date": 1737487195904,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "keccak256",
+            "value": 77.57,
+            "unit": "MB"
+          },
+          {
+            "name": "workspace",
+            "value": 123.75,
             "unit": "MB"
           },
           {
