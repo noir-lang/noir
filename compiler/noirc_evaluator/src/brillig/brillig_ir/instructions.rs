@@ -200,6 +200,13 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.obj.add_unresolved_external_call(BrilligOpcode::Call { location: 0 }, proc_label);
     }
 
+    pub(super) fn add_globals_init_instruction(&mut self) {
+        let globals_init_label = Label::globals_init();
+        self.debug_show.add_external_call_instruction(globals_init_label.to_string());
+        self.obj
+            .add_unresolved_external_call(BrilligOpcode::Call { location: 0 }, globals_init_label);
+    }
+
     /// Adds a unresolved `Jump` instruction to the bytecode.
     pub(crate) fn jump_instruction(&mut self, target_label: Label) {
         self.debug_show.jump_instruction(target_label.to_string());

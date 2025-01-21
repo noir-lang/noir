@@ -1,4 +1,6 @@
-fn main(args: [Field; 2]) {
+fn main(value: Field, index: u32) {
+    let mut args = &[0, 1];
+    args[index] = value;
     /// Safety: n/a
     unsafe { store(args) };
     // Dummy test to remove the 'underconstraint bug'

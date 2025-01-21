@@ -227,13 +227,7 @@ impl<'context> Elaborator<'context> {
                 ModuleDefId::TypeId(id) => (
                     id.module_id(),
                     true,
-                    IntermediatePathResolutionItem::Struct(
-                        id,
-                        last_segment_generics.as_ref().map(|generics| Turbofish {
-                            generics: generics.clone(),
-                            span: last_segment.turbofish_span(),
-                        }),
-                    ),
+                    IntermediatePathResolutionItem::Struct(id, last_segment.turbofish()),
                 ),
                 ModuleDefId::TypeAliasId(id) => {
                     let type_alias = self.interner.get_type_alias(id);
@@ -244,25 +238,13 @@ impl<'context> Elaborator<'context> {
                     (
                         module_id,
                         true,
-                        IntermediatePathResolutionItem::TypeAlias(
-                            id,
-                            last_segment_generics.as_ref().map(|generics| Turbofish {
-                                generics: generics.clone(),
-                                span: last_segment.turbofish_span(),
-                            }),
-                        ),
+                        IntermediatePathResolutionItem::TypeAlias(id, last_segment.turbofish()),
                     )
                 }
                 ModuleDefId::TraitId(id) => (
                     id.0,
                     false,
-                    IntermediatePathResolutionItem::Trait(
-                        id,
-                        last_segment_generics.as_ref().map(|generics| Turbofish {
-                            generics: generics.clone(),
-                            span: last_segment.turbofish_span(),
-                        }),
-                    ),
+                    IntermediatePathResolutionItem::Trait(id, last_segment.turbofish()),
                 ),
                 ModuleDefId::FunctionId(_) => panic!("functions cannot be in the type namespace"),
                 ModuleDefId::GlobalId(_) => panic!("globals cannot be in the type namespace"),

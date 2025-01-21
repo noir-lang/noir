@@ -251,7 +251,7 @@ mod tests {
         let (src, span) = get_source_with_error_span(src);
         let (_, errors) = parse_program(&src);
         let reason = get_single_error_reason(&errors, span);
-        assert!(matches!(reason, ParserErrorReason::NoFunctionAttributesAllowedOnStruct));
+        assert!(matches!(reason, ParserErrorReason::NoFunctionAttributesAllowedOnType));
     }
 
     #[test]

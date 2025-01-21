@@ -294,9 +294,12 @@ impl<'a> Parser<'a> {
 
     /// LoopStatement = 'loop' Block
     fn parse_loop(&mut self) -> Option<Expression> {
+        let start_span = self.current_token_span;
         if !self.eat_keyword(Keyword::Loop) {
             return None;
         }
+
+        self.push_error(ParserErrorReason::ExperimentalFeature("loops"), start_span);
 
         let block_start_span = self.current_token_span;
         let block = if let Some(block) = self.parse_block() {
@@ -819,7 +822,8 @@ mod tests {
     #[test]
     fn parses_empty_loop() {
         let src = "loop { }";
-        let statement = parse_statement_no_errors(src);
+        let mut parser = Parser::for_str(src);
+        let statement = parser.parse_statement_or_error();
         let StatementKind::Loop(block) = statement.kind else {
             panic!("Expected loop");
         };
@@ -832,7 +836,8 @@ mod tests {
     #[test]
     fn parses_loop_with_statements() {
         let src = "loop { 1; 2 }";
-        let statement = parse_statement_no_errors(src);
+        let mut parser = Parser::for_str(src);
+        let statement = parser.parse_statement_or_error();
         let StatementKind::Loop(block) = statement.kind else {
             panic!("Expected loop");
         };

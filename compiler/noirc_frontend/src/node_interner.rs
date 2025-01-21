@@ -1722,7 +1722,17 @@ impl NodeInterner {
         let instantiated_object_type = object_type.substitute(&substitutions);
 
         let trait_generics = &trait_impl.borrow().trait_generics;
+
+        // Replace any associated types with fresh type variables so that we match
+        // any existing impl regardless of associated types if one already exists.
+        // E.g. if we already have an `impl Foo<Bar = i32> for Baz`, we should
+        // reject `impl Foo<Bar = u32> for Baz` if it were to be added.
         let associated_types = self.get_associated_types_for_impl(impl_id);
+
+        let associated_types = vecmap(associated_types, |named| {
+            let typ = self.next_type_variable();
+            NamedType { name: named.name.clone(), typ }
+        });
 
         // Ignoring overlapping `TraitImplKind::Assumed` impls here is perfectly fine.
         // It should never happen since impls are defined at global scope, but even
@@ -1732,7 +1742,7 @@ impl NodeInterner {
             &instantiated_object_type,
             trait_id,
             trait_generics,
-            associated_types,
+            &associated_types,
         ) {
             let existing_impl = self.get_trait_implementation(existing);
             let existing_impl = existing_impl.borrow();

@@ -107,6 +107,7 @@ impl<'a> Parser<'a> {
     ///         ( Use
     ///         | ModOrContract
     ///         | Struct
+    ///         | Enum
     ///         | Impl
     ///         | Trait
     ///         | Global
@@ -142,6 +143,16 @@ impl<'a> Parser<'a> {
             self.comptime_mutable_and_unconstrained_not_applicable(modifiers);
 
             return vec![ItemKind::Struct(self.parse_struct(
+                attributes,
+                modifiers.visibility,
+                start_span,
+            ))];
+        }
+
+        if self.eat_keyword(Keyword::Enum) {
+            self.comptime_mutable_and_unconstrained_not_applicable(modifiers);
+
+            return vec![ItemKind::Enum(self.parse_enum(
                 attributes,
                 modifiers.visibility,
                 start_span,

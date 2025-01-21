@@ -903,6 +903,7 @@ fn find_lambda_captures(stmts: &[StmtId], interner: &NodeInterner, result: &mut 
             HirStatement::Constrain(constr_stmt) => constr_stmt.0,
             HirStatement::Semi(semi_expr) => semi_expr,
             HirStatement::For(for_loop) => for_loop.block,
+            HirStatement::Loop(block) => block,
             HirStatement::Error => panic!("Invalid HirStatement!"),
             HirStatement::Break => panic!("Unexpected break"),
             HirStatement::Continue => panic!("Unexpected continue"),
@@ -3456,6 +3457,11 @@ fn arithmetic_generics_rounding_fail_on_struct() {
 
 #[test]
 fn unconditional_recursion_fail() {
+    // These examples are self recursive top level functions, which would actually
+    // not be inlined in the SSA (there is nothing to inline into but self), so it
+    // wouldn't panic due to infinite recursion, but the errors asserted here
+    // come from the compilation checks, which does static analysis to catch the
+    // problem before it even has a chance to cause a panic.
     let srcs = vec![
         r#"
         fn main() {

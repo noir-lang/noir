@@ -30,9 +30,25 @@ impl Ssa {
     }
 
     fn dead_instruction_elimination_inner(mut self, flattened: bool) -> Ssa {
-        self.functions
+        let mut used_global_values: HashSet<_> = self
+            .functions
             .par_iter_mut()
-            .for_each(|(_, func)| func.dead_instruction_elimination(true, flattened));
+            .flat_map(|(_, func)| func.dead_instruction_elimination(true, flattened))
+            .collect();
+
+        // Check which globals are used across all functions
+        for (id, value) in self.globals.dfg.values_iter().rev() {
+            if used_global_values.contains(&id) {
+                if let Value::Instruction { instruction, .. } = &value {
+                    let instruction = &self.globals.dfg[*instruction];
+                    instruction.for_each_value(|value_id| {
+                        used_global_values.insert(value_id);
+                    });
+                }
+            }
+        }
+
+        self.used_global_values = used_global_values;
 
         self
     }
@@ -45,12 +61,16 @@ impl Function {
     /// instructions that reference results from an instruction in another block are evaluated first.
     /// If we did not iterate blocks in this order we could not safely say whether or not the results
     /// of its instructions are needed elsewhere.
+    ///
+    /// Returns the set of globals that were used in this function.
+    /// After processing all functions, the union of these sets enables determining the unused globals.
     pub(crate) fn dead_instruction_elimination(
         &mut self,
         insert_out_of_bounds_checks: bool,
         flattened: bool,
-    ) {
+    ) -> HashSet<ValueId> {
         let mut context = Context { flattened, ..Default::default() };
+
         for call_data in &self.dfg.data_bus.call_data {
             context.mark_used_instruction_results(&self.dfg, call_data.array_id);
         }
@@ -70,11 +90,12 @@ impl Function {
         // instructions (we don't want to remove those checks, or instructions that are
         // dependencies of those checks)
         if inserted_out_of_bounds_checks {
-            self.dead_instruction_elimination(false, flattened);
-            return;
+            return self.dead_instruction_elimination(false, flattened);
         }
 
         context.remove_rc_instructions(&mut self.dfg);
+
+        context.used_values.into_iter().filter(|value| self.dfg.is_global(*value)).collect()
     }
 }
 
@@ -212,15 +233,17 @@ impl Context {
     /// Inspects a value and marks all instruction results as used.
     fn mark_used_instruction_results(&mut self, dfg: &DataFlowGraph, value_id: ValueId) {
         let value_id = dfg.resolve(value_id);
-        if matches!(&dfg[value_id], Value::Instruction { .. } | Value::Param { .. }) {
+        if matches!(&dfg[value_id], Value::Instruction { .. } | Value::Param { .. })
+            || dfg.is_global(value_id)
+        {
             self.used_values.insert(value_id);
         }
     }
 
-    fn remove_rc_instructions(self, dfg: &mut DataFlowGraph) {
+    fn remove_rc_instructions(&self, dfg: &mut DataFlowGraph) {
         let unused_rc_values_by_block: HashMap<BasicBlockId, HashSet<InstructionId>> =
-            self.rc_instructions.into_iter().fold(HashMap::default(), |mut acc, (rc, block)| {
-                let value = match &dfg[rc] {
+            self.rc_instructions.iter().fold(HashMap::default(), |mut acc, (rc, block)| {
+                let value = match &dfg[*rc] {
                     Instruction::IncrementRc { value } => *value,
                     Instruction::DecrementRc { value } => *value,
                     other => {
@@ -231,7 +254,7 @@ impl Context {
                 };
 
                 if !self.used_values.contains(&value) {
-                    acc.entry(block).or_default().insert(rc);
+                    acc.entry(*block).or_default().insert(*rc);
                 }
                 acc
             });
@@ -373,15 +396,16 @@ impl Context {
     ) -> bool {
         use Instruction::*;
         if let IncrementRc { value } | DecrementRc { value } = instruction {
-            if let Value::Instruction { instruction, .. } = &dfg[*value] {
-                return match &dfg[*instruction] {
-                    MakeArray { .. } => true,
-                    Call { func, .. } => {
-                        matches!(&dfg[*func], Value::Intrinsic(_) | Value::ForeignFunction(_))
-                    }
-                    _ => false,
-                };
-            }
+            let Some(instruction) = dfg.get_local_or_global_instruction(*value) else {
+                return false;
+            };
+            return match instruction {
+                MakeArray { .. } => true,
+                Call { func, .. } => {
+                    matches!(&dfg[*func], Value::Intrinsic(_) | Value::ForeignFunction(_))
+                }
+                _ => false,
+            };
         }
         false
     }

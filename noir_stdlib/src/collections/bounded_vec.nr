@@ -1,4 +1,4 @@
-use crate::{cmp::Eq, convert::From};
+use crate::{cmp::Eq, convert::From, runtime::is_unconstrained};
 
 /// A `BoundedVec<T, MaxLen>` is a growable storage similar to a `Vec<T>` except that it
 /// is bounded with a maximum possible length. Unlike `Vec`, `BoundedVec` is not implemented
@@ -320,11 +320,17 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
         let new_len = self.len + append_len;
         assert(new_len <= MaxLen, "extend_from_bounded_vec out of bounds");
 
-        let mut exceeded_len = false;
-        for i in 0..Len {
-            exceeded_len |= i == append_len;
-            if !exceeded_len {
+        if is_unconstrained() {
+            for i in 0..append_len {
                 self.storage[self.len + i] = vec.get_unchecked(i);
+            }
+        } else {
+            let mut exceeded_len = false;
+            for i in 0..Len {
+                exceeded_len |= i == append_len;
+                if !exceeded_len {
+                    self.storage[self.len + i] = vec.get_unchecked(i);
+                }
             }
         }
         self.len = new_len;
@@ -389,11 +395,18 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// ```
     pub fn any<Env>(self, predicate: fn[Env](T) -> bool) -> bool {
         let mut ret = false;
-        let mut exceeded_len = false;
-        for i in 0..MaxLen {
-            exceeded_len |= i == self.len;
-            if !exceeded_len {
+        if is_unconstrained() {
+            for i in 0..self.len {
                 ret |= predicate(self.storage[i]);
+            }
+        } else {
+            let mut ret = false;
+            let mut exceeded_len = false;
+            for i in 0..MaxLen {
+                exceeded_len |= i == self.len;
+                if !exceeded_len {
+                    ret |= predicate(self.storage[i]);
+                }
             }
         }
         ret
@@ -413,11 +426,19 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     pub fn map<U, Env>(self, f: fn[Env](T) -> U) -> BoundedVec<U, MaxLen> {
         let mut ret = BoundedVec::new();
         ret.len = self.len();
-        for i in 0..MaxLen {
-            if i < self.len() {
+
+        if is_unconstrained() {
+            for i in 0..self.len() {
                 ret.storage[i] = f(self.get_unchecked(i));
             }
+        } else {
+            for i in 0..MaxLen {
+                if i < self.len() {
+                    ret.storage[i] = f(self.get_unchecked(i));
+                }
+            }
         }
+
         ret
     }
 
@@ -437,11 +458,19 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     pub fn from_parts(mut array: [T; MaxLen], len: u32) -> Self {
         assert(len <= MaxLen);
         let zeroed = crate::mem::zeroed();
-        for i in 0..MaxLen {
-            if i >= len {
+
+        if is_unconstrained() {
+            for i in len..MaxLen {
                 array[i] = zeroed;
             }
+        } else {
+            for i in 0..MaxLen {
+                if i >= len {
+                    array[i] = zeroed;
+                }
+            }
         }
+
         BoundedVec { storage: array, len }
     }
 
