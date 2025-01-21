@@ -18,7 +18,6 @@ mod fmt_cmd;
 mod generate_completion_script_cmd;
 mod info_cmd;
 mod init_cmd;
-mod inspect_cmd;
 mod lsp_cmd;
 mod new_cmd;
 mod test_cmd;
@@ -110,7 +109,6 @@ enum NargoCommand {
     Debug(debug_cmd::DebugCommand),
     Test(test_cmd::TestCommand),
     Info(info_cmd::InfoCommand),
-    Inspect(inspect_cmd::InspectCommand),
     Lsp(lsp_cmd::LspCommand),
     #[command(hide = true)]
     Dap(dap_cmd::DapCommand),
@@ -169,7 +167,6 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         NargoCommand::Export(args) => export_cmd::run(args, config),
         NargoCommand::Test(args) => test_cmd::run(args, config),
         NargoCommand::Info(args) => info_cmd::run(args, config),
-        NargoCommand::Inspect(args) => inspect_cmd::run(args),
         NargoCommand::Lsp(args) => lsp_cmd::run(args, config),
         NargoCommand::Dap(args) => dap_cmd::run(args, config),
         NargoCommand::Fmt(args) => fmt_cmd::run(args, config),
@@ -211,7 +208,6 @@ fn command_scope(cmd: &NargoCommand) -> CommandScope {
         }
         NargoCommand::New(..)
         | NargoCommand::Init(..)
-        | NargoCommand::Inspect(..)
         | NargoCommand::Lsp(..)
         | NargoCommand::Dap(..)
         | NargoCommand::GenerateCompletionScript(..) => CommandScope::Any,
@@ -243,7 +239,6 @@ fn needs_lock(cmd: &NargoCommand) -> Option<bool> {
         NargoCommand::Fmt(..)
         | NargoCommand::New(..)
         | NargoCommand::Init(..)
-        | NargoCommand::Inspect(..)
         | NargoCommand::Lsp(..)
         | NargoCommand::Dap(..)
         | NargoCommand::GenerateCompletionScript(..) => None,

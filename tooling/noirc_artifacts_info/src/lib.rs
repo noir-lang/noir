@@ -6,19 +6,19 @@ use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterato
 use serde::Serialize;
 
 #[derive(Debug, Default, Serialize)]
-pub(crate) struct InfoReport {
-    pub(crate) programs: Vec<ProgramInfo>,
+pub struct InfoReport {
+    pub programs: Vec<ProgramInfo>,
 }
 
 #[derive(Debug, Serialize)]
-pub(crate) struct ProgramInfo {
-    pub(crate) package_name: String,
+pub struct ProgramInfo {
+    pub package_name: String,
     #[serde(skip)]
-    pub(crate) expression_width: ExpressionWidth,
-    pub(crate) functions: Vec<FunctionInfo>,
+    pub expression_width: ExpressionWidth,
+    pub functions: Vec<FunctionInfo>,
     #[serde(skip)]
-    pub(crate) unconstrained_functions_opcodes: usize,
-    pub(crate) unconstrained_functions: Vec<FunctionInfo>,
+    pub unconstrained_functions_opcodes: usize,
+    pub unconstrained_functions: Vec<FunctionInfo>,
 }
 
 impl From<ProgramInfo> for Vec<Row> {
@@ -46,12 +46,12 @@ impl From<ProgramInfo> for Vec<Row> {
 }
 
 #[derive(Debug, Serialize)]
-pub(crate) struct FunctionInfo {
-    pub(crate) name: String,
-    pub(crate) opcodes: usize,
+pub struct FunctionInfo {
+    pub name: String,
+    pub opcodes: usize,
 }
 
-pub(crate) fn count_opcodes_and_gates_in_program(
+pub fn count_opcodes_and_gates_in_program(
     compiled_program: ProgramArtifact,
     package_name: String,
     expression_width: ExpressionWidth,
@@ -96,7 +96,7 @@ pub(crate) fn count_opcodes_and_gates_in_program(
     }
 }
 
-pub(crate) fn show_info_report(info_report: InfoReport, json: bool) {
+pub fn show_info_report(info_report: InfoReport, json: bool) {
     if json {
         // Expose machine-readable JSON data.
         println!("{}", serde_json::to_string(&info_report).unwrap());

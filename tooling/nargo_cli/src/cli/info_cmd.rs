@@ -8,18 +8,15 @@ use nargo::{
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml};
 use noirc_abi::input_parser::Format;
 use noirc_artifacts::program::ProgramArtifact;
+use noirc_artifacts_info::{
+    count_opcodes_and_gates_in_program, show_info_report, FunctionInfo, InfoReport, ProgramInfo,
+};
 use noirc_driver::{CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
 use prettytable::{row, Row};
 use rayon::prelude::*;
 use serde::Serialize;
 
-use crate::{
-    cli::fs::inputs::read_inputs_from_file,
-    errors::CliError,
-    program_info::{
-        count_opcodes_and_gates_in_program, show_info_report, FunctionInfo, InfoReport, ProgramInfo,
-    },
-};
+use crate::{cli::fs::inputs::read_inputs_from_file, errors::CliError};
 
 use super::{
     compile_cmd::{compile_workspace_full, get_target_width},
