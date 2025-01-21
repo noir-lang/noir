@@ -456,6 +456,10 @@ impl DataType {
     fn fields_raw(&self) -> &[StructField] {
         match &self.body {
             TypeBody::Struct(fields) => fields,
+            // Turns out we call `fields_raw` in a few places before a type may be fully finished.
+            // One of these is when checking for nested slices, so that check will have false
+            // negatives.
+            TypeBody::None => &[],
             _ => panic!("Called DataType::fields_raw on a non-struct type: {}", self.name),
         }
     }
