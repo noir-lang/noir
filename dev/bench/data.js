@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737471796961,
+  "lastUpdate": 1737471801021,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -2036,6 +2036,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-tail",
             "value": 198.81,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 540.15,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 268.39,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "548be74e66fa2db8c2788eb6036c751e3badf6a2",
+          "message": "chore: relax threshold for reporting regressions (#7130)",
+          "timestamp": "2025-01-21T14:43:24Z",
+          "tree_id": "ee1219e1a2dafd1c3dc714a0dcf73eb77d827614",
+          "url": "https://github.com/noir-lang/noir/commit/548be74e66fa2db8c2788eb6036c751e3badf6a2"
+        },
+        "date": 1737471799892,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "keccak256",
+            "value": 77.57,
+            "unit": "MB"
+          },
+          {
+            "name": "workspace",
+            "value": 123.83,
+            "unit": "MB"
+          },
+          {
+            "name": "regression_4709",
+            "value": 424.11,
+            "unit": "MB"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 1480,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 601.66,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 484.6,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 6230,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 488.28,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 6230,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 601.65,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 2120,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1120,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 198.8,
             "unit": "MB"
           },
           {
