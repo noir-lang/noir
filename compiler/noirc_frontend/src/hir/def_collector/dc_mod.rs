@@ -1110,7 +1110,7 @@ pub fn collect_enum(
         file_id,
     );
 
-    // Create the corresponding module for the struct namespace
+    // Create the corresponding module for the enum namespace
     let location = Location::new(name.span(), file_id);
     let id = match push_child_module(
         interner,
