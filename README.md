@@ -1,6 +1,6 @@
 # The Blocksense Noir compiler
 
-An essential component of Blocksense are ZK proofs, the primary technology
+An essential component of Blocksense is ZK proofs, the primary technology
 which eliminates bad actors from manipulating truth. In order to make it easier
 for our ZK engineers to develop this component, we built a PLONKY2 backend for
 the Noir programming language. While this backend is not completely stable, it
@@ -168,7 +168,7 @@ fn arithmetic_magic(x: i32, y: i32) -> i32 {
 
 ## PLONKY2 backend for Noir
 
-The only system which has been adapted for ACIR is barratenberg, also built by
+The only system which has been adapted for ACIR is barretenberg, also built by
 Aztec Labs. While it is an impressive project, we wanted to experiment with
 different proving systems in order to leverage the latest and greatest of ZK
 research. This is why we built our PLONKY2 backend for the Noir programming
@@ -284,6 +284,6 @@ Once you're done, head over to [noir-lang.org](https://noir-lang.org/) and start
 These are our current projects that aim to enhance the Noir programming
 language. The formal verification framework aims to allow users to write safer
 and more correct programs. The PLONKY2 backend aims at providing an alternative
-for a ZK proving system that could have advantages over using barrentenberg.
+for a ZK proving system that could have advantages over using barretenberg.
 
 Built with love by the blocksense.network team.
