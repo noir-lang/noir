@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737490856768,
+  "lastUpdate": 1737492860607,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4685,6 +4685,100 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 1.998,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jake@aztecprotocol.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "a1cf830b3cdf17a9265b8bdbf366d65c253f0ca4",
+          "message": "feat: Resolve enums & prepare type system (#7115)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
+          "timestamp": "2025-01-21T20:37:44Z",
+          "tree_id": "0d0f36713e23c6607329a532b93f246e48afc044",
+          "url": "https://github.com/noir-lang/noir/commit/a1cf830b3cdf17a9265b8bdbf366d65c253f0ca4"
+        },
+        "date": 1737492859282,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 1.11,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.868,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 19,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 3.58,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 2.006,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 80.7,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 2.07,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 87.9,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 3.746,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 25.58,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 9.996,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.077,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.204,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.138,
             "unit": "s"
           }
         ]
