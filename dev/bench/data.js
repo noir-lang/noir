@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737471556635,
+  "lastUpdate": 1737471796961,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -6526,6 +6526,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-merge",
             "value": 473.62,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1230,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 498.93,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 730.78,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 591.18,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 180.99,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 245.6,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 207.99,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "548be74e66fa2db8c2788eb6036c751e3badf6a2",
+          "message": "chore: relax threshold for reporting regressions (#7130)",
+          "timestamp": "2025-01-21T14:43:24Z",
+          "tree_id": "ee1219e1a2dafd1c3dc714a0dcf73eb77d827614",
+          "url": "https://github.com/noir-lang/noir/commit/548be74e66fa2db8c2788eb6036c751e3badf6a2"
+        },
+        "date": 1737471796304,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "keccak256",
+            "value": 74.69,
+            "unit": "MB"
+          },
+          {
+            "name": "workspace",
+            "value": 123.62,
+            "unit": "MB"
+          },
+          {
+            "name": "regression_4709",
+            "value": 315.98,
+            "unit": "MB"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 512.6,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 498.92,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 473.61,
             "unit": "MB"
           },
           {
