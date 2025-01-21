@@ -9,6 +9,7 @@
 
 mod cli;
 mod errors;
+mod program_info;
 
 use std::env;
 
