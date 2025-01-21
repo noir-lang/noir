@@ -289,12 +289,10 @@ impl<'context> Elaborator<'context> {
 
         self.pop_scope();
 
-        if !in_constrained_function {
-            let last_loop =
-                std::mem::replace(&mut self.current_loop, old_loop).expect("Expected a loop");
-            if !last_loop.has_break {
-                self.push_err(ResolverError::LoopWithoutBreak { span });
-            }
+        let last_loop =
+            std::mem::replace(&mut self.current_loop, old_loop).expect("Expected a loop");
+        if !last_loop.has_break {
+            self.push_err(ResolverError::LoopWithoutBreak { span });
         }
 
         let statement = HirStatement::Loop(block);
