@@ -122,7 +122,7 @@ enum Segment {
     /// Represents the end of a path.
     /// This is needed because we have want to merge "foo" and "foo::bar",
     /// we need to know that "foo" is the end of a path, and "foo::bar" is another one.
-    /// If we don't, merging "foo" and "foo::bar" will result in just "foo::bar", loosing "foo",
+    /// If we don't, merging "foo" and "foo::bar" will result in just "foo::bar", losing "foo",
     /// when we actually want "foo::{self, bar}".
     SelfReference,
     Crate,
