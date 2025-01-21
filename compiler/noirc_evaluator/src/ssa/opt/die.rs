@@ -22,9 +22,33 @@ use super::rc::{pop_rc_for, RcInstruction};
 impl Ssa {
     /// Performs Dead Instruction Elimination (DIE) to remove any instructions with
     /// unused results.
+    ///
+    /// This step should come after the flattening of the CFG and mem2reg.
     #[tracing::instrument(level = "trace", skip(self))]
-    pub(crate) fn dead_instruction_elimination(mut self) -> Ssa {
-        self.functions.par_iter_mut().for_each(|(_, func)| func.dead_instruction_elimination(true));
+    pub(crate) fn dead_instruction_elimination(self) -> Ssa {
+        self.dead_instruction_elimination_inner(true)
+    }
+
+    fn dead_instruction_elimination_inner(mut self, flattened: bool) -> Ssa {
+        let mut used_global_values: HashSet<_> = self
+            .functions
+            .par_iter_mut()
+            .flat_map(|(_, func)| func.dead_instruction_elimination(true, flattened))
+            .collect();
+
+        // Check which globals are used across all functions
+        for (id, value) in self.globals.dfg.values_iter().rev() {
+            if used_global_values.contains(&id) {
+                if let Value::Instruction { instruction, .. } = &value {
+                    let instruction = &self.globals.dfg[*instruction];
+                    instruction.for_each_value(|value_id| {
+                        used_global_values.insert(value_id);
+                    });
+                }
+            }
+        }
+
+        self.used_global_values = used_global_values;
 
         self
     }
@@ -37,8 +61,16 @@ impl Function {
     /// instructions that reference results from an instruction in another block are evaluated first.
     /// If we did not iterate blocks in this order we could not safely say whether or not the results
     /// of its instructions are needed elsewhere.
-    pub(crate) fn dead_instruction_elimination(&mut self, insert_out_of_bounds_checks: bool) {
-        let mut context = Context::default();
+    ///
+    /// Returns the set of globals that were used in this function.
+    /// After processing all functions, the union of these sets enables determining the unused globals.
+    pub(crate) fn dead_instruction_elimination(
+        &mut self,
+        insert_out_of_bounds_checks: bool,
+        flattened: bool,
+    ) -> HashSet<ValueId> {
+        let mut context = Context { flattened, ..Default::default() };
+
         for call_data in &self.dfg.data_bus.call_data {
             context.mark_used_instruction_results(&self.dfg, call_data.array_id);
         }
@@ -58,11 +90,12 @@ impl Function {
         // instructions (we don't want to remove those checks, or instructions that are
         // dependencies of those checks)
         if inserted_out_of_bounds_checks {
-            self.dead_instruction_elimination(false);
-            return;
+            return self.dead_instruction_elimination(false, flattened);
         }
 
         context.remove_rc_instructions(&mut self.dfg);
+
+        context.used_values.into_iter().filter(|value| self.dfg.is_global(*value)).collect()
     }
 }
 
@@ -76,6 +109,11 @@ struct Context {
     /// they technically contain side-effects but we still want to remove them if their
     /// `value` parameter is not used elsewhere.
     rc_instructions: Vec<(InstructionId, BasicBlockId)>,
+
+    /// The elimination of certain unused instructions assumes that the DIE pass runs after
+    /// the flattening of the CFG, but if that's not the case then we should not eliminate
+    /// them just yet.
+    flattened: bool,
 }
 
 impl Context {
@@ -172,7 +210,7 @@ impl Context {
     fn is_unused(&self, instruction_id: InstructionId, function: &Function) -> bool {
         let instruction = &function.dfg[instruction_id];
 
-        if instruction.can_eliminate_if_unused(function) {
+        if instruction.can_eliminate_if_unused(function, self.flattened) {
             let results = function.dfg.instruction_results(instruction_id);
             results.iter().all(|result| !self.used_values.contains(result))
         } else if let Instruction::Call { func, arguments } = instruction {
@@ -195,15 +233,17 @@ impl Context {
     /// Inspects a value and marks all instruction results as used.
     fn mark_used_instruction_results(&mut self, dfg: &DataFlowGraph, value_id: ValueId) {
         let value_id = dfg.resolve(value_id);
-        if matches!(&dfg[value_id], Value::Instruction { .. } | Value::Param { .. }) {
+        if matches!(&dfg[value_id], Value::Instruction { .. } | Value::Param { .. })
+            || dfg.is_global(value_id)
+        {
             self.used_values.insert(value_id);
         }
     }
 
-    fn remove_rc_instructions(self, dfg: &mut DataFlowGraph) {
+    fn remove_rc_instructions(&self, dfg: &mut DataFlowGraph) {
         let unused_rc_values_by_block: HashMap<BasicBlockId, HashSet<InstructionId>> =
-            self.rc_instructions.into_iter().fold(HashMap::default(), |mut acc, (rc, block)| {
-                let value = match &dfg[rc] {
+            self.rc_instructions.iter().fold(HashMap::default(), |mut acc, (rc, block)| {
+                let value = match &dfg[*rc] {
                     Instruction::IncrementRc { value } => *value,
                     Instruction::DecrementRc { value } => *value,
                     other => {
@@ -214,7 +254,7 @@ impl Context {
                 };
 
                 if !self.used_values.contains(&value) {
-                    acc.entry(block).or_default().insert(rc);
+                    acc.entry(*block).or_default().insert(*rc);
                 }
                 acc
             });
@@ -356,15 +396,16 @@ impl Context {
     ) -> bool {
         use Instruction::*;
         if let IncrementRc { value } | DecrementRc { value } = instruction {
-            if let Value::Instruction { instruction, .. } = &dfg[*value] {
-                return match &dfg[*instruction] {
-                    MakeArray { .. } => true,
-                    Call { func, .. } => {
-                        matches!(&dfg[*func], Value::Intrinsic(_) | Value::ForeignFunction(_))
-                    }
-                    _ => false,
-                };
-            }
+            let Some(instruction) = dfg.get_local_or_global_instruction(*value) else {
+                return false;
+            };
+            return match instruction {
+                MakeArray { .. } => true,
+                Call { func, .. } => {
+                    matches!(&dfg[*func], Value::Intrinsic(_) | Value::ForeignFunction(_))
+                }
+                _ => false,
+            };
         }
         false
     }
@@ -940,5 +981,54 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.dead_instruction_elimination();
         assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn do_not_remove_mutable_reference_params() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v2 = allocate -> &mut Field
+            store v0 at v2
+            call f1(v2)
+            v4 = load v2 -> Field
+            v5 = eq v4, v1
+            constrain v4 == v1
+            return
+        }
+        acir(inline) fn Add10 f1 {
+          b0(v0: &mut Field):
+            v1 = load v0 -> Field
+            v2 = load v0 -> Field
+            v4 = add v2, Field 10
+            store v4 at v0
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        // Even though these ACIR functions only have 1 block, we have not inlined and flattened anything yet.
+        let ssa = ssa.dead_instruction_elimination_inner(false);
+
+        let expected = "
+          acir(inline) fn main f0 {
+            b0(v0: Field, v1: Field):
+              v2 = allocate -> &mut Field
+              store v0 at v2
+              call f1(v2)
+              v4 = load v2 -> Field
+              constrain v4 == v1
+              return
+          }
+          acir(inline) fn Add10 f1 {
+            b0(v0: &mut Field):
+              v1 = load v0 -> Field
+              v3 = add v1, Field 10
+              store v3 at v0
+              return
+          }
+        ";
+        assert_normalized_ssa_equals(ssa, expected);
     }
 }

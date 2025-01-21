@@ -112,10 +112,7 @@ pub comptime fn make_trait_impl<Env1, Env2>(
     let where_clause = where_clause.join(quote {, });
 
     // `for_each_field(field1) $join_fields_with for_each_field(field2) $join_fields_with ...`
-    let fields = s.fields_as_written().map(|f: (Quoted, Type)| {
-        let name = f.0;
-        for_each_field(name)
-    });
+    let fields = s.fields_as_written().map(|(name, _)| for_each_field(name));
     let body = body(fields.join(join_fields_with));
 
     quote {

@@ -1,4 +1,5 @@
 use crate::hir::def_collector::dc_crate::CompilationError;
+use crate::hir::def_collector::errors::DefCollectorErrorKind;
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir::resolution::import::PathResolutionError;
 use crate::hir::type_check::TypeCheckError;
@@ -1237,9 +1238,110 @@ fn warns_if_trait_is_not_in_scope_for_generic_function_call_and_there_is_only_on
     assert_eq!(trait_name, "private_mod::Foo");
 }
 
-// See https://github.com/noir-lang/noir/issues/7090
 #[test]
-#[should_panic]
+fn error_on_duplicate_impl_with_associated_type() {
+    let src = r#"
+        trait Foo {
+            type Bar;
+        }
+
+        impl Foo for i32 {
+            type Bar = u32;
+        }
+
+        impl Foo for i32 {
+            type Bar = u8;
+        }
+
+        fn main() {}
+    "#;
+
+    // Expect "Impl for type `i32` overlaps with existing impl"
+    //    and "Previous impl defined here"
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 2);
+
+    use CompilationError::DefinitionError;
+    use DefCollectorErrorKind::*;
+    assert!(matches!(&errors[0].0, DefinitionError(OverlappingImpl { .. })));
+    assert!(matches!(&errors[1].0, DefinitionError(OverlappingImplNote { .. })));
+}
+
+#[test]
+fn error_on_duplicate_impl_with_associated_constant() {
+    let src = r#"
+        trait Foo {
+            let Bar: u32;
+        }
+
+        impl Foo for i32 {
+            let Bar = 5;
+        }
+
+        impl Foo for i32 {
+            let Bar = 6;
+        }
+
+        fn main() {}
+    "#;
+
+    // Expect "Impl for type `i32` overlaps with existing impl"
+    //    and "Previous impl defined here"
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 2);
+
+    use CompilationError::DefinitionError;
+    use DefCollectorErrorKind::*;
+    assert!(matches!(&errors[0].0, DefinitionError(OverlappingImpl { .. })));
+    assert!(matches!(&errors[1].0, DefinitionError(OverlappingImplNote { .. })));
+}
+
+// See https://github.com/noir-lang/noir/issues/6530
+#[test]
+fn regression_6530() {
+    let src = r#"
+    pub trait From<T> {
+        fn from(input: T) -> Self;
+    }
+    
+    pub trait Into<T> {
+        fn into(self) -> T;
+    }
+    
+    impl<T, U> Into<T> for U
+    where
+        T: From<U>,
+    {
+        fn into(self) -> T {
+            T::from(self)
+        }
+    }
+    
+    struct Foo {
+        inner: Field,
+    }
+    
+    impl Into<Field> for Foo {
+        fn into(self) -> Field {
+            self.inner
+        }
+    }
+    
+    fn main() {
+        let foo = Foo { inner: 0 };
+    
+        // This works:
+        let _: Field = Into::<Field>::into(foo);
+    
+        // This was failing with 'No matching impl':
+        let _: Field = foo.into();
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 0);
+}
+
+#[test]
 fn calls_trait_method_using_struct_name_when_multiple_impls_exist() {
     let src = r#"
     trait From2<T> {
@@ -1262,4 +1364,33 @@ fn calls_trait_method_using_struct_name_when_multiple_impls_exist() {
     }
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn calls_trait_method_using_struct_name_when_multiple_impls_exist_and_errors_turbofish() {
+    let src = r#"
+    trait From2<T> {
+        fn from2(input: T) -> Self;
+    }
+    struct U60Repr {}
+    impl From2<[Field; 3]> for U60Repr {
+        fn from2(_: [Field; 3]) -> Self {
+            U60Repr {}
+        }
+    }
+    impl From2<Field> for U60Repr {
+        fn from2(_: Field) -> Self {
+            U60Repr {}
+        }
+    }
+    fn main() {
+        let _ = U60Repr::<Field>::from2([1, 2, 3]);
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::TypeMismatch { .. })
+    ));
 }

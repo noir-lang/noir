@@ -36,7 +36,7 @@ impl Ssa {
 }
 
 impl Function {
-    fn loop_invariant_code_motion(&mut self) {
+    pub(super) fn loop_invariant_code_motion(&mut self) {
         Loops::find_all(self).hoist_loop_invariants(self);
     }
 }
