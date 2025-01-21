@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737474852970,
+  "lastUpdate": 1737474854031,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4106,6 +4106,100 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 2.166,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "966d8a607436f371079f2e7fa3774046fb9785a5",
+          "message": "fix: allow calling trait impl method from struct if multiple impls exist (#7124)",
+          "timestamp": "2025-01-21T15:38:14Z",
+          "tree_id": "8760f53493a43b391bb456fd57f7908048feb7db",
+          "url": "https://github.com/noir-lang/noir/commit/966d8a607436f371079f2e7fa3774046fb9785a5"
+        },
+        "date": 1737474852960,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 1.03,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.828,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 19,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 4.366,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 2.22,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 80.7,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 2.096,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 85.6,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 3.742,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 26,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 10.64,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.047,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.132,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.006,
             "unit": "s"
           }
         ]
