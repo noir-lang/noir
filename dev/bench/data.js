@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737475060423,
+  "lastUpdate": 1737475064434,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -7392,6 +7392,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 207.99,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "966d8a607436f371079f2e7fa3774046fb9785a5",
+          "message": "fix: allow calling trait impl method from struct if multiple impls exist (#7124)",
+          "timestamp": "2025-01-21T15:38:14Z",
+          "tree_id": "8760f53493a43b391bb456fd57f7908048feb7db",
+          "url": "https://github.com/noir-lang/noir/commit/966d8a607436f371079f2e7fa3774046fb9785a5"
+        },
+        "date": 1737475063861,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "keccak256",
+            "value": 74.69,
+            "unit": "MB"
+          },
+          {
+            "name": "workspace",
+            "value": 123.56,
+            "unit": "MB"
+          },
+          {
+            "name": "regression_4709",
+            "value": 315.98,
+            "unit": "MB"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 512.6,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 498.92,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 473.61,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1230,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 498.93,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 730.78,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 591.18,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 181,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 245.61,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 208,
             "unit": "MB"
           }
         ]
