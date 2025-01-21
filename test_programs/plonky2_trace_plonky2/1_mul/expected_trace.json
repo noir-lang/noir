@@ -1,59 +1,52 @@
 [
-  { "Path": "?" },
-  { "Function": { "path_id": 0, "line": -1, "name": "<toplevel>" } },
-  { "Call": { "function_id": 0, "args": [] } },
   { "Type": { "kind": 30, "lang_type": "None", "specific_info": { "kind": "None" } } },
   { "Path": "<relative-to-this>/src/main.nr" },
-  { "Function": { "path_id": 1, "line": 3, "name": "main" } },
+  { "Function": { "path_id": 0, "line": 3, "name": "main" } },
   { "Type": { "kind": 7, "lang_type": "u32", "specific_info": { "kind": "None" } } },
   { "VariableName": "x" },
   { "VariableName": "y" },
   { "VariableName": "z" },
-  { "Value": { "variable_id": 0, "value": { "kind": "Int", "i": 3, "type_id": 1 } } },
-  { "Value": { "variable_id": 1, "value": { "kind": "Int", "i": 4, "type_id": 1 } } },
-  { "Value": { "variable_id": 2, "value": { "kind": "Int", "i": 429981696, "type_id": 1 } } },
-  { "Step": { "path_id": 1, "line": 3 } },
-  { "Call": { "function_id": 1, "args": [
+  { "Call": { "function_id": 0, "args": [
     { "variable_id": 0, "value": { "kind": "Int", "i": 3, "type_id": 1 } },
     { "variable_id": 1, "value": { "kind": "Int", "i": 4, "type_id": 1 } },
     { "variable_id": 2, "value": { "kind": "Int", "i": 429981696, "type_id": 1 } }
   ] } },
-  { "Step": { "path_id": 1, "line": 4 } },
+  { "Step": { "path_id": 0, "line": 4 } },
   { "Asm": [
     "r0c3 = mul v0,v1"
   ] },
   { "Value": { "variable_id": 0, "value": { "kind": "Int", "i": 3, "type_id": 1 } } },
   { "Value": { "variable_id": 1, "value": { "kind": "Int", "i": 4, "type_id": 1 } } },
   { "Value": { "variable_id": 2, "value": { "kind": "Int", "i": 429981696, "type_id": 1 } } },
-  { "Step": { "path_id": 1, "line": 5 } },
+  { "Step": { "path_id": 0, "line": 5 } },
   { "Asm": [
     "r0c7 = mul r0c3,r0c3"
   ] },
   { "Value": { "variable_id": 0, "value": { "kind": "Int", "i": 12, "type_id": 1 } } },
   { "Value": { "variable_id": 1, "value": { "kind": "Int", "i": 4, "type_id": 1 } } },
   { "Value": { "variable_id": 2, "value": { "kind": "Int", "i": 429981696, "type_id": 1 } } },
-  { "Step": { "path_id": 1, "line": 6 } },
+  { "Step": { "path_id": 0, "line": 6 } },
   { "Asm": [
     "r0c11 = mul r0c7,r0c7"
   ] },
   { "Value": { "variable_id": 0, "value": { "kind": "Int", "i": 144, "type_id": 1 } } },
   { "Value": { "variable_id": 1, "value": { "kind": "Int", "i": 4, "type_id": 1 } } },
   { "Value": { "variable_id": 2, "value": { "kind": "Int", "i": 429981696, "type_id": 1 } } },
-  { "Step": { "path_id": 1, "line": 7 } },
+  { "Step": { "path_id": 0, "line": 7 } },
   { "Asm": [
     "r0c15 = mul r0c11,r0c11"
   ] },
   { "Value": { "variable_id": 0, "value": { "kind": "Int", "i": 20736, "type_id": 1 } } },
   { "Value": { "variable_id": 1, "value": { "kind": "Int", "i": 4, "type_id": 1 } } },
   { "Value": { "variable_id": 2, "value": { "kind": "Int", "i": 429981696, "type_id": 1 } } },
-  { "Step": { "path_id": 1, "line": 8 } },
+  { "Step": { "path_id": 0, "line": 8 } },
   { "Asm": [
     "connect r0c15,v2"
   ] },
   { "Value": { "variable_id": 0, "value": { "kind": "Int", "i": 429981696, "type_id": 1 } } },
   { "Value": { "variable_id": 1, "value": { "kind": "Int", "i": 4, "type_id": 1 } } },
   { "Value": { "variable_id": 2, "value": { "kind": "Int", "i": 429981696, "type_id": 1 } } },
-  { "Step": { "path_id": 1, "line": 9 } },
+  { "Step": { "path_id": 0, "line": 9 } },
   { "Value": { "variable_id": 0, "value": { "kind": "Int", "i": 429981696, "type_id": 1 } } },
   { "Value": { "variable_id": 1, "value": { "kind": "Int", "i": 4, "type_id": 1 } } },
   { "Value": { "variable_id": 2, "value": { "kind": "Int", "i": 429981696, "type_id": 1 } } }
