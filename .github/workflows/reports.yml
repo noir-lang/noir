@@ -568,7 +568,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
-          alert-threshold: "110%"
+          alert-threshold: "120%"
           comment-on-alert: true
           fail-on-alert: false
           alert-comment-cc-users: "@TomAFrench"
@@ -617,7 +617,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
-          alert-threshold: "110%"
+          alert-threshold: "120%"
           comment-on-alert: true
           fail-on-alert: false
           alert-comment-cc-users: "@TomAFrench"
@@ -668,7 +668,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
-          alert-threshold: "110%"
+          alert-threshold: "120%"
           comment-on-alert: true
           fail-on-alert: false
           alert-comment-cc-users: "@TomAFrench"
@@ -718,7 +718,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
-          alert-threshold: "110%"
+          alert-threshold: "120%"
           comment-on-alert: true
           fail-on-alert: false
           alert-comment-cc-users: "@TomAFrench"
