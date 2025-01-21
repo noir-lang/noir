@@ -13,6 +13,10 @@ use rayon::prelude::*;
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use tracing::trace;
 
+/// Constant limiting the constraint search for Brillig calls
+/// (in no. of consequent value ids met)
+const BRILLIG_CONSTRAINT_SEARCH_DEPTH: usize = 1000;
+
 impl Ssa {
     /// This function provides an SSA pass that detects if the final function has any subgraphs independent from inputs and outputs.
     /// If this is the case, then part of the final circuit can be completely replaced by any other passing circuit, since there are no constraints ensuring connections.
@@ -108,6 +112,8 @@ struct DependencyContext {
     tainted: BTreeMap<InstructionId, BrilligTaintedIds>,
     // Map of argument value ids to the Brilling call ids employing them
     call_arguments: HashMap<ValueId, Vec<InstructionId>>,
+    // Brillig calls currently being tracked
+    currently_tracking: HashSet<InstructionId>,
 }
 
 /// Structure keeping track of value ids descending from Brillig calls'
@@ -363,19 +369,16 @@ impl DependencyContext {
             }
 
             // Start tracking calls when their argument value ids first appear,
-            // or when their instruction id comes up
+            // or when their instruction id comes up (in case there were no arguments)
             for argument in &arguments {
                 if let Some(calls) = self.call_arguments.get(argument) {
-                    for call in calls {
-                        if let Some(tainted_ids) = self.tainted.get_mut(call) {
-                            tainted_ids.tracking = true;
-                        }
-                    }
+                    self.currently_tracking.extend(calls);
                 }
             }
-            if let Some(tainted_ids) = self.tainted.get_mut(instruction) {
-                tainted_ids.tracking = true;
+            if self.tainted.get(instruction).is_some() {
+                self.currently_tracking.insert(*instruction);
             }
+
 
             match &function.dfg[*instruction] {
                 // For memory operations, we have to link up the stored value as a parent
@@ -536,9 +539,9 @@ impl DependencyContext {
         // (as it would affect every following statement)
         self.side_effects_condition.map(|v| parents.insert(v));
 
-        for (_, tainted_ids) in self.tainted.iter_mut() {
-            // Don't update sets for the calls not yet being tracked
-            if tainted_ids.tracking {
+        // Only update sets for the calls being tracked
+        for call in &self.currently_tracking {
+            if let Some(tainted_ids) = self.tainted.get_mut(&call) {
                 tainted_ids.update_children(&parents, children);
             }
         }
