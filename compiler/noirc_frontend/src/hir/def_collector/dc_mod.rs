@@ -1138,7 +1138,7 @@ pub fn collect_enum(
         }
     };
 
-    interner.set_doc_comments(ReferenceId::Struct(id), doc_comments);
+    interner.set_doc_comments(ReferenceId::Enum(id), doc_comments);
 
     for (index, variant) in unresolved.enum_def.variants.iter().enumerate() {
         if !variant.doc_comments.is_empty() {
