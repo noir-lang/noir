@@ -129,11 +129,7 @@ impl Translator {
     }
 
     fn translate_function_body(&mut self, function: ParsedFunction) -> Result<(), SsaError> {
-        self.builder.current_function.set_globals(self.globals_graph.clone());
-
-        for typ in &self.global_types {
-            self.builder.current_function.dfg.make_global(typ.clone());
-        }
+        self.builder.set_globals(self.globals_graph.clone());
 
         // First define all blocks so that they are known (a block might jump to a block that comes next)
         for (index, block) in function.blocks.iter().enumerate() {
