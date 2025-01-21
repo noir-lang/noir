@@ -2199,7 +2199,7 @@ impl Type {
         }
 
         let recur_on_binding = |id, replacement: &Type| {
-            // Prevent recuring forever if there's a `T := T` binding
+            // Prevent recurring forever if there's a `T := T` binding
             if replacement.type_variable_id() == Some(id) {
                 replacement.clone()
             } else {
