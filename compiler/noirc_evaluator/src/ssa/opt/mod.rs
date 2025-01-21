@@ -17,6 +17,7 @@ mod loop_invariant;
 mod make_constrain_not_equal;
 mod mem2reg;
 mod normalize_value_ids;
+mod preprocess_fns;
 mod rc;
 mod remove_bit_shifts;
 mod remove_enable_side_effects;

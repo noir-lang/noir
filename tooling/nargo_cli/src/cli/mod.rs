@@ -224,10 +224,14 @@ fn command_dir(cmd: &NargoCommand, program_dir: &Path) -> Result<Option<PathBuf>
     Ok(Some(nargo_toml::find_root(program_dir, workspace)?))
 }
 
+/// Returns:
+/// - `Some(true)` if an exclusive lock is needed
+/// - `Some(false)` if an read lock is needed
+/// - None if no lock is needed
 fn needs_lock(cmd: &NargoCommand) -> Option<bool> {
     match cmd {
-        NargoCommand::Check(..)
-        | NargoCommand::Compile(..)
+        NargoCommand::Check(check_command) => Some(check_command.allow_overwrite),
+        NargoCommand::Compile(..)
         | NargoCommand::Execute(..)
         | NargoCommand::Export(..)
         | NargoCommand::Info(..) => Some(true),
