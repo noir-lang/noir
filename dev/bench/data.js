@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737472677843,
+  "lastUpdate": 1737472853983,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -2135,6 +2135,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-tail",
             "value": 198.8,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 540.15,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 268.39,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "521f5ce5721181e0b686887bdb47d3be1a8501a8",
+          "message": "fix: avoid creating unnecessary memory blocks (#7114)",
+          "timestamp": "2025-01-21T15:01:38Z",
+          "tree_id": "d89ea45c4fc69fa98cf4ddc246ba24a5ee3013dd",
+          "url": "https://github.com/noir-lang/noir/commit/521f5ce5721181e0b686887bdb47d3be1a8501a8"
+        },
+        "date": 1737472853519,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "keccak256",
+            "value": 77.57,
+            "unit": "MB"
+          },
+          {
+            "name": "workspace",
+            "value": 123.91,
+            "unit": "MB"
+          },
+          {
+            "name": "regression_4709",
+            "value": 424.11,
+            "unit": "MB"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 1480,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 601.66,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 484.61,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 6230,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 488.27,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 6230,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 601.65,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 2120,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1120,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 198.81,
             "unit": "MB"
           },
           {
