@@ -320,10 +320,11 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
         let new_len = self.len + append_len;
         assert(new_len <= MaxLen, "extend_from_bounded_vec out of bounds");
 
+        let storage_ref = &mut self.storage;
         for_loop::<Len, _>(
             0,
             append_len,
-            |i| { self.storage[self.len + i] = vec.get_unchecked(i); },
+            |i| { storage_ref[self.len + i] = vec.get_unchecked(i); },
         );
         self.len = new_len;
     }
@@ -405,10 +406,11 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     pub fn map<U, Env>(self, f: fn[Env](T) -> U) -> BoundedVec<U, MaxLen> {
         let mut ret = BoundedVec::new();
         ret.len = self.len();
+        let storage_ref = &mut ret.storage;
         for_loop::<MaxLen, _>(
             0,
             self.len(),
-            |i| { ret.storage[i] = f(self.get_unchecked(i)); },
+            |i| { storage_ref[i] = f(self.get_unchecked(i)); },
         );
         ret
     }

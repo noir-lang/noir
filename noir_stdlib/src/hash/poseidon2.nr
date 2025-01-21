@@ -28,7 +28,8 @@ impl Poseidon2 {
         // add the cache into sponge state
         // We effectively zero-pad the cache by only adding to the state
         // cache that is less than the specified `cache_size`
-        for_loop::<RATE, _>(0, self.cache_size, |i| { self.state[i] += self.cache[i]; });
+        let state_ref = &mut self.state;
+        for_loop::<RATE, _>(0, self.cache_size, |i| { state_ref[i] += self.cache[i]; });
         self.state = crate::hash::poseidon2_permutation(self.state, 4);
     }
 
@@ -64,7 +65,8 @@ impl Poseidon2 {
         let two_pow_64 = 18446744073709551616;
         let iv: Field = (in_len as Field) * two_pow_64;
         let mut sponge = Poseidon2::new(iv);
-        for_loop::<N, _>(0, in_len, |i| { sponge.absorb(input[i]); });
+        let sponge_ref = &mut sponge;
+        for_loop::<N, _>(0, in_len, |i| { sponge_ref.absorb(input[i]); });
 
         // In the case where the hash preimage is variable-length, we append `1` to the end of the input, to distinguish
         // from fixed-length hashes. (the combination of this additional field element + the hash IV ensures

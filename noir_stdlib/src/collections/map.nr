@@ -312,6 +312,7 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
         // docs:end:iter_mut
         let mut entries = self.entries();
         let mut new_map = HashMap::with_hasher(self._build_hasher);
+        let new_map_ref = &mut new_map;
 
         for_loop::<N, _>(
             0,
@@ -319,7 +320,7 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
             |i| {
                 let entry = entries.get_unchecked(i);
                 let (key, value) = f(entry.0, entry.1);
-                new_map.insert(key, value);
+                new_map_ref.insert(key, value);
             },
         );
 
@@ -352,6 +353,7 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
         // docs:end:iter_keys_mut
         let mut entries = self.entries();
         let mut new_map = HashMap::with_hasher(self._build_hasher);
+        let new_map_ref = &mut new_map;
 
         for_loop::<N, _>(
             0,
@@ -359,7 +361,7 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
             |i| {
                 let entry = entries.get_unchecked(i);
                 let (key, value) = (f(entry.0), entry.1);
-                new_map.insert(key, value);
+                new_map_ref.insert(key, value);
             },
         );
 

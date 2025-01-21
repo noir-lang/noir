@@ -15,7 +15,8 @@ pub(crate) fn keccak256<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 3
     // Copy input to block bytes. For that we'll need at least input bytes (N)
     // but we want it to be padded to a multiple of BLOCK_SIZE_IN_BYTES.
     let mut block_bytes = [0; ((N / BLOCK_SIZE_IN_BYTES) + 1) * BLOCK_SIZE_IN_BYTES];
-    for_loop::<N, _>(0, message_size, |i| { block_bytes[i] = input[i]; });
+    let block_bytes_ref = &mut block_bytes;
+    for_loop::<N, _>(0, message_size, |i| { block_bytes_ref[i] = input[i]; });
 
     //1. format_input_lanes
     let max_blocks = (N + BLOCK_SIZE_IN_BYTES) / BLOCK_SIZE_IN_BYTES;
