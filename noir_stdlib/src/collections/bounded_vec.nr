@@ -1,4 +1,4 @@
-use crate::{cmp::Eq, convert::From, static_assert, runtime::is_unconstrained};
+use crate::{cmp::Eq, convert::From, runtime::is_unconstrained, static_assert};
 
 /// A `BoundedVec<T, MaxLen>` is a growable storage similar to a `Vec<T>` except that it
 /// is bounded with a maximum possible length. Unlike `Vec`, `BoundedVec` is not implemented
