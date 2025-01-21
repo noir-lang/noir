@@ -442,15 +442,6 @@ impl DataType {
         self.body = TypeBody::Struct(fields);
     }
 
-    /// Returns the number of fields this struct has. Returns 0 if this type
-    /// is not a struct.
-    pub fn num_fields(&self) -> usize {
-        match &self.body {
-            TypeBody::Struct(fields) => fields.len(),
-            _ => 0,
-        }
-    }
-
     pub fn is_struct(&self) -> bool {
         matches!(&self.body, TypeBody::Struct(_))
     }

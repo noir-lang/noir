@@ -1054,7 +1054,7 @@ pub fn collect_struct(
 
     // Add the struct to scope so its path can be looked up later
     let visibility = unresolved.struct_def.visibility;
-    let result = def_map.modules[module_id.0].declare_struct(name.clone(), visibility, id);
+    let result = def_map.modules[module_id.0].declare_type(name.clone(), visibility, id);
 
     let parent_module_id = ModuleId { krate, local_id: module_id };
 
@@ -1149,7 +1149,7 @@ pub fn collect_enum(
 
     // Add the enum to scope so its path can be looked up later
     let visibility = unresolved.enum_def.visibility;
-    let result = def_map.modules[module_id.0].declare_struct(name.clone(), visibility, id);
+    let result = def_map.modules[module_id.0].declare_type(name.clone(), visibility, id);
 
     let parent_module_id = ModuleId { krate, local_id: module_id };
 

@@ -120,7 +120,7 @@ impl ModuleData {
         self.declare(name, visibility, id.into(), None)
     }
 
-    pub fn declare_struct(
+    pub fn declare_type(
         &mut self,
         name: Ident,
         visibility: ItemVisibility,
