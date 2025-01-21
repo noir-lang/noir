@@ -61,6 +61,7 @@ mod unquote;
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span, Spanned};
+pub use path_resolution::Turbofish;
 use path_resolution::{PathResolution, PathResolutionItem};
 use types::bind_ordered_generics;
 

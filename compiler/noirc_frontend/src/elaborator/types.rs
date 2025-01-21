@@ -37,11 +37,7 @@ use crate::{
     Generics, Kind, ResolvedGeneric, Type, TypeBinding, TypeBindings, UnificationError,
 };
 
-use super::{
-    lints,
-    path_resolution::{PathResolutionItem, Turbofish},
-    Elaborator, UnsafeBlockStatus,
-};
+use super::{lints, path_resolution::PathResolutionItem, Elaborator, UnsafeBlockStatus};
 
 pub const SELF_TYPE_NAME: &str = "Self";
 
@@ -733,10 +729,7 @@ impl<'context> Elaborator<'context> {
         constraint.typ = typ;
 
         let method = TraitMethod { method_id: trait_method_id, constraint, assumed: false };
-        let turbofish = before_last_segment.generics.as_ref().map(|generics| Turbofish {
-            generics: generics.clone(),
-            span: before_last_segment.turbofish_span(),
-        });
+        let turbofish = before_last_segment.turbofish();
         let item = PathResolutionItem::TraitFunction(trait_id, turbofish, func_id);
         let mut errors = path_resolution.errors;
         if let Some(error) = error {

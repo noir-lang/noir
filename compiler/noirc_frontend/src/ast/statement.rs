@@ -12,6 +12,7 @@ use super::{
 };
 use crate::ast::UnresolvedTypeData;
 use crate::elaborator::types::SELF_TYPE_NAME;
+use crate::elaborator::Turbofish;
 use crate::lexer::token::SpannedToken;
 use crate::node_interner::{
     InternedExpressionKind, InternedPattern, InternedStatementKind, NodeInterner,
@@ -534,6 +535,12 @@ impl PathSegment {
     /// Returns an empty span at the end of `foo` if there's no turbofish.
     pub fn turbofish_span(&self) -> Span {
         Span::from(self.ident.span().end()..self.span.end())
+    }
+
+    pub fn turbofish(&self) -> Option<Turbofish> {
+        self.generics
+            .as_ref()
+            .map(|generics| Turbofish { span: self.turbofish_span(), generics: generics.clone() })
     }
 }
 
