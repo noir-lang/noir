@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737468322265,
+  "lastUpdate": 1737468325657,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -6259,6 +6259,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-merge",
             "value": 473.61,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1230,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 498.93,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 730.78,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 591.18,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 180.99,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 245.6,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 207.99,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bf32a22b4f813602123aa377cb50b1baac7f856c",
+          "message": "fix: proper cleanup when breaking from comptime loop on error (#7125)",
+          "timestamp": "2025-01-21T13:45:30Z",
+          "tree_id": "79de7a15170f6db780d15724b9374d045584ff2e",
+          "url": "https://github.com/noir-lang/noir/commit/bf32a22b4f813602123aa377cb50b1baac7f856c"
+        },
+        "date": 1737468324499,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "keccak256",
+            "value": 74.69,
+            "unit": "MB"
+          },
+          {
+            "name": "workspace",
+            "value": 123.79,
+            "unit": "MB"
+          },
+          {
+            "name": "regression_4709",
+            "value": 315.98,
+            "unit": "MB"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 512.6,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 498.92,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 473.62,
             "unit": "MB"
           },
           {
