@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737574742168,
+  "lastUpdate": 1737574743879,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -5457,6 +5457,100 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 1.978,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "1927bdaba6fe9ddb8f62948f13e2af84285f0ac7",
+          "message": "feat: LSP chain inlay hints (#7152)",
+          "timestamp": "2025-01-22T19:17:11Z",
+          "tree_id": "ca5bbadaf1d1d2156936aceb46ff1286fe97d10b",
+          "url": "https://github.com/noir-lang/noir/commit/1927bdaba6fe9ddb8f62948f13e2af84285f0ac7"
+        },
+        "date": 1737574742352,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 0.997,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.853,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 18.6,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 3.55,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 2.112,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 85.8,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 2.226,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 87,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 3.582,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 25.44,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 10.3,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.976,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.428,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.012,
             "unit": "s"
           }
         ]
