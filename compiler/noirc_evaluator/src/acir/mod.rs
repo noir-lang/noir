@@ -1334,7 +1334,7 @@ impl<'a> Context<'a> {
         typ: &Type,
     ) -> Result<AcirValue, RuntimeError> {
         match typ {
-            Type::Numeric(_) => self.array_get_value(&Type::field(), call_data_block, offset),
+            Type::Numeric(_) => self.array_get_value(typ, call_data_block, offset),
             Type::Array(arc, len) => {
                 let mut result = im::Vector::new();
                 for _i in 0..*len {
