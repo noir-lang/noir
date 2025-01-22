@@ -12,7 +12,7 @@ use crate::Shared;
 
 use super::stmt::HirPattern;
 use super::traits::{ResolvedTraitBound, TraitConstraint};
-use super::types::{StructType, Type};
+use super::types::{DataType, Type};
 
 /// A HirExpression is the result of an Expression in the AST undergoing
 /// name resolution. It is almost identical to the Expression AST node, but
@@ -273,7 +273,7 @@ impl HirMethodCallExpression {
 
 #[derive(Debug, Clone)]
 pub struct HirConstructorExpression {
-    pub r#type: Shared<StructType>,
+    pub r#type: Shared<DataType>,
     pub struct_generics: Vec<Type>,
 
     // NOTE: It is tempting to make this a BTreeSet to force ordering of field

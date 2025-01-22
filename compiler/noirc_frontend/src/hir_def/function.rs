@@ -8,7 +8,7 @@ use super::traits::TraitConstraint;
 use crate::ast::{BlockExpression, FunctionKind, FunctionReturnType, Visibility};
 use crate::graph::CrateId;
 use crate::hir::def_map::LocalModuleId;
-use crate::node_interner::{ExprId, NodeInterner, StructId, TraitId, TraitImplId};
+use crate::node_interner::{ExprId, NodeInterner, TraitId, TraitImplId, TypeId};
 
 use crate::{ResolvedGeneric, Type};
 
@@ -133,7 +133,7 @@ pub struct FuncMeta {
     pub trait_constraints: Vec<TraitConstraint>,
 
     /// The struct this function belongs to, if any
-    pub struct_id: Option<StructId>,
+    pub struct_id: Option<TypeId>,
 
     // The trait this function belongs to, if any
     pub trait_id: Option<TraitId>,

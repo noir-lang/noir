@@ -116,8 +116,8 @@ pub enum ResolverError {
     NonIntegralGlobalType { span: Span, global_value: Value },
     #[error("Global value `{global_value}` is larger than its kind's maximum value")]
     GlobalLargerThanKind { span: Span, global_value: FieldElement, kind: Kind },
-    #[error("Self-referential structs are not supported")]
-    SelfReferentialStruct { span: Span },
+    #[error("Self-referential types are not supported")]
+    SelfReferentialType { span: Span },
     #[error("#[no_predicates] attribute is only allowed on constrained functions")]
     NoPredicatesAttributeOnUnconstrained { ident: Ident },
     #[error("#[fold] attribute is only allowed on constrained functions")]
@@ -502,9 +502,9 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *span,
                 )
             }
-            ResolverError::SelfReferentialStruct { span } => {
+            ResolverError::SelfReferentialType { span } => {
                 Diagnostic::simple_error(
-                    "Self-referential structs are not supported".into(),
+                    "Self-referential types are not supported".into(),
                     "".into(),
                     *span,
                 )

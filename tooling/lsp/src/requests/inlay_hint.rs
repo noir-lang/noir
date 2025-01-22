@@ -95,13 +95,21 @@ impl<'a> InlayHintCollector<'a> {
                         self.push_type_hint(lsp_location, &typ, editable);
                     }
                     ReferenceId::StructMember(struct_id, field_index) => {
-                        let struct_type = self.interner.get_struct(struct_id);
+                        let struct_type = self.interner.get_type(struct_id);
                         let struct_type = struct_type.borrow();
                         let field = struct_type.field_at(field_index);
                         self.push_type_hint(lsp_location, &field.typ, false);
                     }
+                    ReferenceId::EnumVariant(type_id, variant_index) => {
+                        let typ = self.interner.get_type(type_id);
+                        let shared_type = typ.clone();
+                        let typ = typ.borrow();
+                        let variant_type = typ.variant_function_type(variant_index, shared_type);
+                        self.push_type_hint(lsp_location, &variant_type, false);
+                    }
                     ReferenceId::Module(_)
                     | ReferenceId::Struct(_)
+                    | ReferenceId::Enum(_)
                     | ReferenceId::Trait(_)
                     | ReferenceId::Function(_)
                     | ReferenceId::Alias(_)
@@ -410,7 +418,7 @@ fn push_type_parts(typ: &Type, parts: &mut Vec<InlayHintLabelPart>, files: &File
             }
             parts.push(string_part(")"));
         }
-        Type::Struct(struct_type, generics) => {
+        Type::DataType(struct_type, generics) => {
             let struct_type = struct_type.borrow();
             let location = Location::new(struct_type.name.span(), struct_type.location.file);
             parts.push(text_part_with_location(struct_type.name.to_string(), location, files));
