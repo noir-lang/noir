@@ -355,15 +355,14 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
         BlackBoxFunc::AES128Encrypt => {
             if let (
                 [inputs, BrilligVariable::BrilligArray(iv), BrilligVariable::BrilligArray(key)],
-                [BrilligVariable::SingleAddr(out_len), BrilligVariable::BrilligVector(outputs)],
+                [outputs],
             ) = (function_arguments, function_results)
             {
                 let inputs = convert_array_or_vector(brillig_context, *inputs, bb_func);
                 let iv = brillig_context.codegen_brillig_array_to_heap_array(*iv);
                 let key = brillig_context.codegen_brillig_array_to_heap_array(*key);
 
-                let outputs_vector =
-                    brillig_context.codegen_brillig_vector_to_heap_vector(*outputs);
+                let outputs_vector = convert_array_or_vector(brillig_context, *outputs, bb_func);
 
                 brillig_context.black_box_op_instruction(BlackBoxOp::AES128Encrypt {
                     inputs,
@@ -371,11 +370,6 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
                     key,
                     outputs: outputs_vector,
                 });
-
-                brillig_context.mov_instruction(out_len.address, outputs_vector.size);
-                // Returns slice, so we need to allocate memory for it after the fact
-
-                brillig_context.initialize_externally_returned_vector(*outputs, outputs_vector);
 
                 brillig_context.deallocate_heap_vector(inputs);
                 brillig_context.deallocate_heap_vector(outputs_vector);

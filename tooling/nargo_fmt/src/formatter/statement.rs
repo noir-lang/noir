@@ -4,7 +4,7 @@ use noirc_frontend::{
         ForLoopStatement, ForRange, LetStatement, Pattern, Statement, StatementKind,
         UnresolvedType, UnresolvedTypeData,
     },
-    token::{Keyword, SecondaryAttribute, Token},
+    token::{Keyword, SecondaryAttribute, Token, TokenKind},
 };
 
 use crate::chunks::{ChunkFormatter, ChunkGroup, GroupKind};
@@ -23,7 +23,17 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
 
         // Now write any leading comment respecting multiple newlines after them
         group.leading_comment(self.chunk(|formatter| {
+            // Doc comments for a let statement could come before a potential non-doc comment
+            if formatter.token.kind() == TokenKind::OuterDocComment {
+                formatter.format_outer_doc_comments();
+            }
+
             formatter.skip_comments_and_whitespace_writing_multiple_lines_if_found();
+
+            // Or doc comments could come after a potential non-doc comment
+            if formatter.token.kind() == TokenKind::OuterDocComment {
+                formatter.format_outer_doc_comments();
+            }
         }));
 
         ignore_next |= self.ignore_next;
@@ -64,6 +74,9 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
             }
             StatementKind::For(for_loop_statement) => {
                 group.group(self.format_for_loop(for_loop_statement));
+            }
+            StatementKind::Loop(block, _) => {
+                group.group(self.format_loop(block));
             }
             StatementKind::Break => {
                 group.text(self.chunk(|formatter| {
@@ -267,6 +280,34 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
         group
     }
 
+    fn format_loop(&mut self, block: Expression) -> ChunkGroup {
+        let mut group = ChunkGroup::new();
+
+        group.text(self.chunk(|formatter| {
+            formatter.write_keyword(Keyword::Loop);
+        }));
+
+        group.space(self);
+
+        let ExpressionKind::Block(block) = block.kind else {
+            panic!("Expected a block expression for loop body");
+        };
+
+        group.group(self.format_block_expression(
+            block, true, // force multiple lines
+        ));
+
+        // If there's a trailing semicolon, remove it
+        group.text(self.chunk(|formatter| {
+            formatter.skip_whitespace_if_it_is_not_a_newline();
+            if formatter.is_at(Token::Semicolon) {
+                formatter.bump();
+            }
+        }));
+
+        group
+    }
+
     fn format_comptime_statement(&mut self, statement: Statement) -> ChunkGroup {
         let mut group = ChunkGroup::new();
 
@@ -369,6 +410,34 @@ mod tests {
         let expected = "fn foo() {
     #[allow(unused_variables)]
     let x = 1;
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_let_statement_with_unsafe() {
+        let src = " fn foo() { 
+        /// Safety: some doc
+        let  x  =  unsafe { 1 } ; } ";
+        let expected = "fn foo() {
+    /// Safety: some doc
+    let x = unsafe { 1 };
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_let_statement_with_unsafe_and_comment_before_it() {
+        let src = " fn foo() { 
+        // Some comment
+        /// Safety: some doc
+        let  x  =  unsafe { 1 } ; } ";
+        let expected = "fn foo() {
+    // Some comment
+    /// Safety: some doc
+    let x = unsafe { 1 };
 }
 ";
         assert_format(src, expected);
@@ -490,11 +559,9 @@ mod tests {
     #[test]
     fn format_unsafe_statement() {
         let src = " fn foo() { unsafe { 
-        //@safety: testing context
         1  } } ";
         let expected = "fn foo() {
     unsafe {
-        //@safety: testing context
         1
     }
 }
@@ -712,5 +779,28 @@ mod tests {
 ";
         let expected = src;
         assert_format_with_max_width(src, expected, "    let x = 123456;".len());
+    }
+
+    #[test]
+    fn format_empty_loop() {
+        let src = " fn foo() {  loop  {   }  } ";
+        let expected = "fn foo() {
+    loop {}
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_non_empty_loop() {
+        let src = " fn foo() {  loop  { 1 ; 2  }  } ";
+        let expected = "fn foo() {
+    loop {
+        1;
+        2
+    }
+}
+";
+        assert_format(src, expected);
     }
 }

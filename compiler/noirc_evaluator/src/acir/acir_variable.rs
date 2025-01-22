@@ -541,6 +541,29 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         Ok(())
     }
 
+    /// Constrains the `lhs` and `rhs` to be non-equal.
+    ///
+    /// This is done by asserting the existence of an inverse for the value `lhs - rhs`.
+    /// The constraint `(lhs - rhs) * inverse == 1` will only be satisfiable if `lhs` and `rhs` are non-equal.
+    pub(crate) fn assert_neq_var(
+        &mut self,
+        lhs: AcirVar,
+        rhs: AcirVar,
+        assert_message: Option<AssertionPayload<F>>,
+    ) -> Result<(), RuntimeError> {
+        let diff_var = self.sub_var(lhs, rhs)?;
+
+        let one = self.add_constant(F::one());
+        let _ = self.inv_var(diff_var, one)?;
+        if let Some(payload) = assert_message {
+            self.acir_ir
+                .assertion_payloads
+                .insert(self.acir_ir.last_acir_opcode_location(), payload);
+        }
+
+        Ok(())
+    }
+
     pub(crate) fn vars_to_expressions_or_memory(
         &self,
         values: &[AcirValue],
@@ -1421,7 +1444,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                     }
                 }?;
                 output_count = input_size + (16 - input_size % 16);
-                (vec![], vec![F::from(output_count as u128)])
+                (vec![], vec![])
             }
             BlackBoxFunc::RecursiveAggregation => {
                 let proof_type_var = match inputs.pop() {

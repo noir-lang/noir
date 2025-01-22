@@ -1,7 +1,7 @@
 use crate::graph::{CrateGraph, CrateId};
 use crate::hir::def_collector::dc_crate::{CompilationError, DefCollector};
 use crate::hir::Context;
-use crate::node_interner::{FuncId, GlobalId, NodeInterner, StructId};
+use crate::node_interner::{FuncId, GlobalId, NodeInterner, TypeId};
 use crate::parse_program;
 use crate::parser::{ParsedModule, ParserError};
 use crate::token::{FunctionAttribute, SecondaryAttribute, TestScope};
@@ -78,6 +78,7 @@ impl CrateDefMap {
         crate_id: CrateId,
         context: &mut Context,
         debug_comptime_in_file: Option<&str>,
+        pedantic_solving: bool,
     ) -> Vec<(CompilationError, FileId)> {
         // Check if this Crate has already been compiled
         // XXX: There is probably a better alternative for this.
@@ -120,6 +121,7 @@ impl CrateDefMap {
             ast,
             root_file_id,
             debug_comptime_in_file,
+            pedantic_solving,
         ));
 
         errors.extend(
@@ -354,7 +356,7 @@ pub struct ContractFunctionMeta {
 }
 
 pub struct ContractOutputs {
-    pub structs: HashMap<String, Vec<StructId>>,
+    pub structs: HashMap<String, Vec<TypeId>>,
     pub globals: HashMap<String, Vec<GlobalId>>,
 }
 

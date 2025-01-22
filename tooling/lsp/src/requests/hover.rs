@@ -8,14 +8,15 @@ use noirc_frontend::{
     hir::def_map::ModuleId,
     hir_def::{
         expr::{HirArrayLiteral, HirExpression, HirLiteral},
+        function::FuncMeta,
         stmt::HirPattern,
         traits::Trait,
     },
     node_interner::{
-        DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, NodeInterner, ReferenceId,
-        StructId, TraitId, TypeAliasId,
+        DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, NodeInterner, ReferenceId, TraitId,
+        TraitImplKind, TypeAliasId, TypeId,
     },
-    Generics, Shared, StructType, Type, TypeAlias, TypeBinding, TypeVariable,
+    DataType, Generics, Shared, Type, TypeAlias, TypeBinding, TypeVariable,
 };
 
 use crate::{
@@ -76,6 +77,10 @@ fn format_reference(reference: ReferenceId, args: &ProcessRequestCallbackArgs) -
         ReferenceId::StructMember(id, field_index) => {
             Some(format_struct_member(id, field_index, args))
         }
+        ReferenceId::Enum(id) => Some(format_enum(id, args)),
+        ReferenceId::EnumVariant(id, variant_index) => {
+            Some(format_enum_variant(id, variant_index, args))
+        }
         ReferenceId::Trait(id) => Some(format_trait(id, args)),
         ReferenceId::Global(id) => Some(format_global(id, args)),
         ReferenceId::Function(id) => Some(format_function(id, args)),
@@ -121,8 +126,8 @@ fn format_module(id: ModuleId, args: &ProcessRequestCallbackArgs) -> Option<Stri
     Some(string)
 }
 
-fn format_struct(id: StructId, args: &ProcessRequestCallbackArgs) -> String {
-    let struct_type = args.interner.get_struct(id);
+fn format_struct(id: TypeId, args: &ProcessRequestCallbackArgs) -> String {
+    let struct_type = args.interner.get_type(id);
     let struct_type = struct_type.borrow();
 
     let mut string = String::new();
@@ -148,12 +153,45 @@ fn format_struct(id: StructId, args: &ProcessRequestCallbackArgs) -> String {
     string
 }
 
+fn format_enum(id: TypeId, args: &ProcessRequestCallbackArgs) -> String {
+    let typ = args.interner.get_type(id);
+    let typ = typ.borrow();
+
+    let mut string = String::new();
+    if format_parent_module(ReferenceId::Enum(id), args, &mut string) {
+        string.push('\n');
+    }
+    string.push_str("    ");
+    string.push_str("enum ");
+    string.push_str(&typ.name.0.contents);
+    format_generics(&typ.generics, &mut string);
+    string.push_str(" {\n");
+    for field in typ.get_variants_as_written() {
+        string.push_str("        ");
+        string.push_str(&field.name.0.contents);
+
+        if !field.params.is_empty() {
+            let types = field.params.iter().map(ToString::to_string).collect::<Vec<_>>();
+            string.push('(');
+            string.push_str(&types.join(", "));
+            string.push(')');
+        }
+
+        string.push_str(",\n");
+    }
+    string.push_str("    }");
+
+    append_doc_comments(args.interner, ReferenceId::Enum(id), &mut string);
+
+    string
+}
+
 fn format_struct_member(
-    id: StructId,
+    id: TypeId,
     field_index: usize,
     args: &ProcessRequestCallbackArgs,
 ) -> String {
-    let struct_type = args.interner.get_struct(id);
+    let struct_type = args.interner.get_type(id);
     let struct_type = struct_type.borrow();
     let field = struct_type.field_at(field_index);
 
@@ -170,6 +208,39 @@ fn format_struct_member(
     string.push_str(&go_to_type_links(&field.typ, args.interner, args.files));
 
     append_doc_comments(args.interner, ReferenceId::StructMember(id, field_index), &mut string);
+
+    string
+}
+
+fn format_enum_variant(
+    id: TypeId,
+    field_index: usize,
+    args: &ProcessRequestCallbackArgs,
+) -> String {
+    let enum_type = args.interner.get_type(id);
+    let enum_type = enum_type.borrow();
+    let variant = enum_type.variant_at(field_index);
+
+    let mut string = String::new();
+    if format_parent_module(ReferenceId::Enum(id), args, &mut string) {
+        string.push_str("::");
+    }
+    string.push_str(&enum_type.name.0.contents);
+    string.push('\n');
+    string.push_str("    ");
+    string.push_str(&variant.name.0.contents);
+    if !variant.params.is_empty() {
+        let types = variant.params.iter().map(ToString::to_string).collect::<Vec<_>>();
+        string.push('(');
+        string.push_str(&types.join(", "));
+        string.push(')');
+    }
+
+    for typ in variant.params.iter() {
+        string.push_str(&go_to_type_links(typ, args.interner, args.files));
+    }
+
+    append_doc_comments(args.interner, ReferenceId::EnumVariant(id, field_index), &mut string);
 
     string
 }
@@ -296,6 +367,12 @@ fn get_exprs_global_value(interner: &NodeInterner, exprs: &[ExprId]) -> Option<S
 
 fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
     let func_meta = args.interner.function_meta(&id);
+
+    // If this points to a trait method, see if we can figure out what's the concrete trait impl method
+    if let Some(func_id) = get_trait_impl_func_id(id, args, func_meta) {
+        return format_function(func_id, args);
+    }
+
     let func_modifiers = args.interner.function_modifiers(&id);
 
     let func_name_definition_id = args.interner.definition(func_meta.name.id);
@@ -361,7 +438,7 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
 
         true
     } else if let Some(struct_id) = func_meta.struct_id {
-        let struct_type = args.interner.get_struct(struct_id);
+        let struct_type = args.interner.get_type(struct_id);
         let struct_type = struct_type.borrow();
         if formatted_parent_module {
             string.push_str("::");
@@ -392,7 +469,10 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
     }
     string.push_str("    ");
 
-    if func_modifiers.visibility != ItemVisibility::Private {
+    if func_modifiers.visibility != ItemVisibility::Private
+        && func_meta.trait_id.is_none()
+        && func_meta.trait_impl.is_none()
+    {
         string.push_str(&func_modifiers.visibility.to_string());
         string.push(' ');
     }
@@ -403,8 +483,10 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
         string.push_str("comptime ");
     }
 
+    let func_name = &func_name_definition_id.name;
+
     string.push_str("fn ");
-    string.push_str(&func_name_definition_id.name);
+    string.push_str(func_name);
     format_generics(&func_meta.direct_generics, &mut string);
     string.push('(');
     let parameters = &func_meta.parameters;
@@ -435,9 +517,47 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
 
     string.push_str(&go_to_type_links(return_type, args.interner, args.files));
 
-    append_doc_comments(args.interner, ReferenceId::Function(id), &mut string);
+    let had_doc_comments =
+        append_doc_comments(args.interner, ReferenceId::Function(id), &mut string);
+    if !had_doc_comments {
+        // If this function doesn't have doc comments, but it's a trait impl method,
+        // use the trait method doc comments.
+        if let Some(trait_impl_id) = func_meta.trait_impl {
+            let trait_impl = args.interner.get_trait_implementation(trait_impl_id);
+            let trait_impl = trait_impl.borrow();
+            let trait_ = args.interner.get_trait(trait_impl.trait_id);
+            if let Some(func_id) = trait_.method_ids.get(func_name) {
+                append_doc_comments(args.interner, ReferenceId::Function(*func_id), &mut string);
+            }
+        }
+    }
 
     string
+}
+
+fn get_trait_impl_func_id(
+    id: FuncId,
+    args: &ProcessRequestCallbackArgs,
+    func_meta: &FuncMeta,
+) -> Option<FuncId> {
+    func_meta.trait_id?;
+
+    let index = args.interner.find_location_index(args.location)?;
+    let expr_id = args.interner.get_expr_id_from_index(index)?;
+    let Some(TraitImplKind::Normal(trait_impl_id)) =
+        args.interner.get_selected_impl_for_expression(expr_id)
+    else {
+        return None;
+    };
+
+    let trait_impl = args.interner.get_trait_implementation(trait_impl_id);
+    let trait_impl = trait_impl.borrow();
+
+    let function_name = args.interner.function_name(&id);
+    let mut trait_impl_methods = trait_impl.methods.iter();
+    let func_id =
+        trait_impl_methods.find(|func_id| args.interner.function_name(func_id) == function_name)?;
+    Some(*func_id)
 }
 
 fn format_alias(id: TypeAliasId, args: &ProcessRequestCallbackArgs) -> String {
@@ -635,7 +755,7 @@ impl<'a> TypeLinksGatherer<'a> {
                     self.gather_type_links(typ);
                 }
             }
-            Type::Struct(struct_type, generics) => {
+            Type::DataType(struct_type, generics) => {
                 self.gather_struct_type_links(struct_type);
                 for generic in generics {
                     self.gather_type_links(generic);
@@ -671,7 +791,7 @@ impl<'a> TypeLinksGatherer<'a> {
                 self.gather_type_links(env);
             }
             Type::MutableReference(typ) => self.gather_type_links(typ),
-            Type::InfixExpr(lhs, _, rhs) => {
+            Type::InfixExpr(lhs, _, rhs, _) => {
                 self.gather_type_links(lhs);
                 self.gather_type_links(rhs);
             }
@@ -689,7 +809,7 @@ impl<'a> TypeLinksGatherer<'a> {
         }
     }
 
-    fn gather_struct_type_links(&mut self, struct_type: &Shared<StructType>) {
+    fn gather_struct_type_links(&mut self, struct_type: &Shared<DataType>) {
         let struct_type = struct_type.borrow();
         if let Some(lsp_location) =
             to_lsp_location(self.files, struct_type.location.file, struct_type.name.span())
@@ -744,13 +864,16 @@ fn format_link(name: String, location: lsp_types::Location) -> String {
     )
 }
 
-fn append_doc_comments(interner: &NodeInterner, id: ReferenceId, string: &mut String) {
+fn append_doc_comments(interner: &NodeInterner, id: ReferenceId, string: &mut String) -> bool {
     if let Some(doc_comments) = interner.doc_comments(id) {
         string.push_str("\n\n---\n\n");
         for comment in doc_comments {
             string.push_str(comment);
             string.push('\n');
         }
+        true
+    } else {
+        false
     }
 }
 
@@ -1104,7 +1227,15 @@ mod hover_tests {
         assert!(hover_text.starts_with(
             "    two
     impl<A> Bar<A, i32> for Foo<A>
-    pub fn bar_stuff(self)"
+    fn bar_stuff(self)"
         ));
+    }
+
+    #[test]
+    async fn hover_on_trait_impl_method_uses_docs_from_trait_method() {
+        let hover_text =
+            get_hover_text("workspace", "two/src/lib.nr", Position { line: 92, character: 8 })
+                .await;
+        assert!(hover_text.contains("Some docs"));
     }
 }

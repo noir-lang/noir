@@ -67,6 +67,9 @@ pub struct Interpreter<'local, 'interner> {
 
     /// Stateful bigint calculator.
     bigint_solver: BigIntSolverWithId,
+
+    /// Use pedantic ACVM solving
+    pedantic_solving: bool,
 }
 
 #[allow(unused)]
@@ -75,14 +78,17 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         elaborator: &'local mut Elaborator<'interner>,
         crate_id: CrateId,
         current_function: Option<FuncId>,
+        pedantic_solving: bool,
     ) -> Self {
+        let bigint_solver = BigIntSolverWithId::with_pedantic_solving(pedantic_solving);
         Self {
             elaborator,
             crate_id,
             current_function,
             bound_generics: Vec::new(),
             in_loop: false,
-            bigint_solver: BigIntSolverWithId::default(),
+            bigint_solver,
+            pedantic_solving,
         }
     }
 
@@ -1373,17 +1379,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let typ = object.get_type().follow_bindings();
         let method_name = &call.method.0.contents;
 
-        // TODO: Traits
-        let method = match &typ {
-            Type::Struct(struct_def, _) => self.elaborator.interner.lookup_method(
-                &typ,
-                struct_def.borrow().id,
-                method_name,
-                false,
-                true,
-            ),
-            _ => self.elaborator.interner.lookup_primitive_method(&typ, method_name, true),
-        };
+        let method = self
+            .elaborator
+            .lookup_method(&typ, method_name, location.span, true)
+            .and_then(|method| method.func_id(self.elaborator.interner));
 
         if let Some(method) = method {
             self.call_function(method, arguments, TypeBindings::new(), location)
@@ -1425,6 +1424,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         let (mut lhs, lhs_is_negative) = match evaluated_lhs {
             Value::Field(value) => (value, false),
+            Value::U1(value) => ((value as u128).into(), false),
             Value::U8(value) => ((value as u128).into(), false),
             Value::U16(value) => ((value as u128).into(), false),
             Value::U32(value) => ((value as u128).into(), false),
@@ -1550,6 +1550,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirStatement::Constrain(constrain) => self.evaluate_constrain(constrain),
             HirStatement::Assign(assign) => self.evaluate_assign(assign),
             HirStatement::For(for_) => self.evaluate_for(for_),
+            HirStatement::Loop(expression) => self.evaluate_loop(expression),
             HirStatement::Break => self.evaluate_break(statement),
             HirStatement::Continue => self.evaluate_continue(statement),
             HirStatement::Expression(expression) => self.evaluate(expression),
@@ -1723,22 +1724,68 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let (end, _) = get_index(self, for_.end_range)?;
         let was_in_loop = std::mem::replace(&mut self.in_loop, true);
 
+        let mut result = Ok(Value::Unit);
+
         for i in start..end {
             self.push_scope();
             self.current_scope_mut().insert(for_.identifier.id, make_value(i));
 
-            match self.evaluate(for_.block) {
-                Ok(_) => (),
-                Err(InterpreterError::Break) => break,
-                Err(InterpreterError::Continue) => continue,
-                Err(other) => return Err(other),
-            }
+            let must_break = match self.evaluate(for_.block) {
+                Ok(_) => false,
+                Err(InterpreterError::Break) => true,
+                Err(InterpreterError::Continue) => false,
+                Err(error) => {
+                    result = Err(error);
+                    true
+                }
+            };
 
             self.pop_scope();
+
+            if must_break {
+                break;
+            }
         }
 
         self.in_loop = was_in_loop;
-        Ok(Value::Unit)
+        result
+    }
+
+    fn evaluate_loop(&mut self, expr: ExprId) -> IResult<Value> {
+        let was_in_loop = std::mem::replace(&mut self.in_loop, true);
+        let in_lsp = self.elaborator.interner.is_in_lsp_mode();
+        let mut counter = 0;
+        let mut result = Ok(Value::Unit);
+
+        loop {
+            self.push_scope();
+
+            let must_break = match self.evaluate(expr) {
+                Ok(_) => false,
+                Err(InterpreterError::Break) => true,
+                Err(InterpreterError::Continue) => false,
+                Err(error) => {
+                    result = Err(error);
+                    true
+                }
+            };
+
+            self.pop_scope();
+
+            if must_break {
+                break;
+            }
+
+            counter += 1;
+            if in_lsp && counter == 10_000 {
+                let location = self.elaborator.interner.expr_location(&expr);
+                result = Err(InterpreterError::LoopHaltedForUiResponsiveness { location });
+                break;
+            }
+        }
+
+        self.in_loop = was_in_loop;
+        result
     }
 
     fn evaluate_break(&mut self, id: StmtId) -> IResult<Value> {

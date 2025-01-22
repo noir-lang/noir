@@ -1,18 +1,22 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use acvm::acir::circuit::ErrorSelector;
 
 use crate::ssa::{
     function_builder::FunctionBuilder,
     ir::{
-        basic_block::BasicBlockId, function::FunctionId, instruction::ConstrainError,
+        basic_block::BasicBlockId,
+        call_stack::CallStackId,
+        dfg::GlobalsGraph,
+        function::{Function, FunctionId},
+        instruction::{ConstrainError, Instruction},
         value::ValueId,
     },
 };
 
 use super::{
-    ast::AssertMessage, Identifier, ParsedBlock, ParsedFunction, ParsedInstruction, ParsedSsa,
-    ParsedTerminator, ParsedValue, RuntimeType, Ssa, SsaError,
+    ast::AssertMessage, Identifier, ParsedBlock, ParsedFunction, ParsedGlobal, ParsedGlobalValue,
+    ParsedInstruction, ParsedSsa, ParsedTerminator, ParsedValue, RuntimeType, Ssa, SsaError, Type,
 };
 
 impl ParsedSsa {
@@ -24,7 +28,7 @@ impl ParsedSsa {
 struct Translator {
     builder: FunctionBuilder,
 
-    /// Maps function names to their IDs
+    /// Maps internal function names (e.g. "f1") to their IDs
     functions: HashMap<String, FunctionId>,
 
     /// Maps block names to their IDs
@@ -36,6 +40,17 @@ struct Translator {
     /// passes already which replaced some of the original IDs. The translator
     /// will recreate the SSA step by step, which can result in a new ID layout.
     variables: HashMap<FunctionId, HashMap<String, ValueId>>,
+
+    /// The function that will hold the actual SSA globals.
+    globals_function: Function,
+
+    /// The types of globals in the parsed SSA, in the order they were defined.
+    global_types: Vec<Type>,
+
+    /// Maps names (e.g. "g0") in the parsed SSA to global IDs.
+    global_values: HashMap<String, ValueId>,
+
+    globals_graph: Arc<GlobalsGraph>,
 
     error_selector_counter: u64,
 }
@@ -72,13 +87,26 @@ impl Translator {
             functions.insert(function.internal_name.clone(), function_id);
         }
 
+        // Does not matter what ID we use here.
+        let globals = Function::new("globals".to_owned(), main_id);
+
         let mut translator = Self {
             builder,
             functions,
             variables: HashMap::new(),
             blocks: HashMap::new(),
+            globals_function: globals,
+            global_types: Vec::new(),
+            global_values: HashMap::new(),
+            globals_graph: Arc::new(GlobalsGraph::default()),
             error_selector_counter: 0,
         };
+
+        translator.translate_globals(std::mem::take(&mut parsed_ssa.globals))?;
+
+        translator.globals_graph =
+            Arc::new(GlobalsGraph::from_dfg(translator.globals_function.dfg.clone()));
+
         translator.translate_function_body(main_function)?;
 
         Ok(translator)
@@ -101,6 +129,8 @@ impl Translator {
     }
 
     fn translate_function_body(&mut self, function: ParsedFunction) -> Result<(), SsaError> {
+        self.builder.set_globals(self.globals_graph.clone());
+
         // First define all blocks so that they are known (a block might jump to a block that comes next)
         for (index, block) in function.blocks.iter().enumerate() {
             // The first block is the entry block and it was automatically created by the builder
@@ -135,14 +165,14 @@ impl Translator {
 
         match block.terminator {
             ParsedTerminator::Jmp { destination, arguments } => {
-                let block_id = self.lookup_block(destination)?;
+                let block_id = self.lookup_block(&destination)?;
                 let arguments = self.translate_values(arguments)?;
                 self.builder.terminate_with_jmp(block_id, arguments);
             }
             ParsedTerminator::Jmpif { condition, then_block, else_block } => {
                 let condition = self.translate_value(condition)?;
-                let then_destination = self.lookup_block(then_block)?;
-                let else_destination = self.lookup_block(else_block)?;
+                let then_destination = self.lookup_block(&then_block)?;
+                let else_destination = self.lookup_block(&else_block)?;
                 self.builder.terminate_with_jmpif(condition, then_destination, else_destination);
             }
             ParsedTerminator::Return(values) => {
@@ -187,8 +217,13 @@ impl Translator {
                 let function_id = if let Some(id) = self.builder.import_intrinsic(&function.name) {
                     id
                 } else {
-                    let function_id = self.lookup_function(function)?;
-                    self.builder.import_function(function_id)
+                    let maybe_func =
+                        self.lookup_function(&function).map(|f| self.builder.import_function(f));
+
+                    maybe_func.or_else(|e| {
+                        // e.g. `v2 = call v0(v1) -> u32`, a lambda passed as a parameter
+                        self.lookup_variable(&function).map_err(|_| e)
+                    })?
                 };
 
                 let arguments = self.translate_values(arguments)?;
@@ -290,11 +325,57 @@ impl Translator {
 
     fn translate_value(&mut self, value: ParsedValue) -> Result<ValueId, SsaError> {
         match value {
-            ParsedValue::NumericConstant { constant, typ } => {
-                Ok(self.builder.numeric_constant(constant, typ.unwrap_numeric()))
+            ParsedValue::NumericConstant(constant) => {
+                Ok(self.builder.numeric_constant(constant.value, constant.typ.unwrap_numeric()))
             }
-            ParsedValue::Variable(identifier) => self.lookup_variable(identifier),
+            ParsedValue::Variable(identifier) => self.lookup_variable(&identifier).or_else(|e| {
+                self.lookup_function(&identifier)
+                    .map(|f| {
+                        // e.g. `v3 = call f1(f2, v0) -> u32`
+                        self.builder.import_function(f)
+                    })
+                    .map_err(|_| e)
+            }),
         }
+    }
+
+    fn translate_globals(&mut self, globals: Vec<ParsedGlobal>) -> Result<(), SsaError> {
+        for global in globals {
+            self.translate_global(global)?;
+        }
+        Ok(())
+    }
+
+    fn translate_global(&mut self, global: ParsedGlobal) -> Result<(), SsaError> {
+        let value_id = match global.value {
+            ParsedGlobalValue::NumericConstant(constant) => self
+                .globals_function
+                .dfg
+                .make_constant(constant.value, constant.typ.unwrap_numeric()),
+            ParsedGlobalValue::MakeArray(make_array) => {
+                let mut elements = im::Vector::new();
+                for element in make_array.elements {
+                    let element_id = match element {
+                        ParsedValue::NumericConstant(constant) => self
+                            .globals_function
+                            .dfg
+                            .make_constant(constant.value, constant.typ.unwrap_numeric()),
+                        ParsedValue::Variable(identifier) => self.lookup_global(identifier)?,
+                    };
+                    elements.push_back(element_id);
+                }
+
+                let instruction = Instruction::MakeArray { elements, typ: make_array.typ.clone() };
+                let block = self.globals_function.entry_block();
+                let call_stack = CallStackId::root();
+                self.globals_function
+                    .dfg
+                    .insert_instruction_and_results(instruction, block, None, call_stack)
+                    .first()
+            }
+        };
+
+        self.define_global(global.name, value_id)
     }
 
     fn define_variable(
@@ -314,37 +395,67 @@ impl Translator {
         Ok(())
     }
 
-    fn lookup_variable(&mut self, identifier: Identifier) -> Result<ValueId, SsaError> {
-        if let Some(value_id) = self.variables[&self.current_function_id()].get(&identifier.name) {
+    fn lookup_variable(&mut self, identifier: &Identifier) -> Result<ValueId, SsaError> {
+        if let Some(value_id) = self
+            .variables
+            .get(&self.current_function_id())
+            .and_then(|hash| hash.get(&identifier.name))
+        {
+            Ok(*value_id)
+        } else if let Some(value_id) = self.global_values.get(&identifier.name) {
             Ok(*value_id)
         } else {
-            Err(SsaError::UnknownVariable(identifier))
+            Err(SsaError::UnknownVariable(identifier.clone()))
         }
     }
 
-    fn lookup_block(&mut self, identifier: Identifier) -> Result<BasicBlockId, SsaError> {
+    fn define_global(&mut self, identifier: Identifier, value_id: ValueId) -> Result<(), SsaError> {
+        if self.global_values.contains_key(&identifier.name) {
+            return Err(SsaError::GlobalAlreadyDefined(identifier));
+        }
+
+        self.global_values.insert(identifier.name, value_id);
+
+        let typ = self.globals_function.dfg.type_of_value(value_id);
+        self.global_types.push(typ);
+
+        Ok(())
+    }
+
+    fn lookup_global(&mut self, identifier: Identifier) -> Result<ValueId, SsaError> {
+        if let Some(value_id) = self.global_values.get(&identifier.name) {
+            Ok(*value_id)
+        } else {
+            Err(SsaError::UnknownGlobal(identifier))
+        }
+    }
+
+    fn lookup_block(&mut self, identifier: &Identifier) -> Result<BasicBlockId, SsaError> {
         if let Some(block_id) = self.blocks[&self.current_function_id()].get(&identifier.name) {
             Ok(*block_id)
         } else {
-            Err(SsaError::UnknownBlock(identifier))
+            Err(SsaError::UnknownBlock(identifier.clone()))
         }
     }
 
-    fn lookup_function(&mut self, identifier: Identifier) -> Result<FunctionId, SsaError> {
+    fn lookup_function(&mut self, identifier: &Identifier) -> Result<FunctionId, SsaError> {
         if let Some(function_id) = self.functions.get(&identifier.name) {
             Ok(*function_id)
         } else {
-            Err(SsaError::UnknownFunction(identifier))
+            Err(SsaError::UnknownFunction(identifier.clone()))
         }
     }
 
     fn finish(self) -> Ssa {
         let mut ssa = self.builder.finish();
+        ssa.globals = self.globals_function;
+
         // Normalize the IDs so we have a better chance of matching the SSA we parsed
         // after the step-by-step reconstruction done during translation. This assumes
         // that the SSA we parsed was printed by the `SsaBuilder`, which normalizes
         // before each print.
         ssa.normalize_ids();
+
         ssa
     }
 

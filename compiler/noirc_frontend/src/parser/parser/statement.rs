@@ -10,7 +10,7 @@ use crate::{
     token::{Attribute, Keyword, Token, TokenKind},
 };
 
-use super::Parser;
+use super::{Parser, StatementDocComments};
 
 impl<'a> Parser<'a> {
     pub(crate) fn parse_statement_or_error(&mut self) -> Statement {
@@ -25,9 +25,37 @@ impl<'a> Parser<'a> {
     /// Statement = Attributes StatementKind ';'?
     pub(crate) fn parse_statement(&mut self) -> Option<(Statement, (Option<Token>, Span))> {
         loop {
+            let span_before_doc_comments = self.current_token_span;
+            let doc_comments = self.parse_outer_doc_comments();
+            let span_after_doc_comments = self.current_token_span;
+            if doc_comments.is_empty() {
+                self.statement_doc_comments = None;
+            } else {
+                self.statement_doc_comments = Some(StatementDocComments {
+                    doc_comments,
+                    start_span: span_before_doc_comments,
+                    end_span: span_after_doc_comments,
+                    read: false,
+                });
+            }
+
             let attributes = self.parse_attributes();
             let start_span = self.current_token_span;
             let kind = self.parse_statement_kind(attributes);
+
+            if let Some(statement_doc_comments) = &self.statement_doc_comments {
+                if !statement_doc_comments.read {
+                    self.push_error(
+                        ParserErrorReason::DocCommentDoesNotDocumentAnything,
+                        Span::from(
+                            statement_doc_comments.start_span.start()
+                                ..statement_doc_comments.end_span.start(),
+                        ),
+                    );
+                }
+            }
+
+            self.statement_doc_comments = None;
 
             let (semicolon_token, semicolon_span) = if self.at(Token::Semicolon) {
                 let token = self.token.clone();
@@ -64,6 +92,7 @@ impl<'a> Parser<'a> {
     ///     | ConstrainStatement
     ///     | ComptimeStatement
     ///     | ForStatement
+    ///     | LoopStatement
     ///     | IfStatement
     ///     | BlockStatement
     ///     | AssignStatement
@@ -126,6 +155,10 @@ impl<'a> Parser<'a> {
 
         if let Some(for_loop) = self.parse_for() {
             return Some(StatementKind::For(for_loop));
+        }
+
+        if let Some((block, span)) = self.parse_loop() {
+            return Some(StatementKind::Loop(block, span));
         }
 
         if let Some(kind) = self.parse_if_expr() {
@@ -257,6 +290,29 @@ impl<'a> Parser<'a> {
         };
 
         Some(ForLoopStatement { identifier, range, block, span: self.span_since(start_span) })
+    }
+
+    /// LoopStatement = 'loop' Block
+    fn parse_loop(&mut self) -> Option<(Expression, Span)> {
+        let start_span = self.current_token_span;
+        if !self.eat_keyword(Keyword::Loop) {
+            return None;
+        }
+
+        self.push_error(ParserErrorReason::ExperimentalFeature("loops"), start_span);
+
+        let block_start_span = self.current_token_span;
+        let block = if let Some(block) = self.parse_block() {
+            Expression {
+                kind: ExpressionKind::Block(block),
+                span: self.span_since(block_start_span),
+            }
+        } else {
+            self.expected_token(Token::LeftBrace);
+            Expression { kind: ExpressionKind::Error, span: self.span_since(block_start_span) }
+        };
+
+        Some((block, start_span))
     }
 
     /// ForRange
@@ -482,6 +538,17 @@ mod tests {
     }
 
     #[test]
+    fn parses_let_statement_with_unsafe() {
+        let src = "/// Safety: doc comment
+        let x = unsafe { 1 };";
+        let statement = parse_statement_no_errors(src);
+        let StatementKind::Let(let_statement) = statement.kind else {
+            panic!("Expected let statement");
+        };
+        assert_eq!(let_statement.pattern.to_string(), "x");
+    }
+
+    #[test]
     fn parses_assert() {
         let src = "assert(true, \"good\")";
         let statement = parse_statement_no_errors(src);
@@ -634,6 +701,20 @@ mod tests {
     }
 
     #[test]
+    fn parses_assignment_with_unsafe() {
+        let src = "/// Safety: test 
+        x = unsafe { 1 }";
+        let statement = parse_statement_no_errors(src);
+        let StatementKind::Assign(assign) = statement.kind else {
+            panic!("Expected assign");
+        };
+        let LValue::Ident(ident) = assign.lvalue else {
+            panic!("Expected ident");
+        };
+        assert_eq!(ident.to_string(), "x");
+    }
+
+    #[test]
     fn parses_op_assignment() {
         let src = "x += 1";
         let statement = parse_statement_no_errors(src);
@@ -651,6 +732,16 @@ mod tests {
             panic!("Expected assign");
         };
         assert_eq!(assign.to_string(), "x = (x >> 1)");
+    }
+
+    #[test]
+    fn parses_op_assignment_with_unsafe() {
+        let src = "/// Safety: comment
+        x += unsafe { 1 }";
+        let statement = parse_statement_no_errors(src);
+        let StatementKind::Assign(_) = statement.kind else {
+            panic!("Expected assign");
+        };
     }
 
     #[test]
@@ -726,5 +817,35 @@ mod tests {
         let statement = parser.parse_statement();
         assert!(statement.is_none());
         assert_eq!(parser.errors.len(), 2);
+    }
+
+    #[test]
+    fn parses_empty_loop() {
+        let src = "loop { }";
+        let mut parser = Parser::for_str(src);
+        let statement = parser.parse_statement_or_error();
+        let StatementKind::Loop(block, span) = statement.kind else {
+            panic!("Expected loop");
+        };
+        let ExpressionKind::Block(block) = block.kind else {
+            panic!("Expected block");
+        };
+        assert!(block.statements.is_empty());
+        assert_eq!(span.start(), 0);
+        assert_eq!(span.end(), 4);
+    }
+
+    #[test]
+    fn parses_loop_with_statements() {
+        let src = "loop { 1; 2 }";
+        let mut parser = Parser::for_str(src);
+        let statement = parser.parse_statement_or_error();
+        let StatementKind::Loop(block, _) = statement.kind else {
+            panic!("Expected loop");
+        };
+        let ExpressionKind::Block(block) = block.kind else {
+            panic!("Expected block");
+        };
+        assert_eq!(block.statements.len(), 2);
     }
 }

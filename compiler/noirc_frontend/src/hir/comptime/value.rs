@@ -18,7 +18,7 @@ use crate::{
         HirArrayLiteral, HirConstructorExpression, HirExpression, HirIdent, HirLambda, HirLiteral,
         ImplKind,
     },
-    node_interner::{ExprId, FuncId, NodeInterner, StmtId, StructId, TraitId, TraitImplId},
+    node_interner::{ExprId, FuncId, NodeInterner, StmtId, TraitId, TraitImplId, TypeId},
     parser::{Item, Parser},
     token::{SpannedToken, Token, Tokens},
     Kind, QuotedType, Shared, Type, TypeBindings,
@@ -62,7 +62,7 @@ pub enum Value {
     /// tokens can cause larger spans to be before lesser spans, causing an assert. They may also
     /// be inserted into separate files entirely.
     Quoted(Rc<Vec<Token>>),
-    StructDefinition(StructId),
+    StructDefinition(TypeId),
     TraitConstraint(TraitId, TraitGenerics),
     TraitDefinition(TraitId),
     TraitImpl(TraitImplId),
@@ -234,7 +234,7 @@ impl Value {
                 })?;
 
                 let struct_type = match typ.follow_bindings() {
-                    Type::Struct(def, _) => Some(def.borrow().id),
+                    Type::DataType(def, _) => Some(def.borrow().id),
                     _ => return Err(InterpreterError::NonStructInConstructor { typ, location }),
                 };
 
@@ -388,7 +388,7 @@ impl Value {
                 })?;
 
                 let (r#type, struct_generics) = match typ.follow_bindings() {
-                    Type::Struct(def, generics) => (def, generics),
+                    Type::DataType(def, generics) => (def, generics),
                     _ => return Err(InterpreterError::NonStructInConstructor { typ, location }),
                 };
 
@@ -519,6 +519,10 @@ impl Value {
             self,
             Field(_) | I8(_) | I16(_) | I32(_) | I64(_) | U8(_) | U16(_) | U32(_) | U64(_)
         )
+    }
+
+    pub(crate) fn is_closure(&self) -> bool {
+        matches!(self, Value::Closure(..))
     }
 
     /// Converts any non-negative `Value` into a `FieldElement`.

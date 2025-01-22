@@ -25,6 +25,7 @@ use crate::{
     Kind, Type, TypeBinding, TypeBindings,
 };
 use acvm::{acir::AcirField, FieldElement};
+use ast::GlobalId;
 use fxhash::FxHashMap as HashMap;
 use iter_extended::{btree_map, try_vecmap, vecmap};
 use noirc_errors::Location;
@@ -70,6 +71,11 @@ struct Monomorphizer<'interner> {
     /// confuse users.
     locals: HashMap<node_interner::DefinitionId, LocalId>,
 
+    /// Globals are keyed by their unique ID because they are never duplicated during monomorphization.
+    globals: HashMap<node_interner::GlobalId, GlobalId>,
+
+    finished_globals: HashMap<GlobalId, ast::Expression>,
+
     /// Queue of functions to monomorphize next each item in the queue is a tuple of:
     /// (old_id, new_monomorphized_id, any type bindings to apply, the trait method if old_id is from a trait impl, is_unconstrained, location)
     queue: VecDeque<(
@@ -91,6 +97,7 @@ struct Monomorphizer<'interner> {
     lambda_envs_stack: Vec<LambdaContext>,
 
     next_local_id: u32,
+    next_global_id: u32,
     next_function_id: u32,
 
     is_range_loop: bool,
@@ -175,14 +182,18 @@ pub fn monomorphize_debug(
     let functions = vecmap(monomorphizer.finished_functions, |(_, f)| f);
     let FuncMeta { return_visibility, .. } = monomorphizer.interner.function_meta(&main);
 
+    let globals = monomorphizer.finished_globals.into_iter().collect::<BTreeMap<_, _>>();
+
     let (debug_variables, debug_functions, debug_types) =
         monomorphizer.debug_type_tracker.extract_vars_and_types();
+
     let program = Program::new(
         functions,
         func_sigs,
         function_sig,
         monomorphizer.return_location,
         *return_visibility,
+        globals,
         debug_variables,
         debug_functions,
         debug_types,
@@ -195,9 +206,12 @@ impl<'interner> Monomorphizer<'interner> {
         Monomorphizer {
             functions: HashMap::default(),
             locals: HashMap::default(),
+            globals: HashMap::default(),
+            finished_globals: HashMap::default(),
             queue: VecDeque::new(),
             finished_functions: BTreeMap::new(),
             next_local_id: 0,
+            next_global_id: 0,
             next_function_id: 0,
             interner,
             lambda_envs_stack: Vec::new(),
@@ -218,6 +232,12 @@ impl<'interner> Monomorphizer<'interner> {
         let id = self.next_function_id;
         self.next_function_id += 1;
         ast::FuncId(id)
+    }
+
+    fn next_global_id(&mut self) -> GlobalId {
+        let id = self.next_global_id;
+        self.next_global_id += 1;
+        GlobalId(id)
     }
 
     fn lookup_local(&mut self, id: node_interner::DefinitionId) -> Option<Definition> {
@@ -261,7 +281,7 @@ impl<'interner> Monomorphizer<'interner> {
                         );
                         Definition::Builtin(opcode.to_string())
                     }
-                    FunctionKind::Normal => {
+                    FunctionKind::Normal | FunctionKind::TraitFunctionWithoutBody => {
                         let id =
                             self.queue_function(id, expr_id, typ, turbofish_generics, trait_method);
                         Definition::Function(id)
@@ -675,6 +695,10 @@ impl<'interner> Monomorphizer<'interner> {
                     block,
                 }))
             }
+            HirStatement::Loop(block) => {
+                let block = Box::new(self.expr(block)?);
+                Ok(ast::Expression::Loop(block))
+            }
             HirStatement::Expression(expr) => self.expr(expr),
             HirStatement::Semi(expr) => {
                 self.expr(expr).map(|expr| ast::Expression::Semi(Box::new(expr)))
@@ -927,19 +951,7 @@ impl<'interner> Monomorphizer<'interner> {
                 }
             }
             DefinitionKind::Global(global_id) => {
-                let global = self.interner.get_global(*global_id);
-
-                let expr = if let GlobalValue::Resolved(value) = global.value.clone() {
-                    value
-                        .into_hir_expression(self.interner, global.location)
-                        .map_err(MonomorphizationError::InterpreterError)?
-                } else {
-                    let let_ = self.interner.get_global_let_statement(*global_id).expect(
-                        "Globals should have a corresponding let statement by monomorphization",
-                    );
-                    let_.expression
-                };
-                self.expr(expr)?
+                self.global_ident(*global_id, definition.name.clone(), &typ, ident.location)?
             }
             DefinitionKind::Local(_) => match self.lookup_captured_expr(ident.id) {
                 Some(expr) => expr,
@@ -984,6 +996,66 @@ impl<'interner> Monomorphizer<'interner> {
         };
 
         Ok(ident)
+    }
+
+    fn global_ident(
+        &mut self,
+        global_id: node_interner::GlobalId,
+        name: String,
+        typ: &HirType,
+        location: Location,
+    ) -> Result<ast::Expression, MonomorphizationError> {
+        let global = self.interner.get_global(global_id);
+        let id = global.id;
+        let expr = if let Some(seen_global) = self.globals.get(&id) {
+            let typ = Self::convert_type(typ, location)?;
+            let ident = ast::Ident {
+                location: Some(location),
+                definition: Definition::Global(*seen_global),
+                mutable: false,
+                name,
+                typ,
+            };
+            ast::Expression::Ident(ident)
+        } else {
+            let (expr, is_closure) = if let GlobalValue::Resolved(value) = global.value.clone() {
+                let is_closure = value.is_closure();
+                let expr = value
+                    .into_hir_expression(self.interner, global.location)
+                    .map_err(MonomorphizationError::InterpreterError)?;
+                (expr, is_closure)
+            } else {
+                unreachable!("All global values should be resolved at compile time and before monomorphization");
+            };
+
+            let expr = self.expr(expr)?;
+
+            // Globals are meant to be computed at compile time and are stored in their own context to be shared across functions.
+            // Closures are defined as normal functions among all SSA functions and later need to be defunctionalized.
+            // Thus, this means we would have to re-define any global closures.
+            // The effect of defunctionalization would be the same if we were redefining a global closure or a local closure
+            // just with an extra step of indirection through a global variable.
+            // For simplicity, we chose to instead inline closures at their callsite as we do not expect
+            // placing a closure in the global context to change the final result of the program.
+            if !is_closure {
+                let new_id = self.next_global_id();
+                self.globals.insert(id, new_id);
+
+                self.finished_globals.insert(new_id, expr);
+                let typ = Self::convert_type(typ, location)?;
+                let ident = ast::Ident {
+                    location: Some(location),
+                    definition: Definition::Global(new_id),
+                    mutable: false,
+                    name,
+                    typ,
+                };
+                ast::Expression::Ident(ident)
+            } else {
+                expr
+            }
+        };
+        Ok(expr)
     }
 
     /// Convert a non-tuple/struct type to a monomorphized type
@@ -1087,7 +1159,7 @@ impl<'interner> Monomorphizer<'interner> {
                 monomorphized_default
             }
 
-            HirType::Struct(def, args) => {
+            HirType::DataType(def, args) => {
                 // Not all generic arguments may be used in a struct's fields so we have to check
                 // the arguments as well as the fields in case any need to be defaulted or are unbound.
                 for arg in args {
@@ -1207,7 +1279,7 @@ impl<'interner> Monomorphizer<'interner> {
                 Self::check_type(&default, location)
             }
 
-            HirType::Struct(_def, args) => {
+            HirType::DataType(_def, args) => {
                 for arg in args {
                     Self::check_type(arg, location)?;
                 }
@@ -1241,7 +1313,7 @@ impl<'interner> Monomorphizer<'interner> {
             }
 
             HirType::MutableReference(element) => Self::check_type(element, location),
-            HirType::InfixExpr(lhs, _, rhs) => {
+            HirType::InfixExpr(lhs, _, rhs, _) => {
                 Self::check_type(lhs, location)?;
                 Self::check_type(rhs, location)
             }
@@ -2061,7 +2133,7 @@ fn unwrap_struct_type(
     location: Location,
 ) -> Result<Vec<(String, HirType)>, MonomorphizationError> {
     match typ.follow_bindings() {
-        HirType::Struct(def, args) => {
+        HirType::DataType(def, args) => {
             // Some of args might not be mentioned in fields, so we need to check that they aren't unbound.
             for arg in &args {
                 Monomorphizer::check_type(arg, location)?;

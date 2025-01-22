@@ -13,6 +13,7 @@ use super::{labels::ParsingRuleLabel, ParsedModule, ParserError, ParserErrorReas
 mod arguments;
 mod attributes;
 mod doc_comments;
+mod enums;
 mod expression;
 mod function;
 mod generics;
@@ -83,6 +84,27 @@ pub struct Parser<'a> {
     next_token: SpannedToken,
     current_token_span: Span,
     previous_token_span: Span,
+
+    /// The current statement's doc comments.
+    /// This is used to eventually know if an `unsafe { ... }` expression is documented
+    /// in its containing statement. For example:
+    ///
+    /// ```noir
+    /// /// Safety: test
+    /// let x = unsafe { call() };
+    /// ```
+    statement_doc_comments: Option<StatementDocComments>,
+}
+
+#[derive(Debug)]
+pub(crate) struct StatementDocComments {
+    pub(crate) doc_comments: Vec<String>,
+    pub(crate) start_span: Span,
+    pub(crate) end_span: Span,
+
+    /// Were these doc comments "read" by an unsafe statement?
+    /// If not, these doc comments aren't documenting anything and they produce an error.
+    pub(crate) read: bool,
 }
 
 impl<'a> Parser<'a> {
@@ -107,6 +129,7 @@ impl<'a> Parser<'a> {
             next_token: eof_spanned_token(),
             current_token_span: Default::default(),
             previous_token_span: Default::default(),
+            statement_doc_comments: None,
         };
         parser.read_two_first_tokens();
         parser
@@ -169,14 +192,10 @@ impl<'a> Parser<'a> {
 
     fn read_token_internal(&mut self) -> SpannedToken {
         loop {
-            let token = self.tokens.next();
-            if let Some(token) = token {
-                match token {
-                    Ok(token) => return token,
-                    Err(lexer_error) => self.errors.push(lexer_error.into()),
-                }
-            } else {
-                return eof_spanned_token();
+            match self.tokens.next() {
+                Some(Ok(token)) => return token,
+                Some(Err(lexer_error)) => self.errors.push(lexer_error.into()),
+                None => return eof_spanned_token(),
             }
         }
     }

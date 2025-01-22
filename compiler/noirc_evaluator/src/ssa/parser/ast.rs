@@ -7,7 +7,26 @@ use crate::ssa::ir::{function::RuntimeType, instruction::BinaryOp, types::Type};
 
 #[derive(Debug)]
 pub(crate) struct ParsedSsa {
+    pub(crate) globals: Vec<ParsedGlobal>,
     pub(crate) functions: Vec<ParsedFunction>,
+}
+
+#[derive(Debug)]
+pub(crate) struct ParsedGlobal {
+    pub(crate) name: Identifier,
+    pub(crate) value: ParsedGlobalValue,
+}
+
+#[derive(Debug)]
+pub(crate) enum ParsedGlobalValue {
+    NumericConstant(ParsedNumericConstant),
+    MakeArray(ParsedMakeArray),
+}
+
+#[derive(Debug)]
+pub(crate) struct ParsedMakeArray {
+    pub(crate) elements: Vec<ParsedValue>,
+    pub(crate) typ: Type,
 }
 
 #[derive(Debug)]
@@ -145,6 +164,12 @@ pub(crate) enum ParsedTerminator {
 
 #[derive(Debug, Clone)]
 pub(crate) enum ParsedValue {
-    NumericConstant { constant: FieldElement, typ: Type },
+    NumericConstant(ParsedNumericConstant),
     Variable(Identifier),
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct ParsedNumericConstant {
+    pub(crate) value: FieldElement,
+    pub(crate) typ: Type,
 }

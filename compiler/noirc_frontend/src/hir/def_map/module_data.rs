@@ -4,7 +4,7 @@ use noirc_errors::Location;
 
 use super::{ItemScope, LocalModuleId, ModuleDefId, ModuleId, PerNs};
 use crate::ast::{Ident, ItemVisibility};
-use crate::node_interner::{FuncId, GlobalId, StructId, TraitId, TypeAliasId};
+use crate::node_interner::{FuncId, GlobalId, TraitId, TypeAliasId, TypeId};
 use crate::token::SecondaryAttribute;
 
 /// Contains the actual contents of a module: its parent (if one exists),
@@ -120,11 +120,11 @@ impl ModuleData {
         self.declare(name, visibility, id.into(), None)
     }
 
-    pub fn declare_struct(
+    pub fn declare_type(
         &mut self,
         name: Ident,
         visibility: ItemVisibility,
-        id: StructId,
+        id: TypeId,
     ) -> Result<(), (Ident, Ident)> {
         self.declare(name, visibility, ModuleDefId::TypeId(id), None)
     }

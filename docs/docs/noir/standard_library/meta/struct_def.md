@@ -42,23 +42,28 @@ any generics, the generics are also included as-is.
 
 #include_code generics noir_stdlib/src/meta/struct_def.nr rust
 
-Returns each generic on this struct.
+Returns each generic on this struct. Each generic is represented as a tuple containing the type, 
+and an optional containing the numeric type if it's a numeric generic.
 
 Example:
 
 ```
 #[example]
-struct Foo<T, U> {
-    bar: [T; 2],
+struct Foo<T, U, let K: u32> {
+    bar: [T; K],
     baz: Baz<U, U>,
 }
 
 comptime fn example(foo: StructDefinition) {
-    assert_eq(foo.generics().len(), 2);
+    assert_eq(foo.generics().len(), 3);
 
     // Fails because `T` isn't in scope
     // let t = quote { T }.as_type();
-    // assert_eq(foo.generics()[0], t);
+    // assert_eq(foo.generics()[0].0, t);
+    assert(foo.generics()[0].1.is_none());
+
+    // Last generic is numeric, so we have the numeric type available to us
+    assert(foo.generics()[2].1.is_some());
 }
 ```
 
@@ -66,7 +71,18 @@ comptime fn example(foo: StructDefinition) {
 
 #include_code fields noir_stdlib/src/meta/struct_def.nr rust
 
-Returns each field of this struct as a pair of (field name, field type).
+Returns (name, type) pairs of each field in this struct.
+Any generic types used in each field type is automatically substituted with the
+provided generic arguments.
+
+### fields_as_written
+
+#include_code fields_as_written noir_stdlib/src/meta/struct_def.nr rust
+
+Returns (name, type) pairs of each field in this struct. Each type is as-is
+with any generic arguments unchanged. Unless the field types are not needed,
+users should generally prefer to use `StructDefinition::fields` over this
+function if possible.
 
 ### has_named_attribute
 

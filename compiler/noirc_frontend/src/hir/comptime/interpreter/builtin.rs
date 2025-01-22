@@ -181,8 +181,13 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "struct_def_add_generic" => struct_def_add_generic(interner, arguments, location),
             "struct_def_as_type" => struct_def_as_type(interner, arguments, location),
             "struct_def_eq" => struct_def_eq(arguments, location),
-            "struct_def_fields" => struct_def_fields(interner, arguments, location),
-            "struct_def_generics" => struct_def_generics(interner, arguments, location),
+            "struct_def_fields" => struct_def_fields(interner, arguments, location, call_stack),
+            "struct_def_fields_as_written" => {
+                struct_def_fields_as_written(interner, arguments, location)
+            }
+            "struct_def_generics" => {
+                struct_def_generics(interner, arguments, return_type, location)
+            }
             "struct_def_has_named_attribute" => {
                 struct_def_has_named_attribute(interner, arguments, location)
             }
@@ -192,6 +197,8 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "struct_def_set_fields" => struct_def_set_fields(interner, arguments, location),
             "to_be_radix" => to_be_radix(arguments, return_type, location),
             "to_le_radix" => to_le_radix(arguments, return_type, location),
+            "to_be_bits" => to_be_bits(arguments, return_type, location),
+            "to_le_bits" => to_le_bits(arguments, return_type, location),
             "trait_constraint_eq" => trait_constraint_eq(arguments, location),
             "trait_constraint_hash" => trait_constraint_hash(arguments, location),
             "trait_def_as_trait_constraint" => {
@@ -396,7 +403,7 @@ fn struct_def_add_generic(
     };
 
     let struct_id = get_struct(self_argument)?;
-    let the_struct = interner.get_struct(struct_id);
+    let the_struct = interner.get_type(struct_id);
     let mut the_struct = the_struct.borrow_mut();
     let name = Rc::new(generic_name);
 
@@ -429,7 +436,7 @@ fn struct_def_as_type(
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
     let struct_id = get_struct(argument)?;
-    let struct_def_rc = interner.get_struct(struct_id);
+    let struct_def_rc = interner.get_type(struct_id);
     let struct_def = struct_def_rc.borrow();
 
     let generics = vecmap(&struct_def.generics, |generic| {
@@ -437,25 +444,53 @@ fn struct_def_as_type(
     });
 
     drop(struct_def);
-    Ok(Value::Type(Type::Struct(struct_def_rc, generics)))
+    Ok(Value::Type(Type::DataType(struct_def_rc, generics)))
 }
 
-/// fn generics(self) -> [Type]
+/// fn generics(self) -> [(Type, Option<Type>)]
 fn struct_def_generics(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
+    return_type: Type,
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
     let struct_id = get_struct(argument)?;
-    let struct_def = interner.get_struct(struct_id);
+    let struct_def = interner.get_type(struct_id);
     let struct_def = struct_def.borrow();
 
-    let generics =
-        struct_def.generics.iter().map(|generic| Value::Type(generic.clone().as_named_generic()));
+    let expected = Type::Slice(Box::new(Type::Tuple(vec![
+        Type::Quoted(QuotedType::Type),
+        interner.next_type_variable(), // Option
+    ])));
 
-    let typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Type)));
-    Ok(Value::Slice(generics.collect(), typ))
+    let actual = return_type.clone();
+
+    let slice_item_type = match return_type {
+        Type::Slice(item_type) => *item_type,
+        _ => return Err(InterpreterError::TypeMismatch { expected, actual, location }),
+    };
+
+    let option_typ = match &slice_item_type {
+        Type::Tuple(types) if types.len() == 2 => types[1].clone(),
+        _ => return Err(InterpreterError::TypeMismatch { expected, actual, location }),
+    };
+
+    let generics: IResult<_> = struct_def
+        .generics
+        .iter()
+        .map(|generic| -> IResult<Value> {
+            let generic_as_named = generic.clone().as_named_generic();
+            let numeric_type = match generic_as_named.kind() {
+                Kind::Numeric(numeric_type) => Some(Value::Type(*numeric_type)),
+                _ => None,
+            };
+            let numeric_type = option(option_typ.clone(), numeric_type, location.span)?;
+            Ok(Value::Tuple(vec![Value::Type(generic_as_named), numeric_type]))
+        })
+        .collect();
+
+    Ok(Value::Slice(generics?, slice_item_type))
 }
 
 fn struct_def_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
@@ -480,16 +515,61 @@ fn struct_def_has_named_attribute(
     Ok(Value::Bool(has_named_attribute(&name, interner.struct_attributes(&struct_id))))
 }
 
-/// fn fields(self) -> [(Quoted, Type)]
-/// Returns (name, type) pairs of each field of this StructDefinition
+/// fn fields(self, generic_args: [Type]) -> [(Quoted, Type)]
+/// Returns (name, type) pairs of each field of this StructDefinition.
+/// Applies the given generic arguments to each field.
 fn struct_def_fields(
+    interner: &mut NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+    call_stack: &im::Vector<Location>,
+) -> IResult<Value> {
+    let (typ, generic_args) = check_two_arguments(arguments, location)?;
+    let struct_id = get_struct(typ)?;
+    let struct_def = interner.get_type(struct_id);
+    let struct_def = struct_def.borrow();
+
+    let args_location = generic_args.1;
+    let generic_args = get_slice(interner, generic_args)?.0;
+    let generic_args = try_vecmap(generic_args, |arg| get_type((arg, args_location)))?;
+
+    let actual = generic_args.len();
+    let expected = struct_def.generics.len();
+    if actual != expected {
+        let s = if expected == 1 { "" } else { "s" };
+        let was_were = if actual == 1 { "was" } else { "were" };
+        let message = Some(format!("`StructDefinition::fields` expected {expected} generic{s} for `{}` but {actual} {was_were} given", struct_def.name));
+        let location = args_location;
+        let call_stack = call_stack.clone();
+        return Err(InterpreterError::FailingConstraint { message, location, call_stack });
+    }
+
+    let mut fields = im::Vector::new();
+
+    for (field_name, field_type) in struct_def.get_fields(&generic_args) {
+        let name = Value::Quoted(Rc::new(vec![Token::Ident(field_name)]));
+        fields.push_back(Value::Tuple(vec![name, Value::Type(field_type)]));
+    }
+
+    let typ = Type::Slice(Box::new(Type::Tuple(vec![
+        Type::Quoted(QuotedType::Quoted),
+        Type::Quoted(QuotedType::Type),
+    ])));
+    Ok(Value::Slice(fields, typ))
+}
+
+/// fn fields_as_written(self) -> [(Quoted, Type)]
+/// Returns (name, type) pairs of each field of this StructDefinition.
+///
+/// Note that any generic arguments won't be applied: if you need them to be, use `fields`.
+fn struct_def_fields_as_written(
     interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
     let struct_id = get_struct(argument)?;
-    let struct_def = interner.get_struct(struct_id);
+    let struct_def = interner.get_type(struct_id);
     let struct_def = struct_def.borrow();
 
     let mut fields = im::Vector::new();
@@ -527,7 +607,7 @@ fn struct_def_name(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let struct_id = get_struct(self_argument)?;
-    let the_struct = interner.get_struct(struct_id);
+    let the_struct = interner.get_type(struct_id);
 
     let name = Token::Ident(the_struct.borrow().name.to_string());
     Ok(Value::Quoted(Rc::new(vec![name])))
@@ -543,7 +623,7 @@ fn struct_def_set_fields(
     let (the_struct, fields) = check_two_arguments(arguments, location)?;
     let struct_id = get_struct(the_struct)?;
 
-    let struct_def = interner.get_struct(struct_id);
+    let struct_def = interner.get_type(struct_id);
     let mut struct_def = struct_def.borrow_mut();
 
     let field_location = fields.1;
@@ -776,6 +856,26 @@ fn quoted_tokens(arguments: Vec<(Value, Location)>, location: Location) -> IResu
     ))
 }
 
+fn to_be_bits(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    let value = check_one_argument(arguments, location)?;
+    let radix = (Value::U32(2), value.1);
+    to_be_radix(vec![value, radix], return_type, location)
+}
+
+fn to_le_bits(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    let value = check_one_argument(arguments, location)?;
+    let radix = (Value::U32(2), value.1);
+    to_le_radix(vec![value, radix], return_type, location)
+}
+
 fn to_be_radix(
     arguments: Vec<(Value, Location)>,
     return_type: Type,
@@ -800,10 +900,10 @@ fn to_le_radix(
 
     let value = get_field(value)?;
     let radix = get_u32(radix)?;
-    let limb_count = if let Type::Array(length, _) = return_type {
+    let (limb_count, element_type) = if let Type::Array(length, element_type) = return_type {
         if let Type::Constant(limb_count, kind) = *length {
             if kind.unifies(&Kind::u32()) {
-                limb_count
+                (limb_count, element_type)
             } else {
                 return Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location });
             }
@@ -814,14 +914,29 @@ fn to_le_radix(
         return Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location });
     };
 
+    let return_type_is_bits =
+        *element_type == Type::Integer(Signedness::Unsigned, IntegerBitSize::One);
+
     // Decompose the integer into its radix digits in little endian form.
     let decomposed_integer = compute_to_radix_le(value, radix);
-    let decomposed_integer =
-        vecmap(0..limb_count.to_u128() as usize, |i| match decomposed_integer.get(i) {
-            Some(digit) => Value::U8(*digit),
-            None => Value::U8(0),
-        });
-    let result_type = byte_array_type(decomposed_integer.len());
+    let decomposed_integer = vecmap(0..limb_count.to_u128() as usize, |i| {
+        let digit = match decomposed_integer.get(i) {
+            Some(digit) => *digit,
+            None => 0,
+        };
+        // The only built-ins that use these either return `[u1; N]` or `[u8; N]`
+        if return_type_is_bits {
+            Value::U1(digit != 0)
+        } else {
+            Value::U8(digit)
+        }
+    });
+
+    let result_type = Type::Array(
+        Box::new(Type::Constant(decomposed_integer.len().into(), Kind::u32())),
+        element_type,
+    );
+
     Ok(Value::Array(decomposed_integer.into(), result_type))
 }
 
@@ -942,7 +1057,7 @@ fn type_as_struct(
     location: Location,
 ) -> IResult<Value> {
     type_as(arguments, return_type, location, |typ| {
-        if let Type::Struct(struct_type, generics) = typ {
+        if let Type::DataType(struct_type, generics) = typ {
             Some(Value::Tuple(vec![
                 Value::StructDefinition(struct_type.borrow().id),
                 Value::Slice(
@@ -1317,7 +1432,7 @@ fn zeroed(return_type: Type, span: Span) -> IResult<Value> {
         }
         Type::Unit => Ok(Value::Unit),
         Type::Tuple(fields) => Ok(Value::Tuple(try_vecmap(fields, |field| zeroed(field, span))?)),
-        Type::Struct(struct_type, generics) => {
+        Type::DataType(struct_type, generics) => {
             let fields = struct_type.borrow().get_fields(&generics);
             let mut values = HashMap::default();
 
@@ -1326,7 +1441,7 @@ fn zeroed(return_type: Type, span: Span) -> IResult<Value> {
                 values.insert(Rc::new(field_name), field_value);
             }
 
-            let typ = Type::Struct(struct_type, generics);
+            let typ = Type::DataType(struct_type, generics);
             Ok(Value::Struct(values, typ))
         }
         Type::Alias(alias, generics) => zeroed(alias.borrow().get_type(&generics), span),
@@ -2775,7 +2890,7 @@ pub(crate) fn option(option_type: Type, value: Option<Value>, span: Span) -> IRe
 
 /// Given a type, assert that it's an Option<T> and return the Type for T
 pub(crate) fn extract_option_generic_type(typ: Type) -> Type {
-    let Type::Struct(struct_type, mut generics) = typ else {
+    let Type::DataType(struct_type, mut generics) = typ else {
         panic!("Expected type to be a struct");
     };
 

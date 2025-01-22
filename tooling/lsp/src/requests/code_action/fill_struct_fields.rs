@@ -24,7 +24,7 @@ impl<'a> CodeActionFinder<'a> {
             return;
         };
 
-        let struct_type = self.interner.get_struct(struct_id);
+        let struct_type = self.interner.get_type(struct_id);
         let struct_type = struct_type.borrow();
 
         // First get all of the struct's fields

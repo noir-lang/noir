@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, sync::Arc};
 
 use crate::ssa::{function_builder::data_bus::DataBus, ir::instruction::SimplifyResult};
 
@@ -102,6 +102,31 @@ pub(crate) struct DataFlowGraph {
 
     #[serde(skip)]
     pub(crate) data_bus: DataBus,
+
+    pub(crate) globals: Arc<GlobalsGraph>,
+}
+
+/// The GlobalsGraph contains the actual global data.
+/// Global data is expected to only be numeric constants or array constants (which are represented by Instruction::MakeArray).
+/// The global's data will shared across functions and should be accessible inside of a function's DataFlowGraph.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub(crate) struct GlobalsGraph {
+    /// Storage for all of the global values
+    values: DenseMap<Value>,
+    /// All of the instructions in the global value space.
+    /// These are expected to all be Instruction::MakeArray
+    instructions: DenseMap<Instruction>,
+}
+
+impl GlobalsGraph {
+    pub(crate) fn from_dfg(dfg: DataFlowGraph) -> Self {
+        Self { values: dfg.values, instructions: dfg.instructions }
+    }
+
+    /// Iterate over every Value in this DFG in no particular order, including unused Values
+    pub(crate) fn values_iter(&self) -> impl DoubleEndedIterator<Item = (ValueId, &Value)> {
+        self.values.iter()
+    }
 }
 
 impl DataFlowGraph {
@@ -148,12 +173,12 @@ impl DataFlowGraph {
     /// The pairs are order by id, which is not guaranteed to be meaningful.
     pub(crate) fn basic_blocks_iter(
         &self,
-    ) -> impl ExactSizeIterator<Item = (BasicBlockId, &BasicBlock)> {
+    ) -> impl DoubleEndedIterator<Item = (BasicBlockId, &BasicBlock)> {
         self.blocks.iter()
     }
 
     /// Iterate over every Value in this DFG in no particular order, including unused Values
-    pub(crate) fn values_iter(&self) -> impl ExactSizeIterator<Item = (ValueId, &Value)> {
+    pub(crate) fn values_iter(&self) -> impl DoubleEndedIterator<Item = (ValueId, &Value)> {
         self.values.iter()
     }
 
@@ -181,7 +206,16 @@ impl DataFlowGraph {
 
     /// Check if the function runtime would simply ignore this instruction.
     pub(crate) fn is_handled_by_runtime(&self, instruction: &Instruction) -> bool {
-        !(self.runtime().is_acir() && instruction.is_brillig_only())
+        match self.runtime() {
+            RuntimeType::Acir(_) => !matches!(
+                instruction,
+                Instruction::IncrementRc { .. } | Instruction::DecrementRc { .. }
+            ),
+            RuntimeType::Brillig(_) => !matches!(
+                instruction,
+                Instruction::EnableSideEffectsIf { .. } | Instruction::IfElse { .. }
+            ),
+        }
     }
 
     fn insert_instruction_without_simplification(
@@ -205,7 +239,7 @@ impl DataFlowGraph {
         call_stack: CallStackId,
     ) -> InsertInstructionResult {
         if !self.is_handled_by_runtime(&instruction_data) {
-            return InsertInstructionResult::InstructionRemoved;
+            panic!("Attempted to insert instruction not handled by runtime: {instruction_data:?}");
         }
 
         let id = self.insert_instruction_without_simplification(
@@ -227,9 +261,28 @@ impl DataFlowGraph {
         ctrl_typevars: Option<Vec<Type>>,
         call_stack: CallStackId,
     ) -> InsertInstructionResult {
+        self.insert_instruction_and_results_if_simplified(
+            instruction,
+            block,
+            ctrl_typevars,
+            call_stack,
+            None,
+        )
+    }
+
+    /// Simplifies a potentially existing instruction and inserts it only if it changed.
+    pub(crate) fn insert_instruction_and_results_if_simplified(
+        &mut self,
+        instruction: Instruction,
+        block: BasicBlockId,
+        ctrl_typevars: Option<Vec<Type>>,
+        call_stack: CallStackId,
+        existing_id: Option<InstructionId>,
+    ) -> InsertInstructionResult {
         if !self.is_handled_by_runtime(&instruction) {
-            return InsertInstructionResult::InstructionRemoved;
+            panic!("Attempted to insert instruction not handled by runtime: {instruction:?}");
         }
+
         match instruction.simplify(self, block, ctrl_typevars.clone(), call_stack) {
             SimplifyResult::SimplifiedTo(simplification) => {
                 InsertInstructionResult::SimplifiedTo(simplification)
@@ -241,7 +294,20 @@ impl DataFlowGraph {
             result @ (SimplifyResult::SimplifiedToInstruction(_)
             | SimplifyResult::SimplifiedToInstructionMultiple(_)
             | SimplifyResult::None) => {
-                let mut instructions = result.instructions().unwrap_or(vec![instruction]);
+                let instructions = result.instructions();
+                if instructions.is_none() {
+                    if let Some(id) = existing_id {
+                        if self[id] == instruction {
+                            // Just (re)insert into the block, no need to redefine.
+                            self.blocks[block].insert_instruction(id);
+                            return InsertInstructionResult::Results(
+                                id,
+                                self.instruction_results(id),
+                            );
+                        }
+                    }
+                }
+                let mut instructions = instructions.unwrap_or(vec![instruction]);
                 assert!(!instructions.is_empty(), "`SimplifyResult::SimplifiedToInstructionMultiple` must not return empty vector");
 
                 if instructions.len() > 1 {
@@ -323,6 +389,10 @@ impl DataFlowGraph {
         let id = self.values.insert(Value::NumericConstant { constant, typ });
         self.constants.insert((constant, typ), id);
         id
+    }
+
+    pub(crate) fn make_global(&mut self, typ: Type) -> ValueId {
+        self.values.insert(Value::Global(typ))
     }
 
     /// Gets or creates a ValueId for the given FunctionId.
@@ -416,10 +486,15 @@ impl DataFlowGraph {
     pub(crate) fn get_value_max_num_bits(&self, value: ValueId) -> u32 {
         match self[value] {
             Value::Instruction { instruction, .. } => {
+                let value_bit_size = self.type_of_value(value).bit_size();
                 if let Instruction::Cast(original_value, _) = self[instruction] {
-                    self.type_of_value(original_value).bit_size()
+                    let original_bit_size = self.type_of_value(original_value).bit_size();
+                    // We might have cast e.g. `u1` to `u8` to be able to do arithmetic,
+                    // in which case we want to recover the original smaller bit size;
+                    // OTOH if we cast down, then we don't need the higher original size.
+                    value_bit_size.min(original_bit_size)
                 } else {
-                    self.type_of_value(value).bit_size()
+                    value_bit_size
                 }
             }
 
@@ -465,6 +540,7 @@ impl DataFlowGraph {
 
     /// Remove an instruction by replacing it with a `Noop` instruction.
     /// Doing this avoids shifting over each instruction after this one in its block's instructions vector.
+    #[allow(unused)]
     pub(crate) fn remove_instruction(&mut self, instruction: InstructionId) {
         self.instructions[instruction] = Instruction::Noop;
         self.results.insert(instruction, smallvec::SmallVec::new());
@@ -491,7 +567,7 @@ impl DataFlowGraph {
         &self,
         value: ValueId,
     ) -> Option<(FieldElement, NumericType)> {
-        match &self.values[self.resolve(value)] {
+        match &self[self.resolve(value)] {
             Value::NumericConstant { constant, typ } => Some((*constant, *typ)),
             _ => None,
         }
@@ -500,13 +576,15 @@ impl DataFlowGraph {
     /// Returns the Value::Array associated with this ValueId if it refers to an array constant.
     /// Otherwise, this returns None.
     pub(crate) fn get_array_constant(&self, value: ValueId) -> Option<(im::Vector<ValueId>, Type)> {
-        match &self.values[self.resolve(value)] {
-            Value::Instruction { instruction, .. } => match &self.instructions[*instruction] {
+        let value = self.resolve(value);
+        if let Some(instruction) = self.get_local_or_global_instruction(value) {
+            match instruction {
                 Instruction::MakeArray { elements, typ } => Some((elements.clone(), typ.clone())),
                 _ => None,
-            },
+            }
+        } else {
             // Arrays are shared, so cloning them is cheap
-            _ => None,
+            None
         }
     }
 
@@ -517,6 +595,24 @@ impl DataFlowGraph {
             Type::Array(_, length) => Some(length),
             _ => None,
         }
+    }
+
+    /// If this value points to an array of constant bytes, returns a string
+    /// consisting of those bytes if they form a valid UTF-8 string.
+    pub(crate) fn get_string(&self, value: ValueId) -> Option<String> {
+        let (value_ids, _typ) = self.get_array_constant(value)?;
+
+        let mut bytes = Vec::new();
+        for value_id in value_ids {
+            let field_value = self.get_numeric_constant(value_id)?;
+            let u64_value = field_value.try_to_u64()?;
+            if u64_value > 255 {
+                return None;
+            };
+            let byte = u64_value as u8;
+            bytes.push(byte);
+        }
+        String::from_utf8(bytes).ok()
     }
 
     /// A constant index less than the array length is safe
@@ -581,14 +677,23 @@ impl DataFlowGraph {
 
     /// True if the given ValueId refers to a (recursively) constant value
     pub(crate) fn is_constant(&self, argument: ValueId) -> bool {
-        match &self[self.resolve(argument)] {
+        let argument = self.resolve(argument);
+        match &self[argument] {
             Value::Param { .. } => false,
-            Value::Instruction { instruction, .. } => match &self[*instruction] {
-                Instruction::MakeArray { elements, .. } => {
-                    elements.iter().all(|element| self.is_constant(*element))
+            Value::Instruction { .. } => {
+                let Some(instruction) = self.get_local_or_global_instruction(argument) else {
+                    return false;
+                };
+                match &instruction {
+                    Instruction::MakeArray { elements, .. } => {
+                        elements.iter().all(|element| self.is_constant(*element))
+                    }
+                    _ => false,
                 }
-                _ => false,
-            },
+            }
+            Value::Global(_) => {
+                unreachable!("The global value should have been indexed from the global space");
+            }
             _ => true,
         }
     }
@@ -599,6 +704,29 @@ impl DataFlowGraph {
             !constant.is_zero()
         } else {
             false
+        }
+    }
+
+    pub(crate) fn is_global(&self, value: ValueId) -> bool {
+        matches!(self.values[value], Value::Global(_))
+    }
+
+    /// Uses value information to determine whether an instruction is from
+    /// this function's DFG or the global space's DFG.
+    pub(crate) fn get_local_or_global_instruction(&self, value: ValueId) -> Option<&Instruction> {
+        match &self[value] {
+            Value::Instruction { instruction, .. } => {
+                let instruction = if self.is_global(value) {
+                    let instruction = &self.globals[*instruction];
+                    // We expect to only have MakeArray instructions in the global space
+                    assert!(matches!(instruction, Instruction::MakeArray { .. }));
+                    instruction
+                } else {
+                    &self[*instruction]
+                };
+                Some(instruction)
+            }
+            _ => None,
         }
     }
 }
@@ -619,7 +747,11 @@ impl std::ops::IndexMut<InstructionId> for DataFlowGraph {
 impl std::ops::Index<ValueId> for DataFlowGraph {
     type Output = Value;
     fn index(&self, id: ValueId) -> &Self::Output {
-        &self.values[id]
+        let value = &self.values[id];
+        if matches!(value, Value::Global(_)) {
+            return &self.globals[id];
+        }
+        value
     }
 }
 
@@ -634,6 +766,20 @@ impl std::ops::IndexMut<BasicBlockId> for DataFlowGraph {
     /// Get a mutable reference to a function's basic block for the given id.
     fn index_mut(&mut self, id: BasicBlockId) -> &mut Self::Output {
         &mut self.blocks[id]
+    }
+}
+
+impl std::ops::Index<ValueId> for GlobalsGraph {
+    type Output = Value;
+    fn index(&self, id: ValueId) -> &Self::Output {
+        &self.values[id]
+    }
+}
+
+impl std::ops::Index<InstructionId> for GlobalsGraph {
+    type Output = Instruction;
+    fn index(&self, id: InstructionId) -> &Self::Output {
+        &self.instructions[id]
     }
 }
 

@@ -2,10 +2,11 @@ pub(crate) mod context;
 mod program;
 mod value;
 
+use acvm::AcirField;
 use noirc_frontend::token::FmtStrFragment;
 pub(crate) use program::Ssa;
 
-use context::SharedContext;
+use context::{Loop, SharedContext};
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 use noirc_frontend::ast::{UnaryOp, Visibility};
@@ -22,6 +23,7 @@ use self::{
     value::{Tree, Values},
 };
 
+use super::ir::dfg::GlobalsGraph;
 use super::ir::instruction::ErrorType;
 use super::ir::types::NumericType;
 use super::{
@@ -48,6 +50,8 @@ pub(crate) fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     let return_location = program.return_location;
     let context = SharedContext::new(program);
 
+    let globals = GlobalsGraph::from_dfg(context.globals_context.dfg.clone());
+
     let main_id = Program::main_id();
     let main = context.program.main();
 
@@ -59,7 +63,7 @@ pub(crate) fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
         RuntimeType::Acir(main.inline_type)
     };
     let mut function_context =
-        FunctionContext::new(main.name.clone(), &main.parameters, main_runtime, &context);
+        FunctionContext::new(main.name.clone(), &main.parameters, main_runtime, &context, globals);
 
     // Generate the call_data bus from the relevant parameters. We create it *before* processing the function body
     let call_data = function_context.builder.call_data_bus(is_databus);
@@ -120,7 +124,9 @@ pub(crate) fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
         function_context.codegen_function_body(&function.body)?;
     }
 
-    Ok(function_context.builder.finish())
+    let mut ssa = function_context.builder.finish();
+    ssa.globals = context.globals_context;
+    Ok(ssa)
 }
 
 impl<'a> FunctionContext<'a> {
@@ -146,6 +152,7 @@ impl<'a> FunctionContext<'a> {
             Expression::Index(index) => self.codegen_index(index),
             Expression::Cast(cast) => self.codegen_cast(cast),
             Expression::For(for_expr) => self.codegen_for(for_expr),
+            Expression::Loop(block) => self.codegen_loop(block),
             Expression::If(if_expr) => self.codegen_if(if_expr),
             Expression::Tuple(tuple) => self.codegen_tuple(tuple),
             Expression::ExtractTupleField(tuple, index) => {
@@ -178,6 +185,7 @@ impl<'a> FunctionContext<'a> {
     fn codegen_ident_reference(&mut self, ident: &ast::Ident) -> Values {
         match &ident.definition {
             ast::Definition::Local(id) => self.lookup(*id),
+            ast::Definition::Global(id) => self.lookup_global(*id),
             ast::Definition::Function(id) => self.get_or_queue_function(*id),
             ast::Definition::Oracle(name) => self.builder.import_foreign_function(name).into(),
             ast::Definition::Builtin(name) | ast::Definition::LowLevel(name) => {
@@ -445,8 +453,13 @@ impl<'a> FunctionContext<'a> {
         let type_size = Self::convert_type(element_type).size_of_type();
         let type_size =
             self.builder.numeric_constant(type_size as u128, NumericType::length_type());
-        let base_index =
-            self.builder.set_location(location).insert_binary(index, BinaryOp::Mul, type_size);
+        // This shouldn't overflow as we are reaching for an initial array offset
+        // (otherwise it would have overflowed when creating the array)
+        let base_index = self.builder.set_location(location).insert_binary(
+            index,
+            BinaryOp::Mul { unchecked: true },
+            type_size,
+        );
 
         let mut field_index = 0u128;
         Ok(Self::map_type(element_type, |typ| {
@@ -519,6 +532,22 @@ impl<'a> FunctionContext<'a> {
     ///   ... This is the current insert point after codegen_for finishes ...
     /// ```
     fn codegen_for(&mut self, for_expr: &ast::For) -> Result<Values, RuntimeError> {
+        self.builder.set_location(for_expr.start_range_location);
+        let start_index = self.codegen_non_tuple_expression(&for_expr.start_range)?;
+
+        self.builder.set_location(for_expr.end_range_location);
+        let end_index = self.codegen_non_tuple_expression(&for_expr.end_range)?;
+
+        if let (Some(start_constant), Some(end_constant)) = (
+            self.builder.current_function.dfg.get_numeric_constant(start_index),
+            self.builder.current_function.dfg.get_numeric_constant(end_index),
+        ) {
+            // If we can determine that the loop contains zero iterations then there's no need to codegen the loop.
+            if start_constant >= end_constant {
+                return Ok(Self::unit_value());
+            }
+        }
+
         let loop_entry = self.builder.insert_block();
         let loop_body = self.builder.insert_block();
         let loop_end = self.builder.insert_block();
@@ -529,13 +558,7 @@ impl<'a> FunctionContext<'a> {
 
         // Remember the blocks and variable used in case there are break/continue instructions
         // within the loop which need to jump to them.
-        self.enter_loop(loop_entry, loop_index, loop_end);
-
-        self.builder.set_location(for_expr.start_range_location);
-        let start_index = self.codegen_non_tuple_expression(&for_expr.start_range)?;
-
-        self.builder.set_location(for_expr.end_range_location);
-        let end_index = self.codegen_non_tuple_expression(&for_expr.end_range)?;
+        self.enter_loop(Loop { loop_entry, loop_index: Some(loop_index), loop_end });
 
         // Set the location of the initial jmp instruction to the start range. This is the location
         // used to issue an error if the start range cannot be determined at compile-time.
@@ -560,6 +583,38 @@ impl<'a> FunctionContext<'a> {
         self.builder.terminate_with_jmp(loop_entry, vec![new_loop_index]);
 
         // Finish by switching back to the end of the loop
+        self.builder.switch_to_block(loop_end);
+        self.exit_loop();
+        Ok(Self::unit_value())
+    }
+
+    /// Codegens a loop, creating three new blocks in the process.
+    /// The return value of a loop is always a unit literal.
+    ///
+    /// For example, the loop `loop { body }` is codegen'd as:
+    ///
+    /// ```text
+    ///   br loop_body()
+    /// loop_body():
+    ///   v3 = ... codegen body ...
+    ///   br loop_body()
+    /// loop_end():
+    ///   ... This is the current insert point after codegen_for finishes ...
+    /// ```
+    fn codegen_loop(&mut self, block: &Expression) -> Result<Values, RuntimeError> {
+        let loop_body = self.builder.insert_block();
+        let loop_end = self.builder.insert_block();
+
+        self.enter_loop(Loop { loop_entry: loop_body, loop_index: None, loop_end });
+
+        self.builder.terminate_with_jmp(loop_body, vec![]);
+
+        // Compile the loop body
+        self.builder.switch_to_block(loop_body);
+        self.codegen_expression(block)?;
+        self.builder.terminate_with_jmp(loop_body, vec![]);
+
+        // Finish by switching to the end of the loop
         self.builder.switch_to_block(loop_end);
         self.exit_loop();
         Ok(Self::unit_value())
@@ -595,6 +650,9 @@ impl<'a> FunctionContext<'a> {
     /// ```
     fn codegen_if(&mut self, if_expr: &ast::If) -> Result<Values, RuntimeError> {
         let condition = self.codegen_non_tuple_expression(&if_expr.condition)?;
+        if let Some(result) = self.try_codegen_constant_if(condition, if_expr) {
+            return result;
+        }
 
         let then_block = self.builder.insert_block();
         let else_block = self.builder.insert_block();
@@ -631,6 +689,25 @@ impl<'a> FunctionContext<'a> {
         }
 
         Ok(result)
+    }
+
+    /// If the condition is known, skip codegen for the then/else branch and only compile the
+    /// relevant branch.
+    fn try_codegen_constant_if(
+        &mut self,
+        condition: ValueId,
+        if_expr: &ast::If,
+    ) -> Option<Result<Values, RuntimeError>> {
+        let condition = self.builder.current_function.dfg.get_numeric_constant(condition)?;
+
+        Some(if condition.is_zero() {
+            match if_expr.alternative.as_ref() {
+                Some(alternative) => self.codegen_expression(alternative),
+                None => Ok(Self::unit_value()),
+            }
+        } else {
+            self.codegen_expression(&if_expr.consequence)
+        })
     }
 
     fn codegen_tuple(&mut self, tuple: &[Expression]) -> Result<Values, RuntimeError> {
@@ -679,7 +756,12 @@ impl<'a> FunctionContext<'a> {
 
                     // We add one here in the case of a slice insert as a slice insert at the length of the slice
                     // can be converted to a slice push back
-                    let len_plus_one = self.builder.insert_binary(arguments[0], BinaryOp::Add, one);
+                    // This is unchecked as the slice length could be u32::max
+                    let len_plus_one = self.builder.insert_binary(
+                        arguments[0],
+                        BinaryOp::Add { unchecked: false },
+                        one,
+                    );
 
                     self.codegen_slice_access_check(arguments[2], Some(len_plus_one));
                 }
@@ -703,9 +785,7 @@ impl<'a> FunctionContext<'a> {
         // Don't mutate the reference count if we're assigning an array literal to a Let:
         // `let mut foo = [1, 2, 3];`
         // we consider the array to be moved, so we should have an initial rc of just 1.
-        //
-        // TODO: this exception breaks #6763
-        let should_inc_rc = true; // !let_expr.expression.is_array_or_slice_literal();
+        let should_inc_rc = !let_expr.expression.is_array_or_slice_literal();
 
         values = values.map(|value| {
             let value = value.eval(self);
@@ -805,8 +885,12 @@ impl<'a> FunctionContext<'a> {
         let loop_ = self.current_loop();
 
         // Must remember to increment i before jumping
-        let new_loop_index = self.make_offset(loop_.loop_index, 1);
-        self.builder.terminate_with_jmp(loop_.loop_entry, vec![new_loop_index]);
+        if let Some(loop_index) = loop_.loop_index {
+            let new_loop_index = self.make_offset(loop_index, 1);
+            self.builder.terminate_with_jmp(loop_.loop_entry, vec![new_loop_index]);
+        } else {
+            self.builder.terminate_with_jmp(loop_.loop_entry, vec![]);
+        }
         Self::unit_value()
     }
 }

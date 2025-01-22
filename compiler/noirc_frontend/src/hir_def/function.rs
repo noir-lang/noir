@@ -8,7 +8,7 @@ use super::traits::TraitConstraint;
 use crate::ast::{BlockExpression, FunctionKind, FunctionReturnType, Visibility};
 use crate::graph::CrateId;
 use crate::hir::def_map::LocalModuleId;
-use crate::node_interner::{ExprId, NodeInterner, StructId, TraitId, TraitImplId};
+use crate::node_interner::{ExprId, NodeInterner, TraitId, TraitImplId, TypeId};
 
 use crate::{ResolvedGeneric, Type};
 
@@ -133,7 +133,7 @@ pub struct FuncMeta {
     pub trait_constraints: Vec<TraitConstraint>,
 
     /// The struct this function belongs to, if any
-    pub struct_id: Option<StructId>,
+    pub struct_id: Option<TypeId>,
 
     // The trait this function belongs to, if any
     pub trait_id: Option<TraitId>,
@@ -175,12 +175,13 @@ pub enum FunctionBody {
 
 impl FuncMeta {
     /// A stub function does not have a body. This includes Builtin, LowLevel,
-    /// and Oracle functions in addition to method declarations within a trait.
+    /// and Oracle functions in addition to method declarations within a trait
+    /// without a body.
     ///
     /// We don't check the return type of these functions since it will always have
     /// an empty body, and we don't check for unused parameters.
     pub fn is_stub(&self) -> bool {
-        self.kind.can_ignore_return_type() || self.trait_id.is_some()
+        self.kind.can_ignore_return_type()
     }
 
     pub fn function_signature(&self) -> FunctionSignature {

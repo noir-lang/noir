@@ -25,7 +25,7 @@ impl Ssa {
         let mut context = Context::default();
         context.populate_functions(&self.functions);
         for function in self.functions.values_mut() {
-            context.normalize_ids(function);
+            context.normalize_ids(function, &self.globals);
         }
         self.functions = context.functions.into_btree();
     }
@@ -65,12 +65,16 @@ impl Context {
         }
     }
 
-    fn normalize_ids(&mut self, old_function: &mut Function) {
+    fn normalize_ids(&mut self, old_function: &mut Function, globals: &Function) {
         self.new_ids.blocks.clear();
         self.new_ids.values.clear();
 
         let new_function_id = self.new_ids.function_ids[&old_function.id()];
         let new_function = &mut self.functions[new_function_id];
+
+        for (_, value) in globals.dfg.values_iter() {
+            new_function.dfg.make_global(value.get_type().into_owned());
+        }
 
         let mut reachable_blocks = PostOrder::with_function(old_function).into_vec();
         reachable_blocks.reverse();
@@ -166,6 +170,11 @@ impl IdMaps {
         old_value: ValueId,
     ) -> ValueId {
         let old_value = old_function.dfg.resolve(old_value);
+        if old_function.dfg.is_global(old_value) {
+            // Globals are computed at compile-time and thus are expected to be remain normalized
+            // between SSA passes
+            return old_value;
+        }
         match &old_function.dfg[old_value] {
             value @ Value::Instruction { instruction, .. } => {
                 *self.values.get(&old_value).unwrap_or_else(|| {
@@ -192,6 +201,9 @@ impl IdMaps {
             }
             Value::Intrinsic(intrinsic) => new_function.dfg.import_intrinsic(*intrinsic),
             Value::ForeignFunction(name) => new_function.dfg.import_foreign_function(name),
+            Value::Global(_) => {
+                unreachable!("Should have handled the global case already");
+            },
         }
     }
 }

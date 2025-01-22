@@ -150,16 +150,19 @@ pub(crate) fn optimize_into_acir(
 /// Run all SSA passes.
 fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ssa, RuntimeError> {
     Ok(builder
-        .run_pass(Ssa::remove_unreachable_functions, "Removing Unreachable Functions")
+        .run_pass(Ssa::remove_unreachable_functions, "Removing Unreachable Functions (1st)")
         .run_pass(Ssa::defunctionalize, "Defunctionalization")
         .run_pass(Ssa::remove_paired_rc, "Removing Paired rc_inc & rc_decs")
-        .run_pass(Ssa::resolve_is_unconstrained, "Resolving IsUnconstrained")
+        .run_pass(
+            |ssa| ssa.preprocess_functions(options.inliner_aggressiveness),
+            "Preprocessing Functions",
+        )
         .run_pass(|ssa| ssa.inline_functions(options.inliner_aggressiveness), "Inlining (1st)")
         // Run mem2reg with the CFG separated into blocks
         .run_pass(Ssa::mem2reg, "Mem2Reg (1st)")
         .run_pass(Ssa::simplify_cfg, "Simplifying (1st)")
         .run_pass(Ssa::as_slice_optimization, "`as_slice` optimization")
-        .run_pass(Ssa::remove_unreachable_functions, "Removing Unreachable Functions")
+        .run_pass(Ssa::remove_unreachable_functions, "Removing Unreachable Functions (2nd)")
         .try_run_pass(
             Ssa::evaluate_static_assert_and_assert_constant,
             "`static_assert` and `assert_constant`",
@@ -170,10 +173,11 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
             "Unrolling",
         )?
         .run_pass(Ssa::simplify_cfg, "Simplifying (2nd)")
-        .run_pass(Ssa::flatten_cfg, "Flattening")
-        .run_pass(Ssa::remove_bit_shifts, "After Removing Bit Shifts")
-        // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
         .run_pass(Ssa::mem2reg, "Mem2Reg (2nd)")
+        .run_pass(Ssa::flatten_cfg, "Flattening")
+        .run_pass(Ssa::remove_bit_shifts, "Removing Bit Shifts")
+        // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
+        .run_pass(Ssa::mem2reg, "Mem2Reg (3rd)")
         // Run the inlining pass again to handle functions with `InlineType::NoPredicates`.
         // Before flattening is run, we treat functions marked with the `InlineType::NoPredicates` as an entry point.
         // This pass must come immediately following `mem2reg` as the succeeding passes
@@ -186,8 +190,9 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
         .run_pass(Ssa::fold_constants, "Constant Folding")
         .run_pass(Ssa::remove_enable_side_effects, "EnableSideEffectsIf removal")
         .run_pass(Ssa::fold_constants_using_constraints, "Constraint Folding")
+        .run_pass(Ssa::make_constrain_not_equal_instructions, "Adding constrain not equal")
         .run_pass(Ssa::dead_instruction_elimination, "Dead Instruction Elimination (1st)")
-        .run_pass(Ssa::simplify_cfg, "Simplifying:")
+        .run_pass(Ssa::simplify_cfg, "Simplifying (3rd):")
         .run_pass(Ssa::array_set_optimization, "Array Set Optimizations")
         .finish())
 }
@@ -453,7 +458,7 @@ impl SsaBuilder {
             let ssa_path = emit_ssa.with_extension("ssa.json");
             write_to_file(&serde_json::to_vec(&ssa).unwrap(), &ssa_path);
         }
-        Ok(SsaBuilder { ssa_logging, print_codegen_timings, ssa }.print("Initial SSA:"))
+        Ok(SsaBuilder { ssa_logging, print_codegen_timings, ssa }.print("Initial SSA"))
     }
 
     fn finish(self) -> Ssa {
