@@ -370,7 +370,7 @@ fn struct_def_add_attribute(
     };
 
     let struct_id = get_struct(self_argument)?;
-    interner.update_struct_attributes(struct_id, |attributes| {
+    interner.update_type_attributes(struct_id, |attributes| {
         attributes.push(attribute);
     });
 

@@ -32,7 +32,7 @@ pub struct ModuleData {
     pub is_contract: bool,
 
     /// True if this module is actually a struct
-    pub is_struct: bool,
+    pub is_type: bool,
 
     pub attributes: Vec<SecondaryAttribute>,
 }
@@ -57,7 +57,7 @@ impl ModuleData {
             definitions: ItemScope::default(),
             location,
             is_contract,
-            is_struct,
+            is_type: is_struct,
             attributes,
         }
     }

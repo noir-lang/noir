@@ -15,7 +15,10 @@ use crate::{
             filter_literal_globals, CompilationError, ImplMap, UnresolvedFunctions,
             UnresolvedGlobal, UnresolvedStruct, UnresolvedTraitImpl, UnresolvedTypeAlias,
         },
-        def_collector::{dc_crate::CollectedItems, errors::DefCollectorErrorKind},
+        def_collector::{
+            dc_crate::{CollectedItems, UnresolvedEnum},
+            errors::DefCollectorErrorKind,
+        },
         def_map::{DefMaps, ModuleData},
         def_map::{LocalModuleId, ModuleId, MAIN_FUNCTION},
         resolution::errors::ResolverError,
@@ -35,7 +38,7 @@ use crate::{
         ReferenceId, TraitId, TraitImplId, TypeAliasId, TypeId,
     },
     token::SecondaryAttribute,
-    Shared, Type, TypeVariable,
+    EnumVariant, Shared, Type, TypeVariable,
 };
 use crate::{
     ast::{ItemVisibility, UnresolvedType},
@@ -319,8 +322,9 @@ impl<'context> Elaborator<'context> {
             self.define_type_alias(alias_id, alias);
         }
 
-        // Must resolve structs before we resolve globals.
+        // Must resolve types before we resolve globals.
         self.collect_struct_definitions(&items.structs);
+        self.collect_enum_definitions(&items.enums);
 
         self.define_function_metas(&mut items.functions, &mut items.impls, &mut items.trait_impls);
 
@@ -1745,7 +1749,7 @@ impl<'context> Elaborator<'context> {
             }
 
             let fields_len = fields.len();
-            self.interner.update_struct(*type_id, |struct_def| {
+            self.interner.update_type(*type_id, |struct_def| {
                 struct_def.set_fields(fields);
             });
 
@@ -1802,6 +1806,37 @@ impl<'context> Elaborator<'context> {
 
             fields
         })
+    }
+
+    fn collect_enum_definitions(&mut self, enums: &BTreeMap<TypeId, UnresolvedEnum>) {
+        for (type_id, typ) in enums {
+            self.file = typ.file_id;
+            self.local_module = typ.module_id;
+
+            let mut variants = Vec::with_capacity(typ.enum_def.variants.len());
+
+            let datatype = self.interner.get_type(*type_id);
+            let generics = datatype.borrow().generic_types();
+            let self_type = Type::DataType(datatype, generics);
+
+            for (i, variant) in typ.enum_def.variants.iter().enumerate() {
+                self.interner.add_definition_location(ReferenceId::EnumVariant(*type_id, i), None);
+
+                let types = vecmap(&variant.item.parameters, |typ| self.resolve_type(typ.clone()));
+
+                let name = variant.item.name.clone();
+                let name_string = name.to_string();
+                variants.push(EnumVariant::new(name.clone(), types));
+
+                let id = self.interner.push_empty_fn();
+
+                self.interner.add_method(&self_type, name_string, id, None);
+            }
+
+            self.interner.update_type(*type_id, |type_def| {
+                type_def.set_variants(variants);
+            });
+        }
     }
 
     fn elaborate_global(&mut self, global: UnresolvedGlobal) {

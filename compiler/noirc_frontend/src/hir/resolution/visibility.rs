@@ -71,7 +71,7 @@ fn module_is_parent_of_struct_module(
     target: LocalModuleId,
 ) -> bool {
     let module_data = &def_map.modules[target.0];
-    module_data.is_struct && module_data.parent == Some(current)
+    module_data.is_type && module_data.parent == Some(current)
 }
 
 pub fn struct_member_is_visible(

@@ -370,6 +370,12 @@ pub struct EnumVariant {
     pub params: Vec<Type>,
 }
 
+impl EnumVariant {
+    pub fn new(name: Ident, params: Vec<Type>) -> EnumVariant {
+        Self { name, params }
+    }
+}
+
 /// Corresponds to generic lists such as `<T, U>` in the source program.
 /// Used mainly for resolved types which no longer need information such
 /// as names or kinds
@@ -442,6 +448,14 @@ impl DataType {
         self.body = TypeBody::Struct(fields);
     }
 
+    /// To account for cyclic references between structs, a struct's
+    /// fields are resolved strictly after the struct itself is initially
+    /// created. Therefore, this method is used to set the fields once they
+    /// become known.
+    pub(crate) fn set_variants(&mut self, variants: Vec<EnumVariant>) {
+        self.body = TypeBody::Enum(variants);
+    }
+
     pub fn is_struct(&self) -> bool {
         matches!(&self.body, TypeBody::Struct(_))
     }
@@ -475,6 +489,13 @@ impl DataType {
             TypeBody::Enum(variants) => variants,
             _ => panic!("Called DataType::variants_raw on a non-enum type: {}", self.name),
         }
+    }
+
+    /// Return the generics on this type as a vector of types
+    pub fn generic_types(&self) -> Vec<Type> {
+        vecmap(&self.generics, |generic| {
+            Type::NamedGeneric(generic.type_var.clone(), generic.name.clone())
+        })
     }
 
     /// Returns the field matching the given field name, as well as its visibility and field index.
@@ -592,9 +613,7 @@ impl DataType {
         let variant = self.variant_at(variant_index);
         let args = variant.params.clone();
         assert_eq!(this.borrow().id, self.id);
-        let generics = vecmap(&self.generics, |generic| {
-            Type::NamedGeneric(generic.type_var.clone(), generic.name.clone())
-        });
+        let generics = self.generic_types();
         let ret = Box::new(Type::DataType(this, generics));
         Type::Function(args, ret, Box::new(Type::Unit), false)
     }
