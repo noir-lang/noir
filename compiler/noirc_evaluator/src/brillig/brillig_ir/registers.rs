@@ -171,7 +171,6 @@ impl GlobalSpace {
     fn update_max_address(&mut self, register: MemoryAddress) {
         let index = register.unwrap_direct();
         assert!(index >= Self::start(), "Global space malformed");
-        dbg!(index);
         if index > self.max_memory_address {
             self.max_memory_address = index;
         }
