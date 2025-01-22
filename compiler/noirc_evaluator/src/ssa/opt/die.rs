@@ -36,11 +36,12 @@ impl Ssa {
             .flat_map(|(_, func)| func.dead_instruction_elimination(true, flattened))
             .collect();
 
+        let globals = &self.functions[&self.main_id].dfg.globals;
         // Check which globals are used across all functions
-        for (id, value) in self.globals.dfg.values_iter().rev() {
+        for (id, value) in globals.values_iter().rev() {
             if used_global_values.contains(&id) {
                 if let Value::Instruction { instruction, .. } = &value {
-                    let instruction = &self.globals.dfg[*instruction];
+                    let instruction = &globals[*instruction];
                     instruction.for_each_value(|value_id| {
                         used_global_values.insert(value_id);
                     });

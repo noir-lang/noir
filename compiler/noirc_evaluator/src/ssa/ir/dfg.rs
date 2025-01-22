@@ -109,6 +109,7 @@ pub(crate) struct DataFlowGraph {
 /// The GlobalsGraph contains the actual global data.
 /// Global data is expected to only be numeric constants or array constants (which are represented by Instruction::MakeArray).
 /// The global's data will shared across functions and should be accessible inside of a function's DataFlowGraph.
+#[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub(crate) struct GlobalsGraph {
     /// Storage for all of the global values
@@ -116,16 +117,30 @@ pub(crate) struct GlobalsGraph {
     /// All of the instructions in the global value space.
     /// These are expected to all be Instruction::MakeArray
     instructions: DenseMap<Instruction>,
+
+    #[serde_as(as = "HashMap<DisplayFromStr, _>")]
+    results: HashMap<InstructionId, smallvec::SmallVec<[ValueId; 1]>>,
 }
 
 impl GlobalsGraph {
     pub(crate) fn from_dfg(dfg: DataFlowGraph) -> Self {
-        Self { values: dfg.values, instructions: dfg.instructions }
+        Self { values: dfg.values, instructions: dfg.instructions, results: dfg.results }
     }
 
     /// Iterate over every Value in this DFG in no particular order, including unused Values
     pub(crate) fn values_iter(&self) -> impl DoubleEndedIterator<Item = (ValueId, &Value)> {
         self.values.iter()
+    }
+}
+
+impl From<GlobalsGraph> for DataFlowGraph {
+    fn from(value: GlobalsGraph) -> Self {
+        DataFlowGraph {
+            values: value.values,
+            instructions: value.instructions,
+            results: value.results,
+            ..Default::default()
+        }
     }
 }
 

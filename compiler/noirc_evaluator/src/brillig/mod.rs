@@ -84,8 +84,16 @@ impl Ssa {
 
         let mut brillig = Brillig::default();
 
+        if brillig_reachable_function_ids.is_empty() {
+            return brillig;
+        }
+
+        let func_id = brillig_reachable_function_ids
+            .first()
+            .expect("ICE: Should have a reachable function at this point");
+        let globals = (*self.functions[func_id].dfg.globals).clone();
         let (artifact, brillig_globals) =
-            convert_ssa_globals(enable_debug_trace, &self.globals, &self.used_global_values);
+            convert_ssa_globals(enable_debug_trace, globals, &self.used_global_values);
         brillig.globals = artifact;
 
         for brillig_function_id in brillig_reachable_function_ids {

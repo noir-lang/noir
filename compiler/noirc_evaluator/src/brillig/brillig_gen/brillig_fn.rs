@@ -17,8 +17,9 @@ use fxhash::FxHashMap as HashMap;
 
 use super::{constant_allocation::ConstantAllocation, variable_liveness::VariableLiveness};
 
+#[derive(Default)]
 pub(crate) struct FunctionContext {
-    pub(crate) function_id: FunctionId,
+    function_id: Option<FunctionId>,
     /// Map from SSA values its allocation. Since values can be only defined once in SSA form, we insert them here on when we allocate them at their definition.
     pub(crate) ssa_value_allocations: HashMap<ValueId, BrilligVariable>,
     /// The block ids of the function in reverse post order.
@@ -42,12 +43,29 @@ impl FunctionContext {
         let liveness = VariableLiveness::from_function(function, &constants);
 
         Self {
-            function_id: id,
+            function_id: Some(id),
             ssa_value_allocations: HashMap::default(),
             blocks: reverse_post_order,
             liveness,
             constant_allocation: constants,
         }
+    }
+
+    // pub(crate) fn new_for_globals() -> Self {
+    //     // Self {
+    //     //     function_id: id,
+    //     //     ssa_value_allocations: HashMap::default(),
+    //     //     blocks: reverse_post_order,
+    //     //     liveness,
+    //     //     constant_allocation: constants,
+    //     // }
+    //     Self {
+    //         ..Default::default()
+    //     }
+    // }
+
+    pub(crate) fn function_id(&self) -> FunctionId {
+        self.function_id.expect("ICE: function_id should already be set")
     }
 
     pub(crate) fn ssa_type_to_parameter(typ: &Type) -> BrilligParameter {
