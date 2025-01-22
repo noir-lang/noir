@@ -26,7 +26,8 @@ fn main(mut x: [Foo; 4], y: pub Field) {
     // Check dynamic array set
     if y != 2 {
         x[y].a = 50;
-    } else {
+    } 
+    else {
         x[y].a = 100;
     }
     assert(x[3].a == 50);
@@ -43,7 +44,15 @@ fn main(mut x: [Foo; 4], y: pub Field) {
     assert(x[y - 1].bar.inner == [106, 107, 108]);
     assert(x[y].bar.inner == [109, 110, 111]);
 
-    let foo_parent_one = FooParent { array: [0, 1, 2], foos: x };
+    let mut foo_parent_one = FooParent { array: [0, 1, 2], foos: x };
+    // // println(foo_parent_one);
+    // // foo_parent_one.foos[y].bar.inner = [10, 20, 30];
+    // // // println(foo_parent_one);
+    // // assert(foo_parent_one.foos[3].bar.inner[0] == 10);
+    // // assert(foo_parent_one.foos[3].bar.inner == [10, 20, 30]);
+    // // assert(foo_parent_one.foos[3].bar.inner[1] == 20);
+    // // assert(foo_parent_one.foos[3].bar.inner[2] == 30);
+    
     let foo_parent_two = FooParent { array: [3, 4, 5], foos: x };
     let mut foo_parents = [foo_parent_one, foo_parent_two];
 
@@ -61,12 +70,14 @@ fn main(mut x: [Foo; 4], y: pub Field) {
         foo_parents[y - 2].foos[y - 2].b = [20, 19, 18];
     }
     foo_parents[y - 2].foos[y - 2].b = [20, 19, 18];
+    assert(foo_parents[1].foos[1].b[0] == 20);
+
     assert(foo_parents[1].foos[1].b == [20, 19, 18]);
 
     assert(foo_parents[1].foos[1].b[2] == 18);
     if y == 3 {
         foo_parents[y - 2].foos[y - 2].b[y - 1] = 5000;
-} else {
+    } else {
         foo_parents[y - 2].foos[y - 2].b[y - 1] = 1000;
     }
     assert(foo_parents[1].foos[1].b[2] == 5000);

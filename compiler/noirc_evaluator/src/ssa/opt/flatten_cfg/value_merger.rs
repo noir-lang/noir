@@ -188,7 +188,7 @@ impl<'a> ValueMerger<'a> {
                 else_element,
             ));
         }
-        
+
         // let mut my_index: u128 = 0;
         // for i in 0..len {
         //     for (element_index, element_type) in element_types.iter().enumerate() {
@@ -220,7 +220,6 @@ impl<'a> ValueMerger<'a> {
         //         }
         //     }
         // }
-        
 
         let instruction = Instruction::MakeArray { elements: merged, typ };
         self.dfg

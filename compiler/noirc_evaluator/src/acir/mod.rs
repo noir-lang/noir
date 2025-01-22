@@ -1014,7 +1014,6 @@ impl<'a> Context<'a> {
         instruction: InstructionId,
         dfg: &DataFlowGraph,
     ) -> Result<(), RuntimeError> {
-        
         let mut mutable_array_set = false;
 
         // Pass the instruction between array methods rather than the internal fields themselves
@@ -1033,7 +1032,7 @@ impl<'a> Context<'a> {
                 .into())
             }
         };
-        
+
         // Ensure that array id is fully resolved.
         let array = dfg.resolve(array);
 
@@ -1044,14 +1043,15 @@ impl<'a> Context<'a> {
         // Compiler sanity checks
         assert!(!array_typ.is_nested_slice(), "ICE: Nested slice type has reached ACIR generation");
         let (Type::Array(_, _) | Type::Slice(_)) = &array_typ else {
-            // dbg!(array_typ.clone());
-            // dbg!(array_id);
+            dbg!(array_typ.clone());
+            dbg!(array_id);
             unreachable!("ICE: expected array or slice type");
         };
 
-        let get_const_res = self.handle_constant_index_wrapper(instruction, dfg, array, index, store_value);
+        let get_const_res =
+            self.handle_constant_index_wrapper(instruction, dfg, array, index, store_value);
         // if array_id.to_u32() == 0 {
-            // dbg!(get_const_res.clone());
+        // dbg!(get_const_res.clone());
         // }
         if get_const_res? {
             return Ok(());
@@ -1059,7 +1059,7 @@ impl<'a> Context<'a> {
         // dbg!(array_typ.clone());
 
         // if array_id.to_u32() == 0 {
-            // dbg!(array_typ.clone());
+        // dbg!(array_typ.clone());
         // }
         // Get an offset such that the type of the array at the offset is the same as the type at the 'index'
         // If we find one, we will use it when computing the index under the enable_side_effect predicate
@@ -1120,6 +1120,8 @@ impl<'a> Context<'a> {
         // }
         match value {
             AcirValue::Var(acir_var, _) => {
+                dbg!(value.clone());
+                dbg!(array_id);
                 Err(RuntimeError::InternalError(InternalError::Unexpected {
                     expected: "an array value".to_string(),
                     found: format!("{acir_var:?}"),
@@ -1183,7 +1185,23 @@ impl<'a> Context<'a> {
             // If the index is not out of range, we can optimistically perform the read at compile time
             // as if the predicate were true. This is as if the predicate were to resolve to false then
             // the result should not affect the rest of circuit execution.
-            let value = array[index].clone();
+            // let value = array[index].clone();
+            let results = dfg.instruction_results(instruction);
+            let res_typ = dfg.type_of_value(results[0]);
+            let value = match res_typ {
+                Type::Array(_, _) => {
+                    let mut elements = im::Vector::new();
+                    for i in 0..res_typ.flattened_size() as usize {
+                        elements.push_back(array[index + i].clone());
+                    }
+                    AcirValue::Array(elements)
+                }
+                Type::Numeric(_) => array[index].clone(),
+                Type::Function => todo!(),
+                Type::Reference(_) => todo!(),
+                Type::Slice(_) => unreachable!("cannot have nested slices"),
+            };
+
             self.define_result(dfg, instruction, value);
             Ok(true)
         }
@@ -1389,10 +1407,14 @@ impl<'a> Context<'a> {
         // }
         if res_typ.is_nested_array() {
             // TODO: can probably move this entire conversion to a method on `AcirValue`
-            let flat_value = value.flatten().into_iter().map(|(var, typ)| AcirValue::Var(var, typ)).collect::<im::Vector<_>>();
+            let flat_value = value
+                .flatten()
+                .into_iter()
+                .map(|(var, typ)| AcirValue::Var(var, typ))
+                .collect::<im::Vector<_>>();
             value = AcirValue::Array(flat_value);
         }
-        
+
         if let AcirValue::Var(value_var, typ) = &value {
             let array_typ = dfg.type_of_value(array);
             if let (Type::Numeric(numeric_type), AcirType::NumericType(num)) =
@@ -1478,7 +1500,6 @@ impl<'a> Context<'a> {
                 .into())
             }
         };
-
 
         // dbg!(store_value.clone());
 

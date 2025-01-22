@@ -187,7 +187,7 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
         .run_pass(Ssa::fold_constants, "Constant Folding")
         .run_pass(Ssa::remove_enable_side_effects, "EnableSideEffectsIf removal")
         // TODO: Remove this additional DIE pass. We generate additional array get instructions with different types
-        // this can cause 
+        // this can cause
         // .run_pass(Ssa::dead_instruction_elimination, "Dead Instruction Elimination (1st)")
         .run_pass(Ssa::fold_constants_using_constraints, "Constraint Folding")
         .run_pass(Ssa::dead_instruction_elimination, "Dead Instruction Elimination (2nd)")

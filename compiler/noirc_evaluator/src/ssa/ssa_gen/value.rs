@@ -137,7 +137,7 @@ impl<T> Tree<T> {
                 Tree::Branch(vecmap(trees, |(l, r)| l.map_both_helper(r, f)))
             }
             (Tree::Leaf(self_value), Tree::Leaf(other_value)) => f(self_value.clone(), other_value),
-            other => panic!("Found unexpected tree combination during SSA: {other:?}"),
+            other => panic!("Found unexpected tree combination during SSA: ({self:?}, {other:?})"),
         }
     }
 

@@ -883,7 +883,14 @@ impl Instruction {
                     // dbg!(array);
                     // dbg!(index);
                     // dbg!(ctrl_typevars.clone());
-                    try_optimize_array_get_from_previous_set(dfg, *array, index, ctrl_typevars.unwrap(), block, call_stack)
+                    try_optimize_array_get_from_previous_set(
+                        dfg,
+                        *array,
+                        index,
+                        ctrl_typevars.unwrap(),
+                        block,
+                        call_stack,
+                    )
                 } else {
                     None
                 }
@@ -896,6 +903,7 @@ impl Instruction {
                         index.try_to_u32().expect("Expected array index to fit in u32") as usize;
 
                     if index < array.len() {
+                        dbg!("got here");
                         let elements = array.update(index, *value);
                         let typ = dfg.type_of_value(*array_id);
                         let instruction = Instruction::MakeArray { elements, typ };
@@ -1140,8 +1148,11 @@ fn try_optimize_array_get_from_previous_set(
                     for i in 0..*len {
                         elements.push_back(array[index + i as usize]);
                     }
-                    let instruction = Instruction::MakeArray { elements, typ: result_type[0].clone() };
-                    let new_array = dfg.insert_instruction_and_results(instruction, block, None, call_stack).first();
+                    let instruction =
+                        Instruction::MakeArray { elements, typ: result_type[0].clone() };
+                    let new_array = dfg
+                        .insert_instruction_and_results(instruction, block, None, call_stack)
+                        .first();
                     new_array
                 }
                 _ => array[index],

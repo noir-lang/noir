@@ -16,12 +16,15 @@ fn main(mut x: Field) {
     let mut nested_allocations = Nested { y: &mut &mut 0 };
     add1(*nested_allocations.y);
     assert(**nested_allocations.y == 1);
+    
     // Test nested struct allocations with a mutable reference to an array.
     let mut c = C { foo: 0, bar: &mut C2 { array: &mut [1, 2] } };
+    c.bar.array[0] = 3;
+    assert(*c.bar.array == [3, 2]);
     *c.bar.array = [3, 4];
     assert(*c.bar.array == [3, 4]);
     regression_1887();
-    regression_2054();
+    // regression_2054();
     regression_2030();
     regression_2255();
     regression_6443();

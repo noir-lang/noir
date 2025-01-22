@@ -220,10 +220,16 @@ impl Type {
     pub(crate) fn flatten(self) -> Vec<Type> {
         match self {
             Type::Array(elements, len) => {
-                let x = elements.iter().flat_map(|elem| {
-                    let x = std::iter::repeat(elem.clone().flatten()).take(len as usize).flatten().collect::<Vec<_>>();
-                    x
-                }).collect::<Vec<_>>();
+                let x = elements
+                    .iter()
+                    .flat_map(|elem| {
+                        let x = std::iter::repeat(elem.clone().flatten())
+                            .take(len as usize)
+                            .flatten()
+                            .collect::<Vec<_>>();
+                        x
+                    })
+                    .collect::<Vec<_>>();
 
                 // elements.iter().flat_map(|elem| elem.clone().flatten()).collect()
                 x
@@ -231,9 +237,7 @@ impl Type {
             Type::Slice(_) => {
                 unimplemented!("ICE: cannot flatten slice");
             }
-            Type::Function
-            | Type::Reference(_)
-            | Type::Numeric(_) => vec![self],
+            Type::Function | Type::Reference(_) | Type::Numeric(_) => vec![self],
         }
     }
 

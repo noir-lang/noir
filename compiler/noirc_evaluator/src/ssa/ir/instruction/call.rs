@@ -139,6 +139,7 @@ pub(super) fn simplify_call(
                 if element_type.element_size() != 1 {
                     // Old code before implementing multiple slice mergers
                     for elem in &arguments[2..] {
+                        // TODO: need to handle appropriately pushing back a nested array
                         slice.push_back(*elem);
                     }
 
