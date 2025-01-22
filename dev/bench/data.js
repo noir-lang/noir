@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737547843628,
+  "lastUpdate": 1737549633884,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -7265,6 +7265,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-reset",
             "value": 0.311,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 0.068,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "02056d6a3ca2932a0062552859195a4e3b11f9dc",
+          "message": "chore: turn on overflow checks in CI rust tests (#7145)",
+          "timestamp": "2025-01-22T12:18:33Z",
+          "tree_id": "0721146e27afd7e06fe16c467aede3f520f2259c",
+          "url": "https://github.com/noir-lang/noir/commit/02056d6a3ca2932a0062552859195a4e3b11f9dc"
+        },
+        "date": 1737549633086,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 0.052,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.002,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 0.601,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.104,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.007,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 38.2,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 0.104,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1.206,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.459,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.019,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.313,
             "unit": "s"
           },
           {
