@@ -129,23 +129,11 @@ impl Field {
     // docs:start:to_le_radix
     pub fn to_le_radix<let N: u32>(self: Self, radix: u32) -> [u8; N] {
         // Brillig does not need an immediate radix
-        // if !crate::runtime::is_unconstrained() {
-        static_assert(false, "hi!");
-        static_assert(radix == 256, "radix must be 256");
-
-        static_assert(
-            1 < radix,
-            "radix must be greater than 1",
-        );
-        static_assert(
-            radix <= 256,
-            "radix must be less than or equal to 256",
-        );
-        static_assert(
-            radix & (radix - 1) == 0,
-            "radix must be a power of 2",
-        );
-        // }
+        if !crate::runtime::is_unconstrained() {
+            static_assert(1 < radix, "radix must be greater than 1");
+            static_assert(radix <= 256, "radix must be less than or equal to 256");
+            static_assert(radix & (radix - 1) == 0, "radix must be a power of 2");
+        }
         self.__to_le_radix(radix)
     }
     // docs:end:to_le_radix
@@ -292,6 +280,7 @@ fn lt_fallback(x: Field, y: Field) -> bool {
 }
 
 mod tests {
+    use crate::{panic::panic, runtime};
     use super::field_less_than;
 
     #[test]
@@ -352,25 +341,73 @@ mod tests {
     }
     // docs:end:to_le_radix_example
 
-    #[test]
+    #[test(should_fail_with = "radix must be greater than 1")]
     fn test_to_le_radix_1() {
-        assert(!crate::runtime::is_unconstrained(), "expected this test to be run constrained");
-        let field = 2;
-        let _: [u8; 8] = field.to_le_radix(1);
+        // this test should only fail in constrained mode
+        if !runtime::is_unconstrained() {
+            let field = 2;
+            let _: [u8; 8] = field.to_le_radix(1);
+        } else {
+            panic(f"radix must be greater than 1");
+        }
     }
 
     #[test]
+    fn test_to_le_radix_brillig_1() {
+        // this test should only fail in constrained mode
+        if runtime::is_unconstrained() {
+            let field = 1;
+            let out: [u8; 8] = field.to_le_radix(1);
+            crate::println(out);
+            let expected = [0; 8];
+            assert(out == expected, "unexpected result");
+        }
+    }
+
+    #[test(should_fail_with = "radix must be a power of 2")]
     fn test_to_le_radix_3() {
-        assert(!crate::runtime::is_unconstrained(), "expected this test to be run constrained");
-        let field = 2;
-        let _: [u8; 8] = field.to_le_radix(3);
+        // this test should only fail in constrained mode
+        if !runtime::is_unconstrained() {
+            let field = 2;
+            let _: [u8; 8] = field.to_le_radix(3);
+        } else {
+            panic(f"radix must be a power of 2");
+        }
     }
 
     #[test]
-    fn test_to_le_radix_257() {
-        assert(!crate::runtime::is_unconstrained(), "expected this test to be run constrained");
-        let field = 2;
-        let _: [u8; 8] = field.to_le_radix(257);
+    fn test_to_le_radix_brillig_3() {
+        // this test should only fail in constrained mode
+        if runtime::is_unconstrained() {
+            let field = 1;
+            let out: [u8; 8] = field.to_le_radix(3);
+            let mut expected = [0; 8];
+            expected[0] = 1;
+            assert(out == expected, "unexpected result");
+        }
+    }
+
+    #[test(should_fail_with = "radix must be less than or equal to 256")]
+    fn test_to_le_radix_512() {
+        // this test should only fail in constrained mode
+        if !runtime::is_unconstrained() {
+            let field = 2;
+            let _: [u8; 8] = field.to_le_radix(512);
+        } else {
+            panic(f"radix must be less than or equal to 256")
+        }
+    }
+
+    #[test]
+    fn test_to_le_radix_brillig_512() {
+        // this test should only fail in constrained mode
+        if runtime::is_unconstrained() {
+            let field = 1;
+            let out: [u8; 8] = field.to_le_radix(512);
+            let mut expected = [0; 8];
+            expected[0] = 1;
+            assert(out == expected, "unexpected result");
+        }
     }
 
     #[test]

@@ -362,6 +362,12 @@ impl<F: AcirField> GeneratedAcir<F> {
         bit_size: u32,
     ) -> Result<Vec<Witness>, RuntimeError> {
         let radix_big = BigUint::from(radix);
+        let radix_range = BigUint::from(2u128)..=BigUint::from(256u128);
+        assert!(
+            radix_range.contains(&radix_big),
+            "ICE: Radix must be in the range 2..=256, but found: {:?}",
+            radix
+        );
         assert_eq!(
             BigUint::from(2u128).pow(bit_size),
             radix_big,

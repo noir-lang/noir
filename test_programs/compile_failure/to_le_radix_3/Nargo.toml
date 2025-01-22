@@ -1,6 +1,0 @@
-[package]
-name = "to_le_radix_3"
-type = "bin"
-authors = [""]
-
-[dependencies]
