@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737574743879,
+  "lastUpdate": 1737574814971,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -7725,6 +7725,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 0.067,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d3ca3b711d358e0ac98410121d3c798b9327523b",
+          "message": "feat(ssa): Reuse constants from the globals graph when making constants in a function DFG (#7153)",
+          "timestamp": "2025-01-22T19:19:13Z",
+          "tree_id": "fe55f22789200a5f50109451939bdfe6aa1fe15d",
+          "url": "https://github.com/noir-lang/noir/commit/d3ca3b711d358e0ac98410121d3c798b9327523b"
+        },
+        "date": 1737574814182,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 0.052,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.001,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 0.599,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.104,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.007,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 42.4,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 0.105,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1.204,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.46,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.019,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.311,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 0.068,
             "unit": "s"
           }
         ]
