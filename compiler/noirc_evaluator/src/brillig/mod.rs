@@ -89,6 +89,8 @@ impl Ssa {
             return brillig;
         }
 
+        // Globals are computed once at compile time and shared across all functions,
+        // thus we can just fetch globals from the main function.
         let globals = (*self.functions[&self.main_id].dfg.globals).clone();
         let (artifact, brillig_globals, globals_size) =
             convert_ssa_globals(enable_debug_trace, globals, &self.used_global_values);
