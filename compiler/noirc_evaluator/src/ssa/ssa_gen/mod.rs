@@ -199,6 +199,9 @@ impl<'a> FunctionContext<'a> {
 
     /// Codegen an identifier, automatically loading its value if it is mutable.
     fn codegen_ident(&mut self, ident: &ast::Ident) -> Values {
+        if let Some(loc) = ident.location {
+            self.builder.set_location(loc);
+        }
         self.codegen_ident_reference(ident).map(|value| value.eval(self).into())
     }
 
