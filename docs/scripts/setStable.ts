@@ -26,7 +26,7 @@ async function main() {
       ...data
         .filter(
           (release) =>
-            !release.prerelease && !release.tag_name.includes('aztec') && !release.tag_name.includes('aztec'),
+            !release.prerelease && !release.tag_name.includes('aztec'),
         )
         .filter((release) => !IGNORE_VERSIONS.includes(release.tag_name.replace('v', '')))
         .map((release) => release.tag_name),
