@@ -113,6 +113,7 @@ impl Context {
                                 self.slice_sizes.insert(value, new_capacity);
                             }
                             SizeChange::Inc { old, new } => {
+                                // if new.
                                 let old_capacity = self.get_or_find_capacity(&function.dfg, old);
                                 self.slice_sizes.insert(new, old_capacity + 1);
                             }
@@ -131,6 +132,7 @@ impl Context {
                     let result = if results.len() == 2 { results[1] } else { results[0] };
 
                     self.array_set_conditionals.insert(result, current_conditional);
+                    dbg!(array);
 
                     let old_capacity = self.get_or_find_capacity(&function.dfg, *array);
                     self.slice_sizes.insert(result, old_capacity);
@@ -152,7 +154,10 @@ impl Context {
             Entry::Occupied(entry) => return *entry.get(),
             Entry::Vacant(entry) => {
                 if let Some((array, typ)) = dfg.get_array_constant(value) {
-                    let length = array.len() / typ.element_types().len();
+                    // let length = array.len() / typ.element_types().len();
+                    dbg!(array.len());
+                    dbg!(typ.element_types().len());
+                    let length = array.len();
                     return *entry.insert(length as u32);
                 }
 

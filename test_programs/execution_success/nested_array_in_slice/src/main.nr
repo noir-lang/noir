@@ -18,21 +18,22 @@ fn main(y: Field) {
     x = x.push_back(foo_three);
     x = x.push_back(foo_four);
 
-    // assert(x[y - 3].a == 1);
-    // assert(x[y - 3].b == [2, 3, 20]);
-    // assert(x[y - 2].a == 4);
-    // assert(x[y - 2].b == [5, 6, 21]);
-    // assert(x[y - 1].a == 7);
-    // assert(x[y - 1].b == [8, 9, 22]);
-    // assert(x[y].a == 10);
-    // assert(x[y].b == [11, 12, 23]);
-    // assert(x[y].bar.inner == [109, 110, 111]);
+    assert(x[y - 3].a == 1);
+    assert(x[y - 3].b == [2, 3, 20]);
+    assert(x[y - 2].a == 4);
+    assert(x[y - 2].b == [5, 6, 21]);
+    assert(x[y - 1].a == 7);
+    assert(x[y - 1].b == [8, 9, 22]);
+    assert(x[y].a == 10);
+    assert(x[y].b == [11, 12, 23]);
+    assert(x[y].bar.inner == [109, 110, 111]);
 
     if y != 2 {
         x[y - 2].a = 50;
     } else {
         x[y - 2].a = 100;
     }
+    // println(x[y - 2].a);
     assert(x[y - 2].a == 50);
 
     // if y == 2 {

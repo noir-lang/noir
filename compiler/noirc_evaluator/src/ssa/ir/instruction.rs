@@ -1139,24 +1139,58 @@ fn try_optimize_array_get_from_previous_set(
             if dfg.runtime().is_brillig() {
                 return SimplifyResult::SimplifiedTo(array[index]);
             }
+            // dbg!(&result_type[0].flattened_size());
+            let array_typ = dfg.type_of_value(array_id);
+            // dbg!(array_typ.clone());
 
-            let mut elements = im::Vector::new();
-            let array_get_res = match &result_type[0] {
-                Type::Array(_, len) => {
-                    // TODO: probably need to do this based off flattened size
-                    // the index check will also need to be updated
-                    for i in 0..*len {
-                        elements.push_back(array[index + i as usize]);
+            let array_get_res = match array_typ {
+                // Type::Slice(_) => {
+                //     array[index]
+                // }
+                _ => {
+                    match &result_type[0] {
+                        Type::Array(_, len) => {
+                            // TODO: probably need to do this based off flattened size
+                            // the index check will also need to be updated
+                            // dbg!(array.len());
+                            // dbg!(len);
+                            // dbg!(index);
+                            let mut elements = im::Vector::new();
+                            for i in 0..*len {
+                                elements.push_back(array[index + i as usize]);
+                            }
+                            let instruction =
+                                Instruction::MakeArray { elements, typ: result_type[0].clone() };
+                            let new_array = dfg
+                                .insert_instruction_and_results(instruction, block, None, call_stack)
+                                .first();
+                            new_array
+                        }
+                        _ => array[index],
                     }
-                    let instruction =
-                        Instruction::MakeArray { elements, typ: result_type[0].clone() };
-                    let new_array = dfg
-                        .insert_instruction_and_results(instruction, block, None, call_stack)
-                        .first();
-                    new_array
                 }
-                _ => array[index],
             };
+
+            // let array_get_res = match &result_type[0] {
+            //     Type::Array(_, len) => {
+            //         // TODO: probably need to do this based off flattened size
+            //         // the index check will also need to be updated
+            //         dbg!(array.len());
+            //         dbg!(len);
+            //         dbg!(index);
+            //         let mut elements = im::Vector::new();
+            //         for i in 0..*len {
+            //             elements.push_back(array[index + i as usize]);
+            //         }
+            //         let instruction =
+            //             Instruction::MakeArray { elements, typ: result_type[0].clone() };
+            //         let new_array = dfg
+            //             .insert_instruction_and_results(instruction, block, None, call_stack)
+            //             .first();
+            //         new_array
+            //     }
+            //     _ => array[index],
+            // };
             return SimplifyResult::SimplifiedTo(array_get_res);
             // return SimplifyResult::SimplifiedTo(array[index]);
         }

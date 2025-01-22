@@ -346,6 +346,7 @@ impl<'a> FunctionContext<'a> {
                 }
 
                 if self.builder.current_function.runtime().is_acir() {
+                // if self.builder.current_function.runtime().is_acir() && !typ.contains_slice_element() {
                     array.extend(self.codegen_array_helper(element));
                 } else {
                     array.push_back(element);
@@ -385,8 +386,6 @@ impl<'a> FunctionContext<'a> {
                     flat_elements.push_back(element);
                 }
                 Type::Reference(_) => {
-                    // self.builder.insert_load(reference, element_type);
-                    // self.dereference(element.into(), element_type)
                     flat_elements.push_back(element);
                 }
                 Type::Slice(_) => todo!(),
@@ -472,7 +471,7 @@ impl<'a> FunctionContext<'a> {
     }
 
     fn codegen_index_acir(&mut self, index: &ast::Index) -> Result<Values, RuntimeError> {
-        dbg!(index.clone());
+        // dbg!(index.clone());
 
         let mut indices = Vec::new();
         let index_value = self.codegen_non_tuple_expression(&index.index)?;
@@ -492,14 +491,14 @@ impl<'a> FunctionContext<'a> {
         // Thus, slices require two value ids for their representation.
         let array = if array_or_slice.len() > 1 {
             dbg!(index.element_type.clone());
-            return self.codegen_array_index(
-                array_or_slice[1],
-                index_value,
-                &index.element_type,
-                index.location,
-                Some(array_or_slice[0]),
-            );
-            // array_or_slice[0]
+            // return self.codegen_array_index(
+            //     array_or_slice[1],
+            //     index_value,
+            //     &index.element_type,
+            //     index.location,
+            //     Some(array_or_slice[0]),
+            // );
+            array_or_slice[1]
             // (array_or_slice[1], Some(array_or_slice[0]))
         } else {
             array_or_slice[0]
@@ -512,8 +511,8 @@ impl<'a> FunctionContext<'a> {
         let (flattened_index, new_array) = self.build_nested_lvalue_index(extracted_values, false, typ, &mut indices);
         // dbg!(new_array.clone());
         let array = new_array.into_value_list(self);
-        assert_eq!(array.len(), 1);
-        let array = array[0];
+        // assert_eq!(array.len(), 1);
+        let array = if array.len() == 1 { array[0] } else { array[1] };
         let flattened_index = self.make_array_index(flattened_index);
 
         let mut field_index = 0u128;
@@ -1083,7 +1082,7 @@ impl<'a> FunctionContext<'a> {
     }
 
     fn codegen_assign_acir(&mut self, assign: &ast::Assign) -> Result<Values, RuntimeError> {
-        dbg!(assign.lvalue.clone());
+        // dbg!(assign.lvalue.clone());
 
         let mut indices = Vec::new();
         let mut index = 0;
