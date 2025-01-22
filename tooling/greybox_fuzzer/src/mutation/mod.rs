@@ -1,7 +1,10 @@
 use acvm::{AcirField, FieldElement};
 
-use array::splice_array_structure;
-use configurations::BASIC_UNBALANCED_ARRAY_SPLICE_MUTATION_CONFIGURATION;
+use array::{mutate_vector_structure, splice_array_structure};
+use configurations::{
+    TestCaseSpliceType, BASIC_TESTCASE_SPLICE_CONFIGURATION,
+    BASIC_TOP_LEVEL_MUTATION_CONFIGURATION, BASIC_UNBALANCED_ARRAY_SPLICE_MUTATION_CONFIGURATION,
+};
 use dictionary::FullDictionary;
 use field::mutate_field_input_value;
 use int::mutate_int_input_value;
@@ -32,7 +35,8 @@ const MUTATION_LOG_MAX: u32 = 5;
 const TOP_LEVEL_RANDOM_SPLICE_STRATEGY_WEIGHT: usize = 1usize;
 const SPLICE_ONE_DESCENDANT: usize = 1usize;
 const TOTAL_WEIGHT: usize = TOP_LEVEL_RANDOM_SPLICE_STRATEGY_WEIGHT + SPLICE_ONE_DESCENDANT;
-
+/// NodeWeight determines the probability of mutating a particular object
+/// It represent the relative weight of this InputValue and its children
 #[derive(Clone, Debug)]
 pub struct NodeWeight {
     start: u32,
@@ -58,62 +62,6 @@ impl NodeWeight {
         }
     }
 }
-
-enum TestCaseSpliceType {
-    /// Around 50% for each top-level element
-    BalancedTopLevel,
-    /// 80/20 for each element at lower level
-    UnbalancedFull,
-    /// One element merged into the main testcase
-    SingleElementImport,
-}
-
-struct TestCaseSpliceConfiguration {
-    balanced_top_level_weight: usize,
-    unbalanced_full_weight: usize,
-    #[allow(unused)]
-    single_element_import_weight: usize,
-    total_weight: usize,
-}
-
-impl TestCaseSpliceConfiguration {
-    #[allow(unused)]
-    pub fn new(
-        balanced_top_level_weight: usize,
-        unbalanced_full_weight: usize,
-        single_element_import_weight: usize,
-    ) -> Self {
-        let total_weight =
-            balanced_top_level_weight + unbalanced_full_weight + single_element_import_weight;
-        Self {
-            balanced_top_level_weight,
-            unbalanced_full_weight,
-            single_element_import_weight,
-            total_weight,
-        }
-    }
-
-    /// Select a mutation according to weights
-    pub fn select(&self, prng: &mut XorShiftRng) -> TestCaseSpliceType {
-        let mut selector = prng.gen_range(0..self.total_weight);
-        if selector < self.balanced_top_level_weight {
-            return TestCaseSpliceType::BalancedTopLevel;
-        }
-        selector -= self.balanced_top_level_weight;
-        if selector < self.unbalanced_full_weight {
-            return TestCaseSpliceType::UnbalancedFull;
-        }
-        return TestCaseSpliceType::SingleElementImport;
-    }
-}
-
-const BASIC_TESTCASE_SPLICE_CONFIGURATION: TestCaseSpliceConfiguration =
-    TestCaseSpliceConfiguration {
-        balanced_top_level_weight: 1,
-        unbalanced_full_weight: 1,
-        single_element_import_weight: 2,
-        total_weight: 1 + 1 + 2,
-    };
 
 enum UnbalancedSplice {
     FirstTestCase,
@@ -150,8 +98,11 @@ const BASIC_UNBALANCED_SLICE_CONFIGURATION: UnbalancedSpliceConfiguration =
         second_testcase_weight: 2,
         total_weight: 8 + 2,
     };
-
+const BOOL_WEIGHT: u32 = 1u32;
+const FIELD_WEIGHT: u32 = 8u32;
+const STRING_WEIGHT_MULTIPLIER: u32 = 4;
 impl InputMutator {
+    /// Create a new input mutator given the ABI and a hashset of field elements used in the circuit (for the dictionary)
     pub fn new(abi: &Abi, original_dictionary: &HashSet<FieldElement>) -> Self {
         let mut weight_tree = Self::count_all_input_weights(abi);
         weight_tree.calculate_offsets(0);
@@ -161,17 +112,22 @@ impl InputMutator {
             full_dictionary: FullDictionary::new(original_dictionary),
         }
     }
+
+    /// Fill the dictionary with values from an interesting input
     pub fn update_dictionary(&mut self, testcase: &InputMap) {
         self.full_dictionary.update(&self.abi, testcase);
     }
+
     /// Count weights of each element recursively (complex structures return a vector of weights of their most basic elements)
     fn count_single_input_weight(abi_type: &AbiType) -> NodeWeight {
         match abi_type {
-            AbiType::Boolean => NodeWeight { start: 0u32, end: 1u32, subnodes: None },
+            AbiType::Boolean => NodeWeight { start: 0u32, end: BOOL_WEIGHT, subnodes: None },
             AbiType::Field | AbiType::Integer { .. } => {
-                NodeWeight { start: 0u32, end: 8u32, subnodes: None }
+                NodeWeight { start: 0u32, end: FIELD_WEIGHT, subnodes: None }
             }
-            AbiType::String { length } => NodeWeight { start: 0u32, end: *length, subnodes: None },
+            AbiType::String { length } => {
+                NodeWeight { start: 0u32, end: *length * STRING_WEIGHT_MULTIPLIER, subnodes: None }
+            }
             AbiType::Array { length, typ } => {
                 let length = *length as usize;
                 let subnode_weight = Self::count_single_input_weight(typ);
@@ -226,6 +182,12 @@ impl InputMutator {
         NodeWeight { start: 0, end: total_node_weight, subnodes: Some(weights) }
     }
 
+    /// Perform a single update on an input value
+    /// In case the value is a basic type (boolean, field, integer), perform value mutations according to the type
+    /// In case it is a string, either perform value mutations on the characters or perform structural mutation on the string
+    /// In case it is a complex type (array, struct, tuple), select a child and recurse
+    /// If we hit any arrays along the way, we enable the structural mutations for selection. If in the end structural mutation is chosen, the probability at each level is the same
+    /// The result is the input value generated by the mutation and an optional directive to mutate an array structurally
     pub fn mutate_input_value(
         &self,
         abi_type: &AbiType,
@@ -233,26 +195,54 @@ impl InputMutator {
         prng: &mut XorShiftRng,
         weight_tree_node: &NodeWeight,
         mutation_weight: u32,
-    ) -> InputValue {
+        arrays_hit: usize,
+    ) -> (InputValue, Option<usize>) {
+        // Check if this is a leaf type. If it is and the element is in an array,
+        // then we can trigger structural mutations for one of the arrays this element is in by randomly selecting the level
+        match abi_type {
+            AbiType::Boolean
+            | AbiType::Field
+            | AbiType::Integer { .. }
+            | AbiType::String { .. } => match BASIC_TOP_LEVEL_MUTATION_CONFIGURATION.select(prng) {
+                configurations::TopLevelMutation::Value => (),
+                configurations::TopLevelMutation::Structure => {
+                    if !arrays_hit.is_zero() {
+                        return (previous_input.clone(), Some(prng.gen_range(1..=arrays_hit)));
+                    }
+                }
+            },
+            AbiType::Array { .. } | AbiType::Struct { .. } | AbiType::Tuple { .. } => (),
+        }
         match abi_type {
             // Boolean only has 2 values, there is no point in performing complex logic
-            AbiType::Boolean => InputValue::Field(FieldElement::from(prng.gen_range(0u32..=1u32))),
-            AbiType::Field => mutate_field_input_value(
-                previous_input,
-                &self.full_dictionary.get_field_dictionary(),
-                prng,
+            AbiType::Boolean => {
+                (InputValue::Field(FieldElement::from(prng.gen_range(0u32..=1u32))), None)
+            }
+            AbiType::Field => (
+                mutate_field_input_value(
+                    previous_input,
+                    &self.full_dictionary.get_field_dictionary(),
+                    prng,
+                ),
+                None,
             ),
-            AbiType::Integer { sign, width } => mutate_int_input_value(
-                previous_input,
-                sign,
-                *width,
-                &self.full_dictionary.get_int_dictionary(),
-                prng,
+            AbiType::Integer { sign, width } => (
+                mutate_int_input_value(
+                    previous_input,
+                    sign,
+                    *width,
+                    &self.full_dictionary.get_int_dictionary(),
+                    prng,
+                ),
+                None,
             ),
-            AbiType::String { length: _ } => mutate_string_input_value(
-                previous_input,
-                prng,
-                &self.full_dictionary.get_int_dictionary(),
+            AbiType::String { length: _ } => (
+                mutate_string_input_value(
+                    previous_input,
+                    prng,
+                    &self.full_dictionary.get_int_dictionary(),
+                ),
+                None,
             ),
             AbiType::Array { length, typ } => {
                 let length = *length as usize;
@@ -260,26 +250,42 @@ impl InputMutator {
                     InputValue::Vec(previous_input_vector) => previous_input_vector,
                     _ => panic!("Mismatch of AbiType and InputValue should not happen"),
                 };
-                InputValue::Vec(
-                    (0..length)
-                        .zip(weight_tree_node.subnodes.as_ref().unwrap())
-                        .map(|(idx, weight_node)| {
-                            if mutation_weight >= weight_node.start
-                                && mutation_weight < weight_node.end
-                            {
-                                self.mutate_input_value(
-                                    typ,
-                                    &input_vector[idx],
-                                    prng,
-                                    weight_node,
-                                    mutation_weight,
-                                )
-                            } else {
-                                input_vector[idx].clone()
-                            }
-                        })
-                        .collect(),
-                )
+                // This is an array and can be structurally mutated if the number of elements is more than one
+                let arrays_hit = arrays_hit + ((length > 1) as usize);
+                let mut structural_mutation_directive = None;
+                let mut element_vector_with_value_mutation = (0..length)
+                    .zip(weight_tree_node.subnodes.as_ref().unwrap())
+                    .map(|(idx, weight_node)| {
+                        if mutation_weight >= weight_node.start && mutation_weight < weight_node.end
+                        {
+                            let (mutation_result, directive) = self.mutate_input_value(
+                                typ,
+                                &input_vector[idx],
+                                prng,
+                                weight_node,
+                                mutation_weight,
+                                arrays_hit,
+                            );
+                            structural_mutation_directive = directive;
+                            mutation_result
+                        } else {
+                            input_vector[idx].clone()
+                        }
+                    })
+                    .collect();
+
+                // If there is a command to structurally mutate an array
+                if let Some(array_level_to_mutate) = structural_mutation_directive {
+                    // And it's this array that should be mutated
+                    if length > 1 && arrays_hit == array_level_to_mutate {
+                        // mutate array
+                        element_vector_with_value_mutation =
+                            mutate_vector_structure(&element_vector_with_value_mutation, prng);
+                        // disable directive
+                        structural_mutation_directive = None;
+                    }
+                }
+                (InputValue::Vec(element_vector_with_value_mutation), structural_mutation_directive)
             }
 
             AbiType::Struct { fields, .. } => {
@@ -287,6 +293,7 @@ impl InputMutator {
                     InputValue::Struct(previous_input_struct) => previous_input_struct,
                     _ => panic!("Mismatch of AbiType and InputValue should not happen"),
                 };
+                let mut structural_mutation_directive = None;
                 let fields: Vec<(String, InputValue)> = fields
                     .iter()
                     .zip(weight_tree_node.subnodes.as_ref().unwrap())
@@ -296,13 +303,16 @@ impl InputMutator {
                             if mutation_weight >= weight_node.start
                                 && mutation_weight < weight_node.end
                             {
-                                self.mutate_input_value(
+                                let (element_result, new_directive) = self.mutate_input_value(
                                     typ,
                                     &input_struct[name],
                                     prng,
                                     weight_node,
                                     mutation_weight,
-                                )
+                                    arrays_hit,
+                                );
+                                structural_mutation_directive = new_directive;
+                                element_result
                             } else {
                                 input_struct[name].clone()
                             },
@@ -311,7 +321,7 @@ impl InputMutator {
                     .collect();
 
                 let fields: BTreeMap<_, _> = fields.into_iter().collect();
-                InputValue::Struct(fields)
+                (InputValue::Struct(fields), structural_mutation_directive)
             }
 
             AbiType::Tuple { fields } => {
@@ -319,24 +329,28 @@ impl InputMutator {
                     InputValue::Vec(previous_input_vector) => previous_input_vector,
                     _ => panic!("Mismatch of AbiType and InputValue should not happen"),
                 };
+                let mut structural_mutation_directive = None;
                 let fields: Vec<_> = zip(fields, input_vector)
                     .zip(weight_tree_node.subnodes.as_ref().unwrap())
                     .map(|((typ, previous_tuple_input), weight_node)| {
                         if mutation_weight >= weight_node.start && mutation_weight < weight_node.end
                         {
-                            self.mutate_input_value(
+                            let (element_result, new_directive) = self.mutate_input_value(
                                 typ,
                                 previous_tuple_input,
                                 prng,
                                 weight_node,
                                 mutation_weight,
-                            )
+                                arrays_hit,
+                            );
+                            structural_mutation_directive = new_directive;
+                            element_result
                         } else {
                             previous_tuple_input.clone()
                         }
                     })
                     .collect();
-                InputValue::Vec(fields)
+                (InputValue::Vec(fields), structural_mutation_directive)
             }
         }
     }
@@ -364,7 +378,9 @@ impl InputMutator {
                             prng,
                             &current_level_weight_tree[idx],
                             chosen_weight,
+                            0,
                         )
+                        .0
                     } else {
                         previous_input_map[&param.name].clone()
                     },
@@ -490,7 +506,7 @@ impl InputMutator {
         }
     }
 
-    /// TODO:This
+    /// Get a single value from the second input in the new testcase
     pub fn splice_import_single_input_value(
         abi_type: &AbiType,
         first_input: &InputValue,
@@ -500,35 +516,12 @@ impl InputMutator {
         mutation_weight: u32,
     ) -> InputValue {
         match abi_type {
-            // Boolean only has 2 values, there is no point in performing complex logic
-            AbiType::Boolean => {
-                if prng.gen_bool(0.5) {
-                    first_input.clone()
-                } else {
-                    second_input.clone()
-                }
-            }
-            // Pick one
-            AbiType::Field => {
-                if prng.gen_bool(0.5) {
-                    first_input.clone()
-                } else {
-                    second_input.clone()
-                }
-            }
-            AbiType::Integer { .. } => {
-                if prng.gen_bool(0.5) {
-                    first_input.clone()
-                } else {
-                    second_input.clone()
-                }
-            }
-            AbiType::String { length: _ } => match prng.gen_range(0..4) {
-                0 => first_input.clone(),
-                1 => second_input.clone(),
-                _ => splice_string_input_value(first_input, second_input, prng),
-            },
-            // TODO: implement proper splicing for Arrays and Tuples
+            // If we run into a leaf type, we need to get the second one
+            AbiType::Boolean
+            | AbiType::Field
+            | AbiType::Integer { .. }
+            | AbiType::String { .. } => second_input.clone(),
+            // For array, struct and tuple we copy all the elements from the first vector apart from the element with weight selected by mutation
             AbiType::Array { length, typ } => {
                 let length = *length as usize;
                 let first_input_vector = match first_input {
@@ -540,42 +533,27 @@ impl InputMutator {
                     _ => panic!("Mismatch of AbiType and InputValue should not happen"),
                 };
                 assert!(!length.is_zero());
-                if length == 1 {
-                    return InputValue::Vec(
-                        [Self::splice_import_single_input_value(
-                            &typ,
-                            first_input_vector.first().unwrap(),
-                            second_input_vector.first().unwrap(),
-                            prng,
-                            weight_tree_node.subnodes.as_ref().unwrap().first().unwrap(),
-                            mutation_weight,
-                        )]
-                        .to_vec(),
-                    );
-                }
-                splice_array_structure(first_input, second_input, prng)
-
-                // InputValue::Vec(
-                //     (0..length)
-                //         .zip(weight_tree_node.subnodes.as_ref().unwrap())
-                //         .map(|(idx, weight_node)| {
-                //             if mutation_weight >= weight_node.start
-                //                 && mutation_weight < weight_node.end
-                //             {
-                //                 Self::splice_import_single_input_value(
-                //                     typ,
-                //                     &first_input_vector[idx],
-                //                     &second_input_vector[idx],
-                //                     prng,
-                //                     weight_node,
-                //                     mutation_weight,
-                //                 )
-                //             } else {
-                //                 first_input_vector[idx].clone()
-                //             }
-                //         })
-                //         .collect(),
-                // )
+                InputValue::Vec(
+                    (0..length)
+                        .zip(weight_tree_node.subnodes.as_ref().unwrap())
+                        .map(|(idx, weight_node)| {
+                            if mutation_weight >= weight_node.start
+                                && mutation_weight < weight_node.end
+                            {
+                                Self::splice_import_single_input_value(
+                                    typ,
+                                    &first_input_vector[idx],
+                                    &second_input_vector[idx],
+                                    prng,
+                                    weight_node,
+                                    mutation_weight,
+                                )
+                            } else {
+                                first_input_vector[idx].clone()
+                            }
+                        })
+                        .collect(),
+                )
             }
 
             AbiType::Struct { fields, .. } => {
@@ -647,6 +625,8 @@ impl InputMutator {
             }
         }
     }
+
+    /// Use one of splicing mechanisms to produce a new testcase generated by merging two previous ones
     pub fn splice_two_maps(
         &self,
         first_input_map: &InputMap,
@@ -655,7 +635,7 @@ impl InputMutator {
     ) -> InputMap {
         match BASIC_TESTCASE_SPLICE_CONFIGURATION.select(prng) {
             TestCaseSpliceType::BalancedTopLevel => {
-                self // Randomly pick top-level parameters with 50% probability
+                self // Randomly pick top-level objects with 50/50 probability
                     .abi
                     .parameters
                     .iter()
@@ -671,8 +651,26 @@ impl InputMutator {
                     })
                     .collect()
             }
-            TestCaseSpliceType::UnbalancedFull => todo!(),
+            TestCaseSpliceType::UnbalancedFull => {
+                self // Randomly pick low-level elements with a distribution slightly gravitating towards the first testcase
+                    .abi
+                    .parameters
+                    .iter()
+                    .map(|param| {
+                        (
+                            param.name.clone(),
+                            Self::splice_unbalanced(
+                                &param.typ,
+                                &first_input_map[&param.name],
+                                &second_input_map[&param.name],
+                                prng,
+                            ),
+                        )
+                    })
+                    .collect()
+            }
             TestCaseSpliceType::SingleElementImport => {
+                // Import one low-level element from the second testcase into the first one
                 // Pick an element to import in the whole input
                 let chosen_weight = prng.gen_range(0..self.weight_tree.get_weight());
                 let current_level_weight_tree = self.weight_tree.subnodes.as_ref().unwrap();

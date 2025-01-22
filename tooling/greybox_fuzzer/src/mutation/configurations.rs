@@ -505,6 +505,54 @@ impl TopLevelFieldElementMutationConfiguration {
     }
 }
 
+pub enum TestCaseSpliceType {
+    /// Around 50% for each top-level element
+    BalancedTopLevel,
+    /// 80/20 for each element at lower level
+    UnbalancedFull,
+    /// One element merged into the main testcase
+    SingleElementImport,
+}
+
+pub(crate) struct TestCaseSpliceConfiguration {
+    balanced_top_level_weight: usize,
+    unbalanced_full_weight: usize,
+    #[allow(unused)]
+    single_element_import_weight: usize,
+    total_weight: usize,
+}
+
+impl TestCaseSpliceConfiguration {
+    #[allow(unused)]
+    pub fn new(
+        balanced_top_level_weight: usize,
+        unbalanced_full_weight: usize,
+        single_element_import_weight: usize,
+    ) -> Self {
+        let total_weight =
+            balanced_top_level_weight + unbalanced_full_weight + single_element_import_weight;
+        Self {
+            balanced_top_level_weight,
+            unbalanced_full_weight,
+            single_element_import_weight,
+            total_weight,
+        }
+    }
+
+    /// Select a mutation according to weights
+    pub fn select(&self, prng: &mut XorShiftRng) -> TestCaseSpliceType {
+        let mut selector = prng.gen_range(0..self.total_weight);
+        if selector < self.balanced_top_level_weight {
+            return TestCaseSpliceType::BalancedTopLevel;
+        }
+        selector -= self.balanced_top_level_weight;
+        if selector < self.unbalanced_full_weight {
+            return TestCaseSpliceType::UnbalancedFull;
+        }
+        return TestCaseSpliceType::SingleElementImport;
+    }
+}
+
 /// Default configurations for all mutations that are currently used
 
 pub(crate) const BASIC_SPLICE_MUTATION_CONFIGURATION: SpliceMutationConfiguration =
@@ -515,9 +563,9 @@ pub(crate) const BASIC_SPLICE_MUTATION_CONFIGURATION: SpliceMutationConfiguratio
     };
 pub(crate) const BASIC_UNBALANCED_ARRAY_SPLICE_MUTATION_CONFIGURATION:
     UnbalancedArraySpliceConfiguration = UnbalancedArraySpliceConfiguration {
-    array_specific_weight: 1,
-    recurse_weight: 1,
-    total_weight: 1 + 1,
+    array_specific_weight: 11,
+    recurse_weight: 9,
+    total_weight: 11 + 9,
 };
 pub(crate) const BASIC_BYTE_VALUE_MUTATION_CONFIGURATION: ByteValueMutationConfiguration =
     ByteValueMutationConfiguration {
@@ -535,9 +583,9 @@ pub(crate) const DICTIONARY_EMPTY_BYTE_VALUE_MUTATION_CONFIGURATION:
 
 pub(crate) const BASIC_SPLICE_CANDIDATE_PRIORITIZATION_CONFIGURATION:
     SpliceCandidatePrioritizationConfiguration = SpliceCandidatePrioritizationConfiguration {
-    first_weight: 2,
-    second_weight: 1,
-    total_weight: 2 + 1,
+    first_weight: 11,
+    second_weight: 10,
+    total_weight: 11 + 10,
 };
 
 pub(crate) const BASIC_STRUCTURE_MUTATION_CONFIGURATION: StructuralMutationConfiguration =
@@ -608,3 +656,21 @@ pub(crate) const BASIC_TOPLEVEL_FIELD_ELEMENT_MUTATION_CONFIGURATION:
     dictionary_update_weight: 10,
     total_weight: 10 + 1 + 5 + 10 + 10,
 };
+
+pub(crate) const BASIC_TESTCASE_SPLICE_CONFIGURATION: TestCaseSpliceConfiguration =
+    TestCaseSpliceConfiguration {
+        balanced_top_level_weight: 1,
+        unbalanced_full_weight: 1,
+        single_element_import_weight: 2,
+        total_weight: 1 + 1 + 2,
+    };
+
+/// Generic vector structural mutation configuration (random value duplication weight MUST stay zero)
+pub(crate) const BASIC_VECTOR_STRUCTURE_MUTATION_CONFIGURATION: StructuralMutationConfiguration =
+    StructuralMutationConfiguration {
+        chaotic_self_splice_weight: 3,
+        chunk_duplication_weight: 2,
+        random_value_duplication_weight: 0,
+        swap_weight: 3,
+        total_weight: 3 + 2 + 0 + 3,
+    };
