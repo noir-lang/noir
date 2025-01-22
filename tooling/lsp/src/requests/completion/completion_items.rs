@@ -6,7 +6,7 @@ use noirc_frontend::{
     ast::AttributeTarget,
     hir::def_map::{ModuleDefId, ModuleId},
     hir_def::{function::FuncMeta, stmt::HirPattern},
-    node_interner::{FuncId, GlobalId, ReferenceId, StructId, TraitId, TypeAliasId},
+    node_interner::{FuncId, GlobalId, ReferenceId, TraitId, TypeAliasId, TypeId},
     QuotedType, Type,
 };
 
@@ -110,7 +110,7 @@ impl<'a> NodeFinder<'a> {
         self.completion_item_with_doc_comments(ReferenceId::Module(id), completion_item)
     }
 
-    fn struct_completion_item(&self, name: String, struct_id: StructId) -> CompletionItem {
+    fn struct_completion_item(&self, name: String, struct_id: TypeId) -> CompletionItem {
         let completion_item =
             simple_completion_item(name.clone(), CompletionItemKind::STRUCT, Some(name));
         self.completion_item_with_doc_comments(ReferenceId::Struct(struct_id), completion_item)
@@ -120,7 +120,7 @@ impl<'a> NodeFinder<'a> {
         &self,
         field: &str,
         typ: &Type,
-        struct_id: StructId,
+        struct_id: TypeId,
         field_index: usize,
         self_type: bool,
     ) -> CompletionItem {

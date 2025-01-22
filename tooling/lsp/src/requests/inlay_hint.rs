@@ -83,25 +83,34 @@ impl<'a> InlayHintCollector<'a> {
         let location = Location::new(ident.span(), self.file_id);
         if let Some(lsp_location) = to_lsp_location(self.files, self.file_id, span) {
             if let Some(referenced) = self.interner.find_referenced(location) {
+                let include_colon = true;
                 match referenced {
                     ReferenceId::Global(global_id) => {
                         let global_info = self.interner.get_global(global_id);
                         let definition_id = global_info.definition_id;
                         let typ = self.interner.definition_type(definition_id);
-                        self.push_type_hint(lsp_location, &typ, editable);
+                        self.push_type_hint(lsp_location, &typ, editable, include_colon);
                     }
                     ReferenceId::Local(definition_id) => {
                         let typ = self.interner.definition_type(definition_id);
-                        self.push_type_hint(lsp_location, &typ, editable);
+                        self.push_type_hint(lsp_location, &typ, editable, include_colon);
                     }
                     ReferenceId::StructMember(struct_id, field_index) => {
-                        let struct_type = self.interner.get_struct(struct_id);
+                        let struct_type = self.interner.get_type(struct_id);
                         let struct_type = struct_type.borrow();
                         let field = struct_type.field_at(field_index);
-                        self.push_type_hint(lsp_location, &field.typ, false);
+                        self.push_type_hint(lsp_location, &field.typ, false, include_colon);
+                    }
+                    ReferenceId::EnumVariant(type_id, variant_index) => {
+                        let typ = self.interner.get_type(type_id);
+                        let shared_type = typ.clone();
+                        let typ = typ.borrow();
+                        let variant_type = typ.variant_function_type(variant_index, shared_type);
+                        self.push_type_hint(lsp_location, &variant_type, false, include_colon);
                     }
                     ReferenceId::Module(_)
                     | ReferenceId::Struct(_)
+                    | ReferenceId::Enum(_)
                     | ReferenceId::Trait(_)
                     | ReferenceId::Function(_)
                     | ReferenceId::Alias(_)
@@ -111,11 +120,21 @@ impl<'a> InlayHintCollector<'a> {
         }
     }
 
-    fn push_type_hint(&mut self, location: lsp_types::Location, typ: &Type, editable: bool) {
+    fn push_type_hint(
+        &mut self,
+        location: lsp_types::Location,
+        typ: &Type,
+        editable: bool,
+        include_colon: bool,
+    ) {
         let position = location.range.end;
 
         let mut parts = Vec::new();
-        parts.push(string_part(": "));
+        if include_colon {
+            parts.push(string_part(": "));
+        } else {
+            parts.push(string_part(" "));
+        }
         push_type_parts(typ, &mut parts, self.files);
 
         self.inlay_hints.push(InlayHint {
@@ -207,6 +226,36 @@ impl<'a> InlayHintCollector<'a> {
                 self.push_parameter_hint(lsp_location.range.start, &parameter_name);
             }
         }
+    }
+
+    fn collect_method_call_chain_hints(&mut self, method: &MethodCallExpression) {
+        let Some(object_lsp_location) =
+            to_lsp_location(self.files, self.file_id, method.object.span)
+        else {
+            return;
+        };
+
+        let Some(name_lsp_location) =
+            to_lsp_location(self.files, self.file_id, method.method_name.span())
+        else {
+            return;
+        };
+
+        if object_lsp_location.range.end.line >= name_lsp_location.range.start.line {
+            return;
+        }
+
+        let object_location = Location::new(method.object.span, self.file_id);
+        let Some(typ) = self.interner.type_at_location(object_location) else {
+            return;
+        };
+
+        self.push_type_hint(
+            object_lsp_location,
+            &typ,
+            false, // not editable
+            false, // don't include colon
+        );
     }
 
     fn get_pattern_name(&self, pattern: &HirPattern) -> Option<String> {
@@ -349,6 +398,10 @@ impl<'a> Visitor for InlayHintCollector<'a> {
             &method_call_expression.arguments,
         );
 
+        if self.options.chaining_hints.enabled {
+            self.collect_method_call_chain_hints(method_call_expression);
+        }
+
         true
     }
 
@@ -410,7 +463,7 @@ fn push_type_parts(typ: &Type, parts: &mut Vec<InlayHintLabelPart>, files: &File
             }
             parts.push(string_part(")"));
         }
-        Type::Struct(struct_type, generics) => {
+        Type::DataType(struct_type, generics) => {
             let struct_type = struct_type.borrow();
             let location = Location::new(struct_type.name.span(), struct_type.location.file);
             parts.push(text_part_with_location(struct_type.name.to_string(), location, files));
@@ -540,7 +593,9 @@ fn get_expression_name(expression: &Expression) -> Option<String> {
 #[cfg(test)]
 mod inlay_hints_tests {
     use crate::{
-        requests::{ClosingBraceHintsOptions, ParameterHintsOptions, TypeHintsOptions},
+        requests::{
+            ChainingHintsOptions, ClosingBraceHintsOptions, ParameterHintsOptions, TypeHintsOptions,
+        },
         test_utils,
     };
 
@@ -577,6 +632,7 @@ mod inlay_hints_tests {
             type_hints: TypeHintsOptions { enabled: false },
             parameter_hints: ParameterHintsOptions { enabled: false },
             closing_brace_hints: ClosingBraceHintsOptions { enabled: false, min_lines: 25 },
+            chaining_hints: ChainingHintsOptions { enabled: false },
         }
     }
 
@@ -585,6 +641,7 @@ mod inlay_hints_tests {
             type_hints: TypeHintsOptions { enabled: true },
             parameter_hints: ParameterHintsOptions { enabled: false },
             closing_brace_hints: ClosingBraceHintsOptions { enabled: false, min_lines: 25 },
+            chaining_hints: ChainingHintsOptions { enabled: false },
         }
     }
 
@@ -593,6 +650,7 @@ mod inlay_hints_tests {
             type_hints: TypeHintsOptions { enabled: false },
             parameter_hints: ParameterHintsOptions { enabled: true },
             closing_brace_hints: ClosingBraceHintsOptions { enabled: false, min_lines: 25 },
+            chaining_hints: ChainingHintsOptions { enabled: false },
         }
     }
 
@@ -601,6 +659,16 @@ mod inlay_hints_tests {
             type_hints: TypeHintsOptions { enabled: false },
             parameter_hints: ParameterHintsOptions { enabled: false },
             closing_brace_hints: ClosingBraceHintsOptions { enabled: true, min_lines },
+            chaining_hints: ChainingHintsOptions { enabled: false },
+        }
+    }
+
+    fn chaining_hints() -> InlayHintsOptions {
+        InlayHintsOptions {
+            type_hints: TypeHintsOptions { enabled: false },
+            parameter_hints: ParameterHintsOptions { enabled: false },
+            closing_brace_hints: ClosingBraceHintsOptions { enabled: false, min_lines: 0 },
+            chaining_hints: ChainingHintsOptions { enabled: true },
         }
     }
 
@@ -954,5 +1022,40 @@ mod inlay_hints_tests {
         } else {
             panic!("Expected InlayHintLabel::String, got {:?}", inlay_hint.label);
         }
+    }
+
+    #[test]
+    async fn test_shows_receiver_type_in_multiline_method_call() {
+        let mut inlay_hints = get_inlay_hints(125, 130, chaining_hints()).await;
+        assert_eq!(inlay_hints.len(), 3);
+
+        inlay_hints.sort_by_key(|hint| hint.position.line);
+
+        let inlay_hint = &inlay_hints[0];
+        assert_eq!(inlay_hint.position.line, 125);
+        assert_eq!(inlay_hint.position.character, 59);
+        let InlayHintLabel::LabelParts(parts) = &inlay_hint.label else {
+            panic!("Expected label parts");
+        };
+        let label = parts.iter().map(|part| part.value.clone()).collect::<Vec<_>>().join("");
+        assert_eq!(label, " [u32; 14]");
+
+        let inlay_hint = &inlay_hints[1];
+        assert_eq!(inlay_hint.position.line, 126);
+        assert_eq!(inlay_hint.position.character, 37);
+        let InlayHintLabel::LabelParts(parts) = &inlay_hint.label else {
+            panic!("Expected label parts");
+        };
+        let label = parts.iter().map(|part| part.value.clone()).collect::<Vec<_>>().join("");
+        assert_eq!(label, " [u32; 14]");
+
+        let inlay_hint = &inlay_hints[2];
+        assert_eq!(inlay_hint.position.line, 127);
+        assert_eq!(inlay_hint.position.character, 23);
+        let InlayHintLabel::LabelParts(parts) = &inlay_hint.label else {
+            panic!("Expected label parts");
+        };
+        let label = parts.iter().map(|part| part.value.clone()).collect::<Vec<_>>().join("");
+        assert_eq!(label, " bool");
     }
 }

@@ -181,7 +181,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                 }
                 self.string.push(')');
             }
-            Type::Struct(struct_type, generics) => {
+            Type::DataType(struct_type, generics) => {
                 let struct_type = struct_type.borrow();
 
                 let current_module_data =

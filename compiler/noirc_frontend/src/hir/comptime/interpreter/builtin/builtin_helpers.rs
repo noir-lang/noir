@@ -28,11 +28,11 @@ use crate::{
         function::{FuncMeta, FunctionBody},
         stmt::HirPattern,
     },
-    node_interner::{FuncId, NodeInterner, StructId, TraitId, TraitImplId},
+    node_interner::{FuncId, NodeInterner, TraitId, TraitImplId, TypeId},
     token::{SecondaryAttribute, Token, Tokens},
     QuotedType, Type,
 };
-use crate::{Kind, Shared, StructType};
+use crate::{DataType, Kind, Shared};
 use rustc_hash::FxHashMap as HashMap;
 
 pub(crate) fn check_argument_count(
@@ -108,14 +108,13 @@ pub(crate) fn get_struct_fields(
     match value {
         Value::Struct(fields, typ) => Ok((fields, typ)),
         _ => {
-            let expected = StructType::new(
-                StructId::dummy_id(),
+            let expected = DataType::new(
+                TypeId::dummy_id(),
                 Ident::new(name.to_string(), location.span),
                 location,
                 Vec::new(),
-                Vec::new(),
             );
-            let expected = Type::Struct(Shared::new(expected), Vec::new());
+            let expected = Type::DataType(Shared::new(expected), Vec::new());
             type_mismatch(value, expected, location)
         }
     }
@@ -327,7 +326,7 @@ pub(crate) fn get_module((value, location): (Value, Location)) -> IResult<Module
     }
 }
 
-pub(crate) fn get_struct((value, location): (Value, Location)) -> IResult<StructId> {
+pub(crate) fn get_struct((value, location): (Value, Location)) -> IResult<TypeId> {
     match value {
         Value::StructDefinition(id) => Ok(id),
         _ => type_mismatch(value, Type::Quoted(QuotedType::StructDefinition), location),
@@ -434,7 +433,7 @@ fn gather_hir_pattern_tokens(
             tokens.push(Token::RightParen);
         }
         HirPattern::Struct(typ, fields, _) => {
-            let Type::Struct(struct_type, _) = typ.follow_bindings() else {
+            let Type::DataType(struct_type, _) = typ.follow_bindings() else {
                 panic!("Expected type to be a struct");
             };
 

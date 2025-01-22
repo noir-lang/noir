@@ -93,3 +93,6 @@ impl TraitWithDocs for Field {
     fn foo() {}
 }
 
+impl<U> Foo<U> {
+    fn mut_self(&mut self) {}
+}
