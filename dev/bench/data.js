@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737578858413,
+  "lastUpdate": 1737579088749,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -10898,6 +10898,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "workspace",
             "value": 123.91,
+            "unit": "MB"
+          },
+          {
+            "name": "regression_4709",
+            "value": 315.98,
+            "unit": "MB"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 512.6,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 498.94,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 473.62,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1250,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 498.95,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 730.82,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 591.22,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 181,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 245.61,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 209.07,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7f9525dfdb4036befbd21b0d2546b83884593aa4",
+          "message": "feat(brillig): Set global memory size at program compile time (#7151)",
+          "timestamp": "2025-01-22T20:25:05Z",
+          "tree_id": "33b3ac2dda8f33bd87b15ae8f6801d31287c24f8",
+          "url": "https://github.com/noir-lang/noir/commit/7f9525dfdb4036befbd21b0d2546b83884593aa4"
+        },
+        "date": 1737579087099,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "keccak256",
+            "value": 74.69,
+            "unit": "MB"
+          },
+          {
+            "name": "workspace",
+            "value": 123.98,
             "unit": "MB"
           },
           {
