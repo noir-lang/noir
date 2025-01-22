@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737547668527,
+  "lastUpdate": 1737547841799,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -2729,6 +2729,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-tail",
             "value": 198.82,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 540.15,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 268.39,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b00facbbf9f9ec2b4d8887155770c6b288a7bb60",
+          "message": "fix(ssa): Use post order when mapping instructions in loop invariant pass (#7140)\n\nCo-authored-by: Tom French <tom@tomfren.ch>",
+          "timestamp": "2025-01-22T11:49:33Z",
+          "tree_id": "91c0af82e08eb3d5dacb550354ed461744d8d380",
+          "url": "https://github.com/noir-lang/noir/commit/b00facbbf9f9ec2b4d8887155770c6b288a7bb60"
+        },
+        "date": 1737547841345,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "keccak256",
+            "value": 77.56,
+            "unit": "MB"
+          },
+          {
+            "name": "workspace",
+            "value": 123.91,
+            "unit": "MB"
+          },
+          {
+            "name": "regression_4709",
+            "value": 424.11,
+            "unit": "MB"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 1480,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 601.67,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 484.61,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 6230,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 488.29,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 6230,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 601.66,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 2120,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1120,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 198.81,
             "unit": "MB"
           },
           {
