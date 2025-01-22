@@ -1,6 +1,6 @@
 use crate::cmp::Eq;
-use crate::ops::arith::{Add, Neg, Sub};
 use crate::hash::Hash;
+use crate::ops::arith::{Add, Neg, Sub};
 
 /// A point on the embedded elliptic curve
 /// By definition, the base field of the embedded curve is the scalar field of the proof system curve, i.e the Noir Field.
@@ -55,7 +55,10 @@ impl Eq for EmbeddedCurvePoint {
 }
 
 impl Hash for EmbeddedCurvePoint {
-    fn hash<H>(self, state: &mut H) where H: crate::hash::Hasher {
+    fn hash<H>(self, state: &mut H)
+    where
+        H: crate::hash::Hasher,
+    {
         if self.is_infinite {
             self.is_infinite.hash(state);
         } else {
@@ -107,7 +110,10 @@ impl Eq for EmbeddedCurveScalar {
 }
 
 impl Hash for EmbeddedCurveScalar {
-    fn hash<H>(self, state: &mut H) where H: crate::hash::Hasher {
+    fn hash<H>(self, state: &mut H)
+    where
+        H: crate::hash::Hasher,
+    {
         self.hi.hash(state);
         self.lo.hash(state);
     }
