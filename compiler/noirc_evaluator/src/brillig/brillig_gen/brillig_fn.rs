@@ -19,6 +19,8 @@ use super::{constant_allocation::ConstantAllocation, variable_liveness::Variable
 
 #[derive(Default)]
 pub(crate) struct FunctionContext {
+    /// A `FunctionContext` is necessary for using a Brillig block's code gen, but sometimes
+    /// such as with globals, we are not within a function and do not have a function id.
     function_id: Option<FunctionId>,
     /// Map from SSA values its allocation. Since values can be only defined once in SSA form, we insert them here on when we allocate them at their definition.
     pub(crate) ssa_value_allocations: HashMap<ValueId, BrilligVariable>,
@@ -50,19 +52,6 @@ impl FunctionContext {
             constant_allocation: constants,
         }
     }
-
-    // pub(crate) fn new_for_globals() -> Self {
-    //     // Self {
-    //     //     function_id: id,
-    //     //     ssa_value_allocations: HashMap::default(),
-    //     //     blocks: reverse_post_order,
-    //     //     liveness,
-    //     //     constant_allocation: constants,
-    //     // }
-    //     Self {
-    //         ..Default::default()
-    //     }
-    // }
 
     pub(crate) fn function_id(&self) -> FunctionId {
         self.function_id.expect("ICE: function_id should already be set")
