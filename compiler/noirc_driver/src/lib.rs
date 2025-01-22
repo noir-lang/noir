@@ -570,7 +570,7 @@ fn compile_contract_inner(
                 let structs = structs
                     .into_iter()
                     .map(|struct_id| {
-                        let typ = context.def_interner.get_struct(struct_id);
+                        let typ = context.def_interner.get_type(struct_id);
                         let typ = typ.borrow();
                         let fields = vecmap(typ.get_fields(&[]), |(name, typ)| {
                             (name, abi_type_from_hir_type(context, &typ))

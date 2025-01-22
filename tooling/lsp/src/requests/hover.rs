@@ -13,10 +13,10 @@ use noirc_frontend::{
         traits::Trait,
     },
     node_interner::{
-        DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, NodeInterner, ReferenceId,
-        StructId, TraitId, TraitImplKind, TypeAliasId,
+        DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, NodeInterner, ReferenceId, TraitId,
+        TraitImplKind, TypeAliasId, TypeId,
     },
-    Generics, Shared, StructType, Type, TypeAlias, TypeBinding, TypeVariable,
+    DataType, Generics, Shared, Type, TypeAlias, TypeBinding, TypeVariable,
 };
 
 use crate::{
@@ -77,6 +77,10 @@ fn format_reference(reference: ReferenceId, args: &ProcessRequestCallbackArgs) -
         ReferenceId::StructMember(id, field_index) => {
             Some(format_struct_member(id, field_index, args))
         }
+        ReferenceId::Enum(id) => Some(format_enum(id, args)),
+        ReferenceId::EnumVariant(id, variant_index) => {
+            Some(format_enum_variant(id, variant_index, args))
+        }
         ReferenceId::Trait(id) => Some(format_trait(id, args)),
         ReferenceId::Global(id) => Some(format_global(id, args)),
         ReferenceId::Function(id) => Some(format_function(id, args)),
@@ -122,8 +126,8 @@ fn format_module(id: ModuleId, args: &ProcessRequestCallbackArgs) -> Option<Stri
     Some(string)
 }
 
-fn format_struct(id: StructId, args: &ProcessRequestCallbackArgs) -> String {
-    let struct_type = args.interner.get_struct(id);
+fn format_struct(id: TypeId, args: &ProcessRequestCallbackArgs) -> String {
+    let struct_type = args.interner.get_type(id);
     let struct_type = struct_type.borrow();
 
     let mut string = String::new();
@@ -149,12 +153,45 @@ fn format_struct(id: StructId, args: &ProcessRequestCallbackArgs) -> String {
     string
 }
 
+fn format_enum(id: TypeId, args: &ProcessRequestCallbackArgs) -> String {
+    let typ = args.interner.get_type(id);
+    let typ = typ.borrow();
+
+    let mut string = String::new();
+    if format_parent_module(ReferenceId::Enum(id), args, &mut string) {
+        string.push('\n');
+    }
+    string.push_str("    ");
+    string.push_str("enum ");
+    string.push_str(&typ.name.0.contents);
+    format_generics(&typ.generics, &mut string);
+    string.push_str(" {\n");
+    for field in typ.get_variants_as_written() {
+        string.push_str("        ");
+        string.push_str(&field.name.0.contents);
+
+        if !field.params.is_empty() {
+            let types = field.params.iter().map(ToString::to_string).collect::<Vec<_>>();
+            string.push('(');
+            string.push_str(&types.join(", "));
+            string.push(')');
+        }
+
+        string.push_str(",\n");
+    }
+    string.push_str("    }");
+
+    append_doc_comments(args.interner, ReferenceId::Enum(id), &mut string);
+
+    string
+}
+
 fn format_struct_member(
-    id: StructId,
+    id: TypeId,
     field_index: usize,
     args: &ProcessRequestCallbackArgs,
 ) -> String {
-    let struct_type = args.interner.get_struct(id);
+    let struct_type = args.interner.get_type(id);
     let struct_type = struct_type.borrow();
     let field = struct_type.field_at(field_index);
 
@@ -171,6 +208,39 @@ fn format_struct_member(
     string.push_str(&go_to_type_links(&field.typ, args.interner, args.files));
 
     append_doc_comments(args.interner, ReferenceId::StructMember(id, field_index), &mut string);
+
+    string
+}
+
+fn format_enum_variant(
+    id: TypeId,
+    field_index: usize,
+    args: &ProcessRequestCallbackArgs,
+) -> String {
+    let enum_type = args.interner.get_type(id);
+    let enum_type = enum_type.borrow();
+    let variant = enum_type.variant_at(field_index);
+
+    let mut string = String::new();
+    if format_parent_module(ReferenceId::Enum(id), args, &mut string) {
+        string.push_str("::");
+    }
+    string.push_str(&enum_type.name.0.contents);
+    string.push('\n');
+    string.push_str("    ");
+    string.push_str(&variant.name.0.contents);
+    if !variant.params.is_empty() {
+        let types = variant.params.iter().map(ToString::to_string).collect::<Vec<_>>();
+        string.push('(');
+        string.push_str(&types.join(", "));
+        string.push(')');
+    }
+
+    for typ in variant.params.iter() {
+        string.push_str(&go_to_type_links(typ, args.interner, args.files));
+    }
+
+    append_doc_comments(args.interner, ReferenceId::EnumVariant(id, field_index), &mut string);
 
     string
 }
@@ -368,7 +438,7 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
 
         true
     } else if let Some(struct_id) = func_meta.struct_id {
-        let struct_type = args.interner.get_struct(struct_id);
+        let struct_type = args.interner.get_type(struct_id);
         let struct_type = struct_type.borrow();
         if formatted_parent_module {
             string.push_str("::");
@@ -685,7 +755,7 @@ impl<'a> TypeLinksGatherer<'a> {
                     self.gather_type_links(typ);
                 }
             }
-            Type::Struct(struct_type, generics) => {
+            Type::DataType(struct_type, generics) => {
                 self.gather_struct_type_links(struct_type);
                 for generic in generics {
                     self.gather_type_links(generic);
@@ -739,7 +809,7 @@ impl<'a> TypeLinksGatherer<'a> {
         }
     }
 
-    fn gather_struct_type_links(&mut self, struct_type: &Shared<StructType>) {
+    fn gather_struct_type_links(&mut self, struct_type: &Shared<DataType>) {
         let struct_type = struct_type.borrow();
         if let Some(lsp_location) =
             to_lsp_location(self.files, struct_type.location.file, struct_type.name.span())

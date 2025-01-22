@@ -1341,9 +1341,7 @@ fn regression_6530() {
     assert_eq!(errors.len(), 0);
 }
 
-// See https://github.com/noir-lang/noir/issues/7090
 #[test]
-#[should_panic]
 fn calls_trait_method_using_struct_name_when_multiple_impls_exist() {
     let src = r#"
     trait From2<T> {
@@ -1366,4 +1364,33 @@ fn calls_trait_method_using_struct_name_when_multiple_impls_exist() {
     }
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn calls_trait_method_using_struct_name_when_multiple_impls_exist_and_errors_turbofish() {
+    let src = r#"
+    trait From2<T> {
+        fn from2(input: T) -> Self;
+    }
+    struct U60Repr {}
+    impl From2<[Field; 3]> for U60Repr {
+        fn from2(_: [Field; 3]) -> Self {
+            U60Repr {}
+        }
+    }
+    impl From2<Field> for U60Repr {
+        fn from2(_: Field) -> Self {
+            U60Repr {}
+        }
+    }
+    fn main() {
+        let _ = U60Repr::<Field>::from2([1, 2, 3]);
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::TypeMismatch { .. })
+    ));
 }
