@@ -892,19 +892,17 @@ impl<'function> PerFunctionContext<'function> {
         }
 
         let callee = &ssa.functions[&called_func_id];
+        let callee_runtime = callee.runtime();
 
-        match callee.runtime() {
-            RuntimeType::Acir(inline_type) => {
-                // If the called function is acir, we inline if it's not an entry point
-                if inline_type.is_entry_point() {
-                    return None;
-                }
-            }
-            RuntimeType::Brillig(_) => {
-                if self.entry_function.runtime().is_acir() {
-                    // We never inline a brillig function into an ACIR function.
-                    return None;
-                }
+        // Wd never inline one runtime into another
+        if self.entry_function.runtime().is_acir() != callee_runtime.is_acir() {
+            return None;
+        }
+
+        if let RuntimeType::Acir(inline_type) = callee_runtime {
+            // If the called function is acir, we inline if it's not an entry point
+            if inline_type.is_entry_point() {
+                return None;
             }
         }
 
