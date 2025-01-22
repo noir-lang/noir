@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737574814971,
+  "lastUpdate": 1737574819854,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -5551,6 +5551,100 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 2.012,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d3ca3b711d358e0ac98410121d3c798b9327523b",
+          "message": "feat(ssa): Reuse constants from the globals graph when making constants in a function DFG (#7153)",
+          "timestamp": "2025-01-22T19:19:13Z",
+          "tree_id": "fe55f22789200a5f50109451939bdfe6aa1fe15d",
+          "url": "https://github.com/noir-lang/noir/commit/d3ca3b711d358e0ac98410121d3c798b9327523b"
+        },
+        "date": 1737574818540,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 0.983,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.81,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 18.4,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 3.634,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 2.046,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 95.5,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 2.082,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 89.6,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 3.886,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 26.38,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 10.92,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.982,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.45,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.078,
             "unit": "s"
           }
         ]
