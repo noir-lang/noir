@@ -82,7 +82,7 @@ impl Ssa {
                         let globals = (*function.dfg.globals).clone();
                         // DIE is run at the end of our SSA optimizations, so we mark all globals as in use here.
                         let used_globals = &globals.values_iter().map(|(id, _)| id).collect();
-                        let (_, brillig_globals) =
+                        let (_, brillig_globals, _) =
                             convert_ssa_globals(false, globals, used_globals);
                         global_cache = Some(brillig_globals);
                     }
