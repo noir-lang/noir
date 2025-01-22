@@ -68,15 +68,14 @@ impl Ssa {
         // instead of inlining the "leaf" functions, moving up towards the entry point.
         self.functions = btree_map(inline_targets, |entry_point| {
             let function = &self.functions[&entry_point];
-            let should_inline_call =
-                |_context: &PerFunctionContext, ssa: &Ssa, called_func_id: FunctionId| -> bool {
-                    function.should_inline_call(
-                        ssa,
-                        called_func_id,
-                        inline_no_predicates_functions,
-                        inline_infos,
-                    )
-                };
+            let should_inline_call = |ssa: &Ssa, called_func_id: FunctionId| -> bool {
+                function.should_inline_call(
+                    ssa,
+                    called_func_id,
+                    inline_no_predicates_functions,
+                    inline_infos,
+                )
+            };
             let new_function = function.inlined(&self, &should_inline_call);
             (entry_point, new_function)
         });
@@ -89,7 +88,7 @@ impl Function {
     pub(super) fn inlined(
         &self,
         ssa: &Ssa,
-        should_inline_call: &impl Fn(&PerFunctionContext, &Ssa, FunctionId) -> bool,
+        should_inline_call: &impl Fn(&Ssa, FunctionId) -> bool,
     ) -> Function {
         InlineContext::new(ssa, self.id()).inline_all(ssa, &should_inline_call)
     }
@@ -153,7 +152,7 @@ struct InlineContext {
 /// layer to translate between BlockId to BlockId for the current function and the function to
 /// inline into. The same goes for ValueIds, InstructionIds, and for storing other data like
 /// parameter to argument mappings.
-pub(crate) struct PerFunctionContext<'function> {
+struct PerFunctionContext<'function> {
     /// The source function is the function we're currently inlining into the function being built.
     source_function: &'function Function,
 
@@ -582,7 +581,7 @@ impl InlineContext {
     fn inline_all(
         mut self,
         ssa: &Ssa,
-        should_inline_call: &impl Fn(&PerFunctionContext, &Ssa, FunctionId) -> bool,
+        should_inline_call: &impl Fn(&Ssa, FunctionId) -> bool,
     ) -> Function {
         let entry_point = &ssa.functions[&self.entry_point];
 
@@ -625,7 +624,7 @@ impl InlineContext {
         ssa: &Ssa,
         id: FunctionId,
         arguments: &[ValueId],
-        should_inline_call: &impl Fn(&PerFunctionContext, &Ssa, FunctionId) -> bool,
+        should_inline_call: &impl Fn(&Ssa, FunctionId) -> bool,
     ) -> Vec<ValueId> {
         self.recursion_level += 1;
 
@@ -785,7 +784,7 @@ impl<'function> PerFunctionContext<'function> {
     fn inline_blocks(
         &mut self,
         ssa: &Ssa,
-        should_inline_call: &impl Fn(&PerFunctionContext, &Ssa, FunctionId) -> bool,
+        should_inline_call: &impl Fn(&Ssa, FunctionId) -> bool,
     ) -> Vec<ValueId> {
         let mut seen_blocks = HashSet::new();
         let mut block_queue = VecDeque::new();
@@ -852,7 +851,7 @@ impl<'function> PerFunctionContext<'function> {
         &mut self,
         ssa: &Ssa,
         block_id: BasicBlockId,
-        should_inline_call: &impl Fn(&PerFunctionContext, &Ssa, FunctionId) -> bool,
+        should_inline_call: &impl Fn(&Ssa, FunctionId) -> bool,
     ) {
         let mut side_effects_enabled: Option<ValueId> = None;
 
@@ -861,7 +860,7 @@ impl<'function> PerFunctionContext<'function> {
             match &self.source_function.dfg[*id] {
                 Instruction::Call { func, arguments } => match self.get_function(*func) {
                     Some(func_id) => {
-                        if should_inline_call(self, ssa, func_id) {
+                        if should_inline_call(ssa, func_id) {
                             self.inline_function(ssa, *id, func_id, arguments, should_inline_call);
 
                             // This is only relevant during handling functions with `InlineType::NoPredicates` as these
@@ -897,7 +896,7 @@ impl<'function> PerFunctionContext<'function> {
         call_id: InstructionId,
         function: FunctionId,
         arguments: &[ValueId],
-        should_inline_call: &impl Fn(&PerFunctionContext, &Ssa, FunctionId) -> bool,
+        should_inline_call: &impl Fn(&Ssa, FunctionId) -> bool,
     ) {
         let old_results = self.source_function.dfg.instruction_results(call_id);
         let arguments = vecmap(arguments, |arg| self.translate_value(*arg));
