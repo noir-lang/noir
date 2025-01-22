@@ -152,23 +152,23 @@ comptime fn derive_hash(s: StructDefinition) -> Quoted {
 // docs:end:derive_hash
 
 // Hasher trait shall be implemented by algorithms to provide hash-agnostic means.
-pub trait Hasher<T> {
+pub trait Hasher<T: Hash> {
     fn finish(self) -> Field;
 
     fn write(&mut self, input: T);
 }
 
 // BuildHasher is a factory trait, responsible for production of specific Hasher.
-pub trait BuildHasher<H, T>
+pub trait BuildHasher<H, T: Hash>
 where
     H: Hasher<T>,
 {
     fn build_hasher(self) -> H;
 }
 
-pub struct BuildHasherDefault<H, T>;
+pub struct BuildHasherDefault<H, T: Hash>;
 
-impl<H, T> BuildHasher<H, T> for BuildHasherDefault<H, T>
+impl<H, T: Hash> BuildHasher<H, T> for BuildHasherDefault<H, T>
 where
     H: Hasher<T> + Default,
 {
@@ -177,7 +177,7 @@ where
     }
 }
 
-impl<H, T> Default for BuildHasherDefault<H, T>
+impl<H, T: Hash> Default for BuildHasherDefault<H, T>
 where
     H: Hasher<T> + Default,
 {
