@@ -87,6 +87,7 @@ enum IntermediatePathResolutionItem {
 
 pub(crate) type PathResolutionResult = Result<PathResolution, PathResolutionError>;
 
+#[derive(Debug)]
 enum MethodLookupResult {
     /// The method could not be found. There might be trait methods that could be imported,
     /// but none of them are.
@@ -224,28 +225,24 @@ impl<'context> Elaborator<'context> {
 
                     (id, false, IntermediatePathResolutionItem::Module)
                 }
-                ModuleDefId::TypeId(id) => (
-                    id.module_id(),
-                    true,
-                    IntermediatePathResolutionItem::Type(id, last_segment.turbofish()),
-                ),
+                ModuleDefId::TypeId(id) => {
+                    let item = IntermediatePathResolutionItem::Type(id, last_segment.turbofish());
+                    (id.module_id(), true, item)
+                }
                 ModuleDefId::TypeAliasId(id) => {
                     let type_alias = self.interner.get_type_alias(id);
                     let Some(module_id) = get_type_alias_module_def_id(&type_alias) else {
                         return Err(PathResolutionError::Unresolved(last_ident.clone()));
                     };
 
-                    (
-                        module_id,
-                        true,
-                        IntermediatePathResolutionItem::TypeAlias(id, last_segment.turbofish()),
-                    )
+                    let item =
+                        IntermediatePathResolutionItem::TypeAlias(id, last_segment.turbofish());
+                    (module_id, true, item)
                 }
-                ModuleDefId::TraitId(id) => (
-                    id.0,
-                    false,
-                    IntermediatePathResolutionItem::Trait(id, last_segment.turbofish()),
-                ),
+                ModuleDefId::TraitId(id) => {
+                    let item = IntermediatePathResolutionItem::Trait(id, last_segment.turbofish());
+                    (id.0, false, item)
+                }
                 ModuleDefId::FunctionId(_) => panic!("functions cannot be in the type namespace"),
                 ModuleDefId::GlobalId(_) => panic!("globals cannot be in the type namespace"),
             };

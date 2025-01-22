@@ -37,7 +37,7 @@ use crate::{
         DefinitionKind, DependencyId, ExprId, FuncId, FunctionModifiers, GlobalId, NodeInterner,
         ReferenceId, TraitId, TraitImplId, TypeAliasId, TypeId,
     },
-    token::SecondaryAttribute,
+    token::{Attributes, SecondaryAttribute},
     EnumVariant, Shared, Type, TypeVariable,
 };
 use crate::{
@@ -1823,6 +1823,7 @@ impl<'context> Elaborator<'context> {
                 span: typ.enum_def.span,
             };
 
+            // Define a function for each variant to construct it
             for (i, variant) in typ.enum_def.variants.iter().enumerate() {
                 self.interner.add_definition_location(ReferenceId::EnumVariant(*type_id, i), None);
 
@@ -1837,19 +1838,26 @@ impl<'context> Elaborator<'context> {
 
                 let id = self.interner.push_empty_fn();
 
-                let kind = DefinitionKind::Function(id);
-                let definition_id = self.interner.push_definition(
-                    name_string.clone(),
-                    false,
-                    false,
-                    kind,
+                let modifiers = FunctionModifiers {
+                    name: name_string.clone(),
+                    visibility: typ.enum_def.visibility,
+                    attributes: Attributes { function: None, secondary: Vec::new() },
+                    is_unconstrained: false,
+                    generic_count: datatype_ref.generics.len(),
+                    is_comptime: false,
+                    name_location: location,
+                };
+                let definition_id = self.interner.push_function_definition(
+                    id,
+                    modifiers,
+                    type_id.module_id(),
                     location,
                 );
 
-                let name = HirIdent::non_trait_method(definition_id, location);
+                let hir_name = HirIdent::non_trait_method(definition_id, location);
 
                 let meta = FuncMeta {
-                    name,
+                    name: hir_name,
                     kind: FunctionKind::Builtin,
                     parameters: crate::hir_def::function::Parameters(Vec::new()),
                     parameter_idents: Vec::new(),
@@ -1868,13 +1876,17 @@ impl<'context> Elaborator<'context> {
                     has_inline_attribute: false,
                     function_body: FunctionBody::Resolved,
                     source_crate: self.crate_id,
-                    source_module: self.local_module,
+                    source_module: type_id.local_module_id(),
                     source_file: self.file,
                     self_type: None,
                 };
 
                 self.interner.push_fn_meta(meta, id);
                 self.interner.add_method(&self_type, name_string, id, None);
+
+                Self::get_module_mut(self.def_maps, type_id.module_id())
+                    .declare_function(name, typ.enum_def.visibility, id)
+                    .ok();
             }
         }
     }
