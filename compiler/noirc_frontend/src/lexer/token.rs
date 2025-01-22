@@ -781,6 +781,15 @@ impl fmt::Display for Attribute {
     }
 }
 
+impl Attribute {
+    pub(crate) fn is_disabled_cfg(&self) -> bool {
+        match self {
+            Attribute::Function(_) => false,
+            Attribute::Secondary(secondary) => secondary.is_disabled_cfg(),
+        }
+    }
+}
+
 /// Primary Attributes are those which a function can only have one of.
 /// They change the FunctionKind and thus have direct impact on the IR output
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
@@ -939,6 +948,22 @@ impl SecondaryAttribute {
         matches!(self, SecondaryAttribute::Abi(_))
     }
 
+    pub(crate) fn is_disabled_cfg(&self) -> bool {
+        match self {
+            SecondaryAttribute::Deprecated(..) => false,
+            SecondaryAttribute::Tag(..) => false,
+            SecondaryAttribute::Meta(..) => false,
+            SecondaryAttribute::ContractLibraryMethod => false,
+            SecondaryAttribute::Export => false,
+            SecondaryAttribute::Field(..) => false,
+            SecondaryAttribute::Abi(..) => false,
+            SecondaryAttribute::Varargs => false,
+            SecondaryAttribute::UseCallersScope => false,
+            SecondaryAttribute::Allow(..) => false,
+            SecondaryAttribute::Cfg(ref cfg_attribute) => cfg_attribute.is_disabled(),
+        }
+    }
+
     pub(crate) fn contents(&self) -> String {
         match self {
             SecondaryAttribute::Deprecated(None) => "deprecated".to_string(),
@@ -1002,6 +1027,19 @@ impl Display for CfgAttribute {
         }
     }
 }
+
+// TODO: enable more features once working
+impl CfgAttribute {
+    pub(crate) fn is_disabled(&self) -> bool {
+        match self {
+            CfgAttribute::Feature { name, .. } => {
+                name != &"default"
+            }
+        }
+    }
+
+}
+
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub struct CustomAttribute {

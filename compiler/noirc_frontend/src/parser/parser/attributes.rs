@@ -106,11 +106,7 @@ impl<'a> Parser<'a> {
             .collect()
     }
 
-    // TODO: make issue unless this panic triggers later
     fn parse_tag_attribute(&mut self, start_span: Span) -> Attribute {
-        // TODO: make issue unless this panic triggers later
-        panic!("parsing tag attr: {:?}", &start_span);
-
         let contents_start_span = self.current_token_span;
         let mut contents_span = contents_start_span;
         let mut contents = String::new();
@@ -675,10 +671,6 @@ mod tests {
         let src = "#[cfg(feature = \"foo\")]";
         let mut parser = Parser::for_str(src);
         let (attribute, _span) = parser.parse_attribute().unwrap();
-
-        // TODO cleanup
-        dbg!(&parser.errors);
-
         expect_no_errors(&parser.errors);
         let Attribute::Secondary(SecondaryAttribute::Cfg(cfg_attribute)) = attribute else {
             panic!("Expected cfg attribute");
@@ -692,10 +684,10 @@ mod tests {
         let src = "#[cfg(feature = \"\")]";
         let mut parser = Parser::for_str(src);
         let (attribute, _span) = parser.parse_attribute().unwrap();
-
-        // TODO cleanup
-        dbg!(&parser.errors);
-
+        match attribute {
+            Attribute::Secondary(SecondaryAttribute::Cfg(CfgAttribute::Feature { name, .. })) => assert_eq!(name, String::new()),
+            other => panic!("expected an CfgAttribute::Feature, but found {other:?}"),
+        }
         expect_no_errors(&parser.errors);
     }
 

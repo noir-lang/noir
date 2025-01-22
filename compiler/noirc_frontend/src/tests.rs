@@ -3858,7 +3858,7 @@ fn disallows_export_attribute_on_trait_impl_method() {
 #[test]
 fn cfg_attribute_on_function() {
     let src = r#"
-        #[cfg(feature = "foo")]
+        #[cfg(feature = "default")]
         fn foo() { }
 
         fn main() {
@@ -3866,10 +3866,6 @@ fn cfg_attribute_on_function() {
         }
     "#;
     let errors = get_program_errors(src);
-    
-    // TODO cleanup
-    dbg!(&errors);
-
     assert_eq!(errors.len(), 0);
 }
 
@@ -3886,9 +3882,12 @@ fn cfg_disabled_attribute_on_function() {
         fn main() { }
     "#;
     let errors = get_program_errors(src);
-    
+
     // TODO cleanup
     dbg!(&errors);
+    for error in &errors {
+        println!("{}", error.0);
+    }
 
     assert_eq!(errors.len(), 0);
 }
@@ -3923,6 +3922,9 @@ fn cfg_disabled_attribute_on_global() {
     
     // TODO cleanup
     dbg!(&errors);
+    for error in &errors {
+        println!("{}", error.0);
+    }
 
     assert_eq!(errors.len(), 0);
 }
@@ -3930,7 +3932,7 @@ fn cfg_disabled_attribute_on_global() {
 #[test]
 fn cfg_attribute_on_global() {
     let src = r#"
-        #[cfg(feature = "foo")]
+        #[cfg(feature = "default")]
         global FOO: bool = true;
 
         fn main() {
@@ -3938,10 +3940,6 @@ fn cfg_attribute_on_global() {
         }
     "#;
     let errors = get_program_errors(src);
-
-    // TODO cleanup
-    dbg!(&errors);
-
     assert_eq!(errors.len(), 0);
 }
 
@@ -3967,6 +3965,9 @@ fn cfg_disabled_attribute_on_statement_block() {
     
     // TODO cleanup
     dbg!(&errors);
+    for error in &errors {
+        println!("{}", error.0);
+    }
 
     assert_eq!(errors.len(), 0);
 }
@@ -3977,7 +3978,7 @@ fn cfg_attribute_on_statement_block() {
         fn foo() -> Field {
             let mut result = 0;
 
-            #[cfg(feature = "bar")]
+            #[cfg(feature = "default")]
             {
                 result = 1;
             }
@@ -4000,7 +4001,7 @@ fn cfg_attribute_on_statement_block() {
 #[test]
 fn cfg_attribute_on_module() {
     let src = r#"
-        #[cfg(feature = "foo")]
+        #[cfg(feature = "default")]
         mod foo_module {
             pub global FOO: bool = true;
         }
@@ -4033,6 +4034,9 @@ fn cfg_disabled_attribute_on_module() {
     
     // TODO cleanup
     dbg!(&errors);
+    for error in &errors {
+        println!("{}", error.0);
+    }
 
     assert_eq!(errors.len(), 1);
 }
@@ -4044,7 +4048,7 @@ fn cfg_attribute_on_use() {
             pub global FOO: bool = true;
         }
 
-        #[cfg(feature = "foo")]
+        #[cfg(feature = "default")]
         use foo_module::FOO;
 
         fn main() {
@@ -4052,10 +4056,6 @@ fn cfg_attribute_on_use() {
         }
     "#;
     let errors = get_program_errors(src);
-    
-    // TODO cleanup
-    dbg!(&errors);
-
     assert_eq!(errors.len(), 0);
 }
 
@@ -4077,9 +4077,15 @@ fn cfg_disabled_attribute_on_use() {
     
     // TODO cleanup
     dbg!(&errors);
+    for error in &errors {
+        println!("{}", error.0);
+    }
 
     assert_eq!(errors.len(), 1);
 }
+
+// TODO: test cfg on trait, impl, contract, struct, enum, type
+
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // END cfg tests
