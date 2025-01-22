@@ -181,7 +181,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                 }
                 self.string.push(')');
             }
-            Type::Struct(struct_type, generics) => {
+            Type::DataType(struct_type, generics) => {
                 let struct_type = struct_type.borrow();
 
                 let current_module_data =
@@ -361,7 +361,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
             Type::Forall(_, _) => {
                 panic!("Shouldn't get a Type::Forall");
             }
-            Type::InfixExpr(left, op, right) => {
+            Type::InfixExpr(left, op, right, _) => {
                 self.append_type(left);
                 self.string.push(' ');
                 self.string.push_str(&op.to_string());

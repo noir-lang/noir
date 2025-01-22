@@ -16,6 +16,7 @@ use crate::ssa::{
         function::Function,
         function_inserter::FunctionInserter,
         instruction::{binary::eval_constant_binary_op, BinaryOp, Instruction, InstructionId},
+        post_order::PostOrder,
         types::Type,
         value::ValueId,
     },
@@ -36,7 +37,7 @@ impl Ssa {
 }
 
 impl Function {
-    fn loop_invariant_code_motion(&mut self) {
+    pub(super) fn loop_invariant_code_motion(&mut self) {
         Loops::find_all(self).hoist_loop_invariants(self);
     }
 }
@@ -112,10 +113,12 @@ impl<'f> LoopInvariantContext<'f> {
 
                     // If we are hoisting a MakeArray instruction,
                     // we need to issue an extra inc_rc in case they are mutated afterward.
-                    if matches!(
-                        self.inserter.function.dfg[instruction_id],
-                        Instruction::MakeArray { .. }
-                    ) {
+                    if self.inserter.function.runtime().is_brillig()
+                        && matches!(
+                            self.inserter.function.dfg[instruction_id],
+                            Instruction::MakeArray { .. }
+                        )
+                    {
                         let result =
                             self.inserter.function.dfg.instruction_results(instruction_id)[0];
                         let inc_rc = Instruction::IncrementRc { value: result };
@@ -270,8 +273,10 @@ impl<'f> LoopInvariantContext<'f> {
     /// correct new value IDs based upon the `FunctionInserter` internal map.
     /// Leaving out this mapping could lead to instructions with values that do not exist.
     fn map_dependent_instructions(&mut self) {
-        let blocks = self.inserter.function.reachable_blocks();
-        for block in blocks {
+        let mut block_order = PostOrder::with_function(self.inserter.function).into_vec();
+        block_order.reverse();
+
+        for block in block_order {
             for instruction_id in self.inserter.function.dfg[block].take_instructions() {
                 self.inserter.push_instruction(instruction_id, block);
             }

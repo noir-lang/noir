@@ -15,6 +15,7 @@ use acvm::acir::{
 pub(crate) const MAX_STACK_SIZE: usize = 16 * MAX_STACK_FRAME_SIZE;
 pub(crate) const MAX_STACK_FRAME_SIZE: usize = 2048;
 pub(crate) const MAX_SCRATCH_SPACE: usize = 64;
+pub(crate) const MAX_GLOBAL_SPACE: usize = 16384;
 
 impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
     /// Creates an entry point artifact that will jump to the function label provided.
@@ -22,10 +23,15 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         arguments: Vec<BrilligParameter>,
         return_parameters: Vec<BrilligParameter>,
         target_function: FunctionId,
+        globals_init: bool,
     ) -> BrilligArtifact<F> {
         let mut context = BrilligContext::new(false);
 
         context.codegen_entry_point(&arguments, &return_parameters);
+
+        if globals_init {
+            context.add_globals_init_instruction();
+        }
 
         context.add_external_call_instruction(target_function);
 
@@ -34,7 +40,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
     }
 
     fn calldata_start_offset() -> usize {
-        ReservedRegisters::len() + MAX_STACK_SIZE + MAX_SCRATCH_SPACE
+        ReservedRegisters::len() + MAX_STACK_SIZE + MAX_SCRATCH_SPACE + MAX_GLOBAL_SPACE
     }
 
     fn return_data_start_offset(calldata_size: usize) -> usize {

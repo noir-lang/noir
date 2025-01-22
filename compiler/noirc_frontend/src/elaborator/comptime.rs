@@ -19,7 +19,7 @@ use crate::{
         resolution::errors::ResolverError,
     },
     hir_def::expr::{HirExpression, HirIdent},
-    node_interner::{DefinitionKind, DependencyId, FuncId, NodeInterner, StructId, TraitId},
+    node_interner::{DefinitionKind, DependencyId, FuncId, NodeInterner, TraitId, TypeId},
     parser::{Item, ItemKind},
     token::{MetaAttribute, SecondaryAttribute},
     Type, TypeBindings, UnificationError,
@@ -442,7 +442,21 @@ impl<'context> Elaborator<'context> {
                     self.crate_id,
                     &mut self.errors,
                 ) {
-                    generated_items.types.insert(type_id, the_struct);
+                    generated_items.structs.insert(type_id, the_struct);
+                }
+            }
+            ItemKind::Enum(enum_def) => {
+                if let Some((type_id, the_enum)) = dc_mod::collect_enum(
+                    self.interner,
+                    self.def_maps.get_mut(&self.crate_id).unwrap(),
+                    self.usage_tracker,
+                    Documented::new(enum_def, item.doc_comments),
+                    self.file,
+                    self.local_module,
+                    self.crate_id,
+                    &mut self.errors,
+                ) {
+                    generated_items.enums.insert(type_id, the_enum);
                 }
             }
             ItemKind::Impl(r#impl) => {
@@ -498,7 +512,7 @@ impl<'context> Elaborator<'context> {
     pub(super) fn run_attributes(
         &mut self,
         traits: &BTreeMap<TraitId, UnresolvedTrait>,
-        types: &BTreeMap<StructId, UnresolvedStruct>,
+        types: &BTreeMap<TypeId, UnresolvedStruct>,
         functions: &[UnresolvedFunctions],
         module_attributes: &[ModuleAttribute],
     ) {

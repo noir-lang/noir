@@ -357,7 +357,7 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
             }
             Value::Struct(fields, typ) => {
                 let typename = match typ.follow_bindings() {
-                    Type::Struct(def, _) => def.borrow().name.to_string(),
+                    Type::DataType(def, _) => def.borrow().name.to_string(),
                     other => other.to_string(),
                 };
                 let fields = vecmap(fields, |(name, value)| {
@@ -376,7 +376,7 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
             }
             Value::Quoted(tokens) => display_quoted(tokens, 0, self.interner, f),
             Value::StructDefinition(id) => {
-                let def = self.interner.get_struct(*id);
+                let def = self.interner.get_type(*id);
                 let def = def.borrow();
                 write!(f, "{}", def.name)
             }
@@ -732,6 +732,9 @@ fn remove_interned_in_statement_kind(
             block: remove_interned_in_expression(interner, for_loop.block),
             ..for_loop
         }),
+        StatementKind::Loop(block, span) => {
+            StatementKind::Loop(remove_interned_in_expression(interner, block), span)
+        }
         StatementKind::Comptime(statement) => {
             StatementKind::Comptime(Box::new(remove_interned_in_statement(interner, *statement)))
         }

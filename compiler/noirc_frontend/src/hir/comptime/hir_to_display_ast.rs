@@ -59,6 +59,7 @@ impl HirStatement {
                 block: for_stmt.block.to_display_ast(interner),
                 span,
             }),
+            HirStatement::Loop(block) => StatementKind::Loop(block.to_display_ast(interner), span),
             HirStatement::Break => StatementKind::Break,
             HirStatement::Continue => StatementKind::Continue,
             HirStatement::Expression(expr) => {
@@ -245,7 +246,7 @@ impl HirPattern {
                     (name.clone(), pattern.to_display_ast(interner))
                 });
                 let name = match typ.follow_bindings() {
-                    Type::Struct(struct_def, _) => {
+                    Type::DataType(struct_def, _) => {
                         let struct_def = struct_def.borrow();
                         struct_def.name.0.contents.clone()
                     }
@@ -300,7 +301,7 @@ impl Type {
                 let fields = vecmap(fields, |field| field.to_display_ast());
                 UnresolvedTypeData::Tuple(fields)
             }
-            Type::Struct(def, generics) => {
+            Type::DataType(def, generics) => {
                 let struct_def = def.borrow();
                 let ordered_args = vecmap(generics, |generic| generic.to_display_ast());
                 let generics =
@@ -359,7 +360,7 @@ impl Type {
             Type::Constant(..) => panic!("Type::Constant where a type was expected: {self:?}"),
             Type::Quoted(quoted_type) => UnresolvedTypeData::Quoted(*quoted_type),
             Type::Error => UnresolvedTypeData::Error,
-            Type::InfixExpr(lhs, op, rhs) => {
+            Type::InfixExpr(lhs, op, rhs, _) => {
                 let lhs = Box::new(lhs.to_type_expression());
                 let rhs = Box::new(rhs.to_type_expression());
                 let span = Span::default();

@@ -12,6 +12,7 @@ use super::{
 };
 use crate::ast::UnresolvedTypeData;
 use crate::elaborator::types::SELF_TYPE_NAME;
+use crate::elaborator::Turbofish;
 use crate::lexer::token::SpannedToken;
 use crate::node_interner::{
     InternedExpressionKind, InternedPattern, InternedStatementKind, NodeInterner,
@@ -45,6 +46,7 @@ pub enum StatementKind {
     Expression(Expression),
     Assign(AssignStatement),
     For(ForLoopStatement),
+    Loop(Expression, Span /* loop keyword span */),
     Break,
     Continue,
     /// This statement should be executed at compile-time
@@ -105,6 +107,9 @@ impl StatementKind {
             }
             // A semicolon on a for loop is optional and does nothing
             StatementKind::For(_) => self,
+
+            // A semicolon on a loop is optional and does nothing
+            StatementKind::Loop(..) => self,
 
             // No semicolon needed for a resolved statement
             StatementKind::Interned(_) => self,
@@ -530,6 +535,12 @@ impl PathSegment {
     /// Returns an empty span at the end of `foo` if there's no turbofish.
     pub fn turbofish_span(&self) -> Span {
         Span::from(self.ident.span().end()..self.span.end())
+    }
+
+    pub fn turbofish(&self) -> Option<Turbofish> {
+        self.generics
+            .as_ref()
+            .map(|generics| Turbofish { span: self.turbofish_span(), generics: generics.clone() })
     }
 }
 
@@ -961,6 +972,7 @@ impl Display for StatementKind {
             StatementKind::Expression(expression) => expression.fmt(f),
             StatementKind::Assign(assign) => assign.fmt(f),
             StatementKind::For(for_loop) => for_loop.fmt(f),
+            StatementKind::Loop(block, _) => write!(f, "loop {}", block),
             StatementKind::Break => write!(f, "break"),
             StatementKind::Continue => write!(f, "continue"),
             StatementKind::Comptime(statement) => write!(f, "comptime {}", statement.kind),

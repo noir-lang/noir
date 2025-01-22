@@ -110,7 +110,7 @@ pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
             AbiType::String { length: size }
         }
 
-        Type::Struct(def, args) => {
+        Type::DataType(def, args) => {
             let struct_type = def.borrow();
             let fields = struct_type.get_fields(args);
             let fields =

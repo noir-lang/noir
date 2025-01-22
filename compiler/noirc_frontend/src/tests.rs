@@ -903,6 +903,7 @@ fn find_lambda_captures(stmts: &[StmtId], interner: &NodeInterner, result: &mut 
             HirStatement::Constrain(constr_stmt) => constr_stmt.0,
             HirStatement::Semi(semi_expr) => semi_expr,
             HirStatement::For(for_loop) => for_loop.block,
+            HirStatement::Loop(block) => block,
             HirStatement::Error => panic!("Invalid HirStatement!"),
             HirStatement::Break => panic!("Unexpected break"),
             HirStatement::Continue => panic!("Unexpected continue"),
@@ -2817,12 +2818,13 @@ fn duplicate_struct_field() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
 
-    let CompilationError::DefinitionError(DefCollectorErrorKind::DuplicateField {
+    let CompilationError::DefinitionError(DefCollectorErrorKind::Duplicate {
+        typ: _,
         first_def,
         second_def,
     }) = &errors[0].0
     else {
-        panic!("Expected a duplicate field error, got {:?}", errors[0].0);
+        panic!("Expected a 'duplicate' error, got {:?}", errors[0].0);
     };
 
     assert_eq!(first_def.to_string(), "x");
@@ -3015,13 +3017,13 @@ fn do_not_eagerly_error_on_cast_on_type_variable() {
 #[test]
 fn error_on_cast_over_type_variable() {
     let src = r#"
-    pub fn foo<T, U>(x: T, f: fn(T) -> U) -> U {
+    pub fn foo<T, U>(f: fn(T) -> U, x: T, ) -> U {
         f(x)
     }
 
     fn main() {
         let x = "a";
-        let _: Field = foo(x, |x| x as Field);
+        let _: Field = foo(|x| x as Field, x);
     }
     "#;
 
@@ -3456,6 +3458,11 @@ fn arithmetic_generics_rounding_fail_on_struct() {
 
 #[test]
 fn unconditional_recursion_fail() {
+    // These examples are self recursive top level functions, which would actually
+    // not be inlined in the SSA (there is nothing to inline into but self), so it
+    // wouldn't panic due to infinite recursion, but the errors asserted here
+    // come from the compilation checks, which does static analysis to catch the
+    // problem before it even has a chance to cause a panic.
     let srcs = vec![
         r#"
         fn main() {
@@ -3954,4 +3961,198 @@ fn mutable_self_call() {
     }
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn checks_visibility_of_trait_related_to_trait_impl_on_method_call() {
+    let src = r#"
+    mod moo {
+        pub struct Bar {}
+    }
+
+    trait Foo {
+        fn foo(self);
+    }
+
+    impl Foo for moo::Bar {
+        fn foo(self) {}
+    }
+
+    fn main() {
+        let bar = moo::Bar {};
+        bar.foo();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn infers_lambda_argument_from_method_call_function_type() {
+    let src = r#"
+    struct Foo {
+        value: Field,
+    }
+
+    impl Foo {
+        fn foo(self) -> Field {
+            self.value
+        }
+    }
+
+    struct Box<T> {
+        value: T,
+    }
+
+    impl<T> Box<T> {
+        fn map<U>(self, f: fn(T) -> U) -> Box<U> {
+            Box { value: f(self.value) }
+        }
+    }
+
+    fn main() {
+        let box = Box { value: Foo { value: 1 } };
+        let _ = box.map(|foo| foo.foo());
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn infers_lambda_argument_from_call_function_type() {
+    let src = r#"
+    struct Foo {
+        value: Field,
+    }
+
+    fn call(f: fn(Foo) -> Field) -> Field {
+        f(Foo { value: 1 })
+    }
+
+    fn main() {
+        let _ = call(|foo| foo.value);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn infers_lambda_argument_from_call_function_type_in_generic_call() {
+    let src = r#"
+    struct Foo {
+        value: Field,
+    }
+
+    fn call<T>(t: T, f: fn(T) -> Field) -> Field {
+        f(t)
+    }
+
+    fn main() {
+        let _ = call(Foo { value: 1 }, |foo| foo.value);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn regression_7088() {
+    // A test for code that initially broke when implementing inferring
+    // lambda parameter types from the function type related to the call
+    // the lambda is in (PR #7088).
+    let src = r#"
+    struct U60Repr<let N: u32, let NumSegments: u32> {}
+
+    impl<let N: u32, let NumSegments: u32> U60Repr<N, NumSegments> {
+        fn new<let NumFieldSegments: u32>(_: [Field; N * NumFieldSegments]) -> Self {
+            U60Repr {}
+        }
+    }
+
+    fn main() {
+        let input: [Field; 6] = [0; 6];
+        let _: U60Repr<3, 6> = U60Repr::new(input);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn errors_on_empty_loop_no_break() {
+    let src = r#"
+    fn main() {
+        /// Safety: test
+        unsafe {
+            foo()
+        }
+    }
+
+    unconstrained fn foo() {
+        loop {}
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        &errors[0].0,
+        CompilationError::ResolverError(ResolverError::LoopWithoutBreak { .. })
+    ));
+}
+
+#[test]
+fn errors_on_loop_without_break() {
+    let src = r#"
+    fn main() {
+        /// Safety: test
+        unsafe {
+            foo()
+        }
+    }
+
+    unconstrained fn foo() {
+        let mut x = 1;
+        loop {
+            x += 1;
+            bar(x);
+        }
+    }
+
+    fn bar(_: Field) {}
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        &errors[0].0,
+        CompilationError::ResolverError(ResolverError::LoopWithoutBreak { .. })
+    ));
+}
+
+#[test]
+fn errors_on_loop_without_break_with_nested_loop() {
+    let src = r#"
+    fn main() {
+        /// Safety: test
+        unsafe {
+            foo()
+        }
+    }
+
+    unconstrained fn foo() {
+        let mut x = 1;
+        loop {
+            x += 1;
+            bar(x);
+            loop {
+                x += 2;
+                break;
+            }
+        }
+    }
+
+    fn bar(_: Field) {}
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        &errors[0].0,
+        CompilationError::ResolverError(ResolverError::LoopWithoutBreak { .. })
+    ));
 }

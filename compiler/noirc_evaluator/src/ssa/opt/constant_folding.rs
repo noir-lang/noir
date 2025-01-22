@@ -307,6 +307,7 @@ impl<'brillig> Context<'brillig> {
         let old_results = dfg.instruction_results(id).to_vec();
 
         // If a copy of this instruction exists earlier in the block, then reuse the previous results.
+        let runtime_is_brillig = dfg.runtime().is_brillig();
         if let Some(cache_result) =
             self.get_cached(dfg, dom, &instruction, *side_effects_enabled_var, block)
         {
@@ -314,7 +315,7 @@ impl<'brillig> Context<'brillig> {
                 CacheResult::Cached(cached) => {
                     // We track whether we may mutate MakeArray instructions before we deduplicate
                     // them but we still need to issue an extra inc_rc in case they're mutated afterward.
-                    if matches!(instruction, Instruction::MakeArray { .. }) {
+                    if runtime_is_brillig && matches!(instruction, Instruction::MakeArray { .. }) {
                         let value = *cached.last().unwrap();
                         let inc_rc = Instruction::IncrementRc { value };
                         let call_stack = dfg.get_instruction_call_stack_id(id);
@@ -422,14 +423,18 @@ impl<'brillig> Context<'brillig> {
             .then(|| vecmap(old_results, |result| dfg.type_of_value(*result)));
 
         let call_stack = dfg.get_instruction_call_stack_id(id);
-        let new_results =
-            match dfg.insert_instruction_and_results(instruction, block, ctrl_typevars, call_stack)
-            {
-                InsertInstructionResult::SimplifiedTo(new_result) => vec![new_result],
-                InsertInstructionResult::SimplifiedToMultiple(new_results) => new_results,
-                InsertInstructionResult::Results(_, new_results) => new_results.to_vec(),
-                InsertInstructionResult::InstructionRemoved => vec![],
-            };
+        let new_results = match dfg.insert_instruction_and_results_if_simplified(
+            instruction,
+            block,
+            ctrl_typevars,
+            call_stack,
+            Some(id),
+        ) {
+            InsertInstructionResult::SimplifiedTo(new_result) => vec![new_result],
+            InsertInstructionResult::SimplifiedToMultiple(new_results) => new_results,
+            InsertInstructionResult::Results(_, new_results) => new_results.to_vec(),
+            InsertInstructionResult::InstructionRemoved => vec![],
+        };
         // Optimizations while inserting the instruction should not change the number of results.
         assert_eq!(old_results.len(), new_results.len());
 

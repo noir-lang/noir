@@ -761,8 +761,7 @@ mod tests {
     }
 
     comptime fn times_two(expr: Expr) -> Option<Expr> {
-        expr.as_integer().and_then(|integer: (Field, bool)| {
-            let (value, _) = integer;
+        expr.as_integer().and_then(|(value, _)| {
             let value = value * 2;
             quote { $value }.as_expr()
         })
