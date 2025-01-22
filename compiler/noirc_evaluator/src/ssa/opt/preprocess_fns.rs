@@ -1,8 +1,8 @@
 //! Pre-process functions before inlining them into others.
 
-use crate::ssa::Ssa;
+use crate::ssa::{ir::function::FunctionId, Ssa};
 
-use super::inlining;
+use super::inlining::{self, PerFunctionContext};
 
 impl Ssa {
     /// Run pre-processing steps on functions in isolation.
@@ -34,7 +34,17 @@ impl Ssa {
             }
             let function = &self.functions[&id];
             // Start with an inline pass.
-            let mut function = function.inlined(&self, false, &inline_infos);
+            let should_inline_call =
+                |_context: &PerFunctionContext, ssa: &Ssa, called_func_id: FunctionId| -> bool {
+                    function.should_inline_call(
+                        ssa,
+                        called_func_id,
+                        false, // inline_no_predicates_functions
+                        &inline_infos,
+                    )
+                };
+
+            let mut function = function.inlined(&self, &should_inline_call);
             // Help unrolling determine bounds.
             function.as_slice_optimization();
             // Prepare for unrolling

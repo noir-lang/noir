@@ -68,8 +68,16 @@ impl Ssa {
         // instead of inlining the "leaf" functions, moving up towards the entry point.
         self.functions = btree_map(inline_targets, |entry_point| {
             let function = &self.functions[&entry_point];
-            let new_function =
-                function.inlined(&self, inline_no_predicates_functions, inline_infos);
+            let should_inline_call =
+                |_context: &PerFunctionContext, ssa: &Ssa, called_func_id: FunctionId| -> bool {
+                    function.should_inline_call(
+                        ssa,
+                        called_func_id,
+                        inline_no_predicates_functions,
+                        inline_infos,
+                    )
+                };
+            let new_function = function.inlined(&self, &should_inline_call);
             (entry_point, new_function)
         });
         self
@@ -81,47 +89,47 @@ impl Function {
     pub(super) fn inlined(
         &self,
         ssa: &Ssa,
+        should_inline_call: &impl Fn(&PerFunctionContext, &Ssa, FunctionId) -> bool,
+    ) -> Function {
+        InlineContext::new(ssa, self.id()).inline_all(ssa, &should_inline_call)
+    }
+
+    /// Generic function that determines whether a function should inline a call.
+    pub(super) fn should_inline_call(
+        &self,
+        ssa: &Ssa,
+        called_func_id: FunctionId,
         inline_no_predicates_functions: bool,
         inline_infos: &InlineInfos,
-    ) -> Function {
-        let caller_runtime = self.runtime();
+    ) -> bool {
+        // Do not inline self-recursive functions on the top level.
+        // Inlining a self-recursive function works when there is something to inline into
+        // by importing all the recursive blocks, but for the entry function there is no wrapper.
+        if called_func_id == self.id() {
+            return false;
+        }
+        let callee = &ssa.functions[&called_func_id];
 
-        let should_inline_call =
-            |_context: &PerFunctionContext, ssa: &Ssa, called_func_id: FunctionId| -> bool {
-                // Do not inline self-recursive functions on the top level.
-                // Inlining a self-recursive function works when there is something to inline into
-                // by importing all the recursive blocks, but for the entry function there is no wrapper.
-                if called_func_id == self.id() {
+        match callee.runtime() {
+            RuntimeType::Acir(inline_type) => {
+                // If the called function is acir, we inline if it's not an entry point
+
+                // If we have not already finished the flattening pass, functions marked
+                // to not have predicates should be preserved.
+                let preserve_function =
+                    !inline_no_predicates_functions && callee.is_no_predicates();
+
+                !inline_type.is_entry_point() && !preserve_function
+            }
+            RuntimeType::Brillig(_) => {
+                if self.runtime().is_acir() {
+                    // We never inline a brillig function into an ACIR function.
                     return false;
                 }
-                let callee = &ssa.functions[&called_func_id];
-
-                match callee.runtime() {
-                    RuntimeType::Acir(inline_type) => {
-                        // If the called function is acir, we inline if it's not an entry point
-
-                        // If we have not already finished the flattening pass, functions marked
-                        // to not have predicates should be preserved.
-                        let preserve_function =
-                            !inline_no_predicates_functions && callee.is_no_predicates();
-
-                        !inline_type.is_entry_point() && !preserve_function
-                    }
-                    RuntimeType::Brillig(_) => {
-                        if caller_runtime.is_acir() {
-                            // We never inline a brillig function into an ACIR function.
-                            return false;
-                        }
-                        // We inline inline if the function called wasn't ruled out as too costly or recursive.
-                        inline_infos
-                            .get(&called_func_id)
-                            .map(|info| info.should_inline)
-                            .unwrap_or_default()
-                    }
-                }
-            };
-
-        InlineContext::new(ssa, self.id()).inline_all(ssa, &should_inline_call)
+                // We inline inline if the function called wasn't ruled out as too costly or recursive.
+                inline_infos.get(&called_func_id).map(|info| info.should_inline).unwrap_or_default()
+            }
+        }
     }
 }
 
@@ -145,7 +153,7 @@ struct InlineContext {
 /// layer to translate between BlockId to BlockId for the current function and the function to
 /// inline into. The same goes for ValueIds, InstructionIds, and for storing other data like
 /// parameter to argument mappings.
-struct PerFunctionContext<'function> {
+pub(crate) struct PerFunctionContext<'function> {
     /// The source function is the function we're currently inlining into the function being built.
     source_function: &'function Function,
 
@@ -205,7 +213,7 @@ pub(super) struct InlineInfo {
     is_brillig_entry_point: bool,
     is_acir_entry_point: bool,
     is_recursive: bool,
-    should_inline: bool,
+    pub(super) should_inline: bool,
     weight: i64,
     cost: i64,
 }
@@ -519,7 +527,7 @@ fn mark_brillig_functions_to_retain(
     inline_no_predicates_functions: bool,
     aggressiveness: i64,
     times_called: &HashMap<FunctionId, usize>,
-    inline_infos: &mut BTreeMap<FunctionId, InlineInfo>,
+    inline_infos: &mut InlineInfos,
 ) {
     let brillig_entry_points = inline_infos
         .iter()
