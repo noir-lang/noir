@@ -122,6 +122,9 @@ struct InlineContext {
 /// inline into. The same goes for ValueIds, InstructionIds, and for storing other data like
 /// parameter to argument mappings.
 struct PerFunctionContext<'function> {
+    /// The function that we are inlining calls into.
+    entry_function: &'function Function,
+
     /// The source function is the function we're currently inlining into the function being built.
     source_function: &'function Function,
 
@@ -558,7 +561,8 @@ impl InlineContext {
     ) -> Function {
         let entry_point = &ssa.functions[&self.entry_point];
 
-        let mut context = PerFunctionContext::new(&mut self, entry_point, &ssa.globals);
+        let mut context =
+            PerFunctionContext::new(&mut self, entry_point, entry_point, &ssa.globals);
         context.inlining_entry = true;
 
         for (_, value) in entry_point.dfg.globals.values_iter() {
@@ -609,7 +613,8 @@ impl InlineContext {
             );
         }
 
-        let mut context = PerFunctionContext::new(self, source_function, &ssa.globals);
+        let entry_point = &ssa.functions[&self.entry_point];
+        let mut context = PerFunctionContext::new(self, entry_point, source_function, &ssa.globals);
 
         let parameters = source_function.parameters();
         assert_eq!(parameters.len(), arguments.len());
@@ -631,11 +636,13 @@ impl<'function> PerFunctionContext<'function> {
     /// the arguments of the destination function.
     fn new(
         context: &'function mut InlineContext,
+        entry_function: &'function Function,
         source_function: &'function Function,
         globals: &'function Function,
     ) -> Self {
         Self {
             context,
+            entry_function,
             source_function,
             blocks: HashMap::default(),
             values: HashMap::default(),
@@ -880,7 +887,7 @@ impl<'function> PerFunctionContext<'function> {
         // Do not inline self-recursive functions on the top level.
         // Inlining a self-recursive function works when there is something to inline into
         // by importing all the recursive blocks, but for the entry function there is no wrapper.
-        if self.source_function.id() == called_func_id {
+        if self.entry_function.id() == called_func_id {
             return None;
         }
 
@@ -894,7 +901,7 @@ impl<'function> PerFunctionContext<'function> {
                 }
             }
             RuntimeType::Brillig(_) => {
-                if self.source_function.runtime().is_acir() {
+                if self.entry_function.runtime().is_acir() {
                     // We never inline a brillig function into an ACIR function.
                     return None;
                 }
