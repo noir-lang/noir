@@ -117,14 +117,20 @@ pub(crate) struct GlobalsGraph {
     /// All of the instructions in the global value space.
     /// These are expected to all be Instruction::MakeArray
     instructions: DenseMap<Instruction>,
-
     #[serde_as(as = "HashMap<DisplayFromStr, _>")]
     results: HashMap<InstructionId, smallvec::SmallVec<[ValueId; 1]>>,
+    #[serde(skip)]
+    constants: HashMap<(FieldElement, NumericType), ValueId>,
 }
 
 impl GlobalsGraph {
     pub(crate) fn from_dfg(dfg: DataFlowGraph) -> Self {
-        Self { values: dfg.values, instructions: dfg.instructions, results: dfg.results }
+        Self {
+            values: dfg.values,
+            instructions: dfg.instructions,
+            results: dfg.results,
+            constants: dfg.constants,
+        }
     }
 
     /// Iterate over every Value in this DFG in no particular order, including unused Values
@@ -399,6 +405,9 @@ impl DataFlowGraph {
     /// one already exists.
     pub(crate) fn make_constant(&mut self, constant: FieldElement, typ: NumericType) -> ValueId {
         if let Some(id) = self.constants.get(&(constant, typ)) {
+            return *id;
+        }
+        if let Some(id) = self.globals.constants.get(&(constant, typ)) {
             return *id;
         }
         let id = self.values.insert(Value::NumericConstant { constant, typ });
