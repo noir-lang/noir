@@ -1,7 +1,7 @@
 //! Pre-process functions before inlining them into others.
 
 use crate::ssa::{
-    ir::function::{FunctionId, RuntimeType},
+    ir::function::{Function, RuntimeType},
     Ssa,
 };
 
@@ -37,8 +37,7 @@ impl Ssa {
             }
             let function = &self.functions[&id];
             // Start with an inline pass.
-            let should_inline_call = |ssa: &Ssa, called_func_id: FunctionId| -> bool {
-                let callee = &ssa.functions[&called_func_id];
+            let should_inline_call = |callee: &Function| -> bool {
                 match callee.runtime() {
                     RuntimeType::Acir(_) => {
                         // Functions marked to not have predicates should be preserved.
@@ -46,7 +45,7 @@ impl Ssa {
                     }
                     RuntimeType::Brillig(_) => {
                         // We inline inline if the function called wasn't ruled out as too costly or recursive.
-                        InlineInfo::should_inline(&inline_infos, called_func_id)
+                        InlineInfo::should_inline(&inline_infos, callee.id())
                     }
                 }
             };
