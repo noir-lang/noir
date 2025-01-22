@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737547841799,
+  "lastUpdate": 1737547843628,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -9167,6 +9167,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "workspace",
             "value": 123.87,
+            "unit": "MB"
+          },
+          {
+            "name": "regression_4709",
+            "value": 315.98,
+            "unit": "MB"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 512.6,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 498.93,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 473.62,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1230,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 498.94,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 730.79,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 591.19,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 181,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 245.61,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 208,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b00facbbf9f9ec2b4d8887155770c6b288a7bb60",
+          "message": "fix(ssa): Use post order when mapping instructions in loop invariant pass (#7140)\n\nCo-authored-by: Tom French <tom@tomfren.ch>",
+          "timestamp": "2025-01-22T11:49:33Z",
+          "tree_id": "91c0af82e08eb3d5dacb550354ed461744d8d380",
+          "url": "https://github.com/noir-lang/noir/commit/b00facbbf9f9ec2b4d8887155770c6b288a7bb60"
+        },
+        "date": 1737547842994,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "keccak256",
+            "value": 74.69,
+            "unit": "MB"
+          },
+          {
+            "name": "workspace",
+            "value": 123.85,
             "unit": "MB"
           },
           {
