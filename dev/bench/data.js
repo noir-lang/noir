@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737575835085,
+  "lastUpdate": 1737575845805,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -10621,6 +10621,95 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/d3ca3b711d358e0ac98410121d3c798b9327523b"
         },
         "date": 1737574975033,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "keccak256",
+            "value": 74.69,
+            "unit": "MB"
+          },
+          {
+            "name": "workspace",
+            "value": 123.91,
+            "unit": "MB"
+          },
+          {
+            "name": "regression_4709",
+            "value": 315.98,
+            "unit": "MB"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 512.6,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 498.94,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 473.62,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1250,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 498.95,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 730.82,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 591.22,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 181,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 245.61,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 209.07,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1f1e7508e024d187c6a69501e7459a613e381b4a",
+          "message": "feat: LSP autocomplete module declaration (#7154)",
+          "timestamp": "2025-01-22T19:34:01Z",
+          "tree_id": "ea3bff10f396f822d7f84172373a6080684f5439",
+          "url": "https://github.com/noir-lang/noir/commit/1f1e7508e024d187c6a69501e7459a613e381b4a"
+        },
+        "date": 1737575845161,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
