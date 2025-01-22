@@ -19,6 +19,10 @@ impl PathString {
     pub fn from_path(p: PathBuf) -> Self {
         PathString(p)
     }
+
+    pub fn into_path_buf(self) -> PathBuf {
+        self.0
+    }
 }
 impl From<PathBuf> for PathString {
     fn from(pb: PathBuf) -> PathString {
@@ -82,7 +86,7 @@ impl FileMap {
     }
 
     pub fn get_name(&self, file_id: FileId) -> Result<PathString, Error> {
-        let name = self.files.get(file_id.as_usize())?.name().clone();
+        let name = self.get_absolute_name(file_id)?;
 
         // See if we can make the file name a bit shorter/easier to read if it starts with the current directory
         if let Some(current_dir) = &self.current_dir {
@@ -91,6 +95,11 @@ impl FileMap {
             }
         }
 
+        Ok(name)
+    }
+
+    pub fn get_absolute_name(&self, file_id: FileId) -> Result<PathString, Error> {
+        let name = self.files.get(file_id.as_usize())?.name().clone();
         Ok(name)
     }
 }
