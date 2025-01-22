@@ -448,12 +448,14 @@ impl DataType {
         self.body = TypeBody::Struct(fields);
     }
 
-    /// To account for cyclic references between structs, a struct's
-    /// fields are resolved strictly after the struct itself is initially
-    /// created. Therefore, this method is used to set the fields once they
-    /// become known.
-    pub(crate) fn set_variants(&mut self, variants: Vec<EnumVariant>) {
-        self.body = TypeBody::Enum(variants);
+    pub(crate) fn push_variant(&mut self, variant: EnumVariant) {
+        match &mut self.body {
+            TypeBody::None => {
+                self.body = TypeBody::Enum(vec![variant]);
+            }
+            TypeBody::Enum(variants) => variants.push(variant),
+            TypeBody::Struct(_) => panic!("Called push_variant on a non-variant type {self}"),
+        }
     }
 
     pub fn is_struct(&self) -> bool {
@@ -616,6 +618,19 @@ impl DataType {
         let generics = self.generic_types();
         let ret = Box::new(Type::DataType(this, generics));
         Type::Function(args, ret, Box::new(Type::Unit), false)
+    }
+
+    /// Returns the function type of the variant at the given index of this enum.
+    /// Requires the `Shared<DataType>` handle of self to create the given function type.
+    /// Panics if this is not an enum.
+    pub fn variant_function_type_with_forall(
+        &self,
+        variant_index: usize,
+        this: Shared<DataType>,
+    ) -> Type {
+        let function_type = self.variant_function_type(variant_index, this);
+        let typevars = vecmap(&self.generics, |generic| generic.type_var.clone());
+        Type::Forall(typevars, Box::new(function_type))
     }
 }
 

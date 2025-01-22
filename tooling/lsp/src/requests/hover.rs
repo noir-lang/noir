@@ -437,7 +437,7 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
         format_generics(&trait_.generics, &mut string);
 
         true
-    } else if let Some(struct_id) = func_meta.struct_id {
+    } else if let Some(struct_id) = func_meta.type_id {
         let struct_type = args.interner.get_type(struct_id);
         let struct_type = struct_type.borrow();
         if formatted_parent_module {

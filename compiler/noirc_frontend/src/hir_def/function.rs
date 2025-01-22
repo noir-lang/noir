@@ -132,8 +132,8 @@ pub struct FuncMeta {
 
     pub trait_constraints: Vec<TraitConstraint>,
 
-    /// The struct this function belongs to, if any
-    pub struct_id: Option<TypeId>,
+    /// The type this method belongs to, if any
+    pub type_id: Option<TypeId>,
 
     // The trait this function belongs to, if any
     pub trait_id: Option<TraitId>,

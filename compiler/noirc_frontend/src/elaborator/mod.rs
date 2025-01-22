@@ -7,7 +7,7 @@ use crate::{
     ast::{
         BlockExpression, FunctionKind, GenericTypeArgs, Ident, NoirFunction, NoirStruct, Param,
         Path, Pattern, TraitBound, UnresolvedGeneric, UnresolvedGenerics,
-        UnresolvedTraitConstraint, UnresolvedTypeData, UnsupportedNumericGenericType,
+        UnresolvedTraitConstraint, UnresolvedTypeData, UnsupportedNumericGenericType, Visibility,
     },
     graph::CrateId,
     hir::{
@@ -997,7 +997,7 @@ impl<'context> Elaborator<'context> {
             typ,
             direct_generics,
             all_generics: self.generics.clone(),
-            struct_id,
+            type_id: struct_id,
             trait_id,
             trait_impl: self.current_trait_impl,
             parameters: parameters.into(),
@@ -1623,7 +1623,7 @@ impl<'context> Elaborator<'context> {
             return false;
         }
         // Public struct functions should not expose private types.
-        if let Some(struct_visibility) = func_meta.struct_id.and_then(|id| {
+        if let Some(struct_visibility) = func_meta.type_id.and_then(|id| {
             let struct_def = self.get_type(id);
             let struct_def = struct_def.borrow();
             self.find_struct_visibility(&struct_def)
@@ -1813,11 +1813,15 @@ impl<'context> Elaborator<'context> {
             self.file = typ.file_id;
             self.local_module = typ.module_id;
 
-            let mut variants = Vec::with_capacity(typ.enum_def.variants.len());
-
             let datatype = self.interner.get_type(*type_id);
             let generics = datatype.borrow().generic_types();
-            let self_type = Type::DataType(datatype, generics);
+
+            let self_type = Type::DataType(datatype.clone(), generics);
+            let self_type_id = self.interner.push_quoted_type(self_type.clone());
+            let unresolved = UnresolvedType {
+                typ: UnresolvedTypeData::Resolved(self_type_id),
+                span: typ.enum_def.span,
+            };
 
             for (i, variant) in typ.enum_def.variants.iter().enumerate() {
                 self.interner.add_definition_location(ReferenceId::EnumVariant(*type_id, i), None);
@@ -1826,16 +1830,52 @@ impl<'context> Elaborator<'context> {
 
                 let name = variant.item.name.clone();
                 let name_string = name.to_string();
-                variants.push(EnumVariant::new(name.clone(), types));
+                datatype.borrow_mut().push_variant(EnumVariant::new(name.clone(), types));
+                let datatype_ref = datatype.borrow();
+
+                let location = Location::new(variant.item.name.span(), self.file);
 
                 let id = self.interner.push_empty_fn();
 
+                let kind = DefinitionKind::Function(id);
+                let definition_id = self.interner.push_definition(
+                    name_string.clone(),
+                    false,
+                    false,
+                    kind,
+                    location,
+                );
+
+                let name = HirIdent::non_trait_method(definition_id, location);
+
+                let meta = FuncMeta {
+                    name,
+                    kind: FunctionKind::Builtin,
+                    parameters: crate::hir_def::function::Parameters(Vec::new()),
+                    parameter_idents: Vec::new(),
+                    return_type: crate::ast::FunctionReturnType::Ty(unresolved.clone()),
+                    return_visibility: Visibility::Private,
+                    typ: datatype_ref.variant_function_type_with_forall(i, datatype.clone()),
+                    direct_generics: datatype_ref.generics.clone(),
+                    all_generics: datatype_ref.generics.clone(),
+                    location,
+                    has_body: false,
+                    trait_constraints: Vec::new(),
+                    type_id: Some(*type_id),
+                    trait_id: None,
+                    trait_impl: None,
+                    is_entry_point: false,
+                    has_inline_attribute: false,
+                    function_body: FunctionBody::Resolved,
+                    source_crate: self.crate_id,
+                    source_module: self.local_module,
+                    source_file: self.file,
+                    self_type: None,
+                };
+
+                self.interner.push_fn_meta(meta, id);
                 self.interner.add_method(&self_type, name_string, id, None);
             }
-
-            self.interner.update_type(*type_id, |type_def| {
-                type_def.set_variants(variants);
-            });
         }
     }
 
