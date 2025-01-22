@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737574971863,
+  "lastUpdate": 1737574976381,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -10320,6 +10320,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 208,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d3ca3b711d358e0ac98410121d3c798b9327523b",
+          "message": "feat(ssa): Reuse constants from the globals graph when making constants in a function DFG (#7153)",
+          "timestamp": "2025-01-22T19:19:13Z",
+          "tree_id": "fe55f22789200a5f50109451939bdfe6aa1fe15d",
+          "url": "https://github.com/noir-lang/noir/commit/d3ca3b711d358e0ac98410121d3c798b9327523b"
+        },
+        "date": 1737574975033,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "keccak256",
+            "value": 74.69,
+            "unit": "MB"
+          },
+          {
+            "name": "workspace",
+            "value": 123.91,
+            "unit": "MB"
+          },
+          {
+            "name": "regression_4709",
+            "value": 315.98,
+            "unit": "MB"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 512.6,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 498.94,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 473.62,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1250,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 498.95,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 730.82,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 591.22,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 181,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 245.61,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 209.07,
             "unit": "MB"
           }
         ]
