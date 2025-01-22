@@ -363,7 +363,8 @@ impl DependencyContext {
             }
 
             // Start tracking calls when their argument value ids first appear,
-            // or when their instruction id comes up
+            // or when their instruction id comes up (in case there were
+            // no non-constant arguments)
             for argument in &arguments {
                 if let Some(calls) = self.call_arguments.get(argument) {
                     for call in calls {
@@ -530,34 +531,41 @@ impl DependencyContext {
 
     /// Update sets of value ids that can be traced back to the Brillig calls being tracked
     fn update_children(&mut self, parents: &[ValueId], children: &[ValueId]) {
-        let mut parents: HashSet<_> = HashSet::from_iter(parents.iter().copied());
+        // Don't update sets for the calls not yet being tracked
+        let mut tracked =
+            self.tainted.iter_mut().filter(|(_, tainted_ids)| tainted_ids.tracking).peekable();
+        if tracked.peek().is_some() {
+            let mut parents: HashSet<_> = HashSet::from_iter(parents.iter().copied());
 
-        // Also include the current EnableSideEffectsIf condition in parents
-        // (as it would affect every following statement)
-        self.side_effects_condition.map(|v| parents.insert(v));
+            // Also include the current EnableSideEffectsIf condition in parents
+            // (as it would affect every following statement)
+            self.side_effects_condition.map(|v| parents.insert(v));
 
-        for (_, tainted_ids) in self.tainted.iter_mut() {
-            // Don't update sets for the calls not yet being tracked
-            if tainted_ids.tracking {
+            tracked.for_each(|(_, tainted_ids)| {
                 tainted_ids.update_children(&parents, children);
-            }
+            });
         }
     }
 
     /// Check if any of the recorded Brillig calls have been properly constrained
     /// by given values after recording partial constraints, if so stop tracking them
     fn clear_constrained(&mut self, constrained_values: &[ValueId], function: &Function) {
-        // Remove numeric constants
-        let constrained_values: HashSet<_> = constrained_values
-            .iter()
-            .filter(|v| function.dfg.get_numeric_constant(**v).is_none())
-            .copied()
-            .collect();
+        // Skip untracked calls
+        let mut tracked =
+            self.tainted.iter_mut().filter(|(_, tainted_ids)| tainted_ids.tracking).peekable();
+        if tracked.peek().is_some() {
+            // Remove numeric constants
+            let constrained_values: HashSet<_> = constrained_values
+                .iter()
+                .filter(|v| function.dfg.get_numeric_constant(**v).is_none())
+                .copied()
+                .collect();
 
-        self.tainted.iter_mut().for_each(|(_, tainted_ids)| {
-            tainted_ids.store_partial_constraints(&constrained_values);
-        });
-        self.tainted.retain(|_, tainted_ids| !tainted_ids.check_constrained());
+            tracked.for_each(|(_, tainted_ids)| {
+                tainted_ids.store_partial_constraints(&constrained_values);
+            });
+            self.tainted.retain(|_, tainted_ids| !tainted_ids.check_constrained());
+        }
     }
 
     /// Process ArrayGet instruction for tracked Brillig calls
@@ -570,12 +578,17 @@ impl DependencyContext {
     ) {
         use acvm::acir::AcirField;
 
-        // Only allow numeric constant indices
-        if let Some(value) = function.dfg.get_numeric_constant(index) {
-            if let Some(index) = value.try_to_u32() {
-                self.tainted.iter_mut().for_each(|(_, tainted_ids)| {
-                    tainted_ids.process_array_get(array, index as usize, element_results);
-                });
+        // Skip untracked calls
+        let mut tracked =
+            self.tainted.iter_mut().filter(|(_, tainted_ids)| tainted_ids.tracking).peekable();
+        if tracked.peek().is_some() {
+            // Only allow numeric constant indices
+            if let Some(value) = function.dfg.get_numeric_constant(index) {
+                if let Some(index) = value.try_to_u32() {
+                    tracked.for_each(|(_, tainted_ids)| {
+                        tainted_ids.process_array_get(array, index as usize, element_results);
+                    });
+                }
             }
         }
     }
