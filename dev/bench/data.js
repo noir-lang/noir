@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737549636745,
+  "lastUpdate": 1737549870417,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -9434,6 +9434,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "workspace",
             "value": 123.85,
+            "unit": "MB"
+          },
+          {
+            "name": "regression_4709",
+            "value": 315.98,
+            "unit": "MB"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 512.6,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 498.93,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 473.62,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1230,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 498.94,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 730.79,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 591.19,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 181,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 245.61,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 208,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "02056d6a3ca2932a0062552859195a4e3b11f9dc",
+          "message": "chore: turn on overflow checks in CI rust tests (#7145)",
+          "timestamp": "2025-01-22T12:18:33Z",
+          "tree_id": "0721146e27afd7e06fe16c467aede3f520f2259c",
+          "url": "https://github.com/noir-lang/noir/commit/02056d6a3ca2932a0062552859195a4e3b11f9dc"
+        },
+        "date": 1737549869722,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "keccak256",
+            "value": 74.69,
+            "unit": "MB"
+          },
+          {
+            "name": "workspace",
+            "value": 123.97,
             "unit": "MB"
           },
           {
