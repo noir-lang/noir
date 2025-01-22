@@ -1,8 +1,11 @@
 //! Pre-process functions before inlining them into others.
 
-use crate::ssa::{ir::function::FunctionId, Ssa};
+use crate::ssa::{
+    ir::function::{FunctionId, RuntimeType},
+    Ssa,
+};
 
-use super::inlining;
+use super::inlining::{self, InlineInfo};
 
 impl Ssa {
     /// Run pre-processing steps on functions in isolation.
@@ -35,12 +38,17 @@ impl Ssa {
             let function = &self.functions[&id];
             // Start with an inline pass.
             let should_inline_call = |ssa: &Ssa, called_func_id: FunctionId| -> bool {
-                function.should_inline_call(
-                    ssa,
-                    called_func_id,
-                    false, // inline_no_predicates_functions
-                    &inline_infos,
-                )
+                let callee = &ssa.functions[&called_func_id];
+                match callee.runtime() {
+                    RuntimeType::Acir(_) => {
+                        // Functions marked to not have predicates should be preserved.
+                        !callee.is_no_predicates()
+                    }
+                    RuntimeType::Brillig(_) => {
+                        // We inline inline if the function called wasn't ruled out as too costly or recursive.
+                        InlineInfo::should_inline(&inline_infos, called_func_id)
+                    }
+                }
             };
 
             let mut function = function.inlined(&self, &should_inline_call);
