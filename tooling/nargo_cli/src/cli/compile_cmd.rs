@@ -325,7 +325,6 @@ pub(crate) fn get_target_width(
 #[cfg(test)]
 mod tests {
     use std::{
-        fmt::Write,
         path::{Path, PathBuf},
         str::FromStr,
     };
@@ -417,16 +416,10 @@ mod tests {
                     None,
                 )
                 .unwrap_or_else(|err| {
-                    let error_string: String =
-                        err.iter().fold(String::new(), |mut output, diagnostic| {
-                            let _ = write!(
-                                output,
-                                "{}\n---\n",
-                                diagnostic_to_string(diagnostic, &file_manager)
-                            );
-                            output
-                        });
-                    panic!("Failed to compile:\n\n{}", error_string)
+                    for diagnostic in err {
+                        println!("{}", diagnostic_to_string(&diagnostic, &file_manager));
+                    }
+                    panic!("Failed to compile")
                 });
 
                 let width = get_target_width(package.expression_width, None);

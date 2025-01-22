@@ -129,9 +129,23 @@ impl Field {
     // docs:start:to_le_radix
     pub fn to_le_radix<let N: u32>(self: Self, radix: u32) -> [u8; N] {
         // Brillig does not need an immediate radix
-        if !crate::runtime::is_unconstrained() {
-            crate::assert_constant(radix);
-        }
+        // if !crate::runtime::is_unconstrained() {
+        static_assert(false, "hi!");
+        static_assert(radix == 256, "radix must be 256");
+
+        static_assert(
+            1 < radix,
+            "radix must be greater than 1",
+        );
+        static_assert(
+            radix <= 256,
+            "radix must be less than or equal to 256",
+        );
+        static_assert(
+            radix & (radix - 1) == 0,
+            "radix must be a power of 2",
+        );
+        // }
         self.__to_le_radix(radix)
     }
     // docs:end:to_le_radix
@@ -201,10 +215,6 @@ impl Field {
     /// Convert a big endian byte array to a field element.
     /// If the provided byte array overflows the field modulus then the Field will silently wrap around.
     pub fn from_be_bytes<let N: u32>(bytes: [u8; N]) -> Field {
-        static_assert(
-            N <= modulus_le_bytes().len(),
-            "N must be less than or equal to modulus_le_bytes().len()",
-        );
         let mut v = 1;
         let mut result = 0;
 
@@ -341,6 +351,27 @@ mod tests {
         assert_eq(Field::from_le_bytes::<8>(bytes), field);
     }
     // docs:end:to_le_radix_example
+
+    #[test]
+    fn test_to_le_radix_1() {
+        assert(!crate::runtime::is_unconstrained(), "expected this test to be run constrained");
+        let field = 2;
+        let _: [u8; 8] = field.to_le_radix(1);
+    }
+
+    #[test]
+    fn test_to_le_radix_3() {
+        assert(!crate::runtime::is_unconstrained(), "expected this test to be run constrained");
+        let field = 2;
+        let _: [u8; 8] = field.to_le_radix(3);
+    }
+
+    #[test]
+    fn test_to_le_radix_257() {
+        assert(!crate::runtime::is_unconstrained(), "expected this test to be run constrained");
+        let field = 2;
+        let _: [u8; 8] = field.to_le_radix(257);
+    }
 
     #[test]
     unconstrained fn test_field_less_than() {
