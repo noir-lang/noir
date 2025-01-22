@@ -25,8 +25,8 @@ impl Ssa {
     pub(crate) fn normalize_ids(&mut self) {
         let mut context = Context::default();
         context.populate_functions(&self.functions);
+        let globals = (*self.functions[&self.main_id].dfg.globals).clone();
         for function in self.functions.values_mut() {
-            let globals = (*function.dfg.globals).clone();
             context.normalize_ids(function, &globals);
         }
         self.functions = context.functions.into_btree();
