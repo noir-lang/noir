@@ -26,20 +26,14 @@ impl Ssa {
     /// This step should come after the flattening of the CFG and mem2reg.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn dead_instruction_elimination(self) -> Ssa {
-        self.dead_instruction_elimination_inner(true, false)
+        self.dead_instruction_elimination_inner(true)
     }
 
-    fn dead_instruction_elimination_inner(
-        mut self,
-        flattened: bool,
-        keep_rcs_of_parameters: bool,
-    ) -> Ssa {
+    fn dead_instruction_elimination_inner(mut self, flattened: bool) -> Ssa {
         let mut used_global_values: HashSet<_> = self
             .functions
             .par_iter_mut()
-            .flat_map(|(_, func)| {
-                func.dead_instruction_elimination(true, flattened, keep_rcs_of_parameters)
-            })
+            .flat_map(|(_, func)| func.dead_instruction_elimination(true, flattened))
             .collect();
 
         let globals = &self.functions[&self.main_id].dfg.globals;
@@ -75,7 +69,6 @@ impl Function {
         &mut self,
         insert_out_of_bounds_checks: bool,
         flattened: bool,
-        keep_rcs_of_parameters: bool,
     ) -> HashSet<ValueId> {
         let mut context = Context { flattened, ..Default::default() };
 
@@ -91,7 +84,6 @@ impl Function {
                 self,
                 *block,
                 insert_out_of_bounds_checks,
-                keep_rcs_of_parameters,
             );
         }
 
@@ -99,7 +91,7 @@ impl Function {
         // instructions (we don't want to remove those checks, or instructions that are
         // dependencies of those checks)
         if inserted_out_of_bounds_checks {
-            return self.dead_instruction_elimination(false, flattened, keep_rcs_of_parameters);
+            return self.dead_instruction_elimination(false, flattened);
         }
 
         context.remove_rc_instructions(&mut self.dfg);
@@ -148,7 +140,6 @@ impl Context {
         function: &mut Function,
         block_id: BasicBlockId,
         insert_out_of_bounds_checks: bool,
-        _keep_rcs_of_parameters: bool,
     ) -> bool {
         let block = &function.dfg[block_id];
         self.mark_terminator_values_as_used(function, block);

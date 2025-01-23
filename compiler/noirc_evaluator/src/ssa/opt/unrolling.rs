@@ -1035,7 +1035,7 @@ fn brillig_bytecode_size(
     simplify_between_unrolls(&mut temp);
 
     // This is to try to prevent hitting ICE.
-    temp.dead_instruction_elimination(false, true, false);
+    temp.dead_instruction_elimination(false, true);
 
     convert_ssa_function(&temp, false, globals).byte_code.len()
 }
