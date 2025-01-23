@@ -681,7 +681,7 @@ impl RcTracker {
                 // get rid of IncRCs arrays that can potentially be mutated outside.
                 for arg in arguments {
                     let typ = function.dfg.type_of_value(*arg);
-                    if matches!(&typ, Type::Array(_, _) | Type::Slice(_)) {
+                    if matches!(&typ, Type::Array(..) | Type::Slice(..)) {
                         self.mutated_array_types.insert(typ);
                     }
                 }
