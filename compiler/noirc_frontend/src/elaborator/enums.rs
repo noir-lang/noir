@@ -16,6 +16,7 @@ use crate::{
 use super::Elaborator;
 
 impl Elaborator<'_> {
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn define_enum_variant_function(
         &mut self,
         enum_: &NoirEnumeration,
@@ -47,7 +48,7 @@ impl Elaborator<'_> {
 
         let hir_name = HirIdent::non_trait_method(definition_id, location);
         let parameters = self.make_enum_variant_parameters(variant_arg_types, location);
-        self.push_enum_variant_function_body(id, &datatype, variant_index, &parameters, location);
+        self.push_enum_variant_function_body(id, datatype, variant_index, &parameters, location);
 
         let function_type =
             datatype_ref.variant_function_type_with_forall(variant_index, datatype.clone());

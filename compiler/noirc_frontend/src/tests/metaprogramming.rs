@@ -3,6 +3,7 @@ use noirc_errors::Spanned;
 use crate::{
     ast::Ident,
     hir::{
+        comptime::InterpreterError,
         def_collector::{
             dc_crate::CompilationError,
             errors::{DefCollectorErrorKind, DuplicateType},
@@ -24,6 +25,26 @@ fn comptime_let() {
     }"#;
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 0);
+}
+
+#[test]
+fn comptime_code_rejects_dynamic_variable() {
+    let src = r#"fn main(x: Field) {
+        comptime let my_var = (x - x) + 2;
+        assert_eq(my_var, 2);
+    }"#;
+    let errors = get_program_errors(src);
+
+    assert_eq!(errors.len(), 1);
+    match &errors[0].0 {
+        CompilationError::InterpreterError(InterpreterError::NonComptimeVarReferenced {
+            name,
+            ..
+        }) => {
+            assert_eq!(name, "x");
+        }
+        _ => panic!("expected an InterpreterError"),
+    }
 }
 
 #[test]

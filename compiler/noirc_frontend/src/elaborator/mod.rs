@@ -98,6 +98,11 @@ enum UnsafeBlockStatus {
     InUnsafeBlockWithConstrainedCalls,
 }
 
+pub struct Loop {
+    pub is_for: bool,
+    pub has_break: bool,
+}
+
 pub struct Elaborator<'context> {
     scopes: ScopeForest,
 
@@ -111,7 +116,7 @@ pub struct Elaborator<'context> {
     pub(crate) file: FileId,
 
     unsafe_block_status: UnsafeBlockStatus,
-    nested_loops: usize,
+    current_loop: Option<Loop>,
 
     /// Contains a mapping of the current struct or functions's generics to
     /// unique type variables if we're resolving a struct. Empty otherwise.
@@ -234,7 +239,7 @@ impl<'context> Elaborator<'context> {
             crate_graph,
             file: FileId::dummy(),
             unsafe_block_status: UnsafeBlockStatus::NotInUnsafeBlock,
-            nested_loops: 0,
+            current_loop: None,
             generics: Vec::new(),
             lambda_stack: Vec::new(),
             self_type: None,

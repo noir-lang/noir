@@ -272,7 +272,7 @@ impl<'context> Elaborator<'context> {
                 if !self.in_contract()
                     && self
                         .interner
-                        .struct_attributes(&data_type.borrow().id)
+                        .type_attributes(&data_type.borrow().id)
                         .iter()
                         .any(|attr| matches!(attr, SecondaryAttribute::Abi(_)))
                 {

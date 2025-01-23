@@ -4096,3 +4096,84 @@ fn error_with_duplicate_enum_variant() {
         CompilationError::ResolverError(ResolverError::UnusedItem { .. })
     ));
 }
+
+fn errors_on_empty_loop_no_break() {
+    let src = r#"
+    fn main() {
+        /// Safety: test
+        unsafe {
+            foo()
+        }
+    }
+
+    unconstrained fn foo() {
+        loop {}
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        &errors[0].0,
+        CompilationError::ResolverError(ResolverError::LoopWithoutBreak { .. })
+    ));
+}
+
+#[test]
+fn errors_on_loop_without_break() {
+    let src = r#"
+    fn main() {
+        /// Safety: test
+        unsafe {
+            foo()
+        }
+    }
+
+    unconstrained fn foo() {
+        let mut x = 1;
+        loop {
+            x += 1;
+            bar(x);
+        }
+    }
+
+    fn bar(_: Field) {}
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        &errors[0].0,
+        CompilationError::ResolverError(ResolverError::LoopWithoutBreak { .. })
+    ));
+}
+
+#[test]
+fn errors_on_loop_without_break_with_nested_loop() {
+    let src = r#"
+    fn main() {
+        /// Safety: test
+        unsafe {
+            foo()
+        }
+    }
+
+    unconstrained fn foo() {
+        let mut x = 1;
+        loop {
+            x += 1;
+            bar(x);
+            loop {
+                x += 2;
+                break;
+            }
+        }
+    }
+
+    fn bar(_: Field) {}
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        &errors[0].0,
+        CompilationError::ResolverError(ResolverError::LoopWithoutBreak { .. })
+    ));
+}

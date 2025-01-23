@@ -143,10 +143,7 @@ impl Function {
     }
 
     pub(crate) fn is_no_predicates(&self) -> bool {
-        match self.runtime() {
-            RuntimeType::Acir(inline_type) => matches!(inline_type, InlineType::NoPredicates),
-            RuntimeType::Brillig(_) => false,
-        }
+        self.runtime().is_no_predicates()
     }
 
     /// Retrieves the entry block of a function.

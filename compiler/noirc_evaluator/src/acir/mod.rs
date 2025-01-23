@@ -1334,7 +1334,7 @@ impl<'a> Context<'a> {
         typ: &Type,
     ) -> Result<AcirValue, RuntimeError> {
         match typ {
-            Type::Numeric(_) => self.array_get_value(&Type::field(), call_data_block, offset),
+            Type::Numeric(_) => self.array_get_value(typ, call_data_block, offset),
             Type::Array(arc, len) => {
                 let mut result = im::Vector::new();
                 for _i in 0..*len {
@@ -2896,7 +2896,7 @@ mod test {
     use std::collections::BTreeMap;
 
     use crate::{
-        acir::{BrilligStdlibFunc, Function},
+        acir::BrilligStdlibFunc,
         brillig::Brillig,
         ssa::{
             function_builder::FunctionBuilder,
@@ -3328,8 +3328,7 @@ mod test {
         build_basic_foo_with_return(&mut builder, foo_id, true, InlineType::default());
         build_basic_foo_with_return(&mut builder, bar_id, true, InlineType::default());
 
-        let mut ssa = builder.finish();
-        ssa.globals = Function::new("globals".to_owned(), ssa.main_id);
+        let ssa = builder.finish();
         let brillig = ssa.to_brillig(false);
 
         let (acir_functions, brillig_functions, _, _) = ssa
@@ -3467,8 +3466,7 @@ mod test {
 
         build_basic_foo_with_return(&mut builder, foo_id, true, InlineType::default());
 
-        let mut ssa = builder.finish();
-        ssa.globals = Function::new("globals".to_owned(), ssa.main_id);
+        let ssa = builder.finish();
         // We need to generate  Brillig artifacts for the regular Brillig function and pass them to the ACIR generation pass.
         let brillig = ssa.to_brillig(false);
         println!("{}", ssa);
@@ -3557,8 +3555,7 @@ mod test {
         // Build an ACIR function which has the same logic as the Brillig function above
         build_basic_foo_with_return(&mut builder, bar_id, false, InlineType::Fold);
 
-        let mut ssa = builder.finish();
-        ssa.globals = Function::new("globals".to_owned(), ssa.main_id);
+        let ssa = builder.finish();
         // We need to generate  Brillig artifacts for the regular Brillig function and pass them to the ACIR generation pass.
         let brillig = ssa.to_brillig(false);
         println!("{}", ssa);

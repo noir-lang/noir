@@ -87,7 +87,6 @@ enum IntermediatePathResolutionItem {
 
 pub(crate) type PathResolutionResult = Result<PathResolution, PathResolutionError>;
 
-#[derive(Debug)]
 enum MethodLookupResult {
     /// The method could not be found. There might be trait methods that could be imported,
     /// but none of them are.

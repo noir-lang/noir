@@ -46,7 +46,7 @@ pub enum StatementKind {
     Expression(Expression),
     Assign(AssignStatement),
     For(ForLoopStatement),
-    Loop(Expression),
+    Loop(Expression, Span /* loop keyword span */),
     Break,
     Continue,
     /// This statement should be executed at compile-time
@@ -308,6 +308,7 @@ pub struct ModuleDeclaration {
     pub visibility: ItemVisibility,
     pub ident: Ident,
     pub outer_attributes: Vec<SecondaryAttribute>,
+    pub has_semicolon: bool,
 }
 
 impl std::fmt::Display for ModuleDeclaration {
@@ -972,7 +973,7 @@ impl Display for StatementKind {
             StatementKind::Expression(expression) => expression.fmt(f),
             StatementKind::Assign(assign) => assign.fmt(f),
             StatementKind::For(for_loop) => for_loop.fmt(f),
-            StatementKind::Loop(block) => write!(f, "loop {}", block),
+            StatementKind::Loop(block, _) => write!(f, "loop {}", block),
             StatementKind::Break => write!(f, "break"),
             StatementKind::Continue => write!(f, "continue"),
             StatementKind::Comptime(statement) => write!(f, "comptime {}", statement.kind),

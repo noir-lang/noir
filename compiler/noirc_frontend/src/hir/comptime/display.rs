@@ -732,8 +732,8 @@ fn remove_interned_in_statement_kind(
             block: remove_interned_in_expression(interner, for_loop.block),
             ..for_loop
         }),
-        StatementKind::Loop(block) => {
-            StatementKind::Loop(remove_interned_in_expression(interner, block))
+        StatementKind::Loop(block, span) => {
+            StatementKind::Loop(remove_interned_in_expression(interner, block), span)
         }
         StatementKind::Comptime(statement) => {
             StatementKind::Comptime(Box::new(remove_interned_in_statement(interner, *statement)))

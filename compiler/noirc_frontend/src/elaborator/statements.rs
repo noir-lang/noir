@@ -24,7 +24,7 @@ use crate::{
     DataType, Type,
 };
 
-use super::{lints, Elaborator};
+use super::{lints, Elaborator, Loop};
 
 impl<'context> Elaborator<'context> {
     fn elaborate_statement_value(&mut self, statement: Statement) -> (HirStatement, Type) {
@@ -33,7 +33,7 @@ impl<'context> Elaborator<'context> {
             StatementKind::Constrain(constrain) => self.elaborate_constrain(constrain),
             StatementKind::Assign(assign) => self.elaborate_assign(assign),
             StatementKind::For(for_stmt) => self.elaborate_for(for_stmt),
-            StatementKind::Loop(block) => self.elaborate_loop(block, statement.span),
+            StatementKind::Loop(block, span) => self.elaborate_loop(block, span),
             StatementKind::Break => self.elaborate_jump(true, statement.span),
             StatementKind::Continue => self.elaborate_jump(false, statement.span),
             StatementKind::Comptime(statement) => self.elaborate_comptime_statement(*statement),
@@ -227,7 +227,9 @@ impl<'context> Elaborator<'context> {
         let (end_range, end_range_type) = self.elaborate_expression(end);
         let (identifier, block) = (for_loop.identifier, for_loop.block);
 
-        self.nested_loops += 1;
+        let old_loop = std::mem::take(&mut self.current_loop);
+
+        self.current_loop = Some(Loop { is_for: true, has_break: false });
         self.push_scope();
 
         // TODO: For loop variables are currently mutable by default since we haven't
@@ -261,7 +263,7 @@ impl<'context> Elaborator<'context> {
         let (block, _block_type) = self.elaborate_expression(block);
 
         self.pop_scope();
-        self.nested_loops -= 1;
+        self.current_loop = old_loop;
 
         let statement =
             HirStatement::For(HirForStatement { start_range, end_range, block, identifier });
@@ -279,13 +281,19 @@ impl<'context> Elaborator<'context> {
             self.push_err(ResolverError::LoopInConstrainedFn { span });
         }
 
-        self.nested_loops += 1;
+        let old_loop = std::mem::take(&mut self.current_loop);
+        self.current_loop = Some(Loop { is_for: false, has_break: false });
         self.push_scope();
 
         let (block, _block_type) = self.elaborate_expression(block);
 
         self.pop_scope();
-        self.nested_loops -= 1;
+
+        let last_loop =
+            std::mem::replace(&mut self.current_loop, old_loop).expect("Expected a loop");
+        if !last_loop.has_break {
+            self.push_err(ResolverError::LoopWithoutBreak { span });
+        }
 
         let statement = HirStatement::Loop(block);
 
@@ -298,7 +306,12 @@ impl<'context> Elaborator<'context> {
         if in_constrained_function {
             self.push_err(ResolverError::JumpInConstrainedFn { is_break, span });
         }
-        if self.nested_loops == 0 {
+
+        if let Some(current_loop) = &mut self.current_loop {
+            if is_break {
+                current_loop.has_break = true;
+            }
+        } else {
             self.push_err(ResolverError::JumpOutsideLoop { is_break, span });
         }
 
