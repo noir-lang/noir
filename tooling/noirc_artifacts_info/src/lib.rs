@@ -14,7 +14,7 @@ pub struct InfoReport {
 pub struct ProgramInfo {
     pub package_name: String,
     #[serde(skip)]
-    pub expression_width: ExpressionWidth,
+    pub expression_width: Option<ExpressionWidth>,
     pub functions: Vec<FunctionInfo>,
     #[serde(skip)]
     pub unconstrained_functions_opcodes: usize,
@@ -23,11 +23,16 @@ pub struct ProgramInfo {
 
 impl From<ProgramInfo> for Vec<Row> {
     fn from(program_info: ProgramInfo) -> Self {
+        let expression_width = if let Some(expression_width) = program_info.expression_width {
+            format!("{:?}", expression_width)
+        } else {
+            "N/A".to_string()
+        };
         let mut main = vecmap(program_info.functions, |function| {
             row![
                 Fm->format!("{}", program_info.package_name),
                 Fc->format!("{}", function.name),
-                format!("{:?}", program_info.expression_width),
+                format!("{}", expression_width),
                 Fc->format!("{}", function.opcodes),
                 Fc->format!("{}", program_info.unconstrained_functions_opcodes),
             ]
@@ -54,7 +59,7 @@ pub struct FunctionInfo {
 pub fn count_opcodes_and_gates_in_program(
     compiled_program: ProgramArtifact,
     package_name: String,
-    expression_width: ExpressionWidth,
+    expression_width: Option<ExpressionWidth>,
 ) -> ProgramInfo {
     let functions = compiled_program
         .bytecode

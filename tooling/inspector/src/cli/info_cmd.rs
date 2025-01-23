@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 
-use acir::circuit::ExpressionWidth;
 use clap::Args;
 use color_eyre::eyre;
 use noirc_artifacts::program::ProgramArtifact;
@@ -27,9 +26,7 @@ pub(crate) fn run(args: InfoCommand) -> eyre::Result<()> {
         .map(|s| s.to_string_lossy().to_string())
         .unwrap_or_else(|| "artifact".to_string());
 
-    let expression_width = ExpressionWidth::Unbounded;
-    let program_info =
-        count_opcodes_and_gates_in_program(artifact, package_name.to_string(), expression_width);
+    let program_info = count_opcodes_and_gates_in_program(artifact, package_name.to_string(), None);
 
     let info_report = InfoReport { programs: vec![program_info] };
     show_info_report(info_report, args.json);

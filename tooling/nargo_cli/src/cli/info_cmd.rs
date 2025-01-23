@@ -98,7 +98,7 @@ pub(crate) fn run(mut args: InfoCommand, config: NargoConfig) -> Result<(), CliE
                     args.compile_options.expression_width,
                 );
                 let package_name = package.name.to_string();
-                count_opcodes_and_gates_in_program(program, package_name, target_width)
+                count_opcodes_and_gates_in_program(program, package_name, Some(target_width))
             })
             .collect()
     };
@@ -166,7 +166,7 @@ fn profile_brillig_execution(
 
         program_info.push(ProgramInfo {
             package_name: package.name.to_string(),
-            expression_width,
+            expression_width: Some(expression_width),
             functions: vec![FunctionInfo { name: "main".to_string(), opcodes: 0 }],
             unconstrained_functions_opcodes: profiling_samples.len(),
             unconstrained_functions: vec![FunctionInfo {
