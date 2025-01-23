@@ -1813,9 +1813,11 @@ impl<'context> Elaborator<'context> {
         for (type_id, typ) in enums {
             self.file = typ.file_id;
             self.local_module = typ.module_id;
+            self.generics.clear();
 
             let datatype = self.interner.get_type(*type_id);
             let generics = datatype.borrow().generic_types();
+            self.add_existing_generics(&typ.enum_def.generics, &datatype.borrow().generics);
 
             let self_type = Type::DataType(datatype.clone(), generics);
             let self_type_id = self.interner.push_quoted_type(self_type.clone());
