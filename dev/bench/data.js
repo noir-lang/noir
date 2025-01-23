@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737648972015,
+  "lastUpdate": 1737656735401,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -9481,6 +9481,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-reset",
             "value": 0.315,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 0.068,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "b3a8f3953e5ceb48cdc534cb21ba638637c0ead7",
+          "message": "chore(refactor): Remove globals field on Ssa object and use only the shared globals graph (#7156)",
+          "timestamp": "2025-01-23T18:06:20Z",
+          "tree_id": "c0beba4ecb007ea9f6ca6ae1bb9465631d41e3f1",
+          "url": "https://github.com/noir-lang/noir/commit/b3a8f3953e5ceb48cdc534cb21ba638637c0ead7"
+        },
+        "date": 1737656734726,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 0.052,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.001,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 0.628,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.103,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.006,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 41.5,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 0.103,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1.2,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.452,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.019,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.31,
             "unit": "s"
           },
           {
