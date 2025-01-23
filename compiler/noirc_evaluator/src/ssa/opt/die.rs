@@ -1032,7 +1032,7 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
 
         // Even though these ACIR functions only have 1 block, we have not inlined and flattened anything yet.
-        let ssa = ssa.dead_instruction_elimination_inner(false, false);
+        let ssa = ssa.dead_instruction_elimination_inner(false);
 
         let expected = "
           acir(inline) fn main f0 {
