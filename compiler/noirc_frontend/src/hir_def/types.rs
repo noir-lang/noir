@@ -546,6 +546,17 @@ impl DataType {
         })
     }
 
+    /// Retrieve the variants of this type. Panics if this is not an enum type
+    pub fn get_variants(&self, generic_args: &[Type]) -> Vec<(String, Vec<Type>)> {
+        let substitutions = self.get_fields_substitutions(generic_args);
+
+        vecmap(self.variants_raw(), |variant| {
+            let name = variant.name.to_string();
+            let args = vecmap(&variant.params, |param| param.substitute(&substitutions));
+            (name, args)
+        })
+    }
+
     fn get_fields_substitutions(
         &self,
         generic_args: &[Type],

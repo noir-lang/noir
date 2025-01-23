@@ -47,7 +47,11 @@ impl Elaborator<'_> {
 
         let hir_name = HirIdent::non_trait_method(definition_id, location);
         let parameters = self.make_enum_variant_parameters(variant_arg_types, location);
-        self.push_enum_variant_function_body(id, datatype.clone(), variant_index, &parameters);
+        self.push_enum_variant_function_body(id, &datatype, variant_index, &parameters, location);
+
+        let function_type =
+            datatype_ref.variant_function_type_with_forall(variant_index, datatype.clone());
+        self.interner.push_definition_type(definition_id, function_type.clone());
 
         let meta = FuncMeta {
             name: hir_name,
@@ -56,7 +60,7 @@ impl Elaborator<'_> {
             parameter_idents: Vec::new(),
             return_type: crate::ast::FunctionReturnType::Ty(self_type_unresolved),
             return_visibility: Visibility::Private,
-            typ: datatype_ref.variant_function_type_with_forall(variant_index, datatype.clone()),
+            typ: function_type,
             direct_generics: datatype_ref.generics.clone(),
             all_generics: datatype_ref.generics.clone(),
             location,
@@ -103,28 +107,36 @@ impl Elaborator<'_> {
     fn push_enum_variant_function_body(
         &mut self,
         id: FuncId,
-        self_type: Shared<DataType>,
+        self_type: &Shared<DataType>,
         variant_index: usize,
         parameters: &Parameters,
+        location: Location,
     ) {
         // Each parameter of the enum variant function is used as a parameter of the enum
         // constructor expression
-        let arguments = vecmap(&parameters.0, |parameter| match &parameter.0 {
+        let arguments = vecmap(&parameters.0, |(pattern, typ, _)| match pattern {
             HirPattern::Identifier(ident) => {
-                self.interner.push_expr(HirExpression::Ident(ident.clone(), None))
+                let id = self.interner.push_expr(HirExpression::Ident(ident.clone(), None));
+                self.interner.push_expr_type(id, typ.clone());
+                self.interner.push_expr_location(id, location.span, location.file);
+                id
             }
             _ => unreachable!(),
         });
 
         let enum_generics = self_type.borrow().generic_types();
         let construct_variant = HirExpression::EnumConstructor(HirEnumConstructorExpression {
-            r#type: self_type,
-            enum_generics,
+            r#type: self_type.clone(),
+            enum_generics: enum_generics.clone(),
             arguments,
             variant_index,
         });
         let body = self.interner.push_expr(construct_variant);
-        self.interner.update_fn(id, HirFunction::unchecked_from_expr(body))
+        self.interner.update_fn(id, HirFunction::unchecked_from_expr(body));
+
+        let typ = Type::DataType(self_type.clone(), enum_generics);
+        self.interner.push_expr_type(body, typ);
+        self.interner.push_expr_location(body, location.span, location.file);
     }
 
     fn make_enum_variant_parameters(

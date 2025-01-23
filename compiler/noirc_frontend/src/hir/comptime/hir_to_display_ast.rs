@@ -212,6 +212,17 @@ impl HirExpression {
 
             // A macro was evaluated here: return the quoted result
             HirExpression::Unquote(block) => ExpressionKind::Quote(block.clone()),
+
+            // Convert this back into a function call `Enum::Foo(args)`
+            HirExpression::EnumConstructor(constructor) => {
+                let typ = constructor.r#type.borrow();
+                let variant = &typ.variant_at(constructor.variant_index);
+                let path = Path::from_single(variant.name.to_string(), span);
+                let func = Box::new(Expression::new(ExpressionKind::Variable(path), span));
+                let arguments = vecmap(&constructor.arguments, |arg| arg.to_display_ast(interner));
+                let call = CallExpression { func, arguments, is_macro_call: false };
+                ExpressionKind::Call(Box::new(call))
+            }
         };
 
         Expression::new(kind, span)

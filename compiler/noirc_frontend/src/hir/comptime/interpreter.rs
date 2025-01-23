@@ -14,7 +14,7 @@ use crate::elaborator::Elaborator;
 use crate::graph::CrateId;
 use crate::hir::def_map::ModuleId;
 use crate::hir::type_check::TypeCheckError;
-use crate::hir_def::expr::ImplKind;
+use crate::hir_def::expr::{HirEnumConstructorExpression, ImplKind};
 use crate::hir_def::function::FunctionBody;
 use crate::monomorphization::{
     perform_impl_bindings, perform_instantiation_bindings, resolve_trait_method,
@@ -539,6 +539,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirExpression::Quote(tokens) => self.evaluate_quote(tokens, id),
             HirExpression::Comptime(block) => self.evaluate_block(block),
             HirExpression::Unsafe(block) => self.evaluate_block(block),
+            HirExpression::EnumConstructor(constructor) => {
+                self.evaluate_enum_constructor(constructor, id)
+            }
             HirExpression::Unquote(tokens) => {
                 // An Unquote expression being found is indicative of a macro being
                 // expanded within another comptime fn which we don't currently support.
@@ -1283,6 +1286,14 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         let typ = self.elaborator.interner.id_type(id).follow_bindings();
         Ok(Value::Struct(fields, typ))
+    }
+
+    fn evaluate_enum_constructor(
+        &mut self,
+        _constructor: HirEnumConstructorExpression,
+        _id: ExprId,
+    ) -> IResult<Value> {
+        todo!("Support enums in the comptime interpreter")
     }
 
     fn evaluate_access(&mut self, access: HirMemberAccess, id: ExprId) -> IResult<Value> {
