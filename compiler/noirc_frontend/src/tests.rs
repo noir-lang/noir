@@ -4097,6 +4097,7 @@ fn error_with_duplicate_enum_variant() {
     ));
 }
 
+#[test]
 fn errors_on_empty_loop_no_break() {
     let src = r#"
     fn main() {
