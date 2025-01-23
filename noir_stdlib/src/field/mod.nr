@@ -1,5 +1,5 @@
 pub mod bn254;
-use crate::runtime::is_unconstrained;
+use crate::{runtime::is_unconstrained, static_assert};
 use bn254::lt as bn254_lt;
 
 impl Field {
@@ -10,7 +10,10 @@ impl Field {
     // docs:start:assert_max_bit_size
     pub fn assert_max_bit_size<let BIT_SIZE: u32>(self) {
         // docs:end:assert_max_bit_size
-        assert(BIT_SIZE < modulus_num_bits() as u32);
+        static_assert(
+            BIT_SIZE < modulus_num_bits() as u32,
+            "BIT_SIZE must be less than modulus_num_bits",
+        );
         self.__assert_max_bit_size(BIT_SIZE);
     }
 
@@ -61,6 +64,10 @@ impl Field {
     // docs:start:to_le_bytes
     pub fn to_le_bytes<let N: u32>(self: Self) -> [u8; N] {
         // docs:end:to_le_bytes
+        static_assert(
+            N <= modulus_le_bytes().len(),
+            "N must be less than or equal to modulus_le_bytes().len()",
+        );
         // Compute the byte decomposition
         let bytes = self.to_le_radix(256);
 
@@ -94,6 +101,10 @@ impl Field {
     // docs:start:to_be_bytes
     pub fn to_be_bytes<let N: u32>(self: Self) -> [u8; N] {
         // docs:end:to_be_bytes
+        static_assert(
+            N <= modulus_le_bytes().len(),
+            "N must be less than or equal to modulus_le_bytes().len()",
+        );
         // Compute the byte decomposition
         let bytes = self.to_be_radix(256);
 
@@ -119,7 +130,9 @@ impl Field {
     pub fn to_le_radix<let N: u32>(self: Self, radix: u32) -> [u8; N] {
         // Brillig does not need an immediate radix
         if !crate::runtime::is_unconstrained() {
-            crate::assert_constant(radix);
+            static_assert(1 < radix, "radix must be greater than 1");
+            static_assert(radix <= 256, "radix must be less than or equal to 256");
+            static_assert(radix & (radix - 1) == 0, "radix must be a power of 2");
         }
         self.__to_le_radix(radix)
     }
@@ -139,6 +152,7 @@ impl Field {
     #[builtin(to_le_radix)]
     fn __to_le_radix<let N: u32>(self, radix: u32) -> [u8; N] {}
 
+    // `_radix` must be less than 256
     #[builtin(to_be_radix)]
     fn __to_be_radix<let N: u32>(self, radix: u32) -> [u8; N] {}
 
@@ -172,6 +186,10 @@ impl Field {
     /// Convert a little endian byte array to a field element.
     /// If the provided byte array overflows the field modulus then the Field will silently wrap around.
     pub fn from_le_bytes<let N: u32>(bytes: [u8; N]) -> Field {
+        static_assert(
+            N <= modulus_le_bytes().len(),
+            "N must be less than or equal to modulus_le_bytes().len()",
+        );
         let mut v = 1;
         let mut result = 0;
 
@@ -262,6 +280,7 @@ fn lt_fallback(x: Field, y: Field) -> bool {
 }
 
 mod tests {
+    use crate::{panic::panic, runtime};
     use super::field_less_than;
 
     #[test]
@@ -321,6 +340,75 @@ mod tests {
         assert_eq(Field::from_le_bytes::<8>(bytes), field);
     }
     // docs:end:to_le_radix_example
+
+    #[test(should_fail_with = "radix must be greater than 1")]
+    fn test_to_le_radix_1() {
+        // this test should only fail in constrained mode
+        if !runtime::is_unconstrained() {
+            let field = 2;
+            let _: [u8; 8] = field.to_le_radix(1);
+        } else {
+            panic(f"radix must be greater than 1");
+        }
+    }
+
+    #[test]
+    fn test_to_le_radix_brillig_1() {
+        // this test should only fail in constrained mode
+        if runtime::is_unconstrained() {
+            let field = 1;
+            let out: [u8; 8] = field.to_le_radix(1);
+            crate::println(out);
+            let expected = [0; 8];
+            assert(out == expected, "unexpected result");
+        }
+    }
+
+    #[test(should_fail_with = "radix must be a power of 2")]
+    fn test_to_le_radix_3() {
+        // this test should only fail in constrained mode
+        if !runtime::is_unconstrained() {
+            let field = 2;
+            let _: [u8; 8] = field.to_le_radix(3);
+        } else {
+            panic(f"radix must be a power of 2");
+        }
+    }
+
+    #[test]
+    fn test_to_le_radix_brillig_3() {
+        // this test should only fail in constrained mode
+        if runtime::is_unconstrained() {
+            let field = 1;
+            let out: [u8; 8] = field.to_le_radix(3);
+            let mut expected = [0; 8];
+            expected[0] = 1;
+            assert(out == expected, "unexpected result");
+        }
+    }
+
+    #[test(should_fail_with = "radix must be less than or equal to 256")]
+    fn test_to_le_radix_512() {
+        // this test should only fail in constrained mode
+        if !runtime::is_unconstrained() {
+            let field = 2;
+            let _: [u8; 8] = field.to_le_radix(512);
+        } else {
+            panic(f"radix must be less than or equal to 256")
+        }
+    }
+
+    #[test]
+    fn test_to_le_radix_brillig_512() {
+        // this test should only fail in constrained mode
+        if runtime::is_unconstrained() {
+            let field = 1;
+            let out: [u8; 8] = field.to_le_radix(512);
+            let mut expected = [0; 8];
+            expected[0] = 1;
+            assert(out == expected, "unexpected result");
+        }
+    }
 
     #[test]
     unconstrained fn test_field_less_than() {

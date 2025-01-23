@@ -1,8 +1,11 @@
 //! Pre-process functions before inlining them into others.
 
-use crate::ssa::Ssa;
+use crate::ssa::{
+    ir::function::{Function, RuntimeType},
+    Ssa,
+};
 
-use super::inlining;
+use super::inlining::{self, InlineInfo};
 
 impl Ssa {
     /// Run pre-processing steps on functions in isolation.
@@ -19,6 +22,19 @@ impl Ssa {
         // Preliminary inlining decisions.
         let inline_infos = inlining::compute_inline_infos(&self, false, aggressiveness);
 
+        let should_inline_call = |callee: &Function| -> bool {
+            match callee.runtime() {
+                RuntimeType::Acir(_) => {
+                    // Functions marked to not have predicates should be preserved.
+                    !callee.is_no_predicates()
+                }
+                RuntimeType::Brillig(_) => {
+                    // We inline inline if the function called wasn't ruled out as too costly or recursive.
+                    InlineInfo::should_inline(&inline_infos, callee.id())
+                }
+            }
+        };
+
         for (id, (own_weight, transitive_weight)) in bottom_up {
             // Skip preprocessing heavy functions that gained most of their weight from transitive accumulation.
             // These can be processed later by the regular SSA passes.
@@ -34,7 +50,7 @@ impl Ssa {
             }
             let function = &self.functions[&id];
             // Start with an inline pass.
-            let mut function = function.inlined(&self, false, &inline_infos);
+            let mut function = function.inlined(&self, &should_inline_call);
             // Help unrolling determine bounds.
             function.as_slice_optimization();
             // Prepare for unrolling
