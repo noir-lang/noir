@@ -40,3 +40,20 @@ pub(crate) fn read_inputs_from_file(
 
     Ok((input_map, return_value))
 }
+
+pub(crate) fn read_inputs_from_file_any_format(
+    file_path: &Path,
+    abi: &Abi,
+) -> eyre::Result<(InputMap, Option<InputValue>)> {
+    if abi.is_empty() {
+        return Ok((BTreeMap::new(), None));
+    }
+
+    let format = file_path
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .and_then(|ext| [Format::Toml, Format::Json].into_iter().find(|fmt| fmt.ext() == ext))
+        .unwrap_or(Format::Toml);
+
+    read_inputs_from_file(file_path, format, abi)
+}
