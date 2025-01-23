@@ -37,7 +37,12 @@ members = [
     # Utility crates
     "utils/iter-extended",
 ]
-default-members = ["tooling/nargo_cli", "tooling/acvm_cli", "tooling/profiler"]
+default-members = [
+    "tooling/nargo_cli",
+    "tooling/acvm_cli",
+    "tooling/profiler",
+    "tooling/inspector",
+]
 resolver = "2"
 
 [workspace.package]
