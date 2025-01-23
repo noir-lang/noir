@@ -20,13 +20,16 @@ use super::{
 
 impl Display for Ssa {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        for (id, global_value) in self.globals.dfg.values_iter() {
+        let globals = (*self.functions[&self.main_id].dfg.globals).clone();
+        let globals_dfg = DataFlowGraph::from(globals);
+
+        for (id, global_value) in globals_dfg.values_iter() {
             match global_value {
                 Value::NumericConstant { constant, typ } => {
                     writeln!(f, "g{} = {typ} {constant}", id.to_u32())?;
                 }
                 Value::Instruction { instruction, .. } => {
-                    display_instruction(&self.globals.dfg, *instruction, true, f)?;
+                    display_instruction(&globals_dfg, *instruction, true, f)?;
                 }
                 Value::Global(_) => {
                     panic!("Value::Global should only be in the function dfg");
@@ -35,7 +38,7 @@ impl Display for Ssa {
             };
         }
 
-        if self.globals.dfg.values_iter().next().is_some() {
+        if globals_dfg.values_iter().next().is_some() {
             writeln!(f)?;
         }
 
