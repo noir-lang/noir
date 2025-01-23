@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737673977551,
+  "lastUpdate": 1737674160864,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4224,6 +4224,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 270.19,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "29d2d8ad657c21aa230afee38a5be4926857c3e2",
+          "message": "fix: Keep `inc_rc` for array inputs during preprocessing  (#7163)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>\nCo-authored-by: Tom French <tom@tomfren.ch>",
+          "timestamp": "2025-01-23T22:53:41Z",
+          "tree_id": "866c876c6abb9820355ee9d203d1199f1b7f6bca",
+          "url": "https://github.com/noir-lang/noir/commit/29d2d8ad657c21aa230afee38a5be4926857c3e2"
+        },
+        "date": 1737674160155,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "keccak256",
+            "value": 77.73,
+            "unit": "MB"
+          },
+          {
+            "name": "workspace",
+            "value": 123.98,
+            "unit": "MB"
+          },
+          {
+            "name": "regression_4709",
+            "value": 424.87,
+            "unit": "MB"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 1480,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 613.93,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 504.49,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 5420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 500.64,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 5430,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 613.92,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 2130,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1130,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 202.5,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 540.78,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 271.45,
             "unit": "MB"
           }
         ]
