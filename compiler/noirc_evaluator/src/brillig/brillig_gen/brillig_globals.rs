@@ -10,7 +10,7 @@ pub(crate) fn convert_ssa_globals(
     enable_debug_trace: bool,
     globals: &Function,
     used_globals: &HashSet<ValueId>,
-) -> (BrilligArtifact<FieldElement>, HashMap<ValueId, BrilligVariable>) {
+) -> (BrilligArtifact<FieldElement>, HashMap<ValueId, BrilligVariable>, usize) {
     let mut brillig_context = BrilligContext::new_for_global_init(enable_debug_trace);
     // The global space does not have globals itself
     let empty_globals = HashMap::default();
@@ -32,8 +32,10 @@ pub(crate) fn convert_ssa_globals(
 
     brillig_block.compile_globals(&globals.dfg, used_globals);
 
+    let globals_size = brillig_block.brillig_context.global_space_size();
+
     brillig_context.return_instruction();
 
     let artifact = brillig_context.artifact();
-    (artifact, function_context.ssa_value_allocations)
+    (artifact, function_context.ssa_value_allocations, globals_size)
 }
