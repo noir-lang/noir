@@ -1344,8 +1344,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         result_variable: SingleAddrVariable,
     ) {
         let binary_type = type_of_binary_operation(
-            dfg[binary.lhs].get_type().as_ref(),
-            dfg[binary.rhs].get_type().as_ref(),
+            dfg[dfg.resolve(binary.lhs)].get_type().as_ref(),
+            dfg[dfg.resolve(binary.rhs)].get_type().as_ref(),
             binary.operator,
         );
 
