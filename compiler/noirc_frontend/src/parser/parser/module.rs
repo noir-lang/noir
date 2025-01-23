@@ -25,6 +25,7 @@ impl<'a> Parser<'a> {
                 visibility,
                 ident: Ident::default(),
                 outer_attributes,
+                has_semicolon: false,
             });
         };
 
@@ -41,10 +42,16 @@ impl<'a> Parser<'a> {
                 is_contract,
             })
         } else {
-            if !self.eat_semicolons() {
+            let has_semicolon = self.eat_semicolons();
+            if !has_semicolon {
                 self.expected_token(Token::Semicolon);
             }
-            ItemKind::ModuleDecl(ModuleDeclaration { visibility, ident, outer_attributes })
+            ItemKind::ModuleDecl(ModuleDeclaration {
+                visibility,
+                ident,
+                outer_attributes,
+                has_semicolon,
+            })
         }
     }
 }

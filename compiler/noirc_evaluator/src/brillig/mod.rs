@@ -32,6 +32,7 @@ pub struct Brillig {
     /// Maps SSA function labels to their brillig artifact
     ssa_function_to_brillig: HashMap<FunctionId, BrilligArtifact<FieldElement>>,
     globals: BrilligArtifact<FieldElement>,
+    globals_memory_size: usize,
 }
 
 impl Brillig {
@@ -84,9 +85,10 @@ impl Ssa {
 
         let mut brillig = Brillig::default();
 
-        let (artifact, brillig_globals) =
+        let (artifact, brillig_globals, globals_size) =
             convert_ssa_globals(enable_debug_trace, &self.globals, &self.used_global_values);
         brillig.globals = artifact;
+        brillig.globals_memory_size = globals_size;
 
         for brillig_function_id in brillig_reachable_function_ids {
             let func = &self.functions[&brillig_function_id];

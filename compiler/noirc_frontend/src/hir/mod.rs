@@ -9,7 +9,7 @@ use crate::ast::UnresolvedGenerics;
 use crate::debug::DebugInstrumenter;
 use crate::graph::{CrateGraph, CrateId};
 use crate::hir_def::function::FuncMeta;
-use crate::node_interner::{FuncId, NodeInterner, StructId};
+use crate::node_interner::{FuncId, NodeInterner, TypeId};
 use crate::parser::ParserError;
 use crate::usage_tracker::UsageTracker;
 use crate::{Generics, Kind, ParsedModule, ResolvedGeneric, TypeVariable};
@@ -151,7 +151,7 @@ impl Context<'_, '_> {
     ///
     /// For example, if you project contains a `main.nr` and `foo.nr` and you provide the `main_crate_id` and the
     /// `bar_struct_id` where the `Bar` struct is inside `foo.nr`, this function would return `foo::Bar` as a [String].
-    pub fn fully_qualified_struct_path(&self, crate_id: &CrateId, id: StructId) -> String {
+    pub fn fully_qualified_struct_path(&self, crate_id: &CrateId, id: TypeId) -> String {
         fully_qualified_module_path(&self.def_maps, &self.crate_graph, crate_id, id.module_id())
     }
 
