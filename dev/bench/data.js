@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737648847748,
+  "lastUpdate": 1737648968415,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3496,6 +3496,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root-empty",
             "value": 500.6,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 6260,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 613.99,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 2130,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1130,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 199.46,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 540.8,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 270.11,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "2da0a4f129bbd2183e87a7e5dd07127527fc2195",
+          "message": "chore: let `Function::inlined` take a `should_inline_call` function (#7149)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-01-23T15:53:36Z",
+          "tree_id": "a66af6b1f66bc88e1ae0e5609c548a1256ad48ea",
+          "url": "https://github.com/noir-lang/noir/commit/2da0a4f129bbd2183e87a7e5dd07127527fc2195"
+        },
+        "date": 1737648967547,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "keccak256",
+            "value": 77.71,
+            "unit": "MB"
+          },
+          {
+            "name": "workspace",
+            "value": 124.17,
+            "unit": "MB"
+          },
+          {
+            "name": "regression_4709",
+            "value": 424.95,
+            "unit": "MB"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 1480,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 613.99,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 496.94,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 6250,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 500.61,
             "unit": "MB"
           },
           {
