@@ -29,7 +29,7 @@ use crate::{
     },
     node_interner::{DefinitionKind, ExprId, FuncId, InternedStatementKind, TraitMethodId},
     token::{FmtStrFragment, Tokens},
-    Kind, QuotedType, Shared, StructType, Type,
+    DataType, Kind, QuotedType, Shared, Type,
 };
 
 use super::{Elaborator, LambdaContext, UnsafeBlockStatus};
@@ -614,12 +614,12 @@ impl<'context> Elaborator<'context> {
         let is_self_type = last_segment.ident.is_self_type_name();
 
         let (r#type, struct_generics) = if let Some(struct_id) = constructor.struct_type {
-            let typ = self.interner.get_struct(struct_id);
+            let typ = self.interner.get_type(struct_id);
             let generics = typ.borrow().instantiate(self.interner);
             (typ, generics)
         } else {
             match self.lookup_type_or_error(path) {
-                Some(Type::Struct(r#type, struct_generics)) => (r#type, struct_generics),
+                Some(Type::DataType(r#type, struct_generics)) => (r#type, struct_generics),
                 Some(typ) => {
                     self.push_err(ResolverError::NonStructUsedInConstructor {
                         typ: typ.to_string(),
@@ -659,10 +659,10 @@ impl<'context> Elaborator<'context> {
         let reference_location = Location::new(last_segment.ident.span(), self.file);
         self.interner.add_struct_reference(struct_id, reference_location, is_self_type);
 
-        (expr, Type::Struct(struct_type, generics))
+        (expr, Type::DataType(struct_type, generics))
     }
 
-    pub(super) fn mark_struct_as_constructed(&mut self, struct_type: Shared<StructType>) {
+    pub(super) fn mark_struct_as_constructed(&mut self, struct_type: Shared<DataType>) {
         let struct_type = struct_type.borrow();
         let parent_module_id = struct_type.id.parent_module_id(self.def_maps);
         self.usage_tracker.mark_as_used(parent_module_id, &struct_type.name);
@@ -673,7 +673,7 @@ impl<'context> Elaborator<'context> {
     /// are part of the struct.
     fn resolve_constructor_expr_fields(
         &mut self,
-        struct_type: Shared<StructType>,
+        struct_type: Shared<DataType>,
         field_types: Vec<(String, ItemVisibility, Type)>,
         fields: Vec<(Ident, Expression)>,
         span: Span,

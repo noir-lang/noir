@@ -7,7 +7,7 @@ use crate::{
     ast::{FunctionDefinition, ItemVisibility},
     hir::def_map::{ModuleDefId, ModuleId},
     node_interner::{
-        DefinitionId, FuncId, GlobalId, NodeInterner, ReferenceId, StructId, TraitId, TypeAliasId,
+        DefinitionId, FuncId, GlobalId, NodeInterner, ReferenceId, TraitId, TypeAliasId, TypeId,
     },
 };
 use petgraph::prelude::NodeIndex as PetGraphIndex;
@@ -60,18 +60,22 @@ impl NodeInterner {
         match reference {
             ReferenceId::Module(id) => self.module_attributes(&id).location,
             ReferenceId::Function(id) => self.function_modifiers(&id).name_location,
-            ReferenceId::Struct(id) => {
-                let struct_type = self.get_struct(id);
-                let struct_type = struct_type.borrow();
-                Location::new(struct_type.name.span(), struct_type.location.file)
+            ReferenceId::Struct(id) | ReferenceId::Enum(id) => {
+                let typ = self.get_type(id);
+                let typ = typ.borrow();
+                Location::new(typ.name.span(), typ.location.file)
             }
             ReferenceId::StructMember(id, field_index) => {
-                let struct_type = self.get_struct(id);
+                let struct_type = self.get_type(id);
                 let struct_type = struct_type.borrow();
-                Location::new(
-                    struct_type.field_at(field_index).name.span(),
-                    struct_type.location.file,
-                )
+                let file = struct_type.location.file;
+                Location::new(struct_type.field_at(field_index).name.span(), file)
+            }
+            ReferenceId::EnumVariant(id, variant_index) => {
+                let typ = self.get_type(id);
+                let typ = typ.borrow();
+                let file = typ.location.file;
+                Location::new(typ.variant_at(variant_index).name.span(), file)
             }
             ReferenceId::Trait(id) => {
                 let trait_type = self.get_trait(id);
@@ -126,7 +130,7 @@ impl NodeInterner {
 
     pub(crate) fn add_struct_reference(
         &mut self,
-        id: StructId,
+        id: TypeId,
         location: Location,
         is_self_type: bool,
     ) {
@@ -135,7 +139,7 @@ impl NodeInterner {
 
     pub(crate) fn add_struct_member_reference(
         &mut self,
-        id: StructId,
+        id: TypeId,
         member_index: usize,
         location: Location,
     ) {
@@ -324,12 +328,23 @@ impl NodeInterner {
 
     pub(crate) fn register_struct(
         &mut self,
-        id: StructId,
+        id: TypeId,
         name: String,
         visibility: ItemVisibility,
         parent_module_id: ModuleId,
     ) {
         self.add_definition_location(ReferenceId::Struct(id), Some(parent_module_id));
+        self.register_name_for_auto_import(name, ModuleDefId::TypeId(id), visibility, None);
+    }
+
+    pub(crate) fn register_enum(
+        &mut self,
+        id: TypeId,
+        name: String,
+        visibility: ItemVisibility,
+        parent_module_id: ModuleId,
+    ) {
+        self.add_definition_location(ReferenceId::Enum(id), Some(parent_module_id));
         self.register_name_for_auto_import(name, ModuleDefId::TypeId(id), visibility, None);
     }
 

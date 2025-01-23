@@ -19,7 +19,7 @@ use crate::{
         resolution::errors::ResolverError,
     },
     hir_def::expr::{HirExpression, HirIdent},
-    node_interner::{DefinitionKind, DependencyId, FuncId, NodeInterner, StructId, TraitId},
+    node_interner::{DefinitionKind, DependencyId, FuncId, NodeInterner, TraitId, TypeId},
     parser::{Item, ItemKind},
     token::{MetaAttribute, SecondaryAttribute},
     Type, TypeBindings, UnificationError,
@@ -512,7 +512,7 @@ impl<'context> Elaborator<'context> {
     pub(super) fn run_attributes(
         &mut self,
         traits: &BTreeMap<TraitId, UnresolvedTrait>,
-        types: &BTreeMap<StructId, UnresolvedStruct>,
+        types: &BTreeMap<TypeId, UnresolvedStruct>,
         functions: &[UnresolvedFunctions],
         module_attributes: &[ModuleAttribute],
     ) {

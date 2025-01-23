@@ -10,8 +10,8 @@ use crate::{
         expr::{HirCapturedVar, HirIdent},
         traits::Trait,
     },
-    node_interner::{DefinitionId, StructId, TraitId},
-    Shared, StructType,
+    node_interner::{DefinitionId, TraitId, TypeId},
+    DataType, Shared,
 };
 use crate::{Type, TypeAlias};
 
@@ -37,8 +37,8 @@ impl<'context> Elaborator<'context> {
         current_module
     }
 
-    pub(super) fn get_struct(&self, type_id: StructId) -> Shared<StructType> {
-        self.interner.get_struct(type_id)
+    pub(super) fn get_type(&self, type_id: TypeId) -> Shared<DataType> {
+        self.interner.get_type(type_id)
     }
 
     pub(super) fn get_trait_mut(&mut self, trait_id: TraitId) -> &mut Trait {
@@ -160,12 +160,12 @@ impl<'context> Elaborator<'context> {
     }
 
     /// Lookup a given struct type by name.
-    pub fn lookup_struct_or_error(&mut self, path: Path) -> Option<Shared<StructType>> {
+    pub fn lookup_datatype_or_error(&mut self, path: Path) -> Option<Shared<DataType>> {
         let span = path.span();
         match self.resolve_path_or_error(path) {
             Ok(item) => {
-                if let PathResolutionItem::Struct(struct_id) = item {
-                    Some(self.get_struct(struct_id))
+                if let PathResolutionItem::Type(struct_id) = item {
+                    Some(self.get_type(struct_id))
                 } else {
                     self.push_err(ResolverError::Expected {
                         expected: "type",
@@ -194,10 +194,10 @@ impl<'context> Elaborator<'context> {
 
         let span = path.span;
         match self.resolve_path_or_error(path) {
-            Ok(PathResolutionItem::Struct(struct_id)) => {
-                let struct_type = self.get_struct(struct_id);
+            Ok(PathResolutionItem::Type(struct_id)) => {
+                let struct_type = self.get_type(struct_id);
                 let generics = struct_type.borrow().instantiate(self.interner);
-                Some(Type::Struct(struct_type, generics))
+                Some(Type::DataType(struct_type, generics))
             }
             Ok(PathResolutionItem::TypeAlias(alias_id)) => {
                 let alias = self.interner.get_type_alias(alias_id);

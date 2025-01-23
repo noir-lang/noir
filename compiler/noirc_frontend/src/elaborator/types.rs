@@ -154,12 +154,12 @@ impl<'context> Elaborator<'context> {
 
         let location = Location::new(named_path_span.unwrap_or(typ.span), self.file);
         match resolved_type {
-            Type::Struct(ref struct_type, _) => {
+            Type::DataType(ref data_type, _) => {
                 // Record the location of the type reference
                 self.interner.push_type_ref_location(resolved_type.clone(), location);
                 if !is_synthetic {
                     self.interner.add_struct_reference(
-                        struct_type.borrow().id,
+                        data_type.borrow().id,
                         location,
                         is_self_type_name,
                     );
@@ -259,11 +259,11 @@ impl<'context> Elaborator<'context> {
             return Type::Alias(type_alias, args);
         }
 
-        match self.lookup_struct_or_error(path) {
-            Some(struct_type) => {
-                if self.resolving_ids.contains(&struct_type.borrow().id) {
-                    self.push_err(ResolverError::SelfReferentialStruct {
-                        span: struct_type.borrow().name.span(),
+        match self.lookup_datatype_or_error(path) {
+            Some(data_type) => {
+                if self.resolving_ids.contains(&data_type.borrow().id) {
+                    self.push_err(ResolverError::SelfReferentialType {
+                        span: data_type.borrow().name.span(),
                     });
 
                     return Type::Error;
@@ -272,23 +272,23 @@ impl<'context> Elaborator<'context> {
                 if !self.in_contract()
                     && self
                         .interner
-                        .struct_attributes(&struct_type.borrow().id)
+                        .struct_attributes(&data_type.borrow().id)
                         .iter()
                         .any(|attr| matches!(attr, SecondaryAttribute::Abi(_)))
                 {
                     self.push_err(ResolverError::AbiAttributeOutsideContract {
-                        span: struct_type.borrow().name.span(),
+                        span: data_type.borrow().name.span(),
                     });
                 }
 
-                let (args, _) = self.resolve_type_args(args, struct_type.borrow(), span);
+                let (args, _) = self.resolve_type_args(args, data_type.borrow(), span);
 
                 if let Some(current_item) = self.current_item {
-                    let dependency_id = struct_type.borrow().id;
+                    let dependency_id = data_type.borrow().id;
                     self.interner.add_type_dependency(current_item, dependency_id);
                 }
 
-                Type::Struct(struct_type, args)
+                Type::DataType(data_type, args)
             }
             None => Type::Error,
         }
@@ -684,6 +684,60 @@ impl<'context> Elaborator<'context> {
         None
     }
 
+    /// This resolves a method in the form `Type::method` where `method` is a trait method
+    fn resolve_type_trait_method(&mut self, path: &Path) -> Option<TraitPathResolution> {
+        if path.segments.len() < 2 {
+            return None;
+        }
+
+        let mut path = path.clone();
+        let span = path.span();
+        let last_segment = path.pop();
+        let before_last_segment = path.last_segment();
+
+        let path_resolution = self.resolve_path(path).ok()?;
+        let PathResolutionItem::Type(type_id) = path_resolution.item else {
+            return None;
+        };
+
+        let datatype = self.get_type(type_id);
+        let generics = datatype.borrow().instantiate(self.interner);
+        let typ = Type::DataType(datatype, generics);
+        let method_name = &last_segment.ident.0.contents;
+
+        // If we can find a method on the type, this is definitely not a trait method
+        if self.interner.lookup_direct_method(&typ, method_name, false).is_some() {
+            return None;
+        }
+
+        let trait_methods = self.interner.lookup_trait_methods(&typ, method_name, false);
+        if trait_methods.is_empty() {
+            return None;
+        }
+
+        let (hir_method_reference, error) =
+            self.get_trait_method_in_scope(&trait_methods, method_name, last_segment.span);
+        let hir_method_reference = hir_method_reference?;
+        let func_id = hir_method_reference.func_id(self.interner)?;
+        let HirMethodReference::TraitMethodId(trait_method_id, _, _) = hir_method_reference else {
+            return None;
+        };
+
+        let trait_id = trait_method_id.trait_id;
+        let trait_ = self.interner.get_trait(trait_id);
+        let mut constraint = trait_.as_constraint(span);
+        constraint.typ = typ;
+
+        let method = TraitMethod { method_id: trait_method_id, constraint, assumed: false };
+        let turbofish = before_last_segment.turbofish();
+        let item = PathResolutionItem::TraitFunction(trait_id, turbofish, func_id);
+        let mut errors = path_resolution.errors;
+        if let Some(error) = error {
+            errors.push(error);
+        }
+        Some(TraitPathResolution { method, item: Some(item), errors })
+    }
+
     // Try to resolve the given trait method path.
     //
     // Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
@@ -695,6 +749,7 @@ impl<'context> Elaborator<'context> {
         self.resolve_trait_static_method_by_self(path)
             .or_else(|| self.resolve_trait_static_method(path))
             .or_else(|| self.resolve_trait_method_by_named_generic(path))
+            .or_else(|| self.resolve_type_trait_method(path))
     }
 
     pub(super) fn unify(
@@ -1368,12 +1423,12 @@ impl<'context> Elaborator<'context> {
                 self.lookup_method_in_trait_constraints(object_type, method_name, span)
             }
             // Mutable references to another type should resolve to methods of their element type.
-            // This may be a struct or a primitive type.
+            // This may be a data type or a primitive type.
             Type::MutableReference(element) => {
                 self.lookup_method(&element, method_name, span, has_self_arg)
             }
 
-            // If we fail to resolve the object to a struct type, we have no way of type
+            // If we fail to resolve the object to a data type, we have no way of type
             // checking its arguments as we can't even resolve the name of the function
             Type::Error => None,
 
@@ -1383,13 +1438,11 @@ impl<'context> Elaborator<'context> {
                 None
             }
 
-            other => {
-                self.lookup_struct_or_primitive_method(&other, method_name, span, has_self_arg)
-            }
+            other => self.lookup_type_or_primitive_method(&other, method_name, span, has_self_arg),
         }
     }
 
-    fn lookup_struct_or_primitive_method(
+    fn lookup_type_or_primitive_method(
         &mut self,
         object_type: &Type,
         method_name: &str,
@@ -1420,12 +1473,16 @@ impl<'context> Elaborator<'context> {
             return self.return_trait_method_in_scope(&generic_methods, method_name, span);
         }
 
-        if let Type::Struct(struct_type, _) = object_type {
-            let has_field_with_function_type = struct_type
-                .borrow()
-                .get_fields_as_written()
-                .into_iter()
-                .any(|field| field.name.0.contents == method_name && field.typ.is_function());
+        if let Type::DataType(datatype, _) = object_type {
+            let datatype = datatype.borrow();
+            let mut has_field_with_function_type = false;
+
+            if let Some(fields) = datatype.try_fields_raw() {
+                has_field_with_function_type = fields
+                    .iter()
+                    .any(|field| field.name.0.contents == method_name && field.typ.is_function());
+            }
+
             if has_field_with_function_type {
                 self.push_err(TypeCheckError::CannotInvokeStructFieldFunctionType {
                     method_name: method_name.to_string(),
@@ -1456,6 +1513,19 @@ impl<'context> Elaborator<'context> {
         method_name: &str,
         span: Span,
     ) -> Option<HirMethodReference> {
+        let (method, error) = self.get_trait_method_in_scope(trait_methods, method_name, span);
+        if let Some(error) = error {
+            self.push_err(error);
+        }
+        method
+    }
+
+    fn get_trait_method_in_scope(
+        &mut self,
+        trait_methods: &[(FuncId, TraitId)],
+        method_name: &str,
+        span: Span,
+    ) -> (Option<HirMethodReference>, Option<PathResolutionError>) {
         let module_id = self.module_id();
         let module_data = self.get_module(module_id);
 
@@ -1489,28 +1559,24 @@ impl<'context> Elaborator<'context> {
                 let trait_id = *traits.iter().next().unwrap();
                 let trait_ = self.interner.get_trait(trait_id);
                 let trait_name = self.fully_qualified_trait_path(trait_);
-
-                self.push_err(PathResolutionError::TraitMethodNotInScope {
+                let method =
+                    self.trait_hir_method_reference(trait_id, trait_methods, method_name, span);
+                let error = PathResolutionError::TraitMethodNotInScope {
                     ident: Ident::new(method_name.into(), span),
                     trait_name,
-                });
-
-                return Some(self.trait_hir_method_reference(
-                    trait_id,
-                    trait_methods,
-                    method_name,
-                    span,
-                ));
+                };
+                return (Some(method), Some(error));
             } else {
                 let traits = vecmap(traits, |trait_id| {
                     let trait_ = self.interner.get_trait(trait_id);
                     self.fully_qualified_trait_path(trait_)
                 });
-                self.push_err(PathResolutionError::UnresolvedWithPossibleTraitsToImport {
+                let method = None;
+                let error = PathResolutionError::UnresolvedWithPossibleTraitsToImport {
                     ident: Ident::new(method_name.into(), span),
                     traits,
-                });
-                return None;
+                };
+                return (method, Some(error));
             }
         }
 
@@ -1519,15 +1585,18 @@ impl<'context> Elaborator<'context> {
                 let trait_ = self.interner.get_trait(trait_id);
                 self.fully_qualified_trait_path(trait_)
             });
-            self.push_err(PathResolutionError::MultipleTraitsInScope {
+            let method = None;
+            let error = PathResolutionError::MultipleTraitsInScope {
                 ident: Ident::new(method_name.into(), span),
                 traits,
-            });
-            return None;
+            };
+            return (method, Some(error));
         }
 
         let trait_id = traits_in_scope[0].0;
-        Some(self.trait_hir_method_reference(trait_id, trait_methods, method_name, span))
+        let method = self.trait_hir_method_reference(trait_id, trait_methods, method_name, span);
+        let error = None;
+        (Some(method), error)
     }
 
     fn trait_hir_method_reference(
@@ -1545,7 +1614,7 @@ impl<'context> Elaborator<'context> {
 
         // Return a TraitMethodId with unbound generics. These will later be bound by the type-checker.
         let trait_ = self.interner.get_trait(trait_id);
-        let generics = trait_.as_constraint(span).trait_bound.trait_generics;
+        let generics = trait_.get_trait_generics(span);
         let trait_method_id = trait_.find_method(method_name).unwrap();
         HirMethodReference::TraitMethodId(trait_method_id, generics, false)
     }

@@ -2818,12 +2818,13 @@ fn duplicate_struct_field() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
 
-    let CompilationError::DefinitionError(DefCollectorErrorKind::DuplicateField {
+    let CompilationError::DefinitionError(DefCollectorErrorKind::Duplicate {
+        typ: _,
         first_def,
         second_def,
     }) = &errors[0].0
     else {
-        panic!("Expected a duplicate field error, got {:?}", errors[0].0);
+        panic!("Expected a 'duplicate' error, got {:?}", errors[0].0);
     };
 
     assert_eq!(first_def.to_string(), "x");
@@ -3457,6 +3458,11 @@ fn arithmetic_generics_rounding_fail_on_struct() {
 
 #[test]
 fn unconditional_recursion_fail() {
+    // These examples are self recursive top level functions, which would actually
+    // not be inlined in the SSA (there is nothing to inline into but self), so it
+    // wouldn't panic due to infinite recursion, but the errors asserted here
+    // come from the compilation checks, which does static analysis to catch the
+    // problem before it even has a chance to cause a panic.
     let srcs = vec![
         r#"
         fn main() {
@@ -4067,4 +4073,86 @@ fn regression_7088() {
     }
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn errors_on_empty_loop_no_break() {
+    let src = r#"
+    fn main() {
+        /// Safety: test
+        unsafe {
+            foo()
+        }
+    }
+
+    unconstrained fn foo() {
+        loop {}
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        &errors[0].0,
+        CompilationError::ResolverError(ResolverError::LoopWithoutBreak { .. })
+    ));
+}
+
+#[test]
+fn errors_on_loop_without_break() {
+    let src = r#"
+    fn main() {
+        /// Safety: test
+        unsafe {
+            foo()
+        }
+    }
+
+    unconstrained fn foo() {
+        let mut x = 1;
+        loop {
+            x += 1;
+            bar(x);
+        }
+    }
+
+    fn bar(_: Field) {}
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        &errors[0].0,
+        CompilationError::ResolverError(ResolverError::LoopWithoutBreak { .. })
+    ));
+}
+
+#[test]
+fn errors_on_loop_without_break_with_nested_loop() {
+    let src = r#"
+    fn main() {
+        /// Safety: test
+        unsafe {
+            foo()
+        }
+    }
+
+    unconstrained fn foo() {
+        let mut x = 1;
+        loop {
+            x += 1;
+            bar(x);
+            loop {
+                x += 2;
+                break;
+            }
+        }
+    }
+
+    fn bar(_: Field) {}
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        &errors[0].0,
+        CompilationError::ResolverError(ResolverError::LoopWithoutBreak { .. })
+    ));
 }
