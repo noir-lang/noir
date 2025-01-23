@@ -11,13 +11,14 @@ use nargo::foreign_calls::DefaultForeignCallBuilder;
 use nargo::package::Package;
 use nargo::PrintOutput;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml};
-use noirc_abi::input_parser::{Format, InputValue};
+use noirc_abi::input_parser::InputValue;
 use noirc_abi::InputMap;
 use noirc_artifacts::debug::DebugArtifact;
 use noirc_driver::{CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING};
 
 use super::compile_cmd::compile_workspace_full;
-use super::fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir};
+use super::fs::inputs::read_inputs_from_file_any_format;
+use super::fs::witness::save_witness_to_dir;
 use super::{NargoConfig, PackageOptions};
 use crate::cli::fs::program::read_program_from_file;
 use crate::errors::CliError;
@@ -111,9 +112,9 @@ fn execute_program_and_decode(
     package_name: Option<String>,
     pedantic_solving: bool,
 ) -> Result<ExecutionResults, CliError> {
-    // Parse the initial witness values from Prover.toml
+    // Parse the initial witness values from Prover.toml or Prover.json
     let (inputs_map, expected_return) =
-        read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &program.abi)?;
+        read_inputs_from_file_any_format(&package.root_dir, prover_name, &program.abi)?;
     let witness_stack = execute_program(
         &program,
         &inputs_map,

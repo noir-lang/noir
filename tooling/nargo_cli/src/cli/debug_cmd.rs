@@ -13,7 +13,7 @@ use nargo::package::{CrateName, Package};
 use nargo::workspace::Workspace;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_abi::input_parser::{Format, InputValue};
+use noirc_abi::input_parser::InputValue;
 use noirc_abi::InputMap;
 use noirc_driver::{
     file_manager_with_stdlib, CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING,
@@ -22,7 +22,7 @@ use noirc_frontend::debug::DebugInstrumenter;
 use noirc_frontend::hir::ParsedFiles;
 
 use super::compile_cmd::get_target_width;
-use super::fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir};
+use super::fs::{inputs::read_inputs_from_file_any_format, witness::save_witness_to_dir};
 use super::NargoConfig;
 use crate::errors::CliError;
 
@@ -216,9 +216,9 @@ fn debug_program_and_decode(
     prover_name: &str,
     pedantic_solving: bool,
 ) -> Result<(Option<InputValue>, Option<WitnessStack<FieldElement>>), CliError> {
-    // Parse the initial witness values from Prover.toml
+    // Parse the initial witness values from Prover.toml or Prover.json
     let (inputs_map, _) =
-        read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &program.abi)?;
+        read_inputs_from_file_any_format(&package.root_dir, prover_name, &program.abi)?;
     let program_abi = program.abi.clone();
     let witness_stack = debug_program(program, &inputs_map, pedantic_solving)?;
 
